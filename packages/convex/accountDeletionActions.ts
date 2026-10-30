@@ -13,24 +13,17 @@ import { closeBillingCustomer } from "./billing";
 import { deleteLegacyBetterAuthRows } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
 import { WORKOS_USER_ID } from "./shared/workosIds";
-import {
-  currentWorkosDeletionTarget,
-  sameWorkosDeletionTarget,
-} from "./workos/deletionCompletion";
 
-const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
-  if (!(state.workosUserId && WORKOS_USER_ID.test(state.workosUserId))) {
+const workosUsers = (workosUserId: string) => {
+  if (!WORKOS_USER_ID.test(workosUserId)) {
     throw new Error("deletion_workos_user_id_invalid");
   }
-  const target = state.workosTarget;
-  const current = await currentWorkosDeletionTarget();
   const apiKey = process.env.WORKOS_API_KEY;
-  if (
-    !(target && current && apiKey && sameWorkosDeletionTarget(target, current))
-  ) {
-    throw new Error("deletion_workos_target_unavailable");
+  if (!apiKey) {
+    throw new Error("deletion_workos_unavailable");
   }
-  return createWorkosClient(apiKey, target.clientId).userManagement;
+  return createWorkosClient(apiKey, process.env.WORKOS_CLIENT_ID)
+    .userManagement;
 };
 interface StageBinding {
   generation: number;
@@ -70,8 +63,7 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
   workosUser: async (_ctx, state) => {
     if (state.workosUserId) {
       try {
-        const users = await boundWorkos(state);
-        await users.deleteUser(state.workosUserId);
+        await workosUsers(state.workosUserId).deleteUser(state.workosUserId);
       } catch (error) {
         if (!(error instanceof NotFoundException)) {
           throw error;

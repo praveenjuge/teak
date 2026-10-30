@@ -299,7 +299,7 @@ describe("durable deletion admission and tombstones", () => {
       deletedAt: expect.any(Number),
     });
   });
-  test("accepted request preserves owner, captures binding, denies access and schedules once", async () => {
+  test("accepted request preserves owner, captures the WorkOS user, denies access and schedules once", async () => {
     const { t, signed, card } = await fixture();
     expect(
       await signed.mutation(api.accountDeletion.deleteMyAccount, {})
@@ -314,10 +314,6 @@ describe("durable deletion admission and tombstones", () => {
         workosUserId: "user_DELETE",
         generation: 1,
         stage: 0,
-        workosTarget: {
-          clientId: "client_DELETE",
-          environmentId: "environment_DELETE",
-        },
       },
     ]);
     const runs = () =>

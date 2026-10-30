@@ -20,7 +20,6 @@ import {
 } from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { queueAccountDeletionWorkflow } from "./workflowDispatch";
-import { currentWorkosDeletionTarget } from "./workos/deletionCompletion";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
@@ -214,14 +213,12 @@ export const initiateAccountDeletion = async (
     return null;
   }
   const legacy = await findLegacyBetterAuthUser(ctx, owner);
-  const target = await currentWorkosDeletionTarget();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
     startedAt: Date.now(),
     initiationProvider: "workos",
     ...(legacy ? { betterAuthUserId: legacy._id } : {}),
     ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
-    ...(target ? { workosTarget: target } : {}),
     stage: accountDeletionStage("accessAndBilling"),
     generation: 1,
     nextAttemptAt: Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS,

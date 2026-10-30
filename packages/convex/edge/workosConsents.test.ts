@@ -513,27 +513,6 @@ describe("durable Connect consent authorization", () => {
     expect(await records(t)).toEqual(before);
   });
 
-  test("provider deletion ledger denies an otherwise unchanged mapping", async () => {
-    const t = setup();
-    await seed(t);
-    await authorize(t);
-    const before = await records(t);
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: principal.workosUserId,
-        email: "",
-        reason: "workos_user_deleted",
-        source: "webhook",
-        createdAt: 1,
-      })
-    );
-    expect(await authorize(t)).toEqual({
-      status: "denied",
-      reason: "workos_deleted_user",
-    });
-    expect(await records(t)).toEqual(before);
-  });
-
   test("duplicate consent records deny authorization", async () => {
     const t = setup();
     await seed(t);

@@ -76,7 +76,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     expect(await snapshot(t)).toEqual(before);
   });
 
-  test("a WorkOS user deleted before Teak linked it reads as deleted, not unmapped", async () => {
+  test("a WorkOS user deleted before Teak linked it stays unmapped", async () => {
     const t = setup();
     await t.mutation(internal.workosWebhook.syncVerifiedEvent, {
       id: "evt_unlinked_delete",
@@ -86,7 +86,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     });
     expect(await resolve(t)).toEqual({
       status: "denied",
-      reason: "workos_deleted_user",
+      reason: "missing_mapping",
     });
   });
 
@@ -275,7 +275,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     ).toEqual({ status: "denied", reason: "deleting_user" });
   });
 
-  test("provider deletion ledger denies all duplicate rows, including an unpatched fourth row", async () => {
+  test("a provider deletion leaves every duplicate row denied, including an unpatched fourth row", async () => {
     const t = setup();
     for (const teakUserId of [
       "permanent-owner",
@@ -302,30 +302,8 @@ describe("read-only canonical WorkOS owner resolution", () => {
           ...input,
           verification,
         })
-      ).toEqual({ status: "denied", reason: "workos_deleted_user" });
+      ).toEqual({ status: "denied", reason: "duplicate_mapping" });
     }
-    expect(await snapshot(t)).toEqual(before);
-  });
-
-  test("the Teak deletion tombstone denies even while a verified component profile remains", async () => {
-    const t = setup();
-    await seed(t);
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: "user_provider",
-        email: "",
-        reason: "workos_user_deleted",
-        source: "webhook",
-        createdAt: 1,
-      })
-    );
-    const before = await snapshot(t);
-    expect(before.users[0].workosDeletedAt).toBeUndefined();
-    expect(before.provider).toMatchObject({ emailVerified: true });
-    expect(await resolve(t)).toEqual({
-      status: "denied",
-      reason: "workos_deleted_user",
-    });
     expect(await snapshot(t)).toEqual(before);
   });
 });

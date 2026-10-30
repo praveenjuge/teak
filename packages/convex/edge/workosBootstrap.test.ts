@@ -130,16 +130,12 @@ describe("signed WorkOS bootstrap", () => {
     expect(after).toEqual(before);
     expect(after.users[0]?.identityOrigin).toBeUndefined();
   });
-  test("frozen user returns a committed quarantine and retries after unfreeze", async () => {
+  test("frozen user writes nothing and retries after unfreeze", async () => {
     const t = setup();
     await profile(t);
     await setSignupsPaused(t, true);
     expect(await signed(t).mutation(ensure, {})).toEqual({ status: "frozen" });
-    expect(await state(t)).toMatchObject({
-      users: [],
-      jobs: [],
-      quarantine: [{ reason: "signups_frozen" }],
-    });
+    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     await setSignupsPaused(t, false);
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",

@@ -1,56 +1,8 @@
-import { v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { workosIssuer } from "../shared/workosApi";
-import { sha256Hex } from "../storage/r2Keys";
+import type { QueryCtx } from "../_generated/server";
 
-export const workosDeletionTargetValidator = v.object({
-  environmentId: v.string(),
-  clientId: v.string(),
-  issuer: v.string(),
-  credentialFingerprint: v.string(),
-});
-export const workosDeletionCompletionValidator = v.object({
-  version: v.literal(1),
-  stateId: v.id("accountDeletionStates"),
-  generation: v.number(),
-  workosUserId: v.string(),
-  startedAt: v.number(),
-  completedAt: v.number(),
-  target: workosDeletionTargetValidator,
-});
-
-export interface WorkosDeletionTarget {
-  clientId: string;
-  credentialFingerprint: string;
-  environmentId: string;
-  issuer: string;
-}
-
-export const workosCredentialFingerprint = (apiKey: string): Promise<string> =>
-  sha256Hex(apiKey);
-
-export async function currentWorkosDeletionTarget(): Promise<
-  WorkosDeletionTarget | undefined
-> {
-  const {
-    WORKOS_ENVIRONMENT_ID: environmentId,
-    WORKOS_CLIENT_ID: clientId,
-    WORKOS_API_KEY: apiKey,
-  } = process.env;
-  if (!(environmentId && clientId && apiKey)) {
-    return undefined;
-  }
-  return {
-    environmentId,
-    clientId,
-    issuer: workosIssuer(clientId),
-    credentialFingerprint: await workosCredentialFingerprint(apiKey),
-  };
-}
-
-// Every applied `user.deleted` leaves this receipt, even for a WorkOS user
-// Teak never linked, and receipts are only ever resolved, never removed.
+// Every applied `user.deleted` leaves this tombstone, even for a WorkOS user
+// Teak never linked, so a token issued before the deletion can't create an
+// owner. A linked owner also carries `workosDeletedAt`.
 export async function hasWorkosDeletionReceipt(
   ctx: Pick<QueryCtx, "db">,
   workosUserId: string
@@ -62,75 +14,4 @@ export async function hasWorkosDeletionReceipt(
     )
     .first();
   return receipt !== null;
-}
-
-export function sameWorkosDeletionTarget(
-  left: WorkosDeletionTarget,
-  right: WorkosDeletionTarget
-): boolean {
-  return (
-    left.environmentId === right.environmentId &&
-    left.clientId === right.clientId &&
-    left.issuer === right.issuer &&
-    left.credentialFingerprint === right.credentialFingerprint
-  );
-}
-
-export async function expectedWorkosDeletionResolution(
-  ctx: QueryCtx | MutationCtx,
-  receipt: Pick<
-    Doc<"migrationQuarantine">,
-    | "reason"
-    | "source"
-    | "workosUserId"
-    | "teakUserId"
-    | "workosDeletionEventAt"
-    | "workosDeletionTarget"
-  >
-): Promise<number | undefined> {
-  if (
-    receipt.reason !== "workos_user_deleted" ||
-    receipt.source !== "webhook" ||
-    !receipt.workosUserId ||
-    !receipt.teakUserId ||
-    receipt.workosDeletionEventAt === undefined ||
-    !receipt.workosDeletionTarget
-  ) {
-    return undefined;
-  }
-  const { teakUserId, workosUserId } = receipt;
-  const owners = await ctx.db
-    .query("users")
-    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
-    .take(2);
-  const providers = await ctx.db
-    .query("users")
-    .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-    .take(2);
-  const owner = owners[0];
-  const proof = owner?.workosDeletionCompletion;
-  if (
-    owners.length !== 1 ||
-    providers.length !== 1 ||
-    providers[0]._id !== owner?._id ||
-    owner?.deletedAt === undefined ||
-    !proof ||
-    proof.version !== 1 ||
-    proof.workosUserId !== receipt.workosUserId ||
-    proof.generation < 1 ||
-    !Number.isInteger(proof.generation) ||
-    !Number.isFinite(proof.startedAt) ||
-    !Number.isFinite(proof.completedAt) ||
-    proof.completedAt < proof.startedAt ||
-    !Number.isFinite(receipt.workosDeletionEventAt) ||
-    receipt.workosDeletionEventAt < proof.startedAt ||
-    receipt.workosDeletionEventAt > proof.completedAt ||
-    !sameWorkosDeletionTarget(proof.target, receipt.workosDeletionTarget)
-  ) {
-    return undefined;
-  }
-  const current = await currentWorkosDeletionTarget();
-  return current && sameWorkosDeletionTarget(proof.target, current)
-    ? proof.completedAt
-    : undefined;
 }

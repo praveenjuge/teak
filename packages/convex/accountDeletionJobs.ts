@@ -15,10 +15,6 @@ import {
   accountDeletionNeedsOperator,
   queueAccountDeletionWorkflow,
 } from "./workflowDispatch";
-import {
-  expectedWorkosDeletionResolution,
-  sameWorkosDeletionTarget,
-} from "./workos/deletionCompletion";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
@@ -104,72 +100,14 @@ export const finalize = internalMutation({
           q.eq("workosUserId", state.workosUserId)
         )
         .take(2);
-      if (
-        providers.length !== 1 ||
-        providers[0]._id !== owner._id ||
-        !state.workosTarget
-      ) {
-        throw new Error("deletion_workos_target_unavailable");
+      if (providers.length !== 1 || providers[0]._id !== owner._id) {
+        throw new Error("deletion_binding_changed");
       }
-      const previous = owner.workosDeletionCompletion;
-      if (
-        previous &&
-        (previous.stateId !== stateId ||
-          previous.generation !== generation ||
-          previous.workosUserId !== state.workosUserId ||
-          previous.startedAt !== state.startedAt ||
-          !Number.isFinite(previous.completedAt) ||
-          previous.completedAt < state.startedAt ||
-          !sameWorkosDeletionTarget(previous.target, state.workosTarget))
-      ) {
-        throw new Error("deletion_completion_conflict");
-      }
-      const completedAt = previous?.completedAt ?? Date.now();
-      await ctx.db.patch("users", owner._id, {
-        ...redaction,
-        deletedAt: owner.deletedAt ?? completedAt,
-        workosDeletionCompletion: previous ?? {
-          version: 1,
-          stateId,
-          generation,
-          workosUserId: state.workosUserId,
-          startedAt: state.startedAt,
-          completedAt,
-          target: state.workosTarget,
-        },
-      });
-      const page = await ctx.db
-        .query("migrationQuarantine")
-        .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-          q
-            .eq("workosUserId", state.workosUserId)
-            .eq("reason", "workos_user_deleted")
-            .eq("resolvedAt", undefined)
-        )
-        .paginate({
-          numItems: 100,
-          cursor: state.deletionReceiptCursor ?? null,
-        });
-      for (const receipt of page.page) {
-        const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
-        if (resolvedAt !== undefined) {
-          await ctx.db.patch("migrationQuarantine", receipt._id, {
-            resolvedAt,
-          });
-        }
-      }
-      if (!page.isDone) {
-        await ctx.db.patch("accountDeletionStates", stateId, {
-          deletionReceiptCursor: page.continueCursor,
-        });
-        return false;
-      }
-    } else {
-      await ctx.db.patch("users", owner._id, {
-        ...redaction,
-        deletedAt: owner.deletedAt ?? Date.now(),
-      });
     }
+    await ctx.db.patch("users", owner._id, {
+      ...redaction,
+      deletedAt: owner.deletedAt ?? Date.now(),
+    });
     await ctx.db.delete("accountDeletionStates", stateId);
     return true;
   },

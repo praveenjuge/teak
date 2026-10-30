@@ -3,10 +3,6 @@ import { internal } from "./_generated/api";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
-import {
-  currentWorkosDeletionTarget,
-  expectedWorkosDeletionResolution,
-} from "./workos/deletionCompletion";
 
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
 const permanentEventError = (message: string) =>
@@ -162,18 +158,7 @@ export const applyWorkosEvent = internalMutation({
           await ctx.db.patch("users", row._id, { workosDeletedAt: time });
         }
       }
-      const target = await currentWorkosDeletionTarget();
-      const receipt = {
-        workosUserId,
-        ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
-        email: isStorableEmail(email) ? email : "",
-        reason: "workos_user_deleted",
-        source: "webhook",
-        createdAt: Date.now(),
-        workosDeletionEventAt: time,
-        ...(target ? { workosDeletionTarget: target } : {}),
-      };
-      // A redelivered deletion keeps its first receipt.
+      // A redelivered deletion keeps its first tombstone.
       const recorded = await ctx.db
         .query("migrationQuarantine")
         .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
@@ -181,10 +166,14 @@ export const applyWorkosEvent = internalMutation({
         )
         .first();
       if (!recorded) {
-        const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
         await ctx.db.insert("migrationQuarantine", {
-          ...receipt,
-          ...(resolvedAt === undefined ? {} : { resolvedAt }),
+          workosUserId,
+          ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
+          email: isStorableEmail(email) ? email : "",
+          reason: "workos_user_deleted",
+          source: "webhook",
+          createdAt: Date.now(),
+          workosDeletionEventAt: time,
         });
       }
     }
