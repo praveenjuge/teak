@@ -40,20 +40,23 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
   }
   const canAdd = hex !== null && !isTaken && !saving;
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!(canAdd && hex)) {
-      return;
-    }
+  const save = async (value: string) => {
     // A failed save keeps the typed color, so trying again is one click.
     setSaving(true);
     try {
-      if (await onAddColor(hex)) {
+      if (await onAddColor(value)) {
         setOpen(false);
         setText("");
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (canAdd && hex) {
+      save(hex).catch(() => undefined);
     }
   };
 
@@ -91,7 +94,9 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
               <input
                 className="absolute inset-0 size-full cursor-pointer opacity-0"
                 disabled={saving}
-                onChange={(event) => setText(event.target.value.toUpperCase())}
+                onChange={(event) => {
+                  setText(event.target.value.toUpperCase());
+                }}
                 type="color"
                 value={(hex ?? DEFAULT_PICKER_HEX).toLowerCase()}
               />
@@ -102,7 +107,9 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
               aria-label={t("hexCode")}
               autoComplete="off"
               className="font-mono"
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                setText(event.target.value);
+              }}
               placeholder={DEFAULT_PICKER_HEX}
               // Held while a color saves, so a closing popover can't take
               // newer typing with it.

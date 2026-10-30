@@ -249,6 +249,17 @@ type PatchPayloadResult =
   | { code?: "CONTENT_TOO_LARGE"; error: string }
   | { payload: PatchCardPayload };
 
+/** A PATCH body's list of 1 to 12 palette colors, or undefined when it isn't one. */
+const parsePaletteColorList = (value: unknown): string[] | undefined => {
+  const colors = parseStringArray(value);
+  return colors?.length && colors.length <= MAX_PALETTE_COLORS
+    ? colors
+    : undefined;
+};
+
+const explainPaletteColorList = (field: "addColors" | "removeColors") =>
+  `\`${field}\` must be a list of 1 to ${MAX_PALETTE_COLORS} hex codes`;
+
 /** Parses a PATCH body, saying which field is wrong when one is. */
 export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -338,16 +349,20 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
     next.removeAiTags = removeAiTags;
   }
 
-  for (const key of ["addColors", "removeColors"] as const) {
-    if (key in source) {
-      const colors = parseStringArray(source[key]);
-      if (!colors?.length || colors.length > MAX_PALETTE_COLORS) {
-        return {
-          error: `\`${key}\` must be a list of 1 to ${MAX_PALETTE_COLORS} hex codes`,
-        };
-      }
-      next[key] = colors;
+  if ("addColors" in source) {
+    const colors = parsePaletteColorList(source.addColors);
+    if (!colors) {
+      return { error: explainPaletteColorList("addColors") };
     }
+    next.addColors = colors;
+  }
+
+  if ("removeColors" in source) {
+    const colors = parsePaletteColorList(source.removeColors);
+    if (!colors) {
+      return { error: explainPaletteColorList("removeColors") };
+    }
+    next.removeColors = colors;
   }
 
   if ("isArchived" in source) {
