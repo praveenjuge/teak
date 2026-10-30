@@ -44,6 +44,10 @@ class FakeConvexApi : ConvexApi {
 
     override val connectedNow: Boolean get() = !offline
 
+    /** Whether queries run as the signed-in user; until then the server answers null for every card. */
+    var authenticated = true
+    override val authenticatedNow: Boolean get() = authenticated
+
     private fun call(name: String, args: Map<String, Any?>): JsonElement {
         if (offline || dropsMidCall) throw com.praveenjuge.teak.core.data.convex.offlineException()
         calls += Call(name, args)

@@ -146,8 +146,12 @@ class ConvexCardsRepository @Inject constructor(
                         if (result.isFailure) return@onEach
                         val card = result.getOrNull()
                         try {
-                            // The server answering "no such card" means it was deleted for good: so is its copy.
-                            if (card == null) copies.remove(id) else copies.update(card)
+                            when {
+                                card != null -> copies.update(card)
+                                // "No such card" from a signed-in client means it was deleted for good, so is its
+                                // copy. A client that isn't signed in yet gets null for every card.
+                                convex.authenticatedNow -> copies.remove(id)
+                            }
                         } catch (_: IOException) {
                         }
                     },

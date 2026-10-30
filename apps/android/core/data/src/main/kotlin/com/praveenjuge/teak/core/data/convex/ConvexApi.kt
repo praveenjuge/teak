@@ -4,8 +4,10 @@ import com.praveenjuge.teak.core.model.FOLDER_ERROR_MESSAGES
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.UiText
+import dev.convex.android.AuthState
 import dev.convex.android.ClientException
 import dev.convex.android.ConvexClient
+import dev.convex.android.ConvexClientWithAuth
 import dev.convex.android.ConvexError
 import dev.convex.android.InternalError
 import dev.convex.android.ServerError
@@ -35,6 +37,9 @@ interface ConvexApi {
 
     /** Whether the socket is up at this moment. */
     val connectedNow: Boolean
+
+    /** Whether the client is signed in to the server at this moment; queries answer as no one until it is. */
+    val authenticatedNow: Boolean
 }
 
 class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
@@ -56,6 +61,9 @@ class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
         client.webSocketStateFlow.map { it == WebSocketState.CONNECTED }
 
     override val connectedNow: Boolean get() = client.webSocketStateFlow.value == WebSocketState.CONNECTED
+
+    override val authenticatedNow: Boolean
+        get() = (client as? ConvexClientWithAuth<*>)?.authState?.value is AuthState.Authenticated<*>
 
     /**
      * Runs [call] only while the socket is up. The native client holds a call made offline, or one whose

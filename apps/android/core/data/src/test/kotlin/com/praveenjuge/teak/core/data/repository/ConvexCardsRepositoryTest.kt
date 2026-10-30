@@ -334,6 +334,17 @@ class ConvexCardsRepositoryTest {
         assertTrue(copies.kept.value.isEmpty())
     }
 
+    @Test
+    fun `a null card before the client signs in keeps the copy`() = runTest {
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1")))
+        convex.responses["cards:getCard"] = { kotlinx.serialization.json.JsonNull }
+        convex.authenticated = false
+
+        repository.card("c1").take(2).toList()
+
+        assertEquals(setOf("c1"), copies.kept.value)
+    }
+
     private fun note(id: String, content: String = "Note") = buildJsonObject {
         put("_id", id)
         put("_creationTime", 1.0)
