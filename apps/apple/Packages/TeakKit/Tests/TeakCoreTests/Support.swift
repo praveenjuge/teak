@@ -153,11 +153,12 @@ enum Fixture {
         }
     }
 
-    static func token(sub: String = "user_ONE", sid: String = "session_ONE", expiry: Date) -> String {
-        let claims: [String: Any] = [
+    static func token(sub: String = "user_ONE", sid: String = "session_ONE", expiry: Date, issued: Date? = nil) -> String {
+        var claims: [String: Any] = [
             "iss": "https://api.workos.com/user_management/\(clientId)",
             "sub": sub, "sid": sid, "exp": Int(expiry.timeIntervalSince1970),
         ]
+        if let issued { claims["iat"] = Int(issued.timeIntervalSince1970) }
         let json = (try? JSONSerialization.data(withJSONObject: claims)) ?? Data()
         let payload = json.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
@@ -166,10 +167,10 @@ enum Fixture {
     }
 
     static func response(refresh: String = "refresh-1", expiry: Date = Date().addingTimeInterval(120),
-                         sub: String = "user_ONE", sid: String = "session_ONE",
+                         issued: Date? = nil, sub: String = "user_ONE", sid: String = "session_ONE",
                          vault: String? = "permanent-vault") -> [String: Any] {
         [
-            "access_token": token(sub: sub, sid: sid, expiry: expiry),
+            "access_token": token(sub: sub, sid: sid, expiry: expiry, issued: issued),
             "refresh_token": refresh,
             "user": [
                 "id": sub, "email": "hello@example.com", "email_verified": true,

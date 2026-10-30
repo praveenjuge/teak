@@ -93,7 +93,8 @@ struct LibraryView: View {
                 RevisitView(model: RevisitModel(backend: app.backend, library: library))
             }
             // The menu command asks the main library, never a folder's.
-            .onChange(of: router.isRevisiting) { _, asked in
+            // `initial`: the command can switch to Home first, so this view may start out already asked.
+            .onChange(of: router.isRevisiting, initial: true) { _, asked in
                 guard asked, library === services.home else { return }
                 router.isRevisiting = false
                 revisiting = true

@@ -47,7 +47,11 @@ private func day(_ milliseconds: Double) -> String {
         #expect(TimeSearch.parse("monday", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "Montag")
     }
 
-    @Test(arguments: ["design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", ""])
+    @Test(arguments: [
+        "design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", "", "1234", "4096", "2037",
+        // Swift's `\d` matches these digits but `Int` can't read them; they stay text, as on the web.
+        "２０２４", "٢٠٢٤", "june ２０２４", "２０２４-０６-０５",
+    ])
     func leavesOtherTextToFullTextSearch(query: String) {
         #expect(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork) == nil)
     }
@@ -112,6 +116,8 @@ private func day(_ milliseconds: Double) -> String {
         ("grey", .hue, "neutral"),
         ("#f0a", .hex, "#FF00AA"),
         ("1E90FF", .hex, "#1E90FF"),
+        ("bad", .keyword, "bad"),
+        ("100", .keyword, "100"),
         ("#travel", .tag, "travel"),
         ("yesterday", .date, "yesterday"),
         ("typography", .style, "typographic"),
@@ -166,6 +172,12 @@ private func day(_ milliseconds: Double) -> String {
         #expect(day(start) == "2026-01-25")
         // A lone number beside words stays a word, and operators keep the text whole.
         #expect(LibraryQuery(text: "iphone 2024").searchArgs(now: tuesdayNoon, timeZone: newYork)["createdAtRange"] == nil)
+        // So does a month name: only the whole search "march" is a date.
+        let may = LibraryQuery(text: "things i may need").searchArgs(now: tuesdayNoon, timeZone: newYork)
+        #expect(may["createdAtRange"] == nil)
+        #expect(may["searchQuery"] == "things i may need")
+        #expect(SearchTokens.parse("things i may need", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
+        #expect(SearchTokens.parse("top 100 bad sites", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
             == "-figma last week")
         // A smart folder saves only the words, so saving warns that the date is left behind.

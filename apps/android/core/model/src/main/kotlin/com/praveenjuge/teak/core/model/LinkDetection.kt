@@ -20,6 +20,29 @@ object LinkDetection {
 
     private fun isHttpUrl(candidate: String): Boolean = httpUrl.containsMatchIn(candidate)
 
+    private val trailingPunctuation = setOf('.', ',', ';', ':', '!', '?', '\'', '"')
+    private val openingBracket = mapOf(')' to '(', ']' to '[', '}' to '{', '>' to '<')
+
+    /**
+     * A URL written inside a sentence, less the punctuation that ends the sentence or closes a bracket
+     * around it: `(https://x.com/a).` is `https://x.com/a`. A closing bracket the URL opened stays, as in
+     * `https://en.wikipedia.org/wiki/Teak_(wood)`. Port of `trimTrailingUrlPunctuation`.
+     */
+    private fun trimTrailingUrlPunctuation(url: String): String {
+        var end = url.length
+        while (end > 0) {
+            val last = url[end - 1]
+            val opening = openingBracket[last]
+            val head = url.substring(0, end)
+            if (last in trailingPunctuation || (opening != null && head.count { it == last } > head.count { it == opening })) {
+                end -= 1
+            } else {
+                break
+            }
+        }
+        return url.substring(0, end)
+    }
+
     fun extractUrl(content: String): Pair<String?, String> {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) return null to ""
@@ -28,7 +51,7 @@ object LinkDetection {
             return if (isHttpUrl(url)) url to url else null to trimmed
         }
         urlInline.find(trimmed)?.let { match ->
-            val url = unescape(match.groupValues[1])
+            val url = trimTrailingUrlPunctuation(unescape(match.groupValues[1]))
             if (isHttpUrl(url)) return url to trimmed
         }
         return null to trimmed

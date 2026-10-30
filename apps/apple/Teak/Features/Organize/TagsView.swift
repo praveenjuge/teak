@@ -45,6 +45,19 @@ final class TagsModel {
         task = nil
     }
 
+    /// Signing out drops the last account's tags and any change still running; the next `start()` loads again.
+    func reset() {
+        stop()
+        operationTask?.cancel()
+        operationTask = nil
+        summary = nil
+        isLoaded = false
+        operation = nil
+        finished = nil
+        notice = nil
+        error = nil
+    }
+
     var items: [TagSummary.Item] {
         let items = summary?.items ?? []
         guard let finished, finished.summaryAt == summary?.computedAt else { return items }

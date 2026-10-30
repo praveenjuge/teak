@@ -31,6 +31,11 @@ public enum TimeSearch {
     ]
     private static let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
+    /// Whether `word` is a bare month name, which reads as a date only when it is the whole search.
+    public static func isMonthName(_ word: String) -> Bool {
+        fullMonths.contains(word.lowercased())
+    }
+
     /// `locale` only words the label; the words people type stay English.
     public static func parse(_ query: String, now: Date = Date(), timeZone: TimeZone = .current,
                              locale: Locale = AppLanguage.locale) -> TimeFilter? {
@@ -139,24 +144,26 @@ public enum TimeSearch {
                             label: format(start, "MMMyyyy", calendar))
         }
 
-        if let m = query.wholeMatch(of: /(\d{4})-(\d{2})-(\d{2})/) {
+        if let m = query.wholeMatch(of: /([0-9]{4})-([0-9]{2})-([0-9]{2})/) {
             if let result = day(Int(m.1)!, Int(m.2)!, Int(m.3)!) { return result }
         }
-        if let m = query.wholeMatch(of: /(\d{1,2})\/(\d{1,2})\/(\d{4})/) {
+        if let m = query.wholeMatch(of: /([0-9]{1,2})\/([0-9]{1,2})\/([0-9]{4})/) {
             if let result = day(Int(m.3)!, Int(m.1)!, Int(m.2)!) { return result }
         }
-        if let m = query.wholeMatch(of: /([a-z]+)\s+(\d{1,2}),?\s+(\d{4})/), let index = months[String(m.1)] {
+        if let m = query.wholeMatch(of: /([a-z]+)\s+([0-9]{1,2}),?\s+([0-9]{4})/), let index = months[String(m.1)] {
             if let result = day(Int(m.3)!, index, Int(m.2)!) { return result }
         }
-        if let m = query.wholeMatch(of: /([a-z]+)\s+(\d{4})/), let index = months[String(m.1)] {
+        if let m = query.wholeMatch(of: /([a-z]+)\s+([0-9]{4})/), let index = months[String(m.1)] {
             return month(Int(m.2)!, index)
         }
         if fullMonths.contains(query), let index = months[query] {
             return month(calendar.component(.year, from: today), index)
         }
-        if let m = query.wholeMatch(of: /(\d{4})/) {
+        if let m = query.wholeMatch(of: /([0-9]{4})/) {
+            // A number far from now ("1234", "4096") is a word, not a year.
             let year = Int(m.1)!
-            guard let start = validDate(year: year, month: 1, day: 1, calendar: calendar) else { return nil }
+            guard (1900...calendar.component(.year, from: today) + 10).contains(year),
+                  let start = validDate(year: year, month: 1, day: 1, calendar: calendar) else { return nil }
             return DayRange(start: start, end: calendar.date(byAdding: .year, value: 1, to: start)!, label: String(year))
         }
         return nil

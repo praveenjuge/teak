@@ -78,6 +78,8 @@ struct NoteComposerView: View {
     }
 
     private func save() {
+        // Return doesn't go through the button, so it checks what disables it.
+        guard !capture.isSavingText, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         Task {
             if await capture.saveText(text) != nil {
                 text = ""
@@ -117,6 +119,8 @@ struct InlineComposerTile: View {
     }
 
     private func save() {
+        // Return doesn't go through the button, so it checks what disables it.
+        guard !capture.isSavingText, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         Task {
             if await capture.saveText(text) != nil {
                 text = ""

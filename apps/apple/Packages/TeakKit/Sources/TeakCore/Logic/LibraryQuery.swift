@@ -201,8 +201,9 @@ public enum SearchTokens {
         if let hue = constants.colorHueAliases[facet], let bucket = ColorHue(hue) {
             return SearchToken(kind: .hue, value: hue, label: bucket.label)
         }
+        // Without "#" only six digits read as a color, so words like "bad" and "100" stay words.
         let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
-        if isHex(hex) {
+        if isHex(hex), value.hasPrefix("#") || hex.count == 6 {
             let full = (hex.count == 3 ? hex.map { "\($0)\($0)" }.joined() : hex).uppercased()
             return SearchToken(kind: .hex, value: "#" + full, label: "#" + full)
         }
@@ -287,7 +288,10 @@ public enum SearchTokens {
                 index += length
             } else {
                 let token = classify(words[index], now: now, timeZone: timeZone)
-                result.append(liftedKinds.contains(token.kind) ? .token(token) : .kept(input[index].source))
+                // A month name beside other words ("things i may need") is a word, not a date.
+                let lifts = liftedKinds.contains(token.kind)
+                    && !(token.kind == .date && words.count > 1 && TimeSearch.isMonthName(words[index]))
+                result.append(lifts ? .token(token) : .kept(input[index].source))
                 index += 1
             }
         }
@@ -309,7 +313,9 @@ public enum SearchTokens {
                 let slice = raws[start..<(start + length)]
                 guard !slice.contains(where: \.quoted) else { continue }
                 let phrase = slice.map { $0.text.trimmingCharacters(in: punctuation) }.joined(separator: " ")
-                if length == 1, phrase.contains(":") || phrase.allSatisfy(\.isNumber) { continue }
+                if length == 1, phrase.contains(":") || phrase.allSatisfy(\.isNumber) || TimeSearch.isMonthName(phrase) {
+                    continue
+                }
                 if let filter = TimeSearch.parse(phrase, now: now, timeZone: timeZone) {
                     let rest = (raws[..<start] + raws[(start + length)...]).map(\.source).joined(separator: " ")
                     return (filter, rest)

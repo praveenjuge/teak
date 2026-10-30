@@ -68,5 +68,13 @@ class TimeSearchTest {
         assertNull(TimeSearch.parse("design inspiration", tuesdayNoon))
         assertNull(TimeSearch.parse("2024-02-30", tuesdayNoon))
         assertNull(TimeSearch.parse("July 2025 to June 2024", tuesdayNoon))
+        // A bare number is a year only from 1900 to ten years ahead, as `isSearchYear` decides.
+        for (query in listOf("1234", "4096", "2037", "1899")) assertNull(TimeSearch.parse(query, tuesdayNoon), query)
+        assertEquals(UiText.verbatim("1900"), TimeSearch.parse("1900", tuesdayNoon, Locale.US)?.labelText)
+        assertEquals(UiText.verbatim("2036"), TimeSearch.parse("2036", tuesdayNoon, Locale.US)?.labelText)
+        // Only ASCII digits are read: these stay text, as on the web.
+        for (query in listOf("２０２４", "٢٠٢٤", "june ２０２４", "２０２４-０６-０５")) {
+            assertNull(TimeSearch.parse(query, tuesdayNoon), query)
+        }
     }
 }

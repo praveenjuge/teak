@@ -162,6 +162,20 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(CardEdit.rebased(draft, previous: original, card: original) == draft)
     }
 
+    @Test func anEditMadeElsewhereWhileEditingIsKeptUnlessThisFieldWasTouched() {
+        var draft = CardEdit.draft(for: original)
+        draft.tags = ["keep", "mine"]
+        let edited = card(.text, content: "From the web", notes: "New notes", tags: ["keep", "web"],
+                          aiTags: ["Design", "Color"])
+        let rebased = CardEdit.rebased(draft, previous: original, card: edited)
+        #expect(rebased.editableContent == "From the web")
+        #expect(rebased.notes == "New notes")
+        #expect(rebased.tags == ["keep", "mine"])
+        #expect(CardEdit.changes(from: edited, to: rebased) == [.tags(["keep", "mine"])])
+        #expect(CardEdit.changes(from: edited, to: CardEdit.rebased(CardEdit.draft(for: original), previous: original,
+                                                                    card: edited)).isEmpty)
+    }
+
     @Test func leavesContentAloneForTypesThatCantBeRewritten() {
         let link = card(.link, content: "x", notes: "Old notes", tags: ["keep"], aiTags: ["Design", "Color"])
         #expect(CardEdit.draft(for: link).editableContent == nil)
@@ -304,6 +318,11 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
                                         "source": "apple"])
         #expect(LinkDetection.resolve("see https://example.com/a?b=1 later").url == "https://example.com/a?b=1")
         #expect(LinkDetection.resolve("ftp://example.com").type == .text)
+        // Punctuation that ends the sentence or closes a bracket around the URL isn't part of it.
+        #expect(LinkDetection.resolve("Read this: https://example.com/post.").url == "https://example.com/post")
+        #expect(LinkDetection.resolve("(see https://x.com/a).").url == "https://x.com/a")
+        #expect(LinkDetection.resolve("see https://en.wikipedia.org/wiki/Teak_(wood)!").url
+            == "https://en.wikipedia.org/wiki/Teak_(wood)")
     }
 
     @Test func readsSaveLinksFromTheRawURL() {

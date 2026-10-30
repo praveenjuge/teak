@@ -105,6 +105,24 @@ private func request() -> AuthKitRequest {
         #expect(storage.json?["refresh_token"] as? String == "rotated")
     }
 
+    /// Token times are WorkOS's: a device clock an hour fast refreshes once, then trusts the new token.
+    @Test func aFastDeviceClockDoesNotRefreshWithoutEnd() async throws {
+        let storage = MemoryStorage(Fixture.stored(refresh: "old"))
+        let transport = ScriptedTransport { _, _ in
+            (200, Fixture.response(refresh: "rotated-\(UUID().uuidString)", expiry: Date().addingTimeInterval(300),
+                                   issued: Date()))
+        }
+        let lock = FileCredentialLock(directory: Fixture.tempDirectory(), environment: "test", activity: SystemActivity())
+        let session = TeakSession(storage: storage, lock: lock, transport: transport, now: { Date().addingTimeInterval(3600) })
+        try await session.restore()
+        let first = try await session.accessToken()
+        let second = try await session.accessToken()
+        #expect(first != nil && first == second)
+        #expect(transport.count == 1)
+        let expiresIn = try #require(await session.expiresAt).timeIntervalSince(Date().addingTimeInterval(3600))
+        #expect(expiresIn > 250 && expiresIn <= 301)
+    }
+
     @Test func anOfflineRefreshNeverReturnsAnExpiredTokenAndRetries() async throws {
         let initial = Fixture.stored(refresh: "old")
         let storage = MemoryStorage(initial)

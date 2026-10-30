@@ -35,6 +35,26 @@ public enum LinkDetection {
         candidate.prefixMatch(of: /(?i)https?:\/\/[^\/?#\s]+/) != nil
     }
 
+    private static let trailingPunctuation: Set<Character> = [".", ",", ";", ":", "!", "?", "'", "\""]
+    private static let openingBracket: [Character: Character] = [")": "(", "]": "[", "}": "{", ">": "<"]
+
+    /// A URL written inside a sentence, less the punctuation that ends the
+    /// sentence or closes a bracket around it: `(https://x.com/a).` is
+    /// `https://x.com/a`. A closing bracket the URL opened stays, as in
+    /// `https://en.wikipedia.org/wiki/Teak_(wood)`. Port of `trimTrailingUrlPunctuation`.
+    static func trimTrailingPunctuation(_ url: String) -> String {
+        var head = Substring(url)
+        while let last = head.last {
+            let opening = openingBracket[last]
+            let unbalanced = opening.map { opening in
+                head.count(where: { $0 == last }) > head.count(where: { $0 == opening })
+            } ?? false
+            guard trailingPunctuation.contains(last) || unbalanced else { break }
+            head = head.dropLast()
+        }
+        return String(head)
+    }
+
     public static func extractURL(_ content: String) -> (url: String?, content: String) {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return (nil, "") }
@@ -43,7 +63,7 @@ public enum LinkDetection {
             return isHttpURL(url) ? (url, url) : (nil, trimmed)
         }
         if let match = trimmed.firstMatch(of: /(https?:\/\/\S+)/) {
-            let url = unescape(String(match.1))
+            let url = trimTrailingPunctuation(unescape(String(match.1)))
             if isHttpURL(url) { return (url, trimmed) }
         }
         return (nil, trimmed)
