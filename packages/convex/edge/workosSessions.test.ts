@@ -154,6 +154,7 @@ describe("WorkOS Convex sessions", () => {
   test.each([
     "missing",
     "duplicate_provider",
+    "duplicate_owner",
     "deleted",
     "provider_deleted",
     "ledger",
@@ -172,6 +173,9 @@ describe("WorkOS Convex sessions", () => {
     }
     if (failure === "duplicate_provider") {
       await seed(t, { teakUserId: "other-owner" });
+    }
+    if (failure === "duplicate_owner") {
+      await seed(t, { workosUserId: "user_OTHER" });
     }
     if (failure === "ledger") {
       await t.run((ctx) =>

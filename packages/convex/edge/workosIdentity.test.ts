@@ -190,15 +190,21 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   );
 
-  test("duplicate provider mappings cannot resolve", async () => {
-    const t = setup();
-    await seed(t);
-    await seed(t, { teakUserId: "other-owner", workosUserId: "user_provider" });
-    expect(await resolve(t)).toEqual({
-      status: "denied",
-      reason: "duplicate_mapping",
-    });
-  });
+  test.each(["provider", "owner"])(
+    "duplicate %s mappings cannot resolve",
+    async (kind) => {
+      const t = setup();
+      await seed(t);
+      await seed(t, {
+        teakUserId: kind === "owner" ? "permanent-owner" : "other-owner",
+        workosUserId: kind === "provider" ? "user_provider" : "user_other",
+      });
+      expect(await resolve(t)).toEqual({
+        status: "denied",
+        reason: "duplicate_mapping",
+      });
+    }
+  );
 
   test.each(["deletedAt", "workosDeletedAt"] as const)(
     "%s prevents access with a verified claim",

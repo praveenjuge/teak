@@ -105,6 +105,14 @@ const resolve = async (
   if (deletion) {
     return { status: "denied" as const, reason: "deleting_user" as const };
   }
+  // Two rows sharing an owner would let two WorkOS users into one vault.
+  const owners = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
+    .take(2);
+  if (owners.length !== 1) {
+    return { status: "denied" as const, reason: "duplicate_mapping" as const };
+  }
   const user = await readComponentUser(ctx, args.workosUserId);
   const profile = user ? toProviderProfile(args.workosUserId, user) : null;
   if (
