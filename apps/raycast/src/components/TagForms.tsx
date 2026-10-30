@@ -11,7 +11,7 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { TagSummary } from "../lib/api";
 import { changeTagWithFeedback } from "../lib/tagOperations";
 
@@ -25,8 +25,13 @@ interface TagChangeProps {
 
 export function RenameTagForm({ onFinished, tag }: TagChangeProps) {
   const { pop } = useNavigation();
+  // The form stays open while Teak starts the rename, so a second ⌘↵ waits.
+  const submittingRef = useRef<boolean>(false);
 
   const handleSubmit = async (values: { name: string }) => {
+    if (submittingRef.current) {
+      return;
+    }
     const name = values.name.trim();
     if (!name || name.length > MAX_TAG_LENGTH) {
       await showToast({
@@ -44,11 +49,16 @@ export function RenameTagForm({ onFinished, tag }: TagChangeProps) {
     }
     // The form stays until Teak takes the new name, so a refusal (the name
     // is taken) keeps what was typed.
-    await changeTagWithFeedback(
-      { kind: "rename", tag: tag.name, to: name },
-      onFinished,
-      pop,
-    );
+    submittingRef.current = true;
+    try {
+      await changeTagWithFeedback(
+        { kind: "rename", tag: tag.name, to: name },
+        onFinished,
+        pop,
+      );
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   return (

@@ -4,7 +4,8 @@ import { createRaycastApiMock } from "./raycastApiMock";
 
 // Every Raycast component renders its visible words (title, subtitle,
 // tooltips, empty-view text, a form field's value) and its actions; an action
-// with `onAction` is a button, so a test can press it.
+// with `onAction` or `onSubmit` is a button, so a test can press it. A submit
+// sends the values set with `setFormValues`.
 const component = (name: string): unknown =>
   new Proxy(
     (props: Record<string, unknown>) => {
@@ -19,12 +20,18 @@ const component = (name: string): unknown =>
         ...accessories.map((accessory) => accessory.tooltip),
       ].filter((word): word is string => typeof word === "string");
       const children = [props.actions, props.children] as ReactNode[];
-      const tag = typeof props.onAction === "function" ? "button" : "div";
+      const onSubmit = props.onSubmit as
+        | ((values: Record<string, string>) => void)
+        | undefined;
+      const onClick =
+        (props.onAction as (() => void) | undefined) ??
+        (onSubmit ? () => onSubmit(formValues) : undefined);
+      const tag = onClick ? "button" : "div";
       return createElement(
         tag,
         {
           "data-name": name,
-          onClick: props.onAction as (() => void) | undefined,
+          onClick,
           type: tag === "button" ? "button" : undefined,
         },
         ...words.map((word, index) =>
@@ -48,8 +55,17 @@ export const setClipboard = (next: { file?: string; text: string }) => {
   clipboard = next;
 };
 
+let formValues: Record<string, string> = {};
+/** What the next form submit sends. */
+export const setFormValues = (next: Record<string, string>) => {
+  formValues = next;
+};
+
+/** How many times a view called `pop`. */
+export const navigation = { pops: 0 };
+
 /** Every toast shown, as the live object a command changes and adds actions to. */
-export const shownToasts: Array<Record<string, unknown>> = [];
+export const shownToasts: Record<string, unknown>[] = [];
 
 const constants = (): unknown =>
   new Proxy({}, { get: (_target, key) => String(key) });
@@ -84,5 +100,10 @@ export const mockRaycastUi = () =>
       shownToasts.push(toast);
       return Promise.resolve(toast);
     },
-    useNavigation: () => ({ pop: () => undefined, push: () => undefined }),
+    useNavigation: () => ({
+      pop: () => {
+        navigation.pops += 1;
+      },
+      push: () => undefined,
+    }),
   }));

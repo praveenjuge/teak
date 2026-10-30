@@ -49,7 +49,8 @@ const MAX_METADATA_URL_LENGTH = 64;
 
 interface FavoriteMutationState {
   desired: boolean;
-  inFlight: boolean;
+  /** The commit running now; it resolves false when the card is gone. */
+  inFlight: Promise<boolean> | null;
   lastServer: boolean;
   timer: ReturnType<typeof setTimeout> | null;
 }
@@ -116,7 +117,7 @@ export function CardDetail({
   const isMountedRef = useRef(true);
   const favoriteMutationRef = useRef<FavoriteMutationState>({
     desired: card.isFavorited,
-    inFlight: false,
+    inFlight: null,
     lastServer: card.isFavorited,
     timer: null,
   });
@@ -146,15 +147,13 @@ export function CardDetail({
     [onCardUpdated],
   );
 
-  const flushFavoriteCommit = useCallback(async () => {
+  const flushFavoriteCommit = useCallback((): Promise<boolean> => {
     const mutationState = favoriteMutationRef.current;
     if (mutationState.inFlight) {
-      return;
+      return mutationState.inFlight;
     }
 
-    mutationState.inFlight = true;
-
-    try {
+    const commit = async (): Promise<boolean> => {
       while (mutationState.desired !== mutationState.lastServer) {
         const current = cardStateRef.current;
         const desiredValue = mutationState.desired;
@@ -178,7 +177,7 @@ export function CardDetail({
             if (isMountedRef.current) {
               pop();
             }
-            return;
+            return false;
           }
 
           mutationState.desired = mutationState.lastServer;
@@ -193,12 +192,16 @@ export function CardDetail({
             title: "Favorite update failed",
             message: toToastMessage(error),
           });
-          return;
+          return true;
         }
       }
-    } finally {
-      mutationState.inFlight = false;
-    }
+      return true;
+    };
+
+    mutationState.inFlight = commit().finally(() => {
+      mutationState.inFlight = null;
+    });
+    return mutationState.inFlight;
   }, [emitCardUpdate, onCardDeleted, pop]);
   const flushFavoriteCommitRef = useRef(flushFavoriteCommit);
   useEffect(() => {
@@ -222,6 +225,17 @@ export function CardDetail({
     [flushFavoriteCommit],
   );
 
+  // Sends a favorite still waiting on its debounce before the card leaves the
+  // list, so the answer can't put a trashed card back. False when it's gone.
+  const settleFavorite = useCallback(() => {
+    const mutationState = favoriteMutationRef.current;
+    if (mutationState.timer) {
+      clearTimeout(mutationState.timer);
+      mutationState.timer = null;
+    }
+    return flushFavoriteCommit();
+  }, [flushFavoriteCommit]);
+
   const handleToggleFavorite = useCallback(() => {
     const nextValue = !cardStateRef.current.isFavorited;
     patchFavorite(nextValue);
@@ -239,6 +253,9 @@ export function CardDetail({
     }
     setIsDeleting(true);
     try {
+      if (!(await settleFavorite())) {
+        return;
+      }
       const moved = await moveCardToTrash(cardStateRef.current, {
         onRemoved: onCardDeleted,
         onRestored: onCardUpdated,
@@ -249,19 +266,25 @@ export function CardDetail({
     } finally {
       setIsDeleting(false);
     }
-  }, [isDeleting, leaveDetail, onCardDeleted, onCardUpdated]);
+  }, [isDeleting, leaveDetail, onCardDeleted, onCardUpdated, settleFavorite]);
 
   const handleRestore = useCallback(async () => {
+    if (!(await settleFavorite())) {
+      return;
+    }
     if (await restoreFromTrash(cardStateRef.current, onCardDeleted)) {
       leaveDetail();
     }
-  }, [leaveDetail, onCardDeleted]);
+  }, [leaveDetail, onCardDeleted, settleFavorite]);
 
   const handleDeleteForever = useCallback(async () => {
+    if (!(await settleFavorite())) {
+      return;
+    }
     if (await deleteCardForever(cardStateRef.current, onCardDeleted)) {
       leaveDetail();
     }
-  }, [leaveDetail, onCardDeleted]);
+  }, [leaveDetail, onCardDeleted, settleFavorite]);
 
   const tagAction = useCallback(
     (tag: string) =>
@@ -285,7 +308,7 @@ export function CardDetail({
 
     favoriteMutationRef.current = {
       desired: card.isFavorited,
-      inFlight: false,
+      inFlight: null,
       lastServer: card.isFavorited,
       timer: null,
     };

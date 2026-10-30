@@ -57,7 +57,7 @@ export default function QuickSaveCommand() {
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   // Set before the first await, so a second ⌘↵ can't save the card twice.
-  const savingRef = useRef(false);
+  const savingRef = useRef<boolean>(false);
 
   const {
     isAuthenticated,
