@@ -15,7 +15,7 @@ export interface ResolveArgs {
 }
 
 export type ResolvedOwner =
-  | { status: "ok"; teakUserId: string; profile: ProviderProfile }
+  | { status: "ok"; teakUserId: string; profile: ProviderProfile | null }
   | { status: "denied"; reason: ResolverDenialReason };
 
 export async function resolveOwner(
@@ -39,7 +39,8 @@ export const resolveWorkosOwner = internalQuery({
     workosUserId: v.string(),
     verification: v.union(
       v.object({ kind: v.literal("session"), emailVerified: v.boolean() }),
-      v.object({ kind: v.literal("connect") })
+      v.object({ kind: v.literal("connect") }),
+      v.object({ kind: v.literal("stored") })
     ),
   },
   returns: v.union(
@@ -113,12 +114,18 @@ const resolve = async (
   if (owners.length !== 1) {
     return { status: "denied" as const, reason: "duplicate_mapping" as const };
   }
+  // A session token carries its own signed email verification, and a stored
+  // owner was created from a verified one, so both need the webhook's copy of
+  // the profile only to see a newer unverified address. A Connect token
+  // carries none and needs the profile.
   const user = await readComponentUser(ctx, args.workosUserId);
   const profile = user ? toProviderProfile(args.workosUserId, user) : null;
+  const { verification } = args;
   if (
-    !profile?.emailVerified ||
-    (args.verification.kind === "session" &&
-      args.verification.emailVerified !== true)
+    verification.kind === "connect"
+      ? profile?.emailVerified !== true
+      : profile?.emailVerified === false ||
+        (verification.kind === "session" && verification.emailVerified !== true)
   ) {
     return { status: "denied" as const, reason: "verify_email" as const };
   }

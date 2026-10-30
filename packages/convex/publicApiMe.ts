@@ -45,16 +45,19 @@ export const profileForOwner = internalQuery({
     if (!mirror?.workosUserId) {
       return null;
     }
+    // Until the webhook stores the profile, the owner row holds the verified
+    // address sign-in created it with.
     const provider = await readWorkosProfile(ctx, mirror.workosUserId);
-    if (!provider) {
+    if (!(provider || mirror.emailVerified)) {
       return null;
     }
-    const name =
-      provider.name ??
-      [provider.firstName, provider.lastName].filter(Boolean).join(" ");
+    const name = provider
+      ? (provider.name ??
+        [provider.firstName, provider.lastName].filter(Boolean).join(" "))
+      : null;
     return {
       id: teakUserId,
-      email: provider.email,
+      email: provider?.email ?? mirror.email,
       ...(name ? { name } : {}),
       ...usage,
       locale: await readAccountLocale(ctx, teakUserId),

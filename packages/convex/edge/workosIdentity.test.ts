@@ -123,27 +123,58 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   });
 
-  test.each([
-    ["unverified", { emailVerified: false }],
-    ["missing", null],
-  ] as const)(
-    "a %s component profile denies both token kinds despite a verified Teak row",
-    async (_label, profile) => {
-      const t = setup();
-      await seed(t, { emailVerified: true }, profile);
-      for (const verification of [
-        { kind: "connect" as const },
-        { kind: "session" as const, emailVerified: true },
-      ]) {
-        expect(
-          await t.query(internal.workosIdentity.resolveWorkosOwner, {
-            ...input,
-            verification,
-          })
-        ).toEqual({ status: "denied", reason: "verify_email" });
-      }
+  test("an unverified component profile denies both token kinds despite a verified Teak row", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: true }, { emailVerified: false });
+    for (const verification of [
+      { kind: "connect" as const },
+      { kind: "session" as const, emailVerified: true },
+    ]) {
+      expect(
+        await t.query(internal.workosIdentity.resolveWorkosOwner, {
+          ...input,
+          verification,
+        })
+      ).toEqual({ status: "denied", reason: "verify_email" });
     }
-  );
+  });
+
+  test("a missing component profile admits a verified session but not Connect", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: true }, null);
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, {
+        ...input,
+        verification: { kind: "session", emailVerified: true },
+      })
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, {
+        ...input,
+        verification: { kind: "connect" },
+      })
+    ).toEqual({ status: "denied", reason: "verify_email" });
+  });
+
+  test("a stored owner resolves before its profile arrives, but not once it says unverified", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: true }, null);
+    const stored = {
+      ...input,
+      verification: { kind: "stored" as const },
+    };
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    await seedComponentUser(t, {
+      id: input.workosUserId,
+      email: "owner@example.com",
+      emailVerified: false,
+    });
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
+    ).toEqual({ status: "denied", reason: "verify_email" });
+  });
 
   test("Connect uses provider evidence even if the legacy mirror is unverified", async () => {
     const t = setup();
