@@ -22,7 +22,6 @@ import {
   summarizeAccounts,
   summarizeDailyActivity,
   summarizeDeletionQueue,
-  summarizeQuarantine,
   toActivityRow,
   toOverviewCardRow,
 } from "./admin/stats";
@@ -41,7 +40,6 @@ import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchSync";
 import { clearCardTranscript } from "./card/textContents";
-import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
 import { adminOverviewFields } from "./schema";
 import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
@@ -524,24 +522,15 @@ export const getOperations = query({
     await ensureAdmin(ctx);
     const now = Date.now();
     const users = await ctx.db.query("users").take(OPERATIONS_USER_LIMIT);
-    const quarantine = await ctx.db
-      .query("migrationQuarantine")
-      .withIndex("by_unresolved", (q) => q.eq("resolvedAt", undefined))
-      .take(OPERATIONS_QUEUE_LIMIT);
     const deletions = await ctx.db
       .query("accountDeletionStates")
       .take(OPERATIONS_QUEUE_LIMIT);
-    const legacy = await countLegacyBetterAuthUsers(ctx);
 
     return {
       accounts: summarizeAccounts(users),
-      legacyAccounts: legacy.count,
-      quarantine: summarizeQuarantine(quarantine),
       deletions: summarizeDeletionQueue(deletions, now),
       isApproximate:
-        !legacy.isComplete ||
         users.length === OPERATIONS_USER_LIMIT ||
-        quarantine.length === OPERATIONS_QUEUE_LIMIT ||
         deletions.length === OPERATIONS_QUEUE_LIMIT,
     };
   },

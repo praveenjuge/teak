@@ -48,7 +48,6 @@ export const VERSION = readPackageVersion();
 export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
 const DEFAULT_API_URL = "https://teakvault.com/api";
-const DEFAULT_AUTH_URL = "https://app.teakvault.com";
 const SERVICE = "com.teakvault.cli";
 const ACCOUNT = "default";
 
@@ -252,17 +251,15 @@ const withoutTrailingSlashes = (value: string) => {
   return value.slice(0, end);
 };
 
-const authBaseUrl = (options: ClientOptions) =>
-  withoutTrailingSlashes(
-    options.authUrl || process.env.TEAK_AUTH_URL || DEFAULT_AUTH_URL
-  );
 const apiBaseUrl = (options: ClientOptions) =>
   withoutTrailingSlashes(
     options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL
   );
 const discovery = async (options: ClientOptions, forceRefresh = false) => {
   const explicitAuth = options.authUrl || process.env.TEAK_AUTH_URL;
-  const authUrl = explicitAuth ? new URL(authBaseUrl(options)) : undefined;
+  const authUrl = explicitAuth
+    ? new URL(withoutTrailingSlashes(explicitAuth))
+    : undefined;
   const local =
     authUrl &&
     (isLocalDevelopmentHostname(authUrl.hostname) ||

@@ -578,3 +578,34 @@ describe("admin sign-ins", () => {
     ]);
   });
 });
+
+describe("operations", () => {
+  test("summarizes accounts and deletions without reading quarantine or Better Auth", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        teakUserId: "teak_deleted",
+        workosUserId: "user_DELETED",
+        email: "gone@teak.dev",
+        emailVerified: true,
+        deletedAt: 1,
+      });
+      await ctx.db.insert("migrationQuarantine", {
+        email: "",
+        reason: "profile_pending",
+        source: "webhook",
+        createdAt: 1,
+      });
+    });
+    expect(await asAdmin(t).query(api.admin.getOperations, {})).toEqual({
+      accounts: { total: 3, linked: 2, unlinked: 0, deleted: 1 },
+      deletions: expect.any(Object),
+      isApproximate: false,
+    });
+    await expect(
+      asCustomer(t).query(api.admin.getOperations, {})
+    ).rejects.toThrow("Unauthorized");
+  });
+});

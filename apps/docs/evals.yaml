@@ -19,7 +19,7 @@ questions:
     routes: /docs/mcp
 
   - id: reconnect-after-sign-in-change
-    question: My MCP client stopped working with Teak after October 7, 2026. How do I fix it?
+    question: My MCP client's browser sign-in to Teak stopped working. How do I fix it?
     expected:
       - Remove Teak from the MCP client, add it again, and sign in
       - Connections that use an API key keep working without changes

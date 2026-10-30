@@ -18,7 +18,6 @@ import {
   summarizeDailyActivity,
   summarizeDeletionQueue,
   summarizeFunnel,
-  summarizeQuarantine,
   summarizeSignupDomains,
   summarizeSubscriptions,
   toActivityRow,
@@ -111,21 +110,6 @@ describe("summarizeAccounts", () => {
         { workosUserId: "user_2", deletedAt: 1 },
       ])
     ).toEqual({ total: 3, linked: 1, unlinked: 1, deleted: 1 });
-  });
-});
-
-describe("summarizeQuarantine", () => {
-  test("counts unresolved rows by reason", () => {
-    expect(
-      summarizeQuarantine([
-        { reason: "email_unverified" },
-        { reason: "email_unverified" },
-        { reason: "link_conflict" },
-      ])
-    ).toEqual({
-      unresolved: 3,
-      byReason: { email_unverified: 2, link_conflict: 1 },
-    });
   });
 });
 
