@@ -230,6 +230,24 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingTheViewEndsASelection() async throws {
+        try await start()
+        let note = marker("select")
+        save("Pick \(note)", expecting: note)
+        filter("Select")
+        tap(tile(containing: note))
+        let selected = app.staticTexts["1 selected"].firstMatch
+        selected.waitToAppear()
+
+        // A search chip shows other cards, so the selection and its bar go.
+        let search = app.searchFields.firstMatch
+        tap(search)
+        submit("link", into: search)
+        selected.waitToDisappear()
+        XCTAssertFalse(app.buttons["Add to favorites"].firstMatch.exists)
+    }
+
+    @MainActor
     func testFavoriteFromTileThenUnfavoriteOnCardClearsTheTileHeart() async throws {
         #if os(macOS)
         throw XCTSkip("Covered on iPhone and iPad; this flow goes back through the navigation bar")
