@@ -35,6 +35,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Capture](./capture.md) covers the composer (text, link, quote, palette), the Focus editor, the "New" menu, uploads and audio recording.
 - [Find](./find.md) covers search, qualifiers and chips, the View menu, sidebar views, tags and folders, the command palette, and empty states.
 - [Card actions](./card-actions.md) covers the card dialog (notes, tags, folders), favorites, archive, Trash, restore, delete forever, and bulk selection.
+- [Palette colors](./palette-colors.md) covers adding and removing a palette's colors in the card dialog (picker, hex field, Remove with Undo, the 12-color and one-color limits), color search after a change, and `addColors`/`removeColors` in the API, MCP, SDK and CLI.
 - [Settings](./settings.md) covers the Settings pages (Account, Plan, Appearance, Integrations, Security, Import & export), their nav and `G S` shortcut, theme, devices, API keys, the plan and usage, and delete account.
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
 - [Link transcripts and video facts](./link-transcripts.md) covers Vimeo captions and podcast episode transcripts found by a spoken phrase, and YouTube's Channel, Length and Uploaded facts.

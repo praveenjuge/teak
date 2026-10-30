@@ -78,7 +78,6 @@ import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
 import { ImagePreview } from "../card-previews/ImagePreview";
 import { LinkPreview } from "../card-previews/LinkPreview";
-import { PalettePreview } from "../card-previews/PalettePreview";
 import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
@@ -111,6 +110,7 @@ import {
 import { cardModalKeyAction } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
 import { HeaderIconButton } from "./HeaderIconButton";
+import { PaletteStage } from "./PaletteStage";
 import type { CardModalCard, GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
 import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
@@ -187,7 +187,7 @@ function CardPreview({
     case "document":
       return <DocumentPreview card={card} />;
     case "palette":
-      return <PalettePreview card={card} />;
+      return <PaletteStage card={card} />;
     default:
       return <div className="whitespace-pre-wrap">{card.content}</div>;
   }

@@ -339,7 +339,7 @@
     {
       "name": "update-card",
       "title": "Update Teak Card",
-      "description": "Add or remove a Teak card's tags (including tags Teak added), replace its notes, mark a link done, archive it, or add it to a folder."
+      "description": "Add or remove a Teak card's tags (including tags Teak added), replace its notes, add or remove a palette's colors, mark a link done, archive it, or add it to a folder."
     }
   ]
 }

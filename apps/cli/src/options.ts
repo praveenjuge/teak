@@ -3,6 +3,7 @@ import {
   VISUAL_STYLE_TAXONOMY,
 } from "@teak/convex/shared/constants";
 import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
+import { parsePaletteHex } from "@teak/convex/shared/utils/colorUtils";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { type Command, InvalidArgumentError } from "commander";
 import {
@@ -74,6 +75,19 @@ const parseHex = (value: string) => {
   }
   return value.trim();
 };
+
+const parsePaletteColor = (value: string) => {
+  const hex = parsePaletteHex(value);
+  if (!hex) {
+    throw new InvalidArgumentError(
+      "a palette color must be a hex code such as #FF5500"
+    );
+  }
+  return hex;
+};
+
+/** A repeatable `--add-color` or `--remove-color`, as `#RRGGBB`. */
+export const collectPaletteColor = repeatable(parsePaletteColor);
 
 export const parseDateRange = (value: string, now?: Date) => {
   const parsed = parseTimeSearchQuery(value, { now });

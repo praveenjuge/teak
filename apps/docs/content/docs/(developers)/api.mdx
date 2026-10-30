@@ -178,7 +178,7 @@ Every card has `savedAt`: when it was last saved. It starts equal to `createdAt`
 ## Edit a card
 
 Send changed fields to `PATCH /v1/cards/:cardId`: `content`, `notes`, `tags`,
-`url`, `metadataTitle`, or `removeAiTags`. Titles work for every card type, are trimmed, and
+`url`, `metadataTitle`, `removeAiTags`, `addColors`, or `removeColors`. Titles work for every card type, are trimmed, and
 keep up to 512 characters; a longer title is cut to 512. Send `null` or a blank title to clear it.
 Omit `metadataTitle` to preserve the existing title. Metadata processing
 preserves titles you edit or clear.
@@ -197,6 +197,14 @@ A link with [highlights](#highlights) keeps the URL its saved copy came from: ch
 `removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. They match
 ignoring case, and tags Teak didn't add are ignored. The response is the updated card, including its
 `processingStatus`.
+
+A palette card's colors change with `addColors` and `removeColors`, each a list of 1 to 12 hex codes
+(`#FF5500`, `f50`, with or without `#`), for example `{ "addColors": ["#2A9D8F"] }`. Colors are saved
+as `#RRGGBB` with their RGB, HSL and name, and color search finds the card by them right away. A color
+the palette already has is skipped, removing one takes every copy, and colors it doesn't have are
+ignored. Removes apply first, so one request can swap a color. A palette holds up to 12 colors and
+keeps at least one; past either limit, or for a card that isn't a palette, the request fails with
+`400` and changes nothing. Changing colors doesn't process the card again.
 
 ## Upload files
 

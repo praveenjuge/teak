@@ -204,8 +204,8 @@ type CardFilters = {
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
   - Supports the same upload matrix as the web app, API, and CLI. `.md` and `.markdown` files become editable text cards and must be valid UTF-8 no larger than 512 KiB; other supported files allow up to 100 MB.
 - `teak_v1_update_card`
-  - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[], metadataTitle?: string | null, removeAiTags?: string[] }`
-  - `tags` replaces the card's own tags; `removeAiTags` drops tags Teak added. Text-card content remains raw Markdown, preserved exactly, with a 512 KiB UTF-8 limit.
+  - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[], metadataTitle?: string | null, removeAiTags?: string[], addColors?: string[], removeColors?: string[] }`
+  - `tags` replaces the card's own tags; `removeAiTags` drops tags Teak added. On a palette card, `addColors` and `removeColors` (hex codes such as `#FF5500`, up to 12 each) change its colors, removes first; a palette holds up to 12 colors and keeps at least one. Text-card content remains raw Markdown, preserved exactly, with a 512 KiB UTF-8 limit.
   - Output: updated card object
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`

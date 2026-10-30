@@ -47,4 +47,33 @@ describe("PalettePreview", () => {
     expect(markup).toContain('aria-label="Copy #FF0000"');
     expect(markup).toContain('aria-label="Copy #00FF00"');
   });
+
+  test("is read-only without edit handlers", () => {
+    const markup = renderToStaticMarkup(
+      <PalettePreview
+        card={createPaletteCard({ colors: [{ hex: "#FF0000" }] }) as any}
+      />
+    );
+
+    expect(markup).not.toContain("Add color");
+    expect(markup).not.toContain("Remove #FF0000");
+  });
+
+  test("offers adding and removing colors when it can", () => {
+    const markup = renderToStaticMarkup(
+      <PalettePreview
+        card={
+          createPaletteCard({
+            colors: [{ hex: "#FF0000" }, { hex: "#00FF00" }],
+          }) as any
+        }
+        onAddColor={async () => true}
+        onRemoveColor={() => undefined}
+      />
+    );
+
+    expect(markup).toContain("Add color");
+    expect(markup).toContain('aria-label="Remove #FF0000"');
+    expect(markup).toContain('aria-label="Remove #00FF00"');
+  });
 });
