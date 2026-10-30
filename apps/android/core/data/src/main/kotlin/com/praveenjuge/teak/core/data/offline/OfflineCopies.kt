@@ -15,10 +15,13 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -76,7 +79,7 @@ class DiskOfflineCopies @Inject constructor(
     @Volatile private var clears = 0
 
     /** The account the copies on disk were checked to belong to; nothing is read or kept until it's the signed-in one. */
-    @Volatile private var claimedBy: String? = null
+    private val claimedBy = MutableStateFlow<String?>(null)
 
     private val _kept = MutableStateFlow<Set<String>>(emptySet())
     override val kept: StateFlow<Set<String>> = _kept.asStateFlow()
@@ -119,15 +122,17 @@ class DiskOfflineCopies @Inject constructor(
             owner.writeText(userId)
             // Only now are the cards on disk known to be this account's.
             _kept.value = root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }.toSet()
-            claimedBy = userId
+            claimedBy.value = userId
             _changes.value += 1
         }
     }
 
     /** The copies on disk were claimed by the account signed in now. */
-    private fun owned(): Boolean {
-        val user = (sessions.state.value as? SessionState.SignedIn)?.user?.id
-        return user != null && user == claimedBy
+    private fun owned(): Boolean = owned(sessions.state.value, claimedBy.value)
+
+    private fun owned(session: SessionState, claimed: String?): Boolean {
+        val user = (session as? SessionState.SignedIn)?.user?.id
+        return user != null && user == claimed
     }
 
     /**
@@ -163,7 +168,13 @@ class DiskOfflineCopies @Inject constructor(
         }
     }
 
-    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) { if (owned()) read(directory(id)) else null }
+    /** A card opened just after launch waits briefly for the account to claim its copies, so it still shows offline. */
+    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) {
+        val claimed = owned() || withTimeoutOrNull(CLAIM_WAIT_MS) {
+            combine(sessions.state, claimedBy, ::owned).first { it }
+        } != null
+        if (claimed) read(directory(id)) else null
+    }
 
     /**
      * Saves a newer copy. When its file changed on the server, or an image gained the rendition it shows, the new one
@@ -265,7 +276,7 @@ class DiskOfflineCopies @Inject constructor(
             root.deleteRecursively()
             _kept.value = emptySet()
             clears += 1
-            claimedBy = null
+            claimedBy.value = null
             _changes.value += 1
         }
     }
@@ -322,6 +333,7 @@ class DiskOfflineCopies @Inject constructor(
         const val SOURCE_FILE = "source"
         const val OWNER_FILE = "owner"
         const val STAGING_PREFIX = ".keeping-"
+        const val CLAIM_WAIT_MS = 3_000L
         val unsafeNameCharacters = Regex("[^A-Za-z0-9_-]")
     }
 }

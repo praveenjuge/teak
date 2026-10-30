@@ -131,6 +131,21 @@ class DiskOfflineCopiesTest {
         eventually { copies.file("c1")?.readText() == "%PDF-1.7 c" }
     }
 
+    @Test
+    fun `a kept card read before the account claims its copies waits for the claim`() = runTest {
+        val root = java.io.File(context.filesDir, "offline").apply { deleteRecursively() }
+        java.io.File(root, "c5").mkdirs()
+        java.io.File(root, "c5/card.json").writeText("""{"_id":"c5","_creationTime":0,"type":"text","content":"Kept"}""")
+        java.io.File(root, "owner").writeText("user_1")
+        store.session = Tokens.session(userId = "user_1", expiresAtMillis = Long.MAX_VALUE / 2)
+        val sessions = SessionManager(store, NoAuthApi, NoBootstrap, backgroundScope, Clock { 0 }).apply { restore() }
+
+        // Read straight away, before the claim has had a chance to run.
+        val copies = DiskOfflineCopies(context, OkHttpClient(), sessions, backgroundScope)
+
+        assertEquals("Kept", copies.card("c5")?.content)
+    }
+
     /** Waits for the background download a changed file starts. */
     private suspend fun TestScope.eventually(condition: suspend () -> Boolean) {
         repeat(100) {
