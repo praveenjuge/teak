@@ -3,7 +3,6 @@ import {
   afterEach,
   beforeAll,
   expect,
-  jest,
   mock,
   spyOn,
   test,
@@ -88,9 +87,7 @@ const render = (useAuth = useSignedIn) =>
   );
 
 const ensureCalls = () =>
-  transport.calls.filter(
-    (call) => call.path === "workosBootstrap:ensureUserNow"
-  );
+  transport.calls.filter((call) => call.path === "workosBootstrap:ensureUser");
 const text = () => container.textContent ?? "";
 const button = (name: string) => {
   const match = [...container.querySelectorAll("button")].find(
@@ -125,7 +122,7 @@ test("bootstraps a new owner once, then opens the vault", async () => {
   transport = createConvexTransport();
   transport.seed("auth:getAuthUser", null);
   transport.onCall((call) => {
-    if (call.path !== "workosBootstrap:ensureUserNow") {
+    if (call.path !== "workosBootstrap:ensureUser") {
       return Promise.resolve(null);
     }
     // Convex resolves a mutation only after queries reflect its writes.
@@ -166,63 +163,19 @@ test.each([
   }
 );
 
-test("waits for a new account's profile instead of asking to try again", async () => {
-  jest.useFakeTimers();
-  try {
-    transport = createConvexTransport();
-    transport.seed("auth:getAuthUser", null);
-    let attempts = 0;
-    transport.onCall((call) => {
-      if (call.path !== "workosBootstrap:ensureUserNow") {
-        return Promise.resolve(null);
-      }
-      attempts += 1;
-      if (attempts < 3) {
-        return Promise.resolve({
-          status: "quarantined",
-          reason: "profile_pending",
-        });
-      }
-      transport.reply("auth:getAuthUser", profile);
-      return Promise.resolve({ status: "ok", teakUserId: profile._id });
-    });
-    await mount();
-    expect(text()).toBe("App frame");
-    expect(ensureCalls()).toHaveLength(1);
+test("runs ensureUser once and never waits on a pending profile", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", null);
+  transport.onCall(async () => ({
+    status: "quarantined",
+    reason: "profile_pending",
+  }));
+  await mount();
 
-    await act(async () => jest.advanceTimersByTime(1000));
-    expect(text()).toBe("App frame");
-    expect(ensureCalls()).toHaveLength(2);
-
-    await act(async () => jest.advanceTimersByTime(2000));
-    expect(ensureCalls()).toHaveLength(3);
-    expect(text()).toContain("Vault open");
-  } finally {
-    jest.useRealTimers();
-  }
-});
-
-test("says the account isn't ready once the profile never arrives", async () => {
-  jest.useFakeTimers();
-  try {
-    transport = createConvexTransport();
-    transport.seed("auth:getAuthUser", null);
-    transport.onCall(async () => ({
-      status: "quarantined",
-      reason: "profile_pending",
-    }));
-    await mount();
-    for (const delay of [1000, 2000, 3000]) {
-      await act(async () => jest.advanceTimersByTime(delay));
-    }
-
-    expect(ensureCalls()).toHaveLength(4);
-    expect(text()).toContain(
-      "Your account isn't ready yet. Try again or contact support."
-    );
-  } finally {
-    jest.useRealTimers();
-  }
+  expect(ensureCalls()).toHaveLength(1);
+  expect(text()).toContain(
+    "Your account isn't ready yet. Try again or contact support."
+  );
 });
 
 test("runs ensureUser again from Try again after it fails", async () => {
@@ -230,7 +183,7 @@ test("runs ensureUser again from Try again after it fails", async () => {
   transport.seed("auth:getAuthUser", null);
   let attempts = 0;
   transport.onCall((call) => {
-    if (call.path !== "workosBootstrap:ensureUserNow") {
+    if (call.path !== "workosBootstrap:ensureUser") {
       return Promise.resolve(null);
     }
     attempts += 1;

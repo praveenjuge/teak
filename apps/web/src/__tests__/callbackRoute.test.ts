@@ -33,7 +33,6 @@ const callback = serveRoute(await import("../app/callback/route"), "/callback");
 
 const ACCESS_TOKEN = "header.payload.signature";
 let convexCalls: { path: unknown; authorization: string | null }[] = [];
-let convexDown = false;
 let createdAt = new Date().toISOString();
 
 // WorkOS's code exchange and Convex's HTTP action endpoint are the only
@@ -64,9 +63,6 @@ const network = ((input: RequestInfo | URL, init?: RequestInit) => {
     );
   }
   if (url === "https://callback-tests.convex.cloud/api/action") {
-    if (convexDown) {
-      return Promise.reject(new TypeError("fetch failed"));
-    }
     const headers = new Headers(init?.headers);
     convexCalls.push({
       path: JSON.parse(String(init?.body)).path,
@@ -113,42 +109,27 @@ const setCookie = (response: Response, name: string) =>
 beforeEach(() => {
   globalThis.fetch = network;
   convexCalls = [];
-  convexDown = false;
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
 describe("sign-in callback", () => {
-  test("creates a brand-new account's Teak user before the app loads", async () => {
-    const response = await finishSignIn(new Date().toISOString());
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3142/settings"
-    );
-    expect(setCookie(response, "wos-session")).toBeTruthy();
-    expect(convexCalls).toEqual([
-      {
-        path: "workosBootstrap:ensureUserNow",
-        authorization: `Bearer ${ACCESS_TOKEN}`,
-      },
-    ]);
-  });
-  test("leaves a returning account's sign-in to the app", async () => {
-    const response = await finishSignIn("2025-01-01T00:00:00.000Z");
-    expect(response.status).toBe(307);
-    expect(setCookie(response, "wos-session")).toBeTruthy();
-    expect(convexCalls).toEqual([]);
-  });
-  test("still signs in when Convex can't be reached", async () => {
-    convexDown = true;
-    const response = await finishSignIn(new Date().toISOString());
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3142/settings"
-    );
-    expect(setCookie(response, "wos-session")).toBeTruthy();
-  });
+  test.each([
+    ["a brand-new", () => new Date().toISOString()],
+    ["a returning", () => "2025-01-01T00:00:00.000Z"],
+  ])(
+    "signs %s account in and leaves its Teak user to the app",
+    async (_label, createdAt) => {
+      const response = await finishSignIn(createdAt());
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "http://localhost:3142/settings"
+      );
+      expect(setCookie(response, "wos-session")).toBeTruthy();
+      expect(convexCalls).toEqual([]);
+    }
+  );
   test("tells teakvault.com this browser is signed in", async () => {
     const response = await finishSignIn("2025-01-01T00:00:00.000Z");
     const hint = setCookie(response, "teak_session_hint");
