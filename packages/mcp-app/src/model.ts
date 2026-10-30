@@ -174,6 +174,14 @@ export const toTeakCard = (value: unknown): TeakCard | null => {
   };
 };
 
+/** The type Teak gives an uploaded file, from its MIME type. */
+const fileCardType = (mimeType: unknown): CardType => {
+  const kind = typeof mimeType === "string" ? mimeType.split("/")[0] : "";
+  return kind === "image" || kind === "video" || kind === "audio"
+    ? kind
+    : "document";
+};
+
 const listSourceFor = (toolName: string | undefined): ListSource => {
   if (toolName === "teak_v1_list_favorite_cards") {
     return "favorites";
@@ -211,8 +219,20 @@ export const viewFromToolResult = ({
       source: listSourceFor(toolName),
     };
   }
-  if (payload.status === "created" && isObject(payload.card)) {
-    const card = toTeakCard({ appUrl: payload.appUrl, ...payload.card });
+  if (payload.status === "created") {
+    // A card saved from an upload comes back as just its id and address,
+    // so the confirmation names it from what the call sent.
+    const card = toTeakCard(
+      isObject(payload.card)
+        ? { appUrl: payload.appUrl, ...payload.card }
+        : {
+            appUrl: payload.appUrl,
+            fileName: input?.fileName,
+            id: payload.cardId,
+            type: input?.cardType ?? fileCardType(input?.mimeType),
+            url: input?.url,
+          }
+    );
     return card
       ? { kind: "saved", card, resaved: payload.resaved === true }
       : { kind: "error" };

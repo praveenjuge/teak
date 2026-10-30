@@ -147,3 +147,44 @@ describe("card images and titles", () => {
     ).toBeNull();
   });
 });
+
+describe("a card saved from an upload", () => {
+  test("is confirmed from the call's input, since the result has no card", () => {
+    expect(
+      viewFromToolResult({
+        input: {
+          fileKey: "files/u1",
+          fileName: "Moodboard.png",
+          fileSize: 1024,
+          mimeType: "image/png",
+        },
+        result: {
+          structuredContent: {
+            appUrl: "https://app.teakvault.com/?card=f1",
+            cardId: "f1",
+            status: "created",
+          },
+        },
+        toolName: "teak_v1_create_card",
+      })
+    ).toMatchObject({
+      card: {
+        appUrl: "https://app.teakvault.com/?card=f1",
+        id: "f1",
+        title: "Moodboard.png",
+        type: "image",
+      },
+      kind: "saved",
+      resaved: false,
+    });
+  });
+
+  test("calls a file that isn't media a document", () => {
+    expect(
+      viewFromToolResult({
+        input: { fileName: "Brief.pdf", mimeType: "application/pdf" },
+        result: { structuredContent: { cardId: "f2", status: "created" } },
+      })
+    ).toMatchObject({ card: { id: "f2", type: "document" }, kind: "saved" });
+  });
+});
