@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -74,7 +73,28 @@ class DiskOfflineCopies @Inject constructor(
         }
         // Signing out isn't the only way a session ends (a refresh token can be refused), so follow the session.
         scope.launch {
-            sessions.state.filterIsInstance<SessionState.SignedOut>().collect { clear() }
+            sessions.state.collect { state ->
+                when (state) {
+                    SessionState.SignedOut -> clear()
+                    is SessionState.SignedIn -> claim(state.user.id)
+                    SessionState.Loading -> Unit
+                }
+            }
+        }
+    }
+
+    /** Copies another account kept never show in this one: they go when a different account signs in. */
+    private suspend fun claim(userId: String) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val owner = File(root, OWNER_FILE)
+            val keptBy = owner.takeIf { it.exists() }?.readText()
+            if (keptBy == userId) return@withLock
+            if (keptBy != null) {
+                root.deleteRecursively()
+                _kept.value = emptySet()
+            }
+            root.mkdirs()
+            owner.writeText(userId)
         }
     }
 
@@ -158,6 +178,7 @@ class DiskOfflineCopies @Inject constructor(
         const val DIRECTORY = "offline"
         const val CARD_FILE = "card.json"
         const val DATA_FILE = "file"
+        const val OWNER_FILE = "owner"
         val unsafeNameCharacters = Regex("[^A-Za-z0-9_-]")
     }
 }

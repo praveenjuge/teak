@@ -73,7 +73,7 @@ private val SWATCH_HEIGHT = 128.dp
 internal fun CardPreview(
     card: Card,
     documentText: String?,
-    /** The card's file kept on the device, as a `file://` link, played or shown instead of the server's. */
+    /** The card's file kept on the device, as a content link, played or shown instead of the server's. */
     offlineFile: String?,
     onCopyColor: (String) -> Unit,
     onViewDocument: (String) -> Unit,

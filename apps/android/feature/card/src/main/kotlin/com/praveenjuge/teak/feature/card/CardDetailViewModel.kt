@@ -78,7 +78,10 @@ data class CardDetailUiState(
     val isOffline: Boolean = false,
     /** The card and its file are kept on the device for offline use. */
     val isKeptOffline: Boolean = false,
-    /** The kept file, as a `file://` link the preview shows or plays instead of downloading. */
+    /**
+     * The kept file as a content link through the app's FileProvider, which the preview shows or plays instead of
+     * downloading and "Open in another app" can hand on (another app can't read a `file://` link).
+     */
     val offlineFile: String? = null,
 ) {
     /** The card as shown, with any task tick or kept tag that's still saving. */
@@ -171,7 +174,7 @@ class CardDetailViewModel @AssistedInject constructor(
         account.isOffline.onEach { offline -> _uiState.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
         repository.keptOffline.map { cardId in it }.distinctUntilChanged()
             .onEach { kept ->
-                val file = if (kept) repository.offlineFile(cardId)?.let { Uri.fromFile(it).toString() } else null
+                val file = if (kept) repository.offlineFile(cardId)?.let { files.contentUri(it).toString() } else null
                 _uiState.update { it.copy(isKeptOffline = kept, offlineFile = file) }
             }
             .launchIn(viewModelScope)

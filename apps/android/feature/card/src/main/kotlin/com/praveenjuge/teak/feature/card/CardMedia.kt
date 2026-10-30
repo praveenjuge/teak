@@ -322,7 +322,8 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
 
 private fun Context.openMediaElsewhere(url: String, type: String) {
     try {
-        startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), type))
+        // A kept file is a content link to the app's FileProvider, which the other app may read.
+        startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), type).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(this, resources.tr("android.card.noAppForLink"), Toast.LENGTH_SHORT).show()
     }

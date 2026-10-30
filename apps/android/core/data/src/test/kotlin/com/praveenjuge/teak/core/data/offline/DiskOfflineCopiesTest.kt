@@ -47,10 +47,10 @@ class DiskOfflineCopiesTest {
     @After
     fun tearDown() = server.shutdown()
 
-    private suspend fun TestScope.copies(): DiskOfflineCopies {
-        store.session = Tokens.session(expiresAtMillis = Long.MAX_VALUE / 2)
+    private suspend fun TestScope.copies(userId: String = "user_1"): DiskOfflineCopies {
+        store.session = Tokens.session(userId = userId, expiresAtMillis = Long.MAX_VALUE / 2)
         val sessions = SessionManager(store, NoAuthApi, NoBootstrap, backgroundScope, Clock { 0 }).apply { restore() }
-        return DiskOfflineCopies(context, OkHttpClient(), sessions, backgroundScope).apply { clear() }
+        return DiskOfflineCopies(context, OkHttpClient(), sessions, backgroundScope)
     }
 
     private fun pdf(path: String, signature: String) = Card(
@@ -63,6 +63,7 @@ class DiskOfflineCopiesTest {
     @Test
     fun `a kept file stays across new signatures and goes when the server's file changes`() = runTest {
         server.enqueue(MockResponse().setBody("%PDF-1.7"))
+        java.io.File(context.filesDir, "offline").deleteRecursively()
         val copies = copies()
         copies.keep(pdf("/files/a.pdf", signature = "one"))
 
@@ -73,5 +74,22 @@ class DiskOfflineCopiesTest {
         copies.update(pdf("/files/b.pdf", signature = "three"))
         assertNull(copies.file("c1"))
         assertNotNull(copies.card("c1"))
+    }
+
+    @Test
+    fun `cards another account kept go when a different account signs in`() = runTest {
+        val root = java.io.File(context.filesDir, "offline").apply { deleteRecursively() }
+        java.io.File(root, "c9").mkdirs()
+        java.io.File(root, "c9/card.json").writeText("""{"_id":"c9","_creationTime":0,"type":"text"}""")
+        java.io.File(root, "owner").writeText("user_a")
+
+        copies(userId = "user_b")
+
+        repeat(100) {
+            testScheduler.advanceUntilIdle()
+            if (!java.io.File(root, "c9").exists()) return@runTest
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(20) }
+        }
+        kotlin.test.fail("user_a's kept card is still there")
     }
 }
