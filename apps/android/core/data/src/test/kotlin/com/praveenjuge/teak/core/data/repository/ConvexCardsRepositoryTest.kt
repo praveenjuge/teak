@@ -319,6 +319,21 @@ class ConvexCardsRepositoryTest {
         assertEquals("Live", copies.card("c1")?.content)
     }
 
+    @Test
+    fun `a kept card the server says is gone, or that's deleted forever, loses its copy`() = runTest {
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1")))
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c2")))
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c3")).copy(isDeleted = true))
+        convex.responses["cards:getCard"] = { kotlinx.serialization.json.JsonNull }
+        convex.responses["cards:emptyTrash"] = { buildJsonObject { put("count", 1.0) } }
+
+        repository.card("c1").take(2).toList()
+        repository.deleteForever("c2")
+        repository.emptyTrash()
+
+        assertTrue(copies.kept.value.isEmpty())
+    }
+
     private fun note(id: String, content: String = "Note") = buildJsonObject {
         put("_id", id)
         put("_creationTime", 1.0)

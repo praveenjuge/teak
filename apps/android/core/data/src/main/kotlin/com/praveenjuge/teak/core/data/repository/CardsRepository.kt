@@ -143,9 +143,11 @@ class ConvexCardsRepository @Inject constructor(
                 convex.subscribe(ConvexFunctions.getCard, mapOf("id" to id))
                     // Refreshing the kept copy is best-effort: a full disk mustn't stop the card's updates.
                     .onEach { result ->
-                        val card = result.getOrNull() ?: return@onEach
+                        if (result.isFailure) return@onEach
+                        val card = result.getOrNull()
                         try {
-                            copies.update(card)
+                            // The server answering "no such card" means it was deleted for good: so is its copy.
+                            if (card == null) copies.remove(id) else copies.update(card)
                         } catch (_: IOException) {
                         }
                     },
@@ -169,9 +171,17 @@ class ConvexCardsRepository @Inject constructor(
 
     override suspend fun deleteForever(id: String) {
         convex.mutation(ConvexFunctions.permanentDeleteCard, mapOf("id" to id))
+        copies.remove(id)
     }
 
-    override suspend fun emptyTrash(): TrashCount = convex.mutation(ConvexFunctions.emptyTrash)
+    override suspend fun emptyTrash(): TrashCount {
+        val count = convex.mutation(ConvexFunctions.emptyTrash)
+        // Kept cards that were in Trash are being deleted for good, so their copies go now.
+        for (id in copies.kept.value) {
+            if (copies.card(id)?.deleted == true) copies.remove(id)
+        }
+        return count
+    }
 
     override fun trashCount(): Flow<Result<TrashCount>> = convex.subscribe(ConvexFunctions.trashCount)
 
