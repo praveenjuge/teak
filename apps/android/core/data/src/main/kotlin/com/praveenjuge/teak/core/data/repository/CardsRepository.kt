@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -145,6 +146,9 @@ class ConvexCardsRepository @Inject constructor(
             copies.card(id)?.let { emit(Result.success(it)) }
             emitAll(
                 convex.subscribe(ConvexFunctions.getCard, mapOf("id" to id))
+                    // Until the client signs in, the server answers null for every card. That isn't "gone", so it
+                    // mustn't replace what's shown; the server answers again once the client is signed in.
+                    .filterNot { result -> result.isSuccess && result.getOrNull() == null && !convex.authenticatedNow }
                     // Refreshing the kept copy is best-effort: a full disk mustn't stop the card's updates.
                     .onEach { result ->
                         if (result.isFailure) return@onEach

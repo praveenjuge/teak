@@ -352,8 +352,9 @@ class ConvexCardsRepositoryTest {
         convex.responses["cards:getCard"] = { kotlinx.serialization.json.JsonNull }
         convex.authenticated = false
 
-        repository.card("c1").take(2).toList()
-
+        // The kept card shows, and the null that comes before sign-in never replaces it.
+        assertEquals("Note", repository.card("c1").first().getOrThrow()?.content)
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(1_000) { repository.card("c1").take(2).toList() })
         assertEquals(setOf("c1"), copies.kept.value)
     }
 
