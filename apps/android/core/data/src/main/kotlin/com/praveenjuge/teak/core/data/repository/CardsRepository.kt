@@ -31,11 +31,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.io.File
@@ -44,6 +46,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 internal const val CARD_SOURCE = "android"
+
+private const val SERVER_CHECK_TIMEOUT_MS = 5_000L
 
 /** A library page: [search] goes as typed, and [range] narrows it to when cards were saved. */
 data class CardQuery(
@@ -180,9 +184,16 @@ class ConvexCardsRepository @Inject constructor(
 
     override suspend fun emptyTrash(): TrashCount {
         val count = convex.mutation(ConvexFunctions.emptyTrash)
-        // Kept cards that were in Trash are being deleted for good, so their copies go now.
+        // Kept cards in Trash are being deleted for good, so their copies go too. A saved copy can be out of date (a
+        // card restored on another device), so the server says which ones are still in Trash.
         for (id in copies.kept.value) {
-            if (copies.card(id)?.deleted == true) copies.remove(id)
+            if (copies.card(id)?.deleted != true) continue
+            val result = withTimeoutOrNull(SERVER_CHECK_TIMEOUT_MS) {
+                convex.subscribe(ConvexFunctions.getCard, mapOf("id" to id)).first()
+            } ?: continue
+            if (result.isFailure || !convex.authenticatedNow) continue
+            val card = result.getOrNull()
+            if (card == null || card.deleted) copies.remove(id) else copies.update(card)
         }
         return count
     }

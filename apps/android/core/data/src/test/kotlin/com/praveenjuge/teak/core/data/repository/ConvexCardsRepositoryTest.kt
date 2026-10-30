@@ -335,6 +335,18 @@ class ConvexCardsRepositoryTest {
     }
 
     @Test
+    fun `emptying Trash keeps the copy of a kept card restored elsewhere`() = runTest {
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1")).copy(isDeleted = true))
+        convex.responses["cards:getCard"] = { note("c1", content = "Restored") }
+        convex.responses["cards:emptyTrash"] = { buildJsonObject { put("count", 0.0) } }
+
+        repository.emptyTrash()
+
+        assertEquals(setOf("c1"), copies.kept.value)
+        assertEquals("Restored", copies.card("c1")?.content)
+    }
+
+    @Test
     fun `a null card before the client signs in keeps the copy`() = runTest {
         copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1")))
         convex.responses["cards:getCard"] = { kotlinx.serialization.json.JsonNull }
