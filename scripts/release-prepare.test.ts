@@ -42,6 +42,7 @@ const writeAppleSources = (root: string, version: string): void => {
   }
   writeManifest(join(root, appleSafariManifest), version);
   writeManifest(join(root, "server.json"), version);
+  writeManifest(join(root, "plugins/teak/.claude-plugin/plugin.json"), version);
 };
 
 describe("setManifestVersion", () => {

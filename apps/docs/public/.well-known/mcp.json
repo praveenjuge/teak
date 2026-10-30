@@ -5,7 +5,7 @@
   "transport": "streamable-http",
   "auth": {
     "type": "bearer",
-    "authorizationServer": "https://app.teakvault.com",
+    "authorizationServer": "https://scholarly-hay-77.authkit.app",
     "protectedResource": "https://teakvault.com/.well-known/oauth-protected-resource/mcp",
     "methods": ["OAuth browser sign-in", "teakapi_ API keys"]
   },

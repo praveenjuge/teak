@@ -43,6 +43,7 @@
         "**/apps/extension/entrypoints/**/*.ts",
         "**/apps/extension/entrypoints/**/*.tsx",
         "**/apps/extension/components/**/*.tsx",
+        "**/packages/mcp-app/src/**/*.tsx",
         "!**/__tests__/**",
         "!**/*.test.*",
         "!**/apps/web/src/components/ui/**"
@@ -90,6 +91,7 @@
         "apps/web/src/**/*.tsx",
         "apps/extension/entrypoints/**/*.tsx",
         "apps/extension/components/**/*.tsx",
+        "packages/mcp-app/src/**/*.tsx",
         "!**/__tests__/**",
         "!**/*.test.*",
         "!apps/web/src/components/ui/**"
@@ -348,11 +350,13 @@
     {
       // Plain <img> on purpose: card media and favicons load straight from
       // their source with Teak's own retry and sizing, the browser extension
-      // has no next/image, and OG images render through ImageResponse.
+      // and the MCP App have no next/image, and OG images render through
+      // ImageResponse.
       "includes": [
         "apps/web/src/components/card-previews/**",
         "apps/web/src/components/cards/**",
         "apps/extension/**",
+        "packages/mcp-app/**",
         "apps/web/src/app/opengraph-image.tsx"
       ],
       "linter": {

@@ -1773,5 +1773,23 @@
       "partialFailureWithReason": "{successCount} fichiers sur {total} importés. Premier échec : {file} — {reason}",
       "skippedNote": "{count, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}}. Vous pouvez en importer jusqu’à {max} à la fois."
     }
+  },
+  "mcpApp": {
+    "searchTitle": "Résultats pour « {query} »",
+    "searchTitleNoQuery": "Résultats de recherche",
+    "recentTitle": "Fiches récentes",
+    "favoritesTitle": "Favoris",
+    "cardCount": "{count, plural, one {# fiche} other {# fiches}}",
+    "empty": "Aucune fiche ne correspond.",
+    "savedTitle": "Enregistrée dans Teak",
+    "resavedTitle": "Déjà dans Teak, remontée en haut",
+    "openInTeak": "Ouvrir dans Teak",
+    "visitSource": "Voir la source",
+    "summary": "Résumé",
+    "notes": "Notes",
+    "favorite": "Favori",
+    "loading": "Chargement des fiches…",
+    "error": "Teak n’a pas pu afficher ces fiches.",
+    "untitled": "Sans titre"
   }
 }

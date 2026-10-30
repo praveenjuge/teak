@@ -1,0 +1,30 @@
+{
+  "name": "@teak/mcp-app",
+  "version": "1.0.91",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun --bun vite build && bun --no-env-file run scripts/emit.ts",
+    "test": "bun test src --coverage --dots",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@teak/i18n": "workspace:*",
+    "preact": "10.29.8",
+    "use-intl": "4.14.9"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/core": "2.4.0",
+    "@modelcontextprotocol/ext-apps": "2.0.4",
+    "@types/bun": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "8.2.1",
+    "vite-plugin-singlefile": "2.3.4",
+    "zod": "4.6.7"
+  }
+}

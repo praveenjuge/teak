@@ -7,6 +7,7 @@ const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const appleSafariManifest =
   "apps/apple/SafariExtension/Resources/manifest.json";
 const mcpServerManifest = "server.json";
+const claudePluginManifest = "plugins/teak/.claude-plugin/plugin.json";
 // project.yml is the source of truth; Teak.xcodeproj is generated from it, so
 // both carry the same MARKETING_VERSION. Build numbers come from App Store
 // Connect at release time.
@@ -66,7 +67,7 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  files.push(appleSafariManifest, mcpServerManifest);
+  files.push(appleSafariManifest, mcpServerManifest, claudePluginManifest);
   return files.sort();
 }
 

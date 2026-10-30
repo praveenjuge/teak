@@ -1,0 +1,369 @@
+/*
+ * Teak's tokens (apps/web/src/styles/theme.css), under the host's own style
+ * variables when it sends them, so cards sit in Claude or ChatGPT natively.
+ */
+:root {
+  --teak-bg: var(--color-background-primary, oklch(1 0 0));
+  --teak-surface: var(--color-background-secondary, oklch(0.985 0.002 264));
+  --teak-fg: var(--color-text-primary, oklch(0.13 0.028 261.692));
+  --teak-muted: var(--color-text-secondary, oklch(0.551 0.027 264.364));
+  --teak-border: var(--color-border-primary, oklch(0.928 0.006 264.531));
+  --teak-accent: oklch(0.58 0.22 27);
+  --teak-accent-fg: oklch(1 0 0);
+  --teak-radius: var(--border-radius-lg, 0.625rem);
+  --teak-font: var(
+    --font-sans,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --teak-bg: var(--color-background-primary, oklch(0.13 0.028 261.692));
+    --teak-surface: var(
+      --color-background-secondary,
+      oklch(0.21 0.034 264.665)
+    );
+    --teak-fg: var(--color-text-primary, oklch(0.985 0.002 247.839));
+    --teak-muted: var(--color-text-secondary, oklch(0.707 0.022 261.325));
+    --teak-border: var(--color-border-primary, oklch(1 0 0 / 10%));
+  }
+}
+
+:root[data-theme="dark"] {
+  --teak-bg: var(--color-background-primary, oklch(0.13 0.028 261.692));
+  --teak-surface: var(--color-background-secondary, oklch(0.21 0.034 264.665));
+  --teak-fg: var(--color-text-primary, oklch(0.985 0.002 247.839));
+  --teak-muted: var(--color-text-secondary, oklch(0.707 0.022 261.325));
+  --teak-border: var(--color-border-primary, oklch(1 0 0 / 10%));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  font-family: var(--teak-font);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+  color: var(--teak-fg);
+  background: transparent;
+}
+
+#root {
+  padding: 12px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.list-header {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.list-header h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.count,
+.meta {
+  font-size: 12px;
+  color: var(--teak-muted);
+}
+
+.count {
+  flex: none;
+}
+
+.grid {
+  columns: 3 180px;
+  column-gap: 10px;
+}
+
+.tile {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 10px;
+  overflow: hidden;
+  text-align: start;
+  background: var(--teak-bg);
+  border: 1px solid var(--teak-border);
+  border-radius: var(--teak-radius);
+  break-inside: avoid;
+}
+
+button.tile {
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+button.tile:hover {
+  border-color: var(--teak-muted);
+}
+
+button.tile:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--teak-accent);
+  outline-offset: 2px;
+}
+
+.tile-image {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  background: var(--teak-surface);
+}
+
+.tile-text {
+  padding: 8px 10px 9px;
+}
+
+.title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  padding: 10px 10px 0;
+  overflow: hidden;
+  -webkit-line-clamp: 6;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.excerpt.quote {
+  padding: 0 0 0 10px;
+  margin: 10px 10px 0;
+  font-style: italic;
+  border-inline-start: 3px solid var(--teak-border);
+}
+
+.palette {
+  display: flex;
+  height: 72px;
+}
+
+.palette span {
+  flex: 1;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--teak-border);
+  border-radius: 999px;
+}
+
+.favorite svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: var(--teak-accent);
+}
+
+.empty {
+  padding: 24px 8px;
+  color: var(--teak-muted);
+  text-align: center;
+}
+
+.detail {
+  overflow: hidden;
+  background: var(--teak-bg);
+  border: 1px solid var(--teak-border);
+  border-radius: var(--teak-radius);
+}
+
+.detail-image {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: var(--teak-surface);
+}
+
+.detail .palette {
+  height: 120px;
+}
+
+.detail-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
+.detail-body h1 {
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detail-body h2 {
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teak-muted);
+}
+
+.detail-body .excerpt {
+  padding: 0;
+  -webkit-line-clamp: 12;
+}
+
+.detail-body .excerpt.quote {
+  padding-inline-start: 10px;
+  margin: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.tags li {
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--teak-muted);
+  background: var(--teak-surface);
+  border-radius: 999px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.button {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--teak-bg);
+  border: 1px solid var(--teak-border);
+  border-radius: 999px;
+}
+
+.button:hover {
+  background: var(--teak-surface);
+}
+
+.button.primary {
+  color: var(--teak-accent-fg);
+  background: var(--teak-accent);
+  border-color: var(--teak-accent);
+}
+
+.saved {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  background: var(--teak-bg);
+  border: 1px solid var(--teak-border);
+  border-radius: var(--teak-radius);
+}
+
+.saved-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  background: var(--teak-surface);
+  border-radius: calc(var(--teak-radius) - 2px);
+}
+
+.thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.saved-thumb .swatches {
+  justify-content: center;
+  padding: 6px;
+}
+
+.saved-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.status {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--teak-muted);
+}
+
+.status svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    columns: 2 140px;
+  }
+
+  .saved {
+    align-items: flex-start;
+  }
+}

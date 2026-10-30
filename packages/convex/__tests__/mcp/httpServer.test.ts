@@ -444,7 +444,7 @@ describe("Convex MCP endpoint", () => {
           method: "tools/call",
           params: { name: "teak_v1_get_card", arguments: { cardId: "c1" } },
         },
-        { jsonrpc: "2.0", method: "resources/list" },
+        { jsonrpc: "2.0", method: "prompts/list" },
       ])
     );
 

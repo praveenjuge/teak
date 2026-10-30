@@ -1,0 +1,15 @@
+{
+  "name": "teak",
+  "displayName": "Teak",
+  "version": "1.0.91",
+  "description": "Save, search and rediscover your Teak cards (links, images, notes, quotes, palettes and files) from Claude, through Teak's MCP server.",
+  "author": {
+    "name": "Praveen Juge",
+    "email": "hello@praveenjuge.com",
+    "url": "https://teakvault.com"
+  },
+  "homepage": "https://teakvault.com/docs/mcp",
+  "repository": "https://github.com/praveenjuge/teak",
+  "license": "MIT",
+  "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy"
+}

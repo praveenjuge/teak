@@ -61,6 +61,19 @@ describe("MCP protocol at the edge", () => {
     );
   });
 
+  test("lists the card view resource Convex serves", async () => {
+    const response = await answerMcpAtEdge(mcp(rpc(3, "resources/list")), USER);
+    const body = (await response?.json()) as {
+      result: { resources: Array<{ mimeType: string; uri: string }> };
+    };
+    expect(body.result.resources).toEqual([
+      expect.objectContaining({
+        mimeType: "text/html;profile=mcp-app",
+        uri: "ui://teak/cards.html",
+      }),
+    ]);
+  });
+
   test("answers ping with an empty result", async () => {
     const response = await answerMcpAtEdge(
       mcp(rpc("abc" as never, "ping")),
@@ -132,7 +145,11 @@ describe("MCP protocol at the edge", () => {
       "a batch with one tool call",
       mcp([rpc(1, "ping"), rpc(2, "tools/call", { name: "x" })]),
     ],
-    ["an unknown method", mcp(rpc(1, "resources/list"))],
+    ["an unknown method", mcp(rpc(1, "prompts/list"))],
+    [
+      "a resource read",
+      mcp(rpc(1, "resources/read", { uri: "ui://teak/cards.html" })),
+    ],
     ["an invalid message", mcp({ id: 1, method: "ping" })],
     [
       "a request under notifications/ with an id",

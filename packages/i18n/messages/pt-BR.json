@@ -1773,5 +1773,23 @@
       "partialFailureWithReason": "{successCount} de {total} arquivos enviados. Primeira falha: {file} — {reason}",
       "skippedNote": "{count, plural, one {# arquivo foi ignorado} other {# arquivos foram ignorados}}. Você pode enviar até {max} por vez."
     }
+  },
+  "mcpApp": {
+    "searchTitle": "Resultados para “{query}”",
+    "searchTitleNoQuery": "Resultados da pesquisa",
+    "recentTitle": "Cards recentes",
+    "favoritesTitle": "Favoritos",
+    "cardCount": "{count, plural, one {# card} other {# cards}}",
+    "empty": "Nenhum card corresponde.",
+    "savedTitle": "Salvo no Teak",
+    "resavedTitle": "Já está no Teak; movido para o topo",
+    "openInTeak": "Abrir no Teak",
+    "visitSource": "Visitar a fonte",
+    "summary": "Resumo",
+    "notes": "Notas",
+    "favorite": "Favorito",
+    "loading": "Carregando cards…",
+    "error": "O Teak não conseguiu mostrar estes cards.",
+    "untitled": "Sem título"
   }
 }

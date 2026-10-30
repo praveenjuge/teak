@@ -8,7 +8,8 @@ bun run release:prepare <version>
 ```
 
 It validates the next patch, updates every tracked `package.json`, the Safari
-WebExtension manifest, the MCP registry's `server.json`, and the Apple app's
+WebExtension manifest, the MCP registry's `server.json`, the Claude plugin's
+`plugins/teak/.claude-plugin/plugin.json`, and the Apple app's
 marketing version, synchronizes
 `bun.lock` (and `apps/raycast/package-lock.json` when present),
 then verifies with a frozen install and the lockstep validator. Review the
@@ -19,7 +20,7 @@ it with the same version plus `--resume` to continue from the install step.
 Manual fallback (same steps the script performs):
 
 1. Update the `version` field in every tracked `package.json` to the same next patch version.
-2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
+2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `plugins/teak/.claude-plugin/plugin.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
 3. Run `bun install` from the repository root to synchronize `bun.lock`.
 4. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts --workspaces=false` to synchronize both version fields in `package-lock.json` without traversing the Bun workspace packages.
 5. From the repository root, run `bun install --frozen-lockfile` and `node scripts/release-version.mjs lockstep <version>`. Both commands must exit successfully without changing files.

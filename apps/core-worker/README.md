@@ -180,17 +180,22 @@ requests, defer edits rather than refusing them, or never pass the edge.
 ### MCP at the edge
 
 MCP clients open every session with `initialize`, a
-`notifications/initialized`, `tools/list`, and then `ping` now and then. For a
-`/mcp` POST the edge has tied to a Teak user (`user:` identity) and charged to
-that user's limit, `src/edge/mcpEdge.ts` answers those messages itself: if every
+`notifications/initialized`, `tools/list` (and, for clients that render MCP
+Apps, `resources/list`), and then `ping` now and then. For a `/mcp` POST the
+edge has tied to a Teak user (`user:` identity) and charged to that user's
+limit, `src/edge/mcpEdge.ts` answers the notifications, `tools/list`,
+`resources/list`, `resources/templates/list` and `ping` itself: if every
 message in the body (one, or a batch of up to 100) is one of them, the Worker
 replies with the JSON-RPC result, `202` with no body for notifications alone,
 and the headers Convex adds (`MCP_CORS_HEADERS`, the API's CORS headers,
-`X-Request-Id`, `no-store`). The tool list and the `initialize` result come
-from `packages/convex/mcp/protocol.ts`, which Convex's `mcp/httpServer.ts`
-uses too, so both answer byte for byte the same; `ping` answers `{}` in both.
-Anything else is forwarded unchanged: a tool call (alone or in a batch), an
-unknown method or invalid message, a body Convex would refuse (wrong `Accept`
+`X-Request-Id`, `no-store`). The lists come from
+`packages/convex/mcp/protocol.ts`, which Convex's `mcp/httpServer.ts` uses too,
+so both answer byte for byte the same; `ping` answers `{}` in both.
+`initialize` always goes to Convex, so a key revoked in the last few minutes
+fails there, and so does `resources/read`, whose card view carries a sandbox
+origin derived from the deployment's public MCP URL. Anything else is forwarded
+unchanged: a tool call (alone or in a batch), an unknown method or invalid
+message, a body Convex would refuse (wrong `Accept`
 or `Content-Type`, unparseable, over 64 KiB, more than 100 messages), and every
 request without a known user, so an unknown credential still gets Convex's 401
 with `WWW-Authenticate`. The identity cache can trail a revoked key by up to
