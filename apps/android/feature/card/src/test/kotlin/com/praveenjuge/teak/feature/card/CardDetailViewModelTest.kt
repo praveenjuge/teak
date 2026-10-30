@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.card
 import app.cash.turbine.test
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.CardBacklinks
 import com.praveenjuge.teak.core.model.CardFieldChange
@@ -446,5 +447,78 @@ class CardDetailViewModelTest {
         assertEquals(listOf("Plan"), viewModel.uiState.value.backlinks.backlinks.map { it.title })
         cards.cards.value = mapOf(card.id to card.copy(content = "See [[Old title|teak:$target]] again", notes = "x"))
         assertEquals(listOf(listOf(target)), cards.linkTargetRequests)
+    }
+
+    private val palette = Card(
+        id = "c1",
+        creationTime = 0.0,
+        type = CardType.Palette,
+        colors = listOf(CardColor("#FF5500"), CardColor("#4ECDC4")),
+    )
+
+    @Test
+    fun `adding a color sends its hex code once and says so`() = runTest {
+        cards.cards.value = mapOf(palette.id to palette)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.addColor("red")
+            viewModel.addColor("f50")
+            viewModel.addColor(" 2a9d8f ")
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.palette.added", "#2A9D8F")), awaitItem())
+        }
+        assertEquals(listOf("edit:c1:${CardFieldChange.AddColor("#2A9D8F")}"), cards.writes)
+        assertEquals("#2A9D8F", viewModel.uiState.value.card?.colors?.last()?.hex)
+    }
+
+    @Test
+    fun `removing a color offers Undo, which adds it back`() = runTest {
+        cards.cards.value = mapOf(palette.id to palette)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.removeColor("#4ECDC4")
+            val note = awaitItem() as CardDetailEvent.Message
+            assertEquals(UiText.of("native.card.palette.removed", "#4ECDC4"), note.text)
+            assertEquals(listOf("#FF5500"), viewModel.uiState.value.card?.colors?.map { it.hex })
+
+            note.undo!!.invoke()
+        }
+        assertEquals(
+            listOf("edit:c1:${CardFieldChange.RemoveColor("#4ECDC4")}", "edit:c1:${CardFieldChange.AddColor("#4ECDC4")}"),
+            cards.writes,
+        )
+        assertEquals(listOf("#FF5500", "#4ECDC4"), viewModel.uiState.value.card?.colors?.map { it.hex })
+    }
+
+    @Test
+    fun `the last color, a full palette and Trash change nothing`() = runTest {
+        cards.cards.value = mapOf(palette.id to palette.copy(colors = listOf(CardColor("#FF5500"))))
+        val viewModel = viewModel()
+        viewModel.removeColor("#FF5500")
+
+        cards.cards.value = mapOf(palette.id to palette.copy(colors = List(12) { CardColor("#%06X".format(it)) }))
+        viewModel.addColor("#FF5500")
+
+        cards.cards.value = mapOf(palette.id to palette.copy(isDeleted = true))
+        viewModel.addColor("#000000")
+        viewModel.removeColor("#4ECDC4")
+
+        assertEquals(emptyList(), cards.writes)
+    }
+
+    @Test
+    fun `a failed color change says the palette couldn't update`() = runTest {
+        cards.cards.value = mapOf(palette.id to palette)
+        cards.failingIds = setOf(palette.id)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.addColor("#000000")
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed")), awaitItem())
+            viewModel.removeColor("#FF5500")
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed")), awaitItem())
+        }
+        assertEquals(palette.colors, viewModel.uiState.value.card?.colors)
     }
 }

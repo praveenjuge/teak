@@ -74,13 +74,21 @@ class ConvexCardsRepositoryTest {
     fun `edits go out one field at a time, clearing notes with null`() = runTest {
         repository.apply(
             "c1",
-            listOf(CardFieldChange.Notes(null), CardFieldChange.Tags(listOf("a")), CardFieldChange.RemoveAiTag("Color")),
+            listOf(
+                CardFieldChange.Notes(null),
+                CardFieldChange.Tags(listOf("a")),
+                CardFieldChange.RemoveAiTag("Color"),
+                CardFieldChange.AddColor("#FF5500"),
+                CardFieldChange.RemoveColor("#4ECDC4"),
+            ),
         )
         assertEquals(
             listOf(
                 mapOf("cardId" to "c1", "field" to "notes", "value" to null),
                 mapOf("cardId" to "c1", "field" to "tags", "value" to listOf("a")),
                 mapOf("cardId" to "c1", "field" to "removeAiTag", "tagToRemove" to "Color"),
+                mapOf("cardId" to "c1", "field" to "addColor", "value" to "#FF5500"),
+                mapOf("cardId" to "c1", "field" to "removeColor", "value" to "#4ECDC4"),
             ),
             convex.calls.map { it.args },
         )

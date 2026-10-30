@@ -7,7 +7,9 @@ import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkResult
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.PaletteEdit
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
@@ -125,6 +127,10 @@ class FakeCardsRepository : CardsRepository {
                     is CardFieldChange.RemoveAiTag -> card.copy(aiTags = card.aiTags.orEmpty() - change.tag)
                     is CardFieldChange.MetadataTitle -> card.copy(metadataTitle = change.value, metadataTitleEdited = true)
                     is CardFieldChange.Url -> card.copy(url = change.value)
+                    is CardFieldChange.AddColor ->
+                        if (PaletteEdit.contains(card, change.hex)) card else card.copy(colors = card.colors.orEmpty() + CardColor(change.hex))
+                    is CardFieldChange.RemoveColor ->
+                        card.copy(colors = card.colors.orEmpty().filterNot { PaletteEdit.storedHex(it) == change.hex })
                     CardFieldChange.MoveToTrash -> card.copy(isDeleted = true)
                     CardFieldChange.Restore -> card.copy(isDeleted = null)
                 }

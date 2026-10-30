@@ -26,6 +26,12 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.performTouchInput
+import com.praveenjuge.teak.core.model.CardColor
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -217,5 +223,84 @@ class CardDetailUiTest {
         compose.waitForIdle()
 
         assertEquals(listOf("Field notes"), saved)
+    }
+
+    private fun paletteScreen(card: Card, added: MutableList<String>, removed: MutableList<String>) {
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(
+                    onBack = {},
+                    onEdit = {},
+                    onSearchTag = {},
+                    onAddColor = { added += it },
+                    onRemoveColor = { removed += it },
+                ),
+            )
+        }
+    }
+
+    private val palette = Card(
+        id = "p1",
+        creationTime = 0.0,
+        type = CardType.Palette,
+        colors = listOf(CardColor("#FF5500"), CardColor("#4ECDC4")),
+    )
+
+    @Test
+    fun `Add color checks the hex code before adding it`() {
+        val added = mutableListOf<String>()
+        paletteScreen(palette, added, mutableListOf())
+
+        compose.onNodeWithContentDescription("Add color").performClick()
+        val field = compose.onNode(hasSetTextAction())
+        field.performTextReplacement("nope")
+        compose.onNodeWithText("Enter a hex code, such as #FF5500").assertIsDisplayed()
+        compose.onNodeWithText("Add").assertIsNotEnabled()
+
+        field.performTextReplacement("#4ecdc4")
+        compose.onNodeWithText("#4ECDC4 is already in this palette").assertIsDisplayed()
+        compose.onNodeWithText("Add").assertIsNotEnabled()
+
+        field.performTextReplacement("2a9d8f")
+        compose.onNodeWithText("Add").assertIsEnabled().performClick()
+        compose.waitForIdle()
+
+        assertEquals(listOf("#2A9D8F"), added)
+    }
+
+    @Test
+    fun `long-pressing a swatch offers Remove color while another color stays`() {
+        val removed = mutableListOf<String>()
+        paletteScreen(palette, mutableListOf(), removed)
+
+        compose.onNodeWithText("#FF5500").performTouchInput { longClick() }
+        compose.onNodeWithText("Remove color").performClick()
+
+        assertEquals(listOf("#FF5500"), removed)
+    }
+
+    @Test
+    fun `a full palette has no add tile, a one-color palette no Remove, and Trash neither`() {
+        var card by mutableStateOf(palette.copy(colors = List(12) { CardColor("#%06X".format(it * 0x111111)) }))
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}),
+            )
+        }
+        compose.onNodeWithContentDescription("Add color").assertDoesNotExist()
+
+        card = palette.copy(colors = listOf(CardColor("#FF5500")))
+        compose.onNodeWithContentDescription("Add color").assertIsDisplayed()
+        compose.onNodeWithText("#FF5500").performTouchInput { longClick() }
+        compose.onNodeWithText("Remove color").assertDoesNotExist()
+
+        card = palette.copy(isDeleted = true)
+        compose.onNodeWithContentDescription("Add color").assertDoesNotExist()
+        compose.onNodeWithText("#FF5500").performTouchInput { longClick() }
+        compose.onNodeWithText("Remove color").assertDoesNotExist()
     }
 }

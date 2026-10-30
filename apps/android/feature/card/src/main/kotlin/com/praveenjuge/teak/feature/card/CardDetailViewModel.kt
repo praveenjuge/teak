@@ -16,6 +16,7 @@ import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.LinkEdit
 import com.praveenjuge.teak.core.model.MarkdownListItem
+import com.praveenjuge.teak.core.model.PaletteEdit
 import com.praveenjuge.teak.core.model.TaskLists
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardLinks
@@ -332,6 +333,39 @@ class CardDetailViewModel @AssistedInject constructor(
             catchingFailures { repository.apply(card.id, listOf(CardFieldChange.RemoveAiTag(tag))) }.onFailure {
                 _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.update")))
             }
+        }
+    }
+
+    /** Adds a typed color to a palette. The swatch shows once the card catches up. */
+    fun addColor(input: String) {
+        val card = _uiState.value.card ?: return
+        val hex = PaletteEdit.normalizedHex(input) ?: return
+        if (!PaletteEdit.canAdd(card) || PaletteEdit.contains(card, hex)) return
+        viewModelScope.launch {
+            catchingFailures { repository.apply(card.id, listOf(CardFieldChange.AddColor(hex))) }
+                .onSuccess { _events.send(CardDetailEvent.Message(UiText.of("native.card.palette.added", hex))) }
+                .onFailure { _events.send(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed"))) }
+        }
+    }
+
+    /** Removes a color from a palette, with Undo, which adds it back at the end. A palette keeps at least one color. */
+    fun removeColor(input: String) {
+        val card = _uiState.value.card ?: return
+        val hex = PaletteEdit.normalizedHex(input) ?: return
+        if (!PaletteEdit.canRemove(card) || !PaletteEdit.contains(card, hex)) return
+        viewModelScope.launch {
+            catchingFailures { repository.apply(card.id, listOf(CardFieldChange.RemoveColor(hex))) }
+                .onSuccess {
+                    _events.send(
+                        CardDetailEvent.Message(UiText.of("native.card.palette.removed", hex)) {
+                            viewModelScope.launch {
+                                catchingFailures { repository.apply(card.id, listOf(CardFieldChange.AddColor(hex))) }
+                                    .onFailure { _events.send(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed"))) }
+                            }
+                        },
+                    )
+                }
+                .onFailure { _events.send(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed"))) }
         }
     }
 
