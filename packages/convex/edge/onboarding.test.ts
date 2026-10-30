@@ -105,8 +105,8 @@ interface WorkerCall {
   };
 }
 
-/** Answers Files Worker ops the way a Worker with the assets binding does. */
-const stubFilesWorker = () => {
+/** Answers Core Worker ops the way a Worker with the assets binding does. */
+const stubCoreWorker = () => {
   const calls: WorkerCall[] = [];
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
     const call = JSON.parse(String(init.body)) as WorkerCall;
@@ -145,8 +145,8 @@ describe("getting-started cards", () => {
     expect(await foldersOf(t)).toHaveLength(0);
   });
 
-  test("the sign-up job has the Files Worker store the files, and the cards carry them", async () => {
-    const calls = stubFilesWorker();
+  test("the sign-up job has the Core Worker store the files, and the cards carry them", async () => {
+    const calls = stubCoreWorker();
     const t = setup();
     await createDefaults(t);
     const [job] = await scheduled(t, "card/onboardingFiles:addOnboardingCards");
@@ -259,7 +259,7 @@ describe("getting-started cards", () => {
     ).toEqual([pdf?._id]);
   });
 
-  test("without a Files Worker, the cards that need no files arrive at once", async () => {
+  test("without a Core Worker, the cards that need no files arrive at once", async () => {
     vi.stubEnv("FILES_BASE", "");
     const t = setup();
 

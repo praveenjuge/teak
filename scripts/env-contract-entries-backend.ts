@@ -186,14 +186,14 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
   }),
 
   spec("FILES_SIGNING_SECRET", {
-    owners: ["@teak/convex", "@teak/files-worker"],
-    targets: ["convex", "files-worker"],
+    owners: ["@teak/convex", "@teak/core-worker"],
+    targets: ["convex", "core-worker"],
     profiles: ["local", "preview", "production"],
     secret: true,
     validation: "string",
     providers: ["convex-dashboard", "wrangler-secret", "dotenv-local"],
     required: false,
-    note: "HMAC secret shared by Convex and its Files Worker. Shared dev routing reuses the production value; isolated dev routing requires its own. Convex dev syncs to files-worker .dev.vars (or development/.dev.vars with --isolated).",
+    note: "HMAC secret shared by Convex and its Core Worker. Shared dev routing reuses the production value; isolated dev routing requires its own. Convex dev syncs to core-worker .dev.vars (or development/.dev.vars with --isolated).",
   }),
   spec("R2_KEY_PREFIX", {
     owners: ["@teak/convex"],
@@ -225,14 +225,14 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
   }),
   spec("POSTHOG_PROJECT_TOKEN", {
     classification: "public-config",
-    owners: ["@teak/convex", "@teak/files-worker", "teak-release"],
-    targets: ["convex", "files-worker", "release"],
+    owners: ["@teak/convex", "@teak/core-worker", "teak-release"],
+    targets: ["convex", "core-worker", "release"],
     profiles: ["production"],
     secret: false,
     validation: "string",
     providers: ["github-secrets", "convex-dashboard", "wrangler-var"],
     required: false,
-    note: "Public project token (PostHog project 660923). Set only for production: Backend Deploy stamps it into Convex, release workflows bake it into the Apple app and the extension, and the production files worker carries it as a plain var. Unset means nothing is sent.",
+    note: "Public project token (PostHog project 660923). Set only for production: Backend Deploy stamps it into Convex, release workflows bake it into the Apple app and the extension, and the production core worker carries it as a plain var. Unset means nothing is sent.",
   }),
   spec("POSTHOG_QUERY_API_KEY", {
     owners: ["@teak/convex"],

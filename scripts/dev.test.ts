@@ -60,7 +60,7 @@ describe("parseDevArgs", () => {
 
   test("parses --headless and matrix aliases", () => {
     expect(parseDevArgs(["web", "--headless"]).headless).toBe(true);
-    expect(parseDevArgs(["files-worker"]).target).toBe("files");
+    expect(parseDevArgs(["core-worker"]).target).toBe("core");
   });
 
   test("parses a single target", () => {
@@ -123,11 +123,11 @@ describe("buildDevCommand", () => {
   });
 
   test("files targets use workspace filter", () => {
-    expect(buildDevCommand("files")).toEqual([
+    expect(buildDevCommand("core")).toEqual([
       "bun",
       "run",
       "--filter",
-      "@teak/files-worker",
+      "@teak/core-worker",
       "dev",
     ]);
   });
@@ -189,7 +189,7 @@ describe("dev target filters", () => {
   });
 
   test("files targets use scripts the worker defines", () => {
-    const manifest = manifestFor("@teak/files-worker");
+    const manifest = manifestFor("@teak/core-worker");
     const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
       scripts?: Record<string, string>;
     };
@@ -412,6 +412,6 @@ describe("dev.ts before install", () => {
     );
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("Usage: bun run dev");
-    expect(result.stdout.toString()).toContain("files:local");
+    expect(result.stdout.toString()).toContain("core:local");
   });
 });

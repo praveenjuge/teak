@@ -471,7 +471,7 @@ const architecture = () => `
     ${connector("Workflow dispatch · signed workflow gateway")}
     <div class="node" style="padding:22px 26px;border-color:oklch(0.75 0.12 60 / 0.6);background:oklch(0.8 0.12 70 / 0.06)">
       <div class="ic" style="background:oklch(0.8 0.12 70 / 0.18)">${icon("cloud", 24)}</div>
-      <div style="flex:1"><strong>Files Worker</strong><span>Card-processing Workflows, uploads, imports, exports and the API edge proxy</span>
+      <div style="flex:1"><strong>Core Worker</strong><span>Card-processing Workflows, uploads, imports, exports and the API edge proxy</span>
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">${[
           "R2 files",
           "Workers AI",
@@ -535,7 +535,7 @@ const selfHosting = () => `
     ${connector("Workflow dispatch · signed URLs for files")}
     <div class="node" style="padding:24px 26px">
       <div class="ic">${icon("cloud", 24)}</div>
-      <div style="flex:1"><strong>Files Worker on Cloudflare Workers Paid</strong>
+      <div style="flex:1"><strong>Core Worker on Cloudflare Workers Paid</strong>
         <span>File storage in R2, thumbnails, screenshots, media processing, AI tags and summaries, and search by meaning</span>
         <i class="tag req">Required for files and AI</i></div>
     </div>
@@ -558,9 +558,9 @@ const LAYERS = [
     "apps/web/src/**/__tests__",
   ],
   [
-    "Files Worker Workflow engine behavior",
+    "Core Worker Workflow engine behavior",
     "bun test + Wrangler createTestHarness",
-    "apps/files-worker/src",
+    "apps/core-worker/src",
   ],
   [
     "Convex on the real database",
@@ -666,7 +666,7 @@ const cardPipeline = () => `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
       ${node("globe", "You hit save", "Web, Apple, Android, the extension, Raycast, the CLI or MCP")}
       ${node("database", "Convex", "Writes the card and a dispatch row in the same transaction", "accent")}
-      ${node("cloud", "Files Worker", "Starts one Cloudflare Workflow for the card")}
+      ${node("cloud", "Core Worker", "Starts one Cloudflare Workflow for the card")}
     </div>
     ${connector("Each step writes back through one signed gateway")}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
@@ -692,7 +692,7 @@ const MONOREPO_APPS = [
   ["puzzle", "Extension", "WXT", "Chrome, Firefox"],
   ["command", "Raycast", "Raycast API", "Raycast Store"],
   ["terminal", "CLI", "Bun, TypeScript", "npm"],
-  ["cloud", "Files Worker", "Cloudflare Workers", "Cloudflare"],
+  ["cloud", "Core Worker", "Cloudflare Workers", "Cloudflare"],
   ["mail", "Email Worker", "Email Workers", "Cloudflare"],
   ["file", "Docs and this blog", "Blume", "Vercel"],
 ] as const;

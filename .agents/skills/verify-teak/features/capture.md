@@ -61,5 +61,5 @@ Steps:
 - The free plan stops at 200 cards ("Free card limit reached"). Delete what each run creates so the shared account never fills up.
 - Use a WebM (VP9) file to check video playback: Playwright's Chromium can't decode MP4.
 - Drag-and-drop onto the composer is rejected with the toast "Paste text or Markdown into this note." That is intended. Pasting files into it uploads them; pasting into a card dialog's note doesn't (the toast "Paste plain text or Markdown.").
-- An upload attempt that gets no answer is abandoned after a minute (plus time for the file's size) and retried, twice at most; the toast then reads "The upload stopped responding. Check your connection and try again." To check it, hold the first `PUT` to the Files Worker with Playwright's `page.route` and let later ones through: "File uploaded" arrives after about 62 s.
+- An upload attempt that gets no answer is abandoned after a minute (plus time for the file's size) and retried, twice at most; the toast then reads "The upload stopped responding. Check your connection and try again." To check it, hold the first `PUT` to the Core Worker with Playwright's `page.route` and let later ones through: "File uploaded" arrives after about 62 s.
 - Once one file in a batch hits the free card limit or the rate limit, the rest of the batch isn't uploaded.

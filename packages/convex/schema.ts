@@ -972,7 +972,7 @@ export default defineSchema({
     ),
     isApproximate: v.boolean(),
   }).index("by_date", ["date"]),
-  // The admin overview as the Files Worker last counted it (hourly), one row
+  // The admin overview as the Core Worker last counted it (hourly), one row
   // with onboarding cards and one without. Aggregates only.
   adminOverviews: defineTable({
     includeOnboarding: v.boolean(),

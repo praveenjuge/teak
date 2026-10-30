@@ -21,7 +21,7 @@ Settings → Import & export → Import brings cards in from a file: browser boo
 
 Preconditions:
 
-- Signed in ([sign-in](./sign-in.md)), with the backend that has the `csv` and `links` modes pushed: the running Files Worker and Convex must both know them, or the upload is refused or the import fails.
+- Signed in ([sign-in](./sign-in.md)), with the backend that has the `csv` and `links` modes pushed: the running Core Worker and Convex must both know them, or the upload is refused or the import fails.
 - No import is running (a second one is refused until the first finishes).
 - Fixtures live in `packages/tests/src/web/import-fixtures/` (the e2e upload tool takes paths relative to `packages/tests`): `full.csv`, `aliases.csv`, `no-url.csv`, `variants.csv`, `unsafe-urls.csv`, `links.txt`. More awkward files are in `packages/convex/__tests__/import/fixtures/` (BOM and CRLF, quoted newlines, pipe tags); copy one into the fixtures folder to upload it.
 
@@ -54,7 +54,7 @@ Steps:
 
 ## Gotchas
 
-- Imports parse in the Files Worker, so a new import mode needs the Files Worker and Convex deployed (Files Worker first). Until then, choosing a new source fails at "Start import" (Convex refuses the mode) or right after parsing (the Worker doesn't know it).
+- Imports parse in the Core Worker, so a new import mode needs the Core Worker and Convex deployed (Core Worker first). Until then, choosing a new source fails at "Start import" (Convex refuses the mode) or right after parsing (the Worker doesn't know it).
 - Only comma-separated CSVs are read. A semicolon-separated file (European spreadsheet exports) has one column and stops with the missing url column message.
 - Rows are numbered as a spreadsheet shows them: the header is row 1, blank lines count, and a quoted cell over several lines is one row.
 - Skipped duplicates are counted, not listed in the report; the report lists failed rows only.
@@ -62,5 +62,5 @@ Steps:
 - The free plan's card rate limit slows big imports after the first 30 cards ("Waiting for card rate limit", about one card every 2 s); give a large file minutes, not seconds.
 - Imports never move an existing card to the top or change it; a link already saved is only skipped.
 - Deleting a file from a Teak archive doesn't test `import-archive-partial`. The import finds the missing entry before it extracts anything, so the item fails as "Item <n>" with "Missing ZIP entry: files/<card id>-<name>", and this happened before the fix too. Use the local header change above, which only fails during extraction.
-- Every file that fails during extraction shows the same English sentence, whatever the cause; like other import errors, it isn't translated. The cause is in the Files Worker's log as `[workflows/import] file extraction failed` with its `failureClass` (here `files_worker_error:INVALID_INPUT:400:wf-<id>`); locally that's `.agents/.state/stack.log`.
+- Every file that fails during extraction shows the same English sentence, whatever the cause; like other import errors, it isn't translated. The cause is in the Core Worker's log as `[workflows/import] file extraction failed` with its `failureClass` (here `files_worker_error:INVALID_INPUT:400:wf-<id>`); locally that's `.agents/.state/stack.log`.
 - Export runs once a week per account ("You've used this week's export."). Keep the ZIP from the first export and make new copies of it.

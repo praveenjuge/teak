@@ -454,7 +454,7 @@ export const retryEmailAttachment = internalAction({
       await finalizeAttachment(ctx, args);
     } catch (error) {
       // A scheduled action is never retried, and no redelivery of the email
-      // follows the 202 that scheduled it, so a failure here (a Files Worker
+      // follows the 202 that scheduled it, so a failure here (a Core Worker
       // or network fault) gets the same bounded follow-ups.
       console.error("inbound_attachment_retry_failed", {
         attempt: args.attempt ?? 0,

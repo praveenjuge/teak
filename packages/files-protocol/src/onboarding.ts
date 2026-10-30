@@ -1,6 +1,6 @@
 /**
- * `store-onboarding-files` copies the getting-started files the Files Worker
- * ships as static assets (`apps/files-worker/assets/onboarding/`) into a new
+ * `store-onboarding-files` copies the getting-started files the Core Worker
+ * ships as static assets (`apps/core-worker/assets/onboarding/`) into a new
  * account. Convex names each file's destination key; the Worker stores a
  * card's files together or not at all.
  */

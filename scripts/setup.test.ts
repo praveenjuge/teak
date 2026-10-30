@@ -94,6 +94,6 @@ describe("resolveSetupConvex", () => {
     expect(resolveSetupConvex("extension", null)).toBe("cloud");
     expect(resolveSetupConvex("docs", null)).toBe("skip");
     expect(resolveSetupConvex("cli", null)).toBe("skip");
-    expect(resolveSetupConvex("files-worker", null)).toBe("skip");
+    expect(resolveSetupConvex("core-worker", null)).toBe("skip");
   });
 });

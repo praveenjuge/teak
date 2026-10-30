@@ -9,7 +9,7 @@ import { backendAppVersion, isBackendCaptureEnabled } from "./posthog";
 
 /**
  * Mutations cannot fetch, so they queue each event in the workflow dispatch
- * outbox and the Files Worker sends a flush's events in one PostHog request.
+ * outbox and the Core Worker sends a flush's events in one PostHog request.
  * The event matches `captureBackendEvent`'s. Property names can't start with
  * `$` (Convex reserves them).
  */
@@ -20,7 +20,7 @@ export const queueBackendEvent = async <Name extends ServerEventName>(
   properties: ServerEventCatalog[Name],
   options: { set?: PostHogProperties } = {}
 ): Promise<void> => {
-  // A deployment without a Files Worker could never send the row.
+  // A deployment without a Core Worker could never send the row.
   if (!(isBackendCaptureEnabled() && isFilesWorkerConfigured())) {
     return;
   }

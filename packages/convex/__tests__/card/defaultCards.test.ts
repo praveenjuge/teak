@@ -14,7 +14,7 @@ import { validateFileFormat } from "../../shared/fileFormats";
 
 const WORKER_ONBOARDING_ASSETS = join(
   import.meta.dir,
-  "../../../../apps/files-worker/assets/onboarding"
+  "../../../../apps/core-worker/assets/onboarding"
 );
 
 describe("getting-started cards", () => {
@@ -41,7 +41,7 @@ describe("getting-started cards", () => {
       (card): [string, OnboardingCardDef] => [card.onboarding, card]
     )
   )(
-    "the %s card's files ship with the Files Worker and its original fits its card type",
+    "the %s card's files ship with the Core Worker and its original fits its card type",
     (_: string, card: OnboardingCardDef) => {
       for (const upload of card.uploads ?? []) {
         expect(isOnboardingSourceName(upload.source)).toBe(true);

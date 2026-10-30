@@ -336,7 +336,7 @@ test("a page snapshot becomes the link's saved copy", async () => {
   });
   expect(upload.status).toBe(200);
   const { fileKey, uploadUrl } = await upload.json();
-  // The signed URL is the local Files Worker's, not the API's.
+  // The signed URL is the local Core Worker's, not the API's.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const put = await fetch(uploadUrl, {
     body: page,

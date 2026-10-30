@@ -335,7 +335,7 @@ describe("configured local backend security policy", () => {
     expect(policy).not.toContain(url);
     expect(policy).not.toContain(`${new URL(url).origin} `);
   });
-  const devFilesOrigin = "https://teak-files-dev.praveenjuge.workers.dev";
+  const devFilesOrigin = "https://core-worker-dev.praveenjuge.workers.dev";
   const fileDirectives = ["img-src", "connect-src", "media-src", "frame-src"];
   const directive = (policy: string, name: string) =>
     policy
@@ -344,7 +344,7 @@ describe("configured local backend security policy", () => {
       .split(" ");
 
   test.each(["production", "development"] as const)(
-    "a %s build for the dev deployment loads its isolated Files Worker",
+    "a %s build for the dev deployment loads its isolated Core Worker",
     (environment) => {
       const policy = policyFor(
         environment,
@@ -363,7 +363,7 @@ describe("configured local backend security policy", () => {
     "https://other-deployment-1.convex.cloud",
     "http://reminiscent-kangaroo-59.convex.cloud",
     "http://127.0.0.1:3210",
-  ])("other backends never allow the dev Files Worker: %s", (convexUrl) => {
+  ])("other backends never allow the dev Core Worker: %s", (convexUrl) => {
     for (const environment of ["production", "development"] as const) {
       const policy = policyFor(environment, convexUrl);
       expect(policy).not.toContain("workers.dev");

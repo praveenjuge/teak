@@ -373,7 +373,7 @@ describe("daily snapshots", () => {
     isApproximate: false,
   };
 
-  test("an admin's capture starts the Files Worker's snapshot and is audited", async () => {
+  test("an admin's capture starts the Core Worker's snapshot and is audited", async () => {
     const t = setup();
     await seedAdmin(t);
     await seedCustomer(t);
@@ -439,7 +439,7 @@ describe("daily snapshots", () => {
 });
 
 describe("overview", () => {
-  test("is counted live until the Files Worker stores one, then read from the stored row", async () => {
+  test("is counted live until the Core Worker stores one, then read from the stored row", async () => {
     const t = setup();
     await seedAdmin(t);
     await seedCustomer(t);
@@ -479,7 +479,7 @@ describe("overview", () => {
     ).rejects.toThrow("Unauthorized");
   });
 
-  test("the Files Worker's card page carries what the snapshot counts too", async () => {
+  test("the Core Worker's card page carries what the snapshot counts too", async () => {
     const t = setup();
     const cardId = await privateCard(t);
     await t.run((ctx) =>

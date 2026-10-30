@@ -45,7 +45,7 @@ export const DOCTOR_VERSION = 1;
 export const DOCTOR_TARGETS = [
   "web",
   "convex",
-  "files",
+  "core",
   "extension",
   "cli",
   "docs",
@@ -503,25 +503,25 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
           severity: "error",
         };
   }
-  if (target === "files") {
-    if (!existsSync(join(ROOT, "apps/files-worker/wrangler.jsonc"))) {
+  if (target === "core") {
+    if (!existsSync(join(ROOT, "apps/core-worker/wrangler.jsonc"))) {
       return {
-        detail: "files worker wrangler.jsonc is missing",
+        detail: "core worker wrangler.jsonc is missing",
         id,
         ok: false,
-        remediation: ["Restore apps/files-worker/wrangler.jsonc"],
+        remediation: ["Restore apps/core-worker/wrangler.jsonc"],
         severity: "error",
       };
     }
-    return existsSync(join(ROOT, "apps/files-worker/.dev.vars"))
+    return existsSync(join(ROOT, "apps/core-worker/.dev.vars"))
       ? {
-          detail: "files worker config and local dev vars are present",
+          detail: "core worker config and local dev vars are present",
           id,
           ok: true,
           severity: "error",
         }
       : {
-          detail: "files worker .dev.vars is missing (FILES_SIGNING_SECRET)",
+          detail: "core worker .dev.vars is missing (FILES_SIGNING_SECRET)",
           id,
           ok: true,
           remediation: ["Run bun run sync:cloudflare-dev"],
@@ -558,7 +558,7 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
 const NON_CONVEX_TARGETS: ReadonlySet<DoctorTarget> = new Set([
   "cli",
   "docs",
-  "files",
+  "core",
 ]);
 
 export const needsConvexChecks = (target: DoctorTarget): boolean =>

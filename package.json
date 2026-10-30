@@ -27,7 +27,7 @@
     "setup": "bun --no-env-file run scripts/setup.ts",
     "smoke:web": "bun --no-env-file run scripts/smoke-web-session.ts",
     "start": "turbo run start",
-    "sync:cloudflare-dev": "bun --no-env-file run scripts/sync-files-worker-dev-secret.ts",
+    "sync:cloudflare-dev": "bun --no-env-file run scripts/sync-core-worker-dev-secret.ts",
     "test": "turbo run test && bun --no-env-file test scripts/ apps/apple/tests/ apps/android/tests/",
     "typecheck": "turbo run typecheck",
     "verify": "turbo run typecheck lint test --affected",

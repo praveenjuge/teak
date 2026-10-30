@@ -630,7 +630,7 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   },
   "dead-links": {
     description:
-      "Link cards with archived copies whose pages are gone or not: 404, 410, a domain that no longer exists (opens the copy), 403, 500, a page that answers after 6 seconds and a live one (open the original), plus a 404 with no copy (opens directly), one in Trash and a text-only copy. They point at httpbin.org unless `origin` names a server that answers `/status/<code>` and `/delay/<s>`. The copies are small pages written through the Files Worker. Search `#scenario-dead-links`.",
+      "Link cards with archived copies whose pages are gone or not: 404, 410, a domain that no longer exists (opens the copy), 403, 500, a page that answers after 6 seconds and a live one (open the original), plus a 404 with no copy (opens directly), one in Trash and a text-only copy. They point at httpbin.org unless `origin` names a server that answers `/status/<code>` and `/delay/<s>`. The copies are small pages written through the Core Worker. Search `#scenario-dead-links`.",
     deadLinks: true,
   },
   "locale-switch": {
@@ -643,11 +643,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     cards: firstPageOnly(aiLanguagesScenarioCards()),
   },
   "page-archive-mix": {
-    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Files Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
+    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Core Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
     seed: seedPageArchiveMix,
   },
   "reader-mix": {
-    description: `Links for the Read tab in every state: a 3,000-word article with images, code, a wide table and a quote, a news story, a research abstract, a product page that isn't an article, a text-only copy's article, Arabic and Japanese articles, an article cut at 512 KiB characters, one still being prepared, one that failed, and a podcast with an article and a transcript. Copies, Markdown and images are written through the Files Worker. Search \`#${READER_MIX_TAG}\`.`,
+    description: `Links for the Read tab in every state: a 3,000-word article with images, code, a wide table and a quote, a news story, a research abstract, a product page that isn't an article, a text-only copy's article, Arabic and Japanese articles, an article cut at 512 KiB characters, one still being prepared, one that failed, and a podcast with an article and a transcript. Copies, Markdown and images are written through the Core Worker. Search \`#${READER_MIX_TAG}\`.`,
     seed: seedReaderMix,
   },
   "highlights-mix": {

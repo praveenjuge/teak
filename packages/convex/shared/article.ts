@@ -1,6 +1,6 @@
 /**
  * A link's article (`cards.article`): the text Teak's reader shows, taken
- * from the page's saved copy. The rules the Convex backend, the Files Worker
+ * from the page's saved copy. The rules the Convex backend, the Core Worker
  * and the web app share.
  */
 

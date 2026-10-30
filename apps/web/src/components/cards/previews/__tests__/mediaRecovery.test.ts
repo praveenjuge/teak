@@ -36,7 +36,7 @@ describe("media recovery", () => {
   });
 
   test.each([
-    "https://teak-files-dev.praveenjuge.workers.dev/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
+    "https://core-worker-dev.praveenjuge.workers.dev/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
     "https://files.teakvault.com/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
   ])(
     "recovers media from the production and isolated development Workers: %s",
@@ -48,8 +48,8 @@ describe("media recovery", () => {
 
   test.each([
     "https://other.praveenjuge.workers.dev/__images/v1/grid/key?sig=x",
-    "https://teak-files-dev.other.workers.dev/__images/v1/grid/key?sig=x",
-    "https://teak-files-dev.praveenjuge.workers.dev.evil.test/__images/v1/grid/key",
+    "https://core-worker-dev.other.workers.dev/__images/v1/grid/key?sig=x",
+    "https://core-worker-dev.praveenjuge.workers.dev.evil.test/__images/v1/grid/key",
     "http://files.teakvault.com/__images/v1/grid/key?sig=x",
     "http://teak-files-development.praveenjuge.workers.dev/__images/v1/grid/key",
   ])("never treats lookalike or insecure origins as Teak media: %s", (url) => {

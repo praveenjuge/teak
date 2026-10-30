@@ -44,10 +44,10 @@ self-hosting guide (`apps/docs/content/docs/(open-source)/self-hosting.mdx`,
 6. **Attachments** (`src/attachments.ts`). Files and inline photos are kept;
    S/MIME signatures, `winmail.dat`, calendar invites and inline images the
    HTML shows that are under 16 KB (logos, spacers) are skipped; at most 50.
-   For each part Convex accepted, it returns a signed Files Worker upload
+   For each part Convex accepted, it returns a signed Core Worker upload
    URL. The Worker PUTs the bytes (two at a time, three tries each), then
    POSTs `/inbound/email/attachments` so Convex turns it into a card. A part
-   the Files Worker refuses (a 4xx other than 408 or 429) is skipped and its
+   the Core Worker refuses (a 4xx other than 408 or 429) is skipped and its
    pending object swept later. If a PUT or finalize still fails for a
    transient reason (a 5xx, a 408 or 429, or the network) after the others
    are done, the Worker throws, so the sender retries the whole email; Convex's receipt then re-signs only the attachments not yet

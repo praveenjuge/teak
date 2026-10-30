@@ -32,10 +32,10 @@ export const DEV_TARGETS: Record<string, string[]> = {
   raycast: ["./apps/raycast"],
 };
 
-export const FILES_TARGETS = new Set(["files", "files:local"]);
+export const CORE_TARGETS = new Set(["core", "core:local"]);
 
 export const TARGET_ALIASES: Record<string, string> = {
-  "files-worker": "files",
+  "core-worker": "core",
 };
 
 const resolveTarget = (target: string): string =>
@@ -48,14 +48,14 @@ export const describeTargets = (): string =>
   [
     "Available dev targets:",
     "  web (default) — Next.js on the shared cloud dev deployment, seeded",
-    "  web --local — Next.js on a local backend, WorkOS emulator and Files Worker, seeded",
+    "  web --local — Next.js on a local backend, WorkOS emulator and Core Worker, seeded",
     "  convex — Convex backend only",
     "  docs — Docs site",
     "  extension — Chrome extension + Convex",
     "  cli — CLI",
     "  raycast — Raycast extension",
-    "  files — files-worker (development config, remote dev bindings)",
-    "  files:local — files-worker (isolated Miniflare)",
+    "  core — core-worker (development config, remote dev bindings)",
+    "  core:local — core-worker (isolated Miniflare)",
     "  --all — every surface",
   ].join("\n");
 
@@ -103,7 +103,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   ]);
   const isTarget = (arg: string) =>
     Boolean(DEV_TARGETS[arg]) ||
-    FILES_TARGETS.has(arg) ||
+    CORE_TARGETS.has(arg) ||
     Boolean(TARGET_ALIASES[arg]);
   const targets = argv.filter(isTarget);
   if (
@@ -171,11 +171,11 @@ export const buildDevCommand = (
   if (opts?.all) {
     return ["turbo", "watch", "dev", ...ui];
   }
-  if (target === "files") {
-    return ["bun", "run", "--filter", "@teak/files-worker", "dev"];
+  if (target === "core") {
+    return ["bun", "run", "--filter", "@teak/core-worker", "dev"];
   }
-  if (target === "files:local") {
-    return ["bun", "run", "--filter", "@teak/files-worker", "dev:local"];
+  if (target === "core:local") {
+    return ["bun", "run", "--filter", "@teak/core-worker", "dev:local"];
   }
   const filters = DEV_TARGETS[target] ?? DEV_TARGETS.web ?? [];
   return [
@@ -411,7 +411,7 @@ const runDetached = async (push: boolean, local = false): Promise<number> => {
 
 const describeCheck = (args: DevArgs): string => {
   if (args.local) {
-    return `Would run the web app on a local backend, the WorkOS emulator and the Files Worker in Miniflare, with a seeded account${args.detach ? ", in the background" : ""}`;
+    return `Would run the web app on a local backend, the WorkOS emulator and the Core Worker in Miniflare, with a seeded account${args.detach ? ", in the background" : ""}`;
   }
   if (usesWebStack(args)) {
     return `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${args.push ? ", taking over pushing the backend" : ""}${args.detach ? ", in the background" : ""}`;

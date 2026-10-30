@@ -7,7 +7,7 @@
  *   multipart uploads are aborted after a day;
  * - event notifications: every object written under `users/` or `dev/users/`
  *   goes to the bucket's R2 events queue, whose consumer deletes pending
- *   uploads nobody finalized (apps/files-worker/src/queues/r2Events.ts).
+ *   uploads nobody finalized (apps/core-worker/src/queues/r2Events.ts).
  *
  * Only lifecycle rules whose id, and notification rules whose description,
  * starts with R2_RULE_PREFIX are created, updated or deleted; every other
@@ -22,7 +22,7 @@
  */
 
 import { cloudflareClient } from "./cloudflare-waf";
-import { CLOUDFLARE_ACCOUNT_ID } from "./files-worker-dev-boundary";
+import { CLOUDFLARE_ACCOUNT_ID } from "./core-worker-dev-boundary";
 
 export const R2_RULE_PREFIX = "teak-";
 const DAY_SECONDS = 24 * 60 * 60;

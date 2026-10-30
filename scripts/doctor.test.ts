@@ -121,7 +121,7 @@ describe("needsConvexChecks", () => {
   test("is false only for targets that never consume convex", () => {
     expect(needsConvexChecks("docs")).toBe(false);
     expect(needsConvexChecks("cli")).toBe(false);
-    expect(needsConvexChecks("files")).toBe(false);
+    expect(needsConvexChecks("core")).toBe(false);
     for (const target of ["web", "convex", "extension"] as const) {
       expect(needsConvexChecks(target)).toBe(true);
     }

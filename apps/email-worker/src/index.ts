@@ -16,7 +16,7 @@ import type { Deps, Env, InboundMessage } from "./types";
 // Save by email. Mail to save@<INBOUND_EMAIL_DOMAIN> from a Teak account's
 // sign-in address, proven by DMARC, becomes cards: Convex plans the body card
 // and hands back upload URLs for the attachments, which go straight to the
-// Files Worker. Anything that can't be saved is refused while the sender's
+// Core Worker. Anything that can't be saved is refused while the sender's
 // server is still connected; this Worker never sends mail. Logs carry
 // outcomes and counts only, never addresses, subjects, bodies or file names.
 
@@ -28,7 +28,7 @@ export const REJECT_UNREADABLE = "550 5.6.0 Message could not be read";
 /** Email Routing's own limit; anything larger never reaches a Worker. */
 export const MAX_MESSAGE_BYTES = 25 * 1024 * 1024;
 export const UPLOAD_RETRY_DELAYS_MS = [500, 1500];
-/** One PUT of an attachment (at most about 18 MB) to the Files Worker. */
+/** One PUT of an attachment (at most about 18 MB) to the Core Worker. */
 export const UPLOAD_TIMEOUT_MS = 60_000;
 export const UPLOAD_CONCURRENCY = 2;
 
@@ -101,7 +101,7 @@ export const isIncomplete = (counts: Record<string, number>): boolean =>
 
 /**
  * PUTs each attachment Convex asked for (two at a time), then asks Convex to
- * turn it into a card. A part the Files Worker refuses is skipped and its
+ * turn it into a card. A part the Core Worker refuses is skipped and its
  * pending object swept later; one that failed for a passing reason makes the
  * delivery fail once the rest are done, so the sender retries and Convex
  * re-signs only what isn't saved yet.

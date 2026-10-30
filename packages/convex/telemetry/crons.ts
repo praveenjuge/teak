@@ -55,7 +55,7 @@ export const workosEventCatchUp = internalAction({
     }),
 });
 
-// Reports outbox rows no flush takes and stale runs the Files Worker's
+// Reports outbox rows no flush takes and stale runs the Core Worker's
 // reconcile stopped checking, and starts a flush for the first.
 export const workflowDispatchWatchdog = internalAction({
   args: {},
@@ -93,7 +93,7 @@ export const cleanupFinishedLinkPastes = internalAction({
     ),
 });
 
-// The Files Worker runs the snapshot now; this only catches a Convex cron
+// The Core Worker runs the snapshot now; this only catches a Convex cron
 // firing queued before that deploy (.agents/sunset.md).
 export const adminDailySnapshot = internalAction({
   args: {},

@@ -824,7 +824,7 @@ export const findExpiredUploads = internalQuery({
 });
 
 /**
- * Fails an import whose upload expired, once the Files Worker has aborted its
+ * Fails an import whose upload expired, once the Core Worker has aborted its
  * multipart upload, and queues the source for deletion. A job that is no
  * longer an expired upload is left alone, so a repeated run does nothing.
  */

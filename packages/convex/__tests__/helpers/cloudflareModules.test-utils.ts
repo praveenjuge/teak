@@ -1,5 +1,5 @@
 // Stand-ins for the Workers runtime modules (`cloudflare:workers`,
-// `cloudflare:workflows`) the Files Worker imports, so convex-test suites can
+// `cloudflare:workflows`) the Core Worker imports, so convex-test suites can
 // run its code in-process. vitest.config.ts aliases both to this file.
 
 export class NonRetryableError extends Error {

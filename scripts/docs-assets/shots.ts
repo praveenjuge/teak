@@ -235,7 +235,7 @@ export const SHOTS: Shot[] = [
     name: "architecture",
     kind: "mock",
     mock: "architecture",
-    alt: "Teak's apps talk to one Convex backend; the Files Worker processes cards and serves files from R2, and the Email Worker handles save by email",
+    alt: "Teak's apps talk to one Convex backend; the Core Worker processes cards and serves files from R2, and the Email Worker handles save by email",
   },
   {
     name: "adding-a-feature",
@@ -247,7 +247,7 @@ export const SHOTS: Shot[] = [
     name: "self-hosting",
     kind: "mock",
     mock: "self-hosting",
-    alt: "A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Files Worker with R2 and Workers AI, and optional Polar and Email Worker",
+    alt: "A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and Email Worker",
   },
   {
     name: "development",
@@ -361,7 +361,7 @@ SHOTS.push(
     kind: "mock",
     mock: "blog-card-pipeline",
     out: BLOG_IMAGES,
-    alt: "A save goes to Convex, a Files Worker Workflow fetches, describes and archives the card step by step, and the card becomes searchable by meaning",
+    alt: "A save goes to Convex, a Core Worker Workflow fetches, describes and archives the card step by step, and the card becomes searchable by meaning",
   },
   {
     name: "one-monorepo-every-platform",

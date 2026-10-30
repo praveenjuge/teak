@@ -19,9 +19,9 @@ const statePath = resolve(
   "../../../.agents/.state/stack.json"
 );
 
-/** The ports the app reaches: Convex, its HTTP site, the WorkOS emulator and the Files Worker. */
+/** The ports the app reaches: Convex, its HTTP site, the WorkOS emulator and the Core Worker. */
 export const reversePorts = (ports: Record<string, unknown>): number[] =>
-  ["convex", "convexSite", "emulator", "filesWorker", "web"]
+  ["convex", "convexSite", "emulator", "coreWorker", "web"]
     .map((key) => ports[key])
     .filter((port): port is number => typeof port === "number");
 

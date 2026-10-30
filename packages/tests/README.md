@@ -1,6 +1,6 @@
 # Teak E2E tests
 
-[e2e](https://e2e.tester.army/docs) journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local stack (`src/stack/`): the WorkOS emulator, a local Convex backend, the Files Worker in local mode, and the web app. It needs no secrets.
+[e2e](https://e2e.tester.army/docs) journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local stack (`src/stack/`): the WorkOS emulator, a local Convex backend, the Core Worker in local mode, and the web app. It needs no secrets.
 
 ```bash
 bun run --cwd packages/tests e2e

@@ -71,7 +71,7 @@ Verification (root `AGENTS.md`, "Verification"):
 - `hooks/start-docker.sh`: starts Docker in a cloud session; the
   SessionStart hook runs it (`cloud.md`, "Containers").
 - `../.claude/agents/`: Claude Code subagents a session can delegate to:
-  `files-worker` (Cloudflare Workers), `convex-backend` (`packages/convex`)
+  `core-worker` (Cloudflare Workers), `convex-backend` (`packages/convex`)
   and `teak-verifier` (runs `verify-teak` and returns the evidence). Each
   points back at the guides here rather than repeating them.
 - `.state/`: ignored runtime state for the running stack (`stack.json`,

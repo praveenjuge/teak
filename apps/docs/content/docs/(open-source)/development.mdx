@@ -64,7 +64,7 @@ See [Architecture](/docs/architecture) for the monorepo layout.
 bun run dev              # Set up, then start the web app on the development deployment, seeded
 bun run dev --push       # Same, and push this checkout's backend code
 bun run dev --detach     # Start in the background and return once ready (combine with --push)
-bun run dev --local      # Same app on a local backend, WorkOS emulator and Files Worker (combine with --detach)
+bun run dev --local      # Same app on a local backend, WorkOS emulator and Core Worker (combine with --detach)
 bun run dev --status     # This checkout's ports, URLs and sign-in, and whether it pushes
 bun run dev --stop       # Stop this checkout's stack
 bun run setup            # Set up only (--target for other surfaces)
@@ -109,7 +109,7 @@ A package that two or more workspaces depend on takes its version from the `cata
 
 ## The shared development deployment
 
-Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Files Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. When you'd rather not share it, `bun run dev --local` runs the app on [a local backend](#a-local-backend) instead.
+Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Core Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. When you'd rather not share it, `bun run dev --local` runs the app on [a local backend](#a-local-backend) instead.
 
 ### Reaching it
 
@@ -144,7 +144,7 @@ Every linked worktree leases its own block of ports the first time it runs, reco
 
 ### A local backend
 
-`bun run dev --local` (add `--detach` to return once it's ready) runs the web app on the [end-to-end suite's stack](/docs/testing#end-to-end-suite) instead of the shared deployment: a local Convex backend that pushes this checkout's `packages/convex` as you edit it, the WorkOS emulator, and the Files Worker in Miniflare. It needs no Convex login or deploy key, and nothing you do there reaches another checkout, so it suits schema changes and destructive work, and checkouts without access to the development deployment.
+`bun run dev --local` (add `--detach` to return once it's ready) runs the web app on the [end-to-end suite's stack](/docs/testing#end-to-end-suite) instead of the shared deployment: a local Convex backend that pushes this checkout's `packages/convex` as you edit it, the WorkOS emulator, and the Core Worker in Miniflare. It needs no Convex login or deploy key, and nothing you do there reaches another checkout, so it suits schema changes and destructive work, and checkouts without access to the development deployment.
 
 It creates `dev+local-<checkout>@example.org` on the emulator with a new password each time it starts, and seeds its vault with the same sample cards. `bun run dev --status` prints the sign-in. Link fetching, screenshots, transcripts, embeddings, WorkOS Connect and billing don't run there ([What the local stack doesn't cover](/docs/testing#what-the-local-stack-doesnt-cover)). It takes over `packages/convex/.env.local`; after `bun run dev --stop`, the next `bun run dev` selects the development deployment again.
 
@@ -160,7 +160,7 @@ hand.
 | `web` | Access to the development deployment | Only one checkout at a time pushes backend code (see [One backend, one pusher](#one-backend-one-pusher)) |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
 | `extension` | Access to the development deployment | Env files derive `VITE_*` aliases automatically |
-| `files-worker` | `bun run sync:cloudflare-dev --isolated` afterwards | Worker secrets are owned by the sync command, not setup |
+| `core-worker` | `bun run sync:cloudflare-dev --isolated` afterwards | Worker secrets are owned by the sync command, not setup |
 
 iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS. The Android app needs the Android SDK.
 

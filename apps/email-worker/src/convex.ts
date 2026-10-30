@@ -78,7 +78,7 @@ const isUpload = (value: unknown): value is PlannedUpload => {
   }
   try {
     const url = new URL(uploadUrl);
-    // Plain http only to this machine: the local E2E stack's Files Worker.
+    // Plain http only to this machine: the local E2E stack's Core Worker.
     return (
       url.protocol === "https:" ||
       (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname))

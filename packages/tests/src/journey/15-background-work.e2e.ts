@@ -91,7 +91,7 @@ test("an export workflow builds a downloadable archive", async () => {
     { intervals: [1000, 2000], timeout: 120_000 }
   );
 
-  // The signed URL is the local Files Worker's own origin.
+  // The signed URL is the local Core Worker's own origin.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const archive = await fetch(downloadUrl);
   expect(archive.status).toBe(200);

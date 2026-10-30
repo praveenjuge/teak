@@ -10,7 +10,7 @@ import { E2E_EMAIL_INBOUND_SIGNING_SECRET } from "../stack/config";
 
 // Save by email end to end: the Email Worker's own code reads a message as
 // Cloudflare hands it over and posts to this stack's backend, which saves the
-// body as a card and the attachment through the local Files Worker.
+// body as a card and the attachment through the local Core Worker.
 
 const PDF = Buffer.from(
   "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"

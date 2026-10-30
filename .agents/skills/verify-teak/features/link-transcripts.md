@@ -23,7 +23,7 @@ Preconditions:
 - Seed both packs on the signed-in account (local stack shown; on the dev deployment, run the same two `devSeed:seedScenario` calls without the `env` prefix):
   - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"video-captions"}'`
   - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"podcast-transcripts"}'`
-- A real save needs a Files Worker with this feature and its link-fetch and media Containers: the dev deployment once the Worker is deployed. The local E2E stack has no Containers (no Docker), so live links fail there by design; its Whisper is a fake.
+- A real save needs a Core Worker with this feature and its link-fetch and media Containers: the dev deployment once the Worker is deployed. The local E2E stack has no Containers (no Docker), so live links fail there by design; its Whisper is a fake.
 
 Steps:
 

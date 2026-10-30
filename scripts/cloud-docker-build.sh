@@ -5,8 +5,8 @@
 # Never use it for images you deploy.
 #
 #   scripts/cloud-docker-build.sh <tag> <context> [Dockerfile] [-- docker build args]
-#   scripts/cloud-docker-build.sh teak-renderer apps/files-worker/container
-#   scripts/cloud-docker-build.sh teak-fetcher . apps/files-worker/fetcher/Dockerfile
+#   scripts/cloud-docker-build.sh teak-renderer apps/core-worker/container
+#   scripts/cloud-docker-build.sh teak-fetcher . apps/core-worker/fetcher/Dockerfile
 set -euo pipefail
 
 if (($# < 2)); then

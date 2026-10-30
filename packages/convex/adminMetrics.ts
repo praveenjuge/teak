@@ -175,7 +175,7 @@ const billingValidator = v.object({
 });
 
 /**
- * The daily snapshot's billing line. The Files Worker counts everything else
+ * The daily snapshot's billing line. The Core Worker counts everything else
  * (`admin-snapshot` maintenance task); Polar's token stays in Convex.
  */
 export const readSnapshotBilling = internalAction({
@@ -200,7 +200,7 @@ export const readSnapshotBilling = internalAction({
 });
 
 /**
- * Starts the Files Worker's snapshot of `date` (yesterday by default). The
+ * Starts the Core Worker's snapshot of `date` (yesterday by default). The
  * row lands in `adminDailyMetrics` when that run finishes.
  */
 export const queueSnapshot = internalMutation({
@@ -267,7 +267,7 @@ export const writeSnapshot = internalMutation({
   },
 });
 
-// The snapshot is counted by the Files Worker, so it lands shortly after
+// The snapshot is counted by the Core Worker, so it lands shortly after
 // this returns rather than before.
 export const captureSnapshot = action({
   args: { date: v.optional(v.string()) },

@@ -251,7 +251,7 @@ export const queueImportWorkflow = async (
   return instanceId;
 };
 
-/** Starts a Files Worker maintenance task that reports back when it ends. */
+/** Starts a Core Worker maintenance task that reports back when it ends. */
 export const queueMaintenanceWorkflow = async (
   ctx: MutationCtx,
   instanceId: string,
@@ -366,7 +366,7 @@ export const enqueueObjectDeletion = async (
 };
 
 /**
- * Queues one backend analytics event for the Files Worker to send to
+ * Queues one backend analytics event for the Core Worker to send to
  * PostHog. Its flush is the one this transaction already scheduled, if any,
  * so an event costs no function call of its own.
  */
@@ -932,7 +932,7 @@ const isStale = (row: Doc<"workflowDispatches">, now: number) =>
   (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind];
 
 /**
- * Sent runs past their kind's silence limit, for the Files Worker's reconcile
+ * Sent runs past their kind's silence limit, for the Core Worker's reconcile
  * to look up: first the ones it never checked, oldest send first, then the
  * ones it checked longest ago (`markReconciled`). Runs still going in
  * Cloudflare so move to the back instead of hiding newer stale ones.
@@ -1026,7 +1026,7 @@ const HEALTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 // A due row this old means no flush is taking rows.
 const PENDING_STALL_MS = 15 * 60 * 1000;
 // The reconcile runs hourly, so a stale run it hasn't looked at for this
-// long means the Files Worker stopped reconciling.
+// long means the Core Worker stopped reconciling.
 const RECONCILE_GRACE_MS = 2 * 60 * 60 * 1000;
 
 export const dispatchHealthValidator = v.object({

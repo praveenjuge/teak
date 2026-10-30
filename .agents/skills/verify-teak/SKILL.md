@@ -20,7 +20,7 @@ It sets up the checkout, starts the web app against the shared dev deployment (`
 - The account and its password are in `.agents/.state/stack.json` (`account.email`, `account.password`). A cloud session gets its own account, seeded with about 30 sample cards (`packages/convex/devSeed.ts`).
 - When the change touches `packages/convex`, the backend you test must be this checkout's. Start with `bun run dev --detach --push` to take over the push lease, and confirm with the doctor.
 - Don't start plain `bun run dev` as a background command: the agent tool stops it after 30 minutes.
-- For a run that must not share a backend (destructive or schema-changing work, or a session without `CONVEX_DEPLOY_KEY`), use a local backend instead: `bun run dev --stop`, then `bun run dev --local --detach` (a local Convex backend that pushes this checkout's backend as it changes, the WorkOS emulator and the Files Worker in Miniflare; `development.mdx`, "A local backend"). Its seeded account is in `stack.json` too, with a new password each start, and the emulator's sign-in buttons are both "Continue". Link previews, screenshots, transcripts and embeddings don't run there.
+- For a run that must not share a backend (destructive or schema-changing work, or a session without `CONVEX_DEPLOY_KEY`), use a local backend instead: `bun run dev --stop`, then `bun run dev --local --detach` (a local Convex backend that pushes this checkout's backend as it changes, the WorkOS emulator and the Core Worker in Miniflare; `development.mdx`, "A local backend"). Its seeded account is in `stack.json` too, with a new password each start, and the emulator's sign-in buttons are both "Continue". Link previews, screenshots, transcripts and embeddings don't run there.
 
 ## Doctor
 

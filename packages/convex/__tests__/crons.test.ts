@@ -10,7 +10,7 @@ const EXPECTED_SCHEDULES: Record<string, string> = {
   "cleanup-finished-link-pastes": "25 3 * * *",
 };
 
-const WORKER_DIR = join(import.meta.dir, "../../../apps/files-worker");
+const WORKER_DIR = join(import.meta.dir, "../../../apps/core-worker");
 const WRANGLER_CONFIGS = [
   join(WORKER_DIR, "wrangler.jsonc"),
   join(WORKER_DIR, "development/wrangler.jsonc"),
@@ -41,7 +41,7 @@ describe("crons.ts", () => {
     ).toEqual(EXPECTED_SCHEDULES);
   });
 
-  test("routes every Convex schedule to its monitored Node action, never a Files Worker task", () => {
+  test("routes every Convex schedule to its monitored Node action, never a Core Worker task", () => {
     expect(crons.crons).toEqual(
       Object.fromEntries(
         cronTasksOn("convex").map((handler) => [

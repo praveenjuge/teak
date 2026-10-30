@@ -1,4 +1,4 @@
-/** The Images binding's input cap in the Files Worker's finalize op. */
+/** The Images binding's input cap in the Core Worker's finalize op. */
 export const THUMBNAIL_MAX_BYTES = 20 * 1024 * 1024;
 
 export const THUMBNAIL_UNDO_WINDOW_MS = 2 * 60 * 1000;

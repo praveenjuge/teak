@@ -22,7 +22,7 @@ A test earns its place only if it fails when the behavior it names is broken. Be
 | Pure function (parsers, formatters, URL rules) | `bun test` | the workspace's test directory ([table below](#where-files-go)) | `bun test <path>` |
 | Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
 | Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/edge/*.test.ts` (`packages/convex/vitest.config.ts` runs every file there) | `bun run --cwd packages/convex test:edge` |
-| Files Worker Workflow behavior only the real engine decides (retries, a `NonRetryableError` ending a step, what reaches `run()` after a step fails) | `bun test` with Wrangler's `createTestHarness` (Miniflare's Workflows engine) and a local server standing in for Convex | `apps/files-worker/src/**`, like `src/workflows/cardProcessing/engine.test.ts` | `bun test <path>` in `apps/files-worker` |
+| Core Worker Workflow behavior only the real engine decides (retries, a `NonRetryableError` ending a step, what reaches `run()` after a step fails) | `bun test` with Wrangler's `createTestHarness` (Miniflare's Workflows engine) and a local server standing in for Convex | `apps/core-worker/src/**`, like `src/workflows/cardProcessing/engine.test.ts` | `bun test <path>` in `apps/core-worker` |
 | Web React UI (components, hooks, screens, lib) | `bun test` + `renderToStaticMarkup` | a `__tests__` folder beside the code, e.g. `apps/web/src/components/cards/__tests__/` | `bun run --cwd apps/web test` |
 | A real browser flow or a cross-surface journey (web, API, CLI, MCP) | [e2e](https://e2e.tester.army/docs) against the local stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys | `bun run --cwd packages/tests e2e` ([End-to-end suite](#end-to-end-suite)) |
 
@@ -37,7 +37,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `packages/convex` | `__tests__/**/*.test.ts` (Bun). `edge/**/*.test.ts` (Vitest, `convex-test`), whose module map is `import.meta.glob("../**/*.ts")` so function paths stay rooted at `packages/convex`. Don't colocate Bun tests next to source files. |
 | `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, `--parallel`, so each file gets a fresh global). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
-| `apps/cli`, `apps/files-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
+| `apps/cli`, `apps/core-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
 | `apps/extension` | `__tests__/**` |
 | `packages/i18n` | `src/__tests__/**` (locales, translator, pseudo-locale). The catalog check, `scripts/i18n-catalog.test.ts`, runs with the repo scripts: every language has English's keys, placeholders, plurals and tags in valid ICU. |
@@ -110,10 +110,10 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
-- the Files Worker under `wrangler dev` in local mode (`src/stack/filesWorker.ts`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
+- the Core Worker under `wrangler dev` in local mode (`src/stack/coreWorker.ts`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
 - the web app.
 
-It needs no secrets, so you can run it without access to the development deployment. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps everything in memory; the Files Worker's signing secret is a test-only constant too. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Files Worker 4102 (its inspector on 4103); each linked worktree uses its own ports.
+It needs no secrets, so you can run it without access to the development deployment. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps everything in memory; the Core Worker's signing secret is a test-only constant too. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Core Worker 4102 (its inspector on 4103); each linked worktree uses its own ports.
 
 The specs drive the browser with locators and exact `expect` assertions only. They run no agent steps, so the suite needs no model or API key.
 
@@ -191,7 +191,7 @@ Accounts are real WorkOS users in the emulator. Creating one through the emulato
 
 ### What the local stack doesn't cover
 
-- **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
+- **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/core-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
 - **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/edge/workosAuthKit.test.ts` covers it.
 - **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `Extension OAuth Runtime` workflow.
 - **Billing.** Polar checkout needs Polar credentials.

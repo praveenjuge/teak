@@ -48,7 +48,7 @@ const storeOnboardingFiles = ({
         }
   );
 
-const filesWorkerFetch = mock(
+const coreWorkerFetch = mock(
   (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = JSON.parse(String(init?.body ?? "{}"));
     ops.push({ op: request.op, params: request.params });
@@ -116,7 +116,7 @@ const deletedKeys = () =>
 beforeEach(() => {
   process.env.FILES_BASE = "https://files.example.test";
   process.env.FILES_SIGNING_SECRET = "onboarding-test-secret";
-  globalThis.fetch = filesWorkerFetch as unknown as typeof fetch;
+  globalThis.fetch = coreWorkerFetch as unknown as typeof fetch;
   ops = [];
   registered = [];
   inserts = [];
@@ -139,7 +139,7 @@ afterEach(() => {
 });
 
 describe("addOnboardingCards", () => {
-  test("the Files Worker stores every file in one call, then all the cards go in at once", async () => {
+  test("the Core Worker stores every file in one call, then all the cards go in at once", async () => {
     await run();
 
     const call = storeCall();

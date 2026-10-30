@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   // Save by email: Cloudflare Email Routing's catch-all rule for
   // in.teakvault.com sends every message here (README.md). It has no HTTP
-  // routes; it only posts signed requests to Convex and Files Worker uploads.
+  // routes; it only posts signed requests to Convex and Core Worker uploads.
   "name": "teak-email-prod",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",

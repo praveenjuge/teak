@@ -211,7 +211,7 @@ export const seedPageArchiveMix = async (
   return { cards: ids.length, status: "seeded" };
 };
 
-/** Writes the mix's stub archives to R2 through the Files Worker. */
+/** Writes the mix's stub archives to R2 through the Core Worker. */
 export const writeStubArchives = internalAction({
   args: {
     stubs: v.array(

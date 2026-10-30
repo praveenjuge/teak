@@ -15,7 +15,7 @@ interface SeededCard {
 /**
  * A site whose pages are gone: `/status/<code>` answers with that status.
  * The E2E stack's link fetcher forwards `/teak-e2e-forward/<port>/…` hops
- * here (apps/files-worker/e2e/fakeLinkFetcher.ts), so the Files Worker's
+ * here (apps/core-worker/e2e/fakeLinkFetcher.ts), so the Core Worker's
  * real link check reaches it.
  */
 const startGoneSite = async () => {

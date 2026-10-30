@@ -6,8 +6,8 @@ import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   convexForWorker,
-  loadFilesWorker,
-} from "../__tests__/helpers/filesWorker.test-utils";
+  loadCoreWorker,
+} from "../__tests__/helpers/coreWorker.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -16,7 +16,7 @@ import schema from "../schema";
 import { buildR2UserPrefix } from "../storage/r2";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
-const filesWorker = await loadFilesWorker();
+const coreWorker = await loadCoreWorker();
 const modules = import.meta.glob("../**/*.ts");
 const sourceKey = "users/import-test/imports/job/source.zip";
 const setup = async (mode: "archive" | "bookmarks" = "archive") => {
@@ -116,14 +116,14 @@ describe("import orchestration through the worker", () => {
           }
         }
       });
-      const bucket = new filesWorker.FakeBucket();
+      const bucket = new coreWorker.FakeBucket();
       const put = bucket.put.bind(bucket);
       bucket.put = ((key: string, ...rest: unknown[]) =>
         reportFails && key.endsWith("error-report.txt")
           ? Promise.reject(new Error("r2 unavailable"))
           : put(key, ...(rest as [never]))) as typeof bucket.put;
       const deleted: string[] = [];
-      const env = filesWorker.withObjectGates({
+      const env = coreWorker.withObjectGates({
         BUCKET: bucket,
         FILES_SIGNING_SECRET: "test-secret",
         OBJECT_DELETIONS: {
@@ -134,16 +134,16 @@ describe("import orchestration through the worker", () => {
         },
       });
 
-      await filesWorker.runImport(
+      await coreWorker.runImport(
         {
           env,
           instanceId: `import-${jobId}`,
           params: { jobId, convexSiteUrl: "https://session-tests.convex.site" },
-          step: filesWorker.createFakeStep().step,
+          step: coreWorker.createFakeStep().step,
         },
         {
           convex: convexForWorker(t),
-          ops: (spec: unknown) => filesWorker.callFilesOp(env, spec),
+          ops: (spec: unknown) => coreWorker.callFilesOp(env, spec),
         }
       );
 
@@ -475,9 +475,9 @@ describe("imports staged in R2", () => {
     const t = convexTest(schema, modules);
     rateLimiterTest.register(t, "rateLimiterV2");
     workosTest.register(t);
-    const bucket = new filesWorker.FakeBucket();
+    const bucket = new coreWorker.FakeBucket();
     const deleted: string[] = [];
-    const env = filesWorker.withObjectGates({
+    const env = coreWorker.withObjectGates({
       BUCKET: bucket,
       FILES_SIGNING_SECRET: "test-secret",
       OBJECT_DELETIONS: {
@@ -535,14 +535,14 @@ describe("imports staged in R2", () => {
       };
     };
     const runJob = (jobId: string, convex = convexForWorker(t)) =>
-      filesWorker.runImport(
+      coreWorker.runImport(
         {
           env,
           instanceId: `import-${jobId}`,
           params: { jobId, convexSiteUrl: "https://session-tests.convex.site" },
-          step: filesWorker.createFakeStep().step,
+          step: coreWorker.createFakeStep().step,
         },
-        { convex, ops: (spec: unknown) => filesWorker.callFilesOp(env, spec) }
+        { convex, ops: (spec: unknown) => coreWorker.callFilesOp(env, spec) }
       );
     // What the person sees of a finished import.
     const outcome = async (

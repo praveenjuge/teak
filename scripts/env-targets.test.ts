@@ -15,7 +15,7 @@ describe("env-targets", () => {
       "docs",
       "cli",
       "extension",
-      "files-worker",
+      "core-worker",
       "email-worker",
     ]) {
       expect(isSupportedTarget(target)).toBe(true);

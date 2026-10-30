@@ -32,7 +32,7 @@ jobs:
           test ! -e .env.local
           test ! -e apps/web/.env.local
           test ! -e apps/extension/.env.local
-          test ! -e apps/files-worker/.dev.vars
+          test ! -e apps/core-worker/.dev.vars
           test ! -e packages/convex/.env.local
       - name: Setup check passes without secrets
         run: bun run setup --check

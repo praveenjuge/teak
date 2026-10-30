@@ -15,7 +15,7 @@ related:
   - /blog/search-by-meaning
 ---
 
-![A save goes to Convex, a Files Worker Workflow fetches, describes and archives the card step by step, and the card becomes searchable by meaning](./images/from-link-to-card.webp)
+![A save goes to Convex, a Core Worker Workflow fetches, describes and archives the card step by step, and the card becomes searchable by meaning](./images/from-link-to-card.webp)
 
 When you save a link in Teak, the card shows up right away, a little bare. A few seconds later it has a preview image, a title, tags, a summary, and a saved copy of the page. A moment after that, search can find it by meaning.
 
@@ -31,7 +31,7 @@ That's the only work your save waits for. Everything after this point is in the 
 
 ## 2. Handing off
 
-Convex is good at data and terrible at heavy lifting. Downloading a 40 MB video or rendering a PDF doesn't belong there. So the outbox is flushed to a Cloudflare Worker, the Files Worker, which starts one durable [Workflow](https://developers.cloudflare.com/workflows/) for each card.
+Convex is good at data and terrible at heavy lifting. Downloading a 40 MB video or rendering a PDF doesn't belong there. So the outbox is flushed to a Cloudflare Worker, the Core Worker, which starts one durable [Workflow](https://developers.cloudflare.com/workflows/) for each card.
 
 Resending is safe. If the same card is handed off twice, Teak sees that its Workflow already exists and counts it as started, so a retry never doubles the work.
 
@@ -56,13 +56,13 @@ A code comment in that file says "Step names are durable history: never rename o
 
 Each step writes its result to Convex through one signed gateway. Every write carries the run's processing revision. If you edit the card while it's processing, the revision changes, the older run's next write is refused, and that run ends quietly. A slow run can never overwrite something newer.
 
-Files never pass through Convex. They live in a private R2 bucket, and Convex hands out signed links that the Files Worker checks before streaming a byte. Convex holds no storage or AI credentials at all.
+Files never pass through Convex. They live in a private R2 bucket, and Convex hands out signed links that the Core Worker checks before streaming a byte. Convex holds no storage or AI credentials at all.
 
 ## 5. Into search
 
 About 30 seconds after a card changes, Teak turns its text, summary and tags into an embedding and stores it in Vectorize, in a namespace that belongs only to you. That's what lets `cozy reading nook` find a photo of an armchair. Edits within those 30 seconds push the deadline back, so a burst of changes costs one embedding. I wrote about how this part was built in [Inside a release: search by meaning](/blog/search-by-meaning).
 
-![Teak's apps talk to one Convex backend; the Files Worker processes cards and serves files from R2, and the Email Worker handles save by email](../docs/images/architecture.webp)
+![Teak's apps talk to one Convex backend; the Core Worker processes cards and serves files from R2, and the Email Worker handles save by email](../docs/images/architecture.webp)
 
 ## How it got here
 

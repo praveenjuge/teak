@@ -10,7 +10,7 @@ Rules:
 - Schema changes need explicit approval for any migration or backfill; propose them, don't run them.
 - Import backend APIs from `@teak/convex`, data types from `@teak/convex/_generated/dataModel`, shared constants from `@teak/convex/shared/constants`.
 - A public API operation ships on the API, MCP, SDK and CLI together (`scripts/public-parity.ts`).
-- Card processing runs on the Files Worker's Workflows, started with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Keep the processing-revision guard on every write the Worker makes through the workflow gateway.
+- Card processing runs on the Core Worker's Workflows, started with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Keep the processing-revision guard on every write the Worker makes through the workflow gateway.
 
 Prove the change:
 

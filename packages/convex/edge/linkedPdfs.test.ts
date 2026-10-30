@@ -366,7 +366,7 @@ describe("Save PDF", () => {
       },
     ],
   ])(
-    "a Files Worker that %s is unavailable, and a retry tries again",
+    "a Core Worker that %s is unavailable, and a retry tries again",
     async (_name, respond) => {
       let downloads = 0;
       vi.stubGlobal(

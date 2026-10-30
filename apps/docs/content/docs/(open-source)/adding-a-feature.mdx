@@ -33,8 +33,8 @@ Update the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/
 - Writes that change what search sees go through `patchCardWithSearchSync` or `scheduleCardSearchSync` (`card/searchSync.ts`).
 - A new boolean flag is `v.optional(v.literal(true))`, never `true | false`, so `false` and missing can't disagree in an index.
 - Stay backward compatible: new arguments are optional, and every client tolerates enum values it doesn't know. The native apps update on their own schedule. Code kept only for old clients or old data gets an entry in `.agents/sunset.md` saying when it can go.
-- A new user table, per-card row or R2 key is removed by account deletion (`accountDeletionData.ts` `ancillaryPage`, per-card rows in `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the "complete stages" test in `edge/accountDeletionWorkflow.test.ts`, which runs the Files Worker's account deletion workflow against the test database.
-- Card processing runs in the Files Worker (`apps/files-worker/src/workflows/cardProcessing/run.ts`). Step names are durable history: never rename one, and add new steps after the existing ones. Every Convex write a step makes passes the run's `guard: { cardId, rev }`, and every function it calls is listed in `workflows/rpcAllowlist.ts`.
+- A new user table, per-card row or R2 key is removed by account deletion (`accountDeletionData.ts` `ancillaryPage`, per-card rows in `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the "complete stages" test in `edge/accountDeletionWorkflow.test.ts`, which runs the Core Worker's account deletion workflow against the test database.
+- Card processing runs in the Core Worker (`apps/core-worker/src/workflows/cardProcessing/run.ts`). Step names are durable history: never rename one, and add new steps after the existing ones. Every Convex write a step makes passes the run's `guard: { cardId, rev }`, and every function it calls is listed in `workflows/rpcAllowlist.ts`.
 - Analytics events go in `shared/analytics.ts` first, with low-cardinality properties and never card content, URLs, file names, prompts or outputs.
 - Values that are the same in every deployment are typed code with an optional environment override, not new configuration (see `scripts/build-metadata.ts`).
 
@@ -50,8 +50,8 @@ A backfill is a hand-written, self-scheduling, paged internal mutation in `packa
 
 ## Deploys
 
-- Files Worker changes deploy before the Convex and web changes that use them.
-- `Backend Deploy` deploys Convex when `main` changes a backend path, after it waits for a compatible Files Worker. Vercel deploys the web app and the docs from `main`.
+- Core Worker changes deploy before the Convex and web changes that use them.
+- `Backend Deploy` deploys Convex when `main` changes a backend path, after it waits for a compatible Core Worker. Vercel deploys the web app and the docs from `main`.
 
 ## Plans and limits
 

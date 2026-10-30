@@ -29,7 +29,7 @@ Open source covers the first part. The second part doesn't need self-hosting at 
 
 Self-hosted Teak is the same software as teakvault.com, on accounts you own.
 
-![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Files Worker with R2 and Workers AI, and optional Polar and Email Worker](../docs/images/self-hosting.webp)
+![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and Email Worker](../docs/images/self-hosting.webp)
 
 You'll need:
 
@@ -57,11 +57,11 @@ One thing to know: the `bun run dev` and `bun run setup` commands you'll see in 
 Production adds a few steps on top:
 
 - **Name an admin.** Sign up your own account first, then promote it with one command.
-- **Deploy the Files Worker** to Cloudflare with your own R2 bucket and files domain, and give it the same signing secret as Convex. Every upload and download goes through it.
+- **Deploy the Core Worker** to Cloudflare with your own R2 bucket and files domain, and give it the same signing secret as Convex. Every upload and download goes through it.
 - **Point everything at your domain:** `SITE_URL` on Convex, your WorkOS production environment, and the web app's environment.
 - **Build and start** the web app.
 
-The guide walks through each of these, including the Cloudflare queues, KV namespaces and Vectorize index the Files Worker expects.
+The guide walks through each of these, including the Cloudflare queues, KV namespaces and Vectorize index the Core Worker expects.
 
 ## Should you?
 

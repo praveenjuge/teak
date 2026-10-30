@@ -26,7 +26,7 @@ One credential, one writer. Entries that appear in several providers (for
 example the shared files signing secret) document the sync direction in the
 contract note; the audit rejects unexplained multi-provider credentials.
 
-Files Worker secrets are put per Worker (production, and the development
+Core Worker secrets are put per Worker (production, and the development
 Worker with `--config development/wrangler.jsonc`) with
 `bunx wrangler secret put <NAME>`: `FILES_SIGNING_SECRET`, shared with its
 Convex deployment, and `ANALYTICS_API_TOKEN`, a Cloudflare API token with
@@ -35,7 +35,7 @@ Workers Analytics Engine (unset, the rollup is skipped), and
 `WORKFLOW_RPC_ROOT_SECRET`. Each Convex deployment the Worker serves holds
 only its own `WORKFLOW_RPC_SECRET`, derived from that root and its origin
 with `bun scripts/workflow-rpc-secret.ts`; unlike `FILES_SIGNING_SECRET` it is
-never shared between development and production (see the Files Worker
+never shared between development and production (see the Core Worker
 README, "Background work").
 
 The Email Worker (`apps/email-worker`, Save by email) has one secret,
@@ -100,9 +100,9 @@ sign-in fails. The owner sets the value and registers the resources.
 
 ## Files storage: isolated development
 
-Convex dev uses its own Files Worker, `teak-files-dev`
-(`apps/files-worker/development/wrangler.jsonc`, served at
-`https://teak-files-dev.praveenjuge.workers.dev`), on the
+Convex dev uses its own Core Worker, `core-worker-dev`
+(`apps/core-worker/development/wrangler.jsonc`, served at
+`https://core-worker-dev.praveenjuge.workers.dev`), on the
 `teak-files-development-20261006` bucket and `teak-dev-cards-0` vector index,
 with its own `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_ROOT_SECRET`. Keys keep
 the `dev/` prefix. The production Worker serves only the production
@@ -122,10 +122,10 @@ permission scope.
 `bun run deploy:development` deploys the development Worker. Its config can
 only reach the development bucket, vector index, namespaces and workers.dev.
 Web and shared media recovery trust exactly
-`https://teak-files-dev.praveenjuge.workers.dev` when built for the
+`https://core-worker-dev.praveenjuge.workers.dev` when built for the
 dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
 `bun run sync:cloudflare-dev --isolated` writes the ignored
-`apps/files-worker/development/.dev.vars`, and
-`bun run dev files` runs that Worker locally.
+`apps/core-worker/development/.dev.vars`, and
+`bun run dev core` runs that Worker locally.
 Both read the pinned dev deployment by name, with every ambient Convex
 selector blanked. Never copy production credentials into development.

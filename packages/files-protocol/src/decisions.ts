@@ -1,8 +1,8 @@
 /**
- * Clef decision models on Workers AI, shared by Convex and the Files Worker.
+ * Clef decision models on Workers AI, shared by Convex and the Core Worker.
  *
  * Clef reads a state and up to 64 typed questions and returns a probability
- * for every allowed answer, never free text. The Files Worker owns the
+ * for every allowed answer, never free text. The Core Worker owns the
  * prompts, the model calls and the thresholds; Convex sends the inputs it
  * already has and stores the decision, or keeps its rules' answer when the
  * decision is `null`.
