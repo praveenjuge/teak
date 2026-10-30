@@ -54,13 +54,14 @@ const renameButton = () =>
     (button) => button.textContent?.trim() === "Rename Tag",
   );
 const render = async () => {
-  act(() => {
+  await act(() => {
     root.render(
       createElement(RenameTagForm, {
         onFinished: () => undefined,
         tag: { count: 3, name: "design" },
       }),
     );
+    return Promise.resolve();
   });
 };
 
@@ -71,8 +72,9 @@ beforeEach(() => {
   navigation.pops = 0;
 });
 afterEach(async () => {
-  act(() => {
+  await act(() => {
     root.unmount();
+    return Promise.resolve();
   });
   container.remove();
   globalThis.fetch = originalFetch;
@@ -95,7 +97,7 @@ test("a second submit while the rename starts sends nothing more", async () => {
   setFormValues({ name: "Research" });
   await render();
   // Both presses land before the first request answers.
-  act(() => {
+  await act(() => {
     renameButton()?.click();
     renameButton()?.click();
     return Promise.resolve();
@@ -128,10 +130,11 @@ test("leaving the form before Teak answers closes nothing else", async () => {
   await render();
   await act(async () => renameButton()?.click());
   // Esc: the form closes while the rename is still starting.
-  act(() => {
+  await act(() => {
     root.render(null);
+    return Promise.resolve();
   });
-  act(() => {
+  await act(() => {
     answer(
       Response.json({
         changed: 3,
@@ -141,6 +144,7 @@ test("leaving the form before Teak answers closes nothing else", async () => {
         total: 3,
       }),
     );
+    return Promise.resolve();
   });
   await settle();
   expect(starts).toHaveLength(1);

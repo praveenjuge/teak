@@ -64,8 +64,9 @@ beforeEach(() => {
   }) as typeof fetch;
 });
 afterEach(async () => {
-  act(() => {
+  await act(() => {
     root.unmount();
+    return Promise.resolve();
   });
   container.remove();
   globalThis.fetch = originalFetch;
@@ -82,7 +83,7 @@ const press = async (title: string) => {
 
 test("a favorite still waiting is sent before the card moves to Trash", async () => {
   const events: string[] = [];
-  act(() => {
+  await act(() => {
     root.render(
       createElement(CardDetail, {
         card,
@@ -92,6 +93,7 @@ test("a favorite still waiting is sent before the card moves to Trash", async ()
         onNavigateBackAfterDelete: () => undefined,
       }),
     );
+    return Promise.resolve();
   });
   // Both inside the 300 ms the detail waits before saving a favorite.
   await press("Favorite");

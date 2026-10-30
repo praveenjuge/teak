@@ -23,8 +23,9 @@ beforeEach(() => {
   root = createRoot(container);
 });
 afterEach(async () => {
-  act(() => {
+  await act(() => {
     root.unmount();
+    return Promise.resolve();
   });
   container.remove();
 });
@@ -32,8 +33,9 @@ afterAll(() => GlobalRegistrator.unregister());
 
 test("fills Content with copied text", async () => {
   setClipboard({ text: "https://example.com/article" });
-  act(() => {
+  await act(() => {
     root.render(createElement(QuickSaveCommand));
+    return Promise.resolve();
   });
   await settle();
   expect(contentField()).toContain("https://example.com/article");
@@ -41,8 +43,9 @@ test("fills Content with copied text", async () => {
 
 test("leaves Content empty when a file is copied", async () => {
   setClipboard({ file: "/Users/me/Report.docx", text: "Report.docx" });
-  act(() => {
+  await act(() => {
     root.render(createElement(QuickSaveCommand));
+    return Promise.resolve();
   });
   await settle();
   expect(contentField()).not.toContain("Report.docx");
