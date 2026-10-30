@@ -13,6 +13,8 @@ final class ShareModel {
     }
 
     private(set) var phase: Phase = .saving
+    /// What's being saved, shown while it uploads; nil until the items load.
+    private(set) var preview: SharePreview?
     private(set) var isSavingDetails = false
     var detailsError: String?
     /// The user's folders, loaded once the folder checklist opens; nil until then.
@@ -121,6 +123,7 @@ final class ShareModel {
         // Blank text saves nothing, so it says so rather than failing as if offline.
         let items = ShareImporter.removingEmptyAndDuplicates(loaded)
         guard !items.isEmpty else { return phase = .empty }
+        preview = SharePreview(items: items)
         let session = TeakServices.session()
         let user = try? await session.restore()
         let convex = TeakServices.http(session: session)
@@ -133,6 +136,9 @@ final class ShareModel {
     }
 }
 
+/// What you shared and how saving went, then tags, a note and folders for what was saved.
+/// On iPhone and iPad the preview sits large in the sheet with the controls near your thumb;
+/// on the Mac it's a compact row.
 struct ShareView: View {
     let model: ShareModel
     let close: () -> Void
@@ -141,67 +147,219 @@ struct ShareView: View {
     @State private var note = ""
     @State private var isEditing = false
     @State private var isPickingFolders = false
+    @State private var thumbnails: [URL: CGImage] = [:]
+    @State private var hasAppeared = false
+    /// How much of the auto-close wait is left, from 1 to 0, drawn inside the Done button.
+    @State private var countdown: CGFloat = 1
+    @State private var isCountingDown = false
+    @State private var shakes = 0
     @FocusState private var focus: Field?
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Field { case tags, note }
 
+    /// A quick save closes by itself after this long; typing or choosing folders keeps it open.
+    private static let autoClose: Double = 3
+
+    #if os(iOS)
+    private static let tileSize: CGFloat = 128
+    private static let badgeSize: CGFloat = 36
+    #else
+    private static let tileSize: CGFloat = 56
+    private static let badgeSize: CGFloat = 24
+    #endif
+
+    /// Teak red, the app's AccentColor; the extension has no asset catalog of its own.
+    private static let teak = Color(red: 0.863, green: 0.149, blue: 0.149)
+
     var body: some View {
-        VStack(spacing: 18) {
-            content
-        }
-        .padding(24)
-        .frame(minWidth: 320, minHeight: 260)
-        .fontDesign(.rounded)
-        .task {
-            await model.run()
-            if case let .done(result) = model.phase, result.isComplete {
-                // A quick save still closes by itself; typing or choosing folders keeps it open.
-                try? await Task.sleep(for: .seconds(3))
+        layout
+            .fontDesign(.rounded)
+            .tint(Self.teak)
+            .task {
+                await model.run()
+                guard case let .done(result) = model.phase, result.isComplete else { return }
+                isCountingDown = true
+                withAnimation(.linear(duration: Self.autoClose)) { countdown = 0 }
+                try? await Task.sleep(for: .seconds(Self.autoClose))
                 if !isEditing { close() }
             }
-        }
-        .onChange(of: focus) { _, field in if field != nil { isEditing = true } }
-        .onChange(of: isPickingFolders) { _, picking in if picking { isEditing = true } }
-        .sheet(isPresented: $isPickingFolders, onDismiss: { Task { await model.saveFolders() } }) {
-            @Bindable var model = model
-            FolderChecklist(folders: model.folders, loadError: model.foldersError, selection: $model.folderIds) {
-                Task { await model.loadFolders() }
+            .task(id: model.preview) {
+                await model.preview?.thumbnails(size: Self.tileSize, scale: displayScale) { file, image in
+                    withAnimation(.easeOut(duration: 0.35)) { thumbnails[file] = image }
+                }
             }
-            .task { await model.loadFolders() }
+            .onAppear {
+                withAnimation(.spring(duration: 0.6, bounce: 0.3)) { hasAppeared = true }
+            }
+            .onChange(of: focus) { _, field in if field != nil { startEditing() } }
+            .onChange(of: isPickingFolders) { _, picking in if picking { startEditing() } }
+            .onChange(of: model.phase) { _, phase in
+                if case let .done(result) = phase, !result.isComplete, !result.needsSignIn { shake() }
+            }
+            .sheet(isPresented: $isPickingFolders, onDismiss: { Task { await model.saveFolders() } }) {
+                @Bindable var model = model
+                FolderChecklist(folders: model.folders, loadError: model.foldersError, selection: $model.folderIds) {
+                    Task { await model.loadFolders() }
+                }
+                .task { await model.loadFolders() }
+            }
+            .sensoryFeedback(trigger: model.phase) { _, phase in
+                guard case let .done(result) = phase else { return nil }
+                return result.isComplete ? .success : .error
+            }
+    }
+
+    // MARK: Layout
+
+    #if os(iOS)
+    private var layout: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
+            hero
+            Spacer(minLength: 28)
+            controls
         }
-        .sensoryFeedback(trigger: model.phase) { _, phase in
-            guard case let .done(result) = phase else { return nil }
-            return result.isComplete ? .success : .error
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .frame(maxWidth: 480)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(alignment: .top) { ambience }
+        .animation(.spring(duration: 0.5, bounce: 0.2), value: model.phase)
+    }
+
+    /// A soft wash of the shared image's colors behind the top of the sheet.
+    private var ambience: some View {
+        GeometryReader { proxy in
+            if let file = model.preview?.files.first, let image = thumbnails[file] {
+                Image(decorative: image, scale: displayScale)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height * 0.6)
+                    .saturation(1.8)
+                    .blur(radius: 60)
+                    .opacity(0.55)
+                    .mask(LinearGradient(colors: [.black, .black.opacity(0.4), .clear], startPoint: .top, endPoint: .bottom))
+                    .clipped()
+                    .transition(.opacity)
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var hero: some View {
+        VStack(spacing: 22) {
+            previewWithBadge
+                .scaleEffect(hasAppeared ? 1 : 0.7)
+                .opacity(hasAppeared ? 1 : 0)
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(.title2.weight(.semibold))
+                    .contentTransition(.opacity)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .contentTransition(.opacity)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .offset(y: hasAppeared || reduceMotion ? 0 : 10)
+            .opacity(hasAppeared ? 1 : 0)
+            .animation(.smooth(duration: 0.3), value: title)
+        }
+        .modifier(Shake(trigger: shakes))
+        .accessibilityElement(children: .combine)
+    }
+    #else
+    private var layout: some View {
+        VStack(spacing: 18) {
+            HStack(spacing: 16) {
+                previewWithBadge
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.headline).contentTransition(.opacity)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .modifier(Shake(trigger: shakes))
+            .accessibilityElement(children: .combine)
+            controls
+        }
+        .padding(20)
+        .frame(minWidth: 360, minHeight: 280, alignment: .top)
+        .animation(.spring(duration: 0.5, bounce: 0.2), value: model.phase)
+    }
+    #endif
+
+    private var previewWithBadge: some View {
+        SharePreviewTile(preview: model.preview, thumbnails: thumbnails, size: Self.tileSize)
+            .scaleEffect(model.phase == .saving ? 0.94 : 1)
+            .overlay(alignment: .bottomTrailing) {
+                ShareStatusBadge(status: status, size: Self.badgeSize)
+                    .offset(x: Self.badgeSize * 0.3, y: Self.badgeSize * 0.3)
+            }
+            .animation(.spring(duration: 0.55, bounce: 0.5), value: model.phase)
+    }
+
+    /// The fields and Done after a save, or the way out after anything else.
+    @ViewBuilder private var controls: some View {
+        if isSaved {
+            details
+        } else if model.phase != .saving {
+            actions.transition(.opacity.combined(with: .offset(y: 12)))
         }
     }
 
-    @ViewBuilder private var content: some View {
+    // MARK: Status text
+
+    private var isSaved: Bool {
+        if case let .done(result) = model.phase { return result.isComplete }
+        return false
+    }
+
+    private var status: ShareStatusBadge.Status {
         switch model.phase {
-        case .saving:
-            ProgressView().controlSize(.large)
-            Text(tr("native.share.saving")).foregroundStyle(.secondary)
-        case .empty:
-            ContentUnavailableView(tr("native.share.nothingToSave"), systemImage: "tray",
-                                   description: Text(tr("native.share.nothingToSaveMessage")))
-            Button(tr("common.close"), action: close).buttonStyle(.glass)
+        case .saving: .saving
+        case .empty: .attention
+        case let .done(result):
+            if result.needsSignIn { .attention } else if result.isComplete { .saved } else if result.isPartial { .partial } else { .failed }
+        }
+    }
+
+    private var title: String {
+        switch model.phase {
+        case .saving: tr("native.share.saving")
+        case .empty: tr("native.share.nothingToSave")
         case let .done(result):
             if result.needsSignIn {
-                ContentUnavailableView(tr("native.share.signInRequired"), systemImage: "person.crop.circle.badge.exclamationmark",
-                                       description: Text(tr("native.share.signInMessage")))
-                HStack {
-                    Button(tr("common.close"), action: close).buttonStyle(.glass)
-                    Button(tr("native.share.openTeak"), action: openApp).buttonStyle(.glassProminent)
-                }
+                tr("native.share.signInRequired")
             } else if result.isComplete {
-                ContentUnavailableView(tr("native.capture.saved"), systemImage: "checkmark.circle.fill",
-                                       description: Text(Self.savedSummary(result)))
-                    .symbolEffect(.bounce, value: result.successfulItems)
-                details
+                Self.savedSummary(result)
             } else {
-                ContentUnavailableView(result.isPartial ? Self.partialSummary(result) : tr("native.capture.couldntSave"),
-                                       systemImage: result.isPartial ? "exclamationmark.circle" : "xmark.circle",
-                                       description: Text(Self.failureMessage(result)))
-                Button(tr("common.close"), action: close).buttonStyle(.glass)
+                result.isPartial ? Self.partialSummary(result) : tr("native.capture.couldntSave")
+            }
+        }
+    }
+
+    private var subtitle: String? {
+        switch model.phase {
+        case .saving: model.preview?.title
+        case .empty: tr("native.share.nothingToSaveMessage")
+        case let .done(result):
+            if result.needsSignIn {
+                tr("native.share.signInMessage")
+            } else if result.isComplete {
+                // "Saved 3 items" already says how many.
+                result.successfulItems == 1 ? model.preview?.title : nil
+            } else {
+                Self.failureMessage(result)
             }
         }
     }
@@ -227,39 +385,97 @@ struct ShareView: View {
         return failure.message
     }
 
-    /// Tags and a note for one saved card; folders for one or several.
-    private var details: some View {
-        VStack(spacing: 10) {
-            if model.savedCardId != nil { cardFields }
-            foldersRow
-            if let error = model.detailsError {
-                Text(error).font(.footnote).foregroundStyle(.red)
+    // MARK: Actions
+
+    /// Close, or open Teak to sign in.
+    @ViewBuilder private var actions: some View {
+        if case let .done(result) = model.phase, result.needsSignIn {
+            HStack(spacing: 10) {
+                closeButton
+                Button(action: openApp) {
+                    Text(tr("native.share.openTeak"))
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
             }
-            Button(isEditing ? tr("common.save") : tr("common.done")) {
-                Task { if await model.saveDetails(tags: tags, note: note) { close() } }
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(model.isSavingDetails)
-            .accessibilityIdentifier("share.done")
+        } else {
+            closeButton
         }
-        .frame(maxWidth: 360)
+    }
+
+    private var closeButton: some View {
+        Button(action: close) {
+            Text(tr("common.close"))
+                .fontWeight(.medium)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
+    }
+
+    /// Tags and a note for one saved card; folders for one or several. Rows rise in one after another.
+    private var details: some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 0) {
+                if model.savedCardId != nil {
+                    cardFields
+                }
+                foldersRow.reveal(order: 2)
+            }
+            .background(.fill.quaternary, in: .rect(cornerRadius: 20, style: .continuous))
+            if let error = model.detailsError {
+                Label(error, systemImage: "exclamationmark.circle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+            }
+            doneButton.reveal(order: 3)
+        }
+        .animation(.smooth(duration: 0.25), value: model.detailsError)
     }
 
     @ViewBuilder private var cardFields: some View {
-        TextField(tr("native.actions.addTags"), text: $tags)
+        row(symbol: "number") {
+            TextField(tr("native.actions.addTags"), text: $tags)
                 .focused($focus, equals: .tags)
-                .textFieldStyle(.roundedBorder)
+                .submitLabel(.next)
+                .onSubmit { focus = .note }
                 .accessibilityLabel(tr("native.tags.title"))
                 .accessibilityIdentifier("share.tags")
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
+        }
+        .reveal(order: 0)
+        Divider().padding(.leading, 48)
+        row(symbol: "text.alignleft") {
             TextField(tr("native.share.addNote"), text: $note, axis: .vertical)
                 .focused($focus, equals: .note)
-                .lineLimit(2...4)
-                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...4)
                 .accessibilityLabel(tr("native.share.note"))
                 .accessibilityIdentifier("share.note")
+        }
+        .reveal(order: 1)
+        Divider().padding(.leading, 48)
+    }
+
+    private func row(symbol: String, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            content()
+                .textFieldStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(minHeight: 50)
     }
 
     /// Opens the folder checklist; shows the folders picked, or a prompt like the fields above.
@@ -267,23 +483,116 @@ struct ShareView: View {
         let names = model.folderNames
         let summary = names.formatted(.list(type: .and).locale(AppLanguage.locale))
         return Button { isPickingFolders = true } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "folder").foregroundStyle(.secondary)
-                Text(names.isEmpty ? tr("native.share.addToFolders") : summary)
-                    .foregroundStyle(names.isEmpty ? .secondary : .primary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
+            row(symbol: names.isEmpty ? "folder" : "folder.fill") {
+                HStack {
+                    Text(names.isEmpty ? tr("native.share.addToFolders") : summary)
+                        .foregroundStyle(names.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(.background, in: .rect(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(tr("native.folders.title"))
         .accessibilityValue(summary)
         .accessibilityIdentifier("share.folders")
+        .animation(.smooth(duration: 0.25), value: names)
+    }
+
+    /// Saves what was typed, then closes. While the card waits to close by itself, a lighter
+    /// band drains across the button.
+    private var doneButton: some View {
+        Button(action: finish) {
+            ZStack {
+                Text(isEditing ? tr("common.save") : tr("common.done"))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .contentTransition(.opacity)
+                    .opacity(model.isSavingDetails ? 0 : 1)
+                if model.isSavingDetails { ProgressView().controlSize(.small) }
+            }
+            .frame(maxWidth: .infinity)
+            .background(alignment: .leading) {
+                GeometryReader { proxy in
+                    Capsule()
+                        .fill(.white.opacity(0.18))
+                        .frame(width: proxy.size.width * countdown)
+                }
+                .padding(.horizontal, -20)
+                .padding(.vertical, -14)
+                .opacity(isCountingDown ? 1 : 0)
+                .animation(.easeOut(duration: 0.3), value: isCountingDown)
+            }
+        }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
+        .disabled(model.isSavingDetails)
+        .animation(.smooth(duration: 0.25), value: isEditing)
+        .accessibilityIdentifier("share.done")
+    }
+
+    // MARK: Closing
+
+    private func startEditing() {
+        isEditing = true
+        isCountingDown = false
+    }
+
+    private func finish() {
+        Task {
+            if await model.saveDetails(tags: tags, note: note) { close() } else { shake() }
+        }
+    }
+
+    private func shake() {
+        guard !reduceMotion else { return }
+        shakes += 1
+    }
+}
+
+/// Shakes its content side to side once each time the trigger changes, like a wrong password.
+private struct Shake: ViewModifier {
+    let trigger: Int
+
+    func body(content: Content) -> some View {
+        content.keyframeAnimator(initialValue: CGFloat.zero, trigger: trigger) { content, x in
+            content.offset(x: x)
+        } keyframes: { _ in
+            KeyframeTrack {
+                SpringKeyframe(12, duration: 0.07)
+                SpringKeyframe(-10, duration: 0.08)
+                SpringKeyframe(6, duration: 0.08)
+                SpringKeyframe(0, duration: 0.2)
+            }
+        }
+    }
+}
+
+private extension View {
+    /// Fades and lifts a row into place, a beat after the one before it.
+    func reveal(order: Int) -> some View {
+        modifier(Reveal(order: order))
+    }
+}
+
+private struct Reveal: ViewModifier {
+    let order: Int
+    @State private var isVisible = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: isVisible || reduceMotion ? 0 : 18)
+            .onAppear {
+                withAnimation(.spring(duration: 0.55, bounce: 0.25).delay(0.1 + Double(order) * 0.06)) {
+                    isVisible = true
+                }
+            }
     }
 }
