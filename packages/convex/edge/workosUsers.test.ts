@@ -92,10 +92,10 @@ describe("WorkOS identity linking", () => {
     });
     const result = await snapshot(t);
     expect(result.users[0].workosUserId).toBeUndefined();
-    expect(result.quarantine).toHaveLength(1);
+    expect(result.quarantine).toEqual([]);
   });
 
-  test("an unmapped user without a WorkOS profile quarantines instead of creating", async () => {
+  test("an unmapped user without a WorkOS profile is refused instead of created", async () => {
     const t = setup();
     expect(await t.mutation(link, unmapped)).toEqual({
       status: "quarantined",
@@ -104,59 +104,8 @@ describe("WorkOS identity linking", () => {
     expect(await snapshot(t)).toMatchObject({
       users: [],
       cards: [],
-      quarantine: [{ reason: "profile_pending" }],
+      quarantine: [],
     });
-  });
-
-  test("a later link closes pending and missing_mapping receipts but not conflicts", async () => {
-    const t = setup();
-    expect(await t.mutation(link, unmapped)).toMatchObject({
-      status: "quarantined",
-      reason: "profile_pending",
-    });
-    // Linking wrote missing_mapping before it could create owners.
-    for (const reason of ["missing_mapping", "external_id_mismatch"]) {
-      await t.run((ctx) =>
-        ctx.db.insert("migrationQuarantine", {
-          workosUserId: unmapped.workosUserId,
-          email: unmapped.email,
-          reason,
-          source: "webhook",
-          createdAt: 0,
-        })
-      );
-    }
-    await seed(t, { workosUserId: unmapped.workosUserId });
-    expect(await t.mutation(link, unmapped)).toMatchObject({
-      status: "linked",
-    });
-    const open = (await snapshot(t)).quarantine.filter(
-      (row) => row.resolvedAt === undefined
-    );
-    expect(open.map((row) => row.reason)).toEqual(["external_id_mismatch"]);
-  });
-
-  test("repeated denials keep one open receipt until it is resolved", async () => {
-    const t = setup();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      expect(await t.mutation(link, unmapped)).toEqual({
-        status: "quarantined",
-        reason: "profile_pending",
-      });
-    }
-    expect((await snapshot(t)).quarantine).toHaveLength(1);
-    await t.run(async (ctx) => {
-      const [receipt] = await ctx.db.query("migrationQuarantine").take(1);
-      await ctx.db.patch("migrationQuarantine", receipt._id, {
-        resolvedAt: Date.now(),
-      });
-    });
-    await t.mutation(link, unmapped);
-    const receipts = (await snapshot(t)).quarantine;
-    expect(receipts).toHaveLength(2);
-    expect(receipts.filter((row) => row.resolvedAt === undefined)).toHaveLength(
-      1
-    );
   });
 
   test("an owner linked to another WorkOS user is never taken over", async () => {
@@ -319,7 +268,7 @@ describe("trusted new WorkOS owners", () => {
     expect(await signUpEvents()).toEqual(events);
     expect((await snapshot(t)).users).toHaveLength(1);
   });
-  test("freeze quarantines without creating and allows the same subject after unfreeze", async () => {
+  test("freeze refuses without creating and allows the same subject after unfreeze", async () => {
     const t = setup();
     await seedProvider(t);
     await setSignupsPaused(t, true);
@@ -331,9 +280,7 @@ describe("trusted new WorkOS owners", () => {
     expect(await jobs(t)).toEqual([]);
     await setSignupsPaused(t, false);
     expect(await t.mutation(link, create)).toMatchObject({ status: "linked" });
-    expect((await snapshot(t)).quarantine).toMatchObject([
-      { reason: "signups_frozen" },
-    ]);
+    expect((await snapshot(t)).quarantine).toEqual([]);
   });
   test.each([{ emailVerified: false, reason: "email_unverified" }])(
     "creation preserves $reason quarantine",

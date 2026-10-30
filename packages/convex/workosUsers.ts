@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { startVaultSetup } from "./card/defaultCards";
 import { readComponentUser } from "./securitySessions";
@@ -12,8 +12,6 @@ import {
 import { queueUserCreated } from "./telemetry/schedule";
 import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
-// `linkWorkosUser` writes only these. Older receipts keep the reasons the
-// WorkOS migration wrote, and the admin views read them as plain strings.
 const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
   v.literal("email_unverified"),
@@ -21,63 +19,6 @@ const reasonValidator = v.union(
   v.literal("signups_frozen")
 );
 type LinkReason = typeof reasonValidator.type;
-
-const recordQuarantine = async (
-  ctx: MutationCtx,
-  row: {
-    workosUserId: string;
-    teakUserId?: string;
-    email: string;
-    reason: string;
-    source: string;
-  }
-) => {
-  const open = await ctx.db
-    .query("migrationQuarantine")
-    .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-      q
-        .eq("workosUserId", row.workosUserId)
-        .eq("reason", row.reason)
-        .eq("resolvedAt", undefined)
-    )
-    .first();
-  if (!open) {
-    await ctx.db.insert("migrationQuarantine", {
-      ...row,
-      createdAt: Date.now(),
-    });
-  }
-};
-
-// A link or a new owner closes these. `missing_mapping` receipts were written
-// before new owners could be created from WorkOS, and close the same way.
-const PENDING_REASONS = [
-  "missing_mapping",
-  "signups_frozen",
-  "email_unverified",
-  "profile_pending",
-] as const;
-const resolvePendingReceipts = async (
-  ctx: MutationCtx,
-  workosUserId: string
-) => {
-  for (const reason of PENDING_REASONS) {
-    const open = await ctx.db
-      .query("migrationQuarantine")
-      .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-        q
-          .eq("workosUserId", workosUserId)
-          .eq("reason", reason)
-          .eq("resolvedAt", undefined)
-      )
-      .take(100);
-    for (const receipt of open) {
-      await ctx.db.patch("migrationQuarantine", receipt._id, {
-        resolvedAt: Date.now(),
-      });
-    }
-  }
-};
 
 // Links a WorkOS user to the Teak owner that already carries its ID, or
 // creates a new owner when sign-ups are open and WorkOS has verified the
@@ -114,16 +55,10 @@ export const linkWorkosUser = internalMutation({
     ) {
       throw new Error("Invalid WorkOS linking input");
     }
-    const quarantine = async (reason: LinkReason, teakUserId?: string) => {
-      await recordQuarantine(ctx, {
-        workosUserId: args.workosUserId,
-        ...(teakUserId === undefined ? {} : { teakUserId }),
-        email,
-        reason,
-        source: args.source,
-      });
-      return { status: "quarantined" as const, reason };
-    };
+    const quarantine = (reason: LinkReason) => ({
+      status: "quarantined" as const,
+      reason,
+    });
     const linked = await ctx.db
       .query("users")
       .withIndex("by_workosUserId", (q) =>
@@ -135,10 +70,9 @@ export const linkWorkosUser = internalMutation({
       linked?.workosDeletedAt !== undefined ||
       (await hasWorkosDeletionReceipt(ctx, args.workosUserId))
     ) {
-      return quarantine("workos_deleted_user", linked?.teakUserId);
+      return quarantine("workos_deleted_user");
     }
     if (linked) {
-      await resolvePendingReceipts(ctx, args.workosUserId);
       return {
         status: "linked" as const,
         teakUserId: linked.teakUserId,
@@ -197,7 +131,6 @@ export const linkWorkosUser = internalMutation({
       source: "auth",
       userId: teakUserId,
     });
-    await resolvePendingReceipts(ctx, args.workosUserId);
     return { status: "linked" as const, teakUserId, changed: true };
   },
 });

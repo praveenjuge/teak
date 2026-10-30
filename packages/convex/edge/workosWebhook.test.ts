@@ -168,9 +168,7 @@ describe.each([
       } else {
         expect(result.users).toEqual([]);
         expect(result.scheduled).toEqual([]);
-        expect(result.quarantine).toMatchObject([
-          { reason: "email_unverified" },
-        ]);
+        expect(result.quarantine).toEqual([]);
       }
     }
   );
@@ -228,13 +226,13 @@ describe.each([
     expect((await snapshot(t)).users[0].email).toBe("provider@example.com");
   });
 
-  test("quarantined retries commit one alert", async () => {
+  test("refused retries write nothing", async () => {
     const t = await setupPaused();
     const body = JSON.stringify(fixture());
     expect((await post(t, body)).status).toBe(200);
     expect((await post(t, body)).status).toBe(200);
     const result = await snapshot(t);
-    expect(result.quarantine).toHaveLength(1);
+    expect(result.quarantine).toEqual([]);
     expect(result.users).toEqual([]);
     expect(result.cards).toEqual([]);
   });

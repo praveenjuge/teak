@@ -239,6 +239,31 @@ describe("durable deletion admission and tombstones", () => {
       });
     }
   );
+  test("WorkOS user deletion without an API key fails before network access and stays retryable", async () => {
+    const { t, signed } = await fixture();
+    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    const state = await t.run((ctx) =>
+      ctx.db.query("accountDeletionStates").unique()
+    );
+    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 4 }));
+    vi.stubEnv("WORKOS_API_KEY", "");
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", (input: string | URL | Request) => {
+      requests.push(input instanceof Request ? input.url : String(input));
+      return Response.json({});
+    });
+    await expect(
+      t.action(internal.accountDeletionActions.runStage, {
+        stateId: state!._id,
+        generation: 1,
+        stage: 4,
+      })
+    ).rejects.toThrow("deletion_workos_unavailable");
+    expect(requests).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
+      stage: 4,
+    });
+  });
   test("a deletion already at account data resumes there and still deletes the WorkOS user", async () => {
     const { t, signed } = await fixture();
     vi.stubEnv("FILES_BASE", "https://files.test");
@@ -299,7 +324,7 @@ describe("durable deletion admission and tombstones", () => {
       deletedAt: expect.any(Number),
     });
   });
-  test("accepted request preserves owner, captures binding, denies access and schedules once", async () => {
+  test("accepted request preserves owner, captures the WorkOS user, denies access and schedules once", async () => {
     const { t, signed, card } = await fixture();
     expect(
       await signed.mutation(api.accountDeletion.deleteMyAccount, {})
@@ -314,10 +339,6 @@ describe("durable deletion admission and tombstones", () => {
         workosUserId: "user_DELETE",
         generation: 1,
         stage: 0,
-        workosTarget: {
-          clientId: "client_DELETE",
-          environmentId: "environment_DELETE",
-        },
       },
     ]);
     const runs = () =>

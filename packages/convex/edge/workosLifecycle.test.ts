@@ -161,7 +161,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
     }
   );
 
-  test("quarantined delivery retries keep one committed quarantine and original receipt", async () => {
+  test("quarantined delivery retries answer the same and write nothing", async () => {
     const t = await setupPaused();
     const original = event("evt_unknown", 1, "user.created");
     expect(await t.mutation(apply, original)).toEqual({
@@ -173,7 +173,8 @@ describe("WorkOS lifecycle linking and deletion", () => {
       reason: "signups_frozen",
     });
     const result = await snapshot(t);
-    expect(result.quarantine).toHaveLength(1);
+    // The answer is enough; linking writes no receipt.
+    expect(result.quarantine).toEqual([]);
     expect(result.users).toEqual([]);
     expect(result.cards).toEqual([]);
   });
@@ -241,7 +242,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
     );
     expect(await resolve(t)).toEqual({
       status: "denied",
-      reason: "workos_deleted_user",
+      reason: "duplicate_mapping",
     });
     expect(after.scheduled).toEqual([]);
     expect(
@@ -288,7 +289,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
         email: "provider@example.com",
       },
     ]);
-    expect(after.quarantine[0].resolvedAt).toBeUndefined();
+    expect(after.quarantine[0].resolvedAt).toEqual(expect.any(Number));
     expect(after.users[0].workosDeletedAt).toBe(Date.parse(time(1)));
     expect(await componentUser(t)).toMatchObject({ emailVerified: true });
     expect(
@@ -296,7 +297,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
     ).toBeNull();
   });
 
-  test("metadata-free deletion retains minimal evidence and unresolved quarantine with terminal denial", async () => {
+  test("metadata-free deletion retains minimal evidence and a resolved tombstone with terminal denial", async () => {
     const t = await setupPaused();
     await t.mutation(apply, event("evt_delete_minimal", 1, "user.deleted"));
     const after = await snapshot(t);
@@ -305,7 +306,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
       source: "webhook",
       email: "",
     });
-    expect(after.quarantine[0].resolvedAt).toBeUndefined();
+    expect(after.quarantine[0].resolvedAt).toEqual(expect.any(Number));
     expect(
       await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
     ).toBeNull();
@@ -346,7 +347,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
         reason: "workos_user_deleted",
         email: "",
       });
-      expect(after.quarantine[0].resolvedAt).toBeUndefined();
+      expect(after.quarantine[0].resolvedAt).toEqual(expect.any(Number));
       expect(
         await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
       ).toBeNull();
@@ -406,7 +407,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(await componentUser(t)).toBeNull();
     expect(await resolve(t)).toEqual({
       status: "denied",
-      reason: "workos_deleted_user",
+      reason: "missing_mapping",
     });
   });
 
@@ -534,7 +535,7 @@ describe("new WorkOS lifecycle owners", () => {
     const result = await snapshot(t);
     expect(result.users).toEqual([]);
     expect(result.scheduled).toEqual([]);
-    expect(result.quarantine).toMatchObject([{ reason: "email_unverified" }]);
+    expect(result.quarantine).toEqual([]);
     expect(await componentUser(t, "user_NEW")).toMatchObject({
       emailVerified: false,
     });

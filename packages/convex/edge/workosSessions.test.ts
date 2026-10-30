@@ -157,7 +157,6 @@ describe("WorkOS Convex sessions", () => {
     "duplicate_owner",
     "deleted",
     "provider_deleted",
-    "ledger",
     "deleting",
   ])("denies %s owners in sessions and background work", async (failure) => {
     const t = setup();
@@ -176,17 +175,6 @@ describe("WorkOS Convex sessions", () => {
     }
     if (failure === "duplicate_owner") {
       await seed(t, { workosUserId: "user_OTHER" });
-    }
-    if (failure === "ledger") {
-      await t.run((ctx) =>
-        ctx.db.insert("migrationQuarantine", {
-          workosUserId: "user_PROVIDER",
-          email: "",
-          reason: "workos_user_deleted",
-          source: "webhook",
-          createdAt: 1,
-        })
-      );
     }
     if (failure === "deleting") {
       await t.run((ctx) =>

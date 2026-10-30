@@ -19,11 +19,11 @@ import {
   importJobItemValidator,
   importJobValidator,
 } from "./schema/validators/jobs";
-import { disconnectRecoveryReceipt } from "./schema/validators/workos";
 import {
+  disconnectRecoveryReceipt,
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
-} from "./workos/deletionCompletion";
+} from "./schema/validators/workos";
 
 export * from "./schema/validators/admin";
 export * from "./schema/validators/apiIdempotency";

@@ -19,3 +19,21 @@ export const disconnectRecoveryReceipt = v.object({
   applicationId: v.string(),
   recordedAt: v.number(),
 });
+
+// Rows written before account deletion stopped binding to a WorkOS
+// environment still carry these (`.agents/sunset.md`).
+export const workosDeletionTargetValidator = v.object({
+  environmentId: v.string(),
+  clientId: v.string(),
+  issuer: v.string(),
+  credentialFingerprint: v.string(),
+});
+export const workosDeletionCompletionValidator = v.object({
+  version: v.literal(1),
+  stateId: v.id("accountDeletionStates"),
+  generation: v.number(),
+  workosUserId: v.string(),
+  startedAt: v.number(),
+  completedAt: v.number(),
+  target: workosDeletionTargetValidator,
+});
