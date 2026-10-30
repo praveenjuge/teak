@@ -209,8 +209,9 @@ private fun PaletteSwatches(card: Card, onCopy: (String) -> Unit, edits: Palette
                         if (color == null) {
                             AddColorTile(onClick = { adding = true }, modifier = Modifier.weight(1f))
                         } else {
+                            // The view model removes it by its RGB and keeps the stored value for Undo.
                             val remove: (() -> Unit)? = PaletteEdit.storedHex(color)?.takeIf { canRemove }
-                                ?.let { hex -> { edits?.onRemove?.invoke(hex) } }
+                                ?.let { { edits?.onRemove?.invoke(color.hex) } }
                             Swatch(color.hex, onCopy, remove, Modifier.weight(1f))
                         }
                     }

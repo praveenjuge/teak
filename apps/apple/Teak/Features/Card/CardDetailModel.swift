@@ -278,13 +278,14 @@ final class CardDetailModel {
         }
     }
 
-    /// Removes a palette color, with Undo, which adds it back at the end.
-    func removeColor(_ hex: String) async -> Bool {
+    /// Removes a palette color by its RGB, with Undo, which adds the stored color (alpha and all) back at the end.
+    func removeColor(_ stored: String) async -> Bool {
+        guard let hex = PaletteEdit.storedHex(stored) else { return false }
         message = nil
         do {
             try await write(.removeColor(hex))
             show(tr("native.card.palette.removed", hex)) { [weak self] in
-                Task { await self?.undoRemoveColor(hex) }
+                Task { await self?.undoRemoveColor(stored.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()) }
             }
             return true
         } catch {

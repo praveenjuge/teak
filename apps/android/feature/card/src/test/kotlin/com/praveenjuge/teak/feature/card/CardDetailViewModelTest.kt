@@ -492,6 +492,25 @@ class CardDetailViewModelTest {
     }
 
     @Test
+    fun `a color saved with alpha is removed by its RGB and Undo puts the stored color back`() = runTest {
+        val withAlpha = palette.copy(colors = listOf(CardColor("#FF000080"), CardColor("#4ECDC4")))
+        cards.cards.value = mapOf(withAlpha.id to withAlpha)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.removeColor("#ff000080")
+            val note = awaitItem() as CardDetailEvent.Message
+            assertEquals(UiText.of("native.card.palette.removed", "#FF0000"), note.text)
+
+            note.undo!!.invoke()
+        }
+        assertEquals(
+            listOf("edit:c1:${CardFieldChange.RemoveColor("#FF0000")}", "edit:c1:${CardFieldChange.AddColor("#FF000080")}"),
+            cards.writes,
+        )
+    }
+
+    @Test
     fun `the last color, a full palette and Trash change nothing`() = runTest {
         cards.cards.value = mapOf(palette.id to palette.copy(colors = listOf(CardColor("#FF5500"))))
         val viewModel = viewModel()

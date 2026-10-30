@@ -13,8 +13,9 @@ export const editPaletteColors = (
   hex: string
 ): NonNullable<Doc<"cards">["colors"]> => {
   const current = colors ?? [];
+  const key = normalizeHexColor(hex);
   const isSame = (color: { hex: string }) =>
-    normalizeHexColor(color.hex) === hex;
+    normalizeHexColor(color.hex) === key;
   if (field === "removeColor") {
     return current.filter((color) => !isSame(color));
   }

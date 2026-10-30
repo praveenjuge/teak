@@ -386,13 +386,20 @@ export function parsePaletteHex(value: string): string | null {
   return PALETTE_HEX_PATTERN.test(trimmed) ? normalizeHexColor(trimmed) : null;
 }
 
+const PALETTE_ALPHA_HEX_PATTERN = /^#?[0-9a-f]{8}$/i;
+
 /**
- * The color a palette stores for a hex code someone typed, with its RGB, HSL
- * and name filled in the way saved palettes have them, or null when it isn't
- * a hex code.
+ * The color a palette stores for an added hex code, with its RGB, HSL and name
+ * filled in the way saved palettes have them, or null when it isn't a hex
+ * code. `#RGB` and `#RRGGBB` are saved as `#RRGGBB`; an eight-digit
+ * `#RRGGBBAA` keeps its alpha, as palettes saved from text do, so undoing a
+ * removal puts the same color back.
  */
 export function paletteColorFromHex(value: string): Color | null {
-  const hex = parsePaletteHex(value);
+  const trimmed = value.trim();
+  const hex = PALETTE_ALPHA_HEX_PATTERN.test(trimmed)
+    ? `#${trimmed.replace("#", "").toUpperCase()}`
+    : parsePaletteHex(trimmed);
   return hex ? parseColorString(hex) : null;
 }
 

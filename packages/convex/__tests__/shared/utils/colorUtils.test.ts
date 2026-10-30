@@ -10,6 +10,7 @@ import {
   hexToRgb,
   normalizeHexColor,
   normalizeHexFilters,
+  paletteColorFromHex,
   parseColorString,
   parseColorsFromText,
   parsePaletteHex,
@@ -633,4 +634,19 @@ describe("parsePaletteHex", () => {
       expect(parsePaletteHex(value)).toBeNull();
     }
   );
+});
+
+describe("paletteColorFromHex", () => {
+  it("keeps an eight-digit color's alpha and reads its RGB", () => {
+    expect(paletteColorFromHex("#ff000080")).toMatchObject({
+      hex: "#FF000080",
+      rgb: { r: 255, g: 0, b: 0 },
+    });
+  });
+
+  it("saves a typed color as #RRGGBB and refuses anything else", () => {
+    expect(paletteColorFromHex(" f50 ")?.hex).toBe("#FF5500");
+    expect(paletteColorFromHex("#ff55")).toBeNull();
+    expect(paletteColorFromHex("rgb(1, 2, 3)")).toBeNull();
+  });
 });

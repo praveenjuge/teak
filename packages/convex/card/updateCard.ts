@@ -298,8 +298,13 @@ interface CardEditState {
   updateData: Record<string, unknown>;
 }
 
-/** The hex code a color edit names, refusing a card whose colors can't change. */
-const paletteEditHex = (card: Doc<"cards">, value: unknown): string => {
+const INVALID_PALETTE_COLOR = {
+  code: "INVALID_INPUT",
+  message: "A color must be a hex code, such as #FF5500",
+};
+
+/** Refuses a card whose colors can't change. */
+const assertPaletteEditable = (card: Doc<"cards">) => {
   if (card.type !== "palette") {
     throw new ConvexError({
       code: "TYPE_MISMATCH",
@@ -312,12 +317,14 @@ const paletteEditHex = (card: Doc<"cards">, value: unknown): string => {
       message: "Restore this card from Trash before changing its colors",
     });
   }
+};
+
+/** The `#RRGGBB` a color edit names, refusing a card whose colors can't change. */
+const paletteEditHex = (card: Doc<"cards">, value: unknown): string => {
+  assertPaletteEditable(card);
   const hex = typeof value === "string" ? parsePaletteHex(value) : null;
   if (!hex) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "A color must be a hex code, such as #FF5500",
-    });
+    throw new ConvexError(INVALID_PALETTE_COLOR);
   }
   return hex;
 };
@@ -513,13 +520,15 @@ const applyCardFieldEdit = (
     // Changing a palette's colors doesn't refresh its AI summary or tags:
     // the edit is instant and spends none of the account's refreshes.
     case "addColor": {
-      const hex = paletteEditHex(card, value);
-      const colors = card.colors ?? [];
-      if (colors.some((color) => normalizeHexColor(color.hex) === hex)) {
-        return false;
-      }
-      const color = paletteColorFromHex(hex);
+      assertPaletteEditable(card);
+      const color =
+        typeof value === "string" ? paletteColorFromHex(value) : null;
       if (!color) {
+        throw new ConvexError(INVALID_PALETTE_COLOR);
+      }
+      const hex = normalizeHexColor(color.hex);
+      const colors = card.colors ?? [];
+      if (colors.some((saved) => normalizeHexColor(saved.hex) === hex)) {
         return false;
       }
       setPaletteColors(state, [...colors, color]);

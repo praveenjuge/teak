@@ -2,7 +2,7 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   normalizeHexColor,
-  parsePaletteHex,
+  paletteColorFromHex,
 } from "@teak/convex/shared/utils/colorUtils";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
@@ -41,7 +41,12 @@ export function usePaletteColors(
 
   const write = useCallback(
     async (field: PaletteField, value: string) => {
-      const hex = parsePaletteHex(value);
+      // An added color is saved as the server saves it (alpha kept, so Undo
+      // restores a removed color exactly); a removed one goes by its RGB.
+      const hex =
+        field === "addColor"
+          ? paletteColorFromHex(value)?.hex
+          : normalizeHexColor(value);
       if (!(cardId && hex)) {
         return false;
       }
@@ -74,7 +79,7 @@ export function usePaletteColors(
         id: `palette-remove-${cardId ?? ""}-${hex}`,
         action: {
           label: tc("undo"),
-          onClick: () => void write("addColor", hex),
+          onClick: () => void write("addColor", value),
         },
       });
     },

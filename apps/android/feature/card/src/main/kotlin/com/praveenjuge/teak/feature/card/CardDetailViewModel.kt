@@ -12,6 +12,7 @@ import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.LinkEdit
@@ -348,10 +349,14 @@ class CardDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /** Removes a color from a palette, with Undo, which adds it back at the end. A palette keeps at least one color. */
-    fun removeColor(input: String) {
+    /**
+     * Removes a stored color from a palette by its RGB, with Undo, which adds the stored color (alpha and all) back
+     * at the end. A palette keeps at least one color.
+     */
+    fun removeColor(stored: String) {
         val card = _uiState.value.card ?: return
-        val hex = PaletteEdit.normalizedHex(input) ?: return
+        val hex = PaletteEdit.storedHex(CardColor(stored)) ?: return
+        val original = stored.trim().uppercase()
         if (!PaletteEdit.canRemove(card) || !PaletteEdit.contains(card, hex)) return
         viewModelScope.launch {
             catchingFailures { repository.apply(card.id, listOf(CardFieldChange.RemoveColor(hex))) }
@@ -359,7 +364,7 @@ class CardDetailViewModel @AssistedInject constructor(
                     _events.send(
                         CardDetailEvent.Message(UiText.of("native.card.palette.removed", hex)) {
                             viewModelScope.launch {
-                                catchingFailures { repository.apply(card.id, listOf(CardFieldChange.AddColor(hex))) }
+                                catchingFailures { repository.apply(card.id, listOf(CardFieldChange.AddColor(original))) }
                                     .onFailure { _events.send(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed"))) }
                             }
                         },

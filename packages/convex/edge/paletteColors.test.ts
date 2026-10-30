@@ -208,6 +208,39 @@ describe("removing a palette color", () => {
   });
 });
 
+describe("a color saved with alpha", () => {
+  test("is removed by its RGB, and adding it back keeps its alpha", async () => {
+    const { edit, card } = await setup({
+      colors: hexes("#FF000080", "#00FF00"),
+    });
+    await edit("removeColor", "#FF0000");
+    expect((await card())?.colors).toEqual(hexes("#00FF00"));
+    await edit("addColor", "#ff000080");
+    const saved = await card();
+    expect(saved?.colors?.map((color) => color.hex)).toEqual([
+      "#00FF00",
+      "#FF000080",
+    ]);
+    expect(lastColor(saved)?.rgb).toEqual({ r: 255, g: 0, b: 0 });
+    expect(saved?.colorHexes).toEqual(["#00FF00", "#FF0000"]);
+  });
+
+  test("counts as its RGB color when one is added", async () => {
+    const { edit, colorHexes } = await setup({
+      colors: hexes("#FF000080", "#00FF00"),
+    });
+    await edit("addColor", "#F00");
+    expect(await colorHexes()).toEqual(["#FF000080", "#00FF00"]);
+  });
+
+  test("can't be removed by its eight digits", async () => {
+    const { edit } = await setup({ colors: hexes("#FF000080", "#00FF00") });
+    await expect(edit("removeColor", "#FF000080")).rejects.toThrow(
+      "A color must be a hex code"
+    );
+  });
+});
+
 describe("palette colors through the public API", () => {
   test("removes before adding, so one write swaps a one-color palette", async () => {
     const { t, cardId, colorHexes } = await setup({

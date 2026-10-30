@@ -19,6 +19,14 @@ describe("editPaletteColors", () => {
     expect(editPaletteColors(colors, "addColor", "#FF6B6B")).toBe(colors);
   });
 
+  test("adds back a color with alpha, which counts as its RGB", () => {
+    expect(
+      editPaletteColors(hexes("#00FF00"), "addColor", "#FF000080")
+    ).toEqual(hexes("#00FF00", "#FF000080"));
+    const withRed = hexes("#FF0000");
+    expect(editPaletteColors(withRed, "addColor", "#FF000080")).toBe(withRed);
+  });
+
   test("removes every copy of a color", () => {
     expect(
       editPaletteColors(

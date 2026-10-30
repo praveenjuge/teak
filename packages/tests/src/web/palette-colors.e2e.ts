@@ -53,7 +53,7 @@ test("a color is added from the hex field and removed with Undo", async ({
   await expect.poll(savedHexes).toEqual(["#E63946", "#2A9D8F", "#F1FAEE"]);
 });
 
-test("a color saved with alpha is removed by its RGB", async ({
+test("a color saved with alpha is removed by its RGB, and Undo restores it", async ({
   browser,
   screen,
   library,
@@ -72,6 +72,17 @@ test("a color saved with alpha is removed by its RGB", async ({
       ).map((color: { hex: string }) => color.hex)
     )
     .toEqual(["#00FF00"]);
+
+  await screen.getByRole("button", "Undo").click();
+  await expect(dialog.getByRole("button", "Copy #FF000080")).toBeVisible();
+  await expect
+    .poll(async () =>
+      (
+        (await library.client.query(api.cards.getCard, { id: cardId }))
+          ?.colors ?? []
+      ).map((color: { hex: string }) => color.hex)
+    )
+    .toEqual(["#00FF00", "#FF000080"]);
 });
 
 test("a full palette has no Add color, and a one-color palette nothing to remove", async ({
