@@ -42,9 +42,11 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
     if (!(canAdd && hex)) {
       return;
     }
-    setOpen(false);
-    setText("");
-    await onAddColor(hex);
+    // A failed save keeps the typed color, so trying again is one click.
+    if (await onAddColor(hex)) {
+      setOpen(false);
+      setText("");
+    }
   };
 
   return (

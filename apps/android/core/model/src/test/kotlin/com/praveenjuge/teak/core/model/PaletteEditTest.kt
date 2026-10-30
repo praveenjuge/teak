@@ -7,13 +7,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PaletteEditTest {
-    private fun palette(vararg hexes: String, deleted: Boolean = false) = Card(
+    private fun palette(hexes: List<String>, deleted: Boolean = false) = Card(
         id = "p1",
         creationTime = 0.0,
         type = CardType.Palette,
         colors = hexes.map { CardColor(it) },
         isDeleted = deleted.takeIf { it },
     )
+
+    private fun palette(vararg hexes: String, deleted: Boolean = false) = palette(hexes.toList(), deleted)
 
     @Test
     fun `reads a typed hex code as #RRGGBB`() {
@@ -32,8 +34,8 @@ class PaletteEditTest {
     @Test
     fun `adds to a palette outside Trash with room`() {
         assertTrue(PaletteEdit.canAdd(palette("#FF5500")))
-        assertTrue(PaletteEdit.canAdd(palette(*Array(11) { "#%06X".format(it) })))
-        assertFalse(PaletteEdit.canAdd(palette(*Array(PaletteEdit.MAX_COLORS) { "#%06X".format(it) })))
+        assertTrue(PaletteEdit.canAdd(palette(List(11) { "#%06X".format(it) })))
+        assertFalse(PaletteEdit.canAdd(palette(List(PaletteEdit.MAX_COLORS) { "#%06X".format(it) })))
         assertFalse(PaletteEdit.canAdd(palette("#FF5500", deleted = true)))
         assertFalse(PaletteEdit.canAdd(palette("#FF5500").copy(type = CardType.Image)))
     }

@@ -33,8 +33,11 @@ export function PalettePreview({
 
   if (colors.length === 0) {
     return (
-      <div className="flex h-32 items-center justify-center text-muted-foreground">
+      <div className="flex min-h-32 flex-col items-center justify-center gap-4 text-muted-foreground">
         <p>{t("empty")}</p>
+        {onAddColor ? (
+          <AddColorPopover colors={colors} onAddColor={onAddColor} />
+        ) : null}
       </div>
     );
   }

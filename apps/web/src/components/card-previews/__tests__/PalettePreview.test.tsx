@@ -76,4 +76,16 @@ describe("PalettePreview", () => {
     expect(markup).toContain('aria-label="Remove #FF0000"');
     expect(markup).toContain('aria-label="Remove #00FF00"');
   });
+
+  test("an empty palette can still gain its first color", () => {
+    const markup = renderToStaticMarkup(
+      <PalettePreview
+        card={createPaletteCard({ colors: [] }) as any}
+        onAddColor={async () => true}
+      />
+    );
+
+    expect(markup).toContain("No colors detected in this palette");
+    expect(markup).toContain("Add color");
+  });
 });

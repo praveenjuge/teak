@@ -87,7 +87,8 @@ export default async function tool(input: Input) {
     ? findManualFolder((await listFolders("silent")).items, input.addToFolder)
     : null;
 
-  if (changesTagsOrNotes) {
+  // Tags, notes and colors go in one request, so they save or fail together.
+  if (changesTagsOrNotes || changesColors) {
     const tags = Array.from(new Set([...card.tags, ...addTags])).filter(
       (tag) => !isRemoved(tag),
     );
@@ -95,19 +96,11 @@ export default async function tool(input: Input) {
     card = await updateCard(
       cardId,
       {
-        tags,
+        ...(changesTagsOrNotes ? { tags } : {}),
         ...(removeAiTags.length > 0 ? { removeAiTags } : {}),
         ...(input.notes === undefined
           ? {}
           : { notes: input.notes.trim() ? input.notes.trim() : null }),
-      },
-      "silent",
-    );
-  }
-  if (changesColors) {
-    card = await updateCard(
-      cardId,
-      {
         ...(colorsToRemove.hexes.length > 0
           ? { removeColors: colorsToRemove.hexes }
           : {}),
