@@ -37,28 +37,25 @@ export function PalettePreview({
   const t = useTranslations("cardPreviews.palette");
   const colors = card.colors || [];
 
-  if (colors.length === 0) {
-    return (
-      <div className="flex min-h-32 flex-col items-center justify-center gap-4 text-muted-foreground">
-        <p>{t("empty")}</p>
-        {onAddColor ? (
-          <AddColorPopover colors={colors} onAddColor={onAddColor} />
-        ) : null}
-      </div>
-    );
-  }
-
+  // One layout for an empty palette and a filled one, so the popover stays the
+  // same instance (with its typed color) while the first color saves.
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-4">
-      <div className="flex w-full max-w-3xl flex-wrap overflow-hidden rounded-2xl border">
-        {colors.map((color) => (
-          <PaletteSwatch
-            hex={color.hex}
-            key={color.hex}
-            onRemove={onRemoveColor}
-          />
-        ))}
-      </div>
+      {colors.length === 0 ? (
+        <p className="flex h-32 items-center text-muted-foreground">
+          {t("empty")}
+        </p>
+      ) : (
+        <div className="flex w-full max-w-3xl flex-wrap overflow-hidden rounded-2xl border">
+          {colors.map((color) => (
+            <PaletteSwatch
+              hex={color.hex}
+              key={color.hex}
+              onRemove={onRemoveColor}
+            />
+          ))}
+        </div>
+      )}
       {onAddColor ? (
         <AddColorPopover
           colors={colors}
