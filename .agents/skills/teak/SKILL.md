@@ -80,6 +80,7 @@ Update, tag, favorite, delete, and restore:
 
 ```bash
 teak cards update <card-id> --title "Homepage ideas"
+teak cards update <palette-id> --add-color "#2A9D8F" --remove-color "#F1FAEE"
 teak tags add <card-id> approved
 teak tags rm <card-id> draft     # also removes tags Teak added
 teak fav <card-id>
@@ -151,7 +152,7 @@ POST   /v1/uploads
 POST   /v1/cards/bulk             up to 100: create, update, favorite, delete, restore, archive, unarchive, addTags, removeTags
 GET    /v1/cards/duplicate?url=   check before saving a link
 GET    /v1/cards/:cardId
-PATCH  /v1/cards/:cardId          content, url, notes, tags, metadataTitle, removeAiTags, isArchived
+PATCH  /v1/cards/:cardId          content, url, notes, tags, metadataTitle, removeAiTags, addColors, removeColors, isArchived
 DELETE /v1/cards/:cardId          to Trash; ?permanent=true skips it
 POST   /v1/cards/:cardId/restore
 GET    /v1/cards/:cardId/content  a document's text or a transcript

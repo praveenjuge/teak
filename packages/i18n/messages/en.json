@@ -886,7 +886,19 @@
     },
     "palette": {
       "copy": "Copy {hex}",
-      "empty": "No colors detected in this palette"
+      "empty": "No colors detected in this palette",
+      "addColor": "Add color",
+      "pickColor": "Pick a color",
+      "hexCode": "Hex code",
+      "add": "Add",
+      "invalidHex": "Enter a hex code, such as #FF5500",
+      "alreadyAdded": "{hex} is already in this palette",
+      "full": "A palette holds up to 12 colors",
+      "removeColor": "Remove color",
+      "remove": "Remove {hex}",
+      "added": "Added {hex}",
+      "removed": "Removed {hex}",
+      "saveFailed": "Couldn't update the palette. Try again."
     },
     "quote": {
       "placeholder": "Enter your quote..."

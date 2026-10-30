@@ -402,6 +402,8 @@ export interface CreateCardInput {
   url?: string;
 }
 export interface UpdateCardInput {
+  /** Palette cards only: hex codes to add, such as `#FF5500`. */
+  addColors?: string[];
   content?: string;
   /** Replaces the card's folders; an empty list takes it out of every folder. */
   folderIds?: string[];
@@ -410,6 +412,8 @@ export interface UpdateCardInput {
   notes?: string | null;
   /** AI tags to drop. `tags` replaces only the card's own tags. */
   removeAiTags?: string[];
+  /** Palette cards only: hex codes to remove. Removes apply before `addColors`. */
+  removeColors?: string[];
   tags?: string[];
   url?: string;
 }

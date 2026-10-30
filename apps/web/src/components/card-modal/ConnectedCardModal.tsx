@@ -6,6 +6,7 @@ import { useBulkCardActions } from "../../hooks/useBulkCardActions";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
+import { usePaletteColors } from "../../hooks/usePaletteColors";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { useQuery } from "../../lib/convexQueryHooks";
@@ -107,6 +108,7 @@ export function ConnectedCardModal({
         hydratedCard.article?.status === "ready")
   );
   const linkThumbnail = useLinkThumbnail(card?._id);
+  const paletteColors = usePaletteColors(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
   const runBulkAction = useBulkCardActions("card-modal");
@@ -174,6 +176,7 @@ export function ConnectedCardModal({
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}
+      paletteColors={card?.type === "palette" ? paletteColors : undefined}
       returnFocus={returnFocus}
       saveChanges={saveChanges}
       savePdf={

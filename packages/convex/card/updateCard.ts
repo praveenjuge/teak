@@ -19,6 +19,13 @@ import {
   normalizeTagList,
   tagKey,
 } from "../shared/tags";
+import {
+  buildColorFacets,
+  MAX_PALETTE_COLORS,
+  normalizeHexColor,
+  paletteColorFromHex,
+  parsePaletteHex,
+} from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
@@ -51,6 +58,8 @@ const updateCardFieldValidator = v.union(
   v.literal("aiSummary"),
   v.literal("isFavorited"),
   v.literal("removeAiTag"),
+  v.literal("addColor"),
+  v.literal("removeColor"),
   v.literal("delete"),
   v.literal("restore"),
   v.literal("archive"),
@@ -70,6 +79,8 @@ interface UpdateCardFieldForUserArgs {
     | "aiSummary"
     | "isFavorited"
     | "removeAiTag"
+    | "addColor"
+    | "removeColor"
     | "delete"
     | "restore"
     | "archive"
@@ -255,7 +266,9 @@ type EditableCardField =
   | "notes"
   | "metadataTitle"
   | "tags"
-  | "removeAiTag";
+  | "removeAiTag"
+  | "addColor"
+  | "removeColor";
 
 export interface CardFieldEdit {
   field: EditableCardField;
@@ -274,6 +287,8 @@ const EDITABLE_CARD_FIELDS = new Set<string>([
   "metadataTitle",
   "tags",
   "removeAiTag",
+  "addColor",
+  "removeColor",
 ]);
 
 interface CardEditState {
@@ -282,6 +297,74 @@ interface CardEditState {
   shouldSchedulePipeline: boolean;
   updateData: Record<string, unknown>;
 }
+
+const INVALID_PALETTE_COLOR = {
+  code: "INVALID_INPUT",
+  message: "A color must be a hex code, such as #FF5500",
+};
+
+/** Refuses a card whose colors can't change. */
+const assertPaletteEditable = (card: Doc<"cards">) => {
+  if (card.type !== "palette") {
+    throw new ConvexError({
+      code: "TYPE_MISMATCH",
+      message: "Only palette cards have colors you can change",
+    });
+  }
+  if (card.isDeleted) {
+    throw new ConvexError({
+      code: "CONFLICT",
+      message: "Restore this card from Trash before changing its colors",
+    });
+  }
+};
+
+/** The `#RRGGBB` a color edit names, refusing a card whose colors can't change. */
+const paletteEditHex = (card: Doc<"cards">, value: unknown): string => {
+  assertPaletteEditable(card);
+  const hex = typeof value === "string" ? parsePaletteHex(value) : null;
+  if (!hex) {
+    throw new ConvexError(INVALID_PALETTE_COLOR);
+  }
+  return hex;
+};
+
+const setPaletteColors = (
+  state: CardEditState,
+  colors: NonNullable<Doc<"cards">["colors"]>
+) => {
+  const { colorHexes, colorHues } = buildColorFacets(colors);
+  state.updateData.colors = colors;
+  state.updateData.colorHexes = colorHexes;
+  state.updateData.colorHues = colorHues;
+};
+
+/**
+ * Checks a palette once all of a write's color edits are in, so a write that
+ * removes one color and adds another works on a full or one-color palette.
+ */
+const assertPaletteSize = (
+  before: Doc<"cards">["colors"],
+  after: Doc<"cards">["colors"]
+) => {
+  if (!after?.length) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "A palette needs at least one color",
+    });
+  }
+  // Only a write that grows the palette is held to the cap: palettes saved
+  // before it can be bigger, and removing a color from them still works.
+  if (
+    after.length > MAX_PALETTE_COLORS &&
+    after.length > (before?.length ?? 0)
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `A palette holds up to ${MAX_PALETTE_COLORS} colors`,
+    });
+  }
+};
 
 const applyCardFieldEdit = (
   state: CardEditState,
@@ -434,6 +517,39 @@ const applyCardFieldEdit = (
       return true;
     }
 
+    // Changing a palette's colors doesn't refresh its AI summary or tags:
+    // the edit is instant and spends none of the account's refreshes.
+    case "addColor": {
+      assertPaletteEditable(card);
+      const color =
+        typeof value === "string" ? paletteColorFromHex(value) : null;
+      if (!color) {
+        throw new ConvexError(INVALID_PALETTE_COLOR);
+      }
+      const hex = normalizeHexColor(color.hex);
+      const colors = card.colors ?? [];
+      if (colors.some((saved) => normalizeHexColor(saved.hex) === hex)) {
+        return false;
+      }
+      setPaletteColors(state, [...colors, color]);
+      return true;
+    }
+
+    case "removeColor": {
+      const hex = paletteEditHex(card, value);
+      const colors = card.colors ?? [];
+      // Every copy goes: palettes saved before colors were deduplicated can
+      // repeat one.
+      const kept = colors.filter(
+        (color) => normalizeHexColor(color.hex) !== hex
+      );
+      if (kept.length === colors.length) {
+        return false;
+      }
+      setPaletteColors(state, kept);
+      return true;
+    }
+
     default:
       throw new Error(`Unsupported field: ${field satisfies never}`);
   }
@@ -501,6 +617,9 @@ export const updateCardFieldsForUserHandler = async (
 
   if (!changed) {
     return { pipelineDelayMs: null };
+  }
+  if ("colors" in state.updateData) {
+    assertPaletteSize(card.colors, state.card.colors);
   }
 
   const reservation = state.shouldSchedulePipeline

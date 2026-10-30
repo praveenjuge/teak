@@ -50,6 +50,8 @@ const patchCardForUserArgs = {
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
   removeAiTags: v.optional(v.array(v.string())),
+  addColors: v.optional(v.array(v.string())),
+  removeColors: v.optional(v.array(v.string())),
   isArchived: v.optional(v.boolean()),
   folderIds: v.optional(v.array(v.string())),
 } as const;
@@ -179,6 +181,13 @@ export const patchCardForUser = internalMutation({
     const edits: CardFieldEdit[] = (args.removeAiTags ?? []).map(
       (tagToRemove) => ({ field: "removeAiTag" as const, tagToRemove })
     );
+    // Removes go first, so one write can swap a color.
+    for (const value of args.removeColors ?? []) {
+      edits.push({ field: "removeColor", value });
+    }
+    for (const value of args.addColors ?? []) {
+      edits.push({ field: "addColor", value });
+    }
     if (args.content !== undefined) {
       edits.push({ field: "content", value: args.content });
     }

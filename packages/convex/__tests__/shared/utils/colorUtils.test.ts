@@ -10,8 +10,10 @@ import {
   hexToRgb,
   normalizeHexColor,
   normalizeHexFilters,
+  paletteColorFromHex,
   parseColorString,
   parseColorsFromText,
+  parsePaletteHex,
 } from "../../../shared/utils/colorUtils";
 
 describe("colorUtils", () => {
@@ -614,5 +616,37 @@ describe("palette copy formatters", () => {
     expect(formatPaletteForCopy(colors, "css-variables")).toBe(
       ":root {\n  --primary: #FF0000;\n  --accent-green: #00FF00;\n}"
     );
+  });
+});
+
+describe("parsePaletteHex", () => {
+  it.each([
+    ["#ff5500", "#FF5500"],
+    ["  F50 ", "#FF5500"],
+    ["4ecdc4", "#4ECDC4"],
+  ])("reads %j as %s", (value, hex) => {
+    expect(parsePaletteHex(value)).toBe(hex);
+  });
+
+  it.each(["rgb(1, 2, 3)", "red", "#ff550080", "#ff55", "", "##fff"])(
+    "refuses %j",
+    (value) => {
+      expect(parsePaletteHex(value)).toBeNull();
+    }
+  );
+});
+
+describe("paletteColorFromHex", () => {
+  it("keeps an eight-digit color's alpha and reads its RGB", () => {
+    expect(paletteColorFromHex("#ff000080")).toMatchObject({
+      hex: "#FF000080",
+      rgb: { r: 255, g: 0, b: 0 },
+    });
+  });
+
+  it("saves a typed color as #RRGGBB and refuses anything else", () => {
+    expect(paletteColorFromHex(" f50 ")?.hex).toBe("#FF5500");
+    expect(paletteColorFromHex("#ff55")).toBeNull();
+    expect(paletteColorFromHex("rgb(1, 2, 3)")).toBeNull();
   });
 });

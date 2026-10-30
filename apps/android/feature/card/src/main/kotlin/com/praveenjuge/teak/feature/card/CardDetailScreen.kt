@@ -153,6 +153,8 @@ internal class CardDetailCallbacks(
     val onCloseEditLink: () -> Unit = {},
     val onKeepTag: (String) -> Unit = {},
     val onRemoveSuggestedTag: (String) -> Unit = {},
+    val onAddColor: (String) -> Unit = {},
+    val onRemoveColor: (String) -> Unit = {},
 )
 
 /** What a hardware key does on an open card: E archives, D marks done, R refreshes details, F favorites. */
@@ -426,6 +428,7 @@ private fun CardDetailContent(
                 // PDFs open in the app's reader; other documents open in the browser.
                 onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
                 onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
+                palette = if (card.deleted) null else PaletteEdits(callbacks.onAddColor, callbacks.onRemoveColor),
             )
             if (state.canMarkDone) DoneButton(state.isDone, state.doneText.resolve(), callbacks.onToggleDone)
             LinkDetailsSections(card, onOpenImage = openImage)

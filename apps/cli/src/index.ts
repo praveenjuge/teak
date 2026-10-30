@@ -46,6 +46,7 @@ import {
   whoami,
 } from "./library";
 import {
+  collectPaletteColor,
   oneOf,
   parseLimit,
   parseSince,
@@ -401,15 +402,29 @@ withAddOptions(
 cards
   .command("update")
   .argument("<id>")
-  .description("Change a card's content, title, notes, link, or tags")
+  .description(
+    "Change a card's content, title, notes, link, tags, or palette colors"
+  )
   .option("--content <text>", "new content, or - to read stdin")
   .option("--title <title>", 'card title; "" clears it')
   .option("--notes <notes>")
   .option("--url <url>")
   .option("--tags <tags>", "replaces the card's own tags")
+  .option(
+    "--add-color <hex>",
+    "add a color to a palette card; repeatable",
+    collectPaletteColor
+  )
+  .option(
+    "--remove-color <hex>",
+    "remove a color from a palette card (before any --add-color); repeatable",
+    collectPaletteColor
+  )
   .action(async (id, options) => {
     const opts = { ...program.opts(), ...options };
     const card = await client(opts).cards.update(id, {
+      addColors: options.addColor,
+      removeColors: options.removeColor,
       content: await readContentOption(options.content),
       metadataTitle: options.title,
       notes: options.notes,

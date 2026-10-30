@@ -1,6 +1,21 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.praveenjuge.teak.core.model.PaletteEdit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +77,7 @@ internal fun CardPreview(
     onViewDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
     onToggleTask: ((MarkdownListItem) -> Unit)? = null,
+    palette: PaletteEdits? = null,
 ) {
     val title = CardSheet.title(card).resolve()
     val openImage = rememberImageViewer(title)
@@ -86,7 +102,7 @@ internal fun CardPreview(
             if (content.isEmpty()) NoContent() else MarkdownText(card.content, onToggleTask = onToggleTask)
         }
         CardType.Quote -> QuotePreview(content.ifEmpty { tr("native.card.noContent") }, modifier)
-        CardType.Palette -> PaletteSwatches(card.colors.orEmpty().take(12), onCopyColor, modifier)
+        CardType.Palette -> PaletteSwatches(card, onCopyColor, palette, modifier)
         CardType.Link -> LinkPreview(card, modifier)
         CardType.Document -> DocumentPreview(card, documentText, onViewDocument, modifier)
     }
@@ -167,35 +183,64 @@ private fun QuotePreview(text: String, modifier: Modifier) {
     }
 }
 
+/** Adding and removing a palette's colors from the open card; null in Trash. */
+internal class PaletteEdits(val onAdd: (String) -> Unit, val onRemove: (String) -> Unit)
+
 @Composable
-private fun PaletteSwatches(colors: List<CardColor>, onCopy: (String) -> Unit, modifier: Modifier) {
-    if (colors.isEmpty()) {
+private fun PaletteSwatches(card: Card, onCopy: (String) -> Unit, edits: PaletteEdits?, modifier: Modifier) {
+    val colors = card.colors.orEmpty().take(PaletteEdit.MAX_COLORS)
+    val canAdd = edits != null && PaletteEdit.canAdd(card)
+    val canRemove = edits != null && PaletteEdit.canRemove(card)
+    var adding by rememberSaveable { mutableStateOf(false) }
+    if (colors.isEmpty() && !canAdd) {
         MediaPlaceholder(Icons.Outlined.Palette, tr("native.card.preview.noColors"), modifier)
         return
     }
+    // The add tile takes the slot after the last swatch, so rows stay even.
+    val tiles: List<CardColor?> = if (canAdd) colors + null else colors
     BoxWithConstraints(modifier.fillMaxWidth().clip(MediaShape)) {
-        val maxPerRow = (maxWidth / SWATCH_MIN_WIDTH).toInt().coerceIn(1, colors.size)
-        val rowCount = ceil(colors.size / maxPerRow.toDouble()).toInt()
-        val perRow = ceil(colors.size / rowCount.toDouble()).toInt()
+        val maxPerRow = (maxWidth / SWATCH_MIN_WIDTH).toInt().coerceIn(1, tiles.size)
+        val rowCount = ceil(tiles.size / maxPerRow.toDouble()).toInt()
+        val perRow = ceil(tiles.size / rowCount.toDouble()).toInt()
         Column {
-            colors.chunked(perRow).forEach { row ->
+            tiles.chunked(perRow).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
-                    row.forEach { color -> Swatch(color.hex, onCopy, Modifier.weight(1f)) }
+                    row.forEach { color ->
+                        if (color == null) {
+                            AddColorTile(onClick = { adding = true }, modifier = Modifier.weight(1f))
+                        } else {
+                            // The view model removes it by its RGB and keeps the stored value for Undo.
+                            val remove: (() -> Unit)? = PaletteEdit.storedHex(color)?.takeIf { canRemove }
+                                ?.let { { edits?.onRemove?.invoke(color.hex) } }
+                            Swatch(color.hex, onCopy, remove, Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
     }
+    if (adding && edits != null) {
+        AddColorSheet(card = card, onAdd = edits.onAdd, onDismiss = { adding = false })
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
+private fun Swatch(hex: String, onCopy: (String) -> Unit, onRemove: (() -> Unit)?, modifier: Modifier) {
     val color = parseHexArgb(hex)?.let(::Color) ?: Color.Gray
     val labelColor = if (color.luminance() > 0.5f) Color.Black else Color.White
+    var menuOpen by remember { mutableStateOf(false) }
     Box(
         modifier
             .height(SWATCH_HEIGHT)
             .background(color)
-            .clickable(onClickLabel = tr("native.card.copyColor", hex), role = Role.Button) { onCopy(hex) },
+            .combinedClickable(
+                onClickLabel = tr("native.card.copyColor", hex),
+                role = Role.Button,
+                onLongClickLabel = onRemove?.let { tr("native.card.palette.remove", hex.uppercase()) },
+                onLongClick = onRemove?.let { { menuOpen = true } },
+                onClick = { onCopy(hex) },
+            ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Text(
@@ -207,6 +252,43 @@ private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
                 .padding(bottom = 10.dp)
                 .background(labelColor.copy(alpha = 0.14f), CircleShape)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+        if (onRemove != null) {
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(tr("native.card.palette.removeColor")) },
+                    leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                    onClick = {
+                        menuOpen = false
+                        onRemove()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** The "+" after the last swatch, which opens Add color. */
+@Composable
+private fun AddColorTile(onClick: () -> Unit, modifier: Modifier) {
+    val label = tr("native.card.palette.addColor")
+    Column(
+        modifier
+            .height(SWATCH_HEIGHT)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = label },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+    ) {
+        Icon(Icons.Outlined.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier.padding(horizontal = 6.dp).clearAndSetSemantics {},
         )
     }
 }

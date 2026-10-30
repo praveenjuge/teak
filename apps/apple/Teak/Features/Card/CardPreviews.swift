@@ -9,6 +9,8 @@ struct CardPreview: View {
     var linkTargets: [String: CardLinkTarget] = [:]
     /// Ticks or unticks a task in a note; nil keeps its checkboxes read-only.
     var toggleTask: ((MarkdownListItem) -> Void)?
+    /// Adds and removes a palette's colors; nil keeps them read-only.
+    var palette: PaletteActions?
 
     var body: some View {
         switch card.type {
@@ -16,7 +18,7 @@ struct CardPreview: View {
         case .video: VideoPreview(card: card)
         case .audio: AudioPreview(card: card)
         case .document: DocumentPreview(card: card)
-        case .palette: PalettePreview(card: card)
+        case .palette: PalettePreview(card: card, actions: palette)
         case .link: LinkPreviewView(card: card)
         case .quote: QuotePreview(card: card)
         case .text:
@@ -445,35 +447,215 @@ extension PDFPreview {
     }
 }
 
+/// Saves a palette's color edits. Each returns whether the save went through.
+struct PaletteActions {
+    let add: @MainActor (String) async -> Bool
+    let remove: @MainActor (String) async -> Bool
+}
+
 struct PalettePreview: View {
     let card: Card
-    @State private var copied = 0
+    var actions: PaletteActions?
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
+    @State private var feedback = 0
+    @State private var adding = false
 
     var body: some View {
         let colors = card.colors ?? []
-        if colors.isEmpty {
+        let canAdd = actions != nil && PaletteEdit.canAdd(card)
+        if colors.isEmpty && !canAdd {
             Unavailable(label: tr("native.card.preview.noColors"), symbol: "paintpalette")
         } else {
+            let canRemove = actions != nil && PaletteEdit.canRemove(card)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
                 ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
-                    Button {
-                        Pasteboard.copy(color.hex)
-                        copied += 1
-                    } label: {
-                        VStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(hex: color.hex) ?? .gray)
-                                .aspectRatio(1, contentMode: .fit)
-                                .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator) }
-                            Text(color.hex.uppercased()).font(.caption.monospaced()).foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tr("native.card.copyColor", color.name ?? color.hex))
+                    swatch(color, canRemove: canRemove)
+                }
+                if canAdd { addTile }
+            }
+            .sensoryFeedback(.success, trigger: feedback)
+        }
+    }
+
+    private func swatch(_ color: CardColor, canRemove: Bool) -> some View {
+        // Shown and removed by its RGB; the model keeps the stored value for Undo.
+        let hex = PaletteEdit.storedHex(color.hex)
+        return Button {
+            Pasteboard.copy(color.hex)
+            feedback += 1
+        } label: {
+            VStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(hex: color.hex) ?? .gray)
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator) }
+                Text(color.hex.uppercased()).font(.caption.monospaced()).foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(tr("native.card.copyColor", color.name ?? color.hex))
+        .contextMenu {
+            if canRemove, let hex {
+                Button(tr("native.card.palette.removeColor"), systemImage: "trash", role: .destructive) { remove(color.hex) }
+            }
+        }
+        .accessibilityActions {
+            if canRemove, let hex {
+                Button(tr("native.card.palette.remove", hex)) { remove(color.hex) }
+            }
+        }
+    }
+
+    private var addTile: some View {
+        Button { adding = true } label: {
+            VStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay { Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.secondary) }
+                    .contentShape(.rect(cornerRadius: 16))
+                Text(tr("native.card.palette.addColor")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(tr("native.card.palette.addColor"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("palette.addColor")
+        .popover(isPresented: $adding) {
+            AddColorSheet(card: card, fillsSheet: isCompact) { hex in
+                guard let actions, await actions.add(hex) else { return false }
+                feedback += 1
+                return true
+            }
+            .presentationDetents([.medium, .large])
+            .presentationCompactAdaptation(.sheet)
+        }
+    }
+
+    /// A compact width shows the popover as a sheet.
+    private var isCompact: Bool {
+        #if os(iOS)
+        sizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    private func remove(_ hex: String) {
+        guard let actions else { return }
+        Task { if await actions.remove(hex) { feedback += 1 } }
+    }
+}
+
+/// Add color: a color picker and a hex field that follow each other, with a preview of the color to add.
+private struct AddColorSheet: View {
+    let card: Card
+    /// As a sheet, the form starts at the top rather than floating in the middle.
+    let fillsSheet: Bool
+    let add: (String) async -> Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var picked = CGColor(srgbRed: 0.5, green: 0.5, blue: 0.5, alpha: 1)
+    @State private var isSaving = false
+    @State private var failed = false
+
+    var body: some View {
+        let hex = PaletteEdit.normalizedHex(text)
+        VStack(alignment: .leading, spacing: 16) {
+            Text(tr("native.card.palette.addColor")).font(.headline)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(hex.flatMap { Color(hex: $0) } ?? Color.clear)
+                .background(.fill.tertiary, in: .rect(cornerRadius: 16, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator) }
+                .frame(height: 64)
+                .accessibilityHidden(true)
+            ColorPicker(tr("native.card.palette.pickColor"), selection: $picked, supportsOpacity: false)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(tr("native.card.palette.hexCode")).font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                TextField(tr("native.card.palette.hexCode"), text: $text, prompt: Text(verbatim: "#FF5500"))
+                    .font(.body.monospaced())
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.characters)
+                    #endif
+                    .onSubmit(submit)
+                    .accessibilityLabel(tr("native.card.palette.hexCode"))
+                    .accessibilityIdentifier("palette.hex")
+                if let problem = problem(hex) {
+                    Text(problem).font(.footnote).foregroundStyle(.red)
                 }
             }
-            .sensoryFeedback(.success, trigger: copied)
+            HStack {
+                #if os(iOS)
+                Button(tr("common.cancel")) { dismiss() }
+                    .buttonStyle(.glass)
+                #endif
+                Spacer()
+                Button(tr("native.card.palette.add"), action: submit)
+                    .buttonStyle(.glassProminent)
+                    .disabled(!canAdd(hex))
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("palette.add")
+            }
         }
+        .padding(20)
+        .frame(minWidth: 300, idealWidth: 340)
+        .frame(maxHeight: fillsSheet ? .infinity : nil, alignment: .top)
+        .onChange(of: text) { _, typed in
+            // A complete hex code moves the picker; anything else leaves it where it is.
+            guard let typedHex = PaletteEdit.normalizedHex(typed), typedHex != Self.hex(picked),
+                  let color = Self.color(typedHex) else { return }
+            picked = color
+            failed = false
+        }
+        .onChange(of: picked) { _, color in
+            guard let pickedHex = Self.hex(color), pickedHex != PaletteEdit.normalizedHex(text) else { return }
+            text = pickedHex
+            failed = false
+        }
+    }
+
+    private func canAdd(_ hex: String?) -> Bool {
+        guard let hex else { return false }
+        return !isSaving && !PaletteEdit.contains(card, hex)
+    }
+
+    /// Why Add is off: not a hex code, or already in the palette. Nothing while the field is empty.
+    private func problem(_ hex: String?) -> String? {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
+        guard let hex else { return tr("native.card.palette.invalidHex") }
+        if PaletteEdit.contains(card, hex) { return tr("native.card.palette.alreadyAdded", hex) }
+        return failed ? tr("native.card.palette.saveFailed") : nil
+    }
+
+    private func submit() {
+        guard let hex = PaletteEdit.normalizedHex(text), canAdd(hex) else { return }
+        isSaving = true
+        failed = false
+        Task {
+            defer { isSaving = false }
+            if await add(hex) { dismiss() } else { failed = true }
+        }
+    }
+
+    /// The picked color as `#RRGGBB` in sRGB, clamping wide-gamut picks to the nearest sRGB color.
+    private static func hex(_ color: CGColor) -> String? {
+        guard let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+              let components = color.converted(to: srgb, intent: .defaultIntent, options: nil)?.components,
+              components.count >= 3 else { return nil }
+        let channels = components.prefix(3).map { Int((min(max($0, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", channels[0], channels[1], channels[2])
+    }
+
+    private static func color(_ hex: String) -> CGColor? {
+        guard let number = UInt32(hex.dropFirst(), radix: 16) else { return nil }
+        return CGColor(srgbRed: Double((number >> 16) & 0xFF) / 255, green: Double((number >> 8) & 0xFF) / 255,
+                       blue: Double(number & 0xFF) / 255, alpha: 1)
     }
 }
 

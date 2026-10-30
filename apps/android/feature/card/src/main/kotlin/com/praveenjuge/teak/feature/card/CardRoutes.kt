@@ -97,6 +97,8 @@ fun CardDetailRoute(
             onCloseEditLink = viewModel::closeEditLink,
             onKeepTag = viewModel::keepTag,
             onRemoveSuggestedTag = viewModel::removeSuggestedTag,
+            onAddColor = viewModel::addColor,
+            onRemoveColor = viewModel::removeColor,
         ),
     )
 }

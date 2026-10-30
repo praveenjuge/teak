@@ -607,6 +607,20 @@
         "message": "새 주소를 저장하면 카드 미리 보기가 새로 고쳐집니다.",
         "invalid": "http 또는 https 링크를 사용하세요.",
         "saved": "링크를 저장했습니다. 곧 미리 보기가 새로 고쳐집니다."
+      },
+      "palette": {
+        "addColor": "색상 추가",
+        "pickColor": "색상 선택",
+        "hexCode": "HEX 코드",
+        "add": "추가",
+        "invalidHex": "#FF5500 같은 HEX 코드를 입력하세요",
+        "alreadyAdded": "{hex}은(는) 이미 이 팔레트에 있습니다",
+        "full": "팔레트에는 최대 12가지 색상을 넣을 수 있습니다",
+        "removeColor": "색상 삭제",
+        "remove": "{hex} 삭제",
+        "added": "{hex} 추가됨",
+        "removed": "{hex} 삭제됨",
+        "saveFailed": "팔레트를 업데이트하지 못했습니다. 다시 시도하세요."
       }
     },
     "linkPicker": {

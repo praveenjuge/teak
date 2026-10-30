@@ -886,7 +886,19 @@
     },
     "palette": {
       "copy": "Copiar {hex}",
-      "empty": "Nenhuma cor detectada nesta paleta"
+      "empty": "Nenhuma cor detectada nesta paleta",
+      "addColor": "Adicionar cor",
+      "pickColor": "Escolher uma cor",
+      "hexCode": "Código hex",
+      "add": "Adicionar",
+      "invalidHex": "Digite um código hex, como #FF5500",
+      "alreadyAdded": "{hex} já está nesta paleta",
+      "full": "Uma paleta comporta até 12 cores",
+      "removeColor": "Remover cor",
+      "remove": "Remover {hex}",
+      "added": "{hex} adicionada",
+      "removed": "{hex} removida",
+      "saveFailed": "Não foi possível atualizar a paleta. Tente de novo."
     },
     "quote": {
       "placeholder": "Digite sua citação..."

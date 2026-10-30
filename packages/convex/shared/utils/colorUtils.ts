@@ -371,6 +371,38 @@ export function normalizeHexColor(value: string): string | null {
   return parsed.hex.slice(0, 7).toUpperCase();
 }
 
+/** The most colors a palette card holds, when it's saved or a color is added. */
+export const MAX_PALETTE_COLORS = 12;
+
+const PALETTE_HEX_PATTERN = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * A hex code someone typed for a palette (`#RGB` or `#RRGGBB`, with or
+ * without the `#`) as `#RRGGBB`, or null when it isn't one. Stricter than
+ * `normalizeHexColor`, which also reads `rgb()` and `hsl()` text.
+ */
+export function parsePaletteHex(value: string): string | null {
+  const trimmed = value.trim();
+  return PALETTE_HEX_PATTERN.test(trimmed) ? normalizeHexColor(trimmed) : null;
+}
+
+const PALETTE_ALPHA_HEX_PATTERN = /^#?[0-9a-f]{8}$/i;
+
+/**
+ * The color a palette stores for an added hex code, with its RGB, HSL and name
+ * filled in the way saved palettes have them, or null when it isn't a hex
+ * code. `#RGB` and `#RRGGBB` are saved as `#RRGGBB`; an eight-digit
+ * `#RRGGBBAA` keeps its alpha, as palettes saved from text do, so undoing a
+ * removal puts the same color back.
+ */
+export function paletteColorFromHex(value: string): Color | null {
+  const trimmed = value.trim();
+  const hex = PALETTE_ALPHA_HEX_PATTERN.test(trimmed)
+    ? `#${trimmed.replace("#", "").toUpperCase()}`
+    : parsePaletteHex(trimmed);
+  return hex ? parseColorString(hex) : null;
+}
+
 export function classifyHueForHex(hex: string): ColorHueBucket | null {
   const normalizedHex = normalizeHexColor(hex);
   if (!normalizedHex) {

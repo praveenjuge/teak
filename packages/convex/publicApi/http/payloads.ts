@@ -12,6 +12,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../../shared/folders";
+import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
 import { isSafeExternalUrl } from "../../shared/utils/safeUrl";
 import {
   CARD_TYPES,
@@ -229,22 +230,35 @@ export const validateUploadPayload = (
 };
 
 interface PatchCardPayload {
+  addColors?: string[];
   content?: string;
   folderIds?: string[];
   isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
   removeAiTags?: string[];
+  removeColors?: string[];
   tags?: string[];
   url?: string;
 }
 
 const PATCH_FIELDS =
-  "content, url, metadataTitle, notes, tags, removeAiTags, isArchived, folderIds";
+  "content, url, metadataTitle, notes, tags, removeAiTags, addColors, removeColors, isArchived, folderIds";
 
 type PatchPayloadResult =
   | { code?: "CONTENT_TOO_LARGE"; error: string }
   | { payload: PatchCardPayload };
+
+/** A PATCH body's list of 1 to 12 palette colors, or undefined when it isn't one. */
+const parsePaletteColorList = (value: unknown): string[] | undefined => {
+  const colors = parseStringArray(value);
+  return colors?.length && colors.length <= MAX_PALETTE_COLORS
+    ? colors
+    : undefined;
+};
+
+const explainPaletteColorList = (field: "addColors" | "removeColors") =>
+  `\`${field}\` must be a list of 1 to ${MAX_PALETTE_COLORS} hex codes`;
 
 /** Parses a PATCH body, saying which field is wrong when one is. */
 export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
@@ -254,12 +268,14 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
 
   const source = payload as Record<string, unknown>;
   const allowedKeys = new Set([
+    "addColors",
     "content",
     "folderIds",
     "isArchived",
     "metadataTitle",
     "notes",
     "removeAiTags",
+    "removeColors",
     "tags",
     "url",
   ]);
@@ -331,6 +347,22 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
       return { error: "`removeAiTags` must be a non-empty array of strings" };
     }
     next.removeAiTags = removeAiTags;
+  }
+
+  if ("addColors" in source) {
+    const colors = parsePaletteColorList(source.addColors);
+    if (!colors) {
+      return { error: explainPaletteColorList("addColors") };
+    }
+    next.addColors = colors;
+  }
+
+  if ("removeColors" in source) {
+    const colors = parsePaletteColorList(source.removeColors);
+    if (!colors) {
+      return { error: explainPaletteColorList("removeColors") };
+    }
+    next.removeColors = colors;
   }
 
   if ("isArchived" in source) {

@@ -8,6 +8,12 @@ sealed interface CardFieldChange {
     data class RemoveAiTag(val tag: String) : CardFieldChange
     data class MetadataTitle(val value: String) : CardFieldChange
     data class Url(val value: String) : CardFieldChange
+
+    /** Appends a color to a palette; the server ignores one it already has. */
+    data class AddColor(val hex: String) : CardFieldChange
+
+    /** Removes every copy of a color from a palette. */
+    data class RemoveColor(val hex: String) : CardFieldChange
     data object MoveToTrash : CardFieldChange
     data object Restore : CardFieldChange
 
@@ -19,6 +25,8 @@ sealed interface CardFieldChange {
         is RemoveAiTag -> mapOf("cardId" to cardId, "field" to "removeAiTag", "tagToRemove" to tag)
         is MetadataTitle -> mapOf("cardId" to cardId, "field" to "metadataTitle", "value" to value)
         is Url -> mapOf("cardId" to cardId, "field" to "url", "value" to value)
+        is AddColor -> mapOf("cardId" to cardId, "field" to "addColor", "value" to hex)
+        is RemoveColor -> mapOf("cardId" to cardId, "field" to "removeColor", "value" to hex)
         MoveToTrash -> mapOf("cardId" to cardId, "field" to "delete")
         Restore -> mapOf("cardId" to cardId, "field" to "restore")
     }

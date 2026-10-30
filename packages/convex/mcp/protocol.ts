@@ -17,6 +17,7 @@ import {
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MIME_TYPES,
 } from "../shared/thumbnails";
+import { MAX_PALETTE_COLORS } from "../shared/utils/colorUtils";
 
 type JsonObject = Record<string, unknown>;
 
@@ -406,7 +407,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_update_card",
     description:
-      "Update an existing card. tags replaces the card's own tags; removeAiTags drops tags Teak added.",
+      "Update an existing card. tags replaces the card's own tags; removeAiTags drops tags Teak added. On a palette card, addColors and removeColors change its colors (hex codes such as #FF5500); removes apply first.",
     annotations: { title: "Update card", ...IDEMPOTENT_WRITE },
     inputSchema: inputSchema(
       {
@@ -423,6 +424,21 @@ export const TEAK_V1_TOOLS = [
           type: "array",
           minItems: 1,
           items: { type: "string", minLength: 1 },
+        },
+        addColors: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_PALETTE_COLORS,
+          items: { type: "string", minLength: 1 },
+          description: `Palette cards only: hex codes to add. A palette holds up to ${MAX_PALETTE_COLORS} colors.`,
+        },
+        removeColors: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_PALETTE_COLORS,
+          items: { type: "string", minLength: 1 },
+          description:
+            "Palette cards only: hex codes to remove. A palette keeps at least one color.",
         },
       },
       ["cardId"]

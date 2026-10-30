@@ -52,11 +52,12 @@ describe("Android string resources", () => {
     // A literal here would be English in every language; read it with tr() or UiText.of().
     const ui =
       /\bText\("([^"$]*[A-Za-z][^"]*)"|\b(?:label|title|text|contentDescription|message|confirmLabel|dismissLabel|supporting|placeholder|actionLabel)\s*=\s*"([^"]*[A-Za-z][^"]*)"/g;
-    // Names, key caps, search syntax people type, and animation labels nobody reads.
+    // Names, key caps, search syntax and hex codes people type, and animation labels nobody reads.
     const allowed = new Set([
       "Teak",
       "E",
       "tag:design type:link",
+      "#FF5500",
       "recordCorner",
     ]);
     const literals = kotlinFiles(ANDROID).flatMap((file) =>

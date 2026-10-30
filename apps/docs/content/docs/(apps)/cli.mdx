@@ -149,6 +149,8 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 
 `teak tags add` and `teak tags rm` change one card's tags without retyping the rest. `teak tags rm` also removes tags Teak added. `teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input.
 
+`teak cards update <card-id> --add-color "#2A9D8F" --remove-color f50` changes a palette's colors; repeat either flag for more, and removes apply first. A value that isn't a hex code stops before anything is sent. `teak cards get` lists the colors.
+
 `teak tags rename <from> <to>`, `teak tags merge <from> <into>`, and `teak tags delete <tag>` change a tag on every card at once, including tags Teak added and cards in Trash and Archive. Tags match ignoring case. Each prints the change's ID and returns right away; add `--wait` to wait until every card has changed, or check later with `teak tags status <id>`. `teak tags delete` asks first, or takes `--yes` in scripts.
 
 ### Trash

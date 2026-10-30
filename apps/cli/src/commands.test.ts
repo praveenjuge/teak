@@ -634,6 +634,40 @@ describe("teak parity commands", () => {
     expect(result.stdout).toContain("ai tags: Web");
   });
 
+  test("update adds and removes palette colors as hex codes", async () => {
+    routes.set("PATCH /v1/cards/card_a", () =>
+      json(card("card_a", { type: "palette", colors: [{ hex: "#4ECDC4" }] }))
+    );
+    const result = await teak(
+      "cards",
+      "update",
+      "card_a",
+      "--add-color",
+      "4ecdc4",
+      "--add-color",
+      "#f50",
+      "--remove-color",
+      "#FF6B6B"
+    );
+    expect(result.code).toBe(0);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      addColors: ["#4ECDC4", "#FF5500"],
+      removeColors: ["#FF6B6B"],
+    });
+  });
+
+  test("update refuses a palette color that isn't a hex code", async () => {
+    const result = await teak(
+      "cards",
+      "update",
+      "card_a",
+      "--add-color",
+      "teal"
+    );
+    expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
   test("tags rename --wait polls until every card has changed", async () => {
     const operation = (status: string, changed: number) => ({
       id: "op_1",

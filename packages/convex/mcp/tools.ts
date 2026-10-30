@@ -22,6 +22,7 @@ import {
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MIME_TYPES,
 } from "../shared/thumbnails";
+import { MAX_PALETTE_COLORS } from "../shared/utils/colorUtils";
 import { captureBackendEvent } from "../telemetry/posthog";
 import {
   MAX_VISUAL_FILTERS,
@@ -316,6 +317,11 @@ const deleteTagInputSchema = z.strictObject({
 });
 const tagOperationInputSchema = z.strictObject({ operationId: idSchema });
 
+const paletteColorsSchema = z
+  .array(nonEmptyString)
+  .min(1)
+  .max(MAX_PALETTE_COLORS);
+
 const updateCardInputSchema = z
   .strictObject({
     cardId: idSchema,
@@ -325,6 +331,8 @@ const updateCardInputSchema = z
     tags: z.array(z.string()).optional(),
     metadataTitle: z.string().or(z.null()).optional(),
     removeAiTags: z.array(nonEmptyString).min(1).optional(),
+    addColors: paletteColorsSchema.optional(),
+    removeColors: paletteColorsSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (
@@ -333,12 +341,14 @@ const updateCardInputSchema = z
       value.notes === undefined &&
       value.tags === undefined &&
       value.metadataTitle === undefined &&
-      value.removeAiTags === undefined
+      value.removeAiTags === undefined &&
+      value.addColors === undefined &&
+      value.removeColors === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one field must be provided: content, url, notes, tags, metadataTitle, removeAiTags",
+          "At least one field must be provided: content, url, notes, tags, metadataTitle, removeAiTags, addColors, removeColors",
         path: ["content"],
       });
     }
