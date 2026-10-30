@@ -38,13 +38,18 @@ export function AddColorPopover({
 
   const hex = parsePaletteHex(text);
   const isTaken = !saving && hex !== null && paletteHasColor(colors, hex);
+  // Another device can fill the palette while this popover is open. Our own
+  // save fills it too, optimistically, so that one doesn't count.
+  const isFullNow = isFull && !saving;
   let problem: string | null = null;
-  if (text.trim() && !hex) {
+  if (isFullNow) {
+    problem = t("full");
+  } else if (text.trim() && !hex) {
     problem = t("invalidHex");
   } else if (hex && isTaken) {
     problem = t("alreadyAdded", { hex });
   }
-  const canAdd = hex !== null && !isTaken && !saving;
+  const canAdd = hex !== null && !isTaken && !saving && !isFullNow;
 
   const save = async (value: string) => {
     // A failed save keeps the typed color, so trying again is one click.

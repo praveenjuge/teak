@@ -37,7 +37,8 @@ const palette = (hexes: string[]) =>
 
 const render = (
   hexes: string[],
-  onAddColor: (hex: string) => Promise<boolean>
+  onAddColor: (hex: string) => Promise<boolean>,
+  isFull = false
 ) => {
   if (!root) {
     const container = document.createElement("div");
@@ -46,10 +47,21 @@ const render = (
   }
   return act(() =>
     root?.render(
-      <PalettePreview card={palette(hexes)} onAddColor={onAddColor} />
+      <PalettePreview
+        card={palette(hexes)}
+        isFull={isFull}
+        onAddColor={onAddColor}
+      />
     )
   );
 };
+
+const openAddColor = () =>
+  act(() => {
+    [...document.querySelectorAll("button")]
+      .find((button) => button.textContent === "Add color")
+      ?.click();
+  });
 
 const hexField = () =>
   document.querySelector<HTMLInputElement>("input[aria-label='Hex code']");
@@ -76,12 +88,7 @@ test("adding the first color keeps the open popover and its typed color", async 
   );
   await render([], onAddColor);
 
-  const addButton = [...document.querySelectorAll("button")].find(
-    (button) => button.textContent === "Add color"
-  );
-  await act(() => {
-    addButton?.click();
-  });
+  await openAddColor();
   await act(() => {
     typeHex("2a9d8f");
   });
@@ -101,4 +108,27 @@ test("adding the first color keeps the open popover and its typed color", async 
   });
   await render([], onAddColor);
   expect(hexField()?.value).toBe("2a9d8f");
+});
+
+test("a palette another device fills while the popover is open can't take more", async () => {
+  const onAddColor = mock(async () => true);
+  const eleven = Array.from(
+    { length: 11 },
+    (_, index) => `#0000${index.toString(16).padStart(2, "0").toUpperCase()}`
+  );
+  await render(eleven, onAddColor);
+  await openAddColor();
+  await act(() => {
+    typeHex("2a9d8f");
+  });
+
+  await render([...eleven, "#FFFFFF"], onAddColor, true);
+  expect(document.body.textContent).toContain(
+    "A palette holds up to 12 colors"
+  );
+  const add = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent === "Add"
+  );
+  expect(add?.disabled).toBe(true);
+  expect(onAddColor).not.toHaveBeenCalled();
 });
