@@ -183,6 +183,7 @@ import type * as linkMetadata_tiktok from "../linkMetadata/tiktok.js";
 import type * as linkMetadata_types from "../linkMetadata/types.js";
 import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
+import type * as mcp_appResource from "../mcp/appResource.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_tools from "../mcp/tools.js";
@@ -553,6 +554,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/types": typeof linkMetadata_types;
   "linkMetadata/url": typeof linkMetadata_url;
   "linkMetadata/x": typeof linkMetadata_x;
+  "mcp/appResource": typeof mcp_appResource;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/protocol": typeof mcp_protocol;
   "mcp/tools": typeof mcp_tools;

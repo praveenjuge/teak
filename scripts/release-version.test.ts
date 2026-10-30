@@ -36,6 +36,7 @@ describe("release versions", () => {
         "packages/sdk",
         "apps/apple/SafariExtension/Resources",
         "apps/apple/Teak.xcodeproj",
+        "plugins/teak/.claude-plugin",
       ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
@@ -44,6 +45,7 @@ describe("release versions", () => {
         "apps/web/package.json",
         "packages/sdk/package.json",
         "apps/apple/SafariExtension/Resources/manifest.json",
+        "plugins/teak/.claude-plugin/plugin.json",
         "server.json",
       ]) {
         fs.writeFileSync(
@@ -77,6 +79,7 @@ describe("release versions", () => {
         "apps/web/package.json",
         "package.json",
         "packages/sdk/package.json",
+        "plugins/teak/.claude-plugin/plugin.json",
         "server.json",
       ]);
       expect(npmLockFiles(root)).toEqual([]);

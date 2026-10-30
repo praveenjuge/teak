@@ -1773,5 +1773,22 @@
       "partialFailureWithReason": "Uploaded {successCount} of {total} files. First failure: {file} — {reason}",
       "skippedNote": "{count, plural, one {# file was} other {# files were}} skipped. You can upload up to {max} at a time."
     }
+  },
+  "mcpApp": {
+    "searchTitle": "Results for “{query}”",
+    "searchTitleNoQuery": "Search results",
+    "recentTitle": "Recent cards",
+    "favoritesTitle": "Favorites",
+    "cardCount": "{count, plural, one {# card} other {# cards}}",
+    "empty": "No cards match.",
+    "savedTitle": "Saved to Teak",
+    "resavedTitle": "Already in Teak, moved to the top",
+    "openInTeak": "Open in Teak",
+    "visitSource": "Visit source",
+    "summary": "Summary",
+    "notes": "Notes",
+    "favorite": "Favorite",
+    "loading": "Loading cards…",
+    "error": "Teak couldn't show these cards."
   }
 }

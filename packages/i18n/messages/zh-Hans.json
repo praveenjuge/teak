@@ -1773,5 +1773,22 @@
       "partialFailureWithReason": "已上传 {successCount} / {total} 个文件。首个失败项：{file} — {reason}",
       "skippedNote": "已跳过 {count, plural, other {# 个文件}}。一次最多可以上传 {max} 个。"
     }
+  },
+  "mcpApp": {
+    "searchTitle": "“{query}”的搜索结果",
+    "searchTitleNoQuery": "搜索结果",
+    "recentTitle": "最近的卡片",
+    "favoritesTitle": "收藏",
+    "cardCount": "{count, plural, other {# 张卡片}}",
+    "empty": "没有匹配的卡片。",
+    "savedTitle": "已保存到 Teak",
+    "resavedTitle": "已在 Teak 中，已移到最前",
+    "openInTeak": "在 Teak 中打开",
+    "visitSource": "访问来源",
+    "summary": "摘要",
+    "notes": "笔记",
+    "favorite": "收藏",
+    "loading": "正在加载卡片…",
+    "error": "Teak 无法显示这些卡片。"
   }
 }

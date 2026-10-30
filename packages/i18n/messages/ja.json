@@ -1773,5 +1773,22 @@
       "partialFailureWithReason": "{total} 件中 {successCount} 件のファイルをアップロードしました。最初の失敗：{file} — {reason}",
       "skippedNote": "{count, plural, other {# 件のファイル}}をスキップしました。一度にアップロードできるのは {max} 件までです。"
     }
+  },
+  "mcpApp": {
+    "searchTitle": "「{query}」の検索結果",
+    "searchTitleNoQuery": "検索結果",
+    "recentTitle": "最近のカード",
+    "favoritesTitle": "お気に入り",
+    "cardCount": "{count, plural, other {# 件のカード}}",
+    "empty": "一致するカードはありません。",
+    "savedTitle": "Teak に保存しました",
+    "resavedTitle": "すでに Teak にあるため、先頭に移動しました",
+    "openInTeak": "Teak で開く",
+    "visitSource": "元のページを開く",
+    "summary": "要約",
+    "notes": "メモ",
+    "favorite": "お気に入り",
+    "loading": "カードを読み込んでいます…",
+    "error": "Teak でこれらのカードを表示できませんでした。"
   }
 }

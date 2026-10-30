@@ -1,4 +1,5 @@
-import { type ActionCtx, httpAction } from "../_generated/server";
+import { type ActionCtx, env, httpAction } from "../_generated/server";
+import { readWorkosResources } from "../env";
 import {
   buildProtectedResourceMetadata,
   getProtectedResourceUrl,
@@ -10,7 +11,10 @@ import {
   type PublicApiOperation,
   validatePublicApiBearer,
 } from "../publicApi/http/routes";
+import { TEAK_FILES_ORIGINS } from "../shared/filesOrigins";
 import { withBackendTelemetryScope } from "../telemetry/posthog";
+import { TEAK_APP_HTML } from "./appHtml.generated";
+import { buildAppResourceContents, TEAK_APP_RESOURCE_URI } from "./appResource";
 import {
   answerProtocolMessage,
   jsonRpcError,
@@ -85,6 +89,35 @@ const executeToolOperation = (
     "mcp"
   );
 
+const readFilesOrigin = (): string => {
+  try {
+    return new URL(env.FILES_BASE ?? "").origin;
+  } catch {
+    return TEAK_FILES_ORIGINS.production;
+  }
+};
+
+const readAppResource = async (
+  id: number | string,
+  params: unknown
+): Promise<JsonObject> => {
+  const uri = (params as { uri?: unknown } | null | undefined)?.uri;
+  if (typeof uri !== "string") {
+    return jsonRpcError(id, -32_602, "Invalid params: uri is required");
+  }
+  if (uri !== TEAK_APP_RESOURCE_URI) {
+    return jsonRpcError(id, -32_002, `Resource not found: ${uri}`);
+  }
+  return jsonRpcResponse(
+    id,
+    await buildAppResourceContents({
+      filesOrigin: readFilesOrigin(),
+      html: TEAK_APP_HTML,
+      mcpUrl: readWorkosResources().mcp,
+    })
+  );
+};
+
 const PARSE_ERROR = Symbol("parse error");
 
 const parseJsonRpcBody = async (request: Request): Promise<unknown> => {
@@ -134,6 +167,10 @@ const handleJsonRpcMessage = async (
   }
   if (answered.kind === "noReply" || !hasId) {
     return null;
+  }
+
+  if (rpc.method === "resources/read") {
+    return readAppResource(rpc.id as number | string, rpc.params);
   }
 
   if (rpc.method === "tools/call") {

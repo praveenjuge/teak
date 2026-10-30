@@ -1773,5 +1773,22 @@
       "partialFailureWithReason": "{successCount} von {total} Dateien hochgeladen. Erster Fehler: {file} – {reason}",
       "skippedNote": "{count, plural, one {# Datei wurde} other {# Dateien wurden}} übersprungen. Sie können bis zu {max} gleichzeitig hochladen."
     }
+  },
+  "mcpApp": {
+    "searchTitle": "Ergebnisse für „{query}“",
+    "searchTitleNoQuery": "Suchergebnisse",
+    "recentTitle": "Neueste Karten",
+    "favoritesTitle": "Favoriten",
+    "cardCount": "{count, plural, one {# Karte} other {# Karten}}",
+    "empty": "Keine passenden Karten.",
+    "savedTitle": "In Teak gespeichert",
+    "resavedTitle": "Schon in Teak, nach oben verschoben",
+    "openInTeak": "In Teak öffnen",
+    "visitSource": "Quelle öffnen",
+    "summary": "Zusammenfassung",
+    "notes": "Notizen",
+    "favorite": "Favorit",
+    "loading": "Karten werden geladen …",
+    "error": "Teak konnte diese Karten nicht anzeigen."
   }
 }

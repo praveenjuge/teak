@@ -8,7 +8,8 @@ bun run release:prepare <version>
 ```
 
 It validates the next patch, updates every tracked `package.json`, the Safari
-WebExtension manifest, the MCP registry's `server.json`, and the Apple app's
+WebExtension manifest, the MCP registry's `server.json`, the Claude plugin's
+`plugins/teak/.claude-plugin/plugin.json`, and the Apple app's
 marketing version, synchronizes
 `bun.lock` (and `apps/raycast/package-lock.json` when present),
 then verifies with a frozen install and the lockstep validator. Review the
@@ -19,7 +20,7 @@ it with the same version plus `--resume` to continue from the install step.
 Manual fallback (same steps the script performs):
 
 1. Update the `version` field in every tracked `package.json` to the same next patch version.
-2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
+2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `plugins/teak/.claude-plugin/plugin.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
 3. Run `bun install` from the repository root to synchronize `bun.lock`.
 4. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts --workspaces=false` to synchronize both version fields in `package-lock.json` without traversing the Bun workspace packages.
 5. From the repository root, run `bun install --frozen-lockfile` and `node scripts/release-version.mjs lockstep <version>`. Both commands must exit successfully without changing files.
@@ -61,3 +62,33 @@ To retry, dispatch `SDK Release` on the existing immutable version tag.
 An already published version passes only when its bytes match. A conflict,
 registry outage, or failed verification requires investigation; never move
 the tag or overwrite a published version.
+
+## MCP Registry and Claude directory
+
+`server.json` describes Teak's remote MCP server for the official MCP Registry
+(`registry.modelcontextprotocol.io`) under the name `com.teakvault/mcp`, which
+the registry checks against a DNS record on `teakvault.com`. The Claude plugin
+in `plugins/teak` and its connector listing are covered by
+`.agents/claude-directory.md`; the directory picks up a new plugin version
+from `main` on its own.
+
+One-time setup, with Praveen's approval because it adds a DNS record:
+
+1. Generate an Ed25519 key with OpenSSL 3 and keep `key.pem` in the password
+   manager, never in the repository.
+2. Add the TXT record the registry docs give
+   (`v=MCPv1; k=ed25519; p=<public key>`) on the apex `teakvault.com`.
+
+To publish a release (after the version tag exists, from the repository root,
+with `mcp-publisher` from the registry's releases):
+
+```bash
+PRIVATE_KEY="$(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+mcp-publisher login dns --domain teakvault.com --private-key "$PRIVATE_KEY"
+mcp-publisher publish
+```
+
+Then confirm the version is listed:
+`curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=com.teakvault/mcp"`.
+The registry refuses a version it already has, so a retry after a successful
+publish needs the next release.

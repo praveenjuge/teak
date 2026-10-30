@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@formatjs/icu-messageformat-parser": "3.5.22",
-    "use-intl": "4.14.9"
+    "use-intl": "catalog:"
   },
   "devDependencies": {
     "@types/react": "catalog:",

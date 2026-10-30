@@ -1,0 +1,17 @@
+{
+  "name": "teak",
+  "owner": {
+    "name": "Praveen Juge",
+    "email": "hello@praveenjuge.com"
+  },
+  "metadata": {
+    "description": "Teak's Claude plugin: save, search and organize your Teak cards from Claude."
+  },
+  "plugins": [
+    {
+      "name": "teak",
+      "source": "./plugins/teak",
+      "description": "Save, search and rediscover your Teak cards from Claude, through Teak's MCP server."
+    }
+  ]
+}

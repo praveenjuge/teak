@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "teak": {
+      "type": "http",
+      "url": "https://teakvault.com/mcp"
+    }
+  }
+}

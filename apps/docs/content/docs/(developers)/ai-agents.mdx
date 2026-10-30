@@ -23,6 +23,17 @@ Agents can save, search, read, update, favorite, delete, and sync cards through 
 
 ## How do I connect Claude?
 
+In Claude on the web, Desktop or mobile, add **Teak** from **Settings → Connectors**, or add a custom connector with `{{mcp-url}}`, and sign in to Teak when asked. Search results, cards and saves then show as Teak cards in the conversation.
+
+In Claude Code, install Teak's plugin for the MCP server, a Teak skill and the `/teak:save`, `/teak:search` and `/teak:recent` commands:
+
+```text
+/plugin marketplace add praveenjuge/teak
+/plugin install teak@teak
+```
+
+Or add only the MCP server:
+
 ```bash
 claude mcp add --transport http teak {{mcp-url}}
 ```
