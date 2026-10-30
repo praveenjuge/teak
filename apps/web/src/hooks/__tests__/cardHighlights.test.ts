@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import {
   type CardHighlight,
   createPendingHighlightIds,
+  findOpenHighlight,
   highlightProblem,
   optimisticHighlightId,
   undoRemovalInput,
@@ -205,5 +206,36 @@ describe("optimisticHighlightId", () => {
     expect(optimisticHighlightId({ start: 2, end: 6 })).not.toBe(
       optimisticHighlightId(span)
     );
+  });
+});
+
+describe("findOpenHighlight", () => {
+  const opened = { id: "optimistic-2-4", start: 2, end: 4 };
+
+  test("finds the open highlight by its id", () => {
+    const list = [row("h1", 10, 12), row("optimistic-2-4", 2, 4)];
+    expect(findOpenHighlight(list, opened)?._id).toBe("optimistic-2-4");
+  });
+
+  test("keeps the note open when the server's row replaces the temporary one", () => {
+    const list = [row("h1", 10, 12), row("h9", 2, 4)];
+    expect(findOpenHighlight(list, opened)?._id).toBe("h9");
+  });
+
+  test("finds the row a save merged the highlight into", () => {
+    expect(findOpenHighlight([row("h9", 0, 6)], opened)?._id).toBe("h9");
+  });
+
+  test("does not select an unanchored row just because its id matches", () => {
+    const list = [row("optimistic-2-4", 2, 4, { unanchored: true })];
+    expect(findOpenHighlight(list, opened)).toBeUndefined();
+  });
+
+  test("closes when the text is no longer highlighted, and when nothing is open", () => {
+    expect(findOpenHighlight([row("h1", 10, 12)], opened)).toBeUndefined();
+    expect(findOpenHighlight([row("h1", 2, 4)], null)).toBeUndefined();
+    expect(
+      findOpenHighlight([row("h1", 2, 4, { unanchored: true })], opened)
+    ).toBeUndefined();
   });
 });

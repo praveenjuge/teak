@@ -40,6 +40,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  findOpenHighlight,
+  type OpenedHighlight,
+} from "@/hooks/cardHighlights";
 import type {
   CardHighlight,
   CardHighlightsControl,
@@ -105,6 +109,15 @@ function NoteEditor({
 }) {
   const t = useTranslations("cardPreviews.highlights");
   const [draft, setDraft] = useState(highlight.note ?? "");
+  // A note the reader has not touched follows the saved one, which another
+  // session, or a merged highlight, can change while this is open.
+  const touched = useRef<boolean>(false);
+  const savedNote = highlight.note ?? "";
+  useEffect(() => {
+    if (!touched.current) {
+      setDraft(savedNote);
+    }
+  }, [savedNote]);
   const used = highlightLength(draft);
   const save = () => onSave(draft);
   // Closing with Esc or a click outside unmounts the field without a blur.
@@ -129,7 +142,10 @@ function NoteEditor({
         className="max-h-48 min-h-[4.5rem] resize-none overflow-y-auto"
         maxLength={MAX_HIGHLIGHT_NOTE_CHARS}
         onBlur={save}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          touched.current = true;
+          setDraft(event.target.value);
+        }}
         onKeyDown={onKeyDown}
         placeholder={t("notePlaceholder")}
         rows={3}
@@ -234,11 +250,27 @@ export function ArticleHighlights({
   const indexRef = useRef<BodyTextIndex | null>(null);
   const [indexed, setIndexed] = useState(0);
   const [selected, setSelected] = useState<Selected | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [opened, setOpened] = useState<OpenedHighlight | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const placedRef = useRef<PlacedHighlight[]>([]);
   const creating = useRef(false);
   const highlights = control.highlights ?? [];
+  // A highlight opened while its save is still going keeps its note open
+  // when the server's row replaces the temporary one.
+  const open = findOpenHighlight(highlights, opened);
+  const openId = open?._id ?? null;
+  // Once its text is no longer highlighted the note is closed for good: a
+  // highlight made there later does not open it again. Other article text
+  // closes it too, since the span points into the old one.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `articleKey` is the article's text changing
+  useEffect(() => {
+    setOpened(null);
+  }, [articleKey]);
+  useEffect(() => {
+    if (opened && !open) {
+      setOpened(null);
+    }
+  }, [opened, open]);
   const useSheet = touch || isNarrow;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is the body's text changing
@@ -363,7 +395,7 @@ export function ArticleHighlights({
         (spot) => spot.start <= offset && offset < spot.end
       );
       if (hit) {
-        setOpenId(hit.id);
+        setOpened({ id: hit.id, start: hit.start, end: hit.end });
       }
     };
     body.addEventListener("pointerup", onPointerUp);
@@ -436,9 +468,6 @@ export function ArticleHighlights({
     return () => window.clearTimeout(timer);
   }, [jump?.id, jump?.seq, indexed, rangeOf]);
 
-  const open = openId
-    ? highlights.find((highlight) => highlight._id === openId)
-    : undefined;
   const anchorRef = useMemo(
     () => ({
       current: {
@@ -448,11 +477,11 @@ export function ArticleHighlights({
     }),
     [openId, rangeOf]
   );
-  const close = () => setOpenId(null);
+  const close = () => setOpened(null);
   const editor = open ? (
     <NoteEditor
       highlight={open}
-      key={open._id}
+      key={`${opened?.start}-${opened?.end}`}
       onRemove={() => {
         close();
         void control.remove(open);

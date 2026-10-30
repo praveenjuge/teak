@@ -162,6 +162,36 @@ export const undoRemovalInput = (
   };
 };
 
+/** The highlight whose note is open, and the text it covered when opened. */
+export interface OpenedHighlight {
+  end: number;
+  id: string;
+  start: number;
+}
+
+/**
+ * The highlight an open note belongs to. A new highlight shows under a
+ * temporary id until its create returns, and the server's row then takes its
+ * place under another id: the note stays open on the row covering the same
+ * text instead of closing under the reader's hands.
+ */
+export const findOpenHighlight = (
+  highlights: CardHighlight[],
+  opened: OpenedHighlight | null
+): CardHighlight | undefined => {
+  if (!opened) {
+    return undefined;
+  }
+  return (
+    highlights.find(
+      (highlight) => highlight._id === opened.id && isAnchored(highlight)
+    ) ??
+    highlights.find(
+      (highlight) => isAnchored(highlight) && spansOverlap(opened, highlight)
+    )
+  );
+};
+
 const OPTIMISTIC_ID_PREFIX = "optimistic-";
 
 /**
