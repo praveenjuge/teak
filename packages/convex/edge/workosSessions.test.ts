@@ -247,13 +247,26 @@ describe("WorkOS Convex sessions", () => {
       expect(await snapshot(t)).toEqual(before);
     }
   );
-  test("missing WorkOS profile returns null with no legacy fallback", async () => {
+  test("missing WorkOS profile falls back to the signed session's address", async () => {
     const t = setup();
     await seed(t, {}, null);
-    expect(await client(t).run((ctx) => getSessionProfile(ctx))).toBeNull();
-    await expect(client(t).query(api.billing.getUserInfo, {})).rejects.toThrow(
-      "User not found"
-    );
+    expect(await client(t).run((ctx) => getSessionProfile(ctx))).toEqual({
+      teakUserId: "permanent-owner",
+      user: {
+        _id: "permanent-owner",
+        email: "jwt@example.com",
+        emailVerified: true,
+        name: null,
+        image: null,
+      },
+    });
+    expect(await client(t).query(api.billing.getUserInfo, {})).toEqual({
+      teakUserId: "permanent-owner",
+      email: "jwt@example.com",
+    });
+    expect(
+      await client(t, { email: undefined }).run((ctx) => getSessionProfile(ctx))
+    ).toBeNull();
   });
   test.each([
     { firstName: "First", lastName: "Last", expectedName: "First Last" },

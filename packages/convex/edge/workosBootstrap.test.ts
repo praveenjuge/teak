@@ -199,11 +199,43 @@ describe("signed WorkOS bootstrap", () => {
     });
     expect((await state(t)).users).toEqual([]);
   });
-  test("missing component profile waits without linking or seeding", async () => {
+  test("a verified session gets its owner before the webhook stores the profile", async () => {
     const t = setup();
-    expect(await signed(t).mutation(ensure, {})).toEqual({
+    const result = await signed(t, { email: "Token@Example.com" }).mutation(
+      ensure,
+      {}
+    );
+    expect(result).toMatchObject({ status: "ok" });
+    const after = await state(t);
+    expect(after.users).toMatchObject([
+      {
+        email: "token@example.com",
+        emailVerified: true,
+        workosUserId: "user_NEW",
+      },
+    ]);
+    expect(after.jobs).toHaveLength(1);
+    expect(after.quarantine).toEqual([]);
+    // Retries, and the profile arriving later, change nothing.
+    await profile(t, { email: "token@example.com" });
+    expect(
+      await signed(t, { email: "token@example.com" }).mutation(ensure, {})
+    ).toEqual(result);
+    expect((await state(t)).users).toHaveLength(1);
+  });
+  test("ensureUserNow answers as ensureUser", async () => {
+    const t = setup();
+    await profile(t);
+    expect(
+      await signed(t).action(api.workosBootstrap.ensureUserNow, {})
+    ).toMatchObject({ status: "ok" });
+    expect((await state(t)).users).toHaveLength(1);
+  });
+  test("a session without an email claim and no profile creates nothing", async () => {
+    const t = setup();
+    expect(await signed(t, { email: undefined }).mutation(ensure, {})).toEqual({
       status: "quarantined",
-      reason: "profile_pending",
+      reason: "invalid_profile",
     });
     expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
   });
@@ -253,7 +285,7 @@ describe("signed WorkOS bootstrap", () => {
       const before = await state(t);
       expect(await signed(t).mutation(ensure, {})).toEqual({
         status: "quarantined",
-        reason: "profile_pending",
+        reason: "workos_deleted_user",
       });
       expect(await state(t)).toEqual(before);
     }

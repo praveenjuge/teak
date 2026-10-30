@@ -180,7 +180,7 @@ export async function requireTeakUserId(
 
 interface SessionUser {
   identity: UserIdentity;
-  profile?: ProviderProfile;
+  profile?: ProviderProfile | null;
   sessionId: string;
   teakUserId: TeakUserId;
   workosUserId: string;
@@ -266,7 +266,21 @@ export async function getSessionProfile(
     sessionUser.profile ??
     (await readWorkosProfile(ctx, sessionUser.identity.subject));
   if (!provider) {
-    return null;
+    // The webhook hasn't stored the profile yet; the signed session claims
+    // hold the verified address until it does.
+    const { email } = sessionUser.identity;
+    return typeof email === "string"
+      ? {
+          teakUserId: sessionUser.teakUserId,
+          user: {
+            _id: sessionUser.teakUserId,
+            email,
+            emailVerified: true,
+            name: null,
+            image: null,
+          },
+        }
+      : null;
   }
   return {
     teakUserId: sessionUser.teakUserId,

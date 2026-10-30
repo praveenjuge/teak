@@ -75,7 +75,7 @@ test("current canonical display and verified ownership return only this vault", 
   });
   expect(await signed.query(api.cards.getCard, { id: other })).toBeNull();
 });
-test.each(["absent", "unverified", "deleted"])(
+test.each(["unverified", "deleted"])(
   "%s canonical state denies vault access",
   async (variant) => {
     const { t, signed, own } = await fixture(
@@ -101,6 +101,19 @@ test.each(["absent", "unverified", "deleted"])(
     ).toMatchObject({ status: "denied" });
   }
 );
+
+test("absent canonical state admits a verified session but not Connect", async () => {
+  const { t, signed, own } = await fixture(null);
+  expect(await signed.query(api.cards.getCard, { id: own })).toMatchObject({
+    userId: "owner-a",
+  });
+  expect(
+    await t.query(internal.workosIdentity.resolveWorkosOwner, {
+      workosUserId: "user_READ",
+      verification: { kind: "connect" },
+    })
+  ).toEqual({ status: "denied", reason: "verify_email" });
+});
 
 test("a newer provider update that unverifies the email denies an existing verified session", async () => {
   const { t, signed, own } = await fixture();

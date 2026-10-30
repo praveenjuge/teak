@@ -154,13 +154,15 @@ export const linkWorkosUser = internalMutation({
     if (!(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))) {
       throw new Error("Invalid WorkOS creation input");
     }
-    // The AuthKit component's copy of the profile is the evidence a new owner
-    // needs: the same address, verified.
+    // Once the webhook has stored the AuthKit component's copy of the
+    // profile, it is the newest evidence: the same address, verified. Before
+    // that, sign-in's signed session claims are enough on their own.
     const provider = await readComponentUser(ctx, args.workosUserId);
     if (
-      provider === null ||
-      normalizeIdentityEmail(provider.email) !== email ||
-      provider.emailVerified !== true
+      provider === null
+        ? args.source !== "ensureUser"
+        : normalizeIdentityEmail(provider.email) !== email ||
+          provider.emailVerified !== true
     ) {
       return quarantine(
         provider?.emailVerified === false

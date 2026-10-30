@@ -217,14 +217,19 @@ describe("trusted new WorkOS owners", () => {
     });
   const jobs = (t: Backend) =>
     t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(10));
-  test("creation waits for the component profile even with a verified caller", async () => {
+  test("a webhook waits for the component profile; a signed sign-in does not", async () => {
     const t = setup();
-    expect(await t.mutation(link, create)).toEqual({
+    expect(await t.mutation(link, { ...create, source: "webhook" })).toEqual({
       status: "quarantined",
       reason: "profile_pending",
     });
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
+    expect(await t.mutation(link, create)).toMatchObject({
+      status: "linked",
+      changed: true,
+    });
+    expect((await snapshot(t)).users).toHaveLength(1);
   });
   test.each([{ email: "someone-else@example.com" }])(
     "a component profile for another address refuses creation: %j",

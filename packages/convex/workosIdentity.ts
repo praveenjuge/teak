@@ -15,7 +15,7 @@ export interface ResolveArgs {
 }
 
 export type ResolvedOwner =
-  | { status: "ok"; teakUserId: string; profile: ProviderProfile }
+  | { status: "ok"; teakUserId: string; profile: ProviderProfile | null }
   | { status: "denied"; reason: ResolverDenialReason };
 
 export async function resolveOwner(
@@ -113,12 +113,16 @@ const resolve = async (
   if (owners.length !== 1) {
     return { status: "denied" as const, reason: "duplicate_mapping" as const };
   }
+  // A session token carries its own signed email verification, so it needs
+  // the webhook's copy of the profile only to see a newer unverified address.
+  // A Connect token carries none and needs the profile.
   const user = await readComponentUser(ctx, args.workosUserId);
   const profile = user ? toProviderProfile(args.workosUserId, user) : null;
   if (
-    !profile?.emailVerified ||
-    (args.verification.kind === "session" &&
-      args.verification.emailVerified !== true)
+    args.verification.kind === "session"
+      ? args.verification.emailVerified !== true ||
+        profile?.emailVerified === false
+      : profile?.emailVerified !== true
   ) {
     return { status: "denied" as const, reason: "verify_email" as const };
   }
