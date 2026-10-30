@@ -25,7 +25,11 @@ const component = (name: string): unknown =>
         | undefined;
       const onClick =
         (props.onAction as (() => void) | undefined) ??
-        (onSubmit ? () => onSubmit(formValues) : undefined);
+        (onSubmit
+          ? () => {
+              onSubmit(formValues);
+            }
+          : undefined);
       const tag = onClick ? "button" : "div";
       return createElement(
         tag,

@@ -236,7 +236,7 @@ test("after Sign Out, the signed-out view waits instead of opening sign-in", asy
     return discovery(input, init);
   }) as typeof fetch;
   let signedOut = 0;
-  await act(async () =>
+  await act(() => {
     root.render(
       createElement(SignOutAction, {
         // A change still waiting to save finishes while signed in.
@@ -248,8 +248,8 @@ test("after Sign Out, the signed-out view waits instead of opening sign-in", asy
           signedOut += 1;
         },
       }),
-    ),
-  );
+    );
+  });
   const signOut = container.querySelector("button");
   expect(signOut?.textContent).toBe("Sign Out");
   await act(async () => signOut?.click());
@@ -258,15 +258,15 @@ test("after Sign Out, the signed-out view waits instead of opening sign-in", asy
   expect(steps).toEqual(["before", "disconnect"]);
 
   let signedIn = 0;
-  await act(async () =>
+  await act(() => {
     root.render(
       createElement(MissingApiKeyDetail, {
         onSignedIn: () => {
           signedIn += 1;
         },
       }),
-    ),
-  );
+    );
+  });
   await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
   expect(container.textContent).toContain("You're signed out.");
   expect(container.textContent).toContain("Sign in with Browser");

@@ -54,14 +54,14 @@ const renameButton = () =>
     (button) => button.textContent?.trim() === "Rename Tag",
   );
 const render = async () => {
-  await act(async () =>
+  await act(() => {
     root.render(
       createElement(RenameTagForm, {
         onFinished: () => undefined,
         tag: { count: 3, name: "design" },
       }),
-    ),
-  );
+    );
+  });
 };
 
 beforeEach(() => {
@@ -71,7 +71,9 @@ beforeEach(() => {
   navigation.pops = 0;
 });
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(() => {
+    root.unmount();
+  });
   container.remove();
   globalThis.fetch = originalFetch;
 });
@@ -126,8 +128,10 @@ test("leaving the form before Teak answers closes nothing else", async () => {
   await render();
   await act(async () => renameButton()?.click());
   // Esc: the form closes while the rename is still starting.
-  await act(async () => root.render(null));
-  await act(async () =>
+  await act(() => {
+    root.render(null);
+  });
+  await act(() => {
     answer(
       Response.json({
         changed: 3,
@@ -136,8 +140,8 @@ test("leaving the form before Teak answers closes nothing else", async () => {
         status: "completed",
         total: 3,
       }),
-    ),
-  );
+    );
+  });
   await settle();
   expect(starts).toHaveLength(1);
   expect(navigation.pops).toBe(0);
