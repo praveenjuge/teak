@@ -21,30 +21,6 @@ export const findLegacyBetterAuthUser = async (
         where: [{ field: "_id", value: owner.teakUserId }],
       });
 
-const LEGACY_COUNT_PAGE_SIZE = 200;
-const LEGACY_COUNT_MAX_PAGES = 40;
-
-export async function countLegacyBetterAuthUsers(
-  ctx: Pick<QueryCtx, "runQuery">
-): Promise<{ count: number; isComplete: boolean }> {
-  let count = 0;
-  let cursor: string | null = null;
-  for (let page = 0; page < LEGACY_COUNT_MAX_PAGES; page++) {
-    const result: { page: unknown[]; isDone: boolean; continueCursor: string } =
-      await ctx.runQuery(components.betterAuth.adapter.findMany, {
-        model: "user",
-        select: ["_id"],
-        paginationOpts: { cursor, numItems: LEGACY_COUNT_PAGE_SIZE },
-      });
-    count += result.page.length;
-    if (result.isDone) {
-      return { count, isComplete: true };
-    }
-    cursor = result.continueCursor;
-  }
-  return { count, isComplete: false };
-}
-
 type LegacyUserModel = (typeof LEGACY_USER_MODELS)[number];
 
 async function deleteLegacyModelRows(

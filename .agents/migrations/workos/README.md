@@ -21,6 +21,10 @@ exist. The full phase plans and evidence are in git history before this file.
 - Encrypted remote copy: private R2 bucket `teak-workos-migration-backup-20261003`
   (APAC Standard). The approved migration plan is in it as `approved-plan.txt.gpg`.
 - Never remove either copy before the approved retention period.
+- `admin:getOperations` stopped counting retained Better Auth users in
+  October 2026, since the number no longer changes after the cutover. To read
+  it, page the component's `user` model
+  (`components.betterAuth.adapter.findMany`).
 
 ## Connect disconnects
 

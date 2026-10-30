@@ -126,16 +126,6 @@ export function summarizeAccounts(
   return { total: users.length, linked, unlinked, deleted };
 }
 
-export function summarizeQuarantine(
-  rows: Pick<Doc<"migrationQuarantine">, "reason">[]
-) {
-  const byReason: Record<string, number> = {};
-  for (const row of rows) {
-    byReason[row.reason] = (byReason[row.reason] ?? 0) + 1;
-  }
-  return { unresolved: rows.length, byReason };
-}
-
 export function summarizeDeletionQueue(
   states: Pick<
     Doc<"accountDeletionStates">,
