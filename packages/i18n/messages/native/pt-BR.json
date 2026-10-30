@@ -607,6 +607,20 @@
         "message": "Ao salvar um novo endereço, a prévia do card é atualizada.",
         "invalid": "Use um link http ou https.",
         "saved": "Link salvo. A prévia será atualizada em instantes."
+      },
+      "palette": {
+        "addColor": "Adicionar cor",
+        "pickColor": "Escolher uma cor",
+        "hexCode": "Código hex",
+        "add": "Adicionar",
+        "invalidHex": "Digite um código hex, como #FF5500",
+        "alreadyAdded": "{hex} já está nesta paleta",
+        "full": "Uma paleta comporta até 12 cores",
+        "removeColor": "Remover cor",
+        "remove": "Remover {hex}",
+        "added": "{hex} adicionada",
+        "removed": "{hex} removida",
+        "saveFailed": "Não foi possível atualizar a paleta. Tente de novo."
       }
     },
     "linkPicker": {

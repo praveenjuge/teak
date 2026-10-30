@@ -12,6 +12,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../../shared/folders";
+import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
 import { isSafeExternalUrl } from "../../shared/utils/safeUrl";
 import {
   CARD_TYPES,
@@ -229,18 +230,20 @@ export const validateUploadPayload = (
 };
 
 interface PatchCardPayload {
+  addColors?: string[];
   content?: string;
   folderIds?: string[];
   isArchived?: boolean;
   metadataTitle?: string | null;
   notes?: string | null;
   removeAiTags?: string[];
+  removeColors?: string[];
   tags?: string[];
   url?: string;
 }
 
 const PATCH_FIELDS =
-  "content, url, metadataTitle, notes, tags, removeAiTags, isArchived, folderIds";
+  "content, url, metadataTitle, notes, tags, removeAiTags, addColors, removeColors, isArchived, folderIds";
 
 type PatchPayloadResult =
   | { code?: "CONTENT_TOO_LARGE"; error: string }
@@ -254,12 +257,14 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
 
   const source = payload as Record<string, unknown>;
   const allowedKeys = new Set([
+    "addColors",
     "content",
     "folderIds",
     "isArchived",
     "metadataTitle",
     "notes",
     "removeAiTags",
+    "removeColors",
     "tags",
     "url",
   ]);
@@ -331,6 +336,18 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
       return { error: "`removeAiTags` must be a non-empty array of strings" };
     }
     next.removeAiTags = removeAiTags;
+  }
+
+  for (const key of ["addColors", "removeColors"] as const) {
+    if (key in source) {
+      const colors = parseStringArray(source[key]);
+      if (!colors?.length || colors.length > MAX_PALETTE_COLORS) {
+        return {
+          error: `\`${key}\` must be a list of 1 to ${MAX_PALETTE_COLORS} hex codes`,
+        };
+      }
+      next[key] = colors;
+    }
   }
 
   if ("isArchived" in source) {

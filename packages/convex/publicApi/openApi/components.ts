@@ -19,6 +19,7 @@ import {
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
 import { TAG_OPERATION_COUNT_LIMIT } from "../../shared/tags";
+import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
 import { MAX_TAG_LENGTH } from "../http/shared";
 
 export const CARD_TYPES = [
@@ -944,6 +945,21 @@ export const components = {
           description:
             "AI tags to remove from the card. Tags Teak didn't add are ignored.",
           items: { type: "string" },
+          type: "array",
+        },
+        addColors: {
+          description: `Palette cards only. Hex codes to add, such as #FF5500 or f50. A color the palette has is skipped, and a palette holds up to ${MAX_PALETTE_COLORS} colors.`,
+          items: { type: "string" },
+          maxItems: MAX_PALETTE_COLORS,
+          minItems: 1,
+          type: "array",
+        },
+        removeColors: {
+          description:
+            "Palette cards only. Hex codes to remove; every copy of each goes, and colors the palette doesn't have are ignored. A palette keeps at least one color. Removes apply before addColors, so one request can swap a color.",
+          items: { type: "string" },
+          maxItems: MAX_PALETTE_COLORS,
+          minItems: 1,
           type: "array",
         },
         tags: {

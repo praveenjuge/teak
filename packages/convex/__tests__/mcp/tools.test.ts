@@ -932,6 +932,44 @@ describe("MCP tools", () => {
     });
   });
 
+  test("update_card sends palette color edits", async () => {
+    const captured: Array<{ body?: unknown }> = [];
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        return Response.json({ id: "card_1" });
+      }
+    );
+    const tool = TEAK_V1_TOOLS.find(
+      (entry) => entry.name === "teak_v1_update_card"
+    );
+    expect(Object.keys(tool?.inputSchema.properties ?? {})).toEqual(
+      expect.arrayContaining(["addColors", "removeColors"])
+    );
+
+    const result = await callTeakV1Tool(
+      "teak_v1_update_card",
+      { cardId: "card_1", addColors: ["#4ECDC4"], removeColors: ["#FF6B6B"] },
+      mcpRequest({ jsonrpc: "2.0", id: 43, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(captured[0]?.body).toEqual({
+      addColors: ["#4ECDC4"],
+      removeColors: ["#FF6B6B"],
+    });
+
+    const empty = await callTeakV1Tool(
+      "teak_v1_update_card",
+      { cardId: "card_1", addColors: [] },
+      mcpRequest({ jsonrpc: "2.0", id: 44, method: "tools/call" }),
+      executor
+    );
+    expect(empty.isError).toBe(true);
+    expect(captured).toHaveLength(1);
+  });
+
   test("returns a validation error for incomplete file-card input", async () => {
     const executor = mock(async () =>
       Response.json({ status: "created", cardId: "unexpected" })

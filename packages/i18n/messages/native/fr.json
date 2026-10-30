@@ -607,6 +607,20 @@
         "message": "Enregistrer une nouvelle adresse actualise l’aperçu de la fiche.",
         "invalid": "Utilisez un lien http ou https.",
         "saved": "Lien enregistré. Son aperçu sera actualisé dans un instant."
+      },
+      "palette": {
+        "addColor": "Ajouter une couleur",
+        "pickColor": "Choisir une couleur",
+        "hexCode": "Code hex",
+        "add": "Ajouter",
+        "invalidHex": "Saisissez un code hex, par exemple #FF5500",
+        "alreadyAdded": "{hex} est déjà dans cette palette",
+        "full": "Une palette contient jusqu’à 12 couleurs",
+        "removeColor": "Retirer la couleur",
+        "remove": "Retirer {hex}",
+        "added": "{hex} ajoutée",
+        "removed": "{hex} retirée",
+        "saveFailed": "Impossible de mettre à jour la palette. Réessayez."
       }
     },
     "linkPicker": {

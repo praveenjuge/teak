@@ -12,6 +12,7 @@ import {
   normalizeHexFilters,
   parseColorString,
   parseColorsFromText,
+  parsePaletteHex,
 } from "../../../shared/utils/colorUtils";
 
 describe("colorUtils", () => {
@@ -615,4 +616,21 @@ describe("palette copy formatters", () => {
       ":root {\n  --primary: #FF0000;\n  --accent-green: #00FF00;\n}"
     );
   });
+});
+
+describe("parsePaletteHex", () => {
+  it.each([
+    ["#ff5500", "#FF5500"],
+    ["  F50 ", "#FF5500"],
+    ["4ecdc4", "#4ECDC4"],
+  ])("reads %j as %s", (value, hex) => {
+    expect(parsePaletteHex(value)).toBe(hex);
+  });
+
+  it.each(["rgb(1, 2, 3)", "red", "#ff550080", "#ff55", "", "##fff"])(
+    "refuses %j",
+    (value) => {
+      expect(parsePaletteHex(value)).toBeNull();
+    }
+  );
 });

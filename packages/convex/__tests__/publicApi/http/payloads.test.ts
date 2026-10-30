@@ -350,10 +350,27 @@ describe("parsePatchPayload", () => {
     ],
     [{ isArchived: "true" }, "`isArchived` must be true or false"],
     [{ color: "red" }, "Unknown field `color`"],
+    [{ addColors: [] }, "`addColors` must be a list of 1 to 12 hex codes"],
+    [
+      { removeColors: Array.from({ length: 13 }, (_, i) => `#00000${i}`) },
+      "`removeColors` must be a list of 1 to 12 hex codes",
+    ],
+    [{ addColors: "#FF5500" }, "`addColors` must be a list"],
     [{}, "Body must include at least one of"],
   ])("says what is wrong with %j", (body, message) => {
     const result = parsePatchPayload(body);
     expect("error" in result && result.error).toContain(message);
+  });
+
+  test("passes palette colors through for the card edit to check", () => {
+    expect(
+      parsePatchPayload({
+        addColors: [" #FF5500 ", "#ff5500"],
+        removeColors: ["f50"],
+      })
+    ).toEqual({
+      payload: { addColors: ["#FF5500", "#ff5500"], removeColors: ["f50"] },
+    });
   });
 
   test("refuses notes over 256 KiB as content too large", () => {

@@ -886,7 +886,19 @@
     },
     "palette": {
       "copy": "{hex} をコピー",
-      "empty": "このパレットには色が検出されませんでした"
+      "empty": "このパレットには色が検出されませんでした",
+      "addColor": "色を追加",
+      "pickColor": "色を選ぶ",
+      "hexCode": "16進コード",
+      "add": "追加",
+      "invalidHex": "#FF5500 のような16進コードを入力してください",
+      "alreadyAdded": "{hex} はすでにこのパレットにあります",
+      "full": "パレットには最大 12 色まで入れられます",
+      "removeColor": "色を削除",
+      "remove": "{hex} を削除",
+      "added": "{hex} を追加しました",
+      "removed": "{hex} を削除しました",
+      "saveFailed": "パレットを更新できませんでした。もう一度お試しください。"
     },
     "quote": {
       "placeholder": "引用を入力…"

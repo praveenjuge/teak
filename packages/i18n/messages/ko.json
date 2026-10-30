@@ -886,7 +886,19 @@
     },
     "palette": {
       "copy": "{hex} 복사",
-      "empty": "이 팔레트에서 감지된 색상이 없습니다"
+      "empty": "이 팔레트에서 감지된 색상이 없습니다",
+      "addColor": "색상 추가",
+      "pickColor": "색상 선택",
+      "hexCode": "HEX 코드",
+      "add": "추가",
+      "invalidHex": "#FF5500 같은 HEX 코드를 입력하세요",
+      "alreadyAdded": "{hex}은(는) 이미 이 팔레트에 있습니다",
+      "full": "팔레트에는 최대 12가지 색상을 넣을 수 있습니다",
+      "removeColor": "색상 삭제",
+      "remove": "{hex} 삭제",
+      "added": "{hex} 추가됨",
+      "removed": "{hex} 삭제됨",
+      "saveFailed": "팔레트를 업데이트하지 못했습니다. 다시 시도하세요."
     },
     "quote": {
       "placeholder": "인용을 입력하세요..."

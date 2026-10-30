@@ -1,6 +1,7 @@
 import {
   buildColorFacets,
   extractPaletteColors,
+  MAX_PALETTE_COLORS,
 } from "@teak/convex/shared/utils/colorUtils";
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -319,7 +320,7 @@ export const createCardForUserHandler = async (
       .filter(Boolean)
       .join("\n");
 
-    const parsedColors = extractPaletteColors(paletteText, 12);
+    const parsedColors = extractPaletteColors(paletteText, MAX_PALETTE_COLORS);
     resolvedColors = parsedColors.length > 0 ? parsedColors : undefined;
   }
   const { colorHexes, colorHues } = buildColorFacets(resolvedColors);

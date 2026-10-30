@@ -607,6 +607,20 @@
         "message": "保存新地址后，卡片的预览会刷新。",
         "invalid": "请使用 http 或 https 链接。",
         "saved": "链接已保存。预览稍后会刷新。"
+      },
+      "palette": {
+        "addColor": "添加颜色",
+        "pickColor": "选择颜色",
+        "hexCode": "十六进制代码",
+        "add": "添加",
+        "invalidHex": "请输入十六进制代码，例如 #FF5500",
+        "alreadyAdded": "{hex} 已在此调色板中",
+        "full": "一个调色板最多可容纳 12 种颜色",
+        "removeColor": "移除颜色",
+        "remove": "移除 {hex}",
+        "added": "已添加 {hex}",
+        "removed": "已移除 {hex}",
+        "saveFailed": "无法更新调色板。请重试。"
       }
     },
     "linkPicker": {

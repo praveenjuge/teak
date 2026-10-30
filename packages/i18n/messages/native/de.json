@@ -607,6 +607,20 @@
         "message": "Wenn Sie eine neue Adresse speichern, wird die Vorschau der Karte aktualisiert.",
         "invalid": "Verwenden Sie einen http- oder https-Link.",
         "saved": "Link gespeichert. Die Vorschau wird gleich aktualisiert."
+      },
+      "palette": {
+        "addColor": "Farbe hinzufügen",
+        "pickColor": "Farbe auswählen",
+        "hexCode": "Hex-Code",
+        "add": "Hinzufügen",
+        "invalidHex": "Geben Sie einen Hex-Code ein, z. B. #FF5500",
+        "alreadyAdded": "{hex} ist bereits in dieser Palette",
+        "full": "Eine Palette fasst bis zu 12 Farben",
+        "removeColor": "Farbe entfernen",
+        "remove": "{hex} entfernen",
+        "added": "{hex} hinzugefügt",
+        "removed": "{hex} entfernt",
+        "saveFailed": "Die Palette konnte nicht aktualisiert werden. Versuchen Sie es erneut."
       }
     },
     "linkPicker": {

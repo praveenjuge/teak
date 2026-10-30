@@ -607,6 +607,20 @@
         "message": "Al guardar una dirección nueva se actualiza la vista previa de la tarjeta.",
         "invalid": "Use un enlace http o https.",
         "saved": "Enlace guardado. Su vista previa se actualizará en un momento."
+      },
+      "palette": {
+        "addColor": "Añadir color",
+        "pickColor": "Elegir un color",
+        "hexCode": "Código hex",
+        "add": "Añadir",
+        "invalidHex": "Escriba un código hex, como #FF5500",
+        "alreadyAdded": "{hex} ya está en esta paleta",
+        "full": "Una paleta admite hasta 12 colores",
+        "removeColor": "Quitar color",
+        "remove": "Quitar {hex}",
+        "added": "Se añadió {hex}",
+        "removed": "Se quitó {hex}",
+        "saveFailed": "No se pudo actualizar la paleta. Inténtelo de nuevo."
       }
     },
     "linkPicker": {

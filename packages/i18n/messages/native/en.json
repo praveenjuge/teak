@@ -607,6 +607,20 @@
         "message": "Saving a new address refreshes the card’s preview.",
         "invalid": "Use an http or https link.",
         "saved": "Link saved. Its preview will refresh in a moment."
+      },
+      "palette": {
+        "addColor": "Add color",
+        "pickColor": "Pick a color",
+        "hexCode": "Hex code",
+        "add": "Add",
+        "invalidHex": "Enter a hex code, such as #FF5500",
+        "alreadyAdded": "{hex} is already in this palette",
+        "full": "A palette holds up to 12 colors",
+        "removeColor": "Remove color",
+        "remove": "Remove {hex}",
+        "added": "Added {hex}",
+        "removed": "Removed {hex}",
+        "saveFailed": "Couldn't update the palette. Try again."
       }
     },
     "linkPicker": {
