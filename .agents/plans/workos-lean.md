@@ -48,7 +48,7 @@ the plan was written.
 receipt, `users` by `workosUserId`, `accountDeletionStates`, `users` by
 `teakUserId` again (duplicate check), and the component's user, then compares
 `externalId` three ways. Every authenticated query and mutation pays for
-this. After phase 2 it reads `users` by `workosUserId` and
+this. After phases 1, 2 and 4 it reads `users` by `workosUserId` and
 `accountDeletionStates`, plus the component profile for Connect tokens only.
 
 ## Phase 1: drop `externalId` and the second identity check (convex)
@@ -87,7 +87,10 @@ bootstrap path.
 - `ensureUser` creates the owner from the verified session claims (`sub`,
   `email`, `email_verified`) instead of waiting for the component's copy of
   the profile. The signed token is the same evidence the webhook profile was.
-  It still refuses unverified email and paused sign-ups.
+  It still refuses unverified email and paused sign-ups, and a WorkOS user
+  with a deletion tombstone (phase 4): an access token stays valid for a few
+  minutes after `user.deleted`, and the component's own `deletedUsers` table
+  has no query Teak can call.
 - Delete `ensureUserNow`, `replayRecentProfileEvents`, the
   `workosProfileReplays` rate limit, and their tests
   (`edge/workosBootstrapNow.test.ts`). Keep `profile_pending` in the result
@@ -138,12 +141,19 @@ update before its create on the local stack and read the stored row.
 Goal: deleting an account marks the row deleted and deletes the WorkOS user;
 nothing else proves it.
 
-- `users.workosDeletedAt` (set from `user.deleted`) and the component's
-  `deletedUsers` tombstone already keep a deleted WorkOS user out. Stop
-  writing `workos_user_deleted` rows to `migrationQuarantine`, and delete
-  `hasWorkosDeletionReceipt`, `expectedWorkosDeletionResolution` and the
-  receipt-resolution loop in `accountDeletionJobs.ts`
-  (`deletionReceiptCursor`).
+- `users.workosDeletedAt` (set from `user.deleted`) keeps a mapped deleted
+  user out, so the per-request resolver stops reading deletion receipts.
+- A `user.deleted` for a WorkOS user with no owner row yet still needs a
+  tombstone Teak can read, or `ensureUser` could create an owner from a token
+  issued before the deletion (`edge/workosLifecycle.test.ts`,
+  "delete-before-create"; `edge/workosBootstrap.test.ts`, "unmapped"). Keep
+  writing the `workos_user_deleted` row and `hasWorkosDeletionReceipt`, read
+  only when creating an owner. Move it to a small `workosDeletedUsers` table
+  in the later schema PR.
+- Delete what only proved a receipt resolved:
+  `expectedWorkosDeletionResolution`, the receipt-resolution loop in
+  `accountDeletionJobs.ts` (`deletionReceiptCursor`), and the
+  `workosDeletionTarget` on receipts.
 - Drop the WorkOS "deletion target" (`environmentId`, `clientId`, `issuer`,
   `credentialFingerprint` of the API key) in `workos/deletionCompletion.ts`,
   `accountDeletion.ts` and `accountDeletionActions.ts`. It guarded against a
@@ -157,13 +167,15 @@ nothing else proves it.
   unsets them (needs owner approval).
 - Stop writing `migrationQuarantine` from linking (`email_unverified`,
   `signups_frozen`, `profile_pending`): the client already gets that answer.
-  The table then has no writer; the admin Operations card keeps reading open
-  rows until they're resolved, then the table goes in a later schema PR.
+  Deletion tombstones are then its only writer; the admin Operations card
+  drops its quarantine summary, and the table becomes the tombstone table in
+  the later schema PR.
 
 Verification: `edge/workosDeletionCompletion.test.ts` mostly deleted;
 `accountDeletionWorkflow` and `workosLifecycle` tests cover delete from
-Settings, a `user.deleted` from the WorkOS dashboard, and a late
-`user.updated` after deletion. `verify-teak`: delete the seeded account on
+Settings, a `user.deleted` from the WorkOS dashboard, a late
+`user.updated` after deletion, and `ensureUser` refusing a token for a user
+deleted before they had an owner. `verify-teak`: delete the seeded account on
 the local stack and confirm sign-in is refused.
 
 ## Phase 5: web, clients, admin and docs leftovers
@@ -227,7 +239,8 @@ Each item is small; group them by reviewer.
 
 About 15 backend files shrink or go: `workosBootstrap.ts` loses the Events
 replay, `workosLifecycle.ts` most of its validation,
-`workos/deletionCompletion.ts` and `workosProfileRead.ts` disappear, and
+`workos/deletionCompletion.ts` shrinks to the tombstone check,
+`workosProfileRead.ts` disappears, and
 `workosUsers.ts`/`workosIdentity.ts` roughly halve. Roughly 2,000 lines of
 WorkOS edge tests go with them. Each request does two indexed reads for
 identity instead of five plus a component call.
@@ -240,5 +253,6 @@ identity instead of five plus a component call.
    keep it as a cheap guard.
 3. Phase 5 needs the WorkOS sign-out redirect changed to `/sign-in` in each
    environment before `/login` can go.
-4. Unsetting the stopped fields and dropping `migrationQuarantine` are schema
-   changes and need explicit approval when their time comes.
+4. Unsetting the stopped fields and replacing `migrationQuarantine` with a
+   tombstone table are schema changes and need explicit approval when their
+   time comes.
