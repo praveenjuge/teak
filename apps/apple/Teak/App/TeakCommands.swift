@@ -52,9 +52,16 @@ struct TeakCommands: Commands {
             Button(tr("apple.commands.refreshLibrary")) { Task { await services.home.refresh() } }
                 .keyboardShortcut("r")
                 .disabled(!signedIn || !services.app.isOnline)
-            Button(tr("apple.commands.selectCards")) { services.home.beginSelection() }
+            // Selecting acts on Home's cards, so it shows them.
+            Button(tr("apple.commands.selectCards")) {
+                showHome()
+                services.home.beginSelection()
+            }
                 .disabled(!signedIn || services.home.isSelecting)
-            Button(tr("apple.commands.selectAllCards")) { services.home.selectAll() }
+            Button(tr("apple.commands.selectAllCards")) {
+                showHome()
+                services.home.selectAll()
+            }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .disabled(!signedIn)
             Divider()
@@ -101,6 +108,11 @@ struct TeakCommands: Commands {
 
     /// The main window's sheets show these, so on the Mac it comes forward
     /// (or opens again) first.
+    private func showHome() {
+        services.router.homePath = []
+        services.router.tab = .home
+    }
+
     private func inMainWindow(_ action: () -> Void) {
         #if os(macOS)
         services.showMainWindow()

@@ -118,6 +118,25 @@ final class RevisitModel {
         index -= 1
         lastArchived = history.last(where: \.archived)?.id
     }
+
+    /// Brings the last archived card back to the library and steps back to it.
+    /// Cards kept after it come round again; keeping saved nothing.
+    func undoLastArchive() async {
+        guard let at = history.lastIndex(where: \.archived), !isPending else { return }
+        isPending = true
+        defer { isPending = false }
+        do {
+            try await library.updateArchive(history[at].id, false)
+        } catch {
+            library.show(error)
+            return
+        }
+        archived -= 1
+        kept -= history.count - at - 1
+        index = at
+        history.removeSubrange(at...)
+        lastArchived = history.last(where: \.archived)?.id
+    }
 }
 
 struct RevisitView: View {
@@ -299,7 +318,7 @@ struct RevisitView: View {
                 .buttonStyle(.glassProminent)
                 Button(tr("common.done")) { dismiss() }.buttonStyle(.bordered)
                 if model.lastArchived != nil {
-                    Button(tr("native.revisit.undoLastArchive")) { Task { await model.undo() } }.buttonStyle(.borderless)
+                    Button(tr("native.revisit.undoLastArchive")) { Task { await model.undoLastArchive() } }.buttonStyle(.borderless)
                 }
             }
         }

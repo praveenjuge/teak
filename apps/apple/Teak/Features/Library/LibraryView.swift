@@ -137,7 +137,8 @@ struct LibraryView: View {
         #if os(macOS)
         false
         #else
-        columns >= 3 && !library.isTrash && !library.isSelecting
+        // Kept while selecting, so the cards don't reflow into other columns and a draft survives.
+        columns >= 3 && !library.isTrash
         #endif
     }
 
@@ -191,6 +192,8 @@ struct LibraryView: View {
                 LazyVStack(spacing: CardGrid.gap) {
                     if index == 0, showsComposer {
                         InlineComposerTile(width: columnWidth)
+                            .disabled(library.isSelecting)
+                            .opacity(library.isSelecting ? 0.5 : 1)
                     }
                     ForEach(column) { card in
                         tile(card)
@@ -283,7 +286,13 @@ struct LibraryView: View {
             },
             moveToTrash: { card in Task { await library.moveToTrash(card.id) } },
             confirmDeleteForever: { confirmingDeleteForever = $0 },
-            moreLikeThis: { library.moreLike($0.id, title: $0.title) })
+            // Similar cards show on Home, as from the card's page, not inside the folder they came from.
+            moreLikeThis: { card in
+                router.homePath.removeAll()
+                router.foldersPath.removeAll()
+                router.tab = .home
+                AppServices.shared.home.moreLike(card.id, title: card.title)
+            })
     }
 
     private var loadFailed: some View {

@@ -64,12 +64,17 @@ struct SidebarMainView: View {
                             .tag(SidebarItem.folder(folder.id))
                             .contextMenu { FolderMenu(folder: folder, prompt: $prompt, actions: actions) }
                     }
+                    #if os(iOS)
                     if services.folders.folders.isEmpty, services.folders.isLoaded {
                         Button(tr("native.folders.newFolder"), systemImage: "folder.badge.plus") { prompt = .create }
                             .buttonStyle(.borderless)
                             .foregroundStyle(.secondary)
                     }
+                    #endif
                 } header: {
+                    #if os(macOS)
+                    Text(tr("native.folders.title"))
+                    #else
                     HStack {
                         Text(tr("native.folders.title"))
                         Spacer()
@@ -78,6 +83,7 @@ struct SidebarMainView: View {
                             .buttonStyle(.borderless)
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
+                    #endif
                 }
                 Section(tr("native.app.nav.types")) {
                     ForEach(CardType.allCases) { type in
@@ -86,6 +92,17 @@ struct SidebarMainView: View {
                 }
             }
             .navigationTitle("Teak")
+            #if os(macOS)
+            // A Mac sidebar adds at its foot, as Reminders and Music do.
+            .safeAreaInset(edge: .bottom) {
+                Button(tr("native.folders.newFolder"), systemImage: "plus.circle") { prompt = .create }
+                    .buttonStyle(.borderless)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .accessibilityIdentifier("sidebar.newFolder")
+            }
+            #endif
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
             .folderPrompt($prompt, actions: actions)
         } detail: {

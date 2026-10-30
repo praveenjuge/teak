@@ -24,7 +24,13 @@ final class LibraryModel {
             reload()
         }
     }
-    var filters = LibraryFilters.empty { didSet { reload() } }
+    var filters = LibraryFilters.empty {
+        didSet {
+            // Another view's cards: a selection made here would act on cards no longer shown.
+            if filters != oldValue { selection = nil }
+            reload()
+        }
+    }
     var sort = LibrarySort.newest { didSet { reload() } }
 
     private(set) var selection: Set<String>?
@@ -54,6 +60,10 @@ final class LibraryModel {
         pager = CardPager(backend: backend)
         pager.onLoad = { [weak self, spotlight] cards, left in
             guard let self else { return }
+            // Once the server agrees, live data wins, so a change made elsewhere shows.
+            for card in cards where favoriteOverrides[card.id] == card.favorited {
+                favoriteOverrides[card.id] = nil
+            }
             spotlight.apply(CardIndex.changes(cards, left: left, in: query))
         }
     }
