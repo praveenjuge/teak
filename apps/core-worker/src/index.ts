@@ -623,6 +623,25 @@ const handler = {
   },
 } satisfies ExportedHandler<Env>;
 
+/**
+ * A request the fetch handler can take in-process. Sent over the network, a
+ * buffered body gets its Content-Length added on the way out; built here it
+ * has none, and the upload route requires one.
+ */
+const inProcessRequest = (
+  input: string,
+  init?: RequestInit
+): Parameters<typeof handler.fetch>[0] => {
+  const headers = new Headers(init?.headers);
+  const body = init?.body;
+  if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
+    headers.set("content-length", String(body.byteLength));
+  }
+  return new Request(input, { ...init, headers }) as Parameters<
+    typeof handler.fetch
+  >[0];
+};
+
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     try {
@@ -654,11 +673,7 @@ export default {
     const ownFetch: Deps["fetch"] = (input, init) =>
       env.FILES_PUBLIC_ORIGIN &&
       new URL(input).origin === env.FILES_PUBLIC_ORIGIN
-        ? handler.fetch(
-            new Request(input, init) as Parameters<typeof handler.fetch>[0],
-            env,
-            ctx
-          )
+        ? handler.fetch(inProcessRequest(input, init), env, ctx)
         : fetch(input, init);
     try {
       await handleEmail(
