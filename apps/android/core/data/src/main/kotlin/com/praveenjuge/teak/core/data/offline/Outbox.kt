@@ -9,6 +9,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
+import com.praveenjuge.teak.core.data.auth.SessionManager
+import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.convex.ConvexApi
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,17 +39,32 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A write made while offline, waiting to be sent. */
+/**
+ * A write made while offline, waiting to be sent. [ownerId] is the signed-in account's user id when it was made,
+ * so it's only ever sent into that account.
+ */
 @Serializable
 sealed interface OutboxItem {
     val id: String
+    val ownerId: String?
+
+    fun withOwner(ownerId: String?): OutboxItem
 
     @Serializable @SerialName("edit")
-    data class Edit(override val id: String, val cardId: String, val change: CardFieldChange) : OutboxItem
+    data class Edit(
+        override val id: String,
+        val cardId: String,
+        val change: CardFieldChange,
+        override val ownerId: String? = null,
+    ) : OutboxItem {
+        override fun withOwner(ownerId: String?) = copy(ownerId = ownerId)
+    }
 
     /** A note or link saved from text, sent as `cards:createCard` once there's a connection. */
     @Serializable @SerialName("createText")
-    data class CreateText(override val id: String, val text: String) : OutboxItem
+    data class CreateText(override val id: String, val text: String, override val ownerId: String? = null) : OutboxItem {
+        override fun withOwner(ownerId: String?) = copy(ownerId = ownerId)
+    }
 
     companion object {
         fun newId(): String = UUID.randomUUID().toString()
@@ -70,7 +88,7 @@ interface Outbox {
 
     suspend fun remove(id: String)
 
-    /** Drops every waiting write, so none reaches the next account. */
+    /** Drops every waiting write. */
     suspend fun clear()
 }
 
@@ -78,6 +96,7 @@ interface Outbox {
 class FileOutbox @Inject constructor(
     @ApplicationContext private val context: Context,
     convex: ConvexApi,
+    private val sessions: SessionManager,
     @ApplicationScope scope: CoroutineScope,
 ) : Outbox {
     private val file = File(context.noBackupFilesDir, FILE_NAME)
@@ -98,6 +117,14 @@ class FileOutbox @Inject constructor(
                 loaded.complete(Unit)
             }
         }
+        // A session can end without signing out (a refresh token the server refused). Writes made in it stay for
+        // that account, and go as soon as someone else signs in, so none reaches the wrong vault.
+        scope.launch {
+            sessions.state.filterIsInstance<SessionState.SignedIn>().collect { signedIn ->
+                loaded.await()
+                if (_items.value.any { it.ownerId != signedIn.user.id }) update { items -> items.filter { it.ownerId == signedIn.user.id } }
+            }
+        }
         // WorkManager waits for the device's network; Teak's own connection can come back later, so a reconnect
         // sends what's waiting too.
         scope.launch {
@@ -110,7 +137,8 @@ class FileOutbox @Inject constructor(
 
     override suspend fun add(items: List<OutboxItem>) {
         if (items.isEmpty()) return
-        update { it + items }
+        val owner = (sessions.state.value as? SessionState.SignedIn)?.user?.id
+        update { it + items.map { item -> item.withOwner(owner) } }
         OutboxWorker.schedule(context)
     }
 

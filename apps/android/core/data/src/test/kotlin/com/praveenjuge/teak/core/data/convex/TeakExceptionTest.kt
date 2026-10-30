@@ -4,6 +4,8 @@ import com.praveenjuge.teak.core.model.UiText
 import org.junit.Test
 import java.io.IOException
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /** Apple's ConvexHTTPTests check the same codes. */
 class TeakExceptionTest {
@@ -34,5 +36,14 @@ class TeakExceptionTest {
         )
         assertEquals(UiText.of("errors.folders.NOT_FOUND"), TeakException("NOT_FOUND", "Folder not found").text)
         assertEquals(UiText.verbatim("Something else"), TeakException("INVALID_INPUT", "Something else").text)
+    }
+
+    @Test
+    fun `offline, rate-limited and not-yet-signed-in writes can be sent again`() {
+        assertTrue(offlineException().isRetryable)
+        assertTrue(TeakException(TeakException.RATE_LIMITED, "Slow down").isRetryable)
+        assertTrue(TeakException("UNAUTHENTICATED", "User must be authenticated").isRetryable)
+        assertFalse(TeakException("NOT_FOUND", "Card not found").isRetryable)
+        assertFalse(TeakException(null, "Something went wrong. Please try again.").isRetryable)
     }
 }

@@ -28,6 +28,9 @@ class FakeConvexApi : ConvexApi {
     /** Mutations and actions fail as the live client's do offline. */
     var offline = false
 
+    /** The socket is up, but each call's connection drops before the reply comes. */
+    var dropsMidCall = false
+
     override fun subscribe(name: String, args: Map<String, Any?>): Flow<Result<JsonElement>> {
         calls += Call(name, args)
         return flowOf(Result.success(responses[name]?.invoke(args) ?: JsonNull))
@@ -42,7 +45,7 @@ class FakeConvexApi : ConvexApi {
     override val connectedNow: Boolean get() = !offline
 
     private fun call(name: String, args: Map<String, Any?>): JsonElement {
-        if (offline) throw com.praveenjuge.teak.core.data.convex.offlineException()
+        if (offline || dropsMidCall) throw com.praveenjuge.teak.core.data.convex.offlineException()
         calls += Call(name, args)
         return responses[name]?.invoke(args) ?: JsonNull
     }

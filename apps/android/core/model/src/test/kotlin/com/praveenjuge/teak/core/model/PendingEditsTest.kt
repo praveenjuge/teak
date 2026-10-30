@@ -55,6 +55,15 @@ class PendingEditsTest {
     }
 
     @Test
+    fun `a tile shows an edited note and a renamed link`() {
+        val noteTile = tile.copy(type = CardType.Text, previewText = "Old")
+        val edited = PendingEdits.apply(noteTile, listOf(CardFieldChange.Content("  See [[Plan|teak:abcdefghijklmnop]] today  ")), now = 0.0)
+        assertEquals("See Plan today", edited.previewText)
+
+        assertEquals("Field notes", PendingEdits.apply(tile, listOf(CardFieldChange.MetadataTitle("Field notes")), now = 0.0).title)
+    }
+
+    @Test
     fun `a card leaves a view its edits move it out of`() {
         val home = LibraryFilters()
         assertFalse(PendingEdits.keepsInView(listOf(CardFieldChange.MoveToTrash), home))

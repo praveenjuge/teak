@@ -299,6 +299,16 @@ class ConvexCardsRepositoryTest {
     }
 
     @Test
+    fun `a save whose connection drops mid-call fails instead of waiting, as the server may have it`() = runTest {
+        convex.dropsMidCall = true
+
+        val failure = assertFailsWith<TeakException> { repository.createFromText("Note") }
+
+        assertEquals(TeakException.OFFLINE, failure.code)
+        assertTrue(outbox.items.value.isEmpty())
+    }
+
+    @Test
     fun `a kept card shows before the server answers, and the server's copy replaces it`() = runTest {
         copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1", content = "Kept")))
         convex.responses["cards:getCard"] = { note("c1", content = "Live") }

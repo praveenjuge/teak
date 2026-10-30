@@ -63,7 +63,15 @@ object PendingEdits {
             else summary.copy(colors = summary.colors.orEmpty() + change.hex)
         is CardFieldChange.RemoveColor ->
             summary.copy(colors = summary.colors.orEmpty().filterNot { PaletteEdit.storedHex(CardColor(it)) == change.hex })
-        // A tile shows none of the other fields, or the server works out what it shows from them.
+        is CardFieldChange.Content -> summary.copy(previewText = previewText(change.value))
+        is CardFieldChange.MetadataTitle -> summary.copy(title = change.value)
+        // A tile shows none of the other fields.
         else -> summary
     }
+
+    /** A note's preview as the server's `cardPreviewText` makes it: links as their titles, trimmed, at most 280 characters. */
+    private fun previewText(content: String): String? =
+        content.replace(CardLinks.PATTERN) { it.groupValues[1] }.trim().take(PREVIEW_LENGTH).ifEmpty { null }
+
+    private const val PREVIEW_LENGTH = 280
 }

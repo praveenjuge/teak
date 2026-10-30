@@ -1,6 +1,8 @@
 package com.praveenjuge.teak.core.data.offline
 
 import android.content.Context
+import com.praveenjuge.teak.core.data.auth.SessionManager
+import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.model.Card
@@ -10,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,7 +25,7 @@ import javax.inject.Singleton
 
 /**
  * Cards kept for offline use: the card as the server last sent it, and its file. They live outside the cache,
- * so Android doesn't clear them, and leave with the account on sign-out.
+ * so Android doesn't clear them, and leave with the account whenever its session ends.
  */
 interface OfflineCopies {
     /** Ids of the cards kept offline. */
@@ -49,6 +52,7 @@ interface OfflineCopies {
 class DiskOfflineCopies @Inject constructor(
     @ApplicationContext context: Context,
     private val client: OkHttpClient,
+    sessions: SessionManager,
     @ApplicationScope scope: CoroutineScope,
 ) : OfflineCopies {
     private val root = File(context.filesDir, DIRECTORY)
@@ -60,6 +64,10 @@ class DiskOfflineCopies @Inject constructor(
         scope.launch(Dispatchers.IO) {
             val ids = root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }.toSet()
             _kept.update { it + ids }
+        }
+        // Signing out isn't the only way a session ends (a refresh token can be refused), so follow the session.
+        scope.launch {
+            sessions.state.filterIsInstance<SessionState.SignedOut>().collect { clear() }
         }
     }
 

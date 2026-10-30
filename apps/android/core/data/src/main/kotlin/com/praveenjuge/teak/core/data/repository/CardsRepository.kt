@@ -218,16 +218,14 @@ class ConvexCardsRepository @Inject constructor(
     private suspend fun queue(id: String, changes: List<CardFieldChange>) =
         outbox.add(changes.map { OutboxItem.Edit(OutboxItem.newId(), id, it) })
 
+    /**
+     * Text waits only when the socket is down before it's sent. Making a card isn't safe to send twice, so one whose
+     * connection drops mid-call fails as offline instead of waiting: the server may already have saved it.
+     */
     override suspend fun createFromText(text: String): String? {
-        val waiting = OutboxItem.CreateText(OutboxItem.newId(), text)
-        if (!convex.connectedNow) return null.also { outbox.add(listOf(waiting)) }
-        return try {
-            convex.mutation(ConvexFunctions.createCard, textCardArgs(text))
-        } catch (e: TeakException) {
-            if (!e.isOffline) throw e
-            outbox.add(listOf(waiting))
-            null
-        }
+        if (convex.connectedNow) return convex.mutation(ConvexFunctions.createCard, textCardArgs(text))
+        outbox.add(listOf(OutboxItem.CreateText(OutboxItem.newId(), text)))
+        return null
     }
 
     /**
