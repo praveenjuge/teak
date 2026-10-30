@@ -24,18 +24,21 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
   const t = useTranslations("cardPreviews.palette");
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  // The color being saved shows in the palette at once, so it isn't a
+  // duplicate while its save is on its way.
+  const [saving, setSaving] = useState(false);
   const problemId = useId();
   const hexInputRef = useRef<HTMLInputElement>(null);
 
   const hex = parsePaletteHex(text);
-  const isTaken = hex !== null && paletteHasColor(colors, hex);
+  const isTaken = !saving && hex !== null && paletteHasColor(colors, hex);
   let problem: string | null = null;
   if (text.trim() && !hex) {
     problem = t("invalidHex");
   } else if (hex && isTaken) {
     problem = t("alreadyAdded", { hex });
   }
-  const canAdd = hex !== null && !isTaken;
+  const canAdd = hex !== null && !isTaken && !saving;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -43,9 +46,14 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
       return;
     }
     // A failed save keeps the typed color, so trying again is one click.
-    if (await onAddColor(hex)) {
-      setOpen(false);
-      setText("");
+    setSaving(true);
+    try {
+      if (await onAddColor(hex)) {
+        setOpen(false);
+        setText("");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
