@@ -108,4 +108,25 @@ class DiskOfflineCopiesTest {
         kotlin.test.assertTrue(copies.kept.value.isEmpty())
         assertNull(copies.card("c1"))
     }
+
+    @Test
+    fun `an SVG image keeps the rendition its preview shows, not the original`() = runTest {
+        java.io.File(context.filesDir, "offline").deleteRecursively()
+        server.enqueue(MockResponse().setBody("rendition"))
+        val copies = copies()
+
+        copies.keep(
+            Card(
+                id = "c2",
+                creationTime = 0.0,
+                type = CardType.Image,
+                fileUrl = server.url("/files/logo.svg").toString(),
+                detailUrl = server.url("/img/detail/logo.webp").toString(),
+                fileMetadata = com.praveenjuge.teak.core.model.FileMetadata(fileName = "logo.svg"),
+            ),
+        )
+
+        assertEquals("/img/detail/logo.webp", server.takeRequest().path)
+        assertEquals("rendition", copies.file("c2")?.readText())
+    }
 }

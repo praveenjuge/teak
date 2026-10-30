@@ -6,6 +6,8 @@ import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.CardSheet
+import com.praveenjuge.teak.core.model.CardType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,7 @@ interface OfflineCopies {
     /** Ids of the cards kept offline. */
     val kept: StateFlow<Set<String>>
 
-    /** Saves [card] and downloads its file. Throws when the file can't be downloaded, keeping nothing. */
+    /** Saves [card] and downloads its file (an image's shown rendition). Throws when it can't be downloaded, keeping nothing. */
     suspend fun keep(card: Card)
 
     suspend fun remove(id: String)
@@ -116,7 +118,7 @@ class DiskOfflineCopies @Inject constructor(
         val started = clears
         val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
         try {
-            card.fileUrl?.let { url -> download(url, File(staging, DATA_FILE)) }
+            keptSource(card)?.let { url -> download(url, File(staging, DATA_FILE)) }
             writeCard(staging, card)
             mutex.withLock {
                 if (clears != started) throw IOException("The account's copies were cleared while keeping the card")
@@ -146,7 +148,7 @@ class DiskOfflineCopies @Inject constructor(
                 val directory = directory(card.id)
                 val saved = read(directory) ?: return@withLock
                 // A new file on the server makes the kept one stale: show the server's until it's kept again.
-                if (saved.fileUrl?.withoutQuery() != card.fileUrl?.withoutQuery()) File(directory, DATA_FILE).delete()
+                if (keptSource(saved)?.withoutQuery() != keptSource(card)?.withoutQuery()) File(directory, DATA_FILE).delete()
                 writeCard(directory, card)
             }
         }
@@ -197,6 +199,13 @@ class DiskOfflineCopies @Inject constructor(
         }
         if (!partial.renameTo(target)) throw IOException("Couldn't keep the file")
     }
+
+    /**
+     * What's downloaded for a card: an image keeps the rendition its preview shows, since the app can't decode some
+     * originals (SVG, HEIC); every other card keeps its file.
+     */
+    private fun keptSource(card: Card): String? =
+        if (card.type == CardType.Image) CardSheet.imagePrimaryUrl(card) else card.fileUrl
 
     /** A signed file link without its signature, which changes every few hours for the same file. */
     private fun String.withoutQuery(): String = substringBefore('?')
