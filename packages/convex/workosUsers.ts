@@ -108,8 +108,7 @@ export const linkWorkosUser = internalMutation({
     const validId = (id: string) =>
       id.length > 0 && id.length <= 256 && !/\s/.test(id) && !hasControls(id);
     if (
-      !validId(args.workosUserId) ||
-      !email ||
+      !(validId(args.workosUserId) && email) ||
       email.length > 320 ||
       hasControls(email)
     ) {
