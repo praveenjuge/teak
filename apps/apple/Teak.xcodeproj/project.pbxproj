@@ -42,6 +42,7 @@
 		68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */; };
 		69554D700DCBF5E4F7A831CD /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4D093ED645A59C3CF7691A5D /* Localizable.xcstrings */; };
 		6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C78020F918336D66648413 /* WelcomeView.swift */; };
+		6CCEA612EF43A59A9652D6D1 /* SharePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C088310F6243772284DC609 /* SharePreview.swift */; };
 		6D8DEC6F8D593FB105DB8578 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BBB7C456017B244B6D91EBA7 /* popup.html */; };
 		72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02A3CA9E5B01345E12A9686 /* TeakApp.swift */; };
 		7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */; };
@@ -142,6 +143,7 @@
 		005BE33C57BE4A949C714E10 /* popup.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = popup.css; sourceTree = "<group>"; };
 		023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailModel.swift; sourceTree = "<group>"; };
 		068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		0C088310F6243772284DC609 /* SharePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePreview.swift; sourceTree = "<group>"; };
 		0E967113DEC38E0E2D38A690 /* FolderViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderViews.swift; sourceTree = "<group>"; };
 		0EE1B224975A9737F41FCAEF /* CardSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSections.swift; sourceTree = "<group>"; };
 		1241428612C78B46F9261153 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
@@ -412,6 +414,7 @@
 		C8F17355375D522385ADF462 /* ShareExtension */ = {
 			isa = PBXGroup;
 			children = (
+				0C088310F6243772284DC609 /* SharePreview.swift */,
 				98EA7CC268C54F60FBCE785A /* ShareView.swift */,
 				D4C91E3F9825B47431347263 /* ShareViewController.swift */,
 			);
@@ -731,6 +734,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6CCEA612EF43A59A9652D6D1 /* SharePreview.swift in Sources */,
 				930D7C22FA57EE97F0B642F6 /* ShareView.swift in Sources */,
 				208E0427A98AAEAF3EE3D554 /* ShareViewController.swift in Sources */,
 			);
