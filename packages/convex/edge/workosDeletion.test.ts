@@ -116,6 +116,15 @@ test.each(["before", "after"] as const)(
     expect(
       await t.run((ctx) => ctx.db.query("migrationQuarantine").take(5))
     ).toHaveLength(1);
+    // The tombstone is final, so the admin operations queue doesn't count it.
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("migrationQuarantine")
+          .withIndex("by_unresolved", (q) => q.eq("resolvedAt", undefined))
+          .take(5)
+      )
+    ).toEqual([]);
   }
 );
 

@@ -158,7 +158,8 @@ export const applyWorkosEvent = internalMutation({
           await ctx.db.patch("users", row._id, { workosDeletedAt: time });
         }
       }
-      // A redelivered deletion keeps its first tombstone.
+      // A redelivered deletion keeps its first tombstone. It is final, so it
+      // is written resolved and stays out of the operators' queue.
       const recorded = await ctx.db
         .query("migrationQuarantine")
         .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
@@ -166,13 +167,15 @@ export const applyWorkosEvent = internalMutation({
         )
         .first();
       if (!recorded) {
+        const now = Date.now();
         await ctx.db.insert("migrationQuarantine", {
           workosUserId,
           ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
           email: isStorableEmail(email) ? email : "",
           reason: "workos_user_deleted",
           source: "webhook",
-          createdAt: Date.now(),
+          createdAt: now,
+          resolvedAt: now,
           workosDeletionEventAt: time,
         });
       }
