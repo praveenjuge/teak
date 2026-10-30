@@ -7,8 +7,7 @@ import type { convexTest } from "convex-test";
 type TestConvex = ReturnType<typeof convexTest>;
 
 const workerFile = (path: string) =>
-  new URL(`../../../../apps/core-worker/src/${path}`, import.meta.url)
-    .pathname;
+  new URL(`../../../../apps/core-worker/src/${path}`, import.meta.url).pathname;
 
 class FixedLengthStream extends TransformStream<Uint8Array, Uint8Array> {
   constructor(_expectedLength: number) {

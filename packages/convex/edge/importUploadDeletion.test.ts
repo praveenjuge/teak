@@ -725,12 +725,8 @@ test("the hourly cron aborts an abandoned import upload, fails the job and queue
   );
   const env = { BUCKET: bucket, FILES_SIGNING_SECRET: "test" };
 
-  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(
-    1
-  );
-  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(
-    0
-  );
+  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(1);
+  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(0);
 
   expect(bucket.multipartUploads.has(upload.uploadId)).toBe(false);
   const expired = await t.run((ctx) => ctx.db.get(abandoned));

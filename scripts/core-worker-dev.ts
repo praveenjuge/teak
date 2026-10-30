@@ -3,12 +3,12 @@ import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import config from "../apps/core-worker/development/wrangler.jsonc";
-import { parseDotenvContent } from "./env-loader";
 import {
   assertDevelopmentWorkerConfig,
   assertIsolatedDevelopmentFiles,
   readDevelopmentFilesRouting,
 } from "./core-worker-dev-boundary";
+import { parseDotenvContent } from "./env-loader";
 
 const root = join(import.meta.dir, "..");
 const worker = join(root, "apps/core-worker");

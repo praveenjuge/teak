@@ -13,12 +13,12 @@ import { runCommand } from "./proc.ts";
 export interface WorktreePorts {
   convex: number;
   convexSite: number;
+  coreWorker: number;
+  coreWorkerInspector: number;
   docs: number;
   emulator: number;
   emulatorUpstream: number;
   extension: number;
-  coreWorker: number;
-  coreWorkerInspector: number;
   namespace: string;
   namespaced: boolean;
   siteUrl: string;
