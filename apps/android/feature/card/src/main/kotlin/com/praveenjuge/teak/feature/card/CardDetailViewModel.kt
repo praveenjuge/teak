@@ -104,6 +104,7 @@ data class CardDetailUiState(
 sealed interface CardDetailEvent {
     data class Message(val text: UiText, val undo: (() -> Unit)? = null) : CardDetailEvent
     data class ShareFile(val uri: Uri, val mimeType: String) : CardDetailEvent
+    data class OpenFile(val uri: Uri, val mimeType: String) : CardDetailEvent
     data object Close : CardDetailEvent
 }
 
@@ -428,6 +429,16 @@ class CardDetailViewModel @AssistedInject constructor(
         transfer(UiText.of("native.card.failed.saveFile")) {
             files.saveToDownloads(url, fileName, card.fileMetadata?.mimeType)
             _events.send(CardDetailEvent.Message(UiText.of("android.card.savedToDownloads")))
+        }
+    }
+
+    /** Opens a kept document's file in another app, for reading it offline. */
+    fun openKeptDocument() {
+        val card = _uiState.value.card ?: return
+        val file = repository.offlineFile(card.id) ?: return
+        val name = card.fileMetadata?.fileName.orEmpty()
+        viewModelScope.launch {
+            _events.send(CardDetailEvent.OpenFile(files.contentUri(file), card.fileMetadata?.mimeType ?: mimeTypeFor(name)))
         }
     }
 

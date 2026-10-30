@@ -34,9 +34,12 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.io.File
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -135,7 +138,14 @@ class ConvexCardsRepository @Inject constructor(
             copies.card(id)?.let { emit(Result.success(it)) }
             emitAll(
                 convex.subscribe(ConvexFunctions.getCard, mapOf("id" to id))
-                    .onEach { result -> result.getOrNull()?.let { copies.update(it) } },
+                    // Refreshing the kept copy is best-effort: a full disk mustn't stop the card's updates.
+                    .onEach { result ->
+                        val card = result.getOrNull() ?: return@onEach
+                        try {
+                            copies.update(card)
+                        } catch (_: IOException) {
+                        }
+                    },
             )
         }
         val pending = outbox.pendingEdits.map { it[id].orEmpty() }.distinctUntilChanged()
@@ -162,14 +172,14 @@ class ConvexCardsRepository @Inject constructor(
 
     override fun trashCount(): Flow<Result<TrashCount>> = convex.subscribe(ConvexFunctions.trashCount)
 
-    override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult {
+    override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult = edits.withLock {
         val change = action.perCardChange()
         val batches = ids.distinct().chunked(MAX_BULK_CARD_IDS)
         val updated = mutableListOf<String>()
         val failed = mutableListOf<String>()
         for ((index, batch) in batches.withIndex()) {
             if (change != null && mustQueue()) {
-                return queueBulk(change, batches.drop(index).flatten(), updated, failed)
+                return@withLock queueBulk(change, batches.drop(index).flatten(), updated, failed)
             }
             val args = buildMap<String, Any?> {
                 put("cardIds", batch)
@@ -181,12 +191,12 @@ class ConvexCardsRepository @Inject constructor(
                 convex.mutation(ConvexFunctions.bulkUpdateCards, args)
             } catch (e: TeakException) {
                 if (change == null || !e.isOffline) throw e
-                return queueBulk(change, batches.drop(index).flatten(), updated, failed)
+                return@withLock queueBulk(change, batches.drop(index).flatten(), updated, failed)
             }
             updated += result.updatedIds
             failed += result.failedIds
         }
-        return BulkResult(updated, failed)
+        BulkResult(updated, failed)
     }
 
     /** Offline, an action that changes each card on its own waits as one edit per card. */
@@ -203,14 +213,14 @@ class ConvexCardsRepository @Inject constructor(
         return RefreshOutcome.Refused(message)
     }
 
-    override suspend fun apply(id: String, changes: List<CardFieldChange>) {
-        if (mustQueue()) return queue(id, changes)
+    override suspend fun apply(id: String, changes: List<CardFieldChange>) = edits.withLock {
+        if (mustQueue()) return@withLock queue(id, changes)
         for ((index, change) in changes.withIndex()) {
             try {
                 convex.mutation(ConvexFunctions.updateCardField, change.args(id))
             } catch (e: TeakException) {
                 if (!e.isOffline) throw e
-                return queue(id, changes.drop(index))
+                return@withLock queue(id, changes.drop(index))
             }
         }
     }
@@ -232,7 +242,10 @@ class ConvexCardsRepository @Inject constructor(
      * An edit waits when the socket is down, as it's sent the moment it's back, and behind an edit that's still
      * waiting, so the server gets them in the order they were made.
      */
-    private fun mustQueue(): Boolean = !convex.connectedNow || outbox.items.value.isNotEmpty()
+    private suspend fun mustQueue(): Boolean = !convex.connectedNow || outbox.hasPending()
+
+    /** Edits go one at a time, so two made together reach the server, or the outbox, in the order they were made. */
+    private val edits = Mutex()
 
     override val keptOffline: Flow<Set<String>> = copies.kept
 

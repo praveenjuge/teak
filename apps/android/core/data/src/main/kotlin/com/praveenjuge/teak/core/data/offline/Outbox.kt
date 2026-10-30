@@ -86,6 +86,9 @@ interface Outbox {
     /** The oldest waiting write, once the saved ones are read. */
     suspend fun next(): OutboxItem?
 
+    /** Whether any write is waiting, once the saved ones are read. */
+    suspend fun hasPending(): Boolean = next() != null
+
     suspend fun remove(id: String)
 
     /** Drops every waiting write. */
@@ -149,9 +152,13 @@ class FileOutbox @Inject constructor(
 
     override suspend fun remove(id: String) = update { items -> items.filterNot { it.id == id } }
 
+    /** Empties the saved file first, so a WorkManager failure can't leave writes behind. */
     override suspend fun clear() {
-        WorkManager.getInstance(context).cancelUniqueWork(OutboxWorker.QUEUE).await()
-        update { emptyList() }
+        try {
+            update { emptyList() }
+        } finally {
+            WorkManager.getInstance(context).cancelUniqueWork(OutboxWorker.QUEUE).await()
+        }
     }
 
     private suspend fun update(transform: (List<OutboxItem>) -> List<OutboxItem>) {
@@ -180,7 +187,7 @@ class FileOutbox @Inject constructor(
     /** Written to a copy first, so a crash mid-write leaves the old file whole. */
     private fun write(items: List<OutboxItem>) {
         if (items.isEmpty()) {
-            file.delete()
+            if (file.exists() && !file.delete()) throw java.io.IOException("Couldn't empty the outbox")
             return
         }
         val partial = File(file.parentFile, "$FILE_NAME.part")

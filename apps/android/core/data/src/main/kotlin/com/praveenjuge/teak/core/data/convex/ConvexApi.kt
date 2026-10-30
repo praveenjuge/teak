@@ -201,9 +201,15 @@ val Throwable.isOffline: Boolean get() = (this as? TeakException)?.code == TeakE
 
 /**
  * A write that can go through later unchanged: Teak was offline, the session wasn't signed in to the server yet,
- * or the server asked to slow down. A Convex outage reaches the app as a dropped socket, so it's offline too.
+ * the server asked to slow down, or the native client failed. A Convex outage reaches the app as a dropped socket,
+ * so it's offline too.
  */
-val Throwable.isRetryable: Boolean get() = (this as? TeakException)?.code in RETRYABLE_CODES
+val Throwable.isRetryable: Boolean
+    get() {
+        val error = this as? TeakException ?: return false
+        // InternalError is the native client failing ("channel closed" once its connection shut down), not the server.
+        return error.code in RETRYABLE_CODES || error.cause is InternalError
+    }
 
 private val RETRYABLE_CODES = setOf(TeakException.OFFLINE, TeakException.RATE_LIMITED, "UNAUTHENTICATED")
 

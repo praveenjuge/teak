@@ -13,6 +13,7 @@ import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.isRetryable
 import com.praveenjuge.teak.core.data.convex.mutation
 import com.praveenjuge.teak.core.data.repository.textCardArgs
+import com.praveenjuge.teak.core.model.PendingEdits
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dev.convex.android.AuthState
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.IOException
 
 /**
  * Sends the [Outbox]'s writes in the order they were made, once the account is signed in to Teak's server over a
@@ -34,6 +36,7 @@ class OutboxWorker @AssistedInject constructor(
     private val convex: ConvexApi,
     private val client: ConvexClientWithAuth<String>,
     private val sessions: SessionManager,
+    private val copies: OfflineCopies,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         // A run WorkManager starts with the app closed comes before the session is restored and the client signs in.
@@ -64,8 +67,21 @@ class OutboxWorker @AssistedInject constructor(
 
     private suspend fun send(item: OutboxItem) {
         when (item) {
-            is OutboxItem.Edit -> convex.mutation(ConvexFunctions.updateCardField, item.change.args(item.cardId))
+            is OutboxItem.Edit -> {
+                convex.mutation(ConvexFunctions.updateCardField, item.change.args(item.cardId))
+                keepInCopy(item)
+            }
             is OutboxItem.CreateText -> convex.mutation(ConvexFunctions.createCard, textCardArgs(item.text))
+        }
+    }
+
+    /** A kept card has no live query while the app is closed, so a sent edit goes into its copy here. */
+    private suspend fun keepInCopy(edit: OutboxItem.Edit) {
+        val kept = copies.card(edit.cardId) ?: return
+        try {
+            copies.update(PendingEdits.apply(kept, listOf(edit.change), System.currentTimeMillis().toDouble()))
+        } catch (e: IOException) {
+            Log.w(TAG, "Couldn't update a kept card", e)
         }
     }
 

@@ -13,8 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -55,15 +56,21 @@ class DiskOfflineCopies @Inject constructor(
     sessions: SessionManager,
     @ApplicationScope scope: CoroutineScope,
 ) : OfflineCopies {
+    // Under files/, which backup_rules.xml and data_extraction_rules.xml keep off backups, so a PDF here can still
+    // be shared through the FileProvider.
     private val root = File(context.filesDir, DIRECTORY)
+
+    /** Keeps the startup scan, keeping, removing and clearing from overlapping. */
+    private val mutex = Mutex()
 
     private val _kept = MutableStateFlow<Set<String>>(emptySet())
     override val kept: StateFlow<Set<String>> = _kept.asStateFlow()
 
     init {
         scope.launch(Dispatchers.IO) {
-            val ids = root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }.toSet()
-            _kept.update { it + ids }
+            mutex.withLock {
+                _kept.value += root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }
+            }
         }
         // Signing out isn't the only way a session ends (a refresh token can be refused), so follow the session.
         scope.launch {
@@ -72,47 +79,67 @@ class DiskOfflineCopies @Inject constructor(
     }
 
     override suspend fun keep(card: Card) = withContext(Dispatchers.IO) {
-        val directory = directory(card.id)
-        directory.deleteRecursively()
-        directory.mkdirs()
-        try {
-            card.fileUrl?.let { url -> download(url, File(directory, DATA_FILE)) }
-            File(directory, CARD_FILE).writeText(teakJson.encodeToString(Card.serializer(), card))
-        } catch (e: IOException) {
+        mutex.withLock {
+            val directory = directory(card.id)
             directory.deleteRecursively()
-            throw e
+            directory.mkdirs()
+            try {
+                card.fileUrl?.let { url -> download(url, File(directory, DATA_FILE)) }
+                writeCard(directory, card)
+            } catch (e: IOException) {
+                directory.deleteRecursively()
+                throw e
+            }
+            _kept.value += card.id
         }
-        _kept.update { it + card.id }
     }
 
-    override suspend fun remove(id: String) {
-        withContext(Dispatchers.IO) { directory(id).deleteRecursively() }
-        _kept.update { it - id }
+    override suspend fun remove(id: String) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            directory(id).deleteRecursively()
+            _kept.value -= id
+        }
     }
 
-    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) {
-        val saved = File(directory(id), CARD_FILE)
-        if (!saved.exists()) return@withContext null
-        runCatching { teakJson.decodeFromString(Card.serializer(), saved.readText()) }.getOrNull()
-    }
+    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) { read(directory(id)) }
 
     override suspend fun update(card: Card) {
         if (card.id !in _kept.value) return
         withContext(Dispatchers.IO) {
-            val saved = File(directory(card.id), CARD_FILE)
-            if (saved.exists()) saved.writeText(teakJson.encodeToString(Card.serializer(), card))
+            mutex.withLock {
+                val directory = directory(card.id)
+                val saved = read(directory) ?: return@withLock
+                // A new file on the server makes the kept one stale: show the server's until it's kept again.
+                if (saved.fileUrl?.withoutQuery() != card.fileUrl?.withoutQuery()) File(directory, DATA_FILE).delete()
+                writeCard(directory, card)
+            }
         }
     }
 
     override fun file(id: String): File? =
         File(directory(id), DATA_FILE).takeIf { id in _kept.value && it.length() > 0 }
 
-    override suspend fun clear() {
-        withContext(Dispatchers.IO) { root.deleteRecursively() }
-        _kept.value = emptySet()
+    override suspend fun clear() = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            root.deleteRecursively()
+            _kept.value = emptySet()
+        }
     }
 
     private fun directory(id: String) = File(root, id.replace(unsafeNameCharacters, "_"))
+
+    private fun read(directory: File): Card? {
+        val saved = File(directory, CARD_FILE)
+        if (!saved.exists()) return null
+        return runCatching { teakJson.decodeFromString(Card.serializer(), saved.readText()) }.getOrNull()
+    }
+
+    /** Written to a copy first, so a crash mid-write leaves the old card whole. */
+    private fun writeCard(directory: File, card: Card) {
+        val partial = File(directory, "$CARD_FILE.part")
+        partial.writeText(teakJson.encodeToString(Card.serializer(), card))
+        if (!partial.renameTo(File(directory, CARD_FILE))) throw IOException("Couldn't keep the card")
+    }
 
     private fun download(url: String, target: File) {
         val partial = File(target.parentFile, "${target.name}.part")
@@ -123,6 +150,9 @@ class DiskOfflineCopies @Inject constructor(
         }
         if (!partial.renameTo(target)) throw IOException("Couldn't keep the file")
     }
+
+    /** A signed file link without its signature, which changes every few hours for the same file. */
+    private fun String.withoutQuery(): String = substringBefore('?')
 
     private companion object {
         const val DIRECTORY = "offline"

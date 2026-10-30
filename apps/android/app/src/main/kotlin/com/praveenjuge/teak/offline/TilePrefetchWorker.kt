@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
+import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
@@ -19,6 +20,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -35,17 +37,20 @@ class TilePrefetchWorker @AssistedInject constructor(
         val page = withTimeoutOrNull(LOAD_TIMEOUT_MS) { cards.page(CardQuery(), null, CARD_COUNT).first() }
             ?.getOrNull() ?: return Result.retry()
         val loader = SingletonImageLoader.get(applicationContext)
+        var networkFailed = false
         for (card in page.page) {
             val url = CardGrid.tileImageUrl(card) ?: continue
-            loader.execute(
+            val result = loader.execute(
                 ImageRequest.Builder(applicationContext)
                     .data(url)
                     .size(DECODE_SIZE_PX)
                     .memoryCachePolicy(CachePolicy.DISABLED)
                     .build(),
             )
+            if ((result as? ErrorResult)?.throwable is IOException) networkFailed = true
         }
-        return Result.success()
+        // A dropped connection retries soon; an image that's simply broken waits for the next run.
+        return if (networkFailed) Result.retry() else Result.success()
     }
 
     companion object {

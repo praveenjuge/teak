@@ -141,6 +141,8 @@ internal class CardDetailCallbacks(
     val onShareFile: () -> Unit = {},
     val onDownload: () -> Unit = {},
     val onToggleKeepOffline: () -> Unit = {},
+    /** Opens a kept document's file in another app, for when it can't load from the server. */
+    val onOpenKeptDocument: () -> Unit = {},
     val onToggleDone: () -> Unit = {},
     val onToggleArchived: () -> Unit = {},
     val onRefreshDetails: () -> Unit = {},
@@ -252,7 +254,7 @@ internal fun CardDetailScreen(
         },
     ) { padding ->
         when {
-            state.isLoading && state.isOffline -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            card == null && state.isOffline && (state.isLoading || state.loadFailed) -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
                     title = tr("native.app.offline.title"),
                     message = tr("native.app.offline.message"),
@@ -439,7 +441,11 @@ private fun CardDetailContent(
                 offlineFile = state.offlineFile,
                 onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
                 // PDFs open in the app's reader; other documents open in the browser.
-                onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
+                onViewDocument = when {
+                    CardSheet.isPdf(card) -> { _ -> callbacks.onViewPdf() }
+                    state.isOffline && state.offlineFile != null -> { _ -> callbacks.onOpenKeptDocument() }
+                    else -> actions.viewDocument
+                },
                 onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
                 palette = if (card.deleted) null else PaletteEdits(callbacks.onAddColor, callbacks.onRemoveColor),
             )
@@ -667,6 +673,19 @@ private fun Context.shareText(target: ShareTarget.Text) {
         target.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
     }
     startActivity(Intent.createChooser(send, null))
+}
+
+/** Opens a file the app keeps in another app; false when no app can open it. */
+internal fun Context.openFile(event: CardDetailEvent.OpenFile): Boolean {
+    val view = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(event.uri, event.mimeType)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    return try {
+        startActivity(view)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
 }
 
 internal fun Context.shareFile(event: CardDetailEvent.ShareFile) {

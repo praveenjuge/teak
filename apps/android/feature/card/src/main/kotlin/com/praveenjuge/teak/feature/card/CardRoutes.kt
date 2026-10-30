@@ -64,6 +64,9 @@ fun CardDetailRoute(
                         if (result == SnackbarResult.ActionPerformed) event.undo?.invoke()
                     }
                     is CardDetailEvent.ShareFile -> context.shareFile(event)
+                    is CardDetailEvent.OpenFile -> if (!context.openFile(event)) {
+                        scope.launch { snackbarHostState.showSnackbar(resources.tr("android.card.noAppForLink")) }
+                    }
                 }
             }
         }
@@ -83,6 +86,7 @@ fun CardDetailRoute(
             onShareFile = viewModel::shareFile,
             onDownload = viewModel::download,
             onToggleKeepOffline = viewModel::toggleKeepOffline,
+            onOpenKeptDocument = viewModel::openKeptDocument,
             onToggleDone = viewModel::toggleDone,
             onToggleArchived = viewModel::toggleArchived,
             onRefreshDetails = viewModel::refreshDetails,
