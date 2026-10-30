@@ -219,7 +219,7 @@
         "mdast-util-to-hast": "^13.2.1",
         "micromark-extension-gfm": "^3.0.0",
         "react": "catalog:",
-        "zod": "4.6.7",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@edge-runtime/vm": "^5.0.0",
@@ -243,7 +243,7 @@
       "version": "1.0.91",
       "dependencies": {
         "@formatjs/icu-messageformat-parser": "3.5.22",
-        "use-intl": "4.14.9",
+        "use-intl": "catalog:",
       },
       "devDependencies": {
         "@types/react": "catalog:",
@@ -259,7 +259,7 @@
       "dependencies": {
         "@teak/i18n": "workspace:*",
         "preact": "10.29.8",
-        "use-intl": "4.14.9",
+        "use-intl": "catalog:",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "2.4.0",
@@ -273,7 +273,7 @@
         "typescript": "catalog:",
         "vite": "8.2.1",
         "vite-plugin-singlefile": "2.3.4",
-        "zod": "4.6.7",
+        "zod": "catalog:",
       },
     },
     "packages/sdk": {
@@ -357,8 +357,10 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
+    "use-intl": "4.14.9",
     "vadivam-react": "^0.0.69",
     "wrangler": "^4.151.0",
+    "zod": "4.6.7",
   },
   "packages": {
     "@1natsu/wait-element": ["@1natsu/wait-element@4.1.2", "", { "dependencies": { "defu": "^6.1.4", "many-keys-map": "^2.0.1" } }, "sha512-qWxSJD+Q5b8bKOvESFifvfZ92DuMsY+03SBNjTO34ipJLP6mZ9yK4bQz/vlh48aEQXoJfaZBqUwKL5BdI5iiWw=="],

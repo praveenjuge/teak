@@ -87,8 +87,10 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
+    "use-intl": "4.14.9",
     "vadivam-react": "^0.0.69",
-    "wrangler": "^4.151.0"
+    "wrangler": "^4.151.0",
+    "zod": "4.6.7"
   },
   "trustedDependencies": [
     "@posthog/cli",
