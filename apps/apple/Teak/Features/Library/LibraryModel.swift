@@ -21,6 +21,8 @@ final class LibraryModel {
                 applyHint(hint)
                 if tokens == oldValue { return }
             }
+            // A tag or "Similar to" shows other cards, so a selection made here ends, as it does for filters.
+            if tokens != oldValue { selection = nil }
             reload()
         }
     }
@@ -64,6 +66,8 @@ final class LibraryModel {
             for card in cards where favoriteOverrides[card.id] == card.favorited {
                 favoriteOverrides[card.id] = nil
             }
+            // A card that left (unfavorited out of Favorites) shows again if it comes back favorited.
+            for id in left { favoriteOverrides[id] = nil }
             spotlight.apply(CardIndex.changes(cards, left: left, in: query))
         }
     }

@@ -41,6 +41,8 @@ final class RevisitModel {
     }
 
     func deal(startOver: Bool = false) async {
+        // An archive or undo under way still points into this deck's history.
+        guard !isPending else { return }
         if startOver {
             seed = ShuffleSeed.next(after: seed)
             cursor = nil
@@ -242,9 +244,11 @@ struct RevisitView: View {
                 Button { Task { await model.archive() } } label: {
                     Label(tr("native.actions.archive"), systemImage: "archivebox").frame(maxWidth: .infinity)
                 }
+                .accessibilityIdentifier("revisit.archive")
                 Button { model.keep() } label: {
                     Label(tr("native.revisit.keep"), systemImage: "hand.thumbsup").frame(maxWidth: .infinity)
                 }
+                .accessibilityIdentifier("revisit.keep")
             }
             .buttonStyle(.glass)
             .controlSize(.large)
@@ -316,6 +320,7 @@ struct RevisitView: View {
                     Task { await model.deal(startOver: model.isExhausted) }
                 }
                 .buttonStyle(.glassProminent)
+                .disabled(model.isPending)
                 Button(tr("common.done")) { dismiss() }.buttonStyle(.bordered)
                 if model.lastArchived != nil {
                     Button(tr("native.revisit.undoLastArchive")) { Task { await model.undoLastArchive() } }.buttonStyle(.borderless)

@@ -265,6 +265,33 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testRevisitUndoLastArchiveBringsBackTheArchivedCard() async throws {
+        try await start()
+        for label in ["first", "second"] {
+            let note = marker(label)
+            save("Revisit \(note)", expecting: note)
+        }
+
+        // Archive the first card, keep every other one to the end of the deck.
+        filter("Revisit")
+        let first = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 of ")).firstMatch
+        first.waitToAppear(20)
+        tap(byId("revisit.archive"))
+        first.waitToDisappear()
+        let finished = app.staticTexts["All caught up"].firstMatch
+        for _ in 0..<25 where !finished.exists {
+            tap(byId("revisit.keep").waitToAppear())
+        }
+        finished.waitToAppear()
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 archived")).firstMatch.waitToAppear()
+
+        // Undo last archive returns to the archived card, not the last one kept.
+        tap(app.buttons["Undo last archive"].firstMatch)
+        first.waitToAppear()
+        finished.waitToDisappear()
+    }
+
+    @MainActor
     func testFoldersOpenFromTheFoldersTabOrSidebar() async throws {
         try await start()
         let name = marker("folder")
