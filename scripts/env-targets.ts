@@ -6,7 +6,6 @@ export const SUPPORTED_TARGETS = [
   "cli",
   "extension",
   "core-worker",
-  "email-worker",
 ] as const;
 
 export type SupportedTarget = (typeof SUPPORTED_TARGETS)[number];
@@ -65,14 +64,6 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     needsConvex: false,
     defaultConvex: "skip",
     note: "Cloudflare Worker. Local secrets live in .dev.vars (shared production Worker) or development/.dev.vars (isolated development Worker), synced from Convex dev.",
-  },
-  "email-worker": {
-    target: "email-worker",
-    profiles: ["local", "preview", "production"],
-    dotenvFiles: ["apps/email-worker/.dev.vars"],
-    needsConvex: false,
-    defaultConvex: "skip",
-    note: "Save by email Cloudflare Worker. Its signing secret is a wrangler secret per environment; a local .dev.vars only serves `wrangler dev`.",
   },
 };
 

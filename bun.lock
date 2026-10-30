@@ -46,6 +46,7 @@
         "fflate": "catalog:",
         "htmlparser2": "catalog:",
         "linkedom": "^0.18.14",
+        "postal-mime": "2.7.3",
         "turndown": "^7.2.4",
       },
       "devDependencies": {
@@ -69,18 +70,6 @@
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
-      },
-    },
-    "apps/email-worker": {
-      "name": "@teak/email-worker",
-      "version": "1.0.91",
-      "dependencies": {
-        "postal-mime": "2.7.3",
-      },
-      "devDependencies": {
-        "@types/bun": "catalog:",
-        "typescript": "catalog:",
-        "wrangler": "catalog:",
       },
     },
     "apps/extension": {
@@ -1340,8 +1329,6 @@
     "@teak/core-worker": ["@teak/core-worker@workspace:apps/core-worker"],
 
     "@teak/docs": ["@teak/docs@workspace:apps/docs"],
-
-    "@teak/email-worker": ["@teak/email-worker@workspace:apps/email-worker"],
 
     "@teak/extension": ["@teak/extension@workspace:apps/extension"],
 

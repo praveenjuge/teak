@@ -27,6 +27,7 @@
     "fflate": "catalog:",
     "htmlparser2": "catalog:",
     "linkedom": "^0.18.14",
+    "postal-mime": "2.7.3",
     "turndown": "^7.2.4"
   },
   "devDependencies": {

@@ -1,14 +1,14 @@
 import {
   handleEmail,
   REJECT_CANT_SAVE,
-} from "../../../../apps/email-worker/src/index";
-import type { InboundMessage } from "../../../../apps/email-worker/src/types";
+} from "../../../../apps/core-worker/src/email/index";
+import type { InboundMessage } from "../../../../apps/core-worker/src/email/types";
 import { clientFor, createAccount, expectVault, gotoApp } from "../helpers/app";
 import { env } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 import { E2E_EMAIL_INBOUND_SIGNING_SECRET } from "../stack/config";
 
-// Save by email end to end: the Email Worker's own code reads a message as
+// Save by email end to end: the Core Worker's email handler reads a message as
 // Cloudflare hands it over and posts to this stack's backend, which saves the
 // body as a card and the attachment through the local Core Worker.
 

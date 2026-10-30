@@ -19,7 +19,7 @@ The Open Source group is the source of truth for how Teak is built, run and test
 - Where tests go, testing rules, or the end-to-end stack and suites (`packages/tests`) -> `content/docs/(open-source)/testing.mdx`
 - The steps to ship a feature on every surface (`scripts/public-parity.ts`), data, index, backfill, deploy or UI rules -> `content/docs/(open-source)/adding-a-feature.mdx`
 - Locales, catalog rules, the glossary, or the i18n lint (`packages/i18n`) -> `content/docs/(open-source)/translating.mdx`
-- Worker bindings, vars and secrets (`apps/core-worker/wrangler.jsonc`, `apps/email-worker/wrangler.jsonc`) or backend env vars (`packages/convex/convex.config.ts`) -> `content/docs/(open-source)/self-hosting.mdx`
+- Worker bindings, vars and secrets (`apps/core-worker/wrangler.jsonc`) or backend env vars (`packages/convex/convex.config.ts`) -> `content/docs/(open-source)/self-hosting.mdx`
 
 Write these pages for contributors and self-hosters. Put notes only agents need inside `<Visibility for="agents">`, which keeps them out of the website but in the `.md` mirrors and `llms.txt`. Teak's own deployments, credentials and runbooks stay in `.agents`.
 

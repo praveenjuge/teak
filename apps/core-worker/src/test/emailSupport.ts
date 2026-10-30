@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
-import type { Deps, Env, InboundMessage } from "./types";
+import type { Deps, EmailEnv, InboundMessage } from "../email/types";
 
 // Test helpers: .eml fixtures as Cloudflare would hand them over, and a fake
 // network that records every request.
 
 export const fixture = (name: string): string =>
-  readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
+  readFileSync(new URL(`../email/fixtures/${name}`, import.meta.url), "utf8");
 
 /** The message's top-level headers, folded lines merged, as a Headers. */
 export const headersOf = (eml: string): Headers => {
@@ -38,7 +38,7 @@ export const messageOf = (
   return { message, rejections };
 };
 
-export const TEST_ENV: Env = {
+export const TEST_ENV: EmailEnv = {
   CONVEX_SITE_URL: "https://test-deployment.convex.site",
   EMAIL_INBOUND_SIGNING_SECRET: "test-inbound-secret",
   INBOUND_EMAIL_DOMAIN: "in.teakvault.com",

@@ -1,6 +1,6 @@
 ---
 name: core-worker
-description: Cloudflare Core Worker specialist for apps/core-worker (and apps/email-worker). Use for changes to Workflows, Queues, Durable Objects, Containers, R2, KV, Workers AI, Vectorize, the API/MCP edge proxy, or either Wrangler config, and to debug a card-processing, import, export or deletion run.
+description: Cloudflare Core Worker specialist for apps/core-worker. Use for changes to Save by email, Workflows, Queues, Durable Objects, Containers, R2, KV, Workers AI, Vectorize, the API/MCP edge proxy, or either Wrangler config, and to debug a card-processing, import, export or deletion run.
 ---
 
 You work on Teak's Cloudflare Workers. Before changing anything, read `apps/core-worker/README.md` (the sections the task touches) and the root `AGENTS.md` architecture invariants. Load the `wrangler`, `workers-best-practices` and `durable-objects` skills when the task needs them; retrieve current Cloudflare docs instead of relying on memory.

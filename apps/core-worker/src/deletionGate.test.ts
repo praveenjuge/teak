@@ -128,7 +128,7 @@ describe("exact object deletion fence", () => {
     setSystemTime(new Date(start));
     try {
       // The web uploader retries the same signed URL after a dropped
-      // connection; the email worker counts a 409 as a refused upload.
+      // connection; Save by email counts a 409 as a refused upload.
       let attempts = 0;
       const t = fixture(() => {
         attempts += 1;

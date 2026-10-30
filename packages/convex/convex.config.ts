@@ -24,7 +24,7 @@ const app = defineApp({
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
     WORKFLOW_RPC_SECRET: v.optional(v.string()),
-    // Save by email (inbound/): the Email Worker signs what it posts with this.
+    // Save by email (inbound/): the Core Worker signs what it posts with this.
     EMAIL_INBOUND_SIGNING_SECRET: v.optional(v.string()),
     // The domain of the shared save@ address; in.teakvault.com when unset.
     INBOUND_EMAIL_DOMAIN: v.optional(v.string()),

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import PostalMime, { type Attachment } from "postal-mime";
+import { fixture } from "../test/emailSupport";
 import {
   DECORATION_MAX_BYTES,
   MAX_ATTACHMENTS,
   selectAttachments,
 } from "./attachments";
-import { fixture } from "./testSupport";
 
 const part = (fields: Partial<Attachment>): Attachment => ({
   content: new Uint8Array([1, 2, 3]).buffer,

@@ -595,7 +595,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
   // One per email delivered, so a redelivery never saves twice. Attachments
-  // are uploaded by the Email Worker and finalized one by one.
+  // are uploaded by the Core Worker and finalized one by one.
   inboundEmailReceipts: defineTable({
     userId: v.string(),
     messageKey: v.string(),

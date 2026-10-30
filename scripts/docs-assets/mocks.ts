@@ -442,7 +442,7 @@ const connector = (label: string) =>
 const architecture = () => `
   <div class="diagram">
     <h2>How Teak fits together</h2>
-    <p>Every app talks to one Convex backend; two Cloudflare Workers handle files, background work and email.</p>
+    <p>Every app talks to one Convex backend; one Cloudflare Worker handles files, background work and email.</p>
     <div class="body">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       ${[
@@ -466,12 +466,12 @@ const architecture = () => `
         <div class="ic">${icon("database", 24)}</div>
         <div><strong>Convex</strong><span>Schema, queries, mutations and actions, the REST API and MCP server, the workflow dispatch outbox and keyword search</span></div>
       </div>
-      ${node("mail", "Email Worker", "Save by email: signed requests to Convex")}
+      ${node("mail", "Email Routing", "Save by email: mail to save@ reaches the Core Worker")}
     </div>
     ${connector("Workflow dispatch · signed workflow gateway")}
     <div class="node" style="padding:22px 26px;border-color:oklch(0.75 0.12 60 / 0.6);background:oklch(0.8 0.12 70 / 0.06)">
       <div class="ic" style="background:oklch(0.8 0.12 70 / 0.18)">${icon("cloud", 24)}</div>
-      <div style="flex:1"><strong>Core Worker</strong><span>Card-processing Workflows, uploads, imports, exports and the API edge proxy</span>
+      <div style="flex:1"><strong>Core Worker</strong><span>Card-processing Workflows, uploads, imports, exports, save by email and the API edge proxy</span>
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">${[
           "R2 files",
           "Workers AI",
@@ -541,7 +541,7 @@ const selfHosting = () => `
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px">
       ${node("credit", "Polar", "Billing and the Pro plan<br><i class='tag'>Optional</i>")}
-      ${node("mail", "Email Worker", "Save by email through Cloudflare Email Routing<br><i class='tag'>Optional</i>")}
+      ${node("mail", "Email Routing", "Save by email, handled by the Core Worker<br><i class='tag'>Optional</i>")}
     </div>
     </div>
   </div>`;

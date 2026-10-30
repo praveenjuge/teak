@@ -62,7 +62,7 @@ Files never pass through Convex. They live in a private R2 bucket, and Convex ha
 
 About 30 seconds after a card changes, Teak turns its text, summary and tags into an embedding and stores it in Vectorize, in a namespace that belongs only to you. That's what lets `cozy reading nook` find a photo of an armchair. Edits within those 30 seconds push the deadline back, so a burst of changes costs one embedding. I wrote about how this part was built in [Inside a release: search by meaning](/blog/search-by-meaning).
 
-![Teak's apps talk to one Convex backend; the Core Worker processes cards and serves files from R2, and the Email Worker handles save by email](../docs/images/architecture.webp)
+![Teak's apps talk to one Convex backend; the Core Worker processes cards, serves files from R2 and handles save by email](../docs/images/architecture.webp)
 
 ## How it got here
 
