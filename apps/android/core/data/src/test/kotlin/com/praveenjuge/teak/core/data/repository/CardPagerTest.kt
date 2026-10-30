@@ -56,6 +56,7 @@ class CardPagerTest {
         override suspend fun keepOffline(card: Card) = error("unused")
         override suspend fun removeOfflineCopy(id: String) = error("unused")
         override fun offlineFile(id: String): java.io.File? = error("unused")
+        override val offlineChanges: Flow<Long> get() = error("unused")
         override suspend fun setArchived(id: String, archived: Boolean) = error("unused")
         override suspend fun setDone(id: String, done: Boolean) = error("unused")
         override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult = error("unused")

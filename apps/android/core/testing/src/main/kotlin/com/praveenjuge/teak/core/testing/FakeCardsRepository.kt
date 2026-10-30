@@ -149,6 +149,8 @@ class FakeCardsRepository : CardsRepository {
 
     override fun offlineFile(id: String): File? = null
 
+    override val offlineChanges: Flow<Long> = MutableStateFlow(0L)
+
     override fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>> {
         linkTargetRequests += ids
         return flowOf(Result.success(linkTargets.filter { it.id in ids }))

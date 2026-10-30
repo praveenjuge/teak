@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -172,9 +173,10 @@ class CardDetailViewModel @AssistedInject constructor(
             .onEach { result -> result.onSuccess { list -> _uiState.update { it.copy(folders = list) } } }
             .launchIn(viewModelScope)
         account.isOffline.onEach { offline -> _uiState.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
-        repository.keptOffline.map { cardId in it }.distinctUntilChanged()
+        // A kept file can be replaced or dropped while the card is open, so follow every change, not just keeping.
+        combine(repository.keptOffline.map { cardId in it }, repository.offlineChanges) { kept, _ -> kept }
             .onEach { kept ->
-                val file = if (kept) repository.offlineFile(cardId)?.let { files.contentUri(it).toString() } else null
+                val file = if (kept) repository.offlineFile(cardId)?.let(::versionedUri) else null
                 _uiState.update { it.copy(isKeptOffline = kept, offlineFile = file) }
             }
             .launchIn(viewModelScope)
@@ -434,6 +436,13 @@ class CardDetailViewModel @AssistedInject constructor(
             _events.send(CardDetailEvent.Message(UiText.of("android.card.savedToDownloads")))
         }
     }
+
+    /**
+     * The kept file's content link, marked with when it was written: a replaced file keeps its path, and the mark makes
+     * the preview load the new one. The FileProvider ignores the query.
+     */
+    private fun versionedUri(file: java.io.File): String =
+        files.contentUri(file).buildUpon().appendQueryParameter("v", file.lastModified().toString()).build().toString()
 
     /** Opens a kept document's file in another app, for reading it offline. */
     fun openKeptDocument() {

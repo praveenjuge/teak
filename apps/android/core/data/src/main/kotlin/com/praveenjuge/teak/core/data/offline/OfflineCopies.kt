@@ -34,6 +34,9 @@ interface OfflineCopies {
     /** Ids of the cards kept offline. */
     val kept: StateFlow<Set<String>>
 
+    /** Goes up whenever a kept card or its file changes, for screens showing [file]. */
+    val changes: StateFlow<Long>
+
     /** Saves [card] and downloads its file (an image's shown rendition). Throws when it can't be downloaded, keeping nothing. */
     suspend fun keep(card: Card)
 
@@ -59,7 +62,7 @@ class DiskOfflineCopies @Inject constructor(
     @ApplicationContext context: Context,
     private val client: OkHttpClient,
     sessions: SessionManager,
-    @ApplicationScope scope: CoroutineScope,
+    @ApplicationScope private val scope: CoroutineScope,
 ) : OfflineCopies {
     // Under files/, which backup_rules.xml and data_extraction_rules.xml keep off backups, so a PDF here can still
     // be shared through the FileProvider.
@@ -74,11 +77,17 @@ class DiskOfflineCopies @Inject constructor(
     private val _kept = MutableStateFlow<Set<String>>(emptySet())
     override val kept: StateFlow<Set<String>> = _kept.asStateFlow()
 
+    private val _changes = MutableStateFlow(0L)
+    override val changes: StateFlow<Long> = _changes.asStateFlow()
+
     init {
+        val startedAt = System.currentTimeMillis()
         scope.launch(Dispatchers.IO) {
             mutex.withLock {
-                // A staging folder left by a download the process died in is never a kept card.
-                root.listFiles().orEmpty().filter { it.name.startsWith(STAGING_PREFIX) }.forEach { it.deleteRecursively() }
+                // A staging folder an earlier run died with is never a kept card; one this run made is a download.
+                root.listFiles().orEmpty()
+                    .filter { it.name.startsWith(STAGING_PREFIX) && it.lastModified() < startedAt }
+                    .forEach { it.deleteRecursively() }
                 _kept.value += root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }
             }
         }
@@ -126,6 +135,7 @@ class DiskOfflineCopies @Inject constructor(
                 directory.deleteRecursively()
                 if (!staging.renameTo(directory)) throw IOException("Couldn't keep the card")
                 _kept.value += card.id
+                _changes.value += 1
             }
         } finally {
             staging.deleteRecursively()
@@ -136,21 +146,50 @@ class DiskOfflineCopies @Inject constructor(
         mutex.withLock {
             directory(id).deleteRecursively()
             _kept.value -= id
+            _changes.value += 1
         }
     }
 
     override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) { read(directory(id)) }
 
+    /**
+     * Saves a newer copy. When its file changed on the server, or an image gained the rendition it shows, the new one
+     * downloads in the background and replaces the kept file once it's in; until then the old file stays, so the card
+     * still opens offline.
+     */
     override suspend fun update(card: Card) {
         if (card.id !in _kept.value) return
-        withContext(Dispatchers.IO) {
+        val source = keptSource(card)
+        val changed = withContext(Dispatchers.IO) {
             mutex.withLock {
                 val directory = directory(card.id)
-                val saved = read(directory) ?: return@withLock
-                // A new file on the server makes the kept one stale: show the server's until it's kept again.
-                if (keptSource(saved)?.withoutQuery() != keptSource(card)?.withoutQuery()) File(directory, DATA_FILE).delete()
+                val saved = read(directory) ?: return@withLock false
                 writeCard(directory, card)
+                keptSource(saved)?.withoutQuery() != source?.withoutQuery()
             }
+        }
+        if (changed) scope.launch(Dispatchers.IO) { replaceFile(card.id, source) }
+    }
+
+    private suspend fun replaceFile(id: String, source: String?) {
+        val started = clears
+        val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
+        try {
+            val downloaded = source?.let { File(staging, DATA_FILE).also { file -> download(it, file) } }
+            mutex.withLock {
+                val directory = directory(id)
+                // Kept elsewhere since, cleared, or changed again: a newer download is on its way or not needed.
+                if (clears != started || id !in _kept.value || read(directory)?.let(::keptSource)?.withoutQuery() != source?.withoutQuery()) {
+                    return@withLock
+                }
+                val target = File(directory, DATA_FILE)
+                if (downloaded == null) target.delete() else if (!downloaded.renameTo(target)) return@withLock
+                _changes.value += 1
+            }
+        } catch (_: IOException) {
+            // Offline or a failed download: the old file stays until the next update brings it again.
+        } finally {
+            staging.deleteRecursively()
         }
     }
 
@@ -172,6 +211,7 @@ class DiskOfflineCopies @Inject constructor(
             root.deleteRecursively()
             _kept.value = emptySet()
             clears += 1
+            _changes.value += 1
         }
     }
 

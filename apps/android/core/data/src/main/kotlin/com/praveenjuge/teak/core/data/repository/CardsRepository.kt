@@ -102,6 +102,9 @@ interface CardsRepository {
     /** A kept card's file on the device, to open instead of downloading it. */
     fun offlineFile(id: String): File?
 
+    /** Goes up whenever a kept card or its file changes, so a screen showing [offlineFile] reads it again. */
+    val offlineChanges: Flow<Long>
+
     fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>>
     fun backlinks(id: String): Flow<Result<CardBacklinks>>
 
@@ -254,6 +257,8 @@ class ConvexCardsRepository @Inject constructor(
     override suspend fun removeOfflineCopy(id: String) = copies.remove(id)
 
     override fun offlineFile(id: String): File? = copies.file(id)
+
+    override val offlineChanges: Flow<Long> = copies.changes
 
     override fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>> =
         convex.subscribe(ConvexFunctions.getCardLinkTargets, mapOf("cardIds" to ids))

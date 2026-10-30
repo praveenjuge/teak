@@ -121,6 +121,7 @@ class FakeOutbox : Outbox {
 class FakeOfflineCopies : OfflineCopies {
     val cards = mutableMapOf<String, Card>()
     override val kept = MutableStateFlow<Set<String>>(emptySet())
+    override val changes = MutableStateFlow(0L)
 
     override suspend fun keep(card: Card) {
         cards[card.id] = card

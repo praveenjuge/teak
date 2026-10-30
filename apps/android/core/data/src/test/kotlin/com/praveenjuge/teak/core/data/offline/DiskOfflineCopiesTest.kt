@@ -62,19 +62,45 @@ class DiskOfflineCopiesTest {
     )
 
     @Test
-    fun `a kept file stays across new signatures and goes when the server's file changes`() = runTest {
-        server.enqueue(MockResponse().setBody("%PDF-1.7"))
+    fun `a kept file stays across new signatures and is replaced once the server's new file downloads`() = runTest {
+        server.enqueue(MockResponse().setBody("%PDF-1.7 old"))
+        server.enqueue(MockResponse().setBody("%PDF-1.7 new"))
         java.io.File(context.filesDir, "offline").deleteRecursively()
         val copies = copies()
         copies.keep(pdf("/files/a.pdf", signature = "one"))
 
         copies.update(pdf("/files/a.pdf", signature = "two").copy(metadataTitle = "Renamed"))
-        assertNotNull(copies.file("c1"))
+        assertEquals("%PDF-1.7 old", copies.file("c1")?.readText())
         assertEquals("Renamed", copies.card("c1")?.metadataTitle)
 
+        val before = copies.changes.value
         copies.update(pdf("/files/b.pdf", signature = "three"))
-        assertNull(copies.file("c1"))
-        assertNotNull(copies.card("c1"))
+        eventually { copies.file("c1")?.readText() == "%PDF-1.7 new" }
+        kotlin.test.assertTrue(copies.changes.value > before)
+    }
+
+    @Test
+    fun `an image kept before its rendition existed swaps in the rendition when it arrives`() = runTest {
+        server.enqueue(MockResponse().setBody("original"))
+        server.enqueue(MockResponse().setBody("rendition"))
+        java.io.File(context.filesDir, "offline").deleteRecursively()
+        val copies = copies()
+        val photo = Card(id = "c3", creationTime = 0.0, type = CardType.Image, fileUrl = server.url("/files/photo.jpg").toString())
+        copies.keep(photo)
+
+        copies.update(photo.copy(detailUrl = server.url("/img/detail/photo.webp").toString()))
+
+        eventually { copies.file("c3")?.readText() == "rendition" }
+    }
+
+    /** Waits for the background download a changed file starts. */
+    private suspend fun TestScope.eventually(condition: () -> Boolean) {
+        repeat(100) {
+            testScheduler.advanceUntilIdle()
+            if (condition()) return
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(20) }
+        }
+        kotlin.test.fail("The kept file wasn't replaced")
     }
 
     @Test
