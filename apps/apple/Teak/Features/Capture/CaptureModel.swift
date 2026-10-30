@@ -37,6 +37,8 @@ final class CaptureModel {
 
     @discardableResult
     func saveText(_ raw: String) async -> String? {
+        // A second Return or ⌘Return can queue before the first save sets the flag; it saves nothing.
+        guard !isSavingText else { return nil }
         let result = await createText(raw)
         if case let .failure(failure) = result { alert = failure }
         return try? result.get()

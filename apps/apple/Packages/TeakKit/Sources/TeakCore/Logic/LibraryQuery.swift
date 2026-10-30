@@ -226,9 +226,10 @@ public enum SearchTokens {
             if keptAt == nil { keptAt = tokens.count }
             kept.append(source)
         }
+        let raws = SearchQualifiers.tokenize(trimmed)
         var run: [SearchQualifiers.RawToken] = []
         func flush() {
-            for word in words(run, now: now, timeZone: timeZone) {
+            for word in words(run, alone: raws.count == 1, now: now, timeZone: timeZone) {
                 switch word {
                 case let .token(token): tokens.append(token)
                 case let .kept(source): keep(source)
@@ -236,7 +237,7 @@ public enum SearchTokens {
             }
             run = []
         }
-        for raw in SearchQualifiers.tokenize(trimmed) {
+        for raw in raws {
             if raw.quoted {
                 flush()
                 keep(raw.source)
@@ -269,7 +270,8 @@ public enum SearchTokens {
 
     private static let liftedKinds: Set<SearchToken.Kind> = [.date, .type, .style, .hue, .hex, .favorites, .trash]
 
-    private static func words(_ input: [SearchQualifiers.RawToken], now: Date, timeZone: TimeZone) -> [Word] {
+    /// `alone`: the run is the whole search, not words beside qualifiers or quotes.
+    private static func words(_ input: [SearchQualifiers.RawToken], alone: Bool, now: Date, timeZone: TimeZone) -> [Word] {
         let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
         let words = input.map { $0.text.trimmingCharacters(in: punctuation) }
         var result: [Word] = []
@@ -290,7 +292,7 @@ public enum SearchTokens {
                 let token = classify(words[index], now: now, timeZone: timeZone)
                 // A month name beside other words ("things i may need") is a word, not a date.
                 let lifts = liftedKinds.contains(token.kind)
-                    && !(token.kind == .date && words.count > 1 && TimeSearch.isMonthName(words[index]))
+                    && !(token.kind == .date && !(alone && words.count == 1) && TimeSearch.isMonthName(words[index]))
                 result.append(lifts ? .token(token) : .kept(input[index].source))
                 index += 1
             }

@@ -116,7 +116,8 @@ final class AppModel {
     #endif
 
     func becameActive() {
-        if keychainUnavailable { restoreSession() }
+        // `restoreSession` also connects Convex once the session reads.
+        if keychainUnavailable || keychainFailed { restoreSession() }
         Task { await session.reloadIfChanged() }
         if isConvexAuthenticated { refreshSpotlight() }
     }

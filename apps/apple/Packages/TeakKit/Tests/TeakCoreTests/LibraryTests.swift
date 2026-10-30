@@ -177,6 +177,8 @@ private func day(_ milliseconds: Double) -> String {
         #expect(may["createdAtRange"] == nil)
         #expect(may["searchQuery"] == "things i may need")
         #expect(SearchTokens.parse("things i may need", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
+        #expect(SearchTokens.parse("may type:link", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword, .type])
+        #expect(SearchTokens.parse("march", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.date])
         #expect(SearchTokens.parse("top 100 bad sites", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
             == "-figma last week")

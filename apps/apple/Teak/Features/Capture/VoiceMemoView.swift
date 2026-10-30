@@ -90,6 +90,8 @@ struct VoiceMemoView: View {
     @State private var recording: UploadItem?
     @State private var uploadFailure: CaptureModel.Alert?
     @State private var confirmDiscard = false
+    /// The system stopped the recording while the discard dialog was up: upload it only if it's kept.
+    @State private var stoppedWhileConfirming = false
 
     var body: some View {
         NavigationStack {
@@ -130,7 +132,9 @@ struct VoiceMemoView: View {
                     .disabled(isSaving)
                     .confirmationDialog(tr("native.capture.discardTitle"), isPresented: $confirmDiscard) {
                         Button(tr("native.capture.discard"), role: .destructive) { discard() }
-                        Button(tr("common.cancel"), role: .cancel) {}
+                        Button(tr("common.cancel"), role: .cancel) {
+                            if stoppedWhileConfirming { upload() }
+                        }
                     } message: {
                         if recorder.isRecording { Text(tr("native.capture.discardMessage")) }
                     }
@@ -151,7 +155,13 @@ struct VoiceMemoView: View {
             .sensoryFeedback(.start, trigger: recorder.isRecording)
             // Keep and save what was recorded before the system stopped it.
             .onChange(of: recorder.stoppedOnItsOwn) { _, stopped in
-                if stopped { stop() }
+                guard stopped else { return }
+                if confirmDiscard {
+                    recording = recorder.stop()
+                    stoppedWhileConfirming = true
+                } else {
+                    stop()
+                }
             }
         }
         .frame(minWidth: 360, minHeight: 420)
@@ -201,6 +211,7 @@ struct VoiceMemoView: View {
     }
 
     private func upload() {
+        stoppedWhileConfirming = false
         guard let item = recording else { return }
         isSaving = true
         Task {
