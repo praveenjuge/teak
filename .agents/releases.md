@@ -62,3 +62,33 @@ To retry, dispatch `SDK Release` on the existing immutable version tag.
 An already published version passes only when its bytes match. A conflict,
 registry outage, or failed verification requires investigation; never move
 the tag or overwrite a published version.
+
+## MCP Registry and Claude directory
+
+`server.json` describes Teak's remote MCP server for the official MCP Registry
+(`registry.modelcontextprotocol.io`) under the name `com.teakvault/mcp`, which
+the registry checks against a DNS record on `teakvault.com`. The Claude plugin
+in `plugins/teak` and its connector listing are covered by
+`.agents/claude-directory.md`; the directory picks up a new plugin version
+from `main` on its own.
+
+One-time setup, with Praveen's approval because it adds a DNS record:
+
+1. Generate an Ed25519 key with OpenSSL 3 and keep `key.pem` in the password
+   manager, never in the repository.
+2. Add the TXT record the registry docs give
+   (`v=MCPv1; k=ed25519; p=<public key>`) on the apex `teakvault.com`.
+
+To publish a release (after the version tag exists, from the repository root,
+with `mcp-publisher` from the registry's releases):
+
+```bash
+PRIVATE_KEY="$(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+mcp-publisher login dns --domain teakvault.com --private-key "$PRIVATE_KEY"
+mcp-publisher publish
+```
+
+Then confirm the version is listed:
+`curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=com.teakvault/mcp"`.
+The registry refuses a version it already has, so a retry after a successful
+publish needs the next release.

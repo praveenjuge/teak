@@ -18,6 +18,20 @@ questions:
       - Complete browser sign-in when prompted
     routes: /docs/mcp
 
+  - id: connect-claude-app
+    question: How do I add Teak to Claude on the web, Desktop or my phone?
+    expected:
+      - Open Settings → Connectors in Claude and connect Teak, or add a custom connector with https://teakvault.com/mcp
+      - Sign in to Teak when asked
+    routes: /docs/mcp
+
+  - id: claude-code-plugin
+    question: Is there a Teak plugin for Claude Code, and what does it add?
+    expected:
+      - /plugin marketplace add praveenjuge/teak, then /plugin install teak@teak
+      - It connects Teak's MCP server and adds /teak:save, /teak:search and /teak:recent
+    routes: /docs/mcp
+
   - id: reconnect-after-sign-in-change
     question: My MCP client stopped working with Teak after October 7, 2026. How do I fix it?
     expected:

@@ -26,7 +26,21 @@ authentication.
 Pick your client. Each tab has its own link, so you can share the setup for one client.
 
 <Tabs param="client">
+  <Tab title="Claude" icon="message-circle">
+    In Claude on the web, Desktop or mobile, open **Settings → Connectors**, find **Teak** in the directory and select **Connect**, then sign in to Teak when your browser opens. Until Teak's listing appears for you, choose **Add custom connector** instead and enter `{{mcp-url}}` as the URL.
+
+    Searches, lists, single cards and saves then show as Teak cards right in the conversation (see [Card views](#card-views)).
+  </Tab>
   <Tab title="Claude Code" icon="terminal">
+    Install Teak's plugin, which connects the MCP server and adds a Teak skill and the `/teak:save`, `/teak:search` and `/teak:recent` commands:
+
+    ```text
+    /plugin marketplace add praveenjuge/teak
+    /plugin install teak@teak
+    ```
+
+    Or add only the MCP server:
+
     ```bash
     claude mcp add --transport http teak {{mcp-url}}
     ```
@@ -111,6 +125,18 @@ Teak's MCP server supports two authentication methods.
 ## Transport
 
 MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in stateless JSON mode. JSON-RPC batches are limited to 100 messages, and each message is answered on its own: one tool call that fails or hits a card's own limit doesn't change the others' answers. A message without an `id` is a notification and gets no answer, whatever its method.
+
+## Card views
+
+Clients that show [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview), such as Claude and ChatGPT, show Teak's results as cards instead of raw JSON:
+
+- `teak_v1_search_cards`, `teak_v1_list_cards` and `teak_v1_list_favorite_cards` show a grid of cards with their images, palettes and titles.
+- `teak_v1_get_card` shows one card with its summary, notes and tags.
+- `teak_v1_create_card` shows the card you saved, or says the link was already in Teak.
+
+Every card has **Open in Teak**, and links have **Visit source**. The view follows the client's light or dark theme and its language, in any of Teak's eight languages. It loads card images from Teak's file storage and makes no other requests.
+
+The view is the resource `ui://teak/cards.html` (`resources/list` and `resources/read`), and each of those tools names it in its `_meta.ui.resourceUri`. Clients without MCP Apps ignore both and read the same structured results as before.
 
 ## Available Tools
 

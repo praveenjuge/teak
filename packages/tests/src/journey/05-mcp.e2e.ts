@@ -199,6 +199,50 @@ test("MCP lists and calls every public tool", async () => {
   await client.close();
 });
 
+test("MCP offers the card view that MCP Apps clients render", async () => {
+  const client = await connectMcp(apiKey);
+  try {
+    expect(client.getServerCapabilities()?.resources).toBeDefined();
+    expect(client.getServerVersion()).toMatchObject({
+      name: "teak",
+      title: "Teak",
+    });
+    const { resources } = await client.listResources();
+    expect(resources).toEqual([
+      expect.objectContaining({
+        mimeType: "text/html;profile=mcp-app",
+        uri: "ui://teak/cards.html",
+      }),
+    ]);
+    const read = await client.readResource({ uri: "ui://teak/cards.html" });
+    const [content] = read.contents as unknown as Array<{
+      _meta: { ui: { csp: { resourceDomains: string[] }; domain: string } };
+      text: string;
+    }>;
+    expect(content?.text).toContain("<!doctype html>");
+    expect(content?._meta.ui.domain).toMatch(
+      /^[0-9a-f]{32}\.claudemcpcontent\.com$/u
+    );
+    expect(content?._meta.ui.csp.resourceDomains).toHaveLength(1);
+
+    const { tools } = await client.listTools();
+    expect(
+      tools
+        .filter((tool) => tool._meta?.ui)
+        .map((tool) => tool.name)
+        .sort()
+    ).toEqual([
+      "teak_v1_create_card",
+      "teak_v1_get_card",
+      "teak_v1_list_cards",
+      "teak_v1_list_favorite_cards",
+      "teak_v1_search_cards",
+    ]);
+  } finally {
+    await client.close();
+  }
+});
+
 test("MCP returns a card's links and the cards that link to it", async () => {
   const client = await connectMcp(apiKey);
   const stamp = Date.now();

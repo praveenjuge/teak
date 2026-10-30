@@ -19,6 +19,7 @@ Teak's own deployments, credentials, runbooks and records.
 | `semantic-search.md` | touch embeddings, Vectorize, or search by meaning |
 | `pull-requests.md` | open a PR or post on GitHub |
 | `releases.md` | prepare any release |
+| `claude-directory.md` | submit or update Teak's listing in Claude's directory (connector and plugin) |
 | `convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
 | `self-driving.md` | run the daily production check (it holds that routine's log) |
 | `migrations/workos/README.md` | touch the retained Better Auth data or Connect disconnects |

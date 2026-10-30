@@ -154,3 +154,19 @@ describe("text previews", () => {
     expect(html.match(/Launch checklist/gu)).toHaveLength(1);
   });
 });
+
+describe("cards without a title", () => {
+  test("show their type, not a placeholder title", async () => {
+    const { html } = await render(
+      viewFromToolResult({
+        result: {
+          structuredContent: {
+            items: [{ ...paletteCard, metadataTitle: null }],
+          },
+        },
+      })
+    );
+    expect(html).not.toContain('class="title"');
+    expect(html).toContain("Palette");
+  });
+});

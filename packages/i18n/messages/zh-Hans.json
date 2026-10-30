@@ -1789,7 +1789,6 @@
     "notes": "笔记",
     "favorite": "收藏",
     "loading": "正在加载卡片…",
-    "error": "Teak 无法显示这些卡片。",
-    "untitled": "无标题"
+    "error": "Teak 无法显示这些卡片。"
   }
 }

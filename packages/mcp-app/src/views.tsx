@@ -129,9 +129,9 @@ const CardTile = ({
       <CardImage card={card} className="tile-image" />
       {card.imageUrl ? null : <Preview card={card} />}
       <div className="tile-text">
-        {isTextCard(card) && excerpt(card) ? null : (
-          <p className="title">{card.title ?? t("untitled")}</p>
-        )}
+        {card.title && !(isTextCard(card) && excerpt(card)) ? (
+          <p className="title">{card.title}</p>
+        ) : null}
         <div className="row">
           <Meta card={card} messages={messages} />
           <FavoriteMark card={card} t={t} />
@@ -247,7 +247,7 @@ export const CardDetail = ({
           <Meta card={card} messages={props.messages} />
           <FavoriteMark card={card} t={props.t} />
         </div>
-        {isQuote && text ? null : <h1>{card.title ?? props.t("untitled")}</h1>}
+        {card.title && !(isQuote && text) ? <h1>{card.title}</h1> : null}
         {text ? (
           <p className={isQuote ? "excerpt quote" : "excerpt"}>{text}</p>
         ) : null}
@@ -277,10 +277,12 @@ export const SavedCard = ({
   ...props
 }: ViewProps & { card: TeakCard; resaved: boolean }) => (
   <article className="saved">
-    <div className="saved-thumb">
-      <CardImage card={card} className="thumb-image" />
-      {card.imageUrl ? null : <Swatches card={card} />}
-    </div>
+    {card.imageUrl || card.colors.length > 0 ? (
+      <div className="saved-thumb">
+        <CardImage card={card} className="thumb-image" />
+        {card.imageUrl ? null : <Swatches card={card} />}
+      </div>
+    ) : null}
     <div className="saved-body">
       <p className="status">
         <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -288,7 +290,7 @@ export const SavedCard = ({
         </svg>
         {resaved ? props.t("resavedTitle") : props.t("savedTitle")}
       </p>
-      <p className="title">{card.title ?? props.t("untitled")}</p>
+      {card.title ? <p className="title">{card.title}</p> : null}
       <Meta card={card} messages={props.messages} />
       <Actions card={card} onOpen={props.onOpen} t={props.t} />
     </div>

@@ -32,7 +32,10 @@ Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudfl
 | `packages/files-protocol` | The contract between Convex and the Core Worker: operation shapes, signing and limits |
 | `packages/sdk` | `teak-sdk`, the public TypeScript client ([SDK](/docs/sdk)). The CLI, extension, docs and end-to-end tests use it from source |
 | `packages/i18n` | The message catalogs for the web app and extension ([Translating](/docs/translating)) |
+| `packages/mcp-app` | The card view MCP clients such as Claude show for Teak's tools ([Card views](/docs/mcp#card-views)). `bun run build` writes it into `packages/convex/mcp/appHtml.generated.ts`, which the MCP server serves; a test fails when the two differ |
 | `packages/tests` | The end-to-end suite ([Testing](/docs/testing#end-to-end-suite)) |
+
+`plugins/teak` is Teak's Claude plugin: the MCP server, a skill and slash commands. The root `.claude-plugin/marketplace.json` lists it, so Claude Code can install it from this repository.
 
 ## How a saved card moves
 

@@ -1789,7 +1789,6 @@
     "notes": "Notes",
     "favorite": "Favorite",
     "loading": "Loading cards…",
-    "error": "Teak couldn't show these cards.",
-    "untitled": "Untitled"
+    "error": "Teak couldn't show these cards."
   }
 }

@@ -1789,7 +1789,6 @@
     "notes": "Notes",
     "favorite": "Favori",
     "loading": "Chargement des fiches…",
-    "error": "Teak n’a pas pu afficher ces fiches.",
-    "untitled": "Sans titre"
+    "error": "Teak n’a pas pu afficher ces fiches."
   }
 }

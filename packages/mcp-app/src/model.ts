@@ -90,13 +90,22 @@ const hostOf = (url: string | null): string | null => {
   }
 };
 
+/** A link's address without its scheme, `www.` or a trailing slash. */
+const shortUrl = (url: string | null): string | null =>
+  url
+    ? url
+        .replace(/^https?:\/\/(?:www\.)?/u, "")
+        .replace(/\/$/u, "")
+        .slice(0, 140) || null
+    : null;
+
 /** The title a card shows, the way the web app picks it, or null. */
 const cardTitle = (card: JsonObject, type: CardType): string | null => {
   if (type === "link") {
     return (
       text(card.linkPreviewTitle) ??
       text(card.metadataTitle) ??
-      hostOf(httpUrl(card.url))
+      shortUrl(httpUrl(card.url))
     );
   }
   if (type === "image" || type === "video" || type === "audio") {
@@ -111,12 +120,20 @@ const cardTitle = (card: JsonObject, type: CardType): string | null => {
   return firstLine(typeof card.content === "string" ? card.content : "");
 };
 
-/** The first image Teak stored for a card; all of them are signed file URLs. */
+/**
+ * The image a card shows, picked like the web app: a link's preview image
+ * (or the image chosen for it) before its page screenshot, a file's thumbnail
+ * before the file. All of them are signed URLs on Teak's files origin.
+ */
 const cardImage = (card: JsonObject, type: CardType): string | null =>
-  httpUrl(card.thumbnailUrl) ??
-  httpUrl(card.screenshotUrl) ??
-  httpUrl(card.linkPreviewImageUrl) ??
-  (type === "image" ? httpUrl(card.fileUrl) : null);
+  type === "link"
+    ? (httpUrl(card.linkPreviewImageUrl) ??
+      httpUrl(card.thumbnailUrl) ??
+      httpUrl(card.screenshotUrl))
+    : (httpUrl(card.thumbnailUrl) ??
+      (type === "image" ? httpUrl(card.fileUrl) : null) ??
+      httpUrl(card.linkPreviewImageUrl) ??
+      httpUrl(card.screenshotUrl));
 
 const strings = (value: unknown): string[] =>
   Array.isArray(value)

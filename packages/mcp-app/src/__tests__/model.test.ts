@@ -112,3 +112,38 @@ describe("viewFromToolResult", () => {
     expect(viewFromToolResult({ result: {} })).toEqual({ kind: "error" });
   });
 });
+
+describe("card images and titles", () => {
+  test("a link shows its preview image before its page screenshot", () => {
+    expect(
+      toTeakCard({
+        ...linkCard,
+        linkPreviewImageUrl: "https://files.teakvault.com/preview.webp",
+        screenshotUrl: "https://files.teakvault.com/screenshot.webp",
+      })?.imageUrl
+    ).toBe("https://files.teakvault.com/preview.webp");
+    expect(
+      toTeakCard({
+        ...linkCard,
+        linkPreviewImageUrl: null,
+        screenshotUrl: "https://files.teakvault.com/screenshot.webp",
+      })?.imageUrl
+    ).toBe("https://files.teakvault.com/screenshot.webp");
+  });
+
+  test("a link not read yet is titled by its address", () => {
+    expect(
+      toTeakCard({
+        id: "k2",
+        type: "link",
+        url: "https://www.example.com/articles/fonts/",
+      })?.title
+    ).toBe("example.com/articles/fonts");
+  });
+
+  test("a palette without a name has no title", () => {
+    expect(
+      toTeakCard({ ...paletteCard, metadataTitle: null })?.title
+    ).toBeNull();
+  });
+});
