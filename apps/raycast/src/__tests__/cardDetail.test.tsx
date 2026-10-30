@@ -64,7 +64,7 @@ beforeEach(() => {
   }) as typeof fetch;
 });
 afterEach(async () => {
-  await act(() => {
+  act(() => {
     root.unmount();
   });
   container.remove();
@@ -82,7 +82,7 @@ const press = async (title: string) => {
 
 test("a favorite still waiting is sent before the card moves to Trash", async () => {
   const events: string[] = [];
-  await act(() => {
+  act(() => {
     root.render(
       createElement(CardDetail, {
         card,

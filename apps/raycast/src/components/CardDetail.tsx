@@ -114,7 +114,7 @@ export function CardDetail({
     Pick<RaycastCard, "backlinks" | "links">
   >({ backlinks: card.backlinks, links: card.links });
   const cardStateRef = useRef(card);
-  const isOpenRef = useRef(true);
+  const isOpenRef = useRef<boolean>(true);
   const favoriteMutationRef = useRef<FavoriteMutationState>({
     desired: card.isFavorited,
     inFlight: null,

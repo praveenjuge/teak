@@ -54,7 +54,7 @@ const renameButton = () =>
     (button) => button.textContent?.trim() === "Rename Tag",
   );
 const render = async () => {
-  await act(() => {
+  act(() => {
     root.render(
       createElement(RenameTagForm, {
         onFinished: () => undefined,
@@ -71,7 +71,7 @@ beforeEach(() => {
   navigation.pops = 0;
 });
 afterEach(async () => {
-  await act(() => {
+  act(() => {
     root.unmount();
   });
   container.remove();
@@ -95,7 +95,7 @@ test("a second submit while the rename starts sends nothing more", async () => {
   setFormValues({ name: "Research" });
   await render();
   // Both presses land before the first request answers.
-  await act(() => {
+  act(() => {
     renameButton()?.click();
     renameButton()?.click();
     return Promise.resolve();
@@ -128,10 +128,10 @@ test("leaving the form before Teak answers closes nothing else", async () => {
   await render();
   await act(async () => renameButton()?.click());
   // Esc: the form closes while the rename is still starting.
-  await act(() => {
+  act(() => {
     root.render(null);
   });
-  await act(() => {
+  act(() => {
     answer(
       Response.json({
         changed: 3,
