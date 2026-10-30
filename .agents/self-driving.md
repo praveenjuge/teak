@@ -109,3 +109,10 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Tip: `actions_list` for runs is huge; `actions_get list_workflow_jobs` then `get_job_logs` with `tail_lines` ~140 shows the failing test names.
 - Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed).
 - Check tomorrow: next scheduled E2E on the same tests; first card traffic.
+
+### 2026-10-30
+- Inbox empty. Backend Deploy and Unit Tests green on main at 3041a1a (runs 40873761618, 40873761480). Product health (24h): 42 `card_created` (api, raycast, web), matching `card_processing_completed`, zero failure events. Vercel production runtime errors: none. Web vitals: 2 events, nothing to judge.
+- Exceptions: 4 Android `channel closed` (same single API 30 device), one files-worker `TargetCloseError` (Puppeteer page closed during a screenshot, single event; watch for repeats).
+- **E2E failed on main again** (run 40861689320): 6 of 130 chromium tests in the same two files as 10-28 (settings-navigation, sidebar-navigation), down from 9; Apple iPhone flows failed again. Repeated, so raised as #892 (`needs-praveen`) with a recommendation to run those two specs locally; not reproducible without a Convex deploy key.
+- Sentry not queried (Teak moved to PostHog); Cloudflare not queried. No PostHog improvement shipped (time-boxed).
+- Check tomorrow: next scheduled E2E (same files?); `TargetCloseError` recurrence.
