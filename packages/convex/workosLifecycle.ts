@@ -11,56 +11,22 @@ import {
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
 const permanentEventError = (message: string) =>
   new ConvexError({ code: INVALID_WORKOS_EVENT, message });
-const retryableEventError = (message: string) => new Error(message);
 
 const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(value);
 
-const eventTime = (raw: string): number => {
-  const parts =
-    /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.exec(
-      raw
-    );
-  if (!parts || raw.length > 64) {
-    throw permanentEventError("Invalid WorkOS event timestamp");
-  }
-  const [, year, month, day, hour, minute, second, offset] = parts;
-  const calendar = new Date(`${year}-${month}-${day}T00:00:00Z`);
-  const validCalendar =
-    calendar.getUTCFullYear() === Number(year) &&
-    calendar.getUTCMonth() + 1 === Number(month) &&
-    calendar.getUTCDate() === Number(day);
-  const validClock =
-    Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59;
-  const validOffset =
-    offset.toUpperCase() === "Z" ||
-    (Number(offset.slice(1, 3)) <= 23 && Number(offset.slice(4)) <= 59);
-  const time = Date.parse(raw);
-  if (
-    !(validCalendar && validClock && validOffset && Number.isFinite(time)) ||
-    time < 0
-  ) {
-    throw permanentEventError("Invalid WorkOS event timestamp");
-  }
-  if (time > Date.now() + 300_000) {
-    throw retryableEventError("WorkOS event timestamp is in the future");
-  }
-  return time;
-};
-
+// The payload is signed by WorkOS (or read from its Events API), and the
+// AuthKit component validates the profile it stores. Teak checks only what it
+// uses: the IDs, the event time, and the address with its verification.
 export const parseWorkosEvent = (event: {
   id: string;
   createdAt: string;
   event: "user.created" | "user.updated" | "user.deleted";
   data: Record<string, unknown>;
 }) => {
-  const time = eventTime(event.createdAt);
+  const time = Date.parse(event.createdAt);
   const workosUserId = event.data.id;
-  if (
-    !(validId(event.id) && validId(workosUserId)) ||
-    Object.keys(event.data).length > 64 ||
-    JSON.stringify(event.data).length > 64 * 1024
-  ) {
+  if (!(Number.isFinite(time) && validId(event.id) && validId(workosUserId))) {
     throw permanentEventError("Invalid WorkOS event input");
   }
   const deleting = event.event === "user.deleted";
@@ -68,63 +34,22 @@ export const parseWorkosEvent = (event: {
     typeof event.data.email === "string"
       ? normalizeIdentityEmail(event.data.email)
       : "";
+  const emailVerified = event.data.emailVerified;
   if (
-    !deleting &&
-    (!email ||
-      typeof event.data.emailVerified !== "boolean" ||
-      (event.data.updatedAt !== undefined &&
-        typeof event.data.updatedAt !== "string"))
+    !(
+      deleting ||
+      (isStorableEmail(email) && typeof emailVerified === "boolean")
+    )
   ) {
     throw permanentEventError("Invalid WorkOS event user");
   }
-  const profile = {
+  return {
+    time,
+    workosUserId,
+    deleting,
     email,
-    emailVerified: event.data.emailVerified as boolean,
-    name: event.data.name ?? null,
-    firstName: event.data.firstName ?? null,
-    lastName: event.data.lastName ?? null,
-    profilePictureUrl: event.data.profilePictureUrl ?? null,
+    emailVerified: emailVerified === true,
   };
-  for (const value of [
-    profile.name,
-    profile.firstName,
-    profile.lastName,
-    profile.profilePictureUrl,
-  ]) {
-    if (!deleting && value !== null && typeof value !== "string") {
-      throw permanentEventError("Invalid WorkOS event profile");
-    }
-  }
-  if (!deleting) {
-    if (!isStorableEmail(email)) {
-      throw permanentEventError("Invalid WorkOS event email");
-    }
-    for (const name of [profile.name, profile.firstName, profile.lastName]) {
-      if (
-        typeof name === "string" &&
-        (name.length > 1024 || /\p{Cc}/u.test(name))
-      ) {
-        throw permanentEventError("Invalid WorkOS event name");
-      }
-    }
-    if (typeof profile.profilePictureUrl === "string") {
-      let url: URL | undefined;
-      try {
-        url = new URL(profile.profilePictureUrl);
-      } catch {
-        url = undefined;
-      }
-      if (
-        url?.protocol !== "https:" ||
-        url.username ||
-        url.password ||
-        profile.profilePictureUrl.length > 4096
-      ) {
-        throw permanentEventError("Invalid WorkOS event image");
-      }
-    }
-  }
-  return { time, workosUserId, deleting, email, profile };
 };
 
 const EMAIL_HOLDER_ROWS = 20;
@@ -203,7 +128,7 @@ export const applyWorkosEvent = internalMutation({
     reason: v.optional(v.string()),
   }),
   handler: async (ctx, event) => {
-    const { time, workosUserId, deleting, email, profile } =
+    const { time, workosUserId, deleting, email, emailVerified } =
       parseWorkosEvent(event);
     let result:
       | { status: "applied" | "deleted" }
@@ -216,7 +141,7 @@ export const applyWorkosEvent = internalMutation({
         {
           workosUserId,
           email,
-          emailVerified: profile.emailVerified,
+          emailVerified,
           source: "webhook",
         }
       );

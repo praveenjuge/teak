@@ -431,9 +431,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   test.each([
     { id: "" },
     { id: "evt\nattack" },
-    { createdAt: "2026-02-30T00:00:00Z" },
     { createdAt: "bad" },
-    { createdAt: "9999-01-01T00:00:00Z" },
     { data: { id: "" } },
     { data: { id: "user_provider", email: "bad", emailVerified: true } },
     { data: { id: "user_provider", email: "owner@example.com" } },
