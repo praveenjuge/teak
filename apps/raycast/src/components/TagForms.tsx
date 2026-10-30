@@ -11,7 +11,7 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { TagSummary } from "../lib/api";
 import { changeTagWithFeedback } from "../lib/tagOperations";
 
@@ -27,6 +27,14 @@ export function RenameTagForm({ onFinished, tag }: TagChangeProps) {
   const { pop } = useNavigation();
   // The form stays open while Teak starts the rename, so a second ⌘↵ waits.
   const submittingRef = useRef<boolean>(false);
+  // Leaving the form before Teak answers means `pop` would close another view.
+  const isOpenRef = useRef<boolean>(true);
+  useEffect(() => {
+    isOpenRef.current = true;
+    return () => {
+      isOpenRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (values: { name: string }) => {
     if (submittingRef.current) {
@@ -54,7 +62,11 @@ export function RenameTagForm({ onFinished, tag }: TagChangeProps) {
       await changeTagWithFeedback(
         { kind: "rename", tag: tag.name, to: name },
         onFinished,
-        pop,
+        () => {
+          if (isOpenRef.current) {
+            pop();
+          }
+        },
       );
     } finally {
       submittingRef.current = false;

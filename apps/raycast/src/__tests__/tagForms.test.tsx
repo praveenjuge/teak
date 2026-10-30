@@ -112,3 +112,33 @@ test("a rename Teak refuses keeps the form open", async () => {
   expect(starts).toHaveLength(1);
   expect(navigation.pops).toBe(0);
 });
+
+test("leaving the form before Teak answers closes nothing else", async () => {
+  starts = [];
+  let answer: (response: Response) => void = () => undefined;
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+    starts.push(init?.body ? JSON.parse(String(init.body)) : null);
+    return new Promise<Response>((resolve) => {
+      answer = resolve;
+    });
+  }) as typeof fetch;
+  setFormValues({ name: "Research" });
+  await render();
+  await act(async () => renameButton()?.click());
+  // Esc: the form closes while the rename is still starting.
+  await act(async () => root.render(null));
+  await act(async () =>
+    answer(
+      Response.json({
+        changed: 3,
+        id: "op_1",
+        kind: "rename",
+        status: "completed",
+        total: 3,
+      }),
+    ),
+  );
+  await settle();
+  expect(starts).toHaveLength(1);
+  expect(navigation.pops).toBe(0);
+});

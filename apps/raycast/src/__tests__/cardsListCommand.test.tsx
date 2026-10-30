@@ -227,3 +227,37 @@ test("Undo after Move to Trash puts the card back where it was", async () => {
   expect(text.indexOf("Older card")).toBeGreaterThan(-1);
   expect(text.indexOf("Older card")).toBeLessThan(text.indexOf("Newer card"));
 });
+
+test("Undo after the list reloads places the card by the new order", async () => {
+  const older = {
+    ...linkCard,
+    createdAt: 1_700_000_000_000,
+    id: "k17olderolderol1234567890olderolder",
+    metadataTitle: "Older card",
+  };
+  const newer = {
+    ...linkCard,
+    createdAt: 1_800_000_000_000,
+    id: "k17newernewerne1234567890newernewer",
+    metadataTitle: "Newer card",
+  };
+  // Oldest first at the start; after the shuffle the trashed card is gone.
+  serve((url) =>
+    url.searchParams.get("sort") === "shuffle" ? [newer] : [older, newer],
+  );
+  await render();
+  await press("Move to Trash");
+  const trashToast = shownToasts.at(-1);
+  await press("Shuffle");
+
+  const undo = trashToast?.primaryAction as
+    | { onAction: (toast: unknown) => Promise<void> }
+    | undefined;
+  await act(async () => undo?.onAction(trashToast));
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+
+  const text = container.textContent ?? "";
+  expect(text.indexOf("Older card")).toBeGreaterThan(
+    text.indexOf("Newer card"),
+  );
+});

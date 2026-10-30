@@ -137,6 +137,8 @@ export function CardsListCommand({
       try {
         const response = await loadCards(input);
         if (generation === requestGeneration.current) {
+          // A new page has its own order, so old Undo positions no longer fit.
+          removedAt.current.clear();
           setItems(response.items);
           setNextCursor(response.nextCursor);
           setSimilarity(response.similarity);
