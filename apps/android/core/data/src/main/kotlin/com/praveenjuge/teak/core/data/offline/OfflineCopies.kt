@@ -20,6 +20,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +43,9 @@ interface OfflineCopies {
     /** Saves a newer copy of a kept card; does nothing for one that isn't kept. */
     suspend fun update(card: Card)
 
+    /** Changes the saved copy of a kept card in place, so nothing written meanwhile is lost. */
+    suspend fun edit(id: String, change: (Card) -> Card)
+
     /** The kept card's file, or null when it isn't kept or has none. */
     fun file(id: String): File?
 
@@ -62,12 +66,17 @@ class DiskOfflineCopies @Inject constructor(
     /** Keeps the startup scan, keeping, removing and clearing from overlapping. */
     private val mutex = Mutex()
 
+    /** Goes up each time the copies are cleared, so a download that started before doesn't land after. */
+    @Volatile private var clears = 0
+
     private val _kept = MutableStateFlow<Set<String>>(emptySet())
     override val kept: StateFlow<Set<String>> = _kept.asStateFlow()
 
     init {
         scope.launch(Dispatchers.IO) {
             mutex.withLock {
+                // A staging folder left by a download the process died in is never a kept card.
+                root.listFiles().orEmpty().filter { it.name.startsWith(STAGING_PREFIX) }.forEach { it.deleteRecursively() }
                 _kept.value += root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }
             }
         }
@@ -92,25 +101,32 @@ class DiskOfflineCopies @Inject constructor(
             if (keptBy != null) {
                 root.deleteRecursively()
                 _kept.value = emptySet()
+                clears += 1
             }
             root.mkdirs()
             owner.writeText(userId)
         }
     }
 
+    /**
+     * Downloads into a staging folder without the lock, so a large file never holds up signing out, then moves it
+     * into place. One the account was cleared during is thrown away.
+     */
     override suspend fun keep(card: Card) = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val directory = directory(card.id)
-            directory.deleteRecursively()
-            directory.mkdirs()
-            try {
-                card.fileUrl?.let { url -> download(url, File(directory, DATA_FILE)) }
-                writeCard(directory, card)
-            } catch (e: IOException) {
+        val started = clears
+        val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
+        try {
+            card.fileUrl?.let { url -> download(url, File(staging, DATA_FILE)) }
+            writeCard(staging, card)
+            mutex.withLock {
+                if (clears != started) throw IOException("The account's copies were cleared while keeping the card")
+                val directory = directory(card.id)
                 directory.deleteRecursively()
-                throw e
+                if (!staging.renameTo(directory)) throw IOException("Couldn't keep the card")
+                _kept.value += card.id
             }
-            _kept.value += card.id
+        } finally {
+            staging.deleteRecursively()
         }
     }
 
@@ -136,6 +152,16 @@ class DiskOfflineCopies @Inject constructor(
         }
     }
 
+    override suspend fun edit(id: String, change: (Card) -> Card) {
+        if (id !in _kept.value) return
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val directory = directory(id)
+                read(directory)?.let { writeCard(directory, change(it)) }
+            }
+        }
+    }
+
     override fun file(id: String): File? =
         File(directory(id), DATA_FILE).takeIf { id in _kept.value && it.length() > 0 }
 
@@ -143,6 +169,7 @@ class DiskOfflineCopies @Inject constructor(
         mutex.withLock {
             root.deleteRecursively()
             _kept.value = emptySet()
+            clears += 1
         }
     }
 
@@ -179,6 +206,7 @@ class DiskOfflineCopies @Inject constructor(
         const val CARD_FILE = "card.json"
         const val DATA_FILE = "file"
         const val OWNER_FILE = "owner"
+        const val STAGING_PREFIX = ".keeping-"
         val unsafeNameCharacters = Regex("[^A-Za-z0-9_-]")
     }
 }

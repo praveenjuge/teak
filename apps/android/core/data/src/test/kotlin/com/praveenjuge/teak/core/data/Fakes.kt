@@ -138,6 +138,10 @@ class FakeOfflineCopies : OfflineCopies {
         if (card.id in cards) cards[card.id] = card
     }
 
+    override suspend fun edit(id: String, change: (Card) -> Card) {
+        cards[id]?.let { cards[id] = change(it) }
+    }
+
     override fun file(id: String): File? = null
 
     override suspend fun clear() {

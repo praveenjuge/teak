@@ -77,9 +77,9 @@ class OutboxWorker @AssistedInject constructor(
 
     /** A kept card has no live query while the app is closed, so a sent edit goes into its copy here. */
     private suspend fun keepInCopy(edit: OutboxItem.Edit) {
-        val kept = copies.card(edit.cardId) ?: return
+        val now = System.currentTimeMillis().toDouble()
         try {
-            copies.update(PendingEdits.apply(kept, listOf(edit.change), System.currentTimeMillis().toDouble()))
+            copies.edit(edit.cardId) { kept -> PendingEdits.apply(kept, listOf(edit.change), now) }
         } catch (e: IOException) {
             Log.w(TAG, "Couldn't update a kept card", e)
         }

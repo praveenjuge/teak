@@ -28,6 +28,7 @@ import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.offline.StableCacheKeys
+import com.praveenjuge.teak.offline.SuccessfulResponsesOnly
 import com.praveenjuge.teak.offline.TilePrefetchWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -91,7 +92,12 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         ImageLoader.Builder(context)
             .components {
                 add(StableCacheKeys)
-                add(OkHttpNetworkFetcherFactory(callFactory = { httpClient.newBuilder().followRedirects(true).build() }))
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = { httpClient.newBuilder().followRedirects(true).build() },
+                        cacheStrategy = { SuccessfulResponsesOnly },
+                    ),
+                )
                 add(AnimatedImageDecoder.Factory())
                 add(VideoFrameDecoder.Factory())
             }

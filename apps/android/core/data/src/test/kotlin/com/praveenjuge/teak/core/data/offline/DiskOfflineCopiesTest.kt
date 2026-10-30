@@ -13,6 +13,7 @@ import com.praveenjuge.teak.core.data.auth.UserBootstrap
 import com.praveenjuge.teak.core.data.auth.WorkOsAuthApi
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -91,5 +92,20 @@ class DiskOfflineCopiesTest {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(20) }
         }
         kotlin.test.fail("user_a's kept card is still there")
+    }
+
+    @Test
+    fun `a card whose copies were cleared mid-download isn't kept, and clearing doesn't wait for it`() = runTest {
+        java.io.File(context.filesDir, "offline").deleteRecursively()
+        server.enqueue(MockResponse().setBody("%PDF-1.7").setBodyDelay(1, java.util.concurrent.TimeUnit.SECONDS))
+        val copies = copies()
+
+        val keeping = async { runCatching { copies.keep(pdf("/files/slow.pdf", signature = "one")) } }
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { server.takeRequest() }
+        copies.clear()
+
+        kotlin.test.assertTrue(keeping.await().exceptionOrNull() is java.io.IOException)
+        kotlin.test.assertTrue(copies.kept.value.isEmpty())
+        assertNull(copies.card("c1"))
     }
 }
