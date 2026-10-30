@@ -14,11 +14,12 @@ export function PaletteStage({
   card: Doc<"cards">;
   colors?: PaletteColorsControl;
 }) {
-  const { canAdd, canRemove } = paletteEditing(card);
+  const { canAdd, canEdit, canRemove } = paletteEditing(card);
   return (
     <PalettePreview
       card={card}
-      onAddColor={colors && canAdd ? colors.addColor : undefined}
+      isFull={!canAdd}
+      onAddColor={colors && canEdit ? colors.addColor : undefined}
       onRemoveColor={
         colors && canRemove ? (hex) => void colors.removeColor(hex) : undefined
       }

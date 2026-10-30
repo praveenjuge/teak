@@ -17,6 +17,11 @@ type CardWithUrls = Doc<"cards"> & {
 
 interface PalettePreviewProps {
   card: CardWithUrls;
+  /**
+   * Hides "Add color" while the palette holds its most colors. An add that is
+   * still saving keeps its popover, so a failed save keeps the typed color.
+   */
+  isFull?: boolean;
   /** Shows "Add color"; left out, the palette can't grow. */
   onAddColor?: (hex: string) => Promise<boolean>;
   /** Shows a way to remove each color; left out when one color is left. */
@@ -25,6 +30,7 @@ interface PalettePreviewProps {
 
 export function PalettePreview({
   card,
+  isFull = false,
   onAddColor,
   onRemoveColor,
 }: PalettePreviewProps) {
@@ -54,7 +60,11 @@ export function PalettePreview({
         ))}
       </div>
       {onAddColor ? (
-        <AddColorPopover colors={colors} onAddColor={onAddColor} />
+        <AddColorPopover
+          colors={colors}
+          isFull={isFull}
+          onAddColor={onAddColor}
+        />
       ) : null}
     </div>
   );

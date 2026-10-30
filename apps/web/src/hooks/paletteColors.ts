@@ -36,10 +36,11 @@ export const paletteHasColor = (
 /** What the card dialog lets someone do to a palette's colors. */
 export const paletteEditing = (
   card: Pick<Doc<"cards">, "colors" | "isDeleted" | "type">
-): { canAdd: boolean; canRemove: boolean } => {
+): { canAdd: boolean; canEdit: boolean; canRemove: boolean } => {
   const editable = card.type === "palette" && !card.isDeleted;
   return {
     canAdd: editable && (card.colors?.length ?? 0) < MAX_PALETTE_COLORS,
+    canEdit: editable,
     canRemove: editable && distinctHexes(card.colors).size > 1,
   };
 };

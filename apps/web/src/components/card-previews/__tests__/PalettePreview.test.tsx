@@ -88,4 +88,20 @@ describe("PalettePreview", () => {
     expect(markup).toContain("No colors detected in this palette");
     expect(markup).toContain("Add color");
   });
+
+  test("a full palette hides Add color", () => {
+    const markup = renderToStaticMarkup(
+      <PalettePreview
+        card={
+          createPaletteCard({
+            colors: [{ hex: "#FF0000" }, { hex: "#00FF00" }],
+          }) as any
+        }
+        isFull
+        onAddColor={async () => true}
+      />
+    );
+
+    expect(markup).not.toContain("Add color");
+  });
 });

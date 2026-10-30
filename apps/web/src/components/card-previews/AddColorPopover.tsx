@@ -16,11 +16,17 @@ const DEFAULT_PICKER_HEX = "#FF5500";
 
 interface AddColorPopoverProps {
   colors: Doc<"cards">["colors"];
+  /** Hides the button, unless the popover is open: its color may be saving. */
+  isFull?: boolean;
   onAddColor: (hex: string) => Promise<boolean>;
 }
 
 /** "Add color" under a palette: a color picker and a hex field. */
-export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
+export function AddColorPopover({
+  colors,
+  isFull = false,
+  onAddColor,
+}: AddColorPopoverProps) {
   const t = useTranslations("cardPreviews.palette");
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -59,6 +65,10 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
       save(hex).catch(() => undefined);
     }
   };
+
+  if (isFull && !open) {
+    return null;
+  }
 
   return (
     <Popover

@@ -74,10 +74,12 @@ describe("paletteEditing", () => {
       false,
     ],
   ] as const)("%s", (_, card, canAdd, canRemove) => {
+    const canEdit = card.type === "palette" && !("isDeleted" in card);
     expect(
       paletteEditing(card as Parameters<typeof paletteEditing>[0])
     ).toEqual({
       canAdd,
+      canEdit,
       canRemove,
     });
   });
