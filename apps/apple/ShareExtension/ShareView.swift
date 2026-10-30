@@ -15,6 +15,8 @@ final class ShareModel {
     private(set) var phase: Phase = .saving
     /// What's being saved, shown while it uploads; nil until the items load.
     private(set) var preview: SharePreview?
+    /// Thumbnails of the preview's files, added as each is drawn.
+    private(set) var thumbnails: [URL: CGImage] = [:]
     private(set) var isSavingDetails = false
     var detailsError: String?
     /// The user's folders, loaded once the folder checklist opens; nil until then.
@@ -118,12 +120,24 @@ final class ShareModel {
         }
     }
 
-    func run() async {
+    /// Saves what was shared, drawing the preview's thumbnails at `thumbnailSize` points alongside.
+    func run(thumbnailSize: CGFloat, scale: CGFloat) async {
         let loaded = await ItemProviders.load(providers, limit: TeakLimits.maxFilesPerUpload)
         // Blank text saves nothing, so it says so rather than failing as if offline.
         let items = ShareImporter.removingEmptyAndDuplicates(loaded)
         guard !items.isEmpty else { return phase = .empty }
-        preview = SharePreview(items: items)
+        let preview = SharePreview(items: items)
+        self.preview = preview
+        // An upload deletes its file once saved, so each one waits for its own thumbnail first.
+        let drawing = Dictionary(preview.files.map { file in
+            (file, Task { await SharePreview.thumbnail(of: file, size: thumbnailSize, scale: scale) })
+        }, uniquingKeysWith: { first, _ in first })
+        for (file, task) in drawing {
+            Task {
+                guard let image = await task.value else { return }
+                withAnimation(.easeOut(duration: 0.35)) { thumbnails[file] = image }
+            }
+        }
         let session = TeakServices.session()
         let user = try? await session.restore()
         let convex = TeakServices.http(session: session)
@@ -131,7 +145,10 @@ final class ShareModel {
         let pipeline = UploadPipeline(convex: convex)
         let importer = ShareImporter(
             createText: { text in try await convex.mutation(ConvexFunctions.createCard, LinkDetection.resolve(text).createArgs) },
-            upload: { item in try await pipeline.upload(item) })
+            upload: { item in
+                _ = await drawing[item.fileURL]?.value
+                return try await pipeline.upload(item)
+            })
         phase = .done(await importer.importItems(items, isAuthenticated: user != nil))
     }
 }
@@ -147,7 +164,6 @@ struct ShareView: View {
     @State private var note = ""
     @State private var isEditing = false
     @State private var isPickingFolders = false
-    @State private var thumbnails: [URL: CGImage] = [:]
     @State private var hasAppeared = false
     /// How much of the auto-close wait is left, from 1 to 0, drawn inside the Done button.
     @State private var countdown: CGFloat = 1
@@ -178,17 +194,12 @@ struct ShareView: View {
             .fontDesign(.rounded)
             .tint(Self.teak)
             .task {
-                await model.run()
+                await model.run(thumbnailSize: Self.tileSize, scale: displayScale)
                 guard case let .done(result) = model.phase, result.isComplete else { return }
                 isCountingDown = true
                 withAnimation(.linear(duration: Self.autoClose)) { countdown = 0 }
                 try? await Task.sleep(for: .seconds(Self.autoClose))
                 if !isEditing { close() }
-            }
-            .task(id: model.preview) {
-                await model.preview?.thumbnails(size: Self.tileSize, scale: displayScale) { file, image in
-                    withAnimation(.easeOut(duration: 0.35)) { thumbnails[file] = image }
-                }
             }
             .onAppear {
                 withAnimation(.spring(duration: 0.6, bounce: 0.3)) { hasAppeared = true }
@@ -214,17 +225,24 @@ struct ShareView: View {
     // MARK: Layout
 
     #if os(iOS)
+    /// Fills the sheet when there's room; scrolls in landscape or above the keyboard when there isn't.
     private var layout: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 24)
-            hero
-            Spacer(minLength: 28)
-            controls
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 24)
+                    hero
+                    Spacer(minLength: 28)
+                    controls
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 16)
-        .frame(maxWidth: 480)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(alignment: .top) { ambience }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: model.phase)
     }
@@ -232,7 +250,7 @@ struct ShareView: View {
     /// A soft wash of the shared image's colors behind the top of the sheet.
     private var ambience: some View {
         GeometryReader { proxy in
-            if let file = model.preview?.files.first, let image = thumbnails[file] {
+            if let file = model.preview?.files.first, let image = model.thumbnails[file] {
                 Image(decorative: image, scale: displayScale)
                     .resizable()
                     .scaledToFill()
@@ -253,7 +271,7 @@ struct ShareView: View {
     private var hero: some View {
         VStack(spacing: 22) {
             previewWithBadge
-                .scaleEffect(hasAppeared ? 1 : 0.7)
+                .scaleEffect(hasAppeared || reduceMotion ? 1 : 0.7)
                 .opacity(hasAppeared ? 1 : 0)
             VStack(spacing: 6) {
                 Text(title)
@@ -299,13 +317,13 @@ struct ShareView: View {
     #endif
 
     private var previewWithBadge: some View {
-        SharePreviewTile(preview: model.preview, thumbnails: thumbnails, size: Self.tileSize)
-            .scaleEffect(model.phase == .saving ? 0.94 : 1)
+        SharePreviewTile(preview: model.preview, thumbnails: model.thumbnails, size: Self.tileSize)
+            .scaleEffect(model.phase == .saving && !reduceMotion ? 0.94 : 1)
             .overlay(alignment: .bottomTrailing) {
                 ShareStatusBadge(status: status, size: Self.badgeSize)
                     .offset(x: Self.badgeSize * 0.3, y: Self.badgeSize * 0.3)
             }
-            .animation(.spring(duration: 0.55, bounce: 0.5), value: model.phase)
+            .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.5), value: model.phase)
     }
 
     /// The fields and Done after a save, or the way out after anything else.

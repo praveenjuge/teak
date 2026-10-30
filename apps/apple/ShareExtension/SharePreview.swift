@@ -47,21 +47,13 @@ struct SharePreview: Equatable {
         return "doc"
     }
 
-    /// Thumbnails of the files, drawn as they're ready; a file that can't be drawn keeps its symbol.
-    /// Images decode straight from disk, which is quick; anything else asks Quick Look.
-    @MainActor func thumbnails(size: CGFloat, scale: CGFloat, onEach: (URL, CGImage) -> Void) async {
-        let pixels = size * scale
-        for file in files {
-            if let image = await Task.detached(priority: .userInitiated, operation: { Self.imageThumbnail(file, pixels: pixels) }).value {
-                onEach(file, image)
-                continue
-            }
-            let request = QLThumbnailGenerator.Request(fileAt: file, size: CGSize(width: size, height: size),
-                                                       scale: scale, representationTypes: .thumbnail)
-            guard let image = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).cgImage
-            else { continue }
-            onEach(file, image)
-        }
+    /// A thumbnail of one file, or nil when it can't be drawn and keeps its symbol. Images decode
+    /// straight from disk, which is quick; anything else asks Quick Look.
+    nonisolated static func thumbnail(of file: URL, size: CGFloat, scale: CGFloat) async -> CGImage? {
+        if let image = imageThumbnail(file, pixels: size * scale) { return image }
+        let request = QLThumbnailGenerator.Request(fileAt: file, size: CGSize(width: size, height: size),
+                                                   scale: scale, representationTypes: .thumbnail)
+        return try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).cgImage
     }
 
     private nonisolated static func imageThumbnail(_ file: URL, pixels: CGFloat) -> CGImage? {
@@ -128,6 +120,7 @@ struct ShareStatusBadge: View {
 
     let status: Status
     let size: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -145,7 +138,7 @@ struct ShareStatusBadge: View {
         .frame(width: size, height: size)
         .overlay(Circle().strokeBorder(.background, lineWidth: size * 0.1).padding(-size * 0.1))
         .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-        .animation(.spring(duration: 0.45, bounce: 0.4), value: status)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.4), value: status)
         .accessibilityHidden(true)
     }
 
