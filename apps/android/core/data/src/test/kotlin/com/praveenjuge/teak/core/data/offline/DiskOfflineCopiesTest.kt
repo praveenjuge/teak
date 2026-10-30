@@ -51,7 +51,10 @@ class DiskOfflineCopiesTest {
     private suspend fun TestScope.copies(userId: String = "user_1"): DiskOfflineCopies {
         store.session = Tokens.session(userId = userId, expiresAtMillis = Long.MAX_VALUE / 2)
         val sessions = SessionManager(store, NoAuthApi, NoBootstrap, backgroundScope, Clock { 0 }).apply { restore() }
-        return DiskOfflineCopies(context, OkHttpClient(), sessions, backgroundScope)
+        return DiskOfflineCopies(context, OkHttpClient(), sessions, backgroundScope).also { copies ->
+            // Nothing is kept or read until the signed-in account claims the copies.
+            eventually { copies.changes.value > 0 }
+        }
     }
 
     private fun pdf(path: String, signature: String) = Card(
@@ -135,7 +138,7 @@ class DiskOfflineCopiesTest {
             if (condition()) return
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(20) }
         }
-        kotlin.test.fail("The kept file wasn't replaced")
+        kotlin.test.fail("It didn't happen in time")
     }
 
     @Test

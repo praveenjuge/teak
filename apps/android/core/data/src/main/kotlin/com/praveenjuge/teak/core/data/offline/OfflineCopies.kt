@@ -11,6 +11,7 @@ import com.praveenjuge.teak.core.model.CardType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,7 +62,7 @@ interface OfflineCopies {
 class DiskOfflineCopies @Inject constructor(
     @ApplicationContext context: Context,
     private val client: OkHttpClient,
-    sessions: SessionManager,
+    private val sessions: SessionManager,
     @ApplicationScope private val scope: CoroutineScope,
 ) : OfflineCopies {
     // Under files/, which backup_rules.xml and data_extraction_rules.xml keep off backups, so a PDF here can still
@@ -73,6 +74,9 @@ class DiskOfflineCopies @Inject constructor(
 
     /** Goes up each time the copies are cleared, so a download that started before doesn't land after. */
     @Volatile private var clears = 0
+
+    /** The account the copies on disk were checked to belong to; nothing is read or kept until it's the signed-in one. */
+    @Volatile private var claimedBy: String? = null
 
     private val _kept = MutableStateFlow<Set<String>>(emptySet())
     override val kept: StateFlow<Set<String>> = _kept.asStateFlow()
@@ -88,7 +92,6 @@ class DiskOfflineCopies @Inject constructor(
                 root.listFiles().orEmpty()
                     .filter { it.name.startsWith(STAGING_PREFIX) && it.lastModified() < startedAt }
                     .forEach { it.deleteRecursively() }
-                _kept.value += root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }
             }
         }
         // Signing out isn't the only way a session ends (a refresh token can be refused), so follow the session.
@@ -108,15 +111,23 @@ class DiskOfflineCopies @Inject constructor(
         mutex.withLock {
             val owner = File(root, OWNER_FILE)
             val keptBy = owner.takeIf { it.exists() }?.readText()
-            if (keptBy == userId) return@withLock
-            if (keptBy != null) {
+            if (keptBy != null && keptBy != userId) {
                 root.deleteRecursively()
-                _kept.value = emptySet()
                 clears += 1
             }
             root.mkdirs()
             owner.writeText(userId)
+            // Only now are the cards on disk known to be this account's.
+            _kept.value = root.listFiles().orEmpty().filter { File(it, CARD_FILE).exists() }.map { it.name }.toSet()
+            claimedBy = userId
+            _changes.value += 1
         }
+    }
+
+    /** The copies on disk were claimed by the account signed in now. */
+    private fun owned(): Boolean {
+        val user = (sessions.state.value as? SessionState.SignedIn)?.user?.id
+        return user != null && user == claimedBy
     }
 
     /**
@@ -124,6 +135,7 @@ class DiskOfflineCopies @Inject constructor(
      * into place. One the account was cleared during is thrown away.
      */
     override suspend fun keep(card: Card) = withContext(Dispatchers.IO) {
+        if (!owned()) throw IOException("The signed-in account hasn't claimed its offline copies yet")
         val started = clears
         val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
         try {
@@ -151,7 +163,7 @@ class DiskOfflineCopies @Inject constructor(
         }
     }
 
-    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) { read(directory(id)) }
+    override suspend fun card(id: String): Card? = withContext(Dispatchers.IO) { if (owned()) read(directory(id)) else null }
 
     /**
      * Saves a newer copy. When its file changed on the server, or an image gained the rendition it shows, the new one
@@ -159,7 +171,7 @@ class DiskOfflineCopies @Inject constructor(
      * still opens offline.
      */
     override suspend fun update(card: Card) {
-        if (card.id !in _kept.value) return
+        if (!owned() || card.id !in _kept.value) return
         val start = withContext(Dispatchers.IO) {
             mutex.withLock {
                 val directory = directory(card.id)
@@ -181,14 +193,22 @@ class DiskOfflineCopies @Inject constructor(
      * fetched too. Stops when a download fails (the next update tries again) or the card is no longer kept.
      */
     private suspend fun replaceUntilCurrent(id: String) {
-        var wanted = mutex.withLock { currentSource(id).also { if (it == null) replacing.remove(id) } }
-        while (wanted != null) {
-            val replaced = replaceFile(id, wanted.link)
-            wanted = mutex.withLock {
-                val next = currentSource(id)?.takeIf { replaced && downloadedSource(directory(id)) != it.link?.withoutQuery() }
-                if (next == null) replacing.remove(id)
-                next
+        var released = false
+        try {
+            var wanted = mutex.withLock { currentSource(id).also { if (it == null) released = replacing.remove(id) } }
+            while (wanted != null) {
+                val replaced = replaceFile(id, wanted.link)
+                wanted = mutex.withLock {
+                    val next = currentSource(id)?.takeIf { replaced && downloadedSource(directory(id)) != it.link?.withoutQuery() }
+                    if (next == null) released = replacing.remove(id)
+                    next
+                }
             }
+        } catch (_: IOException) {
+            // Reading the kept card failed: the next update tries again.
+        } finally {
+            // Whatever stopped it, the card mustn't stay marked as downloading, or no update would start one again.
+            if (!released) withContext(NonCancellable) { mutex.withLock { replacing.remove(id) } }
         }
     }
 
@@ -219,13 +239,16 @@ class DiskOfflineCopies @Inject constructor(
         } catch (_: IOException) {
             // Offline or a failed download: the old file stays, and the next update tries again.
             false
+        } catch (_: IllegalArgumentException) {
+            // A link OkHttp can't read.
+            false
         } finally {
             staging.deleteRecursively()
         }
     }
 
     override suspend fun edit(id: String, change: (Card) -> Card) {
-        if (id !in _kept.value) return
+        if (!owned() || id !in _kept.value) return
         withContext(Dispatchers.IO) {
             mutex.withLock {
                 val directory = directory(id)
@@ -235,13 +258,14 @@ class DiskOfflineCopies @Inject constructor(
     }
 
     override fun file(id: String): File? =
-        File(directory(id), DATA_FILE).takeIf { id in _kept.value && it.length() > 0 }
+        File(directory(id), DATA_FILE).takeIf { owned() && id in _kept.value && it.length() > 0 }
 
     override suspend fun clear() = withContext(Dispatchers.IO) {
         mutex.withLock {
             root.deleteRecursively()
             _kept.value = emptySet()
             clears += 1
+            claimedBy = null
             _changes.value += 1
         }
     }

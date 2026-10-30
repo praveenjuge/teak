@@ -37,7 +37,6 @@ class TilePrefetchWorker @AssistedInject constructor(
         val page = withTimeoutOrNull(LOAD_TIMEOUT_MS) { cards.page(CardQuery(), null, CARD_COUNT).first() }
             ?.getOrNull() ?: return Result.retry()
         val loader = SingletonImageLoader.get(applicationContext)
-        var networkFailed = false
         for (card in page.page) {
             val url = CardGrid.tileImageUrl(card) ?: continue
             val result = loader.execute(
@@ -47,10 +46,10 @@ class TilePrefetchWorker @AssistedInject constructor(
                     .memoryCachePolicy(CachePolicy.DISABLED)
                     .build(),
             )
-            if ((result as? ErrorResult)?.throwable is IOException) networkFailed = true
+            // A dropped connection retries soon instead of failing the rest; a broken image waits for the next run.
+            if ((result as? ErrorResult)?.throwable is IOException) return Result.retry()
         }
-        // A dropped connection retries soon; an image that's simply broken waits for the next run.
-        return if (networkFailed) Result.retry() else Result.success()
+        return Result.success()
     }
 
     companion object {

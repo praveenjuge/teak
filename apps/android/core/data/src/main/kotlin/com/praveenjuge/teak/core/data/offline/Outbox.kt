@@ -140,7 +140,9 @@ class FileOutbox @Inject constructor(
 
     override suspend fun add(items: List<OutboxItem>) {
         if (items.isEmpty()) return
+        // A write needs an account to go into; one without would be dropped unseen when someone signs in.
         val owner = (sessions.state.value as? SessionState.SignedIn)?.user?.id
+            ?: throw IllegalStateException("No signed-in account to save the change for")
         update { it + items.map { item -> item.withOwner(owner) } }
         OutboxWorker.schedule(context)
     }

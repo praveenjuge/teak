@@ -193,7 +193,11 @@ class ConvexCardsRepository @Inject constructor(
             } ?: continue
             if (result.isFailure || !convex.authenticatedNow) continue
             val card = result.getOrNull()
-            if (card == null || card.deleted) copies.remove(id) else copies.update(card)
+            // Trash is already empty on the server, so a disk error here mustn't report it as failed.
+            try {
+                if (card == null || card.deleted) copies.remove(id) else copies.update(card)
+            } catch (_: IOException) {
+            }
         }
         return count
     }

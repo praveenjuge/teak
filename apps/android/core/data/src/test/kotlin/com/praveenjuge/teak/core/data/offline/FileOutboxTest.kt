@@ -80,4 +80,14 @@ class FileOutboxTest {
 
         assertEquals(listOf("e1"), outbox.items.first { items -> items.none { it.ownerId == "user_a" } }.map { it.id })
     }
+
+    @Test
+    fun `a write with no one signed in is refused instead of dropped later`() = runTest {
+        store.session = null
+        val sessions = SessionManager(store, NoAuthApi, NoBootstrap, backgroundScope, Clock { now }).apply { restore() }
+        val outbox = FileOutbox(context, FakeConvexApi(), sessions, backgroundScope)
+
+        kotlin.test.assertFailsWith<IllegalStateException> { outbox.add(listOf(OutboxItem.CreateText("t1", "Lost"))) }
+        assertEquals(null, outbox.next())
+    }
 }
