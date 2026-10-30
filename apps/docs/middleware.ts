@@ -2,7 +2,7 @@ import { rewrite } from "@vercel/functions";
 import { resolveMarkdownRequest } from "./lib/markdown-not-found";
 
 // Everything except build output, static files, and the /api, /mcp and
-// /.well-known routes, which the Files Worker serves on teakvault.com before
+// /.well-known routes, which the Core Worker serves on teakvault.com before
 // they reach this site. Requests that do not ask for Markdown return
 // immediately, so ordinary traffic is unaffected.
 export const config = {

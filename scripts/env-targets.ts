@@ -5,7 +5,7 @@ export const SUPPORTED_TARGETS = [
   "docs",
   "cli",
   "extension",
-  "files-worker",
+  "core-worker",
   "email-worker",
 ] as const;
 
@@ -55,12 +55,12 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     defaultConvex: "cloud",
     note: "Chrome extension. Setup derives VITE_PUBLIC_CONVEX_* from the canonical deployment pair.",
   },
-  "files-worker": {
-    target: "files-worker",
+  "core-worker": {
+    target: "core-worker",
     profiles: ["local", "preview", "production"],
     dotenvFiles: [
-      "apps/files-worker/.dev.vars",
-      "apps/files-worker/development/.dev.vars",
+      "apps/core-worker/.dev.vars",
+      "apps/core-worker/development/.dev.vars",
     ],
     needsConvex: false,
     defaultConvex: "skip",

@@ -7,7 +7,7 @@ import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
 import { buildR2UserPrefix } from "../storage/r2";
 
-// What the Files Worker's podcast step asks of Convex
+// What the Core Worker's podcast step asks of Convex
 // (workflows/steps/podcast/mutations.ts): a transcription slot per owner,
 // and the episode audio listed on the card while it is stored.
 

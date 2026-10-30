@@ -144,6 +144,6 @@ questions:
   - id: self-hosted-cards-not-processed
     question: My self-hosted Teak saves cards but never processes them. What's missing?
     expected:
-      - Put WORKFLOW_RPC_ROOT_SECRET on the Files Worker
+      - Put WORKFLOW_RPC_ROOT_SECRET on the Core Worker
       - Set the derived WORKFLOW_RPC_SECRET on the Convex deployment; until then background work stays queued
     routes: /docs/self-hosting

@@ -101,7 +101,7 @@ export const seedLocalDevAccount = async (
     account,
     notes: [
       `Sign in as ${account.email} / ${account.password} (WorkOS emulator); ${vault}.`,
-      "Local backend, WorkOS emulator and Files Worker in Miniflare; Convex pushes this checkout's backend as you edit it.",
+      "Local backend, WorkOS emulator and Core Worker in Miniflare; Convex pushes this checkout's backend as you edit it.",
     ],
   };
 };

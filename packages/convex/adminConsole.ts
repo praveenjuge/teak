@@ -30,8 +30,8 @@ const switchValidator = v.union(
 );
 
 /**
- * `aiPaused` reaches card processing within a minute: the Files Worker reuses
- * each `getAiGate` answer for up to 60 seconds (`apps/files-worker/src/ai/aiGate.ts`).
+ * `aiPaused` reaches card processing within a minute: the Core Worker reuses
+ * each `getAiGate` answer for up to 60 seconds (`apps/core-worker/src/ai/aiGate.ts`).
  */
 export const setKillSwitch = mutation({
   args: {

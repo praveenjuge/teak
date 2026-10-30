@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts the Docker daemon in a Claude Code cloud session, where the image
 # ships Docker but doesn't run it, so `wrangler dev` can build and run the
-# Files Worker's two Containers (apps/files-worker/README.md). Safe to re-run:
+# Core Worker's two Containers (apps/core-worker/README.md). Safe to re-run:
 # it does nothing when a daemon already answers. Never fails the session.
 set -uo pipefail
 

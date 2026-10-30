@@ -14,7 +14,7 @@ import { withMappedOwner } from "../helpers/session.test-utils";
 setUpMcpEnv();
 
 describe("MCP protocol messages", () => {
-  test("answers protocol messages with the builders the Files Worker shares", async () => {
+  test("answers protocol messages with the builders the Core Worker shares", async () => {
     const ctx = mockActionCtx(
       withMappedOwner({
         runMutation: mock().mockResolvedValue({

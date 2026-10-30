@@ -22,7 +22,7 @@ Preconditions:
 - Seed the packs on the signed-in account (local stack shown; on the dev deployment, drop the `env` prefix):
   - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"email-in"}'` (also turns Save by email on)
   - `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"email-attachments"}'`
-- Real delivery needs the Email Worker and Email Routing on `in-dev.teakvault.com` (dev) — see `apps/email-worker/README.md`. On the local E2E stack, `packages/tests/src/journey/16-email-in.e2e.ts` delivers `.eml` messages through the Email Worker's own code to the local backend and Files Worker.
+- Real delivery needs the Email Worker and Email Routing on `in-dev.teakvault.com` (dev) — see `apps/email-worker/README.md`. On the local E2E stack, `packages/tests/src/journey/16-email-in.e2e.ts` delivers `.eml` messages through the Email Worker's own code to the local backend and Core Worker.
 
 Steps:
 

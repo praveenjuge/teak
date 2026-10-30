@@ -1,6 +1,6 @@
 /**
  * A link's saved copy (`cards.pageArchive`): the rules the Convex backend,
- * the Files Worker and the web app share.
+ * the Core Worker and the web app share.
  */
 
 const MIB = 1024 * 1024;

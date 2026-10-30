@@ -1,7 +1,7 @@
 export type EnvTarget =
   | "web"
   | "convex"
-  | "files-worker"
+  | "core-worker"
   | "email-worker"
   | "extension"
   | "cli"

@@ -8,14 +8,14 @@
 # deploy an image it built.
 #
 # The SessionStart hook exports it as WRANGLER_DOCKER_BIN, so `wrangler dev`
-# builds the Files Worker's Containers through it. Wrangler pipes the
+# builds the Core Worker's Containers through it. Wrangler pipes the
 # Dockerfile on stdin (`-f -`), which this reads too. `wrangler deploy` uses
 # the same binary, so only images tagged for local use are rewritten:
 # `wrangler dev` tags its builds `cloudflare-dev/…`, and
 # scripts/cloud-docker-build.sh sets TEAK_CLOUD_DOCKER_BUILD=1. Any other
 # build, a deploy's included, runs unchanged (and so fails here, as before).
 #
-#   scripts/cloud-docker.sh build -t teak-renderer apps/files-worker/container
+#   scripts/cloud-docker.sh build -t teak-renderer apps/core-worker/container
 set -euo pipefail
 
 ca=/root/.ccr/ca-bundle.crt

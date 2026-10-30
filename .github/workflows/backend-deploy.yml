@@ -7,7 +7,7 @@ on:
       - ".github/workflows/backend-deploy.yml"
       - "packages/convex/**"
       - "packages/files-protocol/**"
-      - "apps/files-worker/**"
+      - "apps/core-worker/**"
       - "scripts/check-files-readiness.ts"
       - "bun.lock"
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
         run: |
           test -n "$CONVEX_DEPLOY_KEY"
           test -n "$POSTHOG_PROJECT_TOKEN"
-      - name: Wait for compatible files worker
+      - name: Wait for compatible core worker
         run: bun run scripts/check-files-readiness.ts --prod --wait
       - name: Resolve build metadata
         run: |

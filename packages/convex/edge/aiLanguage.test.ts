@@ -121,7 +121,7 @@ describe("cards.aiLanguage", () => {
     await t.run((ctx) =>
       queueCardProcessing(ctx, cardId, { refresh: true, reset: true })
     );
-    // The reset lands when the run is handed to the Files Worker.
+    // The reset lands when the run is handed to the Core Worker.
     await t.mutation(internal.workflowDispatch.claim, {});
     const refreshed = await card(t, cardId);
     expect(refreshed).not.toHaveProperty("aiLanguage");

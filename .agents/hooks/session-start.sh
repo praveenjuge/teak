@@ -61,7 +61,7 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   if ((${#stray[@]} > 0)); then
     printf 'Warning: this cloud environment exports %s. They override the dotenv files bun run dev writes; remove them from the environment settings (only CONVEX_DEPLOY_KEY is needed) or unset them for the command. See .agents/cloud.md.\n' "${stray[*]}"
   fi
-  # The image ships Docker without running it; the Files Worker's Containers
+  # The image ships Docker without running it; the Core Worker's Containers
   # need it (.agents/cloud.md, "Containers"). Processes aren't cached with the
   # setup script's snapshot, so start it each session.
   .agents/hooks/start-docker.sh || true

@@ -1,0 +1,40 @@
+{
+  "name": "@teak/core-worker",
+  "version": "1.0.91",
+  "private": true,
+  "scripts": {
+    "cf-typegen": "wrangler types",
+    "cf-typegen:check": "wrangler types --check",
+    "check": "bun run ../../scripts/check-cloudflare.ts",
+    "deploy": "wrangler deploy",
+    "deploy:development": "wrangler deploy --config development/wrangler.jsonc",
+    "dev": "bun --no-env-file run ../../scripts/core-worker-dev.ts",
+    "dev:local": "wrangler dev --var POSTHOG_PROJECT_TOKEN:",
+    "fetcher:live-check": "bun fetcher/scripts/live-check.ts",
+    "test": "bun test src container/src fetcher/src",
+    "typecheck": "tsc --noEmit && tsc -p container --noEmit && tsc -p fetcher --noEmit"
+  },
+  "dependencies": {
+    "@cf-wasm/photon": "catalog:",
+    "@cloudflare/puppeteer": "1.4.0",
+    "@mozilla/readability": "^0.6.0",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "@streamparser/json": "^0.0.26",
+    "@teak/convex": "workspace:*",
+    "@teak/files-protocol": "workspace:*",
+    "client-zip": "^2.4.5",
+    "convex": "catalog:",
+    "fflate": "catalog:",
+    "htmlparser2": "catalog:",
+    "linkedom": "^0.18.14",
+    "turndown": "^7.2.4"
+  },
+  "devDependencies": {
+    "@types/probe-image-size": "^7.2.5",
+    "@types/turndown": "^5.0.6",
+    "jose": "catalog:",
+    "probe-image-size": "7.4.0",
+    "undici": "^7.30.1",
+    "wrangler": "catalog:"
+  }
+}

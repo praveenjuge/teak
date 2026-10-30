@@ -49,7 +49,7 @@ import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/r2";
 import { queueCardProcessing } from "./workflowDispatch";
 
-// Before the Files Worker has stored an overview, `getOverview` counts at
+// Before the Core Worker has stored an overview, `getOverview` counts at
 // most this many cards itself.
 const ADMIN_OVERVIEW_LIMIT = 10_000;
 const OVERVIEW_CARD_PAGE = 500;
@@ -137,7 +137,7 @@ export const getAccess = query({
   handler: async (ctx) => ({ allowed: (await readAdminActor(ctx)) !== null }),
 });
 
-// The Files Worker counts the overview once a day in the same card scan as
+// The Core Worker counts the overview once a day in the same card scan as
 // the daily snapshot (`admin-snapshot` maintenance task) and stores it, so
 // an open admin page no longer re-reads the cards on every card write. Until
 // the first count lands, the overview is counted here from at most

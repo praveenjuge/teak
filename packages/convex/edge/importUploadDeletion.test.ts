@@ -5,26 +5,26 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   convexForWorker,
-  loadFilesWorker,
-} from "../__tests__/helpers/filesWorker.test-utils";
+  loadCoreWorker,
+} from "../__tests__/helpers/coreWorker.test-utils";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import schema from "../schema";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
-const filesWorker = await loadFilesWorker();
-const { FakeBucket, withObjectGates, worker } = filesWorker;
+const coreWorker = await loadCoreWorker();
+const { FakeBucket, withObjectGates, worker } = coreWorker;
 const modules = import.meta.glob("../**/*.ts");
 const drainImports = (
   t: ReturnType<typeof convexTest>,
   env: Record<string, unknown>,
   stateId: Id<"accountDeletionStates">
 ): Promise<boolean> =>
-  filesWorker.drainStorageBatch(
+  coreWorker.drainStorageBatch(
     {
       convex: convexForWorker(t),
-      ops: (spec: unknown) => filesWorker.callFilesOp(env, spec),
+      ops: (spec: unknown) => coreWorker.callFilesOp(env, spec),
     },
     { stateId, generation: 1 },
     "imports"
@@ -528,7 +528,7 @@ test("another user cannot record parts on someone else's import", async () => {
   ).rejects.toThrow("Import upload not found");
 });
 
-test("the import report downloads through the files worker as an attachment", async () => {
+test("the import report downloads through the core worker as an attachment", async () => {
   const { t, signed } = await importSession();
   const { bucket, call } = stubWorker();
   const reportKey = "users/import-deletion-owner/imports/proof/report.txt";
@@ -725,12 +725,8 @@ test("the hourly cron aborts an abandoned import upload, fails the job and queue
   );
   const env = { BUCKET: bucket, FILES_SIGNING_SECRET: "test" };
 
-  expect(await filesWorker.expireImportUploads(env, convexForWorker(t))).toBe(
-    1
-  );
-  expect(await filesWorker.expireImportUploads(env, convexForWorker(t))).toBe(
-    0
-  );
+  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(1);
+  expect(await coreWorker.expireImportUploads(env, convexForWorker(t))).toBe(0);
 
   expect(bucket.multipartUploads.has(upload.uploadId)).toBe(false);
   const expired = await t.run((ctx) => ctx.db.get(abandoned));

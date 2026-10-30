@@ -3,8 +3,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { mockActionCtx } from "../__tests__/helpers/convex.test-utils";
 import {
   convexForWorker,
-  loadFilesWorker,
-} from "../__tests__/helpers/filesWorker.test-utils";
+  loadCoreWorker,
+} from "../__tests__/helpers/coreWorker.test-utils";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "../accountDeletion/batch";
@@ -12,7 +12,7 @@ import schema from "../schema";
 import { ensureObjectOwnership } from "../storage/ownership";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
-const filesWorker = await loadFilesWorker();
+const coreWorker = await loadCoreWorker();
 const modules = import.meta.glob("../**/*.ts");
 
 type Kind = "cards" | "exports" | "imports" | "objects" | "uploads";
@@ -50,11 +50,11 @@ const setup = async (keyCount = 2 * PAGE + 1) => {
     });
     return { card, stateId };
   });
-  const bucket = new filesWorker.FakeBucket();
+  const bucket = new coreWorker.FakeBucket();
   for (const key of keys) {
     bucket.objects.set(key, { bytes: new Uint8Array([1]) });
   }
-  const env = filesWorker.withObjectGates({
+  const env = coreWorker.withObjectGates({
     BUCKET: bucket,
     FILES_SIGNING_SECRET: "test-secret",
   });
@@ -69,10 +69,10 @@ const setup = async (keyCount = 2 * PAGE + 1) => {
     if (spec.op === "freeze-object") {
       freezes.push(spec.params.key as string);
     }
-    return intercept(spec, () => filesWorker.callFilesOp(env, spec));
+    return intercept(spec, () => coreWorker.callFilesOp(env, spec));
   };
   const drain = (kind: Kind = "cards", generation = 1): Promise<boolean> =>
-    filesWorker.drainStorageBatch(
+    coreWorker.drainStorageBatch(
       { convex: convexForWorker(t), ops },
       { stateId, generation },
       kind
@@ -419,7 +419,7 @@ test("progress a deploy left under the older fingerprint restarts its batch", as
   expect(await t.run((ctx) => ctx.db.get(card))).toBeNull();
 });
 
-test("a deployment without the Files Worker never registers phantom objects", async () => {
+test("a deployment without the Core Worker never registers phantom objects", async () => {
   vi.stubEnv("FILES_BASE", "");
   vi.stubEnv("FILES_SIGNING_SECRET", "");
   const t = convexTest(schema, modules);
@@ -451,7 +451,7 @@ test("a deployment without the Files Worker never registers phantom objects", as
       })
   );
   expect(
-    await filesWorker.drainStorageBatch(
+    await coreWorker.drainStorageBatch(
       {
         convex: convexForWorker(t),
         ops: () => Promise.reject(new Error("no storage op expected")),

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Measures the Clef decisions on hand-labelled fixtures, with the Files
- * Worker's own prompts (apps/files-worker/src/ai/decisions.ts), through the
+ * Worker's own prompts (apps/core-worker/src/ai/decisions.ts), through the
  * Workers AI REST API. Prints precision, coverage and accuracy per threshold,
  * latency and tokens, so `DECISION_THRESHOLDS` (packages/files-protocol) can
  * be tuned. Not part of `bun run test`: it calls a paid model.
@@ -24,9 +24,9 @@ import {
   type ClefRequest,
   runClef,
   VISUAL_STYLE_QUESTION_PREFIX,
-} from "../../apps/files-worker/src/ai/decisions";
-import type { FilesOpsEnv } from "../../apps/files-worker/src/ops";
-import { textCardRulesType } from "../../apps/files-worker/src/workflows/cardProcessing/classificationRules";
+} from "../../apps/core-worker/src/ai/decisions";
+import type { FilesOpsEnv } from "../../apps/core-worker/src/ops";
+import { textCardRulesType } from "../../apps/core-worker/src/workflows/cardProcessing/classificationRules";
 import { resolveCreatedCardType } from "../../packages/convex/card/createCard";
 import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
@@ -38,7 +38,7 @@ import {
   type ClefModel,
   DECISION_THRESHOLDS,
 } from "../../packages/files-protocol/src/index";
-import { CLOUDFLARE_ACCOUNT_ID } from "../files-worker-dev-boundary";
+import { CLOUDFLARE_ACCOUNT_ID } from "../core-worker-dev-boundary";
 import {
   type ChoiceOutcome,
   choiceRows,

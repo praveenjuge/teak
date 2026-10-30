@@ -1,0 +1,240 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "core-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Files the Worker reads through env.ASSETS: the getting-started files
+  // new accounts get (src/storage/onboardingFiles.ts). The Worker runs first for
+  // every request, so no path serves an asset directly.
+  "assets": {
+    "directory": "./assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  // Served only on the routes below. Set explicitly so a dashboard toggle
+  // can't leave workers.dev or preview URLs on after a deploy.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "files.teakvault.com",
+      "custom_domain": true
+    },
+    // Patterns end in "*" so query strings match.
+    { "pattern": "teakvault.com/api*", "zone_name": "teakvault.com" },
+    { "pattern": "teakvault.com/mcp*", "zone_name": "teakvault.com" },
+    {
+      "pattern": "teakvault.com/.well-known/oauth-protected-resource*",
+      "zone_name": "teakvault.com"
+    },
+    {
+      "pattern": "teakvault.com/.well-known/teak-oauth-clients.json*",
+      "zone_name": "teakvault.com"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "teak-files-prod"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "API_REQUEST_LIMITER",
+      "namespace_id": "6941",
+      "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      "name": "UNKNOWN_CREDENTIAL_LIMITER",
+      "namespace_id": "6942",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "EDGE_IDENTITY",
+      "id": "d53e5a8c82194effbbb281eab9875615"
+    },
+    {
+      "binding": "LINK_PAGE_CACHE",
+      "id": "bdda56e1f09b4ff68fbec54123fb1d4d"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" },
+      { "name": "LINK_FETCHER", "class_name": "LinkFetcher" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "object-deletion-gates-v1",
+      "new_sqlite_classes": ["ObjectDeletionGate"]
+    },
+    {
+      "tag": "media-renderer-v1",
+      "new_sqlite_classes": ["MediaRenderer"]
+    },
+    {
+      "tag": "link-fetcher-v1",
+      "new_sqlite_classes": ["LinkFetcher"]
+    }
+  ],
+  "containers": [
+    {
+      "class_name": "MediaRenderer",
+      // Container apps keep the names they got before the Worker was renamed
+      // from teak-files-proxy (and then teak-files-prod); a deploy under a new
+      // name cannot create new ones.
+      "name": "teak-files-proxy-mediarenderer",
+      "image": "./container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 4
+    },
+    {
+      "class_name": "LinkFetcher",
+      "name": "teak-files-proxy-linkfetcher",
+      "image": "./fetcher/Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "basic",
+      "max_instances": 4
+    }
+  ],
+  "ai": {
+    "binding": "AI",
+    // AI bindings always access remote resources, even in local dev.
+    "remote": true
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "browser": {
+    "binding": "BROWSER"
+  },
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-cards-0"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "teak-card-processing",
+      "binding": "CARD_PROCESSING",
+      "class_name": "CardProcessingWorkflow"
+    },
+    {
+      "name": "teak-export",
+      "binding": "EXPORTS",
+      "class_name": "ExportWorkflow"
+    },
+    {
+      "name": "teak-import",
+      "binding": "IMPORTS",
+      "class_name": "ImportWorkflow"
+    },
+    {
+      "name": "teak-account-deletion",
+      "binding": "ACCOUNT_DELETION",
+      "class_name": "AccountDeletionWorkflow"
+    },
+    {
+      "name": "teak-maintenance",
+      "binding": "MAINTENANCE",
+      "class_name": "MaintenanceWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions" },
+      { "binding": "AI_BACKFILL", "queue": "teak-ai-backfill" },
+      { "binding": "R2_EVENTS", "queue": "teak-r2-events" }
+    ],
+    "consumers": [
+      {
+        "queue": "teak-object-deletions",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "retry_delay": 30,
+        "dead_letter_queue": "teak-object-deletions-dlq"
+      },
+      {
+        "queue": "teak-object-deletions-dlq",
+        "max_batch_size": 10,
+        "max_retries": 2
+      },
+      {
+        "queue": "teak-ai-backfill",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_concurrency": 2,
+        "max_retries": 10,
+        "retry_delay": 60
+      },
+      {
+        "queue": "teak-r2-events",
+        "max_batch_size": 100,
+        "max_batch_timeout": 30,
+        "max_retries": 5
+      }
+    ]
+  },
+  "analytics_engine_datasets": [
+    { "binding": "AI_USAGE", "dataset": "teak_ai_usage" }
+  ],
+  "triggers": {
+    "crons": [
+      "0 2 * * *",
+      "0 3 * * *",
+      "0 */6 * * *",
+      "0 4 * * 1",
+      "15 * * * *",
+      "45 * * * *"
+    ]
+  },
+  "limits": {
+    "cpu_ms": 300000,
+    "subrequests": 20000
+  },
+  "vars": {
+    // AI Gateway for every Workers AI call (src/ai/aiGateway.ts). Create it in
+    // the dashboard before deploying: a named gateway must exist first.
+    "AI_GATEWAY_ID": "teak-files",
+    // Public PostHog project token for error reports (production only).
+    "POSTHOG_PROJECT_TOKEN": "phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn",
+    "MEDIA_RENDERER_INSTANCES": "4",
+    "LINK_FETCHER_INSTANCES": "4",
+    "API_PUBLIC_HOST": "teakvault.com",
+    "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site",
+    "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app",
+    // The Convex deployments whose background work this Worker runs; the
+    // first is primary. Development shares this Worker until the storage
+    // switch, so its deployment is listed too. Remove it in the same change
+    // that deploys development/wrangler.jsonc: two Workers serving one
+    // deployment would both run its crons, and each would reconcile runs
+    // that live in the other's workflows as missing.
+    "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site",
+    "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",
+    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+    "AI_USAGE_DATASET": "teak_ai_usage"
+  },
+  // Put with `wrangler secret put` (README, "Secrets and local vars"). A
+  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // so it isn't listed.
+  "secrets": {
+    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    // Signed file links carry their signature in the query string, so logs
+    // keep only the path.
+    "redact_query_string": true,
+    // A deploy without this key turns Issues off, even if the dashboard
+    // turned it on.
+    "issues": { "enabled": true }
+  }
+}

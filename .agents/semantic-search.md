@@ -52,7 +52,7 @@ model, the prompts or the text a card is embedded from.
 
 - Each shard is one Vectorize index: `teak-cards-<shard>`, 768 dimensions,
   cosine, with one string metadata index, `type`.
-- Each index is bound in the Files Worker as `CARD_VECTORS_<shard>`.
+- Each index is bound in the Core Worker as `CARD_VECTORS_<shard>`.
 - Shard 0 is `teak-cards-0`, created in the dashboard under Storage &
   Databases → Vectorize.
 - Each vector carries its card's type as `type` metadata. A new shard needs
@@ -72,7 +72,7 @@ model, the prompts or the text a card is embedded from.
   `CURRENT_VECTOR_SHARD`.
 - Account deletion removes the row.
 
-The Files Worker's `capabilities` op reports `vectors` when shard 0 is bound.
+The Core Worker's `capabilities` op reports `vectors` when shard 0 is bound.
 
 ## Keeping vectors in step with cards
 
@@ -116,7 +116,7 @@ or is due for, a vector (`packages/convex/embedding/`).
   vectors and rows before finishing.
 - **Dev.** Namespaces carry the deployment's R2 key prefix, so the dev
   deployment's cards live in `dev/<userId>` namespaces of the same index.
-- **No Files Worker.** Without `FILES_BASE` (the local E2E stack) nothing is
+- **No Core Worker.** Without `FILES_BASE` (the local E2E stack) nothing is
   marked or written.
 
 ## Backfill
@@ -152,7 +152,7 @@ unchanged costs no Workers AI call.
 
 Vectors written before the `type` metadata (October 2026) have none, so a
 type filter never matches them. Their rows hash without the type, so
-`"reembed": true` writes every one again with it. Once the Files Worker that
+`"reembed": true` writes every one again with it. Once the Core Worker that
 writes types is live and `teak-cards-0` has the `type` metadata index:
 
 ```bash
@@ -221,7 +221,7 @@ default; `keyword` and `semantic` for one side). The pure parts are in
   filters (Trash, Archive, favorites, type, site) and qualifier checks as
   keyword matches. Fusion picks the candidate set (401 grid, 400 API); the
   chosen sort orders it.
-- **Fallback.** No Files Worker, a worker error or timeout, or more than 60
+- **Fallback.** No Core Worker, a worker error or timeout, or more than 60
   uncached searches a minute per user (`semanticSearch` rate limit) leaves the
   search keyword-only, logged as `[search/semantic]`.
 
@@ -231,7 +231,7 @@ default; `keyword` and `semantic` for one side). The pure parts are in
 and `mood:"…"` list meaning matches only (`card/similarSearch.ts`), with no
 keyword side:
 
-- `like:` asks the Files Worker's `vector-similar` op, which searches with the
+- `like:` asks the Core Worker's `vector-similar` op, which searches with the
   card's stored vector. The card is checked (the user's, outside Trash) on every
   read and request, so a cached ranking never outlives it. A card with no
   vector yet is cached as `pending` for 15 seconds. Every neighbor counts,

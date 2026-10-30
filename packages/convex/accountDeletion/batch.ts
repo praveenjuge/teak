@@ -29,7 +29,7 @@ export const ACCOUNT_DELETION_CARD_BATCH = 25;
 // Card documents can be large; a batch stops early past this many bytes so
 // its transaction stays well under Convex's read limit.
 const ACCOUNT_DELETION_CARD_BYTES = 4 * 1024 * 1024;
-/** R2 keys the Files Worker freezes and deletes per checkpoint. */
+/** R2 keys the Core Worker freezes and deletes per checkpoint. */
 export const ACCOUNT_DELETION_KEY_PAGE = 50;
 const FINGERPRINT_VERSION = "v2:";
 

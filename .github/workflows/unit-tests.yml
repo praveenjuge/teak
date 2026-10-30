@@ -35,7 +35,7 @@ jobs:
       - name: Audit env contract
         run: bun run audit:env
       - name: Check generated Worker types
-        run: bun run --cwd apps/files-worker cf-typegen:check
+        run: bun run --cwd apps/core-worker cf-typegen:check
       - name: Run unit tests
         run: bun run test
 
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: apps/files-worker
+        working-directory: apps/core-worker
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0

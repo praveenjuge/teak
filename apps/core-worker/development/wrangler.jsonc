@@ -1,0 +1,191 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // Isolated development Worker: Convex dev (reminiscent-kangaroo-59) uses it,
+  // its own bucket, vector index and signing key. Deploy with
+  // `bun run deploy:development`; never add the production custom domain.
+  "name": "core-worker-dev",
+  "account_id": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Files the Worker reads through env.ASSETS: the getting-started files
+  // new accounts get (src/storage/onboardingFiles.ts). The Worker runs first for
+  // every request, so no path serves an asset directly.
+  "assets": {
+    "directory": "../assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "teak-files-development-20261006",
+      "preview_bucket_name": "teak-files-development-20261006"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" },
+      { "name": "LINK_FETCHER", "class_name": "LinkFetcher" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "development-object-deletion-gates-v1",
+      "new_sqlite_classes": ["ObjectDeletionGate"]
+    },
+    {
+      "tag": "development-media-renderer-v1",
+      "new_sqlite_classes": ["MediaRenderer"]
+    },
+    {
+      "tag": "development-link-fetcher-v1",
+      "new_sqlite_classes": ["LinkFetcher"]
+    }
+  ],
+  "containers": [
+    {
+      "class_name": "MediaRenderer",
+      // Container apps keep the names they got before the Worker was renamed
+      // from teak-files-dev; a deploy under a new name cannot create new ones.
+      "name": "teak-files-dev-mediarenderer",
+      "image": "../container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 2
+    },
+    {
+      "class_name": "LinkFetcher",
+      "name": "teak-files-dev-linkfetcher",
+      "image": "../fetcher/Dockerfile",
+      "image_build_context": "../../..",
+      "instance_type": "basic",
+      "max_instances": 2
+    }
+  ],
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "browser": {
+    "binding": "BROWSER"
+  },
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-dev-cards-0"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "teak-card-processing-dev",
+      "binding": "CARD_PROCESSING",
+      "class_name": "CardProcessingWorkflow"
+    },
+    {
+      "name": "teak-export-dev",
+      "binding": "EXPORTS",
+      "class_name": "ExportWorkflow"
+    },
+    {
+      "name": "teak-import-dev",
+      "binding": "IMPORTS",
+      "class_name": "ImportWorkflow"
+    },
+    {
+      "name": "teak-account-deletion-dev",
+      "binding": "ACCOUNT_DELETION",
+      "class_name": "AccountDeletionWorkflow"
+    },
+    {
+      "name": "teak-maintenance-dev",
+      "binding": "MAINTENANCE",
+      "class_name": "MaintenanceWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions-dev" },
+      { "binding": "AI_BACKFILL", "queue": "teak-ai-backfill-dev" },
+      { "binding": "R2_EVENTS", "queue": "teak-r2-events-dev" }
+    ],
+    "consumers": [
+      {
+        "queue": "teak-object-deletions-dev",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "retry_delay": 30,
+        "dead_letter_queue": "teak-object-deletions-dlq-dev"
+      },
+      {
+        "queue": "teak-object-deletions-dlq-dev",
+        "max_batch_size": 10,
+        "max_retries": 2
+      },
+      {
+        "queue": "teak-ai-backfill-dev",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_concurrency": 2,
+        "max_retries": 10,
+        "retry_delay": 60
+      },
+      {
+        "queue": "teak-r2-events-dev",
+        "max_batch_size": 100,
+        "max_batch_timeout": 30,
+        "max_retries": 5
+      }
+    ]
+  },
+  "analytics_engine_datasets": [
+    { "binding": "AI_USAGE", "dataset": "teak_dev_ai_usage" }
+  ],
+  "triggers": {
+    "crons": [
+      "0 2 * * *",
+      "0 3 * * *",
+      "0 */6 * * *",
+      "0 4 * * 1",
+      "15 * * * *",
+      "45 * * * *"
+    ]
+  },
+  "limits": {
+    "cpu_ms": 300000,
+    "subrequests": 20000
+  },
+  "vars": {
+    // Its own AI Gateway, so development traffic stays out of production's
+    // analytics. Create it in the dashboard before deploying.
+    "AI_GATEWAY_ID": "teak-files-development",
+    "MEDIA_RENDERER_INSTANCES": "2",
+    "LINK_FETCHER_INSTANCES": "2",
+    "CONVEX_SITE_URLS": "https://reminiscent-kangaroo-59.convex.site",
+    "FILES_PUBLIC_ORIGIN": "https://core-worker-dev.praveenjuge.workers.dev",
+    "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+    "AI_USAGE_DATASET": "teak_dev_ai_usage"
+  },
+  // Put with `wrangler secret put` (README, "Secrets and local vars"). A
+  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // so it isn't listed.
+  "secrets": {
+    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    // Signed file links carry their signature in the query string, so logs
+    // keep only the path.
+    "redact_query_string": true,
+    // A deploy without this key turns Issues off.
+    "issues": { "enabled": true }
+  }
+}

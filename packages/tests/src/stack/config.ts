@@ -7,8 +7,8 @@ export type StackPorts = Pick<
   | "convexSite"
   | "emulator"
   | "emulatorUpstream"
-  | "filesWorker"
-  | "filesWorkerInspector"
+  | "coreWorker"
+  | "coreWorkerInspector"
   | "web"
 >;
 
@@ -26,8 +26,8 @@ export const E2E_EMAIL_INBOUND_SIGNING_SECRET =
 export const EMULATOR_COOKIE_PASSWORD =
   "teak-e2e-emulator-cookie-password-0001";
 
-export const filesWorkerOrigin = (ports: Pick<StackPorts, "filesWorker">) =>
-  `http://127.0.0.1:${ports.filesWorker}`;
+export const coreWorkerOrigin = (ports: Pick<StackPorts, "coreWorker">) =>
+  `http://127.0.0.1:${ports.coreWorker}`;
 
 export const stackUrls = (ports: StackPorts): Required<StackUrls> => ({
   appOrigin: `http://localhost:${ports.web}`,
@@ -54,7 +54,7 @@ export const emulatorWebEnv = (ports: StackPorts) => {
   return {
     NEXT_PUBLIC_CONVEX_URL: urls.convexUrl,
     NEXT_PUBLIC_CONVEX_SITE_URL: urls.apiOrigin,
-    NEXT_PUBLIC_FILES_BASE: filesWorkerOrigin(ports),
+    NEXT_PUBLIC_FILES_BASE: coreWorkerOrigin(ports),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
     WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
     WORKOS_API_KEY: EMULATOR_API_KEY,

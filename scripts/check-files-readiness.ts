@@ -132,16 +132,16 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
+      "Core worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
     );
     break;
   }
   const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
   if (Date.now() >= deadline) {
     throw new Error(
-      `Files worker is not ready${reason}; backend deployment blocked.`
+      `Core worker is not ready${reason}; backend deployment blocked.`
     );
   }
-  console.log(`Waiting for files-worker deployment readiness…${reason}`);
+  console.log(`Waiting for core-worker deployment readiness…${reason}`);
   await Bun.sleep(15_000);
 }

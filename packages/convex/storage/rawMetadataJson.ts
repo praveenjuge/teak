@@ -1,5 +1,5 @@
 // Pure rules for archiving raw provider metadata, shared by Convex and the
-// Files Worker so both decide alike which payloads leave the card.
+// Core Worker so both decide alike which payloads leave the card.
 
 export const RAW_METADATA_MAX_BYTES = 512 * 1024;
 export const RAW_METADATA_KINDS = ["linkPreview", "linkCategory"] as const;

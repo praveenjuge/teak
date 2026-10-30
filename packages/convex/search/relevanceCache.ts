@@ -91,7 +91,7 @@ export const storeScores = internalMutation({
   },
 });
 
-/** The Files Worker's hourly cron calls this until `hasMore` is false. */
+/** The Core Worker's hourly cron calls this until `hasMore` is false. */
 export const cleanupExpired = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

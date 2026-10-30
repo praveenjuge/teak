@@ -24,7 +24,7 @@ interface WorkerAnswer {
   reason: string;
 }
 
-/** The Files Worker: `check-link` answers with `answer`; calls are kept. */
+/** The Core Worker: `check-link` answers with `answer`; calls are kept. */
 const stubWorker = (
   answer: (url: string) => WorkerAnswer | Promise<WorkerAnswer>
 ) => {

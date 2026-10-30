@@ -52,7 +52,7 @@ const setup = async () => {
   return { t, card, cardId };
 };
 
-const installFilesWorker = () => {
+const installCoreWorker = () => {
   vi.stubEnv("FILES_BASE", "https://files.example.com");
   vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
   const objects = new Map<string, Uint8Array>();
@@ -90,7 +90,7 @@ describe("raw metadata pipeline", () => {
     "$writer writer archives large=$large diagnostics through the scheduled pipeline",
     async ({ writer, large }) => {
       vi.useFakeTimers();
-      const { objects, fetchMock } = installFilesWorker();
+      const { objects, fetchMock } = installCoreWorker();
       const { t, cardId, card } = await setup();
       await t.run((ctx) => ctx.db.patch("cards", cardId, { metadata: {} }));
       const raw =
@@ -158,9 +158,9 @@ describe("raw metadata pipeline", () => {
   );
 
   test.each(["preview", "category"] as const)(
-    "%s writer stores a Files Worker archive reference without scheduling an archive",
+    "%s writer stores a Core Worker archive reference without scheduling an archive",
     async (writer) => {
-      const { fetchMock } = installFilesWorker();
+      const { fetchMock } = installCoreWorker();
       const { t, cardId, card } = await setup();
       const kind = writer === "preview" ? "linkPreview" : "linkCategory";
       const digest = "a".repeat(64);

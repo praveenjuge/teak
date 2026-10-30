@@ -44,7 +44,7 @@ const getTtlMs = (ttlMs?: number): number =>
 /**
  * How long a pending reservation holds its key: Convex's ten-minute action
  * limit, which bounds the slowest idempotent request (an upload finalize,
- * whose Files Worker copy has no shorter timeout). A lapsed reservation
+ * whose Core Worker copy has no shorter timeout). A lapsed reservation
  * belongs to a handler that died before it could complete or release it, so
  * a retry takes the key over.
  */

@@ -456,7 +456,7 @@ describe("handleEmail: attachments", () => {
     expect(net.timeouts).toContain(UPLOAD_TIMEOUT_MS);
   });
 
-  test("a PUT the Files Worker refuses is skipped and the delivery succeeds", async () => {
+  test("a PUT the Core Worker refuses is skipped and the delivery succeeds", async () => {
     const { message } = messageOf(fixture("attachments.eml"));
     let puts = 0;
     const net = fakeDeps((request) => {

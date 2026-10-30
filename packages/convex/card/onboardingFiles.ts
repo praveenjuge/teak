@@ -46,7 +46,7 @@ const planFiles = (userId: string) =>
   }));
 
 /**
- * Has the Files Worker copy the getting-started files it ships into the
+ * Has the Core Worker copy the getting-started files it ships into the
  * account, and returns the cards whose files all landed.
  */
 const storeOnboardingFiles = async (

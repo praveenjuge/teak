@@ -343,7 +343,7 @@ describe("embedding cards", () => {
     expect(upserts(calls)[0]?.params.namespace).toBe(`dev/${USER}`);
   });
 
-  test("without a Files Worker nothing is recorded or scheduled", async () => {
+  test("without a Core Worker nothing is recorded or scheduled", async () => {
     vi.stubEnv("FILES_BASE", "");
     const calls = stubWorker();
     const t = setup();
@@ -823,7 +823,7 @@ describe("backfill", () => {
     expect(await rowOf(t, cardId)).toBeNull();
   });
 
-  test("a real run refuses to start without a Files Worker", async () => {
+  test("a real run refuses to start without a Core Worker", async () => {
     vi.stubEnv("FILES_BASE", "");
     stubWorker();
     const t = setup();

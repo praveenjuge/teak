@@ -23,7 +23,7 @@ type OpAnswer =
   | { error: string; status: number }
   | ((params: Record<string, any>) => { data: unknown });
 
-const stubFilesWorker = (answers: Record<string, OpAnswer>) => {
+const stubCoreWorker = (answers: Record<string, OpAnswer>) => {
   const calls: { op: string; params: Record<string, any> }[] = [];
   vi.stubEnv("FILES_BASE", "https://files.test");
   vi.stubEnv("FILES_SIGNING_SECRET", "ocr-test-secret");
@@ -142,7 +142,7 @@ describe("backfillLinkOcr", () => {
     ]);
 
   test("a dry run counts the links and writes nothing", async () => {
-    const files = stubFilesWorker({});
+    const files = stubCoreWorker({});
     const { t, insert, card } = await setup();
     const [talk] = await seedLinks(insert);
     const result = await t.mutation(
@@ -163,7 +163,7 @@ describe("backfillLinkOcr", () => {
   });
 
   test("a real run reads the preview image and the screenshot, then stops picking the card", async () => {
-    const files = stubFilesWorker({
+    const files = stubCoreWorker({
       "extract-image-text": (params) => ({
         data: {
           text:
@@ -197,7 +197,7 @@ describe("backfillLinkOcr", () => {
   });
 
   test("an image the Worker declines reads as none", async () => {
-    stubFilesWorker({
+    stubCoreWorker({
       "extract-image-text": (params) =>
         params.sourceKey === OG
           ? ({ error: "UNSUPPORTED", status: 415 } as never)
@@ -216,7 +216,7 @@ describe("backfillLinkOcr", () => {
   });
 
   test("a Worker without the op leaves the card unread", async () => {
-    stubFilesWorker({
+    stubCoreWorker({
       "extract-image-text": { error: "INVALID_INPUT", status: 400 },
     });
     const { t, insert, card } = await setup();
@@ -248,7 +248,7 @@ describe("backfillLinkOcr", () => {
   });
 
   test("never sends the images of an account with AI off", async () => {
-    const files = stubFilesWorker({});
+    const files = stubCoreWorker({});
     const { t, insert, turnAiOff } = await setup();
     const [talk] = await seedLinks(insert);
     await turnAiOff();
@@ -312,7 +312,7 @@ describe("backfillPdfOcr", () => {
     t.run((ctx) => ctx.db.query("workflowDispatches").collect());
 
   test("a dry run counts the PDFs and writes nothing", async () => {
-    const files = stubFilesWorker({});
+    const files = stubCoreWorker({});
     const { t, insert } = await setup();
     await seedPdfs(insert);
     const result = await t.mutation(
@@ -332,7 +332,7 @@ describe("backfillPdfOcr", () => {
   });
 
   test("a scan gets a metadata-only run, a text PDF is marked checked", async () => {
-    const files = stubFilesWorker({ inspect: inspectAnswer });
+    const files = stubCoreWorker({ inspect: inspectAnswer });
     const { t, insert, card } = await setup();
     const [lease, footer, invoice] = await seedPdfs(insert);
     const outcomes: string[] = [];
@@ -366,7 +366,7 @@ describe("backfillPdfOcr", () => {
   });
 
   test("a PDF the Worker declines is checked, not read", async () => {
-    stubFilesWorker({ inspect: { error: "UNSUPPORTED", status: 415 } });
+    stubCoreWorker({ inspect: { error: "UNSUPPORTED", status: 415 } });
     const { t, insert, card } = await setup();
     const [lease] = await seedPdfs(insert);
     expect(
@@ -379,7 +379,7 @@ describe("backfillPdfOcr", () => {
   });
 
   test("a busy renderer leaves the PDF unread for a rerun", async () => {
-    stubFilesWorker({
+    stubCoreWorker({
       inspect: { error: "RENDERER_UNAVAILABLE", status: 503 },
     });
     const { t, insert, card } = await setup();
@@ -406,7 +406,7 @@ describe("backfillPdfOcr", () => {
   });
 
   test("an account whose deletion started after scheduling gets no run", async () => {
-    stubFilesWorker({ inspect: inspectAnswer });
+    stubCoreWorker({ inspect: inspectAnswer });
     const { t, insert, card } = await setup();
     const [lease, , invoice] = await seedPdfs(insert);
     await t.run((ctx) =>
@@ -429,7 +429,7 @@ describe("backfillPdfOcr", () => {
   });
 
   test("AI off or paused: no PDF is checked or read", async () => {
-    const files = stubFilesWorker({ inspect: inspectAnswer });
+    const files = stubCoreWorker({ inspect: inspectAnswer });
     const { t, insert, card, turnAiOff } = await setup();
     const [lease] = await seedPdfs(insert);
     await turnAiOff();

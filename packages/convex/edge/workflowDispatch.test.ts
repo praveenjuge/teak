@@ -620,14 +620,14 @@ describe("reconcile helpers", () => {
 });
 
 describe("flush", () => {
-  test("leaves rows pending when no Files Worker is configured", async () => {
+  test("leaves rows pending when no Core Worker is configured", async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
   });
 
-  test("reports rows it cannot send while no Files Worker is configured", async () => {
+  test("reports rows it cannot send while no Core Worker is configured", async () => {
     const sentEvents = capturePostHog();
     const t = convexTest(schema, modules);
     await t.action(internal.workflowDispatch.flush, {});

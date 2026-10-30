@@ -30,7 +30,7 @@ interface WorkerCall {
 }
 
 /**
- * The Files Worker: finalizes report the size they were sent; else ok. While
+ * The Core Worker: finalizes report the size they were sent; else ok. While
  * `faults.finalizes` is above zero, a finalize answers 503 and counts it down.
  */
 const stubWorker = (faults = { finalizes: 0 }) => {
@@ -961,7 +961,7 @@ describe("attachments", () => {
     ).toEqual(["unclaimed"]);
   });
 
-  test("a scheduled finalize that hits a Files Worker fault is followed up", async () => {
+  test("a scheduled finalize that hits a Core Worker fault is followed up", async () => {
     vi.useFakeTimers();
     const faults = { finalizes: 0 };
     stubWorker(faults);

@@ -73,7 +73,7 @@ export interface SetupReport {
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|files-worker|email-worker] [--convex cloud|skip] [--check] [--json]";
+  "Usage: bun run setup [--target web|docs|cli|extension|core-worker|email-worker] [--convex cloud|skip] [--check] [--json]";
 
 const CONVEX_MODES: readonly string[] = ["cloud", "skip"];
 
@@ -143,7 +143,7 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
       keys: ["VITE_PUBLIC_CONVEX_URL", "VITE_PUBLIC_CONVEX_SITE_URL"],
     },
   ],
-  "files-worker": [],
+  "core-worker": [],
   "email-worker": [],
 };
 
@@ -361,7 +361,7 @@ export const runSetup = async (
     });
   }
 
-  if (target === "files-worker") {
+  if (target === "core-worker") {
     checks.push({
       id: "setup-files-pointer",
       ok: true,

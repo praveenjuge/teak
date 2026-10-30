@@ -498,7 +498,7 @@ export const dropEmailAttachment = internalMutation({
 export const RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PRUNE_BATCH = 200;
 
-/** The Files Worker's daily maintenance calls this until `hasMore` is false. */
+/** The Core Worker's daily maintenance calls this until `hasMore` is false. */
 export const pruneReceipts = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

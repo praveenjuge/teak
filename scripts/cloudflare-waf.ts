@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Applies the WAF custom rules in `apps/files-worker/waf/rules.ts` to the
+ * Applies the WAF custom rules in `apps/core-worker/waf/rules.ts` to the
  * teakvault.com zone through the Cloudflare Rulesets API.
  *
  * Only rules whose `ref` starts with WAF_RULE_REF_PREFIX are created,
@@ -19,7 +19,7 @@ import {
   WAF_RULES,
   WAF_ZONE_NAME,
   type WafRule,
-} from "../apps/files-worker/waf/rules";
+} from "../apps/core-worker/waf/rules";
 
 const API = "https://api.cloudflare.com/client/v4";
 const PHASE = "http_request_firewall_custom";

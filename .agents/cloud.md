@@ -18,10 +18,10 @@ rest of "Works" was last driven on 2026-10-13.
   `CONVEX_DEPLOYMENT` names the dev deployment. The SessionStart hook warns
   when any of them are set; until they're removed, prefix commands with
   `env -u NAME …`.
-- **Files Workers:** using and deploying them needs no Cloudflare token.
-  Workers Builds deploys both Files Workers from `main` (`teak-files-prod`
-  and `teak-files-dev`), and the dev deployment's Convex env already points
-  at `teak-files-dev`. Running one locally is different: `bun run dev files`
+- **Core Workers:** using and deploying them needs no Cloudflare token.
+  Workers Builds deploys both Core Workers from `main` (`core-worker`
+  and `core-worker-dev`), and the dev deployment's Convex env already points
+  at `core-worker-dev`. Running one locally is different: `bun run dev core`
   needs `bun run sync:cloudflare-dev --isolated` first and Cloudflare
   credentials for its remote bindings, so a session without a Cloudflare
   token can't run it. The local E2E stack runs the Worker without them
@@ -93,7 +93,7 @@ background commands after 30 minutes, and the stack goes with it.
 
 `bun run dev --local --detach` runs the app on a local backend instead: the
 E2E suite's stack (a local Convex backend that pushes this checkout's
-`packages/convex` as you edit it, the WorkOS emulator, and the Files Worker
+`packages/convex` as you edit it, the WorkOS emulator, and the Core Worker
 in Miniflare), with a seeded `dev+local-<checkout>@example.org` account whose
 new password `bun run dev --status` prints. It takes about 25 seconds, needs
 no secrets and no shared backend, so schema and destructive work can't clash
@@ -177,14 +177,14 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   hand with `scripts/cloud-docker-build.sh`, and never deploy what it builds:
 
   ```bash
-  scripts/cloud-docker-build.sh teak-renderer apps/files-worker/container
-  scripts/cloud-docker-build.sh teak-fetcher . apps/files-worker/fetcher/Dockerfile
+  scripts/cloud-docker-build.sh teak-renderer apps/core-worker/container
+  scripts/cloud-docker-build.sh teak-fetcher . apps/core-worker/fetcher/Dockerfile
   ```
 
   Then run the renderer's integration tests the way the `renderer` CI job
   does: start `teak-renderer` twice (`-p 18080:8080`, and `-p 18081:8080 -e
   RENDERER_TIMEOUT_SCALE=0.0001`, both `--cpus 0.25 --memory 1g`), and in
-  `apps/files-worker` run `RENDERER_URL=http://localhost:18080
+  `apps/core-worker` run `RENDERER_URL=http://localhost:18080
   RENDERER_TIMEOUT_URL=http://localhost:18081 bun test --timeout 60000
   container/test`.
 
@@ -243,20 +243,20 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   `bun run dev --stop && bun run dev --detach`.
 
 - **Cloudflare from a session:** the session has no Cloudflare credentials,
-  so `bun run dev files` (remote bindings) and anything that deploys can't
+  so `bun run dev core` (remote bindings) and anything that deploys can't
   run; `bun run dev --local` and the E2E stack run the Worker without them.
   Two owner options, neither set up yet: connect Cloudflare's API MCP server
   (`https://mcp.cloudflare.com/mcp`) as a claude.ai connector, which signs in
-  with OAuth and lets a session read `teak-files-dev`'s logs and
+  with OAuth and lets a session read `core-worker-dev`'s logs and
   observability without a token in the VM (the older "Workers Bindings"
   connector is deprecated); or, to give sessions a token at all, first move
-  `teak-files-dev` to its own Cloudflare account, since an account-scoped
+  `core-worker-dev` to its own Cloudflare account, since an account-scoped
   token on today's account also reaches production.
 - **Worker Previews** (generally available 2026-09-22) can give each branch
-  its own Files Worker through Workers Builds with no token in the session,
+  its own Core Worker through Workers Builds with no token in the session,
   with its own Durable Objects and Containers. Not set up: previews share the
   dev Worker's Workflows, don't consume Queues, and Convex dev only talks to
-  `teak-files-dev`, so a preview can't run card processing end to end yet.
+  `core-worker-dev`, so a preview can't run card processing end to end yet.
   `preview_urls` stays `false` (version preview URLs don't support Durable
   Objects anyway).
 
@@ -278,7 +278,7 @@ section above went stale within two weeks). To re-check it, start a fresh
 session on `main` and work through it: run `bun run doctor`, `bun run dev
 --detach` and sign in, `bun run dev --local --detach` and sign in,
 `bun test src/workflows/cardProcessing/engine.test.ts` in
-`apps/files-worker`, and `wrangler dev --local -c development/wrangler.jsonc`
+`apps/core-worker`, and `wrangler dev --local -c development/wrangler.jsonc`
 there until both Containers build. Update "Last verified" and fix what
 drifted in the same PR. A weekly scheduled task can run exactly that and open
 the PR; the owner creates it, since it runs on their account.

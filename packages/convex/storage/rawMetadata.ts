@@ -41,7 +41,7 @@ export const rawMetadataKey = (
 };
 
 /**
- * The Files Worker archives qualifying raw payloads itself and sends the
+ * The Core Worker archives qualifying raw payloads itself and sends the
  * reference in their place. A reference must name this card's own key for
  * that kind and digest, as hydration requires.
  */

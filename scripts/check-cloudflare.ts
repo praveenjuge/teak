@@ -5,11 +5,11 @@ import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/filesOrigins";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
-export const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
-const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
+export const WRANGLER_PATH = join(ROOT, "apps/core-worker/wrangler.jsonc");
+const DEV_VARS_PATH = join(ROOT, "apps/core-worker/.dev.vars");
 const ISOLATED_DEV_VARS_PATH = join(
   ROOT,
-  "apps/files-worker/development/.dev.vars"
+  "apps/core-worker/development/.dev.vars"
 );
 
 export type Status = "same" | "different" | "missing" | "ok" | "warn";
@@ -182,7 +182,7 @@ export const readWranglerConfig = (path: string) =>
   Bun.JSONC.parse(readFileSync(path, "utf-8")) as WranglerConfig;
 
 const checkWrangler = () => {
-  console.log("\n== Wrangler (apps/files-worker/wrangler.jsonc) ==");
+  console.log("\n== Wrangler (apps/core-worker/wrangler.jsonc) ==");
   if (!existsSync(WRANGLER_PATH)) {
     log("wrangler.jsonc", "missing");
     return;
@@ -222,7 +222,7 @@ const checkWrangler = () => {
 };
 
 const checkDevVars = () => {
-  console.log("\n== Local .dev.vars (apps/files-worker/.dev.vars) ==");
+  console.log("\n== Local .dev.vars (apps/core-worker/.dev.vars) ==");
   if (existsSync(DEV_VARS_PATH)) {
     log(".dev.vars", "ok", "present (ignored via .gitignore, per-developer)");
     try {
@@ -442,13 +442,13 @@ const main = async () => {
   await checkConvexEnv(only);
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (development config, remote dev bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev core` (development config, remote dev bindings) vs `bun run dev core:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
     "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` for the development Worker)."
   );
   console.log(
-    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the development Worker Convex dev uses; the old teak-files-dev R2 bucket is deleted, and the name now belongs to the development Worker."
+    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is core-worker-dev, the development Worker Convex dev uses."
   );
   if (failureCount > 0) {
     console.log(

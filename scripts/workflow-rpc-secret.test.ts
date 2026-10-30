@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildWorkflowRpcSecretPayload } from "@teak/files-protocol";
-import { hmacSha256Hex } from "../apps/files-worker/src/lib";
+import { hmacSha256Hex } from "../apps/core-worker/src/lib";
 import { deriveWorkflowRpcSecret } from "./workflow-rpc-secret";
 
 const workerDerivation = (root: string, origin: string) =>

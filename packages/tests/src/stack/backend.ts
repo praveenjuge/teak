@@ -17,7 +17,7 @@ import {
 } from "../../../../scripts/worktree-env.ts";
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
-import { filesWorkerDeploymentVars } from "./filesWorker";
+import { coreWorkerDeploymentVars } from "./coreWorker";
 
 /**
  * Local backends keep their state in packages/convex/.convex, inside the
@@ -385,7 +385,7 @@ export const setupBackend = async (
     {
       SITE_URL: worktree.siteUrl,
       ...emulatorDeploymentVars(worktree),
-      ...filesWorkerDeploymentVars(worktree),
+      ...coreWorkerDeploymentVars(worktree),
     },
     listed,
     env
@@ -398,8 +398,8 @@ export const setupBackend = async (
   await settle();
   done.push(
     vars.configured.length > 0
-      ? `configured ${vars.configured.join(", ")} for the WorkOS emulator and the Files Worker`
-      : "the local backend already points at the WorkOS emulator and the Files Worker"
+      ? `configured ${vars.configured.join(", ")} for the WorkOS emulator and the Core Worker`
+      : "the local backend already points at the WorkOS emulator and the Core Worker"
   );
   return done;
 };

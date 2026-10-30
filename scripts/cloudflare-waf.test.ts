@@ -4,7 +4,7 @@ import { unstable_readConfig } from "wrangler";
 import {
   API_PROXY_MAX_BODY_BYTES,
   upstreamPathFor,
-} from "../apps/files-worker/src/edge/apiProxy";
+} from "../apps/core-worker/src/edge/apiProxy";
 import {
   API_REQUESTS,
   declaredLengthOver,
@@ -12,7 +12,7 @@ import {
   WAF_RULES,
   WAF_ZONE_NAME,
   type WafRule,
-} from "../apps/files-worker/waf/rules";
+} from "../apps/core-worker/waf/rules";
 import { type LiveRule, planWafChanges, syncWafRules } from "./cloudflare-waf";
 
 const rule = (name: string, expression = "true"): WafRule => ({
@@ -197,7 +197,7 @@ describe("the managed rules", () => {
     );
     expect(WAF_ZONE_NAME).toBe(
       unstable_readConfig({
-        config: resolve(import.meta.dir, "../apps/files-worker/wrangler.jsonc"),
+        config: resolve(import.meta.dir, "../apps/core-worker/wrangler.jsonc"),
       }).vars.API_PUBLIC_HOST as string
     );
     for (const path of ["/api", "/api/v1/cards", "/mcp", "/mcp/x"]) {

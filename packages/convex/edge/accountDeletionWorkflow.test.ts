@@ -6,8 +6,8 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   convexForWorker,
-  loadFilesWorker,
-} from "../__tests__/helpers/filesWorker.test-utils";
+  loadCoreWorker,
+} from "../__tests__/helpers/coreWorker.test-utils";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -15,7 +15,7 @@ import schema from "../schema";
 import { buildR2UserPrefix } from "../storage/r2";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
-const filesWorker = await loadFilesWorker();
+const coreWorker = await loadCoreWorker();
 const modules = import.meta.glob("../**/*.ts");
 const claims = {
   issuer: "https://api.workos.com/user_management/client_DELETE",
@@ -243,8 +243,8 @@ describe("durable deletion admission and tombstones", () => {
     const { t, signed } = await fixture();
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
-    const env = filesWorker.withObjectGates({
-      BUCKET: new filesWorker.FakeBucket(),
+    const env = coreWorker.withObjectGates({
+      BUCKET: new coreWorker.FakeBucket(),
       FILES_SIGNING_SECRET: "disposable-secret",
     });
     const providerRequests: string[] = [];
@@ -270,7 +270,7 @@ describe("durable deletion admission and tombstones", () => {
       ctx.db.query("accountDeletionStates").unique()
     );
     await t.run((ctx) => ctx.db.patch(state!._id, { stage: 3 }));
-    await filesWorker.runAccountDeletion(
+    await coreWorker.runAccountDeletion(
       {
         env,
         instanceId: state!.workflowId,
@@ -279,12 +279,12 @@ describe("durable deletion admission and tombstones", () => {
           generation: 1,
           convexSiteUrl: "https://session-tests.convex.site",
         },
-        step: filesWorker.createFakeStep().step,
+        step: coreWorker.createFakeStep().step,
       },
       {
         convex: convexForWorker(t),
         ops: (spec: { op: string; params: Record<string, unknown> }) =>
-          filesWorker.callFilesOp(env, spec),
+          coreWorker.callFilesOp(env, spec),
       }
     );
     expect(providerRequests).toEqual([
@@ -459,7 +459,7 @@ describe("durable deletion admission and tombstones", () => {
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
-    const bucket = new filesWorker.FakeBucket();
+    const bucket = new coreWorker.FakeBucket();
     for (const key of [
       "users/exact/file",
       "users/exact/export.zip",
@@ -475,7 +475,7 @@ describe("durable deletion admission and tombstones", () => {
     ]) {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
-    const env = filesWorker.withObjectGates({
+    const env = coreWorker.withObjectGates({
       BUCKET: bucket,
       FILES_SIGNING_SECRET: "disposable-secret",
     });
@@ -778,7 +778,7 @@ describe("durable deletion admission and tombstones", () => {
       ctx.db.query("accountDeletionStates").unique()
     );
     const binding = { stateId: state!._id, generation: 1 };
-    await filesWorker.runAccountDeletion(
+    await coreWorker.runAccountDeletion(
       {
         env,
         instanceId: state!.workflowId,
@@ -786,7 +786,7 @@ describe("durable deletion admission and tombstones", () => {
           ...binding,
           convexSiteUrl: "https://session-tests.convex.site",
         },
-        step: filesWorker.createFakeStep().step,
+        step: coreWorker.createFakeStep().step,
       },
       {
         convex: convexForWorker(t),
@@ -795,7 +795,7 @@ describe("durable deletion admission and tombstones", () => {
             vectorDeletes.push(spec.params as { ids: string[]; shard: number });
             return Promise.resolve({ kind: "ok", data: { mutationId: "m" } });
           }
-          return filesWorker.callFilesOp(env, spec);
+          return coreWorker.callFilesOp(env, spec);
         },
       }
     );

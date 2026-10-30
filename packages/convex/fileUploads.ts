@@ -369,7 +369,7 @@ export const completeMultipartUpload = action({
   },
 });
 
-/** The Files Worker's hourly cron aborts these uploads, then deletes them. */
+/** The Core Worker's hourly cron aborts these uploads, then deletes them. */
 export const findExpiredSessions = internalQuery({
   args: { now: v.number(), limit: v.number() },
   returns: v.array(
