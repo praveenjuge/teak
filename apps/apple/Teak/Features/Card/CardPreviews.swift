@@ -480,7 +480,8 @@ struct PalettePreview: View {
     }
 
     private func swatch(_ color: CardColor, canRemove: Bool) -> some View {
-        let hex = PaletteEdit.normalizedHex(color.hex) ?? color.hex.uppercased()
+        // The server takes `#RRGGBB`; a color saved with alpha is removed by its RGB.
+        let hex = PaletteEdit.storedHex(color.hex)
         return Button {
             Pasteboard.copy(color.hex)
             feedback += 1
@@ -496,12 +497,12 @@ struct PalettePreview: View {
         .buttonStyle(.plain)
         .accessibilityLabel(tr("native.card.copyColor", color.name ?? color.hex))
         .contextMenu {
-            if canRemove {
+            if canRemove, let hex {
                 Button(tr("native.card.palette.removeColor"), systemImage: "trash", role: .destructive) { remove(hex) }
             }
         }
         .accessibilityActions {
-            if canRemove {
+            if canRemove, let hex {
                 Button(tr("native.card.palette.remove", hex)) { remove(hex) }
             }
         }

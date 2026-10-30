@@ -41,14 +41,23 @@ export const parsePaletteHexList = (
   return { hexes, invalid };
 };
 
+/**
+ * A stored color's `#RRGGBB`, ignoring any alpha (`#FF000080` saved from text
+ * is `#FF0000`), as Teak's API compares them.
+ */
+export const storedPaletteHex = (hex: string): string => {
+  const digits = hex.trim().replace(/^#/, "");
+  return (
+    parsePaletteHex(digits.length === 8 ? digits.slice(0, 6) : digits) ?? hex
+  );
+};
+
 /** A card's colors as `#RRGGBB`, without repeats. */
 export const paletteHexes = (
   colors: ReadonlyArray<{ hex: string }> | undefined,
 ): string[] =>
   Array.from(
-    new Set(
-      (colors ?? []).map((color) => parsePaletteHex(color.hex) ?? color.hex),
-    ),
+    new Set((colors ?? []).map((color) => storedPaletteHex(color.hex))),
   );
 
 /**

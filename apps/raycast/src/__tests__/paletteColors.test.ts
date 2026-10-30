@@ -31,10 +31,13 @@ test("parsePaletteHexList splits on commas and spaces and keeps what isn't a hex
   expect(parsePaletteHexList(undefined)).toEqual({ hexes: [], invalid: [] });
 });
 
-test("paletteHexes normalizes and drops repeats", () => {
+test("paletteHexes normalizes, drops alpha and drops repeats", () => {
   expect(
     paletteHexes([{ hex: "#ff5500" }, { hex: "#FF5500" }, { hex: "#000" }]),
   ).toEqual(["#FF5500", "#000000"]);
+  expect(paletteHexes([{ hex: "#FF000080" }, { hex: "#ff0000" }])).toEqual([
+    "#FF0000",
+  ]);
 });
 
 describe("explainPaletteEdit", () => {

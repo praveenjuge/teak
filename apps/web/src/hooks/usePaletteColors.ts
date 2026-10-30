@@ -1,6 +1,9 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { parsePaletteHex } from "@teak/convex/shared/utils/colorUtils";
+import {
+  normalizeHexColor,
+  parsePaletteHex,
+} from "@teak/convex/shared/utils/colorUtils";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useCallback } from "react";
@@ -60,7 +63,9 @@ export function usePaletteColors(
 
   const removeColor = useCallback(
     async (value: string) => {
-      const hex = parsePaletteHex(value);
+      // A stored swatch, which can carry alpha (`#FF000080` saved from text):
+      // the server takes its `#RRGGBB` and removes it by that.
+      const hex = normalizeHexColor(value);
       if (!(hex && (await write("removeColor", hex)))) {
         return;
       }

@@ -255,6 +255,17 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(!PaletteEdit.canRemove(palette(colors, type: .image)))
     }
 
+    @Test(arguments: [("#ff000080", "#FF0000"), ("F00", "#FF0000"), (" #4ecdc4 ", "#4ECDC4")])
+    func readsAStoredColorWithoutItsAlpha(_ stored: String, hex: String) {
+        #expect(PaletteEdit.storedHex(stored) == hex)
+    }
+
+    @Test func aColorSavedWithAlphaIsTheSameColor() {
+        #expect(PaletteEdit.storedHex("red") == nil)
+        #expect(!PaletteEdit.canRemove(palette(["#FF000080", "#ff0000"])))
+        #expect(PaletteEdit.contains(palette(["#FF000080"]), "#f00"))
+    }
+
     @Test func findsAColorHoweverItIsWritten() {
         let card = palette(["#ff5500", "#4ECDC4"])
         #expect(PaletteEdit.contains(card, "#FF5500"))

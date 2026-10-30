@@ -15,6 +15,14 @@ public enum PaletteEdit {
         return "#" + full.uppercased()
     }
 
+    /// A stored color's `#RRGGBB`, ignoring any alpha (`#FF000080` saved from text is `#FF0000`), as the server
+    /// compares them. Nil when it isn't a hex code.
+    public static func storedHex(_ hex: String) -> String? {
+        var digits = Substring(hex.trimmingCharacters(in: .whitespacesAndNewlines))
+        if digits.first == "#" { digits = digits.dropFirst() }
+        return normalizedHex(String(digits.count == 8 ? digits.prefix(6) : digits))
+    }
+
     /// Whether the card can take another color: a palette, not in Trash, with room left.
     public static func canAdd(_ card: Card) -> Bool {
         isEditable(card) && (card.colors ?? []).count < maxColors
@@ -34,6 +42,6 @@ public enum PaletteEdit {
     private static func isEditable(_ card: Card) -> Bool { card.type == .palette && !card.deleted }
 
     private static func key(_ hex: String) -> String {
-        normalizedHex(hex) ?? hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        storedHex(hex) ?? hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 }

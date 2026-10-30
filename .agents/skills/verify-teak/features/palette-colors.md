@@ -5,7 +5,7 @@ A palette card's colors can be added and removed after it's saved. In the card d
 ## Sub-features
 
 - `palette-add` adds a color from the card dialog's "Add color" popover: the picker and "Hex code" field stay in sync, `#RGB` or `#RRGGBB` with or without `#` is accepted and saved as `#RRGGBB`, "Enter a hex code, such as #FF5500" or "#… is already in this palette" keep "Add" disabled, and Return submits.
-- `palette-remove` removes a color with its "Remove #…" button or the swatch's right-click "Remove color"; the toast "Removed #…" has **Undo**, which adds it back at the end. Every copy of a repeated color goes.
+- `palette-remove` removes a color with its "Remove #…" button or the swatch's right-click "Remove color"; the toast "Removed #…" has **Undo**, which adds it back at the end. Every copy of a repeated color goes. A color saved with alpha (`#FF000080`, from pasted text) is removed by its RGB: the toast reads "Removed #FF0000".
 - `palette-limits` hides "Add color" at 12 colors and every remove control at one color; the server refuses a 13th color ("A palette holds up to 12 colors") and the last one ("A palette needs at least one color"). Cards in Trash and cards that aren't palettes can't change their colors.
 - `palette-search` finds the card by an added color (`#hex` + Return in the search box makes a color chip, `?color=<hex>`) and stops finding it by a removed one.
 - `palette-api` takes `addColors` and `removeColors` (1–12 hex codes each) on `PATCH /v1/cards/<id>`, MCP's `teak_v1_update_card` and the SDK's `cards.update`; removes apply first, so one request can swap a color on a full or one-color palette. `teak cards update <id> --add-color <hex> --remove-color <hex>` (both repeatable) sends them.

@@ -49,6 +49,20 @@ class PaletteEditTest {
     }
 
     @Test
+    fun `reads a stored color without its alpha`() {
+        assertEquals("#FF0000", PaletteEdit.storedHex(CardColor("#ff000080")))
+        assertEquals("#FF0000", PaletteEdit.storedHex(CardColor("F00")))
+        assertEquals("#4ECDC4", PaletteEdit.storedHex(CardColor(" #4ecdc4 ")))
+    }
+
+    @Test
+    fun `a color saved with alpha is the same color`() {
+        assertNull(PaletteEdit.storedHex(CardColor("red")))
+        assertFalse(PaletteEdit.canRemove(palette("#FF000080", "#ff0000")))
+        assertTrue(PaletteEdit.contains(palette("#FF000080"), "#f00"))
+    }
+
+    @Test
     fun `finds a color however it's written`() {
         val card = palette("#ff5500", "#4ECDC4")
         assertTrue(PaletteEdit.contains(card, "F50"))
