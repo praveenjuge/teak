@@ -133,8 +133,10 @@ test("an event that keeps failing is dead-lettered on the fifth run and the curs
       id: "user_STUCK",
       email: "stuck@example.com",
       email_verified: true,
+      // The AuthKit component refuses this profile, so the event fails on
+      // every run without being something Teak can reject outright.
+      metadata: "not-an-object",
     }),
-    created_at: "2099-01-01T00:00:00.000Z",
   };
   const following = userEvent("event_following", {
     id: "user_FOLLOWING",
@@ -145,7 +147,7 @@ test("an event that keeps failing is dead-lettered on the fifth run and the curs
     pages = [[stuck, following]];
     await expect(
       t.action(internal.telemetry.crons.workosEventCatchUp, {})
-    ).rejects.toThrow("future");
+    ).rejects.toThrow();
     expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
       null
     );
@@ -177,13 +179,15 @@ test("a failing event keeps the progress made before it on the same page", async
       id: "user_STUCK",
       email: "stuck@example.com",
       email_verified: true,
+      // The AuthKit component refuses this profile, so the event fails on
+      // every run without being something Teak can reject outright.
+      metadata: "not-an-object",
     }),
-    created_at: "2099-01-01T00:00:00.000Z",
   };
   pages = [[applied, stuck]];
   await expect(
     t.action(internal.telemetry.crons.workosEventCatchUp, {})
-  ).rejects.toThrow("future");
+  ).rejects.toThrow();
   expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
     "event_applied"
   );
@@ -193,7 +197,7 @@ test("a failing event keeps the progress made before it on the same page", async
   pages = [[stuck]];
   await expect(
     t.action(internal.telemetry.crons.workosEventCatchUp, {})
-  ).rejects.toThrow("future");
+  ).rejects.toThrow();
   expect(requests[requests.length - 1]?.searchParams.get("after")).toBe(
     "event_applied"
   );

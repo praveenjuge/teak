@@ -110,31 +110,17 @@ delayed (emulator) and confirm the vault opens on the first try; sign in on
 the Apple and Android simulators against the dev deployment if reachable,
 otherwise say so in the PR.
 
-## Phase 3: one sync path, built on the component's hook (convex)
+## Phase 3: lean event validation (convex)
 
-Goal: the webhook route and the catch-up cron hand the event to the
-component, and Teak's logic runs in the component's `events()` hook.
+Done: `parseWorkosEvent` checks only what Teak uses (IDs, the event time,
+the address and its verification); the component validates the profile it
+stores. The route and the catch-up cron already share `ingestWorkosEvent`.
 
-- `workosAuthKit.ts` exports `authKit.events({ "user.created",
-  "user.updated", "user.deleted" })`; `workosWebhook.ts` passes its function
-  handle as `onEventHandle` to `components.workOSAuthKit.lib.onWebhookEvent`.
-  Teak's handler then only runs when the component changed something, after
-  the component's ordering and tombstone checks.
-- Delete `applyWorkosEvent`'s hand-written payload validation in
-  `parseWorkosEvent` (timestamp grammar, field caps, picture URL checks): the
-  component parses the user with its own validator, and Teak stores only the
-  email. Keep the envelope check and dead letters for payloads the component
-  rejects.
-- Upgrade the component to 0.3.0 in the same PR (or first) for the
-  `user.deleted` hook fix; until then keep setting `workosDeletedAt` from the
-  route directly.
-- `workosEventCatchUp.ts` feeds events through the same handle, so the cron
-  and the route share one path; its cursor and dead-lettering stay.
-- The route keeps raw-body verification, size and content-type limits.
-
-Verification: `edge/workosWebhook`, `workosLifecycle`, `workosEventCatchUp`
-tests rewritten around the hook; replay the same `user.updated` twice and an
-update before its create on the local stack and read the stored row.
+Left for later: moving Teak's handler into the component's `events()` hook.
+On 0.2.10 the hook skips `user.deleted` for a user the component never
+stored, so Teak would keep a second deletion path next to it. Revisit with
+`@convex-dev/workos-authkit` 0.3.0 (published 28 October 2026) once it has
+aged in other deployments.
 
 ## Phase 4: deletion without receipts and environment fingerprints (convex)
 
