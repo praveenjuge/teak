@@ -112,6 +112,22 @@ class DiskOfflineCopiesTest {
         }
     }
 
+    @Test
+    fun `a change that arrives while a replacement downloads is fetched once that download ends`() = runTest {
+        server.enqueue(MockResponse().setBody("%PDF-1.7 old"))
+        server.enqueue(MockResponse().setBody("%PDF-1.7 b").setBodyDelay(500, java.util.concurrent.TimeUnit.MILLISECONDS))
+        server.enqueue(MockResponse().setBody("%PDF-1.7 c"))
+        java.io.File(context.filesDir, "offline").deleteRecursively()
+        val copies = copies()
+        copies.keep(pdf("/files/a.pdf", signature = "one"))
+
+        copies.update(pdf("/files/b.pdf", signature = "two"))
+        eventually { server.requestCount == 2 }
+        copies.update(pdf("/files/c.pdf", signature = "three"))
+
+        eventually { copies.file("c1")?.readText() == "%PDF-1.7 c" }
+    }
+
     /** Waits for the background download a changed file starts. */
     private suspend fun TestScope.eventually(condition: suspend () -> Boolean) {
         repeat(100) {

@@ -160,49 +160,65 @@ class DiskOfflineCopies @Inject constructor(
      */
     override suspend fun update(card: Card) {
         if (card.id !in _kept.value) return
-        val source = keptSource(card)
-        val changed = withContext(Dispatchers.IO) {
+        val start = withContext(Dispatchers.IO) {
             mutex.withLock {
                 val directory = directory(card.id)
                 if (read(directory) == null) return@withLock false
                 writeCard(directory, card)
-                // Against the link the kept file came from, not the card just saved: a replacement that failed is
-                // tried again on the next update.
-                downloadedSource(directory) != source?.withoutQuery()
+                // Against the link the kept file came from, not the card just saved, so a replacement that failed is
+                // tried again on the next update. One already downloading picks up this change when it finishes.
+                downloadedSource(directory) != keptSource(card)?.withoutQuery() && replacing.add(card.id)
             }
         }
-        if (changed && replacing.add(card.id)) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    replaceFile(card.id, source)
-                } finally {
-                    replacing.remove(card.id)
-                }
+        if (start) scope.launch(Dispatchers.IO) { replaceUntilCurrent(card.id) }
+    }
+
+    /** Cards whose new file is downloading. Only changed under [mutex], with the decision to start or stop. */
+    private val replacing = mutableSetOf<String>()
+
+    /**
+     * Downloads the saved card's file until the kept file matches it, so a change that arrives mid-download is
+     * fetched too. Stops when a download fails (the next update tries again) or the card is no longer kept.
+     */
+    private suspend fun replaceUntilCurrent(id: String) {
+        var wanted = mutex.withLock { currentSource(id).also { if (it == null) replacing.remove(id) } }
+        while (wanted != null) {
+            val replaced = replaceFile(id, wanted.link)
+            wanted = mutex.withLock {
+                val next = currentSource(id)?.takeIf { replaced && downloadedSource(directory(id)) != it.link?.withoutQuery() }
+                if (next == null) replacing.remove(id)
+                next
             }
         }
     }
 
-    /** Cards whose new file is downloading, so updates arriving meanwhile don't start another download. */
-    private val replacing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    /** The kept card's current source, boxed so a card with no file (a null link) still counts as kept. */
+    private class Source(val link: String?)
 
-    private suspend fun replaceFile(id: String, source: String?) {
+    private fun currentSource(id: String): Source? =
+        if (id in _kept.value) read(directory(id))?.let { Source(keptSource(it)) } else null
+
+    /** False when the download failed; true when the file was replaced or a newer source made it moot. */
+    private suspend fun replaceFile(id: String, source: String?): Boolean {
         val started = clears
         val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
-        try {
+        return try {
             val downloaded = source?.let { File(staging, DATA_FILE).also { file -> download(it, file) } }
             mutex.withLock {
                 val directory = directory(id)
-                // Kept elsewhere since, cleared, or changed again: a newer download is on its way or not needed.
+                // Cleared, no longer kept, or changed again: the caller looks at the card again.
                 if (clears != started || id !in _kept.value || read(directory)?.let(::keptSource)?.withoutQuery() != source?.withoutQuery()) {
-                    return@withLock
+                    return@withLock clears == started
                 }
                 val target = File(directory, DATA_FILE)
-                if (downloaded == null) target.delete() else if (!downloaded.renameTo(target)) return@withLock
+                if (downloaded == null) target.delete() else if (!downloaded.renameTo(target)) return@withLock false
                 writeSource(directory, source)
                 _changes.value += 1
+                true
             }
         } catch (_: IOException) {
             // Offline or a failed download: the old file stays, and the next update tries again.
+            false
         } finally {
             staging.deleteRecursively()
         }
