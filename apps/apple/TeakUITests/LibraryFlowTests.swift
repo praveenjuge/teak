@@ -230,6 +230,49 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingTheViewEndsASelection() async throws {
+        try await start()
+        let note = marker("select")
+        save("Pick \(note)", expecting: note)
+        filter("Select")
+        tap(tile(containing: note))
+        let selected = app.staticTexts["1 selected"].firstMatch
+        selected.waitToAppear()
+
+        // A search chip shows other cards, so the selection and its bar go.
+        let search = app.searchFields.firstMatch
+        tap(search)
+        submit("link", into: search)
+        selected.waitToDisappear()
+        XCTAssertFalse(app.buttons["Add to favorites"].firstMatch.exists)
+    }
+
+    @MainActor
+    func testFavoriteFromTileThenUnfavoriteOnCardClearsTheTileHeart() async throws {
+        #if os(macOS)
+        throw XCTSkip("Covered on iPhone and iPad; this flow goes back through the navigation bar")
+        #else
+        try await start()
+        let note = marker("heart")
+        save("Heart \(note)", expecting: note)
+        let favorited = app.buttons.matching(NSPredicate(format: "label CONTAINS %@ AND label ENDSWITH %@", note,
+                                                         ", Favorite")).firstMatch
+
+        tile(containing: note).openContextMenu()
+        tap(menuItem("Favorite").waitToAppear())
+        favorited.waitToAppear()
+
+        // Unfavoriting on the card's page clears the tile's heart once back, with no refresh.
+        tap(tile(containing: note))
+        tap(app.buttons["Unfavorite"].firstMatch.waitToAppear())
+        app.buttons["Favorite"].firstMatch.waitToAppear()
+        tap(app.navigationBars.buttons.firstMatch)
+        tile(containing: note).waitToAppear()
+        favorited.waitToDisappear()
+        #endif
+    }
+
+    @MainActor
     func testArchiveDoneAndRevisit() async throws {
         try await start()
         let page = marker("done")
@@ -262,6 +305,33 @@ final class LibraryFlowTests: XCTestCase {
         position.waitToDisappear()
         tap(app.buttons["Close Revisit"].firstMatch)
         tile(containing: "example.org").waitToAppear()
+    }
+
+    @MainActor
+    func testRevisitUndoLastArchiveBringsBackTheArchivedCard() async throws {
+        try await start()
+        for label in ["first", "second"] {
+            let note = marker(label)
+            save("Revisit \(note)", expecting: note)
+        }
+
+        // Archive the first card, keep every other one to the end of the deck.
+        filter("Revisit")
+        let first = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 of ")).firstMatch
+        first.waitToAppear(20)
+        tap(byId("revisit.archive"))
+        first.waitToDisappear()
+        let finished = app.staticTexts["All caught up"].firstMatch
+        for _ in 0..<25 where !finished.exists {
+            tap(byId("revisit.keep").waitToAppear())
+        }
+        finished.waitToAppear()
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 archived")).firstMatch.waitToAppear()
+
+        // Undo last archive returns to the archived card, not the last one kept.
+        tap(app.buttons["Undo last archive"].firstMatch)
+        first.waitToAppear()
+        finished.waitToDisappear()
     }
 
     @MainActor

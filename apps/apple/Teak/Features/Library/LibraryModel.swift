@@ -21,10 +21,18 @@ final class LibraryModel {
                 applyHint(hint)
                 if tokens == oldValue { return }
             }
+            // A tag or "Similar to" shows other cards, so a selection made here ends, as it does for filters.
+            if tokens != oldValue { selection = nil }
             reload()
         }
     }
-    var filters = LibraryFilters.empty { didSet { reload() } }
+    var filters = LibraryFilters.empty {
+        didSet {
+            // Another view's cards: a selection made here would act on cards no longer shown.
+            if filters != oldValue { selection = nil }
+            reload()
+        }
+    }
     var sort = LibrarySort.newest { didSet { reload() } }
 
     private(set) var selection: Set<String>?
@@ -54,6 +62,12 @@ final class LibraryModel {
         pager = CardPager(backend: backend)
         pager.onLoad = { [weak self, spotlight] cards, left in
             guard let self else { return }
+            // Once the server agrees, live data wins, so a change made elsewhere shows.
+            for card in cards where favoriteOverrides[card.id] == card.favorited {
+                favoriteOverrides[card.id] = nil
+            }
+            // A card that left (unfavorited out of Favorites) shows again if it comes back favorited.
+            for id in left { favoriteOverrides[id] = nil }
             spotlight.apply(CardIndex.changes(cards, left: left, in: query))
         }
     }
