@@ -4,8 +4,9 @@ Teak is listed in Claude's directory (claude.ai/directory) twice, paired:
 
 - **MCP connector**: the remote server `https://teakvault.com/mcp`. It reaches
   claude.ai, Claude Desktop, Claude mobile, Cowork and Claude Code.
-- **Plugin bundle**: `plugins/teak` in `praveenjuge/teak`, tracking `main`.
-  It adds the Teak skill and `/teak:save`, `/teak:search`, `/teak:recent`,
+- **Plugin bundle**: `plugins/teak` in `praveenjuge/teak`, mirrored to the
+  root of `praveenjuge/teak-plugin` (the directory downloads a plugin's whole
+  repository, and this one is over its 50 MiB limit). It adds the Teak skill and `/teak:save`, `/teak:search`, `/teak:recent`,
   and points at the same server URL so people with both see one set of tools.
 
 Both are submitted and maintained by Praveen (Owner of the Claude
@@ -95,8 +96,7 @@ Escalations: `mcp-review@anthropic.com` (connector), `directory@anthropic.com`
   > Deleting moves cards to Teak's Trash and always asks first. You need a
   > Teak account; the free plan holds 200 cards.
 
-- Categories: Productivity; Knowledge & research (or the closest the portal
-  offers).
+- Categories: Productivity, Creative (the portal has no research category).
 - Documentation URL: `https://teakvault.com/docs/mcp`
 - Privacy policy URL: `https://teakvault.com/docs/privacy-policy`
 - Support contact: `hello@praveenjuge.com`
@@ -118,6 +118,9 @@ prompt, which is expected.
 **Company**: Praveen Juge, `https://teakvault.com`, primary contact
 `hello@praveenjuge.com`.
 
+Claude only calls Teak when a prompt names it ("Show my favorite cards" gets a
+question back), so every prompt below says "Teak".
+
 **Authentication**: Always required. OAuth sign-in through the server's own
 discovery (CIMD, falling back to DCR). No Anthropic-held client, no request
 headers.
@@ -133,9 +136,9 @@ sponsored content.
 > 45 cards: links (design, CSS, accessibility, note-taking), notes, quotes,
 > five color palettes and six images, in the folders Design inspiration,
 > Reading list and Redesign, plus a Palettes smart folder. Try: "Search my
-> Teak for accessibility", "Show my favorite cards", "Save
+> Teak for accessibility", "Show my favorite Teak cards", "Save
 > https://en.wikipedia.org/wiki/Swiss_cheese_model to Teak with the tag
-> risk", "Put the CSS cards into the Redesign folder", "Move the card you
+> risk", "Put my Teak cards about CSS into the Redesign folder", "Move the card you
 > just saved to Trash".
 
 Confirm every tool was run as a custom connector and in the MCP Inspector.
@@ -148,19 +151,19 @@ tool name, outcome, status and duration (`.agents/analytics.md`).
 **Carousel prompts** (one screenshot each):
 
 1. "Search my Teak for typography" (grid).
-2. "Show my favorite cards" (grid).
-3. "Open the Dieter Rams card" (card view).
+2. "Show my favorite Teak cards" (grid).
+3. "Open my Dieter Rams Wikipedia card in full" (grid of the matches).
 4. "Save https://en.wikipedia.org/wiki/Swiss_cheese_model to Teak" (saved).
-5. "Show my color palettes" (grid of palettes).
+5. "Show my color palettes in Teak" (grid of palettes).
 
 ## Plugin submission
 
 After the connector is submitted, from the same organization:
 
 1. Connect GitHub on claude.ai with an account that can push to
-   `praveenjuge/teak`.
-2. Submit new → Plugin bundle. Repository `praveenjuge/teak`, plugin path
-   `plugins/teak`, branch `main`. Validate; fix any blocking finding.
+   `praveenjuge/teak-plugin`.
+2. Submit new → Plugin bundle. Repository `praveenjuge/teak-plugin`, plugin
+   at the repository root, branch `main`. Validate; fix any blocking finding.
 3. Data handling: no personal data stored by the plugin itself; it sends data
    only to its declared connector (`https://teakvault.com/mcp`); not for
    people under 18.
@@ -173,6 +176,13 @@ After the connector is submitted, from the same organization:
 same server URL as `server.json`. The plugin's `version` moves with every
 release (`.agents/releases.md`); the directory publishes passing versions
 from `main` by the publish setting Anthropic applies.
+
+Edit the plugin only in `plugins/teak`. The Claude Plugin Sync workflow
+(`.github/workflows/claude-plugin-sync.yml`) pushes `git subtree split
+--prefix plugins/teak` to `praveenjuge/teak-plugin` on every `main` push that
+touches it, with the write deploy key in the `TEAK_PLUGIN_DEPLOY_KEY` secret.
+A push someone made to the mirror by hand makes the next sync fail; reset the
+mirror to the split rather than forcing it from the workflow.
 
 ## After listing
 

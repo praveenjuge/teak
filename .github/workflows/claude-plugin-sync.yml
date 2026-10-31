@@ -1,0 +1,43 @@
+name: Claude Plugin Sync
+
+# Claude's directory downloads a plugin's whole repository, and this one is
+# too large, so plugins/teak is mirrored to praveenjuge/teak-plugin, where the
+# directory reads it. The mirror is `git subtree split` output: never edit it
+# by hand (.agents/claude-directory.md).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/claude-plugin-sync.yml"
+      - "plugins/teak/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-plugin-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Push plugins/teak to praveenjuge/teak-plugin
+        env:
+          DEPLOY_KEY: ${{ secrets.TEAK_PLUGIN_DEPLOY_KEY }}
+        run: |
+          test -n "$DEPLOY_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/teak_plugin
+          chmod 600 ~/.ssh/teak_plugin
+          # GitHub's published host key (api.github.com/meta).
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > ~/.ssh/known_hosts
+          git subtree split --prefix plugins/teak -b teak-plugin
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/teak_plugin -o IdentitiesOnly=yes" \
+            git push git@github.com:praveenjuge/teak-plugin.git teak-plugin:main
