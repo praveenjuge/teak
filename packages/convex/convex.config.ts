@@ -1,4 +1,3 @@
-import betterAuth from "@convex-dev/better-auth/convex.config";
 import polar from "@convex-dev/polar/convex.config";
 import rateLimiter from "@convex-dev/rate-limiter/convex.config";
 import apiKeys from "@vllnt/convex-api-keys/convex.config";
@@ -38,7 +37,6 @@ const app = defineApp({
     TEAK_DEV_DOCS_URL: v.optional(v.string()),
   },
 });
-app.use(betterAuth);
 app.use(polar);
 app.use(rateLimiter, { name: "rateLimiterV2" });
 app.use(apiKeys);

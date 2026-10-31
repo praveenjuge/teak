@@ -1,4 +1,3 @@
-import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
@@ -22,26 +21,11 @@ const claims = {
   email_verified: true,
   external_id: "permanent-owner",
 };
-const fixture = async (legacy = false) => {
+const fixture = async () => {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
   polarTest.register(t);
   apiKeysTest.register(t);
-  const legacyUser = legacy
-    ? await t.mutation(components.betterAuth.adapter.create, {
-        input: {
-          model: "user",
-          data: {
-            name: "Disposable owner",
-            email: "legacy@example.com",
-            emailVerified: true,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          },
-        },
-      })
-    : null;
-  const ownerId = legacyUser?._id ?? "permanent-owner";
+  const ownerId = "permanent-owner";
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: ownerId,
@@ -1037,88 +1021,6 @@ test("local consent cleanup yields and resumes atomically across action retries"
       .unique()
   );
   expect(sibling?.revokedAt).toBeUndefined();
-});
-
-test("legacy deletion removes every retained Better Auth row and redacts the owner", async () => {
-  const { t, signed, ownerId } = await fixture(true);
-  const seed = (model: string, data: Record<string, unknown>) =>
-    t.mutation(components.betterAuth.adapter.create, {
-      input: { model, data },
-    } as never);
-  const sibling = (await seed("user", {
-    name: "Sibling",
-    email: "sibling@example.com",
-    emailVerified: true,
-    createdAt: 1,
-    updatedAt: 1,
-  })) as { _id: string };
-  for (const userId of [ownerId, sibling._id]) {
-    await seed("session", {
-      userId,
-      token: `token-${userId}`,
-      expiresAt: Date.now() + 60_000,
-      createdAt: 1,
-      updatedAt: 1,
-    });
-    await seed("account", {
-      userId,
-      accountId: userId,
-      providerId: "credential",
-      createdAt: 1,
-      updatedAt: 1,
-    });
-    await seed("oauthAccessToken", {
-      accessToken: `access-${userId}`,
-      clientId: "teak-cli",
-      userId,
-    });
-    await seed("oauthConsent", { clientId: "teak-cli", userId });
-    await seed("twoFactor", { secret: "s", backupCodes: "b", userId });
-  }
-  await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-  const state = await t.run((ctx) =>
-    ctx.db.query("accountDeletionStates").unique()
-  );
-  expect(state?.betterAuthUserId).toBe(ownerId);
-  await t.run((ctx) => ctx.db.patch(state!._id, { stage: 5 }));
-  expect(
-    await t.action(internal.accountDeletionActions.runStage, {
-      stateId: state!._id,
-      generation: 1,
-      stage: 5,
-    })
-  ).toBe(true);
-  for (const model of [
-    "session",
-    "account",
-    "oauthAccessToken",
-    "oauthConsent",
-    "twoFactor",
-  ]) {
-    const remaining = (await t.query(components.betterAuth.adapter.findMany, {
-      model,
-      paginationOpts: { cursor: null, numItems: 10 },
-    } as never)) as { page: { userId: string }[] };
-    expect(remaining.page.map((row) => row.userId)).toEqual([sibling._id]);
-  }
-  const users = (await t.query(components.betterAuth.adapter.findMany, {
-    model: "user",
-    paginationOpts: { cursor: null, numItems: 10 },
-  } as never)) as { page: { _id: string }[] };
-  expect(users.page.map((row) => row._id)).toEqual([sibling._id]);
-  await t.run((ctx) => ctx.db.patch(state!._id, { stage: 6 }));
-  await t.mutation(internal.accountDeletionJobs.finalize, {
-    stateId: state!._id,
-    generation: 1,
-  });
-  expect(await t.run((ctx) => ctx.db.query("users").take(2))).toEqual([
-    expect.objectContaining({
-      teakUserId: ownerId,
-      email: "",
-      emailVerified: false,
-      deletedAt: expect.any(Number),
-    }),
-  ]);
 });
 
 describe("analytics deletion", () => {

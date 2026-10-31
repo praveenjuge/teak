@@ -1,4 +1,3 @@
-import betterAuthTest from "@convex-dev/better-auth/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -57,7 +56,6 @@ afterEach(() => {
 
 test("deletion retains its source and state while an authenticated import completion is in flight", async () => {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
   apiKeysTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -160,7 +158,6 @@ test("deletion retains its source and state while an authenticated import comple
 
 async function importSession() {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
   apiKeysTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
