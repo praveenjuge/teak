@@ -13,15 +13,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-// A deletion started before deletions stopped recording their WorkOS
-// environment still carries `workosTarget`; finishing it must not need it.
-const legacyTarget = {
-  environmentId: "environment_DELETE",
-  clientId: "client_DELETE",
-  issuer: "https://api.workos.com/user_management/client_DELETE",
-  credentialFingerprint: "fingerprint",
-};
-async function fixture({ stage = 6, legacy = false } = {}) {
+async function fixture({ stage = 6 } = {}) {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
     const ownerId = await ctx.db.insert("users", {
@@ -37,27 +29,22 @@ async function fixture({ stage = 6, legacy = false } = {}) {
       startedAt: 1000,
       generation: 1,
       stage,
-      ...(legacy ? { workosTarget: legacyTarget } : {}),
     });
     return { ownerId, stateId };
   });
   return { t, ...ids, binding: { stateId: ids.stateId, generation: 1 } };
 }
 
-test.each([false, true])(
-  "finalize marks the owner deleted and clears the state (started with a WorkOS target: %s)",
-  async (legacy) => {
-    const { t, ownerId, stateId, binding } = await fixture({ legacy });
-    expect(
-      await t.mutation(internal.accountDeletionJobs.finalize, binding)
-    ).toBe(true);
-    const owner = await t.run((ctx) => ctx.db.get(ownerId));
-    expect(owner?.deletedAt).toEqual(expect.any(Number));
-    expect(owner?.workosDeletionCompletion).toBeUndefined();
-    expect(owner?.email).toBe("owner@example.com");
-    expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
-  }
-);
+test("finalize marks the owner deleted and clears the state", async () => {
+  const { t, ownerId, stateId, binding } = await fixture();
+  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
+    true
+  );
+  const owner = await t.run((ctx) => ctx.db.get(ownerId));
+  expect(owner?.deletedAt).toEqual(expect.any(Number));
+  expect(owner?.email).toBe("owner@example.com");
+  expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
+});
 
 test("after finalize, neither a stored owner nor a fresh sign-in revives the identity", async () => {
   const { t, ownerId, binding } = await fixture();

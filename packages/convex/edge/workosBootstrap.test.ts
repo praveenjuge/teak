@@ -36,7 +36,6 @@ const seed = (t: Backend, overrides: Partial<Doc<"users">> = {}) =>
 const state = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(10),
-    quarantine: await ctx.db.query("migrationQuarantine").take(10),
     jobs: await ctx.db.system.query("_scheduled_functions").take(10),
   }));
 beforeEach(() => {
@@ -85,7 +84,7 @@ describe("signed WorkOS bootstrap", () => {
     const t = setup();
     await setSignupsPaused(t, true);
     expect(await signed(t).mutation(ensure, {})).toEqual({ status: "frozen" });
-    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+    expect(await state(t)).toEqual({ users: [], jobs: [] });
     await setSignupsPaused(t, false);
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
@@ -97,7 +96,7 @@ describe("signed WorkOS bootstrap", () => {
       status: "quarantined",
       reason: "invalid_session",
     });
-    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+    expect(await state(t)).toEqual({ users: [], jobs: [] });
   });
   test.each([
     { issuer: "https://api.workos.com/" },
@@ -116,7 +115,7 @@ describe("signed WorkOS bootstrap", () => {
         status: "quarantined",
         reason: "invalid_session",
       });
-      expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+      expect(await state(t)).toEqual({ users: [], jobs: [] });
     }
   );
   test.each([
@@ -131,7 +130,7 @@ describe("signed WorkOS bootstrap", () => {
       expect(await signed(t, overrides).mutation(ensure, {})).toEqual({
         status: "verify_email",
       });
-      expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+      expect(await state(t)).toEqual({ users: [], jobs: [] });
     }
   );
   test("a verified session gets its owner from its claims, and retries change nothing", async () => {
@@ -150,7 +149,6 @@ describe("signed WorkOS bootstrap", () => {
       },
     ]);
     expect(after.jobs).toHaveLength(1);
-    expect(after.quarantine).toEqual([]);
     expect(
       await signed(t, { email: "token@example.com" }).mutation(ensure, {})
     ).toEqual(result);
@@ -162,7 +160,7 @@ describe("signed WorkOS bootstrap", () => {
       status: "quarantined",
       reason: "invalid_profile",
     });
-    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+    expect(await state(t)).toEqual({ users: [], jobs: [] });
   });
   test("existing owner stays unchanged during the freeze", async () => {
     const t = setup();
@@ -193,7 +191,7 @@ describe("signed WorkOS bootstrap", () => {
     expect(
       await signed(t, { email_verified: false }).mutation(ensure, {})
     ).toEqual({ status: "verify_email" });
-    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
+    expect(await state(t)).toEqual({ users: [], jobs: [] });
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
     });

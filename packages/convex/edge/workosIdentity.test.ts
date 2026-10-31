@@ -31,7 +31,6 @@ const resolve = (t: Backend) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(10),
-    quarantine: await ctx.db.query("migrationQuarantine").take(10),
   }));
 
 describe("read-only canonical WorkOS owner resolution", () => {
@@ -54,23 +53,6 @@ describe("read-only canonical WorkOS owner resolution", () => {
       reason: "missing_mapping",
     });
     expect(await snapshot(t)).toEqual(before);
-  });
-
-  test("a WorkOS user deleted before Teak linked it stays unmapped", async () => {
-    const t = setup();
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: "user_provider",
-        email: "",
-        reason: "workos_user_deleted",
-        source: "webhook",
-        createdAt: 1,
-      })
-    );
-    expect(await resolve(t)).toEqual({
-      status: "denied",
-      reason: "missing_mapping",
-    });
   });
 
   test("each denial logs its exact reason with a hashed subject and nothing else", async () => {

@@ -572,7 +572,7 @@ describe("admin sign-ins", () => {
 });
 
 describe("operations", () => {
-  test("summarizes accounts and deletions without reading quarantine or Better Auth", async () => {
+  test("summarizes accounts and deletions", async () => {
     const t = setup();
     await seedAdmin(t);
     await seedCustomer(t);
@@ -583,12 +583,6 @@ describe("operations", () => {
         email: "gone@teak.dev",
         emailVerified: true,
         deletedAt: 1,
-      });
-      await ctx.db.insert("migrationQuarantine", {
-        email: "",
-        reason: "profile_pending",
-        source: "webhook",
-        createdAt: 1,
       });
     });
     expect(await asAdmin(t).query(api.admin.getOperations, {})).toEqual({
