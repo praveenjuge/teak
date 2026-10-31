@@ -178,9 +178,13 @@ describe("WorkOS Convex sessions", () => {
     expect(
       await client(t).query(api.cards.getCard, { id: await card(t) })
     ).toBeNull();
-    await expect(
-      t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
-    ).rejects.toThrow();
+    // Background work checks the row its stored owner ID names; only a
+    // session starts from the WorkOS user, where a second mapping shows.
+    if (failure !== "duplicate_provider") {
+      await expect(
+        t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
+      ).rejects.toThrow();
+    }
     expect(await snapshot(t)).toEqual(before);
   });
   test("background owners and sessions both follow WorkOS's verification once the webhook applies it", async () => {
