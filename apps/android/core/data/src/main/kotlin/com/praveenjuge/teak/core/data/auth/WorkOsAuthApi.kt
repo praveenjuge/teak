@@ -49,8 +49,9 @@ class DefaultWorkOsAuthApi @Inject constructor(
         return start.url to PendingSignIn(clientId, start.codeVerifier, start.state)
     }
 
-    // The SDK (0.4.0) builds the PKCE authorize URL. Its token calls always send `client_secret`,
-    // which WorkOS rejects as empty for public clients, so both grants are posted directly, as on iOS.
+    // The SDK builds the PKCE authorize URL. Both grants are posted directly, as on iOS: the SDK's
+    // PublicClient (0.4.1) sends them without a secret too, but always retries up to three times on
+    // its own HTTP client, which would hold the refresh lock through its backoff.
     override suspend fun exchangeCode(pending: PendingSignIn, code: String): AuthSession = try {
         authenticate(pending.clientId) {
             put("grant_type", "authorization_code")

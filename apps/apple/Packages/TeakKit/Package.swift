@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "TeakUI", targets: ["TeakUI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/get-convex/convex-swift", exact: "0.8.1"),
+        .package(url: "https://github.com/get-convex/convex-swift", exact: "0.8.2"),
     ],
     targets: [
         .target(
