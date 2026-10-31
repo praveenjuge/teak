@@ -4,7 +4,6 @@ import { internal } from "./_generated/api";
 import { mutation } from "./_generated/server";
 import { getWorkosBootstrapIdentity } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
-import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
 const bootstrapResult = v.union(
   v.object({ status: v.literal("ok"), teakUserId: v.string() }),
@@ -26,10 +25,6 @@ export const ensureUser = mutation({
     }
     if (!identity.emailVerified) {
       return { status: "verify_email" as const };
-    }
-    // A token issued before `user.deleted` stays valid for a few minutes.
-    if (await hasWorkosDeletionReceipt(ctx, identity.workosUserId)) {
-      return { status: "quarantined" as const, reason: "workos_deleted_user" };
     }
     const email = normalizeIdentityEmail(identity.email ?? "");
     if (!isStorableEmail(email)) {

@@ -59,14 +59,12 @@ export const logResolverDenial = async (input: {
 export type BearerCredentialClass =
   | "missing"
   | "api_key"
-  | "betterauth_oauth"
   | "workos_connect"
   | "malformed";
 
 export type PublicApiAuthReason =
   | "ok"
   | "missing_bearer"
-  | "nonprimary_credential"
   | "malformed_credential"
   | "invalid_credential"
   | "expired_token"

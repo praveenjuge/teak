@@ -159,7 +159,6 @@ export const getUserDetail = query({
         createdAt: user._creationTime,
         deletedAt: user.deletedAt ?? null,
         isAdmin: user.role === "admin",
-        signInProvider: user.workosUserId ? "workos" : "legacy",
       },
       flags: {
         internal: flags?.internal ?? false,

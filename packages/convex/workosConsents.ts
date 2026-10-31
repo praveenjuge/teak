@@ -58,15 +58,6 @@ export const authorizeConnectConsent = internalMutation({
     if (owner.status !== "ok") {
       return owner;
     }
-    const fences = await ctx.db
-      .query("workosApplicationDisconnects")
-      .withIndex("by_workosUserId_and_clientId", (q) =>
-        q.eq("workosUserId", args.workosUserId).eq("clientId", args.clientId)
-      )
-      .take(2);
-    if (fences.some((fence) => fence.state !== "completed")) {
-      return { status: "denied" as const, reason: "application_disconnected" };
-    }
     const matches = await ctx.db
       .query("workosConsents")
       .withIndex("by_consentId", (q) => q.eq("consentId", args.consentId))

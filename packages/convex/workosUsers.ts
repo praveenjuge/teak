@@ -10,7 +10,6 @@ import {
   WORKOS_USER_ID,
 } from "./shared/workosIds";
 import { queueUserCreated } from "./telemetry/schedule";
-import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
 const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
@@ -118,11 +117,8 @@ export const linkWorkosUser = internalMutation({
         q.eq("workosUserId", args.workosUserId)
       )
       .first();
-    // A deleted WorkOS user never gets an owner back, even from a late event.
-    if (
-      linked?.workosDeletedAt !== undefined ||
-      (await hasWorkosDeletionReceipt(ctx, args.workosUserId))
-    ) {
+    // A deleted WorkOS user never gets an owner back.
+    if (linked?.workosDeletedAt !== undefined) {
       return quarantine("workos_deleted_user");
     }
     if (linked) {

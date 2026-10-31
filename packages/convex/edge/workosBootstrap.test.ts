@@ -188,30 +188,6 @@ describe("signed WorkOS bootstrap", () => {
       expect((await state(t)).jobs).toEqual([]);
     }
   );
-  test.each(["unmapped", "mapped"])(
-    "a %s provider deletion tombstone denies bootstrap",
-    async (kind) => {
-      const t = setup();
-      if (kind === "mapped") {
-        await seed(t);
-      }
-      await t.run((ctx) =>
-        ctx.db.insert("migrationQuarantine", {
-          workosUserId: "user_NEW",
-          email: "",
-          reason: "workos_user_deleted",
-          source: "webhook",
-          createdAt: 1,
-        })
-      );
-      const before = await state(t);
-      expect(await signed(t).mutation(ensure, {})).toEqual({
-        status: "quarantined",
-        reason: "workos_deleted_user",
-      });
-      expect(await state(t)).toEqual(before);
-    }
-  );
   test("a session verified later bootstraps after an unverified one waited", async () => {
     const t = setup();
     expect(

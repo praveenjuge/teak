@@ -287,9 +287,6 @@ const classifyBearerCredential = (
   if (isWellFormedApiKey(token)) {
     return "api_key";
   }
-  if (/^[A-Za-z0-9]{32}$/.test(token)) {
-    return "betterauth_oauth";
-  }
   return token.length <= 16_384 && token.split(".").length === 3
     ? "workos_connect"
     : "malformed";
@@ -371,9 +368,7 @@ const authorizeBearer = async (
           "Invalid or revoked API key"
         ),
       },
-      classifyBearerCredential(token) === "malformed"
-        ? "malformed_credential"
-        : "nonprimary_credential"
+      "malformed_credential"
     );
   }
 
