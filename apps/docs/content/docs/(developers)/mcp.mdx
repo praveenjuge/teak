@@ -220,7 +220,7 @@ type CardFilters = {
   - Output: `{ id, kind, from, to, status: "running" | "completed" | "failed", total, processed, changed, ... }`. One tag change runs at a time; starting another while one runs fails with `TAG_OPERATION_RUNNING`.
 - `teak_v1_get_card_changes`
   - Input: `{ since: number, cursor?: string, limit?: number }`
-  - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
+  - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`. `deletedIds` lists cards moved to Trash or permanently deleted since `since`; permanent deletions are reported for 90 days.
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
   - Input: `{ operation: "create" | "update" | "favorite" | "delete" | "archive" | "unarchive" | "addTags" | "removeTags" | "restore", items: object[], confirm?: true, idempotencyKey?: string }`. Archive, unarchive, restore, and delete items are `{ cardId }`; addTags and removeTags items are `{ cardId, tags }`.
   - Output: `{ operation, results: [{ index, status: "success", cardId, resaved?: true } | { index, status: "error", code, error }], failedIds: string[], summary: { total, succeeded, failed } }`. A `create` item whose link is already saved re-saves that card (`resaved: true`) instead of making a second one. Delete batches move cards to Trash and require `confirm: true`.
