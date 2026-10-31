@@ -306,7 +306,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_get_card_changes",
     description:
-      "List cards changed, and ids of cards deleted for good, since a Unix timestamp in milliseconds (since), with cursor pagination.",
+      "List cards changed, and ids of cards moved to Trash or permanently deleted (deletedIds), since a Unix timestamp in milliseconds (since), with cursor pagination. Permanent deletions are reported for 90 days.",
     annotations: { title: "List card changes", ...READ_ONLY },
     inputSchema: inputSchema(
       {
