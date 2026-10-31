@@ -26,6 +26,8 @@ import { callFilesOp } from "../filesOps";
 import {
   fetchLinkMetadata,
   parseLinkMetadataRetryableError,
+  REMOTE_ASSET_RETRYABLE_PREFIX,
+  retryLinkPreviewImage,
 } from "./linkMetadata";
 import { rawMetadataKey } from "./rawMetadata";
 
@@ -133,6 +135,7 @@ const setup = (
     fetch: () => fetchLinkMetadata(job),
     network,
     objects: memory.objects,
+    retryImage: () => retryLinkPreviewImage(job),
     saved,
   };
 };
@@ -169,6 +172,58 @@ describe("link metadata", () => {
       status: "success",
       title: "A good article",
     });
+  });
+
+  test("stores a preview image its host rate-limited on a later try", async () => {
+    let refusals = 2;
+    const card = linkCard();
+    const { convex, fetch, retryImage, saved } = setup(card, {
+      "fetch-link-page": await page(ARTICLE),
+      "store-remote-asset": () =>
+        refusals-- > 0
+          ? { data: { reason: "http_error", status: 429, stored: false } }
+          : {
+              data: {
+                contentType: "image/jpeg",
+                height: 630,
+                size: 10,
+                stored: true,
+                width: 1200,
+              },
+            },
+    });
+
+    expect(await fetch()).toEqual({ status: "success" });
+    expect(saved()?.linkPreview.imageUrl).toBe("https://cdn.example/cover.jpg");
+    expect(saved()?.linkPreview.imageStorageKey).toBeUndefined();
+
+    await expect(retryImage()).rejects.toThrow(REMOTE_ASSET_RETRYABLE_PREFIX);
+    expect(await retryImage()).toEqual({ status: "stored" });
+    const attached = convex.callsTo("linkMetadata:updateCardPreviewImage")[0]
+      ?.args as Record<string, unknown>;
+    expect(attached).toMatchObject({
+      imageHeight: 630,
+      imageUrl: "https://cdn.example/cover.jpg",
+      imageWidth: 1200,
+    });
+    expect(
+      (card.metadata as { linkPreview: { imageStorageKey?: string } })
+        .linkPreview.imageStorageKey
+    ).toContain(`/cards/${CARD_ID}/link-preview-image/`);
+    expect(await retryImage()).toEqual({ status: "skipped" });
+  });
+
+  test("leaves a preview image its host refused for good", async () => {
+    const { convex, fetch, retryImage } = setup(linkCard(), {
+      "fetch-link-page": await page(ARTICLE),
+      "store-remote-asset": {
+        data: { reason: "http_error", status: 404, stored: false },
+      },
+    });
+
+    await fetch();
+    expect(await retryImage()).toEqual({ status: "skipped" });
+    expect(convex.callsTo("linkMetadata:updateCardPreviewImage")).toEqual([]);
   });
 
   test("registers the preview image's owner before storing it", async () => {

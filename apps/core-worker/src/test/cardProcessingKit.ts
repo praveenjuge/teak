@@ -238,6 +238,33 @@ export const createCardConvex = (
         return null;
       }
     ),
+    "linkMetadata:updateCardPreviewImage": write(
+      "updateCardPreviewImage",
+      (args) => {
+        const metadata = (card as FakeCard).metadata as
+          | {
+              linkPreview?: {
+                imageStorageKey?: string;
+                imageUrl?: string;
+                status?: string;
+              };
+            }
+          | undefined;
+        const preview = metadata?.linkPreview;
+        if (
+          preview?.status !== "success" ||
+          preview.imageUrl !== args.imageUrl ||
+          preview.imageStorageKey
+        ) {
+          return false;
+        }
+        const { cardId: _cardId, imageUrl: _imageUrl, ...image } = args;
+        Object.assign(card as FakeCard, {
+          metadata: { ...metadata, linkPreview: { ...preview, ...image } },
+        });
+        return true;
+      }
+    ),
     "storage/ownership:registerObject": write("registerObject", () => true),
     "workflows/steps/archive/mutations:markPageArchiveStage": write(
       "markPageArchiveStage",

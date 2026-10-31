@@ -10,6 +10,7 @@ const {
   getCardForLinkFetchHandler,
   getCardForScreenshotHandler,
   updateCardMetadataHandler,
+  updateCardPreviewImageHandler,
   updateCardScreenshotHandler,
 } = await import("../linkMetadata");
 
@@ -496,6 +497,63 @@ test("screenshot reader retains existing screenshot guard without preview raw da
   expect(
     await getCardForScreenshotHandler(ctx, { cardId: testId("cards", "c1") })
   ).toBeNull();
+});
+
+describe("updateCardPreviewImage", () => {
+  const image = {
+    cardId: testId("cards", "c1"),
+    imageHeight: 630,
+    imageStorageKey: "u/cards/c1/link-preview-image/new",
+    imageUpdatedAt: 5,
+    imageUrl: "https://cdn.example/cover.jpg",
+    imageWidth: 1200,
+  };
+  const linkWith = (preview: Record<string, unknown>) => ({
+    _id: image.cardId,
+    metadata: { linkPreview: { status: "success", ...preview } },
+    type: "link",
+  });
+
+  test("attaches the image while the preview still names it", async () => {
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(linkWith({ imageUrl: image.imageUrl }));
+
+    expect(await updateCardPreviewImageHandler(ctx, image)).toBe(true);
+    const [, , patch] = ctx.db.patch.mock.calls[0] as [
+      string,
+      string,
+      { metadata: { linkPreview: Record<string, unknown> } },
+    ];
+    expect(patch.metadata.linkPreview).toMatchObject({
+      imageHeight: 630,
+      imageStorageKey: image.imageStorageKey,
+      imageUrl: image.imageUrl,
+      imageWidth: 1200,
+      status: "success",
+    });
+    expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["names another image", { imageUrl: "https://cdn.example/other.jpg" }],
+    [
+      "already has one",
+      {
+        imageStorageKey: "u/cards/c1/link-preview-image/old",
+        imageUrl: image.imageUrl,
+      },
+    ],
+  ])("deletes the new image when the preview %s", async (_name, preview) => {
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(linkWith(preview));
+
+    expect(await updateCardPreviewImageHandler(ctx, image)).toBe(false);
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+      ctx,
+      image.imageStorageKey
+    );
+  });
 });
 
 describe("linkMetadata storage cleanup", () => {
