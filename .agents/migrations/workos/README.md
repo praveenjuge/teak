@@ -10,11 +10,12 @@ exist. The full phase plans and evidence are in git history before this file.
 - On 31 October 2026, with the owner's approval, the retained Better Auth data
   was deleted from the production and dev deployments and the component was
   unmounted. No Better Auth code or package remains.
-- The only copy of that data is an encrypted local backup:
+- The data now exists only in encrypted local backups. The latest and complete
+  one is
   `/Users/praveenjuge/Documents/TeakMigrationBackups/2026-10-31-before-unmount`
   (every model with rows, checked against production's row counts before the
-  delete). The earlier set from the cutover is in `2026-10-03-phase-r` beside
-  it. The R2 copy no longer exists.
+  delete). The older set from the cutover, `2026-10-03-phase-r`, is beside it.
+  The R2 copy no longer exists.
 - Deleting either local backup needs explicit owner approval.
 
 ## Connect disconnects
