@@ -163,7 +163,8 @@ const capture = async (
   if (linkPreview?.status !== "success") {
     return { status: "skipped" };
   }
-  if (linkPreview.screenshotStorageKey && attempt === 1) {
+  // A refresh takes it again: the page, or how it's captured, may have changed.
+  if (linkPreview.screenshotStorageKey && attempt === 1 && !job.refresh) {
     return { status: "skipped" };
   }
 
