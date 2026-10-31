@@ -30,7 +30,6 @@ const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(20),
-    quarantine: await ctx.db.query("migrationQuarantine").take(20),
     cards: await ctx.db.query("cards").take(20),
   }));
 
@@ -209,7 +208,6 @@ describe("trusted new WorkOS owners", () => {
     expect(await jobs(t)).toEqual([]);
     await setSignupsPaused(t, false);
     expect(await t.mutation(link, create)).toMatchObject({ status: "linked" });
-    expect((await snapshot(t)).quarantine).toEqual([]);
   });
   test("a verified email never claims an unlinked owner with the same address", async () => {
     const t = setup();

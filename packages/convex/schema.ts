@@ -19,17 +19,11 @@ import {
   importJobItemValidator,
   importJobValidator,
 } from "./schema/validators/jobs";
-import {
-  disconnectRecoveryReceipt,
-  workosDeletionCompletionValidator,
-  workosDeletionTargetValidator,
-} from "./schema/validators/workos";
 
 export * from "./schema/validators/admin";
 export * from "./schema/validators/apiIdempotency";
 export * from "./schema/validators/cards";
 export * from "./schema/validators/jobs";
-export * from "./schema/validators/workos";
 export type { CardType } from "./shared/constants";
 
 export default defineSchema({
@@ -40,7 +34,6 @@ export default defineSchema({
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
     workosDeletedAt: v.optional(v.number()),
-    workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
     // The WorkOS name, from the session's claims (first and last name).
     name: v.optional(v.string()),
     role: v.optional(v.literal("admin")),
@@ -51,23 +44,6 @@ export default defineSchema({
     .index("by_teakUserId", ["teakUserId"])
     .index("by_workosUserId", ["workosUserId"])
     .index("by_email", ["email"]),
-  migrationQuarantine: defineTable({
-    workosUserId: v.optional(v.string()),
-    teakUserId: v.optional(v.string()),
-    email: v.string(),
-    reason: v.string(),
-    source: v.string(),
-    createdAt: v.number(),
-    resolvedAt: v.optional(v.number()),
-    workosDeletionEventAt: v.optional(v.number()),
-    workosDeletionTarget: v.optional(workosDeletionTargetValidator),
-  })
-    .index("by_unresolved", ["resolvedAt"])
-    .index("by_workosUserId_and_reason_and_resolvedAt", [
-      "workosUserId",
-      "reason",
-      "resolvedAt",
-    ]),
   devPushLeases: defineTable({
     name: v.string(),
     holderId: v.optional(v.string()),
@@ -77,34 +53,7 @@ export default defineSchema({
       v.object({ label: v.string(), commit: v.string(), at: v.number() })
     ),
   }).index("by_name", ["name"]),
-  workosApplicationDisconnects: defineTable({
-    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
-    operationId: v.string(),
-    userId: v.string(),
-    workosUserId: v.string(),
-    clientId: v.string(),
-    triggerConsentId: v.string(),
-    tokenExpiresAt: v.optional(v.number()),
-    environmentId: v.string(),
-    authKitClientId: v.string(),
-    authKitDomain: v.string(),
-    credentialFingerprint: v.string(),
-    applicationId: v.optional(v.string()),
-    state: v.union(
-      v.literal("prepared"),
-      v.literal("dispatched"),
-      v.literal("acknowledged"),
-      v.literal("unknown"),
-      v.literal("completed")
-    ),
-    startedAt: v.number(),
-    dispatchedAt: v.optional(v.number()),
-    providerAcknowledgedAt: v.optional(v.number()),
-    completedAt: v.optional(v.number()),
-    releaseAfter: v.optional(v.number()),
-  }).index("by_workosUserId_and_clientId", ["workosUserId", "clientId"]),
   workosConsents: defineTable({
-    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     consentId: v.string(),
     userId: v.string(),
     workosUserId: v.string(),
@@ -443,17 +392,8 @@ export default defineSchema({
     startedAt: v.number(),
     initiationProvider: v.optional(v.literal("workos")),
     workosUserId: v.optional(v.string()),
-    workosTarget: v.optional(
-      v.object({
-        environmentId: v.string(),
-        clientId: v.string(),
-        issuer: v.string(),
-        credentialFingerprint: v.string(),
-      })
-    ),
     stage: v.optional(v.number()),
     localConsentCursor: v.optional(v.string()),
-    deletionReceiptCursor: v.optional(v.string()),
     writerTable: v.optional(
       v.union(v.literal("importJobs"), v.literal("exportJobs"))
     ),

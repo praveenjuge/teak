@@ -61,11 +61,7 @@ const identityRows = (
   return teakUserId ? [ownerRow(teakUserId, mapping, email)] : [];
 };
 
-const IDENTITY_TABLES = new Set([
-  "users",
-  "migrationQuarantine",
-  "accountDeletionStates",
-]);
+const IDENTITY_TABLES = new Set(["users", "accountDeletionStates"]);
 
 function withIdentityDb(db: any, mapping: Mapping, email?: () => string) {
   const original = db.query?.bind(db);
