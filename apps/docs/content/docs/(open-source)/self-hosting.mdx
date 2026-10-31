@@ -141,7 +141,7 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     bunx convex run --prod admin:seedAdmin '{"email":"owner@example.com"}'
     ```
 
-    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. Sign-up is refused while paused only when the WorkOS registration Action from [Set up WorkOS](#set-up-workos) is set up.
+    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. While sign-ups are paused, a new person can still create a WorkOS account, but Teak shows them a "sign-ups are paused" screen and creates no Teak account until sign-ups reopen.
   </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
