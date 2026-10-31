@@ -158,9 +158,9 @@ export const readCloudAccountActivity = async (
         continue;
       }
       activity.push({
-        createdAt: user.createdAt,
+        createdAt: user.createdAt.toISOString(),
         email: user.email,
-        lastSignInAt: user.lastSignInAt,
+        lastSignInAt: user.lastSignInAt?.toISOString() ?? null,
         workosUserId: user.id,
       });
     } catch (error) {

@@ -70,11 +70,12 @@ export const listDeploymentVars = async (
   | { status: "unavailable"; detail: string }
 > => {
   try {
-    const result = await runCommand(["bunx", "convex", "env", "list"], {
-      cwd,
-      env,
-      timeoutMs: 60_000,
-    });
+    // Since Convex 1.48, `env list` prints only names when an AI agent runs
+    // it, so ask for the values explicitly.
+    const result = await runCommand(
+      ["bunx", "convex", "env", "list", "--include-values"],
+      { cwd, env, timeoutMs: 60_000 }
+    );
     if (result.exitCode !== 0) {
       return {
         status: "unavailable",

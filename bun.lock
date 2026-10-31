@@ -321,7 +321,7 @@
     },
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "convex": "1.46.0",
+    "convex": "1.49.0",
     "convex-helpers": "0.1.128",
     "esbuild": "0.28.2",
     "lodash-es": "4.18.1",
@@ -339,14 +339,14 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@workos-inc/node": "10.14.0",
+    "@workos-inc/node": "12.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "convex": "^1.46.0",
+    "convex": "^1.49.0",
     "convex-helpers": "^0.1.128",
     "fflate": "^0.8.3",
     "htmlparser2": "^12.0.0",
-    "jose": "6.2.12",
+    "jose": "6.2.14",
     "marked": "17.0.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -1635,7 +1635,7 @@
 
     "@workos-inc/authkit-nextjs": ["@workos-inc/authkit-nextjs@4.6.2", "", { "dependencies": { "@sindresorhus/fnv1a": "^3.1.0", "iron-session": "^8.0.4", "jose": "^5.10.0", "path-to-regexp": "^6.3.0", "server-only": "^0.0.1", "valibot": "^1.2.0" }, "peerDependencies": { "@workos-inc/node": "^9.0.0 || ^10.0.0 || ^11.0.0 || ^12.0.0", "next": "^13.5.9 || ^14.2.26 || ^15.2.3 || ^16", "react": "^18.0 || ^19.0.0", "react-dom": "^18.0 || ^19.0.0" } }, "sha512-CQgxVnaihQEDF5Su0pUlevKQUKFcll7HYqFOlai4ZBoeo/8ZURObD0e229XPXIZitfz/rDDbsvovrQ+G7m9zYg=="],
 
-    "@workos-inc/node": ["@workos-inc/node@10.14.0", "", {}, "sha512-SnY9OHTzTyOmgJQj9+/6x116m+d+zJoQw5e8teNWKUuGe8FOKngVdBXRvZgdFxaL+3UfQbMlp95V67t43VYOWQ=="],
+    "@workos-inc/node": ["@workos-inc/node@12.1.0", "", {}, "sha512-qT/RpDHti/MDR1r5Jkngg6gS7cpwzrRTB0DA4H/5UMD27t8qOcLqOkIrxVX4AOIzUQ0oJXn7l+c0kZZC/mrGiQ=="],
 
     "@workos/emulate": ["@workos/emulate@0.14.0", "", { "dependencies": { "@hono/node-server": "^2.1.1", "chalk": "^5.6.2", "hono": "^4", "semver": "^7.7.4", "yaml": "^2.8.2" }, "bin": { "workos-emulate": "dist/cli.js" } }, "sha512-Yh/S/6eqEq3Ul8QivVpi15Jh/rZy+fWt7kCf6w7TEnqhAc+Y7KSpB8dnaTMeQUxZLXDXogyL3C8XM21ghSrICA=="],
 
@@ -1837,7 +1837,7 @@
 
     "convert-source-map": ["convert-source-map@2.0.0", "", {}, "sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg=="],
 
-    "convex": ["convex@1.46.0", "", { "dependencies": { "esbuild": "0.27.0", "prettier": "^3.0.0", "ws": "8.21.0" }, "peerDependencies": { "@auth0/auth0-react": "^2.0.1", "@clerk/clerk-react": "^4.12.8 || ^5.0.0", "@clerk/react": "^6.4.3", "react": "^18.0.0 || ^19.0.0-0 || ^19.0.0" }, "optionalPeers": ["@auth0/auth0-react", "@clerk/clerk-react", "@clerk/react", "react"], "bin": { "convex": "bin/main.js" } }, "sha512-dhBwDQTZDOhi5SUGAX17EWNehCdNq6/UFrSL0eLZuGfMkdsQbCVWVRZCzbZ5CF+/pgvoGxtApbEoTSipqL4JTw=="],
+    "convex": ["convex@1.49.0", "", { "dependencies": { "esbuild": "0.27.0", "prettier": "^3.0.0", "ws": "8.21.0" }, "peerDependencies": { "@auth0/auth0-react": "^2.0.1", "@clerk/clerk-react": "^4.12.8 || ^5.0.0", "@clerk/react": "^6.4.3", "react": "^18.0.0 || ^19.0.0-0 || ^19.0.0" }, "optionalPeers": ["@auth0/auth0-react", "@clerk/clerk-react", "@clerk/react", "react"], "bin": { "convex": "bin/main.js" } }, "sha512-mkr9oXF8/arkCI1kvYyGytWd62oVXNABh4uwLeI4UQVN6Zuudm4DlmSzNUJKF63djk6f/uUXC+6ffuVSkPLvzA=="],
 
     "convex-helpers": ["convex-helpers@0.1.128", "", { "peerDependencies": { "@standard-schema/spec": "^1.0.0", "convex": "^1.46.0", "hono": "^4.0.5", "react": "^17.0.2 || ^18.0.0 || ^19.0.0", "typescript": "^5.5 || ^6.0.0 || ^7.0.0", "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["@standard-schema/spec", "hono", "react", "typescript", "zod"], "bin": { "convex-helpers": "bin.cjs" } }, "sha512-5n7uKsJrYnnybvuSAWgDQ9d5Avqk4CzFsJ22SXow4tHmVxSUH6qiJCeomWWxcLSfN9t9jpKIXNJiGJrjddS4ng=="],
 
@@ -2355,7 +2355,7 @@
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
 
-    "jose": ["jose@6.2.12", "", {}, "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw=="],
+    "jose": ["jose@6.2.14", "", {}, "sha512-3JasLuki1NRLQvY4wCoC37KZk4qxoBx2k2aFqLxT84IezqW0bkJKnNtxnZj/Fu1xsQivoc/lytxaRHJoGLjJ1A=="],
 
     "js-tokens": ["js-tokens@9.0.1", "", {}, "sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ=="],
 
