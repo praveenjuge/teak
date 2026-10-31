@@ -66,11 +66,9 @@ describe("web sign-in routing", () => {
     expect(hint).toContain("Max-Age=0");
   });
   test.each([
-    ["/login?next=%2Fsettings", "/sign-in?next=%2Fsettings"],
-    ["/login?next=https%3A%2F%2Fevil.example", "/sign-in"],
-    ["/login?error=sign_in_restart", "/sign-in"],
-    ["/register", "/sign-up"],
-  ])("sends entry page %s straight to %s", async (path, target) => {
+    ["/login", "/sign-in?next=%2Flogin"],
+    ["/register", "/sign-in?next=%2Fregister"],
+  ])("treats retired entry page %s like any page: %s", async (path, target) => {
     globalThis.fetch = offline;
     const response = await proxy(
       new NextRequest(`http://localhost:3142${path}`)
@@ -156,7 +154,9 @@ describe("web sign-in routing", () => {
   });
   test("denies requests outside the configured sign-in origin", async () => {
     globalThis.fetch = offline;
-    const response = await proxy(new NextRequest("https://evil.example/login"));
+    const response = await proxy(
+      new NextRequest("https://evil.example/sign-in")
+    );
     expect(response.status).toBe(400);
     expect(response.headers.get("location")).toBeNull();
   });

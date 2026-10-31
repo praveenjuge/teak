@@ -28,7 +28,7 @@ public domain at it.
 Create one WorkOS environment per deployment: a staging environment for local development and a separate production environment. Replace `<origin>` with the web app's origin (`http://localhost:3000` locally) and `<convex-site>` with the deployment's `CONVEX_SITE_URL`.
 
 1. In AuthKit, enable email and password sign-in. Add Google or Apple there too if you want them; Teak needs no extra settings for social sign-in.
-2. Under Redirects, add `<origin>/callback` as a redirect URI, set the sign-in endpoint (initiate login URL) to `<origin>/sign-in`, and set the sign-out redirect to `<origin>/login`. Add `<origin>` as an allowed CORS origin.
+2. Under Redirects, add `<origin>/callback` as a redirect URI, set the sign-in endpoint (initiate login URL) to `<origin>/sign-in`, and set the sign-out redirect to `<origin>/sign-in`. Add `<origin>` as an allowed CORS origin.
 3. Add a JWT template so session tokens carry the claims Teak checks. The backend requires `email_verified: true`:
 
    ```json
@@ -51,7 +51,7 @@ The [WorkOS CLI](https://www.npmjs.com/package/workos) can set two of the steps 
 
 ```bash
 # Sign-out redirect (step 2)
-workos authkit logout-uris set --uri <origin>/login --default <origin>/login
+workos authkit logout-uris set --uri <origin>/sign-in --default <origin>/sign-in
 
 # Webhook (step 4); the signing secret is shown only in the WorkOS dashboard
 workos webhook create --url <convex-site>/workos/webhook \

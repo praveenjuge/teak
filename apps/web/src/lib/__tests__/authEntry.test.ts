@@ -8,21 +8,15 @@ const target = (path: string, signedIn = false) =>
   )?.toString() ?? null;
 
 describe("WorkOS entry redirect", () => {
-  test("returns signed-in visitors to their destination", () => {
-    expect(target("/login?next=%2Fsettings", true)).toBe(
-      "http://localhost:3142/settings"
-    );
-    expect(target("/register", true)).toBe("http://localhost:3142/");
-  });
   test("drops off-site and auth-page destinations", () => {
-    expect(target("/login?next=%2F%2Fevil.example", true)).toBe(
+    expect(target("/sign-in?next=%2F%2Fevil.example", true)).toBe(
       "http://localhost:3142/"
     );
     expect(target("/sign-in?next=%2F.%2F%2Fevil.example", true)).toBe(
       "http://localhost:3142/"
     );
-    expect(target("/register?next=%2Flogin")).toBe(
-      "http://localhost:3142/sign-up"
+    expect(target("/sign-up?next=%2Fsign-in", true)).toBe(
+      "http://localhost:3142/"
     );
   });
   test("leaves other pages alone", () => {
@@ -30,7 +24,8 @@ describe("WorkOS entry redirect", () => {
     expect(target("/settings", true)).toBeNull();
     expect(target("/sign-in")).toBeNull();
     expect(target("/sign-up?next=%2Fsettings")).toBeNull();
-    expect(target("/login/extra")).toBeNull();
+    expect(target("/login")).toBeNull();
+    expect(target("/register", true)).toBeNull();
     expect(target("/forgot-password")).toBeNull();
     expect(target("/reset-password")).toBeNull();
   });

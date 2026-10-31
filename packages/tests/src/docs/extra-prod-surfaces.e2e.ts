@@ -116,16 +116,16 @@ const probes: Probe[] = [
     body: /resource/,
   },
   {
-    name: "app login",
-    url: `${published.appUrl}/login`,
+    name: "app sign-in",
+    url: `${published.appUrl}/sign-in`,
     kind: "html",
-    body: /login|sign in/i,
+    body: /sign in/i,
   },
   {
-    name: "app register",
-    url: `${published.appUrl}/register`,
+    name: "app sign-up",
+    url: `${published.appUrl}/sign-up`,
     kind: "html",
-    body: /register|account/i,
+    body: /sign up|account/i,
   },
   {
     name: "api subdomain health",

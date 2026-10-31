@@ -47,19 +47,16 @@ describe("getSafeNextPath", () => {
   });
 
   test("rejects auth routes to avoid redirect loops", () => {
-    expect(getSafeNextPath("/login")).toBeNull();
-    expect(getSafeNextPath("/register")).toBeNull();
     expect(getSafeNextPath("/sign-in")).toBeNull();
     expect(getSafeNextPath("/sign-up")).toBeNull();
-    expect(getSafeNextPath("/login?next=%2Fsettings")).toBeNull();
+    expect(getSafeNextPath("/sign-in?next=%2Fsettings")).toBeNull();
   });
 
   test.each([
     "/sign-in/",
     "/sign-in//",
     "/sign-in/?next=%2Fsettings",
-    "/login/",
-    "/register/#hash",
+    "/sign-up/#hash",
   ])(
     "rejects trailing-slash auth route %s that Next redirects back to auth",
     (next) => {

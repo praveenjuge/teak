@@ -70,8 +70,8 @@ describe("WorkOS Initiate login URI", () => {
     ["/settings?tab=account", "/settings?tab=account"],
     ["https://evil.example/", "/"],
     ["//evil.example/", "/"],
-    ["/login", "/"],
     ["/sign-in", "/"],
+    ["/sign-up/", "/"],
   ])(
     "starts an AuthKit sign-in with PKCE (next=%s)",
     async (next, returnTo) => {
