@@ -190,6 +190,7 @@ import type * as mcp_tools from "../mcp/tools.js";
 import type * as migration_backfillFolderCardCounts from "../migration/backfillFolderCardCounts.js";
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
+import type * as migration_backfillLinkScreenshots from "../migration/backfillLinkScreenshots.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
@@ -562,6 +563,7 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillFolderCardCounts": typeof migration_backfillFolderCardCounts;
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
+  "migration/backfillLinkScreenshots": typeof migration_backfillLinkScreenshots;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
