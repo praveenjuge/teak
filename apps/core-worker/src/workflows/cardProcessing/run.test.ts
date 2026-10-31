@@ -236,12 +236,12 @@ describe("card processing", () => {
       "fetch link metadata",
       "categorize",
       "generate metadata",
-      "store link preview image",
       "emit completion",
       "archive page",
       "capture screenshot",
       "read link image text",
       "extract article",
+      "store link preview image",
       "report complete",
     ]);
     const screenshotKey = (
@@ -374,7 +374,6 @@ describe("card processing", () => {
       "fetch link metadata",
       "categorize",
       "generate metadata",
-      "store link preview image",
       "emit completion",
       "find podcast episode",
       "transcribe podcast",
@@ -382,6 +381,7 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "extract article",
+      "store link preview image",
       "report complete",
     ]);
     // No stage waits on it: the card was complete before it started.
@@ -1226,11 +1226,12 @@ describe("archive page", () => {
 
     await run();
 
-    expect(fakeStep.names().slice(-5)).toEqual([
+    expect(fakeStep.names().slice(-6)).toEqual([
       "archive page",
       "capture screenshot",
       "read link image text",
       "extract article",
+      "store link preview image",
       "report complete",
     ]);
     const [call] = archiveCalls(ops);
@@ -1425,12 +1426,13 @@ describe("archive page", () => {
         .map((delay) => delay.delay)
     ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
     // With no copy there is no article to wait for: its stage closes.
-    expect(fakeStep.names().slice(-6)).toEqual([
+    expect(fakeStep.names().slice(-7)).toEqual([
       "archive page",
       "mark archive failed",
       "capture screenshot",
       "read link image text",
       "extract article",
+      "store link preview image",
       "report complete",
     ]);
     expect(card.processingStatus?.archive).toMatchObject({

@@ -429,21 +429,6 @@ const processCard = async (
     renderables = renderablesRun.value;
   }
 
-  if (cardType === "link") {
-    await step
-      .do("store link preview image", PREVIEW_IMAGE_STEP, () =>
-        retryLinkPreviewImage(job)
-      )
-      .catch((error: unknown) => {
-        rethrowSuperseded(error);
-        console.warn("[cardProcessing] Link preview image not stored", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      });
-  }
-
   await step
     .do("emit completion", NO_RETRY("1 minute"), async () => {
       await emitCardProcessingCompleted(job.env, {
@@ -464,13 +449,26 @@ const processCard = async (
     await transcribePodcastStep(job, step);
   }
 
-  // The last step, whether or not AI metadata finished: the page's saved
-  // copy. A failure fails only its own stage.
-  // Then the article in it, and a summary written from that.
+  // Whether or not AI metadata finished: the page's saved copy (a failure
+  // fails only its own stage), its screenshot, then the article in it and a
+  // summary written from that. Last, a preview image its host refused: a
+  // host that keeps refusing holds up nothing else.
   if (cardType === "link") {
     await archivePageStep(job, step);
     await linkScreenshotSteps(job, step, reported, metadata);
     await articleSteps(job, step);
+    await step
+      .do("store link preview image", PREVIEW_IMAGE_STEP, () =>
+        retryLinkPreviewImage(job)
+      )
+      .catch((error: unknown) => {
+        rethrowSuperseded(error);
+        console.warn("[cardProcessing] Link preview image not stored", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
   }
 
   return {
