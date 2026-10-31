@@ -82,7 +82,11 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   // browser can't drag with the pointer, so send the drag events the card
   // and the folder exchange.
   await screen.getByRole("link", "Everything").click();
-  await expect(screen.getByPlaceholder("Search everything")).toBeVisible();
+  // Next keeps the folder page mounted but hidden, and its loading header
+  // has a search box too.
+  await expect(
+    screen.getByPlaceholder("Search everything", { visible: true })
+  ).toBeVisible();
   await expect(
     screen.getByText(FIRST_CARD, { exact: false }).first()
   ).toBeVisible();

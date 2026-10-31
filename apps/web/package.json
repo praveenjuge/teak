@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "biome check .",
     "start": "next start",
-    "test": "CLAUDECODE=1 AGENT=1 bun test --parallel --preload next/dist/server/node-environment-baseline src --coverage --dots",
+    "test": "CLAUDECODE=1 AGENT=1 bun test --parallel --conditions development --preload next/dist/server/node-environment-baseline src --coverage --dots",
     "test:webmcp-eval": "bun src/tests/webmcp-eval.ts",
     "typecheck": "tsc --noEmit"
   },

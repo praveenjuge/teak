@@ -48,6 +48,8 @@ const turbopackSingletonAliases = Object.fromEntries(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Bottom-left, Next's dev indicator covers the collapsed sidebar's Trash link.
+  devIndicators: { position: "bottom-right" },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: posthogToken ?? "",
