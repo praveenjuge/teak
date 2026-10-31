@@ -72,18 +72,19 @@ in `plugins/teak` and its connector listing are covered by
 `.agents/claude-directory.md`; the directory picks up a new plugin version
 from `main` on its own.
 
-One-time setup, with Praveen's approval because it adds a DNS record:
+One-time setup (done 31 Oct 2026, first published as 1.0.91):
 
-1. Generate an Ed25519 key with OpenSSL 3 and keep `key.pem` in the password
-   manager, never in the repository.
-2. Add the TXT record the registry docs give
-   (`v=MCPv1; k=ed25519; p=<public key>`) on the apex `teakvault.com`.
+1. Generate an Ed25519 key (`openssl genpkey -algorithm Ed25519 -out key.pem`)
+   and keep `key.pem` in the password manager, never in the repository.
+2. Add the TXT record `v=MCPv1; k=ed25519; p=<public key>` on the apex
+   `teakvault.com`, where the public key is
+   `openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base64`.
 
 To publish a release (after the version tag exists, from the repository root,
 with `mcp-publisher` from the registry's releases):
 
 ```bash
-PRIVATE_KEY="$(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+PRIVATE_KEY="$(openssl pkey -in key.pem -outform DER | tail -c 32 | xxd -p -c 64)"
 mcp-publisher login dns --domain teakvault.com --private-key "$PRIVATE_KEY"
 mcp-publisher publish
 ```
