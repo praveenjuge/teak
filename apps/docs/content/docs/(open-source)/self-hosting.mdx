@@ -38,7 +38,7 @@ Create one WorkOS environment per deployment: a staging environment for local de
 4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
 5. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
 
-The webhook route exists only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
+The webhook route exists only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. A new user's Teak account is created at their first sign-in, from the signed session; the webhook keeps their address and verification in sync afterwards and records deleted WorkOS users.
 
 `convex.json` declares AuthKit redirect URIs and CORS origins under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
 
@@ -205,7 +205,7 @@ POLAR_SERVER=sandbox
 POLAR_WEBHOOK_SECRET=secret
 ```
 
-`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; sign-in also needs `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` so new users get a Teak account. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
+`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; set `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` too, so address changes and deleted WorkOS users reach Teak. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
 
 ### Core Worker (`apps/core-worker/.dev.vars`, wrangler secrets)
 
