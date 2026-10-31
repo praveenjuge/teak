@@ -544,6 +544,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Cloudflare API token for `bun run waf` (scripts/cloudflare-waf.ts): Zone Read and Zone WAF Edit on teakvault.com, or Zone WAF Read for a dry run; for `bun run r2:lifecycle` (scripts/cloudflare-r2-lifecycle.ts): Workers R2 Storage Edit and Queues Read on the account, or Workers R2 Storage Read for a dry run; and for the Clef eval (scripts/clef-eval/run.ts): Workers AI Read on the Teak account. Exported in the shell of whoever runs them; never committed.",
   }),
+  spec("TEAK_PLUGIN_DEPLOY_KEY", {
+    owners: ["teak-release"],
+    targets: ["release"],
+    profiles: ["production"],
+    secret: true,
+    validation: "string",
+    providers: ["github-secrets"],
+    required: false,
+    note: "Private half of a write deploy key on praveenjuge/teak-plugin only; the Claude Plugin Sync workflow pushes plugins/teak there with it (.agents/claude-directory.md).",
+  }),
   spec("TEAK_STORE_SIMULATOR", {
     owners: ["teak-repo"],
     targets: ["repo"],
