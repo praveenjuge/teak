@@ -226,6 +226,32 @@ describe("WorkOS Convex sessions", () => {
       userId: "permanent-owner",
     });
   });
+  test("a verified address another account holds restores the session and keeps the old address", async () => {
+    const t = setup();
+    await seed(t, { email: "workos@example.com" });
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "other-owner",
+        workosUserId: "user_OTHER",
+        email: "taken@example.com",
+        emailVerified: true,
+      })
+    );
+    const id = await card(t);
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
+      email: "taken@example.com",
+      emailVerified: false,
+    });
+    expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
+    const rows = (await snapshot(t)).users;
+    expect(
+      rows.find((row) => row.teakUserId === "permanent-owner")
+    ).toMatchObject({ email: "workos@example.com", emailVerified: true });
+    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
+      userId: "permanent-owner",
+    });
+  });
   test.each([undefined, "", "client_bad/id"])(
     "missing or malformed application ID %s denies a session",
     async (value) => {

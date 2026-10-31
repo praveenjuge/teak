@@ -91,15 +91,17 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
       .withIndex("by_email", (q) => q.eq("email", email))
       .order("desc")
       .take(EMAIL_HOLDER_ROWS);
-    if (
-      holders.some(
-        (holder) =>
-          holder.deletedAt === undefined && holder.workosDeletedAt === undefined
-      )
-    ) {
-      continue;
-    }
-    await ctx.db.patch("users", row._id, { email, emailVerified: true });
+    const taken = holders.some(
+      (holder) =>
+        holder.deletedAt === undefined && holder.workosDeletedAt === undefined
+    );
+    // WorkOS verified its current address, so sign-in may go on even when
+    // another account holds it and the row keeps its old one.
+    await ctx.db.patch(
+      "users",
+      row._id,
+      taken ? { emailVerified: true } : { email, emailVerified: true }
+    );
   }
 };
 
