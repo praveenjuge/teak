@@ -1,10 +1,5 @@
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
-import { workosApiUrl } from "../shared/workosApi";
-
-// The Node SDK has no method for a user's authorized Connect applications, so
-// these call the Management API directly. The origin is fixed, path IDs are
-// encoded and redirects are rejected, so neither IDs nor cursors can redirect
-// the API key.
+import { workosRequest, workosUserPath } from "../shared/workosClient";
 
 const APP_ID = /^(?:connect_app_|conn_app_)[A-Za-z0-9]+$/;
 
@@ -13,35 +8,21 @@ export interface AuthorizedApp {
   id: string;
 }
 
-const appsUrl = (workosUserId: string, appId?: string) =>
-  workosApiUrl(
-    `/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications${appId ? `/${encodeURIComponent(appId)}` : ""}`
+const appsPath = (workosUserId: string, appId?: string) =>
+  workosUserPath(
+    workosUserId,
+    `/authorized_applications${appId ? `/${encodeURIComponent(appId)}` : ""}`
   );
-
-const requestApps = (
-  url: URL,
-  apiKey: string,
-  options: { method?: "DELETE"; timeoutMs: number }
-) =>
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  fetch(url, {
-    method: options.method,
-    headers: { Authorization: `Bearer ${apiKey}` },
-    redirect: "error",
-    signal: AbortSignal.timeout(options.timeoutMs),
-  });
 
 export async function listAuthorizedAppsPage(
   workosUserId: string,
   apiKey: string,
   options: { after?: string; limit: number; timeoutMs: number }
 ): Promise<{ apps: AuthorizedApp[]; after: string | null } | null> {
-  const url = appsUrl(workosUserId);
-  url.searchParams.set("limit", String(options.limit));
-  if (options.after) {
-    url.searchParams.set("after", options.after);
-  }
-  const response = await requestApps(url, apiKey, options);
+  const response = await workosRequest(appsPath(workosUserId), apiKey, {
+    query: { limit: String(options.limit), after: options.after || undefined },
+    timeoutMs: options.timeoutMs,
+  });
   if (response.status === 404) {
     return null;
   }
@@ -94,7 +75,7 @@ export async function deleteAuthorizedApp(
   if (!APP_ID.test(appId)) {
     throw new Error("workos_authorized_apps_invalid");
   }
-  const response = await requestApps(appsUrl(workosUserId, appId), apiKey, {
+  const response = await workosRequest(appsPath(workosUserId, appId), apiKey, {
     method: "DELETE",
     timeoutMs,
   });

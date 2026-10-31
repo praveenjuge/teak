@@ -4,7 +4,7 @@ import {
   parseWorkosApiBase,
   workosIssuer,
 } from "../../shared/workosApi";
-import { createWorkosClient } from "../../shared/workosClient";
+import { workosRequest, workosUserPath } from "../../shared/workosClient";
 
 const originalBase = process.env.WORKOS_API_BASE_URL;
 const originalFetch = globalThis.fetch;
@@ -60,7 +60,7 @@ describe("WorkOS API base", () => {
   });
 });
 
-describe("createWorkosClient", () => {
+describe("workosRequest", () => {
   const requestedUrl = async () => {
     let requested = "";
     globalThis.fetch = ((input: RequestInfo | URL) => {
@@ -69,9 +69,7 @@ describe("createWorkosClient", () => {
         Response.json({ message: "not found" }, { status: 404 })
       );
     }) as typeof fetch;
-    await createWorkosClient("sk_test_default", "client_123")
-      .userManagement.getUser("user_123")
-      .catch(() => undefined);
+    await workosRequest(workosUserPath("user_123"), "sk_test_default");
     return new URL(requested);
   };
 
