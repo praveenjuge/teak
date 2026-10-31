@@ -9,7 +9,10 @@
     "url": "https://teakvault.com"
   },
   "homepage": "https://teakvault.com/docs/mcp",
+  "documentationUrl": "https://teakvault.com/docs/mcp",
   "repository": "https://github.com/praveenjuge/teak",
   "license": "MIT",
-  "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy"
+  "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy",
+  "supportUrl": "https://github.com/praveenjuge/teak/issues",
+  "termsOfServiceUrl": "https://teakvault.com/docs/terms-of-service"
 }
