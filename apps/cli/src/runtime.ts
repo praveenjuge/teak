@@ -255,11 +255,17 @@ const apiBaseUrl = (options: ClientOptions) =>
   withoutTrailingSlashes(
     options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL
   );
-const discovery = async (options: ClientOptions, forceRefresh = false) => {
+const explicitAuthUrl = (options: ClientOptions) => {
   const explicitAuth = options.authUrl || process.env.TEAK_AUTH_URL;
-  const authUrl = explicitAuth
+  return explicitAuth
     ? new URL(withoutTrailingSlashes(explicitAuth))
     : undefined;
+};
+const matchesAuthUrl = (authUrl: URL | undefined, issuer: string) =>
+  !authUrl ||
+  withoutTrailingSlashes(authUrl.href) === withoutTrailingSlashes(issuer);
+const discovery = async (options: ClientOptions, forceRefresh = false) => {
+  const authUrl = explicitAuthUrl(options);
   const local =
     authUrl &&
     (isLocalDevelopmentHostname(authUrl.hostname) ||
@@ -268,10 +274,7 @@ const discovery = async (options: ClientOptions, forceRefresh = false) => {
     forceRefresh,
     ...(local ? { localIssuer: authUrl.href } : {}),
   });
-  if (
-    authUrl &&
-    withoutTrailingSlashes(authUrl.href) !== withoutTrailingSlashes(auth.issuer)
-  ) {
+  if (!matchesAuthUrl(authUrl, auth.issuer)) {
     throw new Error(
       "Discovered authentication server does not match TEAK_AUTH_URL."
     );
@@ -299,6 +302,19 @@ const matchesProvider = (
     issuer: auth.issuer,
     clientId: auth.clients.cli,
   });
+// A WorkOS credential saved for this deployment (and for TEAK_AUTH_URL, when
+// set), checked from what sign-in saved with it, without discovery.
+const boundToDeployment = (
+  credentials: StoredCredentials,
+  options: ClientOptions
+) => {
+  const saved = savedBinding(credentials);
+  return (
+    isWorkosCredential(saved) &&
+    saved.origin === apiBaseUrl(options) &&
+    matchesAuthUrl(explicitAuthUrl(options), saved.issuer)
+  );
+};
 const credentialOperation = <T>(
   options: ClientOptions,
   work: () => Promise<T>
@@ -442,12 +458,18 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
       if (!current) {
         return null;
       }
+      const fresh = current.expiresAt - Date.now() >= 60_000;
+      // A fresh token goes only to the deployment it was issued for, so it
+      // needs no discovery. A refresh or a 401 checks the provider again.
+      if (fresh && !force && boundToDeployment(current, options)) {
+        return remember(current);
+      }
       const auth = await discovery(options, force);
       if (!matchesProvider(current, options, auth)) {
         return null;
       }
       if (
-        current.expiresAt - Date.now() >= 60_000 &&
+        fresh &&
         (!force ||
           current.accessToken !== rejectedToken ||
           current.refreshToken !== issued.get(rejectedToken ?? ""))

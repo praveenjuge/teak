@@ -92,7 +92,8 @@ Worker proxies nothing, and the development Worker sets neither.
   502 `SERVICE_UNAVAILABLE`, in the API's `{ code, error }` shape.
 - The OpenAPI spec and the three discovery documents are identical for every
   caller, so the edge cache answers unauthenticated `GET`s for five minutes.
-  Clients still see Convex's `Cache-Control: no-store`.
+  Clients see the `Cache-Control` Convex sent: `public, max-age=300` on the
+  discovery documents, `no-store` on the OpenAPI spec.
 - Paths the route patterns catch only by prefix (`/apis`) fall through to the
   site's origin.
 - This Worker is the only way these paths reach Convex: the docs site's Vercel

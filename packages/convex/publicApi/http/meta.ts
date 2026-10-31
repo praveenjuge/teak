@@ -62,6 +62,10 @@ export { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
 const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
 const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
 
+// The OAuth discovery documents change only when a deployment's settings do,
+// so browsers, the SDK and the Core Worker's edge cache may keep them briefly.
+export const DISCOVERY_CACHE_CONTROL = "public, max-age=300";
+
 const readPublicOrigin = (): string | undefined => {
   const raw = env.PUBLIC_ORIGIN?.trim();
   if (!raw) {
@@ -227,15 +231,30 @@ export const readWorkosConnectClients = () => {
 // Published clients still read `primary` from this document. teak-sdk up to
 // 1.0.86 (Raycast pins 1.0.81) also refuses it without a `safari` client,
 // retired with Teak for Mac. Nothing uses that ID, so it repeats the CLI's.
-export const teakOAuthClients = httpAction(() => {
+// teak-sdk after 1.0.91 reads all it needs for sign-in from this document
+// alone: the MCP resource, and AuthKit's authorize and token endpoints, which
+// AuthKit serves at fixed paths on the issuer (`workos/tokens.ts` reads its
+// JWKS the same way). Older SDKs still read the other two documents.
+const buildTeakOAuthClients = () => {
   const clients = readWorkosConnectClients();
-  return Promise.resolve(
+  const issuer = readWorkosConnectIssuer();
+  return {
+    primary: "workos",
+    issuer,
+    clients: { ...clients, safari: clients.cli },
+    resource: readWorkosResources().mcp,
+    authorization_endpoint: new URL("/oauth2/authorize", issuer).href,
+    token_endpoint: new URL("/oauth2/token", issuer).href,
+    code_challenge_methods_supported: ["S256"],
+  };
+};
+
+export const teakOAuthClients = httpAction(() =>
+  Promise.resolve(
     withPublicApiGatewayHeaders(
-      json(200, {
-        primary: "workos",
-        issuer: readWorkosConnectIssuer(),
-        clients: { ...clients, safari: clients.cli },
+      json(200, buildTeakOAuthClients(), {
+        "Cache-Control": DISCOVERY_CACHE_CONTROL,
       })
     )
-  );
-});
+  )
+);

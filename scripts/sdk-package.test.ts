@@ -137,12 +137,6 @@ void client; void surface;
     fetch(request) {
       const path = new URL(request.url).pathname;
       const issuer = `${server.url.origin}/workos`;
-      if (path === "/.well-known/oauth-protected-resource/mcp") {
-        return Response.json({
-          resource: "https://teakvault.com/mcp",
-          authorization_servers: [issuer],
-        });
-      }
       if (path === "/.well-known/teak-oauth-clients.json") {
         return Response.json({
           primary: "workos",
@@ -153,11 +147,7 @@ void client; void surface;
               `client_${surface.toUpperCase()}`,
             ])
           ),
-        });
-      }
-      if (path === "/.well-known/oauth-authorization-server/workos") {
-        return Response.json({
-          issuer,
+          resource: "https://teakvault.com/mcp",
           authorization_endpoint: `${issuer}/authorize`,
           token_endpoint: `${issuer}/token`,
           code_challenge_methods_supported: ["S256"],
