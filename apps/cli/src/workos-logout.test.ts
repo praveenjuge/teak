@@ -55,12 +55,6 @@ const server = serve({
           })
         : new Response(null, { status: 503 });
     }
-    if (url.pathname.endsWith("oauth-protected-resource/mcp")) {
-      return Response.json({
-        resource: "https://teakvault.com/mcp",
-        authorization_servers: [server.url.origin],
-      });
-    }
     if (url.pathname.endsWith("teak-oauth-clients.json")) {
       return Response.json({
         primary: "workos",
@@ -71,11 +65,7 @@ const server = serve({
             `client_${name}`,
           ])
         ),
-      });
-    }
-    if (url.pathname.endsWith("oauth-authorization-server")) {
-      return Response.json({
-        issuer: server.url.origin,
+        resource: "https://teakvault.com/mcp",
         authorization_endpoint: `${server.url.origin}/authorize`,
         token_endpoint: `${server.url.origin}/oauth2/token`,
         code_challenge_methods_supported: ["S256"],

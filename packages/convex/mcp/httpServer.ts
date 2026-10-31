@@ -2,6 +2,7 @@ import { type ActionCtx, env, httpAction } from "../_generated/server";
 import { readWorkosResources } from "../env";
 import {
   buildProtectedResourceMetadata,
+  DISCOVERY_CACHE_CONTROL,
   getProtectedResourceUrl,
   json,
   withPublicApiGatewayHeaders,
@@ -60,7 +61,11 @@ const corsPreflight = (): Response =>
   withMcpCors(new Response(null, { status: 204 }));
 
 const metadataResponse = (): Response =>
-  withMcpCors(json(200, buildProtectedResourceMetadata()));
+  withMcpCors(
+    json(200, buildProtectedResourceMetadata(), {
+      "Cache-Control": DISCOVERY_CACHE_CONTROL,
+    })
+  );
 
 export const handleOauthProtectedResourceV1Request = (
   request: Request

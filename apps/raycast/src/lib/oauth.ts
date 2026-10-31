@@ -417,9 +417,31 @@ async function revokeStoredSession(): Promise<SignOutResult> {
   return localOnly ? "local-only" : "disconnected";
 }
 
+// The fresh access token of this deployment's only saved connection, read
+// without discovery: it goes only to the deployment it was saved for, and a
+// refresh or a 401 checks the provider again. Anything else, including two
+// saved connections, is left to discovery.
+async function freshSavedAccessToken(): Promise<string | null> {
+  const entries = Object.entries(await LocalStorage.allItems()).filter(
+    ([key]) => key.startsWith(registryPrefix()),
+  );
+  if (entries.length !== 1) {
+    return null;
+  }
+  const { records } = readSavedConnections(entries);
+  if (records.length !== 1) {
+    return null;
+  }
+  const tokens = await nativeClient(records[0].providerId).getTokens();
+  return tokens?.accessToken && !tokens.isExpired() ? tokens.accessToken : null;
+}
+
 export async function hasStoredTeakSession(): Promise<boolean> {
   if (inFlightSignOut) {
     return false;
+  }
+  if (await freshSavedAccessToken()) {
+    return true;
   }
   const provider = await getProvider();
   return Boolean(await provider.client.getTokens());
@@ -441,6 +463,10 @@ export function getStoredTeakAccessToken(): Promise<string | null> {
 }
 
 async function resolveStoredTeakAccessToken(): Promise<string | null> {
+  const saved = await freshSavedAccessToken();
+  if (saved) {
+    return saved;
+  }
   const provider = await getProvider();
   const tokens = await provider.client.getTokens();
   if (!tokens) {

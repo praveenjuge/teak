@@ -53,6 +53,12 @@ const matches = (credentials: Credentials, auth: AuthDiscovery) =>
     issuer: auth.issuer,
     clientId: auth.clients[SURFACE],
   });
+// A WorkOS credential saved for this site, checked from what sign-in saved
+// with it, without discovery.
+const boundToSite = (credentials: Credentials) => {
+  const saved = savedBinding(credentials);
+  return isWorkosCredential(saved) && saved.origin === teakSite();
+};
 async function readJson(response: Response) {
   const text = await readResponseTextWithinLimit(response, 64 * 1024);
   if (text === null) {
@@ -428,12 +434,18 @@ function credentialsForRequest() {
     if (!credentials) {
       return null;
     }
+    const fresh = credentials.expiresAt > Date.now() + 30_000;
+    // A fresh token goes only to the site it was issued for, so it needs no
+    // discovery. A refresh, a 401 or sign-out checks the provider again.
+    if (fresh && boundToSite(credentials)) {
+      return signedOutSince(readAt) ? null : credentials;
+    }
     const auth = await discovery();
     if (!matches(credentials, auth)) {
       await writeCredentials(null);
       return null;
     }
-    if (credentials.expiresAt > Date.now() + 30_000) {
+    if (fresh) {
       return signedOutSince(readAt) ? null : credentials;
     }
     const renewed = await refreshCredentials(credentials, auth);

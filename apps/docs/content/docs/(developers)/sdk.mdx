@@ -54,7 +54,7 @@ A `TokenProvider` has `getAccessToken()`, which returns the token for each reque
 
 The SDK includes the WorkOS Connect sign-in steps that the CLI, Raycast, and the browser extension use:
 
-- `discoverAuthServer("https://teakvault.com/api")` returns the deployment's sign-in endpoints and the client ID for your surface. Discover again after a sign-in or refresh failure.
+- `discoverAuthServer("https://teakvault.com/api")` returns the deployment's sign-in endpoints and the client ID for your surface, in one request. You don't need it while a saved access token is still fresh: send that token to the deployment it was issued for, and discover when you refresh it, after a 401, and at sign-in and sign-out. Discover again after a sign-in or refresh failure.
 - `randomBase64Url` and `createPkceChallenge` for PKCE, and `createConnectAuthorizeUrl` for the browser step.
 - `requestConnectTokens` for code and refresh grants. It returns `refresh_token_rejected` only when WorkOS says the refresh token is no longer valid; treat other failures as temporary and keep the saved sign-in.
 - `fetchConnectOwnerId` binds the tokens to an account, and `disconnectConnectGrant` signs the surface out.

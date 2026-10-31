@@ -52,20 +52,12 @@ const server = serve({
     if (url.pathname.startsWith("/.well-known/")) {
       discoveryRequests++;
     }
-    if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
-      return Response.json({
-        resource: "https://teakvault.com/mcp",
-        authorization_servers: [issuer],
-      });
-    }
     if (url.pathname === "/.well-known/teak-oauth-clients.json") {
-      return Response.json({ primary: "workos", issuer, clients: clients() });
-    }
-    if (
-      url.pathname === `/.well-known/oauth-authorization-server/${environment}`
-    ) {
       return Response.json({
+        primary: "workos",
         issuer,
+        clients: clients(),
+        resource: "https://teakvault.com/mcp",
         authorization_endpoint: `${issuer}/oauth2/authorize`,
         token_endpoint: unsafeTokenEndpoint ?? `${issuer}${tokenPath}`,
         code_challenge_methods_supported: ["S256"],
@@ -368,18 +360,62 @@ test("CLI rejects Unicode callback state and still accepts the valid callback", 
   expect((await login(false, true)).code).toBe(0);
   expect(exchanges).toBe(1);
 });
-test("CLI keeps credentials from a previous client registration unused until logout", async () => {
+test("CLI sends a fresh saved token without discovering the auth server", async () => {
   expect((await login()).code).toBe(0);
-  const saved = readFileSync(file, "utf8");
+  discoveryRequests = 0;
+  expect((await run(["tags"])).code).toBe(0);
+  expect((await run(["tags"])).code).toBe(0);
+  expect(apiRequests).toBe(2);
+  expect(discoveryRequests).toBe(0);
+});
+test("CLI stops using credentials from a previous client registration once they need a refresh", async () => {
+  expect((await login()).code).toBe(0);
   environment = "beta";
-  const result = await run(["auth", "status", "--json"]);
+  expect((await run(["tags"])).code).toBe(0);
+  expect(apiRequests).toBe(1);
+  const saved = JSON.parse(readFileSync(file, "utf8"));
+  saved.expiresAt = 0;
+  const expired = JSON.stringify(saved);
+  writeFileSync(file, expired);
+  const result = await run(["tags"]);
   expect(result.code).toBe(3);
   expect(refreshes).toBe(0);
-  expect(apiRequests).toBe(0);
-  expect(readFileSync(file, "utf8")).toBe(saved);
+  expect(apiRequests).toBe(1);
+  expect(readFileSync(file, "utf8")).toBe(expired);
   expect((await run(["logout"])).code).toBe(0);
   expect(disconnects).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
+});
+test("CLI checks the provider again when the API rejects a fresh token", async () => {
+  expect((await login()).code).toBe(0);
+  const saved = readFileSync(file, "utf8");
+  environment = "beta";
+  applicationRevoked = true;
+  discoveryRequests = 0;
+  const result = await run(["tags"]);
+  expect(result.code).toBe(3);
+  expect(discoveryRequests).toBe(1);
+  expect(refreshes).toBe(0);
+  expect(readFileSync(file, "utf8")).toBe(saved);
+});
+test("CLI discovers before sending a fresh token saved for another TEAK_AUTH_URL", async () => {
+  expect((await login()).code).toBe(0);
+  discoveryRequests = 0;
+  const child = spawn(
+    [process.execPath, "--no-env-file", "run", "src/index.ts", "tags"],
+    {
+      cwd: new URL("..", import.meta.url).pathname,
+      env: { ...childEnv(), TEAK_AUTH_URL: `${server.url.origin}/beta` },
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 10_000,
+    }
+  );
+  const stderr = await new Response(child.stderr).text();
+  expect(await child.exited).toBe(1);
+  expect(stderr).toContain("does not match TEAK_AUTH_URL");
+  expect(discoveryRequests).toBe(1);
+  expect(apiRequests).toBe(0);
 });
 test("CLI rotates expired credentials once for concurrent API requests", async () => {
   expect((await login()).code).toBe(0);
@@ -434,7 +470,7 @@ test("CLI discovers the auth server once when it refreshes expired credentials",
   expect(await child.exited).toBe(0);
   expect(refreshes).toBe(1);
   expect(apiRequests).toBe(1);
-  expect(discoveryRequests).toBe(3);
+  expect(discoveryRequests).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
 });
 
@@ -663,38 +699,47 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
     TEAK_API_KEY: env.TEAK_API_KEY,
   };
   const originalFetch = globalThis.fetch;
-  let releaseMetadata = () => undefined;
-  const metadataGate = new Promise<void>((resolve) => {
-    releaseMetadata = resolve;
-  });
-  let notifyMetadata = () => undefined;
-  const metadataStarted = new Promise<void>((resolve) => {
-    notifyMetadata = resolve;
+  let releaseLock = () => undefined;
+  const lockGate = new Promise<void>((resolve) => {
+    releaseLock = resolve;
   });
   let overlapping: Promise<unknown> | undefined;
+  let held: Promise<unknown> | undefined;
   try {
     env.XDG_CONFIG_HOME = directory;
     env.PATH = `${directory}:${previous.PATH}`;
     env.TEAK_API_KEY = "";
     const { client } = await import("./runtime");
+    const { credentialLockPath, withCredentialLock } = await import(
+      "./credentialLock"
+    );
     let api: ReturnType<typeof client>;
     let firstApi = true;
     globalThis.fetch = (async (input, init) => {
       const response = await originalFetch(input, init);
       if (String(input).endsWith("/v1/tags") && firstApi) {
         firstApi = false;
-        globalThis.fetch = (async (next, nextInit) => {
-          if (String(next).includes("/.well-known/")) {
-            notifyMetadata();
-            await metadataGate;
+        // Holding the credential lock keeps the overlapping read in flight
+        // until the 401 below has joined it.
+        let locked = () => undefined;
+        const holding = new Promise<void>((resolve) => {
+          locked = resolve;
+        });
+        held = withCredentialLock(
+          credentialLockPath(
+            join(directory, "teak"),
+            createHash("sha256").update(server.url.origin).digest("hex")
+          ),
+          async () => {
+            locked();
+            await lockGate;
           }
-          return await originalFetch(next, nextInit);
-        }) as typeof fetch;
+        );
+        await holding;
         overlapping = api.tags.list();
-        await metadataStarted;
         class RejectedResponse extends Response {
           override get status() {
-            queueMicrotask(releaseMetadata);
+            queueMicrotask(releaseLock);
             return 401;
           }
         }
@@ -709,7 +754,8 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
     expect(await overlapping).toEqual({ items: [] });
     expect(refreshes).toBe(1);
   } finally {
-    releaseMetadata();
+    releaseLock();
+    await held;
     globalThis.fetch = originalFetch;
     for (const [key, value] of Object.entries(previous)) {
       if (value === undefined) {

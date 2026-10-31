@@ -153,13 +153,6 @@ for (const mode of ["production", "development"] as const) {
       } else if (url === `${origin}/auth.mjs`) {
         await route.fulfill({ contentType: "text/javascript", body: source });
       } else if (
-        url === `${discoveryOrigin}/.well-known/oauth-protected-resource/mcp`
-      ) {
-        await json({
-          resource: "https://teakvault.com/mcp",
-          authorization_servers: [issuer],
-        });
-      } else if (
         url === `${discoveryOrigin}/.well-known/teak-oauth-clients.json`
       ) {
         await json({
@@ -168,10 +161,7 @@ for (const mode of ["production", "development"] as const) {
           clients: Object.fromEntries(
             surfaces.map((name) => [name, `client_${name}`])
           ),
-        });
-      } else if (url === `${issuer}/.well-known/oauth-authorization-server`) {
-        await json({
-          issuer,
+          resource: "https://teakvault.com/mcp",
           authorization_endpoint: authorize,
           token_endpoint: tokenEndpoint,
           code_challenge_methods_supported: ["S256"],

@@ -144,6 +144,10 @@ test("real auth hook reports discovery failure and Retry recovers saved credenti
               "client_01M47GV3CYKFW0H78W0XYKGTM5",
             ]),
           ),
+          resource: "https://teakvault.com/mcp",
+          authorization_endpoint: `${issuer}/authorize`,
+          token_endpoint: `${issuer}/oauth2/token`,
+          code_challenge_methods_supported: ["S256"],
         };
       }
       return {
@@ -192,6 +196,10 @@ const serveDiscovery = () => {
           ),
           issuer,
           primary: "workos",
+          resource: "https://teakvault.com/mcp",
+          authorization_endpoint: `${issuer}/authorize`,
+          token_endpoint: `${issuer}/oauth2/token`,
+          code_challenge_methods_supported: ["S256"],
         }),
       );
     }

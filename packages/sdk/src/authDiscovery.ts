@@ -115,37 +115,37 @@ export function discoverAuthServer(
     }
     return object(JSON.parse(text));
   };
+  // One document from the Teak deployment names the issuer, its endpoints,
+  // the clients and the resource. The deployment already chose the issuer, so
+  // trusting it for the endpoints too gives it no new reach as long as they
+  // sit on the issuer's origin: codes and refresh tokens only ever go there.
   const pending = (async (): Promise<AuthDiscovery> => {
-    const [resource, clientDocument] = await Promise.all([
-      read(`${site.origin}/.well-known/oauth-protected-resource/mcp`),
-      read(`${site.origin}/.well-known/teak-oauth-clients.json`),
-    ]);
-    const servers = resource.authorization_servers;
-    if (!Array.isArray(servers) || servers.length !== 1) {
-      throw new Error("Expected one OAuth authorization server");
-    }
-    const issuer = validateUrl(servers[0]);
-    if (issuer.search || clientDocument.issuer !== servers[0]) {
-      throw new Error("OAuth provider configuration changed; retry discovery");
-    }
-    const metadataUrl = new URL(issuer.origin);
-    metadataUrl.pathname = `/.well-known/oauth-authorization-server${issuer.pathname.replace(/\/$/, "")}`;
-    const metadata = await read(metadataUrl.href);
-    if (metadata.issuer !== servers[0]) {
-      throw new Error("OAuth issuer mismatch");
-    }
-    if (clientDocument.primary !== "workos") {
+    const document = await read(
+      `${site.origin}/.well-known/teak-oauth-clients.json`
+    );
+    if (document.primary !== "workos") {
       throw new Error("Unknown OAuth provider");
     }
+    const issuer = validateUrl(document.issuer);
+    if (issuer.search) {
+      throw new Error("Invalid OAuth issuer");
+    }
+    const issuerEndpoint = (raw: unknown) => {
+      const url = validateUrl(raw);
+      if (url.origin !== issuer.origin) {
+        throw new Error("OAuth endpoint is not on the issuer's origin");
+      }
+      return url.href;
+    };
     if (
       !(
-        Array.isArray(metadata.code_challenge_methods_supported) &&
-        metadata.code_challenge_methods_supported.includes("S256")
+        Array.isArray(document.code_challenge_methods_supported) &&
+        document.code_challenge_methods_supported.includes("S256")
       )
     ) {
       throw new Error("OAuth server does not support S256 PKCE");
     }
-    const clients = object(clientDocument.clients);
+    const clients = object(document.clients);
     for (const surface of OAUTH_SURFACES) {
       if (
         typeof clients[surface] !== "string" ||
@@ -157,17 +157,17 @@ export function discoverAuthServer(
     // The production resource, or this deployment's own (RFC 9728): never a
     // third party's audience.
     if (
-      resource.resource !== PRODUCTION_WORKOS_RESOURCES.mcp &&
-      resource.resource !== workosResourcesFor(site.origin).mcp
+      document.resource !== PRODUCTION_WORKOS_RESOURCES.mcp &&
+      document.resource !== workosResourcesFor(site.origin).mcp
     ) {
       throw new Error("OAuth resource mismatch");
     }
     return Object.freeze({
       primary: "workos",
-      issuer: servers[0] as string,
-      authorizationEndpoint: validateUrl(metadata.authorization_endpoint).href,
-      tokenEndpoint: validateUrl(metadata.token_endpoint).href,
-      resource: resource.resource as string,
+      issuer: document.issuer as string,
+      authorizationEndpoint: issuerEndpoint(document.authorization_endpoint),
+      tokenEndpoint: issuerEndpoint(document.token_endpoint),
+      resource: document.resource as string,
       clients: Object.freeze(
         Object.fromEntries(
           OAUTH_SURFACES.map((surface) => [surface, clients[surface]])

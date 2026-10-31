@@ -12,6 +12,7 @@ const originalEnv = {
   VITE_PUBLIC_CONVEX_SITE_URL: process.env.VITE_PUBLIC_CONVEX_SITE_URL,
 };
 let environment: "alpha" | "beta" = "alpha";
+let tokenEndpointOverride: string | undefined;
 const tokenKey = "teakOAuthCredentials";
 const accessToken = "a".repeat(32);
 const refreshToken = "r".repeat(32);
@@ -31,6 +32,7 @@ beforeEach(() => {
   process.env.TEAK_DEV_APP_URL = developmentIssuer;
   delete process.env.DEV;
   environment = "alpha";
+  tokenEndpointOverride = undefined;
   storage = {};
   let tail: Promise<unknown> = Promise.resolve();
   Object.defineProperty(navigator, "locks", {
@@ -95,12 +97,6 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
     const url = String(input);
     const prefix = `${process.env.DEV ? "dev." : ""}${environment === "beta" ? "beta." : ""}`;
     const issuer = `https://auth.${prefix}test.workos.com`;
-    if (url.endsWith("/.well-known/oauth-protected-resource/mcp")) {
-      return Response.json({
-        resource: "https://teakvault.com/mcp",
-        authorization_servers: [issuer],
-      });
-    }
     if (url.endsWith("/.well-known/teak-oauth-clients.json")) {
       return Response.json({
         primary: "workos",
@@ -111,13 +107,9 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
             `client_${process.env.DEV ? "dev_" : ""}${environment === "beta" ? "beta_" : ""}${surface}`,
           ])
         ),
-      });
-    }
-    if (url.includes("/.well-known/oauth-authorization-server")) {
-      return Response.json({
-        issuer,
+        resource: "https://teakvault.com/mcp",
         authorization_endpoint: `${issuer}/oauth2/authorize`,
-        token_endpoint: `${issuer}/oauth2/token`,
+        token_endpoint: tokenEndpointOverride ?? `${issuer}/oauth2/token`,
         code_challenge_methods_supported: ["S256"],
       });
     }
@@ -585,11 +577,62 @@ test("a client registration change during the browser callback never exchanges t
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("a credential from another client registration is never sent", async () => {
+test("a fresh token is sent without discovering the auth server", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
     expiresAt: Date.now() + 60_000,
+    ...workosBinding,
+  };
+  const requested: string[] = [];
+  globalThis.fetch = withDiscovery((async (input, init) => {
+    requested.push(String(input));
+    expect(new Headers(init?.headers).get("Authorization")).toBe(
+      `Bearer ${accessToken}`
+    );
+    return await Promise.resolve(Response.json({ cardId: "card" }));
+  }) as typeof fetch);
+  const auth = await load();
+  await auth.oauthRequest("/v1/cards");
+  await auth.oauthRequest("/v1/cards");
+  expect(requested).toEqual([
+    "https://test.convex.site/v1/cards",
+    "https://test.convex.site/v1/cards",
+  ]);
+});
+
+test("a fresh token rejected by the API clears it and checks the provider again", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 60_000,
+    ...workosBinding,
+  };
+  const requested: string[] = [];
+  const network = withDiscovery(
+    (async () =>
+      await Promise.resolve(
+        new Response(null, { status: 401 })
+      )) as unknown as typeof fetch
+  );
+  globalThis.fetch = ((input, init) => {
+    requested.push(String(input));
+    return network(input, init);
+  }) as typeof fetch;
+  const auth = await load();
+  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(storage[tokenKey]).toBeUndefined();
+  expect(requested).toEqual([
+    "https://test.convex.site/v1/cards",
+    "https://teakvault.com/.well-known/teak-oauth-clients.json",
+  ]);
+});
+
+test("a credential from another client registration is never refreshed or sent once it expires", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
     siteUrl: "https://test.convex.site",
     issuer: "https://auth.beta.test.workos.com",
     clientId: "client_beta_chrome",
@@ -725,14 +768,14 @@ test("a successful refresh reuses discovery and a rejected refresh fetches it ag
   }) as typeof fetch;
   const auth = await load();
   expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
-  expect(discoveryFetches).toBe(3);
+  expect(discoveryFetches).toBe(1);
   storage[tokenKey] = {
     ...(storage[tokenKey] as object),
     expiresAt: Date.now() - 1,
   };
   refreshStatus = 400;
   expect(await auth.oauthRequest("/v1/cards")).toBeNull();
-  expect(discoveryFetches).toBe(6);
+  expect(discoveryFetches).toBe(2);
 });
 
 test("rejects foreign API paths before reading or sending credentials", async () => {
@@ -757,20 +800,10 @@ test("rejects foreign API paths before reading or sending credentials", async ()
 });
 
 test("unsafe discovery stops before the browser flow or token transmission", async () => {
-  const metadata = withDiscovery((async () => {
+  tokenEndpointOverride = "http://10.0.0.1/token";
+  globalThis.fetch = withDiscovery((async () => {
     await Promise.reject(new Error("Token leaked"));
   }) as unknown as typeof fetch);
-  globalThis.fetch = (async (input, init) => {
-    if (String(input).includes("/.well-known/oauth-authorization-server")) {
-      return Response.json({
-        issuer: "https://auth.test.workos.com",
-        authorization_endpoint: "https://auth.test.workos.com/oauth2/authorize",
-        token_endpoint: "http://10.0.0.1/token",
-        code_challenge_methods_supported: ["S256"],
-      });
-    }
-    return await metadata(input, init);
-  }) as typeof fetch;
   await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
     "Unsafe OAuth discovery URL"
   );
@@ -868,7 +901,7 @@ test("a discovery outage during sign-out preserves the rotated refresh credentia
   expect(storage[tokenKey]).toMatchObject({ refreshToken: "rotated-refresh" });
 });
 
-test("sign-out during discovery prevents a nonexpired token from reaching the API", async () => {
+test("sign-out while reading saved credentials prevents a nonexpired token from reaching the API", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
@@ -884,18 +917,22 @@ test("sign-out during discovery prevents a nonexpired token from reaching the AP
     release = resolve;
   });
   let first = true;
+  const local = chrome.storage.local;
+  const get = local.get.bind(local) as (key: string) => Promise<unknown>;
+  Object.assign(local, {
+    get: async (key: string) => {
+      if (first && key === tokenKey) {
+        first = false;
+        notify?.();
+        await delayed;
+      }
+      return await get(key);
+    },
+  });
   const network = mock((_input: RequestInfo | URL, _init?: RequestInit) =>
     Promise.resolve(new Response(null, { status: 204 }))
   );
-  const metadata = withDiscovery(network as unknown as typeof fetch);
-  globalThis.fetch = (async (input, init) => {
-    if (first && String(input).endsWith("teak-oauth-clients.json")) {
-      first = false;
-      notify?.();
-      await delayed;
-    }
-    return metadata(input, init);
-  }) as typeof fetch;
+  globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
   const auth = await load();
   const request = auth.oauthRequest("/v1/cards");
   await started;

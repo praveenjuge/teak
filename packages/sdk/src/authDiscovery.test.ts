@@ -7,35 +7,35 @@ const clientIds = Object.fromEntries(
   surfaces.map((surface) => [surface, `client_01${surface.toUpperCase()}`])
 ) as Record<(typeof surfaces)[number], string>;
 
+const teakDocument = (issuer: string): Record<string, unknown> => {
+  const { origin } = new URL(issuer);
+  return {
+    primary: "workos",
+    issuer,
+    clients: clientIds,
+    resource: "https://teakvault.com/mcp",
+    authorization_endpoint: `${origin}/oauth2/authorize`,
+    token_endpoint: `${origin}/oauth2/token`,
+    code_challenge_methods_supported: ["S256"],
+  };
+};
+
 function fixture(
   issuer = "https://auth.example",
   site = "https://teak.example"
 ) {
-  const documents: Record<string, unknown> = {
-    [`${site}/.well-known/oauth-protected-resource/mcp`]: {
-      resource: "https://teakvault.com/mcp",
-      authorization_servers: [issuer],
-    },
-    [`${site}/.well-known/teak-oauth-clients.json`]: {
-      primary: "workos",
-      issuer,
-      clients: clientIds,
-    },
-    [`https://auth.example/.well-known/oauth-authorization-server${new URL(issuer).pathname.replace(/\/$/, "")}`]:
-      {
-        issuer,
-        authorization_endpoint: "https://auth.example/oauth2/authorize",
-        token_endpoint: "https://auth.example/oauth2/token",
-        code_challenge_methods_supported: ["S256"],
-      },
-  };
+  const document = teakDocument(issuer);
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const transport = asFetch((url, init) => {
     const key = String(url);
     calls.push({ url: key, init });
-    return Promise.resolve(Response.json(documents[key]));
+    return Promise.resolve(
+      key === `${site}/.well-known/teak-oauth-clients.json`
+        ? Response.json(document)
+        : new Response("Not found", { status: 404 })
+    );
   });
-  return { documents, calls, transport };
+  return { document, calls, transport };
 }
 
 describe("OAuth discovery", () => {
@@ -50,18 +50,14 @@ describe("OAuth discovery", () => {
         issuer: "https://auth.example",
         clients: { cli: "client_01CLI" },
       });
-      expect(
-        f.calls.slice(0, 2).map((call) => new URL(call.url).origin)
-      ).toEqual([site, site]);
+      expect(f.calls.map((call) => call.url)).toEqual([
+        `${site}/.well-known/teak-oauth-clients.json`,
+      ]);
     }
   );
   test("accepts the deployment's own resource on the discovered origin", async () => {
     const f = fixture();
-    (
-      f.documents[
-        "https://teak.example/.well-known/oauth-protected-resource/mcp"
-      ] as Record<string, unknown>
-    ).resource = "https://teak.example/mcp";
+    f.document.resource = "https://teak.example/mcp";
     expect(
       await discoverAuthServer("https://teak.example/api", {
         fetch: f.transport,
@@ -74,21 +70,18 @@ describe("OAuth discovery", () => {
     "https://teak.example/mcp/",
     "http://teak.example/mcp",
     "https://teakvault.com/api",
+    undefined,
   ])(
     "rejects resource %s outside the WorkOS audience",
-    async (resource: string) => {
+    async (resource: string | undefined) => {
       const f = fixture();
-      (
-        f.documents[
-          "https://teak.example/.well-known/oauth-protected-resource/mcp"
-        ] as Record<string, unknown>
-      ).resource = resource;
+      f.document.resource = resource;
       await expect(
         discoverAuthServer("https://teak.example", { fetch: f.transport })
       ).rejects.toThrow("resource mismatch");
     }
   );
-  test("discovers WorkOS, shares concurrent calls, and refreshes on demand", async () => {
+  test("discovers WorkOS in one request, shares concurrent calls, and refreshes on demand", async () => {
     const f = fixture();
     const [a, b] = await Promise.all([
       discoverAuthServer("https://teak.example/api", { fetch: f.transport }),
@@ -103,7 +96,7 @@ describe("OAuth discovery", () => {
       resource: "https://teakvault.com/mcp",
       clients: clientIds,
     });
-    expect(f.calls).toHaveLength(3);
+    expect(f.calls).toHaveLength(1);
     expect(Object.isFrozen(a.clients)).toBe(true);
     for (const call of f.calls) {
       expect(call.init).toMatchObject({
@@ -116,94 +109,108 @@ describe("OAuth discovery", () => {
       fetch: f.transport,
       forceRefresh: true,
     });
-    expect(f.calls).toHaveLength(6);
+    expect(f.calls).toHaveLength(2);
   });
   test.each(["betterauth", undefined, "WorkOS"])(
     "rejects a %s provider as invalid discovery",
     async (primary: string | undefined) => {
       const f = fixture();
-      (
-        f.documents[
-          "https://teak.example/.well-known/teak-oauth-clients.json"
-        ] as Record<string, unknown>
-      ).primary = primary;
+      f.document.primary = primary;
       await expect(
         discoverAuthServer("https://teak.example", { fetch: f.transport })
       ).rejects.toThrow("Unknown OAuth provider");
     }
   );
   test.each(["https://auth.example/tenant", "https://auth.example/tenant/"])(
-    "inserts the RFC 8414 well-known path for %s",
+    "accepts issuer %s whose endpoints share its origin",
     async (issuer: string) => {
       const f = fixture(issuer);
-      await discoverAuthServer("https://teak.example", { fetch: f.transport });
-      expect(f.calls.map((c) => c.url)).toContain(
-        "https://auth.example/.well-known/oauth-authorization-server/tenant"
-      );
+      expect(
+        await discoverAuthServer("https://teak.example", { fetch: f.transport })
+      ).toMatchObject({
+        issuer,
+        tokenEndpoint: "https://auth.example/oauth2/token",
+      });
     }
   );
   test.each([
-    ["issuer", { issuer: "https://other.example" }],
-    ["PKCE", { code_challenge_methods_supported: ["plain"] }],
-    ["unsafe token URL", { token_endpoint: "http://localhost:9999/token" }],
-    ["shared address URL", { token_endpoint: "https://100.64.0.1/token" }],
     [
-      "loopback URL with a root dot",
+      "an issuer whose origin is not the endpoints'",
+      { issuer: "https://other.example" },
+      "not on the issuer's origin",
+    ],
+    [
+      "a token endpoint on another origin",
+      { token_endpoint: "https://other.example/oauth2/token" },
+      "not on the issuer's origin",
+    ],
+    [
+      "an authorize endpoint on another port",
+      { authorization_endpoint: "https://auth.example:8443/oauth2/authorize" },
+      "not on the issuer's origin",
+    ],
+    [
+      "an issuer with a query",
+      { issuer: "https://auth.example?tenant=1" },
+      "Invalid OAuth issuer",
+    ],
+    ["a missing issuer", { issuer: undefined }, "Missing OAuth discovery URL"],
+    [
+      "a document without endpoints",
+      { token_endpoint: undefined },
+      "Missing OAuth discovery URL",
+    ],
+    ["plain PKCE", { code_challenge_methods_supported: ["plain"] }, "S256"],
+    [
+      "undeclared PKCE",
+      { code_challenge_methods_supported: undefined },
+      "S256",
+    ],
+    [
+      "an unsafe token URL",
+      { token_endpoint: "http://localhost:9999/token" },
+      "Unsafe",
+    ],
+    [
+      "a shared address issuer",
+      {
+        issuer: "https://100.64.0.1",
+        authorization_endpoint: "https://100.64.0.1/authorize",
+        token_endpoint: "https://100.64.0.1/token",
+      },
+      "Unsafe",
+    ],
+    [
+      "a loopback URL with a root dot",
       { token_endpoint: "https://localhost./t" },
+      "Unsafe",
     ],
     [
-      "local network URL with a root dot",
+      "a local network URL with a root dot",
       { authorization_endpoint: "https://printer.local./login" },
+      "Unsafe",
     ],
     [
-      "credential URL",
+      "a credential URL",
       { authorization_endpoint: "https://user:secret@auth.example/login" },
+      "Unsafe",
     ],
   ])(
-    "rejects invalid %s metadata",
-    async (_name: string, patch: Record<string, unknown>) => {
+    "rejects %s",
+    async (_name: string, patch: Record<string, unknown>, message: string) => {
       const f = fixture();
-      Object.assign(
-        f.documents[
-          "https://auth.example/.well-known/oauth-authorization-server"
-        ] as object,
-        patch
-      );
+      Object.assign(f.document, patch);
       await expect(
         discoverAuthServer("https://teak.example", { fetch: f.transport })
-      ).rejects.toThrow();
+      ).rejects.toThrow(message);
     }
   );
-  test("rejects a mixed provider snapshot instead of returning stale client IDs", async () => {
+  test("rejects missing client registrations", async () => {
     const f = fixture();
-    (
-      f.documents[
-        "https://teak.example/.well-known/teak-oauth-clients.json"
-      ] as Record<string, unknown>
-    ).issuer = "https://new.example";
-    await expect(
-      discoverAuthServer("https://teak.example", { fetch: f.transport })
-    ).rejects.toThrow("configuration changed");
-  });
-  test("rejects missing client registrations and the wrong vault resource", async () => {
-    const f = fixture();
-    (
-      f.documents[
-        "https://teak.example/.well-known/teak-oauth-clients.json"
-      ] as Record<string, unknown>
-    ).clients = { cli: "cli" };
+    f.document.clients = { cli: "cli" };
     await expect(
       discoverAuthServer("https://teak.example", { fetch: f.transport })
     ).rejects.toThrow("client registration");
-    const g = fixture();
-    (
-      g.documents[
-        "https://teak.example/.well-known/oauth-protected-resource/mcp"
-      ] as Record<string, unknown>
-    ).resource = "https://other.example/mcp";
-    await expect(
-      discoverAuthServer("https://teak.example", { fetch: g.transport })
-    ).rejects.toThrow("resource mismatch");
   });
   test.each(["oversized", "malformed", "http failure"])(
     "does not cache %s responses",
@@ -235,7 +242,7 @@ describe("OAuth discovery", () => {
       await discoverAuthServer("https://teak.example", { fetch: f.transport });
       now += 60_001;
       await discoverAuthServer("https://teak.example", { fetch: f.transport });
-      expect(f.calls).toHaveLength(6);
+      expect(f.calls).toHaveLength(2);
     } finally {
       Date.now = original;
     }
@@ -270,38 +277,6 @@ describe("OAuth discovery", () => {
     expect(calls).toBe(before);
   });
 
-  test("failed discovery aborts its stalled sibling and permits retry", async () => {
-    const f = fixture();
-    const state: { broken: boolean } = { broken: true };
-    let aborted = false;
-    const transport = asFetch((url, init) => {
-      if (!state.broken) {
-        return f.transport(url, init);
-      }
-      if (String(url).includes("oauth-protected-resource")) {
-        return Promise.resolve(new Response(null, { status: 503 }));
-      }
-      return new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener(
-          "abort",
-          () => {
-            aborted = true;
-            reject(new Error("Aborted sibling"));
-          },
-          { once: true }
-        );
-      });
-    });
-    await expect(
-      discoverAuthServer("https://teak.example", { fetch: transport })
-    ).rejects.toThrow("request failed");
-    expect(aborted).toBe(true);
-    state.broken = false;
-    expect(
-      await discoverAuthServer("https://teak.example", { fetch: transport })
-    ).toMatchObject({ primary: "workos" });
-  });
-
   test("times out discovery and allows another attempt", async () => {
     const f = fixture();
     const state: { stalled: boolean } = { stalled: true };
@@ -330,80 +305,31 @@ describe("OAuth discovery", () => {
 
   test("allows explicit loopback development while blocking private remote metadata", async () => {
     const f = fixture();
-    (
-      f.documents[
-        "https://auth.example/.well-known/oauth-authorization-server"
-      ] as Record<string, unknown>
-    ).token_endpoint = "https://169.254.169.254/token";
+    Object.assign(f.document, {
+      issuer: "https://169.254.169.254",
+      token_endpoint: "https://169.254.169.254/token",
+    });
     await expect(
       discoverAuthServer("https://teak.example", { fetch: f.transport })
     ).rejects.toThrow("Unsafe");
     const issuer = "http://127.0.0.1:3000";
-    const transport = asFetch((url) => {
-      if (String(url).endsWith("teak-oauth-clients.json")) {
-        return Promise.resolve(
-          Response.json({
-            primary: "workos",
-            issuer,
-            clients: clientIds,
-          })
-        );
-      }
-      if (String(url).includes("oauth-protected-resource")) {
-        return Promise.resolve(
-          Response.json({
-            resource: "https://teakvault.com/mcp",
-            authorization_servers: [issuer],
-          })
-        );
-      }
-      return Promise.resolve(
-        Response.json({
-          issuer,
-          authorization_endpoint: `${issuer}/authorize`,
-          token_endpoint: `${issuer}/token`,
-          code_challenge_methods_supported: ["S256"],
-        })
-      );
-    });
+    const transport = asFetch(() =>
+      Promise.resolve(Response.json(teakDocument(issuer)))
+    );
     expect(
       await discoverAuthServer("http://127.0.0.1:3211", { fetch: transport })
     ).toMatchObject({
       primary: "workos",
-      tokenEndpoint: "http://127.0.0.1:3000/token",
+      tokenEndpoint: "http://127.0.0.1:3000/oauth2/token",
       resource: "https://teakvault.com/mcp",
     });
   });
   test.each(["http://localhost:3000", "http://app.teak.localhost:3000"])(
     "cloud development requires explicit approval for %s and keeps its cache separate",
     async (issuer: string) => {
-      const transport = asFetch((url) => {
-        if (String(url).endsWith("teak-oauth-clients.json")) {
-          return Promise.resolve(
-            Response.json({
-              primary: "workos",
-              issuer,
-              clients: clientIds,
-            })
-          );
-        }
-        if (String(url).includes("oauth-protected-resource")) {
-          return Promise.resolve(
-            Response.json({
-              resource: "https://teakvault.com/mcp",
-              authorization_servers: [issuer],
-            })
-          );
-        }
-        return Promise.resolve(
-          Response.json({
-            issuer,
-            authorization_endpoint: `${issuer}/authorize`,
-            token_endpoint: `${issuer}/token`,
-            code_challenge_methods_supported: ["S256"],
-          })
-        );
-      });
+      const transport = asFetch(() =>
+        Promise.resolve(Response.json(teakDocument(issuer)))
+      );
       await expect(
         discoverAuthServer("https://dev.example", { fetch: transport })
       ).rejects.toThrow("Unsafe");

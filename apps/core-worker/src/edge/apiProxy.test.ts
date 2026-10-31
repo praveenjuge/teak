@@ -500,6 +500,37 @@ describe("edge-cached discovery documents", () => {
     ).toBe(`public, max-age=${API_PROXY_DOCUMENT_TTL_SECONDS}`);
   });
 
+  test("answers OAuth discovery from the edge and keeps Convex's public lifetime for clients", async () => {
+    const cache = new FakeCache();
+    const document = JSON.stringify({ primary: "workos" });
+    const { calls, fetcher } = upstream(
+      () =>
+        new Response(document, {
+          headers: {
+            "Cache-Control": "public, max-age=300",
+            "Content-Type": "application/json; charset=utf-8",
+          },
+        })
+    );
+    const request = () =>
+      new Request("https://teakvault.com/.well-known/teak-oauth-clients.json");
+    const first = await proxy(request(), { cache, fetcher });
+    await settle();
+    const hits = await Promise.all(
+      [1, 2, 3].map(() => proxy(request(), { cache, fetcher }))
+    );
+
+    expect(calls).toHaveLength(1);
+    for (const response of [first, ...hits]) {
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get("cache-control")).toBe(
+        "public, max-age=300"
+      );
+      expect(await response?.text()).toBe(document);
+    }
+    expect(hits[0]?.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   test("gives each cache hit its own request ID", async () => {
     const cache = new FakeCache();
     const { fetcher } = upstream(

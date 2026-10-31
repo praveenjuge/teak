@@ -52,42 +52,16 @@ function configureTransport(origin: string) {
   return legacyIssuer;
 }
 
-function sdkTransport(
-  t: ReturnType<typeof setup>,
-  origin: string,
-  legacyIssuer: string
-) {
-  const external: string[] = [];
+function sdkTransport(t: ReturnType<typeof setup>) {
+  const requested: string[] = [];
   const transport: typeof fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     expect(init).toMatchObject({ redirect: "error", credentials: "omit" });
     expect(new Headers(init?.headers).has("Authorization")).toBe(false);
-    if (url.origin === workosIssuer) {
-      expect(url.href).toBe(
-        `${workosIssuer}/.well-known/oauth-authorization-server`
-      );
-      external.push(url.href);
-      return Response.json({
-        issuer: workosIssuer,
-        authorization_endpoint: `${workosIssuer}/oauth2/authorize`,
-        token_endpoint: `${workosIssuer}/oauth2/token`,
-        revocation_endpoint: `${workosIssuer}/oauth2/revoke`,
-        code_challenge_methods_supported: ["S256"],
-      });
-    }
-    expect([origin, legacyIssuer]).toContain(url.origin);
-    if (
-      url.origin === legacyIssuer &&
-      url.pathname === "/.well-known/oauth-authorization-server"
-    ) {
-      return await t.fetch(
-        "/api/auth/.well-known/oauth-authorization-server",
-        init
-      );
-    }
+    requested.push(url.href);
     return await t.fetch(`${url.pathname}${url.search}`, init);
   };
-  return { transport, external };
+  return { transport, requested };
 }
 
 async function expectUnavailable(t: ReturnType<typeof setup>, path: string) {
@@ -110,6 +84,7 @@ describe("provider-aware OAuth HTTP discovery", () => {
       const t = setup();
       const resource = await t.fetch(resourcePath);
       expect(resource.status).toBe(200);
+      expect(resource.headers.get("Cache-Control")).toBe("public, max-age=300");
       expect(await resource.json()).toMatchObject({
         resource: "https://teakvault.com/mcp",
         authorization_servers: [workosIssuer],
@@ -117,24 +92,39 @@ describe("provider-aware OAuth HTTP discovery", () => {
       });
       const clients = await t.fetch(clientsPath);
       expect(clients.status).toBe(200);
-      // teak-sdk up to 1.0.86 requires a key for the retired safari client.
+      expect(clients.headers.get("Cache-Control")).toBe("public, max-age=300");
+      // teak-sdk up to 1.0.86 requires a key for the retired safari client;
+      // up to 1.0.91 it reads only primary, issuer and clients here.
       expect(await clients.json()).toEqual({
         primary: "workos",
         issuer: workosIssuer,
         clients: { ...clientIds, safari: clientIds.cli },
+        resource: "https://teakvault.com/mcp",
+        authorization_endpoint: `${workosIssuer}/oauth2/authorize`,
+        token_endpoint: `${workosIssuer}/oauth2/token`,
+        code_challenge_methods_supported: ["S256"],
       });
     }
   );
 
+  test("the clients document names the resource the protected-resource metadata does", async () => {
+    const origin = "https://reminiscent-kangaroo-59.convex.site";
+    configureTransport(origin);
+    vi.stubEnv("WORKOS_RESOURCE_ORIGIN", origin);
+    const t = setup();
+    const resource = await (await t.fetch(resourcePath)).json();
+    const clients = await (await t.fetch(clientsPath)).json();
+    expect(clients.resource).toBe(`${origin}/mcp`);
+    expect(clients.resource).toBe(resource.resource);
+    expect([clients.issuer]).toEqual(resource.authorization_servers);
+  });
+
   for (const origin of ["http://127.0.0.1:3211", "https://teakvault.com"]) {
     test(`SDK discovers WorkOS through the HTTP routes on ${origin}`, async () => {
-      const legacyIssuer = configureTransport(origin);
+      configureTransport(origin);
       const t = setup();
-      const f = sdkTransport(t, origin, legacyIssuer);
-      const auth = await discoverAuthServer(origin, {
-        fetch: f.transport,
-        ...(origin.startsWith("http:") ? { localIssuer: legacyIssuer } : {}),
-      });
+      const f = sdkTransport(t);
+      const auth = await discoverAuthServer(origin, { fetch: f.transport });
       expect(auth).toMatchObject({
         primary: "workos",
         issuer: workosIssuer,
@@ -143,7 +133,7 @@ describe("provider-aware OAuth HTTP discovery", () => {
         authorizationEndpoint: `${workosIssuer}/oauth2/authorize`,
         tokenEndpoint: `${workosIssuer}/oauth2/token`,
       });
-      expect(f.external).toHaveLength(1);
+      expect(f.requested).toEqual([`${origin}${clientsPath}`]);
     });
     test(`MCP challenge points at metadata transport on ${origin}`, async () => {
       configureTransport(origin);

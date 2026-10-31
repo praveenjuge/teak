@@ -25,8 +25,9 @@ const WELL_KNOWN_PATHS = new Set([
 ]);
 
 /**
- * Public, identical-for-everyone documents. Convex marks them `no-store`, so
- * clients still revalidate every time, but the edge answers for a few minutes.
+ * Public, identical-for-everyone documents. The edge answers them for a few
+ * minutes; clients get the lifetime Convex chose (five minutes for the OAuth
+ * discovery documents, `no-store` for the OpenAPI spec).
  */
 const EDGE_CACHED_PATHS = new Set([...WELL_KNOWN_PATHS, "/api/openapi.json"]);
 
