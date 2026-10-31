@@ -393,6 +393,30 @@ describe("MCP tools", () => {
     });
   });
 
+  test("gives the model the cards as JSON and always fetches content", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_1", type: "text", content: "Less, but better." }],
+          pageInfo: { hasMore: false, nextCursor: null },
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { q: "design", include: ["metadata"] },
+      mcpRequest({ jsonrpc: "2.0", id: 55, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]?.query).toMatchObject({ include: "content,metadata" });
+    expect(result.content[0]?.text).toBe("Fetched 1 cards");
+    expect(JSON.parse(result.content[1]?.text ?? "")).toEqual(
+      result.structuredContent
+    );
+  });
+
   test("passes text: through to search image text", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
