@@ -109,7 +109,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 `packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack, which the suite never shares with the [shared development deployment](/docs/development#the-shared-development-deployment). Development uses that deployment by default; `bun run dev --local` runs this same stack for development instead. The stack is:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
-- a local Convex backend (API and webhooks on the next port),
+- a local Convex backend (its HTTP routes on the next port),
 - the Core Worker under `wrangler dev` in local mode (`src/stack/coreWorker.ts`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
 - the web app.
 
@@ -164,20 +164,19 @@ Files in a suite run in parallel and share nothing: every spec makes its own acc
 
 ### How the stack is wired
 
-`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
+`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` and `WORKOS_API_BASE_URL` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
 
 The emulator runs with:
 
 - the interactive login pages, with the password step, like hosted AuthKit,
 - `https://api.workos.com` as the token issuer, which the backend requires,
-- a JWT template that adds `email` and `email_verified` to session tokens, like Teak's WorkOS environment,
-- a webhook endpoint for `user.*` events at the backend's `/workos/webhook`, signed with the pinned test secret.
+- a JWT template that adds `email`, `email_verified`, `first_name` and `last_name` to session tokens, like Teak's WorkOS environment.
 
 A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push.
 
 ### Accounts
 
-Accounts are real WorkOS users in the emulator. Creating one through the emulator API sends a signed `user.created` webhook, which gives the address a Teak vault. Browser specs then sign in through the hosted login page (`signIn` and `createAccount` in `src/helpers/app.ts`); the sign-up journey's account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them, except in the API, CLI and MCP specs, which never open a browser: `createApiAccount` calls the same mutation Settings does, signed in with the emulator's password grant. Tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
+Accounts are real WorkOS users in the emulator. Their first sign-in gives them a Teak vault, as it does for real users; specs that skip the browser call `ensureUser` with the account's session token (`waitForTeakAccount` in `scripts/lib/teak-account.ts`). Browser specs then sign in through the hosted login page (`signIn` and `createAccount` in `src/helpers/app.ts`); the sign-up journey's account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them, except in the API, CLI and MCP specs, which never open a browser: `createApiAccount` calls the same mutation Settings does, signed in with the emulator's password grant. Tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
 
 ### What e2e doesn't do, and the stand-ins
 
@@ -192,7 +191,6 @@ Accounts are real WorkOS users in the emulator. Creating one through the emulato
 ### What the local stack doesn't cover
 
 - **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/core-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
-- **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/edge/workosAuthKit.test.ts` covers it.
 - **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `Extension OAuth Runtime` workflow.
 - **Billing.** Polar checkout needs Polar credentials.
 - **The browser extension.** It signs in with WorkOS Connect, and e2e can't load a browser extension.

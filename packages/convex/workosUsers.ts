@@ -4,7 +4,6 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { startVaultSetup } from "./card/defaultCards";
-import { readComponentUser } from "./securitySessions";
 import {
   isStorableEmail,
   normalizeIdentityEmail,
@@ -15,8 +14,6 @@ import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
 const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
-  v.literal("email_unverified"),
-  v.literal("profile_pending"),
   v.literal("signups_frozen")
 );
 type LinkReason = typeof reasonValidator.type;
@@ -25,7 +22,7 @@ const EMAIL_HOLDER_ROWS = 20;
 
 // A deleted account keeps its row and address; only a live owner holds it, or
 // an address someone used before deleting an account would stay stuck.
-export const emailHeldByLiveOwner = async (
+const emailHeldByLiveOwner = async (
   ctx: Pick<MutationCtx, "db">,
   email: string
 ) => {
@@ -77,17 +74,15 @@ const syncOwnerFromClaims = async (
   }
 };
 
-// Links a WorkOS user to the Teak owner that already carries its ID, or
-// creates a new owner when sign-ups are open and WorkOS has verified the
-// email. The resolver (`workosIdentity.ts`) still decides whether a linked
-// owner may sign in.
+// Sign-in (`ensureUser`) calls this once WorkOS's signed session claims say the
+// address is verified. It links the WorkOS user to the Teak owner that already
+// carries its ID, or creates a new owner when sign-ups are open. The resolver
+// (`workosIdentity.ts`) still decides whether a linked owner may sign in.
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),
     email: v.string(),
-    emailVerified: v.boolean(),
     name: v.optional(v.string()),
-    source: v.union(v.literal("webhook"), v.literal("ensureUser")),
   },
   returns: v.union(
     v.object({
@@ -131,41 +126,18 @@ export const linkWorkosUser = internalMutation({
       return quarantine("workos_deleted_user");
     }
     if (linked) {
-      if (args.source === "ensureUser" && args.emailVerified) {
-        await syncOwnerFromClaims(ctx, linked, email, args.name);
-      }
+      await syncOwnerFromClaims(ctx, linked, email, args.name);
       return {
         status: "linked" as const,
         teakUserId: linked.teakUserId,
         changed: false,
       };
     }
-    if (!args.emailVerified) {
-      return quarantine("email_unverified");
-    }
     if (await readSignupsPaused(ctx)) {
       return quarantine("signups_frozen");
     }
     if (!(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))) {
       throw new Error("Invalid WorkOS creation input");
-    }
-    // Sign-in's signed session claims are enough on their own; a webhook
-    // event must match the AuthKit component's stored profile.
-    const provider =
-      args.source === "webhook"
-        ? await readComponentUser(ctx, args.workosUserId)
-        : null;
-    if (
-      args.source === "webhook" &&
-      (provider === null ||
-        normalizeIdentityEmail(provider.email) !== email ||
-        provider.emailVerified !== true)
-    ) {
-      return quarantine(
-        provider?.emailVerified === false
-          ? "email_unverified"
-          : "profile_pending"
-      );
     }
     const ownerId = await ctx.db.insert("users", {
       teakUserId: "",

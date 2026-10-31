@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
@@ -87,7 +86,6 @@ const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 
 const setup = async () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "teak_dev",
@@ -198,7 +196,6 @@ describe("pruning cloud dev accounts", () => {
 
   const withOwner = async (email: string, workosUserId: string) => {
     const t = convexTest(schema, modules);
-    workosTest.register(t);
     await t.run(async (ctx) => {
       await ctx.db.insert("users", {
         teakUserId: `teak_${workosUserId}`,

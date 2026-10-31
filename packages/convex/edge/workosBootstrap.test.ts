@@ -1,10 +1,8 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
-import { api, components, internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
 
@@ -20,56 +18,11 @@ const claims = {
 };
 const setup = () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   return t;
 };
 type Backend = ReturnType<typeof setup>;
 const signed = (t: Backend, overrides: Partial<UserIdentity> = {}) =>
   t.withIdentity({ ...claims, ...overrides });
-const profile = (
-  t: Backend,
-  overrides: {
-    emailVerified?: boolean;
-    externalId?: string | null;
-    email?: string;
-  } = {}
-) =>
-  seedComponentUser(t, {
-    id: "user_NEW",
-    email: "new@example.com",
-    externalId: null,
-    ...overrides,
-  });
-const updateProfile = (
-  t: Backend,
-  id: string,
-  updatedAt: string,
-  overrides: {
-    emailVerified?: boolean;
-    externalId?: string | null;
-    email?: string;
-  }
-) =>
-  t.run((ctx) =>
-    ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
-      event: {
-        id,
-        event: "user.updated",
-        createdAt: updatedAt,
-        data: {
-          object: "user",
-          metadata: {},
-          id: "user_NEW",
-          email: "new@example.com",
-          emailVerified: true,
-          externalId: null,
-          createdAt: "2026-10-08T00:00:00.000Z",
-          updatedAt,
-          ...overrides,
-        },
-      },
-    })
-  );
 const seed = (t: Backend, overrides: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
@@ -98,7 +51,6 @@ afterEach(() => {
 describe("signed WorkOS bootstrap", () => {
   test("fresh verified user gets a permanent owner from the signed claims and retries do not seed", async () => {
     const t = setup();
-    await profile(t);
     const result = await signed(t).mutation(ensure, {});
     expect(result).toMatchObject({ status: "ok" });
     if (result.status !== "ok") {
@@ -119,7 +71,6 @@ describe("signed WorkOS bootstrap", () => {
   });
   test("an existing owner signs in unchanged and keeps its legacy provenance", async () => {
     const t = setup();
-    await profile(t);
     await seed(t);
     const before = await state(t);
     expect(await signed(t).mutation(ensure, {})).toEqual({
@@ -132,7 +83,6 @@ describe("signed WorkOS bootstrap", () => {
   });
   test("frozen user writes nothing and retries after unfreeze", async () => {
     const t = setup();
-    await profile(t);
     await setSignupsPaused(t, true);
     expect(await signed(t).mutation(ensure, {})).toEqual({ status: "frozen" });
     expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
@@ -143,7 +93,6 @@ describe("signed WorkOS bootstrap", () => {
   });
   test("unsigned bootstrap creates nothing", async () => {
     const t = setup();
-    await profile(t);
     expect(await t.mutation(ensure, {})).toEqual({
       status: "quarantined",
       reason: "invalid_session",
@@ -163,7 +112,6 @@ describe("signed WorkOS bootstrap", () => {
     "malformed or foreign session $issuer $subject $sid is denied before linking",
     async (overrides) => {
       const t = setup();
-      await profile(t);
       expect(await signed(t, overrides).mutation(ensure, {})).toEqual({
         status: "quarantined",
         reason: "invalid_session",
@@ -180,24 +128,13 @@ describe("signed WorkOS bootstrap", () => {
     "session without a true email_verified claim %j waits for verification",
     async (overrides) => {
       const t = setup();
-      await profile(t);
       expect(await signed(t, overrides).mutation(ensure, {})).toEqual({
         status: "verify_email",
       });
       expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     }
   );
-  test("a verified session creates its owner whatever the component profile says", async () => {
-    const t = setup();
-    await profile(t, { emailVerified: false, email: "component@example.com" });
-    expect(await signed(t).mutation(ensure, {})).toMatchObject({
-      status: "ok",
-    });
-    expect((await state(t)).users).toMatchObject([
-      { email: "new@example.com", emailVerified: true },
-    ]);
-  });
-  test("a verified session gets its owner before the webhook stores the profile", async () => {
+  test("a verified session gets its owner from its claims, and retries change nothing", async () => {
     const t = setup();
     const result = await signed(t, { email: "Token@Example.com" }).mutation(
       ensure,
@@ -214,14 +151,12 @@ describe("signed WorkOS bootstrap", () => {
     ]);
     expect(after.jobs).toHaveLength(1);
     expect(after.quarantine).toEqual([]);
-    // Retries, and the profile arriving later, change nothing.
-    await profile(t, { email: "token@example.com" });
     expect(
       await signed(t, { email: "token@example.com" }).mutation(ensure, {})
     ).toEqual(result);
     expect((await state(t)).users).toHaveLength(1);
   });
-  test("a session without an email claim and no profile creates nothing", async () => {
+  test("a session without an email claim creates nothing", async () => {
     const t = setup();
     expect(await signed(t, { email: undefined }).mutation(ensure, {})).toEqual({
       status: "quarantined",
@@ -232,7 +167,6 @@ describe("signed WorkOS bootstrap", () => {
   test("existing owner stays unchanged during the freeze", async () => {
     const t = setup();
     await seed(t);
-    await profile(t);
     await setSignupsPaused(t, true);
     const before = await state(t);
     expect(await signed(t).mutation(ensure, {})).toEqual({
@@ -246,7 +180,6 @@ describe("signed WorkOS bootstrap", () => {
     async (fields) => {
       const t = setup();
       await seed(t, fields);
-      await profile(t);
       const before = (await state(t)).users;
       expect(await signed(t).mutation(ensure, {})).toMatchObject({
         status: "quarantined",
@@ -256,13 +189,12 @@ describe("signed WorkOS bootstrap", () => {
     }
   );
   test.each(["unmapped", "mapped"])(
-    "a %s provider deletion tombstone denies bootstrap while the component row remains",
+    "a %s provider deletion tombstone denies bootstrap",
     async (kind) => {
       const t = setup();
       if (kind === "mapped") {
         await seed(t);
       }
-      await profile(t);
       await t.run((ctx) =>
         ctx.db.insert("migrationQuarantine", {
           workosUserId: "user_NEW",
@@ -292,12 +224,8 @@ describe("signed WorkOS bootstrap", () => {
     expect((await state(t)).users).toHaveLength(1);
     expect((await state(t)).jobs).toHaveLength(1);
   });
-  test("bootstrap takes the signed claims' email and name, not the component's", async () => {
+  test("bootstrap takes the signed claims' email and name", async () => {
     const t = setup();
-    await profile(t);
-    await updateProfile(t, "newer_profile", "2026-10-08T00:00:03.000Z", {
-      email: "component@example.com",
-    });
     expect(
       await signed(t, {
         email: "Claim@Example.com",
@@ -375,33 +303,17 @@ describe("signed WorkOS bootstrap", () => {
       emailVerified: true,
     });
   });
-  test("bootstrap and the created webhook converge on one permanent owner", async () => {
+  test("two sign-ins at once converge on one permanent owner", async () => {
     const t = setup();
-    await profile(t);
-    const [bootstrapResult, webhookResult] = await Promise.all([
+    const [first, second] = await Promise.all([
       signed(t).mutation(ensure, {}),
-      t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-        id: "racing_created",
-        event: "user.created",
-        createdAt: "2026-10-01T00:00:00.000Z",
-        data: {
-          id: "user_NEW",
-          email: "new@example.com",
-          emailVerified: true,
-          updatedAt: "2026-10-01T00:00:00.000Z",
-        },
-      }),
+      signed(t).mutation(ensure, {}),
     ]);
-    expect(bootstrapResult).toMatchObject({ status: "ok" });
-    expect(webhookResult).toEqual({ status: "applied" });
+    expect(first).toMatchObject({ status: "ok" });
+    expect(second).toEqual(first);
     const after = await state(t);
     expect(after.users).toHaveLength(1);
     expect(after.users[0].workosUserId).toBe("user_NEW");
     expect(after.jobs).toHaveLength(1);
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "ok",
-      teakUserId: after.users[0].teakUserId,
-    });
-    expect((await state(t)).jobs).toEqual(after.jobs);
   });
 });

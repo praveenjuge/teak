@@ -1,6 +1,5 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest as baseConvexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -39,7 +38,6 @@ afterEach(() => {
 const newBackend = () => {
   const t = baseConvexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   return t;

@@ -1,8 +1,6 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import {
@@ -124,7 +122,6 @@ afterEach(() => {
 });
 async function setup(overrides = {}, owner = {}) {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   const row = await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -135,11 +132,6 @@ async function setup(overrides = {}, owner = {}) {
       ...owner,
     })
   );
-  await seedComponentUser(t, {
-    id: "user_OWNER",
-    email: "owner@example.test",
-    externalId: "owner",
-  });
   return { t, row, user: t.withIdentity({ ...claims, ...overrides }) };
 }
 const paginationOpts = { cursor: null, numItems: 25 };

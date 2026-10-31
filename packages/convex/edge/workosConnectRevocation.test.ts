@@ -1,11 +1,7 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
-import {
-  deliverWorkosUserUpdate,
-  seedComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 import { verifyWorkosConnectTokenSignature } from "../workos/tokens";
@@ -68,12 +64,6 @@ function token(overrides: JWTPayload = {}) {
 }
 async function setup(existing = true) {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
-  await seedComponentUser(t, {
-    id: user,
-    email: "owner@example.test",
-    externalId: owner,
-  });
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: owner,
@@ -289,9 +279,9 @@ test("historical consent can be revoked during account deletion without granting
     (await f.rows()).find((r) => r.consentId === consent)?.revokedAt
   ).toBeTypeOf("number");
 });
-test("unseen consent with an unverified WorkOS profile cannot be inserted", async () => {
+test("unseen consent with an unverified owner cannot be inserted", async () => {
   const f = await setup(false);
-  await deliverWorkosUserUpdate(f.t, user, { emailVerified: false });
+  await setOwnerVerified(f.t, user, false);
   expect((await f.disconnect(await token())).status).toBe(401);
   expect((await f.rows()).some((r) => r.consentId === consent)).toBe(false);
 });

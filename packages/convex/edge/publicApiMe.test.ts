@@ -1,15 +1,11 @@
 import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import {
-  seedWorkosOwner,
-  updateComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
 import schema from "../schema";
 
@@ -27,7 +23,6 @@ afterEach(() => {
 async function setup() {
   const t = convexTest(schema, modules);
   polarTest.register(t);
-  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
@@ -86,12 +81,6 @@ test("me returns the permanent owner for an API key and rejects it once revoked"
 
 test("me reads the email and name sign-in stored on the owner row without exposing provider IDs", async () => {
   const { t, workosUserId, request } = await setup();
-  // The AuthKit component's copy isn't read.
-  await updateComponentUser(t, workosUserId, {
-    email: "component@example.test",
-    firstName: "Component",
-    lastName: "Copy",
-  });
   const unchanged = await (await request()).json();
   expect(unchanged.data).toMatchObject({ email: `${OWNER}@example.test` });
   expect(unchanged.data).not.toHaveProperty("name");
@@ -257,10 +246,9 @@ test("revoking a key clears its cached validation", async () => {
   expect((await request()).status).toBe(401);
 });
 
-test("an account signed in before its profile webhook can mint a key and read me", async () => {
+test("an account created at sign-in can mint a key and read me", async () => {
   const t = convexTest(schema, modules);
   polarTest.register(t);
-  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");

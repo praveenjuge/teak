@@ -1,5 +1,4 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -7,7 +6,6 @@ import {
   convexForWorker,
   loadCoreWorker,
 } from "../__tests__/helpers/coreWorker.test-utils";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import schema from "../schema";
@@ -45,7 +43,6 @@ beforeEach(() => {
     }
   );
   vi.stubEnv("WORKOS_CLIENT_ID", "client_IMPORT");
-  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_IMPORT");
   vi.stubEnv("WORKOS_API_KEY", "test-import-deletion-key");
   vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false");
   vi.stubEnv("FILES_BASE", "https://files.test");
@@ -62,7 +59,6 @@ test("deletion retains its source and state while an authenticated import comple
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
   apiKeysTest.register(t);
-  workosTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: ownerId,
@@ -71,11 +67,6 @@ test("deletion retains its source and state while an authenticated import comple
       emailVerified: true,
     })
   );
-  await seedComponentUser(t, {
-    id: "user_IMPORT",
-    email: "import@example.com",
-    externalId: ownerId,
-  });
   const signed = t.withIdentity({
     issuer: "https://api.workos.com/user_management/client_IMPORT",
     subject: "user_IMPORT",
@@ -171,7 +162,6 @@ async function importSession() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
   apiKeysTest.register(t);
-  workosTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: ownerId,
@@ -180,11 +170,6 @@ async function importSession() {
       emailVerified: true,
     })
   );
-  await seedComponentUser(t, {
-    id: "user_IMPORT",
-    email: "import@example.com",
-    externalId: ownerId,
-  });
   const signed = t.withIdentity({
     issuer: "https://api.workos.com/user_management/client_IMPORT",
     subject: "user_IMPORT",
@@ -506,11 +491,6 @@ test("another user cannot record parts on someone else's import", async () => {
       emailVerified: true,
     })
   );
-  await seedComponentUser(t, {
-    id: "user_INTRUDER",
-    email: "intruder@example.com",
-    externalId: "import-intruder",
-  });
   const intruder = t.withIdentity({
     issuer: "https://api.workos.com/user_management/client_IMPORT",
     subject: "user_INTRUDER",

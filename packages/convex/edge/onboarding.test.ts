@@ -1,4 +1,3 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -369,7 +368,6 @@ describe("getting-started cards", () => {
   describe("Setting up your vault", () => {
     const signedIn = async () => {
       const t = setup();
-      workosTest.register(t);
       const workosUserId = await seedWorkosOwner(t, USER_ID);
       const owner = t.withIdentity({
         issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,

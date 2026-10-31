@@ -33,7 +33,6 @@ import { openApiV1 } from "./publicApi/openApi/spec";
 import { meV1 } from "./publicApiMe";
 import { workflowRpcV1 } from "./workflowGateway";
 import { disconnectWorkosConsent } from "./workos/connectRevocation";
-import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
 
@@ -60,7 +59,6 @@ http.route({
   handler: v1CorsPreflight,
 });
 
-registerWorkosRoutes(http);
 registerInboundRoutes(http);
 
 polar.registerRoutes(http, { events: polarWebhookEvents });

@@ -1,7 +1,5 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 
@@ -13,7 +11,6 @@ const principal = {
 };
 beforeEach(() => {
   vi.stubEnv("WORKOS_API_KEY", "sk_test");
-  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_ENV");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", "https://disconnect-tests.authkit.app");
 });
@@ -25,12 +22,6 @@ afterEach(() => {
 });
 async function setup() {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
-  await seedComponentUser(t, {
-    id: principal.workosUserId,
-    email: "owner@example.test",
-    externalId: "owner",
-  });
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: "owner",

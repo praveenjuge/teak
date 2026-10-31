@@ -1,6 +1,5 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -46,7 +45,6 @@ const identityFor = (workosUserId: string, externalId: string) => ({
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   const owner = t.withIdentity(

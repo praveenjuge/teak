@@ -71,7 +71,6 @@ export const recordCronRun = internalMutation({
   },
 });
 
-const DEAD_LETTER_LIMIT = 500;
 const JOB_FAILURE_LIMIT = 500;
 const SIGNUP_SCAN_LIMIT = 5000;
 const HEALTH_WINDOW_DAYS = 7;
@@ -106,11 +105,6 @@ export const getHealth = query({
       };
     });
 
-    const deadLetters = await ctx.db
-      .query("workosWebhookDeadLetters")
-      .order("desc")
-      .take(DEAD_LETTER_LIMIT);
-
     const failedImports = await ctx.db
       .query("importJobs")
       .withIndex("by_status_upload_expires", (q) => q.eq("status", "failed"))
@@ -140,15 +134,6 @@ export const getHealth = query({
     return {
       generatedAt: now,
       crons,
-      deadLetters: {
-        total: deadLetters.length,
-        lastWeek: deadLetters.filter((row) => row.receivedAt >= since).length,
-        latest: deadLetters.slice(0, 10).map((row) => ({
-          event: row.event,
-          reason: row.reason,
-          receivedAt: row.receivedAt,
-        })),
-      },
       jobs: {
         failedImports: recentFailures(failedImports).length,
         failedExports: recentFailures(failedExports).length,
@@ -166,9 +151,7 @@ export const getHealth = query({
       ).length,
       signupsLastWeek: signups.length,
       isApproximate:
-        signups.length === SIGNUP_SCAN_LIMIT ||
-        deadLetters.length === DEAD_LETTER_LIMIT ||
-        dispatches.isApproximate,
+        signups.length === SIGNUP_SCAN_LIMIT || dispatches.isApproximate,
     };
   },
 });

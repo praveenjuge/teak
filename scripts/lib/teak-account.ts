@@ -2,11 +2,11 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../packages/convex/_generated/api.js";
 
 /**
- * Waits until the backend opens a Teak vault for this WorkOS session, the way
- * the web app's first sign-in does: `workosBootstrap.ensureUser` answers `ok`
- * once WorkOS's user.created webhook has delivered the profile. Throws with the
- * bootstrap's last answer when the deadline passes. Runs under Bun and under
- * the e2e CLI's Node.
+ * Opens the Teak vault for this WorkOS session the way the web app's first
+ * sign-in does, retrying `workosBootstrap.ensureUser` until it answers `ok`
+ * (a cold backend can refuse the first calls). Throws with the bootstrap's
+ * last answer when the deadline passes. Runs under Bun and under the e2e
+ * CLI's Node.
  */
 export const waitForTeakAccount = async (options: {
   accessToken: string;

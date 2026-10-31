@@ -181,9 +181,7 @@ call. Deployments without `POSTHOG_PROJECT_TOKEN` write no rows.
 
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,
-so only tool calls reach Convex's HTTP action. WorkOS webhooks are queued at
-the edge and delivered with retries, so a burst never fans out into
-concurrent HTTP actions.
+so only tool calls reach Convex's HTTP action.
 
 ## Operational cost rollout
 

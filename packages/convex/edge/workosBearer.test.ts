@@ -1,6 +1,5 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import authKitTest from "@convex-dev/workos-authkit/test";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
@@ -14,10 +13,7 @@ import {
   test,
   vi,
 } from "vitest";
-import {
-  deliverWorkosUserUpdate,
-  seedComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components, internal } from "../_generated/api";
 import { syncCardSearchTagsBatchHandler } from "../card/searchSync";
 import schema from "../schema";
@@ -93,7 +89,6 @@ async function token(audience = apiAudience, overrides: JWTPayload = {}) {
 
 async function setup() {
   const t = convexTest(schema, modules);
-  authKitTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   const owner = await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -103,13 +98,6 @@ async function setup() {
       workosUserId: userId,
     })
   );
-  await seedComponentUser(t, {
-    id: userId,
-    email: "provider@example.test",
-    externalId: ownerId,
-    firstName: "Current",
-    lastName: "Profile",
-  });
   const own = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: ownerId,
@@ -249,7 +237,7 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
   });
 
-  test("profile reads the owner row's email and name, not the component's, and the permanent vault", async () => {
+  test("profile reads the owner row's email and name and the permanent vault", async () => {
     const f = await setup();
     await f.t.run(async (ctx) => {
       const row = await ctx.db
@@ -414,9 +402,9 @@ describe("WorkOS REST and MCP token boundary", () => {
     const f = await setup();
     const access = await token();
     expect((await f.read(access)).status).toBe(200);
-    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: false });
+    await setOwnerVerified(f.t, userId, false);
     expect((await f.read(access)).status).toBe(401);
-    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: true });
+    await setOwnerVerified(f.t, userId, true);
     expect((await f.read(access)).status).toBe(200);
     await f.t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
       userId: ownerId,
@@ -463,9 +451,9 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
     expect((await f.read(key.key)).status).toBe(200);
     expect((await f.mcp(key.key)).status).toBe(200);
-    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: false });
+    await setOwnerVerified(f.t, userId, false);
     expect((await f.read(key.key)).status).toBe(401);
-    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: true });
+    await setOwnerVerified(f.t, userId, true);
     expect((await f.read(key.key)).status).toBe(200);
     await f.t.run((ctx) => apiKeys.revoke(ctx, { keyId: key.keyId, ownerId }));
     expect((await f.read(key.key)).status).toBe(401);

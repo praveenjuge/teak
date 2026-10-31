@@ -6,9 +6,6 @@ mock.module("@convex-dev/polar/convex.config", () => ({
 mock.module("@convex-dev/better-auth/convex.config", () => ({
   default: { componentDefinitionPath: "better-auth" },
 }));
-mock.module("@convex-dev/workos-authkit/convex.config", () => ({
-  default: { componentDefinitionPath: "workOSAuthKit" },
-}));
 mock.module("@convex-dev/rate-limiter/convex.config", () => ({
   default: { componentDefinitionPath: "rateLimiterV2" },
 }));

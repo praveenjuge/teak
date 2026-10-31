@@ -82,7 +82,7 @@ export const startEmulator = async (ports: StackPorts) => {
   // name api.workos.com as the issuer; the emulator does both when told to.
   const emulator = await createEmulator({
     port: ports.emulatorUpstream,
-    seed: emulatorSeed(ports),
+    seed: emulatorSeed(),
     issuer: "https://api.workos.com",
     interactiveAuth: { password: true },
     allowedRedirectHosts: [new URL(APPLE_APP_REDIRECT_URI).host],

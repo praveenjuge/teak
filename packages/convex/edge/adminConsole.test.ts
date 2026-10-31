@@ -1,8 +1,6 @@
 import polarTest from "@convex-dev/polar/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { ensureCardUsageShards, insertCountedCard } from "../card/cardUsage";
 import schema from "../schema";
@@ -23,7 +21,6 @@ const adminClaims = {
 
 const setup = () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   polarTest.register(t);
   return t;
 };
@@ -45,11 +42,6 @@ const seedAccount = async (
       ...(role ? { role } : {}),
     })
   );
-  await seedComponentUser(t, {
-    id: workosUserId,
-    email,
-    externalId: teakUserId,
-  });
 };
 
 const seedAdmin = (t: Backend) =>

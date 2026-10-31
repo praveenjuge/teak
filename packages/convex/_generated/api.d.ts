@@ -194,7 +194,6 @@ import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
-import type * as migration_copyWorkosNames from "../migration/copyWorkosNames.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
@@ -363,15 +362,10 @@ import type * as workos_connectRevocation from "../workos/connectRevocation.js";
 import type * as workos_deletionCompletion from "../workos/deletionCompletion.js";
 import type * as workos_tokens from "../workos/tokens.js";
 import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
-import type * as workosAuthKit from "../workosAuthKit.js";
 import type * as workosBootstrap from "../workosBootstrap.js";
 import type * as workosConsents from "../workosConsents.js";
-import type * as workosEventCatchUp from "../workosEventCatchUp.js";
 import type * as workosIdentity from "../workosIdentity.js";
-import type * as workosLifecycle from "../workosLifecycle.js";
-import type * as workosProfileRead from "../workosProfileRead.js";
 import type * as workosUsers from "../workosUsers.js";
-import type * as workosWebhook from "../workosWebhook.js";
 
 import type {
   ApiFromModules,
@@ -566,7 +560,6 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
-  "migration/copyWorkosNames": typeof migration_copyWorkosNames;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
@@ -735,15 +728,10 @@ declare const fullApi: ApiFromModules<{
   "workos/deletionCompletion": typeof workos_deletionCompletion;
   "workos/tokens": typeof workos_tokens;
   workosApplicationDisconnect: typeof workosApplicationDisconnect;
-  workosAuthKit: typeof workosAuthKit;
   workosBootstrap: typeof workosBootstrap;
   workosConsents: typeof workosConsents;
-  workosEventCatchUp: typeof workosEventCatchUp;
   workosIdentity: typeof workosIdentity;
-  workosLifecycle: typeof workosLifecycle;
-  workosProfileRead: typeof workosProfileRead;
   workosUsers: typeof workosUsers;
-  workosWebhook: typeof workosWebhook;
 }>;
 
 /**
@@ -774,7 +762,6 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
-  workOSAuthKit: import("@convex-dev/workos-authkit/_generated/component.js").ComponentApi<"workOSAuthKit">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
   rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;

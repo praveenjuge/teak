@@ -10,8 +10,8 @@ import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "./config";
 
 // The account `bun run dev --local` signs in with: made on the WorkOS
-// emulator once the stack answers, so its user.created webhook reaches the
-// local backend, then seeded with the dev deployment's sample cards
+// emulator once the stack answers, given its Teak vault by a first sign-in
+// (`ensureUser`), then seeded with the dev deployment's sample cards
 // (`devSeed:seed` accepts a local backend wired to the emulator). The
 // emulator keeps users in memory, so every start makes it again.
 

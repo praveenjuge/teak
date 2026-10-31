@@ -26,9 +26,7 @@
         "!**/*.test.ts",
         "!**/packages/convex/securitySessions.ts",
         "!**/packages/convex/workosBootstrap.ts",
-        "!**/packages/convex/workosLifecycle.ts",
-        "!**/packages/convex/publicApi/http/auth.ts",
-        "!**/packages/convex/workosWebhook.ts"
+        "!**/packages/convex/publicApi/http/auth.ts"
       ]
     },
     {

@@ -40,9 +40,7 @@ export const ensureUser = mutation({
     > = await ctx.runMutation(internal.workosUsers.linkWorkosUser, {
       workosUserId: identity.workosUserId,
       email,
-      emailVerified: true,
       ...(identity.name ? { name: identity.name } : {}),
-      source: "ensureUser",
     });
     if (linked.status === "quarantined") {
       return linked.reason === "signups_frozen"

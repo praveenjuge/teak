@@ -1,11 +1,7 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import schema from "../schema";
-import { hasWorkosDeletionReceipt } from "../workos/deletionCompletion";
-import { readCanonicalWorkosProfile } from "../workosProfileRead";
 
 const modules = import.meta.glob("../**/*.ts");
 beforeEach(() => {
@@ -27,7 +23,6 @@ const legacyTarget = {
 };
 async function fixture({ stage = 6, legacy = false } = {}) {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   const ids = await t.run(async (ctx) => {
     const ownerId = await ctx.db.insert("users", {
       teakUserId: "owner",
@@ -46,18 +41,8 @@ async function fixture({ stage = 6, legacy = false } = {}) {
     });
     return { ownerId, stateId };
   });
-  await seedComponentUser(t, {
-    id: "user_DELETE",
-    email: "owner@example.com",
-  });
   return { t, ...ids, binding: { stateId: ids.stateId, generation: 1 } };
 }
-const deleted = {
-  id: "event_DELETE",
-  event: "user.deleted" as const,
-  createdAt: "1970-01-01T00:00:02.000Z",
-  data: { id: "user_DELETE" },
-};
 
 test.each([false, true])(
   "finalize marks the owner deleted and clears the state (started with a WorkOS target: %s)",
@@ -74,59 +59,32 @@ test.each([false, true])(
   }
 );
 
-test.each(["before", "after"] as const)(
-  "a user.deleted webhook %s finalize never revives the identity",
-  async (order) => {
-    const { t, ownerId, binding } = await fixture();
-    if (order === "before") {
-      await t.mutation(internal.workosLifecycle.applyWorkosEvent, deleted);
-    }
-    await t.mutation(internal.accountDeletionJobs.finalize, binding);
-    if (order === "after") {
-      await t.mutation(internal.workosLifecycle.applyWorkosEvent, deleted);
-    }
-    const owner = await t.run((ctx) => ctx.db.get(ownerId));
-    expect(owner?.deletedAt).toEqual(expect.any(Number));
-    expect(owner?.workosDeletedAt).toEqual(expect.any(Number));
-    expect(
-      await t.run((ctx) => hasWorkosDeletionReceipt(ctx, "user_DELETE"))
-    ).toBe(true);
-    expect(
-      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_DELETE"))
-    ).toBeNull();
-    expect(
-      await t.query(internal.workosIdentity.resolveWorkosOwner, {
-        workosUserId: "user_DELETE",
-        verification: { kind: "stored" },
-      })
-    ).toEqual({ status: "denied", reason: "deleted_user" });
-    expect(
-      await t.mutation(internal.workosUsers.linkWorkosUser, {
-        workosUserId: "user_DELETE",
+test("after finalize, neither a stored owner nor a fresh sign-in revives the identity", async () => {
+  const { t, ownerId, binding } = await fixture();
+  await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  const owner = await t.run((ctx) => ctx.db.get(ownerId));
+  expect(owner?.deletedAt).toEqual(expect.any(Number));
+  expect(
+    await t.query(internal.workosIdentity.resolveWorkosOwner, {
+      workosUserId: "user_DELETE",
+      verification: { kind: "stored" },
+    })
+  ).toEqual({ status: "denied", reason: "deleted_user" });
+  // A session token issued before WorkOS deleted the user is still signed.
+  expect(
+    await t
+      .withIdentity({
+        issuer: "https://api.workos.com/user_management/client_DELETE",
+        subject: "user_DELETE",
+        sid: "session_DELETE",
         email: "owner@example.com",
-        emailVerified: true,
-        source: "ensureUser",
+        email_verified: true,
+        first_name: "Revived",
       })
-    ).toEqual({ status: "quarantined", reason: "workos_deleted_user" });
-    // A redelivered deletion keeps one tombstone.
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      ...deleted,
-      id: "event_DELETE_again",
-    });
-    expect(
-      await t.run((ctx) => ctx.db.query("migrationQuarantine").take(5))
-    ).toHaveLength(1);
-    // The tombstone is final, so the admin operations queue doesn't count it.
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query("migrationQuarantine")
-          .withIndex("by_unresolved", (q) => q.eq("resolvedAt", undefined))
-          .take(5)
-      )
-    ).toEqual([]);
-  }
-);
+      .mutation(api.workosBootstrap.ensureUser, {})
+  ).toEqual({ status: "quarantined", reason: "deleted_user" });
+  expect(await t.run((ctx) => ctx.db.query("users").take(5))).toEqual([owner]);
+});
 
 test.each([0, 3, 4, 5])(
   "finalize refuses an unfinished deletion at stage %i",

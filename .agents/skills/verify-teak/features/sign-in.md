@@ -11,7 +11,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 - `auth-site-hint` marks the browser signed in for teakvault.com (cookie `teak_session_hint=1`) after sign-in and clears it on sign-out. The site's header then shows "Open Teak" instead of "Login" and "Register", and its sign-up buttons link to the app.
 - `auth-sign-out-settings` signs out from the Settings page.
 - `auth-sign-out-palette` signs out from the command palette.
-- `auth-first-sign-in` gives a brand-new WorkOS user a vault on their first sign-in, even before WorkOS's `user.created` webhook reaches the backend: the signed session's email claims create the account.
+- `auth-first-sign-in` gives a brand-new WorkOS user a vault on their first sign-in: the signed session's claims (address, verification, name) create the account. Teak has no WorkOS webhook.
 
 ## How to get to it (user POV)
 
@@ -40,13 +40,13 @@ Steps:
 - **Site hint.** After signing in, the browser holds cookie `teak_session_hint` with value `1` on the app's host (read it with the browser's cookie list, not the screen). After signing out it is gone. On the built site, with that cookie set for the site's host, the header has link "Open Teak" and no "Login" or "Register"; without it, the reverse. Hovering "Register" adds `<link rel="preconnect">` tags for the app and the sign-in hosts.
 - **Sign out from the palette.** Signed in, with focus outside a text field, `press` "Control+k". Dialog "Command palette" opens with the combobox "Search commands, folders and cards". `type` "sign out", `press` "Enter". The hosted sign-in page appears.
 
-**First sign-in before the webhook (local E2E stack only).** It needs `bun run dev --local --detach` and changes only that stack's backend; never run these `convex env` commands without `CONVEX_AGENT_MODE=anonymous`, which would hit the shared dev deployment instead.
+**First sign-in (local E2E stack only).** It needs `bun run dev --local --detach` and reads only that stack's backend; never run these `convex` commands without `CONVEX_AGENT_MODE=anonymous`, which would hit the shared dev deployment instead.
 
-- Break webhook delivery: from `packages/convex`, `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex env set WORKOS_WEBHOOK_SECRET whsec_wrong`. The command must report `anonymous deployment`.
-- Create a verified user in the emulator: `POST <emulatorOrigin>/user_management/users` with `Authorization: Bearer sk_test_default` and `{"email":"dev+verify-<run-id>@example.org","email_verified":true,"password":"…"}` (the origin is `urls.emulatorOrigin` in `stack.json`).
+- Create a verified user in the emulator: `POST <emulatorOrigin>/user_management/users` with `Authorization: Bearer sk_test_default` and `{"email":"dev+verify-<run-id>@example.org","email_verified":true,"first_name":"Verify","last_name":"Run","password":"…"}` (the origin is `urls.emulatorOrigin` in `stack.json`).
+- Before signing in, from `packages/convex`, `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex data users --limit 50` has no row with that user's `workosUserId` (the `id` from the POST). The command must report `anonymous deployment`.
 - `open_session`, sign in with that address (both emulator buttons are "Continue"). The app opens on `/` with the combobox "Search everything" within a few seconds, not "Loading your account" retries. `navigate` to `/settings`: the account's address is shown.
-- Proof the webhook never landed: `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run workosProfileRead:getProfile '{"workosUserId":"<id from the POST>"}'` prints nothing (null), while the seeded account's id prints its profile.
-- Restore: `… convex env set WORKOS_WEBHOOK_SECRET whsec_teak_e2e_emulator_only` (the value in `packages/tests/src/stack/config.ts`), then delete the test account from Settings → Security.
+- Proof: the same `convex data users` command now shows one row with that `workosUserId`, `email` the address, `emailVerified: true` and `name: "Verify Run"`.
+- Clean up: delete the test account from Settings → Security.
 
 ## Gotchas
 

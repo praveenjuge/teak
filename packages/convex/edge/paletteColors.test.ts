@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -23,7 +22,6 @@ const lastColor = (card: Doc<"cards"> | null) =>
 const setup = async (seed: Partial<Doc<"cards">> = {}) => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, "owner");
   await seedWorkosOwner(t, "stranger");
   const owner = t.withIdentity({
