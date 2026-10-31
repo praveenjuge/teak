@@ -10,3 +10,15 @@ export const isStorableEmail = (email: string): boolean =>
   email.length <= 320 &&
   /^[^\s@]+@[^\s@]+$/.test(email) &&
   !/\p{Cc}/u.test(email);
+
+// The WorkOS name: first and last name, trimmed, or null when both are blank.
+export const workosDisplayName = (
+  firstName: unknown,
+  lastName: unknown
+): string | null => {
+  const parts = [firstName, lastName]
+    .filter((part): part is string => typeof part === "string")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(" ").slice(0, 256) : null;
+};

@@ -104,8 +104,11 @@ export const finalize = internalMutation({
         throw new Error("deletion_binding_changed");
       }
     }
+    // A deleted account keeps its row for its ID and deletion date, not the
+    // person's name.
     await ctx.db.patch("users", owner._id, {
       ...redaction,
+      name: undefined,
       deletedAt: owner.deletedAt ?? Date.now(),
     });
     await ctx.db.delete("accountDeletionStates", stateId);

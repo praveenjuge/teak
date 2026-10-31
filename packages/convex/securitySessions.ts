@@ -15,6 +15,7 @@ import {
   WORKOS_CLIENT_ID,
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
+  workosDisplayName,
 } from "./shared/workosIds";
 import {
   type ResolveArgs,
@@ -43,6 +44,10 @@ function readWorkosSessionClaims(
 // arrives as `email_verified`; the OIDC-normalized `emailVerified` is never set.
 const workosEmailVerified = (identity: UserIdentity | null) =>
   identity?.email_verified === true;
+
+// The JWT template adds the WorkOS name as `first_name` and `last_name`.
+const workosClaimName = (identity: UserIdentity | null) =>
+  workosDisplayName(identity?.first_name, identity?.last_name);
 
 export function readWorkosSessionIdentity(
   identity: UserIdentity | null,
@@ -73,6 +78,7 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
         ...claims,
         email: typeof identity?.email === "string" ? identity.email : null,
         emailVerified: workosEmailVerified(identity),
+        name: workosClaimName(identity),
       }
     : null;
 }
@@ -239,6 +245,14 @@ interface SessionProfile {
   };
 }
 
+const readOwnerRow = (ctx: SessionCtx, teakUserId: string) =>
+  "db" in ctx && ctx.db
+    ? ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+        .unique()
+    : ctx.runQuery(internal.securitySessions.identityMapping, { teakUserId });
+
 export async function getSessionProfile(
   ctx: SessionCtx
 ): Promise<SessionProfile | null> {
@@ -246,35 +260,26 @@ export async function getSessionProfile(
   if (!sessionUser) {
     return null;
   }
-  const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
-  if (!provider) {
-    // The webhook hasn't stored the profile yet; the signed session claims
-    // hold the verified address until it does.
-    const { email } = sessionUser.identity;
-    return typeof email === "string"
-      ? {
-          teakUserId: sessionUser.teakUserId,
-          user: {
-            _id: sessionUser.teakUserId,
-            email,
-            emailVerified: true,
-            name: null,
-            image: null,
-          },
-        }
-      : null;
+  // The session's signed claims are the newest copy of the WorkOS profile;
+  // the owner row holds what sign-in last stored.
+  const { identity, teakUserId } = sessionUser;
+  const claimEmail = typeof identity.email === "string" ? identity.email : null;
+  const claimName = workosClaimName(identity);
+  // A token from the JWT template always carries the address, and the name
+  // whenever WorkOS has one; only an older token needs the row.
+  const row = claimEmail ? null : await readOwnerRow(ctx, teakUserId);
+  const email = claimEmail ?? row?.email;
+  if (!email) {
+    return null;
   }
   return {
-    teakUserId: sessionUser.teakUserId,
+    teakUserId,
     user: {
-      _id: sessionUser.teakUserId,
-      email: provider.email,
-      emailVerified: provider.emailVerified,
-      name:
-        provider.name ??
-        ([provider.firstName, provider.lastName].filter(Boolean).join(" ") ||
-          null),
-      image: provider.profilePictureUrl ?? null,
+      _id: teakUserId,
+      email,
+      emailVerified: true,
+      name: claimEmail ? claimName : (row?.name ?? null),
+      image: null,
     },
   };
 }

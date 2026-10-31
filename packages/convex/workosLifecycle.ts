@@ -2,7 +2,12 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
-import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
+import {
+  isStorableEmail,
+  normalizeIdentityEmail,
+  workosDisplayName,
+} from "./shared/workosIds";
+import { emailHeldByLiveOwner } from "./workosUsers";
 
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
 const permanentEventError = (message: string) =>
@@ -48,8 +53,6 @@ export const parseWorkosEvent = (event: {
   };
 };
 
-const EMAIL_HOLDER_ROWS = 20;
-
 const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
   const provider = await readComponentUser(ctx, workosUserId);
   if (!provider) {
@@ -74,6 +77,11 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     if (deleting) {
       continue;
     }
+    const name =
+      workosDisplayName(provider.firstName, provider.lastName) ?? undefined;
+    if (row.name !== name) {
+      await ctx.db.patch("users", row._id, { name });
+    }
     if (row.email === email || !provider.emailVerified) {
       // The row's verification tracks WorkOS's current address, which sign-in
       // reads; an unverified new address isn't adopted, but it stops sign-in.
@@ -84,17 +92,7 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
       }
       continue;
     }
-    // A deleted account keeps its row and address; only a live owner holds
-    // it, or an address someone used before deleting an account stays stuck.
-    const holders = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", email))
-      .order("desc")
-      .take(EMAIL_HOLDER_ROWS);
-    const taken = holders.some(
-      (holder) =>
-        holder.deletedAt === undefined && holder.workosDeletedAt === undefined
-    );
+    const taken = await emailHeldByLiveOwner(ctx, email);
     // WorkOS verified its current address, so sign-in may go on even when
     // another account holds it and the row keeps its old one.
     await ctx.db.patch(

@@ -16,7 +16,7 @@ const claims = {
   subject: "user_NEW",
   sid: "session_NEW",
   email_verified: true,
-  email: "untrusted-jwt-profile@example.com",
+  email: "new@example.com",
 };
 const setup = () => {
   const t = convexTest(schema, modules);
@@ -96,7 +96,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 describe("signed WorkOS bootstrap", () => {
-  test("fresh verified user gets a permanent owner from provider data and retries do not seed", async () => {
+  test("fresh verified user gets a permanent owner from the signed claims and retries do not seed", async () => {
     const t = setup();
     await profile(t);
     const result = await signed(t).mutation(ensure, {});
@@ -187,13 +187,15 @@ describe("signed WorkOS bootstrap", () => {
       expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     }
   );
-  test("unverified provider profile cannot be promoted by a verified session", async () => {
+  test("a verified session creates its owner whatever the component profile says", async () => {
     const t = setup();
-    await profile(t, { emailVerified: false });
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "verify_email",
+    await profile(t, { emailVerified: false, email: "component@example.com" });
+    expect(await signed(t).mutation(ensure, {})).toMatchObject({
+      status: "ok",
     });
-    expect((await state(t)).users).toEqual([]);
+    expect((await state(t)).users).toMatchObject([
+      { email: "new@example.com", emailVerified: true },
+    ]);
   });
   test("a verified session gets its owner before the webhook stores the profile", async () => {
     const t = setup();
@@ -278,51 +280,100 @@ describe("signed WorkOS bootstrap", () => {
       expect(await state(t)).toEqual(before);
     }
   );
-  test("a stale verified snapshot cannot override a newer unverified profile", async () => {
+  test("a session verified later bootstraps after an unverified one waited", async () => {
     const t = setup();
-    await profile(t);
-    await updateProfile(t, "latest_unverified", "2026-10-08T00:00:03.000Z", {
-      emailVerified: false,
-    });
-    await updateProfile(t, "stale_verified", "2026-10-08T00:00:02.000Z", {
-      emailVerified: true,
-    });
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "verify_email",
-    });
-    expect((await state(t)).users).toEqual([]);
-    expect((await state(t)).jobs).toEqual([]);
-  });
-  test("later verification allows bootstrap after an unverified signup", async () => {
-    const t = setup();
-    await profile(t, { emailVerified: false });
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "verify_email",
-    });
-    await updateProfile(t, "verified_later", "2026-10-08T00:00:03.000Z", {
-      emailVerified: true,
-    });
+    expect(
+      await signed(t, { email_verified: false }).mutation(ensure, {})
+    ).toEqual({ status: "verify_email" });
+    expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
     });
     expect((await state(t)).users).toHaveLength(1);
     expect((await state(t)).jobs).toHaveLength(1);
   });
-  test("bootstrap uses the newest component email", async () => {
+  test("bootstrap takes the signed claims' email and name, not the component's", async () => {
     const t = setup();
     await profile(t);
     await updateProfile(t, "newer_profile", "2026-10-08T00:00:03.000Z", {
-      email: "changed@example.com",
+      email: "component@example.com",
     });
-    await updateProfile(t, "old_profile", "2026-10-08T00:00:02.000Z", {});
-    expect(await signed(t).mutation(ensure, {})).toMatchObject({
-      status: "ok",
-    });
+    expect(
+      await signed(t, {
+        email: "Claim@Example.com",
+        first_name: "Ada",
+        last_name: "Lovelace",
+      }).mutation(ensure, {})
+    ).toMatchObject({ status: "ok" });
     expect((await state(t)).users).toMatchObject([
-      { email: "changed@example.com", workosUserId: "user_NEW" },
+      {
+        email: "claim@example.com",
+        name: "Ada Lovelace",
+        workosUserId: "user_NEW",
+      },
     ]);
-    expect((await state(t)).users).toHaveLength(1);
     expect((await state(t)).jobs).toHaveLength(1);
+  });
+  test("a verified claim brings an existing unverified owner up to date, so its session resolves", async () => {
+    const t = setup();
+    await seed(t, { email: "old@example.com", emailVerified: false });
+    const resolve = () =>
+      t.query(internal.workosIdentity.resolveWorkosOwner, {
+        workosUserId: "user_NEW",
+        verification: { kind: "session", emailVerified: true },
+      });
+    expect(await resolve()).toEqual({
+      status: "denied",
+      reason: "verify_email",
+    });
+    expect(
+      await signed(t, {
+        email: "Changed@Example.com",
+        first_name: "Ada",
+        last_name: "Lovelace",
+      }).mutation(ensure, {})
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    expect((await state(t)).users).toMatchObject([
+      {
+        teakUserId: "permanent-owner",
+        email: "changed@example.com",
+        emailVerified: true,
+        name: "Ada Lovelace",
+      },
+    ]);
+    expect(await resolve()).toEqual({
+      status: "ok",
+      teakUserId: "permanent-owner",
+    });
+  });
+  test("a token without name claims clears a name WorkOS no longer has", async () => {
+    const t = setup();
+    await seed(t, { email: "new@example.com", name: "Old Name" });
+    expect(
+      await signed(t, { email: "new@example.com" }).mutation(ensure, {})
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    const [owner] = (await state(t)).users;
+    expect(owner.name).toBeUndefined();
+  });
+  test("a verified claim marks the owner verified but leaves an address another live owner holds", async () => {
+    const t = setup();
+    await seed(t, {
+      teakUserId: "other-owner",
+      workosUserId: "user_OTHER",
+      email: "taken@example.com",
+    });
+    await seed(t, { email: "old@example.com", emailVerified: false });
+    const [other] = (await state(t)).users;
+    expect(
+      await signed(t, { email: "taken@example.com" }).mutation(ensure, {})
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    const { users } = await state(t);
+    expect(users[0]).toEqual(other);
+    expect(users[1]).toMatchObject({
+      teakUserId: "permanent-owner",
+      email: "old@example.com",
+      emailVerified: true,
+    });
   });
   test("bootstrap and the created webhook converge on one permanent owner", async () => {
     const t = setup();

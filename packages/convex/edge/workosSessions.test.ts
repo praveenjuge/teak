@@ -109,7 +109,7 @@ describe("WorkOS Convex sessions", () => {
     await card(t);
     expect(await client(t).query(api.auth.getCurrentUser, {})).toMatchObject({
       _id: "permanent-owner",
-      email: "workos@example.com",
+      email: "jwt@example.com",
       emailVerified: true,
       cardCount: 1,
     });
@@ -281,9 +281,9 @@ describe("WorkOS Convex sessions", () => {
       expect(await snapshot(t)).toEqual(before);
     }
   );
-  test("missing WorkOS profile falls back to the signed session's address", async () => {
+  test("the profile's address comes from the signed claims, falling back to the owner row", async () => {
     const t = setup();
-    await seed(t, {}, null);
+    await seed(t, {}, { email: "component@example.com" });
     expect(await client(t).run((ctx) => getSessionProfile(ctx))).toEqual({
       teakUserId: "permanent-owner",
       user: {
@@ -300,39 +300,71 @@ describe("WorkOS Convex sessions", () => {
     });
     expect(
       await client(t, { email: undefined }).run((ctx) => getSessionProfile(ctx))
-    ).toBeNull();
+    ).toMatchObject({ user: { email: "legacy@example.com" } });
+    expect(
+      await client(t, { email: undefined }).query(api.billing.getUserInfo, {})
+    ).toEqual({ teakUserId: "permanent-owner", email: "legacy@example.com" });
   });
   test.each([
-    { firstName: "First", lastName: "Last", expectedName: "First Last" },
-    { firstName: null, lastName: null, expectedName: null },
+    {
+      names: { first_name: " First ", last_name: "Last" },
+      row: { name: "Stored Name" },
+      expected: "First Last",
+    },
+    {
+      names: { first_name: "Only", last_name: null },
+      row: {},
+      expected: "Only",
+    },
+    {
+      names: { first_name: " ", last_name: "" },
+      row: { name: "Stored Name" },
+      expected: null,
+    },
+    { names: {}, row: { name: "Stored Name" }, expected: null },
+    { names: {}, row: {}, expected: null },
   ])(
-    "profile preserves ownership/email and normalizes display name: $expectedName",
-    async ({ firstName, lastName, expectedName }) => {
+    "the profile's name comes only from the claims of a token that carries the address: $expected",
+    async ({ names, row, expected }) => {
       const t = setup();
-      await seed(
-        t,
-        {},
-        {
-          firstName,
-          lastName,
-          profilePictureUrl: "https://images.example.com/avatar.png",
-        }
-      );
+      // The component's copy is never read: its name and picture don't show.
+      await seed(t, row, {
+        firstName: "Component",
+        lastName: "Name",
+        profilePictureUrl: "https://images.example.com/avatar.png",
+      });
+      const user = {
+        _id: "permanent-owner",
+        email: "jwt@example.com",
+        emailVerified: true,
+        name: expected,
+        image: null,
+      };
       expect(
-        await client(t).run((ctx) => getSessionProfile(ctx))
-      ).toMatchObject({
-        teakUserId: "permanent-owner",
-        user: {
-          _id: "permanent-owner",
-          email: "workos@example.com",
-          name: expectedName,
-          image: "https://images.example.com/avatar.png",
-        },
-      });
-      expect(await client(t).query(api.billing.getUserInfo, {})).toEqual({
-        teakUserId: "permanent-owner",
-        email: "workos@example.com",
-      });
+        await client(t, names).run((ctx) => getSessionProfile(ctx))
+      ).toEqual({ teakUserId: "permanent-owner", user });
+      expect(
+        await client(t, names).query(api.auth.getCurrentUser, {})
+      ).toMatchObject(user);
     }
   );
+  test("the webhook clears a name WorkOS no longer has", async () => {
+    const t = setup();
+    await seed(t, { name: "Old Name" });
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
+      firstName: null,
+      lastName: null,
+    });
+    const [owner] = (await snapshot(t)).users;
+    expect(owner.name).toBeUndefined();
+  });
+  test("a token without the address claim takes the name from the owner row", async () => {
+    const t = setup();
+    await seed(t, { name: "Stored Name" });
+    expect(
+      await client(t, { email: undefined }).run((ctx) => getSessionProfile(ctx))
+    ).toMatchObject({
+      user: { email: "legacy@example.com", name: "Stored Name" },
+    });
+  });
 });
