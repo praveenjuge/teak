@@ -90,6 +90,30 @@ describe("MCP protocol messages", () => {
       }
     }
   });
+
+  test("gives every enum and const parameter a type", () => {
+    const untyped: string[] = [];
+    const visit = (schema: unknown, path: string) => {
+      if (Array.isArray(schema)) {
+        schema.forEach((item, index) => visit(item, `${path}[${index}]`));
+        return;
+      }
+      if (!schema || typeof schema !== "object") {
+        return;
+      }
+      const node = schema as Record<string, unknown>;
+      if (("enum" in node || "const" in node) && !("type" in node)) {
+        untyped.push(path);
+      }
+      for (const [key, value] of Object.entries(node)) {
+        visit(value, `${path}.${key}`);
+      }
+    };
+    for (const tool of TEAK_V1_TOOLS) {
+      visit(tool.inputSchema, tool.name);
+    }
+    expect(untyped).toEqual([]);
+  });
 });
 
 describe("MCP App resource", () => {
