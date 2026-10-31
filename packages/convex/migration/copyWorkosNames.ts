@@ -23,7 +23,7 @@ export const copyPage = internalMutation({
       }
       const user = await readComponentUser(ctx, row.workosUserId);
       const name = user
-        ? workosDisplayName(user.firstName, user.lastName)
+        ? workosDisplayName(user.name, user.firstName, user.lastName)
         : null;
       if (name) {
         await ctx.db.patch("users", row._id, { name });

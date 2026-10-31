@@ -307,6 +307,11 @@ describe("WorkOS Convex sessions", () => {
   });
   test.each([
     {
+      names: { name: " Full Name ", first_name: "First", last_name: "Last" },
+      row: {},
+      expected: "Full Name",
+    },
+    {
       names: { first_name: " First ", last_name: "Last" },
       row: { name: "Stored Name" },
       expected: "First Last",
