@@ -20,6 +20,7 @@ import {
   type ResolveArgs,
   type ResolvedOwner,
   resolveOwner,
+  resolveStoredOwner,
 } from "./workosIdentity";
 
 function readWorkosSessionClaims(
@@ -141,22 +142,12 @@ export async function resolveStoredUserId(
   ctx: SessionCtx,
   ownerId: string
 ): Promise<TeakUserId | null> {
-  const row =
+  const owner =
     "db" in ctx && ctx.db
-      ? await ctx.db
-          .query("users")
-          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", ownerId))
-          .unique()
-      : await ctx.runQuery(internal.securitySessions.identityMapping, {
+      ? await resolveStoredOwner(ctx, ownerId)
+      : await ctx.runQuery(internal.workosIdentity.resolveStoredWorkosOwner, {
           teakUserId: ownerId,
         });
-  if (!row?.workosUserId) {
-    return null;
-  }
-  const owner = await resolveOwnerFor(ctx, {
-    workosUserId: row.workosUserId,
-    verification: { kind: "stored" },
-  });
   return owner.status === "ok" && owner.teakUserId === ownerId
     ? (owner.teakUserId as TeakUserId)
     : null;

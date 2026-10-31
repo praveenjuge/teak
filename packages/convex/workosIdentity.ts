@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import {
   logResolverDenial,
@@ -30,6 +31,21 @@ export async function resolveOwner(
   return result;
 }
 
+const resolvedOwnerValidator = v.union(
+  v.object({ status: v.literal("ok"), teakUserId: v.string() }),
+  v.object({
+    status: v.literal("denied"),
+    reason: v.union(
+      v.literal("missing_mapping"),
+      v.literal("duplicate_mapping"),
+      v.literal("deleted_user"),
+      v.literal("workos_deleted_user"),
+      v.literal("deleting_user"),
+      v.literal("verify_email")
+    ),
+  })
+);
+
 export const resolveWorkosOwner = internalQuery({
   args: {
     workosUserId: v.string(),
@@ -39,20 +55,7 @@ export const resolveWorkosOwner = internalQuery({
       v.object({ kind: v.literal("stored") })
     ),
   },
-  returns: v.union(
-    v.object({ status: v.literal("ok"), teakUserId: v.string() }),
-    v.object({
-      status: v.literal("denied"),
-      reason: v.union(
-        v.literal("missing_mapping"),
-        v.literal("duplicate_mapping"),
-        v.literal("deleted_user"),
-        v.literal("workos_deleted_user"),
-        v.literal("deleting_user"),
-        v.literal("verify_email")
-      ),
-    })
-  ),
+  returns: resolvedOwnerValidator,
   handler: (ctx, args) => resolveOwner(ctx, args),
 });
 
@@ -77,7 +80,13 @@ const resolve = async (
         : ("missing_mapping" as const),
     };
   }
-  const row = rows[0];
+  return checkOwnerRow(rows[0], args.verification);
+};
+
+export const checkOwnerRow = (
+  row: Doc<"users">,
+  verification: ResolverVerification
+): ResolvedOwner => {
   if (row.deletedAt !== undefined || row.workosDeletedAt !== undefined) {
     return {
       status: "denied" as const,
@@ -92,7 +101,6 @@ const resolve = async (
   }
   // A session token carries its own signed verification. A Connect token
   // carries none, so it needs the stored address verified.
-  const { verification } = args;
   if (
     verification.kind === "connect"
       ? row.emailVerified !== true
@@ -103,3 +111,33 @@ const resolve = async (
   }
   return { status: "ok" as const, teakUserId: row.teakUserId };
 };
+
+// A stored owner ID (an API key's, a Connect consent's, background work's)
+// is checked on the same row it names, so it needs no second lookup.
+export async function resolveStoredOwner(
+  ctx: Pick<QueryCtx, "db">,
+  teakUserId: string
+): Promise<ResolvedOwner> {
+  const row = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+    .unique();
+  if (!row?.workosUserId) {
+    return { status: "denied" as const, reason: "missing_mapping" as const };
+  }
+  const result = checkOwnerRow(row, { kind: "stored" });
+  if (result.status === "denied") {
+    await logResolverDenial({
+      reason: result.reason,
+      verification: { kind: "stored" },
+      workosUserId: row.workosUserId,
+    });
+  }
+  return result;
+}
+
+export const resolveStoredWorkosOwner = internalQuery({
+  args: { teakUserId: v.string() },
+  returns: resolvedOwnerValidator,
+  handler: (ctx, { teakUserId }) => resolveStoredOwner(ctx, teakUserId),
+});

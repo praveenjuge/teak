@@ -146,6 +146,18 @@ export const answerIdentityQuery = (
       },
     };
   }
+  if (
+    name === "workosIdentity:resolveStoredWorkosOwner" &&
+    typeof args?.teakUserId === "string"
+  ) {
+    return {
+      handled: true,
+      value:
+        mapping.deletedAt === undefined
+          ? { status: "ok", teakUserId: args.teakUserId }
+          : { status: "denied", reason: "deleted_user" },
+    };
+  }
   if (name === "workosIdentity:resolveWorkosOwner") {
     return {
       handled: true,
