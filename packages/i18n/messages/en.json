@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, one { card} other { cards}}",
       "folderTitle": "Folder",
       "searchFolder": "Search {folder}",
+      "searchThisFolder": "Search this folder",
       "savedSmartFolder": "Saved “{name}”",
       "savedSmartFolderDescription": "It shows every card that matches, as you save them.",
       "open": "Open",

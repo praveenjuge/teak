@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, one { tarjeta} other { tarjetas}}",
       "folderTitle": "Carpeta",
       "searchFolder": "Buscar en {folder}",
+      "searchThisFolder": "Buscar en esta carpeta",
       "savedSmartFolder": "Se guardó «{name}»",
       "savedSmartFolderDescription": "Muestra todas las tarjetas que coinciden, a medida que las guarda.",
       "open": "Abrir",

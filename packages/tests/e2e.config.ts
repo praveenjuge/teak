@@ -21,6 +21,6 @@ export default suiteConfig("chromium", {
   retries: 0,
   // GitHub's standard runner shares 4 cores between the browser, the backend
   // and the dev server. A second browser starves the backend, whose functions
-  // then hit Convex's 1 s limit; pass --workers to try more on a bigger machine.
+  // then hit their time limit; pass --workers to try more on a bigger machine.
   workers: 1,
 });

@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, other {개의 카드}}",
       "folderTitle": "폴더",
       "searchFolder": "{folder} 검색",
+      "searchThisFolder": "이 폴더 검색",
       "savedSmartFolder": "“{name}”을(를) 저장했습니다",
       "savedSmartFolderDescription": "일치하는 모든 카드를 저장하는 대로 보여 줍니다.",
       "open": "열기",

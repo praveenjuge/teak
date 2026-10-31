@@ -172,7 +172,7 @@ The emulator runs with:
 - `https://api.workos.com` as the token issuer, which the backend requires,
 - a JWT template that adds `email`, `email_verified`, `first_name` and `last_name` to session tokens, like Teak's WorkOS environment.
 
-A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push.
+A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push. Its queries and mutations may run for 5 seconds instead of Convex's 1 (`DATABASE_UDF_USER_TIMEOUT_SECONDS`, set in `src/stack/backend.ts`): the backend shares the machine with the browser and the dev server, and a cold module load could otherwise use up the second before a sign-in's first query started.
 
 ### Accounts
 

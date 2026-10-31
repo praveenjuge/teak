@@ -920,6 +920,15 @@ export function CardsScreen({
       title = <PageTitle>{t("folderTitle")}</PageTitle>;
     }
   }
+  // A folder view searches only that folder, even before its name loads.
+  let searchPlaceholder = libraryViewSearchPlaceholder(view ?? "all", tv);
+  if (folder) {
+    searchPlaceholder = t("searchFolder", {
+      folder: clipFolderName(folder.name),
+    });
+  } else if (isFolderView) {
+    searchPlaceholder = t("searchThisFolder");
+  }
 
   const content = (
     <>
@@ -945,11 +954,7 @@ export function CardsScreen({
             : () => setFolderDialog({ mode: "save", query: saveableQuery })
         }
         onSortChange={revisit.onSortChange}
-        placeholder={
-          folder
-            ? t("searchFolder", { folder: clipFolderName(folder.name) })
-            : libraryViewSearchPlaceholder(view ?? "all", tv)
-        }
+        placeholder={searchPlaceholder}
         revisit={revisit.offer}
         similarAnchorTitle={similarAnchorTitle}
         title={title}

@@ -101,6 +101,13 @@ export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
     : [];
 
 /**
+ * Seconds a query or mutation may run on the local backend (Convex's own is
+ * 1). The backend shares this machine with the browser and `next dev`, and a
+ * cold isolate loading a module could pass 1 s before the function started.
+ */
+export const LOCAL_FUNCTION_TIMEOUT_SECONDS = "5";
+
+/**
  * The E2E stack never uses a cloud deployment: its Convex CLI calls run
  * without a cloud session's deploy key and pick the local anonymous backend.
  */
@@ -108,7 +115,11 @@ export const localBackendEnv = (
   env: NodeJS.ProcessEnv = process.env
 ): NodeJS.ProcessEnv => {
   const { CONVEX_DEPLOY_KEY: _cloudKey, ...rest } = env;
-  return { ...rest, CONVEX_AGENT_MODE: "anonymous" };
+  return {
+    ...rest,
+    CONVEX_AGENT_MODE: "anonymous",
+    DATABASE_UDF_USER_TIMEOUT_SECONDS: LOCAL_FUNCTION_TIMEOUT_SECONDS,
+  };
 };
 
 export const selectedAnonymousInstance = (

@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, one { fiche} other { fiches}}",
       "folderTitle": "Dossier",
       "searchFolder": "Rechercher dans {folder}",
+      "searchThisFolder": "Rechercher dans ce dossier",
       "savedSmartFolder": "« {name} » enregistré",
       "savedSmartFolderDescription": "Il affiche toutes les fiches correspondantes, au fur et à mesure que vous les enregistrez.",
       "open": "Ouvrir",

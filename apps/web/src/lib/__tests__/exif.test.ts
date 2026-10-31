@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { formatCamera, formatExifFields, formatExposureTime } from "../exif";
 
+// ICU versions join a date and a time with ", " or " at " (Bun on macOS uses
+// the system's); either is right, so compare with one join.
+const oneJoin = (value: string | undefined) => value?.replace(" at ", ", ");
+
+const takenValue = (exif: Parameters<typeof formatExifFields>[0]) =>
+  oneJoin(
+    formatExifFields(exif).find((field) => field.label === "Taken")?.value
+  );
+
 describe("formatExifFields", () => {
   test("lists a full photo's facts in reading order", () => {
     const fields = formatExifFields({
@@ -25,10 +34,9 @@ describe("formatExifFields", () => {
     expect(fields).toContainEqual({ label: "Aperture", value: "f/1.8" });
     expect(fields).toContainEqual({ label: "Focal length", value: "50 mm" });
     expect(fields).toContainEqual({ label: "ISO", value: "400" });
-    expect(fields).toContainEqual({
-      label: "Taken",
-      value: "May 17, 2026, 09:00 AM",
-    });
+    expect(
+      oneJoin(fields.find((field) => field.label === "Taken")?.value)
+    ).toBe("May 17, 2026, 09:00 AM");
   });
 
   test("never shows GPS coordinates, even when they are the only facts", () => {
@@ -80,9 +88,6 @@ const LEGACY_READING: Record<string, string> = {
   "Pacific/Auckland": "May 17, 2026, 09:00 PM",
 };
 const originalTz = process.env.TZ;
-
-const takenValue = (exif: Parameters<typeof formatExifFields>[0]) =>
-  formatExifFields(exif).find((field) => field.label === "Taken")?.value;
 
 describe.each(VIEWER_ZONES)("Taken, viewed in %s", (zone) => {
   beforeAll(() => {
