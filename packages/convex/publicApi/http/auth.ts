@@ -14,8 +14,13 @@ import { ignoreTelemetryError } from "../../shared/telemetry";
 import { sha256Hex } from "../../storage/r2Keys";
 import {
   verifyWorkosConnectTokenSignature,
+  type WorkosConnectPrincipal,
   type WorkosResource,
 } from "../../workos/tokens";
+import {
+  type ConsentAuthorization,
+  isConsentSeenRecently,
+} from "../../workosConsents";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
@@ -329,6 +334,34 @@ const withAuthorizedUser = async (
   return decision.result;
 };
 
+// A request charged elsewhere (by the Core Worker, or the MCP transport gate)
+// for a consent seen in the last few minutes writes nothing, so it only
+// reads. Inserting a new consent, refreshing `lastSeenAt` and charging the
+// rate limit go through the mutation, which rechecks everything in its own
+// transaction.
+const authorizeConnectConsent = async (
+  ctx: ActionCtx,
+  principal: WorkosConnectPrincipal,
+  chargeRateLimit: boolean
+): Promise<ConsentAuthorization> => {
+  if (!chargeRateLimit) {
+    const consent = await ctx.runQuery(
+      internal.workosConsents.readConnectConsent,
+      principal
+    );
+    if (consent.status === "denied") {
+      return consent;
+    }
+    if (isConsentSeenRecently(consent.lastSeenAt)) {
+      return { status: "ok", teakUserId: consent.teakUserId };
+    }
+  }
+  return await ctx.runMutation(
+    internal.workosConsents.authorizeConnectConsent,
+    { ...principal, chargeRateLimit }
+  );
+};
+
 const authorizeBearer = async (
   ctx: ActionCtx,
   request: Request,
@@ -401,9 +434,10 @@ const authorizeBearer = async (
         },
       });
       if (principal) {
-        const owner = await ctx.runMutation(
-          internal.workosConsents.authorizeConnectConsent,
-          { ...principal, chargeRateLimit }
+        const owner = await authorizeConnectConsent(
+          ctx,
+          principal,
+          chargeRateLimit
         );
         if (owner.status === "ok") {
           rateLimit = owner.rateLimit;

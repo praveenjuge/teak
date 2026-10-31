@@ -1,7 +1,13 @@
 import { paginationOptsValidator } from "convex/server";
-import { ConvexError, type Infer, v } from "convex/values";
+import { ConvexError, type Infer, type ObjectType, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { action, internalMutation, query } from "./_generated/server";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 import {
   limitApiRequests,
   rateLimitResultValidator,
@@ -15,7 +21,7 @@ import { disconnectApplication } from "./workosApplicationDisconnect";
 import { resolveOwner } from "./workosIdentity";
 
 const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
-type ConsentAuthorization =
+export type ConsentAuthorization =
   | {
       status: "ok";
       teakUserId: string;
@@ -23,65 +29,112 @@ type ConsentAuthorization =
     }
   | { status: "denied"; reason: string };
 
-// Mapping, verification, deletion and consent state are read in this
-// mutation's transaction; a refreshed token never clears revocation.
-export const authorizeConnectConsent = internalMutation({
-  args: {
-    workosUserId: v.string(),
-    consentId: v.string(),
-    clientId: v.string(),
-    chargeRateLimit: v.optional(v.boolean()),
+const consentArgs = {
+  workosUserId: v.string(),
+  consentId: v.string(),
+  clientId: v.string(),
+};
+type ConsentArgs = ObjectType<typeof consentArgs>;
+
+const deniedValidator = v.object({
+  status: v.literal("denied"),
+  reason: v.string(),
+});
+
+// Mapping, verification, deletion and consent state, read in one transaction.
+// A refreshed token never clears revocation.
+const checkConsent = async (ctx: QueryCtx, args: ConsentArgs) => {
+  if (
+    !(
+      CONNECT_CONSENT_ID.test(args.consentId) &&
+      WORKOS_USER_ID.test(args.workosUserId) &&
+      args.clientId
+    ) ||
+    args.clientId.length > 2048
+  ) {
+    return { status: "denied" as const, reason: "invalid_credential" };
+  }
+  const owner = await resolveOwner(ctx, {
+    workosUserId: args.workosUserId,
+    verification: { kind: "connect" },
+  });
+  if (owner.status !== "ok") {
+    return owner;
+  }
+  const matches = await ctx.db
+    .query("workosConsents")
+    .withIndex("by_consentId", (q) => q.eq("consentId", args.consentId))
+    .take(2);
+  if (matches.length > 1) {
+    return { status: "denied" as const, reason: "duplicate_consent" };
+  }
+  const existing = matches[0];
+  if (existing?.revokedAt !== undefined) {
+    return { status: "denied" as const, reason: "revoked_consent" };
+  }
+  if (
+    existing &&
+    (existing.userId !== owner.teakUserId ||
+      existing.workosUserId !== args.workosUserId ||
+      existing.clientId !== args.clientId)
+  ) {
+    return { status: "denied" as const, reason: "consent_binding_conflict" };
+  }
+  return { status: "ok" as const, teakUserId: owner.teakUserId, existing };
+};
+
+// The read-only check most Connect requests need: a known consent that was
+// seen recently. Its caller writes through `authorizeConnectConsent` when
+// `lastSeenAt` is missing or older than `LAST_SEEN_INTERVAL_MS`.
+export const readConnectConsent = internalQuery({
+  args: consentArgs,
+  returns: v.union(
+    v.object({
+      status: v.literal("ok"),
+      teakUserId: v.string(),
+      lastSeenAt: v.union(v.number(), v.null()),
+    }),
+    deniedValidator
+  ),
+  handler: async (ctx, args) => {
+    const result = await checkConsent(ctx, args);
+    return result.status === "ok"
+      ? {
+          status: "ok" as const,
+          teakUserId: result.teakUserId,
+          lastSeenAt: result.existing?.lastSeenAt ?? null,
+        }
+      : result;
   },
+});
+
+export const isConsentSeenRecently = (lastSeenAt: number | null) =>
+  lastSeenAt !== null && Date.now() - lastSeenAt < LAST_SEEN_INTERVAL_MS;
+
+export const authorizeConnectConsent = internalMutation({
+  args: { ...consentArgs, chargeRateLimit: v.optional(v.boolean()) },
   returns: v.union(
     v.object({
       status: v.literal("ok"),
       teakUserId: v.string(),
       rateLimit: v.optional(rateLimitResultValidator),
     }),
-    v.object({ status: v.literal("denied"), reason: v.string() })
+    deniedValidator
   ),
-  handler: async (ctx, args): Promise<ConsentAuthorization> => {
-    if (
-      !(
-        CONNECT_CONSENT_ID.test(args.consentId) &&
-        WORKOS_USER_ID.test(args.workosUserId) &&
-        args.clientId
-      ) ||
-      args.clientId.length > 2048
-    ) {
-      return { status: "denied" as const, reason: "invalid_credential" };
+  handler: async (
+    ctx,
+    { chargeRateLimit, ...args }
+  ): Promise<ConsentAuthorization> => {
+    const result = await checkConsent(ctx, args);
+    if (result.status !== "ok") {
+      return result;
     }
-    const owner = await resolveOwner(ctx, {
-      workosUserId: args.workosUserId,
-      verification: { kind: "connect" },
-    });
-    if (owner.status !== "ok") {
-      return owner;
-    }
-    const matches = await ctx.db
-      .query("workosConsents")
-      .withIndex("by_consentId", (q) => q.eq("consentId", args.consentId))
-      .take(2);
-    if (matches.length > 1) {
-      return { status: "denied" as const, reason: "duplicate_consent" };
-    }
-    const existing = matches[0];
-    if (existing?.revokedAt !== undefined) {
-      return { status: "denied" as const, reason: "revoked_consent" };
-    }
-    if (
-      existing &&
-      (existing.userId !== owner.teakUserId ||
-        existing.workosUserId !== args.workosUserId ||
-        existing.clientId !== args.clientId)
-    ) {
-      return { status: "denied" as const, reason: "consent_binding_conflict" };
-    }
+    const { existing, teakUserId } = result;
     const now = Date.now();
     if (!existing) {
       await ctx.db.insert("workosConsents", {
         consentId: args.consentId,
-        userId: owner.teakUserId,
+        userId: teakUserId,
         workosUserId: args.workosUserId,
         clientId: args.clientId,
         firstSeenAt: now,
@@ -90,15 +143,15 @@ export const authorizeConnectConsent = internalMutation({
     } else if (now - existing.lastSeenAt >= LAST_SEEN_INTERVAL_MS) {
       await ctx.db.patch("workosConsents", existing._id, { lastSeenAt: now });
     }
-    if (!args.chargeRateLimit) {
-      return { status: "ok" as const, teakUserId: owner.teakUserId };
+    if (!chargeRateLimit) {
+      return { status: "ok" as const, teakUserId };
     }
     return {
       status: "ok" as const,
-      teakUserId: owner.teakUserId,
+      teakUserId,
       rateLimit: await limitApiRequests(
         ctx,
-        `key:workos:${args.clientId}:${owner.teakUserId}` as ValidatedRateLimitKey
+        `key:workos:${args.clientId}:${teakUserId}` as ValidatedRateLimitKey
       ),
     };
   },

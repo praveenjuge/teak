@@ -36,6 +36,12 @@ const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
     ...principal,
     ...fields,
   });
+const read = (t: Backend, fields: Partial<typeof principal> = {}) =>
+  t.query(internal.workosConsents.readConnectConsent, {
+    ...principal,
+    ...fields,
+  });
+const noChange = () => Promise.resolve();
 const revoke = (t: Backend) =>
   t.run(async (ctx) => {
     const consent = await ctx.db
@@ -524,6 +530,78 @@ describe("durable Connect consent authorization", () => {
       reason: "revoked_consent",
     });
   });
+
+  test("the read-only check reports when a consent was last seen", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-31T09:00:00Z"));
+    const t = setup();
+    await seed(t);
+    expect(await read(t)).toEqual({
+      status: "ok",
+      teakUserId: "legacy-owner",
+      lastSeenAt: null,
+    });
+    expect(await records(t)).toEqual([]);
+    await authorize(t);
+    expect(await read(t)).toEqual({
+      status: "ok",
+      teakUserId: "legacy-owner",
+      lastSeenAt: Date.now(),
+    });
+  });
+
+  test.each([
+    ["revoked_consent", (t: Backend) => revoke(t), {}],
+    ["consent_binding_conflict", noChange, { clientId: "client_OTHER" }],
+    [
+      "verify_email",
+      (t: Backend) => setOwnerVerified(t, principal.workosUserId, false),
+      {},
+    ],
+    [
+      "deleted_user",
+      (t: Backend) =>
+        t.run(async (ctx) => {
+          const [owner] = await ctx.db.query("users").take(1);
+          await ctx.db.patch(owner._id, { deletedAt: Date.now() });
+        }),
+      {},
+    ],
+    [
+      "deleting_user",
+      (t: Backend) =>
+        t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+          userId: "legacy-owner",
+        }),
+      {},
+    ],
+    [
+      "missing_mapping",
+      (t: Backend) =>
+        t.run(async (ctx) => {
+          const [owner] = await ctx.db.query("users").take(1);
+          await ctx.db.delete(owner._id);
+        }),
+      {},
+    ],
+    ["invalid_credential", noChange, { consentId: "session_SESSION" }],
+  ] satisfies [
+    string,
+    (t: Backend) => Promise<unknown>,
+    Partial<typeof principal>,
+  ][])(
+    "the read-only check denies %s exactly as the mutation does",
+    async (reason, change, fields) => {
+      const t = setup();
+      await seed(t);
+      await authorize(t);
+      await change(t);
+      const before = await records(t);
+      expect(await read(t, fields)).toEqual({ status: "denied", reason });
+      expect(await authorize(t, fields)).toEqual({ status: "denied", reason });
+      expect(await records(t)).toEqual(before);
+    }
+  );
 
   test.each([
     { consentId: "session_SESSION" },
