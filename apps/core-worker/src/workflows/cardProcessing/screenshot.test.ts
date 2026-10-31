@@ -46,12 +46,16 @@ const setup = (
   answers: Partial<
     Record<FilesOp, OpAnswer | ((params: Record<string, unknown>) => OpAnswer)>
   >,
-  handlers: Parameters<typeof createCardConvex>[1] = {}
+  handlers: Parameters<typeof createCardConvex>[1] = {},
+  { refresh = false }: { refresh?: boolean } = {}
 ) => {
   const convex = createCardConvex(card, handlers);
   const fakes = createFakeOps(answers);
   const env = testEnv();
-  const job = testJob(env, testDeps(env, convex.fetcher, fakes.ops));
+  const job = {
+    ...testJob(env, testDeps(env, convex.fetcher, fakes.ops)),
+    ...(refresh ? { refresh } : {}),
+  };
   const history = () =>
     convex.stageWrites
       .filter((write) => write.stage === "screenshot")
@@ -209,6 +213,20 @@ describe("screenshot", () => {
     expect(await capture()).toEqual({ status: "skipped" });
     expect(fakes.calls).toEqual([]);
     expect(history()).toEqual(["in_progress", "completed"]);
+  });
+
+  test("a refresh takes the screenshot again", async () => {
+    const { capture, fakes } = setup(
+      linkCard({ screenshotStorageKey: "users/x/cards/c/screenshot/s" }),
+      { "capture-screenshot": CAPTURED, "fetch-link-page": PAGE },
+      {},
+      { refresh: true }
+    );
+    expect(await capture()).toEqual({ status: "captured" });
+    expect(fakes.opsCalled()).toEqual([
+      "fetch-link-page",
+      "capture-screenshot",
+    ]);
   });
 
   test("a page server error retries once, then fails the stage quietly", async () => {
