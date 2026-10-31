@@ -50,7 +50,7 @@ const inputSchema = (properties: JsonObject, required: string[] = []) => ({
 
 const stringList = (values: readonly string[], maxItems?: number) => ({
   type: "array",
-  items: { enum: values },
+  items: { type: "string", enum: values },
   ...(maxItems ? { maxItems } : {}),
 });
 
@@ -67,6 +67,7 @@ const cardFilterProperties = {
       "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)",
   },
   mode: {
+    type: "string",
     enum: SEARCH_MODES,
     description:
       "How q finds cards: hybrid (default) matches words and meaning, keyword matches words only, semantic matches meaning only. The response's searchMode says which ran",
@@ -80,13 +81,14 @@ const cardFilterProperties = {
   type: {
     description: "One card type, or several to match any of them",
     anyOf: [
-      { enum: MCP_CARD_TYPES },
+      { type: "string", enum: MCP_CARD_TYPES },
       { ...stringList(MCP_CARD_TYPES), minItems: 1 },
     ],
   },
   favorited: { type: "boolean", description: "true lists favorites only" },
   trashed: { type: "boolean", description: "true lists cards in Trash only" },
   archived: {
+    type: "string",
     enum: ["exclude", "only", "include"],
     description:
       "Archived cards: exclude (default) leaves them out, only lists just them, include lists them too",
@@ -98,6 +100,7 @@ const cardFilterProperties = {
   },
   tag: { type: "string", minLength: 1, description: "Exact tag" },
   sort: {
+    type: "string",
     enum: MCP_CARD_SORTS,
     description:
       "newest (default) or oldest by saved date; shuffle: a stable random order (needs shuffleSeed); or relevance (Best match, with q): the top results by how well they match. relevanceRanked says whether they were scored",
@@ -177,7 +180,10 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         cardId: { type: "string", minLength: 1 },
-        kind: { enum: ["article", "document", "transcript", "content"] },
+        kind: {
+          type: "string",
+          enum: ["article", "document", "transcript", "content"],
+        },
       },
       ["cardId"]
     ),
@@ -222,7 +228,7 @@ export const TEAK_V1_TOOLS = [
     _meta: TEAK_APP_TOOL_META,
     annotations: { title: "Create card", ...WRITES },
     inputSchema: inputSchema({
-      cardType: { enum: MCP_CARD_TYPES },
+      cardType: { type: "string", enum: MCP_CARD_TYPES },
       content: { type: "string" },
       idempotencyKey: { type: "string", minLength: 1 },
       fileEtag: { type: "string", minLength: 1 },
@@ -282,7 +288,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         tag: { type: "string", minLength: 1, maxLength: MAX_TAG_KEY_LENGTH },
-        confirm: { const: true },
+        confirm: { type: "boolean", const: true },
       },
       ["tag", "confirm"]
     ),
@@ -319,6 +325,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         operation: {
+          type: "string",
           enum: [
             "create",
             "update",
@@ -338,7 +345,7 @@ export const TEAK_V1_TOOLS = [
           maxItems: 100,
           items: { type: "object", additionalProperties: true },
         },
-        confirm: { const: true },
+        confirm: { type: "boolean", const: true },
       },
       ["operation", "items"]
     ),
@@ -470,7 +477,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         cardId: { type: "string", minLength: 1 },
-        mimeType: { enum: [...THUMBNAIL_MIME_TYPES] },
+        mimeType: { type: "string", enum: [...THUMBNAIL_MIME_TYPES] },
         fileSize: { type: "integer", minimum: 1, maximum: THUMBNAIL_MAX_BYTES },
       },
       ["cardId", "mimeType", "fileSize"]
@@ -561,8 +568,8 @@ export const TEAK_V1_TOOLS = [
           minLength: 1,
           maxLength: MAX_FOLDER_NAME_LENGTH,
         },
-        color: { enum: FOLDER_COLORS },
-        kind: { enum: ["manual", "smart"] },
+        color: { type: "string", enum: FOLDER_COLORS },
+        kind: { type: "string", enum: ["manual", "smart"] },
         query: {
           type: "string",
           minLength: 1,
@@ -585,7 +592,7 @@ export const TEAK_V1_TOOLS = [
           minLength: 1,
           maxLength: MAX_FOLDER_NAME_LENGTH,
         },
-        color: { enum: [...FOLDER_COLORS, null] },
+        color: { type: ["string", "null"], enum: [...FOLDER_COLORS, null] },
         query: {
           type: "string",
           minLength: 1,
@@ -602,7 +609,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         folderId: { type: "string", minLength: 1 },
-        confirm: { const: true },
+        confirm: { type: "boolean", const: true },
       },
       ["folderId", "confirm"]
     ),
@@ -693,7 +700,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         highlightId: { type: "string", minLength: 1 },
-        confirm: { const: true },
+        confirm: { type: "boolean", const: true },
       },
       ["highlightId", "confirm"]
     ),
@@ -706,7 +713,7 @@ export const TEAK_V1_TOOLS = [
     inputSchema: inputSchema(
       {
         cardId: { type: "string", minLength: 1 },
-        confirm: { const: true },
+        confirm: { type: "boolean", const: true },
       },
       ["cardId", "confirm"]
     ),
