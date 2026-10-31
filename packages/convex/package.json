@@ -28,7 +28,6 @@
     "@teak/files-protocol": "workspace:*",
     "@teak/i18n": "workspace:*",
     "@vllnt/convex-api-keys": "0.2.0",
-    "@workos-inc/node": "catalog:",
     "convex": "catalog:",
     "convex-helpers": "catalog:",
     "hast-util-sanitize": "^5.0.2",

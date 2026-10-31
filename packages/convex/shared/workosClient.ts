@@ -1,18 +1,40 @@
-import { WorkOS } from "@workos-inc/node";
-import { isWorkosProductionApi, workosApiBase } from "./workosApi";
+import { workosApiUrl } from "./workosApi";
 
-export const createWorkosClient = (apiKey: string, clientId?: string) => {
-  const base = workosApiBase();
-  return new WorkOS(apiKey, {
-    ...(clientId === undefined ? {} : { clientId }),
-    maxRetries: 0,
-    timeout: 10_000,
-    ...(isWorkosProductionApi(base)
-      ? {}
-      : {
-          apiHostname: base.hostname,
-          https: base.protocol === "https:",
-          ...(base.port ? { port: Number(base.port) } : {}),
-        }),
+// Teak calls a handful of WorkOS Management API endpoints, so it calls them
+// directly instead of loading the Node SDK. The origin is fixed, path IDs are
+// encoded by the callers and redirects are refused, so neither an ID nor a
+// cursor can send the API key anywhere else.
+
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+export const workosUserPath = (workosUserId: string, suffix = "") =>
+  `/user_management/users/${encodeURIComponent(workosUserId)}${suffix}`;
+
+export const workosRequest = (
+  path: string,
+  apiKey: string,
+  options: {
+    body?: Record<string, string>;
+    method?: "DELETE" | "POST";
+    query?: Record<string, string | undefined>;
+    timeoutMs?: number;
+  } = {}
+) => {
+  const url = workosApiUrl(path);
+  for (const [name, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined) {
+      url.searchParams.set(name, value);
+    }
+  }
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  return fetch(url, {
+    method: options.method,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+    redirect: "error",
+    signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
   });
 };

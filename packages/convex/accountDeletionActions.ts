@@ -1,5 +1,3 @@
-"use node";
-import { NotFoundException } from "@workos-inc/node";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -10,10 +8,11 @@ import {
   type AccountDeletionStage,
 } from "./accountDeletion/stages";
 import { closeBillingCustomer } from "./billing";
-import { createWorkosClient } from "./shared/workosClient";
+import { workosRequest, workosUserPath } from "./shared/workosClient";
 import { WORKOS_USER_ID } from "./shared/workosIds";
 
-const workosUsers = (workosUserId: string) => {
+// A user WorkOS no longer has is already deleted.
+const deleteWorkosUser = async (workosUserId: string) => {
   if (!WORKOS_USER_ID.test(workosUserId)) {
     throw new Error("deletion_workos_user_id_invalid");
   }
@@ -21,8 +20,12 @@ const workosUsers = (workosUserId: string) => {
   if (!apiKey) {
     throw new Error("deletion_workos_unavailable");
   }
-  return createWorkosClient(apiKey, process.env.WORKOS_CLIENT_ID)
-    .userManagement;
+  const response = await workosRequest(workosUserPath(workosUserId), apiKey, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`deletion_workos_user_${response.status}`);
+  }
 };
 interface StageBinding {
   generation: number;
@@ -61,13 +64,7 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
   },
   workosUser: async (_ctx, state) => {
     if (state.workosUserId) {
-      try {
-        await workosUsers(state.workosUserId).deleteUser(state.workosUserId);
-      } catch (error) {
-        if (!(error instanceof NotFoundException)) {
-          throw error;
-        }
-      }
+      await deleteWorkosUser(state.workosUserId);
     }
     return true;
   },

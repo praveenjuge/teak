@@ -1,4 +1,3 @@
-import { NotFoundException, type Session } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -10,13 +9,13 @@ import {
 } from "./_generated/server";
 import { rateLimiter } from "./shared/rateLimits";
 import { workosIssuer } from "./shared/workosApi";
-import { createWorkosClient } from "./shared/workosClient";
 import {
   WORKOS_CLIENT_ID,
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
   workosDisplayName,
 } from "./shared/workosIds";
+import { listWorkosSessions, revokeWorkosSession } from "./workos/sessions";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -287,13 +286,12 @@ const sessionPageValidator = v.object({
   continueCursor: v.string(),
 });
 
-function workosSessionClient() {
+function workosSessionApiKey() {
   const apiKey = process.env.WORKOS_API_KEY;
   if (!apiKey) {
     throw new Error("Device service is unavailable. Please try again.");
   }
-  return createWorkosClient(apiKey, process.env.WORKOS_CLIENT_ID)
-    .userManagement;
+  return apiKey;
 }
 
 // Settings shows its own text for any failure; the code and message are the
@@ -309,18 +307,6 @@ async function chargeWorkosRequest(ctx: ActionCtx, teakUserId: string) {
       message: "Too many requests",
       retryAt: Date.now() + limit.retryAfter,
     });
-  }
-}
-
-function validateProviderSession(session: Session, userId: string) {
-  if (
-    session.userId !== userId ||
-    !WORKOS_SESSION_ID.test(session.id) ||
-    !["active", "expired", "revoked"].includes(session.status) ||
-    !Number.isFinite(Date.parse(session.createdAt)) ||
-    !Number.isFinite(Date.parse(session.expiresAt))
-  ) {
-    throw new Error("Device service returned an invalid session.");
   }
 }
 
@@ -343,31 +329,26 @@ export const listAuthkitSessions = action({
     if (cursor && !WORKOS_SESSION_ID.test(cursor)) {
       throw new Error("Invalid device page. Please refresh.");
     }
-    const client = workosSessionClient();
+    const apiKey = workosSessionApiKey();
     await chargeWorkosRequest(ctx, user.teakUserId);
-    const result = await client.listSessions(user.identity.subject, {
+    const result = await listWorkosSessions(user.workosUserId, apiKey, {
       limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
-      after: cursor,
-      order: "desc",
+      after: cursor || undefined,
     });
-    for (const session of result.data) {
-      validateProviderSession(session, user.identity.subject);
-    }
-    const next = result.listMetadata.after ?? "";
+    const next = result.after ?? "";
     if (next && (!WORKOS_SESSION_ID.test(next) || next === cursor)) {
       throw new Error("Device service returned an invalid page.");
     }
     return {
-      page: result.data
+      page: result.sessions
         .filter(
           (session) =>
-            session.status === "active" &&
-            Date.parse(session.expiresAt) > Date.now()
+            session.status === "active" && session.expiresAt > Date.now()
         )
         .map((session) => ({
           id: session.id,
           name: sessionDisplayName(session.userAgent),
-          signedInAt: Date.parse(session.createdAt),
+          signedInAt: session.createdAt,
           current: session.id === user.sessionId,
         })),
       isDone: !next,
@@ -387,42 +368,32 @@ export const revokeAuthkitSession = action({
     if (!WORKOS_SESSION_ID.test(sessionId)) {
       throw new Error("Invalid device session.");
     }
-    const client = workosSessionClient();
+    const apiKey = workosSessionApiKey();
     if (sessionId === user.sessionId) {
       await chargeWorkosRequest(ctx, user.teakUserId);
-      try {
-        await client.revokeSession({ sessionId });
-      } catch (error) {
-        if (!(error instanceof NotFoundException)) {
-          throw error;
-        }
-      }
+      await revokeWorkosSession(sessionId, apiKey);
       return null;
     }
     let after: string | undefined;
     const seen = new Set<string>();
     for (let page = 0; page < 20; page++) {
       await chargeWorkosRequest(ctx, user.teakUserId);
-      const result = await client.listSessions(user.identity.subject, {
+      const result = await listWorkosSessions(user.workosUserId, apiKey, {
         limit: 100,
         after,
       });
-      for (const session of result.data) {
-        validateProviderSession(session, user.identity.subject);
-      }
-      const target = result.data.find((session) => session.id === sessionId);
+      const target = result.sessions.find(
+        (session) => session.id === sessionId
+      );
       if (target) {
-        if (
-          target.status !== "active" ||
-          Date.parse(target.expiresAt) <= Date.now()
-        ) {
+        if (target.status !== "active" || target.expiresAt <= Date.now()) {
           return null;
         }
         await chargeWorkosRequest(ctx, user.teakUserId);
-        await client.revokeSession({ sessionId });
+        await revokeWorkosSession(sessionId, apiKey);
         return null;
       }
-      const next = result.listMetadata.after;
+      const next = result.after;
       if (!next) {
         throw new Error("Device session was not found.");
       }

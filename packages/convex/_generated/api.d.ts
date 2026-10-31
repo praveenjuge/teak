@@ -358,6 +358,7 @@ import type * as workflows_steps_renderables_mutations from "../workflows/steps/
 import type * as workos_authorizedApps from "../workos/authorizedApps.js";
 import type * as workos_connectRevocation from "../workos/connectRevocation.js";
 import type * as workos_deletionCompletion from "../workos/deletionCompletion.js";
+import type * as workos_sessions from "../workos/sessions.js";
 import type * as workos_tokens from "../workos/tokens.js";
 import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
 import type * as workosBootstrap from "../workosBootstrap.js";
@@ -722,6 +723,7 @@ declare const fullApi: ApiFromModules<{
   "workos/authorizedApps": typeof workos_authorizedApps;
   "workos/connectRevocation": typeof workos_connectRevocation;
   "workos/deletionCompletion": typeof workos_deletionCompletion;
+  "workos/sessions": typeof workos_sessions;
   "workos/tokens": typeof workos_tokens;
   workosApplicationDisconnect: typeof workosApplicationDisconnect;
   workosBootstrap: typeof workosBootstrap;
