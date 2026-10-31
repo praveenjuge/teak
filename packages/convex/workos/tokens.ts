@@ -56,6 +56,9 @@ function validClientId(value: unknown): value is string {
 }
 
 const CLOCK_TOLERANCE_SECONDS = 60;
+// WorkOS signs access tokens for 15 minutes (the AuthKit app's access token
+// expiry). A token that claims to live longer is not one it issued.
+const MAX_TOKEN_LIFETIME_SECONDS = 900;
 
 // Configuration must come from the server, never from request/token claims.
 export const verifyWorkosConnectTokenSignature = (
@@ -161,7 +164,7 @@ async function verifyConnectToken(
       typeof payload.iat !== "number" ||
       typeof payload.exp !== "number" ||
       payload.exp <= payload.iat ||
-      payload.exp - payload.iat > 300 ||
+      payload.exp - payload.iat > MAX_TOKEN_LIFETIME_SECONDS ||
       payload.iat > Math.floor(Date.now() / 1000) + CLOCK_TOLERANCE_SECONDS ||
       typeof payload.scope !== "string" ||
       !REQUIRED_SCOPES.every((scope) => scopes.includes(scope))
