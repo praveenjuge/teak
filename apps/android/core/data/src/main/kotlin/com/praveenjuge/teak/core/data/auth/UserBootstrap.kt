@@ -3,7 +3,6 @@ package com.praveenjuge.teak.core.data.auth
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.convex.ConvexFunctions
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -30,20 +29,12 @@ class ConvexUserBootstrap @Inject constructor(
     private val config: TeakConfig,
 ) : UserBootstrap {
     override suspend fun ensureUser(accessToken: String) {
-        repeat(PROFILE_PENDING_RETRIES + 1) { attempt ->
-            val result = call(accessToken)
-            val status = result["status"]?.jsonPrimitive?.content
-            val reason = result["reason"]?.jsonPrimitive?.content
-            when {
-                status == "ok" -> return
-                status == "verify_email" -> throw SignInException.verifyEmail()
-                status == "frozen" -> throw SignInException.signupsPaused()
-                status == "quarantined" && reason == "profile_pending" && attempt < PROFILE_PENDING_RETRIES ->
-                    delay(PROFILE_PENDING_DELAY_MS)
-                else -> throw SignInException.vaultUnavailable()
-            }
+        when (call(accessToken)["status"]?.jsonPrimitive?.content) {
+            "ok" -> return
+            "verify_email" -> throw SignInException.verifyEmail()
+            "frozen" -> throw SignInException.signupsPaused()
+            else -> throw SignInException.vaultUnavailable()
         }
-        throw SignInException.vaultUnavailable()
     }
 
     private suspend fun call(accessToken: String): JsonObject = withContext(Dispatchers.IO) {
@@ -71,8 +62,6 @@ class ConvexUserBootstrap @Inject constructor(
     }
 
     companion object {
-        const val PROFILE_PENDING_RETRIES = 8
-        const val PROFILE_PENDING_DELAY_MS = 1_500L
         const val UNABLE_TO_OPEN_VAULT = "Unable to open your vault. Please try again or contact support."
     }
 }

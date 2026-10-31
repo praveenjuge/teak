@@ -21,15 +21,14 @@ class ConvexUserBootstrapTest {
         server.enqueue(MockResponse().setBody("""{"status":"success","value":$value}"""))
 
     @Test
-    fun `waits for a new account's profile, then succeeds`() = runTest {
-        respond("""{"status":"quarantined","reason":"profile_pending"}""")
+    fun `opens the vault with one call`() = runTest {
         respond("""{"status":"ok","teakUserId":"teak_1"}""")
         bootstrap.ensureUser("token")
         val first = server.takeRequest()
         assertEquals("/api/mutation", first.path)
         assertEquals("Bearer token", first.getHeader("Authorization"))
         assertEquals("""{"path":"workosBootstrap:ensureUser","args":{},"format":"json"}""", first.body.readUtf8())
-        assertEquals(2, server.requestCount)
+        assertEquals(1, server.requestCount)
     }
 
     @Test
@@ -44,11 +43,12 @@ class ConvexUserBootstrapTest {
     }
 
     @Test
-    fun `any other quarantine is a generic failure`() = runTest {
+    fun `a quarantined account is a generic failure, not retried`() = runTest {
         respond("""{"status":"quarantined","reason":"external_id_mismatch"}""")
         assertEquals(
             ConvexUserBootstrap.UNABLE_TO_OPEN_VAULT,
             assertFailsWith<SignInException> { bootstrap.ensureUser("t") }.message,
         )
+        assertEquals(1, server.requestCount)
     }
 }

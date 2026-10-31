@@ -291,19 +291,16 @@ private final class TokenLog: @unchecked Sendable {
 }
 
 @Suite(.english) struct BootstrapTests {
-    @Test func waitsForAPendingProfile() async throws {
-        let calls = Counter()
+    @Test func opensTheVaultWithOneCall() async throws {
         let transport = ScriptedTransport { request, body in
             #expect(request.url?.path() == "/api/mutation")
             #expect(body["path"] as? String == "workosBootstrap:ensureUser")
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
-            let call = calls.next()
-            let value: [String: Any] = call < 2 ? ["status": "quarantined", "reason": "profile_pending"] : ["status": "ok", "teakUserId": "v"]
-            return (200, ["status": "success", "value": value])
+            return (200, ["status": "success", "value": ["status": "ok", "teakUserId": "v"]])
         }
-        try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport, delay: .zero)
+        try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport)
             .ensureUser(accessToken: "token")
-        #expect(transport.count == 3)
+        #expect(transport.count == 1)
     }
 
     // The messages are closures: arguments are evaluated before `.english` applies.
@@ -313,9 +310,10 @@ private final class TokenLog: @unchecked Sendable {
     func explainsWhyAVaultWontOpen(status: String, message: @Sendable () -> String) async throws {
         let transport = ScriptedTransport { _, _ in (200, ["status": "success", "value": ["status": status, "reason": "x"]]) }
         await #expect(throws: TeakError(message: message())) {
-            try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport, delay: .zero)
+            try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport)
                 .ensureUser(accessToken: "token")
         }
+        #expect(transport.count == 1)
     }
 }
 
