@@ -95,7 +95,9 @@ describe("MCP protocol messages", () => {
     const untyped: string[] = [];
     const visit = (schema: unknown, path: string) => {
       if (Array.isArray(schema)) {
-        schema.forEach((item, index) => visit(item, `${path}[${index}]`));
+        for (const [index, item] of schema.entries()) {
+          visit(item, `${path}[${index}]`);
+        }
         return;
       }
       if (!schema || typeof schema !== "object") {
