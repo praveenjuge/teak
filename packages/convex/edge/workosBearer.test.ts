@@ -1,5 +1,9 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
+import {
+  buildEdgeRateLimitSigningPayload,
+  EDGE_RATE_LIMIT_HEADER,
+} from "@teak/files-protocol";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
@@ -18,6 +22,8 @@ import { api as backendApi, components, internal } from "../_generated/api";
 import { syncCardSearchTagsBatchHandler } from "../card/searchSync";
 import schema from "../schema";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 
 const modules = import.meta.glob("../**/*.ts");
 const issuer = "https://bearer-dev.authkit.app";
@@ -458,4 +464,123 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect((await f.read(key.key)).status).toBe(401);
     expect((await f.mcp(key.key, "ping")).status).toBe(401);
   });
+});
+
+describe("Connect requests the Core Worker already charged", () => {
+  const secret = "edge-attestation-test-secret";
+  type Fixture = Awaited<ReturnType<typeof setup>>;
+  beforeEach(() => {
+    vi.stubEnv("FILES_SIGNING_SECRET", secret);
+    vi.setSystemTime(new Date("2026-10-31T09:00:00Z"));
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  // The header the Core Worker adds once it has charged the request.
+  const attestation = async (access: string) => {
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 30);
+    const signature = await hmacSha256Hex(
+      secret,
+      buildEdgeRateLimitSigningPayload({
+        credentialSha256: await sha256Hex(`Bearer ${access}`),
+        expiresAt,
+      })
+    );
+    return { [EDGE_RATE_LIMIT_HEADER]: `${expiresAt}.${signature}` };
+  };
+  const readAttested = async (f: Fixture, claims: JWTPayload = {}) => {
+    const access = await token(apiAudience, claims);
+    return f.read(access, `/v1/cards/${f.own}`, await attestation(access));
+  };
+  const consents = (f: Fixture) =>
+    f.t.run((ctx) => ctx.db.query("workosConsents").take(10));
+
+  test("records a new consent, then only reads it until five minutes pass", async () => {
+    const f = await setup();
+    expect((await readAttested(f)).status).toBe(200);
+    const [first] = await consents(f);
+    expect(first).toMatchObject({
+      userId: ownerId,
+      consentId,
+      clientId,
+      firstSeenAt: Date.now(),
+      lastSeenAt: Date.now(),
+    });
+    vi.setSystemTime(first.lastSeenAt + 299_999);
+    expect((await readAttested(f)).status).toBe(200);
+    expect(await consents(f)).toEqual([first]);
+    vi.setSystemTime(first.lastSeenAt + 300_000);
+    expect((await readAttested(f)).status).toBe(200);
+    expect(await consents(f)).toEqual([
+      { ...first, lastSeenAt: first.lastSeenAt + 300_000 },
+    ]);
+  });
+
+  test.each([
+    {
+      reason: "revoked_consent",
+      change: (f: Fixture) =>
+        f.t.run(async (ctx) => {
+          const [row] = await ctx.db.query("workosConsents").take(1);
+          await ctx.db.patch(row._id, { revokedAt: Date.now() });
+        }),
+    },
+    {
+      reason: "consent_binding_conflict",
+      claims: { client_id: "client_OTHER" },
+    },
+    {
+      reason: "verify_email",
+      change: (f: Fixture) => setOwnerVerified(f.t, userId, false),
+    },
+    {
+      reason: "deleted_user",
+      change: (f: Fixture) =>
+        f.t.run((ctx) => ctx.db.patch(f.owner, { deletedAt: Date.now() })),
+    },
+    {
+      reason: "deleting_user",
+      change: (f: Fixture) =>
+        f.t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+          userId: ownerId,
+        }),
+    },
+  ] as {
+    reason: string;
+    change?: (f: Fixture) => Promise<unknown>;
+    claims?: JWTPayload;
+  }[])(
+    "a recently seen consent is denied at once for $reason",
+    async ({ reason, change, claims }) => {
+      const f = await setup();
+      expect((await readAttested(f)).status).toBe(200);
+      await change?.(f);
+      const before = await consents(f);
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      expect((await readAttested(f, claims)).status).toBe(401);
+      expect(
+        log.mock.calls.find(
+          (call) => call[0] === "public_api_auth_outcome"
+        )?.[1]
+      ).toMatchObject({ status: 401, reason: `owner_${reason}` });
+      expect(await consents(f)).toEqual(before);
+    }
+  );
+
+  test("an unattested Connect request is still charged, an attested one is not", async () => {
+    const f = await setup();
+    const access = await token();
+    const { capacity } = RATE_LIMIT_CONFIG.publicApiRequests;
+    let granted = 0;
+    for (let attempt = 0; attempt < 5000 && granted < capacity; attempt += 1) {
+      if ((await f.read(access)).status !== 429) {
+        granted += 1;
+      }
+    }
+    expect(granted).toBe(capacity);
+    expect((await f.read(access)).status).toBe(429);
+    expect(
+      (await f.read(access, `/v1/cards/${f.own}`, await attestation(access)))
+        .status
+    ).toBe(200);
+  }, 120_000);
 });
