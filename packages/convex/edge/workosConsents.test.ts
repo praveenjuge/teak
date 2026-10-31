@@ -4,8 +4,8 @@ import type { FunctionReturnType } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+  deliverWorkosUserUpdate,
   seedComponentUser,
-  updateComponentUser,
 } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -322,12 +322,9 @@ describe("signed-in Connect management", () => {
       await seed(t, failure === "deleted" ? { deletedAt: Date.now() } : {});
       await authorize(t);
       if (failure === "deleting") {
-        await t.run((ctx) =>
-          ctx.db.insert("accountDeletionStates", {
-            userId: "legacy-owner",
-            startedAt: Date.now(),
-          })
-        );
+        await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+          userId: "legacy-owner",
+        });
       }
       const client = failure === "anonymous" ? t : sessionClient(t);
       const actor =
@@ -471,8 +468,8 @@ describe("durable Connect consent authorization", () => {
   });
 
   test.each([
-    [{}, { emailVerified: false }, "verify_email"],
-    [{}, null, "verify_email"],
+    [{ emailVerified: false }, { emailVerified: false }, "verify_email"],
+    [{ emailVerified: false }, null, "verify_email"],
     [{ deletedAt: 1 }, {}, "deleted_user"],
     [{ workosDeletedAt: 1 }, {}, "workos_deleted_user"],
   ] satisfies [Partial<Doc<"users">>, Parameters<typeof seed>[2], string][])(
@@ -490,22 +487,23 @@ describe("durable Connect consent authorization", () => {
     await seed(t);
     await authorize(t);
     const before = await records(t);
-    await updateComponentUser(t, principal.workosUserId, {
+    await deliverWorkosUserUpdate(t, principal.workosUserId, {
       emailVerified: false,
     });
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "verify_email",
     });
-    await updateComponentUser(t, principal.workosUserId, {
+    await deliverWorkosUserUpdate(t, principal.workosUserId, {
       emailVerified: true,
     });
-    await t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: "legacy-owner",
-        startedAt: Date.now(),
-      })
-    );
+    expect(await authorize(t)).toEqual({
+      status: "ok",
+      teakUserId: "legacy-owner",
+    });
+    await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: "legacy-owner",
+    });
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "deleting_user",

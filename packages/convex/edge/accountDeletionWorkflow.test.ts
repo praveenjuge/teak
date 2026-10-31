@@ -362,6 +362,29 @@ describe("durable deletion admission and tombstones", () => {
       teakUserId: "permanent-owner",
     });
   });
+  test("an accepted request marks the owner's mapping row, so sign-in stops at deleting_user", async () => {
+    const { t, signed } = await fixture();
+    const resolve = () =>
+      t.query(internal.workosIdentity.resolveWorkosOwner, {
+        workosUserId: "user_DELETE",
+        verification: { kind: "session", emailVerified: true },
+      });
+    expect(await resolve()).toEqual({
+      status: "ok",
+      teakUserId: "permanent-owner",
+    });
+    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    const state = await t.run((ctx) =>
+      ctx.db.query("accountDeletionStates").unique()
+    );
+    expect(await t.run((ctx) => ctx.db.query("users").take(2))).toMatchObject([
+      { teakUserId: "permanent-owner", deletionStartedAt: state!.startedAt },
+    ]);
+    expect(await resolve()).toEqual({
+      status: "denied",
+      reason: "deleting_user",
+    });
+  });
   test.each([
     { email_verified: false },
     { sid: "app_consent_WRONG" },

@@ -21,7 +21,6 @@ import {
   type ResolvedOwner,
   resolveOwner,
 } from "./workosIdentity";
-import type { ProviderProfile } from "./workosProfileRead";
 
 function readWorkosSessionClaims(
   identity: UserIdentity | null,
@@ -109,14 +108,10 @@ type SessionCtx =
   | Pick<ActionCtx, "auth" | "runQuery">
   | Pick<QueryCtx, "auth" | "runQuery" | "db">;
 
-type ActionResolved =
-  | { status: "ok"; teakUserId: string }
-  | { status: "denied"; reason: string };
-
 async function resolveOwnerFor(
   ctx: SessionCtx,
   args: ResolveArgs
-): Promise<ResolvedOwner | ActionResolved> {
+): Promise<ResolvedOwner> {
   return "db" in ctx && ctx.db
     ? await resolveOwner(ctx, args)
     : await ctx.runQuery(internal.workosIdentity.resolveWorkosOwner, args);
@@ -180,7 +175,6 @@ export async function requireTeakUserId(
 
 interface SessionUser {
   identity: UserIdentity;
-  profile?: ProviderProfile | null;
   sessionId: string;
   teakUserId: TeakUserId;
   workosUserId: string;
@@ -218,7 +212,6 @@ export async function getSessionUser(
         teakUserId: owner.teakUserId as TeakUserId,
         identity,
         sessionId: principal.sessionId,
-        ...("profile" in owner ? { profile: owner.profile } : {}),
       }
     : null;
 }
@@ -262,9 +255,7 @@ export async function getSessionProfile(
   if (!sessionUser) {
     return null;
   }
-  const provider =
-    sessionUser.profile ??
-    (await readWorkosProfile(ctx, sessionUser.identity.subject));
+  const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
   if (!provider) {
     // The webhook hasn't stored the profile yet; the signed session claims
     // hold the verified address until it does.

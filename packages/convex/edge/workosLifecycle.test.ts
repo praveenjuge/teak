@@ -598,13 +598,12 @@ describe("new WorkOS lifecycle owners", () => {
   test("a provider email change leaves a deleting owner's address alone", async () => {
     const t = setup();
     await t.mutation(sync, freshEvent("before_deleting"));
+    const [started] = (await snapshot(t)).users;
+    await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: started.teakUserId,
+    });
     const [owner] = (await snapshot(t)).users;
-    await t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: owner.teakUserId,
-        startedAt: Date.now(),
-      })
-    );
+    expect(owner.deletionStartedAt).toEqual(expect.any(Number));
     const changed = freshEvent("deleting_changed", 2, "user.updated");
     await t.mutation(sync, {
       ...changed,
@@ -612,16 +611,19 @@ describe("new WorkOS lifecycle owners", () => {
     });
     expect((await snapshot(t)).users).toEqual([owner]);
   });
-  test("an unverified provider address is not copied onto the owner", async () => {
+  test("an unverified provider address is not copied onto the owner, but marks it unverified", async () => {
     const t = setup();
     await t.mutation(sync, freshEvent("before_unverified"));
     const [owner] = (await snapshot(t)).users;
+    expect(owner.emailVerified).toBe(true);
     const changed = freshEvent("unverified_change", 2, "user.updated", false);
     await t.mutation(sync, {
       ...changed,
       data: { ...changed.data, email: "someone-else@example.com" },
     });
-    expect((await snapshot(t)).users).toEqual([owner]);
+    expect((await snapshot(t)).users).toEqual([
+      { ...owner, emailVerified: false },
+    ]);
     await expect(
       t.mutation(internal.admin.seedAdmin, {
         email: "someone-else@example.com",

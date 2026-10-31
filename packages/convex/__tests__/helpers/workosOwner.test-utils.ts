@@ -1,4 +1,4 @@
-import { components } from "../../_generated/api";
+import { components, internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 
 interface Backend {
@@ -36,41 +36,66 @@ export const seedComponentUser = (
     })
   );
 
+interface ComponentUserChanges {
+  email?: string;
+  emailVerified?: boolean;
+  externalId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  name?: string | null;
+  profilePictureUrl?: string | null;
+}
+
+// Builds the next `user.updated` event for a stored component profile.
+const nextUserUpdate = async (
+  ctx: MutationCtx,
+  id: string,
+  changes: ComponentUserChanges
+) => {
+  const current = await ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, {
+    id,
+  });
+  if (!current) {
+    throw new Error(`Missing component user ${id}`);
+  }
+  const updatedAt = new Date(Date.parse(current.updatedAt) + 1000);
+  return {
+    id: `event_update_${id}_${crypto.randomUUID()}`,
+    event: "user.updated" as const,
+    createdAt: updatedAt.toISOString(),
+    data: {
+      object: "user",
+      ...current,
+      ...changes,
+      updatedAt: updatedAt.toISOString(),
+    },
+  };
+};
+
+// Changes only the AuthKit component's copy of the profile.
 export const updateComponentUser = (
   t: Backend,
   id: string,
-  changes: {
-    email?: string;
-    emailVerified?: boolean;
-    externalId?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    name?: string | null;
-    profilePictureUrl?: string | null;
-  }
+  changes: ComponentUserChanges
 ) =>
   t.run(async (ctx) => {
-    const current = await ctx.runQuery(
-      components.workOSAuthKit.lib.getAuthUser,
-      { id }
-    );
-    if (!current) {
-      throw new Error(`Missing component user ${id}`);
-    }
-    const updatedAt = new Date(Date.parse(current.updatedAt) + 1000);
     await ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
-      event: {
-        id: `event_update_${id}_${crypto.randomUUID()}`,
-        event: "user.updated",
-        createdAt: updatedAt.toISOString(),
-        data: {
-          object: "user",
-          ...current,
-          ...changes,
-          updatedAt: updatedAt.toISOString(),
-        },
-      },
+      event: await nextUserUpdate(ctx, id, changes),
     });
+  });
+
+// Delivers the update through Teak's webhook, so the owner's mapping row
+// follows it the way it does in production.
+export const deliverWorkosUserUpdate = (
+  t: Backend,
+  id: string,
+  changes: ComponentUserChanges
+) =>
+  t.run(async (ctx) => {
+    await ctx.runMutation(
+      internal.workosWebhook.syncVerifiedEvent,
+      await nextUserUpdate(ctx, id, changes)
+    );
   });
 
 export const seedWorkosOwner = async (t: Backend, teakUserId: string) => {

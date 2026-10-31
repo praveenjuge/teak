@@ -3,8 +3,8 @@ import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import {
+  deliverWorkosUserUpdate,
   seedComponentUser,
-  updateComponentUser,
 } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import schema from "../schema";
@@ -291,7 +291,7 @@ test("historical consent can be revoked during account deletion without granting
 });
 test("unseen consent with an unverified WorkOS profile cannot be inserted", async () => {
   const f = await setup(false);
-  await updateComponentUser(f.t, user, { emailVerified: false });
+  await deliverWorkosUserUpdate(f.t, user, { emailVerified: false });
   expect((await f.disconnect(await token())).status).toBe(401);
   expect((await f.rows()).some((r) => r.consentId === consent)).toBe(false);
 });

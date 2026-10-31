@@ -74,15 +74,14 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     if (deleting) {
       continue;
     }
-    if (row.email === email) {
+    if (row.email === email || !provider.emailVerified) {
+      // The row's verification tracks WorkOS's current address, which sign-in
+      // reads; an unverified new address isn't adopted, but it stops sign-in.
       if (row.emailVerified !== provider.emailVerified) {
         await ctx.db.patch("users", row._id, {
           emailVerified: provider.emailVerified,
         });
       }
-      continue;
-    }
-    if (!provider.emailVerified) {
       continue;
     }
     // A deleted account keeps its row and address; only a live owner holds
@@ -92,15 +91,17 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
       .withIndex("by_email", (q) => q.eq("email", email))
       .order("desc")
       .take(EMAIL_HOLDER_ROWS);
-    if (
-      holders.some(
-        (holder) =>
-          holder.deletedAt === undefined && holder.workosDeletedAt === undefined
-      )
-    ) {
-      continue;
-    }
-    await ctx.db.patch("users", row._id, { email, emailVerified: true });
+    const taken = holders.some(
+      (holder) =>
+        holder.deletedAt === undefined && holder.workosDeletedAt === undefined
+    );
+    // WorkOS verified its current address, so sign-in may go on even when
+    // another account holds it and the row keeps its old one.
+    await ctx.db.patch(
+      "users",
+      row._id,
+      taken ? { emailVerified: true } : { email, emailVerified: true }
+    );
   }
 };
 
