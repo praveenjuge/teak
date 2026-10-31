@@ -122,7 +122,7 @@ const cardFilterProperties = {
   include: {
     ...stringList(MCP_CARD_INCLUDES),
     description:
-      "Extra field sets. Defaults to content and metadata so items are full cards.",
+      "Extra field sets. Defaults to content and metadata so items are full cards; content is always included.",
   },
 };
 

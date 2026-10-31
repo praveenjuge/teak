@@ -393,12 +393,20 @@ const parseResponsePayload = async (response: Response): Promise<unknown> => {
   }
 };
 
+/**
+ * The summary, then the result as JSON. Hosts that render the card view (MCP
+ * Apps) hand `structuredContent` to the view and only `content` to the model,
+ * so the JSON is how the model sees card IDs and fields there.
+ */
 const successResult = (
   structuredContent: JsonObject,
   summary: string
 ): McpToolResult => ({
   structuredContent,
-  content: createTextContent(summary),
+  content: [
+    ...createTextContent(summary),
+    ...createTextContent(JSON.stringify(structuredContent)),
+  ],
 });
 
 const errorResult = (status: number, payload: unknown): McpToolResult => {
@@ -636,10 +644,14 @@ const pageToCardResults = (payload: JsonObject): JsonObject => ({
   items: Array.isArray(payload.items) ? payload.items : [],
   total: count(payload),
 });
+// Content always comes back: a note or quote card is its content, and the
+// card view has nothing else to show for it.
 const cardsQuery = ({ include, ...filters }: JsonObject) =>
   queryParams({
     ...(filters as Record<string, QueryValue>),
-    include: Array.isArray(include) ? include.join(",") : FULL_CARD_INCLUDE,
+    include: Array.isArray(include)
+      ? [...new Set(["content", ...include])].join(",")
+      : FULL_CARD_INCLUDE,
   });
 const queryTool = (
   extraQuery: Record<string, QueryValue>,
