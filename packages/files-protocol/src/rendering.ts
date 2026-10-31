@@ -57,11 +57,15 @@ export interface FilesVideoFrameResult {
   storedContentType: "image/jpeg";
 }
 
-/** HTML is gzip-compressed and base64-encoded so 2 MiB pages fit in 1 MiB. */
-export interface FilesCaptureScreenshotParams {
-  destinationKey: string;
-  htmlGzipBase64: string;
-}
+/**
+ * The page to capture: a link's saved copy in the bucket (`archiveKey`; its
+ * styles, fonts and images are inline, so it renders as the page looked), or
+ * HTML gzip-compressed and base64-encoded so 2 MiB pages fit in 1 MiB.
+ */
+export type FilesCaptureScreenshotParams = { destinationKey: string } & (
+  | { archiveKey: string }
+  | { htmlGzipBase64: string }
+);
 
 export interface FilesCaptureScreenshotResult {
   height: number;

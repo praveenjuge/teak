@@ -36,7 +36,7 @@ Steps:
 
 ## Gotchas
 
-- The copy is the last step: a link's summary and screenshot come first, and the copy can take up to a few minutes on a slow page.
+- The copy comes after a link's summary, and can take up to a few minutes on a slow page. The screenshot follows it and is taken from a full copy (styles, fonts and images intact); a text-only or missing copy falls back to the fetched page.
 - A copy never fails the card: "Couldn't save a copy" sits beside a finished card.
 - A page whose `<img>` points at a private address or `file:` keeps a grey box in its place; that's the SSRF policy working.
 - JavaScript-only pages saved from the web archive near-empty; the extension's copy is the full page.

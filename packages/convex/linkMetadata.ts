@@ -94,6 +94,10 @@ export const getCardForScreenshotHandler = async (
     type: card.type,
     url: card.url,
     userId: card.userId,
+    // A text-only copy has no styles left to show; the page is better.
+    ...(card.pageArchive?.kind === "full"
+      ? { archiveKey: card.pageArchive.storageKey }
+      : {}),
     metadata: card.metadata?.linkPreview
       ? {
           linkPreview: {
