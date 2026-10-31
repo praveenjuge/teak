@@ -199,17 +199,17 @@ describe("Connect credential validation", () => {
     ).not.toBeNull();
   });
 
-  test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
+  test("enforces the signed 15-minute lifetime across a clock-second boundary", async () => {
     const lastSecond = Math.floor(Date.now() / 1000) - 1;
     expect(
       await verifyWorkosConnectTokenSignature(
-        await issuedFor(lastSecond, 300),
+        await issuedFor(lastSecond, 900),
         config
       )
     ).not.toBeNull();
     expect(
       await verifyWorkosConnectTokenSignature(
-        await issuedFor(lastSecond, 301),
+        await issuedFor(lastSecond, 901),
         config
       )
     ).toBeNull();
