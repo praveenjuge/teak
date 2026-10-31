@@ -116,3 +116,10 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - **E2E failed on main again** (run 40861689320): 6 of 130 chromium tests in two files that also failed on 10-28 (settings-navigation, sidebar-navigation; 9 tests in 7 files then); Apple iPhone flows failed again. Repeated, so raised as #892 (`needs-praveen`) with a recommendation to run those two specs locally; not reproduced yet. The E2E suite uses a local backend and needs no deploy key (`bun run --cwd packages/tests e2e src/web/settings-navigation.e2e.ts src/web/sidebar-navigation.e2e.ts`), so try it next run (needs Chromium and `bun install`).
 - Sentry not queried (Teak moved to PostHog); Cloudflare not queried. No PostHog improvement shipped (time-boxed).
 - Check tomorrow: next scheduled E2E (same files?); `TargetCloseError` recurrence.
+
+### 2026-10-31
+- Inbox empty. Product health (24h): 2 `card_created` (web image/text), 2 `card_processing_completed`, zero failure events, zero `$exception` events. Android: 23 `Application Opened`, 1 `Application Installed`, no crashes. 1 `user_signed_up`.
+- **E2E failed on main a third day running** (run 41044315991, 10-30, head 953b40e): chromium 6 of 133 tests in 4 files (same `settings-navigation` and `sidebar-navigation` failures as #892: `g s` stays on `/`, combobox missing, dev overlay intercepts the Trash link), Apple iPhone flows failed again; docs and webkit passed. Not reproduced here; #892 stays open for Praveen.
+- Open PRs: only a Dependabot vite bump (#912, `packages/mcp-app`).
+- Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
+- Check tomorrow: whether E2E is still red on the same tests (if so, someone needs to run them locally); first non-trivial card traffic.
