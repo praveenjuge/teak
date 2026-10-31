@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, one { card} other { cards}}",
       "folderTitle": "Pasta",
       "searchFolder": "Pesquisar em {folder}",
+      "searchThisFolder": "Pesquisar nesta pasta",
       "savedSmartFolder": "“{name}” salva",
       "savedSmartFolderDescription": "Ela mostra todos os cards correspondentes, à medida que você os salva.",
       "open": "Abrir",

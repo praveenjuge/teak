@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, other { 件のカード}}",
       "folderTitle": "フォルダ",
       "searchFolder": "{folder} 内を検索",
+      "searchThisFolder": "このフォルダ内を検索",
       "savedSmartFolder": "「{name}」を保存しました",
       "savedSmartFolderDescription": "条件に一致するカードは、保存するたびにここに表示されます。",
       "open": "開く",

@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, one { Karte} other { Karten}}",
       "folderTitle": "Ordner",
       "searchFolder": "{folder} durchsuchen",
+      "searchThisFolder": "Diesen Ordner durchsuchen",
       "savedSmartFolder": "„{name}“ gespeichert",
       "savedSmartFolderDescription": "Er zeigt jede passende Karte, sobald Sie sie speichern.",
       "open": "Öffnen",

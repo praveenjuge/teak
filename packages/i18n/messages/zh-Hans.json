@@ -1521,6 +1521,7 @@
       "folderCardCountSuffix": "{count, plural, other { 张卡片}}",
       "folderTitle": "文件夹",
       "searchFolder": "搜索 {folder}",
+      "searchThisFolder": "搜索此文件夹",
       "savedSmartFolder": "已保存“{name}”",
       "savedSmartFolderDescription": "它会显示所有符合条件的卡片，包括你之后保存的卡片。",
       "open": "打开",

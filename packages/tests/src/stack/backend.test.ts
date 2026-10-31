@@ -12,7 +12,7 @@ import {
 } from "./backend";
 
 describe("localBackendEnv", () => {
-  test("drops a cloud deploy key and picks the anonymous local backend, leaving the given env alone", () => {
+  test("drops a cloud deploy key, picks the anonymous local backend and gives functions 5 s, leaving the given env alone", () => {
     const env = {
       CONVEX_AGENT_MODE: "interactive",
       CONVEX_DEPLOY_KEY: "dev:teak|secret",
@@ -20,6 +20,7 @@ describe("localBackendEnv", () => {
     };
     expect(localBackendEnv(env)).toEqual({
       CONVEX_AGENT_MODE: "anonymous",
+      DATABASE_UDF_USER_TIMEOUT_SECONDS: "5",
       PATH: "/bin",
     });
     expect(env.CONVEX_DEPLOY_KEY).toBe("dev:teak|secret");
