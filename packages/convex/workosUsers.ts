@@ -76,8 +76,8 @@ const syncOwnerFromClaims = async (
 
 // Sign-in (`ensureUser`) calls this once WorkOS's signed session claims say the
 // address is verified. It links the WorkOS user to the Teak owner that already
-// carries its ID, or creates a new owner when sign-ups are open. The resolver (`workosIdentity.ts`) still decides whether a linked
-// owner may sign in.
+// carries its ID, or creates a new owner when sign-ups are open. The resolver
+// (`workosIdentity.ts`) still decides whether a linked owner may sign in.
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),
