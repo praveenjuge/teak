@@ -3,8 +3,11 @@ import { env } from "../helpers/env";
 import { capturePageErrors, routeConvexSocket } from "../helpers/page-hooks";
 import { describe, expect, test } from "../helpers/test";
 
-const redirectTarget = async (path: string) => {
-  const response = await fetch(appPath(path), { redirect: "manual" });
+const redirectTarget = async (path: string, accept = "*/*") => {
+  const response = await fetch(appPath(path), {
+    headers: { accept },
+    redirect: "manual",
+  });
   expect(response.status).toBe(307);
   const location = new URL(
     response.headers.get("location") ?? "",
@@ -20,6 +23,13 @@ describe("Web sign-in entry", () => {
     screen,
   }) => {
     const pageErrors = await capturePageErrors(browser);
+    // A page load goes straight to hosted AuthKit; a router fetch can't
+    // follow that hop, so it goes through /sign-in.
+    expect(
+      (await redirectTarget("/settings", "text/html")).startsWith(
+        "/user_management/authorize?"
+      )
+    ).toBe(true);
     expect(await redirectTarget("/settings")).toBe("/sign-in?next=%2Fsettings");
     await gotoApp(browser, "/settings");
     await expect(screen.getByLabel("Email")).toBeVisible();

@@ -2,7 +2,9 @@ import { afterAll, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register();
-const { fetchSessionToken } = await import("@/lib/session-token");
+const { fetchSessionToken, newerSessionToken } = await import(
+  "@/lib/session-token"
+);
 
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -57,4 +59,29 @@ test("reports the session gone when the server keeps refusing the refresh", asyn
   };
 
   expect(await within(fetchSessionToken(load), 500)).toBeNull();
+});
+
+test("hands Convex the token AuthKit already renewed without refreshing", async () => {
+  let refreshes = 0;
+  const token = await newerSessionToken(
+    "held-token",
+    () => Promise.resolve("renewed-token"),
+    () => {
+      refreshes += 1;
+      return Promise.resolve("refreshed-token");
+    }
+  );
+
+  expect(token).toBe("renewed-token");
+  expect(refreshes).toBe(0);
+});
+
+test("refreshes when AuthKit still has the token Convex holds", async () => {
+  const token = await newerSessionToken(
+    "held-token",
+    () => Promise.resolve("held-token"),
+    () => Promise.resolve("refreshed-token")
+  );
+
+  expect(token).toBe("refreshed-token");
 });
