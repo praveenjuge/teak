@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { startVaultSetup } from "./card/defaultCards";
 import { readComponentUser } from "./securitySessions";
@@ -20,6 +21,61 @@ const reasonValidator = v.union(
 );
 type LinkReason = typeof reasonValidator.type;
 
+const EMAIL_HOLDER_ROWS = 20;
+
+// A deleted account keeps its row and address; only a live owner holds it, or
+// an address someone used before deleting an account would stay stuck.
+export const emailHeldByLiveOwner = async (
+  ctx: Pick<MutationCtx, "db">,
+  email: string
+) => {
+  const holders = await ctx.db
+    .query("users")
+    .withIndex("by_email", (q) => q.eq("email", email))
+    .order("desc")
+    .take(EMAIL_HOLDER_ROWS);
+  return holders.some(
+    (holder) =>
+      holder.deletedAt === undefined && holder.workosDeletedAt === undefined
+  );
+};
+
+// A signed session says WorkOS verified its current address, so the owner
+// row takes the verification, the name and, when no live owner holds it, the
+// address.
+const syncOwnerFromClaims = async (
+  ctx: MutationCtx,
+  owner: Doc<"users">,
+  email: string,
+  name: string | undefined
+) => {
+  if (
+    owner.deletedAt !== undefined ||
+    owner.workosDeletedAt !== undefined ||
+    owner.deletionStartedAt !== undefined
+  ) {
+    return;
+  }
+  const patch: Partial<Pick<Doc<"users">, "email" | "emailVerified" | "name">> =
+    {};
+  if (!owner.emailVerified) {
+    patch.emailVerified = true;
+  }
+  if (name && owner.name !== name) {
+    patch.name = name;
+  }
+  if (
+    owner.email !== email &&
+    isStorableEmail(email) &&
+    !(await emailHeldByLiveOwner(ctx, email))
+  ) {
+    patch.email = email;
+  }
+  if (Object.keys(patch).length) {
+    await ctx.db.patch("users", owner._id, patch);
+  }
+};
+
 // Links a WorkOS user to the Teak owner that already carries its ID, or
 // creates a new owner when sign-ups are open and WorkOS has verified the
 // email. The resolver (`workosIdentity.ts`) still decides whether a linked
@@ -29,6 +85,7 @@ export const linkWorkosUser = internalMutation({
     workosUserId: v.string(),
     email: v.string(),
     emailVerified: v.boolean(),
+    name: v.optional(v.string()),
     source: v.union(v.literal("webhook"), v.literal("ensureUser")),
   },
   returns: v.union(
@@ -73,6 +130,9 @@ export const linkWorkosUser = internalMutation({
       return quarantine("workos_deleted_user");
     }
     if (linked) {
+      if (args.source === "ensureUser" && args.emailVerified) {
+        await syncOwnerFromClaims(ctx, linked, email, args.name);
+      }
       return {
         status: "linked" as const,
         teakUserId: linked.teakUserId,
@@ -88,15 +148,17 @@ export const linkWorkosUser = internalMutation({
     if (!(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))) {
       throw new Error("Invalid WorkOS creation input");
     }
-    // Once the webhook has stored the AuthKit component's copy of the
-    // profile, it is the newest evidence: the same address, verified. Before
-    // that, sign-in's signed session claims are enough on their own.
-    const provider = await readComponentUser(ctx, args.workosUserId);
+    // Sign-in's signed session claims are enough on their own; a webhook
+    // event must match the AuthKit component's stored profile.
+    const provider =
+      args.source === "webhook"
+        ? await readComponentUser(ctx, args.workosUserId)
+        : null;
     if (
-      provider === null
-        ? args.source !== "ensureUser"
-        : normalizeIdentityEmail(provider.email) !== email ||
-          provider.emailVerified !== true
+      args.source === "webhook" &&
+      (provider === null ||
+        normalizeIdentityEmail(provider.email) !== email ||
+        provider.emailVerified !== true)
     ) {
       return quarantine(
         provider?.emailVerified === false
@@ -110,6 +172,7 @@ export const linkWorkosUser = internalMutation({
       email,
       emailVerified: true,
       workosUserId: args.workosUserId,
+      ...(args.name ? { name: args.name } : {}),
     });
     const teakUserId = `teak_${ownerId}`;
     const collision = await ctx.db

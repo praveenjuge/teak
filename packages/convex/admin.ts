@@ -41,7 +41,6 @@ import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchSync";
 import { clearCardTranscript } from "./card/textContents";
 import { adminOverviewFields } from "./schema";
-import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/r2";
@@ -324,14 +323,11 @@ export const listAllUsers = query({
       result.page
         .filter((user) => user.deletedAt === undefined)
         .map(async (user) => {
-          const profile = user.workosUserId
-            ? await readComponentUser(ctx, user.workosUserId)
-            : null;
           const flags = await readUserFlags(ctx, user.teakUserId);
           return {
             id: user.teakUserId,
-            email: profile?.email ?? user.email,
-            emailVerified: profile?.emailVerified ?? user.emailVerified,
+            email: user.email,
+            emailVerified: user.emailVerified,
             createdAt: user._creationTime,
             cardsCount: await readCardsCount(ctx, user.teakUserId),
             isPro: await readHasPremium(ctx, user.teakUserId),

@@ -41,6 +41,8 @@ export default defineSchema({
     workosUserId: v.optional(v.string()),
     workosDeletedAt: v.optional(v.number()),
     workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
+    // The WorkOS name, from the session's claims (first and last name).
+    name: v.optional(v.string()),
     role: v.optional(v.literal("admin")),
     // Set when account deletion starts, so sign-in stops at the mapping row.
     deletionStartedAt: v.optional(v.number()),

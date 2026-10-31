@@ -65,11 +65,12 @@ export const emulatorWebEnv = (ports: StackPorts) => {
 };
 
 export const emulatorSeed = (ports: StackPorts) => ({
-  // Teak's WorkOS environment adds the verification claims to session tokens
-  // with a JWT template, and the backend requires `email_verified: true`.
+  // Teak's WorkOS environment adds the address, its verification and the
+  // name to session tokens with a JWT template, and the backend requires
+  // `email_verified: true`.
   jwtTemplate: {
     content:
-      '{"email": {{ user.email }}, "email_verified": {{ user.email_verified }}}',
+      '{"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "first_name": {{ user.first_name }}, "last_name": {{ user.last_name }}}',
   },
   webhookEndpoints: [
     {

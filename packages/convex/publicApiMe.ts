@@ -7,7 +7,6 @@ import { withAuthorizedUser } from "./publicApi/http/auth";
 import { withPublicApiGatewayHeaders } from "./publicApi/http/meta";
 import { getAppBaseUrl } from "./publicApi/http/serializers";
 import { errorResponse, json } from "./publicApi/http/shared";
-import { readWorkosProfile } from "./securitySessions";
 import { readAccountLocale } from "./settings/preferences";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import type { WorkosResource } from "./workos/tokens";
@@ -45,20 +44,13 @@ export const profileForOwner = internalQuery({
     if (!mirror?.workosUserId) {
       return null;
     }
-    // Until the webhook stores the profile, the owner row holds the verified
-    // address sign-in created it with.
-    const provider = await readWorkosProfile(ctx, mirror.workosUserId);
-    if (!(provider || mirror.emailVerified)) {
+    if (!mirror.emailVerified) {
       return null;
     }
-    const name = provider
-      ? (provider.name ??
-        [provider.firstName, provider.lastName].filter(Boolean).join(" "))
-      : null;
     return {
       id: teakUserId,
-      email: provider?.email ?? mirror.email,
-      ...(name ? { name } : {}),
+      email: mirror.email,
+      ...(mirror.name ? { name: mirror.name } : {}),
       ...usage,
       locale: await readAccountLocale(ctx, teakUserId),
     };

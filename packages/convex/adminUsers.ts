@@ -6,7 +6,6 @@ import { ensureAdmin, readUserFlags } from "./adminAccess";
 import { daysAgoDate } from "./adminUsage";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard } from "./card/defaultCards";
-import { readComponentUser } from "./securitySessions";
 
 const CARD_SCAN_LIMIT = 2000;
 const CARD_SCAN_BYTES = 8 * 1024 * 1024;
@@ -46,9 +45,6 @@ export const getUserDetail = query({
     if (!user) {
       return null;
     }
-    const profile = user.workosUserId
-      ? await readComponentUser(ctx, user.workosUserId)
-      : null;
     const flags = await readUserFlags(ctx, teakUserId);
 
     const subscriptions = await ctx.runQuery(
@@ -157,11 +153,9 @@ export const getUserDetail = query({
       generatedAt: now,
       account: {
         teakUserId,
-        email: profile?.email ?? user.email,
-        emailVerified: profile?.emailVerified ?? user.emailVerified,
-        name:
-          [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
-          null,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        name: user.name ?? null,
         createdAt: user._creationTime,
         deletedAt: user.deletedAt ?? null,
         isAdmin: user.role === "admin",

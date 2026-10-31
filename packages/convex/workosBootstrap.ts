@@ -2,10 +2,7 @@ import type { FunctionReturnType } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { mutation } from "./_generated/server";
-import {
-  getWorkosBootstrapIdentity,
-  readWorkosProfile,
-} from "./securitySessions";
+import { getWorkosBootstrapIdentity } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
@@ -16,8 +13,8 @@ const bootstrapResult = v.union(
   v.object({ status: v.literal("quarantined"), reason: v.string() })
 );
 
-// Creates the Teak owner on first sign-in from the signed session claims, so
-// a new account never waits for the webhook. Released apps still handle
+// Creates the Teak owner on first sign-in from the signed session claims, and
+// brings an existing owner's address, verification and name up to date. Released apps still handle
 // `quarantined`/`profile_pending`, which this no longer returns.
 export const ensureUser = mutation({
   args: {},
@@ -34,14 +31,7 @@ export const ensureUser = mutation({
     if (await hasWorkosDeletionReceipt(ctx, identity.workosUserId)) {
       return { status: "quarantined" as const, reason: "workos_deleted_user" };
     }
-    // Once the webhook has stored the profile, it is newer than the token.
-    const profile = await readWorkosProfile(ctx, identity.workosUserId);
-    if (profile && profile.emailVerified !== true) {
-      return { status: "verify_email" as const };
-    }
-    const email = normalizeIdentityEmail(
-      profile?.email ?? identity.email ?? ""
-    );
+    const email = normalizeIdentityEmail(identity.email ?? "");
     if (!isStorableEmail(email)) {
       return { status: "quarantined" as const, reason: "invalid_profile" };
     }
@@ -51,6 +41,7 @@ export const ensureUser = mutation({
       workosUserId: identity.workosUserId,
       email,
       emailVerified: true,
+      ...(identity.name ? { name: identity.name } : {}),
       source: "ensureUser",
     });
     if (linked.status === "quarantined") {
