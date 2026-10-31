@@ -77,8 +77,9 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     if (deleting) {
       continue;
     }
-    const name = workosDisplayName(provider.firstName, provider.lastName);
-    if (name && row.name !== name) {
+    const name =
+      workosDisplayName(provider.firstName, provider.lastName) ?? undefined;
+    if (row.name !== name) {
       await ctx.db.patch("users", row._id, { name });
     }
     if (row.email === email || !provider.emailVerified) {

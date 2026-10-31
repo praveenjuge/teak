@@ -319,12 +319,12 @@ describe("WorkOS Convex sessions", () => {
     {
       names: { first_name: " ", last_name: "" },
       row: { name: "Stored Name" },
-      expected: "Stored Name",
+      expected: null,
     },
-    { names: {}, row: { name: "Stored Name" }, expected: "Stored Name" },
+    { names: {}, row: { name: "Stored Name" }, expected: null },
     { names: {}, row: {}, expected: null },
   ])(
-    "the profile's name comes from the claims, falling back to the owner row: $expected",
+    "the profile's name comes only from the claims of a token that carries the address: $expected",
     async ({ names, row, expected }) => {
       const t = setup();
       // The component's copy is never read: its name and picture don't show.
@@ -348,4 +348,23 @@ describe("WorkOS Convex sessions", () => {
       ).toMatchObject(user);
     }
   );
+  test("the webhook clears a name WorkOS no longer has", async () => {
+    const t = setup();
+    await seed(t, { name: "Old Name" });
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
+      firstName: null,
+      lastName: null,
+    });
+    const [owner] = (await snapshot(t)).users;
+    expect(owner.name).toBeUndefined();
+  });
+  test("a token without the address claim takes the name from the owner row", async () => {
+    const t = setup();
+    await seed(t, { name: "Stored Name" });
+    expect(
+      await client(t, { email: undefined }).run((ctx) => getSessionProfile(ctx))
+    ).toMatchObject({
+      user: { email: "legacy@example.com", name: "Stored Name" },
+    });
+  });
 });

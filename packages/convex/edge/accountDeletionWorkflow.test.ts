@@ -441,7 +441,7 @@ describe("durable deletion admission and tombstones", () => {
     });
     expect(await signed.query(api.cards.getCard, { id: card })).toBeNull();
   });
-  test("finalization keeps a WorkOS-created owner's address", async () => {
+  test("finalization keeps a WorkOS-created owner's address and drops its name", async () => {
     const { t, signed } = await fixture();
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
     const state = await t.run((ctx) =>
@@ -449,18 +449,23 @@ describe("durable deletion admission and tombstones", () => {
     );
     await t.run(async (ctx) => {
       const owner = await ctx.db.query("users").first();
-      await ctx.db.patch(owner!._id, { identityOrigin: "workos" });
+      await ctx.db.patch(owner!._id, {
+        identityOrigin: "workos",
+        name: "Ada Lovelace",
+      });
       await ctx.db.patch(state!._id, { stage: 6 });
     });
     await t.mutation(internal.accountDeletionJobs.finalize, {
       stateId: state!._id,
       generation: 1,
     });
-    expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject({
+    const owner = await t.run((ctx) => ctx.db.query("users").first());
+    expect(owner).toMatchObject({
       email: "legacy@example.com",
       emailVerified: true,
       deletedAt: expect.any(Number),
     });
+    expect(owner?.name).toBeUndefined();
   });
   test("storage evidence cannot be reassigned and deleting owner cannot register more keys", async () => {
     const { t, signed } = await fixture();

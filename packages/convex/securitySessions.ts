@@ -265,8 +265,9 @@ export async function getSessionProfile(
   const { identity, teakUserId } = sessionUser;
   const claimEmail = typeof identity.email === "string" ? identity.email : null;
   const claimName = workosClaimName(identity);
-  const row =
-    claimEmail && claimName ? null : await readOwnerRow(ctx, teakUserId);
+  // A token from the JWT template always carries the address, and the name
+  // whenever WorkOS has one; only an older token needs the row.
+  const row = claimEmail ? null : await readOwnerRow(ctx, teakUserId);
   const email = claimEmail ?? row?.email;
   if (!email) {
     return null;
@@ -277,7 +278,7 @@ export async function getSessionProfile(
       _id: teakUserId,
       email,
       emailVerified: true,
-      name: claimName ?? row?.name ?? null,
+      name: claimEmail ? claimName : (row?.name ?? null),
       image: null,
     },
   };

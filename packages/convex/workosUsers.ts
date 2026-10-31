@@ -61,7 +61,8 @@ const syncOwnerFromClaims = async (
   if (!owner.emailVerified) {
     patch.emailVerified = true;
   }
-  if (name && owner.name !== name) {
+  // The claims carry the WorkOS name whenever it has one, so none clears it.
+  if (owner.name !== name) {
     patch.name = name;
   }
   if (

@@ -346,6 +346,15 @@ describe("signed WorkOS bootstrap", () => {
       teakUserId: "permanent-owner",
     });
   });
+  test("a token without name claims clears a name WorkOS no longer has", async () => {
+    const t = setup();
+    await seed(t, { email: "new@example.com", name: "Old Name" });
+    expect(
+      await signed(t, { email: "new@example.com" }).mutation(ensure, {})
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    const [owner] = (await state(t)).users;
+    expect(owner.name).toBeUndefined();
+  });
   test("a verified claim marks the owner verified but leaves an address another live owner holds", async () => {
     const t = setup();
     await seed(t, {
