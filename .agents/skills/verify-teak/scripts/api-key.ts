@@ -33,6 +33,7 @@ import {
 } from "../../../../scripts/lib/stack-state.ts";
 import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import { describeWorkosError } from "../../../../scripts/lib/workos-test-session.ts";
+import { readDevWorkosApiKey } from "../../../../scripts/setup-workos.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const KEY_PATH = join(ROOT, ".agents/.state/verify/api-key.json");
@@ -55,7 +56,8 @@ const signIn = async () => {
     );
   }
   const env = loadTargetEnv("web").values;
-  const apiKey = env.get("WORKOS_API_KEY") ?? "";
+  // The web app runs without the key; the dev deployment holds it.
+  const apiKey = await readDevWorkosApiKey();
   const clientId = env.get("WORKOS_CLIENT_ID") ?? "";
   let accessToken: string;
   try {
