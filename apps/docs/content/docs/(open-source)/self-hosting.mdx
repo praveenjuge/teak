@@ -147,7 +147,7 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
   </Step>
   <Step title="Connect the production WorkOS environment">
-    Set up a separate production environment as in [Set up WorkOS](#set-up-workos), using your public origin. Set its `WORKOS_*` values on the production Convex deployment, and give the web host the same `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` plus its own `WORKOS_COOKIE_PASSWORD` and `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (`https://app.yourdomain.com/callback`).
+    Set up a separate production environment as in [Set up WorkOS](#set-up-workos), using your public origin. Set its `WORKOS_*` values on the production Convex deployment, and give the web host the same `WORKOS_CLIENT_ID` plus its own `WORKOS_COOKIE_PASSWORD` and `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (`https://app.yourdomain.com/callback`).
   </Step>
   <Step title="Point clients at production">
     Update `CONVEX_SITE_URL` and `CONVEX_URL` in your client env files to point to your production deployment.
@@ -297,7 +297,6 @@ CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 WORKOS_CLIENT_ID=client_...                  # Same as the Convex deployment
-WORKOS_API_KEY=sk_test_...                   # Same as the Convex deployment
 WORKOS_COOKIE_PASSWORD=at-least-32-random-characters
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
 NEXT_PUBLIC_FILES_BASE=https://files.yourdomain.com            # Mirror of FILES_BASE for the CSP

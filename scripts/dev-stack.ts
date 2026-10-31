@@ -33,6 +33,7 @@ import {
 import { waitForTeakAccount } from "./lib/teak-account.ts";
 import { describeWorkosError } from "./lib/workos-test-session.ts";
 import { onExitSignal, runCommand } from "./proc.ts";
+import { readDevWorkosApiKey } from "./setup-workos.ts";
 import { isPortInUse, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -334,7 +335,7 @@ export const startDevStack = async (
 
   const env = loadTargetEnv("web").values;
   const workos = {
-    apiKey: env.get("WORKOS_API_KEY") ?? "",
+    apiKey: await readDevWorkosApiKey(),
     clientId: env.get("WORKOS_CLIENT_ID") ?? "",
   };
   try {

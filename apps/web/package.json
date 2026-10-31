@@ -49,7 +49,7 @@
     "@tiptap/react": "3.31.4",
     "@tiptap/starter-kit": "3.31.4",
     "@tiptap/suggestion": "3.31.4",
-    "@workos-inc/authkit-nextjs": "4.4.0",
+    "@workos-inc/authkit-nextjs": "4.6.2",
     "@workos-inc/node": "catalog:",
     "antd": "^6.6.6",
     "class-variance-authority": "catalog:",

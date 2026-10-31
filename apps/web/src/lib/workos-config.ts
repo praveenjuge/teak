@@ -7,12 +7,7 @@ export function readWorkosWebConfig(
   const rawRedirect = environment.NEXT_PUBLIC_WORKOS_REDIRECT_URI;
   const cookiePassword = environment.WORKOS_COOKIE_PASSWORD;
   if (
-    !(
-      clientId &&
-      /^client_[A-Za-z0-9]+$/.test(clientId) &&
-      environment.WORKOS_API_KEY &&
-      cookiePassword
-    ) ||
+    !(clientId && /^client_[A-Za-z0-9]+$/.test(clientId) && cookiePassword) ||
     cookiePassword.length < 32 ||
     !rawRedirect
   ) {

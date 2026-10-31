@@ -22,7 +22,8 @@ const originalEnvironment = Object.fromEntries(
   keys.map((key) => [key, process.env[key]])
 );
 process.env.WORKOS_CLIENT_ID = "client_web123";
-process.env.WORKOS_API_KEY = "sk_test_fixture";
+// The web app signs in as a public client, without an API key.
+Reflect.deleteProperty(process.env, "WORKOS_API_KEY");
 process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
@@ -31,12 +32,51 @@ const { serveRoute } = await import("./helpers/serveRoute");
 const signIn = serveRoute(await import("../app/sign-in/route"), "/sign-in");
 const callback = serveRoute(await import("../app/callback/route"), "/callback");
 
-const ACCESS_TOKEN = "header.payload.signature";
+// AuthKit verifies the access token against the client's JWKS on callback, so
+// the fake WorkOS signs a real one.
+const signingKey = await crypto.subtle.generateKey(
+  {
+    name: "RSASSA-PKCS1-v1_5",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  },
+  true,
+  ["sign", "verify"]
+);
+const publicJwk = {
+  ...(await crypto.subtle.exportKey("jwk", signingKey.publicKey)),
+  kid: "test-key",
+  alg: "RS256",
+  use: "sig",
+};
+const base64url = (bytes: Uint8Array) =>
+  Buffer.from(bytes).toString("base64url");
+const encodePart = (value: object) =>
+  base64url(new TextEncoder().encode(JSON.stringify(value)));
+const signedPart = `${encodePart({ alg: "RS256", kid: "test-key", typ: "JWT" })}.${encodePart(
+  {
+    sub: "user_test",
+    sid: "session_test",
+    iss: "https://api.workos.com/user_management/client_web123",
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 300,
+  }
+)}`;
+const ACCESS_TOKEN = `${signedPart}.${base64url(
+  new Uint8Array(
+    await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      signingKey.privateKey,
+      new TextEncoder().encode(signedPart)
+    )
+  )
+)}`;
 let convexCalls: { path: unknown; authorization: string | null }[] = [];
 let createdAt = new Date().toISOString();
 
-// WorkOS's code exchange and Convex's HTTP action endpoint are the only
-// network this flow may reach. One function for the whole file: the WorkOS
+// WorkOS's code exchange and JWKS and Convex's HTTP action endpoint are the
+// only network this flow may reach. One function for the whole file: the WorkOS
 // client keeps the fetch it first sees.
 const network = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input instanceof Request ? input.url : input);
@@ -61,6 +101,9 @@ const network = ((input: RequestInfo | URL, init?: RequestInit) => {
         },
       })
     );
+  }
+  if (url === "https://api.workos.com/sso/jwks/client_web123") {
+    return Promise.resolve(Response.json({ keys: [publicJwk] }));
   }
   if (url === "https://callback-tests.convex.cloud/api/action") {
     const headers = new Headers(init?.headers);
