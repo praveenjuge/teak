@@ -20,7 +20,6 @@ import { withMappedOwner } from "../../helpers/session.test-utils";
 
 const API_KEY =
   "teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-const LEGACY_TOKEN = "A".repeat(32);
 const VALID_KEY = {
   keyId: "key_1",
   userId: "user_1",
@@ -115,25 +114,6 @@ describe("public API auth outcomes", () => {
       credential: "malformed",
       reason: "malformed_credential",
     });
-  });
-
-  test("an old-build Better Auth token is separated from other 401s", async () => {
-    const auth = await withAuthorizedUser(
-      backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
-      request(LEGACY_TOKEN),
-      { resource: "mcp" }
-    );
-    expect(rejection(auth).status).toBe(401);
-    expect((await rejection(auth).json()).code).toBe("INVALID_API_KEY");
-    expect(outcomes()).toEqual([
-      {
-        surface: "mcp",
-        check: "request",
-        status: 401,
-        credential: "betterauth_oauth",
-        reason: "nonprimary_credential",
-      },
-    ]);
   });
 
   test("a revoked API key is an invalid credential", async () => {

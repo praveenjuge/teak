@@ -211,24 +211,6 @@ describe("trusted new WorkOS owners", () => {
     expect(await t.mutation(link, create)).toMatchObject({ status: "linked" });
     expect((await snapshot(t)).quarantine).toEqual([]);
   });
-  test("a terminal provider deletion blocks a fresh owner despite a verified sign-in", async () => {
-    const t = setup();
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: create.workosUserId,
-        email: "",
-        reason: "workos_user_deleted",
-        source: "webhook",
-        createdAt: 1,
-      })
-    );
-    expect(await t.mutation(link, create)).toEqual({
-      status: "quarantined",
-      reason: "workos_deleted_user",
-    });
-    expect((await snapshot(t)).users).toEqual([]);
-    expect(await jobs(t)).toEqual([]);
-  });
   test("a verified email never claims an unlinked owner with the same address", async () => {
     const t = setup();
     await seed(t);

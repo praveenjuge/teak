@@ -31,7 +31,6 @@ export const check = internalMutation({
     v.object({
       status: v.literal("ok"),
       userId: v.string(),
-      alreadyRevoked: v.optional(v.boolean()),
     })
   ),
   handler: async (ctx, args) => {
@@ -52,15 +51,7 @@ export const check = internalMutation({
       return { status: "denied" as const };
     }
     if (known?.revokedAt !== undefined) {
-      const fences = await ctx.db
-        .query("workosApplicationDisconnects")
-        .withIndex("by_workosUserId_and_clientId", (q) =>
-          q.eq("workosUserId", args.workosUserId).eq("clientId", args.clientId)
-        )
-        .take(2);
-      return fences.some((fence) => fence.state !== "completed")
-        ? { status: "ok" as const, userId: known.userId, alreadyRevoked: true }
-        : { status: "revoked" as const };
+      return { status: "revoked" as const };
     }
     if (known) {
       return { status: "ok" as const, userId: known.userId };
@@ -128,20 +119,6 @@ export const revoke = internalMutation({
         revokedAt: sibling.revokedAt ?? args.startedAt,
         disconnectCompletedAt: now,
       });
-    }
-    const fences = await ctx.db
-      .query("workosApplicationDisconnects")
-      .withIndex("by_workosUserId_and_clientId", (q) =>
-        q.eq("workosUserId", args.workosUserId).eq("clientId", args.clientId)
-      )
-      .take(2);
-    for (const fence of fences) {
-      if (fence.state !== "completed") {
-        await ctx.db.patch("workosApplicationDisconnects", fence._id, {
-          state: "completed",
-          completedAt: now,
-        });
-      }
     }
     return null;
   },
@@ -225,7 +202,7 @@ export async function disconnectApplication(
     principal.tokenExpiresAt !== undefined &&
     principal.tokenExpiresAt * 1000 <= startedAt
   ) {
-    return checked.alreadyRevoked ? 204 : 401;
+    return 401;
   }
   try {
     const appId = await findApp(

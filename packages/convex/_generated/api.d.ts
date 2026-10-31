@@ -193,6 +193,7 @@ import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
+import type * as migration_clearWorkosLeftovers from "../migration/clearWorkosLeftovers.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
@@ -357,7 +358,6 @@ import type * as workflows_steps_podcast_resolveEnclosure from "../workflows/ste
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workos_authorizedApps from "../workos/authorizedApps.js";
 import type * as workos_connectRevocation from "../workos/connectRevocation.js";
-import type * as workos_deletionCompletion from "../workos/deletionCompletion.js";
 import type * as workos_sessions from "../workos/sessions.js";
 import type * as workos_tokens from "../workos/tokens.js";
 import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
@@ -558,6 +558,7 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
+  "migration/clearWorkosLeftovers": typeof migration_clearWorkosLeftovers;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;
@@ -722,7 +723,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   "workos/authorizedApps": typeof workos_authorizedApps;
   "workos/connectRevocation": typeof workos_connectRevocation;
-  "workos/deletionCompletion": typeof workos_deletionCompletion;
   "workos/sessions": typeof workos_sessions;
   "workos/tokens": typeof workos_tokens;
   workosApplicationDisconnect: typeof workosApplicationDisconnect;
