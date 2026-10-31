@@ -245,6 +245,14 @@ interface SessionProfile {
   };
 }
 
+const readOwnerRow = (ctx: SessionCtx, teakUserId: string) =>
+  "db" in ctx && ctx.db
+    ? ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+        .unique()
+    : ctx.runQuery(internal.securitySessions.identityMapping, { teakUserId });
+
 export async function getSessionProfile(
   ctx: SessionCtx
 ): Promise<SessionProfile | null> {
@@ -258,16 +266,7 @@ export async function getSessionProfile(
   const claimEmail = typeof identity.email === "string" ? identity.email : null;
   const claimName = workosClaimName(identity);
   const row =
-    claimEmail && claimName
-      ? null
-      : "db" in ctx && ctx.db
-        ? await ctx.db
-            .query("users")
-            .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
-            .unique()
-        : await ctx.runQuery(internal.securitySessions.identityMapping, {
-            teakUserId,
-          });
+    claimEmail && claimName ? null : await readOwnerRow(ctx, teakUserId);
   const email = claimEmail ?? row?.email;
   if (!email) {
     return null;
