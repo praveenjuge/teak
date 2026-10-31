@@ -70,7 +70,7 @@ export const emulatorSeed = (ports: StackPorts) => ({
   // `email_verified: true`.
   jwtTemplate: {
     content:
-      '{"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "first_name": {{ user.first_name }}, "last_name": {{ user.last_name }}}',
+      '{"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "name": {{ user.name }}, "first_name": {{ user.first_name }}, "last_name": {{ user.last_name }}}',
   },
   webhookEndpoints: [
     {

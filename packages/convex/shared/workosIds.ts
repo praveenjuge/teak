@@ -11,14 +11,17 @@ export const isStorableEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+$/.test(email) &&
   !/\p{Cc}/u.test(email);
 
-// The WorkOS name: first and last name, trimmed, or null when both are blank.
+// The WorkOS name: its full name when set (accounts imported into WorkOS
+// carry only that), else first and last name, trimmed; null when all are blank.
 export const workosDisplayName = (
+  fullName: unknown,
   firstName: unknown,
   lastName: unknown
 ): string | null => {
-  const parts = [firstName, lastName]
-    .filter((part): part is string => typeof part === "string")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return parts.length ? parts.join(" ").slice(0, 256) : null;
+  const clean = (part: unknown) =>
+    typeof part === "string" ? part.trim() : "";
+  const name =
+    clean(fullName) ||
+    [firstName, lastName].map(clean).filter(Boolean).join(" ");
+  return name ? name.slice(0, 256) : null;
 };

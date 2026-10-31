@@ -45,9 +45,10 @@ function readWorkosSessionClaims(
 const workosEmailVerified = (identity: UserIdentity | null) =>
   identity?.email_verified === true;
 
-// The JWT template adds the WorkOS name as `first_name` and `last_name`.
+// The JWT template adds the WorkOS name as `name`, `first_name` and
+// `last_name`.
 const workosClaimName = (identity: UserIdentity | null) =>
-  workosDisplayName(identity?.first_name, identity?.last_name);
+  workosDisplayName(identity?.name, identity?.first_name, identity?.last_name);
 
 export function readWorkosSessionIdentity(
   identity: UserIdentity | null,

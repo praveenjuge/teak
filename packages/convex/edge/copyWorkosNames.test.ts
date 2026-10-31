@@ -42,8 +42,15 @@ test("copies each component name onto a row without one, page by page, until don
     { teakUserId: "named", firstName: "Component", lastName: "Name" },
     { teakUserId: "blank", firstName: " ", lastName: null },
     { teakUserId: "first-only", firstName: "Grace", lastName: null },
+    // Accounts imported into WorkOS carry only a full name.
+    {
+      teakUserId: "full-name",
+      firstName: null,
+      lastName: null,
+      name: " Katherine Johnson ",
+    },
   ];
-  for (const { teakUserId, firstName, lastName } of profiles) {
+  for (const { teakUserId, firstName, lastName, ...rest } of profiles) {
     const workosUserId = `user_${teakUserId.replace("-", "_")}`;
     await owner(t, teakUserId, {
       workosUserId,
@@ -54,6 +61,7 @@ test("copies each component name onto a row without one, page by page, until don
       email: `${teakUserId}@example.test`,
       firstName,
       lastName,
+      ...rest,
     });
   }
   // No WorkOS user, and a WorkOS user the component never stored.
@@ -77,12 +85,13 @@ test("copies each component name onto a row without one, page by page, until don
     }
   }
   expect(pages).toBeGreaterThan(1);
-  expect(copied).toBe(2);
+  expect(copied).toBe(3);
   expect(await names(t)).toEqual({
     unnamed: "Ada Lovelace",
     named: "Chosen Name",
     blank: null,
     "first-only": "Grace",
+    "full-name": "Katherine Johnson",
     legacy: null,
     "no-profile": null,
   });
