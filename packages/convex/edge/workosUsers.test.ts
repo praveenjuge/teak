@@ -180,36 +180,38 @@ describe("trusted new WorkOS owners", () => {
     });
     expect((await snapshot(t)).users).toHaveLength(1);
   });
-  test.each([{ email: "someone-else@example.com" }])(
-    "a component profile for another address refuses creation: %j",
-    async (fields) => {
+  test.each([
+    [{ email: "someone-else@example.com" }, "profile_pending"],
+    [{ emailVerified: false }, "email_unverified"],
+  ] as const)(
+    "a component profile %j refuses webhook creation, but signed sign-in trusts its claims",
+    async (fields, reason) => {
       const t = setup();
       await seedProvider(t, fields);
-      expect(await t.mutation(link, create)).toEqual({
+      expect(await t.mutation(link, { ...create, source: "webhook" })).toEqual({
         status: "quarantined",
-        reason: "profile_pending",
+        reason,
       });
       expect((await snapshot(t)).users).toEqual([]);
       expect(await jobs(t)).toEqual([]);
+      expect(await t.mutation(link, create)).toMatchObject({
+        status: "linked",
+        changed: true,
+      });
+      expect((await snapshot(t)).users).toMatchObject([
+        { email: create.email, emailVerified: true },
+      ]);
     }
   );
-  test("a component profile matches the caller's address after normalization", async () => {
+  test("a webhook's component profile matches its address after normalization", async () => {
     const t = setup();
     await seedProvider(t, { email: " Owner@Example.COM " });
-    expect(await t.mutation(link, create)).toMatchObject({
+    expect(
+      await t.mutation(link, { ...create, source: "webhook" })
+    ).toMatchObject({
       status: "linked",
       changed: true,
     });
-  });
-  test("an unverified component email cannot be promoted by the caller", async () => {
-    const t = setup();
-    await seedProvider(t, { emailVerified: false });
-    expect(await t.mutation(link, create)).toEqual({
-      status: "quarantined",
-      reason: "email_unverified",
-    });
-    expect((await snapshot(t)).users).toEqual([]);
-    expect(await jobs(t)).toEqual([]);
   });
   test("creates one opaque permanent owner and seeds only once across retries", async () => {
     vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");

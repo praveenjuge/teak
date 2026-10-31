@@ -2,10 +2,7 @@ import polarTest from "@convex-dev/polar/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import {
-  seedWorkosOwner,
-  updateComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
 import schema from "../schema";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
@@ -51,11 +48,12 @@ async function setup(email: string) {
   polarTest.register(t);
   workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  await updateComponentUser(t, workosUserId, { email });
+  // The account's email is the signed session's address.
   const client = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
     subject: workosUserId,
     sid: "session_checkout",
+    email,
     email_verified: true,
     external_id: OWNER,
   });

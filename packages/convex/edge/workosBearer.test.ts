@@ -249,16 +249,25 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
   });
 
-  test("profile uses the WorkOS email and permanent vault", async () => {
+  test("profile reads the owner row's email and name, not the component's, and the permanent vault", async () => {
     const f = await setup();
+    await f.t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", ownerId))
+        .unique();
+      if (row) {
+        await ctx.db.patch("users", row._id, { name: "Row Name" });
+      }
+    });
     const access = await token();
     const profile = await f.read(access, "/v1/me");
     expect(profile.status).toBe(200);
     expect(await profile.json()).toEqual({
       data: {
         id: ownerId,
-        email: "provider@example.test",
-        name: "Current Profile",
+        email: "legacy@example.test",
+        name: "Row Name",
         cardCount: 1,
         cardLimit: 200,
         plan: "free",

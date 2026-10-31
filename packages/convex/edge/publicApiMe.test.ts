@@ -84,13 +84,28 @@ test("me returns the permanent owner for an API key and rejects it once revoked"
   expect((await request()).status).toBe(401);
 });
 
-test("me reads the email and name from the WorkOS profile without exposing provider IDs", async () => {
+test("me reads the email and name sign-in stored on the owner row without exposing provider IDs", async () => {
   const { t, workosUserId, request } = await setup();
+  // The AuthKit component's copy isn't read.
   await updateComponentUser(t, workosUserId, {
-    email: "updated@example.test",
-    firstName: "Identity",
-    lastName: "Boundary",
+    email: "component@example.test",
+    firstName: "Component",
+    lastName: "Copy",
   });
+  const unchanged = await (await request()).json();
+  expect(unchanged.data).toMatchObject({ email: `${OWNER}@example.test` });
+  expect(unchanged.data).not.toHaveProperty("name");
+  await t
+    .withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: workosUserId,
+      sid: "session_profile",
+      email_verified: true,
+      email: "updated@example.test",
+      first_name: "Identity",
+      last_name: "Boundary",
+    })
+    .mutation(api.workosBootstrap.ensureUser, {});
   const response = await request();
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
