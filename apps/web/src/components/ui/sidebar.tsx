@@ -760,6 +760,7 @@ function SidebarMenuButton({
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button";
   const { isMobile, isPeeking, state } = useSidebar();
+  const [tooltipOpen, setTooltipOpen] = React.useState(false);
 
   const button = (
     <Comp
@@ -784,9 +785,10 @@ function SidebarMenuButton({
 
   // Tooltips only help when the labels are hidden (collapsed to icons). Kept
   // closed otherwise: an open tooltip would take the drawer's first Escape.
+  // Always controlled, so collapsing never switches Radix between modes.
   const showTooltip = state === "collapsed" && !isPeeking && !isMobile;
   return (
-    <Tooltip open={showTooltip ? undefined : false}>
+    <Tooltip onOpenChange={setTooltipOpen} open={showTooltip && tooltipOpen}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent align="center" side="right" {...tooltip} />
     </Tooltip>

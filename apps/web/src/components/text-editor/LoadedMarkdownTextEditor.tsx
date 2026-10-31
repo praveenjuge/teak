@@ -23,6 +23,7 @@ export default function LoadedMarkdownTextEditor({
   const [handOver] = useState(() => Boolean(standInFocus?.current));
   const [editor, setEditor] = useState<Editor | null>(null);
   const standIn = useRef<HTMLTextAreaElement>(null);
+  const handedOver = useRef(false);
   const showStandIn = handOver && !editor;
 
   useLayoutEffect(() => {
@@ -34,7 +35,10 @@ export default function LoadedMarkdownTextEditor({
   }, [handOver]);
 
   useLayoutEffect(() => {
-    if (handOver && editor) {
+    // Once only, and never to a destroyed editor: a hidden <Activity> page
+    // reruns this when it comes back, after useEditor destroyed the old one.
+    if (handOver && editor && !editor.isDestroyed && !handedOver.current) {
+      handedOver.current = true;
       // Focus now: Tiptap's focus command waits a frame, and a keystroke in
       // that frame would land on the page.
       const { state, view } = editor;

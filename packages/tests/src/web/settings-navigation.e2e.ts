@@ -1,4 +1,4 @@
-import { gotoApp } from "../helpers/app";
+import { expectVault, gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 import { observeNavigation } from "./navigation-observer";
 
@@ -124,7 +124,8 @@ test("Settings pages link to each other and back through the breadcrumb", async 
   webAccount: _signedIn,
 }) => {
   await gotoApp(browser, "/");
-  await expect(screen.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  // The loading skeleton has a main landmark too, before the shortcuts listen.
+  await expectVault({ browser, screen });
   await browser.keyboard.press("g");
   await browser.keyboard.press("s");
   await expect

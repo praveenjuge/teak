@@ -13,7 +13,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const { act } = await import("react");
+const { act, Activity } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { default: LoadedMarkdownTextEditor } = await import(
   "../LoadedMarkdownTextEditor"
@@ -70,6 +70,52 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
     expect(["textarea", "editor"]).toContain(focused);
   }
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
+});
+
+// Next.js hides a page it leaves in an <Activity>; useEditor destroys the
+// editor while hidden. Coming back must not throw or take focus again.
+test("hands focus over once, not again when a hidden page comes back", async () => {
+  const errors: unknown[] = [];
+  const onError = (event: ErrorEvent) => errors.push(event.error);
+  window.addEventListener("error", onError);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const elsewhere = document.createElement("button");
+  document.body.append(elsewhere);
+  root = createRoot(container, {
+    onUncaughtError: (error) => errors.push(error),
+  });
+  const page = (mode: "hidden" | "visible") => (
+    <Activity mode={mode}>
+      <LoadedMarkdownTextEditor
+        ariaLabel="Markdown content"
+        onChange={() => undefined}
+        standInFocus={{ current: true }}
+        value="Typed while loading"
+      />
+    </Activity>
+  );
+  try {
+    await act(() => root?.render(page("visible")));
+    for (
+      let tick = 0;
+      tick < 50 && !container.querySelector(".ProseMirror");
+      tick++
+    ) {
+      await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    }
+    expect(document.activeElement?.closest(".ProseMirror")).not.toBeNull();
+    elsewhere.focus();
+
+    await act(() => root?.render(page("hidden")));
+    await act(() => root?.render(page("visible")));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(errors).toEqual([]);
+    expect(document.activeElement).toBe(elsewhere);
+  } finally {
+    window.removeEventListener("error", onError);
+  }
 });
 
 async function renderChecklist(
