@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useEffect, useState } from "react";
+import { useQuery } from "@/lib/convexQueryHooks";
 import { useNow } from "./useNow";
 
 export const VAULT_SETUP_MAX_MS = 45_000;

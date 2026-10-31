@@ -1,6 +1,7 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   classifySearchToken,
+  combineSearchQueries,
   formatSearchQualifier,
   parseSearchQuery,
   parseTimeSearchQuery,
@@ -9,6 +10,7 @@ import {
   resolveQuickSearchCommand,
   type SearchExpression,
   searchExpressionParts,
+  semanticRequestFor,
   type TimeFilter,
 } from "@teak/convex/shared";
 import type {
@@ -16,7 +18,6 @@ import type {
   ColorHueBucket,
   VisualStyle,
 } from "@teak/convex/shared/constants";
-import { semanticSearchText } from "../hooks/useSemanticSearch";
 import { type LibraryView, libraryViewFlags } from "./libraryViews";
 import {
   comparableSearch,
@@ -26,6 +27,20 @@ import {
   type SearchUrlState,
   timeFilterFromUrl,
 } from "./searchUrlState";
+
+/** The text a search sends to semantic search, or "" when it sends none. */
+export const semanticSearchText = (
+  searchQuery: string,
+  folderQuery?: string
+): string => {
+  const combined =
+    folderQuery === undefined
+      ? searchQuery
+      : combineSearchQueries(folderQuery, searchQuery);
+  return combined === null
+    ? ""
+    : (semanticRequestFor(parseSearchQuery(combined))?.cacheText ?? "");
+};
 
 export interface CardsSearchState {
   filterTags: CardType[];

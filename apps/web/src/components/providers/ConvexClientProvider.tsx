@@ -11,7 +11,8 @@ import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { preloadCardModal } from "@/components/card-modal/LazyCardModal";
 import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
-import { firstLoadQueries } from "@/lib/firstLoadQueries";
+import { QuerySeedsProvider } from "@/lib/convexQueryHooks";
+import { firstLoadQueries, type QuerySeed } from "@/lib/firstLoadQueries";
 import { whenIdle } from "@/lib/lazyWithPreload";
 import { getConvexUrl } from "@/lib/public-env";
 import { fetchSessionToken, newerSessionToken } from "@/lib/session-token";
@@ -76,9 +77,12 @@ function loadedFolders() {
 export default function ConvexClientProvider({
   children,
   initialAuth,
+  seeds = [],
 }: {
   children: ReactNode;
   initialAuth?: Omit<UserInfo | NoUserInfo, "accessToken">;
+  /** Results of the first-load queries, fetched by the server for this page. */
+  seeds?: readonly QuerySeed[];
 }) {
   const signedIn = Boolean(initialAuth?.user);
   useEffect(() => {
@@ -93,7 +97,9 @@ export default function ConvexClientProvider({
   return (
     <AuthKitProvider initialAuth={initialAuth}>
       <ConvexProviderWithAuth client={convex} useAuth={useAuthFromAuthKit}>
-        <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+        <QuerySeedsProvider seeds={seeds}>
+          <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+        </QuerySeedsProvider>
       </ConvexProviderWithAuth>
     </AuthKitProvider>
   );

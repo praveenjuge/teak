@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useMemo } from "react";
+import { useQuery } from "@/lib/convexQueryHooks";
 import type { SearchSuggestionSources } from "../components/search/searchSuggestions";
 import { type FolderSummary, manualFolders } from "../lib/folders";
 

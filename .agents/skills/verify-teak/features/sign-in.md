@@ -12,6 +12,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 - `auth-sign-out-settings` signs out from the Settings page.
 - `auth-sign-out-palette` signs out from the command palette.
 - `auth-first-sign-in` gives a brand-new WorkOS user a vault on their first sign-in: the signed session's claims (address, verification, name) create the account. Teak has no WorkOS webhook.
+- `auth-first-paint` serves a signed-in page load with its content already in the page: the sidebar's folders, the first page of cards (Everything, Favorites, Archive, Trash and manual folders), the Tags list and the Settings account. A search, a smart folder's cards and a brand-new account's vault still load in the browser.
 
 ## How to get to it (user POV)
 
@@ -38,6 +39,7 @@ Steps:
 - **Sign out from Settings.** `navigate` to `/settings`, wait for heading "Settings", `tap` button "Sign out". The app passes through `/sign-in` (not `/login`), and the hosted page with textbox "Email" appears. Proof: `navigate` to `/settings` again; it lands on the hosted page, not the app.
 - **Signed-in entry.** Signed in, `navigate` to `/sign-in?next=%2Fsettings`. The app opens on `/settings` (heading "Settings") and the URL never leaves `localhost`. `navigate` to `/sign-up`: the app opens on `/`.
 - **Site hint.** After signing in, the browser holds cookie `teak_session_hint` with value `1` on the app's host (read it with the browser's cookie list, not the screen). After signing out it is gone. On the built site, with that cookie set for the site's host, the header has link "Open Teak" and no "Login" or "Register"; without it, the reverse. Hovering "Register" adds `<link rel="preconnect">` tags for the app and the sign-in hosts.
+- **First paint.** Signed in, `navigate` to `/` (a full page load). Once the status "Loading" is gone, the first `observe` lists card buttons such as "Palette: Citrus" with no status "Loading cards" before them; `/tags` shows "<n> tags" and `/settings` the account's address the same way. To see the server's HTML alone, load the page with the app's scripts blocked (`/_next/static/**.js`): the shell, sidebar folders and cards are on screen, laid out in even rows that the masonry repacks once the scripts run.
 - **Sign out from the palette.** Signed in, with focus outside a text field, `press` "Control+k". Dialog "Command palette" opens with the combobox "Search commands, folders and cards". `type` "sign out", `press` "Enter". The hosted sign-in page appears.
 
 **First sign-in (local E2E stack only).** It needs `bun run dev --local --detach` and reads only that stack's backend; never run these `convex` commands without `CONVEX_AGENT_MODE=anonymous`, which would hit the shared dev deployment instead.
@@ -55,6 +57,7 @@ Steps:
 - Accounts on the dev deployment are verified. An `example.org` address that WorkOS asks to verify can't receive the code, so a "Verify your email" step there means the account is wrong, not the app.
 - The site reads the hint on teakvault.com only because production's app is on `app.teakvault.com`. Locally the cookie is host-only, so a preview of the site on another port of `localhost` sees it too (cookies ignore ports), but on `127.0.0.1` it needs setting by hand.
 - A brand-new account can only be made on the local E2E stack (WorkOS emulator): staging can't send codes to `example.org`. `src/journey/01-signup.e2e.ts` covers it.
+- `navigate` can observe a page load mid-stream, showing only the status "Loading"; `observe` again before judging the first paint.
 - Sign-out leaves the page at once, so its toasts vanish. Assert the hosted "Email" textbox, not a toast.
 - "Sign out <device> (this device)" in Settings → Security also signs you out. Don't tap it during other recipes.
 - If the app shows "Please sign in again." or "We couldn't check your session", the session broke. Reopen the session rather than driving on; if it happens again, run the doctor and read `.agents/.state/stack.log`.

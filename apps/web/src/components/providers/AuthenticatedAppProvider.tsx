@@ -4,10 +4,12 @@ import {
   type UserInfo,
   withAuth,
 } from "@workos-inc/authkit-nextjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { GlobalFileDropProvider } from "@/components/providers/GlobalFileDropProvider";
+import type { QuerySeed } from "@/lib/firstLoadQueries";
+import { fetchFirstLoadSeeds } from "@/lib/firstLoadSeeds";
 import { localeFromCookie } from "@/lib/locale";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
@@ -29,19 +31,26 @@ export default async function AuthenticatedAppProvider({
 }) {
   await connection();
   let initialAuth: Omit<UserInfo | NoUserInfo, "accessToken">;
+  let accessToken: string | undefined;
   try {
-    const { accessToken: _accessToken, ...session } = await withAuth();
-    initialAuth = session;
+    ({ accessToken, ...initialAuth } = await withAuth());
   } catch {
     return <AuthUnavailable />;
   }
 
-  const sidebar = await readSidebarCookies();
+  // The proxy names the requested URL; a layout has no other way to know it.
+  const href = (await headers()).get("x-url");
   const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
-  const messages = await loadMessages(locale);
+  const [seeds, sidebar, messages] = await Promise.all([
+    initialAuth.user && accessToken && href
+      ? fetchFirstLoadSeeds(href, accessToken)
+      : ([] as QuerySeed[]),
+    readSidebarCookies(),
+    loadMessages(locale),
+  ]);
   return (
     <LocaleProvider initialLocale={locale} initialMessages={messages}>
-      <ConvexClientProvider initialAuth={initialAuth}>
+      <ConvexClientProvider initialAuth={initialAuth} seeds={seeds}>
         <WorkosAuthBoundary
           loading={loading ?? <AppShellSkeleton {...sidebar} />}
         >
