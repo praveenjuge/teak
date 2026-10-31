@@ -126,10 +126,13 @@ export const ensureDerivedEnv = (
   return "repaired";
 };
 
-const EMULATOR_WEB_KEYS = [
+// The emulator wiring, and the API key: the web app signs in as a WorkOS
+// public client, and the SDK would use any key it finds.
+const REMOVED_WEB_KEYS = [
   "WORKOS_API_HOSTNAME",
   "WORKOS_API_PORT",
   "WORKOS_API_HTTPS",
+  "WORKOS_API_KEY",
 ] as const;
 
 export const ensureWebEnv = (
@@ -138,7 +141,7 @@ export const ensureWebEnv = (
     convexUrl: string;
     convexSiteUrl: string;
     siteUrl: string;
-    workos: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
+    workos: Partial<Record<"WORKOS_CLIENT_ID", string>>;
   }
 ): "created" | "exists" | "repaired" => {
   if (existsSync(path)) {
@@ -158,7 +161,7 @@ export const ensureWebEnv = (
     },
     {
       synced: Object.keys(values.workos),
-      remove: EMULATOR_WEB_KEYS,
+      remove: REMOVED_WEB_KEYS,
     }
   );
   chmodSync(path, 0o600);

@@ -157,7 +157,7 @@ describe("web environment writer", () => {
     expect(isMachineLocalValue("WORKOS_CLIENT_ID", "client_123")).toBe(false);
   });
 
-  test("syncs WorkOS credentials from the deployment and drops emulator wiring", () => {
+  test("syncs the WorkOS client from the deployment and drops the API key and emulator wiring", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
     const path = join(dir, ".env.local");
     writeFileSync(
@@ -168,15 +168,12 @@ describe("web environment writer", () => {
       ensureWebEnv(path, {
         ...DEV,
         siteUrl: "http://localhost:3000",
-        workos: {
-          WORKOS_CLIENT_ID: "client_synced",
-          WORKOS_API_KEY: "sk_test_synced",
-        },
+        workos: { WORKOS_CLIENT_ID: "client_synced" },
       })
     ).toBe("repaired");
     const content = readFileSync(path, "utf-8");
     expect(content).toContain("WORKOS_CLIENT_ID=client_synced");
-    expect(content).toContain("WORKOS_API_KEY=sk_test_synced");
+    expect(content).not.toContain("WORKOS_API_KEY");
     expect(content).not.toContain("WORKOS_API_HOSTNAME");
     expect(content).not.toContain("WORKOS_API_PORT");
     expect(content).not.toContain("WORKOS_API_HTTPS");

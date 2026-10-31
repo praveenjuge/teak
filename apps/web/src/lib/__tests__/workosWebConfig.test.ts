@@ -4,7 +4,6 @@ import { readWorkosWebConfig } from "@/lib/workos-config";
 const clientId = "client_web123";
 const environment = {
   WORKOS_CLIENT_ID: clientId,
-  WORKOS_API_KEY: "sk_test_fixture",
   WORKOS_COOKIE_PASSWORD: "test-session-password-for-fixtures-only",
   NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3142/callback",
   NODE_ENV: "development",
@@ -35,7 +34,6 @@ describe("AuthKit web configuration", () => {
   });
   test.each([
     "WORKOS_CLIENT_ID",
-    "WORKOS_API_KEY",
     "WORKOS_COOKIE_PASSWORD",
     "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
   ])("denies absent %s", (key) => {

@@ -164,7 +164,7 @@ Files in a suite run in parallel and share nothing: every spec makes its own acc
 
 ### How the stack is wired
 
-`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings, including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
+`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
 
 The emulator runs with:
 

@@ -106,3 +106,16 @@ export const readWorkosCredentials = async (
     values,
   };
 };
+
+// Dev tooling that creates WorkOS users (the dev account, the web smoke) reads
+// the key from the dev deployment; the web app itself runs without one.
+export const readDevWorkosApiKey = async (
+  convexDir?: string
+): Promise<string> => {
+  const found = await readDeploymentVar("WORKOS_API_KEY", convexDir);
+  return found.status === "found" &&
+    planWorkosCredential("WORKOS_API_KEY", { deployment: found.value })
+      .status === "ready"
+    ? found.value
+    : "";
+};

@@ -57,7 +57,6 @@ export const emulatorWebEnv = (ports: StackPorts) => {
     NEXT_PUBLIC_FILES_BASE: coreWorkerOrigin(ports),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
     WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
-    WORKOS_API_KEY: EMULATOR_API_KEY,
     WORKOS_COOKIE_PASSWORD: EMULATOR_COOKIE_PASSWORD,
     WORKOS_API_HOSTNAME: "localhost",
     WORKOS_API_PORT: String(ports.emulator),

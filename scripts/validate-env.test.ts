@@ -64,11 +64,10 @@ describe("validateWebEnvContent", () => {
 });
 
 describe("AuthKit readiness", () => {
-  test("names each missing WorkOS credential with a setup hint", () => {
+  test("names the missing WorkOS client with a setup hint, and needs no API key", () => {
     const issues = validateWebEnvContent(convexInputs + webAuthInputs, {});
     expect(issues.map((issue) => [issue.key, issue.problem])).toEqual([
       ["WORKOS_CLIENT_ID", "missing"],
-      ["WORKOS_API_KEY", "missing"],
     ]);
     expect(issues[0]?.hint).toContain("bun run setup");
   });
@@ -77,14 +76,13 @@ describe("AuthKit readiness", () => {
     expect(
       validateWebEnvContent(convexInputs + webAuthInputs, {
         WORKOS_CLIENT_ID: "client_dev123",
-        WORKOS_API_KEY: "sk_test_fixture",
       })
     ).toEqual([]);
   });
 
   test("rejects a short cookie password and never prints credential values", () => {
     const issues = validateWebEnvContent(
-      `${convexInputs}NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback\nWORKOS_CLIENT_ID=client_dev123\nWORKOS_API_KEY=private-test-value\nWORKOS_COOKIE_PASSWORD=short\n`,
+      `${convexInputs}NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback\nWORKOS_CLIENT_ID=client_dev123\nWORKOS_COOKIE_PASSWORD=private-test-value\n`,
       {}
     );
     expect(issues.map((issue) => issue.problem)).toEqual([

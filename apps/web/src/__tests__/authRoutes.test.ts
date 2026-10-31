@@ -23,7 +23,8 @@ const originalEnvironment = Object.fromEntries(
   keys.map((key) => [key, process.env[key]])
 );
 process.env.WORKOS_CLIENT_ID = "client_web123";
-process.env.WORKOS_API_KEY = "sk_test_fixture";
+// The web app signs in as a public client, without an API key.
+Reflect.deleteProperty(process.env, "WORKOS_API_KEY");
 process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";

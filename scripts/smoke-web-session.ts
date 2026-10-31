@@ -5,6 +5,7 @@ import {
   createWorkosTestSession,
   describeWorkosError,
 } from "./lib/workos-test-session.ts";
+import { readDevWorkosApiKey } from "./setup-workos.ts";
 
 export const SMOKE_VERSION = 2;
 
@@ -137,7 +138,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
   const values = webSettings();
   const config = {
-    apiKey: values.get("WORKOS_API_KEY") ?? "",
+    apiKey: await readDevWorkosApiKey(),
     clientId: values.get("WORKOS_CLIENT_ID") ?? "",
     cookiePassword: values.get("WORKOS_COOKIE_PASSWORD") ?? "",
     redirectUri: values.get("NEXT_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
@@ -147,7 +148,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
       id: "smoke-config",
       ok: false,
       detail:
-        "apps/web/.env.local is missing WorkOS sign-in values (run bun run setup --target web)",
+        "WorkOS sign-in values are missing: run bun run setup --target web, and check WORKOS_API_KEY on the dev deployment",
     });
     return report();
   }

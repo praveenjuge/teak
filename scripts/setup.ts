@@ -344,7 +344,7 @@ export const runSetup = async (
         return `${rel}: ${ensureWebEnv(plan.path, {
           ...DEV_DEPLOYMENT_URLS,
           siteUrl,
-          workos: workosValues,
+          workos: { WORKOS_CLIENT_ID: workosValues.WORKOS_CLIENT_ID },
         })}`;
       }
       const entries = Object.fromEntries(
