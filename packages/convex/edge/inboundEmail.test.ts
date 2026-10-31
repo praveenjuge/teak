@@ -1,13 +1,9 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
-import {
-  deliverWorkosUserUpdate,
-  seedWorkosOwner,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import {
@@ -139,7 +135,6 @@ const setup = async (
 ) => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   await beforeOwner?.(t);
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   const owner = t.withIdentity({
@@ -236,10 +231,19 @@ describe("Settings", () => {
     );
   });
 
-  test("an unverified sign-in email signs the owner out of Save by email and stops saving until WorkOS verifies it", async () => {
+  test("an unverified owner row signs the owner out of Save by email and stops saving until a verified sign-in", async () => {
     const { cards, owner, ownerWorkosId, send, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
-    await deliverWorkosUserUpdate(t, ownerWorkosId, { emailVerified: false });
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
+        .unique();
+      if (!row) {
+        throw new Error("expected the owner");
+      }
+      await ctx.db.patch("users", row._id, { emailVerified: false });
+    });
     expect(await owner.query(api.inbound.settings.getMine, {})).toBeNull();
     expect((await send(email())).status).toBe(404);
     expect(await cards()).toEqual([]);
@@ -252,7 +256,15 @@ describe("Settings", () => {
       );
     }
 
-    await deliverWorkosUserUpdate(t, ownerWorkosId, { emailVerified: true });
+    await t
+      .withIdentity({
+        issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+        subject: ownerWorkosId,
+        sid: "session_owner",
+        email: OWNER_EMAIL,
+        email_verified: true,
+      })
+      .mutation(api.workosBootstrap.ensureUser, {});
     expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
       enabled: true,
       sender: OWNER_EMAIL,

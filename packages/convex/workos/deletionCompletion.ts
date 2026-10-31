@@ -1,8 +1,9 @@
 import type { QueryCtx } from "../_generated/server";
 
-// Every applied `user.deleted` leaves this tombstone, even for a WorkOS user
-// Teak never linked, so a token issued before the deletion can't create an
-// owner. A linked owner also carries `workosDeletedAt`.
+// The WorkOS webhook, now removed, left this tombstone for every `user.deleted`
+// it applied, even for a WorkOS user Teak never linked, so a token issued
+// before the deletion can't create an owner. A linked owner also carries
+// `workosDeletedAt`.
 export async function hasWorkosDeletionReceipt(
   ctx: Pick<QueryCtx, "db">,
   workosUserId: string

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, mock } from "bun:test";
-import { getFunctionAddress, getFunctionName } from "convex/server";
+import { getFunctionName } from "convex/server";
 
 const TEST_CLIENT_ID = "client_sessiontests";
 const originalClientId = process.env.WORKOS_CLIENT_ID;
@@ -114,21 +114,6 @@ export const answerIdentityQuery = (
   try {
     name = getFunctionName(ref);
   } catch {
-    const address = getFunctionAddress(ref) as { reference?: string };
-    if (
-      address.reference?.endsWith("/workOSAuthKit/lib/getAuthUser") &&
-      typeof args?.id === "string"
-    ) {
-      const teakUserId = teakUserIdFor(args.id);
-      return {
-        handled: true,
-        value: {
-          id: args.id,
-          email: email ?? `${teakUserId}@example.com`,
-          emailVerified: true,
-        },
-      };
-    }
     return { handled: false };
   }
   if (
@@ -166,21 +151,6 @@ export const answerIdentityQuery = (
         typeof args?.workosUserId === "string"
           ? { status: "ok", teakUserId: teakUserIdFor(args.workosUserId) }
           : { status: "denied", reason: "deleted_user" },
-    };
-  }
-  if (name === "workosProfileRead:getProfile") {
-    const teakUserId = Buffer.from(
-      String(args?.workosUserId ?? "").replace(/^user_/, ""),
-      "hex"
-    ).toString();
-    return {
-      handled: true,
-      value: {
-        email: email ?? `${teakUserId}@example.com`,
-        emailVerified: true,
-        name: null,
-        profilePictureUrl: null,
-      },
     };
   }
   return { handled: false };

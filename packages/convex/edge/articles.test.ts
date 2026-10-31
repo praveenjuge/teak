@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
@@ -57,7 +56,6 @@ const archiveOf = (capturedAt = NOW - HOUR) => ({
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   const owner = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,

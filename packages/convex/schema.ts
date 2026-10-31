@@ -68,6 +68,8 @@ export default defineSchema({
       "reason",
       "resolvedAt",
     ]),
+  // The removed WorkOS webhook's tables: nothing reads or writes them, and
+  // they stay until production's are empty (.agents/sunset.md).
   workosWebhookDeadLetters: defineTable({
     eventId: v.string(),
     event: v.string(),
@@ -83,6 +85,7 @@ export default defineSchema({
       v.object({ label: v.string(), commit: v.string(), at: v.number() })
     ),
   }).index("by_name", ["name"]),
+  // See workosWebhookDeadLetters.
   workosEventCursors: defineTable({
     name: v.string(),
     // Missing until the first event is applied.

@@ -1,4 +1,3 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -11,7 +10,6 @@ const PART = 8 * 1024 * 1024;
 
 async function setup() {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
   const owner = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,

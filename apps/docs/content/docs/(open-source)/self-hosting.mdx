@@ -35,10 +35,9 @@ Create one WorkOS environment per deployment: a staging environment for local de
    {"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "name": {{ user.name }}, "first_name": {{ user.first_name }}, "last_name": {{ user.last_name }}}
    ```
 
-4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
-5. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
+4. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`.
 
-The webhook route exists only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. A new user's Teak account is created at their first sign-in, from the signed session; the webhook keeps their address and verification in sync afterwards and records deleted WorkOS users.
+A new user's Teak account is created at their first sign-in, from the signed session's claims, and each later sign-in brings its address, verification and name up to date. Teak needs no WorkOS webhook.
 
 `convex.json` declares AuthKit redirect URIs and CORS origins under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
 
@@ -46,15 +45,11 @@ The iPhone, iPad, Mac, and Android apps sign in through AuthKit with PKCE and th
 
 ### Use the WorkOS CLI
 
-The [WorkOS CLI](https://www.npmjs.com/package/workos) can set two of the steps above. Sign in with `workos auth login` and select the environment first:
+The [WorkOS CLI](https://www.npmjs.com/package/workos) can set the sign-out redirect. Sign in with `workos auth login` and select the environment first:
 
 ```bash
 # Sign-out redirect (step 2)
 workos authkit logout-uris set --uri <origin>/sign-in --default <origin>/sign-in
-
-# Webhook (step 4); the signing secret is shown only in the WorkOS dashboard
-workos webhook create --url <convex-site>/workos/webhook \
-  --events user.created,user.updated,user.deleted
 ```
 
 `logout-uris set` replaces the environment's whole list of sign-out URIs.
@@ -107,11 +102,9 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     ```bash
     bunx convex env set SITE_URL http://localhost:3000
 
-    # Sign-in: client and webhook
+    # Sign-in
     bunx convex env set WORKOS_CLIENT_ID client_...
     bunx convex env set WORKOS_API_KEY
-    bunx convex env set WORKOS_ENVIRONMENT_ID environment_...
-    bunx convex env set WORKOS_WEBHOOK_SECRET
 
     # Optional: files and AI card processing, through your Core Worker
     bunx convex env set FILES_BASE https://files.yourdomain.com
@@ -189,8 +182,6 @@ SITE_URL=http://localhost:3000
 PUBLIC_ORIGIN=https://yourdomain.com
 WORKOS_CLIENT_ID=client_...
 WORKOS_API_KEY=sk_test_...
-WORKOS_ENVIRONMENT_ID=environment_...
-WORKOS_WEBHOOK_SECRET=secret
 WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, extensions, Raycast, MCP
 WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origin>/api and <origin>/mcp (default https://teakvault.com)
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, and FIREFOX client IDs
@@ -205,7 +196,7 @@ POLAR_SERVER=sandbox
 POLAR_WEBHOOK_SECRET=secret
 ```
 
-`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; set `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` too, so address changes and deleted WorkOS users reach Teak. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
+`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
 
 ### Core Worker (`apps/core-worker/.dev.vars`, wrangler secrets)
 

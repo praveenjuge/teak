@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import workosTest from "@convex-dev/workos-authkit/test";
 import { SUPPORTED_LOCALES } from "@teak/i18n/locales";
 import { ConvexError } from "convex/values";
 import { convexTest } from "convex-test";
@@ -27,7 +26,6 @@ const codeOf = async (promise: Promise<unknown>) => {
 
 const setup = () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   const signIn = async (teakUserId: string) => {
     const workosUserId = await seedWorkosOwner(t, teakUserId);
     return t.withIdentity({

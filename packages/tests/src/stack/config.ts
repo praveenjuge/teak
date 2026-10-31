@@ -18,8 +18,6 @@ export const LOCAL_STACK: { readonly fetchesLinks: boolean } = {
 
 export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
-export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";
-export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
 /** Test-only; signs what the Core Worker's email handler posts to the local backend. */
 export const E2E_EMAIL_INBOUND_SIGNING_SECRET =
   "teak-e2e-email-inbound-signing-secret-local-only-0001";
@@ -40,8 +38,6 @@ export const emulatorDeploymentVars = (ports: StackPorts) => ({
   WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
   WORKOS_API_KEY: EMULATOR_API_KEY,
   WORKOS_API_BASE_URL: stackUrls(ports).emulatorOrigin,
-  WORKOS_ENVIRONMENT_ID: EMULATOR_ENVIRONMENT_ID,
-  WORKOS_WEBHOOK_SECRET: EMULATOR_WEBHOOK_SECRET,
   EMAIL_INBOUND_SIGNING_SECRET: E2E_EMAIL_INBOUND_SIGNING_SECRET,
 });
 
@@ -64,7 +60,7 @@ export const emulatorWebEnv = (ports: StackPorts) => {
   };
 };
 
-export const emulatorSeed = (ports: StackPorts) => ({
+export const emulatorSeed = () => ({
   // Teak's WorkOS environment adds the address, its verification and the
   // name to session tokens with a JWT template, and the backend requires
   // `email_verified: true`.
@@ -72,11 +68,4 @@ export const emulatorSeed = (ports: StackPorts) => ({
     content:
       '{"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "name": {{ user.name }}, "first_name": {{ user.first_name }}, "last_name": {{ user.last_name }}}',
   },
-  webhookEndpoints: [
-    {
-      endpoint_url: `${stackUrls(ports).apiOrigin}/workos/webhook`,
-      secret: EMULATOR_WEBHOOK_SECRET,
-      events: ["user.created", "user.updated", "user.deleted"],
-    },
-  ],
 });

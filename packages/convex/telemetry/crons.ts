@@ -4,7 +4,6 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { CRONS } from "../cronSchedules";
-import { catchUpHandler } from "../workosEventCatchUp";
 import { captureBackendException } from "./posthog";
 
 const recordHeartbeat = async (
@@ -45,15 +44,6 @@ export const monitored = async (
   await recordHeartbeat(ctx, { name: slug, phase: "succeeded" });
   return null;
 };
-
-export const workosEventCatchUp = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.workosEventCatchUp.name, async () => {
-      await catchUpHandler(ctx);
-    }),
-});
 
 // Reports outbox rows no flush takes and stale runs the Core Worker's
 // reconcile stopped checking, and starts a flush for the first.

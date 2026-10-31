@@ -1,7 +1,7 @@
 import { NotFoundException, type Session } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import {
   type ActionCtx,
   action,
@@ -133,17 +133,6 @@ export const identityMapping = internalQuery({
       .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
       .unique(),
 });
-
-export const readWorkosProfile = (
-  ctx: Pick<ActionCtx, "runQuery">,
-  workosUserId: string
-) => ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
-
-export const readComponentUser = (
-  ctx: Pick<QueryCtx, "runQuery">,
-  workosUserId: string
-) =>
-  ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
 
 export async function resolveStoredUserId(
   ctx: SessionCtx,

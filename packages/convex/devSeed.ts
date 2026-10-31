@@ -256,7 +256,7 @@ export const seed = internalMutation({
       .unique();
     if (!owner) {
       throw new Error(
-        "The dev account has no Teak owner yet; its user.created webhook has not linked it."
+        "The dev account has no Teak owner yet; sign in with it once to create it."
       );
     }
     const cards = await ctx.db

@@ -19,8 +19,8 @@ import { planEmailCards } from "./emailContent";
 
 // Save by email's routes for the Core Worker (apps/core-worker/src/email).
 // Each POST is signed with EMAIL_INBOUND_SIGNING_SECRET over the path, a timestamp
-// within five minutes and the body's SHA-256. Shaped like workosWebhook.ts:
-// 503 without the secret, 401 for a bad signature, 413 past the size limit,
+// within five minutes and the body's SHA-256. It answers 503 without the
+// secret, 401 for a bad signature, 413 past the size limit,
 // 200 for mail that is handled (saved or dropped on purpose), 404 for a
 // sender to reject at SMTP, and 5xx only for what the sender should retry.
 

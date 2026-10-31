@@ -1,11 +1,7 @@
-import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import {
-  deliverWorkosUserUpdate,
-  seedComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
@@ -32,16 +28,11 @@ const claims = {
 };
 const setup = () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   return t;
 };
 type Backend = ReturnType<typeof setup>;
-const seed = async (
-  t: Backend,
-  fields: Partial<Doc<"users">> = {},
-  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {}
-) => {
-  const owner = await t.run((ctx) =>
+const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
+  t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "permanent-owner",
       workosUserId: "user_PROVIDER",
@@ -50,17 +41,6 @@ const seed = async (
       ...fields,
     })
   );
-  const user = await t.run((ctx) => ctx.db.get("users", owner));
-  if (profile !== null && user?.workosUserId) {
-    await seedComponentUser(t, {
-      id: user.workosUserId,
-      email: "workos@example.com",
-      externalId: user.teakUserId,
-      ...profile,
-    });
-  }
-  return owner;
-};
 
 const card = (t: Backend, userId = "permanent-owner") =>
   t.run((ctx) =>
@@ -187,19 +167,21 @@ describe("WorkOS Convex sessions", () => {
     }
     expect(await snapshot(t)).toEqual(before);
   });
-  test("background owners and sessions both follow WorkOS's verification once the webhook applies it", async () => {
+  test("background owners and sessions follow the mapping row's verification, which a verified sign-in restores", async () => {
     const t = setup();
     await seed(t);
     const id = await card(t);
     expect(
       await t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).toBe("permanent-owner");
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: false });
+    await setOwnerVerified(t, "user_PROVIDER", false);
     await expect(
       t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).rejects.toThrow();
     expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
+    expect(
+      await client(t).mutation(api.workosBootstrap.ensureUser, {})
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
     expect(
       await t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).toBe("permanent-owner");
@@ -207,32 +189,9 @@ describe("WorkOS Convex sessions", () => {
       userId: "permanent-owner",
     });
   });
-  test("a new unverified WorkOS address stops a verified session until WorkOS verifies it", async () => {
+  test("a verified sign-in with an address another account holds restores the session and keeps the old address", async () => {
     const t = setup();
-    await seed(t, { email: "workos@example.com" });
-    const id = await card(t);
-    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
-      userId: "permanent-owner",
-    });
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
-      email: "new@example.com",
-      emailVerified: false,
-    });
-    expect((await snapshot(t)).users).toMatchObject([
-      { email: "workos@example.com", emailVerified: false },
-    ]);
-    expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
-    expect((await snapshot(t)).users).toMatchObject([
-      { email: "new@example.com", emailVerified: true },
-    ]);
-    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
-      userId: "permanent-owner",
-    });
-  });
-  test("a verified address another account holds restores the session and keeps the old address", async () => {
-    const t = setup();
-    await seed(t, { email: "workos@example.com" });
+    await seed(t, { email: "workos@example.com", emailVerified: false });
     await t.run((ctx) =>
       ctx.db.insert("users", {
         teakUserId: "other-owner",
@@ -242,17 +201,14 @@ describe("WorkOS Convex sessions", () => {
       })
     );
     const id = await card(t);
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
-      email: "taken@example.com",
-      emailVerified: false,
-    });
-    expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
+    const taken = client(t, { email: "taken@example.com" });
+    expect(await taken.query(api.cards.getCard, { id })).toBeNull();
+    await taken.mutation(api.workosBootstrap.ensureUser, {});
     const rows = (await snapshot(t)).users;
     expect(
       rows.find((row) => row.teakUserId === "permanent-owner")
     ).toMatchObject({ email: "workos@example.com", emailVerified: true });
-    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
+    expect(await taken.query(api.cards.getCard, { id })).toMatchObject({
       userId: "permanent-owner",
     });
   });
@@ -283,7 +239,7 @@ describe("WorkOS Convex sessions", () => {
   );
   test("the profile's address comes from the signed claims, falling back to the owner row", async () => {
     const t = setup();
-    await seed(t, {}, { email: "component@example.com" });
+    await seed(t);
     expect(await client(t).run((ctx) => getSessionProfile(ctx))).toEqual({
       teakUserId: "permanent-owner",
       user: {
@@ -332,12 +288,7 @@ describe("WorkOS Convex sessions", () => {
     "the profile's name comes only from the claims of a token that carries the address: $expected",
     async ({ names, row, expected }) => {
       const t = setup();
-      // The component's copy is never read: its name and picture don't show.
-      await seed(t, row, {
-        firstName: "Component",
-        lastName: "Name",
-        profilePictureUrl: "https://images.example.com/avatar.png",
-      });
+      await seed(t, row);
       const user = {
         _id: "permanent-owner",
         email: "jwt@example.com",
@@ -353,16 +304,6 @@ describe("WorkOS Convex sessions", () => {
       ).toMatchObject(user);
     }
   );
-  test("the webhook clears a name WorkOS no longer has", async () => {
-    const t = setup();
-    await seed(t, { name: "Old Name" });
-    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
-      firstName: null,
-      lastName: null,
-    });
-    const [owner] = (await snapshot(t)).users;
-    expect(owner.name).toBeUndefined();
-  });
   test("a token without the address claim takes the name from the owner row", async () => {
     const t = setup();
     await seed(t, { name: "Stored Name" });

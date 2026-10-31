@@ -5,12 +5,6 @@ const DAY_MS = 24 * HOUR_MS;
 export type CronRuntime = "cloudflare" | "convex";
 
 export const CRONS = {
-  workosEventCatchUp: {
-    name: "workos-event-catch-up",
-    schedule: "15 * * * *",
-    everyMs: HOUR_MS,
-    runsOn: "convex",
-  },
   // Runs on Convex so a broken link to the Core Worker is still noticed.
   workflowDispatchWatchdog: {
     name: "workflow-dispatch-watchdog",

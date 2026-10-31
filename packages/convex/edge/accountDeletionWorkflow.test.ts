@@ -1,6 +1,5 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -8,7 +7,6 @@ import {
   convexForWorker,
   loadCoreWorker,
 } from "../__tests__/helpers/coreWorker.test-utils";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import schema from "../schema";
@@ -29,7 +27,6 @@ const fixture = async (legacy = false) => {
   betterAuthTest.register(t);
   polarTest.register(t);
   apiKeysTest.register(t);
-  workosTest.register(t);
   const legacyUser = legacy
     ? await t.mutation(components.betterAuth.adapter.create, {
         input: {
@@ -53,11 +50,6 @@ const fixture = async (legacy = false) => {
       emailVerified: true,
     })
   );
-  await seedComponentUser(t, {
-    id: "user_DELETE",
-    email: "provider@example.com",
-    externalId: ownerId,
-  });
   const card = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: ownerId,
@@ -77,7 +69,6 @@ const fixture = async (legacy = false) => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("WORKOS_CLIENT_ID", "client_DELETE");
-  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_DELETE");
   vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
   vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false");
 });

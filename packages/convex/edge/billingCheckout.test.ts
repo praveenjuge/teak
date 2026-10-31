@@ -1,5 +1,4 @@
 import polarTest from "@convex-dev/polar/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -46,7 +45,6 @@ const OWNER = "teak_devowner";
 async function setup(email: string) {
   const t = convexTest(schema, modules);
   polarTest.register(t);
-  workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
   // The account's email is the signed session's address.
   const client = t.withIdentity({

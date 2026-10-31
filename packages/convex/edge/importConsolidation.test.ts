@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { getFunctionName } from "convex/server";
 import { convexTest } from "convex-test";
 import { strToU8, zipSync } from "fflate";
@@ -474,7 +473,6 @@ describe("imports staged in R2", () => {
     vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false");
     const t = convexTest(schema, modules);
     rateLimiterTest.register(t, "rateLimiterV2");
-    workosTest.register(t);
     const bucket = new coreWorker.FakeBucket();
     const deleted: string[] = [];
     const env = coreWorker.withObjectGates({

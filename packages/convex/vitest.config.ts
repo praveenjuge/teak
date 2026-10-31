@@ -17,7 +17,6 @@ export default defineConfig({
     env: {
       CONVEX_SITE_URL: "https://session-tests.convex.site",
       WORKOS_CLIENT_ID: "client_edgetests",
-      WORKOS_WEBHOOK_SECRET: "edge-test-webhook-secret",
     },
     include: ["./edge/**/*.test.ts"],
   },

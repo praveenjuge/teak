@@ -1,12 +1,8 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import type { FunctionReturnType } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import {
-  deliverWorkosUserUpdate,
-  seedComponentUser,
-} from "../__tests__/helpers/workosOwner.test-utils";
+import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
@@ -15,7 +11,6 @@ import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 const modules = import.meta.glob("../**/*.ts");
 const setup = () => {
   const t = convexTest(schema, modules);
-  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   return t;
 };
@@ -25,12 +20,8 @@ const principal = {
   consentId: "app_consent_CONSENT",
   clientId: "client_CLIENT",
 };
-const seed = async (
-  t: Backend,
-  fields: Partial<Doc<"users">> = {},
-  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {}
-) => {
-  const owner = await t.run((ctx) =>
+const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
+  t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "legacy-owner",
       workosUserId: "user_PROVIDER",
@@ -39,17 +30,6 @@ const seed = async (
       ...fields,
     })
   );
-  const user = await t.run((ctx) => ctx.db.get("users", owner));
-  if (profile !== null && user?.workosUserId) {
-    await seedComponentUser(t, {
-      id: user.workosUserId,
-      email: "provider@example.test",
-      externalId: user.teakUserId,
-      ...profile,
-    });
-  }
-  return owner;
-};
 
 const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
   t.mutation(internal.workosConsents.authorizeConnectConsent, {
@@ -398,11 +378,11 @@ describe("durable Connect consent authorization", () => {
     await seed(t);
     await authorize(t);
     const before = await records(t);
-    await seed(
-      t,
-      { teakUserId: "other-owner", workosUserId: "user_OTHER" },
-      { email: "other@example.test" }
-    );
+    await seed(t, {
+      teakUserId: "other-owner",
+      workosUserId: "user_OTHER",
+      email: "other@example.test",
+    });
     expect(
       await authorize(t, {
         workosUserId: "user_OTHER",
@@ -429,11 +409,6 @@ describe("durable Connect consent authorization", () => {
     await authorize(t);
     const before = await records(t);
     await t.run((ctx) => ctx.db.patch(owner, { workosUserId: "user_CHANGED" }));
-    await seedComponentUser(t, {
-      id: "user_CHANGED",
-      email: "provider@example.test",
-      externalId: "legacy-owner",
-    });
     expect(await authorize(t, { workosUserId: "user_CHANGED" })).toEqual({
       status: "denied",
       reason: "consent_binding_conflict",
@@ -468,15 +443,14 @@ describe("durable Connect consent authorization", () => {
   });
 
   test.each([
-    [{ emailVerified: false }, { emailVerified: false }, "verify_email"],
-    [{ emailVerified: false }, null, "verify_email"],
-    [{ deletedAt: 1 }, {}, "deleted_user"],
-    [{ workosDeletedAt: 1 }, {}, "workos_deleted_user"],
-  ] satisfies [Partial<Doc<"users">>, Parameters<typeof seed>[2], string][])(
-    "mapping %j with WorkOS profile %j denies without recording",
-    async (fields, profile, reason) => {
+    [{ emailVerified: false }, "verify_email"],
+    [{ deletedAt: 1 }, "deleted_user"],
+    [{ workosDeletedAt: 1 }, "workos_deleted_user"],
+  ] satisfies [Partial<Doc<"users">>, string][])(
+    "mapping %j denies without recording",
+    async (fields, reason) => {
       const t = setup();
-      await seed(t, fields, profile);
+      await seed(t, fields);
       expect(await authorize(t)).toEqual({ status: "denied", reason });
       expect(await records(t)).toEqual([]);
     }
@@ -487,16 +461,12 @@ describe("durable Connect consent authorization", () => {
     await seed(t);
     await authorize(t);
     const before = await records(t);
-    await deliverWorkosUserUpdate(t, principal.workosUserId, {
-      emailVerified: false,
-    });
+    await setOwnerVerified(t, principal.workosUserId, false);
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "verify_email",
     });
-    await deliverWorkosUserUpdate(t, principal.workosUserId, {
-      emailVerified: true,
-    });
+    await setOwnerVerified(t, principal.workosUserId, true);
     expect(await authorize(t)).toEqual({
       status: "ok",
       teakUserId: "legacy-owner",

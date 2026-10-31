@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { FILES_OP_PATH } from "@teak/files-protocol";
 import { ConvexError } from "convex/values";
 import { convexTest } from "convex-test";
@@ -123,7 +122,6 @@ const codeOf = async (promise: Promise<unknown>) => {
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   const asUser = async (teakUserId: string) =>
     t.withIdentity({
       issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,

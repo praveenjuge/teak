@@ -1,7 +1,6 @@
 import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_HEADER,
@@ -56,7 +55,6 @@ afterEach(() => {
 const exhaustedKey = async () => {
   const t = convexTest(schema, modules);
   polarTest.register(t);
-  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");

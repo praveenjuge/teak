@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -37,7 +36,6 @@ const LIBRARY: CardSeed[] = [
 const setup = async (cards: CardSeed[] = LIBRARY) => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workosTest.register(t);
   const workosUserId = await seedWorkosOwner(t, "owner");
   const folderId = await t.run((ctx) =>
     ctx.db.insert("folders", {
