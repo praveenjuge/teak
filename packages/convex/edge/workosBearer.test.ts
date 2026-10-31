@@ -15,10 +15,10 @@ import {
   vi,
 } from "vitest";
 import {
+  deliverWorkosUserUpdate,
   seedComponentUser,
-  updateComponentUser,
 } from "../__tests__/helpers/workosOwner.test-utils";
-import { api as backendApi, components } from "../_generated/api";
+import { api as backendApi, components, internal } from "../_generated/api";
 import { syncCardSearchTagsBatchHandler } from "../card/searchSync";
 import schema from "../schema";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
@@ -405,16 +405,13 @@ describe("WorkOS REST and MCP token boundary", () => {
     const f = await setup();
     const access = await token();
     expect((await f.read(access)).status).toBe(200);
-    await updateComponentUser(f.t, userId, { emailVerified: false });
+    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: false });
     expect((await f.read(access)).status).toBe(401);
-    await updateComponentUser(f.t, userId, { emailVerified: true });
+    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: true });
     expect((await f.read(access)).status).toBe(200);
-    await f.t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: ownerId,
-        startedAt: Date.now(),
-      })
-    );
+    await f.t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: ownerId,
+    });
     expect((await f.read(access)).status).toBe(401);
   });
 
@@ -457,9 +454,9 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
     expect((await f.read(key.key)).status).toBe(200);
     expect((await f.mcp(key.key)).status).toBe(200);
-    await updateComponentUser(f.t, userId, { emailVerified: false });
+    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: false });
     expect((await f.read(key.key)).status).toBe(401);
-    await updateComponentUser(f.t, userId, { emailVerified: true });
+    await deliverWorkosUserUpdate(f.t, userId, { emailVerified: true });
     expect((await f.read(key.key)).status).toBe(200);
     await f.t.run((ctx) => apiKeys.revoke(ctx, { keyId: key.keyId, ownerId }));
     expect((await f.read(key.key)).status).toBe(401);

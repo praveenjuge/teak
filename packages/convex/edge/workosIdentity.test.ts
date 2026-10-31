@@ -1,7 +1,10 @@
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
+import {
+  deliverWorkosUserUpdate,
+  seedComponentUser,
+} from "../__tests__/helpers/workosOwner.test-utils";
 import { components, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
@@ -123,12 +126,13 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   });
 
-  test("an unverified component profile denies both token kinds despite a verified Teak row", async () => {
+  test("an unverified mapping row denies every token kind despite a verified claim", async () => {
     const t = setup();
-    await seed(t, { emailVerified: true }, { emailVerified: false });
+    await seed(t, { emailVerified: false });
     for (const verification of [
       { kind: "connect" as const },
       { kind: "session" as const, emailVerified: true },
+      { kind: "stored" as const },
     ]) {
       expect(
         await t.query(internal.workosIdentity.resolveWorkosOwner, {
@@ -139,24 +143,39 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   });
 
-  test("a missing component profile admits a verified session but not Connect", async () => {
+  test("a verified mapping row admits Connect and sessions before its component profile arrives", async () => {
     const t = setup();
     await seed(t, { emailVerified: true }, null);
-    expect(
-      await t.query(internal.workosIdentity.resolveWorkosOwner, {
-        ...input,
-        verification: { kind: "session", emailVerified: true },
-      })
-    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
-    expect(
-      await t.query(internal.workosIdentity.resolveWorkosOwner, {
-        ...input,
-        verification: { kind: "connect" },
-      })
-    ).toEqual({ status: "denied", reason: "verify_email" });
+    for (const verification of [
+      { kind: "connect" as const },
+      { kind: "session" as const, emailVerified: true },
+    ]) {
+      expect(
+        await t.query(internal.workosIdentity.resolveWorkosOwner, {
+          ...input,
+          verification,
+        })
+      ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    }
   });
 
-  test("a stored owner resolves before its profile arrives, but not once it says unverified", async () => {
+  test("Connect needs the mapping row verified, whatever the component profile says", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: false }, { emailVerified: true });
+    expect(await resolve(t)).toEqual({
+      status: "denied",
+      reason: "verify_email",
+    });
+    await deliverWorkosUserUpdate(t, input.workosUserId, {
+      emailVerified: true,
+    });
+    expect(await resolve(t)).toEqual({
+      status: "ok",
+      teakUserId: "permanent-owner",
+    });
+  });
+
+  test("a stored owner resolves before its profile arrives, but not once the webhook says unverified", async () => {
     const t = setup();
     await seed(t, { emailVerified: true }, null);
     const stored = {
@@ -166,23 +185,23 @@ describe("read-only canonical WorkOS owner resolution", () => {
     expect(
       await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
     ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
-    await seedComponentUser(t, {
-      id: input.workosUserId,
-      email: "owner@example.com",
-      emailVerified: false,
+    await t.mutation(internal.workosWebhook.syncVerifiedEvent, {
+      id: "evt_unverified_profile",
+      event: "user.updated",
+      createdAt: "2026-10-08T00:00:01.000Z",
+      data: {
+        object: "user",
+        id: input.workosUserId,
+        email: "owner@example.com",
+        emailVerified: false,
+        metadata: {},
+        createdAt: "2026-10-08T00:00:00.000Z",
+        updatedAt: "2026-10-08T00:00:01.000Z",
+      },
     });
     expect(
       await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
     ).toEqual({ status: "denied", reason: "verify_email" });
-  });
-
-  test("Connect uses provider evidence even if the legacy mirror is unverified", async () => {
-    const t = setup();
-    await seed(t, { emailVerified: false });
-    expect(await resolve(t)).toEqual({
-      status: "ok",
-      teakUserId: "permanent-owner",
-    });
   });
 
   test.each([true, false])(
@@ -221,21 +240,15 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   );
 
-  test.each(["provider", "owner"])(
-    "duplicate %s mappings cannot resolve",
-    async (kind) => {
-      const t = setup();
-      await seed(t);
-      await seed(t, {
-        teakUserId: kind === "owner" ? "permanent-owner" : "other-owner",
-        workosUserId: kind === "provider" ? "user_provider" : "user_other",
-      });
-      expect(await resolve(t)).toEqual({
-        status: "denied",
-        reason: "duplicate_mapping",
-      });
-    }
-  );
+  test("duplicate provider mappings cannot resolve", async () => {
+    const t = setup();
+    await seed(t);
+    await seed(t, { teakUserId: "other-owner" });
+    expect(await resolve(t)).toEqual({
+      status: "denied",
+      reason: "duplicate_mapping",
+    });
+  });
 
   test.each(["deletedAt", "workosDeletedAt"] as const)(
     "%s prevents access with a verified claim",
@@ -257,12 +270,9 @@ describe("read-only canonical WorkOS owner resolution", () => {
   test("active Teak account deletion denies both token kinds", async () => {
     const t = setup();
     await seed(t);
-    await t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: "permanent-owner",
-        startedAt: 1,
-      })
-    );
+    await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: "permanent-owner",
+    });
     expect(await resolve(t)).toEqual({
       status: "denied",
       reason: "deleting_user",

@@ -3,7 +3,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import {
   getWorkosBootstrapIdentity,
@@ -284,9 +284,9 @@ describe("owned WorkOS devices", () => {
         sessionId: claims.sid,
       })
     ).rejects.toThrow("sign in");
-    await f.t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", { userId: "owner", startedAt: 1 })
-    );
+    await f.t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: "owner",
+    });
     await expect(
       f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,

@@ -20,7 +20,8 @@ const currentProfile = {
   profilePictureUrl: "https://example.com/current.png",
 };
 async function fixture(
-  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {}
+  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {},
+  emailVerified = true
 ) {
   const t = convexTest(schema, modules);
   workosTest.register(t);
@@ -29,7 +30,7 @@ async function fixture(
       teakUserId: "owner-a",
       workosUserId: "user_READ",
       email: "old@example.com",
-      emailVerified: true,
+      emailVerified,
     });
     const own = await ctx.db.insert("cards", {
       userId: "owner-a",
@@ -78,8 +79,12 @@ test("current canonical display and verified ownership return only this vault", 
 test.each(["unverified", "deleted"])(
   "%s canonical state denies vault access",
   async (variant) => {
+    // An unverified WorkOS address reaches the mapping row through the
+    // webhook, so the row is seeded the way the webhook leaves it.
+    const verified = variant === "deleted";
     const { t, signed, own } = await fixture(
-      variant === "absent" ? null : { emailVerified: variant === "deleted" }
+      { emailVerified: verified },
+      verified
     );
     if (variant === "deleted") {
       await t.mutation(internal.workosWebhook.syncVerifiedEvent, {
@@ -102,7 +107,7 @@ test.each(["unverified", "deleted"])(
   }
 );
 
-test("absent canonical state admits a verified session but not Connect", async () => {
+test("absent canonical state admits a verified session and Connect through the verified mapping row", async () => {
   const { t, signed, own } = await fixture(null);
   expect(await signed.query(api.cards.getCard, { id: own })).toMatchObject({
     userId: "owner-a",
@@ -112,7 +117,7 @@ test("absent canonical state admits a verified session but not Connect", async (
       workosUserId: "user_READ",
       verification: { kind: "connect" },
     })
-  ).toEqual({ status: "denied", reason: "verify_email" });
+  ).toEqual({ status: "ok", teakUserId: "owner-a" });
 });
 
 test("a newer provider update that unverifies the email denies an existing verified session", async () => {

@@ -3,10 +3,10 @@ import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+  deliverWorkosUserUpdate,
   seedComponentUser,
-  updateComponentUser,
 } from "../__tests__/helpers/workosOwner.test-utils";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
 import {
@@ -119,12 +119,9 @@ describe("WorkOS Convex sessions", () => {
         {}
       )
     ).toBeNull();
-    await t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: "permanent-owner",
-        startedAt: 1,
-      })
-    );
+    await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+      userId: "permanent-owner",
+    });
     expect(await client(t).query(api.auth.getCurrentUser, {})).toBeNull();
   });
   test.each([
@@ -154,7 +151,6 @@ describe("WorkOS Convex sessions", () => {
   test.each([
     "missing",
     "duplicate_provider",
-    "duplicate_owner",
     "deleted",
     "provider_deleted",
     "deleting",
@@ -173,16 +169,10 @@ describe("WorkOS Convex sessions", () => {
     if (failure === "duplicate_provider") {
       await seed(t, { teakUserId: "other-owner" });
     }
-    if (failure === "duplicate_owner") {
-      await seed(t, { workosUserId: "user_OTHER" });
-    }
     if (failure === "deleting") {
-      await t.run((ctx) =>
-        ctx.db.insert("accountDeletionStates", {
-          userId: "permanent-owner",
-          startedAt: 1,
-        })
-      );
+      await t.mutation(internal.accountDeletion.beginAccountDataDeletion, {
+        userId: "permanent-owner",
+      });
     }
     const before = await snapshot(t);
     expect(
@@ -193,19 +183,45 @@ describe("WorkOS Convex sessions", () => {
     ).rejects.toThrow();
     expect(await snapshot(t)).toEqual(before);
   });
-  test("background owners and sessions both follow the WorkOS profile's verification", async () => {
+  test("background owners and sessions both follow WorkOS's verification once the webhook applies it", async () => {
     const t = setup();
     await seed(t);
     const id = await card(t);
     expect(
       await t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).toBe("permanent-owner");
-    await updateComponentUser(t, "user_PROVIDER", { emailVerified: false });
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: false });
     await expect(
       t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).rejects.toThrow();
     expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
-    await updateComponentUser(t, "user_PROVIDER", { emailVerified: true });
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
+    expect(
+      await t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
+    ).toBe("permanent-owner");
+    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
+      userId: "permanent-owner",
+    });
+  });
+  test("a new unverified WorkOS address stops a verified session until WorkOS verifies it", async () => {
+    const t = setup();
+    await seed(t, { email: "workos@example.com" });
+    const id = await card(t);
+    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
+      userId: "permanent-owner",
+    });
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", {
+      email: "new@example.com",
+      emailVerified: false,
+    });
+    expect((await snapshot(t)).users).toMatchObject([
+      { email: "workos@example.com", emailVerified: false },
+    ]);
+    expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
+    await deliverWorkosUserUpdate(t, "user_PROVIDER", { emailVerified: true });
+    expect((await snapshot(t)).users).toMatchObject([
+      { email: "new@example.com", emailVerified: true },
+    ]);
     expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
       userId: "permanent-owner",
     });

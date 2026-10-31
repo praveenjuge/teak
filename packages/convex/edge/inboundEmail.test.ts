@@ -4,7 +4,10 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
+import {
+  deliverWorkosUserUpdate,
+  seedWorkosOwner,
+} from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import {
@@ -233,36 +236,26 @@ describe("Settings", () => {
     );
   });
 
-  test("an unverified sign-in email can't save or turn it on, but can turn it off and stays off once verified", async () => {
-    const { cards, owner, send, t } = await setup();
-    const setVerified = (emailVerified: boolean) =>
-      t.run(async (ctx) => {
-        const user = await ctx.db
-          .query("users")
-          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", "owner"))
-          .unique();
-        if (!user) {
-          throw new Error("expected the owner");
-        }
-        await ctx.db.patch(user._id, { emailVerified });
-      });
+  test("an unverified sign-in email signs the owner out of Save by email and stops saving until WorkOS verifies it", async () => {
+    const { cards, owner, ownerWorkosId, send, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
-    await setVerified(false);
+    await deliverWorkosUserUpdate(t, ownerWorkosId, { emailVerified: false });
+    expect(await owner.query(api.inbound.settings.getMine, {})).toBeNull();
+    expect((await send(email())).status).toBe(404);
+    expect(await cards()).toEqual([]);
+    for (const change of [
+      api.inbound.settings.enable,
+      api.inbound.settings.disable,
+    ]) {
+      await expect(owner.mutation(change, {})).rejects.toThrow(
+        "User must be authenticated"
+      );
+    }
+
+    await deliverWorkosUserUpdate(t, ownerWorkosId, { emailVerified: true });
     expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
       enabled: true,
       sender: OWNER_EMAIL,
-      senderVerified: false,
-    });
-    expect((await send(email())).status).toBe(404);
-    expect(await cards()).toEqual([]);
-
-    await owner.mutation(api.inbound.settings.disable, {});
-    await expect(
-      owner.mutation(api.inbound.settings.enable, {})
-    ).rejects.toThrow(/Verify your sign-in email/);
-    await setVerified(true);
-    expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
-      enabled: false,
       senderVerified: true,
     });
   });
