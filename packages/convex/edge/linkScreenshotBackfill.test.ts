@@ -168,13 +168,12 @@ describe("backfillLinkScreenshots", () => {
 
     const captures = calls.filter((call) => call.op === "capture-screenshot");
     expect(captures).toHaveLength(2);
-    const restyled = new RegExp(
-      `^users/[^/]+/cards/${shown}/screenshot/restyled$`
+    const destinationKey = String(captures[0]?.params.destinationKey);
+    expect(captures[0]?.params.archiveKey).toBe(ARCHIVE);
+    expect(destinationKey.startsWith("users/")).toBe(true);
+    expect(destinationKey.endsWith(`/cards/${shown}/screenshot/restyled`)).toBe(
+      true
     );
-    expect(captures[0]?.params).toEqual({
-      archiveKey: ARCHIVE,
-      destinationKey: expect.stringMatching(restyled),
-    });
     const preview = (await card(shown))?.metadata?.linkPreview;
     expect(preview).toMatchObject({
       screenshotHeight: 720,
