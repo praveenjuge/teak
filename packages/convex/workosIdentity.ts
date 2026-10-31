@@ -5,8 +5,6 @@ import {
   type ResolverDenialReason,
   type ResolverVerification,
 } from "./authMonitoring";
-import { readComponentUser } from "./securitySessions";
-import { type ProviderProfile, toProviderProfile } from "./workosProfileRead";
 
 export interface ResolveArgs {
   verification: ResolverVerification;
@@ -14,11 +12,11 @@ export interface ResolveArgs {
 }
 
 export type ResolvedOwner =
-  | { status: "ok"; teakUserId: string; profile: ProviderProfile | null }
+  | { status: "ok"; teakUserId: string }
   | { status: "denied"; reason: ResolverDenialReason };
 
 export async function resolveOwner(
-  ctx: Pick<QueryCtx, "db" | "runQuery">,
+  ctx: Pick<QueryCtx, "db">,
   args: ResolveArgs
 ): Promise<ResolvedOwner> {
   const result = await resolve(ctx, args);
@@ -55,16 +53,14 @@ export const resolveWorkosOwner = internalQuery({
       ),
     })
   ),
-  handler: async (ctx, args) => {
-    const result = await resolveOwner(ctx, args);
-    return result.status === "ok"
-      ? { status: "ok" as const, teakUserId: result.teakUserId }
-      : result;
-  },
+  handler: (ctx, args) => resolveOwner(ctx, args),
 });
 
+// Every signed-in call runs this, so it reads one row: the owner's mapping,
+// which also carries its deletion and the WorkOS address's verification. A
+// Teak owner ID is unique by construction (`teak_<row id>`).
 const resolve = async (
-  ctx: Pick<QueryCtx, "db" | "runQuery">,
+  ctx: Pick<QueryCtx, "db">,
   args: ResolveArgs
 ): Promise<ResolvedOwner> => {
   const rows = await ctx.db
@@ -91,35 +87,19 @@ const resolve = async (
           : ("deleted_user" as const),
     };
   }
-  const deletion = await ctx.db
-    .query("accountDeletionStates")
-    .withIndex("by_userId", (q) => q.eq("userId", row.teakUserId))
-    .first();
-  if (deletion) {
+  if (row.deletionStartedAt !== undefined) {
     return { status: "denied" as const, reason: "deleting_user" as const };
   }
-  // Two rows sharing an owner would let two WorkOS users into one vault.
-  const owners = await ctx.db
-    .query("users")
-    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
-    .take(2);
-  if (owners.length !== 1) {
-    return { status: "denied" as const, reason: "duplicate_mapping" as const };
-  }
-  // A session token carries its own signed email verification, and a stored
-  // owner was created from a verified one, so both need the webhook's copy of
-  // the profile only to see a newer unverified address. A Connect token
-  // carries none and needs the profile.
-  const user = await readComponentUser(ctx, args.workosUserId);
-  const profile = user ? toProviderProfile(args.workosUserId, user) : null;
+  // A session token carries its own signed verification. A Connect token
+  // carries none, so it needs the stored address verified.
   const { verification } = args;
   if (
     verification.kind === "connect"
-      ? profile?.emailVerified !== true
-      : profile?.emailVerified === false ||
+      ? row.emailVerified !== true
+      : row.emailVerified === false ||
         (verification.kind === "session" && verification.emailVerified !== true)
   ) {
     return { status: "denied" as const, reason: "verify_email" as const };
   }
-  return { status: "ok" as const, teakUserId: row.teakUserId, profile };
+  return { status: "ok" as const, teakUserId: row.teakUserId };
 };

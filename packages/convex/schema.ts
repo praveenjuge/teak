@@ -42,6 +42,8 @@ export default defineSchema({
     workosDeletedAt: v.optional(v.number()),
     workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
     role: v.optional(v.literal("admin")),
+    // Set when account deletion starts, so sign-in stops at the mapping row.
+    deletionStartedAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
   })
     .index("by_teakUserId", ["teakUserId"])

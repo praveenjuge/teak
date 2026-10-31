@@ -74,15 +74,14 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     if (deleting) {
       continue;
     }
-    if (row.email === email) {
+    if (row.email === email || !provider.emailVerified) {
+      // The row's verification tracks WorkOS's current address, which sign-in
+      // reads; an unverified new address isn't adopted, but it stops sign-in.
       if (row.emailVerified !== provider.emailVerified) {
         await ctx.db.patch("users", row._id, {
           emailVerified: provider.emailVerified,
         });
       }
-      continue;
-    }
-    if (!provider.emailVerified) {
       continue;
     }
     // A deleted account keeps its row and address; only a live owner holds
