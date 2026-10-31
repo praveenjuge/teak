@@ -134,6 +134,16 @@ export const fetchLinkPageForCard = (job: CardJob, url: string) =>
     },
   });
 
+export const REMOTE_ASSET_RETRYABLE_PREFIX =
+  "workflow:linkMetadata:remoteAsset:retryable:";
+
+// Rate limits and server errors pass; a 404 or an image that isn't one won't.
+const isTransientAssetMiss = (reason: string, status?: number) =>
+  reason === "fetch_failed" ||
+  (reason === "http_error" &&
+    status !== undefined &&
+    (status === 408 || status === 429 || status >= 500));
+
 interface StoredRemoteAsset {
   contentType: string;
   height?: number;
@@ -150,11 +160,14 @@ const storeRemoteAsset = async (
     fallbackContentType,
     kind,
     pageUrl,
+    retryTransient = false,
     role,
   }: {
     fallbackContentType?: string;
     kind: FilesRemoteAssetKind;
     pageUrl: string;
+    /** Throw a retryable error, not null, when the host may answer later. */
+    retryTransient?: boolean;
     role: string;
   }
 ): Promise<StoredRemoteAsset | null> => {
@@ -173,13 +186,17 @@ const storeRemoteAsset = async (
     });
     if (outcome.kind !== "ok") {
       console.warn("[linkMetadata] Remote asset fetch unavailable");
+      if (retryTransient) {
+        throw new Error(`${REMOTE_ASSET_RETRYABLE_PREFIX}unavailable`);
+      }
       return null;
     }
     if (!outcome.data.stored) {
-      console.warn("[linkMetadata] Remote asset skipped", {
-        reason: outcome.data.reason,
-        status: outcome.data.status,
-      });
+      const { reason, status } = outcome.data;
+      console.warn("[linkMetadata] Remote asset skipped", { reason, status });
+      if (retryTransient && isTransientAssetMiss(reason, status)) {
+        throw new Error(`${REMOTE_ASSET_RETRYABLE_PREFIX}${status ?? reason}`);
+      }
       return null;
     }
     return {
@@ -191,12 +208,19 @@ const storeRemoteAsset = async (
         : {}),
     };
   } catch (error) {
-    if (error instanceof Error && error.name === "NonRetryableError") {
+    if (
+      error instanceof Error &&
+      (error.name === "NonRetryableError" ||
+        error.message.startsWith(REMOTE_ASSET_RETRYABLE_PREFIX))
+    ) {
       throw error;
     }
     console.warn("[linkMetadata] Remote asset fetch error", {
       message: error instanceof Error ? error.message : String(error),
     });
+    if (retryTransient) {
+      throw new Error(`${REMOTE_ASSET_RETRYABLE_PREFIX}error`);
+    }
     return null;
   }
 };
@@ -205,12 +229,14 @@ export const storeLinkPreviewImage = async (
   job: CardJob,
   loaded: LoadedCard,
   imageUrl: string,
-  pageUrl: string
+  pageUrl: string,
+  { retryTransient = false }: { retryTransient?: boolean } = {}
 ) => {
   const stored = await storeRemoteAsset(job, loaded, imageUrl, {
     fallbackContentType: guessImageContentType(imageUrl) ?? undefined,
     kind: "image",
     pageUrl,
+    retryTransient,
     role: "link-preview-image",
   });
   if (!(stored?.width && stored.height)) {
@@ -222,6 +248,44 @@ export const storeLinkPreviewImage = async (
     imageUpdatedAt: stored.updatedAt,
     imageWidth: stored.width,
   };
+};
+
+/**
+ * A second try at the preview image the metadata step couldn't store because
+ * its host was busy (GitHub's image server answers 429 to a burst of saves).
+ * It throws a retryable error while the host keeps refusing, so the step's
+ * retries space the attempts out; the preview itself is already saved.
+ */
+export const retryLinkPreviewImage = async (
+  job: CardJob
+): Promise<{ status: "skipped" | "stored" }> => {
+  const loaded = await loadCard(job);
+  const preview = loaded?.card.metadata?.linkPreview;
+  if (
+    loaded?.card.type !== "link" ||
+    preview?.status !== "success" ||
+    !preview.imageUrl ||
+    preview.imageStorageKey
+  ) {
+    return { status: "skipped" };
+  }
+  const pageUrl = preview.finalUrl ?? preview.url ?? loaded.card.url ?? "";
+  const stored = await storeLinkPreviewImage(
+    job,
+    loaded,
+    preview.imageUrl,
+    pageUrl,
+    { retryTransient: true }
+  );
+  if (!stored) {
+    return { status: "skipped" };
+  }
+  await job.deps.convex.mutation(
+    internal.linkMetadata.updateCardPreviewImage,
+    { cardId: job.cardId, imageUrl: preview.imageUrl, ...stored },
+    guardOf(job)
+  );
+  return { status: "stored" };
 };
 
 const storeLinkPreviewMediaItem = async (

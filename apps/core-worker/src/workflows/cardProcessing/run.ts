@@ -39,6 +39,7 @@ import {
   fetchLinkMetadata,
   keepPreviewAfterFailedRefresh,
   parseLinkMetadataRetryableError,
+  retryLinkPreviewImage,
 } from "./linkMetadata";
 import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
@@ -77,6 +78,8 @@ const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
 const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
 const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
+// A busy image host (429 or 5xx) gets about 7½ minutes to come back.
+const PREVIEW_IMAGE_STEP = retryConfig(5, 30_000, "5 minutes");
 
 const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
@@ -424,6 +427,21 @@ const processCard = async (
     }
     metadata = metadataRun.value;
     renderables = renderablesRun.value;
+  }
+
+  if (cardType === "link") {
+    await step
+      .do("store link preview image", PREVIEW_IMAGE_STEP, () =>
+        retryLinkPreviewImage(job)
+      )
+      .catch((error: unknown) => {
+        rethrowSuperseded(error);
+        console.warn("[cardProcessing] Link preview image not stored", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
   }
 
   if (cardType === "link" && metadata?.mode === "completed") {

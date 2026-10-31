@@ -382,3 +382,70 @@ export const updateCardScreenshot = internalMutation({
   },
   handler: updateCardScreenshotHandler,
 });
+
+/**
+ * Attaches a preview image stored after the preview itself (a retry once the
+ * image's host stopped refusing). It applies only while the preview still
+ * names that image and has none stored; otherwise the new object is deleted.
+ */
+export const updateCardPreviewImageHandler = async (
+  ctx: MutationCtx,
+  {
+    cardId,
+    imageHeight,
+    imageStorageKey,
+    imageUpdatedAt,
+    imageUrl,
+    imageWidth,
+  }: {
+    cardId: Id<"cards">;
+    imageHeight: number;
+    imageStorageKey: string;
+    imageUpdatedAt: number;
+    imageUrl: string;
+    imageWidth: number;
+  }
+) => {
+  const card = await ctx.db.get("cards", cardId);
+  const preview = card?.metadata?.linkPreview;
+  if (
+    card?.type !== "link" ||
+    preview?.status !== "success" ||
+    preview.imageUrl !== imageUrl ||
+    preview.imageStorageKey
+  ) {
+    await queueObjectDeletion(ctx, imageStorageKey);
+    return false;
+  }
+  return await commitCardStorageSwap(
+    ctx,
+    cardId,
+    {
+      metadata: {
+        ...card.metadata,
+        linkPreview: {
+          ...preview,
+          imageHeight,
+          imageStorageKey,
+          imageUpdatedAt,
+          imageWidth,
+        },
+      },
+      updatedAt: Date.now(),
+    },
+    { introduced: [imageStorageKey], replaced: [] }
+  );
+};
+
+export const updateCardPreviewImage = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    imageHeight: v.number(),
+    imageStorageKey: v.string(),
+    imageUpdatedAt: v.number(),
+    imageUrl: v.string(),
+    imageWidth: v.number(),
+  },
+  returns: v.boolean(),
+  handler: updateCardPreviewImageHandler,
+});

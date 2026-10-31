@@ -7,7 +7,7 @@ After a card is saved, Teak works on it in the background: it settles the card's
 - `processing-stages` takes a new card's `processingStatus` stages (classify, categorize, metadata, renderables) from pending to completed, with the AI tags and summary readable on the card.
 - `ai-language` writes the AI tags and summary in the content's main language (English when it has none, or for an image with no text) and stores that language as `cards.aiLanguage` (`ja`, `es`…). It isn't in the public API or the UI; read it from the run's output or the card document.
 - `processing-run` is the Workflow run behind it: one instance per card revision, named `card-<cardId>-<rev>`, with its steps, attempts, output and errors.
-- `processing-files` covers what a run stores in the Files bucket (thumbnails, previews, screenshots) under the account's key prefix.
+- `processing-files` covers what a run stores in the Files bucket (thumbnails, previews, screenshots) under the account's key prefix. A link's preview image that its host refused with 429 or a 5xx is tried again in the run's "store link preview image" step, about 7½ minutes in all, and lands as `linkPreview.imageStorageKey`; a 404 or a non-image is not retried.
 - `processing-logs` covers the Core Worker's logs and traces for a run: warnings, errors and each invocation's outcome.
 - `processing-crons` covers the Core Worker's scheduled jobs (maintenance, AI usage rollup, export cleanup), started on demand.
 
