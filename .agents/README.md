@@ -22,7 +22,7 @@ Teak's own deployments, credentials, runbooks and records.
 | `claude-directory.md` | submit or update Teak's listing in Claude's directory (connector and plugin) |
 | `convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
 | `self-driving.md` | run the daily production check (it holds that routine's log) |
-| `migrations/workos/README.md` | touch the retained Better Auth data or Connect disconnects |
+| `migrations/workos/README.md` | look up the WorkOS cutover, its backups, or Connect disconnects |
 | `sunset.md` | keep code only for old clients or old data, or remove some |
 
 ## Plans

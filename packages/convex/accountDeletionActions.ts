@@ -10,7 +10,6 @@ import {
   type AccountDeletionStage,
 } from "./accountDeletion/stages";
 import { closeBillingCustomer } from "./billing";
-import { deleteLegacyBetterAuthRows } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
 import { WORKOS_USER_ID } from "./shared/workosIds";
 
@@ -72,10 +71,7 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
     }
     return true;
   },
-  retainedRecordsAndAnalytics: async (ctx, state) => {
-    if (state.betterAuthUserId) {
-      await deleteLegacyBetterAuthRows(ctx, state.betterAuthUserId);
-    }
+  retainedRecordsAndAnalytics: async (_ctx, state) => {
     await deletePostHogPerson(state.userId);
     return true;
   },

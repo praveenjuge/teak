@@ -7,24 +7,15 @@ exist. The full phase plans and evidence are in git history before this file.
 
 ## Retained data and backups
 
-- The Better Auth Convex component stays mounted only for retained data. No
-  Better Auth runtime code remains: no client, triggers or sign-in. Its only
-  uses are account deletion cleanup (`packages/convex/legacyBetterAuth.ts`,
-  which removes a legacy owner's rows; finalization redacts the owner's
-  address) and the backup exporter
-  (`packages/convex/migration/exportBetterAuth.ts`, nine models including
-  `twoFactor`). `@convex-dev/better-auth` and its `better-auth` peer stay
-  installed for the mount.
-- Removing the retained Better Auth data, unmounting the component, or deleting
-  customer data needs separate explicit owner approval.
-- Encrypted local evidence: `/Users/praveenjuge/Documents/TeakMigrationBackups/2026-10-03-phase-r`.
-- Encrypted remote copy: private R2 bucket `teak-workos-migration-backup-20261003`
-  (APAC Standard). The approved migration plan is in it as `approved-plan.txt.gpg`.
-- Never remove either copy before the approved retention period.
-- `admin:getOperations` stopped counting retained Better Auth users in
-  October 2026, since the number no longer changes after the cutover. To read
-  it, page the component's `user` model
-  (`components.betterAuth.adapter.findMany`).
+- On 31 October 2026, with the owner's approval, the retained Better Auth data
+  was deleted from the production and dev deployments and the component was
+  unmounted. No Better Auth code or package remains.
+- The only copy of that data is an encrypted local backup:
+  `/Users/praveenjuge/Documents/TeakMigrationBackups/2026-10-31-before-unmount`
+  (every model with rows, checked against production's row counts before the
+  delete). The earlier set from the cutover is in `2026-10-03-phase-r` beside
+  it. The R2 copy no longer exists.
+- Deleting either local backup needs explicit owner approval.
 
 ## Connect disconnects
 

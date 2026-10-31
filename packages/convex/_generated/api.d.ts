@@ -163,7 +163,6 @@ import type * as inbound_http from "../inbound/http.js";
 import type * as inbound_ingest from "../inbound/ingest.js";
 import type * as inbound_settings from "../inbound/settings.js";
 import type * as index from "../index.js";
-import type * as legacyBetterAuth from "../legacyBetterAuth.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_bluesky from "../linkMetadata/bluesky.js";
 import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
@@ -194,7 +193,6 @@ import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
-import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
@@ -529,7 +527,6 @@ declare const fullApi: ApiFromModules<{
   "inbound/ingest": typeof inbound_ingest;
   "inbound/settings": typeof inbound_settings;
   index: typeof index;
-  legacyBetterAuth: typeof legacyBetterAuth;
   linkMetadata: typeof linkMetadata;
   "linkMetadata/bluesky": typeof linkMetadata_bluesky;
   "linkMetadata/instagram": typeof linkMetadata_instagram;
@@ -560,7 +557,6 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
-  "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;
@@ -761,7 +757,6 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
-  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
   rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;

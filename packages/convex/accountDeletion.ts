@@ -12,7 +12,6 @@ import {
 } from "./accountDeletion/stages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextRows } from "./card/textContents";
-import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import {
   getDeletionRetryPrincipal,
   getSessionUser,
@@ -228,13 +227,11 @@ export const initiateAccountDeletion = async (
   if (owner.deletedAt !== undefined) {
     return null;
   }
-  const legacy = await findLegacyBetterAuthUser(ctx, owner);
   const startedAt = Date.now();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
     startedAt,
     initiationProvider: "workos",
-    ...(legacy ? { betterAuthUserId: legacy._id } : {}),
     ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
     stage: accountDeletionStage("accessAndBilling"),
     generation: 1,

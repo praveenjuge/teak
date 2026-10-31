@@ -441,10 +441,7 @@ export default defineSchema({
   accountDeletionStates: defineTable({
     userId: v.string(),
     startedAt: v.number(),
-    initiationProvider: v.optional(
-      v.union(v.literal("betterauth"), v.literal("workos"))
-    ),
-    betterAuthUserId: v.optional(v.string()),
+    initiationProvider: v.optional(v.literal("workos")),
     workosUserId: v.optional(v.string()),
     workosTarget: v.optional(
       v.object({

@@ -3,9 +3,6 @@ import { describe, expect, mock, test } from "bun:test";
 mock.module("@convex-dev/polar/convex.config", () => ({
   default: { componentDefinitionPath: "polar" },
 }));
-mock.module("@convex-dev/better-auth/convex.config", () => ({
-  default: { componentDefinitionPath: "better-auth" },
-}));
 mock.module("@convex-dev/rate-limiter/convex.config", () => ({
   default: { componentDefinitionPath: "rateLimiterV2" },
 }));
