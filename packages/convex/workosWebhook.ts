@@ -217,53 +217,8 @@ export const recordDeadLetter = internalMutation({
   },
 });
 
-// The registration Action (signup freeze), verified on the exact body like the
-// webhook. The component's own route checks re-serialized JSON instead.
-export const workosAction = httpAction(async (ctx, request) => {
-  const kit = authKit;
-  const secret = env.WORKOS_ACTION_SECRET;
-  if (!(kit && secret)) {
-    return new Response("Action unavailable", { status: 503 });
-  }
-  const signature = request.headers.get("workos-signature");
-  if (!signature || signature.length > 1024) {
-    return new Response("Invalid signature", { status: 401 });
-  }
-  if (
-    request.headers.get("content-type")?.split(";", 1)[0].trim() !==
-    "application/json"
-  ) {
-    return new Response("Expected JSON", { status: 415 });
-  }
-  const payload = await readResponseTextWithinLimit(
-    new Response(request.body),
-    64 * 1024
-  );
-  if (payload === null) {
-    return new Response("Payload too large", { status: 413 });
-  }
-  let action: Awaited<ReturnType<typeof kit.workos.actions.constructAction>>;
-  try {
-    action = await kit.workos.actions.constructAction({
-      payload,
-      sigHeader: signature,
-      secret,
-    });
-  } catch {
-    return new Response("Invalid action", { status: 401 });
-  }
-  const verdict = await ctx.runMutation(internal.workosAuthKit.authKitAction, {
-    action,
-  });
-  const signed = await kit.workos.actions.signResponse(verdict, secret);
-  return new Response(JSON.stringify(signed), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-});
-
-// Teak serves the component's two provider routes itself, verifying each on
-// the exact request body.
+// Teak serves the component's webhook route itself, verifying it on the exact
+// request body.
 export const registerWorkosRoutes = (http: HttpRouter) => {
   if (!authKit) {
     return;
@@ -273,5 +228,4 @@ export const registerWorkosRoutes = (http: HttpRouter) => {
     method: "POST",
     handler: workosWebhook,
   });
-  http.route({ path: "/workos/action", method: "POST", handler: workosAction });
 };

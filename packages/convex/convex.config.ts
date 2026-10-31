@@ -20,7 +20,6 @@ const app = defineApp({
     WORKOS_CONNECT_FIREFOX_CLIENT_ID: v.optional(v.string()),
     WORKOS_ENVIRONMENT_ID: v.optional(v.string()),
     WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
-    WORKOS_ACTION_SECRET: v.optional(v.string()),
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
     WORKFLOW_RPC_SECRET: v.optional(v.string()),
