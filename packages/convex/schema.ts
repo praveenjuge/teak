@@ -68,14 +68,6 @@ export default defineSchema({
       "reason",
       "resolvedAt",
     ]),
-  // The removed WorkOS webhook's tables: nothing reads or writes them, and
-  // they stay until production's are empty (.agents/sunset.md).
-  workosWebhookDeadLetters: defineTable({
-    eventId: v.string(),
-    event: v.string(),
-    reason: v.string(),
-    receivedAt: v.number(),
-  }).index("by_eventId", ["eventId"]),
   devPushLeases: defineTable({
     name: v.string(),
     holderId: v.optional(v.string()),
@@ -84,16 +76,6 @@ export default defineSchema({
     lastPush: v.optional(
       v.object({ label: v.string(), commit: v.string(), at: v.number() })
     ),
-  }).index("by_name", ["name"]),
-  // See workosWebhookDeadLetters.
-  workosEventCursors: defineTable({
-    name: v.string(),
-    // Missing until the first event is applied.
-    after: v.optional(v.string()),
-    // The event the catch-up keeps failing on, and how many runs it failed.
-    failingEventId: v.optional(v.string()),
-    failedAttempts: v.optional(v.number()),
-    updatedAt: v.number(),
   }).index("by_name", ["name"]),
   workosApplicationDisconnects: defineTable({
     recoveryReceipt: v.optional(disconnectRecoveryReceipt),
