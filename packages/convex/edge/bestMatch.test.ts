@@ -1,5 +1,4 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -14,7 +13,6 @@ const modules = import.meta.glob("../**/*.ts");
 const setup = async () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
-  workflowTest.register(t);
   const workosUserId = await seedWorkosOwner(t, "owner");
   const owner = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
