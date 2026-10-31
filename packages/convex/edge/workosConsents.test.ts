@@ -62,7 +62,6 @@ describe("signed-in Connect management", () => {
   beforeEach(() => {
     vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
     vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
-    vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
     vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", "https://consent-tests.authkit.app");
     vi.stubGlobal("fetch", (_url: unknown, options?: RequestInit) =>
       Promise.resolve(
