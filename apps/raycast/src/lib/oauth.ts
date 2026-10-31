@@ -21,7 +21,7 @@ class TeakRefreshRevokedError extends TeakSessionExpiredError {}
 class TeakRefreshUnavailableError extends Error {}
 class TeakRefreshClientRejectedError extends Error {}
 const reconnectAfterSignOut =
-  "Sign Out before reconnecting, then wait five minutes for disconnect to finish.";
+  "Sign Out before reconnecting, then wait 15 minutes for disconnect to finish.";
 export class TeakSignOutRequiredError extends Error {
   constructor() {
     super(reconnectAfterSignOut);

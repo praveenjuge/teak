@@ -341,7 +341,7 @@ export function beginOAuthSignIn(): Promise<void> {
     const saved = await readCredentials();
     if (saved && matches(saved, auth) && !saved.userId) {
       throw new Error(
-        "Sign out before reconnecting, then wait five minutes for disconnect to finish."
+        "Sign out before reconnecting, then wait 15 minutes for disconnect to finish."
       );
     }
     const state = randomBase64Url(32);

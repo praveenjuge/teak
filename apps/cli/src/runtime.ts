@@ -583,7 +583,7 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
     !saved.binding?.ownerId
   ) {
     throw new Error(
-      "Run teak logout before signing in again, then wait five minutes for disconnect to finish."
+      "Run teak logout before signing in again, then wait 15 minutes for disconnect to finish."
     );
   }
   const verifier = randomBase64Url(32);
