@@ -92,16 +92,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "WorkOS callback signing secret. Separate per environment.",
   }),
-  spec("WORKOS_ACTION_SECRET", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: true,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
-    note: "WorkOS callback signing secret. Separate per environment.",
-  }),
   spec("SITE_URL", {
     owners: ["@teak/convex"],
     targets: ["convex"],

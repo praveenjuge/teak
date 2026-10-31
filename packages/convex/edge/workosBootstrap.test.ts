@@ -219,14 +219,6 @@ describe("signed WorkOS bootstrap", () => {
     ).toEqual(result);
     expect((await state(t)).users).toHaveLength(1);
   });
-  test("ensureUserNow answers as ensureUser", async () => {
-    const t = setup();
-    await profile(t);
-    expect(
-      await signed(t).action(api.workosBootstrap.ensureUserNow, {})
-    ).toMatchObject({ status: "ok" });
-    expect((await state(t)).users).toHaveLength(1);
-  });
   test("a session without an email claim and no profile creates nothing", async () => {
     const t = setup();
     expect(await signed(t, { email: undefined }).mutation(ensure, {})).toEqual({

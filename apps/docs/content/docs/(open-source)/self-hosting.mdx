@@ -36,10 +36,9 @@ Create one WorkOS environment per deployment: a staging environment for local de
    ```
 
 4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
-5. Optional: add a user registration Action at `<convex-site>/workos/action` so Teak can refuse new sign-ups while they're paused. Copy its secret into `WORKOS_ACTION_SECRET`.
-6. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
+5. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
 
-The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
+The webhook route exists only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
 
 `convex.json` declares AuthKit redirect URIs and CORS origins under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
 
@@ -108,12 +107,11 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     ```bash
     bunx convex env set SITE_URL http://localhost:3000
 
-    # Sign-in: client, webhook and optional sign-up Action
+    # Sign-in: client and webhook
     bunx convex env set WORKOS_CLIENT_ID client_...
     bunx convex env set WORKOS_API_KEY
     bunx convex env set WORKOS_ENVIRONMENT_ID environment_...
     bunx convex env set WORKOS_WEBHOOK_SECRET
-    bunx convex env set WORKOS_ACTION_SECRET
 
     # Optional: files and AI card processing, through your Core Worker
     bunx convex env set FILES_BASE https://files.yourdomain.com
@@ -193,7 +191,6 @@ WORKOS_CLIENT_ID=client_...
 WORKOS_API_KEY=sk_test_...
 WORKOS_ENVIRONMENT_ID=environment_...
 WORKOS_WEBHOOK_SECRET=secret
-WORKOS_ACTION_SECRET=secret                  # Optional: sign-up Action
 WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, extensions, Raycast, MCP
 WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origin>/api and <origin>/mcp (default https://teakvault.com)
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, and FIREFOX client IDs

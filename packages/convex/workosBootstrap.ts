@@ -1,7 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
-import { action, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { mutation } from "./_generated/server";
 import {
   getWorkosBootstrapIdentity,
   readWorkosProfile,
@@ -15,7 +15,6 @@ const bootstrapResult = v.union(
   v.object({ status: v.literal("frozen") }),
   v.object({ status: v.literal("quarantined"), reason: v.string() })
 );
-type BootstrapResult = typeof bootstrapResult.type;
 
 // Creates the Teak owner on first sign-in from the signed session claims, so
 // a new account never waits for the webhook. Released apps still handle
@@ -69,12 +68,4 @@ export const ensureUser = mutation({
       ? resolved
       : { status: "quarantined" as const, reason: resolved.reason };
   },
-});
-
-// Web builds already loaded in a browser call this. It is `ensureUser` now.
-export const ensureUserNow = action({
-  args: {},
-  returns: bootstrapResult,
-  handler: async (ctx): Promise<BootstrapResult> =>
-    await ctx.runMutation(api.workosBootstrap.ensureUser, {}),
 });

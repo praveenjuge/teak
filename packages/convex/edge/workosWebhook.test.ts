@@ -105,7 +105,6 @@ describe.each([
     vi.stubEnv("WORKOS_CLIENT_ID", "client_readiness_test");
     vi.stubEnv("WORKOS_API_KEY", "sk_test_readiness");
     vi.stubEnv("WORKOS_WEBHOOK_SECRET", secret);
-    vi.stubEnv("WORKOS_ACTION_SECRET", "isolated-action-signing-fixture");
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -292,40 +291,6 @@ describe.each([
     expect(await snapshot(t)).toEqual(before);
   });
 
-  test("the preserved signed registration Action denies frozen sign-ups", async () => {
-    const t = await setupPaused();
-    const body = JSON.stringify({
-      id: "action_registration",
-      object: "user_registration_action_context",
-      user_data: {
-        object: "user_data",
-        email: "new-person@example.com",
-        name: null,
-        first_name: "New",
-        last_name: "Person",
-      },
-    });
-    const before = await snapshot(t);
-    const response = await t.fetch("/workos/action", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "workos-signature": await signature(
-          body,
-          "isolated-action-signing-fixture"
-        ),
-      },
-      body,
-    });
-    expect(response.status).toBe(200);
-    const result = await response.json();
-    expect(result.object).toBe("user_registration_action_response");
-    expect(result.payload.verdict).toBe("Deny");
-    expect(result.payload.error_message).toContain("paused");
-    expect(typeof result.signature).toBe("string");
-    expect(await snapshot(t)).toEqual(before);
-  });
-
   test("a signed payload Teak can never apply is dead-lettered once and acknowledged", async () => {
     const t = await setupPaused();
     await seed(t);
@@ -400,47 +365,6 @@ describe.each([
           .unique()
       )
     ).toMatchObject({ reason: "Invalid WorkOS event context" });
-  });
-
-  test("the registration Action verifies the exact signed body, not re-serialized JSON", async () => {
-    const t = await setupPaused();
-    const body = JSON.stringify(
-      {
-        id: "action_pretty",
-        object: "user_registration_action_context",
-        user_data: {
-          object: "user_data",
-          email: "new-person@example.com",
-          name: null,
-          first_name: "New",
-          last_name: "Person",
-        },
-      },
-      null,
-      2
-    );
-    const response = await t.fetch("/workos/action", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "workos-signature": await signature(
-          body,
-          "isolated-action-signing-fixture"
-        ),
-      },
-      body,
-    });
-    expect(response.status).toBe(200);
-    expect((await response.json()).payload.verdict).toBe("Deny");
-    const forged = await t.fetch("/workos/action", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "workos-signature": await signature(body, "wrong-secret"),
-      },
-      body,
-    });
-    expect(forged.status).toBe(401);
   });
 
   test("malformed signed JSON writes nothing", async () => {
