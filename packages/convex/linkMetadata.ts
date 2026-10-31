@@ -409,8 +409,7 @@ export const updateCardPreviewImageHandler = async (
   const card = await ctx.db.get("cards", cardId);
   const preview = card?.metadata?.linkPreview;
   if (
-    !card ||
-    card.type !== "link" ||
+    card?.type !== "link" ||
     preview?.status !== "success" ||
     preview.imageUrl !== imageUrl ||
     preview.imageStorageKey
