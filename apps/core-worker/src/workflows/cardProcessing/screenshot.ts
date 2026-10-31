@@ -5,7 +5,10 @@ import {
   stageFailed,
 } from "@teak/convex/card/processingStatus";
 import { normalizeUrl } from "@teak/convex/linkMetadata/url";
-import type { FilesCaptureScreenshotResult } from "@teak/files-protocol";
+import type {
+  FilesCaptureScreenshotParams,
+  FilesCaptureScreenshotResult,
+} from "@teak/files-protocol";
 import type { StepConfig } from "../runtime";
 import {
   type CardJob,
@@ -85,6 +88,66 @@ const recordStage = (job: CardJob, screenshot: ProcessingStageStatus) =>
     guardOf(job)
   );
 
+/** Asks the renderer for the screenshot; a busy renderer is retried. */
+const render = async (
+  job: CardJob,
+  params: FilesCaptureScreenshotParams
+): Promise<
+  Awaited<ReturnType<typeof job.deps.filesOp<FilesCaptureScreenshotResult>>>
+> => {
+  try {
+    return await job.deps.filesOp<FilesCaptureScreenshotResult>({
+      op: "capture-screenshot",
+      params,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "NonRetryableError") {
+      throw error;
+    }
+    console.warn("[screenshot] Renderer unavailable", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return throwRetryable({
+      message: error instanceof Error ? error.message : String(error),
+      type: "renderer_unavailable",
+    });
+  }
+};
+
+const save = async (
+  job: CardJob,
+  screenshotKey: string,
+  { height, width }: FilesCaptureScreenshotResult
+): Promise<ScreenshotOutcome> => {
+  await job.deps.convex.mutation(
+    internal.linkMetadata.updateCardScreenshot,
+    {
+      cardId: job.cardId,
+      screenshotHeight: height,
+      screenshotStorageKey: screenshotKey,
+      screenshotUpdatedAt: Date.now(),
+      screenshotWidth: width,
+    },
+    guardOf(job)
+  );
+  return { status: "captured" };
+};
+
+/** The key the screenshot is written to, registered to the card's owner. */
+const screenshotTarget = async (
+  job: CardJob,
+  userId: string
+): Promise<string | null> => {
+  const loaded = await loadCard(job);
+  if (!loaded) {
+    return null;
+  }
+  const key = objectKey(loaded, { cardId: job.cardId, role: "screenshot" });
+  await ensureObjectOwnership(job, userId, key);
+  return key;
+};
+
 const capture = async (
   job: CardJob,
   attempt: number
@@ -102,6 +165,27 @@ const capture = async (
   }
   if (linkPreview.screenshotStorageKey && attempt === 1) {
     return { status: "skipped" };
+  }
+
+  // The saved copy carries the page's own styles, fonts and images; the
+  // fetched page would render without them, since the renderer is offline.
+  let screenshotKey: string | null = null;
+  if (card.archiveKey) {
+    screenshotKey = await screenshotTarget(job, card.userId);
+    if (!screenshotKey) {
+      return { status: "skipped" };
+    }
+    const outcome = await render(job, {
+      archiveKey: card.archiveKey,
+      destinationKey: screenshotKey,
+    });
+    if (outcome.kind === "ok") {
+      return await save(job, screenshotKey, outcome.data);
+    }
+    console.warn("[screenshot] Saved copy declined; capturing the page", {
+      cardId: job.cardId,
+      code: outcome.code,
+    });
   }
 
   let page: Awaited<ReturnType<typeof fetchLinkPageForCard>>;
@@ -140,40 +224,14 @@ const capture = async (
     };
   }
 
-  const loaded = await loadCard(job);
-  if (!loaded) {
+  screenshotKey ??= await screenshotTarget(job, card.userId);
+  if (!screenshotKey) {
     return { status: "skipped" };
   }
-  const screenshotKey = objectKey(loaded, {
-    cardId: job.cardId,
-    role: "screenshot",
+  const outcome = await render(job, {
+    destinationKey: screenshotKey,
+    htmlGzipBase64: page.data.htmlGzipBase64,
   });
-  await ensureObjectOwnership(job, card.userId, screenshotKey);
-
-  let outcome: Awaited<
-    ReturnType<typeof job.deps.filesOp<FilesCaptureScreenshotResult>>
-  >;
-  try {
-    outcome = await job.deps.filesOp<FilesCaptureScreenshotResult>({
-      op: "capture-screenshot",
-      params: {
-        destinationKey: screenshotKey,
-        htmlGzipBase64: page.data.htmlGzipBase64,
-      },
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "NonRetryableError") {
-      throw error;
-    }
-    console.warn("[screenshot] Renderer unavailable", {
-      cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return throwRetryable({
-      message: error instanceof Error ? error.message : String(error),
-      type: "renderer_unavailable",
-    });
-  }
   if (outcome.kind === "fallback") {
     return {
       reason: `declined:${outcome.code.toLowerCase()}:${outcome.message}`.slice(
@@ -183,18 +241,7 @@ const capture = async (
       status: "failed",
     };
   }
-  await job.deps.convex.mutation(
-    internal.linkMetadata.updateCardScreenshot,
-    {
-      cardId: job.cardId,
-      screenshotHeight: outcome.data.height,
-      screenshotStorageKey: screenshotKey,
-      screenshotUpdatedAt: Date.now(),
-      screenshotWidth: outcome.data.width,
-    },
-    guardOf(job)
-  );
-  return { status: "captured" };
+  return await save(job, screenshotKey, outcome.data);
 };
 
 export const captureScreenshotStep = async (

@@ -131,6 +131,65 @@ describe("screenshot", () => {
     expect(fakes.opsCalled()).toEqual(["fetch-link-page"]);
   });
 
+  const ARCHIVE_KEY = `users/u/cards/${CARD_ID}/page-archive/r1-archive.html`;
+  const archivedCard = (kind: "full" | "text_only") =>
+    Object.assign(linkCard(), {
+      pageArchive: { kind, storageKey: ARCHIVE_KEY },
+    });
+
+  test("renders the saved copy, styles and all, without fetching the page", async () => {
+    const { capture, convex, fakes } = setup(archivedCard("full"), {
+      "capture-screenshot": CAPTURED,
+    });
+
+    expect(await capture()).toEqual({ status: "captured" });
+    expect(fakes.opsCalled()).toEqual(["capture-screenshot"]);
+    const params = fakes.calls[0]?.params as Record<string, string>;
+    expect(params).toEqual({
+      archiveKey: ARCHIVE_KEY,
+      destinationKey: expect.stringContaining(`/${CARD_ID}/screenshot/`),
+    });
+    expect(
+      convex.callsTo("linkMetadata:updateCardScreenshot")[0]?.args
+    ).toMatchObject({ screenshotStorageKey: params.destinationKey });
+  });
+
+  test("falls back to the page when the saved copy is declined, under the same key", async () => {
+    const { capture, convex, fakes } = setup(archivedCard("full"), {
+      "capture-screenshot": (params) =>
+        params.archiveKey
+          ? { fallback: "NOT_FOUND", message: "source_not_found" }
+          : CAPTURED,
+      "fetch-link-page": PAGE,
+    });
+
+    expect(await capture()).toEqual({ status: "captured" });
+    expect(fakes.opsCalled()).toEqual([
+      "capture-screenshot",
+      "fetch-link-page",
+      "capture-screenshot",
+    ]);
+    const [fromCopy, fromPage] = fakes.calls
+      .filter((call) => call.op === "capture-screenshot")
+      .map((call) => call.params as Record<string, string>);
+    expect(fromPage?.htmlGzipBase64).toBeDefined();
+    expect(fromPage?.destinationKey).toBe(fromCopy?.destinationKey);
+    expect(convex.callsTo("storage/ownership:registerObject")).toHaveLength(1);
+  });
+
+  test("a text-only copy is skipped for the page", async () => {
+    const { capture, fakes } = setup(archivedCard("text_only"), {
+      "capture-screenshot": CAPTURED,
+      "fetch-link-page": PAGE,
+    });
+
+    expect(await capture()).toEqual({ status: "captured" });
+    expect(fakes.opsCalled()).toEqual([
+      "fetch-link-page",
+      "capture-screenshot",
+    ]);
+  });
+
   test("records a page the renderer declines as failed", async () => {
     const { capture } = setup(linkCard(), {
       "capture-screenshot": { fallback: "UNSUPPORTED", message: "too tall" },

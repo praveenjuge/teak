@@ -290,6 +290,11 @@ The ops:
   and WebSocket, EventSource and `sendBeacon` are disabled before the HTML
   loads. The screenshot is a 1280×720 JPEG; a scrape returns attributes, text
   and inner HTML per selector (≤128 selectors, ≤100 elements each).
+  `capture-screenshot` takes a link's saved copy instead when it has a full
+  one (`archiveKey`, read from the bucket, ≤24 MiB): its styles, fonts and
+  images are inline, so the offline render looks like the page. A missing
+  copy answers `NOT_FOUND` and an oversized one `PAYLOAD_TOO_LARGE`, and the
+  card processing workflow then captures the fetched page.
 - `render-pdf-thumbnail` renders page 1 of a PDF with `pdftoppm` and writes a
   PNG (≤1600px each way) to `destinationKey`.
 - `extract-video-frame` writes one JPEG frame (10% in, clamped to 1–5s, or 0s

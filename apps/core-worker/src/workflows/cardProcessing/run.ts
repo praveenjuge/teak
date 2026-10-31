@@ -444,53 +444,6 @@ const processCard = async (
       });
   }
 
-  if (cardType === "link" && metadata?.mode === "completed") {
-    await step
-      .do(
-        "capture screenshot",
-        SCREENSHOT_STEP,
-        reported("card.screenshot", "screenshot", 4, (ctx) =>
-          captureScreenshotStep(job, ctx.attempt)
-        )
-      )
-      .catch(async (error: unknown) => {
-        rethrowSuperseded(error);
-        console.error("[cardProcessing] Screenshot failed", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await step.do("mark screenshot failed", CONVEX_STEP, async () => {
-          const loaded = await loadCard(job);
-          const status = loaded?.card.processingStatus?.screenshot?.status;
-          if (!loaded || status === "completed" || status === "failed") {
-            return null;
-          }
-          await job.deps.convex.mutation(
-            internal.ai.mutations.updateCardProcessing,
-            {
-              cardId: job.cardId,
-              processingStatus: {
-                screenshot: stageFailed(Date.now(), "screenshot_error"),
-              },
-            },
-            guardOf(job)
-          );
-          return null;
-        });
-        return null;
-      });
-    await step
-      .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
-      .catch((error: unknown) => {
-        rethrowSuperseded(error);
-        console.warn("[cardProcessing] Link image text failed", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      });
-  }
-
   await step
     .do("emit completion", NO_RETRY("1 minute"), async () => {
       await emitCardProcessingCompleted(job.env, {
@@ -516,6 +469,7 @@ const processCard = async (
   // Then the article in it, and a summary written from that.
   if (cardType === "link") {
     await archivePageStep(job, step);
+    await linkScreenshotSteps(job, step, reported, metadata);
     await articleSteps(job, step);
   }
 
@@ -550,6 +504,66 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
+
+/**
+ * "capture screenshot" from the saved copy (so it keeps the page's styles),
+ * then "read link image text" from the preview image or that screenshot.
+ * They follow the archive; only a superseded run's error escapes.
+ */
+const linkScreenshotSteps = async (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"],
+  reported: Reported,
+  metadata: MetadataResult | null
+): Promise<void> => {
+  if (metadata?.mode !== "completed") {
+    return;
+  }
+  await step
+    .do(
+      "capture screenshot",
+      SCREENSHOT_STEP,
+      reported("card.screenshot", "screenshot", 4, (ctx) =>
+        captureScreenshotStep(job, ctx.attempt)
+      )
+    )
+    .catch(async (error: unknown) => {
+      rethrowSuperseded(error);
+      console.error("[cardProcessing] Screenshot failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await step.do("mark screenshot failed", CONVEX_STEP, async () => {
+        const loaded = await loadCard(job);
+        const status = loaded?.card.processingStatus?.screenshot?.status;
+        if (!loaded || status === "completed" || status === "failed") {
+          return null;
+        }
+        await job.deps.convex.mutation(
+          internal.ai.mutations.updateCardProcessing,
+          {
+            cardId: job.cardId,
+            processingStatus: {
+              screenshot: stageFailed(Date.now(), "screenshot_error"),
+            },
+          },
+          guardOf(job)
+        );
+        return null;
+      });
+      return null;
+    });
+  await step
+    .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
+    .catch((error: unknown) => {
+      rethrowSuperseded(error);
+      console.warn("[cardProcessing] Link image text failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
+};
 
 /**
  * "archive page", and "mark archive failed" once its retries are spent; only
