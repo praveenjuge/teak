@@ -262,8 +262,7 @@ export const retryLinkPreviewImage = async (
   const loaded = await loadCard(job);
   const preview = loaded?.card.metadata?.linkPreview;
   if (
-    !loaded ||
-    loaded.card.type !== "link" ||
+    loaded?.card.type !== "link" ||
     preview?.status !== "success" ||
     !preview.imageUrl ||
     preview.imageStorageKey
