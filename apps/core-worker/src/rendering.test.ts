@@ -277,6 +277,41 @@ describe("rendering operations", () => {
   );
 
   test.each([
+    ["is gone", null, 404, "NOT_FOUND"],
+    [
+      "is over the size a render may take",
+      25 * 1024 * 1024,
+      413,
+      "PAYLOAD_TOO_LARGE",
+    ],
+  ])(
+    "capture-screenshot declines a saved copy that %s, before opening a browser",
+    async (_name, size, expectedStatus, code) => {
+      const bucket = new FakeBucket();
+      const archiveKey = "users/u/cards/c/page-archive/r1-archive.html";
+      if (size !== null) {
+        await bucket.put(archiveKey, new Uint8Array(size));
+      }
+      let browserCalls = 0;
+      const browserRun = {
+        fetch: () => {
+          browserCalls += 1;
+          return Promise.resolve(new Response("unexpected", { status: 500 }));
+        },
+      };
+      const { body, status } = await callOp(
+        { BROWSER: browserRun, BUCKET: bucket as never } as never,
+        "capture-screenshot",
+        { archiveKey, destinationKey: destination }
+      );
+      expect(status).toBe(expectedStatus);
+      expect(body.error?.code).toBe(code);
+      expect(browserCalls).toBe(0);
+      expect(bucket.objects.has(destination)).toBe(false);
+    }
+  );
+
+  test.each([
     ["another user's namespace", "users/other/cards/c/thumbnail/frame.jpg"],
     ["a traversal path", "users/u/cards/../../other/x.jpg"],
     ["the source itself", source],

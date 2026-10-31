@@ -237,10 +237,10 @@ describe("card processing", () => {
       "categorize",
       "generate metadata",
       "store link preview image",
-      "capture screenshot",
-      "read link image text",
       "emit completion",
       "archive page",
+      "capture screenshot",
+      "read link image text",
       "extract article",
       "report complete",
     ]);
@@ -265,13 +265,17 @@ describe("card processing", () => {
       "in_progress",
       "completed",
     ]);
+    // The metadata and the saved copy fetch the page; the screenshot is taken
+    // from that copy, so it keeps the page's styles.
     expect(ops.opsCalled().filter((op) => op === "fetch-link-page")).toEqual([
-      "fetch-link-page",
       "fetch-link-page",
       "fetch-link-page",
     ]);
     const capture = ops.calls.find((call) => call.op === "capture-screenshot");
-    expect(capture?.params.htmlGzipBase64).toBe(page.data.htmlGzipBase64);
+    expect(capture?.params).toEqual({
+      archiveKey: (card.pageArchive as { storageKey: string }).storageKey,
+      destinationKey: expect.stringContaining("/screenshot/"),
+    });
     expect(convex.callsTo("linkMetadata:updateCardScreenshot")).toHaveLength(1);
   });
 
@@ -371,12 +375,12 @@ describe("card processing", () => {
       "categorize",
       "generate metadata",
       "store link preview image",
-      "capture screenshot",
-      "read link image text",
       "emit completion",
       "find podcast episode",
       "transcribe podcast",
       "archive page",
+      "capture screenshot",
+      "read link image text",
       "extract article",
       "report complete",
     ]);
@@ -384,10 +388,9 @@ describe("card processing", () => {
     expect(
       Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
     ).not.toContain("in_progress");
-    expect(fakeStep.records.at(-4)).toMatchObject({
-      name: "transcribe podcast",
-      outcome: "ok",
-    });
+    expect(
+      fakeStep.records.find((record) => record.name === "transcribe podcast")
+    ).toMatchObject({ outcome: "ok" });
     expect(card.aiTranscript).toBe("Today, leaves.");
     expect(card.workflowArtifactKeys).toEqual([]);
     expect(result).toMatchObject({ mode: "completed" });
@@ -483,10 +486,9 @@ describe("card processing", () => {
 
     const result = await run();
 
-    expect(fakeStep.records.at(-4)).toMatchObject({
-      name: "transcribe podcast",
-      outcome: "error",
-    });
+    expect(
+      fakeStep.records.find((record) => record.name === "transcribe podcast")
+    ).toMatchObject({ outcome: "error" });
     expect(result).toMatchObject({ mode: "completed" });
     expect(reported(convex)).toEqual(["complete"]);
   });
@@ -1201,7 +1203,7 @@ describe("archive page", () => {
   const archiveCalls = (ops: ReturnType<typeof setup>["ops"]) =>
     ops.calls.filter((call) => call.op === "archive-page");
 
-  test("is a link's last step, and records the copy under a key registered first", async () => {
+  test("comes after a link's completion, and records the copy under a key registered first", async () => {
     const card = makeCard({
       content: "https://example.com/article",
       processingStatus: {
@@ -1224,8 +1226,10 @@ describe("archive page", () => {
 
     await run();
 
-    expect(fakeStep.names().slice(-3)).toEqual([
+    expect(fakeStep.names().slice(-5)).toEqual([
       "archive page",
+      "capture screenshot",
+      "read link image text",
       "extract article",
       "report complete",
     ]);
@@ -1421,9 +1425,11 @@ describe("archive page", () => {
         .map((delay) => delay.delay)
     ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
     // With no copy there is no article to wait for: its stage closes.
-    expect(fakeStep.names().slice(-4)).toEqual([
+    expect(fakeStep.names().slice(-6)).toEqual([
       "archive page",
       "mark archive failed",
+      "capture screenshot",
+      "read link image text",
       "extract article",
       "report complete",
     ]);

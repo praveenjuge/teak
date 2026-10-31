@@ -31,6 +31,6 @@ Mint a key first (`bun .agents/skills/verify-teak/scripts/api-key.ts mint`), wit
 
 - The view is built from `packages/mcp-app` into `packages/convex/mcp/appHtml.generated.ts`; after changing the view, run `bun run build` in `packages/mcp-app` (its test fails when they differ), and let the dev stack push before reading the resource.
 - The dev deployment's `appUrl` points at `http://localhost:3000`, and its sandbox domain and files origin are dev's own, not production's.
-- Link images come from the dev Core Worker's renderer; some dev screenshots are unstyled pages. That's dev data, not the view.
+- Link images come from the dev Core Worker's renderer; screenshots taken before 31 Oct 2026 can be unstyled pages (they were rendered from the fetched page, not the saved copy). That's old data, not the view.
 - Browser sign-in (OAuth) can't complete in a cloud session: the plugin's own server (`https://teakvault.com/mcp`) needs it, so drive commands with the API-key config above. The real Claude consent flow is checked by hand before a directory submission (`.agents/claude-directory.md`).
 - `scripts/mcp-app-host.ts` imitates a host from the MCP Apps spec; it doesn't prove how Claude itself sizes or frames the view.

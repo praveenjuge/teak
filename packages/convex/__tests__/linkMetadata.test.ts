@@ -499,6 +499,29 @@ test("screenshot reader retains existing screenshot guard without preview raw da
   ).toBeNull();
 });
 
+test.each([
+  ["full", "u/cards/c1/page-archive/r1-archive.html"],
+  ["text_only", undefined],
+])(
+  "screenshot reader names a %s saved copy only when it has styles",
+  async (kind, expected) => {
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue({
+      pageArchive: {
+        kind,
+        storageKey: "u/cards/c1/page-archive/r1-archive.html",
+      },
+      type: "link",
+      url: "https://example.com",
+      userId: "owner",
+    });
+    const result = await getCardForScreenshotHandler(ctx, {
+      cardId: testId("cards", "c1"),
+    });
+    expect(result?.archiveKey).toBe(expected);
+  }
+);
+
 describe("updateCardPreviewImage", () => {
   const image = {
     cardId: testId("cards", "c1"),

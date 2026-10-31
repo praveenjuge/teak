@@ -314,6 +314,33 @@ const validSourceKey = (params: Record<string, unknown>): string => {
 
 const MAX_INSPECT_BYTES = 64 * 1024 * 1024;
 
+const validArchiveKey = (params: Record<string, unknown>): string => {
+  const archiveKey = requiredString(params, "archiveKey");
+  if (!isValidUploadKey(archiveKey)) {
+    throw new Error("invalid_storage_key");
+  }
+  return archiveKey;
+};
+
+// A saved copy stays within its 20 MiB budget; this leaves room for markup
+// and stays well under the 32 MiB a message to Browser Run may carry.
+const MAX_SCREENSHOT_ARCHIVE_BYTES = 24 * 1024 * 1024;
+
+const readArchiveHtml = async (
+  bucket: R2Bucket,
+  key: string
+): Promise<string> => {
+  const object = await bucket.get(key);
+  if (!object) {
+    throw new OpFailure("source_not_found");
+  }
+  if (object.size > MAX_SCREENSHOT_ARCHIVE_BYTES) {
+    await object.body.cancel().catch(() => undefined);
+    throw new OpFailure("source_too_large");
+  }
+  return await object.text();
+};
+
 const validDestinationKey = (params: Record<string, unknown>): string => {
   const destinationKey = requiredString(params, "destinationKey");
   if (!isValidUploadKey(destinationKey)) {
@@ -748,7 +775,10 @@ const dispatch = async (
     case "capture-screenshot": {
       const destinationKey = validDestinationKey(params);
       const acquire = browserAcquirer(env);
-      const html = await decodeHtmlParam(params.htmlGzipBase64);
+      const html =
+        params.archiveKey === undefined
+          ? await decodeHtmlParam(params.htmlGzipBase64)
+          : await readArchiveHtml(env.BUCKET, validArchiveKey(params));
       const jpeg = await captureHtmlScreenshot(acquire, html);
       await env.BUCKET.put(destinationKey, jpeg, {
         httpMetadata: { contentType: "image/jpeg" },

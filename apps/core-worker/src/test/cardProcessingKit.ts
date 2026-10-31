@@ -185,6 +185,13 @@ export const createCardConvex = (
     "linkMetadata:getCardForScreenshot": () =>
       card
         ? {
+            ...((card.pageArchive as { kind?: string } | undefined)?.kind ===
+            "full"
+              ? {
+                  archiveKey: (card.pageArchive as { storageKey: string })
+                    .storageKey,
+                }
+              : {}),
             metadata: (card.metadata as Record<string, unknown> | undefined)
               ?.linkPreview
               ? {
