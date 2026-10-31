@@ -30,7 +30,7 @@ exist. The full phase plans and evidence are in git history before this file.
 
 Disconnecting an app deletes its grant at WorkOS, then marks every consent Teak
 has seen for that app as revoked; those tokens are denied at once. A token from
-a consent Teak hasn't seen stops working when it expires, within five minutes.
+a consent Teak hasn't seen stops working when it expires, within 15 minutes.
 If WorkOS can't be reached, nothing changes and the user can retry.
 
 A disconnect left `unknown` or `dispatched` by the previous flow still denies
