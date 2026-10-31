@@ -11,7 +11,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 - `auth-site-hint` marks the browser signed in for teakvault.com (cookie `teak_session_hint=1`) after sign-in and clears it on sign-out. The site's header then shows "Open Teak" instead of "Login" and "Register", and its sign-up buttons link to the app.
 - `auth-sign-out-settings` signs out from the Settings page.
 - `auth-sign-out-palette` signs out from the command palette.
-- `auth-first-sign-in` gives a brand-new WorkOS user a vault on their first sign-in: the signed session's claims (address, verification, name) create the account. Teak has no WorkOS webhook.
+- `auth-first-sign-in` gives a brand-new WorkOS user a vault on their first sign-in: the signed session's claims (address, verification, name) create the account. The web callback runs `ensureUser` right after it redirects, so the app's first query usually finds the account; the app runs `ensureUser` itself only when it doesn't. Teak has no WorkOS webhook.
 
 ## How to get to it (user POV)
 
@@ -46,6 +46,7 @@ Steps:
 - Before signing in, from `packages/convex`, `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex data users --limit 50` has no row with that user's `workosUserId` (the `id` from the POST). The command must report `anonymous deployment`.
 - `open_session`, sign in with that address (both emulator buttons are "Continue"). The app opens on `/` with the combobox "Search everything" within a few seconds, not "Loading your account" retries. `navigate` to `/settings`: the account's address is shown.
 - Proof: the same `convex data users` command now shows one row with that `workosUserId`, `email` the address, `emailVerified: true` and `name: "Verify Run"`.
+- Callback proof: start `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex logs --success` before signing in. The sign-in logs one `M(workosBootstrap:ensureUser)`, before the new session's first `Q(auth:getAuthUser)`.
 - Clean up: delete the test account from Settings → Security.
 
 ## Gotchas
