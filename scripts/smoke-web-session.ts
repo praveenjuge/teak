@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 import { loadTargetEnv } from "./env-loader.ts";
-import { readDevWorkosApiKey } from "./setup-workos.ts";
 import {
   cookieHeader,
   createWorkosTestSession,
   describeWorkosError,
 } from "./lib/workos-test-session.ts";
+import { readDevWorkosApiKey } from "./setup-workos.ts";
 
 export const SMOKE_VERSION = 2;
 
