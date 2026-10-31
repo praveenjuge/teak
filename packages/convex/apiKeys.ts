@@ -104,7 +104,7 @@ const listComponentKeysByStatus = async (
     status,
   });
 
-export const countActiveKeysForOwner = async (
+const countActiveKeysForOwner = async (
   ctx: QueryCtx | MutationCtx,
   ownerId: string
 ): Promise<number> =>
@@ -446,21 +446,14 @@ export const validateUserApiKey = internalMutation({
   },
 });
 
-/** Revokes up to one page of an owner's active keys; `more` when a page was full. */
-export const revokeActiveKeysPage = async (
-  ctx: MutationCtx,
-  ownerId: string
-): Promise<{ revoked: number; more: boolean }> => {
-  const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
-  for (const key of keys) {
-    await revokeComponentKey(ctx, { keyId: key.keyId, ownerId });
-  }
-  return { revoked: keys.length, more: keys.length === LIST_LIMIT };
-};
-
 export const revokeDeletionKeysPage = internalMutation({
   args: { ownerId: v.string() },
   returns: v.boolean(),
-  handler: async (ctx, { ownerId }) =>
-    (await revokeActiveKeysPage(ctx, ownerId)).more,
+  handler: async (ctx, { ownerId }) => {
+    const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
+    for (const key of keys) {
+      await revokeComponentKey(ctx, { keyId: key.keyId, ownerId });
+    }
+    return keys.length === LIST_LIMIT;
+  },
 });
