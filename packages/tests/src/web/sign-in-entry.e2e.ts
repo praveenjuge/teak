@@ -20,11 +20,8 @@ describe("Web sign-in entry", () => {
     screen,
   }) => {
     const pageErrors = await capturePageErrors(browser);
-    expect(await redirectTarget("/login?next=%2Fsettings")).toBe(
-      "/sign-in?next=%2Fsettings"
-    );
-    expect(await redirectTarget("/register")).toBe("/sign-up");
-    await gotoApp(browser, "/login?next=%2Fsettings");
+    expect(await redirectTarget("/settings")).toBe("/sign-in?next=%2Fsettings");
+    await gotoApp(browser, "/settings");
     await expect(screen.getByLabel("Email")).toBeVisible();
     expect(new URL(await browser.url()).origin).not.toBe(
       new URL(env.appUrl).origin
@@ -38,7 +35,7 @@ describe("Web sign-in entry", () => {
     screen,
   }) => {
     await routeConvexSocket(browser, { unreachable: true });
-    await gotoApp(browser, "/login");
+    await gotoApp(browser, "/sign-in");
     await expect(screen.getByLabel("Email")).toBeVisible();
     expect(new URL(await browser.url()).origin).not.toBe(
       new URL(env.appUrl).origin

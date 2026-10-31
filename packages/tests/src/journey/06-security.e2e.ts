@@ -67,7 +67,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
             };
           })
         ),
-      ["/login", "/settings"]
+      ["/sign-in", "/settings"]
     );
     expect(responses).toHaveLength(2);
     for (const response of responses) {

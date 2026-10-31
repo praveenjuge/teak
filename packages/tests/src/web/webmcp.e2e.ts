@@ -105,7 +105,7 @@ test.describe("WebMCP", () => {
     webAccount: _signedIn,
   }) => {
     const home = browser.waitForResponse(appPath("/"));
-    await gotoApp(browser, "/login");
+    await gotoApp(browser, "/sign-in");
     const response = await home;
     expect(response.status).toBe(200);
     expect(response.headers["permissions-policy"]).toContain("tools=(self)");

@@ -5,7 +5,6 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 ## Sub-features
 
 - `auth-redirect` sends an anonymous visit to `/sign-in?next=<path>`, which hands off to the hosted page.
-- `auth-aliases` redirects `/login` to `/sign-in` and `/register` to `/sign-up`, keeping `next`.
 - `auth-sign-in` signs in through the hosted email step, then the password step.
 - `auth-return` lands on `next`, or `/` when there is none.
 - `auth-signed-in-entry` sends a signed-in visit to `/sign-in` or `/sign-up` straight to `next` (or `/`) without the hosted page. `/sign-in?reauth=1` (after a failed callback) and `/sign-in?renew=1` (the app's "Sign in" buttons on "Please sign in again." and "Your session changed") still go through the hosted page.
@@ -17,7 +16,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 ## How to get to it (user POV)
 
 - Open any app URL, such as `http://localhost:3000/` or `/settings`, while signed out.
-- Open `/login` or `/sign-in` directly.
+- Open `/sign-in` directly.
 - Signed in: Settings → "Sign out".
 - Signed in: Ctrl+K (⌘K on a Mac) → type "sign out" → Enter.
 - Signed in: open `/sign-in` or `/sign-up`, as the site's buttons do.
@@ -36,7 +35,7 @@ Steps:
 - **Email step.** `type` the email into textbox "Email", then `tap` button "Continue with email". The page changes to the password step: textbox "Email" shows the address, textbox "Password" is focused, and there's a link "Change email".
 - **Password step.** `type` the password into textbox "Password", then `tap` button "Sign in". The app opens on `/`, with heading "Everything", sidebar links "Everything", "Favorites", "Tags", "Archive", "Trash" and "Settings", and the combobox "Search everything". Cards may show as the status "Loading cards" for up to a minute on a cold stack.
 - **Deep link.** Signed out, `navigate` to `/settings`, then sign in. The app lands on `/settings` (heading "Settings"), not `/`.
-- **Sign out from Settings.** `navigate` to `/settings`, wait for heading "Settings", `tap` button "Sign out". The hosted page with textbox "Email" appears. Proof: `navigate` to `/settings` again; it lands on the hosted page, not the app.
+- **Sign out from Settings.** `navigate` to `/settings`, wait for heading "Settings", `tap` button "Sign out". The app passes through `/sign-in` (not `/login`), and the hosted page with textbox "Email" appears. Proof: `navigate` to `/settings` again; it lands on the hosted page, not the app.
 - **Signed-in entry.** Signed in, `navigate` to `/sign-in?next=%2Fsettings`. The app opens on `/settings` (heading "Settings") and the URL never leaves `localhost`. `navigate` to `/sign-up`: the app opens on `/`.
 - **Site hint.** After signing in, the browser holds cookie `teak_session_hint` with value `1` on the app's host (read it with the browser's cookie list, not the screen). After signing out it is gone. On the built site, with that cookie set for the site's host, the header has link "Open Teak" and no "Login" or "Register"; without it, the reverse. Hovering "Register" adds `<link rel="preconnect">` tags for the app and the sign-in hosts.
 - **Sign out from the palette.** Signed in, with focus outside a text field, `press` "Control+k". Dialog "Command palette" opens with the combobox "Search commands, folders and cards". `type` "sign out", `press` "Enter". The hosted sign-in page appears.

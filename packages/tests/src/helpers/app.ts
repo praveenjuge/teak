@@ -118,7 +118,7 @@ const enterCredentials = async (
   password: string
 ) => {
   const { browser, screen } = surface;
-  await gotoApp(browser, "/login");
+  await gotoApp(browser, "/sign-in");
   await expectHostedSignIn(surface);
   await screen.getByLabel("Email").fill(email);
   await submitHostedForm(screen);
@@ -168,7 +168,7 @@ export const expectWrongPassword = async (
 
 export const expectSignInRefused = async (surface: Surface, email: string) => {
   const { browser, screen } = surface;
-  await gotoApp(browser, "/login");
+  await gotoApp(browser, "/sign-in");
   await expectHostedSignIn(surface);
   await screen.getByLabel("Email").fill(email);
   await submitHostedForm(screen);
