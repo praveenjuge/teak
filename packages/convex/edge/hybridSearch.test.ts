@@ -224,6 +224,33 @@ describe("hybrid search in the grid", () => {
     ]);
   });
 
+  test("never marks a word match as related on the full-card path either", async () => {
+    const env = await setup();
+    const cards = await seedLibrary(env);
+    await env.cache("reading nook", [
+      { id: cards.keyword, score: STRONG },
+      { id: cards.armchair, score: STRONG },
+    ]);
+    // Best-match sorting with stored relevance scores sends the search down
+    // the path that loads every card instead of ranking from documents.
+    const page = await env.owner.query(api.cards.searchCardsPaginated, {
+      searchQuery: "reading nook",
+      sort: "relevance",
+      useRelevanceScores: true,
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    const related = Object.fromEntries(
+      page.page.map((card: { _id: string; matchedByMeaning?: true }) => [
+        card._id,
+        card.matchedByMeaning ?? false,
+      ])
+    );
+    expect(related).toEqual({
+      [cards.armchair]: true,
+      [cards.keyword]: false,
+    });
+  });
+
   test("merges strong meaning matches with keyword matches, newest first", async () => {
     const env = await setup();
     const cards = await seedLibrary(env);

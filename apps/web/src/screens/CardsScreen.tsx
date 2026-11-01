@@ -443,7 +443,10 @@ export function CardsScreen({
 
   const { isSeekingFirstMatch, requestMore: requestMoreCards } =
     useLoadUntilMatches({
-      count: cards.length,
+      // What's shown, not what loaded: a page whose cards are all hidden
+      // (related cards with "Hide related", or a smart folder's filter) must
+      // still load the next one.
+      count: displayCards.length,
       loadMore,
       pageSize: SEARCH_DEFAULT_CARD_LIMIT,
       status: cardsStatus,
