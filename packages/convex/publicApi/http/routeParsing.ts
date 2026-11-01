@@ -413,18 +413,29 @@ export const parseCardRoute = (
   return null;
 };
 
-export const parseFolderRoute = (
-  request: Request
-): { folderId: string; cards: boolean } | null => {
+export type FolderRoute =
+  | { folderId: string; kind: "folder" | "cards" }
+  | { folderId: string; kind: "ruleRun" | "undoRuleRun"; runId: string };
+
+export const parseFolderRoute = (request: Request): FolderRoute | null => {
   const segments = new URL(request.url).pathname.split("/").filter(Boolean);
   if (segments[0] !== "v1" || segments[1] !== "folders" || !segments[2]) {
     return null;
   }
+  const folderId = segments[2];
   if (segments.length === 3) {
-    return { folderId: segments[2], cards: false };
+    return { folderId, kind: "folder" };
   }
   if (segments.length === 4 && segments[3] === "cards") {
-    return { folderId: segments[2], cards: true };
+    return { folderId, kind: "cards" };
+  }
+  if (segments[3] === "rule-runs" && segments[4]) {
+    if (segments.length === 5) {
+      return { folderId, kind: "ruleRun", runId: segments[4] };
+    }
+    if (segments.length === 6 && segments[5] === "undo") {
+      return { folderId, kind: "undoRuleRun", runId: segments[4] };
+    }
   }
   return null;
 };

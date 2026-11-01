@@ -4,6 +4,7 @@ import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
   FOLDER_COLORS,
+  MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDER_NAME_LENGTH,
   MAX_SMART_FOLDER_QUERY_LENGTH,
@@ -246,12 +247,18 @@ const folderColorSchema = z.enum(FOLDER_COLORS);
 const smartFolderQuerySchema = nonEmptyString.max(
   MAX_SMART_FOLDER_QUERY_LENGTH
 );
+const folderRuleInputFields = {
+  autoTags: z.array(nonEmptyString).max(MAX_FOLDER_AUTO_TAGS).optional(),
+  autoFileQuery: smartFolderQuerySchema.or(z.null()).optional(),
+  autoFileEnabled: z.boolean().optional(),
+};
 const createFolderInputSchema = z
   .strictObject({
     name: folderNameSchema,
     color: folderColorSchema.optional(),
     kind: z.enum(["manual", "smart"]).optional(),
     query: smartFolderQuerySchema.optional(),
+    ...folderRuleInputFields,
   })
   .refine((value) => (value.kind === "smart") === (value.query !== undefined), {
     message: 'A smart folder needs `query`, and `query` needs kind "smart"',
@@ -263,17 +270,26 @@ const updateFolderInputSchema = z
     name: folderNameSchema.optional(),
     color: folderColorSchema.or(z.null()).optional(),
     query: smartFolderQuerySchema.optional(),
+    ...folderRuleInputFields,
   })
   .refine(
     (value) =>
       value.name !== undefined ||
       value.color !== undefined ||
-      value.query !== undefined,
+      value.query !== undefined ||
+      value.autoTags !== undefined ||
+      value.autoFileQuery !== undefined ||
+      value.autoFileEnabled !== undefined,
     {
-      message: "Provide name, color or query",
+      message:
+        "Provide name, color, query, autoTags, autoFileQuery or autoFileEnabled",
       path: ["name"],
     }
   );
+const folderRuleRunInputSchema = z.strictObject({
+  folderId: idSchema,
+  runId: idSchema,
+});
 const folderIdInputSchema = z.strictObject({ folderId: idSchema });
 const deleteFolderInputSchema = z.strictObject({
   folderId: idSchema,
@@ -940,6 +956,23 @@ const toolConfigs: Record<string, ToolRun> = {
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
       `Removed ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
+  }),
+  teak_v1_get_folder_rule_run: defineTool({
+    schema: folderRuleRunInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: `${folderPath(input.folderId)}/rule-runs/${encodeURIComponent(input.runId)}`,
+    }),
+    summary: (payload) =>
+      `Rule run ${String(payload.status ?? "")}: filed ${countLabel(Number(payload.filedCount) || 0, "card")}, tagged ${countLabel(Number(payload.taggedCount) || 0, "card")}`,
+  }),
+  teak_v1_undo_folder_rule_run: defineTool({
+    schema: folderRuleRunInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: `${folderPath(input.folderId)}/rule-runs/${encodeURIComponent(input.runId)}/undo`,
+    }),
+    summary: (payload) => `Undoing rule run ${String(payload.id ?? "")}`,
   }),
   teak_v1_list_highlights: defineTool({
     schema: listHighlightsInputSchema,

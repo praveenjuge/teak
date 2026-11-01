@@ -9,6 +9,7 @@ import {
   type FolderColor,
   type FolderKind,
   isFolderColor,
+  MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../../shared/folders";
@@ -449,6 +450,9 @@ export const validateFavoritePayload = (
 type FolderPayload =
   | {
       payload: {
+        autoFileEnabled?: boolean;
+        autoFileQuery?: string | null;
+        autoTags?: string[];
         color?: FolderColor | null;
         kind?: FolderKind;
         name?: string;
@@ -465,10 +469,11 @@ export const parseFolderPayload = (
     return { error: "Body must be a JSON object" };
   }
   const source = payload as Record<string, unknown>;
+  const ruleKeys = ["autoTags", "autoFileQuery", "autoFileEnabled"];
   const allowed =
     mode === "create"
-      ? ["name", "color", "kind", "query"]
-      : ["name", "color", "query"];
+      ? ["name", "color", "kind", "query", ...ruleKeys]
+      : ["name", "color", "query", ...ruleKeys];
   for (const key of Object.keys(source)) {
     if (!allowed.includes(key)) {
       return {
@@ -477,11 +482,38 @@ export const parseFolderPayload = (
     }
   }
   const next: {
+    autoFileEnabled?: boolean;
+    autoFileQuery?: string | null;
+    autoTags?: string[];
     color?: FolderColor | null;
     kind?: FolderKind;
     name?: string;
     query?: string;
   } = {};
+  if ("autoTags" in source) {
+    const tags = parseStringArray(source.autoTags);
+    if (tags === undefined || tags.length > MAX_FOLDER_AUTO_TAGS) {
+      return {
+        error: `\`autoTags\` must be an array of at most ${MAX_FOLDER_AUTO_TAGS} tags`,
+      };
+    }
+    next.autoTags = tags;
+  }
+  if ("autoFileQuery" in source) {
+    if (
+      source.autoFileQuery !== null &&
+      typeof source.autoFileQuery !== "string"
+    ) {
+      return { error: "`autoFileQuery` must be a string or null" };
+    }
+    next.autoFileQuery = source.autoFileQuery;
+  }
+  if ("autoFileEnabled" in source) {
+    if (typeof source.autoFileEnabled !== "boolean") {
+      return { error: "`autoFileEnabled` must be a boolean" };
+    }
+    next.autoFileEnabled = source.autoFileEnabled;
+  }
   if ("name" in source) {
     if (typeof source.name !== "string") {
       return { error: "`name` must be a string" };
@@ -526,7 +558,10 @@ export const parseFolderPayload = (
     }
   }
   if (mode === "update" && Object.keys(next).length === 0) {
-    return { error: "Body must include `name`, `color` or `query`" };
+    return {
+      error:
+        "Body must include `name`, `color`, `query`, `autoTags`, `autoFileQuery` or `autoFileEnabled`",
+    };
   }
   return { payload: next };
 };

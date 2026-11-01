@@ -274,6 +274,11 @@ export const serializeFolder = (folder: {
   kind: string;
   name: string;
   query?: string;
+  ruleRunId?: string;
+  rules?: {
+    autoFile: { enabled: boolean; query: string } | null;
+    autoTags: string[];
+  };
   updatedAt: number;
 }) => ({
   id: folder._id,
@@ -282,8 +287,33 @@ export const serializeFolder = (folder: {
   kind: folder.kind,
   query: folder.kind === "smart" ? (folder.query ?? "") : null,
   cardCount: folder.kind === "smart" ? null : folder.activeCardCount,
+  rules:
+    folder.kind === "smart"
+      ? null
+      : (folder.rules ?? { autoTags: [], autoFile: null }),
+  ruleRunId: folder.ruleRunId ?? null,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
+});
+
+export const serializeFolderRuleRun = (run: {
+  _id: string;
+  canUndo: boolean;
+  completedAt?: number;
+  createdAt: number;
+  filedCount: number;
+  folderId: string;
+  status: string;
+  taggedCount: number;
+}) => ({
+  id: run._id,
+  folderId: run.folderId,
+  status: run.status,
+  filedCount: run.filedCount,
+  taggedCount: run.taggedCount,
+  canUndo: run.canUndo,
+  createdAt: run.createdAt,
+  completedAt: run.completedAt ?? null,
 });
 
 export const serializeHighlight = (highlight: {

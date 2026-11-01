@@ -16,6 +16,7 @@ import {
   type ExportJob,
   type Folder,
   type FolderColor,
+  type FolderRuleRun,
   type Highlight,
   type LatestExport,
   type TagOperation,
@@ -574,13 +575,149 @@ export const resolveFolder = async (
   return match;
 };
 
+export const formatFolderRules = (folder: Folder): string[] => {
+  const parts: string[] = [];
+  if (folder.rules?.autoTags.length) {
+    parts.push(`adds tags: ${folder.rules.autoTags.join(", ")}`);
+  }
+  if (folder.rules?.autoFile) {
+    parts.push(
+      `files: ${folder.rules.autoFile.query}${folder.rules.autoFile.enabled ? "" : " (paused)"}`
+    );
+  }
+  return parts;
+};
+
 export const formatFolderLine = (folder: Folder) =>
   [
     folder.id,
     (folder.kind === "smart" ? "-" : String(folder.cardCount)).padStart(4),
     folder.color ? `${folder.name} (${folder.color})` : folder.name,
     ...(folder.kind === "smart" ? [`smart: ${folder.query ?? ""}`] : []),
+    ...formatFolderRules(folder),
   ].join("  ");
+
+export const formatRuleRun = (run: FolderRuleRun) =>
+  [
+    `Rule run ${run.id}: ${run.status}`,
+    `filed ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}`,
+    ...(run.canUndo ? ["(can be undone)"] : []),
+  ].join("  ");
+
+const waitForRuleRun = async (
+  api: TeakClient,
+  folderId: string,
+  started: FolderRuleRun,
+  intervalMs?: number
+) => {
+  let run = started;
+  let delay = intervalMs ?? FIRST_POLL_MS;
+  while (run.status === "running" || run.status === "undoing") {
+    if (process.stderr.isTTY) {
+      process.stderr.write(
+        `\rFiled ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`
+      );
+    }
+    await sleep(delay);
+    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
+    run = await api.folders.getRuleRun(folderId, run.id);
+  }
+  if (process.stderr.isTTY) {
+    process.stderr.write("\r\x1b[K");
+  }
+  return run;
+};
+
+export interface FolderRuleOptions {
+  autoFile?: string | false;
+  autoTag?: string[];
+  autoTags?: false;
+  pause?: boolean;
+  resume?: boolean;
+}
+
+const ruleInput = (options: FolderRuleOptions) => ({
+  ...(options.autoTag === undefined ? {} : { autoTags: options.autoTag }),
+  ...(options.autoTags === false ? { autoTags: [] } : {}),
+  ...(options.autoFile === undefined
+    ? {}
+    : { autoFileQuery: options.autoFile === false ? null : options.autoFile }),
+  ...(options.pause ? { autoFileEnabled: false } : {}),
+  ...(options.resume ? { autoFileEnabled: true } : {}),
+});
+
+export const setFolderRules = async (
+  ref: string,
+  options: GlobalOptions &
+    FolderRuleOptions & { intervalMs?: number; wait?: boolean }
+) => {
+  if (options.pause && options.resume) {
+    throw new InvalidArgumentError("choose --pause or --resume, not both");
+  }
+  const input = ruleInput(options);
+  const api = client(options);
+  const folder = await resolveFolder(api, ref);
+  if (Object.keys(input).length === 0) {
+    write(options.json ? folder : formatFolderLine(folder), options);
+    return;
+  }
+  const updated = await api.folders.update(folder.id, input);
+  const startedRun =
+    updated.ruleRunId && updated.ruleRunId !== folder.ruleRunId
+      ? await api.folders.getRuleRun(updated.id, updated.ruleRunId)
+      : null;
+  const run =
+    startedRun && options.wait
+      ? await waitForRuleRun(api, updated.id, startedRun, options.intervalMs)
+      : startedRun;
+  write(
+    options.json
+      ? { folder: updated, ruleRun: run }
+      : [formatFolderLine(updated), ...(run ? [formatRuleRun(run)] : [])].join(
+          "\n"
+        ),
+    options
+  );
+};
+
+const latestRunId = (folder: Folder, runId?: string) => {
+  const id = runId ?? folder.ruleRunId ?? undefined;
+  if (!id) {
+    throw new TeakApiError("NOT_FOUND", `${folder.name} has no rule run yet`);
+  }
+  return id;
+};
+
+export const folderRuleRunStatus = async (
+  ref: string,
+  runId: string | undefined,
+  options: GlobalOptions & { intervalMs?: number; wait?: boolean }
+) => {
+  const api = client(options);
+  const folder = await resolveFolder(api, ref);
+  let run = await api.folders.getRuleRun(folder.id, latestRunId(folder, runId));
+  if (options.wait) {
+    run = await waitForRuleRun(api, folder.id, run, options.intervalMs);
+  }
+  write(options.json ? run : formatRuleRun(run), options);
+};
+
+export const undoFolderRuleRun = async (
+  ref: string,
+  runId: string | undefined,
+  options: GlobalOptions & { intervalMs?: number; wait?: boolean }
+) => {
+  const api = client(options);
+  const folder = await resolveFolder(api, ref);
+  let run = await api.folders.undoRuleRun(
+    folder.id,
+    latestRunId(folder, runId)
+  );
+  if (options.wait) {
+    run = await waitForRuleRun(api, folder.id, run, options.intervalMs);
+  }
+  write(options.json ? run : formatRuleRun(run), options);
+};
 
 export const showFolder = async (ref: string, options: GlobalOptions) => {
   const api = client(options);
@@ -598,12 +735,22 @@ export const listFolders = async (options: GlobalOptions) => {
 
 export const createFolder = async (
   name: string,
-  options: GlobalOptions & { color?: FolderColor; query?: string }
+  options: GlobalOptions &
+    Pick<FolderRuleOptions, "autoFile" | "autoTag"> & {
+      color?: FolderColor;
+      query?: string;
+    }
 ) => {
   const color = options.color ? { color: options.color } : {};
+  const rules = ruleInput(options);
+  if (options.query !== undefined && Object.keys(rules).length > 0) {
+    throw new InvalidArgumentError(
+      "smart folders have no rules; drop --query or the rule options"
+    );
+  }
   const folder = await client(options).folders.create(
     options.query === undefined
-      ? { name, ...color }
+      ? { name, ...color, ...rules }
       : { name, ...color, kind: "smart", query: options.query }
   );
   write(options.json ? folder : formatFolderLine(folder), options);

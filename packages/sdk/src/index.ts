@@ -64,6 +64,7 @@ export const ERROR_CODES = [
   "PARSE_ERROR",
   "QUOTE_NOT_FOUND",
   "RATE_LIMITED",
+  "RULE_LIMIT",
   "REQUEST_FAILED",
   "SERVICE_UNAVAILABLE",
   "SMART_FOLDER",
@@ -295,7 +296,51 @@ export interface Folder {
   name: string;
   /** A smart folder's search; null for a manual folder. */
   query: string | null;
+  /**
+   * The folder's latest rule run, which saving its rules starts. Follow it
+   * with `folders.getRuleRun`. Missing from servers older than folder rules.
+   */
+  ruleRunId?: string | null;
+  /** A manual folder's rules; null for a smart folder. */
+  rules?: FolderRules | null;
   updatedAt: number;
+}
+export interface FolderRules {
+  /**
+   * A search that files matching cards into the folder once their AI tags
+   * are written; null when the folder has none.
+   */
+  autoFile: { enabled: boolean; query: string } | null;
+  /** Tags every card that joins the folder gets, however it joins. */
+  autoTags: string[];
+}
+/** Rule fields a manual folder accepts on create and update. */
+export interface FolderRulesInput {
+  /** False pauses the auto-file search without clearing it. */
+  autoFileEnabled?: boolean;
+  /** A search without like: or mood:; null clears it. */
+  autoFileQuery?: string | null;
+  /** Up to 10 tags; an empty list clears them. */
+  autoTags?: string[];
+}
+export type FolderRuleRunStatus =
+  | "running"
+  | "done"
+  | "undoing"
+  | "undone"
+  | "superseded";
+/** A pass of a folder's rules over the library; it can be undone for a day. */
+export interface FolderRuleRun {
+  canUndo: boolean;
+  completedAt: number | null;
+  createdAt: number;
+  /** Cards the run filed into the folder. */
+  filedCount: number;
+  folderId: string;
+  id: string;
+  status: FolderRuleRunStatus;
+  /** Cards the run added tags to. */
+  taggedCount: number;
 }
 export type TagOperationKind = "rename" | "merge" | "delete";
 export type TagOperationStatus = "running" | "completed" | "failed";
@@ -809,6 +854,19 @@ const asFolder = (value: unknown): Folder => {
     );
   }
   return value as unknown as Folder;
+};
+const asFolderRuleRun = (value: unknown): FolderRuleRun => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== "string" ||
+    typeof value.status !== "string"
+  ) {
+    throw new TeakApiError(
+      "PARSE_ERROR",
+      "Teak returned an unexpected folder rule run payload."
+    );
+  }
+  return value as unknown as FolderRuleRun;
 };
 const asFolders = (value: unknown): { items: Folder[] } => {
   if (!(isObject(value) && Array.isArray(value.items))) {
@@ -1408,7 +1466,11 @@ export const createTeakClient = (options: {
        */
       create: (
         input:
-          | { color?: FolderColor; kind?: "manual"; name: string }
+          | ({
+              color?: FolderColor;
+              kind?: "manual";
+              name: string;
+            } & FolderRulesInput)
           | { color?: FolderColor; kind: "smart"; name: string; query: string }
       ) =>
         request(
@@ -1420,6 +1482,13 @@ export const createTeakClient = (options: {
       delete: (id: string) =>
         request(folderPath(id), { method: "DELETE" }, () => null),
       get: (id: string) => request(folderPath(id), { method: "GET" }, asFolder),
+      /** How far a rule run has got, and whether it can still be undone. */
+      getRuleRun: (id: string, runId: string) =>
+        request(
+          `${folderPath(id)}/rule-runs/${encodeURIComponent(runId)}`,
+          { method: "GET" },
+          asFolderRuleRun
+        ),
       /** Every folder, sorted by name. */
       list: () => request("/v1/folders", { method: "GET" }, asFolders),
       removeCards: (id: string, cardIds: string[]) =>
@@ -1429,12 +1498,28 @@ export const createTeakClient = (options: {
           asFolderCards
         ),
       /**
+       * Takes back what a rule run did, where it is still there, within a
+       * day of the run. The rules stay and won't redo it.
+       */
+      undoRuleRun: (id: string, runId: string) =>
+        request(
+          `${folderPath(id)}/rule-runs/${encodeURIComponent(runId)}/undo`,
+          { method: "POST" },
+          asFolderRuleRun
+        ),
+      /**
        * Renames or recolors; `color: null` clears the color. `query` changes
-       * a smart folder's search.
+       * a smart folder's search. Rule fields change a manual folder's rules;
+       * new tags or a new or resumed search start a rule run (`ruleRunId`).
+       * 409 RULE_LIMIT past 50 folders with rules.
        */
       update: (
         id: string,
-        input: { color?: FolderColor | null; name?: string; query?: string }
+        input: {
+          color?: FolderColor | null;
+          name?: string;
+          query?: string;
+        } & FolderRulesInput
       ) =>
         request(
           folderPath(id),

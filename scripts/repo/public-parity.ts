@@ -285,10 +285,10 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   },
   {
     operationId: "updateFolder",
-    feature: "Rename, recolor or change a smart search",
+    feature: "Rename, recolor, change a smart search or a folder's rules",
     mcp: ["teak_v1_update_folder"],
     sdk: ["folders.update"],
-    cli: ["folders rename"],
+    cli: ["folders rename", "folders rules"],
   },
   {
     operationId: "deleteFolder",
@@ -310,6 +310,20 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     mcp: ["teak_v1_remove_cards_from_folder"],
     sdk: ["folders.removeCards"],
     cli: ["folders remove"],
+  },
+  {
+    operationId: "getFolderRuleRun",
+    feature: "Progress of a folder rule run",
+    mcp: ["teak_v1_get_folder_rule_run"],
+    sdk: ["folders.getRuleRun"],
+    cli: ["folders rule-run"],
+  },
+  {
+    operationId: "undoFolderRuleRun",
+    feature: "Undo a folder rule run",
+    mcp: ["teak_v1_undo_folder_rule_run"],
+    sdk: ["folders.undoRuleRun"],
+    cli: ["folders undo-rule-run"],
   },
   {
     operationId: "listHighlights",

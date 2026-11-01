@@ -26,6 +26,7 @@ import {
   editTags,
   exportStatus,
   findDuplicateCard,
+  folderRuleRunStatus,
   listFolders,
   listHighlights,
   noteHighlight,
@@ -36,12 +37,14 @@ import {
   restoreCards,
   setCardsArchived,
   setCardThumbnail,
+  setFolderRules,
   showCardContent,
   showCardLinks,
   showFolder,
   startExport,
   startTagOperation,
   tagOperationStatus,
+  undoFolderRuleRun,
   updateFolder,
   whoami,
 } from "./library";
@@ -668,6 +671,10 @@ tags
   );
 
 const parseFolderColor = oneOf("color", FOLDER_COLORS);
+const collectString = (value: string, previous: string[] = []) => [
+  ...previous,
+  value,
+];
 const folders = program
   .command("folders")
   .description("List, create, and change folders")
@@ -696,8 +703,59 @@ folders
     "--query <search>",
     "save a search as a smart folder, e.g. 'tag:design type:link'"
   )
+  .option(
+    "--auto-tag <tag>",
+    "a tag every card put in the folder gets; repeatable",
+    collectString
+  )
+  .option(
+    "--auto-file <search>",
+    "file cards that match this search into the folder, e.g. 'tag:fonts'"
+  )
   .action(async (name, options) =>
     createFolder(name, { ...program.opts(), ...options })
+  );
+folders
+  .command("rules")
+  .argument("<folder>", "folder name or id")
+  .description(
+    "Show or change a manual folder's rules: tags its cards get, and a search that files cards into it. New rules run over your existing cards"
+  )
+  .option(
+    "--auto-tag <tag>",
+    "replace the folder's tags with these; repeatable",
+    collectString
+  )
+  .option("--no-auto-tags", "clear the folder's tags")
+  .option("--auto-file <search>", "file cards that match this search")
+  .option("--no-auto-file", "clear the auto-file search")
+  .option("--pause", "pause the auto-file search")
+  .option("--resume", "resume the auto-file search")
+  .option("--wait", "wait until the rule run finishes")
+  .action(async (folder, options) =>
+    setFolderRules(folder, { ...program.opts(), ...options })
+  );
+folders
+  .command("rule-run")
+  .argument("<folder>", "folder name or id")
+  .argument("[runId]", "a rule run id; the folder's latest by default")
+  .description(
+    "Show how far a folder rule run got and whether it can be undone"
+  )
+  .option("--wait", "wait until it finishes")
+  .action(async (folder, runId, options) =>
+    folderRuleRunStatus(folder, runId, { ...program.opts(), ...options })
+  );
+folders
+  .command("undo-rule-run")
+  .argument("<folder>", "folder name or id")
+  .argument("[runId]", "a rule run id; the folder's latest by default")
+  .description(
+    "Undo a folder rule run within a day: take back the cards it filed and the tags it added"
+  )
+  .option("--wait", "wait until it finishes")
+  .action(async (folder, runId, options) =>
+    undoFolderRuleRun(folder, runId, { ...program.opts(), ...options })
   );
 folders
   .command("rename")

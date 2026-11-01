@@ -5,8 +5,10 @@ import {
 import { MAX_CARD_TITLE_LENGTH } from "../../shared/cardTitle";
 import {
   FOLDER_COLORS,
+  MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDER_RULES,
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../../shared/folders";
@@ -828,6 +830,18 @@ export const components = {
             "Cards in a manual folder that are not archived or in Trash; null for a smart folder, whose cards are found when listed.",
           type: ["number", "null"],
         },
+        rules: {
+          description: "A manual folder's rules; null for a smart folder.",
+          oneOf: [
+            { $ref: "#/components/schemas/FolderRules" },
+            { type: "null" },
+          ],
+        },
+        ruleRunId: {
+          description:
+            "The folder's latest rule run, which saving its rules starts. Follow it with getFolderRuleRun.",
+          type: ["string", "null"],
+        },
         createdAt: { type: "number" },
         updatedAt: { type: "number" },
       },
@@ -838,8 +852,71 @@ export const components = {
         "kind",
         "query",
         "cardCount",
+        "rules",
+        "ruleRunId",
         "createdAt",
         "updatedAt",
+      ],
+      type: "object",
+    },
+    FolderRules: {
+      properties: {
+        autoTags: {
+          description:
+            "Tags every card that joins the folder gets, however it joins. They stay when the card leaves.",
+          items: { type: "string" },
+          type: "array",
+        },
+        autoFile: {
+          description:
+            "A search that files matching cards into the folder once their AI tags are written; null when the folder has none.",
+          oneOf: [
+            {
+              properties: {
+                query: { type: "string" },
+                enabled: { type: "boolean" },
+              },
+              required: ["query", "enabled"],
+              type: "object",
+            },
+            { type: "null" },
+          ],
+        },
+      },
+      required: ["autoTags", "autoFile"],
+      type: "object",
+    },
+    FolderRuleRun: {
+      description:
+        "A pass of a folder's rules over the cards already in the library. It can be undone for 24 hours.",
+      properties: {
+        id: { type: "string" },
+        folderId: { type: "string" },
+        status: {
+          enum: ["running", "done", "undoing", "undone", "superseded"],
+          type: "string",
+        },
+        filedCount: {
+          description: "Cards the run filed into the folder.",
+          type: "number",
+        },
+        taggedCount: {
+          description: "Cards the run added tags to.",
+          type: "number",
+        },
+        canUndo: { type: "boolean" },
+        createdAt: { type: "number" },
+        completedAt: { type: ["number", "null"] },
+      },
+      required: [
+        "id",
+        "folderId",
+        "status",
+        "filedCount",
+        "taggedCount",
+        "canUndo",
+        "createdAt",
+        "completedAt",
       ],
       type: "object",
     },
@@ -864,6 +941,20 @@ export const components = {
           description: `A smart folder's search, with the qualifiers \`q\` accepts; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters. A \`folder:\` must name one of your manual folders.`,
           type: "string",
         },
+        autoTags: {
+          description: `Tags every card that joins this manual folder gets, at most ${MAX_FOLDER_AUTO_TAGS}. An empty array clears them. Up to ${MAX_FOLDER_RULES} folders per account can have rules.`,
+          items: { type: "string" },
+          maxItems: MAX_FOLDER_AUTO_TAGS,
+          type: "array",
+        },
+        autoFileQuery: {
+          description: `A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters, or null to clear it.`,
+          type: ["string", "null"],
+        },
+        autoFileEnabled: {
+          description: "False pauses the auto-file search without clearing it.",
+          type: "boolean",
+        },
       },
       required: ["name"],
       type: "object",
@@ -883,6 +974,20 @@ export const components = {
         query: {
           description: `A smart folder's new search (at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters). Manual folders have none.`,
           type: "string",
+        },
+        autoTags: {
+          description: `Tags every card that joins this manual folder gets, at most ${MAX_FOLDER_AUTO_TAGS}. An empty array clears them. Up to ${MAX_FOLDER_RULES} folders per account can have rules.`,
+          items: { type: "string" },
+          maxItems: MAX_FOLDER_AUTO_TAGS,
+          type: "array",
+        },
+        autoFileQuery: {
+          description: `A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters, or null to clear it.`,
+          type: ["string", "null"],
+        },
+        autoFileEnabled: {
+          description: "False pauses the auto-file search without clearing it.",
+          type: "boolean",
         },
       },
       type: "object",
