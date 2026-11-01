@@ -1,7 +1,7 @@
 {
   "name": "teak",
   "displayName": "Teak",
-  "version": "1.0.91",
+  "version": "1.0.92",
   "description": "Save, search and rediscover your Teak cards (links, images, notes, quotes, palettes and files) from Claude, through Teak's MCP server.",
   "author": {
     "name": "Praveen Juge",
