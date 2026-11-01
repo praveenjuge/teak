@@ -39,10 +39,12 @@ describe("stack liveness", () => {
   });
 
   test("bun run dev's stack runs as scripts/dev/dev-main.ts", () => {
+    // One process whose command line names the owner script, so killing it
+    // leaves no child behind for other tests to find.
     const owner = Bun.spawn([
-      "sh",
-      "-c",
-      "sleep 30; :",
+      process.execPath,
+      "-e",
+      "setTimeout(() => {}, 30_000)",
       "/repo/scripts/dev/dev-main.ts",
     ]);
     try {
