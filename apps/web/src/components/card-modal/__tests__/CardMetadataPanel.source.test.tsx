@@ -28,7 +28,6 @@ const render = (card: CardModalCard) =>
     <CardMetadataPanel
       card={card}
       getCurrentValue={(field) => card[field as keyof CardModalCard] as never}
-      onCardTypeClick={() => undefined}
       onCommit={() => undefined}
       onNotesChange={() => undefined}
       tags={{

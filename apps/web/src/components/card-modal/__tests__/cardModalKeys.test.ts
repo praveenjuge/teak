@@ -46,7 +46,6 @@ describe("cardModalKeyAction", () => {
     ["d", "done"],
     ["o", "open"],
     ["c", "copy"],
-    ["i", "toggleDetails"],
     ["r", "toggleReader"],
     ["h", "highlight"],
     ["H", "highlight"],

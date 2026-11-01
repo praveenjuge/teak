@@ -1,10 +1,18 @@
 import { opensOnRead } from "@teak/convex/shared/article";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
+import type { CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import {
   Archive,
@@ -20,15 +28,10 @@ import {
   FileDown,
   FolderPlus,
   Heart,
-  ImageUp,
-  PanelRightClose,
-  PanelRightOpen,
-  Pencil,
   RefreshCw,
   RotateCcw,
   Sparkles,
   Trash,
-  Undo2,
   X,
 } from "vadivam-react";
 import { ArticleReader, articleReaderState } from "@/components/card-previews";
@@ -65,9 +68,8 @@ import { CARD_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
-import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
-import { cardMenuShortcuts, isImeComposing } from "../../lib/keyboardShortcuts";
+import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
   imageFromClipboard,
@@ -85,7 +87,6 @@ import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { EditLinkDialog } from "../cards/EditLinkDialog";
-import { SiteFavicon } from "../cards/SiteFavicon";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { useGlobalFileDrop } from "../providers/GlobalFileDropProvider";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -98,6 +99,13 @@ import {
   type SavePdfControl,
 } from "./CardMetadataPanel";
 import { CardModalSkeleton } from "./CardModalSkeleton";
+import {
+  ActionCell,
+  SIDEBAR_PRIMARY_CLASS,
+  SIDEBAR_PRIMARY_COMPACT_CLASS,
+  SidebarTitle,
+  useScrolledPast,
+} from "./CardSidebarHeader";
 import { CheckedLinkPreview } from "./CheckedLinkPreview";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
@@ -106,10 +114,10 @@ import {
   cardModalFrameClass,
   GUTTER_CLOSE_STYLE,
   gutterNavStyle,
-  isFullBleedType,
 } from "./cardModalFrame";
 import { cardModalKeyAction } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
+import { getCardTypeIconComponent } from "./cardTypeIcon";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { PaletteStage } from "./PaletteStage";
 import type { CardModalCard, GetCurrentValue } from "./types";
@@ -121,8 +129,6 @@ export const AUTOSAVE_DELAY_MS = 800;
 
 // Tests and callers read it from here, beside the dialog.
 export { emptiedContentNotice } from "./cardModalText";
-
-export const DETAILS_HIDDEN_KEY = "teak.cardModal.detailsHidden";
 
 function CardPreview({
   card,
@@ -214,9 +220,9 @@ function stageContentClass(card: CardModalCard): string {
         : "p-5 md:p-8";
     }
     case "link":
-      return "px-5 pt-2 pb-6 md:px-10 md:pb-10";
+      return "px-5 pt-5 pb-6 md:px-10 md:pt-8 md:pb-10";
     case "text":
-      return "mx-auto w-full max-w-3xl px-5 pb-6 md:px-10 md:pb-12";
+      return "mx-auto w-full max-w-3xl px-5 pt-5 pb-6 md:px-10 md:pt-10 md:pb-12";
     default:
       return "flex min-h-full items-center justify-center p-5 md:p-10";
   }
@@ -302,17 +308,26 @@ const useStageView = (
   };
 };
 
-/** The header's one main action, in ink rather than the brand color. */
-const PRIMARY_ACTION_CLASS =
-  "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
-
-/** Single-letter keys the dialog answers, shown beside their menu items. */
+/** Single-letter keys the dialog answers. */
 const DIALOG_KEYS = {
-  copy: { keys: "C", label: "C" },
-  details: { keys: "I", label: "I" },
-  done: { keys: "D", label: "D" },
-  favorite: { keys: "F", label: "F" },
+  copy: { keys: "C" },
+  done: { keys: "D" },
+  favorite: { keys: "F" },
 } as const;
+
+/** One button in the sidebar's icon row, and in the bar pinned over it. */
+interface SidebarAction {
+  /** The short word under the icon. */
+  caption: string;
+  icon: ReactNode;
+  id: string;
+  /** The accessible name and tooltip, which can say more. */
+  label: string;
+  onClick: () => void;
+  pressed?: boolean;
+  shortcut?: readonly string[];
+  tone?: "primary";
+}
 
 interface CardModalProps {
   backlinks?: CardBacklinks;
@@ -400,6 +415,7 @@ export function CardModal({
   const types = useTranslations("cards.types");
   const tLinkTitle = useTranslations("lib.linkTitle");
   const tDialog = useTranslations("cards.deleteForeverDialog");
+  const tDetails = useTranslations("cardModal.details");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
@@ -411,11 +427,12 @@ export function CardModal({
   const tagInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const [isDetailsHidden, setIsDetailsHidden] =
-    useStoredFlag(DETAILS_HIDDEN_KEY);
-  // Phones always stack the details under the card.
-  const detailsHidden = isDetailsHidden && !isMobile;
-  const pendingFocus = useRef<"notes" | "tags" | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  const [actionsElement, setActionsElement] = useState<HTMLDivElement | null>(
+    null
+  );
+  const actionsScrolledPast = useScrolledPast(asideRef, actionsElement);
+
   const saveStatus = useSaveStatus(saveState);
   const stage = useStageView(card, open);
   const readerControls = useRef<ReaderHighlightControls | null>(null);
@@ -462,15 +479,14 @@ export function CardModal({
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
 
-  // N and T reopen hidden details, then focus their field.
+  // The pinned bar leaves as the actions scroll back in. A control in it
+  // that had focus goes with it, so focus returns to the card, keeping its
+  // keys alive.
   useEffect(() => {
-    if (detailsHidden || !pendingFocus.current) {
-      return;
+    if (!actionsScrolledPast && document.activeElement === document.body) {
+      contentRef.current?.focus({ preventScroll: true });
     }
-    const target = pendingFocus.current;
-    pendingFocus.current = null;
-    (target === "notes" ? notesRef : tagInputRef).current?.focus();
-  }, [detailsHidden]);
+  }, [actionsScrolledPast]);
 
   const imageControl =
     card?.type === "link" && !card.isDeleted ? linkThumbnail : undefined;
@@ -622,11 +638,6 @@ export function CardModal({
   };
 
   const focusPanelField = (field: "notes" | "tags") => {
-    if (detailsHidden) {
-      pendingFocus.current = field;
-      setIsDetailsHidden(false);
-      return;
-    }
     (field === "notes" ? notesRef : tagInputRef).current?.focus();
   };
 
@@ -646,16 +657,6 @@ export function CardModal({
     // The dialog gives focus back to what had it when it opened: the card.
     contentRef.current?.focus();
     setIsFoldersOpen(true);
-  };
-
-  const asideRef = useRef<HTMLElement>(null);
-  const toggleDetails = () => {
-    // Hiding the panel would hide a focused control in it, dropping focus
-    // out of the dialog and with it every card key.
-    if (!detailsHidden && asideRef.current?.contains(document.activeElement)) {
-      contentRef.current?.focus();
-    }
-    setIsDetailsHidden((hidden) => !hidden);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -721,11 +722,6 @@ export function CardModal({
       case "copy":
         copyCard();
         break;
-      case "toggleDetails":
-        if (!isMobile) {
-          toggleDetails();
-        }
-        break;
       case "toggleReader":
         if (stage.available) {
           stage.toggle();
@@ -748,12 +744,12 @@ export function CardModal({
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);
+  const TypeIcon = getCardTypeIconComponent(card?.type as CardType | undefined);
   const editedTitle = getCurrentValue("metadataTitle");
   const titleValue =
     card && editedTitle !== card.metadataTitle
       ? (editedTitle ?? "")
       : (heading?.title ?? "");
-  const fullBleed = !isMobile && isFullBleedType(card?.type);
   // "Note", "Quote" and "Palette" say nothing the card doesn't, so the
   // content is the heading.
   const showTitle = Boolean(
@@ -761,272 +757,259 @@ export function CardModal({
       (heading.editable || heading.title !== typeLabel) &&
       !(card?.type === "text" || card?.type === "quote")
   );
+  const addedLabel = card
+    ? formatAddedDate(card.createdAt, undefined, {
+        locale: dateLocale,
+        t: tHeading,
+      })
+    : "";
+  const saveStatusLabel = saveStatus
+    ? saveStateLabel(saveStatus, t, tc)
+    : undefined;
 
-  let primaryButton: ReactNode = null;
-  if (card?.url && !isDeleted) {
-    primaryButton = (
-      <ShortcutTooltip keys={["O"]} label={t("header.openTooltip")}>
-        <Button
-          aria-keyshortcuts="O"
-          className={PRIMARY_ACTION_CLASS}
-          onClick={openLink}
-          size="sm"
-        >
-          {t("header.open")}
-          <ArrowUpRight />
-        </Button>
-      </ShortcutTooltip>
-    );
-  } else if (canDownload && !card?.url) {
-    primaryButton = (
-      <ShortcutTooltip keys={["O"]} label={t("header.downloadTooltip")}>
-        <Button
-          aria-busy={isDownloading}
-          aria-keyshortcuts="O"
-          className={PRIMARY_ACTION_CLASS}
-          disabled={isDownloading}
-          onClick={downloadFile}
-          size="sm"
-        >
-          {isDownloading ? <Spinner /> : <Download />}
-          {isDownloading ? t("header.downloading") : t("header.download")}
-        </Button>
-      </ShortcutTooltip>
-    );
-  }
+  const favoriteLabel = card?.isFavorited
+    ? t("menu.unfavorite")
+    : t("menu.favorite");
+  const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
+  const moreLabel = t("menu.moreActions");
 
-  const favoriteButton =
-    card && !isDeleted ? (
-      <HeaderIconButton
-        label={card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")}
-        onClick={toggleFavorite}
-        pressed={Boolean(card.isFavorited)}
-        shortcut={["F"]}
-      >
+  /** Open or Download: the sidebar's wide button, or the bar's small pill. */
+  const primaryButton = (compact: boolean): ReactNode => {
+    const className = compact
+      ? SIDEBAR_PRIMARY_COMPACT_CLASS
+      : SIDEBAR_PRIMARY_CLASS;
+    if (card?.url && !isDeleted) {
+      return (
+        <ShortcutTooltip keys={["O"]} label={t("header.openTooltip")}>
+          <Button
+            aria-keyshortcuts="O"
+            className={className}
+            onClick={openLink}
+            size="sm"
+          >
+            {t("header.open")}
+            <ArrowUpRight />
+          </Button>
+        </ShortcutTooltip>
+      );
+    }
+    if (canDownload && !card?.url) {
+      return (
+        <ShortcutTooltip keys={["O"]} label={t("header.downloadTooltip")}>
+          <Button
+            aria-busy={isDownloading}
+            aria-keyshortcuts="O"
+            className={className}
+            disabled={isDownloading}
+            onClick={downloadFile}
+            size="sm"
+          >
+            {isDownloading ? <Spinner /> : <Download />}
+            {isDownloading ? t("header.downloading") : t("header.download")}
+          </Button>
+        </ShortcutTooltip>
+      );
+    }
+    return null;
+  };
+
+  /** The sidebar's icon row: what a card is most often asked to do. */
+  const sidebarActions: SidebarAction[] = [];
+  if (card && !isDeleted) {
+    sidebarActions.push({
+      caption: t("menu.favorite"),
+      icon: (
         <Heart
           className={cn(
             card.isFavorited && "fill-destructive text-destructive"
           )}
         />
-      </HeaderIconButton>
-    ) : null;
+      ),
+      id: "favorite",
+      label: favoriteLabel,
+      onClick: toggleFavorite,
+      pressed: Boolean(card.isFavorited),
+      shortcut: ["F"],
+    });
+    if (canToggleDone && toggleDone) {
+      sidebarActions.push({
+        caption: t("done.state", { verb: doneVerb }),
+        icon: isDone ? <CircleCheck /> : <Circle />,
+        id: "done",
+        label: isDone
+          ? t("done.state", { verb: doneVerb })
+          : t("done.markAs", { verb: doneVerb }),
+        onClick: toggleDone,
+        pressed: isDone,
+        shortcut: ["D"],
+        tone: "primary",
+      });
+    }
+    if (card.url || copyableText) {
+      sidebarActions.push({
+        caption: tc("copy"),
+        icon: <Copy />,
+        id: "copy",
+        label: copyLabel,
+        onClick: copyCard,
+        shortcut: ["C"],
+      });
+    }
+    sidebarActions.push({
+      caption: t("actions.folder"),
+      icon: <FolderPlus />,
+      id: "folder",
+      label: t("menu.addToFolder"),
+      onClick: () => setIsFoldersOpen(true),
+    });
+  }
 
-  const menu = card ? (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <HeaderIconButton label={t("menu.moreActions")}>
-          <Ellipsis />
-        </HeaderIconButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-60"
-        onCloseAutoFocus={onMenuCloseAutoFocus}
-      >
-        {isDeleted ? null : (
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              aria-keyshortcuts={DIALOG_KEYS.favorite.keys}
-              onClick={toggleFavorite}
-            >
-              <Heart />
-              {card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")}
-              <DropdownMenuShortcut aria-hidden>
-                {DIALOG_KEYS.favorite.label}
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-            {canToggleDone ? (
-              <DropdownMenuItem
-                aria-keyshortcuts={DIALOG_KEYS.done.keys}
-                onClick={toggleDone}
-              >
-                {isDone ? <CircleCheck /> : <Circle />}
-                {doneMenuLabel}
-                <DropdownMenuShortcut aria-hidden>
-                  {DIALOG_KEYS.done.label}
-                </DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onClick={openFoldersFromMenu}>
-              <FolderPlus />
-              {t("menu.addToFolder")}
-            </DropdownMenuItem>
-            {toggleArchive ? (
-              <DropdownMenuItem
-                aria-keyshortcuts={menuShortcuts.archive.keys}
-                onClick={archive}
-              >
-                {card.isArchived ? <ArchiveRestore /> : <Archive />}
-                {card.isArchived ? t("menu.unarchive") : t("menu.archive")}
-                <DropdownMenuShortcut aria-hidden>
-                  {menuShortcuts.archive.label}
-                </DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuGroup>
-        )}
-        {card.url || copyableText ? (
-          <>
-            {isDeleted ? null : <DropdownMenuSeparator />}
-            <DropdownMenuGroup>
-              {card.url ? (
-                <DropdownMenuItem
-                  aria-keyshortcuts={DIALOG_KEYS.copy.keys}
-                  onClick={() =>
-                    void copyToClipboard(
-                      card.url as string,
-                      t("toasts.copiedLink"),
-                      copyFailed
-                    )
-                  }
-                >
-                  <Copy />
-                  {t("menu.copyLink")}
-                  <DropdownMenuShortcut aria-hidden>
-                    {DIALOG_KEYS.copy.label}
-                  </DropdownMenuShortcut>
-                </DropdownMenuItem>
-              ) : null}
-              {card.type === "link" && card.url && !isDeleted ? (
-                <DropdownMenuItem onClick={() => setIsEditLinkOpen(true)}>
-                  <Pencil />
-                  {t("menu.editLink")}
-                </DropdownMenuItem>
-              ) : null}
-              {copyableText ? (
-                <DropdownMenuItem
-                  aria-keyshortcuts={
-                    card.url ? undefined : DIALOG_KEYS.copy.keys
-                  }
-                  onClick={() =>
-                    void copyToClipboard(
-                      copyableText,
-                      t("toasts.copiedText"),
-                      copyFailed
-                    )
-                  }
-                >
-                  <Copy />
-                  {t("menu.copyText")}
-                  {card.url ? null : (
-                    <DropdownMenuShortcut aria-hidden>
-                      {DIALOG_KEYS.copy.label}
-                    </DropdownMenuShortcut>
-                  )}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-        {(canDownload && card.url) ||
-        (savePdf && !isDeleted) ||
-        imageControl ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              {canDownload && card.url ? (
-                <DropdownMenuItem
-                  disabled={isDownloading}
-                  onClick={downloadFile}
-                >
-                  <Download />
-                  {t("menu.download")}
-                </DropdownMenuItem>
-              ) : null}
-              {savePdf && !isDeleted ? (
-                <DropdownMenuItem
-                  aria-busy={savePdf.isSaving}
-                  disabled={savePdf.isSaving}
-                  onClick={savePdf.save}
-                >
-                  {savePdf.isSaving ? <Spinner /> : <FileDown />}
-                  {savePdf.isSaving ? t("menu.savingPdf") : t("menu.savePdf")}
-                </DropdownMenuItem>
-              ) : null}
-              {imageControl ? (
-                <DropdownMenuItem
-                  disabled={imageControl.isBusy}
-                  onClick={() => imageInputRef.current?.click()}
-                >
-                  {imageControl.isBusy ? <Spinner /> : <ImageUp />}
-                  {t("menu.replaceImage")}
-                </DropdownMenuItem>
-              ) : null}
-              {imageControl && card.thumbnailOverride ? (
-                <DropdownMenuItem
-                  disabled={imageControl.isBusy}
-                  onClick={imageControl.reset}
-                >
-                  <Undo2 />
-                  {t("menu.resetImage")}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-        {!isDeleted && (onMoreLikeThis || onReprocess) ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              {onMoreLikeThis ? (
-                <DropdownMenuItem onClick={() => onMoreLikeThis(card._id)}>
-                  <Sparkles />
-                  {t("menu.moreLikeThis")}
-                </DropdownMenuItem>
-              ) : null}
-              {onReprocess ? (
-                <DropdownMenuItem
-                  disabled={isReprocessing}
-                  onClick={onReprocess}
-                >
-                  {isReprocessing ? <Spinner /> : <RefreshCw />}
-                  {t("menu.refreshDetails")}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </>
-        ) : null}
-        {isMobile ? null : (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              aria-keyshortcuts={DIALOG_KEYS.details.keys}
-              onClick={toggleDetails}
-            >
-              {detailsHidden ? <PanelRightOpen /> : <PanelRightClose />}
-              {detailsHidden ? t("menu.showDetails") : t("menu.hideDetails")}
-              <DropdownMenuShortcut aria-hidden>
-                {DIALOG_KEYS.details.label}
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          </>
-        )}
-        {isDeleted ? null : (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              aria-keyshortcuts={menuShortcuts.delete.keys}
-              onClick={() => void handleDelete(closeAfterAction)}
-              variant="destructive"
-            >
-              <Trash />
-              {t("menu.moveToTrash")}
-              <DropdownMenuShortcut aria-hidden>
-                {menuShortcuts.delete.label}
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          </>
-        )}
-        {isMobile ? null : (
-          <DropdownMenuLabel className="border-t pt-2 font-normal text-muted-foreground text-xs">
-            {t.rich("menu.shortcutsHint", {
-              kbd: (chunks) => <kbd className="font-sans">{chunks}</kbd>,
-            })}
-          </DropdownMenuLabel>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  ) : null;
+  // On a wide screen the sidebar's icon row holds favorite, done, copy and
+  // folders, so the menu keeps only what's left. Phones keep them all.
+  const menuGroups: ReactNode[][] = [];
+  if (card) {
+    if (isMobile && !isDeleted) {
+      menuGroups.push([
+        <DropdownMenuItem
+          aria-keyshortcuts={DIALOG_KEYS.favorite.keys}
+          key="favorite"
+          onClick={toggleFavorite}
+        >
+          <Heart />
+          {favoriteLabel}
+        </DropdownMenuItem>,
+        canToggleDone ? (
+          <DropdownMenuItem
+            aria-keyshortcuts={DIALOG_KEYS.done.keys}
+            key="done"
+            onClick={toggleDone}
+          >
+            {isDone ? <CircleCheck /> : <Circle />}
+            {doneMenuLabel}
+          </DropdownMenuItem>
+        ) : null,
+        <DropdownMenuItem key="folder" onClick={openFoldersFromMenu}>
+          <FolderPlus />
+          {t("menu.addToFolder")}
+        </DropdownMenuItem>,
+      ]);
+    }
+    if (isMobile && (card.url || copyableText)) {
+      menuGroups.push([
+        <DropdownMenuItem
+          aria-keyshortcuts={DIALOG_KEYS.copy.keys}
+          key="copy"
+          onClick={copyCard}
+        >
+          <Copy />
+          {copyLabel}
+        </DropdownMenuItem>,
+      ]);
+    }
+    menuGroups.push([
+      canDownload && card.url ? (
+        <DropdownMenuItem
+          disabled={isDownloading}
+          key="download"
+          onClick={downloadFile}
+        >
+          <Download />
+          {t("menu.download")}
+        </DropdownMenuItem>
+      ) : null,
+      savePdf && !isDeleted ? (
+        <DropdownMenuItem
+          aria-busy={savePdf.isSaving}
+          disabled={savePdf.isSaving}
+          key="pdf"
+          onClick={savePdf.save}
+        >
+          {savePdf.isSaving ? <Spinner /> : <FileDown />}
+          {savePdf.isSaving ? t("menu.savingPdf") : t("menu.savePdf")}
+        </DropdownMenuItem>
+      ) : null,
+    ]);
+    if (!isDeleted) {
+      menuGroups.push([
+        onMoreLikeThis ? (
+          <DropdownMenuItem
+            key="more-like-this"
+            onClick={() => onMoreLikeThis(card._id)}
+          >
+            <Sparkles />
+            {t("menu.moreLikeThis")}
+          </DropdownMenuItem>
+        ) : null,
+        onReprocess ? (
+          <DropdownMenuItem
+            disabled={isReprocessing}
+            key="refresh"
+            onClick={onReprocess}
+          >
+            {isReprocessing ? <Spinner /> : <RefreshCw />}
+            {t("menu.refreshDetails")}
+          </DropdownMenuItem>
+        ) : null,
+      ]);
+      menuGroups.push([
+        toggleArchive ? (
+          <DropdownMenuItem
+            aria-keyshortcuts={menuShortcuts.archive.keys}
+            key="archive"
+            onClick={archive}
+          >
+            {card.isArchived ? <ArchiveRestore /> : <Archive />}
+            {card.isArchived ? t("menu.unarchive") : t("menu.archive")}
+            <DropdownMenuShortcut aria-hidden>
+              {menuShortcuts.archive.label}
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ) : null,
+        <DropdownMenuItem
+          aria-keyshortcuts={menuShortcuts.delete.keys}
+          key="trash"
+          onClick={() => void handleDelete(closeAfterAction)}
+          variant="destructive"
+        >
+          <Trash />
+          {t("menu.moveToTrash")}
+          <DropdownMenuShortcut aria-hidden>
+            {menuShortcuts.delete.label}
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>,
+      ]);
+    }
+  }
+  const shownMenuGroups = menuGroups
+    .map((group) => group.filter(Boolean))
+    .filter((group) => group.length > 0);
+
+  const renderMenu = (trigger: ReactNode) =>
+    shownMenuGroups.length > 0 ? (
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-60"
+          onCloseAutoFocus={onMenuCloseAutoFocus}
+        >
+          {shownMenuGroups.map((group, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: groups keep their order.
+            <Fragment key={index}>
+              {index > 0 ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuGroup>{group}</DropdownMenuGroup>
+            </Fragment>
+          ))}
+          {isMobile ? null : (
+            <DropdownMenuLabel className="mt-1 border-t pt-2 font-normal text-muted-foreground text-xs">
+              {t.rich("menu.shortcutsHint", {
+                kbd: (chunks) => <kbd className="font-sans">{chunks}</kbd>,
+              })}
+            </DropdownMenuLabel>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : null;
 
   const closeButton = (
     <DialogClose asChild>
@@ -1044,97 +1027,122 @@ export function CardModal({
     </DialogClose>
   );
 
-  const header =
+  const sidebarTitle =
     card && heading ? (
-      <header
-        className={cn(
-          "flex h-14 shrink-0 items-center gap-2 pr-2 pl-4 md:pr-3 md:pl-5",
-          isMobile && "border-b",
-          fullBleed &&
-            "absolute inset-x-0 top-0 z-20 bg-background/85 opacity-0 pointer-coarse:opacity-100 shadow-sm backdrop-blur-md transition-opacity duration-150 focus-within:opacity-100 group-hover/stage:opacity-100"
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {hostname && showTitle ? (
-            <SiteFavicon className="size-4" hostname={hostname} />
-          ) : null}
-          {heading.editable && !isDeleted ? (
-            <div className="group/title relative min-w-0 flex-1">
-              <DialogTitle className="sr-only">{heading.title}</DialogTitle>
-              <input
-                aria-label={t("header.titleLabel")}
-                className="-mx-1.5 block w-[calc(100%+0.75rem)] truncate rounded-md bg-transparent py-0.5 pr-7 pl-1.5 font-medium text-sm outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/70"
-                dir="auto"
-                maxLength={512}
-                onBlur={(event) => {
-                  if (event.target.value.trim()) {
-                    commit();
-                  } else {
-                    editTitle(undefined);
-                  }
-                }}
-                onChange={(event) => editTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !isImeComposing(event)) {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                  }
-                }}
-                placeholder={t("header.titlePlaceholder")}
-                value={titleValue}
-              />
-              <Pencil
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 right-0 size-3.5 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 group-has-[input:focus]/title:opacity-0"
-              />
-            </div>
-          ) : (
-            <DialogTitle
-              className={cn(
-                "min-w-0 flex-1 truncate font-medium text-sm leading-6",
-                !showTitle && "sr-only"
-              )}
-              dir="auto"
-              title={heading.title}
-            >
-              {heading.title}
-            </DialogTitle>
-          )}
-          <DialogDescription className="sr-only">
-            {formatAddedDate(card.createdAt, undefined, {
-              locale: dateLocale,
-              t: tHeading,
-            })}
-          </DialogDescription>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1">
-          {saveStatus ? (
-            <span
-              className={cn(
-                "whitespace-nowrap px-1 text-muted-foreground text-xs",
-                saveStatus === "error" && "text-destructive"
-              )}
-            >
-              {saveStateLabel(saveStatus, t, tc)}
-            </span>
-          ) : null}
-          {isMobile ? null : (
-            <>
-              {favoriteButton}
-              {menu}
-              {primaryButton ? (
-                <span className="ml-1">{primaryButton}</span>
-              ) : null}
-            </>
-          )}
-          {isMobile ? closeButton : null}
-        </div>
-      </header>
+      <SidebarTitle
+        added={addedLabel}
+        editable={heading.editable && !isDeleted}
+        hostname={hostname}
+        label={t("header.titleLabel")}
+        onCommit={commit}
+        onTitleChange={editTitle}
+        onTypeClick={
+          onCardTypeClick ? () => onCardTypeClick(card.type) : undefined
+        }
+        placeholder={t("header.titlePlaceholder")}
+        saveStatus={
+          !isMobile && saveStatusLabel
+            ? { error: saveStatus === "error", label: saveStatusLabel }
+            : null
+        }
+        showTitle={showTitle}
+        title={heading.title}
+        titleValue={titleValue}
+        typeIcon={<TypeIcon aria-hidden="true" />}
+        typeLabel={typeLabel}
+        typeTitle={tDetails("showAllOfType", { type: card.type ?? "card" })}
+      />
     ) : null;
 
-  const mobileHeader = isMobile ? header : null;
-  const desktopHeader = isMobile ? null : header;
+  // A card in Trash trades its actions for the way back out.
+  const trashBlock = isDeleted ? (
+    <div className="space-y-2">
+      <p
+        className="flex items-center gap-1.5 text-muted-foreground text-sm"
+        role="status"
+      >
+        <Trash aria-hidden="true" className="size-3.5" />
+        {t("trash.inTrash")}
+      </p>
+      <Button
+        className={SIDEBAR_PRIMARY_CLASS}
+        onClick={() => void handleRestore(closeAfterAction)}
+        size="sm"
+      >
+        <RotateCcw />
+        {t("trash.restore")}
+      </Button>
+      <Button
+        className="h-8 w-full rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={() => setIsPermanentDeleteConfirmOpen(true)}
+        size="sm"
+        variant="ghost"
+      >
+        <Trash />
+        {t("trash.deleteForever")}
+      </Button>
+    </div>
+  ) : null;
+
+  const showsSidebarActions = Boolean(card && !isDeleted && !isMobile);
+  const actionBlock = showsSidebarActions ? (
+    <div className="space-y-2" ref={setActionsElement}>
+      {primaryButton(false)}
+      <div className="grid auto-cols-fr grid-flow-col gap-0.5">
+        {sidebarActions.map((action) => (
+          <ActionCell
+            caption={action.caption}
+            key={action.id}
+            label={action.label}
+            onClick={action.onClick}
+            pressed={action.pressed}
+            shortcut={action.shortcut}
+            tone={action.tone}
+          >
+            {action.icon}
+          </ActionCell>
+        ))}
+        {renderMenu(
+          <ActionCell caption={tc("more")} label={moreLabel}>
+            <Ellipsis />
+          </ActionCell>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  // Once the actions scroll away, a one-line copy of them stays on top.
+  const pinnedActions =
+    showsSidebarActions && actionsScrolledPast ? (
+      <div className="sticky top-0 z-20 h-0">
+        <div
+          className="fade-in-0 slide-in-from-top-1 flex animate-in items-center gap-1 border-border/60 border-b bg-background/95 px-5 py-2 backdrop-blur duration-150"
+          data-testid="pinned-card-actions"
+        >
+          {primaryButton(true)}
+          <span className="flex-1" />
+          {sidebarActions.map((action) => (
+            <HeaderIconButton
+              className={cn(
+                action.pressed && action.tone === "primary" && "text-primary"
+              )}
+              key={action.id}
+              label={action.label}
+              onClick={action.onClick}
+              pressed={action.pressed}
+              shortcut={action.shortcut}
+            >
+              {action.icon}
+            </HeaderIconButton>
+          ))}
+          {renderMenu(
+            <HeaderIconButton label={moreLabel}>
+              <Ellipsis />
+            </HeaderIconButton>
+          )}
+        </div>
+      </div>
+    ) : null;
 
   const navButton = (direction: "previous" | "next") => {
     const show = direction === "previous" ? onPrevious : onNext;
@@ -1221,46 +1229,28 @@ export function CardModal({
               ) : null}
 
               <div className={CARD_MODAL_SURFACE_CLASS}>
-                {isDeleted ? (
-                  <div
-                    className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-muted/60 py-1.5 pr-1.5 pl-4"
-                    role="status"
-                  >
-                    <p className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Trash aria-hidden="true" className="size-3.5" />
-                      {t("trash.inTrash")}
-                    </p>
-                    <div className="flex gap-1">
-                      <Button
-                        className="h-7 px-2.5"
-                        onClick={() => void handleRestore(closeAfterAction)}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <RotateCcw />
-                        {t("trash.restore")}
-                      </Button>
-                      <Button
-                        className="h-7 px-2.5 text-destructive hover:text-destructive"
-                        onClick={() => setIsPermanentDeleteConfirmOpen(true)}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <Trash />
-                        {t("trash.deleteForever")}
-                      </Button>
-                    </div>
-                  </div>
+                {isMobile ? (
+                  <header className="flex h-12 shrink-0 items-center gap-2 border-b pr-2 pl-4">
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 truncate text-muted-foreground text-xs",
+                        saveStatus === "error" && "text-destructive"
+                      )}
+                    >
+                      {saveStatusLabel}
+                    </span>
+                    {closeButton}
+                  </header>
                 ) : null}
-
-                {mobileHeader}
+                <DialogDescription className="sr-only">
+                  {addedLabel}
+                </DialogDescription>
 
                 <div
                   className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row"
                   ref={stage.scrollerRef}
                 >
-                  <div className="group/stage relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
-                    {desktopHeader}
+                  <div className="relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
                     <main
                       aria-label={t("header.contentLabel", { type: card.type })}
                       className={cn(
@@ -1340,24 +1330,18 @@ export function CardModal({
 
                   <aside
                     aria-label={t("header.detailsLabel")}
-                    className={cn(
-                      "shrink-0 border-border/60 max-md:border-t md:w-72 md:overflow-y-auto md:border-l lg:w-80 xl:w-[21rem]",
-                      detailsHidden && "md:hidden"
-                    )}
+                    className="shrink-0 border-border/60 max-md:border-t md:w-72 md:overflow-y-auto md:border-l lg:w-80 xl:w-[21rem]"
                     ref={asideRef}
                   >
+                    {pinnedActions}
+                    <div className="space-y-4 border-border/60 border-b px-5 pt-5 pb-5">
+                      {sidebarTitle}
+                      {trashBlock}
+                      {actionBlock}
+                    </div>
                     <CardMetadataPanel
                       backlinks={backlinks}
                       card={card}
-                      done={
-                        canToggleDone && toggleDone
-                          ? {
-                              category: card.metadata?.linkCategory?.category,
-                              done: isDone,
-                              onToggle: toggleDone,
-                            }
-                          : undefined
-                      }
                       getCurrentValue={getCurrentValue}
                       highlights={
                         highlights?.highlights
@@ -1372,9 +1356,24 @@ export function CardModal({
                             }
                           : undefined
                       }
+                      image={
+                        imageControl
+                          ? {
+                              busy: imageControl.isBusy,
+                              onReplace: () => imageInputRef.current?.click(),
+                              onReset: card.thumbnailOverride
+                                ? imageControl.reset
+                                : undefined,
+                            }
+                          : undefined
+                      }
                       notesRef={notesRef}
-                      onCardTypeClick={() => onCardTypeClick?.(card.type)}
                       onCommit={commit}
+                      onEditLink={
+                        card.type === "link" && card.url && !isDeleted
+                          ? () => setIsEditLinkOpen(true)
+                          : undefined
+                      }
                       onNotesChange={editNotes}
                       onOpenCard={openLinkedCard}
                       onOpenFolders={
@@ -1410,9 +1409,26 @@ export function CardModal({
                       </>
                     ) : null}
                     <span className="flex-1" />
-                    {favoriteButton}
-                    {menu}
-                    {primaryButton}
+                    {isDeleted ? null : (
+                      <HeaderIconButton
+                        label={favoriteLabel}
+                        onClick={toggleFavorite}
+                        pressed={Boolean(card.isFavorited)}
+                      >
+                        <Heart
+                          className={cn(
+                            card.isFavorited &&
+                              "fill-destructive text-destructive"
+                          )}
+                        />
+                      </HeaderIconButton>
+                    )}
+                    {renderMenu(
+                      <HeaderIconButton label={moreLabel}>
+                        <Ellipsis />
+                      </HeaderIconButton>
+                    )}
+                    {primaryButton(true)}
                   </nav>
                 ) : null}
               </div>

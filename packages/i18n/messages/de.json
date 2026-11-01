@@ -739,7 +739,6 @@
       "copyText": "Text kopieren",
       "download": "Herunterladen",
       "favorite": "Als Favorit markieren",
-      "hideDetails": "Details ausblenden",
       "moreActions": "Weitere Aktionen",
       "moreLikeThis": "Ähnliche Karten",
       "moveToTrash": "In den Papierkorb legen",
@@ -749,10 +748,12 @@
       "savePdf": "PDF speichern",
       "savingPdf": "PDF wird gespeichert…",
       "shortcutsHint": "Drücken Sie <kbd>?</kbd> für alle Tastenkürzel",
-      "showDetails": "Details anzeigen",
       "unarchive": "Dearchivieren",
       "unfavorite": "Aus Favoriten entfernen",
       "editLink": "Link bearbeiten…"
+    },
+    "actions": {
+      "folder": "Ordner"
     },
     "toasts": {
       "copiedLink": "Link kopiert",
@@ -834,7 +835,10 @@
       "showAllOfType": "{type, select, text {Alle Textkarten anzeigen} link {Alle Linkkarten anzeigen} image {Alle Bildkarten anzeigen} video {Alle Videokarten anzeigen} audio {Alle Audiokarten anzeigen} document {Alle Dokumentkarten anzeigen} palette {Alle Palettenkarten anzeigen} quote {Alle Zitatkarten anzeigen} other {Alle Karten anzeigen}}",
       "text": "Text",
       "title": "Details",
-      "url": "URL"
+      "url": "URL",
+      "image": "Bild",
+      "replaceImage": "Ersetzen",
+      "resetImage": "Zurücksetzen"
     },
     "reader": {
       "preview": "Vorschau",
@@ -1385,7 +1389,6 @@
       "openLink": "Link öffnen",
       "markLinkDone": "Link als erledigt markieren",
       "copyLinkOrText": "Link oder Text kopieren",
-      "toggleDetails": "Details ein- oder ausblenden",
       "readOrPreview": "Lesen oder Vorschau",
       "highlightSelection": "Auswahl markieren",
       "goToEverything": "Alles",

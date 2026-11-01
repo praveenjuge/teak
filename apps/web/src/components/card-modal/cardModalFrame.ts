@@ -18,11 +18,6 @@ function stageFor(type?: string): Stage {
   return "compact";
 }
 
-/** Image and video cards fill the stage, with the header floating over it. */
-export function isFullBleedType(type?: string): boolean {
-  return type === "image" || type === "video";
-}
-
 /**
  * The dialog's box: its position and size. It draws nothing itself, so the
  * previous and next buttons can sit outside the surface, beside the card.

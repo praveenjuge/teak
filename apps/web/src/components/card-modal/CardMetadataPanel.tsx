@@ -1,6 +1,5 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
 import type { CardType } from "@teak/convex/shared/constants";
-import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
@@ -13,11 +12,10 @@ import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
 import {
   ChevronDown,
-  Circle,
-  CircleCheck,
   Ellipsis,
   EyeOff,
   FolderPlus,
+  Pencil,
   Plus,
   Sparkles,
   Trash,
@@ -29,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import type { CardHighlight } from "@/hooks/useCardHighlights";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
@@ -36,7 +35,6 @@ import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
-import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
@@ -70,11 +68,12 @@ export interface SavePdfControl {
   save: () => void;
 }
 
-/** A link's to-do state: read, watched, cooked and so on. */
-export interface CardDoneControl {
-  category?: string;
-  done: boolean;
-  onToggle: () => void;
+/** Replacing a link's preview image, and going back to the original. */
+export interface CardImageControl {
+  busy: boolean;
+  onReplace: () => void;
+  /** Left out when the card shows its original image. */
+  onReset?: () => void;
 }
 
 /** A link's highlights, for the panel's list. */
@@ -88,12 +87,14 @@ export interface CardHighlightsPanelControl {
 interface CardMetadataPanelProps {
   backlinks?: CardBacklinks;
   card: CardModalCard;
-  done?: CardDoneControl;
   getCurrentValue: GetCurrentValue;
   highlights?: CardHighlightsPanelControl;
+  /** A link's preview image, which can be replaced from Details. */
+  image?: CardImageControl;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
-  onCardTypeClick: () => void;
   onCommit: () => void;
+  /** Opens "Edit link" from the URL row. */
+  onEditLink?: () => void;
   onNotesChange: (notes: string) => void;
   onOpenCard?: (cardId: string) => void;
   onOpenFolders?: () => void;
@@ -157,43 +158,16 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
   ));
 }
 
+/** A small icon button at the end of a Details row, like Edit link. */
+const ROW_ICON_BUTTON_CLASS =
+  "-mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5";
+
+/** A small text button in a Details row, like Replace. */
+const ROW_TEXT_BUTTON_CLASS =
+  "inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors last:-mr-1.5 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5";
+
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
-
-/** "Mark as read" and friends, as a pill at the top of the panel. */
-export function DoneButton({
-  category,
-  done,
-  onClick,
-}: {
-  category?: string;
-  done: boolean;
-  onClick: () => void;
-}) {
-  const t = useTranslations("cardModal.done");
-  const verb = doneActionLabel(category);
-  const label = done ? t("state", { verb }) : t("markAs", { verb });
-  return (
-    <ShortcutTooltip keys={["D"]} label={label} side="left">
-      <button
-        aria-keyshortcuts="D"
-        aria-label={label}
-        aria-pressed={done}
-        className={cn(
-          "inline-flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:shrink-0",
-          done
-            ? "bg-primary/10 text-primary hover:bg-primary/15"
-            : "text-muted-foreground ring-1 ring-border ring-inset hover:bg-foreground/5 hover:text-foreground"
-        )}
-        onClick={onClick}
-        type="button"
-      >
-        {done ? <CircleCheck /> : <Circle />}
-        <span className="truncate">{label}</span>
-      </button>
-    </ShortcutTooltip>
-  );
-}
 
 /** "Linked from": the notes that link to this card, newest first. */
 export function LinkedFromSection({
@@ -432,12 +406,12 @@ function SuggestedTags({
 export function CardMetadataPanel({
   backlinks,
   card,
-  done,
   getCurrentValue,
   highlights,
+  image,
   notesRef,
-  onCardTypeClick,
   onCommit,
+  onEditLink,
   onNotesChange,
   onOpenCard,
   onOpenFolders,
@@ -446,12 +420,10 @@ export function CardMetadataPanel({
 }: CardMetadataPanelProps) {
   const t = useTranslations("cardModal.panel");
   const td = useTranslations("cardModal.details");
-  const types = useTranslations("cards.types");
+  const tMenu = useTranslations("cardModal.menu");
   const exif = useTranslations("lib.exif");
   const clipboard = useTranslations("lib.clipboard");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
-  const TypeIcon = getCardTypeIconComponent(card.type as CardType);
-  const typeLabel = cardTypeLabel(card.type, types);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useStoredFlag(DETAILS_EXPANDED_KEY);
   const folders = useFolders();
@@ -518,14 +490,6 @@ export function CardMetadataPanel({
 
   return (
     <div className="space-y-6 px-5 py-5">
-      {done && !isDeleted ? (
-        <DoneButton
-          category={done.category}
-          done={done.done}
-          onClick={done.onToggle}
-        />
-      ) : null}
-
       <PanelSection title={t("notes")}>
         <div className="relative">
           <textarea
@@ -709,20 +673,7 @@ export function CardMetadataPanel({
         </PanelSection>
       )}
 
-      <PanelSection
-        action={
-          <button
-            className="-mr-1 inline-flex h-5 items-center gap-1 rounded px-1.5 text-muted-foreground text-xs hover:bg-foreground/5 hover:text-foreground"
-            onClick={onCardTypeClick}
-            title={td("showAllOfType", { type: card.type ?? "card" })}
-            type="button"
-          >
-            <TypeIcon aria-hidden="true" className="size-3" />
-            {typeLabel}
-          </button>
-        }
-        title={td("title")}
-      >
+      <PanelSection title={td("title")}>
         <dl className="text-sm">
           {safeSourceUrl && sourceHost ? (
             <PropertyRow label={td("from")}>
@@ -745,15 +696,56 @@ export function CardMetadataPanel({
           ) : null}
           {safeUrl ? (
             <PropertyRow label={td("url")}>
-              <a
-                className="block truncate hover:underline hover:underline-offset-2"
-                href={safeUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-                title={card.url}
-              >
-                {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
-              </a>
+              <span className="flex min-w-0 items-center justify-end gap-1">
+                <a
+                  className="block min-w-0 truncate hover:underline hover:underline-offset-2"
+                  href={safeUrl}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  title={card.url}
+                >
+                  {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+                {onEditLink ? (
+                  <ShortcutTooltip label={tMenu("editLink")} side="left">
+                    <button
+                      aria-label={tMenu("editLink")}
+                      className={ROW_ICON_BUTTON_CLASS}
+                      onClick={onEditLink}
+                      type="button"
+                    >
+                      <Pencil />
+                    </button>
+                  </ShortcutTooltip>
+                ) : null}
+              </span>
+            </PropertyRow>
+          ) : null}
+          {image ? (
+            <PropertyRow label={td("image")}>
+              <span className="flex items-center justify-end gap-0.5">
+                {image.onReset ? (
+                  <button
+                    aria-label={tMenu("resetImage")}
+                    className={ROW_TEXT_BUTTON_CLASS}
+                    disabled={image.busy}
+                    onClick={image.onReset}
+                    type="button"
+                  >
+                    {td("resetImage")}
+                  </button>
+                ) : null}
+                <button
+                  aria-label={tMenu("replaceImage")}
+                  className={ROW_TEXT_BUTTON_CLASS}
+                  disabled={image.busy}
+                  onClick={image.onReplace}
+                  type="button"
+                >
+                  {image.busy ? <Spinner /> : null}
+                  {td("replaceImage")}
+                </button>
+              </span>
             </PropertyRow>
           ) : null}
           <PageArchiveRow card={card} />

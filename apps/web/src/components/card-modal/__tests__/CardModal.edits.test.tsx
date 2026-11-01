@@ -155,8 +155,32 @@ test("C copies a note's card links as their titles, not their tokens", async () 
   expect(writeText).toHaveBeenCalledWith("See Reading list for more");
 });
 
-test("Add to folder from the menu opens once the menu has closed, with focus on the card to come back to", async () => {
+test("Folder in the sidebar opens the card's folders", async () => {
+  foldersOpen = false;
   await render(card());
+  const folder = document.querySelector<HTMLButtonElement>(
+    "aside button[aria-label='Add to folder…']"
+  );
+  expect(folder?.textContent).toBe("Folder");
+  await act(() => folder?.click());
+  expect(foldersOpen).toBe(true);
+});
+
+test("on a phone, Add to folder from the menu opens once the menu has closed, with focus on the card to come back to", async () => {
+  foldersOpen = false;
+  const width = window.innerWidth;
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: 400,
+  });
+  try {
+    await render(card());
+  } finally {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: width,
+    });
+  }
   const trigger = document.querySelector<HTMLButtonElement>(
     "button[aria-label='More actions']"
   );
@@ -233,8 +257,8 @@ test("a note with text, or one that was already empty, says nothing", () => {
 
 test("Enter that confirms IME composition in the title keeps editing", async () => {
   await render(card({ type: "link", url: "https://example.com" }));
-  const title = document.querySelector<HTMLInputElement>(
-    "input[aria-label='Title']"
+  const title = document.querySelector<HTMLTextAreaElement>(
+    "textarea[aria-label='Title']"
   );
   await act(() => title?.focus());
   expect(document.activeElement).toBe(title);
