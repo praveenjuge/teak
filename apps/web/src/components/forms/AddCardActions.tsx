@@ -569,22 +569,30 @@ export function AddCardProvider({
   );
   const recordRef = useRef(startRecording);
   recordRef.current = startRecording;
-  const canStartRecording = !(isRecording || isSubmitting || unsaved);
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+  // A recording still waiting to be saved reopens its dialog instead of
+  // starting another: closing the dialog mustn't hide it for good.
+  const canStartRecording = !(isRecording || (isSubmitting && !unsaved));
+  const recordAudio = useCallback(() => {
+    if (unsavedRef.current) {
+      setIsRecordingDialogOpen(true);
+      return;
+    }
+    recordRef.current().catch(() => undefined);
+  }, []);
   useEffect(
     () =>
       registerRecordAudio(() => {
         if (!canStartRecording) {
           return false;
         }
-        recordRef.current().catch(() => undefined);
+        recordAudio();
         return true;
       }),
-    [canStartRecording]
+    [canStartRecording, recordAudio]
   );
   const uploadFiles = useCallback(() => uploadRef.current(), []);
-  const recordAudio = useCallback(() => {
-    recordRef.current().catch(() => undefined);
-  }, []);
   const controls = useMemo<AddCardControls>(
     () => ({
       canStartRecording,

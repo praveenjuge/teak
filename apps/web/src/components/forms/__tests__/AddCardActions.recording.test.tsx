@@ -238,6 +238,18 @@ test("while a recording saves it can be downloaded, and closing the dialog doesn
   await act(async () => button("Dismiss").click());
   expect(dialog()).toBeNull();
 
+  // Record audio (or R) brings it back rather than starting another.
+  await act(async () => button("Record audio").click());
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  await act(async () => button("Dismiss").click());
+  await act(() => {
+    expect(pressRecordAudio()).toBe(true);
+  });
+  expect(dialog()).not.toBeNull();
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  await act(async () => button("Dismiss").click());
+
   await act(async () => finishSave({ error: "Upload failed", success: false }));
   expect(dialog()?.querySelector("p")?.textContent).toBe(
     "Couldn't save the recording. Try again, or download it to keep it."
