@@ -1,9 +1,30 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import { cn } from "../../lib/utils";
 
-type Stage = "media" | "reading" | "compact";
+type Stage = "media" | "reading" | "note" | "compact";
 
-function stageFor(type?: string): Stage {
+/** A note up to this long opens in a smaller frame that fits it. */
+export const SHORT_NOTE_MAX_CHARS = 280;
+const SHORT_NOTE_MAX_LINES = 6;
+
+interface FramedCard {
+  content?: string;
+  type?: string;
+}
+
+export function isShortNote(card?: FramedCard | null): boolean {
+  if (card?.type !== "text") {
+    return false;
+  }
+  const content = card.content?.trim() ?? "";
+  return (
+    content.length <= SHORT_NOTE_MAX_CHARS &&
+    content.split("\n").length <= SHORT_NOTE_MAX_LINES
+  );
+}
+
+function stageFor(card?: FramedCard | null, shortNote?: boolean): Stage {
+  const type = card?.type;
   if (
     type === "image" ||
     type === "video" ||
@@ -13,13 +34,20 @@ function stageFor(type?: string): Stage {
     return "media";
   }
   if (type === "text") {
-    return "reading";
+    return (shortNote ?? isShortNote(card)) ? "note" : "reading";
   }
   return "compact";
 }
 
-export function cardModalFrameClass(type?: string): string {
-  const stage = stageFor(type);
+/**
+ * The dialog's size for a card. `shortNote` holds a note's size while it's
+ * being edited, so the dialog doesn't resize under the cursor.
+ */
+export function cardModalFrameClass(
+  card?: FramedCard | null,
+  shortNote?: boolean
+): string {
+  const stage = stageFor(card, shortNote);
   return cn(
     "flex flex-col gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none outline-none sm:max-w-none",
     "data-[state=closed]:!animate-none data-[state=open]:duration-150",
@@ -28,9 +56,31 @@ export function cardModalFrameClass(type?: string): string {
       "md:h-[min(56rem,calc(100dvh-4rem))] md:w-[min(82rem,calc(100vw-8rem))]",
     stage === "reading" &&
       "md:h-[min(52rem,calc(100dvh-4rem))] md:w-[min(72rem,calc(100vw-8rem))]",
+    stage === "note" &&
+      "md:h-[min(30rem,calc(100dvh-4rem))] md:w-[min(56rem,calc(100vw-8rem))]",
     stage === "compact" &&
       "md:h-[min(40rem,calc(100dvh-4rem))] md:w-[min(64rem,calc(100vw-8rem))]"
   );
+}
+
+/**
+ * The frame for the open card, sized once per card: a short note keeps its
+ * smaller frame while it grows under the cursor, until another card opens.
+ */
+export function useCardModalFrameClass(
+  card?: (FramedCard & { _id: string }) | null
+): string {
+  const [sized, setSized] = useState<{ id?: string; short: boolean }>({
+    short: false,
+  });
+  const short =
+    sized.id === card?._id && sized.id !== undefined
+      ? sized.short
+      : isShortNote(card);
+  if (sized.id !== card?._id) {
+    setSized({ id: card?._id, short });
+  }
+  return cardModalFrameClass(card, short);
 }
 
 /**

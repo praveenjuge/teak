@@ -8,9 +8,11 @@ import {
 } from "@teak/convex/shared/fileFormats";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
+import { useState } from "react";
 import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { FileTextPreview } from "./FileTextPreview";
+import { MEDIA_LOADING_CLASS } from "./ImagePreview";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -124,12 +126,23 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   const mimeType = card.fileMetadata?.mimeType || "";
   const fileUrl = card.fileUrl;
   const format = inferFileFormat({ fileName, mimeType });
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
 
   if (format?.preview === "pdf" && fileUrl) {
+    const loading = loadedUrl !== fileUrl;
     return (
-      <div className="flex h-full w-full flex-col">
+      <div className="relative flex h-full w-full flex-col">
+        {loading ? (
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 rounded-xl ${MEDIA_LOADING_CLASS}`}
+            data-slot="media-loading"
+          />
+        ) : null}
+        {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: load only hides the placeholder; the frame takes no input from it */}
         <iframe
           className="h-full w-full rounded-xl"
+          onLoad={() => setLoadedUrl(fileUrl)}
           src={fileUrl}
           title={fileName}
         />

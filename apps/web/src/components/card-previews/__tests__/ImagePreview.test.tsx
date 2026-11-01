@@ -187,4 +187,61 @@ describe("ImagePreview in a dialog left open", () => {
     expect(img()).toBeNull();
     expect(container.textContent).toBe("photo.jpg");
   });
+  test("pulses in the image's box until the image has loaded", async () => {
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileUrl: "https://cdn.example.com/photo.jpg",
+              fileMetadata: { width: 1200, height: 800 },
+            }) as any
+          }
+        />
+      )
+    );
+    const image = container.querySelector("img") as HTMLImageElement;
+    const placeholder = () =>
+      container.querySelector('[data-slot="media-loading"]');
+    expect(image.dataset.loading).toBe("true");
+    expect(placeholder()?.className).toContain("animate-pulse");
+
+    await act(() => {
+      image.dispatchEvent(new Event("load"));
+    });
+    expect(image.dataset.loading).toBeUndefined();
+    expect(placeholder()).toBeNull();
+    await act(() => root.unmount());
+  });
+  test("stops pulsing when the image can't load, so its fallback shows", async () => {
+    refreshMediaUrl.mockImplementationOnce(() =>
+      Promise.reject(new Error("offline"))
+    );
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileKey: "cards/photo.jpg",
+              fileMetadata: { fileName: "photo.jpg", height: 800, width: 1200 },
+              fileUrl: "https://files.teakvault.com/cards/photo.jpg",
+            }) as any
+          }
+        />
+      )
+    );
+    await act(async () => {
+      container.querySelector("img")?.dispatchEvent(new Event("error"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-slot="media-loading"]')).toBeNull();
+    expect(container.textContent).toContain("photo.jpg");
+    await act(() => root.unmount());
+  });
 });

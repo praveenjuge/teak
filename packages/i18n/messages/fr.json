@@ -830,6 +830,7 @@
       "showTagged": "Afficher les fiches avec le tag {tag}",
       "suggestedTags": "{count, plural, one {# tag suggéré} other {# tags suggérés}}",
       "summary": "Résumé",
+      "folders": "Dossiers",
       "tags": "Tags",
       "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}",
       "highlights": "Surlignages · {count, number}",

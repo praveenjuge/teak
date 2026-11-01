@@ -830,6 +830,7 @@
       "showTagged": "Mostrar cards com a tag {tag}",
       "suggestedTags": "{count, plural, one {# tag sugerida} other {# tags sugeridas}}",
       "summary": "Resumo",
+      "folders": "Pastas",
       "tags": "Tags",
       "teakTagHint": "Tag adicionada pelo Teak. Mostrar cards com a tag {tag}",
       "highlights": "Destaques · {count, number}",

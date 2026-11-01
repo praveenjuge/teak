@@ -830,6 +830,7 @@
       "showTagged": "显示带有 {tag} 标签的卡片",
       "suggestedTags": "{count, plural, other {# 个建议标签}}",
       "summary": "摘要",
+      "folders": "文件夹",
       "tags": "标签",
       "teakTagHint": "由 Teak 添加的标签。显示带有 {tag} 标签的卡片",
       "highlights": "高亮 · {count, number}",

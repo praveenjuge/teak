@@ -158,12 +158,17 @@ test("a suggestion the card already has as its own tag isn't suggested", async (
   expect(button("2 suggested tags")).toBeDefined();
 });
 
-test("a card in a folder shows the folder among its tags, which changes folders", async () => {
+test("a card in a folder shows it under Folders, apart from its tags, and it changes folders", async () => {
   const onOpenFolders = mock();
   await render(imageCard({ folderIds: ["folder_1"] } as never), {
     onOpenFolders,
   });
-  await act(() => button("In Moodboard. Change folders")?.click());
+  const chip = button("In Moodboard. Change folders");
+  expect(chip?.closest("section")?.getAttribute("aria-label")).toBe("Folders");
+  const tags = document.querySelector("section[aria-label='Tags']");
+  expect(tags).not.toBeNull();
+  expect(tags?.textContent).not.toContain("Moodboard");
+  await act(() => chip?.click());
   expect(onOpenFolders).toHaveBeenCalledTimes(1);
   expect(button("Add to a folder")).toBeUndefined();
 });

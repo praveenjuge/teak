@@ -5,7 +5,7 @@
 //   const { injectFaults } = require("./convex-faults.cjs");
 //   await injectFaults(page, {
 //     failQuery: (name) => name === "listTagSummary",      // query throws
-//     rewriteQuery: (name) => (name === "x" ? null : undefined), // new value
+//     rewriteQuery: (name, value) => (name === "x" ? null : undefined), // new value
 //     failRequest: (name, message) => name === "permanentDeleteCard",
 //     observe: (name, value) => {},                         // read results
 //   });
@@ -69,7 +69,7 @@ async function injectFaults(page, rules) {
               journal: mod.journal,
             };
           }
-          const replacement = rules.rewriteQuery?.(name);
+          const replacement = rules.rewriteQuery?.(name, mod.value);
           if (replacement !== undefined) {
             changed = true;
             return { ...mod, value: replacement };

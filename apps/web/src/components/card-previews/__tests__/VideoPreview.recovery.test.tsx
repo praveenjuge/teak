@@ -67,3 +67,35 @@ test.each([
     );
   }
 );
+
+test("a video whose link expired mid-playback carries on from the same moment", async () => {
+  const play = mock(() => Promise.resolve());
+  HTMLMediaElement.prototype.play = play;
+  const container = await render();
+  const old = container.querySelector("video") as HTMLVideoElement;
+  Object.defineProperty(old, "currentTime", {
+    configurable: true,
+    value: 42.5,
+    writable: true,
+  });
+  Object.defineProperty(old, "paused", { configurable: true, value: false });
+  await act(async () => {
+    old.dispatchEvent(new Event("error"));
+    await Promise.resolve();
+  });
+
+  const fresh = container.querySelector("video") as HTMLVideoElement;
+  expect(fresh).not.toBe(old);
+  await act(() => {
+    fresh.dispatchEvent(new Event("loadedmetadata"));
+  });
+  expect(fresh.currentTime).toBe(42.5);
+  expect(play).toHaveBeenCalled();
+
+  // Only once: a later reload of the same link starts where it's told to.
+  fresh.currentTime = 3;
+  await act(() => {
+    fresh.dispatchEvent(new Event("loadedmetadata"));
+  });
+  expect(fresh.currentTime).toBe(3);
+});

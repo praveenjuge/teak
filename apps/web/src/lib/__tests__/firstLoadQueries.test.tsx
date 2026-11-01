@@ -142,4 +142,25 @@ describe("first-load queries", () => {
       "dataExport:getLatestExport",
     ]);
   });
+
+  test("warm only what each other Settings page shows", () => {
+    const base = [
+      "auth:getAuthUser",
+      "auth:getCardCreationStatus",
+      "folders:listFolders",
+      "auth:getCurrentUser",
+    ];
+    const page = (path: string) => names(new URL(path, "https://app.example"));
+    expect(page("/settings/plan")).toEqual(base);
+    expect(page("/settings/appearance")).toEqual(base);
+    expect(page("/settings/security")).toEqual(base);
+    expect(page("/settings/integrations")).toEqual([
+      ...base,
+      "apiKeys:listUserApiKeys",
+    ]);
+    expect(page("/settings/data")).toEqual([
+      ...base,
+      "dataExport:getLatestExport",
+    ]);
+  });
 });

@@ -830,6 +830,7 @@
       "showTagged": "Show cards tagged {tag}",
       "suggestedTags": "{count, plural, one {# suggested tag} other {# suggested tags}}",
       "summary": "Summary",
+      "folders": "Folders",
       "tags": "Tags",
       "teakTagHint": "Tag added by Teak. Show cards tagged {tag}",
       "highlights": "Highlights · {count, number}",

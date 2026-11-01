@@ -171,10 +171,10 @@ export function AudioPreview({ card }: AudioPreviewProps) {
                 setIsPlaying(false);
                 setCurrentTime(0);
               }}
-              onError={() => {
+              onError={(event) => {
                 setIsPlaying(false);
                 media
-                  .onError()
+                  .onError(event.currentTarget, isPlaying)
                   .then((retrying) => {
                     if (!retrying) {
                       setLoadFailed(true);
@@ -182,7 +182,11 @@ export function AudioPreview({ card }: AudioPreviewProps) {
                   })
                   .catch(() => setLoadFailed(true));
               }}
-              onLoadedMetadata={syncDuration}
+              onLoadedMetadata={(event) => {
+                syncDuration();
+                // A refreshed link carries on from where the old one stopped.
+                media.resume(event.currentTarget);
+              }}
               onPause={() => setIsPlaying(false)}
               onPlay={() => setIsPlaying(true)}
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}

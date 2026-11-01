@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 /**
  * While `active`, asks before the tab closes or reloads. `onLeave` runs as
@@ -7,19 +7,22 @@ import { useEffect } from "react";
  * discards the tab without a prompt still lets it run.
  */
 export function useWarnBeforeUnload(active: boolean, onLeave?: () => void) {
+  // Reads the latest callback when the page goes, so a callback that changes
+  // with every keystroke doesn't take the listeners down and up each time.
+  const leave = useEffectEvent(() => onLeave?.());
   useEffect(() => {
     if (!active) {
       return;
     }
     const warn = (event: BeforeUnloadEvent) => {
-      onLeave?.();
+      leave();
       event.preventDefault();
       // Older Chrome and Safari need returnValue set to show the prompt.
       event.returnValue = "";
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        onLeave?.();
+        leave();
       }
     };
     window.addEventListener("beforeunload", warn);
@@ -28,5 +31,5 @@ export function useWarnBeforeUnload(active: boolean, onLeave?: () => void) {
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [active, onLeave]);
+  }, [active]);
 }

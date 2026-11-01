@@ -14,6 +14,7 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-focus` saves from the full-screen Focus editor.
 - `capture-new-menu` opens the sidebar "New" menu: "Note or link" (N), "Upload files" (U), "Record audio" (R) On phones (below 768 px) the same menu opens from the "+" button "New" at the right of the page header, since the sidebar is a closed drawer there; touch screens show no key letters in it.
 - `capture-narrow` keeps `U`, `R` and the palette's "Upload files" working at every width: they don't depend on the sidebar, so they work below 768 px with the drawer closed, and a recording started from the drawer's menu keeps going once the drawer closes.
+- `capture-composer-focus` rings the focused composer like every text field (the `--ring` colour, a 3 px soft ring), not the brand red that reads as an error.
 - `capture-composer-search` shows the composer only on Everything with no search or filter: a search's results start with the first match. `N` during a search goes to `/` and focuses the composer.
 - `capture-upload` uploads files as image, video, audio or document cards.
 - `capture-audio` records audio into an audio card; "Discard" or Esc throws a recording away. A recording whose save fails stays in the dialog to save again or download ([errors](./errors.md)).
