@@ -50,7 +50,6 @@ import {
 export const ARTICLE_READER_ATTRIBUTE = "data-article-reader";
 export const ARTICLE_BODY_ATTRIBUTE = "data-article-body";
 
-/** An article is at most 512 KiB characters; CJK text takes 3 bytes each. */
 const ARTICLE_MAX_BYTES = 2.5 * 1024 * 1024;
 
 export type ArticleReaderState =

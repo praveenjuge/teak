@@ -355,8 +355,6 @@ test("a page snapshot becomes the link's saved copy", async () => {
   expect(created.status).toBe(200);
   const { cardId } = await created.json();
 
-  // The local stack has no link fetcher, so the run's other link steps fail;
-  // the copy still comes from the snapshot, in a run of its own.
   await retry(
     async () => {
       const card = await (await apiFetch(`/v1/cards/${cardId}`, apiKey)).json();
