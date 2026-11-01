@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
     },
     "heading": {
-      "addedOn": "{date}에 추가됨",
-      "addedToday": "오늘 추가됨",
-      "addedYesterday": "어제 추가됨",
+      "addedOn": "{date} {time}에 추가됨",
+      "addedToday": "오늘 {time}에 추가됨",
+      "addedYesterday": "어제 {time}에 추가됨",
       "note": "메모"
     },
     "panel": {

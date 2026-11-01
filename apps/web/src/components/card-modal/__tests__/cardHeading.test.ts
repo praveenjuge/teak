@@ -37,21 +37,21 @@ describe("getCardHeading", () => {
 describe("formatAddedDate", () => {
   const now = new Date(2026, 9, 14, 15, 0).getTime();
 
-  test("says today and yesterday", () => {
+  test("says today and yesterday, with the time", () => {
     expect(formatAddedDate(new Date(2026, 9, 14, 0, 5).getTime(), now)).toBe(
-      "Added today"
+      "Added today at 12:05 AM"
     );
     expect(formatAddedDate(new Date(2026, 9, 13, 23, 0).getTime(), now)).toBe(
-      "Added yesterday"
+      "Added yesterday at 11:00 PM"
     );
   });
 
   test("leaves out this year's year but names earlier ones", () => {
-    expect(formatAddedDate(new Date(2026, 2, 4).getTime(), now)).toBe(
-      "Added Mar 4"
+    expect(formatAddedDate(new Date(2026, 2, 4, 9, 30).getTime(), now)).toBe(
+      "Added Mar 4 at 9:30 AM"
     );
-    expect(formatAddedDate(new Date(2024, 2, 4).getTime(), now)).toBe(
-      "Added Mar 4, 2024"
+    expect(formatAddedDate(new Date(2024, 2, 4, 16, 0).getTime(), now)).toBe(
+      "Added Mar 4, 2024 at 4:00 PM"
     );
   });
 });
@@ -75,7 +75,7 @@ describe("formatAddedDate across a daylight saving change", () => {
     // Clocks fell back on Sunday Nov 1 2026 in Los Angeles.
     const now = new Date(2026, 10, 2, 10, 0).getTime();
     expect(formatAddedDate(new Date(2026, 10, 1, 0, 30).getTime(), now)).toBe(
-      "Added yesterday"
+      "Added yesterday at 12:30 AM"
     );
   });
 
@@ -83,10 +83,10 @@ describe("formatAddedDate across a daylight saving change", () => {
     // Clocks sprang forward on Sunday Mar 8 2026 in Los Angeles.
     const now = new Date(2026, 2, 9, 10, 0).getTime();
     expect(formatAddedDate(new Date(2026, 2, 7, 23, 30).getTime(), now)).toBe(
-      "Added Mar 7"
+      "Added Mar 7 at 11:30 PM"
     );
     expect(formatAddedDate(new Date(2026, 2, 8, 0, 30).getTime(), now)).toBe(
-      "Added yesterday"
+      "Added yesterday at 12:30 AM"
     );
   });
 });

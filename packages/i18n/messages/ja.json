@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
     },
     "heading": {
-      "addedOn": "{date} に追加",
-      "addedToday": "今日追加",
-      "addedYesterday": "昨日追加",
+      "addedOn": "{date} {time} に追加",
+      "addedToday": "今日 {time} に追加",
+      "addedYesterday": "昨日 {time} に追加",
       "note": "メモ"
     },
     "panel": {

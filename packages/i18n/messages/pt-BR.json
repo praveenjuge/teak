@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {Marcado como lido} watched {Marcado como assistido} listened {Marcado como ouvido} bought {Marcado como comprado} cooked {Marcado como preparado} played {Marcado como jogado} other {Marcado como concluído}}"
     },
     "heading": {
-      "addedOn": "Adicionado em {date}",
-      "addedToday": "Adicionado hoje",
-      "addedYesterday": "Adicionado ontem",
+      "addedOn": "Adicionado em {date} às {time}",
+      "addedToday": "Adicionado hoje às {time}",
+      "addedYesterday": "Adicionado ontem às {time}",
       "note": "Nota"
     },
     "panel": {

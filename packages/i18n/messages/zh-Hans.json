@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {已标为已读} watched {已标为已看} listened {已标为已听} bought {已标为已买} cooked {已标为已做} played {已标为已玩} other {已标为已完成}}"
     },
     "heading": {
-      "addedOn": "添加于 {date}",
-      "addedToday": "今天添加",
-      "addedYesterday": "昨天添加",
+      "addedOn": "添加于 {date} {time}",
+      "addedToday": "今天 {time} 添加",
+      "addedYesterday": "昨天 {time} 添加",
       "note": "笔记"
     },
     "panel": {

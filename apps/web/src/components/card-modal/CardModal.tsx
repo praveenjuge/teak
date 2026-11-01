@@ -107,7 +107,6 @@ import {
   useScrolledPast,
 } from "./CardSidebarHeader";
 import { CheckedLinkPreview } from "./CheckedLinkPreview";
-import { formatCardDate } from "./cardDetails";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -1049,9 +1048,6 @@ export function CardModal({
     card && heading ? (
       <SidebarTitle
         added={addedLabel}
-        addedExact={
-          card ? formatCardDate(card.createdAt, dateLocale) : undefined
-        }
         editable={heading.editable && !isDeleted}
         hostname={hostname}
         label={t("header.titleLabel")}
