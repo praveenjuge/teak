@@ -83,6 +83,7 @@ struct VoiceMemoView: View {
     static let windowID = "voice-memo"
     @Environment(CaptureModel.self) private var capture
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var recorder = VoiceRecorder()
     @State private var isSaving = false
@@ -169,6 +170,9 @@ struct VoiceMemoView: View {
         .onChange(of: app.user == nil) { _, signedOut in
             if signedOut { discard() }
         }
+        // The window isn't the router's sheet, so it says it's open: the main window's alert stands down meanwhile.
+        .onAppear { router.isRecording = true }
+        .onDisappear { router.isRecording = false }
         #endif
         .captureAlert()
         // Signing out can take the sheet away mid-recording: stop the mic and drop the file.
