@@ -10,20 +10,51 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const realPanel = await import("../CardMetadataPanel");
+let panelProps: Parameters<typeof realPanel.CardMetadataPanel>[0] | undefined;
 mock.module("../CardMetadataPanel", () => ({
   ...realPanel,
-  CardMetadataPanel: () => null,
+  CardMetadataPanel: (props: typeof panelProps) => {
+    panelProps = props;
+    return null;
+  },
 }));
+
+/** Stands in for the browser's observer, so a test can scroll the actions away. */
+let reportActionsVisible: ((visible: boolean) => void) | undefined;
+class FakeIntersectionObserver {
+  readonly callback: IntersectionObserverCallback;
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+  }
+  observe() {
+    reportActionsVisible = (visible) =>
+      this.callback(
+        [
+          {
+            boundingClientRect: { bottom: visible ? 200 : -10 },
+            isIntersecting: visible,
+            rootBounds: { top: 0 },
+          } as unknown as IntersectionObserverEntry,
+        ],
+        this as unknown as IntersectionObserver
+      );
+  }
+  disconnect() {
+    reportActionsVisible = undefined;
+  }
+}
+Object.assign(globalThis, { IntersectionObserver: FakeIntersectionObserver });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { CardModal, DETAILS_HIDDEN_KEY } = await import("../CardModal");
+const { CardModal } = await import("../CardModal");
 
 let root: Root | undefined;
 
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
+  panelProps = undefined;
   document.body.innerHTML = "";
   window.localStorage.clear();
 });
@@ -129,15 +160,20 @@ async function press(key: string, init: KeyboardEventInit = {}) {
   });
 }
 
-/** A menu item by its label, leaving out the shortcut beside it. */
+/** A menu item's label, leaving out the shortcut beside it. */
+const menuItemLabel = (item: HTMLElement) => {
+  const shortcut = item.querySelector(
+    "[data-slot='dropdown-menu-shortcut']"
+  )?.textContent;
+  const text = item.textContent?.trim() ?? "";
+  return shortcut ? text.slice(0, -shortcut.length) : text;
+};
+
+/** A menu item by its label. */
 const menuItem = (label: string) =>
-  Array.from(document.querySelectorAll("[role='menuitem']")).find((item) => {
-    const shortcut = item.querySelector(
-      "[data-slot='dropdown-menu-shortcut']"
-    )?.textContent;
-    const text = item.textContent?.trim() ?? "";
-    return (shortcut ? text.slice(0, -shortcut.length) : text) === label;
-  }) as HTMLElement | undefined;
+  Array.from(document.querySelectorAll<HTMLElement>("[role='menuitem']")).find(
+    (item) => menuItemLabel(item) === label
+  );
 
 test("the card menu offers More like this for the open card", async () => {
   const { onMoreLikeThis } = await render(linkCard());
@@ -146,15 +182,14 @@ test("the card menu offers More like this for the open card", async () => {
   expect(onMoreLikeThis).toHaveBeenCalledWith("card_1");
 });
 
-test("Replace image in the card menu opens the picker and replaces the image", async () => {
+test("Replace image in Details opens the picker and replaces the image", async () => {
   const { linkThumbnail } = await render(linkCard());
   const input = document.querySelector<HTMLInputElement>(
     "[data-testid='link-image-input']"
   );
   const opened = mock();
   input?.addEventListener("click", opened);
-  await openMenu();
-  await act(() => menuItem("Replace image")?.click());
+  await act(() => panelProps?.image?.onReplace());
   expect(opened).toHaveBeenCalledTimes(1);
 
   const file = new File([new Uint8Array(8)], "lamp.png", { type: "image/png" });
@@ -163,10 +198,12 @@ test("Replace image in the card menu opens the picker and replaces the image", a
     input?.dispatchEvent(new Event("change", { bubbles: true }));
   });
   expect(linkThumbnail.replace).toHaveBeenCalledWith(file, "pick");
-  expect(menuItem("Reset to original image")).toBeUndefined();
+  expect(panelProps?.image?.onReset).toBeUndefined();
+  await openMenu();
+  expect(menuItem("Replace image")).toBeUndefined();
 });
 
-test("a replaced image can be reset from the card menu", async () => {
+test("a replaced image can be reset from Details", async () => {
   const { linkThumbnail } = await render(
     linkCard({
       thumbnailOverride: {
@@ -177,31 +214,86 @@ test("a replaced image can be reset from the card menu", async () => {
       },
     } as Partial<CardModalCard>)
   );
-  await openMenu();
-  await act(() => menuItem("Reset to original image")?.click());
+  await act(() => panelProps?.image?.onReset?.());
   expect(linkThumbnail.reset).toHaveBeenCalledTimes(1);
 });
 
-test("a card in Trash has neither More like this nor image actions", async () => {
-  await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
+test("Edit link sits beside the link's URL in Details, not in the menu", async () => {
+  await render(linkCard());
+  expect(panelProps?.onEditLink).toBeDefined();
   await openMenu();
-  expect(menuItem("Copy link")).toBeDefined();
-  expect(menuItem("More like this")).toBeUndefined();
-  expect(menuItem("Replace image")).toBeUndefined();
+  expect(menuItem("Edit link…")).toBeUndefined();
 });
 
-test("a card in Trash says so above the card, with Restore there and not in the menu", async () => {
+test("a card in Trash has no actions, menu, Edit link or image actions", async () => {
+  await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
+  expect(
+    document.querySelector("button[aria-label='More actions']")
+  ).toBeNull();
+  expect(document.querySelector("button[aria-label='Favorite']")).toBeNull();
+  expect(button("Open")).toBeUndefined();
+  expect(panelProps?.onEditLink).toBeUndefined();
+  expect(panelProps?.image).toBeUndefined();
+});
+
+test("a card in Trash says so in the sidebar, with Restore and Delete forever", async () => {
   const { handleRestore } = await render(
     linkCard({ isDeleted: true } as Partial<CardModalCard>)
   );
-  expect(document.querySelector("[role='status']")?.textContent).toContain(
-    "This card is in Trash"
-  );
-  await openMenu();
-  expect(menuItem("Restore")).toBeUndefined();
-  expect(menuItem("Delete forever")).toBeUndefined();
+  const status = document.querySelector("aside [role='status']");
+  expect(status?.textContent).toContain("This card is in Trash");
+  expect(button("Delete forever")).toBeDefined();
   await act(() => button("Restore")?.click());
   expect(handleRestore).toHaveBeenCalledTimes(1);
+});
+
+test("the sidebar leads with the title, then Open and the icon row", async () => {
+  await render(
+    linkCard({ metadataTitle: "A lamp" } as Partial<CardModalCard>),
+    {
+      toggleDone: mock(),
+    }
+  );
+  const aside = document.querySelector("aside[aria-label='Card details']");
+  expect(aside?.querySelector("textarea[aria-label='Title']")).toBeTruthy();
+  expect(aside?.querySelector("h2")?.textContent).toBe("A lamp");
+  expect(aside?.textContent).toContain("example.com");
+  const controls = Array.from(
+    aside?.querySelectorAll("button[aria-keyshortcuts], button[aria-label]") ??
+      []
+  ).map((item) => item.getAttribute("aria-label") ?? item.textContent?.trim());
+  expect(controls.slice(0, 6)).toEqual([
+    "Open",
+    "Favorite",
+    "Mark as done",
+    "Copy link",
+    "Add to folder…",
+    "More actions",
+  ]);
+  // No header is left over the card.
+  expect(document.querySelector("[role='dialog'] header")).toBeNull();
+});
+
+test("the menu keeps only what the icon row doesn't hold", async () => {
+  await render(linkCard(), { toggleDone: mock() });
+  await openMenu();
+  const items = Array.from(document.querySelectorAll("[role='menuitem']"));
+  const labels = items.map((item) => menuItemLabel(item as HTMLElement));
+  expect(labels).toEqual(["More like this", "Move to Trash"]);
+});
+
+test("once the actions scroll away, a one-line copy stays pinned on top", async () => {
+  await render(linkCard());
+  const pinned = () =>
+    document.querySelector("[data-testid='pinned-card-actions']");
+  expect(pinned()).toBeNull();
+  expect(reportActionsVisible).toBeDefined();
+  await act(() => reportActionsVisible?.(false));
+  expect(pinned()).not.toBeNull();
+  expect(pinned()?.querySelector("button[aria-label='Favorite']")).toBeTruthy();
+  expect(button("Open")).toBeDefined();
+  await act(() => reportActionsVisible?.(true));
+  expect(pinned()).toBeNull();
 });
 
 test("Save PDF lives in the menu, and reads Saving PDF… while it saves", async () => {
@@ -218,35 +310,13 @@ test("Save PDF lives in the menu, and reads Saving PDF… while it saves", async
   expect(menuItem("Saving PDF…")?.getAttribute("aria-disabled")).toBe("true");
 });
 
-test("Hide details in the menu hides the details, and I brings them back", async () => {
-  await render(linkCard());
-  const aside = () =>
-    document.querySelector("aside[aria-label='Card details']");
-  await openMenu();
-  await act(() => menuItem("Hide details")?.click());
-  expect(aside()?.className).toContain("md:hidden");
-  expect(window.localStorage.getItem(DETAILS_HIDDEN_KEY)).toBe("1");
-
-  await press("i");
-  expect(aside()?.className).not.toContain("md:hidden");
-  expect(window.localStorage.getItem(DETAILS_HIDDEN_KEY)).toBe("0");
-});
-
-test("I from a control in the details keeps focus in the dialog, so card keys still work", async () => {
+test("the details stay beside the card: I does nothing and the menu can't hide them", async () => {
   await render(linkCard());
   const aside = document.querySelector("aside[aria-label='Card details']");
-  const control = document.createElement("button");
-  aside?.append(control);
-  control.focus();
-  await act(() => {
-    control.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "i" })
-    );
-  });
-  expect(aside?.className).toContain("md:hidden");
-  expect(document.activeElement).toBe(
-    document.querySelector("[role='dialog']")
-  );
+  await press("i");
+  expect(aside?.className).not.toContain("hidden");
+  await openMenu();
+  expect(menuItem("Hide details")).toBeUndefined();
 });
 
 test("O and Mod+Enter open the link, and D marks it done", async () => {

@@ -739,7 +739,6 @@
       "copyText": "Copiar texto",
       "download": "Descargar",
       "favorite": "Marcar como favorita",
-      "hideDetails": "Ocultar detalles",
       "moreActions": "Más acciones",
       "moreLikeThis": "Más como esta",
       "moveToTrash": "Mover a la papelera",
@@ -749,10 +748,12 @@
       "savePdf": "Guardar PDF",
       "savingPdf": "Guardando PDF…",
       "shortcutsHint": "Pulse <kbd>?</kbd> para ver todos los atajos",
-      "showDetails": "Mostrar detalles",
       "unarchive": "Desarchivar",
       "unfavorite": "Quitar de favoritas",
       "editLink": "Editar enlace…"
+    },
+    "actions": {
+      "folder": "Carpeta"
     },
     "toasts": {
       "copiedLink": "Enlace copiado",
@@ -834,7 +835,10 @@
       "showAllOfType": "{type, select, text {Mostrar todas las tarjetas de texto} link {Mostrar todas las tarjetas de enlace} image {Mostrar todas las tarjetas de imagen} video {Mostrar todas las tarjetas de vídeo} audio {Mostrar todas las tarjetas de audio} document {Mostrar todas las tarjetas de documento} palette {Mostrar todas las tarjetas de paleta} quote {Mostrar todas las tarjetas de cita} other {Mostrar todas las tarjetas}}",
       "text": "Texto",
       "title": "Detalles",
-      "url": "URL"
+      "url": "URL",
+      "image": "Imagen",
+      "replaceImage": "Reemplazar",
+      "resetImage": "Restablecer"
     },
     "reader": {
       "preview": "Vista previa",
@@ -1385,7 +1389,6 @@
       "openLink": "Abrir el enlace",
       "markLinkDone": "Marcar un enlace como hecho",
       "copyLinkOrText": "Copiar el enlace o el texto",
-      "toggleDetails": "Mostrar u ocultar detalles",
       "readOrPreview": "Leer o ver la vista previa",
       "highlightSelection": "Resaltar la selección",
       "goToEverything": "Todo",

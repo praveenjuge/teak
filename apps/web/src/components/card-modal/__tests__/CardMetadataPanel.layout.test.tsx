@@ -67,7 +67,6 @@ async function render(
       <CardMetadataPanel
         card={card}
         getCurrentValue={(field) => card[field as keyof CardModalCard] as never}
-        onCardTypeClick={() => undefined}
         onCommit={() => undefined}
         onNotesChange={() => undefined}
         tags={tags}
@@ -156,4 +155,44 @@ test("a card in no folder offers Add to a folder", async () => {
   await render(imageCard(), { onOpenFolders });
   await act(() => button("Add to a folder")?.click());
   expect(onOpenFolders).toHaveBeenCalledTimes(1);
+});
+
+const linkCard = () =>
+  imageCard({
+    aiTags: [],
+    fileMetadata: undefined,
+    type: "link",
+    url: "https://example.com/lamp",
+  } as Partial<CardModalCard>);
+
+test("a link's URL row offers Edit link, and its Image row Replace", async () => {
+  const onEditLink = mock();
+  const onReplace = mock();
+  await render(linkCard(), {
+    image: { busy: false, onReplace },
+    onEditLink,
+  });
+  await act(() => button("Edit link…")?.click());
+  expect(onEditLink).toHaveBeenCalledTimes(1);
+  expect(detailLabels()).toContain("Image");
+  expect(button("Replace image")?.textContent).toBe("Replace");
+  await act(() => button("Replace image")?.click());
+  expect(onReplace).toHaveBeenCalledTimes(1);
+  expect(button("Reset to original image")).toBeUndefined();
+});
+
+test("a replaced image offers Reset, and both wait while one is busy", async () => {
+  const onReset = mock();
+  await render(linkCard(), {
+    image: { busy: true, onReplace: mock(), onReset },
+  });
+  expect(button("Reset to original image")?.textContent).toBe("Reset");
+  expect(button("Reset to original image")?.disabled).toBe(true);
+  expect(button("Replace image")?.disabled).toBe(true);
+});
+
+test("without the controls, Details has neither Edit link nor Image", async () => {
+  await render(linkCard());
+  expect(button("Edit link…")).toBeUndefined();
+  expect(detailLabels()).not.toContain("Image");
 });

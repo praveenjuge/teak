@@ -739,7 +739,6 @@
       "copyText": "Copier le texte",
       "download": "Télécharger",
       "favorite": "Ajouter aux favoris",
-      "hideDetails": "Masquer les détails",
       "moreActions": "Plus d’actions",
       "moreLikeThis": "Plus de ce genre",
       "moveToTrash": "Placer dans la corbeille",
@@ -749,10 +748,12 @@
       "savePdf": "Enregistrer le PDF",
       "savingPdf": "Enregistrement du PDF…",
       "shortcutsHint": "Appuyez sur <kbd>?</kbd> pour voir tous les raccourcis",
-      "showDetails": "Afficher les détails",
       "unarchive": "Désarchiver",
       "unfavorite": "Retirer des favoris",
       "editLink": "Modifier le lien…"
+    },
+    "actions": {
+      "folder": "Dossier"
     },
     "toasts": {
       "copiedLink": "Lien copié",
@@ -834,7 +835,10 @@
       "showAllOfType": "{type, select, text {Afficher toutes les fiches texte} link {Afficher toutes les fiches lien} image {Afficher toutes les fiches image} video {Afficher toutes les fiches vidéo} audio {Afficher toutes les fiches audio} document {Afficher toutes les fiches document} palette {Afficher toutes les fiches palette} quote {Afficher toutes les fiches citation} other {Afficher toutes les fiches}}",
       "text": "Texte",
       "title": "Détails",
-      "url": "URL"
+      "url": "URL",
+      "image": "Image",
+      "replaceImage": "Remplacer",
+      "resetImage": "Réinitialiser"
     },
     "reader": {
       "preview": "Aperçu",
@@ -1385,7 +1389,6 @@
       "openLink": "Ouvrir le lien",
       "markLinkDone": "Marquer un lien comme terminé",
       "copyLinkOrText": "Copier le lien ou le texte",
-      "toggleDetails": "Afficher ou masquer les détails",
       "readOrPreview": "Lire ou afficher l’aperçu",
       "highlightSelection": "Surligner la sélection",
       "goToEverything": "Tout",
