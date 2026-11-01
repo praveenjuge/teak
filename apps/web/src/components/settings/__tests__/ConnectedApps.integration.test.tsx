@@ -141,7 +141,6 @@ function confirmation() {
   }
   return dialog;
 }
-// Disconnect and Sign out ask first; press the confirmation's own button.
 async function clickAndConfirm(name: string, confirmLabel: string) {
   await click(name);
   const button = [...confirmation().querySelectorAll("button")].find(

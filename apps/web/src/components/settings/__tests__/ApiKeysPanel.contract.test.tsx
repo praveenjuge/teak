@@ -82,7 +82,6 @@ describe("ApiKeysPanel", () => {
     expect(markup).toContain('href="https://teakvault.com/docs/api"');
     expect(markup).toContain("Key");
     expect(markup).not.toContain("Last used");
-    // The server leaves the date to the browser, whose time zone it is in.
     expect(markup).not.toContain("Created");
     expect(markup).not.toContain("Status");
     expect(markup).toContain("SDK Key");
@@ -115,7 +114,6 @@ describe("ApiKeysPanel", () => {
 
     expect(markup).not.toContain("Default API key");
     expect(markup).not.toContain(">API Keys<");
-    // The server leaves the date to the browser, whose time zone it is in.
     expect(markup).not.toContain("Created");
     expect(markup).not.toContain("Last used");
   });

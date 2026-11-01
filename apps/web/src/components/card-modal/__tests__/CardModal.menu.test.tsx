@@ -19,7 +19,6 @@ mock.module("../CardMetadataPanel", () => ({
   },
 }));
 
-/** Stands in for the browser's observer, so a test can scroll the actions away. */
 let reportActionsVisible: ((visible: boolean) => void) | undefined;
 class FakeIntersectionObserver {
   readonly callback: IntersectionObserverCallback;
@@ -173,7 +172,6 @@ async function press(key: string, init: KeyboardEventInit = {}) {
   });
 }
 
-/** A menu item's label, leaving out the shortcut beside it. */
 const menuItemLabel = (item: HTMLElement) => {
   const shortcut = item.querySelector(
     "[data-slot='dropdown-menu-shortcut']"
@@ -182,7 +180,6 @@ const menuItemLabel = (item: HTMLElement) => {
   return shortcut ? text.slice(0, -shortcut.length) : text;
 };
 
-/** A menu item by its label. */
 const menuItem = (label: string) =>
   Array.from(document.querySelectorAll<HTMLElement>("[role='menuitem']")).find(
     (item) => menuItemLabel(item) === label
@@ -283,7 +280,6 @@ test("the sidebar leads with the title, then Open and the icon row", async () =>
     "Add to folder…",
     "More actions",
   ]);
-  // No header is left over the card.
   expect(document.querySelector("[role='dialog'] header")).toBeNull();
 });
 
@@ -393,8 +389,6 @@ test("a file card with nothing stored offers no Download", async () => {
   expect(downloadControls()).toEqual([]);
 });
 
-// Bug: the open menu lists E and Del, but pressing them there did nothing:
-// the menu renders outside the dialog, whose key handler never heard them.
 test.each([
   ["e", "toggleArchive"],
   ["Delete", "handleDelete"],

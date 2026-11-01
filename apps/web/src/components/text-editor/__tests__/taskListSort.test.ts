@@ -177,7 +177,7 @@ test("one undo restores the tick and the position", () => {
 
 test("a caret inside the moved item moves with it", () => {
   let state = stateFor("- [ ] Alpha\n- [ ] Beta");
-  const caret = taskItemPos(state.doc, "Alpha") + 4; // between "Al" and "pha"
+  const caret = taskItemPos(state.doc, "Alpha") + 4;
   state = state.apply(
     state.tr.setSelection(TextSelection.create(state.doc, caret))
   );
@@ -199,7 +199,7 @@ test.each([
 
 test("a caret in another item of the moved run stays in that item", () => {
   let state = stateFor("- [ ] Alpha\n- [ ] Beta\n- [ ] Gamma");
-  const caret = taskItemPos(state.doc, "Beta") + 4; // between "Be" and "ta"
+  const caret = taskItemPos(state.doc, "Beta") + 4;
   state = state.apply(
     state.tr.setSelection(TextSelection.create(state.doc, caret))
   );

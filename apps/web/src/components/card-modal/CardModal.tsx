@@ -127,7 +127,6 @@ import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
 
-// Tests and callers read it from here, beside the dialog.
 export { emptiedContentNotice } from "./cardModalText";
 
 function CardPreview({
@@ -176,7 +175,6 @@ function CardPreview({
               uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
             }
           : undefined;
-      // Only a link with an archived copy is ever checked.
       return card.pageArchive && !card.isDeleted ? (
         <CheckedLinkPreview
           card={card}
@@ -228,17 +226,10 @@ function stageContentClass(card: CardModalCard): string {
   }
 }
 
-/** The Read tab's stage: the reader sets its own 68ch column inside it. */
 const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
 
 type StageView = "preview" | "read";
 
-/**
- * Preview or Read for a link with an article (or one on its way): the
- * category's default until someone picks, and only for this card, so a pick
- * never carries over to the next one. The scroll of each view is kept per
- * card while the dialog is open.
- */
 const useStageView = (
   card: CardModalCard | null | undefined,
   open: boolean
@@ -308,20 +299,16 @@ const useStageView = (
   };
 };
 
-/** Single-letter keys the dialog answers. */
 const DIALOG_KEYS = {
   copy: { keys: "C" },
   done: { keys: "D" },
   favorite: { keys: "F" },
 } as const;
 
-/** One button in the sidebar's icon row, and in the bar pinned over it. */
 interface SidebarAction {
-  /** The short word under the icon. */
   caption: string;
   icon: ReactNode;
   id: string;
-  /** The accessible name and tooltip, which can say more. */
   label: string;
   onClick: () => void;
   pressed?: boolean;
@@ -333,7 +320,6 @@ interface CardModalProps {
   backlinks?: CardBacklinks;
   card?: CardModalCard | null;
   cardId?: string | null;
-  /** `[[` links in a note: card search, live titles and opening a card. */
   cardLinks?: CardLinkOptions;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
@@ -341,7 +327,6 @@ interface CardModalProps {
   handlePermanentDelete: (onClose?: () => void) => Promise<void>;
   handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
-  /** A link's highlights, read and written in the Read tab and the panel. */
   highlights?: CardHighlightsControl;
   isDownloading?: boolean;
   isReprocessing?: boolean;
@@ -356,7 +341,6 @@ interface CardModalProps {
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
-  /** Adds and removes a palette's colors; left out, a palette is read-only. */
   paletteColors?: PaletteColorsControl;
   returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
@@ -439,7 +423,6 @@ export function CardModal({
   const [highlightJump, setHighlightJump] = useState<HighlightJump | null>(
     null
   );
-  // A jump is shown once: leaving the Read tab, or the card, forgets it.
   const readingCard = stage.view === "read" ? card?._id : undefined;
   useEffect(() => {
     if (!readingCard) {
@@ -546,7 +529,6 @@ export function CardModal({
     }
   };
 
-  /** `keepsCard`: the action leaves the card in place, like Archive. */
   const closeAfterAction = async ({ keepsCard = false } = {}) => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
@@ -598,7 +580,6 @@ export function CardModal({
   const canDownload = Boolean(
     card?.fileKey && ["document", "audio", "video", "image"].includes(card.type)
   );
-  // `[[` links copy as their titles, not the stored `[[Title|teak:id]]`.
   const copyableText =
     card?.type === "text" || card?.type === "quote"
       ? cardLinkTokensToText(getCurrentValue("content") ?? "")
@@ -619,7 +600,6 @@ export function CardModal({
     }
   };
 
-  /** The one main action: open a link, or download a file. */
   const primaryAction = () => {
     if (card?.url && !isDeleted) {
       openLink();
@@ -750,8 +730,6 @@ export function CardModal({
     card && editedTitle !== card.metadataTitle
       ? (editedTitle ?? "")
       : (heading?.title ?? "");
-  // "Note", "Quote" and "Palette" say nothing the card doesn't, so the
-  // content is the heading.
   const showTitle = Boolean(
     heading &&
       (heading.editable || heading.title !== typeLabel) &&
@@ -773,7 +751,6 @@ export function CardModal({
   const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
   const moreLabel = t("menu.moreActions");
 
-  /** Open or Download: the sidebar's wide button, or the bar's small pill. */
   const primaryButton = (compact: boolean): ReactNode => {
     const className = compact
       ? SIDEBAR_PRIMARY_COMPACT_CLASS
@@ -813,7 +790,6 @@ export function CardModal({
     return null;
   };
 
-  /** The sidebar's icon row: what a card is most often asked to do. */
   const sidebarActions: SidebarAction[] = [];
   if (card && !isDeleted) {
     sidebarActions.push({
@@ -1054,7 +1030,6 @@ export function CardModal({
       />
     ) : null;
 
-  // A card in Trash trades its actions for the way back out.
   const trashBlock = isDeleted ? (
     <div className="space-y-2">
       <p
@@ -1111,7 +1086,6 @@ export function CardModal({
     </div>
   ) : null;
 
-  // Once the actions scroll away, a one-line copy of them stays on top.
   const pinnedActions =
     showsSidebarActions && actionsScrolledPast ? (
       <div className="sticky top-0 z-20 h-0">
@@ -1192,7 +1166,6 @@ export function CardModal({
             }
           }}
           onEscapeKeyDown={(event) => {
-            // Esc first lets go of a selection in the reader.
             if (readerControls.current?.dismiss()) {
               event.preventDefault();
             }

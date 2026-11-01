@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 const NAV_LINK =
   "flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>svg]:size-4 [&>svg]:shrink-0";
 
-/** The list of Settings pages beside the content, on wide screens. */
 export function SettingsNav() {
   const t = useTranslations("settings.nav");
   const pathname = usePathname();

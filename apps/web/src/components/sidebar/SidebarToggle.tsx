@@ -18,7 +18,6 @@ export function SidebarToggle({ className }: { className?: string }) {
       aria-expanded={isOpen}
       aria-label={t("toggle")}
       className={cn(
-        // On wide screens the sidebar's own header holds the toggle, open or collapsed.
         "size-8 shrink-0 text-muted-foreground md:hidden",
         className
       )}

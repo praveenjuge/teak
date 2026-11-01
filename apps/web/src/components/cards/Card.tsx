@@ -97,10 +97,6 @@ export async function resolveImageCopyUrl({
   return url;
 }
 
-/**
- * What Copy copies from a note or a link: a note's Markdown with its
- * `[[Title|teak:<id>]]` links as their titles, or a link's URL.
- */
 export function cardCopyText(
   card: Pick<CardWithUrls, "content" | "type" | "url">
 ): string {

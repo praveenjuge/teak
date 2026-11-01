@@ -97,7 +97,6 @@ export function ArchivedCopyBar({
   );
 }
 
-/** The archived page, on white in both themes: pages bring their own colors. */
 export function ArchiveFrame({ host, src }: { host: string; src: string }) {
   const t = useTranslations("screens.openLink");
   return (
@@ -131,10 +130,6 @@ export function ArchiveMissing({ url }: { url: string }) {
 
 type FrameStatus = "loading" | "ready" | "missing";
 
-/**
- * The archive view: the bar, then the copy. A copy whose object is gone, or
- * whose signed URL couldn't be made, says so and offers the original.
- */
 export function ArchivedCopyView(copy: ArchivedCopy) {
   const { archiveUrl, host, url } = copy;
   const [status, setStatus] = useState<FrameStatus>(

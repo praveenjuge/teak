@@ -97,7 +97,6 @@ const dialog = (shown: CardModalCard, toggleDone?: () => void) => (
 
 async function render(shown: CardModalCard, toggleDone?: () => void) {
   if (root) {
-    // Re-render the open dialog with the next card, as stepping does.
     await act(() => root?.render(dialog(shown, toggleDone)));
     return;
   }

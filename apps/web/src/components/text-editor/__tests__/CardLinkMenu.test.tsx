@@ -49,7 +49,6 @@ describe("CardLinkMenu", () => {
     );
     expect(html).toContain(message);
     expect(html).not.toContain('role="option"');
-    // The message sits beside the listbox, which holds only options.
     expect(html).toMatch(/role="listbox"><\/div>/);
   });
 

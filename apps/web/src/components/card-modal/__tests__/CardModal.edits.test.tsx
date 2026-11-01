@@ -13,7 +13,6 @@ mock.module("../CardMetadataPanel", () => ({
   ...realPanel,
   CardMetadataPanel: () => null,
 }));
-// The note editor stays on its plain stand-in, as before the editor loads.
 mock.module("../../text-editor/LoadedMarkdownTextEditor", () => ({
   default: () => {
     throw new Promise(() => undefined);
@@ -199,7 +198,6 @@ test("on a phone, Add to folder from the menu opens once the menu has closed, wi
     await new Promise((resolve) => setTimeout(resolve, 50));
   });
   expect(foldersOpen).toBe(true);
-  // A menu still closing took focus back from the dialog in a browser.
   expect(menuOpenWithFolders).toBe(false);
   expect(document.activeElement).toBe(dialog());
 });

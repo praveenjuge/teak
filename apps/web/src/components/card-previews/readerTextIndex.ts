@@ -1,19 +1,8 @@
-/**
- * The reader's text with its whitespace collapsed (`normalizeReaderText`),
- * mapped back to the raw text of the page's text nodes, so a highlight's
- * offsets (into the collapsed text, as the server stores them) and a DOM
- * selection (in the raw text) can be turned into each other.
- */
-
 const SPACE = /\s/u;
 
 export interface ReaderTextMap {
-  /** For each raw position (and one past the end): the first collapsed
-   * character at or after it. */
   rawToText: number[];
-  /** The collapsed text: what highlights' offsets point into. */
   text: string;
-  /** For each collapsed character: where its raw character is. */
   textToRaw: number[];
 }
 
@@ -33,7 +22,6 @@ export const buildReaderTextMap = (raw: string): ReaderTextMap => {
       continue;
     }
     if (pendingSpace >= 0) {
-      // The run before this character is one space, at its first position.
       for (let back = pendingSpace; back < index; back += 1) {
         rawToText[back] = text.length;
       }
@@ -49,10 +37,6 @@ export const buildReaderTextMap = (raw: string): ReaderTextMap => {
   return { rawToText, text, textToRaw };
 };
 
-/**
- * The collapsed span a raw `[rawStart, rawEnd)` covers, without spaces at
- * either end, or null when it holds no text.
- */
 export const textSpanOfRaw = (
   map: ReaderTextMap,
   rawStart: number,
@@ -69,7 +53,6 @@ export const textSpanOfRaw = (
   return end > start ? { start, end } : null;
 };
 
-/** The raw `[rawStart, rawEnd)` a collapsed span covers. */
 export const rawRangeOfText = (
   map: ReaderTextMap,
   start: number,

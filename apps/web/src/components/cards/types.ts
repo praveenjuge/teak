@@ -69,7 +69,6 @@ export interface CardWithUrls {
   metadataDescription?: string;
   metadataTitle?: string;
   metadataTitleEdited?: boolean;
-  /** A link's archived copy of its page. */
   pageArchive?: {
     capturedAt: number;
     kind: "full" | "text_only";

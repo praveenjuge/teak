@@ -115,7 +115,6 @@ interface CommandPaletteResultsProps {
   cards: PaletteCardsState;
   folders: readonly FolderSummary[] | undefined;
   onSelect: (command: CommandPaletteCommand) => void;
-  /** The page the palette opened over, for actions offered only there. */
   pathname?: string | null;
   query: string;
 }

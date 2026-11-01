@@ -33,7 +33,6 @@ const EXPORT_DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
 
 const LOADED = "fade-in-0 animate-in duration-300";
 
-/** Each language's own name, by its code. */
 const LANGUAGE_NAMES = new Map(
   Object.entries(LOCALE_NAMES).map(([code, names]) => [code, names.native])
 );
@@ -47,7 +46,6 @@ export interface SettingsOverviewProps {
   email?: string | null;
   exportState?: ExportState | null;
   hasPremium?: boolean;
-  /** `undefined` while loading; `null` when Save by email can't be shown. */
   inboundEmailEnabled?: boolean | null;
   locale?: string;
   name?: string | null;
@@ -204,7 +202,6 @@ function useSummaries({
   return { appearance, data, integrations, plan, security };
 }
 
-/** Cards used, with the way to upgrade on the free plan. */
 function UsageSection({
   accountLoading,
   cardCount,
@@ -248,7 +245,6 @@ function UsageSection({
   );
 }
 
-/** Opens the keyboard shortcuts sheet; only on screens with a keyboard. */
 function ShortcutsSection() {
   const t = useTranslations("modals.shortcuts");
   return (

@@ -6,7 +6,6 @@ export interface CardLinkSuggestion {
   type: CardType;
 }
 
-/** A linked card as the pill shows it; `missing` when trashed or not yours. */
 export interface CardLinkTarget {
   id: string;
   missing: boolean;
@@ -14,12 +13,9 @@ export interface CardLinkTarget {
   type: CardType | null;
 }
 
-/** Turns on `[[` card links in the editor. */
 export interface CardLinkOptions {
   onOpenCard?: (cardId: string) => void;
-  /** Cards to offer for a typed query; an empty query offers recent ones. */
   search: (query: string) => Promise<CardLinkSuggestion[]>;
-  /** Live titles of the linked cards, by id; undefined while loading. */
   targets?: ReadonlyMap<string, CardLinkTarget>;
 }
 
@@ -33,7 +29,6 @@ export interface MarkdownTextEditorProps {
   onChange: (content: string) => void;
   onLimitExceeded?: () => void;
   onOpenFullScreen?: () => void;
-  /** Takes files pasted with no text, such as a copied screenshot. */
   onPasteFiles?: (files: File[]) => void;
   onSaveShortcut?: () => void;
   placeholder?: string;

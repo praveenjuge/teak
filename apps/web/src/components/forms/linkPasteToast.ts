@@ -11,7 +11,6 @@ export type LinkPasteProgress = NonNullable<
 >;
 
 export interface LinkPasteToast {
-  /** `loading` while it runs; `limit` gets the Upgrade action. */
   kind: "loading" | "success" | "limit" | "error";
   message: string;
 }

@@ -22,9 +22,7 @@ interface PalettePreviewProps {
    * still saving keeps its popover, so a failed save keeps the typed color.
    */
   isFull?: boolean;
-  /** Shows "Add color"; left out, the palette can't grow. */
   onAddColor?: (hex: string) => Promise<boolean>;
-  /** Shows a way to remove each color; left out when one color is left. */
   onRemoveColor?: (hex: string) => void;
 }
 
@@ -72,7 +70,6 @@ interface PaletteSwatchProps {
   onRemove?: (hex: string) => void;
 }
 
-/** One color: a click copies it, and "×" or right-click removes it. */
 function PaletteSwatch({ hex, onRemove }: PaletteSwatchProps) {
   const t = useTranslations("cardPreviews.palette");
   const tClipboard = useTranslations("lib.clipboard");

@@ -3,10 +3,6 @@ import { paletteEditing } from "@/hooks/paletteColors";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
 import { PalettePreview } from "../card-previews/PalettePreview";
 
-/**
- * A palette in the card dialog. With `colors`, its colors can be added and
- * removed; without, it's read-only.
- */
 export function PaletteStage({
   card,
   colors,

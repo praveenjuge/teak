@@ -12,7 +12,6 @@ interface QuotePreviewProps {
   card: CardWithUrls;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
-  /** Shows the quote without letting it change, as for a card in Trash. */
   readOnly?: boolean;
 }
 

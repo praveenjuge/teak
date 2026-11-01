@@ -14,7 +14,6 @@ export interface PrefetchFileTextPreviewOptions {
   cacheKey: string;
   fetchImpl?: typeof fetch;
   fileUrl: string;
-  /** The most bytes read; 1 MiB unless the caller needs more. */
   maxBytes?: number;
 }
 

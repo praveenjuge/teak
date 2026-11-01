@@ -14,7 +14,6 @@ import {
   textSpanOfRaw,
 } from "./readerTextIndex";
 
-/** The painted highlights, and the one flashed or open. */
 export const HIGHLIGHT_NAME = "teak-highlight";
 export const ACTIVE_HIGHLIGHT_NAME = "teak-highlight-active";
 
@@ -26,7 +25,6 @@ export interface BodyTextIndex {
   starts: number[];
 }
 
-/** Every text node in the article body, in order, as one text. */
 export const indexBodyText = (body: HTMLElement): BodyTextIndex => {
   const walker = body.ownerDocument.createTreeWalker(
     body,
@@ -46,7 +44,6 @@ export const indexBodyText = (body: HTMLElement): BodyTextIndex => {
   return { body, lengths, map: buildReaderTextMap(raw), nodes, starts };
 };
 
-/** The raw offset of a boundary point inside the body. */
 const rawOffsetOf = (index: BodyTextIndex, node: Node, offset: number) => {
   const range = index.body.ownerDocument.createRange();
   range.setStart(index.body, 0);
@@ -54,10 +51,6 @@ const rawOffsetOf = (index: BodyTextIndex, node: Node, offset: number) => {
   return range.toString().length;
 };
 
-/**
- * The part of `range` inside the article body: the header, title and footer
- * are left out. Null when it has none of the body.
- */
 export const clipToBody = (range: Range, body: HTMLElement): Range | null => {
   if (!range.intersectsNode(body)) {
     return null;
@@ -74,7 +67,6 @@ export const clipToBody = (range: Range, body: HTMLElement): Range | null => {
   return clipped.collapsed ? null : clipped;
 };
 
-/** A range in the body as a highlight's offsets, quote and context. */
 export const spanOfRange = (index: BodyTextIndex, range: Range) => {
   const span = textSpanOfRaw(
     index.map,
@@ -86,7 +78,6 @@ export const spanOfRange = (index: BodyTextIndex, range: Range) => {
     : null;
 };
 
-/** The DOM range of offsets into the body's text. */
 export const rangeOfSpan = (
   index: BodyTextIndex,
   start: number,
@@ -107,7 +98,6 @@ export const rangeOfSpan = (
   return range;
 };
 
-/** The body text offset under a point, or null outside its text. */
 export const textOffsetAtPoint = (
   index: BodyTextIndex,
   x: number,
@@ -153,11 +143,6 @@ export interface PlacedHighlight {
   start: number;
 }
 
-/**
- * Where each highlight is in the body's text, found again by its quote and
- * context (its offsets only choose between repeats). Ones not found, and
- * imported ones not yet anchored, are left out.
- */
 export const placeHighlights = (
   text: string,
   highlights: readonly StoredHighlight[]
@@ -205,10 +190,8 @@ const registry = (): {
     : null;
 };
 
-/** Whether this browser can paint highlights in the text. */
 export const canPaintHighlights = (): boolean => registry() !== null;
 
-/** Paints `ranges` under `name`; an empty list clears it. */
 export const paintRanges = (name: string, ranges: Range[]): void => {
   const api = registry();
   if (!api) {

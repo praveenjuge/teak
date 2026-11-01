@@ -175,11 +175,6 @@ function describeImport(
   });
 }
 
-/**
- * What to tell someone whose import failed, as `describeImportFailure` words
- * it: failure classes that are codes get a sentence, ones already written
- * for people pass through.
- */
 function describeFailure(job: ImportJob, t: ImportTranslator): string | null {
   if (job.status !== "failed") {
     return null;
@@ -341,7 +336,6 @@ export function importPanelState(
   return { kind: "idle" };
 }
 
-/** The chosen source's guidance, size limit and, for CSV, an example. */
 export function ImportSourceHint({ mode }: { mode: ImportMode }) {
   const t = useTranslations("settings.import");
   const locale = useIntlLocale();
@@ -377,7 +371,6 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const tFormat = useTranslations("settings.format");
   const locale = useIntlLocale();
   const serverErrors = useServerErrors();
-  // The server's message, else a thrown error's own, else the fallback.
   const errorMessage = (error: unknown, fallback = t("startFailed")) =>
     serverErrors.message(
       error,

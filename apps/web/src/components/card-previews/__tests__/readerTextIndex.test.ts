@@ -54,7 +54,6 @@ describe("a selection's offsets", () => {
 });
 
 describe("locateRaw", () => {
-  // Three text nodes: "ab", "", "cde".
   const starts = [0, 2, 2];
   const lengths = [2, 0, 3];
 

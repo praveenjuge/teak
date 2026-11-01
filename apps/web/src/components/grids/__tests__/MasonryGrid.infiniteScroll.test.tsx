@@ -186,8 +186,6 @@ describe("MasonryGrid infinite scroll", () => {
   });
 
   test("a page that adds no new cards still lets the bottom ask for the next one", async () => {
-    // A search shows cached cards with the server's pages, so a page of cards
-    // already on screen leaves the count unchanged.
     const onLoadMore = mock();
     const shown = cards(30);
     sentinelInView = true;

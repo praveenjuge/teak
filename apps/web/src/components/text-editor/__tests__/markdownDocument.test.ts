@@ -170,7 +170,6 @@ describe("Markdown compatibility", () => {
       type: "text",
     });
   });
-  // Bug 29: the composer said "Note saved" for links, quotes and palettes.
   test.each([
     ["https://example.com", "Link saved"],
     ["Read this https://example.com later", "Link saved"],

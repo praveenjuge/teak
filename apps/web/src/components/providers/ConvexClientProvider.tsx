@@ -81,7 +81,6 @@ export default function ConvexClientProvider({
 }: {
   children: ReactNode;
   initialAuth?: Omit<UserInfo | NoUserInfo, "accessToken">;
-  /** Results of the first-load queries, fetched by the server for this page. */
   seeds?: readonly QuerySeed[];
 }) {
   const signedIn = Boolean(initialAuth?.user);

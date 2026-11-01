@@ -30,8 +30,6 @@ const listed = (id: string, prefix: string): ApiKeyListItem => ({
   status: "active",
 });
 
-// A fake account: create, revoke and rotate change the listed keys, the way
-// the live query would.
 function Fixture({
   onRevoke,
   onRevokeAll,

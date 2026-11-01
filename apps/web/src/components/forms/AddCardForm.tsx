@@ -99,17 +99,12 @@ function isPasteActiveError(err: unknown): boolean {
   );
 }
 
-/**
- * Keeps a pasted list's toast up to date while the server saves the links,
- * then swaps it for how the job ended. Renders nothing.
- */
 function LinkPasteProgressToast({
   job,
   onFinished,
   onUpgrade,
 }: {
   job: PasteJob;
-  /** `reachedLimit`: the job's last toast already offered the upgrade. */
   onFinished: (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => void;
   onUpgrade: () => void;
 }) {
@@ -150,7 +145,6 @@ function LinkPasteProgressToast({
     onFinished(job.jobId, kind === "limit");
   }, [job, onFinished, onUpgrade, progress, t, tLimits]);
 
-  // The job carries on if this composer goes away; the next one picks it up.
   useLinkPasteToastOwner(job);
 
   return null;
@@ -161,7 +155,6 @@ export interface AddCardFormProps {
   canCreateCard?: boolean;
   draftContentRef?: React.MutableRefObject<string>;
   onFocus?: () => void;
-  /** Opens a card linked with `[[…]]` from the note being written. */
   onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
@@ -220,7 +213,6 @@ export function AddCardForm({
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
-  // A draft that is only links, one per line, saves one link card each.
   const linkList = useMemo(() => extractLinkList(content), [content]);
   let saveLabel = tc("save");
   if (linkList && linkList.length > LINK_PASTE_LIMIT) {
@@ -299,7 +291,6 @@ export function AddCardForm({
     setContent("");
   };
 
-  // A failed save puts the draft back, ahead of anything typed since.
   const restoreDraft = (submittedContent: string) => {
     const newerDraft = latestContentRef.current;
     setContent(
@@ -309,8 +300,6 @@ export function AddCardForm({
     );
   };
 
-  // The draft is cleared as a note is sent, so until the server has it,
-  // closing the tab would lose it.
   const [savingNotes, setSavingNotes] = useState(0);
   useWarnBeforeUnload(savingNotes > 0);
 

@@ -18,12 +18,10 @@ let root: Root | undefined;
 let current = "a";
 let ready = true;
 let open = true;
-/** When set, leaving waits for the test to say the edits have saved. */
 let saving: Promise<boolean> | null = null;
 let step: ReturnType<typeof useCardSteps> = () => undefined;
 const visited: string[] = [];
 
-/** Like the grid: the arrows point at the neighbors of the card on screen. */
 function Harness({ cardId }: { cardId: string }) {
   const index = CARDS.indexOf(cardId);
   const go = (target?: string) =>
@@ -43,7 +41,6 @@ function Harness({ cardId }: { cardId: string }) {
   return null;
 }
 
-/** The page shows the card it was asked for. */
 const land = () => act(() => root?.render(<Harness cardId={current} />));
 
 beforeEach(async () => {
@@ -80,7 +77,6 @@ test("a press the other way drops the presses still waiting", async () => {
     step(1);
     await Promise.resolve();
   });
-  // The first press has shown its card; these arrive before it lands.
   await act(async () => {
     step(1);
     step(1);
@@ -135,7 +131,6 @@ test("unsaved edits that won't save keep the card and drop the queue", async () 
 
 test("a step that never lands stops blocking the next press", async () => {
   jest.useFakeTimers();
-  // A page that ignores the step: the card on screen never changes.
   await act(() => root?.render(<Harness cardId="a" key="stuck" />));
   current = "a";
   await act(async () => step(1));
@@ -147,7 +142,6 @@ test("a step that never lands stops blocking the next press", async () => {
   expect(visited).toEqual(["b", "b"]);
 });
 
-/** Leaving a card with unsaved edits waits for them to save. */
 function slowSave() {
   let finish: (saved: boolean) => void = () => undefined;
   saving = new Promise<boolean>((resolve) => {

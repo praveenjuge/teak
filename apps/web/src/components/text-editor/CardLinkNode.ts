@@ -6,17 +6,12 @@ import { Node } from "@tiptap/core";
 
 const TOKEN_AT_START = new RegExp(`^${CARD_LINK_PATTERN.source}`);
 
-/** The exact token a pill was read from, so saving never rewrites it. */
 export const cardLinkMarkdown = (cardId: string, title: string): string => {
   const token = `[[${title}|teak:${cardId}]]`;
   const match = TOKEN_AT_START.exec(token);
   return match?.[0] === token ? token : formatCardLinkToken(title, cardId);
 };
 
-/**
- * A `[[Title|teak:<cardId>]]` link to another card, as one inline pill. The
- * stored title is a fallback: the pill shows the card's current title.
- */
 export const CardLinkNode = Node.create({
   name: "cardLink",
   group: "inline",

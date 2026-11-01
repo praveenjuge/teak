@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
 
-/** A step that never lands (the card didn't change) stops waiting after this. */
 export const STEP_LANDING_TIMEOUT_MS = 1500;
 
 /**
@@ -26,7 +25,6 @@ export function useCardSteps({
   const latest = useRef({ cardId, onNext, onPrevious, open, readyToLeave });
   latest.current = { cardId, onNext, onPrevious, open, readyToLeave };
   const queued = useRef(0);
-  // The card a step left from, while that step is on its way.
   const leaving = useRef<string | null | undefined>(undefined);
   const timeout = useRef<number | undefined>(undefined);
 

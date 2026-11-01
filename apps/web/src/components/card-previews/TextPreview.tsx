@@ -27,7 +27,6 @@ interface TextPreviewProps {
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
   onSaveShortcut?: () => void;
-  /** Shows the note without letting it change, as for a card in Trash. */
   readOnly?: boolean;
 }
 

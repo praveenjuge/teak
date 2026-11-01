@@ -15,7 +15,6 @@ import type { CardLinkTarget } from "./types";
 
 interface CardLinkView {
   onOpenCard?: (cardId: string) => void;
-  /** Live titles by card id; absent while they load. */
   targets?: ReadonlyMap<string, CardLinkTarget>;
 }
 
@@ -33,7 +32,6 @@ const OPEN_PILL_CLASS =
   "cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80";
 const MISSING_PILL_CLASS = "cursor-default border-dashed text-muted-foreground";
 
-/** What a pill shows: the card's live title, its stored one, or missing. */
 export function cardLinkPillState(
   cardId: string,
   storedTitle: string,
@@ -109,7 +107,6 @@ function CardLinkPill({ node, selected }: NodeViewProps) {
   );
 }
 
-/** The pill node with its React view, for the live editor only. */
 export const CardLinkPillNode = CardLinkNode.extend({
   addNodeView() {
     return ReactNodeViewRenderer(CardLinkPill, { as: "span" });

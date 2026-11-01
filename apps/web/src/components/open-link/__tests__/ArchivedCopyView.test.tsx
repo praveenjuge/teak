@@ -4,7 +4,6 @@ import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
 if (!GlobalRegistrator.isRegistered) {
-  // The frame's page never loads: the test stays off the network.
   GlobalRegistrator.register({
     settings: { disableIframePageLoading: true },
     url: "https://app.teakvault.com/open/k1",

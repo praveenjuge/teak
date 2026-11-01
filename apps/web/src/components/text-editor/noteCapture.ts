@@ -93,9 +93,6 @@ export function prepareNoteCapture(source: string): NoteCapture {
   return authored ? { content: source, type: "text" } : { content: source };
 }
 
-// A cheap look at the raw lines before lexing: a list of links has a URL (or
-// a link or autolink holding one) at the start of every non-empty line, after
-// an optional list marker. Prose fails on its first line without a lex.
 const LINK_LINE_START = /^\s*(?:[-*+]\s+|\d{1,9}[.)]\s+)?[<[]?https?:\/\//i;
 const URL_ONLY = /^https?:\/\/\S+$/i;
 const MARKDOWN_ESCAPE = /\\([!-/:-@[-`{-~])/g;
@@ -104,7 +101,6 @@ type LinePart =
   | { kind: "text"; value: string }
   | { kind: "url"; value: string };
 
-/** One line's single URL, or `null` when the line holds anything else. */
 function lineUrl(parts: LinePart[]): string | null {
   const urls = parts.filter((part) => part.kind === "url");
   if (urls.length > 0) {
@@ -125,11 +121,6 @@ function lineUrl(parts: LinePart[]): string | null {
   return URL_ONLY.test(text) && isSafeExternalUrl(text) ? text : null;
 }
 
-/**
- * The URL on each line of a paragraph's inline tokens, split at soft and hard
- * breaks, with empty lines left out; `null` when any line holds more than
- * one URL, words, formatting or an authored link.
- */
 function inlineLinkLines(tokens: Token[]): string[] | null {
   const lines: string[] = [];
   let parts: LinePart[] = [];
@@ -204,13 +195,6 @@ function blockLinkLines(token: Token): string[] | null {
   return lines;
 }
 
-/**
- * The links in a draft that is only a list of links, one per line, in order:
- * paragraphs and list items (markers dropped) whose every line is a single
- * http(s) URL, written plainly, as a link showing its own address or as an
- * autolink. Needs two or more; anything else (prose, a URL with words, a
- * code block, a quote, one link) is `null`, and the draft is saved as a note.
- */
 export function extractLinkList(markdown: string): string[] | null {
   const rawLines = markdown.split("\n").filter((line) => line.trim());
   if (
@@ -230,11 +214,6 @@ export function extractLinkList(markdown: string): string[] | null {
   return links.length >= 2 ? links : null;
 }
 
-/**
- * The composer's toast once a capture is saved. Only a link is known for sure
- * at save time; whether a note becomes a quote or a palette is decided later,
- * so anything else is just "Saved".
- */
 export function noteCaptureSavedMessage(
   capture: NoteCapture,
   t: TeakTranslator<"textEditor"> = englishTextEditor

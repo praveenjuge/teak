@@ -14,7 +14,6 @@ interface ThemeToggleProps {
   onThemeChange?: (theme: ThemeValue) => void;
 }
 
-/** A small window drawn in one theme's colors. */
 function ThemePreviewWindow({ dark }: { dark: boolean }) {
   return (
     <span
@@ -88,7 +87,6 @@ function ThemePreview({
   );
 }
 
-/** Settings → Appearance: pick system, light or dark from previews. */
 export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
   const t = useTranslations("settings.theme");
   const { theme, setTheme } = useTheme();

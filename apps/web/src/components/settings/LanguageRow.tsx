@@ -13,10 +13,6 @@ import { Spinner } from "../ui/spinner";
 const isLocale = (value: string): value is Locale =>
   (SUPPORTED_LOCALES as readonly string[]).includes(value);
 
-/**
- * The Language setting. Each language shows its own name, with the English
- * name beside it, so anyone can find their way back.
- */
 export function LanguageRow({ locale, onChange, pending }: LanguageSetting) {
   const t = useTranslations("settings.language");
   // The development pseudo-locale isn't a choice: it reads as English, and

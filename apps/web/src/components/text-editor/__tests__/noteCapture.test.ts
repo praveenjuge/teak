@@ -5,7 +5,6 @@ import { extractLinkList } from "../noteCapture";
 const urls = (count: number, prefix = "https://example.com/paste") =>
   Array.from({ length: count }, (_, index) => `${prefix}/${index + 1}`);
 
-/** What the composer holds after the text is pasted into the editor. */
 const pasted = (text: string) =>
   markdownManager.serialize(prepareMarkdownDocument(text).document);
 
@@ -22,8 +21,6 @@ const ODD_CHARACTERS = [
 ];
 const IDN = ["https://bücher.example/straße", "https://例え.テスト/パス"];
 
-// The fixture paste texts from the plan, as typed and as the editor writes
-// them back once pasted.
 const LISTS: [name: string, text: string, links: string[]][] = [
   [
     "two links",

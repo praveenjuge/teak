@@ -12,7 +12,6 @@ import {
 import { ThemeToggle } from "./ThemeToggle";
 
 interface AppearanceSettingsProps {
-  /** The Language card; left out where there is no locale provider. */
   language?: LanguageSetting | null;
   onThemeChange?: (value: ThemeValue) => void;
 }

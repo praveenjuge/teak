@@ -7,8 +7,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// The palette loads on demand; keep its code from arriving so the test sees
-// the moment between Cmd+K and the dialog mounting.
 mock.module(
   "../../command-palette/CommandPalette",
   () => new Promise(() => undefined)

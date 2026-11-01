@@ -240,7 +240,6 @@ describe("selecting in the reader", () => {
       string,
       unknown
     >;
-    // The offsets belong to the article the reader shows.
     expect(input).toMatchObject({ articleKey: keyOf("select"), quote: "them" });
     const index = indexBodyText(body);
     expect(
@@ -252,8 +251,6 @@ describe("selecting in the reader", () => {
   });
 
   test("a highlight change keeps the article's links, tables and images in the page", async () => {
-    // The highlight layer indexes the body's text nodes once per article: a
-    // remount on a highlight change would leave it pointing at detached ones.
     const host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -357,7 +354,6 @@ describe("a highlight's open note", () => {
         userId: "u",
       }) as never;
 
-    // A click on the highlighted word, which the browser reports as a caret.
     const word = (body.querySelectorAll("p")[1] as HTMLElement)
       .firstChild as Text;
     Object.assign(document, {
@@ -377,14 +373,12 @@ describe("a highlight's open note", () => {
     });
     expect(document.querySelector("textarea")).not.toBeNull();
 
-    // The create returns: the same words, under the server's id.
     await render([row("h9")]);
     expect(document.querySelector("textarea")).not.toBeNull();
 
     await render([]);
     expect(document.querySelector("textarea")).toBeNull();
 
-    // A highlight made there later does not bring the note back.
     await render([row("h10")]);
     expect(document.querySelector("textarea")).toBeNull();
   });
@@ -399,8 +393,6 @@ describe("a highlight's open note across the save", () => {
     Reflect.deleteProperty(document, "caretRangeFromPoint");
   });
 
-  // Opens the note on "them" under its temporary id, as a reader clicking the
-  // painted words before the create returns does.
   const openPendingNote = async () => {
     const host = document.createElement("div");
     document.body.append(host);

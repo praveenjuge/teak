@@ -55,7 +55,6 @@ export function splitNotePreview(content?: string | null): {
 } {
   const source = (content ?? "").slice(0, MAX_NOTE_PREVIEW_SOURCE).trim();
   const breakAt = source.search(/\n\s*\n|\n/);
-  // A table's header row isn't a title; the table reads whole.
   if (breakAt === -1 || startsWithTable(source)) {
     return { body: source };
   }

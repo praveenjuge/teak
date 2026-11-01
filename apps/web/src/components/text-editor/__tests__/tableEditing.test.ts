@@ -53,7 +53,6 @@ function open(markdown: string, suggesting = false) {
   return editor;
 }
 
-/** Puts the cursor at the end of the cell's text. */
 function cursorIn(current: TestEditor, row: number, col: number) {
   let found = -1;
   current.state.doc.descendants((node, pos) => {
@@ -86,7 +85,6 @@ const place = (current: TestEditor) => {
   return at ? [at.row, at.col] : null;
 };
 
-/** A keydown through ProseMirror's handlers, as a real key press runs. */
 const press = (current: TestEditor, key: string, shiftKey = false) =>
   Boolean(
     current.view.someProp("handleKeyDown", (handle) =>
@@ -94,7 +92,6 @@ const press = (current: TestEditor, key: string, shiftKey = false) =>
     )
   );
 
-/** Markdown with table padding ignored. */
 const tidy = (markdown: string) =>
   markdown
     .split("\n")

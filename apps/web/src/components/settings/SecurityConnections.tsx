@@ -49,7 +49,6 @@ type ConnectionsTranslator = TeakTranslator<"settings.connections">;
 
 const formatDate = (locale: string | undefined, date: number) =>
   new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
-// Devices often share a browser name; the sign-in time tells them apart.
 const formatDateTime = (locale: string | undefined, date: number) =>
   new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
@@ -67,14 +66,12 @@ interface ConnectionRow {
   actionLabel: string;
   confirm: ConnectionConfirm;
   current?: boolean;
-  /** When it signed in or connected, already worded. */
   detail: string;
   id: string;
   lastUsedAt?: number;
   name: string;
 }
 
-/** What signing out a device asks before it acts. */
 export function deviceSignOutConfirm(
   session: {
     current: boolean;
@@ -100,7 +97,6 @@ export function deviceSignOutConfirm(
       };
 }
 
-/** What disconnecting an app asks before it acts. */
 export function appDisconnectConfirm(
   name: string,
   t: ConnectionsTranslator

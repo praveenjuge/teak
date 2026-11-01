@@ -12,7 +12,6 @@ export type CardMenuEntry =
       disabled?: boolean;
       icon: ComponentType<{ className?: string }>;
       iconClassName?: string;
-      /** Stable across languages, unlike the label. */
       id: string;
       label: string;
       onSelect: () => void;

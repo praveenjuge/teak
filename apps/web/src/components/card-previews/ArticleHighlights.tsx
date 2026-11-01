@@ -65,17 +65,13 @@ import {
   textOffsetAtPoint,
 } from "./highlightDom";
 
-/** What the card dialog asks of the reader's highlights. */
 export interface ReaderHighlightControls {
-  /** Hides the selection's button; true when there was one to hide. */
   dismiss: () => boolean;
-  /** Highlights the selection (`H`); true when there was one. */
   highlightSelection: () => boolean;
 }
 
 export interface HighlightJump {
   id: string;
-  /** Changes for every request, so the same highlight can be jumped to again. */
   seq: number;
 }
 
@@ -219,12 +215,6 @@ function HighlightButton({
   );
 }
 
-/**
- * The reader's highlights: painted over the article body with the CSS
- * Custom Highlight API, a button over a selection to make one (or a bar at
- * the bottom on touch), and a note popover (a bottom sheet on touch) for the
- * one clicked.
- */
 export function ArticleHighlights({
   articleKey,
   bodyRef,
@@ -234,14 +224,12 @@ export function ArticleHighlights({
   rootRef,
   version,
 }: {
-  /** The article the body shows: a highlight's offsets are measured in it. */
   articleKey: string;
   bodyRef: RefObject<HTMLElement | null>;
   control: CardHighlightsControl;
   controlsRef?: RefObject<ReaderHighlightControls | null>;
   jump?: HighlightJump | null;
   rootRef: RefObject<HTMLElement | null>;
-  /** Changes whenever the body renders other text. */
   version: string;
 }) {
   const t = useTranslations("cardPreviews.highlights");
@@ -325,7 +313,6 @@ export function ArticleHighlights({
     []
   );
 
-  // The selection's button follows the selection inside the body.
   useEffect(() => {
     let frame = 0;
     const read = () => {
@@ -375,7 +362,6 @@ export function ArticleHighlights({
     };
   }, [bodyRef, rootRef]);
 
-  // A click on a highlight, with nothing selected, opens its note.
   useEffect(() => {
     const body = bodyRef.current;
     if (!body) {
@@ -445,7 +431,6 @@ export function ArticleHighlights({
     };
   }, [commit, controlsRef, selected]);
 
-  // A jump from the details panel: into view, then a short flash.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `jump.seq` asks again for the same highlight
   useEffect(() => {
     if (!jump || indexed === 0) {
@@ -551,7 +536,6 @@ export function ArticleHighlights({
             aria-label={t("noteLabel")}
             className={cn("w-80 p-3")}
             onOpenAutoFocus={(event) => {
-              // Reading the note comes first; typing is a click away.
               if (open?.note) {
                 event.preventDefault();
               }

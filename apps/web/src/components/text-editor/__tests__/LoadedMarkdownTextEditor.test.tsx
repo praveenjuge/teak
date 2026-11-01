@@ -72,8 +72,6 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
 });
 
-// Next.js hides a page it leaves in an <Activity>; useEditor destroys the
-// editor while hidden. Coming back must not throw or take focus again.
 test("hands focus over once, not again when a hidden page comes back", async () => {
   const errors: unknown[] = [];
   const onError = (event: ErrorEvent) => errors.push(event.error);

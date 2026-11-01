@@ -49,9 +49,6 @@ function render(ui: ReactNode, errors: unknown[]) {
   return act(() => root?.render(ui));
 }
 
-// A hidden <Activity> unmounts the editor's view before the menu's effects
-// disconnect, and reconnects them against that unmounted editor on reveal.
-// Both used to throw "The editor view is not available" and crash the app.
 test("disconnecting the menu after its editor unmounted does not throw", async () => {
   const errors: unknown[] = [];
   const live = await mountedEditor();

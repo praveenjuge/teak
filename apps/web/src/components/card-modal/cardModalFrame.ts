@@ -18,10 +18,6 @@ function stageFor(type?: string): Stage {
   return "compact";
 }
 
-/**
- * The dialog's box: its position and size. It draws nothing itself, so the
- * previous and next buttons can sit outside the surface, beside the card.
- */
 export function cardModalFrameClass(type?: string): string {
   const stage = stageFor(type);
   return cn(
@@ -45,18 +41,15 @@ export function cardModalFrameClass(type?: string): string {
 const WIDEST_HALF_WIDTH = "min(41rem, 50vw - 4rem)";
 const TALLEST_HALF_HEIGHT = "min(28rem, 50dvh - 2rem)";
 
-/** Where "Previous card" and "Next card" sit, outside the card's edges. */
 export function gutterNavStyle(side: "left" | "right"): CSSProperties {
   return { [side]: `calc(50% - ${WIDEST_HALF_WIDTH} - 3.5rem)` };
 }
 
-/** Where "Close" sits: above "Next card", level with the tallest card's top. */
 export const GUTTER_CLOSE_STYLE: CSSProperties = {
   right: `calc(50% - ${WIDEST_HALF_WIDTH} - 3.375rem)`,
   top: `calc(50% - ${TALLEST_HALF_HEIGHT})`,
 };
 
-/** The card's visible surface inside the frame. */
 export const CARD_MODAL_SURFACE_CLASS =
   "relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0";
 

@@ -72,7 +72,6 @@ test("locks the plan choice while checkout is opening", async () => {
 test("the yearly plan's badge states the real saving over monthly", async () => {
   await renderCard(() => undefined);
 
-  // $99 a year against 12 × $19 saves 57%.
   expect(document.body.textContent).toContain("Save 57%");
   expect(document.body.textContent).not.toContain("20% off");
 });

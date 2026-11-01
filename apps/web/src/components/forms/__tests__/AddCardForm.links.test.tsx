@@ -113,7 +113,6 @@ beforeEach(() => {
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
-  // Paste jobs outlive a composer, so one test's job must not reach the next.
   finishLinkPasteJob("job-1" as Id<"linkPasteJobs">);
   document.body.innerHTML = "";
 });
@@ -125,7 +124,6 @@ async function render(props: Record<string, unknown> = {}) {
   await act(() => root?.render(<AddCardForm {...props} />));
 }
 
-// A paste's toast is let go a tick after its last composer unmounts.
 const nextTick = () =>
   act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
@@ -197,7 +195,6 @@ describe("saving a link that's already in Teak", () => {
     options.action.onClick();
     expect(onOpenCard).toHaveBeenCalledWith("card-1");
 
-    // While it saves, the grid shows the saved card at the top, once.
     const saved = card({
       _id: "card-1" as Id<"cards">,
       content: "http://example.com/post",
@@ -285,7 +282,6 @@ describe("pasting a list of links", () => {
       omittedOverLimit: 0,
       omittedRepeats: 0,
     };
-    // Any render reads the job's latest progress.
     await type("a new draft");
     expect(toast.loading).toHaveBeenLastCalledWith("Saving links · 8 of 12", {
       id: "toast-id",
@@ -354,7 +350,6 @@ describe("pasting a list of links", () => {
   test("stays savable at the card limit, where a note offers the upgrade", async () => {
     canCreateCard = false;
     await render();
-    // The editor stays open at the limit, so a list can be pasted into it.
     expect(textarea()?.disabled).toBeFalsy();
     await type("A note");
     expect(submitButton()?.disabled).toBe(false);
@@ -376,11 +371,8 @@ describe("pasting a list of links", () => {
     await pressSaveShortcut();
     expect(toast.loading).toHaveBeenCalledWith("Saving links · 0 of 3");
 
-    // The first cards in an empty library swap the empty state's composer
-    // for the grid's.
     await act(() => root?.unmount());
     await nextTick();
-    // With no composer on the page, no spinner is left behind.
     expect(toast.dismiss).toHaveBeenCalledWith("toast-id");
     pasteProgress = {
       status: "done",
@@ -447,7 +439,6 @@ describe("pasting a list of links", () => {
     await type(links(12).join("\n"));
     await pressSaveShortcut();
 
-    // The paste reaches the limit before its job reports back.
     canCreateCard = false;
     await rerender();
     expect(limitToasts()).toHaveLength(0);
