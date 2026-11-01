@@ -120,6 +120,37 @@ console.log(answer);</code></pre>
     expect(result.markdown).not.toMatch(/teaktask|search/u);
   });
 
+  test("leaves out the page's own controls: wiki [edit] links and Read more / Show less toggles", async () => {
+    const html = page(
+      `<article><h1>Bauhaus</h1>
+      <div class="mw-heading mw-heading2"><h2 id="History">History</h2><span class="mw-editsection"><span class="mw-editsection-bracket">[</span><a href="/w/index.php?title=Bauhaus&amp;action=edit&amp;section=1">edit</a><span class="mw-editsection-bracket">]</span></span></div>
+      <p>${sentences(12)}</p>
+      <h2>Legacy <a href="/w/index.php?title=Bauhaus&amp;veaction=edit&amp;section=2">edit source</a></h2>
+      <p>${sentences(8, 20)} <span class="toggle">Read more</span><span class="toggle">Show less</span></p>
+      <div class="summary"><label for="toggle-summary">Read more</label> <label for="toggle-summary">Show less</label></div>
+      <p>${sentences(8, 40)} <span role="button" tabindex="0">Show more ›</span></p>
+      <p>Readers who read more books keep more notes. ${sentences(4, 60)}</p>
+      <p><a href="/w/Edit_(film)">Edit</a> is a film. You can <a href="/more">read more</a> here, or <a href="/expand">Expand</a> the list.</p>
+    </article>`
+    );
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error("expected an article");
+    }
+    expect(result.markdown).toContain("## History");
+    expect(result.markdown).toMatch(/## Legacy\n/u);
+    expect(result.markdown).not.toMatch(/\[edit\]|edit source|action=edit/u);
+    expect(result.markdown).not.toMatch(
+      /Show less|Show more|Read more(?! books)/u
+    );
+    expect(result.markdown).toContain(
+      "Readers who read more books keep more notes."
+    );
+    expect(result.markdown).toContain(
+      "[Edit](https://site.example/w/Edit_\\(film\\)) is a film. You can [read more](https://site.example/more) here, or [Expand](https://site.example/expand) the list."
+    );
+  });
+
   test("numbers the archive's images in reading order as teak-image:<n>, with captions", async () => {
     const first = pngDataUri("first");
     const second = pngDataUri("second");

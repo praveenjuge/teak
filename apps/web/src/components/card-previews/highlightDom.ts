@@ -67,15 +67,68 @@ export const clipToBody = (range: Range, body: HTMLElement): Range | null => {
   return clipped.collapsed ? null : clipped;
 };
 
+const wordSegmenter =
+  typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+    ? new Intl.Segmenter(undefined, { granularity: "word" })
+    : null;
+/** Text read on each side of an offset to find the word around it. */
+const WORD_WINDOW = 64;
+
+/** The word (as `Intl.Segmenter` splits words, in any script) holding `text[offset]`. */
+const wordAround = (
+  text: string,
+  offset: number
+): { end: number; start: number } | null => {
+  if (!wordSegmenter || offset < 0 || offset >= text.length) {
+    return null;
+  }
+  const from = Math.max(0, offset - WORD_WINDOW);
+  const slice = text.slice(from, Math.min(text.length, offset + WORD_WINDOW));
+  for (const segment of wordSegmenter.segment(slice)) {
+    const start = from + segment.index;
+    const end = start + segment.segment.length;
+    if (start <= offset && offset < end) {
+      return segment.isWordLike ? { end, start } : null;
+    }
+  }
+  return null;
+};
+
+/**
+ * A selection grown to whole words: one that starts or ends inside a word
+ * ("…(Germ") takes in the rest of it ("(Germany"), so a highlight never
+ * keeps half a word. Spaces and punctuation at its ends stay as chosen.
+ */
+export const snapSpanToWords = (
+  text: string,
+  start: number,
+  end: number
+): { end: number; start: number } => {
+  if (end <= start) {
+    return { end, start };
+  }
+  const first = wordAround(text, start);
+  const last = wordAround(text, end - 1);
+  return {
+    end: last && last.end > end ? last.end : end,
+    start: first && first.start < start ? first.start : start,
+  };
+};
+
 export const spanOfRange = (index: BodyTextIndex, range: Range) => {
-  const span = textSpanOfRaw(
+  const raw = textSpanOfRaw(
     index.map,
     rawOffsetOf(index, range.startContainer, range.startOffset),
     rawOffsetOf(index, range.endContainer, range.endOffset)
   );
-  return span
-    ? { ...span, quote: index.map.text.slice(span.start, span.end) }
-    : null;
+  if (!raw) {
+    return null;
+  }
+  const span = {
+    ...raw,
+    ...snapSpanToWords(index.map.text, raw.start, raw.end),
+  };
+  return { ...span, quote: index.map.text.slice(span.start, span.end) };
 };
 
 export const rangeOfSpan = (

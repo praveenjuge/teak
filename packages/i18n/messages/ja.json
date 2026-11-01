@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {既読にする} watched {視聴済みにする} listened {聴取済みにする} bought {購入済みにする} cooked {調理済みにする} played {プレイ済みにする} other {完了にする}}",
       "markAsNot": "{verb, select, read {未読にする} watched {未視聴にする} listened {未聴取にする} bought {未購入にする} cooked {未調理にする} played {未プレイにする} other {未完了にする}}",
-      "state": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
+      "caption": "完了",
+      "marked": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
     },
     "heading": {
       "addedOn": "{date} に追加",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "タグを追加",
       "addTagPlaceholder": "タグを追加…",
-      "addToFolder": "フォルダに追加",
       "andMore": "ほか",
       "colors": "色",
       "copyColor": "{hex} をコピー",
@@ -868,7 +868,20 @@
       },
       "file": "ファイル",
       "openFile": "ファイルを開く",
-      "untitled": "ドキュメント"
+      "untitled": "ドキュメント",
+      "kinds": {
+        "archive": "アーカイブファイル",
+        "audio": "音声ファイル",
+        "design": "デザインファイル",
+        "image": "画像",
+        "markdown": "Markdown",
+        "motion": "アニメーション",
+        "office": "Office ドキュメント",
+        "pdf": "PDF",
+        "source": "ソースコード",
+        "text": "テキストファイル",
+        "tokens": "デザイントークン"
+      }
     },
     "fileText": {
       "loading": "ファイルのプレビューを読み込み中"
@@ -965,7 +978,7 @@
       "deleteForever": "完全に削除",
       "deselect": "選択を解除",
       "favorite": "お気に入りに追加",
-      "folders": "フォルダ…",
+      "folders": "フォルダに追加…",
       "moreActions": "その他の操作",
       "moveToTrash": "ゴミ箱に移動",
       "openLink": "リンクを開く",
@@ -974,13 +987,16 @@
       "select": "選択",
       "unarchive": "アーカイブ解除",
       "unfavorite": "お気に入りから削除",
-      "editLink": "リンクを編集…"
+      "editLink": "リンクを編集…",
+      "removeFromFolder": "このフォルダから削除"
     },
     "copyImageFailed": "画像をコピーできませんでした",
     "deleteForeverDialog": {
       "confirm": "完全に削除",
       "description": "カードとそのファイルが完全に削除されます。この操作は元に戻せません。",
-      "title": "このカードを完全に削除しますか？"
+      "title": "このカードを完全に削除しますか？",
+      "bulkTitle": "{count, plural, other {#件のカードを完全に削除しますか？}}",
+      "bulkDescription": "{count, plural, other {#件のカードとそのファイルが完全に削除されます。}}この操作は元に戻せません。"
     },
     "body": {
       "emptyNote": "空のメモ",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "ゴミ箱を空にしています",
       "rateLimited": "ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。",
       "failed": "ゴミ箱を空にできませんでした。もう一度お試しください。"
+    },
+    "trash": {
+      "retention": "ゴミ箱のカードは{days, plural, other {#日}}後に完全に削除されます。"
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "フォルダに移動…",
       "removeFromFolder": "{folder} から削除",
       "moveToTrash": "ゴミ箱に移動",
-      "cancelSelection": "選択をキャンセル"
+      "cancelSelection": "選択をキャンセル",
+      "deleteForever": "完全に削除"
     },
     "tagsDialog": {
       "tagTooLong": "タグは {max} 文字以内にしてください。",
@@ -1604,7 +1624,8 @@
         "removeTag": "タグを削除できませんでした",
         "tags": "タグを更新できませんでした",
         "other": "{operation} に失敗しました"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, other {#件のカードを完全に削除しました}}"
     },
     "clipboard": {
       "copyingImage": "画像をコピーしています…",

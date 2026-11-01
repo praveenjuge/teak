@@ -21,6 +21,7 @@ import {
   Ellipsis,
   ExternalLink,
   Folder as FolderIcon,
+  FolderMinus,
   Heart,
   LoaderCircle,
   Pencil,
@@ -164,6 +165,7 @@ export const Card = memo(function Card({
   isPriority = false,
   isTabStop = true,
   onEnterSelectionMode,
+  onRemoveFromFolder,
   onToggleSelection,
 }: CardProps) {
   const t = useTranslations("cards");
@@ -363,6 +365,25 @@ export const Card = memo(function Card({
     card.type === "text" ? t("menu.copyText") : copyLinkOrImageLabel;
 
   const shortcuts = focusedCardShortcuts(Boolean(isSelectionMode));
+  const selectItem: CardMenuEntry = isSelectionMode
+    ? {
+        icon: SquareCheckBig,
+        id: "select",
+        label: isSelected ? t("menu.deselect") : t("menu.select"),
+        onSelect: () => onToggleSelection?.(card._id),
+        shortcut: shortcuts.select,
+      }
+    : {
+        icon: SquareCheckBig,
+        id: "select",
+        label: t("menu.select"),
+        onSelect: handleSelect,
+        shortcut: shortcuts.select,
+      };
+  // Trash selects cards too, for "Delete forever" and "Restore" in bulk.
+  const canSelectInTrash = Boolean(
+    isSelectionMode ? onToggleSelection : onEnterSelectionMode
+  );
   const menuItems: CardMenuEntry[] = [
     ...(card.url && !card.isDeleted
       ? [
@@ -387,6 +408,7 @@ export const Card = memo(function Card({
       : []),
     ...(card.isDeleted
       ? [
+          ...(canSelectInTrash ? [selectItem] : []),
           {
             icon: RotateCcw,
             id: "restore",
@@ -404,21 +426,7 @@ export const Card = memo(function Card({
           },
         ]
       : [
-          isSelectionMode
-            ? {
-                icon: SquareCheckBig,
-                id: "select",
-                label: isSelected ? t("menu.deselect") : t("menu.select"),
-                onSelect: () => onToggleSelection?.(card._id),
-                shortcut: shortcuts.select,
-              }
-            : {
-                icon: SquareCheckBig,
-                id: "select",
-                label: t("menu.select"),
-                onSelect: handleSelect,
-                shortcut: shortcuts.select,
-              },
+          selectItem,
           {
             icon: Tag,
             id: "addTags",
@@ -435,6 +443,20 @@ export const Card = memo(function Card({
                   onSelect: () => {
                     if (!isOptimistic) {
                       onEditFolders(card._id);
+                    }
+                  },
+                },
+              ]
+            : []),
+          ...(onRemoveFromFolder
+            ? [
+                {
+                  icon: FolderMinus,
+                  id: "removeFromFolder",
+                  label: t("menu.removeFromFolder"),
+                  onSelect: () => {
+                    if (!isOptimistic) {
+                      onRemoveFromFolder(card._id);
                     }
                   },
                 },
@@ -497,8 +519,7 @@ export const Card = memo(function Card({
 
   const showQuickActions = !(isOptimistic || isSelectionMode);
   const showHoverSelect =
-    !(isOptimistic || isSelectionMode || card.isDeleted) &&
-    Boolean(onEnterSelectionMode);
+    !(isOptimistic || isSelectionMode) && Boolean(onEnterSelectionMode);
   const isMediaCard =
     card.type === "image" ||
     card.type === "video" ||
@@ -519,7 +540,7 @@ export const Card = memo(function Card({
               isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
               card.isDeleted && "opacity-60",
               isSelected &&
-                "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                "ring-2 ring-primary ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-primary"
             )}
             data-card-id={isOptimistic ? undefined : card._id}
             draggable={canDrag}

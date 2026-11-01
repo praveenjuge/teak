@@ -4,6 +4,10 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import type * as React from "react";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "vadivam-react";
 
+import {
+  ignoreMenuOpeningRelease,
+  markContextMenuOpened,
+} from "../../lib/contextMenuRelease";
 import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { cn } from "../../lib/utils";
 
@@ -14,10 +18,20 @@ function ContextMenu({
 }
 
 function ContextMenuTrigger({
+  onContextMenu,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>) {
   return (
-    <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
+    <ContextMenuPrimitive.Trigger
+      data-slot="context-menu-trigger"
+      onContextMenu={(event) => {
+        onContextMenu?.(event);
+        if (!event.defaultPrevented) {
+          markContextMenuOpened();
+        }
+      }}
+      {...props}
+    />
   );
 }
 
@@ -120,6 +134,7 @@ function ContextMenuContent({
 function ContextMenuItem({
   className,
   inset,
+  onPointerUp,
   variant = "default",
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Item> & {
@@ -135,6 +150,10 @@ function ContextMenuItem({
       data-inset={inset}
       data-slot="context-menu-item"
       data-variant={variant}
+      onPointerUp={(event) => {
+        onPointerUp?.(event);
+        ignoreMenuOpeningRelease(event);
+      }}
       {...props}
     />
   );
@@ -144,6 +163,7 @@ function ContextMenuCheckboxItem({
   className,
   children,
   checked,
+  onPointerUp,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.CheckboxItem>) {
   return (
@@ -154,6 +174,10 @@ function ContextMenuCheckboxItem({
         className
       )}
       data-slot="context-menu-checkbox-item"
+      onPointerUp={(event) => {
+        onPointerUp?.(event);
+        ignoreMenuOpeningRelease(event);
+      }}
       {...props}
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
@@ -169,6 +193,7 @@ function ContextMenuCheckboxItem({
 function ContextMenuRadioItem({
   className,
   children,
+  onPointerUp,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.RadioItem>) {
   return (
@@ -178,6 +203,10 @@ function ContextMenuRadioItem({
         className
       )}
       data-slot="context-menu-radio-item"
+      onPointerUp={(event) => {
+        onPointerUp?.(event);
+        ignoreMenuOpeningRelease(event);
+      }}
       {...props}
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">

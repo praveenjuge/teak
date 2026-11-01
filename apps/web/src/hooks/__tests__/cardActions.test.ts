@@ -227,6 +227,44 @@ describe("createCardActions", () => {
     });
   });
 
+  describe("handleBulkPermanentDeleteCards", () => {
+    test("deletes every card forever with one toast for all", async () => {
+      mockPermanentDeleteCard.mockResolvedValue(undefined);
+      const result = await actions.handleBulkPermanentDeleteCards([
+        "c1",
+        "c2",
+        "c3",
+      ] as any);
+      expect(mockPermanentDeleteCard).toHaveBeenCalledTimes(3);
+      expect(mockOnPermanentDeleteSuccess).toHaveBeenCalledTimes(1);
+      expect(mockOnPermanentDeleteSuccess).toHaveBeenCalledWith(
+        "3 cards permanently deleted"
+      );
+      expect(result).toEqual({
+        deletedCount: 3,
+        failedIds: [],
+        requestedCount: 3,
+      });
+    });
+
+    test("keeps going past a failure and reports it once", async () => {
+      const error = new Error("fail");
+      mockPermanentDeleteCard
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(error);
+      const result = await actions.handleBulkPermanentDeleteCards([
+        "c1",
+        "c2",
+      ] as any);
+      expect(result.failedIds).toEqual(["c2"] as any);
+      expect(mockOnPermanentDeleteSuccess).toHaveBeenCalledWith(
+        "1 card permanently deleted"
+      );
+      expect(mockOnError).toHaveBeenCalledTimes(1);
+      expect(mockOnError).toHaveBeenCalledWith(error, "permanent delete");
+    });
+  });
+
   describe("handlePermanentDeleteCard", () => {
     test("calls permanentDeleteCard with id", async () => {
       mockPermanentDeleteCard.mockResolvedValue(undefined);

@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {Marcar como leído} watched {Marcar como visto} listened {Marcar como escuchado} bought {Marcar como comprado} cooked {Marcar como cocinado} played {Marcar como jugado} other {Marcar como hecho}}",
       "markAsNot": "{verb, select, read {Marcar como no leído} watched {Marcar como no visto} listened {Marcar como no escuchado} bought {Marcar como no comprado} cooked {Marcar como no cocinado} played {Marcar como no jugado} other {Marcar como no hecho}}",
-      "state": "{verb, select, read {Leído} watched {Visto} listened {Escuchado} bought {Comprado} cooked {Cocinado} played {Jugado} other {Hecho}}"
+      "caption": "Hecho",
+      "marked": "{verb, select, read {Marcado como leído} watched {Marcado como visto} listened {Marcado como escuchado} bought {Marcado como comprado} cooked {Marcado como cocinado} played {Marcado como jugado} other {Marcado como hecho}}"
     },
     "heading": {
       "addedOn": "Añadida el {date}",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "Añadir una etiqueta",
       "addTagPlaceholder": "Añadir etiqueta…",
-      "addToFolder": "Añadir a una carpeta",
       "andMore": "y más",
       "colors": "Colores",
       "copyColor": "Copiar {hex}",
@@ -868,7 +868,20 @@
       },
       "file": "Archivo",
       "openFile": "Abrir archivo",
-      "untitled": "Documento"
+      "untitled": "Documento",
+      "kinds": {
+        "archive": "Archivo comprimido",
+        "audio": "Archivo de audio",
+        "design": "Archivo de diseño",
+        "image": "Imagen",
+        "markdown": "Markdown",
+        "motion": "Animación",
+        "office": "Documento de Office",
+        "pdf": "PDF",
+        "source": "Código fuente",
+        "text": "Archivo de texto",
+        "tokens": "Tokens de diseño"
+      }
     },
     "fileText": {
       "loading": "Cargando la vista previa del archivo"
@@ -965,7 +978,7 @@
       "deleteForever": "Eliminar definitivamente",
       "deselect": "Deseleccionar",
       "favorite": "Marcar como favorita",
-      "folders": "Carpetas…",
+      "folders": "Añadir a carpeta…",
       "moreActions": "Más acciones",
       "moveToTrash": "Mover a la papelera",
       "openLink": "Abrir enlace",
@@ -974,13 +987,16 @@
       "select": "Seleccionar",
       "unarchive": "Desarchivar",
       "unfavorite": "Quitar de favoritas",
-      "editLink": "Editar enlace…"
+      "editLink": "Editar enlace…",
+      "removeFromFolder": "Quitar de esta carpeta"
     },
     "copyImageFailed": "No se pudo copiar la imagen",
     "deleteForeverDialog": {
       "confirm": "Eliminar definitivamente",
       "description": "Esto elimina de forma permanente la tarjeta y sus archivos. Esta acción no se puede deshacer.",
-      "title": "¿Eliminar esta tarjeta definitivamente?"
+      "title": "¿Eliminar esta tarjeta definitivamente?",
+      "bulkTitle": "{count, plural, one {¿Eliminar # tarjeta definitivamente?} other {¿Eliminar # tarjetas definitivamente?}}",
+      "bulkDescription": "{count, plural, one {Esto elimina de forma permanente # tarjeta y sus archivos.} other {Esto elimina de forma permanente # tarjetas y sus archivos.}} Esta acción no se puede deshacer."
     },
     "body": {
       "emptyNote": "Nota vacía",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "Vaciando la papelera",
       "rateLimited": "La papelera se vació varias veces hace un momento. Inténtelo de nuevo en un minuto.",
       "failed": "No se pudo vaciar la papelera. Inténtelo de nuevo."
+    },
+    "trash": {
+      "retention": "Las tarjetas de la papelera se eliminan definitivamente después de {days, plural, one {# día} other {# días}}."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "Mover a carpeta…",
       "removeFromFolder": "Quitar de {folder}",
       "moveToTrash": "Mover a la papelera",
-      "cancelSelection": "Cancelar selección"
+      "cancelSelection": "Cancelar selección",
+      "deleteForever": "Eliminar definitivamente"
     },
     "tagsDialog": {
       "tagTooLong": "Las etiquetas pueden tener como máximo {max} caracteres.",
@@ -1604,7 +1624,8 @@
         "removeTag": "No se pudo quitar la etiqueta",
         "tags": "No se pudieron actualizar las etiquetas",
         "other": "No se pudo completar: {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# tarjeta eliminada definitivamente} other {# tarjetas eliminadas definitivamente}}"
     },
     "clipboard": {
       "copyingImage": "Copiando la imagen…",

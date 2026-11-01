@@ -148,20 +148,41 @@ describe("BulkActionBar", () => {
     expect(onAction).toHaveBeenCalledWith("addToFolder");
   });
 
-  test("offers Unarchive in Archive and only Restore in Trash", async () => {
+  test("offers Unarchive in Archive, and Restore and Delete forever in Trash", async () => {
     const archive = await renderBar(2, { view: "archive" });
     await act(() => button("Unarchive").click());
     expect(archive.onAction).toHaveBeenCalledWith("unarchive");
+    expect(
+      [...document.querySelectorAll("button")].some(
+        (element) => element.textContent?.trim() === "Delete forever"
+      )
+    ).toBe(false);
     await act(() => root?.unmount());
 
     const trash = await renderBar(2, { view: "trash" });
     await act(() => button("Restore").click());
     expect(trash.onAction).toHaveBeenCalledWith("restore");
+    const deleteForever = button("Delete forever");
+    expect(deleteForever.getAttribute("aria-keyshortcuts")).toMatch(
+      /^(Delete|Backspace)$/
+    );
+    await act(() => deleteForever.click());
+    expect(trash.onAction).toHaveBeenLastCalledWith("deleteForever");
     expect(
       [...document.querySelectorAll("button")].some(
         (element) => element.getAttribute("aria-label") === "More actions"
       )
     ).toBe(false);
+  });
+
+  test("Archive is a neutral button, not the destructive red", async () => {
+    await renderBar(2);
+    expect(button("Archive").className).toContain("bg-secondary");
+    expect(button("Archive").className).not.toContain("bg-primary");
+    await act(() => root?.unmount());
+
+    await renderBar(2, { addToFolder: { id: "f1", name: "Reading" } });
+    expect(button("Add to Reading").className).toContain("bg-primary");
   });
 
   test("waits while nothing is selected or an action is running", async () => {

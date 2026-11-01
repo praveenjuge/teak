@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {Marcar como lido} watched {Marcar como assistido} listened {Marcar como ouvido} bought {Marcar como comprado} cooked {Marcar como preparado} played {Marcar como jogado} other {Marcar como concluído}}",
       "markAsNot": "{verb, select, read {Marcar como não lido} watched {Marcar como não assistido} listened {Marcar como não ouvido} bought {Marcar como não comprado} cooked {Marcar como não preparado} played {Marcar como não jogado} other {Marcar como não concluído}}",
-      "state": "{verb, select, read {Lido} watched {Assistido} listened {Ouvido} bought {Comprado} cooked {Preparado} played {Jogado} other {Concluído}}"
+      "caption": "Concluído",
+      "marked": "{verb, select, read {Marcado como lido} watched {Marcado como assistido} listened {Marcado como ouvido} bought {Marcado como comprado} cooked {Marcado como preparado} played {Marcado como jogado} other {Marcado como concluído}}"
     },
     "heading": {
       "addedOn": "Adicionado em {date}",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "Adicionar uma tag",
       "addTagPlaceholder": "Adicionar tag…",
-      "addToFolder": "Adicionar a uma pasta",
       "andMore": "e mais",
       "colors": "Cores",
       "copyColor": "Copiar {hex}",
@@ -868,7 +868,20 @@
       },
       "file": "Arquivo",
       "openFile": "Abrir arquivo",
-      "untitled": "Documento"
+      "untitled": "Documento",
+      "kinds": {
+        "archive": "Arquivo compactado",
+        "audio": "Arquivo de áudio",
+        "design": "Arquivo de design",
+        "image": "Imagem",
+        "markdown": "Markdown",
+        "motion": "Animação",
+        "office": "Documento do Office",
+        "pdf": "PDF",
+        "source": "Código-fonte",
+        "text": "Arquivo de texto",
+        "tokens": "Tokens de design"
+      }
     },
     "fileText": {
       "loading": "Carregando a prévia do arquivo"
@@ -965,7 +978,7 @@
       "deleteForever": "Excluir permanentemente",
       "deselect": "Desmarcar",
       "favorite": "Favoritar",
-      "folders": "Pastas…",
+      "folders": "Adicionar à pasta…",
       "moreActions": "Mais ações",
       "moveToTrash": "Mover para a Lixeira",
       "openLink": "Abrir link",
@@ -974,13 +987,16 @@
       "select": "Selecionar",
       "unarchive": "Desarquivar",
       "unfavorite": "Desfavoritar",
-      "editLink": "Editar link…"
+      "editLink": "Editar link…",
+      "removeFromFolder": "Remover desta pasta"
     },
     "copyImageFailed": "Não foi possível copiar a imagem",
     "deleteForeverDialog": {
       "confirm": "Excluir permanentemente",
       "description": "Isso exclui permanentemente o card e os arquivos dele. Isso não pode ser desfeito.",
-      "title": "Excluir este card permanentemente?"
+      "title": "Excluir este card permanentemente?",
+      "bulkTitle": "{count, plural, one {Excluir # card permanentemente?} other {Excluir # cards permanentemente?}}",
+      "bulkDescription": "{count, plural, one {Isso exclui permanentemente # card e os arquivos dele.} other {Isso exclui permanentemente # cards e os arquivos deles.}} Isso não pode ser desfeito."
     },
     "body": {
       "emptyNote": "Nota vazia",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "Esvaziando a lixeira",
       "rateLimited": "A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto.",
       "failed": "Não foi possível esvaziar a lixeira. Tente de novo."
+    },
+    "trash": {
+      "retention": "Os cards na lixeira são excluídos permanentemente após {days, plural, one {# dia} other {# dias}}."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "Mover para a pasta…",
       "removeFromFolder": "Remover de {folder}",
       "moveToTrash": "Mover para a Lixeira",
-      "cancelSelection": "Cancelar seleção"
+      "cancelSelection": "Cancelar seleção",
+      "deleteForever": "Excluir permanentemente"
     },
     "tagsDialog": {
       "tagTooLong": "As tags podem ter no máximo {max} caracteres.",
@@ -1604,7 +1624,8 @@
         "removeTag": "Não foi possível remover a tag",
         "tags": "Não foi possível atualizar as tags",
         "other": "Falha na operação: {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# card excluído permanentemente} other {# cards excluídos permanentemente}}"
     },
     "clipboard": {
       "copyingImage": "Copiando imagem...",

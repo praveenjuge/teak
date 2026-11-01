@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {Als gelesen markieren} watched {Als gesehen markieren} listened {Als gehört markieren} bought {Als gekauft markieren} cooked {Als gekocht markieren} played {Als gespielt markieren} other {Als erledigt markieren}}",
       "markAsNot": "{verb, select, read {Als ungelesen markieren} watched {Als nicht gesehen markieren} listened {Als nicht gehört markieren} bought {Als nicht gekauft markieren} cooked {Als nicht gekocht markieren} played {Als nicht gespielt markieren} other {Als nicht erledigt markieren}}",
-      "state": "{verb, select, read {Gelesen} watched {Gesehen} listened {Gehört} bought {Gekauft} cooked {Gekocht} played {Gespielt} other {Erledigt}}"
+      "caption": "Erledigt",
+      "marked": "{verb, select, read {Als gelesen markiert} watched {Als gesehen markiert} listened {Als gehört markiert} bought {Als gekauft markiert} cooked {Als gekocht markiert} played {Als gespielt markiert} other {Als erledigt markiert}}"
     },
     "heading": {
       "addedOn": "Hinzugefügt am {date}",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "Tag hinzufügen",
       "addTagPlaceholder": "Tag hinzufügen…",
-      "addToFolder": "Zu einem Ordner hinzufügen",
       "andMore": "und mehr",
       "colors": "Farben",
       "copyColor": "{hex} kopieren",
@@ -868,7 +868,20 @@
       },
       "file": "Datei",
       "openFile": "Datei öffnen",
-      "untitled": "Dokument"
+      "untitled": "Dokument",
+      "kinds": {
+        "archive": "Archivdatei",
+        "audio": "Audiodatei",
+        "design": "Designdatei",
+        "image": "Bild",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Office-Dokument",
+        "pdf": "PDF",
+        "source": "Quellcode",
+        "text": "Textdatei",
+        "tokens": "Design-Tokens"
+      }
     },
     "fileText": {
       "loading": "Dateivorschau wird geladen"
@@ -965,7 +978,7 @@
       "deleteForever": "Endgültig löschen",
       "deselect": "Auswahl aufheben",
       "favorite": "Als Favorit markieren",
-      "folders": "Ordner…",
+      "folders": "Zu Ordner hinzufügen…",
       "moreActions": "Weitere Aktionen",
       "moveToTrash": "In den Papierkorb legen",
       "openLink": "Link öffnen",
@@ -974,13 +987,16 @@
       "select": "Auswählen",
       "unarchive": "Dearchivieren",
       "unfavorite": "Aus Favoriten entfernen",
-      "editLink": "Link bearbeiten…"
+      "editLink": "Link bearbeiten…",
+      "removeFromFolder": "Aus diesem Ordner entfernen"
     },
     "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
       "confirm": "Endgültig löschen",
       "description": "Dadurch werden die Karte und ihre Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
-      "title": "Diese Karte endgültig löschen?"
+      "title": "Diese Karte endgültig löschen?",
+      "bulkTitle": "{count, plural, one {# Karte endgültig löschen?} other {# Karten endgültig löschen?}}",
+      "bulkDescription": "{count, plural, one {Dadurch werden # Karte und ihre Dateien dauerhaft gelöscht.} other {Dadurch werden # Karten und ihre Dateien dauerhaft gelöscht.}} Dies kann nicht rückgängig gemacht werden."
     },
     "body": {
       "emptyNote": "Leere Notiz",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "Papierkorb wird geleert",
       "rateLimited": "Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut.",
       "failed": "Der Papierkorb konnte nicht geleert werden. Versuchen Sie es erneut."
+    },
+    "trash": {
+      "retention": "Karten im Papierkorb werden nach {days, plural, one {# Tag} other {# Tagen}} endgültig gelöscht."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "In Ordner verschieben…",
       "removeFromFolder": "Aus {folder} entfernen",
       "moveToTrash": "In den Papierkorb legen",
-      "cancelSelection": "Auswahl abbrechen"
+      "cancelSelection": "Auswahl abbrechen",
+      "deleteForever": "Endgültig löschen"
     },
     "tagsDialog": {
       "tagTooLong": "Tags dürfen höchstens {max} Zeichen lang sein.",
@@ -1604,7 +1624,8 @@
         "removeTag": "Der Tag konnte nicht entfernt werden",
         "tags": "Die Tags konnten nicht aktualisiert werden",
         "other": "Fehlgeschlagen: {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# Karte endgültig gelöscht} other {# Karten endgültig gelöscht}}"
     },
     "clipboard": {
       "copyingImage": "Bild wird kopiert…",

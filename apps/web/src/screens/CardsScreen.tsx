@@ -50,6 +50,7 @@ import {
   preloadCardModal,
 } from "../components/card-modal/LazyCardModal";
 import { EmptyTrashButton } from "../components/cards/EmptyTrashButton";
+import { TrashRetentionNote } from "../components/cards/TrashRetentionNote";
 import { isOptimisticCard } from "../components/cards/types";
 import { FolderDot } from "../components/folders/FolderDot";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
@@ -342,7 +343,7 @@ export function CardsScreen({
 
   const {
     addFilter,
-    addKeywordTag,
+    addQualifier,
     clearAllFilters,
     displayCards,
     filterTags,
@@ -651,7 +652,7 @@ export function CardsScreen({
   );
   const { handleCardTypeClick, handleTagClick } = useCardModalFilterActions({
     addFilter,
-    addKeywordTag,
+    addQualifier,
     onCloseModal: closeCardForSearch,
   });
 
@@ -687,6 +688,8 @@ export function CardsScreen({
     onLoadMore: requestMoreCards,
     onPermanentDeleteCard: (cardId: string) =>
       cardActions.handlePermanentDeleteCard(cardId as Id<"cards">),
+    onPermanentDeleteCards: (cardIds: string[]) =>
+      cardActions.handleBulkPermanentDeleteCards(cardIds as Id<"cards">[]),
     onRestoreCard: (cardId: string) =>
       cardActions.handleRestoreCard(cardId as Id<"cards">),
     onToggleArchive: handleToggleArchive,
@@ -957,6 +960,10 @@ export function CardsScreen({
         similarAnchorTitle={similarAnchorTitle}
         title={title}
       />
+
+      {view === "trash" && !isFolderView && !showVaultSetup ? (
+        <TrashRetentionNote />
+      ) : null}
 
       {showVaultSetup ? <VaultSetupState /> : null}
 

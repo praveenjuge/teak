@@ -183,13 +183,109 @@ describe("MasonryGrid keyboard actions", () => {
     expect(asksToDeleteForever()).toBe(true);
   });
 
-  test("in Trash, Delete with cards selected does nothing", async () => {
-    const { cardElement, handlers } = await renderGrid({ showTrashOnly: true });
+  test("in Trash, Delete with cards selected asks to delete them all forever", async () => {
+    const onPermanentDeleteCards = mock(async () => undefined);
+    const { cardElement, handlers } = await renderGrid({
+      onPermanentDeleteCards,
+      showTrashOnly: true,
+    });
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
     await press(cardElement("card_b"), "Delete");
     expect(asksToDeleteForever()).toBe(false);
+    await waitFor(
+      () =>
+        document.body.textContent?.includes("Delete 2 cards forever?") ?? false
+    );
+    expect(document.body.textContent).toContain(
+      "This permanently deletes 2 cards and their files."
+    );
     expect(handlers.onBulkAction).not.toHaveBeenCalled();
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[role='alertdialog'] button"
+      ),
+    ].find((button) => button.textContent?.trim() === "Delete forever");
+    expect(confirm).toBeDefined();
+    await act(() => confirm?.click());
+    expect(onPermanentDeleteCards).toHaveBeenCalledTimes(1);
+    const [cardIds] = onPermanentDeleteCards.mock.calls[0] as unknown as [
+      string[],
+    ];
+    expect(new Set(cardIds)).toEqual(new Set(["card_a", "card_b"]));
+    expect(handlers.onPermanentDeleteCard).not.toHaveBeenCalled();
+  });
+
+  test("a card in the open folder can be removed from it from its menu", async () => {
+    const inFolder = { ...card("card_a", "First card"), folderIds: ["f1"] };
+    const elsewhere = card("card_b", "Second card");
+    const { cardElement, handlers } = await renderGrid({
+      filteredCards: [inFolder, elsewhere],
+      folder: { id: "f1", name: "Reading" },
+    });
+    const menuItems = async (id: string) => {
+      await act(() => {
+        cardElement(id).dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true })
+        );
+      });
+      return [...document.querySelectorAll<HTMLElement>("[role='menuitem']")];
+    };
+    const remove = (await menuItems("card_a")).find(
+      (item) => item.textContent === "Remove from this folder"
+    );
+    expect(remove).toBeDefined();
+    await act(() => remove?.click());
+    expect(handlers.onBulkAction).toHaveBeenCalledWith(
+      "removeFromFolder",
+      ["card_a"],
+      {
+        folder: { folderId: "f1", folderName: "Reading" },
+        priorFolderIds: new Map([["card_a", ["f1"]]]),
+      }
+    );
+    await press(document.body, "Escape");
+    expect(
+      (await menuItems("card_b")).some(
+        (item) => item.textContent === "Remove from this folder"
+      )
+    ).toBe(false);
+  });
+
+  const pressSelectAll = async (target: EventTarget) => {
+    await act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "a",
+        })
+      );
+    });
+  };
+
+  test("in selection mode, Ctrl+A selects every card shown, not the page's text", async () => {
+    const three = [...CARDS, card("card_c", "Third card")];
+    const { cardElement } = await renderGrid({ filteredCards: three });
+    await pressSelectAll(document.body);
+    expect(cardElement("card_b").getAttribute("aria-pressed")).toBeNull();
+
+    await press(cardElement("card_a"), "x");
+    await pressSelectAll(cardElement("card_a"));
+    for (const id of ["card_a", "card_b", "card_c"]) {
+      expect(cardElement(id).getAttribute("aria-pressed")).toBe("true");
+    }
+    expect(document.body.textContent).toContain("3 cards selected");
+  });
+
+  test("a card selected with the keyboard keeps the selected ring while focused", async () => {
+    const { cardElement } = await renderGrid({});
+    await press(cardElement("card_a"), "x");
+    const className = cardElement("card_a").className;
+    expect(className).toContain("ring-primary");
+    expect(className).toContain("focus-visible:ring-primary");
+    expect(className).not.toContain("focus-visible:ring-ring ");
   });
 
   test("a dialog opened from the grid returns focus to the card it showed last", async () => {

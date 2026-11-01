@@ -115,7 +115,7 @@ import {
   GUTTER_CLOSE_STYLE,
   gutterNavStyle,
 } from "./cardModalFrame";
-import { cardModalKeyAction } from "./cardModalKeys";
+import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -227,6 +227,10 @@ function stageContentClass(card: CardModalCard): string {
 }
 
 const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
+
+/** Preview · Read: the chosen one is filled, so it reads at a glance. */
+export const STAGE_VIEW_ITEM_CLASS =
+  "px-3 data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:hover:bg-foreground/90 data-[state=on]:hover:text-background";
 
 type StageView = "preview" | "read";
 
@@ -529,6 +533,36 @@ export function CardModal({
     }
   };
 
+  // An open tooltip is a layer above the dialog and takes the first Escape
+  // for itself. Window capture runs before every layer's own listener, so
+  // here one Escape does what the dialog's own Escape does.
+  const escapeRef = useRef(handleClose);
+  useEffect(() => {
+    escapeRef.current = handleClose;
+  });
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        !escapeClosesOverTooltip(contentRef.current)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (!readerControls.current?.dismiss()) {
+        void escapeRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open]);
+
   const closeAfterAction = async ({ keepsCard = false } = {}) => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
@@ -815,11 +849,12 @@ export function CardModal({
     });
     if (canToggleDone && toggleDone) {
       sidebarActions.push({
-        caption: t("done.state", { verb: doneVerb }),
+        // "Done", never "Read": the reader's own toggle is called Read.
+        caption: t("done.caption"),
         icon: isDone ? <CircleCheck /> : <Circle />,
         id: "done",
         label: isDone
-          ? t("done.state", { verb: doneVerb })
+          ? t("done.marked", { verb: doneVerb })
           : t("done.markAs", { verb: doneVerb }),
         onClick: toggleDone,
         pressed: isDone,
@@ -1222,9 +1257,13 @@ export function CardModal({
                     {closeButton}
                   </header>
                 ) : null}
-                <DialogDescription className="sr-only">
-                  {addedLabel}
-                </DialogDescription>
+                {/* A note shows its date in the sidebar's top line, which
+                    describes the dialog itself, so it is never read twice. */}
+                {showTitle ? (
+                  <DialogDescription className="sr-only">
+                    {addedLabel}
+                  </DialogDescription>
+                ) : null}
 
                 <div
                   className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row"
@@ -1259,10 +1298,16 @@ export function CardModal({
                               value={stage.view}
                               variant="outline"
                             >
-                              <ToggleGroupItem className="px-3" value="preview">
+                              <ToggleGroupItem
+                                className={STAGE_VIEW_ITEM_CLASS}
+                                value="preview"
+                              >
                                 {t("reader.preview")}
                               </ToggleGroupItem>
-                              <ToggleGroupItem className="px-3" value="read">
+                              <ToggleGroupItem
+                                className={STAGE_VIEW_ITEM_CLASS}
+                                value="read"
+                              >
                                 {t("reader.read")}
                               </ToggleGroupItem>
                             </ToggleGroup>

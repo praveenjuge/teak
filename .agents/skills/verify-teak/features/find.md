@@ -6,7 +6,7 @@ A user finds cards again by typing in the search box, narrowing with qualifiers 
 
 - `find-search` filters the grid live as you type, keeping the query in `?q=` (at most 500 characters: the box stops taking more, and the URL never cuts what you typed).
 - `find-slash` focuses the search box with `/`, and on Tags the "Find a tag" box.
-- `find-qualifiers` turns `tag:`, `type:`, `is:`, `site:`, `folder:` and quoted phrases into chips, through the "Search suggestions" list or Enter.
+- `find-qualifiers` turns `tag:`, `type:`, `is:`, `site:`, `folder:` and quoted phrases into chips, through the "Search suggestions" list or Enter. A tag chip in a card's dialog applies the same `tag:"…"` filter (never a keyword search) and closes the card, and the URL drops `?card=`.
 - `find-enter` turns a plain word into a keyword chip on Enter; color, style and time words become their own filters, kept in the URL (`?color=blue,ff5733&style=minimal&date=This+Week`) through a reload and Back; `fav`, `trash` and `archive` navigate.
 - `find-clear` clears with "Clear all", a chip's remove button, Backspace (the chip just left of the cursor, the last one shown), or "Clear filters".
 - `find-view` uses the View menu: card types (a `type:` qualifier becomes a checked type, and checking another adds to it), sort (Newest, Oldest, Shuffle, Revisit) and "Save as smart folder…". A search keeps "Newest first" picked over "Best match" through a reload (`&sort=newest`). In Revisit, Space on a focused button presses that button; on the deck it opens details.
@@ -36,6 +36,7 @@ Steps:
 - **No match.** `type` "tag:zzzz-no-match-<run-id>" with `replace: true`. The text "Nothing found matching your filters" and a button "Clear filters" appear. Use a `tag:` qualifier: a plain nonsense word still matches cards by meaning on the dev deployment (see Gotchas).
 - **Clear.** `tap` button "Clear all" (the X in the field). The query empties and the full grid returns.
 - **Keyword chip.** `type` the marker and `press` "Enter". The input empties and a chip button "Remove <marker>" appears (lowercased). Proof that it persists: `navigate` to the current URL; the chip is still there.
+- **Tag chip in a card.** Tag a marked note `verify tag 🎉 with spaces` ([card-actions](./card-actions.md), "Tags"), then in its dialog `tap` the chip's name "verify tag 🎉 with spaces". The dialog closes, the search shows the chip "Remove tag verify tag 🎉 with spaces" (the same as typing `tag:"verify tag 🎉 with spaces"`), only cards with that exact tag are listed, and the URL has `q=tag:"…"` and no `card=`. Reload: the dialog stays closed.
 - **Qualifier.** `type` "type:quote" and `press` "Enter". The chip "Remove type Quote" appears and only "Quote:" cards remain. `tap` the chip to remove it.
 - **Backspace.** From `/?tag=design`, `type` the marker and `press` "Enter": chips "Remove tag filter design" then "Remove <marker>". `press` "Backspace" in the empty box: only "Remove <marker>" goes; the tag chip stays.
 - **Type qualifier and View.** `navigate` to `/`, `type` "type:quote", `press` "Enter". The URL becomes `/?type=quote`, the chip is "Remove type Quote", and the View menu has "Quote" checked. Check "Palette": the URL becomes `/?type=quote,palette` and quotes and palettes are both listed (not "Nothing found").

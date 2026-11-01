@@ -3,6 +3,7 @@ import {
   focusedCardShortcuts,
   type GridKeyContext,
   gridKeyAction,
+  isSelectAllKey,
   selectionShortcut,
 } from "../gridKeys";
 
@@ -97,14 +98,44 @@ describe("gridKeyAction", () => {
     }
   );
 
-  test.each(["f", "t", "e", "Delete"])(
-    "%p does nothing to a selection in Trash, which has no bulk Delete Forever",
+  test.each(["f", "t", "e"])(
+    "%p does nothing to a selection in Trash",
     (key) => {
       expect(gridKeyAction(key, { ...selecting, view: "trash" })).toEqual({
         type: "blocked",
       });
     }
   );
+
+  test.each(["Delete", "Backspace"])(
+    "%p asks to delete a selection in Trash forever",
+    (key) => {
+      expect(gridKeyAction(key, { ...selecting, view: "trash" })).toEqual({
+        type: "selection",
+        action: "deleteForever",
+      });
+    }
+  );
+
+  test.each([
+    [{ key: "a", metaKey: true }, true],
+    [{ key: "A", ctrlKey: true }, true],
+    [{ key: "a" }, false],
+    [{ key: "a", metaKey: true, shiftKey: true }, false],
+    [{ key: "a", ctrlKey: true, repeat: true }, false],
+    [{ key: "c", metaKey: true }, false],
+  ])("isSelectAllKey(%o) is %p", (event, expected) => {
+    expect(
+      isSelectAllKey({
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        repeat: false,
+        shiftKey: false,
+        ...event,
+      })
+    ).toBe(expected);
+  });
 
   test("Delete asks to delete a card forever in Trash", () => {
     expect(gridKeyAction("Delete", { ...browsing, view: "trash" })).toEqual({
@@ -169,6 +200,11 @@ describe("selectionShortcut", () => {
   test("gives E to Unarchive in the Archive", () => {
     const archive = { ...library, view: "archive" as const };
     expect(selectionShortcut("unarchive", archive, true)?.label).toBe("E");
+  });
+
+  test("gives Delete to Delete forever in Trash", () => {
+    const trash = { ...library, view: "trash" as const };
+    expect(selectionShortcut("deleteForever", trash, true)?.label).toBe("⌫");
   });
 
   test.each([

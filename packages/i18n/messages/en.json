@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {Mark as read} watched {Mark as watched} listened {Mark as listened} bought {Mark as bought} cooked {Mark as cooked} played {Mark as played} other {Mark as done}}",
       "markAsNot": "{verb, select, read {Mark as not read} watched {Mark as not watched} listened {Mark as not listened} bought {Mark as not bought} cooked {Mark as not cooked} played {Mark as not played} other {Mark as not done}}",
-      "state": "{verb, select, read {Read} watched {Watched} listened {Listened} bought {Bought} cooked {Cooked} played {Played} other {Done}}"
+      "caption": "Done",
+      "marked": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
     },
     "heading": {
       "addedOn": "Added {date}",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "Add a tag",
       "addTagPlaceholder": "Add tag…",
-      "addToFolder": "Add to a folder",
       "andMore": "and more",
       "colors": "Colors",
       "copyColor": "Copy {hex}",
@@ -868,7 +868,20 @@
       },
       "file": "File",
       "openFile": "Open file",
-      "untitled": "Document"
+      "untitled": "Document",
+      "kinds": {
+        "archive": "Archive",
+        "audio": "Audio file",
+        "design": "Design file",
+        "image": "Image",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Office document",
+        "pdf": "PDF",
+        "source": "Source code",
+        "text": "Text file",
+        "tokens": "Design tokens"
+      }
     },
     "fileText": {
       "loading": "Loading file preview"
@@ -965,7 +978,7 @@
       "deleteForever": "Delete forever",
       "deselect": "Deselect",
       "favorite": "Favorite",
-      "folders": "Folders…",
+      "folders": "Add to folder…",
       "moreActions": "More actions",
       "moveToTrash": "Move to Trash",
       "openLink": "Open link",
@@ -974,13 +987,16 @@
       "select": "Select",
       "unarchive": "Unarchive",
       "unfavorite": "Unfavorite",
-      "editLink": "Edit link…"
+      "editLink": "Edit link…",
+      "removeFromFolder": "Remove from this folder"
     },
     "copyImageFailed": "Failed to copy image",
     "deleteForeverDialog": {
       "confirm": "Delete forever",
       "description": "This permanently deletes the card and its files. This can’t be undone.",
-      "title": "Delete this card forever?"
+      "title": "Delete this card forever?",
+      "bulkTitle": "{count, plural, one {Delete # card forever?} other {Delete # cards forever?}}",
+      "bulkDescription": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can’t be undone."
     },
     "body": {
       "emptyNote": "Empty note",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "Emptying Trash",
       "rateLimited": "Trash was emptied a few times just now. Try again in a minute.",
       "failed": "Couldn’t empty Trash. Try again."
+    },
+    "trash": {
+      "retention": "Cards in Trash are deleted forever after {days, plural, one {# day} other {# days}}."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "Move to folder…",
       "removeFromFolder": "Remove from {folder}",
       "moveToTrash": "Move to Trash",
-      "cancelSelection": "Cancel selection"
+      "cancelSelection": "Cancel selection",
+      "deleteForever": "Delete forever"
     },
     "tagsDialog": {
       "tagTooLong": "Tags can be at most {max} characters.",
@@ -1604,7 +1624,8 @@
         "removeTag": "Failed to remove tag",
         "tags": "Failed to update tags",
         "other": "Failed to {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# card permanently deleted} other {# cards permanently deleted}}"
     },
     "clipboard": {
       "copyingImage": "Copying image...",

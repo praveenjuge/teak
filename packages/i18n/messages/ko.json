@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {읽음으로 표시} watched {시청함으로 표시} listened {들음으로 표시} bought {구매함으로 표시} cooked {요리함으로 표시} played {플레이함으로 표시} other {완료로 표시}}",
       "markAsNot": "{verb, select, read {읽지 않음으로 표시} watched {시청하지 않음으로 표시} listened {듣지 않음으로 표시} bought {구매하지 않음으로 표시} cooked {요리하지 않음으로 표시} played {플레이하지 않음으로 표시} other {미완료로 표시}}",
-      "state": "{verb, select, read {읽음} watched {시청함} listened {들음} bought {구매함} cooked {요리함} played {플레이함} other {완료}}"
+      "caption": "완료",
+      "marked": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
     },
     "heading": {
       "addedOn": "{date}에 추가됨",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "태그 추가",
       "addTagPlaceholder": "태그 추가…",
-      "addToFolder": "폴더에 추가",
       "andMore": "외 다수",
       "colors": "색상",
       "copyColor": "{hex} 복사",
@@ -868,7 +868,20 @@
       },
       "file": "파일",
       "openFile": "파일 열기",
-      "untitled": "문서"
+      "untitled": "문서",
+      "kinds": {
+        "archive": "압축 파일",
+        "audio": "오디오 파일",
+        "design": "디자인 파일",
+        "image": "이미지",
+        "markdown": "Markdown",
+        "motion": "애니메이션",
+        "office": "Office 문서",
+        "pdf": "PDF",
+        "source": "소스 코드",
+        "text": "텍스트 파일",
+        "tokens": "디자인 토큰"
+      }
     },
     "fileText": {
       "loading": "파일 미리보기를 불러오는 중"
@@ -965,7 +978,7 @@
       "deleteForever": "영구 삭제",
       "deselect": "선택 해제",
       "favorite": "즐겨찾기에 추가",
-      "folders": "폴더…",
+      "folders": "폴더에 추가…",
       "moreActions": "추가 작업",
       "moveToTrash": "휴지통으로 이동",
       "openLink": "링크 열기",
@@ -974,13 +987,16 @@
       "select": "선택",
       "unarchive": "보관 해제",
       "unfavorite": "즐겨찾기에서 제거",
-      "editLink": "링크 편집…"
+      "editLink": "링크 편집…",
+      "removeFromFolder": "이 폴더에서 제거"
     },
     "copyImageFailed": "이미지를 복사하지 못했습니다",
     "deleteForeverDialog": {
       "confirm": "영구 삭제",
       "description": "카드와 파일이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
-      "title": "이 카드를 영구 삭제하시겠습니까?"
+      "title": "이 카드를 영구 삭제하시겠습니까?",
+      "bulkTitle": "{count, plural, other {카드 #개를 영구 삭제하시겠습니까?}}",
+      "bulkDescription": "{count, plural, other {카드 #개와 파일이 영구적으로 삭제됩니다.}} 이 작업은 되돌릴 수 없습니다."
     },
     "body": {
       "emptyNote": "빈 메모",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "휴지통을 비우는 중",
       "rateLimited": "방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요.",
       "failed": "휴지통을 비우지 못했습니다. 다시 시도하세요."
+    },
+    "trash": {
+      "retention": "휴지통의 카드는 {days, plural, other {#일}} 후 영구 삭제됩니다."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "폴더로 이동…",
       "removeFromFolder": "{folder}에서 제거",
       "moveToTrash": "휴지통으로 이동",
-      "cancelSelection": "선택 취소"
+      "cancelSelection": "선택 취소",
+      "deleteForever": "영구 삭제"
     },
     "tagsDialog": {
       "tagTooLong": "태그는 최대 {max}자까지 가능합니다.",
@@ -1604,7 +1624,8 @@
         "removeTag": "태그를 제거하지 못했습니다",
         "tags": "태그를 업데이트하지 못했습니다",
         "other": "{operation} 작업에 실패했습니다"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, other {카드 #개가 영구 삭제되었습니다}}"
     },
     "clipboard": {
       "copyingImage": "이미지를 복사하는 중...",

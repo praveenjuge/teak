@@ -770,7 +770,8 @@
     "done": {
       "markAs": "{verb, select, read {Marquer comme lue} watched {Marquer comme vue} listened {Marquer comme écoutée} bought {Marquer comme achetée} cooked {Marquer comme cuisinée} played {Marquer comme jouée} other {Marquer comme terminée}}",
       "markAsNot": "{verb, select, read {Marquer comme non lue} watched {Marquer comme non vue} listened {Marquer comme non écoutée} bought {Marquer comme non achetée} cooked {Marquer comme non cuisinée} played {Marquer comme non jouée} other {Marquer comme non terminée}}",
-      "state": "{verb, select, read {Lue} watched {Vue} listened {Écoutée} bought {Achetée} cooked {Cuisinée} played {Jouée} other {Terminée}}"
+      "caption": "Terminé",
+      "marked": "{verb, select, read {Marquée comme lue} watched {Marquée comme vue} listened {Marquée comme écoutée} bought {Marquée comme achetée} cooked {Marquée comme cuisinée} played {Marquée comme jouée} other {Marquée comme terminée}}"
     },
     "heading": {
       "addedOn": "Ajoutée le {date}",
@@ -781,7 +782,6 @@
     "panel": {
       "addTagLabel": "Ajouter un tag",
       "addTagPlaceholder": "Ajouter un tag…",
-      "addToFolder": "Ajouter à un dossier",
       "andMore": "et plus",
       "colors": "Couleurs",
       "copyColor": "Copier {hex}",
@@ -868,7 +868,20 @@
       },
       "file": "Fichier",
       "openFile": "Ouvrir le fichier",
-      "untitled": "Document"
+      "untitled": "Document",
+      "kinds": {
+        "archive": "Archive",
+        "audio": "Fichier audio",
+        "design": "Fichier de design",
+        "image": "Image",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Document Office",
+        "pdf": "PDF",
+        "source": "Code source",
+        "text": "Fichier texte",
+        "tokens": "Tokens de design"
+      }
     },
     "fileText": {
       "loading": "Chargement de l’aperçu du fichier"
@@ -965,7 +978,7 @@
       "deleteForever": "Supprimer définitivement",
       "deselect": "Désélectionner",
       "favorite": "Ajouter aux favoris",
-      "folders": "Dossiers…",
+      "folders": "Ajouter à un dossier…",
       "moreActions": "Plus d’actions",
       "moveToTrash": "Placer dans la corbeille",
       "openLink": "Ouvrir le lien",
@@ -974,13 +987,16 @@
       "select": "Sélectionner",
       "unarchive": "Désarchiver",
       "unfavorite": "Retirer des favoris",
-      "editLink": "Modifier le lien…"
+      "editLink": "Modifier le lien…",
+      "removeFromFolder": "Retirer de ce dossier"
     },
     "copyImageFailed": "Impossible de copier l’image",
     "deleteForeverDialog": {
       "confirm": "Supprimer définitivement",
       "description": "Cette action supprime définitivement la fiche et ses fichiers. Elle est irréversible.",
-      "title": "Supprimer définitivement cette fiche ?"
+      "title": "Supprimer définitivement cette fiche ?",
+      "bulkTitle": "{count, plural, one {Supprimer définitivement # fiche ?} other {Supprimer définitivement # fiches ?}}",
+      "bulkDescription": "{count, plural, one {Cette action supprime définitivement # fiche et ses fichiers.} other {Cette action supprime définitivement # fiches et leurs fichiers.}} Elle est irréversible."
     },
     "body": {
       "emptyNote": "Note vide",
@@ -1014,6 +1030,9 @@
       "emptyingAll": "Vidage de la corbeille",
       "rateLimited": "La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute.",
       "failed": "Impossible de vider la corbeille. Réessayez."
+    },
+    "trash": {
+      "retention": "Les fiches de la corbeille sont supprimées définitivement après {days, plural, one {# jour} other {# jours}}."
     }
   },
   "grids": {
@@ -1175,7 +1194,8 @@
       "moveToFolder": "Déplacer vers un dossier…",
       "removeFromFolder": "Retirer de {folder}",
       "moveToTrash": "Placer dans la corbeille",
-      "cancelSelection": "Annuler la sélection"
+      "cancelSelection": "Annuler la sélection",
+      "deleteForever": "Supprimer définitivement"
     },
     "tagsDialog": {
       "tagTooLong": "Un tag ne peut pas dépasser {max} caractères.",
@@ -1604,7 +1624,8 @@
         "removeTag": "Impossible de retirer le tag",
         "tags": "Impossible de mettre à jour les tags",
         "other": "Échec de l’opération : {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# fiche supprimée définitivement} other {# fiches supprimées définitivement}}"
     },
     "clipboard": {
       "copyingImage": "Copie de l’image…",

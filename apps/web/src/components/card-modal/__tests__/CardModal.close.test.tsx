@@ -122,3 +122,70 @@ test("opens again after a close", async () => {
 
   expect(dialog()?.textContent).toContain("#445566");
 });
+
+const pressEscape = () =>
+  act(async () => {
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Escape",
+      })
+    );
+    await Promise.resolve();
+  });
+
+test("one Escape closes the card even while a tooltip is open", async () => {
+  const onCancel = mock();
+  await renderModal({
+    card: paletteCard("card_a", "#112233"),
+    onCancel,
+    open: true,
+  });
+  // A real Radix tooltip: a dismissable layer above the dialog, as one
+  // keyboard focus opens on an action button.
+  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } =
+    await import("@/components/ui/tooltip");
+  const tooltipRoot = createRoot(
+    document.body.appendChild(document.createElement("div"))
+  );
+  await act(() =>
+    tooltipRoot.render(
+      <TooltipProvider>
+        <Tooltip open>
+          <TooltipTrigger>Favorite</TooltipTrigger>
+          <TooltipContent>Favorite F</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  );
+  expect(
+    document.querySelector("[data-slot='tooltip-content']")
+  ).not.toBeNull();
+
+  await pressEscape();
+  expect(onCancel).toHaveBeenCalledTimes(1);
+  await act(() => tooltipRoot.unmount());
+});
+
+test("Escape over a menu on the card is left to the menu", async () => {
+  const onCancel = mock();
+  await renderModal({
+    card: paletteCard("card_a", "#112233"),
+    onCancel,
+    open: true,
+  });
+  const tooltip = document.createElement("div");
+  tooltip.dataset.slot = "tooltip-content";
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "menu");
+  menu.dataset.state = "open";
+  document.body.append(tooltip, menu);
+
+  const { escapeClosesOverTooltip } = await import("../cardModalKeys");
+  expect(escapeClosesOverTooltip(dialog())).toBe(false);
+  menu.remove();
+  expect(escapeClosesOverTooltip(dialog())).toBe(true);
+  tooltip.remove();
+  expect(escapeClosesOverTooltip(dialog())).toBe(false);
+});

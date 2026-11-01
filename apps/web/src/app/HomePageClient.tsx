@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SidebarToggle } from "@/components/sidebar";
 import { useSharedFiles } from "@/hooks/useSharedFiles";
 import { folderPath } from "@/lib/folders";
@@ -11,11 +11,8 @@ import {
   LIBRARY_VIEW_PATHS,
   type LibraryView,
 } from "@/lib/libraryViews";
-import {
-  parseSearchUrlState,
-  type SearchUrlState,
-  serializeSearchUrlState,
-} from "@/lib/searchUrlState";
+import { parseSearchUrlState, type SearchUrlState } from "@/lib/searchUrlState";
+import { searchUrlQuery } from "@/lib/searchUrlSync";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   readSharedText,
@@ -77,11 +74,22 @@ export function HomePageClient({
     typeParam,
   ]);
 
+  // The card this page shows, ahead of the router: closing a card replaces
+  // the URL through the router, which can land after a search written below.
+  const openCardIdRef = useRef<string | null>(cardIdFromUrl);
+  useEffect(() => {
+    openCardIdRef.current = cardIdFromUrl;
+  }, [cardIdFromUrl]);
+
   // Native history updates the URL synchronously, unlike the router, so an
   // older search can never land after a newer one.
   const handleSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
-      const query = serializeSearchUrlState(state, window.location.search);
+      const query = searchUrlQuery(
+        state,
+        window.location.search,
+        openCardIdRef.current
+      );
       const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
       if (nextUrl === `${window.location.pathname}${window.location.search}`) {
         return;
@@ -120,6 +128,7 @@ export function HomePageClient({
   const cardEntryUrlRef = useRef<string | null>(null);
 
   const setCardUrlParam = (cardId: string | null, replace = false) => {
+    openCardIdRef.current = cardId;
     const params = new URLSearchParams(searchParams.toString());
 
     if (cardId) {
