@@ -45,7 +45,8 @@ test("a failed sign-out says so, and a second press while one runs does nothing"
   let first: Promise<void> | undefined;
   await act(() => {
     first = api?.signOut();
-    api?.signOut();
+    // A second press while the first is still running.
+    void api?.signOut();
   });
   expect(signOut).toHaveBeenCalledTimes(1);
   expect(api?.signingOut).toBe(true);

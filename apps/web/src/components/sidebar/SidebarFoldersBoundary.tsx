@@ -20,7 +20,9 @@ function SidebarFoldersError() {
           className="mt-2 inline-flex h-7 items-center rounded-md bg-sidebar-accent px-2.5 font-medium text-[12px] text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border focus-visible:ring-2"
           // The query cache would hand a retry the same error; a reload asks
           // the server again.
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            window.location.reload();
+          }}
           type="button"
         >
           {tc("tryAgain")}

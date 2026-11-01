@@ -24,7 +24,10 @@ import {
   type LanguageSetting,
   useLanguageSetting,
 } from "@/hooks/useLanguageSetting";
-import { deleteAccountAndLeave } from "@/lib/accountDeletion";
+import {
+  deleteAccountAndLeave,
+  LEAVE_AFTER_DELETION_URL,
+} from "@/lib/accountDeletion";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { signOut } from "@/lib/sign-out-client";
@@ -121,7 +124,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     onDeleteAccount: () =>
       deleteAccountAndLeave({
         deleteAccount: () => deleteMyAccount({}),
-        leave: () => window.location.assign("/sign-in"),
+        leave: () => window.location.assign(LEAVE_AFTER_DELETION_URL),
         onDeleted: () => toast.success(t("deletionRequested")),
         signOut,
       }),

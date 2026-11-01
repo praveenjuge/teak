@@ -88,7 +88,9 @@ export function AppShell({
               <SidebarFolders
                 activeFolderId={folderId}
                 LinkComponent={IntentLink}
-                onActiveFolderDeleted={() => router.push("/")}
+                onActiveFolderDeleted={() => {
+                  router.push("/");
+                }}
               />
             </SidebarFoldersBoundary>
           }

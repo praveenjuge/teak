@@ -44,7 +44,9 @@ export function SegmentErrorScreen({
         <Button
           // A retry would read the same failed queries from the cache; a
           // reload asks the server again.
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            window.location.reload();
+          }}
           variant="outline"
         >
           {t("common.tryAgain")}
