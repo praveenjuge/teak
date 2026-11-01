@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, createElement } from "react";
-import { mockRaycastUi, shownToasts } from "./raycastUiMock";
+import { listPagination, mockRaycastUi, shownToasts } from "./raycastUiMock";
 
 const transportGlobals = {
   Response,
@@ -260,4 +260,108 @@ test("Undo after the list reloads places the card by the new order", async () =>
   expect(text.indexOf("Older card")).toBeGreaterThan(
     text.indexOf("Newer card"),
   );
+});
+
+test("a favorite that answers after Move to Trash doesn't bring the card back", async () => {
+  let answerFavorite: (() => void) | undefined;
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? "GET";
+    if (url.pathname.endsWith("/favorite")) {
+      return new Promise<Response>((resolve) => {
+        answerFavorite = () =>
+          resolve(Response.json({ ...linkCard, isFavorited: true }));
+      });
+    }
+    if (method === "DELETE" || url.pathname.endsWith("/restore")) {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    return Promise.resolve(
+      Response.json({
+        items: [linkCard],
+        pageInfo: { hasMore: false, nextCursor: null },
+      }),
+    );
+  }) as typeof fetch;
+  await render();
+  await press("Favorite");
+  await press("Move to Trash");
+  const trashToast = shownToasts.at(-1);
+  expect(trashToast?.title).toBe("Moved to Trash");
+
+  await act(async () => answerFavorite?.());
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+  expect(container.textContent).not.toContain("A long read");
+
+  // Undo still puts it back.
+  const undo = trashToast?.primaryAction as
+    | { onAction: (toast: unknown) => Promise<void> }
+    | undefined;
+  await act(async () => undo?.onAction(trashToast));
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+  expect(container.textContent).toContain("A long read");
+});
+
+test("a favorite that answers after Trash and a reload still stays out", async () => {
+  let answerFavorite: (() => void) | undefined;
+  let trashed = false;
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? "GET";
+    if (url.pathname.endsWith("/favorite")) {
+      return new Promise<Response>((resolve) => {
+        answerFavorite = () =>
+          resolve(Response.json({ ...linkCard, isFavorited: true }));
+      });
+    }
+    if (method === "DELETE") {
+      trashed = true;
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    // Once in Trash, the card is no longer in a fresh page.
+    const items = trashed ? [] : [linkCard];
+    return Promise.resolve(
+      Response.json({ items, pageInfo: { hasMore: false, nextCursor: null } }),
+    );
+  }) as typeof fetch;
+  await render();
+  await press("Favorite");
+  await press("Move to Trash");
+  await press("Reload");
+
+  await act(async () => answerFavorite?.());
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+  expect(container.textContent).not.toContain("A long read");
+});
+
+test("a trashed card that comes back on a later page takes updates again", async () => {
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? "GET";
+    if (url.pathname.endsWith("/favorite")) {
+      return Promise.resolve(Response.json({ ...linkCard, isFavorited: true }));
+    }
+    if (method === "DELETE") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    // Restored elsewhere, the card shows up again on the second page.
+    const nextPage = url.searchParams.get("cursor") === "page-2";
+    return Promise.resolve(
+      Response.json({
+        items: [linkCard],
+        pageInfo: nextPage
+          ? { hasMore: false, nextCursor: null }
+          : { hasMore: true, nextCursor: "page-2" },
+      }),
+    );
+  }) as typeof fetch;
+  await render();
+  await press("Move to Trash");
+  expect(container.textContent).not.toContain("A long read");
+
+  await act(async () => listPagination.onLoadMore?.());
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+  expect(container.textContent).toContain("A long read");
+  await press("Favorite");
+  expect(container.textContent).toContain("Unfavorite");
 });
