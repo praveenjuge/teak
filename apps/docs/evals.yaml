@@ -145,14 +145,14 @@ questions:
     question: What else ships with a new public API operation in Teak?
     expected:
       - The MCP tool, the SDK method and the CLI command, in the same pull request
-      - A row in scripts/public-parity.ts
+      - A row in scripts/repo/public-parity.ts
     routes: /docs/adding-a-feature
 
   - id: add-ui-text
     question: I added English text to Teak's web app. What else do I need to do?
     expected:
       - Add the same key to all seven other language catalogs in the same pull request
-      - Run bun test scripts/i18n-catalog.test.ts
+      - Run bun test scripts/repo/i18n-catalog.test.ts
     routes: /docs/translating
 
   - id: self-hosted-cards-not-processed

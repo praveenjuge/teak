@@ -53,6 +53,44 @@ Every write a processing run makes carries the run's processing revision. Editin
 - **Search by meaning** uses Workers AI embeddings stored in Vectorize, one namespace per user, alongside Convex's keyword search.
 - **Background tasks** that used to be Convex crons run as the Worker's Cron Triggers; Convex keeps the table logic in internal functions the Worker calls.
 
+<Visibility for="agents">
+
+**Search by meaning in detail**
+
+**Model.** `@cf/google/embeddinggemma-300m` on Workers AI (a Beta model): 768 dimensions, cosine, up to 512 input tokens, so `truncateForEmbedding` cuts text to an estimated 480. The code adds the model's retrieval prompts itself (`task: search result | query: …` for queries, `title: none | text: …` for cards). The constants live in `packages/files-protocol/src/embeddings.ts`. It was chosen over bge-base-en-v1.5, bge-m3 and qwen3-embedding-0.6b on a 38-card, 33-query set with five non-English queries (Recall@5 0.977, MRR 0.965); the set is small, so treat small differences as noise. Changing the model changes the dimensions, which needs a new index and a re-embed of every card. Bump `CARD_EMBEDDING_VERSION` for any change to the model, the prompts or the text a card is embedded from.
+
+**Index.** Each shard is one Vectorize index, `teak-cards-<shard>` (768 dimensions, cosine, one string metadata index `type`), bound in the Core Worker as `CARD_VECTORS_<shard>`. A new shard needs the metadata index before its first vector: `npx wrangler vectorize create-metadata-index teak-cards-<shard> --property-name=type --type=string`. Each user is one namespace named by their Teak user ID (prefixed with the deployment's R2 key prefix, so dev uses `dev/<userId>`); one index holds 50,000 namespaces and 20 million vectors. `vectorShards` (`packages/convex/vectorShards.ts`) keeps each user on the shard they were first placed on; new users go to `CURRENT_VECTOR_SHARD`.
+
+**Keeping vectors in step.** `cardEmbeddings` (`packages/convex/embedding/`) is the ledger, one row per card that has or is due for a vector.
+
+- `buildEmbeddingText` joins the title, description, AI summary, tags, notes, visual styles and the first 2,000 characters of the body.
+- The search sync (`card/searchSync.ts`) marks a card when its searchable text or type changes and sets `dueAt` 30 seconds out, so a burst of edits costs one embedding and card processing has no embedding step.
+- The first job claims its owner's due cards (`claimDueEmbeddings`, up to 64, 10-minute lease) and writes them 32 to an `embed-upsert`, because many small Vectorize writes get 429s (`VECTOR_UPSERT_ERROR`, code 40041).
+- A SHA-256 of the version, type and text skips unchanged cards. A job records its result only if `dueAt` still holds the value it read, so an older job never marks a newer edit done.
+- Failures retry with backoff (30 s doubling) five times, then keep `attempts` and `lastError` for the backfill. Deleting a card tombstones its row (`pendingVectorDeleteAt`) until the vector delete succeeds. Without `FILES_BASE` (the end-to-end stack) nothing is marked.
+
+**Backfill.** `embedding/backfill:backfillEmbeddings` queues cards with text and no current vector (older cards, exhausted retries, jobs due over an hour ago), 16 per job every 3.2 s. It's a dry run by default; pass `"userId"` for a one-account canary first, `"reembed": true` after bumping `CARD_EMBEDDING_VERSION`, and `"force": true` to forget every hash. Don't run the whole table on the development deployment.
+
+```bash
+npx convex run embedding/backfill:backfillEmbeddings
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false,"userId":"teak_…"}'
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false}'
+```
+
+The Monday `sweep-orphaned-objects` cron first runs `embedding/sweep:sweepVectorLedger`, which only reports (`vectors.ledger_clean`, `vectors.ledger_problems_detected` or `vectors.ledger_sweep_incomplete`): stuck deletes, rows without cards, exhausted embeds and lost jobs. `embedding/inspect:searchByMeaning` queries one user's vectors from the CLI (`'{"userId":"teak_…","text":"…"}'`).
+
+**Hybrid search.** Every search blends keyword and meaning matches (`mode` `hybrid` by default; `keyword` and `semantic` for one side). The pure parts are in `packages/convex/shared/search/semantic.ts`, the rest in `packages/convex/search/`.
+
+- Only free words of 2 or more characters make a vector call (`semanticQueryText`, at most 500 characters).
+- `semanticSearchResults` caches each ranking (up to 100 cards) for 10 minutes, keyed by a hash of the version and text, so search text is never stored.
+- Queries can't call the Worker: the web grid calls `search/semanticActions:requestSemanticResults` beside `searchCardsPaginated`, and the query merges the ranking when it lands. `GET /v1/cards` fetches the ranking first (1.5 s timeout). The native apps read the cache but nothing fills it for them yet.
+- Fusion is reciprocal rank (`1 / (60 + rank)` per side); meaning-only matches below `SEMANTIC_MIN_SCORE` (0.35) are dropped.
+- No Core Worker, an error or timeout, or more than 60 uncached searches a minute per user leaves the search keyword-only, logged as `[search/semantic]`.
+
+**Similar cards and mood.** `like:<card id>` (More like this, the API's `similarTo`) searches with the card's stored vector through the `vector-similar` op; `mood:"…"` embeds its text and reads image vectors only (a `type` metadata filter, plus an unfiltered query for vectors written before types). Both live in `card/similarSearch.ts`, list meaning matches only, allow one anchor per search, and return at most 100 cards.
+
+</Visibility>
+
 ## Public API and MCP
 
 The REST API, the MCP server, the OpenAPI spec and the OAuth discovery documents are Convex HTTP routes. In production, `teakvault.com/api`, `/mcp` and the discovery documents reach Convex only through the Core Worker's edge proxy (`apps/core-worker/src/edge/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them. The [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) offer the same operations, and a test keeps them in step ([Adding a Feature](/docs/adding-a-feature#one-feature-every-surface)).
@@ -74,5 +112,65 @@ Teak has eight card types: text, link, image, video, audio, document, palette an
 - Card processing keeps its workflow retries, the processing-revision guard on every write, and a consistent `processingStatus`.
 - Workflow step names are durable history: a step is never renamed, and new steps go after the existing ones.
 - Every package moves in lockstep: one version across every manifest for each release.
+
+## Working in each workspace
+
+Each workspace's `AGENTS.md` points here. Run commands from the repository root unless a step says otherwise.
+
+### Web app (`apps/web`)
+
+The web app owns all of its UI; nothing under `src` is shared with another workspace. `src` is grouped by kind of file; put new code in the folder that fits and keep a feature's pieces together inside it.
+
+| Folder | What goes there |
+| --- | --- |
+| `app/` | Routes, layouts and route handlers. Pages stay thin: they render a screen or compose components. |
+| `screens/` | Page-level views that routes render: `CardsScreen`, `TagsScreen`, `SettingsShell`. |
+| `components/ui/` | shadcn new-york primitives, added with the shadcn CLI (`components.json`). |
+| `components/<feature>/` | One folder per area (`cards`, `card-modal`, `search`, `settings`...). Where a folder has an `index.ts`, import it through that from outside. |
+| `components/app-shell/` | The signed-in frame: the shell, its skeletons, `IntentLink` and the WebMCP tools. |
+| `components/providers/` | Providers and auth gates that layouts mount: WorkOS, Convex, PostHog, theme and the global file drop. |
+| `components/feedback/` | Loading, empty, error and retry states that screens share. |
+| `hooks/` | React hooks (`use*`). A hook that calls Convex keeps its testable core beside it (`useFileUpload.ts` wires `useFileUploadCore.ts`). |
+| `lib/` | Modules without UI: search state, optimistic query updates, shortcuts, the cached Convex query hooks, uploads, auth and security headers. |
+| `constants/`, `styles/` | Static values; the theme tokens, prose styles and fonts. |
+
+Import with the `@/` alias when you leave a feature folder. Tests live in a `__tests__` folder beside the code; `bun run test` runs them with `bun test --parallel`, which gives each file a fresh global, because tests register happy-dom and module mocks globally.
+
+### Convex backend (`packages/convex`)
+
+Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex rules override general guidance. Any migration or backfill needs the owner's explicit approval. Tables and indexes live in `schema.ts` (validators in `schema/validators/`), scheduled jobs in `crons.ts`. Bun unit tests go in `__tests__/` mirroring the source path (colocated `*.test.ts` files don't run); database, auth and component behavior uses `convex-test` in `edge/*.test.ts`.
+
+### Apple app (`apps/apple`)
+
+- Xcode 27 (Swift 6.4). The project is generated: edit `project.yml`, run `apps/apple/scripts/generate-project.sh`, and commit `Teak.xcodeproj` with it; CI fails when they differ. The workspace has no `package.json`, so Turbo, `bun run dev` and doctor don't see it. CI and releases run on GitHub's `xcode-27` image with Xcode pinned by `apps/apple/scripts/select-xcode.sh`.
+- Debug talks to the development deployment and WorkOS staging; Release talks to production. The Convex Rust core is Apple silicon only, so Mac and Simulator builds are arm64.
+- Layout: `Packages/TeakKit` (`TeakCore`: models, ported logic, session, Convex over HTTPS, uploads; `TeakSync`: the live Convex client; `TeakUI`), `Teak/` (the app), `ShareExtension/` and `SafariExtension/`.
+- Convex calls go through `ConvexFunctions`, which binds each function to its result type; every number argument is a `Double` (`v.number()` rejects int64). Shared constants come from `SharedConstants.json`; regenerate it with `bun --no-env-file run apps/apple/scripts/shared-constants.ts --write`.
+- The session lives in the shared keychain group, and refreshes take the cross-process lock in the app group because WorkOS rotates refresh tokens. Hold a file lock in the app group only inside `BackgroundActivity` time, as `FileCredentialLock` does: iOS kills a process suspended while holding one (`0xdead10cc`). Never log tokens.
+- SF Rounded everywhere, Teak red only for meaning, system components first. Keyboard shortcuts must not collide with system ones: UIKit throws on duplicate menu shortcuts.
+- Checks: `swift test --package-path Packages/TeakKit` and `bun --no-env-file test apps/apple/tests/`. CI doesn't build the app, so build it for iPhone and Mac before pushing app changes.
+- Swift Testing runs suites in parallel and `AppLanguage` is one value per process, so every suite takes `.english` or `.switchesLanguage`, and localized `@Test(arguments:)` are passed as closures; `apps/apple/tests/teakkit-language.test.ts` enforces it.
+- UI flows run against the local end-to-end stack: `bun run --cwd packages/tests e2e:stack`, then `apps/apple/scripts/ui-tests.sh ios|ipad|mac`. `bun --no-env-file run apps/apple/scripts/e2e-session.ts` prints the launch environment for a manual run. Mac UI tests need UI automation allowed (`automationmodetool`), so CI runs iPhone and iPad.
+
+### Android app (`apps/android`)
+
+- One Gradle project; use `./gradlew` from `apps/android` with JDK 17+ and `local.properties` holding `sdk.dir`. `./gradlew :app:installDebug` installs "Teak Dev", which talks to the development deployment and WorkOS staging. The version comes from the root `package.json`.
+- Checks: `./gradlew lint testDebugUnitTest :app:assembleRelease` and `bun --no-env-file test apps/android/tests/`.
+- Modules follow Now in Android: `app`, `core:model`, `core:data`, `core:designsystem`, `core:testing`, one `feature:*` per area, shared setup in `build-logic`, versions in `gradle/libs.versions.toml`. Each ViewModel exposes one `StateFlow` UI state; build ViewModels inside a test, not in a field initializer, so `MainDispatcherRule` applies.
+- Convex calls go through `ConvexApi` with an entry from `ConvexFunctions`; `LiveConvexApi` sends every number as a `Double`. Shared constants live in the generated `SharedConstants.kt`; regenerate with `bun --no-env-file run apps/android/scripts/shared-constants.ts --write`.
+- Sign-in builds the PKCE URL with the WorkOS SDK, but posts the code exchange and refresh itself without `client_secret` (SDK 0.4.0 always sends one). Sessions are encrypted with an Android Keystore key in no-backup storage. JNA stays pinned to 5.17 or newer for 16 KB-page devices.
+
+Pure logic in Apple's `TeakCore` and Android's `core:model` (filters, card edits, Markdown blocks, save links, date search, grid rules) shares test cases: port a change in both directions.
+
+### Raycast extension (`apps/raycast`)
+
+- The `ray` CLI ships inside `@raycast/api`. `build`, `lint`, `typecheck` and `test` run headless; `dev` needs the Raycast app installed, running and signed in.
+- `package-lock.json` is committed because the Raycast store runs `npm ci`. Regenerate it from `apps/raycast` with `npm install --package-lock-only --ignore-scripts --workspaces=false`.
+- `src/lib/api.ts` sends every request through `teak-sdk`'s `createTeakClient`. Raycast pins the published `teak-sdk`, but Bun resolves the workspace copy, so use only what the pinned version publishes. To prove it, copy `apps/raycast` out of the monorepo, run `npm ci`, `npx tsc --noEmit`, `bun test src/__tests__ --isolate` and `npx ray build` there. `scripts/repo/raycast-parity.test.ts` checks Raycast's copies of Teak's tables, outside the published extension.
+
+### CLI (`apps/cli`) and SDK (`packages/sdk`)
+
+- `bun run dev cli` watch-builds `apps/cli/dist`; run it with `bun dist/index.js <args>`. `bun run build` is the executable build.
+- `packages/sdk/src/index.ts` is the SDK's only entry; tests sit beside the code (`bun run --cwd packages/sdk test`). Import shared values from `@teak/convex/shared/*`, never from Convex functions. `package.json` points `exports` at `src/` for the monorepo; `build.ts` writes the published manifest into `dist/`, and `scripts/repo/sdk-package.test.ts` installs that outside the monorepo and type-checks it. Run it after changing `build.ts` or the public types.
 
 [Adding a Feature](/docs/adding-a-feature) has the rules for fields, tables, indexes, API operations and backfills.

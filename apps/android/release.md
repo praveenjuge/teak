@@ -31,7 +31,7 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 
 ## Each release
 
-1. Complete the shared preparation in `../../.agents/releases.md`, and merge the version change to `main`.
+1. Complete the shared preparation in `../../.agents/runbooks/releases.md`, and merge the version change to `main`.
 
 2. Build the signed bundle from `apps/android`:
 

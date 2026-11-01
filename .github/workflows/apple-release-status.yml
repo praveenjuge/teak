@@ -46,6 +46,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
 
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
@@ -74,18 +78,18 @@ jobs:
         run: |
           root_version="$(node -p "require('./package.json').version")"
           if [ -n "$REQUESTED_VERSION" ]; then
-            node scripts/release-version.mjs version "$REQUESTED_VERSION"
+            node scripts/release/release-version.ts version "$REQUESTED_VERSION"
             versions="$(jq -cn --arg version "$REQUESTED_VERSION" '[$version]')"
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             # Every open release issue, and always the version on main: a
             # release that succeeds leaves no issue behind.
-            versions="$(node scripts/apple-release-issue.mjs versions | jq -c --arg version "$root_version" '. + [$version] | unique')"
+            versions="$(node scripts/release/apple-release-issue.ts versions | jq -c --arg version "$root_version" '. + [$version] | unique')"
           else
             versions="$(jq -cn --arg version "$root_version" '[$version]')"
           fi
           asc auth status --validate --output table
           while IFS= read -r version; do
-            node scripts/release-version.mjs version "$version"
+            node scripts/release/release-version.ts version "$version"
             ios_path="$RUNNER_TEMP/ios-version-$version.json"
             safari_path="$RUNNER_TEMP/safari-version-$version.json"
             for attempt in 1 2 3; do
@@ -112,7 +116,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
 
             if [ "$UPDATE_ISSUES" = "true" ]; then
-              node scripts/apple-release-issue.mjs status \
+              node scripts/release/apple-release-issue.ts status \
                 --version "$version" \
                 --ios-state "$ios_state" \
                 --ios-store-version "$ios_store" \
@@ -125,7 +129,7 @@ jobs:
             # on main, which the release must build from (the next release
             # replaces an older one), and once per version (a run that fails
             # reports to the release issue instead of retrying here).
-            mac_due="$(node scripts/apple-release-issue.mjs mac-due --ios-state "$ios_state" --safari-state "$safari_state")"
+            mac_due="$(node scripts/release/apple-release-issue.ts mac-due --ios-state "$ios_state" --safari-state "$safari_state")"
             if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$version" = "$root_version" ] && [ "$mac_due" = "true" ]; then
               mac_runs="$(gh run list --workflow apple-release.yml --limit 1000 --json displayTitle \
                 --jq "[.[] | select(.displayTitle == \"Apple Mac $version (release)\" or .displayTitle == \"Apple iOS + Mac $version (release)\")] | length")"

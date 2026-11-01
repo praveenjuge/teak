@@ -3,7 +3,7 @@ name: Claude Plugin Sync
 # Claude's directory downloads a plugin's whole repository, and this one is
 # too large, so plugins/teak is mirrored to praveenjuge/teak-plugin, where the
 # directory reads it. The mirror is `git subtree split` output: never edit it
-# by hand (.agents/claude-directory.md).
+# by hand (.agents/runbooks/claude-directory.md).
 
 on:
   push:

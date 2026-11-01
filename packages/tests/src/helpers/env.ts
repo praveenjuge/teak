@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { MAIN_SITE_URL } from "../../../../scripts/dev/worktree-env.ts";
 import {
   readStackState,
   type StackState,
   type StackUrls,
 } from "../../../../scripts/lib/stack-state.ts";
-import { MAIN_SITE_URL } from "../../../../scripts/worktree-env.ts";
 
 type E2eUrls = Required<StackUrls>;
 

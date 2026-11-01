@@ -44,7 +44,7 @@ export const VECTOR_QUERY_MAX_TOP_K = 100;
  * The card type each vector carries as `type` metadata. The index needs a
  * string metadata index on `type` for queries to filter on it, and a vector
  * written before that index existed is filtered only once it is upserted
- * again (.agents/semantic-search.md).
+ * again (architecture.mdx, "Search by meaning in detail").
  */
 export const VECTOR_TYPE_METADATA_KEY = "type";
 export const isVectorCardType = (value: unknown): value is string =>

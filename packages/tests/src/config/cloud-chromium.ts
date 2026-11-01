@@ -11,7 +11,7 @@ import type { WebConnectOptions } from "@e2e-dev/web";
  * import create or hide their file inputs where e2e's `upload` tool can't
  * reach them, and a script drives the file chooser through this browser's
  * DevTools port (`DevToolsActivePort` in its `/tmp/teak-cloud-chromium-`
- * profile, `.agents/cloud.md`). It runs the image's Chromium, which is always there:
+ * profile, `development.mdx`, "Cloud sessions in detail"). It runs the image's Chromium, which is always there:
  * MCP servers start before the SessionStart hook, so e2e's own browsers may
  * not be linked in yet. Until October 2026 this was also the only browser
  * whose Convex socket got through the session's HTTPS proxy; that no longer

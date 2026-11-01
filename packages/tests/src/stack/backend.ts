@@ -1,20 +1,20 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readConvexSelection } from "../../../../scripts/capabilities.ts";
+import { readConvexSelection } from "../../../../scripts/dev/capabilities.ts";
 import {
   DEV_DEPLOYMENT,
   isLocalSelection,
   writeConvexSelection,
-} from "../../../../scripts/dev-deployment.ts";
-import { readDotenvFile } from "../../../../scripts/env-loader.ts";
-import { runCommand } from "../../../../scripts/proc.ts";
-import { listDeploymentVars } from "../../../../scripts/setup-convex.ts";
-import { isMachineLocalValue } from "../../../../scripts/setup-derived-env.ts";
+} from "../../../../scripts/dev/dev-deployment.ts";
+import { runCommand } from "../../../../scripts/dev/proc.ts";
 import {
   isPortInUse,
   type WorktreePorts,
-} from "../../../../scripts/worktree-env.ts";
+} from "../../../../scripts/dev/worktree-env.ts";
+import { readDotenvFile } from "../../../../scripts/env/env-loader.ts";
+import { listDeploymentVars } from "../../../../scripts/setup/setup-convex.ts";
+import { isMachineLocalValue } from "../../../../scripts/setup/setup-derived-env.ts";
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
 import { coreWorkerDeploymentVars } from "./coreWorker";

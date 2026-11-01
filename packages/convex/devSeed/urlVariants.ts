@@ -6,7 +6,7 @@ const URL_VARIANTS_START = Date.UTC(2025, 0, 1);
  * The link each card is saved from, with the rule it exercises. The pack seeds
  * each one twice: under `/k/` as a card saved today (with `urlKey`), and under
  * `/l/` as one with no `urlKey`, which the duplicate check finds only by its
- * exact address (the fallback `.agents/sunset.md` keeps).
+ * exact address (the fallback `.agents/records/sunset.md` keeps).
  */
 const VARIANT_LINKS: {
   path: string;

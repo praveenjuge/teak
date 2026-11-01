@@ -1,0 +1,63 @@
+import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+
+const ROOT = join(import.meta.dir, "../..");
+const NOISE = {
+  TEAK_NOISE_ALPHA: "unrelated-shell-value",
+  TEAK_NOISE_BETA: "12345",
+  SOME_RANDOM_TOOL_VAR: "/tmp/noise",
+};
+
+const runSetupCheck = (extraEnv: Record<string, string>): string => {
+  const env = { ...process.env, ...extraEnv };
+  for (const name of Object.keys(NOISE)) {
+    if (!extraEnv[name]) {
+      delete env[name];
+    }
+  }
+  const result = Bun.spawnSync(
+    ["bun", "--no-env-file", "run", "scripts/setup/setup.ts", "--check"],
+    { cwd: ROOT, env }
+  );
+  expect(result.exitCode).toBe(0);
+  return result.stdout.toString();
+};
+
+// Each `setup --check` takes a few seconds on a busy runner, and this test runs
+// it twice, which can pass Bun's 5 second default.
+const SETUP_CHECK_TIMEOUT_MS = 30_000;
+
+describe("shell parity", () => {
+  test(
+    "setup --check behaves identically with unrelated variables",
+    () => {
+      const clean = runSetupCheck({});
+      const polluted = runSetupCheck(NOISE);
+      expect(polluted).toBe(clean);
+    },
+    SETUP_CHECK_TIMEOUT_MS
+  );
+
+  test("dotenv-audit --json behaves identically with unrelated variables", () => {
+    const run = (extraEnv: Record<string, string>): string => {
+      const env = { ...process.env, ...extraEnv };
+      for (const name of Object.keys(NOISE)) {
+        if (!extraEnv[name]) {
+          delete env[name];
+        }
+      }
+      const result = Bun.spawnSync(
+        [
+          "bun",
+          "--no-env-file",
+          "run",
+          "scripts/env/dotenv-audit.ts",
+          "--json",
+        ],
+        { cwd: ROOT, env }
+      );
+      return result.stdout.toString();
+    };
+    expect(run(NOISE)).toBe(run({}));
+  });
+});

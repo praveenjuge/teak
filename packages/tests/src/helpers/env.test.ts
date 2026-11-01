@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { slotPorts } from "../../../../scripts/dev/worktree-env.ts";
 import type { StackState } from "../../../../scripts/lib/stack-state.ts";
-import { slotPorts } from "../../../../scripts/worktree-env.ts";
 import { stackUrls } from "../stack/config";
 import { FIXTURE_URLS, resolveStackUrls } from "./env";
 

@@ -1,65 +1,82 @@
 # .agents
 
-Guides, plans and skills for agents working in Teak. Root `AGENTS.md` says
-when to read each guide; this is the full list.
+What agents need that isn't for the public site: Teak's own deployments,
+credentials, runbooks and records, plus the skills agents load. Root
+`AGENTS.md` says when to read each file; this is the full list.
 
-How Teak is built, run, tested and translated is public, in
-`apps/docs/content/docs/(open-source)/`: `development.mdx`,
-`architecture.mdx`, `testing.mdx`, `adding-a-feature.mdx`, `translating.mdx`
-and `self-hosting.mdx`. A guide here holds only what isn't for the public site:
-Teak's own deployments, credentials, runbooks and records.
+How Teak is built, run, tested, contributed to and translated is public, in
+`apps/docs/content/docs/(open-source)/`: `development.mdx` (including cloud
+sessions and pull requests), `architecture.mdx` (including each workspace's
+rules and search by meaning), `testing.mdx`, `adding-a-feature.mdx` (including
+docs and the changelog), `translating.mdx` and `self-hosting.mdx`. Notes only
+agents need go inside `<Visibility for="agents">` there, not here. Before you
+add a file here, check that it isn't something a contributor or self-hoster
+would need too.
 
-## Guides
+## Guides: reference for Teak's own deployments
 
 | File | Read it when you |
 | --- | --- |
-| `cloud.md` | work in a cloud session (Claude Code on the web, Codex, Amp) |
-| `environment.md` | add or debug a credential or Files storage on Teak's own deployments |
-| `analytics.md` | add an event or touch PostHog telemetry |
-| `semantic-search.md` | touch embeddings, Vectorize, or search by meaning |
-| `pull-requests.md` | open a PR or post on GitHub |
-| `releases.md` | prepare any release |
-| `claude-directory.md` | submit or update Teak's listing in Claude's directory (connector and plugin) |
-| `convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
-| `self-driving.md` | run the daily production check (it holds that routine's log) |
-| `migrations/workos/README.md` | look up the WorkOS cutover, its backups, or Connect disconnects |
-| `sunset.md` | keep code only for old clients or old data, or remove some |
+| `guides/analytics.md` | add an event or touch PostHog telemetry |
+| `guides/environment.md` | add or debug a credential or Files storage on Teak's own deployments |
 
-## Plans
+## Runbooks: step-by-step work on Teak's own deployments
 
-`plans/` holds plans for work that hasn't shipped. Each phase plan lists its
-goal, decisions and verification. Delete a plan in the PR that finishes it;
-git history keeps it. Before starting one, check its "facts" against the code,
-since they were true when it was written.
+| File | Read it when you |
+| --- | --- |
+| `runbooks/releases.md` | prepare any release, or release the CLI or SDK |
+| `runbooks/self-driving.md` | run the daily production check or the weekly guide audit |
+| `runbooks/claude-directory.md` | submit or update Teak's listing in Claude's directory (connector and plugin) |
+| `runbooks/convex-costs.md` | run Convex maintenance, retention, or a raw-metadata migration |
+
+## Records
+
+| File | Read it when you |
+| --- | --- |
+| `records/sunset.md` | keep code only for old clients or old data, or remove some; look up a finished migration |
+
+Every file in `guides/`, `runbooks/` and `records/` starts with a
+`Last reviewed: YYYY-MM-DD` line; update it when you check the file against
+the code. `scripts/repo/agent-guide-paths.test.ts` fails when the line is
+missing or a path in any guide no longer exists, and the self-driving run's
+weekly audit (`runbooks/self-driving.md`, "Mondays") rechecks the oldest ones.
+
+Plans for unshipped work don't live here: put a plan in its pull request or
+issue, and let git history keep it.
 
 ## Skills
 
-`skills/` holds the skills agents load. The vendored ones are installed with
-`npx skills` and pinned in the root `skills-lock.json`
-(`scripts/skills-drift.test.ts` checks them); update those with `npx skills`,
-not by hand. `teak` is Teak's own skill for using the product through its API,
-MCP, SDK and CLI. It is edited here, and the docs build publishes it.
-`.claude/skills` links here, so Claude Code loads the same skills, in cloud
-sessions too (plugins from a person's own settings don't load there).
+`skills/` holds the skills agents load. `.claude/skills` links here, so
+Claude Code loads the same skills, in cloud sessions too.
 
-Cloudflare: `wrangler`, `workers-best-practices`, `durable-objects` and
-`cloudflare-email-service` are vendored from `cloudflare/skills`
-(`npx skills add cloudflare/skills -s <name> -a codex -y`). They tell agents
-to read current Cloudflare docs rather than trust memory. `.mcp.json`
-registers Cloudflare's docs MCP server (`cloudflare-docs`, no sign-in) for
-that.
+Teak's own, edited here:
 
-Verification (root `AGENTS.md`, "Verification"):
+- `teak`: using the product through its API, MCP, SDK and CLI. The docs build
+  publishes it.
+- `verify-teak`: proving a change in the running app: launch, doctor
+  (`.agents/skills/verify-teak/scripts/doctor.ts`, not the root
+  `scripts/setup/doctor.ts`), drive, evidence, cleanup, with a feature map in
+  `features/`. Every user-facing change updates its map. Its "Reporting back"
+  section is what a delegated verifier returns.
+- `teak-convex-backend` (`packages/convex`) and `teak-core-worker`
+  (`apps/core-worker`): the rules and proof steps for those workspaces.
 
-- `verify-teak` is Teak's own skill for proving a change in the running app:
-  launch, doctor (`.agents/skills/verify-teak/scripts/doctor.ts`, not the
-  root `scripts/doctor.ts`), drive, evidence, cleanup, with a feature map in
-  `features/`. It is edited here; every user-facing change
-  updates its map.
-- `principle-prove-it-works`, `create-verification-skill` and
-  `maintain-verification-skill` are vendored from pstack (`cursor/plugins`).
-  They are written for Cursor. Their first line points at a Claude Code
-  adapter this repo doesn't vendor; read the
+Vendored, installed with `npx skills` and pinned in the root
+`skills-lock.json` (`scripts/repo/skills-drift.test.ts` checks them). Update
+them with `npx skills`, not by hand, then delete the `evals/` and `agents/`
+folders the installer adds; the drift test fails while they're there.
+
+- Cloudflare: `wrangler`, `workers-best-practices`, `durable-objects` and
+  `cloudflare-email-service`, from `cloudflare/skills`
+  (`npx skills add cloudflare/skills -s <name> -a codex -y`). They tell agents
+  to read current Cloudflare docs rather than trust memory; `.mcp.json`
+  registers Cloudflare's docs MCP server (`cloudflare-docs`, no sign-in).
+- Convex: `convex` and the `convex-*` skills. WorkOS: `workos`. UI and
+  tooling: `shadcn`, `ultracite`, `e2e`.
+- Verification: `principle-prove-it-works`, `create-verification-skill` and
+  `maintain-verification-skill`, from pstack (`cursor/plugins`). They are
+  written for Cursor. Their first line points at a Claude Code adapter this
+  repo doesn't vendor; read the
   [adapter](https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md)
   instead. In Teak, a generated verification skill lives in `.agents/skills/`,
   not `.cursor/skills/`.
@@ -70,10 +87,7 @@ Verification (root `AGENTS.md`, "Verification"):
 - `resume`: restores the toolchain PATH when Amp resumes a VM.
 - `hooks/session-start.sh`: the Claude Code SessionStart hook.
 - `hooks/start-docker.sh`: starts Docker in a cloud session; the
-  SessionStart hook runs it (`cloud.md`, "Containers").
-- `../.claude/agents/`: Claude Code subagents a session can delegate to:
-  `core-worker` (Cloudflare Workers), `convex-backend` (`packages/convex`)
-  and `teak-verifier` (runs `verify-teak` and returns the evidence). Each
-  points back at the guides here rather than repeating them.
+  SessionStart hook runs it (`development.mdx`, "Cloud sessions in detail").
+- `hooks/format-edited.ts`: the PostToolUse hook that formats edited files.
 - `.state/`: ignored runtime state for the running stack (`stack.json`,
   `stack.log`, the dev account).

@@ -7,7 +7,7 @@ related:
   - /docs/testing
 ---
 
-The rules that keep a new feature consistent across Teak's surfaces, search, deletion and deploys. Read this before adding a field, a table, an index, an API operation or a background step. `packages/convex/AGENTS.md` and the generated Convex guidelines (`packages/convex/_generated/ai/guidelines.md`) apply on top of it.
+The rules that keep a new feature consistent across Teak's surfaces, search, deletion and deploys. Read this before adding a field, a table, an index, an API operation or a background step. [Architecture](/docs/architecture#working-in-each-workspace) and the generated Convex guidelines (`packages/convex/_generated/ai/guidelines.md`) apply on top of it.
 
 ![A public API feature moves from the internal function to the HTTP handler, route, OpenAPI, MCP tool, SDK method, CLI command and the parity row](../images/adding-a-feature.webp)
 
@@ -22,21 +22,21 @@ A feature in the public API ships on MCP, the SDK and the CLI in the same pull r
 5. The tool in `mcp/tools.ts`.
 6. The method in `packages/sdk/src/index.ts`.
 7. The command in `apps/cli/src/index.ts` and `library.ts`.
-8. The row in `scripts/public-parity.ts`, which maps every OpenAPI operation to its MCP tool, SDK method and CLI command, or gives the reason a surface leaves it out.
+8. The row in `scripts/repo/public-parity.ts`, which maps every OpenAPI operation to its MCP tool, SDK method and CLI command, or gives the reason a surface leaves it out.
 
-`scripts/public-parity.test.ts` calls every MCP tool and SDK method, walks the CLI command tree and compares the card list filters, so a missed step fails the root `bun run test`. A new error code goes in `PUBLIC_API_ERROR_CODES` (`publicApi/http/shared.ts`) and the SDK's `ERROR_CODES`; the same test fails when the SDK doesn't know a code the API returns.
+`scripts/repo/public-parity.test.ts` calls every MCP tool and SDK method, walks the CLI command tree and compares the card list filters, so a missed step fails the root `bun run test`. A new error code goes in `PUBLIC_API_ERROR_CODES` (`publicApi/http/shared.ts`) and the SDK's `ERROR_CODES`; the same test fails when the SDK doesn't know a code the API returns.
 
-Update the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) docs with it (`apps/docs/AGENTS.md` maps each source to its page).
+Update the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) docs with it ([Docs](#docs) maps each source to its page).
 
 ## Convex data
 
 - Writes that change what search sees go through `patchCardWithSearchSync` or `scheduleCardSearchSync` (`card/searchSync.ts`).
 - A new boolean flag is `v.optional(v.literal(true))`, never `true | false`, so `false` and missing can't disagree in an index.
-- Stay backward compatible: new arguments are optional, and every client tolerates enum values it doesn't know. The native apps update on their own schedule. Code kept only for old clients or old data gets an entry in `.agents/sunset.md` saying when it can go.
+- Stay backward compatible: new arguments are optional, and every client tolerates enum values it doesn't know. The native apps update on their own schedule. Code kept only for old clients or old data gets an entry in `.agents/records/sunset.md` saying when it can go.
 - A new user table, per-card row or R2 key is removed by account deletion (`accountDeletionData.ts` `ancillaryPage`, per-card rows in `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the "complete stages" test in `edge/accountDeletionWorkflow.test.ts`, which runs the Core Worker's account deletion workflow against the test database.
 - Card processing runs in the Core Worker (`apps/core-worker/src/workflows/cardProcessing/run.ts`). Step names are durable history: never rename one, and add new steps after the existing ones. Every Convex write a step makes passes the run's `guard: { cardId, rev }`, and every function it calls is listed in `workflows/rpcAllowlist.ts`.
 - Analytics events go in `shared/analytics.ts` first, with low-cardinality properties and never card content, URLs, file names, prompts or outputs.
-- Values that are the same in every deployment are typed code with an optional environment override, not new configuration (see `scripts/build-metadata.ts`).
+- Values that are the same in every deployment are typed code with an optional environment override, not new configuration (see `scripts/release/build-metadata.ts`).
 
 ## Indexes and reads
 
@@ -65,7 +65,25 @@ Text people read in the web app and browser extension comes from the message cat
 
 ## Docs
 
-A feature people can use updates its page in these docs and, once it ships, its month's [changelog](/changelog) entry (`apps/docs/AGENTS.md`).
+A feature people can use updates its page in these docs and, once it ships, its month's [changelog](/changelog) entry, in the same pull request as the change:
+
+| When you change | Update |
+| --- | --- |
+| The public API (`packages/convex/http.ts`, `publicApi/http/*.ts`, `publicApi/openApi/*.ts`) | `content/docs/(developers)/api.mdx` |
+| MCP (`packages/convex/mcp`) | `content/docs/(developers)/mcp.mdx` |
+| The SDK (`packages/sdk/src`) | `content/docs/(developers)/sdk.mdx` |
+| The Apple app | `content/docs/(apps)/mac.mdx` and `content/docs/(apps)/mobile.mdx` |
+| Raycast commands or sign-in | `content/docs/(apps)/raycast.mdx` |
+| The CLI (`apps/cli`) | `content/docs/(apps)/cli.mdx` |
+| Public skills (`.agents/skills/teak`) | `content/docs/(developers)/ai-agents.mdx` and `pages/apps.astro` |
+| How Teak is built, run, tested, translated or deployed | The page in this Open Source group that covers it |
+
+Paths are relative to `apps/docs`. Write the Open Source pages for contributors and self-hosters; put notes only agents need inside `<Visibility for="agents">`, which keeps them off the website but in the `.md` mirrors and `llms.txt`. Teak's own deployments, credentials and runbooks stay in `.agents`.
+
+- **Changelog:** one file per month with notable shipped changes, `content/changelog/<month>-<yyyy>.mdx`, with `date` set to the latest included ship date. Write for Teak users: lead with the outcome, group related changes under short headings, and for a breaking change say who is affected and what to do. Leave out marketing pages, refactors, tests, CI, schemas, migrations, dependencies and release mechanics.
+- **Images:** every docs page shows at least one image, and every image comes from `scripts/docs-assets` (its README has the steps): add a shot to `scripts/docs-assets/shots.ts`, render it, and use its alt text. `scripts/docs-assets/shots.test.ts` fails on a page without an image or a drifted one, and names the exceptions.
+- **Blog posts** live in `content/blog` (`type: blog`, `mode: center`, a `date` and `authors`) and open with a cover shot named after the post's file.
+- **Evals:** `apps/docs/evals.yaml` holds questions Teak users and their agents ask; `bun run eval` in `apps/docs` answers each from these docs alone and a judge checks the expected facts. Keep every fact true to the shipped product, and never weaken one to pass.
 
 <Visibility for="agents">
 
@@ -77,7 +95,7 @@ A feature people can use updates its page in these docs and, once it ships, its 
 bunx convex run devSeed:seedScenario '{"workosUserId":"<user>","scenario":"archive-mix"}'
 ```
 
-Packs: `card-details`, `ordering`, `archive-mix`, `tags-2000`, `tags-case`, `folders-one`, `folders-500`, `card-in-50-folders`, `folders-ugly`, `search-qualifiers`, `search-qualifiers-1000`, `smart-folders`, `export-ugly`, `keyboard-mixed`, `shuffle-partial`, `palette-mixed`, `focus-notes`, `checklists`, `note-tables` (GFM tables in notes, including ones that stay literal), `search-operators` (400 cards and three smart folders where `-`, `OR` and parentheses each have their own answer), `hidden-mix`, `hidden-mix-1000`, `revisit-sizes`, `save-details`, `omnibox-titles`, `ocr-images`, `ocr-documents`, `ocr-links`, `url-variants` (link variants for the duplicate check, half from before `urlKey` and `savedAt`), `resave` (300 links over three years to save again, archived and trashed matches, one in three folders tagged `reading`, a `utm_source` variant), `resave-at-limit` (a free account at 200 of 200 with five links to save again), `paste-links` (a free account at 195 cards with ten links, two archived, that the composer's paste fixtures repeat), `done-states`, `done-states-images` (1,000 images and a marker link per page with no category, for an empty `is:todo`), `rich-sites` (links with Wikipedia, arXiv, Spotify, Apple Music and Open Library details, including a paper to Save PDF from), `ai-languages` (notes in seven languages, a mixed and a wordless note, and French and Portuguese links, processed for real; `scripts/ai-language-check.ts` scores their AI language) `page-archive-mix` (links' saved copies in every state: full, text-only, failed, still saving, from the extension, in Trash, and a podcast with a transcript, with stub copies in R2), `reader-mix` (links for the Read tab in every state: a long article with images, code and a wide table, news, research, a page that isn't an article, Arabic and Japanese articles, one cut at 512 KiB, one being prepared, one failed, and a podcast with both an article and a transcript), `reader-search-1000` (1,000 articles only their body text finds), `highlights-mix` (highlights on the `reader-mix` articles: the cap of 200, twelve with notes, a repeated quote, Arabic and Japanese, a merge, imported ones waiting for their article, and a highlighted podcast to refresh; seed `reader-mix` first) and `card-limit-199` (a free account one card under the limit). Large packs seed in pages: pass `"page": 0`, then 1, 2… until it reports `already_seeded`. A pack run twice adds nothing. `folders-500` fills the 500-folder cap, so run folder packs after it on another account. Add a pack when a feature needs data none of these cover.
+Packs: `card-details`, `ordering`, `archive-mix`, `tags-2000`, `tags-case`, `folders-one`, `folders-500`, `card-in-50-folders`, `folders-ugly`, `search-qualifiers`, `search-qualifiers-1000`, `smart-folders`, `export-ugly`, `keyboard-mixed`, `shuffle-partial`, `palette-mixed`, `focus-notes`, `checklists`, `note-tables` (GFM tables in notes, including ones that stay literal), `search-operators` (400 cards and three smart folders where `-`, `OR` and parentheses each have their own answer), `hidden-mix`, `hidden-mix-1000`, `revisit-sizes`, `save-details`, `omnibox-titles`, `ocr-images`, `ocr-documents`, `ocr-links`, `url-variants` (link variants for the duplicate check, half from before `urlKey` and `savedAt`), `resave` (300 links over three years to save again, archived and trashed matches, one in three folders tagged `reading`, a `utm_source` variant), `resave-at-limit` (a free account at 200 of 200 with five links to save again), `paste-links` (a free account at 195 cards with ten links, two archived, that the composer's paste fixtures repeat), `done-states`, `done-states-images` (1,000 images and a marker link per page with no category, for an empty `is:todo`), `rich-sites` (links with Wikipedia, arXiv, Spotify, Apple Music and Open Library details, including a paper to Save PDF from), `ai-languages` (notes in seven languages, a mixed and a wordless note, and French and Portuguese links, processed for real; `scripts/seed/ai-language-check.ts` scores their AI language) `page-archive-mix` (links' saved copies in every state: full, text-only, failed, still saving, from the extension, in Trash, and a podcast with a transcript, with stub copies in R2), `reader-mix` (links for the Read tab in every state: a long article with images, code and a wide table, news, research, a page that isn't an article, Arabic and Japanese articles, one cut at 512 KiB, one being prepared, one failed, and a podcast with both an article and a transcript), `reader-search-1000` (1,000 articles only their body text finds), `highlights-mix` (highlights on the `reader-mix` articles: the cap of 200, twelve with notes, a repeated quote, Arabic and Japanese, a merge, imported ones waiting for their article, and a highlighted podcast to refresh; seed `reader-mix` first) and `card-limit-199` (a free account one card under the limit). Large packs seed in pages: pass `"page": 0`, then 1, 2… until it reports `already_seeded`. A pack run twice adds nothing. `folders-500` fills the 500-folder cap, so run folder packs after it on another account. Add a pack when a feature needs data none of these cover.
 
 A user-facing feature also adds or updates its recipe in `.agents/skills/verify-teak/features/` and is driven once in the running app.
 

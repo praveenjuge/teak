@@ -84,7 +84,7 @@ export const cleanupFinishedLinkPastes = internalAction({
 });
 
 // The Core Worker runs the snapshot now; this only catches a Convex cron
-// firing queued before that deploy (.agents/sunset.md).
+// firing queued before that deploy (.agents/records/sunset.md).
 export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),

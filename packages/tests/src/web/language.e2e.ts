@@ -4,7 +4,7 @@ import en from "../../../i18n/messages/en.json";
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// The German catalog has the same keys as English (scripts/i18n-catalog.test.ts).
+// The German catalog has the same keys as English (scripts/repo/i18n-catalog.test.ts).
 const de = deCatalog as typeof en;
 
 const htmlLang = (browser: Parameters<typeof gotoApp>[0]) =>

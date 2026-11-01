@@ -83,7 +83,7 @@ export const IMPORT_SOURCES: Record<ImportMode, ImportSource> = {
     hint: "OneTab's Export URLs text, saved as a .txt file.",
     extensions: [".txt"],
     maxBytes: 20 * MIB,
-    // "Text file of links" reads the same file (.agents/sunset.md).
+    // "Text file of links" reads the same file (.agents/records/sunset.md).
     hidden: true,
   },
   csv: {
