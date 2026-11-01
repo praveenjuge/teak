@@ -270,6 +270,20 @@ describe("auto-file triggers", () => {
     expect((await card(late)).folderIds).toEqual([folder._id]);
   });
 
+  test("a transcript written with the AI tags files the card", async () => {
+    const { t, insert, createFolder, card, runScheduled } = await setup();
+    const folder = await createFolder("Studio", { autoFileQuery: "crowded" });
+    await runScheduled();
+    const memo = await insert({ type: "audio", content: "Voice memo" });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: memo,
+      aiTags: ["memo"],
+      aiTranscript: "the crowded studio was loud",
+      processingStatus: { metadata: { status: "completed" } },
+    });
+    expect((await card(memo)).folderIds).toEqual([folder._id]);
+  });
+
   test("words only a transcript holds match", async () => {
     const { insert, createFolder, card, runScheduled } = await setup();
     const memo = await insert({
