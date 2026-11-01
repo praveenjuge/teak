@@ -15,8 +15,19 @@ import {
   applyFolderMembershipToCards,
   smartFolderMembership,
 } from "./folder/membership";
+import {
+  folderRuleRunValidator,
+  getFolderRuleRunForUser,
+  undoFolderRuleRunForUser,
+} from "./folder/rules";
 import { folderColorValidator } from "./schema";
 import { requireTeakUserId } from "./securitySessions";
+
+const folderRuleArgs = {
+  autoTags: v.optional(v.array(v.string())),
+  autoFileQuery: v.optional(v.union(v.string(), v.null())),
+  autoFileEnabled: v.optional(v.boolean()),
+};
 
 export const listFoldersForApi = internalQuery({
   args: { userId: v.string() },
@@ -45,6 +56,7 @@ export const createFolderForApi = internalMutation({
     color: v.optional(folderColorValidator),
     kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
     query: v.optional(v.string()),
+    ...folderRuleArgs,
   },
   returns: folderReturnValidator,
   handler: async (ctx, { userId, ...args }) =>
@@ -58,6 +70,7 @@ export const updateFolderForApi = internalMutation({
     name: v.optional(v.string()),
     color: v.optional(v.union(folderColorValidator, v.null())),
     query: v.optional(v.string()),
+    ...folderRuleArgs,
   },
   returns: folderReturnValidator,
   handler: async (ctx, { userId, ...args }) =>
@@ -112,5 +125,25 @@ export const changeFolderCardsForApi = internalMutation({
       userId: owner,
     });
     return { ...result, failedIds: [...result.failedIds, ...invalid] };
+  },
+});
+
+export const getFolderRuleRunForApi = internalQuery({
+  args: { userId: v.string(), folderId: v.string(), runId: v.string() },
+  returns: folderRuleRunValidator,
+  handler: async (ctx, args) => {
+    const owner = await requireTeakUserId(ctx, args.userId);
+    await requireFolderForUser(ctx, owner, args.folderId);
+    return getFolderRuleRunForUser(ctx, owner, args.folderId, args.runId);
+  },
+});
+
+export const undoFolderRuleRunForApi = internalMutation({
+  args: { userId: v.string(), folderId: v.string(), runId: v.string() },
+  returns: folderRuleRunValidator,
+  handler: async (ctx, args) => {
+    const owner = await requireTeakUserId(ctx, args.userId);
+    await requireFolderForUser(ctx, owner, args.folderId);
+    return undoFolderRuleRunForUser(ctx, owner, args.folderId, args.runId);
   },
 });
