@@ -18,6 +18,7 @@ import {
   type PriceBound,
   type SearchExpression,
 } from "../shared/search/qualifiers";
+import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
@@ -42,6 +43,12 @@ export interface ResolvedSearch {
   includeHidden: boolean;
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
   matchesDocument?: (document: Doc<"cardSearchDocuments">) => boolean;
+  /**
+   * Whether text holds every word and phrase the query types, as the web
+   * client checks them. The search index finds a card with any one word, so
+   * a keyword match can hold only some of them.
+   */
+  matchesWords: (searchableText: string) => boolean;
   ocrText: string;
   phrases: string[];
   prices: PriceBound[];
@@ -353,6 +360,17 @@ export const resolveSearch = async (
       (document.urlHost !== undefined && sites.includes(document.urlHost))) &&
     matchesSearchPhrases(document.searchableText, phrases);
 
+  const words = tokenizeSearchInput(parsed.terms.join(" ")).map((word) =>
+    word.toLowerCase()
+  );
+  const matchesWords = (searchableText: string) => {
+    const text = searchableText.toLowerCase();
+    return (
+      words.every((word) => text.includes(word)) &&
+      matchesSearchPhrases(text, phrases)
+    );
+  };
+
   return {
     archived,
     favoritesOnly,
@@ -371,6 +389,7 @@ export const resolveSearch = async (
     includeHidden,
     matches,
     matchesDocument: readsOnlyDocumentFields ? matchesDocument : undefined,
+    matchesWords,
     ocrText: ocrTexts.join(" "),
     phrases,
     similarity: parsed.similarity ?? null,

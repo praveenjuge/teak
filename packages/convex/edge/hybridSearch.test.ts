@@ -365,6 +365,34 @@ describe("hybrid search in the grid", () => {
     expect(await marks("tag:design bauhaus is:fav")).toEqual([]);
   });
 
+  test("a word match with only some of the words stays marked by meaning", async () => {
+    const env = await setup();
+    const partial = await env.insert({ content: "verify capx checklist" });
+    const full = await env.insert({ content: "verify navx checklist" });
+    await env.cache("verify navx", [
+      { id: partial, score: STRONG },
+      { id: full, score: STRONG },
+    ]);
+    const marks = async (args: Record<string, unknown>) =>
+      Object.fromEntries(
+        (
+          await env.owner.query(api.cards.searchCardsPaginated, {
+            searchQuery: "verify navx",
+            paginationOpts: { numItems: 10, cursor: null },
+            ...args,
+          })
+        ).page.map((card: { _id: string; matchedByMeaning?: true }) => [
+          card._id,
+          card.matchedByMeaning ?? false,
+        ])
+      );
+    // The newest-first sort reads search documents; the best-match sort with
+    // stored relevance scores loads every card.
+    for (const args of [{}, { sort: "relevance", useRelevanceScores: true }]) {
+      expect(await marks(args)).toEqual({ [partial]: true, [full]: false });
+    }
+  });
+
   test("another user's cached matches never reach this user's search", async () => {
     const env = await setup();
     const theirs = await env.insert({

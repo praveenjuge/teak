@@ -57,6 +57,7 @@ import {
   searchCardsByDocument,
   searchCardsByOcrText,
 } from "./searchReads";
+import { buildCardSearchText } from "./searchSync";
 import {
   decodeShuffleWalkCursor,
   encodeShuffleWalkCursor,
@@ -521,10 +522,15 @@ export const searchCardsPaginatedHandler = async (
             readText: readExpressionText,
           }
         );
+        // The index finds a card with any one word, so only a keyword match
+        // that holds them all is a word match rather than one by meaning.
         for (const match of semantic) {
+          const keywordMatch = keywordMatches.get(match.cardId);
           if (
             match.score >= SEMANTIC_MIN_SCORE &&
-            !keywordMatches.has(match.cardId)
+            !(
+              keywordMatch && resolved.matchesWords(keywordMatch.searchableText)
+            )
           ) {
             matchedByMeaning.add(match.cardId);
           }
@@ -612,6 +618,10 @@ export const searchCardsPaginatedHandler = async (
         uniqueResults.map((card) => [card._id, card] as const)
       );
       const keywordMatches = new Set(cardsById.keys());
+      const holdsEveryWord = (card: Doc<"cards">) =>
+        resolved.matchesWords(
+          searchTexts.get(card._id) ?? buildCardSearchText(card)
+        );
       const semantic = await loadSemanticMatches(
         ctx,
         searchArgs,
@@ -625,9 +635,12 @@ export const searchCardsPaginatedHandler = async (
         }
       );
       for (const match of semantic) {
+        const keywordMatch = keywordMatches.has(match.cardId)
+          ? cardsById.get(match.cardId)
+          : undefined;
         if (
           match.score >= SEMANTIC_MIN_SCORE &&
-          !keywordMatches.has(match.cardId)
+          !(keywordMatch && holdsEveryWord(keywordMatch))
         ) {
           matchedByMeaning.add(match.cardId);
         }
