@@ -6308,6 +6308,59 @@
         }
       }
     },
+    "errors.folders.EMPTY_RULE_QUERY" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fügen Sie eine Suche für die einzuordnenden Karten hinzu"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a search for the cards to file"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añada una búsqueda para las tarjetas que se archivarán"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez une recherche pour les fiches à classer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "振り分けるカードの検索条件を追加してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "분류할 카드의 검색어를 추가하세요"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicione uma pesquisa para os cards a arquivar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请添加用于归档卡片的搜索条件"
+          }
+        }
+      }
+    },
     "errors.folders.NAME_TOO_LONG" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6520,6 +6573,218 @@
         }
       }
     },
+    "errors.folders.RULES_ON_SMART_FOLDER" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur manuelle Ordner haben Regeln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only manual folders have rules"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo las carpetas manuales tienen reglas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seuls les dossiers manuels ont des règles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ルールを設定できるのは手動フォルダだけです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "규칙은 수동 폴더에만 설정할 수 있습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Só as pastas manuais têm regras"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只有手动文件夹才能设置规则"
+          }
+        }
+      }
+    },
+    "errors.folders.RULE_QUERY_SIMILARITY" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordnerregeln können like: und mood: nicht verwenden. Suchen Sie stattdessen nach Wörtern, Tags, Typ oder Website"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder rules can't use like: or mood:. Search by words, tags, type or site instead"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las reglas de carpeta no pueden usar like: ni mood:. Busque por palabras, etiquetas, tipo o sitio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les règles de dossier ne peuvent pas utiliser like: ni mood:. Recherchez plutôt par mots, tags, type ou site"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダルールでは like: と mood: は使えません。単語、タグ、種類、サイトで検索してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더 규칙에는 like:와 mood:를 사용할 수 없습니다. 단어, 태그, 유형 또는 사이트로 검색하세요"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As regras de pasta não podem usar like: nem mood:. Pesquise por palavras, tags, tipo ou site"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件夹规则不能使用 like: 或 mood:。请改用词语、标签、类型或网站搜索"
+          }
+        }
+      }
+    },
+    "errors.folders.RULE_RUN_EXPIRED" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Regeldurchlauf kann nicht mehr rückgängig gemacht werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This rule run can no longer be undone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta ejecución de la regla ya no se puede deshacer"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette exécution de règle ne peut plus être annulée"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このルールの実行はもう元に戻せません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 규칙 실행은 더 이상 실행 취소할 수 없습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é mais possível desfazer esta execução da regra"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此规则运行已无法撤销"
+          }
+        }
+      }
+    },
+    "errors.folders.RULE_RUN_NOT_FOUND" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regeldurchlauf nicht gefunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rule run not found"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontró la ejecución de la regla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exécution de règle introuvable"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ルールの実行が見つかりません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "규칙 실행을 찾을 수 없습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Execução da regra não encontrada"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到规则运行"
+          }
+        }
+      }
+    },
     "errors.folders.SMART_FOLDER_IN_QUERY" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6679,6 +6944,59 @@
         }
       }
     },
+    "errors.folders.TOO_MANY_AUTO_TAGS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Ordner kann bis zu %1$@ Tags hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A folder can add up to %1$@ tags"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carpeta puede añadir hasta %1$@ etiquetas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un dossier peut ajouter jusqu’à %1$@ tags"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダで追加できるタグは %1$@ 個までです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더 하나에 태그를 최대 %1$@개까지 추가할 수 있습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma pasta pode adicionar até %1$@ tags"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个文件夹最多可以添加 %1$@ 个标签"
+          }
+        }
+      }
+    },
     "errors.folders.TOO_MANY_FOLDERS" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6781,6 +7099,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一张卡片最多可以位于 %1$@ 个文件夹中"
+          }
+        }
+      }
+    },
+    "errors.folders.TOO_MANY_RULES" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sie können Regeln für bis zu %1$@ Ordner haben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can have rules on up to %1$@ folders"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puede tener reglas en hasta %1$@ carpetas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez avoir des règles sur jusqu’à %1$@ dossiers"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ルールを設定できるフォルダは %1$@ 個までです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "규칙은 최대 %1$@개 폴더에 설정할 수 있습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Você pode ter regras em até %1$@ pastas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最多可以为 %1$@ 个文件夹设置规则"
           }
         }
       }

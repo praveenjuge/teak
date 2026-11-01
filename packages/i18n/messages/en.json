@@ -538,7 +538,14 @@
       "SMART_FOLDER_IN_QUERY": "A smart folder's search can't use another smart folder",
       "SMART_FOLDER_MEMBERSHIP": "Cards can't be added to a smart folder; it shows the cards that match its search",
       "QUERY_ON_MANUAL_FOLDER": "Only smart folders have a search",
-      "SMART_FOLDER_TRASH": "Smart folders don't show Trash. To search for the word, put it in quotes"
+      "SMART_FOLDER_TRASH": "Smart folders don't show Trash. To search for the word, put it in quotes",
+      "RULES_ON_SMART_FOLDER": "Only manual folders have rules",
+      "TOO_MANY_RULES": "You can have rules on up to {max} folders",
+      "TOO_MANY_AUTO_TAGS": "A folder can add up to {max} tags",
+      "EMPTY_RULE_QUERY": "Add a search for the cards to file",
+      "RULE_QUERY_SIMILARITY": "Folder rules can't use like: or mood:. Search by words, tags, type or site instead",
+      "RULE_RUN_NOT_FOUND": "Rule run not found",
+      "RULE_RUN_EXPIRED": "This rule run can no longer be undone"
     },
     "tags": {
       "EMPTY_NAME": "Name the tag",

@@ -538,7 +538,14 @@
       "SMART_FOLDER_IN_QUERY": "A pesquisa de uma pasta inteligente não pode usar outra pasta inteligente",
       "SMART_FOLDER_MEMBERSHIP": "Não é possível adicionar cards a uma pasta inteligente; ela mostra os cards que correspondem à pesquisa dela",
       "QUERY_ON_MANUAL_FOLDER": "Só as pastas inteligentes têm pesquisa",
-      "SMART_FOLDER_TRASH": "Pastas inteligentes não mostram a Lixeira. Para pesquisar a palavra, coloque-a entre aspas"
+      "SMART_FOLDER_TRASH": "Pastas inteligentes não mostram a Lixeira. Para pesquisar a palavra, coloque-a entre aspas",
+      "RULES_ON_SMART_FOLDER": "Só as pastas manuais têm regras",
+      "TOO_MANY_RULES": "Você pode ter regras em até {max} pastas",
+      "TOO_MANY_AUTO_TAGS": "Uma pasta pode adicionar até {max} tags",
+      "EMPTY_RULE_QUERY": "Adicione uma pesquisa para os cards a arquivar",
+      "RULE_QUERY_SIMILARITY": "As regras de pasta não podem usar like: nem mood:. Pesquise por palavras, tags, tipo ou site",
+      "RULE_RUN_NOT_FOUND": "Execução da regra não encontrada",
+      "RULE_RUN_EXPIRED": "Não é mais possível desfazer esta execução da regra"
     },
     "tags": {
       "EMPTY_NAME": "Dê um nome à tag",
