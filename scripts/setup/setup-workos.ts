@@ -107,8 +107,6 @@ export const readWorkosCredentials = async (
   };
 };
 
-// Dev tooling that creates WorkOS users (the dev account, the web smoke) reads
-// the key from the dev deployment; the web app itself runs without one.
 export const readDevWorkosApiKey = async (
   convexDir?: string
 ): Promise<string> => {

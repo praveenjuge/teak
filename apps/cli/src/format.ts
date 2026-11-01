@@ -64,7 +64,6 @@ const transcriptBlock = (transcript: string | null | undefined) => {
   ];
 };
 
-/** A card is "saved again" once `savedAt` is more than a minute after it was made. */
 const SAVED_AGAIN_AFTER_MS = 60_000;
 
 const savedAgainLine = (card: { createdAt: number; savedAt?: number }) =>
@@ -73,7 +72,6 @@ const savedAgainLine = (card: { createdAt: number; savedAt?: number }) =>
     ? `saved again: ${new Date(card.savedAt).toISOString()}`
     : null;
 
-/** `teak add`: the new card, or the card a link was already saved as. */
 export const formatCreated = (result: {
   appUrl: string;
   cardId: string;
@@ -132,7 +130,6 @@ const linkLine = (link: CardLinkRef) =>
     ? `${link.id}  (missing)`
     : `${link.id}  ${(link.type ?? "").padEnd(8)}  ${link.title ?? ""}`.trimEnd();
 
-/** `teak links`: "Links" then "Linked from", one card per line. */
 export const formatCardLinks = (links: CardLinks) => {
   if (links.links.length === 0 && links.backlinks.length === 0) {
     return "No links.";

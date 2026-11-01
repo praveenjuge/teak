@@ -3,7 +3,6 @@ import { RaycastApiError } from "./apiErrors";
 
 export type { TagSummary } from "teak-sdk";
 
-/** A card another card links to with `[[Title|teak:<id>]]`, or one linking to it. */
 export interface RaycastCardLink {
   id: string;
   missing: boolean;
@@ -22,10 +21,8 @@ export interface RaycastCard {
   aiTranscript?: string | null;
   appUrl: string | null;
   archivedAt?: number | null;
-  /** Cards linking to this one; only on a single-card response. */
   backlinks?: RaycastCardLink[];
   colors?: Array<{ hex: string; name?: string }>;
-  /** When the link was marked read, watched, bought or done. */
   completedAt?: number | null;
   content: string;
   createdAt: number;
@@ -46,13 +43,11 @@ export interface RaycastCard {
   linkPublishedAt?: string | null;
   linkPublisher?: string | null;
   linkSiteName?: string | null;
-  /** Cards this one links to; only on a single-card response. */
   links?: RaycastCardLink[];
   metadataDescription: string | null;
   metadataTitle: string | null;
   mimeType?: string | null;
   notes: string | null;
-  /** When the card was last saved: `createdAt`, or later when its link was saved again. */
   savedAt?: number;
   screenshotUrl: string | null;
   sourceTitle?: string | null;
@@ -68,7 +63,6 @@ export interface TagsResponse {
   items: TagSummary[];
 }
 
-/** `pending` while Teak is still reading the card; `unavailable` for a card in Trash or not found. */
 export type SimilarityStatus = "ok" | "pending" | "unavailable";
 
 export interface CardsResponse {
@@ -111,10 +105,8 @@ export interface QuickSaveResponse {
   appUrl: string | null;
   card: RaycastCard | null;
   cardId: string;
-  /** The link was already in Teak: that card moved to the top instead. */
   resaved?: true;
   status: "created";
-  /** The re-saved card came back from Archive. */
   wasArchived?: true;
 }
 
@@ -189,8 +181,6 @@ const optionalLinkPrice = (
     : undefined;
 };
 
-// Newer fields are optional: a server that predates them, or a value of an
-// unexpected shape, leaves them undefined instead of failing the whole card.
 const withOptionalFields = (card: RaycastCard): RaycastCard => ({
   ...card,
   archivedAt: optionalNullableNumber(card.archivedAt),

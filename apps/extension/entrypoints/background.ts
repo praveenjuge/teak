@@ -160,7 +160,6 @@ function runPendingSave(
       const keepsFile = pendingSaveStore().retainsFiles;
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
-        // A plain link to a page (or one that redirects) saves as a link.
         if (save.link && savesLinkInstead(file)) {
           return saveToTeak(
             {
@@ -269,10 +268,6 @@ async function queueSave(
   return runPendingSave(save, interactive, pageSnapshot);
 }
 
-/**
- * The page a link is being saved from, as the tab shows it, when the tab
- * still shows that link. Safari has its own extension and never gets here.
- */
 async function snapshotTabPage(
   tabId: number,
   url: string
@@ -307,8 +302,6 @@ async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
   return failure;
 }
 
-/** Repaints the badge of the tab in front, after a save or sign-in. Tabs in
- * other windows are checked when their window gains focus. */
 function refreshActiveTabs() {
   const check = savedPages?.check;
   if (!check) {
@@ -462,8 +455,6 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
 export default defineBackground(() => {
   reportUncaughtErrors(self, "background");
   const buildContextMenus = createContextMenuBuilder();
-  // The menus and omnibox follow the account's language, and rebuild when
-  // it changes.
   const locale = createBackgroundLocale({
     onChange: (strings) => void buildContextMenus(strings),
   });
@@ -524,8 +515,6 @@ export default defineBackground(() => {
         .then((tab) => checks.check(tab))
         .catch(() => undefined);
     });
-    // Only the tab in front: a page loading in a background tab, or in a
-    // window behind the focused one, is checked once it comes to the front.
     chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
       if (!(tab.active && (change.status === "complete" || change.url))) {
         return;
@@ -591,7 +580,6 @@ export default defineBackground(() => {
       search.reset();
       signedOut = false;
       showDefault({ kind: "short" });
-      // A background that just woke shows English until its language loads.
       void locale.ready().then(() => showDefault({ kind: "short" }));
       void getOAuthState()
         .then((state) => {
@@ -699,7 +687,6 @@ export default defineBackground(() => {
               },
             },
             {
-              // Save Page keeps the page as it is shown; Save Text doesn't.
               pageSnapshot:
                 action === "save-page"
                   ? await snapshotTabPage(tab.id, content)

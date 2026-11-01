@@ -164,7 +164,6 @@ const union = (a: Box, b: Box): Box => {
 
 const SEARCH_QUERY = "architecture";
 
-/** A settings page's content column, from its heading to the bottom of `last`. */
 const settingsColumn = async (page: Page, heading: string, last: Locator) => {
   const top = await boxOf(
     page.getByRole("heading", { name: heading, exact: true, level: 2 })
@@ -188,7 +187,6 @@ const searchFor = async (page: Page, query: string): Promise<undefined> => {
   await box.click();
   await box.pressSequentially(query, { delay: 40 });
   await page.waitForTimeout(2500);
-  // Close the suggestions so the results show.
   await page.keyboard.press("Escape");
   await settle(page);
 };
@@ -204,7 +202,6 @@ const openCard = async (page: Page) => {
   return dialog;
 };
 
-/** Searches the library, then opens the first card whose name matches. */
 const findAndOpen = async (page: Page, query: string, card: RegExp) => {
   await open(page, "/", "Everything");
   const box = page.getByRole("combobox", { name: "Search everything" });
@@ -252,7 +249,6 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
   "library-web": library,
   "search-web": async (page) => {
     await search(page);
-    // Only the results: the library card beside it already shows the sidebar.
     const main = await boxOf(page.locator("main"));
     return { clip: { x: main.x, y: 0, width: main.width, height: 600 } };
   },
@@ -279,7 +275,6 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
   },
   "card-types": async (page) => {
     await library(page);
-    // The grid alone, without the sidebar and header.
     const main = await boxOf(page.locator("main"));
     return {
       clip: {
@@ -297,14 +292,12 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
       /^Link: Fallingwater/
     );
     await dialog.getByRole("radio", { name: "Read" }).waitFor();
-    // Wikipedia's infobox opens the article; start at its first paragraph.
     await dialog
       .locator("article p")
       .filter({ hasText: "is a house museum" })
       .first()
       .evaluate((paragraph) => {
         paragraph.scrollIntoView({ block: "start" });
-        // Leave room for the sticky Preview · Read switch above it.
         let scroller = paragraph.parentElement;
         while (scroller && scroller.scrollHeight <= scroller.clientHeight) {
           scroller = scroller.parentElement;
@@ -355,7 +348,6 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
     await page.getByRole("menuitemradio", { name: "Revisit" }).click();
     const keep = page.getByRole("button", { name: /^Keep/ }).first();
     await keep.waitFor();
-    // Revisit shuffles; keep cards (which changes nothing) until a photo shows.
     for (let tries = 0; tries < 15; tries += 1) {
       await settle(page);
       if (await page.getByRole("dialog").last().locator("img").count()) {
@@ -408,14 +400,10 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
   },
 };
 
-// The blog's covers (`BLOG_IMAGES` in shots.ts).
 Object.assign(PREPARE, {
   "why-we-built-teak": (page: Page) => open(page, "/?type=image", "Everything"),
   "rediscovering-what-you-saved": async (page: Page) => {
-    // Revisit deals from what's on screen, so start from images only and
-    // the first card is always a saved photo.
     await open(page, "/?type=image", "Everything");
-    // With a type picked, the button is named after it ("View: Image").
     await page
       .getByRole("button", { name: /^View\b/ })
       .first()
@@ -495,7 +483,6 @@ if (import.meta.main) {
   });
   await context.addInitScript(() => {
     const style = document.createElement("style");
-    // The Next.js dev indicator and scrollbars never belong in a screenshot.
     style.textContent =
       "nextjs-portal{display:none!important} *{scrollbar-width:none!important}";
     document.addEventListener("DOMContentLoaded", () =>

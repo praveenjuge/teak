@@ -32,7 +32,6 @@ const ok = (id: string, detail: string): SetupCheck => ({
 
 export interface DevDeploymentSetup {
   checks: SetupCheck[];
-  /** The environment every Convex CLI call for the dev deployment runs with. */
   env: NodeJS.ProcessEnv;
   ok: boolean;
   workos: Partial<Record<WorkosCredentialName, string>>;

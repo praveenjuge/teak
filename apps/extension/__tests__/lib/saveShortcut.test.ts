@@ -79,7 +79,6 @@ describe("the save shortcut", () => {
     const run = setup(async () => ({ status: "saved", cardId: "c1" }));
     await run.shortcut(tab(PAGE));
     expect(run.saved).toEqual([PAGE]);
-    // The tab's page becomes the link's saved copy.
     expect(run.savedFrom).toEqual([7]);
     expect(run.painted).toEqual([
       { state: "saving", tabId: 7, title: undefined },

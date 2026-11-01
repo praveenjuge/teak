@@ -61,7 +61,6 @@ interface Dependency {
   workspace: string;
 }
 
-// Every external dependency of the workspaces that install with the monorepo.
 const dependencies = (): Dependency[] =>
   workspaces()
     .filter((workspace) => !INDEPENDENT_WORKSPACES.has(workspace))

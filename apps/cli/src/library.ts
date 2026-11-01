@@ -284,7 +284,6 @@ export const findDuplicateCard = async (
   write(options.json ? { cardId } : cardId, options);
 };
 
-/** `--kind`: the kinds of text `cards content` can ask for. */
 export const CONTENT_KINDS: readonly CardContentKind[] = [
   "article",
   "document",
@@ -387,7 +386,6 @@ const planLine = (me: Awaited<ReturnType<TeakClient["me"]>>) =>
     ? `Pro plan · ${me.cardCount} cards`
     : `Free plan · ${me.cardCount} of ${me.cardLimit} cards`;
 
-// The language in its own name; a code this CLI doesn't know prints as is.
 const languageLine = (locale: string) =>
   `Language: ${isSupportedLocale(locale) ? LOCALE_NAMES[locale].native : locale}`;
 
@@ -556,8 +554,6 @@ export const startExport = async (
     return;
   }
   write(options.json ? latest : describeExport(latest), options);
-  // A wait that ends without an archive (failed, canceled, or ready with no
-  // download for -o) isn't a backup.
   if (options.output || (options.wait && latest.job?.status !== "ready")) {
     process.exitCode = EXIT.api;
   }
@@ -825,7 +821,6 @@ export const tagOperationStatus = async (
   reportTagOperation(operation, options);
 };
 
-/** One highlight: its id and quote on a line, its note indented below. */
 export const formatHighlight = (highlight: Highlight) => {
   const quote = highlight.quote.replace(/\s+/g, " ").trim();
   const lines = [

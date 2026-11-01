@@ -9,11 +9,6 @@ import {
 
 type AssetSave = Extract<PendingSave, { kind: "asset" }>;
 
-/**
- * What "Save Asset" saves: the image, video or audio clicked, or the file a
- * plain link points to. A plain link is marked, so a page behind it is saved
- * as a link instead of as its HTML.
- */
 export const assetSaveFor = (info: {
   linkUrl?: string;
   srcUrl?: string;
@@ -24,7 +19,6 @@ export const assetSaveFor = (info: {
   return info.linkUrl ? { assetUrl: info.linkUrl, link: true } : null;
 };
 
-/** A download that is a web page, not a file worth keeping as one. */
 export const isWebPageFile = (file: Pick<FileUploadInput, "mimeType">) =>
   WEB_PAGE_TYPE.test(file.mimeType ?? "");
 

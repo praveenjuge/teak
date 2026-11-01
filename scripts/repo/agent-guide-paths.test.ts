@@ -3,14 +3,9 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-// Agent guides point at docs pages and source files instead of repeating
-// them, so a moved or deleted file must not leave a guide pointing nowhere.
-// A nested guide may name paths from its own workspace.
-
 const ROOT = join(import.meta.dir, "../..");
 
 const ROOTED = /^(?:apps|packages|scripts|\.agents|\.claude|\.github)\//;
-// Placeholders, globs and files that only exist at runtime or after a build.
 const UNCHECKED =
   /[*<>{}…]|\.\.\.|\.agents\/\.state\/|\/(?:\.output|\.e2e|node_modules|dist)(?:\/|$)|\.env|\.dev\.vars/;
 
@@ -22,8 +17,6 @@ const trackedFiles = (pattern: string): string[] => {
   return result.stdout.split("\n").filter(Boolean);
 };
 
-// Root and nested AGENTS.md, Teak's own guides, runbooks and records in
-// `.agents`, Teak's own skills, and the docs pages AGENTS.md sends agents to.
 const guideFiles = (): string[] =>
   [
     ...trackedFiles("*AGENTS.md"),
@@ -35,8 +28,6 @@ const guideFiles = (): string[] =>
     ...trackedFiles(":(glob)apps/docs/content/docs/(open-source)/*.mdx"),
   ].sort();
 
-// Guides that record Teak's own deployments must say when someone last
-// checked them, so the weekly audit can find the stale ones.
 const reviewedGuides = (): string[] =>
   ["guides", "runbooks", "records"]
     .flatMap((folder) => trackedFiles(`:(glob).agents/${folder}/*.md`))

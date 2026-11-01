@@ -302,8 +302,6 @@ const matchesProvider = (
     issuer: auth.issuer,
     clientId: auth.clients.cli,
   });
-// A WorkOS credential saved for this deployment (and for TEAK_AUTH_URL, when
-// set), checked from what sign-in saved with it, without discovery.
 const boundToDeployment = (
   credentials: StoredCredentials,
   options: ClientOptions
@@ -697,7 +695,6 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               redirectUri,
               state,
             });
-            // --json keeps stdout to the one JSON answer at the end.
             (options.json ? process.stderr : process.stdout).write(
               `${authUrl.toString()}\n`
             );

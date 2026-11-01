@@ -7,7 +7,6 @@ import {
   seedDemoAccount,
 } from "./seed-demo-account.ts";
 
-/** An in-memory library with just the calls the seed makes. */
 const fakeTeak = () => {
   const cards: Array<{
     content?: string;
@@ -25,7 +24,6 @@ const fakeTeak = () => {
         url?: string;
       }) => {
         const id = `c${cards.length + 1}`;
-        // Like Teak, keep a quote without its quotation marks.
         cards.push({
           ...input,
           content: input.content?.replace(/["“”]/gu, ""),
@@ -35,7 +33,6 @@ const fakeTeak = () => {
       },
       duplicate: (url: string) =>
         Promise.resolve(cards.find((card) => card.url === url)?.id ?? null),
-      // Like the API, leave out content and file names unless asked for.
       list: ({ include }: { include?: string } = {}) =>
         Promise.resolve({
           items: cards.map((card) => ({

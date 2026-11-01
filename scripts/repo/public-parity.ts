@@ -355,11 +355,6 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   },
 ];
 
-/**
- * Account changes the Teak apps make that no public surface does: no API
- * operation, MCP tool, SDK method or CLI command. `convex` names the session
- * function that makes the change, and `readBy` the operation that reports it.
- */
 export interface AppOnlyChange {
   convex: string;
   feature: string;

@@ -21,7 +21,6 @@ test("offers the same hue and style filters as Teak's search", () => {
 });
 
 test("names a link's done state the way Teak's apps do", async () => {
-  // Regenerate with: bun --no-env-file run scripts/repo/raycast-done-verbs.ts --write
   expect(await Bun.file(DONE_VERBS_PATH).text()).toBe(renderDoneVerbs());
 });
 

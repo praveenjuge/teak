@@ -287,11 +287,6 @@ const DEMO_CARDS_BY_ID = new Map(
   DEMO_COLUMNS.flat().map((card) => [card.id, card])
 );
 
-/**
- * Picks demo cards by id for a smaller demo grid. Cards keep the order given,
- * dealt left to right across the columns, so column lengths differ by at most
- * one and the first row reads in the given order.
- */
 export function pickDemoColumns(
   ids: readonly string[],
   columnCount = DEMO_COLUMNS.length

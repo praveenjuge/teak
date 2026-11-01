@@ -20,7 +20,6 @@ const readCatalog = (dir: string, file: string) =>
 
 const translations = SUPPORTED_LOCALES.filter((locale) => locale !== "en");
 
-// The web and extension catalogs, and the native apps' own catalogs.
 for (const [name, dir] of [
   ["web", MESSAGES_DIR],
   ["native", NATIVE_DIR],
@@ -82,7 +81,6 @@ for (const [name, dir] of [
         });
 
         test("translates rather than copying English", () => {
-          // Short words can match (OK, PDF), but most of a catalog must differ.
           const copied = [...catalog].filter(
             ([key, message]) =>
               message.length > 12 && message === english.get(key)

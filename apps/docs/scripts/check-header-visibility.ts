@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-// Fails the build when a page ships the header's Login, Register and
-// "Open Teak" links without what shows only one set (lib/header-visibility.ts).
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";

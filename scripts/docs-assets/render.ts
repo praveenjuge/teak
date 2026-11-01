@@ -20,7 +20,6 @@ import { DOCS_IMAGES, SHOTS, type Shot } from "./shots.ts";
 
 const root = path.resolve(import.meta.dir, "../..");
 export const SIZE = { width: 1600, height: 1000 };
-// The window every capture and mock sits in.
 const WINDOW = { left: 112, top: 70, width: 1376, height: 860 };
 const QUALITY = 0.86;
 
@@ -72,7 +71,6 @@ const pngSize = (png: string) => {
   };
 };
 
-/** A raw capture keeps its shape, at most 1600 px wide. */
 const rawSize = (png: string) => {
   if (!existsSync(png)) {
     throw new Error(
@@ -115,7 +113,6 @@ const settle = async (page: Page) => {
     await Promise.all(
       [...document.images].map((image) => image.decode().catch(() => undefined))
     );
-    // Background images: wait for each to load before the screenshot.
     const urls = [...document.querySelectorAll<HTMLElement>("[style*='url(']")]
       .map((el) => /url\(['"]?(.*?)['"]?\)/.exec(el.style.backgroundImage)?.[1])
       .filter((url): url is string => Boolean(url));
@@ -176,8 +173,6 @@ if (import.meta.main) {
       ? `<body style="width:${size.width}px;height:${size.height}px;background:#fff"><img class="shot" src="${pathToFileURL(captureFile(shot.name)).href}"></body>`
       : `<body>${shot.kind === "web" ? webHtml(shot) : renderMock(shot.mock, { library })}</body>`;
     const html = path.join(htmlDir, `${shot.name}.html`);
-    // A backdrop swaps the meadow for a flat pastel gradient, and the window
-    // for a crisp one: a hairline edge and a short, light shadow.
     const backdrop = shot.backdrop
       ? `<style>body{background:linear-gradient(135deg,${shot.backdrop[0]},${shot.backdrop[1]})}body::before{display:none}.window,.panel,.diagram{box-shadow:0 0 0 1px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.06),0 6px 16px -8px rgba(15,23,42,.14)}</style>`
       : "";

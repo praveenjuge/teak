@@ -3,13 +3,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MockId } from "./shots.ts";
 
-/**
- * HTML for the docs' mock screens and diagrams. Each mock draws inside the
- * 1600 × 1000 meadow frame from render.ts, in Teak's own type, colors and
- * radius, so mocks and real captures read as one set. Card images come from
- * the store showcase (`scripts/store-assets/seed`).
- */
-
 const root = path.resolve(import.meta.dir, "../..");
 const seed = (file: string) =>
   pathToFileURL(path.join(root, "scripts/store-assets/seed", file)).href;
@@ -23,7 +16,6 @@ export const logoSvg = () =>
 const esc = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
-/** Tiny highlighter: wrap `«k:word»` style tokens in spans. */
 const code = (source: string) =>
   esc(source).replace(
     /«([a-z]):(.*?)»/g,
@@ -33,7 +25,6 @@ const code = (source: string) =>
 const icon = (name: keyof typeof ICONS, size = 22) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 
-// Lucide paths, the icon set the web app and docs use.
 const ICONS = {
   arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
   arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
@@ -644,8 +635,6 @@ const saveByEmail = () => `
       </div>
     </div>
   </div>`;
-
-// Blog images (`apps/docs/content/blog/images`): covers and diagrams for posts.
 
 const PIPELINE = [
   ["load card", "Read the card and what's already done"],

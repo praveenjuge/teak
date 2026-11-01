@@ -34,7 +34,6 @@ const required = [
   "score-relevance",
 ];
 
-// Item types Convex hands to the `dispatch` op.
 const requiredDispatchItems = ["workflow", "delete-objects", "analytics-event"];
 
 async function productionEnv(name: string): Promise<string> {
@@ -117,7 +116,6 @@ for (;;) {
         result.data?.dispatchItems?.includes(type)
       ) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode)) &&
-      // Convex stops running a cron once the Worker's Cron Triggers run it.
       cronTasksOn("cloudflare").every((task) =>
         result.data?.crons?.includes(CRONS[task].name)
       ) &&

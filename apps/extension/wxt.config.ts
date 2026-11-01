@@ -62,7 +62,6 @@ export default defineConfig({
     ],
     host_permissions: ["<all_urls>"],
     omnibox: { keyword: OMNIBOX_KEYWORD },
-    // Browsers let people change it in their own shortcut settings.
     commands: {
       [SAVE_PAGE_COMMAND]: {
         suggested_key: { default: "Alt+Shift+S", mac: "Alt+Shift+S" },

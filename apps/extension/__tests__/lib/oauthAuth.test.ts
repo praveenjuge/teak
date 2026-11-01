@@ -126,7 +126,6 @@ const tokenResponse = (access = accessToken, refresh = refreshToken) =>
     expires_in: 3600,
   });
 
-// An in-memory stand-in for the extension's "teak-oauth" IndexedDB.
 const installCredentialDatabase = () => {
   const rows = new Map<string, unknown>();
   const database = {

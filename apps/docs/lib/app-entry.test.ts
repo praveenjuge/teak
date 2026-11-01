@@ -3,7 +3,6 @@ import { appEntryScript, SIGN_IN_ORIGINS, WEB_APP_URL } from "./app-entry";
 
 type Handler = (event: { target: unknown }) => void;
 
-// The smallest document the script touches, so a test can read what it did.
 function runScript(cookie: string) {
   const handlers = new Map<string, Handler[]>();
   const preconnects: string[] = [];

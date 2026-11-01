@@ -6,8 +6,6 @@ export const WEB_APP_URL = "https://app.teakvault.com";
 export const SIGN_IN_URL = `${WEB_APP_URL}/sign-in`;
 export const SIGN_UP_URL = `${WEB_APP_URL}/sign-up`;
 
-// Hosts a click on a sign-in link reaches, in order: the app starts AuthKit,
-// WorkOS authorizes, and the hosted sign-in page loads.
 export const SIGN_IN_ORIGINS = [
   WEB_APP_URL,
   "https://api.workos.com",

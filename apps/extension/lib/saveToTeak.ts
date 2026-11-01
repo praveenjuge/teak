@@ -26,9 +26,7 @@ export interface SaveToTeakInput {
 }
 export interface SaveToTeakDependencies {
   fetchImpl?: typeof fetch;
-  /** Called once a snapshot is uploaded, to keep its key with the save. */
   onPageSnapshotUploaded?: (pageSnapshotKey: string) => Promise<void>;
-  /** The page the link was saved from, as the browser shows it. */
   pageSnapshot?: PageSnapshot | null;
   request?: typeof oauthRequest;
 }
@@ -95,8 +93,6 @@ export async function restResult(
   if (typeof body.cardId !== "string") {
     throw new Error("Invalid save response.");
   }
-  // A link already in Teak comes back as that card, moved to the top (and back
-  // from Archive), so it shows as "already in Teak".
   return body.resaved === true
     ? { status: "duplicate", cardId: body.cardId }
     : { status: "saved", cardId: body.cardId };
@@ -126,12 +122,9 @@ export async function saveToTeak(
   }
   const request = dependencies.request ?? oauthRequest;
   try {
-    // No duplicate check first: saving a link already in Teak moves that card
-    // to the top, and the answer says `resaved: true`.
     const content = parsedUrl ? parsedUrl.toString() : input.content;
     let pageSnapshotKey = parsedUrl ? input.pageSnapshotKey : undefined;
     if (parsedUrl && !pageSnapshotKey && dependencies.pageSnapshot) {
-      // A snapshot that fails to upload is dropped; the link still saves.
       pageSnapshotKey =
         (await uploadPageSnapshot(dependencies.pageSnapshot, {
           fetchImpl: dependencies.fetchImpl,

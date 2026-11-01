@@ -14,17 +14,14 @@ import {
 
 /** The account's language, as `/v1/me` last reported it. Kept after sign-out. */
 export const LOCALE_KEY = "teakLocale";
-/** `en-XA` while the popup's dev menu has the pseudo-locale on. Dev builds only. */
 export const LOCALE_OVERRIDE_KEY = "teakLocaleOverride";
 
 const IS_DEV = Boolean(import.meta.env.DEV);
 
 interface LocaleOptions {
-  /** Honor the dev pseudo-locale override. Production builds never do. */
   allowPseudo?: boolean;
 }
 
-/** The language the extension shows: the account's, or English. */
 export async function readUiLocale({
   allowPseudo = IS_DEV,
 }: LocaleOptions = {}): Promise<UiLocale> {
@@ -40,11 +37,6 @@ export async function readUiLocale({
   return resolveUiLocale(stored[LOCALE_KEY]);
 }
 
-/**
- * Stores the account's language from `/v1/me`. A response without one (an
- * older server) keeps what is stored; a language this version doesn't know
- * shows English.
- */
 export async function rememberAccountLocale(value: unknown): Promise<void> {
   if (value === undefined || value === null) {
     return;
@@ -57,7 +49,6 @@ export async function rememberAccountLocale(value: unknown): Promise<void> {
   }
 }
 
-/** The dev menu's pseudo-locale toggle. */
 export async function setPseudoLocale(on: boolean): Promise<void> {
   if (on) {
     await chrome.storage.local.set({ [LOCALE_OVERRIDE_KEY]: PSEUDO_LOCALE });
@@ -73,7 +64,6 @@ export const isLocaleChange = (
   areaName === "local" &&
   (LOCALE_KEY in changes || LOCALE_OVERRIDE_KEY in changes);
 
-/** Calls `listener` whenever the stored language or the override changes. */
 export function onLocaleChange(listener: () => void): () => void {
   const handle = (
     changes: Record<string, chrome.storage.StorageChange>,
@@ -87,11 +77,9 @@ export function onLocaleChange(listener: () => void): () => void {
   return () => chrome.storage.onChanged.removeListener(handle);
 }
 
-/** A locale's catalog, with English filling any key it lacks. */
 export const localeMessages = async (locale: UiLocale): Promise<Messages> =>
   withEnglishFallback(await loadMessages(locale));
 
-/** The background's words: context menus, omnibox rows and inline buttons. */
 export interface BackgroundStrings {
   contextMenu: TeakTranslator<"extension.contextMenu">;
   inline: TeakTranslator<"extension.inline">;
@@ -114,11 +102,6 @@ export const ENGLISH_STRINGS = backgroundStrings(
   englishMessages
 );
 
-/**
- * The background's current strings. English until the stored language
- * loads, then reloaded on every change, after which `onChange` runs (the
- * background rebuilds its context menus there).
- */
 export function createBackgroundLocale({
   allowPseudo = IS_DEV,
   onChange,
@@ -146,11 +129,9 @@ export function createBackgroundLocale({
     void ready.then((strings) => onChange?.(strings));
   });
   return {
-    /** The strings now, without waiting for a load in progress. */
     get current() {
       return current;
     },
-    /** The strings once the latest load finishes. */
     ready: () => ready,
     stop,
   };

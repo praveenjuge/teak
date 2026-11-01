@@ -53,8 +53,6 @@ const matches = (credentials: Credentials, auth: AuthDiscovery) =>
     issuer: auth.issuer,
     clientId: auth.clients[SURFACE],
   });
-// A WorkOS credential saved for this site, checked from what sign-in saved
-// with it, without discovery.
 const boundToSite = (credentials: Credentials) => {
   const saved = savedBinding(credentials);
   return isWorkosCredential(saved) && saved.origin === teakSite();
@@ -534,7 +532,6 @@ export async function getOAuthState() {
   if (!user || typeof user.id !== "string" || !user.id) {
     throw new Error("Invalid account response.");
   }
-  // The popup, menus and omnibox follow the account's language.
   await rememberAccountLocale(user.locale).catch(() => undefined);
   return {
     authenticated: true,

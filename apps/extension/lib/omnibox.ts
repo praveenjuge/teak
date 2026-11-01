@@ -38,7 +38,6 @@ export interface OmniboxSuggestion {
   description: string;
 }
 
-/** The omnibox's words, in the UI language. */
 export type OmniboxStrings = TeakTranslator<"extension.omnibox">;
 
 const XML_ESCAPES: Record<string, string> = {

@@ -86,7 +86,6 @@ const parsePaletteColor = (value: string) => {
   return hex;
 };
 
-/** A repeatable `--add-color` or `--remove-color`, as `#RRGGBB`. */
 export const collectPaletteColor = repeatable(parsePaletteColor);
 
 export const parseDateRange = (value: string, now?: Date) => {

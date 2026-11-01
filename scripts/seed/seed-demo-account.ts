@@ -28,7 +28,6 @@ export interface SeedCard {
 export interface SeedImage {
   favorite?: boolean;
   folder?: string;
-  /** The file name the card shows, and how a later run knows it's there. */
   name: string;
   path: string;
   tags: string[];
@@ -236,21 +235,15 @@ export const DEMO_IMAGES: SeedImage[] = [
   },
 ];
 
-/**
- * Text as Teak stores it, for matching: Teak keeps a quote without its
- * quotation marks, so they and runs of whitespace don't count.
- */
 const normalizeText = (value: string) =>
   value.replace(/["“”]/gu, "").replace(/\s+/gu, " ").trim();
 
-/** Every card in the library, for skipping what an earlier run saved. */
 const readLibrary = async (teak: TeakClient) => {
   const urls = new Set<string>();
   const texts = new Set<string>();
   const fileNames = new Set<string>();
   let cursor: string | undefined;
   do {
-    // Without include, cards come back without their content or file name.
     const page = await teak.cards.list({
       cursor,
       include: "content,metadata",

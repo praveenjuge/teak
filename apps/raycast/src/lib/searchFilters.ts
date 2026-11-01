@@ -45,29 +45,21 @@ export interface ParsedSearchFilters {
   archived?: boolean;
   createdAfter?: number;
   createdBefore?: number;
-  /** `is:done`: links marked read, watched, bought or done. */
   done?: boolean;
   favorited?: boolean;
-  /** `folder:"Reading list"`: a folder by name. */
   folder?: string;
   hasExplicitFilters: boolean;
   hex: string[];
   hue: string[];
-  /** `like:<cardId>`: the cards closest in meaning to that card. */
   like?: string;
-  /** `mood:"moody brutalist"`: images by mood. */
   mood?: string;
-  /** `text:"total due"`: words Teak read inside images, previews and scans. */
   ocrText: string[];
-  /** `price:<100`: bounds on a link's price. */
   price: string[];
   query: string;
   rawQuery: string;
-  /** Undefined keeps the API's own order: newest, or closest for `like:`. */
   sort?: RaycastSort;
   style: string[];
   tag?: string;
-  /** `is:todo`: links not yet marked done. */
   todo?: boolean;
   trashed?: boolean;
   type?: RaycastCardType;
@@ -130,7 +122,6 @@ const IS_VALUES: Record<string, "archived" | "done" | "fav" | "todo"> = {
   todo: "todo",
 };
 
-// Teak's search takes a price as an operator and an amount: `<100`.
 const PRICE_BOUND = /^(<=|>=|<|>|=)(\d{1,12}(?:\.\d{1,6})?)$/;
 
 const normalizeFavorited = (value?: string): boolean | undefined => {
@@ -154,7 +145,6 @@ const WHITESPACE = /\s/;
 const NEEDS_QUOTING = /[\s":\\]/;
 
 interface SearchToken {
-  /** The whole token was one quoted phrase: words to match, never a filter. */
   phrase: boolean;
   text: string;
 }
@@ -210,7 +200,6 @@ const tokenizeSearchText = (rawQuery: string): SearchToken[] => {
       continue;
     }
 
-    // A word glued to a closing quote isn't a plain phrase any more.
     phrase = false;
     current += char;
     hasContent = true;
@@ -235,7 +224,6 @@ const formatFilterValue = (value: string): string => {
   return `"${escaped}"`;
 };
 
-/** A qualifier token for Teak's search, quoted when the value needs it. */
 export const searchQualifier = (key: string, value: string): string =>
   `${key}:${formatFilterValue(value)}`;
 
@@ -445,7 +433,6 @@ export const parseSearchFilters = (rawQuery: string): ParsedSearchFilters => {
   };
 };
 
-// The qualifiers Teak's own search understands beyond type, tag and favorites.
 const similarityTokens = (filters: SearchTextFilters): string[] => {
   const tokens: string[] = [];
   if (filters.like) {
@@ -522,8 +509,6 @@ export const buildSearchText = (filters: SearchTextFilters): string => {
     tokens.push(`before:${formatDateFilter(filters.createdBefore)}`);
   }
 
-  // Only written when it changes the order: applySortFilter drops Newest
-  // First where newest is already the default.
   if (filters.sort) {
     tokens.push(`sort:${filters.sort}`);
   }
@@ -531,11 +516,6 @@ export const buildSearchText = (filters: SearchTextFilters): string => {
   return tokens.join(" ").trim();
 };
 
-/**
- * The search text for the API's `q`: the free words plus the qualifiers it
- * reads itself. Type, tag, favorites, Trash, color and dates travel as their
- * own parameters, and archived cards as `archived`.
- */
 export const toApiQuery = (filters: ParsedSearchFilters): string =>
   [
     filters.query,
@@ -546,10 +526,6 @@ export const toApiQuery = (filters: ParsedSearchFilters): string =>
     .filter(Boolean)
     .join(" ");
 
-/**
- * A smart folder's search from the current one, or null when it can't be
- * saved: Trash, color, style and date filters aren't part of a smart folder.
- */
 export const toSmartFolderQuery = (
   filters: ParsedSearchFilters,
 ): string | null => {
@@ -583,7 +559,6 @@ export const applyTrashedFilter = (
   trashed?: boolean,
 ): string => {
   const parsed = parseSearchFilters(rawQuery);
-  // Trash and Archive are separate views: entering one leaves the other.
   return buildSearchText({
     ...parsed,
     archived: trashed ? undefined : parsed.archived,
@@ -639,10 +614,6 @@ export const applyDoneFilter = (
   });
 };
 
-/**
- * `keepNewest` is for lists the API otherwise orders by closeness (Find
- * Similar), where Newest First has to be written out; so is `like:`.
- */
 export const applySortFilter = (
   rawQuery: string,
   sort: RaycastSort,

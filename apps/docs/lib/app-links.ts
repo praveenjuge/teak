@@ -1,4 +1,3 @@
-// Store listings for Teak's apps, shared by the apps page and the footer.
 export const APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
 export const MAC_APP_STORE_URL = `${APP_STORE_URL}?mt=12`;
