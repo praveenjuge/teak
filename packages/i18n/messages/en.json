@@ -1379,7 +1379,7 @@
       "related": "{count, plural, one {# related by meaning} other {# related by meaning}}",
       "hideRelated": "Hide related",
       "showRelated": "Show related",
-      "noMatchesFor": "No cards match “{query}”",
+      "noMatchesFor": "Nothing found for “{query}”",
       "didYouMean": "Did you mean <link>{suggestion}</link>?",
       "tryRemoving": "Or remove a filter:",
       "filtersLabel": "Filters in this search",

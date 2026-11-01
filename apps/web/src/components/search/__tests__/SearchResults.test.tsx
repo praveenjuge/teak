@@ -83,7 +83,7 @@ describe("NoSearchResults", () => {
       />
     );
     expect(document.body.textContent).toContain(
-      "No cards match “kestral -heron”"
+      "Nothing found for “kestral -heron”"
     );
     expect(document.body.textContent).toContain("Did you mean kestrel -heron?");
     await act(() => button("kestrel -heron")?.click());
