@@ -12,7 +12,7 @@ import {
   Trash,
   type VadivamIcon,
 } from "vadivam-react";
-import { LogoMark } from "@/components/Logo";
+import { LogoMark } from "@/components/LogoMark";
 import {
   Sidebar,
   SidebarContent,

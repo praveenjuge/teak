@@ -2,8 +2,8 @@
 
 import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
-import { Wordmark } from "@/components/Logo";
 import { buttonVariants } from "@/components/ui/button";
+import { Wordmark } from "@/components/Wordmark";
 
 export function NotFoundContent() {
   const t = useTranslations("app.notFound");

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useState } from "react";
-import { LogoMark } from "../Logo";
+import { LogoMark } from "../LogoMark";
 
 const VAULT_SETUP_STEPS = [
   "starterCards",
