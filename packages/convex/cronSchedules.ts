@@ -20,6 +20,14 @@ export const CRONS = {
     everyMs: DAY_MS,
     runsOn: "convex",
   },
+  // Folder rule runs a day after they start, when their undo ends
+  // (folder/rules.ts). Small, beside the runs themselves.
+  cleanupExpiredFolderRuleRuns: {
+    name: "cleanup-expired-folder-rule-runs",
+    schedule: "15 * * * *",
+    everyMs: HOUR_MS,
+    runsOn: "convex",
+  },
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",
     schedule: "45 * * * *",

@@ -12,6 +12,7 @@ import {
 } from "./accountDeletion/stages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextRows } from "./card/textContents";
+import { deleteCardFolderRuleRows } from "./folder/rules";
 import {
   getDeletionRetryPrincipal,
   getSessionUser,
@@ -170,6 +171,7 @@ export const deleteAccountDataHandler = async (
     for (const folderRow of folderRows) {
       await ctx.db.delete("folderCards", folderRow._id);
     }
+    await deleteCardFolderRuleRows(ctx, cardId);
     try {
       await ctx.db.delete("cards", cardId);
       deletedCards += 1;

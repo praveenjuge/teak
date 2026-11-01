@@ -9,6 +9,7 @@ import {
   MAX_FOLDERS_PER_CARD,
 } from "../shared/folders";
 import { requireFolderForUser } from "./folders";
+import { autoTagsForJoinedFolders } from "./rules";
 
 const cardNotFound = () =>
   new ConvexError({ code: "NOT_FOUND", message: "Card not found" });
@@ -57,8 +58,10 @@ const writeCardFolders = async (
   if (next.length > MAX_FOLDERS_PER_CARD) {
     throw folderLimit();
   }
+  const { tags } = await autoTagsForJoinedFolders(ctx, card, next);
   return await patchCardWithSearchSync(ctx, card._id, {
     folderIds: next.length > 0 ? next : undefined,
+    ...(tags ? { tags } : {}),
     updatedAt: Date.now(),
   });
 };

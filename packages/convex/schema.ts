@@ -267,6 +267,13 @@ export default defineSchema({
     color: v.optional(folderColorValidator),
     kind: v.union(v.literal("manual"), v.literal("smart")),
     query: v.optional(v.string()),
+    // Folder rules (folder/rules.ts), on manual folders only: tags every card
+    // that joins the folder gets, and a search that files matching cards in.
+    autoTags: v.optional(v.array(v.string())),
+    autoFileQuery: v.optional(v.string()),
+    autoFilePaused: v.optional(v.literal(true)),
+    hasRules: v.optional(v.literal(true)),
+    ruleRunId: v.optional(v.id("folderRuleRuns")),
     // Read only until `migration/backfillFolderCardCounts` copies it into
     // `folderCardCounts` (folder/folderRows.ts), which holds the live count.
     activeCardCount: v.number(),
@@ -275,7 +282,54 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId_and_nameKey", ["userId", "nameKey"])
-    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_userId_and_hasRules", ["userId", "hasRules"]),
+  // What folder rules already did to a card, so a card or tag someone took
+  // out by hand is never put back. One row per card and rule folder.
+  folderRuleApplications: defineTable({
+    userId: v.string(),
+    cardId: v.id("cards"),
+    folderId: v.id("folders"),
+    filed: v.optional(v.literal(true)),
+    tagKeys: v.array(v.string()),
+  })
+    .index("by_cardId_and_folderId", ["cardId", "folderId"])
+    .index("by_folderId", ["folderId"])
+    .index("by_userId", ["userId"]),
+  // A pass of a folder's rules over the existing library, kept a day so it
+  // can be undone.
+  folderRuleRuns: defineTable({
+    userId: v.string(),
+    folderId: v.id("folders"),
+    status: v.union(
+      v.literal("running"),
+      v.literal("done"),
+      v.literal("undoing"),
+      v.literal("undone"),
+      v.literal("superseded")
+    ),
+    phase: v.union(v.literal("tag"), v.literal("file"), v.literal("undo")),
+    cursor: v.optional(v.string()),
+    filedCount: v.number(),
+    taggedCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    expiresAt: v.number(),
+  })
+    .index("by_folderId_and_createdAt", ["folderId", "createdAt"])
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_userId", ["userId"]),
+  folderRuleRunChanges: defineTable({
+    runId: v.id("folderRuleRuns"),
+    userId: v.string(),
+    cardId: v.id("cards"),
+    filed: v.optional(v.literal(true)),
+    addedTags: v.array(v.string()),
+  })
+    .index("by_runId", ["runId"])
+    .index("by_userId", ["userId"])
+    .index("by_cardId", ["cardId"]),
   folderCardCounts: defineTable({
     folderId: v.id("folders"),
     userId: v.string(),

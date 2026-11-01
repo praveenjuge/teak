@@ -218,6 +218,9 @@ export const withSearchSyncDb = <Db extends object>(db: Db) => ({
     withIndex: mock().mockReturnValue({
       take: mock().mockResolvedValue([]),
       unique: mock().mockResolvedValue(null),
+      async *[Symbol.asyncIterator]() {
+        // No rows.
+      },
     }),
   }),
   insert: mock().mockResolvedValue("sync_1"),
