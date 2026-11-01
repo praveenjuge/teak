@@ -3,6 +3,8 @@ import { createTeakTranslator, englishMessages } from "@teak/i18n";
 import {
   getPopupStatus,
   type PopupStatusInput,
+  previewItem,
+  type SavedItem,
   toContextMenuStatus,
 } from "../../lib/popupStatus";
 
@@ -183,5 +185,58 @@ describe("toContextMenuStatus", () => {
     [{ status: "unauthenticated" }, "error"],
   ] as const)("maps %o to %s", (result, expected) => {
     expect(toContextMenuStatus(result)).toBe(expected);
+  });
+});
+
+describe("previewItem", () => {
+  const page = {
+    state: "success" as const,
+    tab: { favIconUrl: "https://example.com/icon.png", title: "Example" },
+    url: "https://example.com/article",
+  };
+  const file: SavedItem = {
+    kind: "file",
+    mimeType: "application/pdf",
+    name: "Manual.pdf",
+    size: 3_500_000,
+  };
+  const preview = (input: Partial<Parameters<typeof previewItem>[0]>) =>
+    previewItem({
+      autoSave: page,
+      fileState: "idle",
+      isRecentSave: false,
+      status: { autoClose: true, title: "Saved to Teak", tone: "success" },
+      ...input,
+    });
+
+  test("previews the current page with its tab's title and icon", () => {
+    expect(preview({})).toEqual({
+      favIconUrl: "https://example.com/icon.png",
+      kind: "page",
+      title: "Example",
+      url: "https://example.com/article",
+    });
+    expect(preview({ autoSave: { ...page, state: "loading" } })).toMatchObject({
+      kind: "page",
+    });
+  });
+
+  test("previews the chosen file instead while it uploads", () => {
+    expect(preview({ chosenFile: file, fileState: "saving" })).toBe(file);
+  });
+
+  test("shows errors, prompts and context-menu saves on their own", () => {
+    expect(
+      preview({ status: { autoClose: false, title: "x", tone: "error" } })
+    ).toBeUndefined();
+    expect(
+      preview({ status: { autoClose: false, title: "x", tone: "upgrade" } })
+    ).toBeUndefined();
+    expect(
+      preview({
+        autoSave: { state: "invalid-url", url: "chrome://extensions" },
+      })
+    ).toBeUndefined();
+    expect(preview({ isRecentSave: true })).toBeUndefined();
   });
 });

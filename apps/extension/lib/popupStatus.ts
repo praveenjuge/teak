@@ -213,3 +213,52 @@ function baseStatus(
       return null;
   }
 }
+
+/** What the popup is saving or just saved: the current page, or a chosen file. */
+export type SavedItem =
+  | { kind: "page"; favIconUrl?: string; title?: string; url: string }
+  | { kind: "file"; mimeType: string; name: string; size: number };
+
+const PAGE_PREVIEW_STATES = new Set<AutoSaveState>([
+  "loading",
+  "success",
+  "duplicate",
+]);
+
+/**
+ * The page or file to preview under the status line: the chosen file while it
+ * uploads or once it's saved, otherwise the current page while it's saving or
+ * saved. Errors, prompts and context-menu saves show on their own.
+ */
+export function previewItem({
+  autoSave,
+  chosenFile,
+  fileState,
+  isRecentSave,
+  status,
+}: {
+  autoSave: {
+    state: AutoSaveState;
+    tab?: { favIconUrl?: string; title?: string };
+    url?: string;
+  };
+  chosenFile?: SavedItem;
+  fileState: FileUploadState;
+  isRecentSave: boolean;
+  status: PopupStatus | null;
+}): SavedItem | undefined {
+  if (!status || status.tone === "error" || status.tone === "upgrade") {
+    return undefined;
+  }
+  if (fileState !== "idle") {
+    return chosenFile;
+  }
+  if (
+    isRecentSave ||
+    !autoSave.url ||
+    !PAGE_PREVIEW_STATES.has(autoSave.state)
+  ) {
+    return undefined;
+  }
+  return { kind: "page", url: autoSave.url, ...autoSave.tab };
+}

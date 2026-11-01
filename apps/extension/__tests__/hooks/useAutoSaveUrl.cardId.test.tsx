@@ -34,7 +34,15 @@ const autoSave = async (response: TeakSaveResponse) => {
         reply(response),
     },
     storage: { local: { get: async () => ({}) } },
-    tabs: { query: async () => [{ url: "https://example.com/article" }] },
+    tabs: {
+      query: async () => [
+        {
+          favIconUrl: "https://example.com/icon.png",
+          title: "An article",
+          url: "https://example.com/article",
+        },
+      ],
+    },
   } as unknown as typeof chrome;
   const seen: ReturnType<typeof useAutoSaveUrl>[] = [];
   function Probe() {
@@ -59,4 +67,16 @@ test("keeps the id of the card already saved for the page", async () => {
   expect(
     await autoSave({ status: "duplicate", cardId: "card_old" })
   ).toMatchObject({ cardId: "card_old", state: "duplicate" });
+});
+
+test("keeps the tab's title and icon for the preview", async () => {
+  expect(await autoSave({ status: "saved", cardId: "card_new" })).toMatchObject(
+    {
+      currentTab: {
+        favIconUrl: "https://example.com/icon.png",
+        title: "An article",
+      },
+      currentUrl: "https://example.com/article",
+    }
+  );
 });

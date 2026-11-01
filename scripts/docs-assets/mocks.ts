@@ -38,6 +38,8 @@ const ICONS = {
   arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
   arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  ellipsis:
+    '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   upload:
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
@@ -340,24 +342,22 @@ const extension = () => `
     { address: true, extension: true }
   )}
   <div style="position:absolute;right:136px;top:132px;width:430px;background:#fff;border-radius:18px;border:1px solid var(--border);box-shadow:0 30px 60px -12px rgba(15,23,42,.35);font-size:17px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px 22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px 22px">
       <span style="width:66px;height:24px;display:block">${logoSvg()}</span>
-      <span style="display:flex;align-items:center;gap:6px;font-weight:500">Open Teak ${icon("arrowUpRight", 16)}</span></div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:22px 30px 26px">
-      <div style="width:56px;height:56px;border-radius:50%;background:oklch(0.72 0.15 155 / 0.15);color:oklch(0.55 0.14 155);display:grid;place-items:center">${icon("check", 28)}</div>
-      <div style="font-size:21px;font-weight:600">Saved to Teak</div>
-      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;flex-wrap:wrap;gap:6px;border:1.5px solid oklch(0.707 0.022 261.325);border-radius:10px;padding:7px;box-shadow:0 0 0 4px oklch(0.707 0.022 261.325 / 0.2)">
-          <span class="chip" style="height:28px">typography</span><span class="chip" style="height:28px">reading</span>
-          <span style="color:var(--muted);padding:3px 4px">|</span></div>
-        <div style="display:flex;gap:6px"><span class="chip dashed" style="height:28px">design</span><span class="chip dashed" style="height:28px">spacing</span><span class="chip dashed" style="height:28px">layout</span></div>
-        <div style="position:relative;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;min-height:70px;line-height:1.45">Read before the Halden type review.
-          <span style="position:absolute;right:12px;bottom:8px;font-size:14px;color:oklch(0.55 0.14 155);display:flex;gap:4px;align-items:center">${icon("check", 13)} Saved</span></div>
+      <span style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--muted)">${icon("ellipsis", 20)}</span></div>
+    <div style="display:flex;flex-direction:column;gap:14px;padding:6px 20px 24px">
+      <div style="display:flex;align-items:center;gap:10px;font-weight:500;color:oklch(0.55 0.14 155)">
+        <span style="width:26px;height:26px;border-radius:50%;background:oklch(0.72 0.15 155 / 0.15);display:grid;place-items:center">${icon("check", 15)}</span>Saved to Teak</div>
+      <div style="border:1px solid var(--border);border-radius:20px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;padding:14px">
+          <span style="width:52px;height:52px;flex:none;border-radius:14px;background:var(--secondary);display:grid;place-items:center;font-weight:700;font-size:20px">Ic</span>
+          <div style="min-width:0;line-height:1.3"><div style="font-weight:500">Vertical rhythm, and why your type feels off</div>
+            <div style="font-size:15px;color:var(--muted);margin-top:3px">interfacecraft.example</div></div></div>
+        <div style="display:flex;gap:6px;border-top:1px solid var(--border);padding:10px">
+          <span class="chip" style="height:28px">typography</span><span class="chip" style="height:28px">reading</span></div>
+        <div style="border-top:1px solid var(--border);padding:12px 14px;min-height:64px;line-height:1.45">Read before the Halden type review.</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:10px 12px 10px 22px;font-size:15px">
-      <span style="flex:1;color:var(--muted)">alex@example.com</span><span style="padding:6px 10px">Sign out</span>
-      <span style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 12px">${icon("upload", 15)} Upload file</span></div>
   </div>`;
 
 const PILL_TONE: Record<string, string> = {
