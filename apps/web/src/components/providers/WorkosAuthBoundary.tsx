@@ -92,9 +92,11 @@ export function WorkosAuthBoundary({
     bootstrap?.identity === identity && bootstrap.result.status !== "ok"
       ? bootstrap.result.status
       : null;
+  // A vault opened early is already in use, so a slow session check must not
+  // tear it down; a rejected session still closes it below.
   const waiting =
     loading ||
-    auth.isLoading ||
+    (auth.isLoading && !openEarly) ||
     (signedIn &&
       (profile === undefined || (needsBootstrap && blocked === null)));
   useEffect(() => {

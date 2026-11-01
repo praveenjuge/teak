@@ -751,10 +751,14 @@ export function CardModal({
   const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
   const moreLabel = t("menu.moreActions");
 
-  const primaryButton = (compact: boolean): ReactNode => {
-    const className = compact
-      ? SIDEBAR_PRIMARY_COMPACT_CLASS
-      : SIDEBAR_PRIMARY_CLASS;
+  // `quiet` is the trash sidebar's secondary Download, under Restore.
+  const primaryButton = (style: "full" | "compact" | "quiet"): ReactNode => {
+    const className = {
+      full: SIDEBAR_PRIMARY_CLASS,
+      compact: SIDEBAR_PRIMARY_COMPACT_CLASS,
+      quiet: "h-8 w-full rounded-full",
+    }[style];
+    const variant = style === "quiet" ? "secondary" : undefined;
     if (card?.url && !isDeleted) {
       return (
         <ShortcutTooltip keys={["O"]} label={t("header.openTooltip")}>
@@ -770,7 +774,8 @@ export function CardModal({
         </ShortcutTooltip>
       );
     }
-    if (canDownload && !card?.url) {
+    // A file with a URL downloads from the menu, which Trash doesn't have.
+    if (canDownload && (!card?.url || style === "quiet")) {
       return (
         <ShortcutTooltip keys={["O"]} label={t("header.downloadTooltip")}>
           <Button
@@ -780,6 +785,7 @@ export function CardModal({
             disabled={isDownloading}
             onClick={downloadFile}
             size="sm"
+            variant={variant}
           >
             {isDownloading ? <Spinner /> : <Download />}
             {isDownloading ? t("header.downloading") : t("header.download")}
@@ -1047,6 +1053,7 @@ export function CardModal({
         <RotateCcw />
         {t("trash.restore")}
       </Button>
+      {isMobile ? null : primaryButton("quiet")}
       <Button
         className="h-8 w-full rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
         onClick={() => setIsPermanentDeleteConfirmOpen(true)}
@@ -1062,7 +1069,7 @@ export function CardModal({
   const showsSidebarActions = Boolean(card && !isDeleted && !isMobile);
   const actionBlock = showsSidebarActions ? (
     <div className="space-y-2" ref={setActionsElement}>
-      {primaryButton(false)}
+      {primaryButton("full")}
       <div className="grid auto-cols-fr grid-flow-col gap-0.5">
         {sidebarActions.map((action) => (
           <ActionCell
@@ -1093,7 +1100,7 @@ export function CardModal({
           className="fade-in-0 slide-in-from-top-1 flex animate-in items-center gap-1 border-border/60 border-b bg-background/95 px-5 py-2 backdrop-blur duration-150"
           data-testid="pinned-card-actions"
         >
-          {primaryButton(true)}
+          {primaryButton("compact")}
           <span className="flex-1" />
           {sidebarActions.map((action) => (
             <HeaderIconButton
@@ -1401,7 +1408,7 @@ export function CardModal({
                         <Ellipsis />
                       </HeaderIconButton>
                     )}
-                    {primaryButton(true)}
+                    {primaryButton("compact")}
                   </nav>
                 ) : null}
               </div>
