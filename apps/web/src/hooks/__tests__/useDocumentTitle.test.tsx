@@ -34,3 +34,22 @@ test("names the tab after the folder, and follows a rename", async () => {
   await act(() => root?.render(<FolderPage name="Read later" />));
   expect(document.title).toBe("Read later · Teak");
 });
+
+test("keeps the folder's name when the route's metadata title lands later", async () => {
+  document.title = "Teak";
+  root = createRoot(document.body.appendChild(document.createElement("div")));
+  await act(() => root?.render(<FolderPage name="Reading list" />));
+  expect(document.title).toBe("Reading list · Teak");
+
+  // A client-side navigation streams the route's generic title in after.
+  document.title = "Folder · Teak";
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(document.title).toBe("Reading list · Teak");
+
+  // Leaving the page lets the next route name the tab.
+  await act(() => root?.unmount());
+  root = undefined;
+  document.title = "Everything · Teak";
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(document.title).toBe("Everything · Teak");
+});

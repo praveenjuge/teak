@@ -3,9 +3,9 @@
 import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect } from "react";
 import { ChevronRight } from "vadivam-react";
 import { SidebarToggle } from "@/components/sidebar";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { settingsSectionForPath } from "@/lib/settingsSections";
 import { PageHeader, PageTitle } from "@/screens";
 
@@ -14,15 +14,14 @@ export function SettingsHeader() {
   const section = settingsSectionForPath(usePathname());
   const subpage = section && section.id !== "account" ? section : null;
   const pageName = subpage ? t(`nav.${subpage.id}`) : null;
-  const documentTitle = pageName
-    ? t("header.subpageTitle", { page: pageName })
-    : t("header.title");
   // Next.js's route announcer reads `document.title` after each navigation,
   // in an effect; a layout effect sets it first, in the UI's language, so
-  // "Appearance · Settings" is announced rather than the page before's.
-  useLayoutEffect(() => {
-    document.title = `${documentTitle} · Teak`;
-  }, [documentTitle]);
+  // "Appearance · Settings" is announced rather than the page before's. The
+  // route's English metadata title can land later (after a client-side
+  // navigation or a language switch), so the hook puts this one back.
+  useDocumentTitle(
+    pageName ? t("header.subpageTitle", { page: pageName }) : t("header.title")
+  );
   const heading = (
     <PageTitle>
       {subpage ? (
