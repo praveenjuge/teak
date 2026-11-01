@@ -21,7 +21,9 @@ export function SettingsSwitch({
         checked ? "bg-primary" : "bg-input dark:bg-muted"
       )}
       disabled={disabled}
-      onClick={() => onCheckedChange(!checked)}
+      onClick={() => {
+        onCheckedChange(!checked);
+      }}
       role="switch"
       type="button"
     >
