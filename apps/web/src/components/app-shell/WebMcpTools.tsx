@@ -3,13 +3,8 @@
 import { api } from "@teak/convex";
 import { useConvex } from "convex/react";
 import { useEffect } from "react";
-import {
-  getModelContext,
-  registerTeakWebMcpTools,
-  subscribeWebMcpToolEvents,
-  WEBMCP_TOOL_NAMES,
-  type WebMcpToolEventType,
-} from "@/lib/webmcp";
+import type { WebMcpToolEventType } from "@/lib/webmcp";
+import { getModelContext } from "@/lib/webmcpContext";
 
 interface TeakWebmcpDebugHandle {
   events: Partial<Record<WebMcpToolEventType, number>>;
@@ -18,7 +13,7 @@ interface TeakWebmcpDebugHandle {
 
 type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
 
-const createDevDebugHandle = () => {
+const createDevDebugHandle = (toolNames: readonly string[]) => {
   if (process.env.NODE_ENV === "production") {
     return {
       clear: () => undefined,
@@ -35,7 +30,7 @@ const createDevDebugHandle = () => {
       }
     },
     markRegistered: () => {
-      handle.tools = [...WEBMCP_TOOL_NAMES];
+      handle.tools = [...toolNames];
     },
     recordEvent: (type: WebMcpToolEventType) => {
       console.info(`[webmcp] event: ${type}`);
@@ -53,40 +48,54 @@ export function WebMcpTools() {
       return;
     }
     const controller = new AbortController();
-    const debug = createDevDebugHandle();
-    const unsubscribeEvents = subscribeWebMcpToolEvents(
-      modelContext,
-      debug.recordEvent
-    );
-    const stop = (): void => {
-      unsubscribeEvents();
-      controller.abort();
-      debug.clear();
+    let stop = (): void => controller.abort();
+    // Only a browser with WebMCP downloads the tools.
+    const register = async () => {
+      const {
+        registerTeakWebMcpTools,
+        subscribeWebMcpToolEvents,
+        WEBMCP_TOOL_NAMES,
+      } = await import("@/lib/webmcp");
+      if (controller.signal.aborted) {
+        return;
+      }
+      const debug = createDevDebugHandle(WEBMCP_TOOL_NAMES);
+      const unsubscribeEvents = subscribeWebMcpToolEvents(
+        modelContext,
+        debug.recordEvent
+      );
+      stop = () => {
+        unsubscribeEvents();
+        controller.abort();
+        debug.clear();
+      };
+      await registerTeakWebMcpTools(
+        modelContext,
+        {
+          searchCards: (args) => convex.query(api.cards.searchCards, args),
+          getCard: (cardId) =>
+            convex.query(api.cards.getCardByUrlId, { id: cardId }),
+          createCard: (args) =>
+            convex.mutation(api.cards.createCard, { ...args, source: "web" }),
+          editCardTags: ({ action, cardId, tags }) =>
+            convex.mutation(api.cards.bulkUpdateCards, {
+              action,
+              cardIds: [cardId],
+              tags,
+            }),
+          setCardFavorite: ({ cardId, favorited }) =>
+            convex.mutation(api.cards.updateCardField, {
+              cardId,
+              field: "isFavorited",
+              value: favorited,
+            }),
+        },
+        { signal: controller.signal }
+      );
+      debug.markRegistered();
     };
-    registerTeakWebMcpTools(
-      modelContext,
-      {
-        searchCards: (args) => convex.query(api.cards.searchCards, args),
-        getCard: (cardId) =>
-          convex.query(api.cards.getCardByUrlId, { id: cardId }),
-        createCard: (args) =>
-          convex.mutation(api.cards.createCard, { ...args, source: "web" }),
-        editCardTags: ({ action, cardId, tags }) =>
-          convex.mutation(api.cards.bulkUpdateCards, {
-            action,
-            cardIds: [cardId],
-            tags,
-          }),
-        setCardFavorite: ({ cardId, favorited }) =>
-          convex.mutation(api.cards.updateCardField, {
-            cardId,
-            field: "isFavorited",
-            value: favorited,
-          }),
-      },
-      { signal: controller.signal }
-    ).then(debug.markRegistered, stop);
-    return stop;
+    register().catch(() => stop());
+    return () => stop();
   }, [convex]);
 
   return null;

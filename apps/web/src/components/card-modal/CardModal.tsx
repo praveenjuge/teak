@@ -111,9 +111,9 @@ import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
   CARD_MODAL_SURFACE_CLASS,
-  cardModalFrameClass,
   GUTTER_CLOSE_STYLE,
   gutterNavStyle,
+  useCardModalFrameClass,
 } from "./cardModalFrame";
 import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
@@ -423,6 +423,7 @@ export function CardModal({
 
   const saveStatus = useSaveStatus(saveState);
   const stage = useStageView(card, open);
+  const frameClass = useCardModalFrameClass(card);
   const readerControls = useRef<ReaderHighlightControls | null>(null);
   const [highlightJump, setHighlightJump] = useState<HighlightJump | null>(
     null
@@ -1198,7 +1199,7 @@ export function CardModal({
         <DialogContent
           {...{ [CARD_DIALOG_ATTRIBUTE]: "" }}
           className={cn(
-            cardModalFrameClass(card?.type),
+            frameClass,
             openOrigin &&
               "md:data-[state=open]:zoom-in-[0.7] md:data-[state=open]:duration-200 md:data-[state=open]:ease-out"
           )}

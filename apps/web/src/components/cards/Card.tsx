@@ -10,7 +10,7 @@ import {
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
-import { memo, useRef } from "react";
+import { memo, use, useRef } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -61,6 +61,7 @@ import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
+import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import { CardBody } from "./CardBody";
 import {
@@ -178,6 +179,7 @@ export const Card = memo(function Card({
   );
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
+  const isFirstPaintCopy = use(FirstPaintCopyContext);
   const cardRef = useRef<HTMLDivElement>(null);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
@@ -556,7 +558,9 @@ export const Card = memo(function Card({
               isSelected &&
                 "ring-2 ring-primary ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-primary"
             )}
-            data-card-id={isOptimistic ? undefined : card._id}
+            data-card-id={
+              isOptimistic || isFirstPaintCopy ? undefined : card._id
+            }
             draggable={canDrag}
             onClick={handleClick}
             onDragStart={canDrag ? handleDragStart : undefined}

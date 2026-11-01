@@ -56,3 +56,43 @@ export function settingsSectionForPath(
   const path = pathname.replace(/\/+$/, "");
   return SETTINGS_SECTIONS.find((section) => section.href === path) ?? null;
 }
+
+/** The account data a Settings page shows beyond the account itself. */
+export interface SettingsData {
+  apiKeys: boolean;
+  exportState: boolean;
+  sessions: boolean;
+}
+
+export const NO_SETTINGS_DATA: SettingsData = {
+  apiKeys: false,
+  exportState: false,
+  sessions: false,
+};
+
+const ALL_SETTINGS_DATA: SettingsData = {
+  apiKeys: true,
+  exportState: true,
+  sessions: true,
+};
+
+const SETTINGS_DATA_BY_SECTION: Record<SettingsSectionId, SettingsData> = {
+  // The overview sums up keys, devices and the last export.
+  account: ALL_SETTINGS_DATA,
+  plan: NO_SETTINGS_DATA,
+  appearance: NO_SETTINGS_DATA,
+  integrations: { ...NO_SETTINGS_DATA, apiKeys: true },
+  security: { ...NO_SETTINGS_DATA, sessions: true },
+  data: { ...NO_SETTINGS_DATA, exportState: true },
+};
+
+/**
+ * What a Settings page needs loaded. Signed-in devices come from WorkOS on
+ * every load, so pages that don't list them don't ask.
+ */
+export function settingsDataForPath(
+  pathname: string | null | undefined
+): SettingsData {
+  const section = settingsSectionForPath(pathname);
+  return section ? SETTINGS_DATA_BY_SECTION[section.id] : ALL_SETTINGS_DATA;
+}

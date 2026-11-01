@@ -12,10 +12,13 @@ import type { ConnectionTarget } from "../components/settings/SecurityConnection
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
+import type { SettingsData } from "../lib/settingsSections";
 import { useDeviceSessions } from "./useDeviceSessions";
 import { useServerErrors } from "./useServerErrors";
 
 interface UseSettingsControllerOptions {
+  /** What to load beyond the account. Everything when left out. */
+  load?: SettingsData;
   onDeleteAccount: () => Promise<void>;
   /** `window.open` after an await is rejected by the popup blocker. */
   onDownloadFile?: (url: string) => Promise<unknown> | unknown;
@@ -23,7 +26,14 @@ interface UseSettingsControllerOptions {
   onSignOut: () => Promise<void> | void;
 }
 
+const LOAD_EVERYTHING: SettingsData = {
+  apiKeys: true,
+  exportState: true,
+  sessions: true,
+};
+
 export function useSettingsController({
+  load = LOAD_EVERYTHING,
   onDeleteAccount,
   onDownloadFile,
   onOpenExternal,
@@ -37,7 +47,10 @@ export function useSettingsController({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const createCustomerPortal = useAction(api.billing.createCustomerPortal);
-  const keys = useQuery(api.apiKeys.listUserApiKeys, {}) as
+  const keys = useQuery(
+    api.apiKeys.listUserApiKeys,
+    load.apiKeys ? {} : "skip"
+  ) as
     | {
         id: string;
         name: string;
@@ -52,7 +65,9 @@ export function useSettingsController({
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
   const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
   const connectionUserId = user?._id;
-  const devices = useDeviceSessions(connectionUserId);
+  const devices = useDeviceSessions(
+    load.sessions ? connectionUserId : undefined
+  );
   const revokeAuthkitSession = useAction(
     api.securitySessions.revokeAuthkitSession
   );
@@ -89,7 +104,10 @@ export function useSettingsController({
   activeConnectionIdentity.current = connectionIdentity?.cacheKey;
   const disconnectConsent = useAction(api.workosConsents.disconnectConnection);
 
-  const exportState = useQuery(api.dataExport.getLatestExport, {}) as
+  const exportState = useQuery(
+    api.dataExport.getLatestExport,
+    load.exportState ? {} : "skip"
+  ) as
     | {
         job: {
           id: string;

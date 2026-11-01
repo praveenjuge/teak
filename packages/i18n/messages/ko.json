@@ -830,6 +830,7 @@
       "showTagged": "{tag} 태그가 붙은 카드 보기",
       "suggestedTags": "{count, plural, other {추천 태그 #개}}",
       "summary": "요약",
+      "folders": "폴더",
       "tags": "태그",
       "teakTagHint": "Teak이 추가한 태그입니다. {tag} 태그가 붙은 카드 보기",
       "highlights": "하이라이트 · {count, number}",

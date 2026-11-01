@@ -830,6 +830,7 @@
       "showTagged": "タグ {tag} の付いたカードを表示",
       "suggestedTags": "{count, plural, other {# 件のおすすめタグ}}",
       "summary": "要約",
+      "folders": "フォルダ",
       "tags": "タグ",
       "teakTagHint": "Teak が付けたタグです。タグ {tag} の付いたカードを表示",
       "highlights": "ハイライト · {count, number}",

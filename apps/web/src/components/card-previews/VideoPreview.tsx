@@ -1,6 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
+import { useRef } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 
@@ -22,6 +23,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
     storageKey: card.fileKey,
   });
   const fileUrl = media.src;
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   if (!fileUrl) {
     return null;
@@ -56,11 +58,14 @@ export function VideoPreview({ card }: VideoPreviewProps) {
       // A new URL needs a new element: a <source> change doesn't reload.
       key={fileUrl}
       // A link that expires mid-playback fails here, not on <source>.
-      onError={() => void media.onError()}
+      onError={(event) => void media.onError(event.currentTarget)}
+      // A refreshed link carries on from where the old one stopped.
+      onLoadedMetadata={(event) => media.resume(event.currentTarget)}
       preload="metadata"
+      ref={videoRef}
     >
       <source
-        onError={() => void media.onError()}
+        onError={() => void media.onError(videoRef.current)}
         src={fileUrl}
         type={card.fileMetadata?.mimeType}
       />

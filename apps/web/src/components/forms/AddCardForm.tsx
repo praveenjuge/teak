@@ -549,7 +549,7 @@ export function AddCardForm({
         value={content}
       />
       <Card
-        className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+        className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         data-new-note-composer=""
         onFocus={onFocus}
       >

@@ -830,6 +830,7 @@
       "showTagged": "Mostrar las tarjetas con la etiqueta {tag}",
       "suggestedTags": "{count, plural, one {# etiqueta sugerida} other {# etiquetas sugeridas}}",
       "summary": "Resumen",
+      "folders": "Carpetas",
       "tags": "Etiquetas",
       "teakTagHint": "Etiqueta añadida por Teak. Mostrar las tarjetas con la etiqueta {tag}",
       "highlights": "Resaltados · {count, number}",

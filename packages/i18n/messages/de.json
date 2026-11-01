@@ -830,6 +830,7 @@
       "showTagged": "Karten mit dem Tag {tag} anzeigen",
       "suggestedTags": "{count, plural, one {# vorgeschlagener Tag} other {# vorgeschlagene Tags}}",
       "summary": "Zusammenfassung",
+      "folders": "Ordner",
       "tags": "Tags",
       "teakTagHint": "Von Teak hinzugefügter Tag. Karten mit dem Tag {tag} anzeigen",
       "highlights": "Markierungen · {count, number}",

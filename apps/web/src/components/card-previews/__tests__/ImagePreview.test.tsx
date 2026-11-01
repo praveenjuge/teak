@@ -187,4 +187,32 @@ describe("ImagePreview in a dialog left open", () => {
     expect(img()).toBeNull();
     expect(container.textContent).toBe("photo.jpg");
   });
+  test("pulses in the image's box until the image has loaded", async () => {
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileUrl: "https://cdn.example.com/photo.jpg",
+              fileMetadata: { width: 1200, height: 800 },
+            }) as any
+          }
+        />
+      )
+    );
+    const image = container.querySelector("img") as HTMLImageElement;
+    const placeholder = () =>
+      container.querySelector('[data-slot="media-loading"]');
+    expect(image.dataset.loading).toBe("true");
+    expect(placeholder()?.className).toContain("animate-pulse");
+
+    await act(() => {
+      image.dispatchEvent(new Event("load"));
+    });
+    expect(image.dataset.loading).toBeUndefined();
+    expect(placeholder()).toBeNull();
+    await act(() => root.unmount());
+  });
 });
