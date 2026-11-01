@@ -16,7 +16,6 @@ import { TRASH_COUNT_LIMIT } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { permanentDeleteCardForUserHandler } from "./deleteCard";
 
-/** Cards listed per run; each run schedules their deletes and the next run. */
 export const EMPTY_TRASH_PAGE_SIZE = 25;
 
 /**
@@ -36,11 +35,6 @@ const trashedCards = (ctx: QueryCtx, userId: string) =>
       q.eq("userId", userId).eq("isDeleted", true)
     );
 
-/**
- * Counts the account's Trash, hidden cards included, reading at most
- * `TRASH_COUNT_LIMIT` cards and `COUNT_BYTES`. `more` is true when Trash holds
- * cards past the ones counted, so the count means "this many or more".
- */
 const countTrashedCards = async (ctx: QueryCtx, userId: string) => {
   const { page, isDone } = await trashedCards(ctx, userId).paginate({
     cursor: null,
@@ -50,16 +44,11 @@ const countTrashedCards = async (ctx: QueryCtx, userId: string) => {
   return { count: page.length, more: !isDone };
 };
 
-/** A card moved to Trash after Empty Trash started stays there. */
 const trashedBefore = (card: Doc<"cards">, startedAt: number) =>
   card.isDeleted === true && (card.deletedAt ?? 0) <= startedAt;
 
 const trashCountValidator = v.object({ count: v.number(), more: v.boolean() });
 
-/**
- * How many cards are in Trash. When `more` is true there are more than
- * `count`, and a confirmation says "this many or more".
- */
 export const trashCount = query({
   args: {},
   returns: trashCountValidator,
@@ -72,11 +61,6 @@ export const trashCount = query({
   },
 });
 
-/**
- * Permanently deletes every card in the account's Trash. It returns the
- * count (as `trashCount` does) and deletes them after it returns, skipping
- * cards trashed after the call.
- */
 export const emptyTrash = mutation({
   args: {},
   returns: trashCountValidator,
@@ -149,7 +133,6 @@ export const emptyTrashPage = internalMutation({
   },
 });
 
-/** Deletes one card, unless it was deleted, restored or trashed again since. */
 export const emptyTrashCard = internalMutation({
   args: { userId: v.string(), startedAt: v.number(), cardId: v.id("cards") },
   returns: v.null(),

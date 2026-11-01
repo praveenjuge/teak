@@ -352,7 +352,6 @@ type ScenarioPack = { description: string } & (
       ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
     }
   | {
-      /** A large pack that writes more than cards, one page at a time. */
       pagedSeed: (
         ctx: MutationCtx,
         userId: string,
@@ -367,10 +366,6 @@ type ScenarioPack = { description: string } & (
 
 const FILL_START = Date.UTC(2025, 0, 1);
 
-/**
- * The cards that bring a library to `target` active cards: `lead` first,
- * those not saved yet, then text fillers.
- */
 const fillScenarioCards = async (
   ctx: MutationCtx,
   userId: string,
@@ -665,7 +660,6 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   },
 };
 
-/** Save by email on, as if an email arrived an hour ago. */
 const turnOnSaveByEmail = async (ctx: MutationCtx, userId: string) => {
   const now = Date.now();
   const existing = await ctx.db
@@ -702,7 +696,6 @@ export const seedScenario = internalMutation({
     workosUserId: v.string(),
     scenario: v.string(),
     page: v.optional(v.number()),
-    /** `dead-links` only: the server its links point at. */
     origin: v.optional(v.string()),
   },
   returns: v.object({

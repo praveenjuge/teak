@@ -95,7 +95,6 @@ interface CardsQueryOptions {
   qualifiers?: {
     archivedInTrash?: boolean;
     done?: boolean;
-    /** The query's exclusions and OR groups, as `q` text. */
     expression?: string;
     folderNames?: string[];
     ocrTexts?: string[];
@@ -125,7 +124,6 @@ interface CreateCardPayload {
   fileSize?: number;
   mimeType?: string;
   notes?: string | null;
-  /** From POST /v1/page-snapshots/upload: the page as the browser saw it. */
   pageSnapshotKey?: string;
   source?: string;
   sourceTitle?: string;

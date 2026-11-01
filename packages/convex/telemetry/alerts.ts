@@ -21,7 +21,6 @@ export const reportBackgroundFailure = internalAction({
   },
 });
 
-/** Reports a background job that stopped and needs an operator. */
 export const reportFromMutation = async (
   ctx: MutationCtx,
   message: string,

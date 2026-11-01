@@ -3,8 +3,6 @@ import SwiftUI
 import TeakCore
 import TeakSync
 
-/// Revisit: up to 20 shuffled cards from the current view, one at a time.
-/// Archive the ones you're done with, keep the rest.
 @MainActor @Observable
 final class RevisitModel {
     static let deckSize = 20
@@ -53,7 +51,6 @@ final class RevisitModel {
         query["sort"] = "shuffle"
         query["shuffleSeed"] = .number(seed)
         do {
-            // A shuffled page can come back short, so keep reading until the deck is full.
             var dealt: [CardSummary] = []
             var done = false
             while dealt.count < Self.deckSize, !done {
@@ -100,7 +97,6 @@ final class RevisitModel {
         index += 1
     }
 
-    /// Steps back one card; an archived one comes back to the library.
     func undo() async {
         guard let last = history.last, !isPending else { return }
         isPending = true
@@ -121,8 +117,6 @@ final class RevisitModel {
         lastArchived = history.last(where: \.archived)?.id
     }
 
-    /// Brings the last archived card back to the library and steps back to it.
-    /// Cards kept after it come round again; keeping saved nothing.
     func undoLastArchive() async {
         guard let at = history.lastIndex(where: \.archived), !isPending else { return }
         isPending = true

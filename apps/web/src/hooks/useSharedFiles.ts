@@ -40,18 +40,11 @@ const rememberPendingShare = (id: string | null) => {
   }
 };
 
-// Saved or turned down: the files are no longer needed.
 const settleShare = (storage: CacheStorage | undefined, id: string) => {
   rememberPendingShare(null);
   discardSharedFiles(storage, id).catch(() => undefined);
 };
 
-/**
- * Uploads the files shared to the installed web app, which the service worker
- * kept under `id`, through the same queue as a drop. Says so when they're gone.
- * In a browser tab it asks first, and keeps the files until they're saved or
- * turned down, so a reload in that tab asks again.
- */
 export function useSharedFiles(id: string | null) {
   const t = useTranslations("providers.fileDrop");
   const tc = useTranslations("common");

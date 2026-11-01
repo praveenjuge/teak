@@ -127,7 +127,6 @@ export interface UploadFileFromUriArgs {
 
 export type UploadTranslator = TeakTranslator<"hooks.upload">;
 
-/** The upload messages' language. Without one, they're English. */
 export interface FileUploadTranslators {
   errors?: ErrorsTranslator;
   upload?: UploadTranslator;

@@ -17,7 +17,6 @@ const SHARED_LANGUAGE_RULES = `- In Japanese, Chinese and Korean, each tag is on
 export const CONTENT_LANGUAGE_RULES = `- Write the tags and the summary in the same language as the content. If the content mixes languages, use the main one. If you can't tell the language, use English.
 ${SHARED_LANGUAGE_RULES}
 - Language is the content's main language as a lowercase ISO 639-1 code, such as "en", "ja" or "es".`;
-/** The image prompt's version of the rules: its language is the image's text. */
 export const IMAGE_LANGUAGE_RULES = `- Write the tags and the summary in the language of the text in the image. If the text mixes languages, use the main one. If the image has no legible text, use English.
 ${SHARED_LANGUAGE_RULES}
 - Language is the main language of the text in the image as a lowercase ISO 639-1 code, such as "en", "ja" or "es", and "en" when it has no legible text.`;
@@ -125,11 +124,6 @@ const canonicalLanguage = (code: string): string => {
   }
 };
 
-/**
- * A model's `language` as a BCP 47 primary language subtag (`ja`, `es`,
- * `fil`), or undefined. Case, `_` and a region or script are tolerated
- * (`ZH`, `pt_BR`, `zh-Hans-CN`); anything else is dropped, never retried.
- */
 export const normalizeAiLanguage = (value: unknown): string | undefined => {
   if (typeof value !== "string" || value.length > 35) {
     return;

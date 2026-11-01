@@ -5,10 +5,6 @@ import { r2KeyValidator } from "../../../schema";
 import { rateLimiter } from "../../../shared/rateLimits";
 import { buildR2UserPrefix } from "../../../storage/r2";
 
-// What the Core Worker's podcast step asks of Convex: a transcription slot
-// for the card's owner, and a place on the card for the episode's audio
-// while it is stored, so deleting the card deletes it too.
-
 /** One of the owner's podcast transcriptions this hour; false past the limit. */
 export const takePodcastTranscriptSlot = internalMutation({
   args: { userId: v.string() },
@@ -31,7 +27,6 @@ export const trackPodcastAudio = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { cardId, key, stored }) => {
     const card = await ctx.db.get("cards", cardId);
-    // Only an object in the owner's own storage is the card's.
     if (!(card && key.startsWith(`${buildR2UserPrefix(card.userId)}/`))) {
       return false;
     }

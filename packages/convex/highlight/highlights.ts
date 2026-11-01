@@ -61,7 +61,6 @@ const fail = (
   throw new ConvexError({ code, message, ...extra });
 };
 
-/** One highlight as the owner reads it. */
 export const highlightReturnValidator = v.object({
   ...highlightValidator.fields,
   _id: v.id("highlights"),
@@ -83,7 +82,6 @@ const isAnchored = (
 ): row is Doc<"highlights"> & { end: number; start: number } =>
   row.unanchored !== true && row.start !== undefined && row.end !== undefined;
 
-/** Article order: by where each starts, the ones not yet found last. */
 export const inArticleOrder = (
   rows: Doc<"highlights">[]
 ): Doc<"highlights">[] =>
@@ -174,7 +172,6 @@ const ownedHighlight = async (
   return row;
 };
 
-/** The ready article of a link card that isn't in Trash, or NO_ARTICLE. */
 export const highlightableArticle = (card: Doc<"cards">) => {
   if (
     card.type !== "link" ||
@@ -422,7 +419,6 @@ export const createHighlightForUser = async (
   return { created: !placed.merged, highlight, merged: placed.merged };
 };
 
-/** Writes, changes or (null or empty) clears a highlight's note. */
 export const updateHighlightNoteForUser = async (
   ctx: MutationCtx,
   userId: string,
@@ -471,7 +467,6 @@ export const removeHighlightForUser = async (
   return row;
 };
 
-/** A card's highlights for its owner, in article order. */
 export const listHighlightsForUser = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
@@ -607,8 +602,6 @@ export const insertImportedHighlights = async (
   }
   return written;
 };
-
-// The reader's functions, for the signed-in owner.
 
 export const listForCard = query({
   args: { cardId: v.id("cards") },

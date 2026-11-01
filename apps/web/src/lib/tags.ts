@@ -48,7 +48,6 @@ export type TagsTranslator = TeakTranslator<"lib.tags">;
 
 const englishTags: TagsTranslator = englishTranslator("lib.tags");
 
-/** The server's message, translated when the catalog knows it. */
 export const tagErrorMessage = (
   error: unknown,
   fallback: string,

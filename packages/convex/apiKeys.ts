@@ -204,7 +204,6 @@ const validateComponentApiKey = async (ctx: MutationCtx, token: string) => {
   };
 };
 
-// Every key minted counts, whether created or made by regenerating another.
 const limitKeyMinting = async (ctx: MutationCtx, ownerId: string) => {
   const rateLimitResult = await rateLimiter.limit(ctx, "apiKeyCreation", {
     key: ownerId,

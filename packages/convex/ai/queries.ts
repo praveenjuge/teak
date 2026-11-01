@@ -6,7 +6,6 @@ import { createAccountDeletionGate } from "../accountDeletion";
 const AI_BACKFILL_BATCH_SIZE = 50;
 const AI_BACKFILL_GRACE_MS = 5 * 60 * 1000;
 
-/** No AI summary, tags or transcript yet: what `aiPending` marks. */
 export const cardNeedsAiMetadata = (
   card: Pick<Doc<"cards">, "aiSummary" | "aiTags" | "aiTranscriptCharCount">
 ): boolean =>

@@ -50,10 +50,6 @@ const FIELD_BY_HEADER = new Map<string, CsvField>(
   )
 );
 
-/**
- * Tags split on commas, or on `|` or `;` when the cell has no comma, with a
- * leading `#` dropped from each.
- */
 export function splitCsvTags(cell: string): string[] {
   let separator = ";";
   if (cell.includes(",")) {

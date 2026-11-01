@@ -41,10 +41,6 @@ export interface ResolvedSearch {
   hasCardFilters: boolean;
   includeHidden: boolean;
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
-  /**
-   * `matches` decided from a card's search document, when every check reads
-   * a field the document keeps in step with the card; otherwise undefined.
-   */
   matchesDocument?: (document: Doc<"cardSearchDocuments">) => boolean;
   ocrText: string;
   phrases: string[];
@@ -57,7 +53,6 @@ export interface ResolvedSearch {
   types?: CardType[];
 }
 
-// Search document text one search may read back for an expression's words.
 const EXPRESSION_TEXT_READ_BUDGET_CHARS = 2 * 1024 * 1024;
 
 /**
@@ -103,7 +98,6 @@ export const cardHasTag = (card: Doc<"cards">, tag: string) =>
     (cardTag) => normalizeCardSearchTag(cardTag) === tag
   );
 
-/** The site a card is on, read from its URL so unsynced cards match too. */
 export const cardUrlHost = (
   card: Pick<Doc<"cards">, "sourceUrl" | "url" | "urlHost">
 ) => cardSiteHost(card) ?? card.urlHost ?? null;
@@ -178,12 +172,6 @@ export const expandFolderSearch = async (
   return combined === null ? null : { searchQuery: combined };
 };
 
-/**
- * The card types a parsed query can match within `types` (undefined for any
- * type): `type:` qualifiers intersect them, `is:done`, `is:todo` and prices
- * only match links, and a mood search only matches images. Null when the
- * query can match no type.
- */
 export const narrowTypesForQuery = (
   parsed: Pick<
     ParsedSearchQuery,
@@ -237,8 +225,6 @@ export const resolveSearch = async (
   const archivedInTrash = trash && parsed.archived;
   let archived: ArchivedFilter =
     !trash && parsed.archived ? "only" : view.archived;
-  // `is:archived` inside an OR or group reads archived cards too, and the
-  // expression decides which of them match.
   if (archived === "exclude" && expressionWantsArchived(expression)) {
     archived = "include";
   }
@@ -276,7 +262,6 @@ export const resolveSearch = async (
   ).filter(Boolean);
   const { sites, phrases, prices, ocrTexts } = parsed;
   const revealedByTags = revealsHidden(tags);
-  // Hidden cards come only through an OR branch that asks for their tag.
   const revealTags = revealedByTags ? [] : expressionRevealTags(expression);
   const includeHidden = revealedByTags || revealTags.length > 0;
 

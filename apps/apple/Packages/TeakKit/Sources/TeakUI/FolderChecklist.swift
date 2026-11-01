@@ -7,7 +7,6 @@ import TeakCore
 public struct FolderChecklist: View {
     /// The user's folders; nil while they load.
     let folders: [Folder]?
-    /// Why the folders didn't load.
     let loadError: String?
     @Binding var selection: [String]
     let retry: () -> Void
@@ -89,7 +88,6 @@ public struct FolderChecklist: View {
     }
 }
 
-/// A search field, only once there are enough folders to need one.
 private struct FolderSearch: ViewModifier {
     let isOn: Bool
     @Binding var query: String

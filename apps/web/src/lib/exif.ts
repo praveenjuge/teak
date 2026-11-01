@@ -66,7 +66,6 @@ export function formatExposureTime(seconds?: number): string | null {
 
 const MAX_OFFSET_MINUTES = 14 * 60;
 
-/** "UTC+5:30", "UTC-8" or "UTC", or null without a believable offset. */
 const formatUtcOffset = (minutes?: number): string | null => {
   if (
     typeof minutes !== "number" ||
@@ -128,10 +127,6 @@ export type ExifTranslator = TeakTranslator<"lib.exif">;
 
 const englishExif: ExifTranslator = englishTranslator("lib.exif");
 
-/**
- * The fields to show, labelled in the UI language. Dates use `locale`;
- * units (s, mm, f/) stay as cameras write them.
- */
 export function formatExifFields(
   exif?: ImageExif | null,
   t: ExifTranslator = englishExif,

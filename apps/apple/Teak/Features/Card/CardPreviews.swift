@@ -7,9 +7,7 @@ import TeakCore
 struct CardPreview: View {
     let card: Card
     var linkTargets: [String: CardLinkTarget] = [:]
-    /// Ticks or unticks a task in a note; nil keeps its checkboxes read-only.
     var toggleTask: ((MarkdownListItem) -> Void)?
-    /// Adds and removes a palette's colors; nil keeps them read-only.
     var palette: PaletteActions?
 
     var body: some View {
@@ -77,7 +75,6 @@ struct ImagePreview: View {
         }
     }
 
-    /// Full screen on iPhone and iPad; its own zoomable window on Mac.
     private func open(_ item: ImageViewerItem) {
         #if os(macOS)
         openWindow(id: ImageWindow.id, value: item)
@@ -215,7 +212,6 @@ final class AudioPlayback {
         isPlaying.toggle()
     }
 
-    /// Pauses and lets other apps' audio carry on. Playing again starts a fresh player from where it was.
     func stop() {
         player?.pause()
         isPlaying = false
@@ -235,7 +231,6 @@ final class AudioPlayback {
         player = nil
     }
 
-    /// Moves to `fraction` of the recording, playing or not, as the web's seek bar does.
     func seek(to fraction: Double, url: URL) {
         guard duration > 0 else { return }
         if player == nil { prepare(url) }
@@ -319,7 +314,6 @@ struct AudioPreview: View {
         #endif
     }
 
-    /// The length before playing, then where it is out of the length, like the web.
     private var timeLabel: String {
         let started = playback.isPlaying || playback.elapsed > 0
         guard playback.duration > 0 else { return started ? CardSheet.formatDuration(playback.elapsed) : "" }
@@ -329,12 +323,10 @@ struct AudioPreview: View {
     }
 }
 
-/// The waveform as a seek bar: tap or drag to move through the recording. VoiceOver adjusts it in steps.
 private struct SeekBar: View {
     let seed: String
     let playback: AudioPlayback
     let url: URL
-    /// Where a drag is, shown until it lets go and seeks there.
     @State private var scrub: Double?
 
     var body: some View {
@@ -356,7 +348,6 @@ private struct SeekBar: View {
         .accessibilityValue(tr("native.media.seekPosition", CardSheet.formatDuration(playback.elapsed),
                                CardSheet.formatDuration(playback.duration)))
         .accessibilityAdjustableAction { direction in
-            // Five seconds, or a tenth of a recording shorter than 50 seconds.
             let step = playback.duration > 0 ? min(5, playback.duration / 10) / playback.duration : 0
             switch direction {
             case .increment: playback.seek(to: playback.progress + step, url: url)
@@ -447,7 +438,6 @@ extension PDFPreview {
     }
 }
 
-/// Saves a palette's color edits. Each returns whether the save went through.
 struct PaletteActions {
     let add: @MainActor (String) async -> Bool
     let remove: @MainActor (String) async -> Bool
@@ -480,7 +470,6 @@ struct PalettePreview: View {
     }
 
     private func swatch(_ color: CardColor, canRemove: Bool) -> some View {
-        // Shown and removed by its RGB; the model keeps the stored value for Undo.
         let hex = PaletteEdit.storedHex(color.hex)
         return Button {
             Pasteboard.copy(color.hex)
@@ -550,10 +539,8 @@ struct PalettePreview: View {
     }
 }
 
-/// Add color: a color picker and a hex field that follow each other, with a preview of the color to add.
 private struct AddColorSheet: View {
     let card: Card
-    /// As a sheet, the form starts at the top rather than floating in the middle.
     let fillsSheet: Bool
     let add: (String) async -> Bool
     @Environment(\.dismiss) private var dismiss
@@ -607,7 +594,6 @@ private struct AddColorSheet: View {
         .frame(minWidth: 300, idealWidth: 340)
         .frame(maxHeight: fillsSheet ? .infinity : nil, alignment: .top)
         .onChange(of: text) { _, typed in
-            // A complete hex code moves the picker; anything else leaves it where it is.
             guard let typedHex = PaletteEdit.normalizedHex(typed), typedHex != Self.hex(picked),
                   let color = Self.color(typedHex) else { return }
             picked = color
@@ -625,7 +611,6 @@ private struct AddColorSheet: View {
         return !isSaving && !PaletteEdit.contains(card, hex)
     }
 
-    /// Why Add is off: not a hex code, or already in the palette. Nothing while the field is empty.
     private func problem(_ hex: String?) -> String? {
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
         guard let hex else { return tr("native.card.palette.invalidHex") }

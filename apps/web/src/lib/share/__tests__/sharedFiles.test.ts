@@ -20,7 +20,6 @@ const fakeStorage = () => {
   return { cache, entries, storage };
 };
 
-// The worker stores each File itself, so the body is a typed blob.
 const kept = (body: string, name: string, type: string) =>
   new Response(new Blob([body], { type }), {
     headers: {

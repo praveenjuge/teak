@@ -22,10 +22,6 @@ test("sitemap pages and internal links resolve", async () => {
         )
       ).flat();
   expect(pages.length).toBeGreaterThan(0);
-  // Every page links to the same header, footer and nav targets. Check each
-  // internal target once (the status is shared) instead of once per page, so
-  // the crawl costs one request per unique URL and stays inside the test
-  // budget as the sitemap and the link count per page grow.
   const linkStatuses = new Map<string, Promise<number>>();
   const linkStatus = (target: string) => {
     let status = linkStatuses.get(target);

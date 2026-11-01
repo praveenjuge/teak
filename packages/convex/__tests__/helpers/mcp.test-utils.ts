@@ -64,7 +64,6 @@ export const EXPECTED_TOOL_NAMES = [
   "teak_v1_update_highlight",
 ];
 
-/** Sets the AuthKit domain for each test and restores the env after it. */
 export const setUpMcpEnv = () => {
   beforeEach(() => {
     process.env.WORKOS_AUTHKIT_DOMAIN = AUTHKIT_DOMAIN;

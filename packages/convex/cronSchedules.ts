@@ -20,7 +20,6 @@ export const CRONS = {
     everyMs: DAY_MS,
     runsOn: "convex",
   },
-  // The Core Worker runs the hourly cleanups with the workflow reconcile.
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",
     schedule: "45 * * * *",
@@ -45,8 +44,6 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "cloudflare",
   },
-  // Save by email receipts past any sender's redelivery window, pruned by the
-  // maintenance workflow with the export cleanup.
   cleanupInboundEmailReceipts: {
     name: "cleanup-inbound-email-receipts",
     schedule: "0 3 * * *",

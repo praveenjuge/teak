@@ -1,4 +1,3 @@
-/** Cards as the public API serializes them (trimmed to what the view reads). */
 export const linkCard = {
   aiSummary: "A field guide to variable fonts on the web.",
   aiTags: ["typography"],

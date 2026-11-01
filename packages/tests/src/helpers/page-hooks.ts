@@ -90,10 +90,6 @@ export const blockAndRecordRequests = async (
 
 export type SocketMessage = Record<string, any>;
 
-/**
- * What an interceptor can do from inside the page. `state` is a plain object
- * on `window.__teakSocket.state` that the test reads with `readSocketState`.
- */
 export interface SocketContext {
   state: Record<string, any>;
   toClient: (message: SocketMessage) => void;
@@ -208,12 +204,6 @@ export const readSocketState = <T = Record<string, unknown>>(
     JSON.parse(JSON.stringify((window as any).__teakSocket?.state ?? {}))
   ) as Promise<T>;
 
-/**
- * Delivers `message` to the app on the newest routed Convex socket, as if
- * the server had sent it. A test uses it to release, at a moment it chooses,
- * a response an interceptor held back (an interceptor returns `null` and
- * records what it saw in `state`).
- */
 export const deliverToClient = async (
   browser: Browser,
   message: SocketMessage

@@ -29,9 +29,7 @@ export type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
   hasOcrText?: true;
-  /** A ready article's Markdown, signed; only a card's detail has it. */
   articleUrl?: string;
-  /** The article's images, signed, in `teak-image:<n>` order. */
   articleImageUrls?: string[];
 };
 
@@ -76,7 +74,6 @@ const articleUrls = async (
     : {};
 };
 
-/** A card as its detail shows it: with its transcript and image text. */
 export const attachCardDetailUrls = async (
   ctx: Pick<QueryCtx, "db">,
   card: Doc<"cards">

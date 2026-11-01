@@ -66,7 +66,6 @@ const installClock = (browser: Browser, time: number) =>
     });
   }, time);
 
-/** Moves the clock without firing timers, like `clock.setSystemTime`. */
 const setSystemTime = (browser: Browser, time: number) =>
   browser.evaluate((next: number) => {
     window.__teakClock.setSystemTime(next);

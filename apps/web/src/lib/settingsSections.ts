@@ -47,7 +47,6 @@ export const SETTINGS_SECTION_KEYWORDS: Record<
   data: ["backup", "download", "bookmarks"],
 };
 
-/** The section a Settings path belongs to, or null outside Settings. */
 export function settingsSectionForPath(
   pathname: string | null | undefined
 ): SettingsSection | null {

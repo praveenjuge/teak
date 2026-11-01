@@ -77,8 +77,6 @@ type ClientFileMetadata = Pick<
   keyof typeof CLIENT_FILE_METADATA_FIELDS
 >;
 
-// Moves the file facts a client sent inside `metadata` into `fileMetadata`.
-// A value of the wrong type is refused, as the schema would refuse it on insert.
 const takeClientFileMetadata = (
   metadata: Record<string, unknown>
 ): ClientFileMetadata | undefined => {
@@ -117,10 +115,6 @@ interface CreateCardArgs {
   fileKey?: string;
   metadata?: unknown;
   notes?: string;
-  /**
-   * A link's page as the browser extension saw it: one of the caller's
-   * pending snapshot uploads. Ignored when it isn't.
-   */
   pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
@@ -148,11 +142,6 @@ interface ImportedVisibleFields {
   savedAt?: number;
 }
 
-/**
- * What a save did: made a new card, or found the link already in Teak and
- * moved that card to the top (`resaved`), bringing it back from Archive when
- * `wasArchived`.
- */
 export interface CreateCardOutcome {
   cardId: Id<"cards">;
   outcome: "created" | "resaved";
@@ -165,11 +154,6 @@ export const createCardOutcomeValidator = v.object({
   wasArchived: v.optional(v.boolean()),
 });
 
-/**
- * True when `content` adds nothing to the link in `url`: it is empty, or it
- * is only that link (or a variant of it). A link with words around it is a
- * note about the link, which is saved as its own card.
- */
 export const isBareLinkContent = (content: string, url: string): boolean => {
   const trimmed = content.trim();
   if (!trimmed || trimmed === url) {
@@ -226,10 +210,6 @@ export const createCardForUserHandler = async (
     importedVisibleFields?: ImportedVisibleFields;
     /** Runs once the card is counted, so a refused card makes no folders. */
     resolveFolderIds?: () => Promise<Id<"folders">[]>;
-    /**
-     * Always insert, even when the link is already saved. Imports skip
-     * duplicates themselves and never move an existing card.
-     */
     skipResave?: boolean;
     source?: CardCreationSource;
   } = {}
@@ -357,7 +337,6 @@ export const createCardForUserHandler = async (
         cardType,
         classificationStatus,
       }),
-      // A link's saved copy, then the article in it.
       ...(shouldRunArchiveStage(cardType)
         ? { archive: stagePending(), article: stagePending() }
         : {}),
@@ -428,8 +407,6 @@ const resaveCard = async (
   }: { now: number; pageSnapshotKey?: string; source: CardCreationSource }
 ): Promise<CreateCardOutcome> => {
   const wasArchived = card.isArchived === true;
-  // A highlighted link keeps its copy: the page sent with the save is
-  // dropped.
   const frozen =
     pageSnapshotKey !== undefined && pageArchiveSkipReason(card) === "frozen";
   if (frozen) {
@@ -458,7 +435,6 @@ const resaveCard = async (
     ...(archiveNow
       ? {
           processingStatus: mergeProcessingStages(card.processingStatus, {
-            // The new copy's article follows it.
             archive: stagePending(),
             article: stagePending(),
           }),
@@ -512,10 +488,6 @@ export const createCard = mutation({
   handler: async (ctx, args) => (await createCardForSession(ctx, args)).cardId,
 });
 
-/**
- * `createCard`, also saying whether the save made a new card or moved a card
- * already in Teak to the top (`resaved`).
- */
 export const createCardWithOutcome = mutation({
   args: sessionCreateCardArgs,
   returns: createCardOutcomeValidator,

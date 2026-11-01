@@ -3,14 +3,11 @@ import SwiftUI
 import TeakCore
 import TeakSync
 
-/// Every tag with its card count, and the rename, merge and delete jobs
-/// that change it on every card.
 @MainActor @Observable
 final class TagsModel {
     private(set) var summary: TagSummary?
     private(set) var isLoaded = false
     private(set) var operation: TagOperation?
-    /// A finished change the summary hasn't counted yet.
     private var finished: (operation: TagOperation, summaryAt: Double?)?
     var notice: String?
     var error: String?
@@ -47,7 +44,6 @@ final class TagsModel {
         task = nil
     }
 
-    /// Signing out drops the last account's tags and any change still running; the next `start()` loads again.
     func reset() {
         epoch += 1
         stop()
@@ -84,7 +80,6 @@ final class TagsModel {
         }
     }
 
-    /// Watches the job until it finishes, then says what changed.
     private func follow(_ started: TagOperation) {
         operation = started
         operationTask?.cancel()
@@ -112,7 +107,6 @@ final class TagsModel {
     }
 }
 
-/// What a tag change says while it runs, once it's done and when it fails.
 enum TagChangeText {
     private static func number(_ value: Int) -> String { value.formatted(.number.locale(AppLanguage.locale)) }
 

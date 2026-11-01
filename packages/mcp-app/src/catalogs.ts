@@ -1,7 +1,6 @@
 import { DEFAULT_LOCALE, type Locale } from "@teak/i18n";
 import type { AppMessages } from "./i18n";
 
-// Only the two namespaces the view reads are bundled, from every catalog.
 const mcpApp = import.meta.glob<AppMessages["mcpApp"]>(
   "../../i18n/messages/*.json",
   { eager: true, import: "mcpApp" }

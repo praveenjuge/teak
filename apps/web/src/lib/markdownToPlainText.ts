@@ -65,19 +65,11 @@ const tableCells = (line: string) =>
     .split("|")
     .map((cell) => cell.trim());
 
-/**
- * GFM tables read as one line: cells joined by " · " and rows by " / ", with
- * no pipes, delimiter row or empty cells. The tile shows a single paragraph, so rows can't
- * go on lines of their own.
- */
-/** A line without the `>` markers of the quote it sits in. */
 const unquoted = (line: string) => line.replace(/^(?:>\s?)+/, "").trim();
 
-/** Whether `line` is a table's header row, given the line after it. */
 const startsTable = (line: string, next: string) =>
   unquoted(line).includes("|") && TABLE_DELIMITER_ROW.test(unquoted(next));
 
-/** Whether Markdown opens with a table, so it has no title line. */
 export const startsWithTable = (markdown: string): boolean => {
   const [first = "", second = ""] = markdown.trim().split(/\r?\n/, 2);
   return startsTable(first, second);
@@ -99,7 +91,6 @@ function tablesAsText(lines: string[]): string[] {
       index += 1;
     }
     index -= 1;
-    // Empty cells, and rows with nothing in them, leave no separators.
     result.push(
       rows
         .map((cells) => cells.filter(Boolean).join(" · "))
@@ -189,7 +180,6 @@ const decodeEntities = (text: string) =>
     }
   );
 
-/** Drops a trailing high surrogate a cut split from its pair, such as an emoji. */
 const withoutLoneHighSurrogate = (text: string): string => {
   const last = text.charCodeAt(text.length - 1);
   return last >= 0xd8_00 && last <= 0xdb_ff ? text.slice(0, -1) : text;
@@ -221,7 +211,6 @@ function withEscapedPunctuation(
   );
 }
 
-/** The first `limit` characters, less a link token the cut splits. */
 const withoutCutToken = (input: string, limit: number): string => {
   if (input.length <= limit) {
     return input;
@@ -266,7 +255,6 @@ const EMPTY_BRACKETS = /[([{<]\s*[)\]}>]/g;
 const SPACE_BEFORE_PUNCTUATION = /\s+([.,;:!?…])/g;
 const LEADING_PUNCTUATION = /^[\s.,;:!?\-–—]+/;
 const DANGLING_SEPARATOR = /[\s,;:\-–—]+([.!?…]*)$/;
-// Letters, digits, emoji and other symbols; punctuation alone is residue.
 const HAS_WORDS = /[\p{L}\p{N}\p{So}\p{Extended_Pictographic}]/u;
 // Read this far past the note's limit, so a long URL the note starts with
 // can't use up the whole preview before it is removed.

@@ -1,6 +1,5 @@
 import type { HostBridge, HostContext } from "./bridge";
 
-/** Applies the host's theme, style variables and fonts to the document. */
 export const applyHostContext = (context: HostContext | undefined) => {
   const root = document.documentElement;
   if (context?.theme) {
@@ -23,7 +22,6 @@ export const applyHostContext = (context: HostContext | undefined) => {
   }
 };
 
-/** Reports the document's height to the host whenever it changes. */
 export const reportSize = (bridge: HostBridge) => {
   let width = 0;
   let height = 0;

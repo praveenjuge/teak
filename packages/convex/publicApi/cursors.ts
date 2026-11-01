@@ -33,7 +33,6 @@ export const invalidCursorError = () =>
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-/** The anchor's date: `savedAt`, or an older cursor's `createdAt`. */
 const anchorDate = (
   anchor: Record<string, unknown> | undefined
 ): number | undefined => {

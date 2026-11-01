@@ -1,20 +1,10 @@
-/**
- * A link's saved copy (`cards.pageArchive`): the rules the Convex backend,
- * the Core Worker and the web app share.
- */
-
 const MIB = 1024 * 1024;
 
-/** The R2 role of an archive object. */
 export const PAGE_ARCHIVE_ROLE = "page-archive";
-/** The R2 role of a page the browser extension uploaded, before archiving. */
 export const PAGE_SNAPSHOT_ROLE = "page-snapshot";
-/** The most a gzipped snapshot from the extension may weigh. */
 export const PAGE_SNAPSHOT_MAX_BYTES = 20 * MIB;
-/** The most a snapshot may weigh once unzipped. */
 export const PAGE_SNAPSHOT_MAX_RAW_BYTES = 60 * MIB;
 
-/** Why a page has no saved copy, as `processingStatus.archive.error` says. */
 export const PAGE_ARCHIVE_FAILURE_REASONS = [
   "blocked_url",
   "too_large",
@@ -27,7 +17,6 @@ export const PAGE_ARCHIVE_FAILURE_REASONS = [
 export type PageArchiveFailureReason =
   (typeof PAGE_ARCHIVE_FAILURE_REASONS)[number];
 
-/** A stored reason, or `archive_error` for one this code doesn't know. */
 export const toPageArchiveFailureReason = (
   value: string | undefined
 ): PageArchiveFailureReason =>

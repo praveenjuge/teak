@@ -98,9 +98,7 @@ export type FilesErrorCode =
   | "INVALID_INPUT"
   | "NOT_FOUND"
   | "PAYLOAD_TOO_LARGE"
-  // A downstream service (Vectorize) rate-limited the call; retry later.
   | "RATE_LIMITED"
-  // Browser Run or the media renderer is missing, busy or failing; retry later.
   | "RENDERER_UNAVAILABLE"
   | "UNSUPPORTED";
 

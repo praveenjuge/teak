@@ -4,7 +4,6 @@ import TeakCore
 import UniformTypeIdentifiers
 
 enum CardFiles {
-    /// Card files downloaded to share or save, one folder each.
     static var sharedFolder: URL { FileManager.default.temporaryDirectory.appending(path: "Shared") }
 
     static func download(_ url: URL, as fileName: String) async throws -> URL {
@@ -19,7 +18,6 @@ enum CardFiles {
         return destination
     }
 
-    /// The type a card's file has before its name is known.
     static func contentType(_ type: CardType) -> UTType {
         switch type {
         case .image: .image
@@ -29,13 +27,11 @@ enum CardFiles {
         }
     }
 
-    /// One path component: a card title can hold a slash.
     static func safeName(_ fileName: String) -> String {
         let name = fileName.trimmingCharacters(in: .whitespacesAndNewlines).replacing(/[\/\\]+/, with: "_")
         return name.isEmpty || name == "." || name == ".." ? "download" : name
     }
 
-    /// `fileName` made safe, with the file's extension when it has none, so it opens as its type.
     private static func name(_ fileName: String, url: URL, mimeType: String?) -> String {
         let name = safeName(fileName)
         guard !isKnownExtension((name as NSString).pathExtension) else { return name }
@@ -54,7 +50,6 @@ struct CardFile: Transferable, Sendable {
     let contentType: UTType
     let resolve: @Sendable () async throws -> URL
 
-    /// `kind` is the type when the name doesn't say, as when a title stands in for it.
     init(fileName: String, kind: UTType = .data, resolve: @escaping @Sendable () async throws -> URL) {
         self.fileName = CardFiles.safeName(fileName)
         let named = UTType.forFileName(self.fileName)

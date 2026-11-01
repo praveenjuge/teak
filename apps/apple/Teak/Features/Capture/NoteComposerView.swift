@@ -69,9 +69,7 @@ struct NoteComposerView: View {
                 }
         }
         .frame(minWidth: 420, minHeight: 320)
-        // A note is never lost to a swipe: Cancel asks first.
         .interactiveDismissDisabled(hasText || capture.isSavingText)
-        // A failed save shows here, over the note, which stays open.
         .captureAlert()
         .onAppear {
             text = router.composerText

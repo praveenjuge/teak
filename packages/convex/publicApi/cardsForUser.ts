@@ -21,9 +21,7 @@ const quickSaveResultValidator = v.object({
   status: v.literal("created"),
   cardId: v.id("cards"),
   card: v.optional(cardReturnValidator),
-  // The link was already saved: that card moved to the top instead.
   resaved: v.optional(v.literal(true)),
-  // The re-saved card also came back from Archive.
   wasArchived: v.optional(v.literal(true)),
 });
 

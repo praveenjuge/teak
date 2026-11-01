@@ -124,7 +124,6 @@ export const hasFolderNamed = (
   );
 };
 
-/** The server's message, translated when the catalog knows it. */
 export const folderErrorMessage = (
   error: unknown,
   fallback: string,

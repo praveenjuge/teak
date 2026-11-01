@@ -324,7 +324,6 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     @Test func confirmationCountsTheCards() {
         #expect(EmptyTrash.message(count: 1, more: false) == "This permanently deletes 1 card and their files. This can’t be undone.")
         #expect(EmptyTrash.message(count: 3, more: false) == "This permanently deletes 3 cards and their files. This can’t be undone.")
-        // The count stops early on large notes and says so.
         #expect(EmptyTrash.message(count: 40, more: true)
             == "This permanently deletes 40 or more cards and their files. This can’t be undone.")
     }
@@ -383,7 +382,6 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
                                         "source": "apple"])
         #expect(LinkDetection.resolve("see https://example.com/a?b=1 later").url == "https://example.com/a?b=1")
         #expect(LinkDetection.resolve("ftp://example.com").type == .text)
-        // Punctuation that ends the sentence or closes a bracket around the URL isn't part of it.
         #expect(LinkDetection.resolve("Read this: https://example.com/post.").url == "https://example.com/post")
         #expect(LinkDetection.resolve("(see https://x.com/a).").url == "https://x.com/a")
         #expect(LinkDetection.resolve("see https://en.wikipedia.org/wiki/Teak_(wood)!").url

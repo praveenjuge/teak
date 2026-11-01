@@ -16,8 +16,6 @@ import { type RunningStack, STACK_LOG_PATH, startStack } from "../stack/stack";
 const ROOT = join(import.meta.dir, "../../../..");
 const TESTS = join(import.meta.dir, "../..");
 const stackOnly = process.argv[2] === "stack";
-// `stack --dev` is `bun run dev --local`: the same stack, pushing the backend
-// as it changes, with a seeded account to sign in with.
 const devStack = stackOnly && process.argv[3] === "--dev";
 // `bun run e2e -- --grep x` may pass the separator through.
 const e2eArgs = stackOnly

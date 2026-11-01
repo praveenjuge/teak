@@ -128,7 +128,6 @@ const FILE_SKIP_REASONS: Record<string, "format" | "size"> = {
   TYPE_MISMATCH: "format",
 };
 
-/** Fresh upload URLs for a redelivered email's attachments not yet saved. */
 const reissueUploads = async (pending: PendingAttachment[]) =>
   await Promise.all(
     pending

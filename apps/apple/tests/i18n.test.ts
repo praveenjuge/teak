@@ -79,7 +79,6 @@ describe("Apple string catalogs", () => {
   });
 
   test("views take their text from the catalog, not string literals", () => {
-    // A literal here would be English in every language; read it with tr().
     const view =
       /\b(Text|Button|Label|Section|Toggle|Picker|Menu|TextField|SecureField|LabeledContent|ContentUnavailableView|navigationTitle|alert|confirmationDialog|help|accessibilityLabel|accessibilityHint|accessibilityValue|Tab|CommandMenu)\("([^"\\]*[A-Za-z][^"\\]*)"/g;
     const allowed = new Set(["Teak"]);

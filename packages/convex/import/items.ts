@@ -11,7 +11,6 @@ import { insertImportedHighlights } from "../highlight/highlights";
 import { cardTypeValidator, colorValidator } from "../schema";
 import type { TeakUserId } from "../securitySessions";
 
-/** The fields of one import item, as the Workflow read it from the source. */
 export const importItemFields = {
   sourceIndex: v.number(),
   type: cardTypeValidator,
@@ -106,7 +105,6 @@ export type ImportCardOutcome =
   | { kind: "duplicate" }
   | { kind: "error"; code?: string; message?: string; retryAt?: number };
 
-/** Creates one imported card, or says why it can't. */
 export async function createImportedCard(
   ctx: MutationCtx,
   job: Doc<"importJobs">,

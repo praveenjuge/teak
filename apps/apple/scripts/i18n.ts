@@ -1,8 +1,3 @@
-/**
- * Generates the Apple app's string catalogs from packages/i18n. Regenerate
- * after changing a catalog there:
- *   bun --no-env-file run apps/apple/scripts/i18n.ts --write
- */
 import { resolve } from "node:path";
 import {
   extensionLocaleDir,
@@ -23,11 +18,9 @@ const MESSAGES_DIR = resolve(
   "../../../packages/i18n/messages"
 );
 
-/** `apple.infoPlist.<Key>` localizes an Info.plist key of the app. */
 const INFO_PLIST = "apple.infoPlist.";
 /** macOS localizes a Services menu item by its English title. */
 const SERVICES_MENU = "apple.servicesMenu.";
-/** The Safari extension's `_locales`, which the browser reads. */
 const SAFARI = "apple.safari.";
 /**
  * App Intents text. The system reads an intent's title and description from
@@ -36,7 +29,6 @@ const SAFARI = "apple.safari.";
  * "AppIntents")`): App Store Connect rejects intent text whose key says "apple".
  */
 const APP_INTENTS = "apple.intents.";
-/** The `AppIntents` table's key for an `apple.intents.` message. */
 const APP_INTENTS_TABLE = "intents.";
 /**
  * Siri and Shortcuts phrases (`AppShortcut(phrases:)`), which the system finds
@@ -168,7 +160,6 @@ export const renderAppleCatalogs = async (): Promise<Map<string, string>> => {
     [INFO_PLIST, SERVICES_MENU, SAFARI, APP_SHORTCUTS, INTENT_SUMMARIES].some(
       (prefix) => key.startsWith(prefix)
     );
-  // Keyed and written in App Intents' own placeholder style.
   const byEnglishText = (prefix: string) => {
     const entries: Entries = new Map();
     for (const key of messages.en.keys()) {

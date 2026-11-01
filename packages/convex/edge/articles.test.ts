@@ -187,7 +187,6 @@ describe("saveArticleText", () => {
         truncated: false,
       }),
     ]);
-    // Every new object belongs to the card, so deleting it removes them.
     expect(cardStorageObjectKeys(stored)).toEqual(
       expect.arrayContaining([textKey(link), imageKey(link, "b")])
     );
@@ -417,7 +416,6 @@ describe("getCardTextSource", () => {
     expect(await source("document")).toBeNull();
     expect(await source("transcript")).toBeNull();
 
-    // A podcast link with an article and a transcript: either, by kind.
     await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
       cardId: link,
       aiTranscript: "Welcome to the show",

@@ -1,6 +1,5 @@
 import Foundation
 
-/// One supported upload format (`FILE_FORMATS` in `packages/convex/shared/fileFormats.ts`).
 public struct FileFormat: Decodable, Sendable, Hashable {
     public let id: String
     public let cardType: String

@@ -77,23 +77,13 @@ export interface DefaultCardDef {
   url?: string;
 }
 
-/** A card a dev scenario pack seeds, in the state the scenario starts in. */
 export interface DevScenarioCardDef extends DefaultCardDef {
-  /** Text read from the image, filled in directly. */
   aiOcrText?: string;
-  /**
-   * A card saved before `urlKey` existed: it has none, so the duplicate check
-   * finds it only by its exact address.
-   */
   beforeUrlKey?: true;
-  /** When the link was marked done. */
   completedAt?: number;
   folderIds?: Id<"folders">[];
-  /** A link's archived copy, pointing at an object the pack writes. */
   pageArchive?: Doc<"cards">["pageArchive"];
-  /** When it was last saved, for a card saved again after `createdAt`. */
   savedAt?: number;
-  /** The Shuffle key, or `null` for none (a card saved before Shuffle). */
   shuffleKey?: number | null;
 }
 

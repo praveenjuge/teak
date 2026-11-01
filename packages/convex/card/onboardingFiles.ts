@@ -45,10 +45,6 @@ const planFiles = (userId: string) =>
     })),
   }));
 
-/**
- * Has the Core Worker copy the getting-started files it ships into the
- * account, and returns the cards whose files all landed.
- */
 const storeOnboardingFiles = async (
   ctx: Pick<ActionCtx, "runMutation">,
   userId: string
@@ -113,7 +109,6 @@ const storeOnboardingFiles = async (
       error: errorMessage(error),
     });
     if (called) {
-      // The Worker may have written some before the call failed.
       await deleteObjects(keys);
     }
     return [];

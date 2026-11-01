@@ -44,7 +44,6 @@ final class CaptureModel {
         return try? result.get()
     }
 
-    /// Saves text as a card, returning its id or what went wrong.
     private func createText(_ raw: String) async -> Result<String, Alert> {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
@@ -64,8 +63,6 @@ final class CaptureModel {
         }
     }
 
-    /// Drops what the last account left: batches still waiting to upload
-    /// and any error showing.
     func reset() {
         epoch += 1
         uploadQueue = nil
@@ -73,9 +70,6 @@ final class CaptureModel {
         alert = nil
     }
 
-    /// Uploads files one batch at a time: a batch picked while another is
-    /// uploading waits for it rather than being dropped. Returns this batch's
-    /// problem, if any, which the alert also shows unless `showsAlert` is off.
     @discardableResult
     func upload(_ items: [UploadItem], showsAlert: Bool = true) async -> Alert? {
         guard !items.isEmpty else { return nil }
@@ -174,7 +168,6 @@ final class CaptureModel {
         await upload(items)
     }
 
-    /// Saves shared text and files, returning the last problem, if any.
     @discardableResult
     func save(_ items: [SharedItem], showsAlert: Bool = true) async -> Alert? {
         var files: [UploadItem] = []

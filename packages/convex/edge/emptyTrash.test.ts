@@ -98,7 +98,6 @@ describe("emptyTrash", () => {
       count: total,
       more: false,
     });
-    // Nothing is deleted until the scheduled pages run.
     expect(await trashedIds()).toHaveLength(total);
 
     await runScheduled();

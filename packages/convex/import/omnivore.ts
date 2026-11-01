@@ -12,7 +12,6 @@ const SOURCE = "Omnivore";
 export const OMNIVORE_METADATA_PATTERN =
   /(?:^|\/)metadata_(\d+)_to_(\d+)\.json$/;
 
-/** Where an item's highlights live in the export ZIP. */
 export const omnivoreHighlightsPath = (slug: string) => `highlights/${slug}.md`;
 
 export interface OmnivoreItem {

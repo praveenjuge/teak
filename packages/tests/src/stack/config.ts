@@ -18,7 +18,6 @@ export const LOCAL_STACK: { readonly fetchesLinks: boolean } = {
 
 export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
-/** Test-only; signs what the Core Worker's email handler posts to the local backend. */
 export const E2E_EMAIL_INBOUND_SIGNING_SECRET =
   "teak-e2e-email-inbound-signing-secret-local-only-0001";
 export const EMULATOR_COOKIE_PASSWORD =

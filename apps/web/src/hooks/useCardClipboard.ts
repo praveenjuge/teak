@@ -12,7 +12,6 @@ const englishClipboard: ClipboardTranslator =
 
 export interface CopyCardContentOptions {
   copyImageToastId?: string;
-  /** The toasts' text; English without one. */
   t?: ClipboardTranslator;
 }
 

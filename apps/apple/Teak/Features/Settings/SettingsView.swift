@@ -29,7 +29,6 @@ struct SettingsView: View {
     #endif
 
     var body: some View {
-        // Who you are first, then how Teak looks and works, then what it is; leaving and deleting come last.
         Form {
             ProfileSection(account: account)
             AppearanceSection()
@@ -48,7 +47,6 @@ struct SettingsView: View {
 }
 
 #if os(iOS)
-/// iPhone's way to the tag manager; the iPad and Mac have it in the sidebar.
 struct LibrarySection: View {
     @Environment(AppRouter.self) private var router
 
@@ -104,7 +102,6 @@ final class AccountModel {
     }
 }
 
-/// The signed-in account: email, plan and how many cards it holds.
 struct ProfileSection: View {
     let account: AccountModel
     @Environment(AppModel.self) private var app
@@ -145,7 +142,6 @@ struct ProfileSection: View {
     }
 }
 
-/// Sign out and Delete account, each in its own group at the end, as in the system's settings.
 struct AccountActions: View {
     @Environment(AppModel.self) private var app
     @State private var confirmSignOut = false
@@ -230,7 +226,6 @@ enum AccountText {
     /// What the person types to delete their account. It stays English in every language.
     static let deletePhrase = "delete account"
 
-    /// "12 cards", or "12 of 200 cards" on the Free plan.
     static func usage(_ user: CurrentUser) -> String {
         let count = Int(user.cardCount)
         guard !user.hasPremium else { return tr("native.common.cardCount", count: count) }
@@ -239,7 +234,6 @@ enum AccountText {
                   TeakLimits.freeTierCards.formatted(.number.locale(locale)))
     }
 
-    /// "Pro" is a name, so it stays as it is.
     static func plan(_ user: CurrentUser) -> String {
         user.hasPremium ? "Pro" : tr("native.card.plan.free")
     }
@@ -254,7 +248,6 @@ private struct AboutSection: View {
         } header: {
             Text(tr("native.settings.about"))
         } footer: {
-            // The author's handle stays as it is in every language.
             Text(tr("native.settings.hope") + "\n" + tr("native.settings.byAuthor", "@praveenjuge"))
         }
     }

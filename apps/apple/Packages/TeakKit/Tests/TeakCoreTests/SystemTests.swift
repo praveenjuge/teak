@@ -135,7 +135,6 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         let both = CardIndex.results(active, archived: archived, includeArchived: true)
         #expect(both.count == 20)
         #expect(both.last?.title == "B4")
-        // An `is:archived` search lists archived cards in the main read too.
         #expect(CardIndex.results(archived).isEmpty)
     }
 
@@ -160,7 +159,6 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         #expect(CardIndex.changes(cards, left: left, in: LibraryQuery(text: "design")).remove.isEmpty)
         #expect(CardIndex.changes(cards, left: left, in: LibraryQuery(sort: .oldest)).remove.isEmpty)
         #expect(CardIndex.changes(cards, left: left, in: LibraryQuery(filters: LibraryFilters(favoritesOnly: true))).remove.isEmpty)
-        // A view that empties at once is more likely a signed-out read.
         #expect(CardIndex.changes([], left: left, in: LibraryQuery()).remove.isEmpty)
     }
 
@@ -168,10 +166,8 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         let newest = try [summary("new1000000000000", created: 300), summary("new2000000000000", created: 200)]
             .map { try #require(IndexedCard($0)) }
         let indexed = ["new1000000000000": 300.0, "trashed000000000": 250, "older00000000000": 100]
-        // A partial read can't tell which older cards it covered, so it drops none.
         #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: false).isEmpty)
         #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: true) == ["older00000000000", "trashed000000000"])
-        // A finished read of an empty library drops everything; an unfinished one drops nothing.
         #expect(CardIndex.stale(indexed: indexed, newest: [], complete: true) == indexed.keys.sorted())
         #expect(CardIndex.stale(indexed: indexed, newest: [], complete: false).isEmpty)
     }

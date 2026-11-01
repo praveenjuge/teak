@@ -37,7 +37,6 @@ actor SpotlightIndexer {
     /// Cards removed while their batch was being indexed; the batch leaves them out.
     private var withdrawn: Set<String> = []
     private var lastRefresh: ContinuousClock.Instant?
-    /// Library changes and removals, applied one after another in the order they came.
     private let work: AsyncStream<CardIndex.Changes>.Continuation
 
     init(session: TeakSession) {
@@ -54,26 +53,20 @@ actor SpotlightIndexer {
 
     // MARK: From the app
 
-    /// Applies what a library view's cards say. Called on the main actor as pages load.
     nonisolated func apply(_ changes: CardIndex.Changes) {
         guard !changes.isEmpty else { return }
         work.yield(changes)
     }
 
-    /// Follows a card opened on its own: once it's in Trash, archived or
-    /// hidden, it leaves Spotlight. Library pages do the adding.
     nonisolated func follow(_ card: Card) {
         guard IndexedCard(card) == nil else { return }
         work.yield(CardIndex.Changes(remove: [card.id]))
     }
 
-    /// Drops a card that no longer exists, such as one deleted on another device.
     nonisolated func forget(_ id: String) {
         work.yield(CardIndex.Changes(remove: [id]))
     }
 
-    /// Reads the newest cards and indexes them, then drops the ones they show
-    /// have left. Runs at most every five minutes.
     func refresh(_ backend: any ConvexCaller) async {
         if let lastRefresh, lastRefresh.duration(to: .now) < Self.refreshInterval { return }
         lastRefresh = .now
@@ -101,7 +94,6 @@ actor SpotlightIndexer {
         await remove(CardIndex.stale(indexed: ledger().cards.mapValues(\.created), newest: newest, complete: complete))
     }
 
-    /// Empties Teak's part of Spotlight, when no one is signed in.
     func removeAll() async {
         loaded = Ledger()
         lastRefresh = nil
@@ -208,7 +200,6 @@ actor SpotlightIndexer {
         }
     }
 
-    /// A small JPEG of the card's image, as Spotlight shows beside a result.
     private static func thumbnail(_ url: URL) async -> Data? {
         guard let (data, response) = try? await URLSession.shared.data(from: url),
               (response as? HTTPURLResponse)?.statusCode == 200,

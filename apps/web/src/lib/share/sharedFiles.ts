@@ -55,7 +55,6 @@ export const takeSharedFiles = async (
   return files.length > 0 ? files : null;
 };
 
-/** Deletes the files kept for share `id`, once they're saved or turned down. */
 export const discardSharedFiles = async (
   storage: CacheStorage | undefined,
   id: string

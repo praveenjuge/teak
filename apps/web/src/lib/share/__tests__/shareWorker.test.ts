@@ -8,7 +8,6 @@ import { shareWorkerSource } from "../shareWorker";
 
 type Listener = (event: Record<string, unknown>) => void;
 
-/** Runs the worker's source against a stand-in service worker scope. */
 const startWorker = ({ fullAfter = Number.POSITIVE_INFINITY } = {}) => {
   const listeners = new Map<string, Listener>();
   const entries = new Map<string, Response>();
@@ -24,7 +23,6 @@ const startWorker = ({ fullAfter = Number.POSITIVE_INFINITY } = {}) => {
             : request.url
         )
       ),
-    // Stores `fullAfter` files, then fails as a full quota does.
     put: (path: string, response: Response) => {
       if (entries.size >= fullAfter) {
         return Promise.reject(

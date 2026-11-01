@@ -31,7 +31,6 @@ const utf8Length = (codePoint: number): number => {
   return codePoint < 0x1_00_00 ? 3 : 4;
 };
 
-/** `text` in order, cut into parts of at most `maxBytes` UTF-8 bytes. */
 export const splitTextByBytes = (
   text: string,
   maxBytes = SEARCH_PREFIX_MAX_BYTES
@@ -72,7 +71,6 @@ export const getDocumentTextRow = async (
   (await cardTextRows(ctx, cardId)).find((row) => row.kind === "document") ??
   null;
 
-/** A link's article row: its plain text, for search and embeddings. */
 export const getArticleTextRow = async (
   ctx: Pick<QueryCtx, "db">,
   cardId: Id<"cards">
@@ -88,10 +86,6 @@ const transcriptRows = async (
     .filter((row) => row.kind === "transcript")
     .sort((left, right) => (left.part ?? 0) - (right.part ?? 0));
 
-/**
- * The card's transcript, from `cardTextContents`. `maxParts` reads only the
- * start, for callers that need a few thousand characters.
- */
 export const readCardTranscript = async (
   ctx: Pick<QueryCtx, "db">,
   card: TranscriptCard,
@@ -122,7 +116,6 @@ const deleteCardTranscriptRows = async (
   }
 };
 
-/** Every text row of the card, for card and account deletion. */
 export const deleteCardTextRows = async (
   ctx: Pick<MutationCtx, "db">,
   cardId: Id<"cards">
@@ -132,14 +125,12 @@ export const deleteCardTextRows = async (
   }
 };
 
-/** The card fields that say a card has no transcript. */
 export const CLEARED_TRANSCRIPT = {
   aiTranscript: undefined,
   aiTranscriptCharCount: undefined,
   aiTranscriptPreview: undefined,
 } as const;
 
-/** Deletes the card's transcript rows; returns the card fields to write. */
 export const clearCardTranscript = async (
   ctx: Pick<MutationCtx, "db">,
   card: Pick<Doc<"cards">, "_id" | "aiTranscriptCharCount">
@@ -148,11 +139,6 @@ export const clearCardTranscript = async (
   return CLEARED_TRANSCRIPT;
 };
 
-/**
- * Replaces the card's transcript rows with `transcript` and returns the card
- * fields to write with it; an empty transcript clears it. The card itself
- * keeps only the length and a preview.
- */
 export const storeCardTranscript = async (
   ctx: Pick<MutationCtx, "db">,
   card: Pick<Doc<"cards">, "_id" | "aiTranscriptCharCount" | "userId">,
@@ -213,11 +199,6 @@ export const getCardTranscriptsForUser = internalQuery({
   },
 });
 
-/**
- * List cards with their transcripts put back, for public API responses that
- * promise them. Lists leave transcripts out; this reads them in batches small
- * enough for one query each.
- */
 export const withTranscripts = async <
   T extends {
     _id: Id<"cards">;

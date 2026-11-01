@@ -52,7 +52,6 @@ public actor TeakSession {
         self.bootstrap = bootstrap
     }
 
-    /// The current state, then every change.
     public func states() -> AsyncStream<State> {
         let id = UUID()
         let (stream, continuation) = AsyncStream<State>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -64,7 +63,6 @@ public actor TeakSession {
 
     private func removeObserver(_ id: UUID) { observers[id] = nil }
 
-    /// Hears every new access token, and nil when the session ends. Convex listens to stay signed in.
     public func setTokenListener(_ listener: (@Sendable (String?) -> Void)?) {
         tokenListener = listener
     }
@@ -78,7 +76,6 @@ public actor TeakSession {
     public var user: SessionUser? { session?.user }
     public var clientId: String? { session?.clientId }
     public var sessionId: String? { session?.sessionId }
-    /// When the access token expires, on the device's clock.
     public var expiresAt: Date? { session.map { $0.expiresAt.addingTimeInterval(-clockOffset) } }
 
     private func serverNow() -> Date { now().addingTimeInterval(clockOffset) }

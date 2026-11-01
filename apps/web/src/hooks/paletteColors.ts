@@ -33,7 +33,6 @@ export const paletteHasColor = (
   hex: string
 ): boolean => distinctHexes(colors).has(hex);
 
-/** What the card dialog lets someone do to a palette's colors. */
 export const paletteEditing = (
   card: Pick<Doc<"cards">, "colors" | "isDeleted" | "type">
 ): { canAdd: boolean; canEdit: boolean; canRemove: boolean } => {

@@ -525,7 +525,6 @@ export function useCardModal(
     [updateField]
   );
 
-  /** Keeps a tag Teak suggested as one of the card's own tags. */
   const acceptAiTag = useCallback(
     (tag: string) => {
       const tags = currentTags();
@@ -622,7 +621,6 @@ export function useCardModal(
             },
           },
         });
-        // Stepping to another card while the delete ran keeps that one open.
         if (openCardIdRef.current === deletedId) {
           onClose?.();
         }

@@ -36,9 +36,7 @@ export interface ExportableCard {
     recordingTimestamp?: number;
   };
   folderIds?: string[];
-  /** Set when the card has highlights to read before it is serialized. */
   hasHighlights?: boolean;
-  /** A link's highlights, oldest first, when it has any. */
   highlights?: Array<{
     anchored: boolean;
     createdAt: number;
@@ -141,7 +139,6 @@ export function toDualTimestamp(epochMs: number): DualTimestamp {
 const MAX_FILENAME_LENGTH = 120;
 const MAX_EXTENSION_LENGTH = 16;
 
-/** ASCII letters, digits, `.`, `_` and `-`; accents dropped, the rest `-`. */
 const cleanFilenamePart = (value: string): string =>
   value
     .normalize("NFKD")

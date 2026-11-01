@@ -23,7 +23,6 @@ test("Settings → Language switches in place, saves to the account and survives
   await language.click();
   await screen.getByRole("option", "Deutsch", { exact: false }).click();
 
-  // The page re-renders in German without a navigation.
   await expect(
     screen.getByRole("heading", de.settings.appearance.languageTitle)
   ).toBeVisible();
@@ -33,7 +32,6 @@ test("Settings → Language switches in place, saves to the account and survives
     await library.client.query(api.settings.preferences.getPreferences, {})
   ).toEqual({ locale: "de" });
 
-  // The cookie and the account both say German, so a reload stays German.
   await browser.reload();
   await expect(
     screen.getByRole("combobox", de.settings.language.label)
@@ -45,7 +43,6 @@ test("Settings → Language switches in place, saves to the account and survives
     })
   ).toBeVisible({ timeout: 30_000 });
 
-  // Back to English.
   await gotoApp(browser, "/settings/appearance");
   const german = screen.getByRole("combobox", de.settings.language.label);
   await german.click();

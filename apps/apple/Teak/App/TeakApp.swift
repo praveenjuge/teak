@@ -9,7 +9,6 @@ final class AppServices {
     let router = AppRouter()
     let capture: CaptureModel
     let home: LibraryModel
-    /// iPhone's Folders tab shows a folder's cards without changing Home.
     let folderLibrary: LibraryModel
     let folders: FoldersModel
     let tags: TagsModel
@@ -32,7 +31,6 @@ final class AppServices {
         app.onSignedOut = { [unowned self] in self.resetForNextUser() }
     }
 
-    /// Signing out leaves no trace of the last account's place in the app.
     private func resetForNextUser() {
         router.reset()
         capture.reset()
@@ -46,7 +44,6 @@ final class AppServices {
         #endif
     }
 
-    /// The Mac's one main window, brought forward or opened again after it was closed.
     func showMainWindow() {
         #if os(macOS)
         NSApp.activate()
@@ -85,7 +82,6 @@ struct TeakApp: App {
         #endif
 
         #if os(macOS)
-        // A card's image at full size, zoomable, beside the main window.
         WindowGroup(id: ImageWindow.id, for: ImageViewerItem.self) { $item in
             if let item {
                 ImageWindow(item: item)
@@ -114,8 +110,6 @@ struct TeakApp: App {
 }
 
 extension View {
-    /// The app's models, and its language for formatting. Text read with `tr`
-    /// updates in place when the language changes, so drafts being typed survive.
     func environments(_ services: AppServices) -> some View {
         environment(services.app)
             .environment(services.router)

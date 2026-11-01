@@ -1,9 +1,5 @@
 import { FILES_TRANSCRIPT_MAX_BYTES } from "@teak/files-protocol";
 
-// Caption files as plain transcript text: cues joined, markup and timings
-// dropped, the repeats of rolling auto-captions collapsed, and the whole
-// cut at the transcript cap on a word boundary.
-
 const TIMING_ARROW = "-->";
 const TAG_REGEX = /<[^>]*>/g;
 const WHITESPACE_REGEX = /\s+/g;
@@ -36,7 +32,6 @@ const cueText = (lines: string[]): string =>
     .replace(WHITESPACE_REGEX, " ")
     .trim();
 
-/** Each cue's text from a WebVTT file, in order. Throws on a non-VTT body. */
 export const parseWebVtt = (vtt: string): string[] => {
   const body = vtt.replace(/^﻿/, "");
   if (!body.startsWith("WEBVTT")) {
@@ -97,7 +92,6 @@ export const collapseRollingCaptions = (cues: string[]): string[] => {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-/** Cut to `maxBytes` of UTF-8 at the last space before the cap. */
 export const cutTranscript = (
   text: string,
   maxBytes = FILES_TRANSCRIPT_MAX_BYTES
@@ -112,6 +106,5 @@ export const cutTranscript = (
   return (space > 0 ? cut.slice(0, space) : cut).trimEnd();
 };
 
-/** A WebVTT file as one transcript, or "" when it has no words. */
 export const webVttToTranscript = (vtt: string): string =>
   cutTranscript(collapseRollingCaptions(parseWebVtt(vtt)).join(" "));

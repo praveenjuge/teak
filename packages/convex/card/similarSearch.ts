@@ -38,7 +38,6 @@ export const loadSimilarCards = async (
     ranking: SemanticRanking;
     keep: (card: Doc<"cards">, searchableText?: string) => boolean;
     text: string;
-    /** Reads a card's search text for a search expression's words. */
     readText?: (card: Doc<"cards">) => Promise<string | undefined>;
   }
 ): Promise<Doc<"cards">[]> => {
@@ -67,7 +66,6 @@ export const loadSimilarCards = async (
       if (!card || card.userId !== userId) {
         return null;
       }
-      // Words and phrases also match a transcript that moved off the card.
       const searchableText =
         (await readText?.(card)) ??
         (words.length > 0 ? await readTranscript(card) : undefined);

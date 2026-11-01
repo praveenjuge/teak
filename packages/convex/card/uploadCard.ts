@@ -158,8 +158,6 @@ const UPLOAD_FILE_FACT_FIELDS = [
   "height",
 ] as const;
 
-// Picks the file facts a client measured. A fact of the wrong type is refused,
-// as the schema would refuse it on insert; a zero or missing fact is skipped.
 const readUploadFileFacts = (
   metadata: unknown
 ): Partial<Record<(typeof UPLOAD_FILE_FACT_FIELDS)[number], number>> => {
@@ -197,7 +195,6 @@ export const createUploadedCardForUser = async (
     fileType?: string;
     storedFileSize?: number;
     storedFileType?: string;
-    /** Where the file came from, kept as `metadata.source` (e.g. "email"). */
     metadataSource?: string;
     notes?: string | null;
     source?: CardCreationSource;

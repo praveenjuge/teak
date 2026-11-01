@@ -1,21 +1,15 @@
 import Foundation
 
-/// A hint the search field offers for the word being typed: a filter to start
-/// (`tag:`), one to leave out (`-tag:`), `OR`, or a value Teak knows.
 public struct SearchSuggestion: Hashable, Sendable, Identifiable {
     public let id: String
     /// The web's group: Filters, Exclude, Combine, Types or Show.
     public let group: String
-    /// What picking it writes in place of the word being typed.
     public let insert: String
-    /// `-tag:`, `OR`, or a value in the app's language.
     public let label: String
-    /// What a hint does, in the app's language.
     public let detail: String?
     /// A whole filter, so a space follows it.
     public let complete: Bool
 
-    /// The text after picking this suggestion while `text` is typed.
     public func accept(in text: String) -> String {
         SearchQualifiers.currentWord(text).before + insert + (complete ? " " : "")
     }
@@ -30,7 +24,6 @@ public enum SearchSuggestions {
     private static let groupLimit = 8
     private static var hints: SharedConstants.SearchSuggestionHints { SharedConstants.shared.searchSuggestionHints }
 
-    /// Suggestions for the last word of `text`.
     public static func build(for text: String) -> [SearchSuggestion] {
         let (before, word) = SearchQualifiers.currentWord(text)
         return build(word, afterWord: !before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -39,7 +32,6 @@ public enum SearchSuggestions {
     static func build(_ token: String, afterWord: Bool) -> [SearchSuggestion] {
         guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
         if token.hasPrefix("-"), !token.hasPrefix("--") { return excluding(String(token.dropFirst())) }
-        // `OR` joins two words or filters, so it is offered only after one.
         if afterWord, token.wholeMatch(of: /(?i)or?/) != nil {
             return [suggestion(hints.or)] + build(token, afterWord: false)
         }
@@ -56,7 +48,6 @@ public enum SearchSuggestions {
         return hints.qualifiers.filter { $0.key.hasPrefix(word) }.map(suggestion)
     }
 
-    /// After a `-`: the filters to leave out, then excluded values.
     private static func excluding(_ token: String) -> [SearchSuggestion] {
         let word = token.lowercased()
         let keys = token.contains(":") || token.hasPrefix("#") ? [] : hints.exclude.filter { $0.key.hasPrefix(word) }.map(suggestion)
@@ -98,7 +89,6 @@ public enum SearchSuggestions {
         return SearchSuggestion(id: "\(group):\(insert)", group: group, insert: insert, label: label, detail: nil, complete: true)
     }
 
-    /// Exact names, then names that start with the text, then names with a word that does.
     private static func rank<T>(_ items: [T], _ needle: String, name: (T) -> String) -> [T] {
         guard !needle.isEmpty else { return items }
         var exact: [T] = [], starts: [T] = [], words: [T] = []

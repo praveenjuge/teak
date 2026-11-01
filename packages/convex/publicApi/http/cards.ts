@@ -556,7 +556,6 @@ const resolveCardId = (
     cardId,
   });
 
-/** A single card's response body, with its `[[…]]` links and backlinks. */
 /**
  * A card's links and backlinks for a response. A failed lookup leaves them
  * out rather than failing a write that already happened.
@@ -635,7 +634,6 @@ const handleSavePdfRequest = async (
   }
 };
 
-/** An article's Markdown with each `teak-image:<n>` as a signed URL. */
 const withSignedArticleImages = async (
   markdown: string,
   imageKeys: readonly string[]
@@ -692,7 +690,6 @@ const cardContentResponse = async (
   });
 };
 
-/** `?kind=`: one kind of a card's text, or undefined for the default order. */
 const parseContentKind = (
   request: Request
 ): { kind: CardTextKind | undefined } | { error: Response } => {

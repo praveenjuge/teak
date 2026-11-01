@@ -1,10 +1,8 @@
 import en from "../messages/en.json";
 import { type Locale, PSEUDO_LOCALE, type UiLocale } from "./locales";
 
-/** The English catalog's shape; every other catalog has the same keys. */
 export type Messages = typeof en;
 
-/** A language's catalog, which may lack keys while a change is in review. */
 export type PartialMessages = DeepPartial<Messages>;
 
 type DeepPartial<T> = {

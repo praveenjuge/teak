@@ -91,8 +91,6 @@ describe("parseCardLinkIds", () => {
   });
 
   test("reads a long line of code spans in linear time", () => {
-    // 400 KB of backticks on one line: masking its code spans used to take
-    // tens of seconds, past any function's time limit.
     const spans = "`a` ".repeat(50_000);
     const unclosed = "``a ".repeat(50_000);
     const markdown = `${spans}[[Plan|teak:${ID_A}]] ${unclosed}\`[[B|teak:${ID_B}]]\``;
@@ -122,7 +120,6 @@ describe("formatCardLinkToken", () => {
     expect(match?.[2]).toBe(ID_A);
     expect(match?.[1].length).toBeLessThanOrEqual(CARD_LINK_TITLE_MAX_LENGTH);
     expect(parseCardLinkIds(`x ${token} y`)).toEqual([ID_A]);
-    // Never cuts a grapheme: the family emoji is kept whole or dropped whole.
     expect(match?.[1]).not.toMatch(/‍…$/u);
   });
 

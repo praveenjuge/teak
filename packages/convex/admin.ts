@@ -177,8 +177,6 @@ export const getOverview = query({
   },
 });
 
-// The daily snapshot's one card scan: each row carries what both the overview
-// and the snapshot count.
 export const overviewCardsPage = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (

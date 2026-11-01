@@ -90,7 +90,6 @@ export interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   done?: boolean;
-  /** The search's exclusions and OR groups, checked on every card. */
   expression?: SearchExpression;
   /** The folders `expression` names, by name key; null for none. */
   expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
@@ -562,10 +561,6 @@ export const searchCardsByTag = async (
   return { cards: sorted.slice(0, limit), hasMore: sorted.length > limit };
 };
 
-/**
- * Reads the `expression` text a search query carries and resolves the
- * folders it names.
- */
 export const resolveQueryExpression = async (
   ctx: QueryCtx,
   userId: string,

@@ -26,11 +26,9 @@ import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
 const DELETE_PAGE_SIZE = 500;
 const SUGGESTION_LIMIT = 8;
 const SUGGESTION_SCAN_LIMIT = 40;
-/** Backlink rows read per lookup, before trashed sources are dropped. */
 const BACKLINK_SCAN_LIMIT = 500;
 export const BACKLINK_PANEL_LIMIT = 50;
 export const API_LINK_LIMIT = 100;
-/** Distinct cards one query reads to show live titles inside other titles. */
 export const TITLE_LOOKUP_LIMIT = 100;
 
 const linkTargetValidator = v.object({
@@ -49,15 +47,8 @@ const linkedCardValidator = v.object({
 export type CardLinkTarget = typeof linkTargetValidator.type;
 export type LinkedCard = typeof linkedCardValidator.type;
 
-/** The current title of a user's card, or undefined to keep the saved one. */
 type TitleLookup = (rawId: string) => Promise<string | undefined>;
 
-/**
- * One query's title lookup: each card is read once, and after
- * `TITLE_LOOKUP_LIMIT` distinct cards the rest keep their saved titles, so a
- * long list costs a bounded number of reads. A card in Trash or gone keeps
- * its saved title too.
- */
 const titleLookup = (
   ctx: Pick<QueryCtx, "db">,
   userId: string
@@ -83,10 +74,6 @@ const titleLookup = (
   };
 };
 
-/**
- * A linked card's title, with any links in its first line shown as their
- * targets' current titles, so a rename shows wherever the card is listed.
- */
 const linkedCard = async (
   card: Doc<"cards">,
   lookup: TitleLookup
@@ -111,10 +98,6 @@ const linkedCard = async (
   };
 };
 
-/**
- * A link target as the user sees it: their own card that isn't in Trash, or
- * missing. A malformed or foreign id is missing; it never reaches `get`.
- */
 const resolveTarget = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
@@ -138,10 +121,6 @@ export const scheduleCardLinkSync = async (
   });
 };
 
-/**
- * Whether a card write needs its link rows rebuilt: its content or type
- * changed and either version may hold a `[[…]]` link.
- */
 export const cardLinksMayChange = (
   previous: Doc<"cards"> | undefined,
   card: Doc<"cards">
@@ -155,7 +134,6 @@ export const cardLinksMayChange = (
   return mayHaveCardLinks(previous.content) || mayHaveCardLinks(card.content);
 };
 
-/** Schedules removal of a hard-deleted card's links, in both directions. */
 export const scheduleDeletedCardLinkCleanup = async (
   ctx: MutationCtx,
   cardId: Id<"cards">
@@ -242,7 +220,6 @@ export const syncCardLinks = internalMutation({
   },
 });
 
-/** Deletes a card's link rows both ways, a page at a time. */
 export const deleteCardLinksForCard = internalMutation({
   args: { cardId: v.id("cards") },
   returns: v.null(),
@@ -271,7 +248,6 @@ export const deleteCardLinksForCard = internalMutation({
   },
 });
 
-/** Live titles for the pills in a note; trashed or foreign ids are missing. */
 export const getCardLinkTargets = query({
   args: { cardIds: v.array(v.string()) },
   returns: v.array(linkTargetValidator),
@@ -378,11 +354,6 @@ export interface CardLinks {
   linksTruncated: boolean;
 }
 
-/**
- * Cards linking to `cardId`, most recently updated first, from the owner's
- * cards that aren't in Trash or hidden. One more than `limit` tells the caller there
- * are more.
- */
 const loadBacklinks = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
@@ -443,7 +414,6 @@ export const getCardLinksHandler = async (
   };
 };
 
-/** The detail panel's "Linked from" rows, and whether more exist. */
 export const getCardBacklinks = query({
   args: { cardId: v.id("cards") },
   returns: v.object({

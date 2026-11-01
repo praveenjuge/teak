@@ -390,7 +390,6 @@ export const cardValidator = v.object({
   aiTranscript: v.optional(v.string()),
   /** Set when the transcript is in `cardTextContents`: its length. */
   aiTranscriptCharCount: v.optional(v.number()),
-  /** The transcript's first characters, for titles and previews. */
   aiTranscriptPreview: v.optional(v.string()),
   aiOcrText: v.optional(v.string()),
   ocrCheckedAt: v.optional(v.number()),

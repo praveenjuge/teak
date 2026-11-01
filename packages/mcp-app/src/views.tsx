@@ -11,14 +11,9 @@ export interface ViewProps {
 const MAX_EXCERPT = 280;
 const MARKDOWN_PREFIX = /^\s*(?:#{1,6}\s+|>\s?|[-*+]\s+(?:\[[ xX]\]\s+)?)/u;
 
-/** Cards whose own text is their preview, so they show no separate title. */
 const isTextCard = (card: TeakCard) =>
   card.type === "text" || card.type === "quote";
 
-/**
- * A note or quote's text without Markdown line marks, cut to a preview; with
- * `withoutTitle`, minus the first line the card is titled by.
- */
 const excerpt = (card: TeakCard, withoutTitle = false): string | null => {
   if (!isTextCard(card)) {
     return null;

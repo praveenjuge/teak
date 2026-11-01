@@ -66,8 +66,6 @@ interface FakeCard {
   userId: string;
 }
 
-// An index scan over in-memory cards that counts every row it hands out,
-// the way a deployed read is charged.
 const scannedCards = (cards: FakeCard[]) => {
   let rowsRead = 0;
   const field = (card: FakeCard, name: string) =>

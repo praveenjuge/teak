@@ -199,10 +199,6 @@ export const readSnapshotBilling = internalAction({
   },
 });
 
-/**
- * Starts the Core Worker's snapshot of `date` (yesterday by default). The
- * row lands in `adminDailyMetrics` when that run finishes.
- */
 export const queueSnapshot = internalMutation({
   args: {
     actor: v.optional(v.object({ teakUserId: v.string(), email: v.string() })),
@@ -267,8 +263,6 @@ export const writeSnapshot = internalMutation({
   },
 });
 
-// The snapshot is counted by the Core Worker, so it lands shortly after
-// this returns rather than before.
 export const captureSnapshot = action({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, { date }): Promise<{ date: string }> => {

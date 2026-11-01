@@ -8,10 +8,6 @@ import type {
 } from "../components/text-editor/types";
 import { useQuery } from "../lib/convexQueryHooks";
 
-/**
- * `[[` card links for a note's editor: card search for the menu, and the
- * live titles of the cards `value` links to, in one batched subscription.
- */
 export function useCardLinkEditor({
   currentCardId,
   onOpenCard,

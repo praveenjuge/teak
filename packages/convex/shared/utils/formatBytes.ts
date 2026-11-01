@@ -1,9 +1,5 @@
 const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
 
-/**
- * A byte size such as "2.1 MB". Pass a locale to write the number in that
- * language ("2,1 MB" in German); without one it keeps the "." of before.
- */
 export const formatBytes = (bytes?: number | null, locale?: string): string => {
   if (!(bytes && Number.isFinite(bytes) && bytes > 0)) {
     return "0 B";

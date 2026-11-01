@@ -1,7 +1,5 @@
 import Foundation
 
-/// The `teak://` links the app opens, from Shortcuts, Spotlight, Control Center
-/// and other apps.
 public enum TeakLink: Hashable, Sendable {
     /// `teak://save?text=…`: saves the text, as the Save to Teak shortcut does.
     case save(String)
@@ -50,7 +48,6 @@ public enum TeakLink: Hashable, Sendable {
         return components.url!
     }
 
-    /// Whether the text could be a card's id, as `[[…|teak:<id>]]` links write it.
     public static func isCardId(_ value: String) -> Bool {
         value.wholeMatch(of: /[a-z0-9]{16,64}/) != nil
     }

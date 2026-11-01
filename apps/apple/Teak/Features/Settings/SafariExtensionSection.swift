@@ -44,7 +44,6 @@ struct SafariExtensionSection: View {
     }
 
     #if os(iOS)
-    /// The hint with Safari's extensions icon where the message says `{icon}`.
     private var hint: Text {
         let marker = "\u{FFFC}"
         let parts = tr("native.settings.safariHint", marker).components(separatedBy: marker)

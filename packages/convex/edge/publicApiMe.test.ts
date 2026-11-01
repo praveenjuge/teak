@@ -12,7 +12,6 @@ import schema from "../schema";
 const modules = import.meta.glob("../**/*.ts");
 const OWNER = "permanent-owner";
 
-// Teak's own production: its SITE_URL is on teakvault.com.
 beforeEach(() => {
   vi.stubEnv("SITE_URL", "https://app.teakvault.com");
 });

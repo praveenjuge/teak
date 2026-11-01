@@ -142,7 +142,6 @@ test("Settings pages link to each other and back through the breadcrumb", async 
     "page"
   );
 
-  // The header's breadcrumb leads back to the list of Settings pages.
   await browser
     .locator('[data-page-header] a[href="/settings"]')
     .first()

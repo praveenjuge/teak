@@ -542,7 +542,6 @@ describe("imports staged in R2", () => {
         },
         { convex, ops: (spec: unknown) => coreWorker.callFilesOp(env, spec) }
       );
-    // What the person sees of a finished import.
     const outcome = async (
       userId: string,
       jobId: Id<"importJobs">,

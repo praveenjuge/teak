@@ -84,12 +84,9 @@ public enum SearchQualifiers {
         public let prefix: String
         public let quoted: Bool
         public let text: String
-        /// The token as it was typed, quotes and escapes included.
         public var source = ""
     }
 
-    /// Words split on whitespace, where quotes (straight or curly) group words
-    /// and `\"` escapes a quote inside them.
     public static func tokenize(_ input: String) -> [RawToken] {
         let scalars = Array(input.unicodeScalars)
         var tokens: [RawToken] = []
@@ -229,7 +226,6 @@ public enum SearchQualifiers {
         "\(bound.op.rawValue)\(formatNumber(bound.amount, grouping: false))"
     }
 
-    /// The chip text for a price bound, as `describePriceBound` writes it.
     public static func describePriceBound(_ bound: PriceBound, locale: Locale = AppLanguage.locale) -> String {
         let amount = formatNumber(bound.amount, grouping: true, locale: locale)
         switch bound.op {

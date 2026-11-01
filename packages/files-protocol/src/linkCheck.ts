@@ -1,10 +1,5 @@
-/**
- * `check-link`: is a saved link's page still there? The dead-link fallback
- * asks when someone opens a link card that has an archived copy.
- */
 export const FILES_LINK_CHECK_MAX_URL_LENGTH = 4096;
 
-/** The Worker gives up after this long and answers `unsure`. */
 export const FILES_LINK_CHECK_TIMEOUT_MS = 3500;
 
 /** Redirects followed, each one checked like the first request. */
@@ -48,7 +43,6 @@ export type FilesLinkCheckReason =
   | "timeout";
 
 export interface FilesLinkCheckResult {
-  /** The final response's status, when one arrived. */
   httpStatus?: number;
   outcome: FilesLinkCheckOutcome;
   reason: FilesLinkCheckReason;

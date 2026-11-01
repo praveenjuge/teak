@@ -89,7 +89,6 @@ public enum ItemProviders {
         return item(for: destination)
     }
 
-    /// Where files wait to upload, one folder each, so their names can't collide.
     public static var uploadsFolder: URL { FileManager.default.temporaryDirectory.appending(path: "Uploads") }
 
     public static func temporaryFolder() throws -> URL {
@@ -98,7 +97,6 @@ public enum ItemProviders {
         return folder
     }
 
-    /// Deletes a file copied in for upload, with its folder. Files from anywhere else stay.
     public static func discard(_ item: UploadItem) {
         let folder = item.fileURL.deletingLastPathComponent()
         guard folder.deletingLastPathComponent().resolvingSymlinksInPath().path

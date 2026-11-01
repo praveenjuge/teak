@@ -9,7 +9,6 @@ const templates = Object.entries(openApiSpec.paths).map(
   })
 );
 
-// `/v1/cards/{cardId}/done` matches one non-empty path segment per `{param}`.
 const matchesTemplate = (segments: readonly string[], path: string[]) =>
   segments.length === path.length &&
   segments.every((segment, index) =>

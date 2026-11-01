@@ -178,7 +178,6 @@ describe("sign-in callback", () => {
     const hint = setCookie(response, "teak_session_hint");
     expect(hint).toStartWith("teak_session_hint=1;");
     expect(hint).not.toContain("HttpOnly");
-    // localhost keeps the hint host-only.
     expect(hint).not.toContain("Domain=");
   });
 });

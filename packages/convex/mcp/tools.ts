@@ -434,7 +434,6 @@ const errorResult = (status: number, payload: unknown): McpToolResult => {
 
 const MAX_REPORTED_ISSUES = 3;
 
-/** The argument names a tool takes, for an unknown-argument error. */
 const acceptedFields = (schema: z.ZodType): string[] => {
   const shape = (schema as { shape?: unknown }).shape;
   return shape && typeof shape === "object" ? Object.keys(shape) : [];

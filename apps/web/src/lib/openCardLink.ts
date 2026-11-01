@@ -18,14 +18,12 @@ export interface OpenableCard {
 export const openCardPath = (cardId: string) =>
   `${OPEN_CARD_PATH}/${encodeURIComponent(cardId)}`;
 
-/** Whether opening the card checks its page before it opens. */
 export const opensThroughLinkCheck = (card: OpenableCard): boolean =>
   card.type === "link" &&
   Boolean(card.pageArchive) &&
   !card.isDeleted &&
   sanitizeExternalUrl(card.url) !== undefined;
 
-/** The address a new tab opens for the card, or null when it has none. */
 export const cardLinkTarget = (
   card: OpenableCard,
   appOrigin: string

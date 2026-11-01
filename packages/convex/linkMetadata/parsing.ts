@@ -100,7 +100,6 @@ export const sanitizeText = (
   }
   if (normalized.length > maxLength) {
     const cut = normalized.slice(0, maxLength);
-    // A cut through an emoji's surrogate pair would keep half a character.
     return isHighSurrogate(cut.charCodeAt(cut.length - 1))
       ? cut.slice(0, -1)
       : cut;

@@ -15,20 +15,17 @@ final class LibraryModel {
     }
     var tokens: [SearchToken] = [] {
         didSet {
-            // A picked hint (`-tag:`, `OR`) writes into the text instead of staying a token.
             if let hint = tokens.first(where: { $0.kind == .hint }) {
                 tokens.removeAll { $0.kind == .hint }
                 applyHint(hint)
                 if tokens == oldValue { return }
             }
-            // A tag or "Similar to" shows other cards, so a selection made here ends, as it does for filters.
             if tokens != oldValue { selection = nil }
             reload()
         }
     }
     var filters = LibraryFilters.empty {
         didSet {
-            // Another view's cards: a selection made here would act on cards no longer shown.
             if filters != oldValue { selection = nil }
             reload()
         }
@@ -38,19 +35,15 @@ final class LibraryModel {
     private(set) var selection: Set<String>?
     private(set) var isRunningBulkAction = false
     private(set) var isEmptyingTrash = false
-    /// Every card in Trash, from `cards:trashCount`, while this view is Trash.
     private(set) var trashCount: TrashCount?
     private(set) var status: StatusMessage?
-    /// The last answer from search by meaning, for the empty state.
     private(set) var semanticOutcome: String?
-    /// Whether an empty view is empty because its cards are hidden.
     private(set) var hasHiddenCards = false
 
     private var favoriteOverrides: [String: Bool] = [:]
     private var hiddenIds: Set<String> = []
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private var debouncedText = ""
-    /// The text as last typed, which picking a suggestion may clear.
     @ObservationIgnored private var typedText = ""
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var statusTask: Task<Void, Never>?
@@ -62,11 +55,9 @@ final class LibraryModel {
         pager = CardPager(backend: backend)
         pager.onLoad = { [weak self, spotlight] cards, left in
             guard let self else { return }
-            // Once the server agrees, live data wins, so a change made elsewhere shows.
             for card in cards where favoriteOverrides[card.id] == card.favorited {
                 favoriteOverrides[card.id] = nil
             }
-            // A card that left (unfavorited out of Favorites) shows again if it comes back favorited.
             for id in left { favoriteOverrides[id] = nil }
             spotlight.apply(CardIndex.changes(cards, left: left, in: query))
         }
@@ -145,7 +136,6 @@ final class LibraryModel {
         }
     }
 
-    /// Asks once whether an empty view holds only hidden cards.
     func checkHiddenCards() {
         hiddenTask?.cancel()
         let query = query
@@ -207,7 +197,6 @@ final class LibraryModel {
         filters = LibraryFilters(archivedOnly: true)
     }
 
-    /// "More like this": every card like this one, with filters cleared.
     func moreLike(_ id: String, title: String?) {
         text = ""
         debouncedText = ""
@@ -223,14 +212,12 @@ final class LibraryModel {
         filters = .empty
     }
 
-    /// A fresh order each time, never the one just shown.
     func shuffle() {
         let previous: Int? = if case let .shuffle(seed) = sort { seed } else { nil }
         sort = .shuffle(seed: ShuffleSeed.next(after: previous))
     }
 
     func refresh() async {
-        // The old cards stay until the fresh ones arrive, with the changes made to them.
         await pager.refresh()
         guard !pager.isStale, !Task.isCancelled else { return }
         favoriteOverrides = [:]
@@ -272,7 +259,6 @@ final class LibraryModel {
         }
     }
 
-    /// Moves one card to Trash with Undo, as the web's card view does, so it asks nothing first.
     @discardableResult
     func moveToTrash(_ id: String) async -> Bool {
         hiddenIds.insert(id)
@@ -287,7 +273,6 @@ final class LibraryModel {
         }
     }
 
-    /// "Card moved to Trash" with Undo, which puts the card back where it was.
     func showTrashed(_ id: String) {
         show(tr("native.library.toast.trashed")) { [weak self] in
             Task { await self?.undoTrash(id) }
@@ -323,12 +308,10 @@ final class LibraryModel {
         } catch {}
     }
 
-    /// Whether Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives.
     var canEmptyTrash: Bool { isTrash && !isEmptyingTrash && (trashCount.map { $0.count > 0 } ?? !cards.isEmpty) }
 
     var emptyTrashMessage: String { EmptyTrash.message(count: trashCount.map { Int($0.count) } ?? cards.count, more: trashCount?.more ?? false) }
 
-    /// Deletes every card in Trash forever. The server deletes them in pages, and the view follows live.
     func emptyTrash() async {
         guard canEmptyTrash else { return }
         isEmptyingTrash = true
@@ -349,7 +332,6 @@ final class LibraryModel {
         }
     }
 
-    /// Archives or returns one card, with Undo, as the web does.
     @discardableResult
     func setArchived(_ id: String, _ archived: Bool) async -> Bool {
         let action: BulkCardAction = archived ? .archive : .unarchive
@@ -383,7 +365,6 @@ final class LibraryModel {
                                                        ["cardId": .string(id), "field": archived ? "archive" : "unarchive"])
     }
 
-    /// Reruns a card's processing and says how it went.
     func refreshDetails(_ id: String) async {
         do {
             let result = try await backend.mutation(ConvexFunctions.reprocessCard, ["cardId": .string(id)])
@@ -435,7 +416,6 @@ final class LibraryModel {
         return cards.filter { selection.contains($0.id) }
     }
 
-    /// Whether a bulk action takes the cards out of this view.
     private func leavesView(_ action: BulkCardAction) -> Bool {
         switch action {
         case .archive: !isArchive
@@ -446,8 +426,6 @@ final class LibraryModel {
         }
     }
 
-    /// Changes the selected cards through `cards:bulkUpdateCards`, 100 at a
-    /// time, then says what changed, with Undo where there's an opposite.
     func run(_ action: BulkCardAction, tags: [String] = [], folder: Folder? = nil) async {
         let ids = selectedCards.map(\.id)
         guard !ids.isEmpty, !isRunningBulkAction else { return }
@@ -503,7 +481,6 @@ final class LibraryModel {
         return (updated, failed)
     }
 
-    /// Permanent deletion has no bulk action, so it goes card by card.
     func deleteSelectedForever() async {
         let chosen = selectedCards
         guard !chosen.isEmpty, !isRunningBulkAction else { return }

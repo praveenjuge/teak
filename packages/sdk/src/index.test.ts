@@ -208,7 +208,6 @@ describe("teak-sdk", () => {
     expect(outcome).toMatchObject({
       code: "TIMEOUT",
     } satisfies Partial<TeakApiError>);
-    // The stalled body is cancelled, not left buffering after the timeout.
     expect(cancelled).toBe(true);
   });
 

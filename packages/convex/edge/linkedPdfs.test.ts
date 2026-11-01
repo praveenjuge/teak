@@ -136,7 +136,6 @@ const setup = async () => {
 
 const refusal = (code: string) => ({ data: expect.objectContaining({ code }) });
 
-/** The keys of pending claims the orphan sweep keeps. */
 const pendingClaimKeys = async (
   t: Awaited<ReturnType<typeof setup>>["t"]
 ): Promise<string[]> =>

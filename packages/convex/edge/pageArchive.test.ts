@@ -34,7 +34,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-/** A test backend with the components saving a card uses. */
 const newBackend = () => {
   const t = baseConvexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
@@ -620,7 +619,6 @@ describe("runs", () => {
       { archiveOnly: true, cardId, rev: 2 },
     ]);
 
-    // That run failing too fails only the archive, and queues nothing more.
     await t.mutation(internal.workflowDispatch.claim, {});
     await t.mutation(internal.workflowDispatch.complete, {
       instanceId: runs[1]?.instanceId as string,
@@ -717,7 +715,6 @@ describe("createPageSnapshotUploadForUser", () => {
         .collect()
     );
     expect(owners.map((row) => row.userId)).toEqual([OWNER]);
-    // The key it mints is one a save accepts.
     const { cardId } = await create(t, {
       content: LINK,
       pageSnapshotKey: upload.fileKey,

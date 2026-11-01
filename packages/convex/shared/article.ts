@@ -1,40 +1,23 @@
-/**
- * A link's article (`cards.article`): the text Teak's reader shows, taken
- * from the page's saved copy. The rules the Convex backend, the Core Worker
- * and the web app share.
- */
-
-/** The R2 role of an article's Markdown. */
 export const ARTICLE_TEXT_ROLE = "article-text";
-/** The R2 role of an image an article shows. */
 export const ARTICLE_IMAGE_ROLE = "article-image";
 
-/** The most images one article keeps. */
 export const ARTICLE_MAX_IMAGES = 20;
-/** The widest an article image is stored. */
 export const ARTICLE_IMAGE_MAX_WIDTH = 1600;
-/** An article image heavier than this once encoded is left out. */
 export const ARTICLE_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
-/** All of one article's encoded images together, so a step stays in memory. */
 export const ARTICLE_IMAGES_MAX_TOTAL_BYTES = 16 * 1024 * 1024;
 
-/** Fewer words of body text than this is never an article. */
 export const ARTICLE_MIN_WORDS = 120;
 /**
  * A page Readability doesn't think is readable needs at least this many
  * words to count as an article.
  */
 export const ARTICLE_UNREADERABLE_MIN_WORDS = 300;
-/** "summarize article" runs only for articles at least this long. */
 export const ARTICLE_SUMMARY_MIN_WORDS = 200;
-/** How much of an article the summary reads. */
 export const ARTICLE_SUMMARY_INPUT_CHARS = 6000;
-/** How much of an article's opening a link's embedding reads. */
 export const ARTICLE_EMBEDDING_OPENING_CHARS = 1500;
 
 const WORDS_PER_MINUTE = 230;
 
-/** Link categories whose card dialog opens on the Read tab. */
 export const READ_FIRST_CATEGORIES: readonly string[] = [
   "article",
   "news",
@@ -50,7 +33,6 @@ export const ARTICLE_IMAGE_SCHEME = "teak-image:";
 export const articleImageToken = (index: number): string =>
   `${ARTICLE_IMAGE_SCHEME}${index}`;
 
-/** The image index a `teak-image:<n>` reference names, or null. */
 export const parseArticleImageToken = (value: string): number | null => {
   const match = /^teak-image:(0|[1-9]\d{0,2})$/u.exec(value.trim());
   return match ? Number(match[1]) : null;
@@ -58,10 +40,6 @@ export const parseArticleImageToken = (value: string): number | null => {
 
 const IMAGE_TOKEN_IN_MARKDOWN = /teak-image:(0|[1-9]\d{0,2})/gu;
 
-/**
- * Rewrites each `teak-image:<n>` in an article's Markdown with `resolve(n)`;
- * a reference `resolve` has no answer for becomes an empty string.
- */
 export const replaceArticleImageTokens = (
   markdown: string,
   resolve: (index: number) => string | undefined
@@ -90,10 +68,6 @@ const segmenter = Segmenter
   ? new Segmenter(undefined, { granularity: "word" })
   : null;
 
-/**
- * Words in `text`: dictionary words for languages written without spaces
- * (Japanese, Chinese, Thai), whitespace-separated words elsewhere.
- */
 export const countWords = (text: string): number => {
   if (!text.trim()) {
     return 0;
@@ -110,11 +84,9 @@ export const countWords = (text: string): number => {
   return count;
 };
 
-/** Minutes to read `wordCount` words, never less than one. */
 export const readingMinutes = (wordCount: number): number =>
   Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
 
-/** Whether a page's text is long enough to be an article. */
 export const isArticleLength = (
   wordCount: number,
   probablyReaderable: boolean
@@ -122,7 +94,6 @@ export const isArticleLength = (
   wordCount >= ARTICLE_MIN_WORDS &&
   (probablyReaderable || wordCount >= ARTICLE_UNREADERABLE_MIN_WORDS);
 
-/** A low-cardinality bucket of an article's length, for analytics. */
 export const articleWordsBucket = (wordCount: number): string => {
   if (wordCount < ARTICLE_MIN_WORDS) {
     return "<120";
@@ -155,10 +126,6 @@ const EMPHASIS = /(\*\*|__|~~|\*|_|`)(?=\S)([^\n]*?\S)\1/gu;
 const ESCAPE = /\\([\\`*_{}[\]()#+\-.!|>~])/gu;
 const HORIZONTAL_RULE = /^[ \t]*(?:[-*_][ \t]*){3,}$/gmu;
 
-/**
- * An article's Markdown as plain text, for search and embeddings: images
- * and link targets dropped, markup removed, blocks on lines of their own.
- */
 export const articlePlainText = (markdown: string): string =>
   markdown
     .replace(FENCE, "")
@@ -187,7 +154,6 @@ export const articlePlainText = (markdown: string): string =>
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const CARD_ID = /^[a-z0-9]+$/iu;
-/** `r<rev>-<sha256>`: the run that wrote it, then its content's digest. */
 const OBJECT_NAME = /^r[1-9]\d*-[a-f0-9]{64}$/u;
 
 const contentKey = (
@@ -224,7 +190,6 @@ export const articleTextObjectKey = (
 ): string =>
   contentKey(userKeyPrefix, cardId, ARTICLE_TEXT_ROLE, rev, digest, "md");
 
-/** `<user prefix>/<card>/article-image/r<rev>-<sha256>.webp`. */
 export const articleImageObjectKey = (
   userKeyPrefix: string,
   cardId: string,
@@ -233,13 +198,11 @@ export const articleImageObjectKey = (
 ): string =>
   contentKey(userKeyPrefix, cardId, ARTICLE_IMAGE_ROLE, rev, digest, "webp");
 
-/** The content digest an article object's name carries, or null. */
 export const articleObjectDigest = (key: string): string | null =>
   /\/article-(?:text|image)\/r[1-9]\d*-([a-f0-9]{64})\.(?:md|webp)$/u.exec(
     key
   )?.[1] ?? null;
 
-/** Whether `key` is an article object of `cardId` under `userKeyPrefix`. */
 export const isArticleObjectKey = (
   key: string,
   userKeyPrefix: string,
@@ -302,11 +265,9 @@ export const articleSkipReason = (
   if (!article || options.refresh === true) {
     return null;
   }
-  // An article made before the copy it should come from is stale.
   return article.extractedAt >= archive.capturedAt ? "already_extracted" : null;
 };
 
-/** Why "extract article" failed, as `processingStatus.article.error` says. */
 export const ARTICLE_FAILURE_REASONS = [
   "archive_missing",
   "extract_error",

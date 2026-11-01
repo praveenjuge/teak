@@ -9,7 +9,6 @@ import { SCENARIO_MARKER } from "./helpers";
 const scenario = "search-operators" as const;
 const SCOPE = `tag:scenario-${scenario}`;
 
-/** Every kind of card the operators tell apart, and how many of each. */
 export const SEARCH_OPERATOR_COUNTS = {
   designNotes: 60,
   figmaNotes: 30,
@@ -32,7 +31,6 @@ export const SEARCH_OPERATOR_COUNTS = {
   receiptNotes: 5,
 } as const;
 
-/** Archived links on each host. */
 export const SEARCH_OPERATOR_ARCHIVED = { github: 6, gitlab: 4 } as const;
 
 export const SEARCH_OPERATOR_TOTAL = 400;

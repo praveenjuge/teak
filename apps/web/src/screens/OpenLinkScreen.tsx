@@ -113,16 +113,9 @@ function UnavailableCard() {
   );
 }
 
-/**
- * `/open/<cardId>`: checks a link card's page, then opens the original, or
- * Teak's archived copy when the page is gone. Opened in a new tab by
- * `openCardLink`.
- */
 export function OpenLinkScreen({ cardId }: { cardId: string }) {
   const t = useTranslations("screens.openLink");
   const checkLink = useAction(api.card.linkCheck.checkCardLinkForOpen);
-  // Shows the site while the check runs, and gives the original if the
-  // check is slow or fails.
   const card = useQuery(api.cards.getCardByUrlId, { id: cardId });
   const original = sanitizeExternalUrl(card?.url);
   const host = hostOf(card?.url);

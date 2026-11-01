@@ -8,7 +8,6 @@ interface Catalog {
   [key: string]: string | Catalog;
 }
 
-/** Every message in a catalog by its dotted key, such as `common.save`. */
 export const flattenCatalog = (
   catalog: Catalog,
   prefix = ""

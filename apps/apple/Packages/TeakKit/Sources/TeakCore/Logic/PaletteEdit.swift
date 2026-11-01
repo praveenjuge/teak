@@ -1,6 +1,5 @@
 import Foundation
 
-/// Adding and removing a palette card's colors, as the server's `addColor` and `removeColor` edits accept them.
 public enum PaletteEdit {
     /// The server refuses a write that grows a palette past this.
     public static let maxColors = 12
@@ -23,17 +22,14 @@ public enum PaletteEdit {
         return normalizedHex(String(digits.count == 8 ? digits.prefix(6) : digits))
     }
 
-    /// Whether the card can take another color: a palette, not in Trash, with room left.
     public static func canAdd(_ card: Card) -> Bool {
         isEditable(card) && (card.colors ?? []).count < maxColors
     }
 
-    /// Whether a color can go: a palette, not in Trash, that keeps at least one color afterwards.
     public static func canRemove(_ card: Card) -> Bool {
         isEditable(card) && Set((card.colors ?? []).map { key($0.hex) }).count > 1
     }
 
-    /// Whether the palette already has `hex`, however either is written.
     public static func contains(_ card: Card, _ hex: String) -> Bool {
         let wanted = key(hex)
         return (card.colors ?? []).contains { key($0.hex) == wanted }

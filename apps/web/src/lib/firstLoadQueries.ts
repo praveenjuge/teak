@@ -17,7 +17,6 @@ export interface FirstLoadContext {
   folders?: readonly Pick<FolderSummary, "_id" | "kind">[];
 }
 
-/** A first-load query's result as the server fetched it for the page. */
 export interface QuerySeed {
   args: JSONValue;
   name: string;

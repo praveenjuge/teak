@@ -4,9 +4,7 @@ import TeakCore
 struct MarkdownView: View {
     let markdown: String
     var baseFont: Font = .body
-    /// Live titles for `[[Title|teak:id]]` links; nil leaves tokens as text.
     var cardLinks: [String: CardLinkTarget]?
-    /// Ticks or unticks a task; nil shows its checkbox read-only.
     var toggleTask: ((MarkdownListItem) -> Void)?
 
     var body: some View {
@@ -58,7 +56,6 @@ struct MarkdownView: View {
         }
     }
 
-    /// A task with a checkbox; done ones read muted and struck through, as on the web.
     private func task(_ item: MarkdownListItem, checked: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Button {
@@ -102,8 +99,6 @@ struct MarkdownView: View {
         return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 
-    /// A linked card as a tappable pill with its current title, or
-    /// "Missing card" when it's in Trash, deleted or not yours.
     private func pill(_ match: CardLinks.Match, target: CardLinkTarget?) -> AttributedString {
         if target?.missing == true {
             var missing = AttributedString("\u{2009}\(tr("native.card.preview.missingCard"))\u{2009}")
@@ -129,7 +124,6 @@ struct MarkdownView: View {
     }
 }
 
-/// A read-only GFM table with a header row. A wide one scrolls sideways; long cells wrap.
 private struct MarkdownTableView: View {
     let table: MarkdownTable
     let cell: (String) -> Text
@@ -182,7 +176,6 @@ private struct CappedWidth: Layout {
     }
 }
 
-/// `teak-card://<id>` links that open a card inside the app.
 enum CardLinkURL {
     static let scheme = "teak-card"
 

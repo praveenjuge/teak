@@ -59,8 +59,6 @@ describe("signed worker file urls", () => {
   });
 
   test("mints identical urls for repeated signing within one window", async () => {
-    // The default expiry moves every second; the bucketed one is what
-    // getR2Url signs with, and it is fixed for the whole window.
     const windowStart = 1_792_000_000 - (1_792_000_000 % (6 * 60 * 60));
     const first = await buildSignedWorkerFileUrl(
       BASE,

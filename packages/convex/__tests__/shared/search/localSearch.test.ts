@@ -62,7 +62,6 @@ describe("shared search helpers", () => {
         createdAt: 1000,
         savedAt: 9000,
       }),
-      // A card from before `savedAt` sorts by its `createdAt`.
       makeCard({ _id: "legacy", _creationTime: 3, createdAt: 3000 }),
     ];
     const ids = (sort: "newest" | "oldest") =>
@@ -930,7 +929,6 @@ describe("filterLocalCards hidden cards", () => {
     it("a hidden card shows only through the OR branch that names its tag", () => {
       expect(ids("tag:hidden OR tag:fonts")).toEqual(["fonts", "hidden"]);
       expect(ids("tag:type OR tag:fonts")).toEqual(["fonts", "type"]);
-      // Its tag alone is not enough: the branch that names it must match.
       expect(ids("(tag:hidden is:fav) OR tag:type")).toEqual(["type"]);
     });
 

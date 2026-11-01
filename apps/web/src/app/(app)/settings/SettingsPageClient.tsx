@@ -17,7 +17,6 @@ import {
 } from "@/lib/commandPalette";
 import { useSettings } from "./SettingsProvider";
 
-/** Old links (`/settings?dialog=import`) open the page that replaced it. */
 function useLegacyDialogRedirect() {
   const router = useRouter();
   const dialogParam = useSearchParams().get("dialog");

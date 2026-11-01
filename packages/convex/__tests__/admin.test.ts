@@ -8,7 +8,6 @@ import {
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
-// No overview stored yet, so getOverview counts these cards itself.
 const overviewTables =
   (cards: any[], internalIds: string[] = []) =>
   (table: string) => {

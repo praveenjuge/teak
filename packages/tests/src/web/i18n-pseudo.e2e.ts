@@ -2,8 +2,6 @@ import en from "../../../i18n/messages/en.json";
 import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
-// The development pseudo-locale wraps every catalog string as
-// "[Ŝéţţîñĝš ~~~]", so plain English left on screen is a missed string.
 test("the pseudo-locale reaches the sidebar, search and settings", async ({
   browser,
   screen,
@@ -26,8 +24,6 @@ test("the pseudo-locale reaches the sidebar, search and settings", async ({
   }
   expect(text).toContain("[Évéŕýţĥîñĝ");
 
-  // The cookie carries it to the next page, and Settings shows English in
-  // the Language select, since the pseudo-locale is never a saved choice.
   await gotoApp(browser, "/settings/appearance");
   await expect(screen.getByRole("combobox", /^\[Ļáñĝûáĝé/)).toHaveText(
     /English/,

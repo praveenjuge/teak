@@ -34,7 +34,6 @@ const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
 const card = (t: T, cardId: Id<"cards">) =>
   t.run((ctx) => ctx.db.get("cards", cardId));
 
-// The metadata write as a card-processing run makes it, under its revision.
 const saveAi = (
   t: T,
   cardId: Id<"cards">,

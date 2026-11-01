@@ -177,18 +177,13 @@ export const expectSignInRefused = async (surface: Surface, email: string) => {
   await expect(composerOf(screen)).toHaveCount(0);
 };
 
-// The Settings row whose label is `label`: the nearest block around the label
-// that holds a button.
 type SecurityTab = "Connections" | "API keys";
 
-// Devices and connected apps live on Settings → Security; API keys on
-// Settings → Integrations.
 const SETTINGS_PAGES: Record<SecurityTab, { path: string; region: string }> = {
   Connections: { path: "/settings/security", region: "Devices" },
   "API keys": { path: "/settings/integrations", region: "API keys" },
 };
 
-/** The page's settings, below the header and beside the Settings nav. */
 export const settingsContentOf = (browser: Browser) =>
   browser.locator('[data-slot="settings-content"]');
 

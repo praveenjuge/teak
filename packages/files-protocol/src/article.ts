@@ -1,4 +1,3 @@
-/** `extract-article`: the article in a link's saved copy, as Markdown. */
 export interface FilesExtractArticleParams {
   /** The copy: `<prefix>users/<hash>/cards/<card id>/page-archive/<id>-archive.html`. */
   archiveKey: string;
@@ -31,7 +30,6 @@ export type FilesExtractArticleResult =
       /** Images are `teak-image:<n>`; at most 512 KiB characters. */
       markdown: string;
       title?: string;
-      /** The Markdown was cut to fit. */
       truncated: boolean;
       wordCount: number;
     }
@@ -40,5 +38,4 @@ export type FilesExtractArticleResult =
       reason: "no_content" | "not_readerable" | "too_short";
       wordCount: number;
     }
-  /** The copy isn't in storage any more. */
   | { kind: "missing" };

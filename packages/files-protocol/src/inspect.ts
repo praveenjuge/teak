@@ -69,7 +69,6 @@ export const extractDocumentFileText = async (
   };
 };
 
-/** A link's preview image (og:image), then its screenshot. */
 export const linkOcrSourceKeys = (
   preview:
     | { imageStorageKey?: string; screenshotStorageKey?: string }

@@ -31,7 +31,6 @@ struct CardEntity: IndexedEntity {
                               image: card.thumbnailURL.map { .init(url: $0) } ?? .init(systemName: card.type.symbol))
     }
 
-    /// What Spotlight shows and matches. The indexer adds the thumbnail.
     var attributeSet: CSSearchableItemAttributeSet {
         let set = CSSearchableItemAttributeSet(contentType: card.type.contentType)
         set.title = card.title
@@ -73,16 +72,13 @@ struct CardEntityQuery: EntityStringQuery {
         try await CardSearch.run(string)
     }
 
-    /// The newest cards.
     func suggestedEntities() async throws -> [CardEntity] {
         try await CardSearch.run("")
     }
 }
 
-/// The first page of the library's own search, as Shortcuts and Siri see it.
 enum CardSearch {
     static func run(_ text: String, includeArchived: Bool = false) async throws -> [CardEntity] {
-        // Only the backend knows which cards a hidden tag reveals, so such a search finds nothing here.
         guard !CardIndex.revealsHidden(text) else {
             try await IntentSession.requireSignedIn()
             return []

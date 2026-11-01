@@ -209,10 +209,6 @@ const spendCardReprocessLimits = async (
   );
 };
 
-/**
- * Normalizes the tags a card write sets and refuses ones the card can't hold.
- * `previousTags` are the tags the card had before the write.
- */
 export const normalizeCardTags = (
   tags: readonly unknown[],
   previousTags: readonly string[] = []
@@ -276,7 +272,6 @@ export interface CardFieldEdit {
   value?: unknown;
 }
 
-/** A URL edit refused because the link has highlights. */
 export const HIGHLIGHTED_URL_MESSAGE =
   "Remove this link's highlights before changing its URL";
 
@@ -303,7 +298,6 @@ const INVALID_PALETTE_COLOR = {
   message: "A color must be a hex code, such as #FF5500",
 };
 
-/** Refuses a card whose colors can't change. */
 const assertPaletteEditable = (card: Doc<"cards">) => {
   if (card.type !== "palette") {
     throw new ConvexError({
@@ -319,7 +313,6 @@ const assertPaletteEditable = (card: Doc<"cards">) => {
   }
 };
 
-/** The `#RRGGBB` a color edit names, refusing a card whose colors can't change. */
 const paletteEditHex = (card: Doc<"cards">, value: unknown): string => {
   assertPaletteEditable(card);
   const hex = typeof value === "string" ? parsePaletteHex(value) : null;
@@ -415,8 +408,6 @@ const applyCardFieldEdit = (
         return false;
       }
       if (card.hasHighlights) {
-        // Its highlights were made in the saved copy of this URL's page,
-        // which a new URL would replace: they go first, by choice.
         throw new ConvexError({
           code: "CONFLICT",
           message: HIGHLIGHTED_URL_MESSAGE,
@@ -460,8 +451,6 @@ const applyCardFieldEdit = (
       state.updateData.metadata =
         Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
       state.updateData.metadataStatus = "pending";
-      // The article was the old page's: the new page's is taken from its
-      // copy once that is saved.
       Object.assign(state.updateData, droppedArticleFields(state.card));
       if (card.type === "link") {
         state.processingStatus = withStageStatus(
@@ -517,8 +506,6 @@ const applyCardFieldEdit = (
       return true;
     }
 
-    // Changing a palette's colors doesn't refresh its AI summary or tags:
-    // the edit is instant and spends none of the account's refreshes.
     case "addColor": {
       assertPaletteEditable(card);
       const color =
@@ -654,7 +641,6 @@ export const updateCardFieldsForUserHandler = async (
     await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
     await deleteLinkCheckRows(ctx, cardId);
-    // The old page's article: its text row and objects.
     await discardArticleObjects(ctx, card);
   }
 

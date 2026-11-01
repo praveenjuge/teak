@@ -55,7 +55,6 @@ describe("parseGenericCsv", () => {
       notes: 'Commas, and "quotes"',
       createdAt: Date.parse("2024-05-02T09:30"),
     });
-    // Epoch seconds and milliseconds are the same moment.
     expect(items[2]?.card?.createdAt).toBe(1_714_521_600_000);
     expect(items[3]?.card?.createdAt).toBe(1_714_521_600_000);
   });

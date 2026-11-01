@@ -1,4 +1,3 @@
-// Teak's sign-in pages.
 export const SIGN_IN_ROUTES = new Set(["/sign-in", "/sign-up"]);
 
 // Control characters (including tab/newline) and backslashes can be normalized

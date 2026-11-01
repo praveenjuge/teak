@@ -43,7 +43,6 @@ test("a link is marked done from its card, Undo clears it, and is:done finds it"
     timeout: 30_000,
   });
 
-  // A link with no category is never on the to-do list.
   await search.fill("is:todo");
   await search.press("Enter");
   await expect(grid.getByText("Nothing left to do.")).toBeVisible();

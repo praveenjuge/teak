@@ -4,11 +4,9 @@ import SwiftUI
 import TeakCore
 import UniformTypeIdentifiers
 
-/// What the share sheet shows for the items being saved: a name, a symbol, and the files to draw.
 struct SharePreview: Equatable {
     let title: String
     let symbol: String
-    /// Files to draw thumbnails of, front first.
     let files: [URL]
     let count: Int
 
@@ -47,8 +45,6 @@ struct SharePreview: Equatable {
         return "doc"
     }
 
-    /// A thumbnail of one file, or nil when it can't be drawn and keeps its symbol. Images decode
-    /// straight from disk, which is quick; anything else asks Quick Look.
     nonisolated static func thumbnail(of file: URL, size: CGFloat, scale: CGFloat) async -> CGImage? {
         if let image = imageThumbnail(file, pixels: size * scale) { return image }
         let request = QLThumbnailGenerator.Request(fileAt: file, size: CGSize(width: size, height: size),
@@ -67,7 +63,6 @@ struct SharePreview: Equatable {
     }
 }
 
-/// A rounded thumbnail of the shared item. Several items fan out behind the first.
 struct SharePreviewTile: View {
     let preview: SharePreview?
     let thumbnails: [URL: CGImage]
@@ -114,7 +109,6 @@ struct SharePreviewTile: View {
     }
 }
 
-/// The badge on the preview's corner: a spinner while saving, then a drawn mark for how it went.
 struct ShareStatusBadge: View {
     enum Status: Equatable { case saving, saved, partial, failed, attention }
 

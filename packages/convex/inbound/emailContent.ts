@@ -1,18 +1,12 @@
 import { parseDocument } from "htmlparser2";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
 
-// What a saved email becomes: a link card when the body is essentially one
-// link, otherwise a Markdown text card headed by the subject. Pure: the
-// inbound email route plans the cards, then creates them.
-
 export type EmailCardPlan =
   | { kind: "link"; url: string; notes?: string }
   | { kind: "text"; markdown: string }
   | { kind: "empty" };
 
-/** A body with one link and at most this much other text is a link card. */
 const LINK_NOTES_MAX_CHARS = 280;
-/** Elements nested deeper than this are read as plain text. */
 const MAX_RENDER_DEPTH = 200;
 const MAX_REDIRECT_UNWRAPS = 5;
 
@@ -135,7 +129,6 @@ const BLOCK_TAGS = new Set([
   "thead",
 ]);
 
-/** The subject without its stacked Re:, Fwd: and localized prefixes. */
 export const cleanEmailSubject = (subject: string): string => {
   let cleaned = subject.replace(WHITESPACE_REGEX, " ").trim();
   let previous: string;
@@ -167,7 +160,6 @@ const isRedirector = (url: URL): boolean =>
   REDIRECT_PATH_REGEX.test(url.pathname) ||
   REDIRECT_HOST_REGEX.test(url.hostname);
 
-/** The destination a redirect wrapper carries in a query parameter. */
 const redirectTarget = (url: URL): URL | null => {
   if (!isRedirector(url)) {
     return null;
@@ -209,7 +201,6 @@ export const cleanEmailLink = (raw: string): string | null => {
   return url.href;
 };
 
-/** A bare URL found in text, without the punctuation that ends a sentence. */
 const splitTrailing = (match: string): { trailing: string; url: string } => {
   let url = match.replace(TRAILING_PUNCTUATION_REGEX, "");
   if (url.endsWith(")") && !url.includes("(")) {
@@ -218,14 +209,12 @@ const splitTrailing = (match: string): { trailing: string; url: string } => {
   return { trailing: match.slice(url.length), url };
 };
 
-/** Bare URLs in `text` replaced by their cleaned form. */
 const cleanBareUrls = (text: string): string =>
   text.replace(BARE_URL_REGEX, (match) => {
     const { trailing, url } = splitTrailing(match);
     return `${cleanEmailLink(url) ?? url}${trailing}`;
   });
 
-/** Text escaped for Markdown, its URLs cleaned and left unescaped. */
 const escapeText = (text: string): string => {
   let output = "";
   let last = 0;
@@ -289,11 +278,9 @@ const textContent = (node: DomNode, keepBreaks: boolean): string => {
   return output;
 };
 
-/** Inline content: blocks and breaks inside it become spaces. */
 const inline = (content: string): string =>
   content.replace(INLINE_BREAKS_REGEX, " ").replace(DOUBLE_SPACES_REGEX, " ");
 
-/** Wraps inline content in a marker, keeping its outer spaces outside. */
 const wrapInline = (content: string, marker: string): string => {
   const flat = inline(content);
   const core = flat.trim();
@@ -307,7 +294,6 @@ const wrapInline = (content: string, marker: string): string => {
 
 const block = (content: string): string => `${BLOCK}${content}${BLOCK}`;
 
-/** Placeholders resolved: breaks become hard breaks, blocks paragraphs. */
 const finalize = (rendered: string): string =>
   rendered
     .replace(BR_REGEX, "  \n")
@@ -335,7 +321,6 @@ const renderLink = (node: DomNode, depth: number): string => {
     return content;
   }
   if (!text) {
-    // An image-only link, a logo or a tracking banner, says nothing.
     return "";
   }
   const lead = content.startsWith(" ") ? " " : "";
@@ -359,7 +344,6 @@ const renderList = (node: DomNode, depth: number): string => {
     if (child.type !== "tag" || child.name !== "li" || isHidden(child)) {
       continue;
     }
-    // A list nested in an item sits right under the item's text.
     const content = finalize(renderChildren(child, depth + 1)).replace(
       NESTED_LIST_GAP_REGEX,
       "\n"
@@ -489,7 +473,6 @@ function renderChildren(node: DomNode, depth: number): string {
   return output;
 }
 
-/** An HTML body as Markdown. */
 export const htmlToMarkdown = (html: string): string => {
   const document = parseDocument(html, {
     decodeEntities: true,
@@ -555,7 +538,6 @@ const removeForwardHeaders = (body: string): string => {
     }
     if (headerStart >= 0) {
       index = headerStart;
-      // The header lines, and the blank lines between them.
       while (index < lines.length) {
         const current = lines[index] as string;
         if (isHeaderLine(current) || !unquoted(current)) {
@@ -579,7 +561,6 @@ const removeForwardHeaders = (body: string): string => {
     .trim();
 };
 
-/** A plain-text body: its signature cut, its links cleaned. */
 const plainTextBody = (text: string): string => {
   const lines = text.replace(LINE_ENDINGS_REGEX, "\n").split("\n");
   const signature = lines.indexOf("-- ");
@@ -601,7 +582,6 @@ const unquoteAppleShare = (body: string, html: string | null): string => {
     : body;
 };
 
-/** The body as cleaned Markdown: the text part when it says anything. */
 const emailBody = (text: string | null, html: string | null): string => {
   const plain = text
     ? plainTextBody(
@@ -620,7 +600,6 @@ const emailBody = (text: string | null, html: string | null): string => {
   return "";
 };
 
-/** A link card when the body is one link and at most a short note. */
 const linkPlan = (body: string): EmailCardPlan | null => {
   const urls = new Set<string>();
   const withoutLinks = body.replace(
@@ -630,8 +609,6 @@ const linkPlan = (body: string): EmailCardPlan | null => {
       return text;
     }
   );
-  // An angle-bracketed link goes with its brackets, and the punctuation
-  // that ended a bare link's sentence goes with it.
   const rest = withoutLinks
     .replace(ANGLE_URL_REGEX, (_match, url: string) => {
       urls.add(url);
@@ -662,7 +639,6 @@ const linkPlan = (body: string): EmailCardPlan | null => {
 const isContinuationByte = (byte: number): boolean =>
   byte >= 0x80 && byte < 0xc0;
 
-/** Markdown cut to the text card limit on a character boundary. */
 const fitMarkdown = (markdown: string): string => {
   const bytes = new TextEncoder().encode(markdown);
   if (bytes.byteLength <= MARKDOWN_CONTENT_MAX_BYTES) {
@@ -678,7 +654,6 @@ const fitMarkdown = (markdown: string): string => {
   return `${new TextDecoder().decode(bytes.subarray(0, end))}${ellipsis}`;
 };
 
-/** What a saved email becomes. */
 export const planEmailCards = (email: {
   html: string | null;
   subject: string | null;

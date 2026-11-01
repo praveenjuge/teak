@@ -32,7 +32,6 @@ const highlightIdOf = (
   ctx.db.normalizeId("highlights", id) ??
   notFound(HIGHLIGHT_ERROR_MESSAGES.NOT_FOUND);
 
-/** A card's highlights in article order; another account's card is 404. */
 export const listHighlightsForApi = internalQuery({
   args: { userId: v.string(), cardId: v.string() },
   returns: v.array(highlightReturnValidator),
@@ -46,7 +45,6 @@ export const listHighlightsForApi = internalQuery({
   },
 });
 
-/** The article a quote is looked for in: NOT_FOUND or NO_ARTICLE first. */
 export const getHighlightArticleForApi = internalQuery({
   args: { userId: v.string(), cardId: v.string() },
   returns: v.object({

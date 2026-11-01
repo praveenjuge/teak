@@ -8,9 +8,6 @@ import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import schema from "../schema";
 
-// The account's UI language (settings/preferences.ts): English until the
-// account picks one of @teak/i18n's languages in Settings.
-
 const modules = import.meta.glob("../**/*.ts");
 
 const codeOf = async (promise: Promise<unknown>) => {

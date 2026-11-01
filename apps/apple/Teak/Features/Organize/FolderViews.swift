@@ -1,12 +1,10 @@
 import SwiftUI
 import TeakCore
 
-/// What the folder name prompt is for.
 enum FolderPrompt: Identifiable, Equatable {
     case create
     case rename(Folder)
     case smart(query: String, name: String, dropsFilters: Bool)
-    /// A smart folder's name and search, edited together.
     case editSearch(Folder)
 
     var id: String {
@@ -53,14 +51,12 @@ enum FolderPrompt: Identifiable, Equatable {
         }
     }
 
-    /// The search field's text; nil when the prompt has no search field.
     var initialQuery: String? {
         if case let .editSearch(folder) = self { return folder.query ?? "" }
         return nil
     }
 }
 
-/// Folder actions that report through the library's toasts.
 @MainActor
 struct FolderActions {
     let folders: FoldersModel
@@ -76,7 +72,6 @@ struct FolderActions {
                 if library.filters.folder?.id == folder.id { library.filters.folder?.name = name }
             case let .editSearch(folder):
                 let saved = try await folders.update(folder, name: name, query: query)
-                // The open folder's page reads the new search.
                 if library.filters.folder?.id == folder.id { library.filters.folder = FolderScope(saved) }
                 library.show(tr("native.folders.savedName", saved.name))
             case let .smart(query, _, _):
@@ -173,7 +168,6 @@ struct FolderLabel: View {
     }
 }
 
-/// The context menu a folder row offers in the sidebar and the Folders list.
 struct FolderMenu: View {
     let folder: Folder
     @Binding var prompt: FolderPrompt?
@@ -185,7 +179,6 @@ struct FolderMenu: View {
     }
 }
 
-/// Rename… for a folder; Edit search… for a smart folder, whose prompt edits its name too.
 struct FolderEditButton: View {
     let folder: Folder
     @Binding var prompt: FolderPrompt?
@@ -200,7 +193,6 @@ struct FolderEditButton: View {
 }
 
 #if os(iOS)
-/// iPhone's Folders tab: every folder and smart folder; tapping one shows its cards.
 struct FoldersTab: View {
     let namespace: Namespace.ID
     @Environment(AppRouter.self) private var router
@@ -227,7 +219,6 @@ struct FoldersTab: View {
             type: { type in show { services.home.filterByType(type) } }))
     }
 
-    /// A tag or type tapped in a folder's card searches the whole library from Home.
     private func show(_ change: () -> Void) {
         services.home.open(nil)
         change()
@@ -298,7 +289,6 @@ struct FoldersPage: View {
 }
 #endif
 
-/// Picks folders for one card (a checklist) or for the selected cards (one tap adds them).
 struct FolderPickerView: View {
     enum Mode {
         case card(id: String, folderIds: [String])
@@ -311,7 +301,6 @@ struct FolderPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var checked: [String] = []
-    /// The card's folders as the server last confirmed them.
     @State private var saved: [String] = []
     @State private var isSaving = false
     @State private var error: String?

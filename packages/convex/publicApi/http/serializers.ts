@@ -71,7 +71,6 @@ const serializeArchive = (card: CardWithUrls) =>
       }
     : null;
 
-/** A link's article: how long it is. `GET …/content?kind=article` reads it. */
 const serializeArticle = (card: CardWithUrls) =>
   card.article?.status === "ready"
     ? {
@@ -287,7 +286,6 @@ export const serializeFolder = (folder: {
   updatedAt: folder.updatedAt,
 });
 
-/** A highlight as the public API returns it. */
 export const serializeHighlight = (highlight: {
   _id: string;
   cardId: string;

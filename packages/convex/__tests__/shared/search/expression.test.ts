@@ -32,7 +32,6 @@ const matches = (query: string, card: TestCard) => {
   return matchesExpression(expression, card, card.text ?? "", context);
 };
 
-// The card is hidden and only the expression can reveal it.
 const revealsHiddenCard = (query: string, card: TestCard) => {
   const { expression } = parseSearchQuery(query);
   if (!expression) {
@@ -112,7 +111,6 @@ describe("matchesExpression operators", () => {
   });
 
   test("a minus binds tighter than OR", () => {
-    // (-tag:fonts) OR tag:type
     const query = "-tag:fonts OR tag:type";
     expect([fonts, type, both, neither].map((c) => matches(query, c))).toEqual([
       false,
@@ -123,7 +121,6 @@ describe("matchesExpression operators", () => {
   });
 
   test("a space binds tighter than OR", () => {
-    // (tag:fonts -tag:type) OR tag:color
     const query = "tag:fonts -tag:type OR tag:color";
     expect([fonts, type, both, neither].map((c) => matches(query, c))).toEqual([
       true,
@@ -134,7 +131,6 @@ describe("matchesExpression operators", () => {
   });
 
   test("parentheses override precedence", () => {
-    // tag:fonts is lifted into the flat fields; the group stays.
     const query = "tag:fonts (-tag:type OR mono)";
     expect(parseSearchQuery(query).tags).toEqual(["fonts"]);
     expect([fonts, type, both, neither].map((c) => matches(query, c))).toEqual([
@@ -170,7 +166,6 @@ describe("matchesExpression operators", () => {
   });
 
   test("an impossible search matches nothing", () => {
-    // type:image is lifted into the flat fields and -type:image stays.
     const parsed = parseSearchQuery("type:image -type:image");
     expect(parsed.types).toEqual(["image"]);
     expect(matches("type:image -type:image", note({ type: "image" }))).toBe(
@@ -200,7 +195,6 @@ describe("expression walkers", () => {
     ]);
     expect(expressionRevealTags(expression("-tag:hidden"))).toEqual([]);
     expect(expressionRevealTags(expression("-(tag:secret OR x)"))).toEqual([]);
-    // Two minuses cancel out.
     expect(expressionRevealTags(expression("-(-tag:secret OR x)"))).toEqual([
       "secret",
     ]);
@@ -251,7 +245,6 @@ describe("matchesExpression for a hidden card", () => {
     ["-(-tag:hidden OR tag:design)", secret(), false],
   ] as const)("%s", (query, card, expected) => {
     expect(revealsHiddenCard(query, card)).toBe(expected);
-    // A card that is not hidden matches the expression as usual.
     if (expected) {
       expect(matches(query, card)).toBe(true);
     }

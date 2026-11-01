@@ -279,21 +279,14 @@ export function normalizeHueFilters(values?: string[]): ColorHueBucket[] {
 
 export const FREE_TIER_LIMIT = 200;
 
-/** The most links one paste into the web composer saves (card/pasteLinks.ts). */
 export const LINK_PASTE_LIMIT = 100;
 
-/** The most lines one paste may send; the composer sends no more. */
 export const LINK_PASTE_MAX_INPUT = 1000;
 
-/** Refused while the account's last pasted links are still being saved. */
 export const LINK_PASTE_ACTIVE_CODE = "PASTE_ACTIVE";
 
 export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-/**
- * The most cards Trash's count reads (card/emptyTrash.ts). A Trash this full
- * or fuller shows the count with a plus; Empty Trash still deletes them all.
- */
 export const TRASH_COUNT_LIMIT = 500;
 
 export { MAX_FILE_SIZE } from "./fileFormats";

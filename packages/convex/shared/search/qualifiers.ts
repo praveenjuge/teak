@@ -46,10 +46,6 @@ const MAX_MOOD_LENGTH = 200;
 const MAX_OCR_TEXT_LENGTH = 200;
 const CONVEX_ID_PATTERN = /^[0-9a-z]{31,37}$/;
 
-/**
- * A search's boolean structure. `-` is `not`, uppercase `OR` is `or`, a
- * space is `and`, and parentheses group.
- */
 export type SearchExpression =
   | { op: "and" | "or"; items: SearchExpression[] }
   | { op: "not"; item: SearchExpression }
@@ -57,9 +53,7 @@ export type SearchExpression =
   | { op: "phrase"; value: string }
   | { op: "qualifier"; qualifier: SearchQualifier };
 
-/** Parentheses nest at most this deep; deeper ones are ignored. */
 export const MAX_SEARCH_EXPRESSION_DEPTH = 4;
-/** Past this many words and filters, the rest is searched as plain words. */
 export const MAX_SEARCH_EXPRESSION_LEAVES = 64;
 
 export interface ParsedSearchQuery {
@@ -103,7 +97,6 @@ const DONE_WORDS = new Set(["done", "completed", "finished"]);
 const TODO_WORDS = new Set(["todo", "to-do"]);
 
 interface RawToken {
-  /** `-` before the token, outside quotes: the token is excluded. */
   negated: boolean;
   paren?: "(" | ")";
   prefix: string;
@@ -113,7 +106,6 @@ interface RawToken {
 
 const isParen = (character: string) => character === "(" || character === ")";
 
-/** Whether `input` from `index` to the next space holds only parentheses. */
 const onlyParensUntilSpace = (input: string, index: number) => {
   for (let at = index; at < input.length; at += 1) {
     const character = input[at] ?? "";
@@ -127,11 +119,6 @@ const onlyParensUntilSpace = (input: string, index: number) => {
   return true;
 };
 
-/**
- * Splits a query into words, honouring straight and curly quotes and `\`
- * escapes inside them. Outside quotes, parentheses at a word's start or end
- * are their own tokens, and a `-` that starts a word marks it excluded.
- */
 const tokenize = (input: string): RawToken[] => {
   const tokens: RawToken[] = [];
   let index = 0;
@@ -143,7 +130,6 @@ const tokenize = (input: string): RawToken[] => {
       break;
     }
     let negated = false;
-    // A word's start: its `-` and any opening or stray closing parentheses.
     while (index < input.length) {
       const character = input[index] ?? "";
       const next = input[index + 1] ?? "";
@@ -407,7 +393,6 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
   return `${qualifier.key}:${needsQuotes(value) ? quoteSearchValue(value) : value}`;
 };
 
-/** One word of a query as a leaf: a filter, a tag, a phrase or a word. */
 const leafOf = (token: RawToken): SearchExpression | null => {
   const colon = token.quoted
     ? token.prefix.indexOf(":")
@@ -452,7 +437,6 @@ const leafOf = (token: RawToken): SearchExpression | null => {
   return token.text.trim() ? { op: "term", value: token.text } : null;
 };
 
-/** The words a token stands for when it is read as plain text. */
 const tokenText = (token: RawToken) =>
   token.paren
     ? ""
@@ -472,7 +456,6 @@ const isOrToken = (token: RawToken | undefined) =>
 const isSimilarityLeaf = (expression: SearchExpression) =>
   expression.op === "qualifier" && isSimilarityKey(expression.qualifier.key);
 
-/** Joins items under one operator, flattening same-operator children. */
 const joinExpressions = (
   op: "and" | "or",
   items: SearchExpression[]
@@ -497,7 +480,6 @@ const parseSearchTree = (input: string): SearchExpression | null => {
   );
   let position = 0;
   let leaves = 0;
-  // Opening parentheses past the depth cap, whose `)` closes nothing.
   let ignoredOpens = 0;
   const overflow: SearchExpression[] = [];
 
@@ -613,7 +595,6 @@ const demoteSimilarity = (expression: SearchExpression): SearchExpression => {
   }
 };
 
-/** A word is printed as written, except one that would read as `OR`. */
 const formatTerm = (value: string) =>
   value === "OR" ? quoteSearchValue(value) : value;
 
@@ -652,7 +633,6 @@ const formatExpression = (
 export const formatSearchExpression = (expression: SearchExpression): string =>
   formatExpression(expression, null);
 
-/** Whether every card an expression matches has one of its words. */
 const requiresWords = (expression: SearchExpression): boolean => {
   switch (expression.op) {
     case "term":
@@ -806,7 +786,6 @@ const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
 export const parseSearchQuery = (input: string): ParsedSearchQuery =>
   buildParsedQuery(parseSearchTree(input));
 
-/** The residual parts of a parsed query, each as its own top-level item. */
 const residualItems = (parsed: ParsedSearchQuery): SearchExpression[] => {
   if (!parsed.expression) {
     return [];
@@ -816,10 +795,6 @@ const residualItems = (parsed: ParsedSearchQuery): SearchExpression[] => {
     : [parsed.expression];
 };
 
-/**
- * The parts of a query's expression, each printed to sit beside the query's
- * other words and filters: `-figma`, `(a OR b)`.
- */
 export const searchExpressionParts = (parsed: ParsedSearchQuery): string[] =>
   residualItems(parsed).map((item) => formatExpression(item, "and"));
 
@@ -906,7 +881,6 @@ const renameFolderLeaves = (
   }
 };
 
-/** Every filter a query names, wherever it sits in the expression. */
 export const searchExpressionQualifiers = (
   expression: SearchExpression | undefined
 ): SearchQualifier[] => {

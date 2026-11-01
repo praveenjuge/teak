@@ -8,7 +8,6 @@ export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
 export const POSTHOG_PROJECT_ID = "660923";
-/** `$lib` of the Convex backend's events, including those the Core Worker sends for it. */
 export const BACKEND_POSTHOG_LIB = "teak-backend";
 
 const DEFAULT_TIMEOUT_MS = 2000;
@@ -33,7 +32,6 @@ export interface PostHogCaptureInput {
   event: string;
   properties?: PostHogProperties;
   set?: PostHogProperties;
-  /** ISO time the event happened; defaults to now. */
   timestamp?: string;
   /** Lets PostHog drop a repeat of the same event. */
   uuid?: string;

@@ -27,10 +27,6 @@ export interface LanguageSetting {
   pending: boolean;
 }
 
-/**
- * Settings → Language: switches the app in place, saves the choice to the
- * account, and offers Undo. A failed save switches back.
- */
 export function useLanguageSetting(): LanguageSetting | null {
   const localeSwitch = useLocaleSwitch();
   const t = useTranslations("settings.language");

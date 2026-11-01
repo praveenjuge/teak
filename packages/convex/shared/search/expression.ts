@@ -12,7 +12,6 @@ import {
   type SearchQualifier,
 } from "./qualifiers";
 
-/** The card fields a filter inside an expression reads. */
 export interface ExpressionCard {
   aiOcrText?: string;
   completedAt?: number;
@@ -24,12 +23,9 @@ export interface ExpressionCard {
   type: CardType;
 }
 
-/** What a caller knows about a card beyond its fields. */
 export interface ExpressionContext {
-  /** Whether the card is in the folder with this name key. */
   folder: (nameKey: string) => boolean;
   hasTag: (tag: string) => boolean;
-  /** The card's site, normalized the way `site:` is. */
   host: string | null;
 }
 
@@ -51,10 +47,6 @@ const trimWord = (value: string) => {
   return value.slice(start, end).toLowerCase();
 };
 
-/**
- * Whether a card meets one filter, with the same meaning the filter has at
- * the top level of a search.
- */
 export const cardMatchesQualifier = (
   card: ExpressionCard,
   qualifier: SearchQualifier,
@@ -138,8 +130,6 @@ export const matchesExpression = (
         return node.items.some(evaluate);
     }
   };
-  // Whether the card meets the node (its opposite when negated) through a
-  // branch that wants a hidden tag the card has. A minus flips AND and OR.
   const reveals = (node: SearchExpression, negated: boolean): boolean => {
     switch (node.op) {
       case "qualifier":
@@ -166,7 +156,6 @@ export const matchesExpression = (
   return hiddenCard ? reveals(expression, false) : evaluate(expression);
 };
 
-/** The filters an expression asks for, each with whether it is excluded. */
 const walkQualifiers = (
   expression: SearchExpression | undefined,
   visit: (qualifier: SearchQualifier, excluded: boolean) => void,
@@ -193,7 +182,6 @@ const walkQualifiers = (
   }
 };
 
-/** The folder names an expression uses, as name keys. */
 export const expressionFolderNames = (
   expression: SearchExpression | undefined
 ): string[] => {
@@ -226,7 +214,6 @@ export const expressionRevealTags = (
   return tags;
 };
 
-/** Whether an expression asks for archived cards somewhere. */
 export const expressionWantsArchived = (
   expression: SearchExpression | undefined
 ): boolean => {
@@ -239,7 +226,6 @@ export const expressionWantsArchived = (
   return wants;
 };
 
-/** The words and phrases an expression wants, never excluded ones. */
 export const expressionIndexWords = (
   expression: SearchExpression | undefined
 ): string[] => {
@@ -258,7 +244,6 @@ export const expressionIndexWords = (
   }
 };
 
-/** Whether an expression checks image text (`text:`), excluded or not. */
 export const expressionReadsImageText = (
   expression: SearchExpression | undefined
 ): boolean => {
@@ -271,7 +256,6 @@ export const expressionReadsImageText = (
   return reads;
 };
 
-/** Whether an expression checks a word or phrase anywhere, excluded or not. */
 export const expressionHasWords = (
   expression: SearchExpression | undefined
 ): boolean => {
@@ -292,10 +276,6 @@ export const expressionHasWords = (
   }
 };
 
-/**
- * Which operators a search uses, for product analytics. `groups` is a
- * parenthesised group the precedence needed, as the canonical form prints.
- */
 export const searchOperatorsUsed = (
   parsed: Pick<
     ParsedSearchQuery,
@@ -326,8 +306,6 @@ export const searchOperatorsUsed = (
     }
   };
   if (parsed.expression) {
-    // The top-level words and filters lifted out of the expression sit in
-    // the same AND as it.
     const lifted =
       parsed.qualifiers.length + parsed.phrases.length + parsed.terms.length;
     visit(parsed.expression, lifted > 0 ? "and" : null);

@@ -23,17 +23,13 @@ import { urlKey } from "../shared/utils/urlKey";
 import { queueBackendEvent } from "../telemetry/schedule";
 import { createCardForUserHandler } from "./createCard";
 
-/** Cards one run of the job saves before it hands over to the next run. */
 export const LINK_PASTE_BATCH = 10;
-/** Waits before each retry of a URL that failed for an unknown reason. */
 export const LINK_PASTE_RETRY_DELAYS_MS = [5000, 30_000, 120_000] as const;
-/** Finished jobs are swept this long after they finish. */
 export const LINK_PASTE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_PAGE = 200;
 
 const FINISHED_STATUSES = ["done", "stopped_at_limit", "failed"] as const;
 
-/** Errors that will fail the same way however often the URL is tried. */
 const PERMANENT_ERROR_CODES = new Set<string>([
   "INVALID_INPUT",
   "INVALID_STORAGE_KEY",
@@ -48,11 +44,6 @@ export interface NormalizedLinkPaste {
   urls: string[];
 }
 
-/**
- * The links a paste saves: each trimmed, unsafe ones dropped, repeats of one
- * link (by URL key, so `www.` or `utm_*` variants count once) dropped, and
- * at most 100 kept, in the order they were pasted.
- */
 export const normalizePastedUrls = (lines: string[]): NormalizedLinkPaste => {
   const seen = new Set<string>();
   const kept: string[] = [];
@@ -129,12 +120,6 @@ const finish = async (
   }
 };
 
-/**
- * Saves up to 10 of the job's links through the same rule as any save, so a
- * link already in Teak moves to the top. It then schedules the next run: at
- * the bucket's `retryAt` when the card creation limit is spent, after a
- * backoff when a link failed for an unknown reason, or at once.
- */
 export const runLinkPasteBatch = async (
   ctx: MutationCtx,
   jobId: Id<"linkPasteJobs">
@@ -230,11 +215,6 @@ export const runLinkPasteBatch = async (
   }
 };
 
-/**
- * Starts saving a pasted list of links, one link card each, and saves the
- * first 10 at once. One job runs per account: a second paste while one runs
- * is refused with `PASTE_ACTIVE`.
- */
 export const startLinkPaste = mutation({
   args: { urls: v.array(v.string()) },
   returns: v.object({ jobId: v.id("linkPasteJobs") }),
@@ -271,7 +251,6 @@ export const startLinkPaste = mutation({
       nextIndex: 0,
       created: 0,
       resaved: 0,
-      // Unsafe lines are never tried, but the person pasted them.
       failed: normalized.omittedUnsafe,
       attempts: 0,
       status: "running",
@@ -299,7 +278,6 @@ const linkPasteStatusValidator = v.union(
   v.literal("failed")
 );
 
-/** A paste job's progress, for its owner only. */
 export const getLinkPaste = query({
   args: { jobId: v.id("linkPasteJobs") },
   returns: v.union(
@@ -337,7 +315,6 @@ export const getLinkPaste = query({
   },
 });
 
-/** Deletes jobs that finished more than 7 days ago, a page at a time. */
 export const sweepFinishedLinkPastes = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number() }),

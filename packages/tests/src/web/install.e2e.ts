@@ -9,7 +9,6 @@ import { expect, test } from "./fixtures";
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 
-/** Shares a page and a PNG to Teak, as the system share sheet does. */
 const share = (browser: Browser, marker: string) =>
   browser.evaluate(
     ({
@@ -51,7 +50,6 @@ const share = (browser: Browser, marker: string) =>
     { action: appPath("/share"), marker, png: PNG_BASE64 }
   );
 
-/** Waits until the share worker controls the page, as it does once installed. */
 const workerInPlace = (browser: Browser) =>
   expect
     .poll(
@@ -60,7 +58,6 @@ const workerInPlace = (browser: Browser) =>
     )
     .toBe(true);
 
-/** The composer holds the share's text, and the URL no longer carries it. */
 const expectSharedDraft = async (browser: Browser, marker: string) => {
   const composer = browser
     .locator('form[data-card-creation-status="ready"]')
@@ -88,7 +85,6 @@ const sharePrompt = (browser: Browser) =>
 const confirmSharedFiles = (browser: Browser) =>
   sharePrompt(browser).click({ timeout: 60_000 });
 
-/** The shared PNG became an image card. */
 const expectUploaded = (library: EditorLibrary, marker: string) =>
   expect
     .poll(
@@ -139,7 +135,6 @@ describe("Installed web app", () => {
     await share(browser, marker);
 
     await expectSharedDraft(browser, marker);
-    // A reload while it asks keeps the files and asks again.
     await expect(sharePrompt(browser)).toBeVisible({ timeout: 60_000 });
     await browser.reload();
     await confirmSharedFiles(browser);
@@ -154,8 +149,6 @@ describe("Installed web app", () => {
     await screen.getByRole("button", "Sign out").click();
     await expect(screen.getByLabel("Email")).toBeVisible({ timeout: 30_000 });
 
-    // Shared from outside Teak, the share still goes through Teak's worker,
-    // and sign-in keeps it.
     const marker = `signedout${Date.now().toString(36)}`;
     await share(browser, marker);
     await expect(screen.getByLabel("Email")).toBeVisible({ timeout: 30_000 });

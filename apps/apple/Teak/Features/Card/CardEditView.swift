@@ -7,7 +7,6 @@ struct CardEditView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: CardDetailModel?
     @State private var draft: CardEditDraft?
-    /// The card the draft last caught up with, to notice tags Teak adds while the sheet is open.
     @State private var base: Card?
     @State private var newTag = ""
     @State private var error: String?
@@ -158,7 +157,6 @@ struct CardEditView: View {
         Binding(get: { draft.wrappedValue.editableContent ?? "" }, set: { draft.wrappedValue.editableContent = $0 })
     }
 
-    /// The note's field, with the `[[` picker under it while a link is being typed.
     private func noteSection(_ draft: Binding<CardEditDraft>) -> some View {
         Section {
             TextField(tr("native.card.edit.notePlaceholder"), text: contentBinding(draft), selection: $contentSelection,
@@ -181,8 +179,6 @@ struct CardEditView: View {
         }
     }
 
-    /// Escape closes the picker, the arrows move through its cards and Return links the highlighted one.
-    /// With no cards listed, the arrows move the caret as usual.
     private func linkKey(_ key: KeyEquivalent, _ draft: Binding<CardEditDraft>) -> KeyPress.Result {
         guard let linkPicker, linkPicker.isOpen else { return .ignored }
         switch key {

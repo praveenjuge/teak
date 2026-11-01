@@ -10,7 +10,6 @@ import {
   parseJsonBody,
 } from "./shared";
 
-/** `{ bytes }`, the gzipped page's exact size, and nothing else. */
 export const parsePageSnapshotUploadPayload = (
   payload: unknown
 ): { bytes: number } | { error: string } => {

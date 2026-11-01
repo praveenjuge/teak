@@ -160,7 +160,6 @@ describe("pasting a list of links", () => {
     const urls = links(45);
     const { jobId } = await paste(urls);
 
-    // Step the job run by run until one waits for the bucket.
     let waiting: Awaited<ReturnType<typeof pendingRuns>>[number] | undefined;
     for (let run = 0; run < 10 && !waiting; run += 1) {
       const pending = await pendingRuns();
@@ -291,7 +290,6 @@ describe("pasting a list of links", () => {
     );
     await t.mutation(internal.card.pasteLinks.processLinkPaste, { jobId });
 
-    // One run, with no retry: the unsafe link fails at once.
     expect(await job(jobId)).toMatchObject({
       status: "done",
       failed: 1,

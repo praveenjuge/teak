@@ -129,8 +129,6 @@ export function useLinkThumbnail(
             fileSize: file.size,
             mimeType,
           });
-          // A stalled PUT (dropped Wi-Fi, a captive portal) times out
-          // instead of holding the thumbnail controls busy until a reload.
           const response = await uploadWithTransientRetry(
             (signal) =>
               fetch(upload.uploadUrl, {

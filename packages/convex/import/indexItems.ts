@@ -129,7 +129,6 @@ export const importFileKey = (
 export const importReportKey = (userKeyPrefix: string, jobId: string) =>
   `${userKeyPrefix}/imports/${jobId}/error-report.txt`;
 
-/** One object of items an import has read but not yet turned into cards. */
 export const importStagedPartKey = (
   userKeyPrefix: string,
   jobId: string,

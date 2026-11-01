@@ -1,9 +1,4 @@
-// `[[Title|teak:<cardId>]]` links between cards, written in a text card's
-// Markdown. The id is the link; the title is only a readable fallback, since
-// every surface shows the target's current title.
-
 export const CARD_LINK_TITLE_MAX_LENGTH = 200;
-/** Distinct targets indexed per card; later ones still render. */
 export const MAX_CARD_LINKS = 500;
 
 const TOKEN_SOURCE = String.raw`\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]`;
@@ -21,7 +16,6 @@ const CODE_INDENT = 4;
 const ELLIPSIS = "…";
 const FALLBACK_TITLE = "Card";
 
-/** Whether `markdown` might hold a link token: a cheap check before parsing. */
 export const mayHaveCardLinks = (markdown: string | undefined): boolean =>
   typeof markdown === "string" && markdown.includes("|teak:");
 
@@ -42,7 +36,6 @@ const graphemes = (value: string): string[] =>
       )
     : Array.from(value);
 
-/** `title` cut to `max` UTF-16 units on a whole grapheme, ending in `…`. */
 const truncateTitle = (title: string, max: number): string => {
   if (title.length <= max) {
     return title;
@@ -57,7 +50,6 @@ const truncateTitle = (title: string, max: number): string => {
   return `${result.trimEnd()}${ELLIPSIS}`;
 };
 
-/** A card title made fit to store in a token: one line, 200 units at most. */
 export const cardLinkTokenTitle = (title: string): string => {
   const safe = title
     .replace(TITLE_UNSAFE_REGEX, " ")
@@ -72,7 +64,6 @@ export const formatCardLinkToken = (title: string, id: string): string =>
 
 const blank = (text: string) => text.replace(/[^\n]/g, " ");
 
-/** Inline code spans in one line replaced by spaces, keeping every index. */
 const maskCodeSpans = (line: string): string => {
   const runs = Array.from(line.matchAll(BACKTICK_RUN_REGEX));
   // Each run's next run of the same length, found in one pass from the end:
@@ -102,10 +93,6 @@ const maskCodeSpans = (line: string): string => {
   return masked + line.slice(cursor);
 };
 
-/**
- * `markdown` with fenced code blocks, indented code blocks and inline code
- * spans replaced by spaces, so every index still points at the original.
- */
 const maskCode = (markdown: string): string => {
   const lines = markdown.split("\n");
   let fence: string | null = null;
@@ -180,7 +167,6 @@ const findCardLinks = (markdown: string): CardLinkMatch[] => {
   });
 };
 
-/** Linked card ids in order, unique, at most `MAX_CARD_LINKS`; code excluded. */
 export const parseCardLinkIds = (markdown: string | undefined): string[] => {
   const ids = new Set<string>();
   for (const { id } of findCardLinks(markdown ?? "")) {
@@ -192,7 +178,6 @@ export const parseCardLinkIds = (markdown: string | undefined): string[] => {
   return Array.from(ids);
 };
 
-/** Every token outside code replaced by `replace(title, id)`. */
 export const replaceCardLinkTokens = (
   markdown: string,
   replace: (title: string, id: string) => string
@@ -211,6 +196,5 @@ export const replaceCardLinkTokens = (
   return result + markdown.slice(cursor);
 };
 
-/** Tokens shown as their stored titles, for previews and search text. */
 export const cardLinkTokensToText = (markdown: string): string =>
   replaceCardLinkTokens(markdown, (title) => title);

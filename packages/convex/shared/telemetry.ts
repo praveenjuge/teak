@@ -338,7 +338,6 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
   return value;
 };
 
-/** Runs a telemetry call so its failure never reaches the caller. Returns whether it ran. */
 export const ignoreTelemetryError = (record: () => void): boolean => {
   try {
     record();

@@ -295,16 +295,11 @@ export const searchCardsByDocument = async (
   return Array.from(found.cardsById.values());
 };
 
-/**
- * A card a text search matched, with the fields its order needs. `card` is
- * loaded when the match needed it; otherwise `document` holds the match.
- */
 export interface SearchCandidate {
   card?: Doc<"cards">;
   cardId: Id<"cards">;
   creationTime: number;
   document?: Doc<"cardSearchDocuments">;
-  /** The card's `savedAt ?? createdAt`, which orders the matches. */
   savedAt: number;
   searchableText: string;
 }
@@ -415,7 +410,6 @@ export const searchCardsByOcrText = async (
   return Array.from(found.cardsById.values());
 };
 
-// Transcript text one search may read back to match a card's own text.
 const TRANSCRIPT_SEARCH_READ_BUDGET_CHARS = 2 * 1024 * 1024;
 
 /**
@@ -457,9 +451,7 @@ export const loadSemanticMatches = async (
   options: {
     minScore: number;
     keep: (card: Doc<"cards">, searchableText?: string) => boolean;
-    /** Read moved transcripts back, for a `keep` that matches text. */
     withText?: boolean;
-    /** Reads a card's full search text first, for words in an expression. */
     readText?: (card: Doc<"cards">) => Promise<string | undefined>;
   }
 ): Promise<{ cardId: Id<"cards">; score: number }[]> => {

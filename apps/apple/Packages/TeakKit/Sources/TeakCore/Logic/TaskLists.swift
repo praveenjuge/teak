@@ -4,7 +4,6 @@ import Foundation
 /// within its own list, below the open items when ticked or to the end of them when unticked. Children move with
 /// their item, and every other line stays as written.
 public enum TaskLists {
-    /// The list's new order after the item at `index` changed to `checked[index]`.
     public static func sortedOrder(_ checked: [Bool], index: Int) -> [Int] {
         let others = checked.indices.filter { $0 != index }
         var target = 0
@@ -14,7 +13,6 @@ public enum TaskLists {
         return Array(others[..<target]) + [index] + Array(others[target...])
     }
 
-    /// The note with `item` ticked or unticked and moved, or nil when its line no longer holds that task.
     public static func toggle(_ markdown: String, item: MarkdownListItem) -> String? {
         guard let checked = item.checked else { return nil }
         var lines = MarkdownBlocks.lines(markdown)
@@ -28,7 +26,6 @@ public enum TaskLists {
         return lines.joined(separator: markdown.contains("\r\n") ? "\r\n" : "\n")
     }
 
-    /// A list item line: its indent, its bullet (or `.`/`)` for a numbered one), and its task state if it's a task.
     private struct Line {
         let indent: Int
         let bullet: String
@@ -43,7 +40,6 @@ public enum TaskLists {
                 if let t = String(m.3).wholeMatch(of: MarkdownBlocks.task) {
                     let isChecked = t.1 != " "
                     checked = isChecked
-                    // Only the character between the brackets changes.
                     let box = text.index(m.3.startIndex, offsetBy: 1)
                     flipped = text.replacingCharacters(in: box ... box, with: isChecked ? " " : "x")
                 } else {

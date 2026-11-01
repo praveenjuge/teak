@@ -49,7 +49,6 @@ describe("Reading a saved article", () => {
       timeout: 15_000,
     });
     await expect(reader.getByText("Planting calendar")).toBeVisible();
-    // A table, not rows of pipe text.
     await expect(reader.getByRole("cell", "Tomato")).toBeVisible();
     await expect(
       screen.getByRole("link", "Open original ↗", { exact: false })

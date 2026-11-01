@@ -98,7 +98,6 @@ const setup = async () => {
   return t;
 };
 
-// Each card with its transcript, which lives in `cardTextContents`.
 const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
   t.run(async (ctx) => {
     const cards = await ctx.db
@@ -1255,7 +1254,6 @@ describe("devSeed folder packs", () => {
     expect(
       byTitle("A Spotify episode (no public audio)")?.aiTranscript
     ).toBeUndefined();
-    // Every episode is a podcast link, so processing would try it.
     expect(
       cards
         .filter(
@@ -1266,7 +1264,6 @@ describe("devSeed folder packs", () => {
         .map((card) => card.metadata?.linkCategory?.category)
     ).toEqual(new Array(7).fill("podcast"));
     expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
-    // The RSS-only episode's feed is where processing would look for it.
     const rssOnly = byTitle("An episode found through its show's RSS feed");
     expect(
       findFeedUrl(
@@ -1292,7 +1289,6 @@ describe("devSeed folder packs", () => {
       card.tags?.includes(AI_LANGUAGES_TAG)
     );
     expect(cards).toHaveLength(AI_LANGUAGE_CASES.length);
-    // Every card waits for real AI processing, with no AI output yet.
     for (const card of cards) {
       expect(card.processingStatus?.metadata?.status).toBe("pending");
       expect(card.aiSummary).toBeUndefined();
@@ -1302,8 +1298,6 @@ describe("devSeed folder packs", () => {
       new Set(["ja", "es", "de", "ko", "zh", "hi", "ar", "en", "fr", "pt"])
     );
 
-    // Once processing has written a language, the report pairs it with
-    // the language the card should have.
     const japanese = cards.find((card) => card.content.startsWith("来週"));
     await t.run((ctx) =>
       ctx.db.patch("cards", japanese?._id as Id<"cards">, {
@@ -1885,7 +1879,6 @@ describe("devSeed page archive packs", () => {
     expect(bySlug.get("trashed")).toMatchObject({ isDeleted: true });
     expect(bySlug.get("trashed")?.pageArchive).toBeDefined();
     expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
-    // Every stub is owned by the account, so deleting it removes them.
     const owned = await t.run((ctx) =>
       ctx.db.query("accountStorageObjects").collect()
     );
@@ -1965,7 +1958,6 @@ describe("devSeed reader packs", () => {
     });
     expect(bySlug.get("podcast")?.article?.status).toBe("ready");
     expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
-    // Each ready article's Markdown and images were written, and are owned.
     const written = cards.flatMap((card) =>
       card.article?.status === "ready"
         ? [card.article.textKey, ...card.article.imageKeys]

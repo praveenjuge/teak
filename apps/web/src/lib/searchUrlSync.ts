@@ -7,7 +7,6 @@ import {
 } from "./searchUrlState";
 
 export interface SearchUrlChange {
-  /** Colors, styles or the date changed. */
   filtersChanged: boolean;
   sortChanged: boolean;
   tagChanged: boolean;

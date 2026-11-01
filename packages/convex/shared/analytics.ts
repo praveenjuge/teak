@@ -19,11 +19,6 @@ export type CardCreationSource =
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
-/**
- * `dropped_limit` is the free card limit, `dropped_rate` the 60-an-hour
- * inbound limit (both silent), `deferred_rate` the card creation bucket (the
- * sender retries).
- */
 export type EmailReceivedOutcome =
   | "saved"
   | "dropped_limit"
@@ -48,10 +43,6 @@ export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
 
-/**
- * What opening a link card with an archived copy found: a fresh check's
- * outcome, or the cached one (alive for 24 hours, dead for 6).
- */
 export type DeadLinkCheckOutcome =
   | "alive"
   | "dead"
@@ -60,7 +51,6 @@ export type DeadLinkCheckOutcome =
   | "cached_dead";
 
 export interface ClientEventCatalog {
-  /** The archived copy of a link whose page is gone was shown. */
   archived_copy_opened: { surface: "open_page" };
   card_backlink_opened: NoProperties;
   card_create_submitted: {
@@ -95,10 +85,6 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   link_pdf_saved: { source: LinkPdfSaveSource };
   locale_changed: { from: string; to: string };
-  /**
-   * The Read tab showed a link's article. `category` is the link category
-   * (or `none`), `words_bucket` the article's length (`articleWordsBucket`).
-   */
   reader_opened: {
     category: string;
     surface: "modal";
@@ -128,10 +114,6 @@ export interface ServerEventCatalog {
     $ai_total_cost_usd?: number;
     $ai_trace_id?: string;
   };
-  /**
-   * "extract article" finished for a link: `article`, `none` (the page isn't
-   * an article) or `failed`; `words_bucket` is the article's length.
-   */
   article_extracted: {
     outcome: "article" | "none" | "failed";
     words_bucket: string;
@@ -145,7 +127,6 @@ export interface ServerEventCatalog {
   card_created: { card_type: string; source: string };
   card_done_toggled: CardDoneToggled;
   card_processing_completed: {
-    /** The language AI wrote the tags and summary in (`ja`, `es`), if any. */
     ai_language?: string;
     card_type: string;
     duration_ms: number;
@@ -155,43 +136,22 @@ export interface ServerEventCatalog {
     error_class: string;
     stage: string;
   };
-  /**
-   * A link saved again: the card already in Teak moved to the top instead of
-   * a second card. `source` is `card_created`'s; `was_archived` says it also
-   * came back from Archive.
-   */
   card_resaved: { source: string; was_archived: boolean };
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
-  /** A file attached to a saved email became its own card. */
   email_attachment_saved: { kind: string; size_bucket: SizeBucket };
-  /** An attachment that wasn't saved, and why. */
   email_attachment_skipped: { reason: EmailAttachmentSkipReason };
-  /** Save by email: what happened to one email from an account's owner. */
   email_received: { outcome: EmailReceivedOutcome };
-  /** Save by email turned on or off in Settings. */
   email_save_toggled: { enabled: boolean };
-  /**
-   * A passage of a link's article was highlighted: in the reader, through
-   * the public API, or by an import (one event per card, with `count`).
-   * `merged` says it joined a highlight it overlapped.
-   */
   highlight_created: {
     count?: number;
     merged: boolean;
     source: "reader" | "api" | "import";
   };
-  /** A highlight's note was written, changed or (`cleared`) emptied. */
   highlight_note_saved: { cleared: boolean; source: "reader" | "api" };
-  /** A highlight was removed. */
   highlight_removed: { source: "reader" | "api" };
-  /**
-   * A list of links pasted into the web composer finished saving. `count` is
-   * the links the job kept (at most 100); `created` and `resaved` split the
-   * ones saved; `stopped_at_limit` says the free card limit ended it early.
-   */
   link_paste_saved: {
     count: number;
     created: number;
@@ -205,19 +165,10 @@ export interface ServerEventCatalog {
     status?: number;
     tool: string;
   };
-  /**
-   * A link's page couldn't be saved as a copy. `reason` is the stage's
-   * (`blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable`,
-   * `archive_error`); `source` whether the extension sent the page.
-   */
   page_archive_failed: {
     reason: string;
     source: "extension" | "server";
   };
-  /**
-   * A link's page was saved as a copy: `kind` is `full` or `text_only`,
-   * `source` `extension` (the page as the browser showed it) or `server`.
-   */
   page_archived: {
     bytes_bucket: SizeBucket;
     duration_ms_bucket: string;

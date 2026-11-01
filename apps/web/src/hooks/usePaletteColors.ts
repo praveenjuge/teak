@@ -12,13 +12,11 @@ import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 import { editPaletteColors, type PaletteField } from "./paletteColors";
 
-/** What the card dialog needs to change a palette's colors. */
 export interface PaletteColorsControl {
   addColor: (hex: string) => Promise<boolean>;
   removeColor: (hex: string) => Promise<void>;
 }
 
-/** Adds and removes a palette card's colors, with Undo for a removal. */
 export function usePaletteColors(
   cardId: Id<"cards"> | undefined
 ): PaletteColorsControl {

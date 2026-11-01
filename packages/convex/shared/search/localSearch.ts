@@ -79,7 +79,6 @@ export const tokenizeSearchQuery = (query: string) =>
 
 const searchableParts = (card: Doc<"cards">) =>
   [
-    // A `[[Title|teak:<id>]]` link reads as its title, as on the server.
     card.content ? cardLinkTokensToText(card.content) : undefined,
     card.notes,
     card.aiSummary,
@@ -187,10 +186,8 @@ export const filterLocalCards = (
   );
   const revealsHidden = isHiddenTagList(tagKeys);
   const { expression } = parsed;
-  // Hidden cards come only through an OR branch that asks for their tag.
   const revealTags = revealsHidden ? [] : expressionRevealTags(expression);
   const archivedOnly = showArchivedOnly || parsed.archived;
-  // `is:archived` inside an OR reads archived cards too.
   const includesArchived = !archivedOnly && expressionWantsArchived(expression);
   // The client can't tell which folder a name means, so a card the server
   // matched keeps the server's answer, and a cached card never matches.

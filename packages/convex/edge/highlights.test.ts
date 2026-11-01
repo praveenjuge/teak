@@ -69,7 +69,6 @@ const archiveOf = (storage = "r1-archive.html") => ({
   storageKey: `${buildR2UserPrefix("owner")}/k/page-archive/${storage}`,
 });
 
-/** Where `quote` (the n-th time it appears) is in the reader's text. */
 const span = (quote: string, nth = 0) => {
   let start = -1;
   for (let seen = 0; seen <= nth; seen += 1) {
@@ -287,8 +286,6 @@ describe("making highlights", () => {
   });
 
   test("refuses offsets measured in an article the card no longer has", async () => {
-    // The article was replaced (a refresh, a re-save) between reading the
-    // text and saving the highlight: its offsets belong to the old text.
     const { link, owner, rows, articleKey } = await setup();
     const cardId = await link();
     const stale = await articleKey(cardId);

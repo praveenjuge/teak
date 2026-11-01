@@ -18,7 +18,6 @@ export const tagsAfterAdding = (
   return [...(card.tags ?? []), value];
 };
 
-/** The tag list to save after removing `tag`; null when the card is unknown. */
 export const tagsAfterRemoving = (
   card: TaggedCard | null,
   tag: string

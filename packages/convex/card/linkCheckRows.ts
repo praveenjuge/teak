@@ -1,7 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
-/** A deleted card's last link check (card/linkCheck.ts). */
 export const deleteLinkCheckRows = async (
   ctx: MutationCtx,
   cardId: Id<"cards">

@@ -10,7 +10,6 @@ import { fetchVimeoCaptions, parseVimeoUrl } from "./vimeo";
 
 export type { VideoCaptions } from "./types";
 
-/** Whether `url` is a video link whose captions are looked up. */
 export const hasCaptionSource = (url: string | undefined): boolean =>
   Boolean(url && parseVimeoUrl(url));
 

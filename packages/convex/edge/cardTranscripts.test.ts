@@ -41,7 +41,6 @@ const setup = async () => {
     external_id: "owner",
   });
 
-  // A card as the app saves it: the search sync runs after the write.
   const save = (seed: CardSeed = {}) =>
     t.run(async (ctx) => {
       const id = await ctx.db.insert("cards", {

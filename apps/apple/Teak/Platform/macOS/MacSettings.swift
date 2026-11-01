@@ -75,7 +75,6 @@ private struct MacAboutView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            // The author's handle stays as it is in every language.
             Text(tr("native.settings.byAuthor", "@praveenjuge"))
                 .padding(.top, 10)
             Text(tr("native.settings.hope"))

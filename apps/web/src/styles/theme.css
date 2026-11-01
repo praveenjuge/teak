@@ -9,10 +9,6 @@
   --typeset-flow: 1.25em;
 }
 
-/*
- * The Read tab's one typographic default: SN Pro, 17px/1.65 on phones and
- * 18px/1.7 from md up, set in a 68ch column by the reader.
- */
 .typeset-reader {
   --typeset-font-body: var(--font-sans);
   --typeset-font-heading: var(--font-sans);

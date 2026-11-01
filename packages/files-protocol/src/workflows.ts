@@ -148,7 +148,6 @@ export const accountDeletionInstanceId = (
   attempt: number
 ) => `account-deletion-${stateId}-${generation}-${attempt}`;
 
-/** Tasks the maintenance workflow runs; `capabilities` lists them. */
 export const MAINTENANCE_TASKS = [
   "card-cleanup",
   "export-cleanup",
@@ -166,7 +165,6 @@ export interface MaintenanceParams {
   task: MaintenanceTask;
 }
 
-/** An admin's snapshot request; every request is its own run. */
 export const adminSnapshotInstanceId = (date: string, requestedAt: number) =>
   `admin-snapshot-${date}-manual-${requestedAt}`;
 
@@ -202,7 +200,6 @@ export type DispatchItem =
   | { keys: string[]; type: "delete-objects" }
   | AnalyticsEventItem;
 
-/** Item types the `dispatch` op accepts, listed by the `capabilities` op. */
 export const DISPATCH_ITEM_TYPES = [
   "workflow",
   "delete-objects",

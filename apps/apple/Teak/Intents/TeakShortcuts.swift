@@ -1,6 +1,5 @@
 import AppIntents
 
-/// Siri and Shortcuts phrases. The Action button offers these too.
 struct TeakShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: SaveToTeakIntent(), phrases: ["Save to \(.applicationName)"],

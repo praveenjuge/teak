@@ -20,7 +20,6 @@ const linkCard = (
   fields: Partial<CategorizationContextCard>
 ): CategorizationContextCard => ({ _id: "card_1", type: "link", ...fields });
 
-// A category stored by an earlier pass, for an unrelated source URL.
 const storedCategory = (
   raw: LinkCategoryMetadata["raw"]
 ): LinkCategoryMetadata => ({

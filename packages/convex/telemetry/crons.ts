@@ -45,8 +45,6 @@ export const monitored = async (
   return null;
 };
 
-// Reports outbox rows no flush takes and stale runs the Core Worker's
-// reconcile stopped checking, and starts a flush for the first.
 export const workflowDispatchWatchdog = internalAction({
   args: {},
   returns: v.null(),
@@ -73,7 +71,6 @@ export const workflowDispatchWatchdog = internalAction({
     }),
 });
 
-// Deletes pasted link jobs a week after they finished.
 export const cleanupFinishedLinkPastes = internalAction({
   args: {},
   returns: v.null(),

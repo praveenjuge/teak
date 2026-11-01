@@ -10,9 +10,6 @@ import { getSessionUser, requireSessionUser } from "../securitySessions";
 import { rateLimiter } from "../shared/rateLimits";
 import { queueInboundEmailEvent } from "../telemetry/schedule";
 
-// Save by email: one shared address, save@<domain>. Mail sent to it from an
-// account's sign-in email becomes cards once the account turns it on here.
-
 const DEFAULT_INBOUND_EMAIL_DOMAIN = "in.teakvault.com";
 
 export const inboundEmailDomain = (): string =>

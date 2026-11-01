@@ -136,7 +136,6 @@ function updateCardsInDetailQueries(
 const listsNewestFirst = (sort: SearchFilterArgs["sort"]) =>
   sort === undefined || sort === "newest";
 
-/** Puts a card being created at the top of every list it belongs at the top of. */
 export function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
   newCard: Doc<"cards">

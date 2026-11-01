@@ -37,7 +37,6 @@ const entryFor = (slug: string) => {
   return { entry, setup: entry.setup };
 };
 
-/** The article's text as the reader shows it, from the pack's Markdown. */
 const readerTextOf = (slug: string): string => {
   const { entry, setup } = entryFor(slug);
   return markdownToReaderText(setup.markdown(), {
@@ -87,7 +86,6 @@ const wordSpans = (
   return spans;
 };
 
-/** The n-th (from 0) place `quote` is in `text`. */
 const nth = (text: string, quote: string, n: number): Span => {
   let start = -1;
   for (let seen = 0; seen <= n; seen += 1) {
@@ -99,7 +97,6 @@ const nth = (text: string, quote: string, n: number): Span => {
   return { start, end: start + quote.length };
 };
 
-/** Writes anchored highlights straight in, as the reader would make them. */
 const insertAnchored = async (
   ctx: MutationCtx,
   card: Doc<"cards">,
@@ -157,7 +154,6 @@ export const seedHighlightsMix = async (
     })
   );
 
-  // Twelve, some with notes, one with a 2,000-character note.
   const news = await cardFor(ctx, userId, "news");
   const newsText = readerTextOf("news");
   await insertAnchored(
@@ -176,7 +172,6 @@ export const seedHighlightsMix = async (
     )
   );
 
-  // One.
   const research = await cardFor(ctx, userId, "research");
   const researchText = readerTextOf("research");
   await insertAnchored(ctx, research, researchText, [

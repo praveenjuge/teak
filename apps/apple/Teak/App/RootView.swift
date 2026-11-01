@@ -47,7 +47,6 @@ struct RootView: View {
         // The Mac's app delegate takes links, so they open a closed window too.
         .onOpenURL { router.handle($0, phase: app.phase) }
         #endif
-        // A Spotlight result for a card opens it.
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
             guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
                   TeakLink.isCardId(id) else { return }
@@ -128,7 +127,6 @@ struct MainView: View {
                 .ignoresSafeArea()
         }
         #endif
-        // The note and voice memo sheets show capture errors themselves.
         .captureAlert(when: !router.isComposing && !router.isRecording)
         .sensoryFeedback(.success, trigger: capture.savedCount)
         .overlay(alignment: .top) {
@@ -170,7 +168,6 @@ struct LibraryTab: View {
             LibraryView(library: library, namespace: namespace)
                 .navigationDestination(for: CardRoute.self) { route in
                     CardDetailView(route: route, library: library)
-                        // A link or Spotlight can swap the open card for another; start fresh.
                         .id(route.id)
                         #if os(iOS)
                         .navigationTransition(.zoom(sourceID: route.id, in: namespace))

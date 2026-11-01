@@ -43,7 +43,6 @@ export const recordPageArchive = internalMutation({
     archive: pageArchiveValidator,
     cardId: v.id("cards"),
     durationMs: v.optional(v.number()),
-    /** The pending snapshot this copy was made from, if any. */
     snapshotKey: v.optional(r2KeyValidator),
   },
   returns: v.boolean(),

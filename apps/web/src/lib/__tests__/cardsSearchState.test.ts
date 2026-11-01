@@ -317,14 +317,12 @@ describe("search qualifiers in the controller", () => {
     expect(parseSearchQuery(terms).canonical).toBe(
       "tag:x -figma (tag:fonts OR tag:type)"
     );
-    // Enter turns it into the same search.
     expect(
       isSameSearch(
         buildCardsSearchTerms(applyEnterToCardsSearchState(typing)),
         terms
       )
     ).toBe(true);
-    // Without pills, the typed text is the search as written.
     expect(
       buildCardsSearchTerms({ ...baseState(), searchQuery: "a OR b" })
     ).toBe("a OR b");
@@ -337,7 +335,6 @@ describe("search qualifiers in the controller", () => {
       searchQuery: "OR tag:type",
     };
     const terms = buildCardsSearchTerms(typing);
-    // The pill isn't the OR's left side: Enter keeps both, so both apply.
     expect(parseSearchQuery(terms).canonical).toBe("tag:fonts tag:type");
     expect(
       isSameSearch(

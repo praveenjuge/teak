@@ -18,7 +18,6 @@ type ErrorKey = {
   [G in ErrorGroup]: `${G}.${keyof (typeof englishMessages.errors)[G] & string}`;
 }[ErrorGroup];
 
-// The limits the server put in its English messages.
 const LIMITS: Partial<Record<ErrorKey, number>> = {
   "folders.NAME_TOO_LONG": MAX_FOLDER_NAME_LENGTH,
   "folders.TOO_MANY_FOLDERS": MAX_FOLDERS_PER_USER,
@@ -88,10 +87,6 @@ const matchEnglishMessage = (
     : undefined;
 };
 
-/**
- * A message the server sent in English, in the UI language when the catalog
- * knows it, else as sent.
- */
 export const translateServerMessage = (
   t: ErrorsTranslator,
   message: string
@@ -114,11 +109,6 @@ const errorData = (error: unknown) => {
     : undefined;
 };
 
-/**
- * A server error in the UI language. Known messages and card codes are
- * translated; anything else shows the server's English text, else the
- * fallback.
- */
 export const serverErrorMessage = (
   t: ErrorsTranslator,
   error: unknown,

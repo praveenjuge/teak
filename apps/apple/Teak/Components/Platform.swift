@@ -31,7 +31,6 @@ enum Pasteboard {
     }
 }
 
-/// A number as text in the app's language, for a `tr` value.
 func localizedNumber(_ value: Int) -> String {
     value.formatted(.number.locale(AppLanguage.locale))
 }

@@ -251,7 +251,6 @@ export const queueImportWorkflow = async (
   return instanceId;
 };
 
-/** Starts a Core Worker maintenance task that reports back when it ends. */
 export const queueMaintenanceWorkflow = async (
   ctx: MutationCtx,
   instanceId: string,
@@ -269,7 +268,6 @@ export const queueMaintenanceWorkflow = async (
 const ACCOUNT_DELETION_RETRY_BASE_MS = 5 * 60 * 1000;
 const ACCOUNT_DELETION_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
 
-/** The wait before the next account deletion attempt after `failures` in a row. */
 export const accountDeletionRetryDelayMs = (failures: number): number =>
   Math.min(
     ACCOUNT_DELETION_RETRY_MAX_MS,
@@ -998,7 +996,6 @@ export const listStale = internalQuery({
   },
 });
 
-/** Records the runs the reconcile looked up and found still going. */
 export const markReconciled = internalMutation({
   args: { instanceIds: v.array(v.string()) },
   returns: v.null(),
@@ -1047,7 +1044,6 @@ export const dispatchHealthValidator = v.object({
   isApproximate: v.boolean(),
 });
 
-/** Outbox counts by state and the oldest waiting row of each, bounded. */
 export const readDispatchHealth = async (
   ctx: QueryCtx,
   now: number

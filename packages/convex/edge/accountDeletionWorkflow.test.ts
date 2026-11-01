@@ -528,7 +528,6 @@ describe("durable deletion admission and tombstones", () => {
         fileKey: "users/exact/file",
         documentTextKey: "users/exact/document-text/digest.txt",
         hasExtractedText: true,
-        // The saved copy of a page, and a snapshot the extension sent.
         pageArchive: {
           bytes: 1,
           capturedAt: 1,
@@ -540,7 +539,6 @@ describe("durable deletion admission and tombstones", () => {
         pendingPageSnapshotAt: 1,
         pendingPageSnapshotKey:
           "users/exact/cards/upload-pending-v2/page-snapshot/s1",
-        // The article in that copy, and an image it shows.
         article: {
           status: "ready",
           textKey: "users/exact/cards/k/article-text/digest.md",

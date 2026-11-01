@@ -19,11 +19,8 @@ export type SearchSuggestionGroup =
 
 export interface SearchSuggestionHint {
   readonly group: SearchSuggestionGroup;
-  /** The same on every app, and the suggestion's id on the web. */
   readonly id: string;
-  /** What picking it writes in place of the word being typed. */
   readonly insert: string;
-  /** The qualifier it starts, or `OR`. */
   readonly key: SearchQualifierKey | "OR";
   readonly messageKey: `search.suggestions.${string}`;
 }
@@ -39,7 +36,6 @@ export const SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS = {
   Show: "search.suggestions.groups.show",
 } as const satisfies Record<SearchSuggestionGroup, string>;
 
-/** The filters a word can start, offered while its key is typed. */
 export const SEARCH_QUALIFIER_HINTS = [
   {
     id: "Filters:tag",
@@ -99,7 +95,6 @@ export const SEARCH_QUALIFIER_HINTS = [
   },
 ] as const satisfies readonly SearchSuggestionHint[];
 
-/** The filters a `-` can leave out; `like:` and `mood:` can't be excluded. */
 export const SEARCH_EXCLUDE_HINTS = [
   {
     id: "Exclude:-tag",
@@ -138,7 +133,6 @@ export const SEARCH_EXCLUDE_HINTS = [
   },
 ] as const satisfies readonly SearchSuggestionHint[];
 
-/** `OR` joins two words or filters, so it is offered only after one. */
 export const SEARCH_OR_HINT = {
   id: "Combine:OR",
   group: "Combine",

@@ -81,9 +81,7 @@ export interface CommandPaletteAction {
   keys?: string[];
   /** Extra English words the filter matches besides the label. */
   keywords: string[];
-  /** The label's message key under `commandPalette.actions`. */
   labelKey: keyof (typeof englishMessages)["commandPalette"]["actions"];
-  /** Offered only while this view is open. */
   view?: LibraryView;
 }
 
@@ -131,7 +129,6 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   { id: "sign-out", keywords: ["log out", "logout"], labelKey: "signOut" },
 ];
 
-/** The actions the palette offers on this page. */
 export const paletteActions = (pathname: string | null | undefined) => {
   const view = libraryViewForPath(pathname);
   return COMMAND_PALETTE_ACTIONS.filter(
@@ -141,7 +138,6 @@ export const paletteActions = (pathname: string | null | undefined) => {
 
 let emptyTrashHandler: (() => void) | null = null;
 
-/** Trash's Empty Trash button, which the palette's action presses. */
 export function registerEmptyTrash(handler: () => void): () => void {
   emptyTrashHandler = handler;
   return () => {
@@ -204,7 +200,6 @@ export function parseSettingsDialogParam(
   return value === "import" || value === "export" ? value : null;
 }
 
-/** Settings → Import & export, scrolled to its import or export card. */
 export const settingsDataHref = (tab: SettingsDialogTab) =>
   `/settings/data#${tab}`;
 
