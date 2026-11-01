@@ -206,6 +206,11 @@
   outline-color: var(--focus-ring);
 }
 
+/* A selected card keeps its red selection ring (drawn thicker) while focused. */
+[data-card-id][aria-pressed="true"]:focus-visible {
+  --tw-ring-color: var(--primary);
+}
+
 [class*="focus-visible:ring"]:focus-visible {
   transition-property:
     color, background-color, border-color, text-decoration-color, fill, stroke,
