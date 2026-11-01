@@ -157,8 +157,8 @@ EOF
   fi
 }
 
-# The same stamp scripts/setup.ts and the doctor's deps-lock check use
-# (scripts/capabilities.ts): the sha256 of the bun.lock node_modules was
+# The same stamp scripts/setup/setup.ts and the doctor's deps-lock check use
+# (scripts/dev/capabilities.ts): the sha256 of the bun.lock node_modules was
 # installed from. A fresh clone gives every file the same mtime, so comparing
 # timestamps can't tell a lockfile that moved on.
 install_stamp=node_modules/.teak-install

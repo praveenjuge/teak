@@ -257,7 +257,7 @@ ANALYTICS_API_TOKEN=token                    # Optional. Account Analytics: Read
 Each Convex deployment the Worker serves holds its own `WORKFLOW_RPC_SECRET`, derived from the root secret and the deployment's origin. Derive it and set it on the deployment:
 
 ```bash
-WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site
+WORKFLOW_RPC_ROOT_SECRET=… bun scripts/cloudflare/workflow-rpc-secret.ts https://<deployment>.convex.site
 bunx convex env set WORKFLOW_RPC_SECRET <output>   # from packages/convex
 ```
 

@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
 import type { FunctionReference } from "convex/server";
+import type { JSONValue } from "convex/values";
 import { initialCardsSearchQueryArgs } from "./cardsSearchState";
 import { type FolderSummary, folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
@@ -14,6 +15,35 @@ export interface FirstLoadQuery {
 
 export interface FirstLoadContext {
   folders?: readonly Pick<FolderSummary, "_id" | "kind">[];
+}
+
+/** A first-load query's result as the server fetched it for the page. */
+export interface QuerySeed {
+  args: JSONValue;
+  name: string;
+  value: JSONValue;
+}
+
+/**
+ * Names one query call whatever order its arguments' keys were built in, so
+ * the server's seed matches the hook that asks for the same function and args.
+ */
+export function querySeedKey(name: string, args: JSONValue): string {
+  return JSON.stringify([name, sortKeys(args)]);
+}
+
+function sortKeys(value: JSONValue): JSONValue {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortKeys(value[key] as JSONValue)])
+  );
 }
 
 export function firstLoadQueries(

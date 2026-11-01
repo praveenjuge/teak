@@ -3,7 +3,7 @@ import type { Id } from "@teak/convex/_generated/dataModel";
 import { RELEVANCE_HOLD_MS } from "@teak/convex/shared/search/relevance";
 import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
-import { semanticSearchText } from "./useSemanticSearch";
+import { semanticSearchText } from "../lib/cardsSearchState";
 
 interface RelevanceSearchArgs {
   createdAtRange?: { end: number; start: number };

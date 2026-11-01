@@ -385,7 +385,7 @@ export const cardValidator = v.object({
   aiLanguage: v.optional(v.string()),
   /**
    * Unused: transcripts live in `cardTextContents`, and no card holds one
-   * here. Dropped in a later deploy (.agents/sunset.md).
+   * here. Dropped in a later deploy (.agents/records/sunset.md).
    */
   aiTranscript: v.optional(v.string()),
   /** Set when the transcript is in `cardTextContents`: its length. */
@@ -428,7 +428,7 @@ export const cardValidator = v.object({
   // When the card was last saved: `createdAt` until the same link is saved
   // again. "Newest first" and date words order and bound by it. Every card
   // has it since the production backfill (October 2026); readers still read
-  // `savedAt ?? createdAt` (`.agents/sunset.md`).
+  // `savedAt ?? createdAt` (`.agents/records/sunset.md`).
   savedAt: v.optional(v.number()),
   updatedAt: v.number(),
 });

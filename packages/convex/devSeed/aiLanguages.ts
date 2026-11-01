@@ -152,7 +152,7 @@ const MAX_REPORT_CARDS = 100;
 
 /**
  * The `ai-languages` pack's cards after processing, for
- * `scripts/ai-language-check.ts`. Dev deployments only, like the seed.
+ * `scripts/seed/ai-language-check.ts`. Dev deployments only, like the seed.
  */
 export const report = internalQuery({
   args: { workosUserId: v.string() },

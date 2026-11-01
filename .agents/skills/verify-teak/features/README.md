@@ -27,7 +27,7 @@ This directory is the maintained source for verifying Teak's user-facing behavio
 
 ## Feature entry contract
 
-Each feature file starts with an H1 title and one paragraph describing the user-visible behavior, then exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with <harness>`, `Gotchas`. `scripts/verify-feature-map.test.ts` checks the shape. Keep implementation details out; name only user paths, stable handles, required state, commands and observable proof.
+Each feature file starts with an H1 title and one paragraph describing the user-visible behavior, then exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with <harness>`, `Gotchas`. `scripts/repo/verify-feature-map.test.ts` checks the shape. Keep implementation details out; name only user paths, stable handles, required state, commands and observable proof.
 
 ## Features
 

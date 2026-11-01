@@ -98,6 +98,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -138,7 +142,7 @@ jobs:
           if [ -z "$GITHUB_POSTHOG_CLI_API_KEY" ]; then
             echo "::warning::POSTHOG_CLI_API_KEY isn't set, so dSYMs won't reach PostHog."
           fi
-          node scripts/release-version.mjs lockstep "$VERSION"
+          node scripts/release/release-version.ts lockstep "$VERSION"
           if [ "$DRY_RUN" != "true" ]; then
             release_tag="v$VERSION"
             tag_commit="$(git rev-list -n 1 "$release_tag" 2>/dev/null || true)"
@@ -196,7 +200,7 @@ jobs:
             sleep $((attempt * 10))
           done
 
-          result="$(node scripts/apple-latest-review.mjs apply "$versions_json" "$VERSION" "$ASC_APP_ID" "$PLATFORM" "$DRY_RUN")"
+          result="$(node scripts/release/apple-latest-review.ts apply "$versions_json" "$VERSION" "$ASC_APP_ID" "$PLATFORM" "$DRY_RUN")"
           target_id="$(jq -r '.targetId' <<< "$result")"
           target_state="$(jq -r '.targetState' <<< "$result")"
           source_version="$(jq -r '.sourceVersion' <<< "$result")"
@@ -248,7 +252,7 @@ jobs:
             build_id=""
             asc builds list --app "$ASC_APP_ID" --platform IOS --paginate --output json > "$RUNNER_TEMP/apple-ios-all-builds.json"
             asc builds list --app "$ASC_APP_ID" --platform MAC_OS --paginate --output json > "$RUNNER_TEMP/apple-macos-all-builds.json"
-            build_number="$(node scripts/apple-build-number.mjs "$RUNNER_TEMP/apple-ios-all-builds.json" "$RUNNER_TEMP/apple-macos-all-builds.json")"
+            build_number="$(node scripts/release/apple-build-number.ts "$RUNNER_TEMP/apple-ios-all-builds.json" "$RUNNER_TEMP/apple-macos-all-builds.json")"
             asc builds next-build-number --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/apple-$SLUG-next-build.json"
             asc_build_number="$(jq -r '.nextBuildNumber // .buildNumber // .data.nextBuildNumber // empty' "$RUNNER_TEMP/apple-$SLUG-next-build.json")"
             if ! [[ "$build_number" =~ ^[1-9][0-9]*$ ]] || ! [[ "$asc_build_number" =~ ^[1-9][0-9]*$ ]]; then
@@ -707,6 +711,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
 
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
@@ -1123,7 +1131,7 @@ jobs:
             --arg submissionId "$submission_id" \
             '{version: $version, platform: $platform, versionId: $versionId, buildId: $buildId, buildNumber: $buildNumber, submissionId: $submissionId}' \
             > "$RUNNER_TEMP/apple-$SLUG-expected.json"
-          node scripts/apple-release-proof.mjs verify \
+          node scripts/release/apple-release-proof.ts verify \
             --version-list "$RUNNER_TEMP/apple-$SLUG-final-version.json" \
             --version-view "$RUNNER_TEMP/apple-$SLUG-final-view.json" \
             --build "$RUNNER_TEMP/apple-$SLUG-final-build.json" \
@@ -1136,7 +1144,7 @@ jobs:
             artifact_sha=""
             prior_args=(--prior "$prior_manifest")
           fi
-          node scripts/apple-release-manifest.mjs create \
+          node scripts/release/apple-release-manifest.ts create \
             --proof "$RUNNER_TEMP/apple-$SLUG-proof.json" \
             --output "$RUNNER_TEMP/$MANIFEST_NAME" \
             --tag "v$VERSION" \
@@ -1202,6 +1210,11 @@ jobs:
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.failed.outputs.failed == 'true'
+      - name: Set up Node
+        if: steps.failed.outputs.failed == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
       - name: Set up asc
         if: steps.failed.outputs.failed == 'true'
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
@@ -1227,7 +1240,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/apple-release-issue.mjs failure \
+          node scripts/release/apple-release-issue.ts failure \
             --version "$VERSION" \
             --platform "$PLATFORM" \
             --app-id "$ASC_APP_ID" \

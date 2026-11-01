@@ -18,6 +18,13 @@ const toastError = mock(
 
 mock.module("convex/react", () => ({ useMutation: () => startMutation }));
 mock.module("convex-helpers/react/cache/hooks", () => ({
+  // Read through @/lib/convexQueryHooks, which wraps both hooks.
+  usePaginatedQuery: () => ({
+    results: [],
+    status: "LoadingFirstPage",
+    isLoading: true,
+    loadMore: () => undefined,
+  }),
   useQuery: (_query: unknown, args: unknown) => {
     if (args === "skip") {
       return;

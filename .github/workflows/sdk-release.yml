@@ -37,9 +37,9 @@ jobs:
 
       - name: Validate tag and next-patch lockstep release
         run: |
-          node scripts/sdk-release.mjs validate
+          node scripts/release/sdk-release.ts validate
           version="${GITHUB_REF_NAME#v}"
-          node scripts/release-version.mjs lockstep "$version"
+          node scripts/release/release-version.ts lockstep "$version"
 
       - name: Install pinned npm with trusted publishing support
         run: |
@@ -51,7 +51,7 @@ jobs:
 
       - name: Verify release guards and SDK types
         run: |
-          bun --no-env-file test scripts/sdk-release.test.ts
+          bun --no-env-file test scripts/release/sdk-release.test.ts
           bun run --filter teak-sdk typecheck
 
       - name: Pack SDK and exercise exact artifact in independent consumer
@@ -60,18 +60,18 @@ jobs:
           bun run --cwd packages/sdk build
           npm pack ./packages/sdk/dist --ignore-scripts --json --pack-destination "$RUNNER_TEMP/sdk-release" > "$RUNNER_TEMP/sdk-release/pack.json"
           version="${GITHUB_REF_NAME#v}"
-          TEAK_SDK_RELEASE_ARTIFACT="$RUNNER_TEMP/sdk-release/teak-sdk-${version}.tgz" bun --no-env-file test scripts/sdk-package.test.ts
+          TEAK_SDK_RELEASE_ARTIFACT="$RUNNER_TEMP/sdk-release/teak-sdk-${version}.tgz" bun --no-env-file test scripts/repo/sdk-package.test.ts
 
       - name: Check npm version and verify existing artifact
         id: registry
-        run: node scripts/sdk-release.mjs check "$RUNNER_TEMP/sdk-release/pack.json"
+        run: node scripts/release/sdk-release.ts check "$RUNNER_TEMP/sdk-release/pack.json"
 
       - name: Publish exact artifact through npm OIDC
         if: steps.registry.outputs.should_publish == 'true'
-        run: node scripts/sdk-release.mjs publish "$RUNNER_TEMP/sdk-release/pack.json"
+        run: node scripts/release/sdk-release.ts publish "$RUNNER_TEMP/sdk-release/pack.json"
 
       - name: Verify published metadata and downloaded tarball
-        run: node scripts/sdk-release.mjs verify "$RUNNER_TEMP/sdk-release/pack.json"
+        run: node scripts/release/sdk-release.ts verify "$RUNNER_TEMP/sdk-release/pack.json"
 
       - name: Retain packed artifact and integrity evidence
         if: always()

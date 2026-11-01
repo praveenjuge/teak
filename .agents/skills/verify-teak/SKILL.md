@@ -34,7 +34,7 @@ It is read-only. It checks that the recorded stack is alive and ready, that the 
 
 ## Drive
 
-**Web:** the `e2e` MCP server in `.mcp.json`. Open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session, against the dev stack, the config attaches to a Chromium it starts with a DevTools port, so a script can drive file choosers in the same browser (`.agents/cloud.md`, "File uploads"); elsewhere it launches e2e's own Chromium.
+**Web:** the `e2e` MCP server in `.mcp.json`. Open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session, against the dev stack, the config attaches to a Chromium it starts with a DevTools port, so a script can drive file choosers in the same browser (`apps/docs/content/docs/(open-source)/development.mdx`, "Cloud sessions in detail"); elsewhere it launches e2e's own Chromium.
 
 - `observe` lists every node with its role and accessible name. Act with `tap`, `type`, `press`, `right_click`, `hover`, `select`, `upload`, `navigate`.
 - Target nodes by role and accessible name from the feature files. Never by coordinates unless a feature file says the control has no accessible node.
@@ -71,7 +71,7 @@ What counts as proof:
 - A bug fix reproduces the bug first, on the same path, then shows it gone.
 - A step you could not reach is reported with the route you tried and the missing precondition. Never report a skipped entry point as verified through another.
 
-Screenshots and video for a PR follow `.agents/pull-requests.md` ("Screenshots and video"): only the seeded account and seeded or marked cards.
+Screenshots and video for a PR follow "Pull requests" in `apps/docs/content/docs/(open-source)/development.mdx`: only the seeded account and seeded or marked cards.
 
 ## Cleanup
 
@@ -80,6 +80,10 @@ Screenshots and video for a PR follow `.agents/pull-requests.md` ("Screenshots a
 3. `close_session` every `e2e` session you opened.
 4. Stop the stack only if this run started it: `bun run dev --stop`. Never kill processes by name.
 5. Confirm `.agents/.state/verify/<run-id>/` still holds the evidence.
+
+## Reporting back
+
+When another agent asked you to verify, you verify; you don't change product code. Use the real user path (the button, shortcut, command or endpoint a user would use), read every side effect back from a second view (a reload, another route, the API, or Local Explorer for background work), and for a bug reproduce it first on the same path, then show it gone. Return the run id, the doctor output, one line per step (feature id, entry point, action, what you observed), the evidence paths, and every step you could not reach with the precondition that was missing. Never report a skipped step as verified.
 
 ## Keeping the map honest
 

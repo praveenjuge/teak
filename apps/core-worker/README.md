@@ -116,7 +116,7 @@ Enterprise plan, so the rule compares the header's digits, leaving zero-padded
 lengths to the Worker. Chunked bodies without the header still reach the
 Worker's and Convex's own limits.
 
-`bun run waf` (`scripts/cloudflare-waf.ts`) shows what would change, `--check`
+`bun run waf` (`scripts/cloudflare/cloudflare-waf.ts`) shows what would change, `--check`
 exits 1 when the zone has drifted, and `--apply` makes the changes through the
 Rulesets API. It only creates, updates and deletes rules whose `ref` starts
 with `teak-api-`; other custom rules in the zone are never touched. It needs
@@ -315,7 +315,7 @@ The ops:
   over 512 KiB of UTF-8 also comes back failed.
 - `capabilities` reports `browser` and `renderer`; with `checkRenderer: true`
   it also starts a renderer and reports `rendererHealthy` and
-  `rendererProtocol` (used by `scripts/check-files-readiness.ts`).
+  `rendererProtocol` (used by `scripts/setup/check-files-readiness.ts`).
 - `analyze-image` also returns EXIF camera facts (make, model, exposure,
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.
@@ -380,9 +380,9 @@ stores every output.
   (`PORT=18080 WORK_DIR=$(mktemp -d) bun container/src/server.ts`, needs
   ffmpeg and poppler) and set `RENDERER_URL=http://localhost:18080`. In a
   Claude Code cloud session, build the image with
-  `scripts/cloud-docker-build.sh` and run the CI job's steps; `wrangler dev`
-  builds both Containers there through `scripts/cloud-docker.sh`
-  (`.agents/cloud.md`, "Containers").
+  `scripts/dev/cloud-docker-build.sh` and run the CI job's steps; `wrangler dev`
+  builds both Containers there through `scripts/dev/cloud-docker.sh`
+  (`apps/docs/content/docs/(open-source)/development.mdx`, "Cloud sessions in detail").
 
 ## Import and audio processing
 
@@ -446,7 +446,7 @@ the next import (`cleanupImportJob`) and account deletion delete them too.
 A new run of a job that was indexing (`resume staged index`) rebuilds the
 earlier pages' URL hashes from the source and writes the last recorded page's
 parts again. Jobs queued before `stagedItems` existed still stage rows
-through the old functions until they finish (`.agents/sunset.md`).
+through the old functions until they finish (`.agents/records/sunset.md`).
 
 ### Remote preview assets: the link fetcher Container
 
@@ -565,7 +565,7 @@ The streaming binding contract is also documented in the
 [Cloudflare binding implementation](https://github.com/cloudflare/workerd/blob/main/src/cloudflare/internal/ai-api.ts).
 
 Deploy the worker operations before their Convex callers. The backend deployment
-runs `bun run scripts/check-files-readiness.ts --prod --wait`: an authenticated,
+runs `bun run scripts/setup/check-files-readiness.ts --prod --wait`: an authenticated,
 read-only capability probe must confirm the required operations, dispatch item
 types and AI/Images bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
 
@@ -586,7 +586,7 @@ rolling back backend callers.
 `CARD_VECTORS_0` binds the `teak-cards-0` Vectorize index (768 dimensions,
 cosine, a string metadata index on `type`), which holds card embeddings for
 semantic search, one namespace per user. `capabilities` reports `vectors` when it is bound. The model, prompts and
-shard layout are in `.agents/semantic-search.md`.
+shard layout are in `apps/docs/content/docs/(open-source)/architecture.mdx`, "Search by meaning in detail".
 
 Four signed ops read and write the index (`src/ai/vectors.ts`):
 
@@ -649,7 +649,7 @@ card's `raw-<kind>/<SHA-256>.json` key, writes it through the deletion gate,
 reads it back and checks its hash, and sends Convex only the reference.
 Smaller or non-lossless payloads, and any payload whose archive failed, still
 go inline, and Convex archives those itself as before. The rules are in
-`.agents/convex-costs.md` ("Raw provider metadata").
+`.agents/runbooks/convex-costs.md` ("Raw provider metadata").
 
 Before an AI call (Clef decisions, AI metadata, link image text, podcast
 transcripts) a step checks the account's AI gate (`adminAccess:getAiGate`)
@@ -722,10 +722,10 @@ own heartbeat, and page Convex until it has nothing left:
 - `cleanup-expired-idempotency` calls
   `operationalRetention:startIdempotencyCleanup`, which starts the retention
   scan. The scan keeps its lease and continues itself in bursts in Convex
-  (`.agents/convex-costs.md`).
+  (`.agents/runbooks/convex-costs.md`).
 
 The `capabilities` op lists the names of the tasks this Worker runs (`crons`),
-and `scripts/check-files-readiness.ts` holds the Convex deploy until it
+and `scripts/setup/check-files-readiness.ts` holds the Convex deploy until it
 includes every `runsOn: "cloudflare"` task, so no cleanup stops running in
 between. Every cleanup is safe to repeat, so a Convex cron and the Worker
 running the same task during a deploy do no harm.
@@ -833,7 +833,7 @@ best-effort delete failed, and deletes that errored. Download links are already
 refused after expiry, so the extra day costs nothing.
 
 The rules are bucket configuration, not part of `wrangler.jsonc`.
-`scripts/cloudflare-r2-lifecycle.ts` holds them for both buckets: exports
+`scripts/cloudflare/cloudflare-r2-lifecycle.ts` holds them for both buckets: exports
 (`exports/` and `dev/exports/`) expire after 8 days, incomplete multipart
 uploads are aborted after a day, and the event notifications described under
 "R2 events and pending uploads" are set. `bun run r2:lifecycle` shows what
@@ -1000,10 +1000,10 @@ both Workers from `main` (`core-worker` with `wrangler.jsonc`,
 test a branch. The committed config can only bind the development
 bucket and vector index, its own Durable Object namespaces (deletion gates and
 the media renderer) and workers.dev, with no route (tests in `src/deployment.test.ts` and
-`scripts/core-worker-dev-boundary.test.ts` enforce that). It sets no secret.
+`scripts/dev/core-worker-dev-boundary.test.ts` enforce that). It sets no secret.
 Its `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_ROOT_SECRET` are put separately
 (`bunx wrangler secret put <NAME> --config development/wrangler.jsonc`).
-`FILES_BASE=https://core-worker-dev.praveenjuge.workers.dev FILES_SIGNING_SECRET=… bun scripts/check-files-readiness.ts`
+`FILES_BASE=https://core-worker-dev.praveenjuge.workers.dev FILES_SIGNING_SECRET=… bun scripts/setup/check-files-readiness.ts`
 proves the key and every binding with a signed `capabilities` request, and
 `check:cloudflare` checks the key is distinct from production.
 
@@ -1024,7 +1024,7 @@ loads only those three from `.dev.vars` and warns when one is absent.
   `WORKFLOW_RPC_SECRET`. Set with
   `bunx wrangler secret put WORKFLOW_RPC_ROOT_SECRET`, then give every
   deployment in `CONVEX_SITE_URLS` its derived secret:
-  `WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site`
+  `WORKFLOW_RPC_ROOT_SECRET=… bun scripts/cloudflare/workflow-rpc-secret.ts https://<deployment>.convex.site`
   and `bunx convex env set WORKFLOW_RPC_SECRET <output>` on that deployment.
   Until a deployment has it, its background work stays queued in its outbox.
   Never copy the root secret to Convex.

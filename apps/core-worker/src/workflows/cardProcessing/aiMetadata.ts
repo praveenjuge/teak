@@ -77,7 +77,7 @@ const refusesAiLanguage = (error: unknown): boolean => {
  * Saves AI output to the card under the run's revision. The Worker deploys
  * before Convex, and a Convex from before `aiLanguage` refuses the whole
  * write, so the write is sent again without the language
- * (`.agents/sunset.md`).
+ * (`.agents/records/sunset.md`).
  */
 export const saveCardAi = async (
   job: CardJob,

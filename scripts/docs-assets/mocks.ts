@@ -497,7 +497,7 @@ const STEPS = [
   ["MCP tool", "mcp/tools.ts"],
   ["SDK method", "packages/sdk/src/index.ts"],
   ["CLI command", "apps/cli/src/index.ts"],
-  ["Parity row", "scripts/public-parity.ts"],
+  ["Parity row", "scripts/repo/public-parity.ts"],
 ];
 
 const addingAFeature = () => `
@@ -518,7 +518,7 @@ const addingAFeature = () => `
     </div>
     <div style="margin-top:44px;display:flex;align-items:center;gap:16px;background:oklch(0.72 0.15 155 / 0.1);border-radius:18px;padding:22px 26px">
       <span style="width:44px;height:44px;border-radius:50%;background:oklch(0.72 0.15 155 / 0.2);color:oklch(0.5 0.13 155);display:grid;place-items:center">${icon("check", 24)}</span>
-      <div style="font-size:19px"><b>scripts/public-parity.test.ts</b> calls every MCP tool and SDK method and walks the CLI, so a missed step fails <code>bun run test</code>.</div>
+      <div style="font-size:19px"><b>scripts/repo/public-parity.test.ts</b> calls every MCP tool and SDK method and walks the CLI, so a missed step fails <code>bun run test</code>.</div>
     </div></div>
   </div>`;
 

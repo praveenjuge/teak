@@ -1,6 +1,5 @@
 import { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
 import { isTypingTarget } from "@/hooks/useKeyboardShortcuts";
+import { useQuery } from "@/lib/convexQueryHooks";
 import {
   REVISIT_DECK_SIZE,
   type RevisitCard,

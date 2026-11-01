@@ -27,6 +27,7 @@ const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth } = await import("convex/react");
 const { ConvexQueryCacheProvider } = await import("@/lib/convexQueryCache");
+const { QuerySeedsProvider } = await import("@/lib/convexQueryHooks");
 const { createConvexTransport } = await import(
   "../../settings/__tests__/helpers/convexTransport"
 );
@@ -47,6 +48,7 @@ afterEach(async () => {
   container.remove();
   accessToken.error = undefined;
   accessToken.refresh = undefined;
+  seeds = [];
 });
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -58,6 +60,11 @@ const useSignedIn = () => ({
   isAuthenticated: true,
   fetchAccessToken,
 });
+
+let seeds: { args: object; name: string; value: unknown }[] = [];
+const serverProfile = (value: unknown) => {
+  seeds = [{ name: "auth:getAuthUser", args: {}, value }];
+};
 
 async function mount(useAuth = useSignedIn, { backendAnswers = true } = {}) {
   transport.client.setAuth = (_fetchToken, onChange) => {
@@ -77,11 +84,13 @@ const render = (useAuth = useSignedIn) =>
   act(() =>
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
-        <ConvexQueryCacheProvider>
-          <WorkosAuthBoundary loading={<p>App frame</p>}>
-            <p>Vault open</p>
-          </WorkosAuthBoundary>
-        </ConvexQueryCacheProvider>
+        <QuerySeedsProvider seeds={seeds as never}>
+          <ConvexQueryCacheProvider>
+            <WorkosAuthBoundary loading={<p>App frame</p>}>
+              <p>Vault open</p>
+            </WorkosAuthBoundary>
+          </ConvexQueryCacheProvider>
+        </QuerySeedsProvider>
       </ConvexProviderWithAuth>
     )
   );
@@ -109,13 +118,70 @@ test("opens the vault for a linked owner without running ensureUser", async () =
 });
 
 test("shows the app frame, not the vault, until the backend accepts the session", async () => {
+  // Convex answers no query before it accepts the session (expectAuth).
   transport = createConvexTransport();
-  transport.seed("auth:getAuthUser", profile);
   await mount(useSignedIn, { backendAnswers: false });
   expect(text()).toBe("App frame");
 
   await act(() => answerAuth?.(true));
+  await act(() => transport.reply("auth:getAuthUser", profile));
   expect(text()).toBe("Vault open");
+});
+
+test("opens the vault from the server's profile while the backend checks the session", async () => {
+  transport = createConvexTransport();
+  serverProfile(profile);
+  await mount(useSignedIn, { backendAnswers: false });
+  expect(text()).toBe("Vault open");
+
+  await act(() => answerAuth?.(true));
+  await act(() => transport.reply("auth:getAuthUser", profile));
+  expect(text()).toBe("Vault open");
+  expect(ensureCalls()).toHaveLength(0);
+});
+
+test("bootstraps after the backend accepts the session when the server found no owner", async () => {
+  transport = createConvexTransport();
+  serverProfile(null);
+  transport.onCall((call) => {
+    if (call.path !== "workosBootstrap:ensureUser") {
+      return Promise.resolve(null);
+    }
+    transport.reply("auth:getAuthUser", profile);
+    return Promise.resolve({ status: "ok", teakUserId: profile._id });
+  });
+  await mount(useSignedIn, { backendAnswers: false });
+  expect(text()).toBe("App frame");
+  expect(ensureCalls()).toHaveLength(0);
+
+  await act(() => answerAuth?.(true));
+  expect(ensureCalls()).toHaveLength(1);
+  expect(text()).toBe("Vault open");
+});
+
+test("asks to sign in again when the backend rejects a session the server opened", async () => {
+  transport = createConvexTransport();
+  serverProfile(profile);
+  await mount(useSignedIn, { backendAnswers: false });
+  expect(text()).toBe("Vault open");
+
+  await act(() => answerAuth?.(false));
+  expect(text()).toContain("Please sign in again.");
+  expect(text()).not.toContain("Vault open");
+});
+
+test("sends a vault the server opened for another owner to sign-in", async () => {
+  transport = createConvexTransport();
+  serverProfile(profile);
+  await mount(useSignedIn, { backendAnswers: false });
+  await act(() => answerAuth?.(true));
+
+  await act(() =>
+    transport.reply("auth:getAuthUser", { ...profile, _id: "teak_B" })
+  );
+
+  expect(text()).toContain("Your session changed. Please sign in again.");
+  expect(text()).not.toContain("Vault open");
 });
 
 test("bootstraps a new owner once, then opens the vault", async () => {

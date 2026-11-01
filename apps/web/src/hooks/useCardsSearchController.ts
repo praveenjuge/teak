@@ -44,6 +44,7 @@ import {
   orderFromUrl,
   orderQueryArgs,
   qualifierChipsFromText,
+  semanticSearchText,
   visualFiltersFromUrl,
   withTypeQualifiersAsFilters,
 } from "../lib/cardsSearchState";
@@ -61,7 +62,6 @@ import {
   type SearchUrlState,
   sameMembers,
 } from "../lib/searchUrlState";
-import { semanticSearchText } from "./useSemanticSearch";
 
 export interface UseCardsSearchControllerOptions {
   folderId?: Id<"folders">;

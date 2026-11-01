@@ -35,7 +35,7 @@ export const WAF_RULES: readonly WafRule[] = [
   {
     ref: `${WAF_RULE_REF_PREFIX}oversized-body`,
     description:
-      "Teak API: refuse request bodies declared larger than Convex accepts (managed by scripts/cloudflare-waf.ts)",
+      "Teak API: refuse request bodies declared larger than Convex accepts (managed by scripts/cloudflare/cloudflare-waf.ts)",
     expression: `${API_REQUESTS} and ${declaredLengthOver(API_PROXY_MAX_BODY_BYTES)}`,
     action: "block",
     enabled: true,

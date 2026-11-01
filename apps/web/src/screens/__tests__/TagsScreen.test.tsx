@@ -15,6 +15,13 @@ const requestSummary = mock(async () => null);
 
 mock.module("convex/react", () => ({ useMutation: () => requestSummary }));
 mock.module("convex-helpers/react/cache/hooks", () => ({
+  // Read through @/lib/convexQueryHooks, which wraps both hooks.
+  usePaginatedQuery: () => ({
+    results: [],
+    status: "LoadingFirstPage",
+    isLoading: true,
+    loadMore: () => undefined,
+  }),
   useQuery: (_query: unknown, args: unknown) =>
     args && typeof args === "object" && Object.keys(args).length === 0
       ? summary

@@ -426,7 +426,7 @@ export const recordExportProgress = internalMutation({
  * Snapshots a page as one `exportJobItems` row per card. Exports now use
  * `getExportSnapshotPage`; this stays for runs that snapshotted before, and for
  * a new Worker that reaches a Convex deployment without it
- * (`.agents/sunset.md`).
+ * (`.agents/records/sunset.md`).
  */
 export const recordSnapshotPage = internalMutation({
   args: {
@@ -676,7 +676,7 @@ export const getExportHighlights = internalQuery({
 
 /**
  * Reads cards through `exportJobItems` rows, which only `recordSnapshotPage`
- * writes (`.agents/sunset.md`).
+ * writes (`.agents/records/sunset.md`).
  */
 export const getExportCardsPage = internalQuery({
   args: {
@@ -846,7 +846,7 @@ export const expireJob = internalMutation({
   },
 });
 
-/** Drains `exportJobItems` rows left by older runs (`.agents/sunset.md`). */
+/** Drains `exportJobItems` rows left by older runs (`.agents/records/sunset.md`). */
 export const deleteJobItemsPage = internalMutation({
   args: { jobId: v.id("exportJobs"), numItems: v.number() },
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

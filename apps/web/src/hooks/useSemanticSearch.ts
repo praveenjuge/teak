@@ -1,27 +1,10 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import {
-  combineSearchQueries,
-  parseSearchQuery,
-  semanticRequestFor,
-} from "@teak/convex/shared";
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { semanticSearchText } from "../lib/cardsSearchState";
 
 export const SEMANTIC_EMPTY_STATE_WAIT_MS = 1500;
-
-export const semanticSearchText = (
-  searchQuery: string,
-  folderQuery?: string
-): string => {
-  const combined =
-    folderQuery === undefined
-      ? searchQuery
-      : combineSearchQueries(folderQuery, searchQuery);
-  return combined === null
-    ? ""
-    : (semanticRequestFor(parseSearchQuery(combined))?.cacheText ?? "");
-};
 
 export type SemanticSearchOutcome =
   | "ok"

@@ -26,14 +26,14 @@ import {
 import { dirname, join } from "node:path";
 import { WorkOS } from "@workos-inc/node";
 import { api } from "../../../../packages/convex/_generated/api.js";
-import { loadTargetEnv } from "../../../../scripts/env-loader.ts";
+import { loadTargetEnv } from "../../../../scripts/env/env-loader.ts";
 import {
   isStackRunning,
   readStackState,
 } from "../../../../scripts/lib/stack-state.ts";
 import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import { describeWorkosError } from "../../../../scripts/lib/workos-test-session.ts";
-import { readDevWorkosApiKey } from "../../../../scripts/setup-workos.ts";
+import { readDevWorkosApiKey } from "../../../../scripts/setup/setup-workos.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const KEY_PATH = join(ROOT, ".agents/.state/verify/api-key.json");
