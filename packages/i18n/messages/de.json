@@ -595,7 +595,7 @@
       "revisitMore": "{count} weitere wiedersehen",
       "undoHint": "<kbd>Z</kbd> macht das letzte Archivieren rückgängig",
       "openDetails": "Details öffnen: {type}",
-      "saved": "Gespeichert am {date}",
+      "added": "Hinzugefügt am {date}",
       "inTrash": "Im Papierkorb",
       "archived": "Archiviert",
       "releaseToArchive": "Loslassen zum Archivieren",
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "Die Suche nach Bedeutung ist gerade nicht möglich.",
       "noFilterMatches": "Nichts gefunden, das Ihren Filtern entspricht",
       "clearFilters": "Filter zurücksetzen",
+      "clearSearch": "Suche zurücksetzen",
       "smartFolderSuffix": " (intelligenter Ordner)",
       "folderCardCountSuffix": "{count, plural, one { Karte} other { Karten}}",
       "folderTitle": "Ordner",
@@ -1645,7 +1646,9 @@
       "openInTeak": "In Teak öffnen",
       "openOriginalNow": "Original jetzt öffnen",
       "tryOriginal": "Original versuchen ↗",
-      "unavailable": "Diese Karte ist nicht verfügbar."
+      "unavailable": "Diese Karte ist nicht verfügbar.",
+      "unavailableBody": "Sie wurde möglicherweise gelöscht, oder der Link ist falsch.",
+      "unavailableTabTitle": "Karte nicht verfügbar"
     }
   },
   "hooks": {

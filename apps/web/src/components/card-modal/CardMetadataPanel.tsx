@@ -42,7 +42,7 @@ import {
   keyDetailLabels,
 } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
-import { PageArchiveRow } from "./PageArchiveRow";
+import { PageArchiveRow, pageArchiveRowState } from "./PageArchiveRow";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
@@ -78,6 +78,8 @@ export interface CardHighlightsPanelControl {
 }
 
 interface CardMetadataPanelProps {
+  /** The dialog's top line already shows when the card was added. */
+  addedInHeader?: boolean;
   backlinks?: CardBacklinks;
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
@@ -385,6 +387,7 @@ function SuggestedTags({
 }
 
 export function CardMetadataPanel({
+  addedInHeader = false,
   backlinks,
   card,
   getCurrentValue,
@@ -435,8 +438,10 @@ export function CardMetadataPanel({
     t: td,
   });
   const keyLabels = keyDetailLabels(td);
-  const keyDetails = sections.details.filter((field) =>
-    keyLabels.has(field.label)
+  const keyDetails = sections.details.filter(
+    (field) =>
+      keyLabels.has(field.label) &&
+      !(addedInHeader && field.label === td("added"))
   );
   const moreDetails = [
     ...sections.details.filter((field) => !keyLabels.has(field.label)),
@@ -446,6 +451,15 @@ export function CardMetadataPanel({
   const safeUrl = sanitizeExternalUrl(card.url);
   const safeSourceUrl = sanitizeExternalUrl(card.sourceUrl);
   const sourceHost = normalizeUrlHost(safeSourceUrl);
+  // A note whose date sits on the dialog's top line can have nothing left
+  // to list; then there's no empty "Details" heading.
+  const hasDetails =
+    Boolean(safeSourceUrl && sourceHost) ||
+    Boolean(safeUrl) ||
+    Boolean(image) ||
+    pageArchiveRowState(card) !== null ||
+    keyDetails.length > 0 ||
+    moreDetails.length > 0;
   const isDeleted = Boolean(card.isDeleted);
   const hasOrganize =
     !isDeleted || userTags.length + aiTags.length + cardFolders.length > 0;
@@ -648,103 +662,105 @@ export function CardMetadataPanel({
         </PanelSection>
       )}
 
-      <PanelSection title={td("title")}>
-        <dl className="text-sm">
-          {safeSourceUrl && sourceHost ? (
-            <PropertyRow label={td("from")}>
-              <a
-                className="block truncate hover:underline hover:underline-offset-2"
-                dir="auto"
-                href={safeSourceUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-                // biome-ignore lint/plugin: the saved page's own title and URL.
-                title={
-                  card.sourceTitle
-                    ? `${card.sourceTitle}\n${safeSourceUrl}`
-                    : safeSourceUrl
-                }
-              >
-                {hostForDisplay(sourceHost)}
-              </a>
-            </PropertyRow>
-          ) : null}
-          {safeUrl ? (
-            <PropertyRow label={td("url")}>
-              <span className="flex min-w-0 items-center justify-end gap-1">
+      {hasDetails ? (
+        <PanelSection title={td("title")}>
+          <dl className="text-sm">
+            {safeSourceUrl && sourceHost ? (
+              <PropertyRow label={td("from")}>
                 <a
-                  className="block min-w-0 truncate hover:underline hover:underline-offset-2"
-                  href={safeUrl}
+                  className="block truncate hover:underline hover:underline-offset-2"
+                  dir="auto"
+                  href={safeSourceUrl}
                   rel="noopener noreferrer"
                   target="_blank"
-                  title={card.url}
+                  // biome-ignore lint/plugin: the saved page's own title and URL.
+                  title={
+                    card.sourceTitle
+                      ? `${card.sourceTitle}\n${safeSourceUrl}`
+                      : safeSourceUrl
+                  }
                 >
-                  {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
+                  {hostForDisplay(sourceHost)}
                 </a>
-                {onEditLink ? (
-                  <ShortcutTooltip label={tMenu("editLink")} side="left">
+              </PropertyRow>
+            ) : null}
+            {safeUrl ? (
+              <PropertyRow label={td("url")}>
+                <span className="flex min-w-0 items-center justify-end gap-1">
+                  <a
+                    className="block min-w-0 truncate hover:underline hover:underline-offset-2"
+                    href={safeUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    title={card.url}
+                  >
+                    {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
+                  </a>
+                  {onEditLink ? (
+                    <ShortcutTooltip label={tMenu("editLink")} side="left">
+                      <button
+                        aria-label={tMenu("editLink")}
+                        className={ROW_ICON_BUTTON_CLASS}
+                        onClick={onEditLink}
+                        type="button"
+                      >
+                        <Pencil />
+                      </button>
+                    </ShortcutTooltip>
+                  ) : null}
+                </span>
+              </PropertyRow>
+            ) : null}
+            {image ? (
+              <PropertyRow label={td("image")}>
+                <span className="flex items-center justify-end gap-0.5">
+                  {image.onReset ? (
                     <button
-                      aria-label={tMenu("editLink")}
-                      className={ROW_ICON_BUTTON_CLASS}
-                      onClick={onEditLink}
+                      aria-label={tMenu("resetImage")}
+                      className={ROW_TEXT_BUTTON_CLASS}
+                      disabled={image.busy}
+                      onClick={image.onReset}
                       type="button"
                     >
-                      <Pencil />
+                      {td("resetImage")}
                     </button>
-                  </ShortcutTooltip>
-                ) : null}
-              </span>
-            </PropertyRow>
-          ) : null}
-          {image ? (
-            <PropertyRow label={td("image")}>
-              <span className="flex items-center justify-end gap-0.5">
-                {image.onReset ? (
+                  ) : null}
                   <button
-                    aria-label={tMenu("resetImage")}
+                    aria-label={tMenu("replaceImage")}
                     className={ROW_TEXT_BUTTON_CLASS}
                     disabled={image.busy}
-                    onClick={image.onReset}
+                    onClick={image.onReplace}
                     type="button"
                   >
-                    {td("resetImage")}
+                    {image.busy ? <Spinner /> : null}
+                    {td("replaceImage")}
                   </button>
-                ) : null}
-                <button
-                  aria-label={tMenu("replaceImage")}
-                  className={ROW_TEXT_BUTTON_CLASS}
-                  disabled={image.busy}
-                  onClick={image.onReplace}
-                  type="button"
-                >
-                  {image.busy ? <Spinner /> : null}
-                  {td("replaceImage")}
-                </button>
-              </span>
-            </PropertyRow>
+                </span>
+              </PropertyRow>
+            ) : null}
+            <PageArchiveRow card={card} />
+            <DetailRows fields={keyDetails} />
+            {isDetailsOpen ? <DetailRows fields={moreDetails} /> : null}
+          </dl>
+          {moreDetails.length > 0 ? (
+            <button
+              aria-expanded={isDetailsOpen}
+              className="inline-flex items-center gap-1 font-medium text-muted-foreground text-xs hover:text-foreground"
+              onClick={() => setIsDetailsOpen((value) => !value)}
+              type="button"
+            >
+              {isDetailsOpen ? td("fewerDetails") : td("moreDetails")}
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "size-3 transition-transform",
+                  isDetailsOpen && "rotate-180"
+                )}
+              />
+            </button>
           ) : null}
-          <PageArchiveRow card={card} />
-          <DetailRows fields={keyDetails} />
-          {isDetailsOpen ? <DetailRows fields={moreDetails} /> : null}
-        </dl>
-        {moreDetails.length > 0 ? (
-          <button
-            aria-expanded={isDetailsOpen}
-            className="inline-flex items-center gap-1 font-medium text-muted-foreground text-xs hover:text-foreground"
-            onClick={() => setIsDetailsOpen((value) => !value)}
-            type="button"
-          >
-            {isDetailsOpen ? td("fewerDetails") : td("moreDetails")}
-            <ChevronDown
-              aria-hidden="true"
-              className={cn(
-                "size-3 transition-transform",
-                isDetailsOpen && "rotate-180"
-              )}
-            />
-          </button>
-        ) : null}
-      </PanelSection>
+        </PanelSection>
+      ) : null}
 
       <LinkedFromSection backlinks={backlinks} onOpenCard={onOpenCard} />
     </div>

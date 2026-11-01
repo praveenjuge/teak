@@ -37305,49 +37305,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · Gespeichert am %2$@"
+            "value" : "%1$@ · Hinzugefügt am %2$@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · Saved %2$@"
+            "value" : "%1$@ · Added %2$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · Guardada el %2$@"
+            "value" : "%1$@ · Añadida el %2$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · Enregistrée le %2$@"
+            "value" : "%1$@ · Ajoutée le %2$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$@ に保存"
+            "value" : "%1$@ · %2$@ に追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$@에 저장됨"
+            "value" : "%1$@ · %2$@에 추가됨"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · Salvo em %2$@"
+            "value" : "%1$@ · Adicionado em %2$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · 保存于 %2$@"
+            "value" : "%1$@ · 添加于 %2$@"
           }
         }
       }
@@ -45554,7 +45554,7 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and their files. This can’t be undone."
+                  "value" : "This permanently deletes %1$lld card and its files. This can’t be undone."
                 }
               },
               "other" : {
@@ -45590,7 +45590,7 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Cette action supprime définitivement %1$lld fiche et leurs fichiers. Elle est irréversible."
+                  "value" : "Cette action supprime définitivement %1$lld fiche et ses fichiers. Elle est irréversible."
                 }
               },
               "other" : {

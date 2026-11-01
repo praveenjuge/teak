@@ -595,7 +595,7 @@
       "revisitMore": "さらに {count} 件を振り返る",
       "undoHint": "<kbd>Z</kbd> で直前のアーカイブを取り消します",
       "openDetails": "詳細を開く：{type}",
-      "saved": "{date} に保存",
+      "added": "{date} に追加",
       "inTrash": "ゴミ箱内",
       "archived": "アーカイブ済み",
       "releaseToArchive": "指を離してアーカイブ",
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "現在、意味による検索を利用できません。",
       "noFilterMatches": "フィルタに一致するものは見つかりませんでした",
       "clearFilters": "フィルタをクリア",
+      "clearSearch": "検索をクリア",
       "smartFolderSuffix": "（スマートフォルダ）",
       "folderCardCountSuffix": "{count, plural, other { 件のカード}}",
       "folderTitle": "フォルダ",
@@ -1645,7 +1646,9 @@
       "openInTeak": "Teak で開く",
       "openOriginalNow": "今すぐ元のページを開く",
       "tryOriginal": "元のページを試す ↗",
-      "unavailable": "このカードは利用できません。"
+      "unavailable": "このカードは利用できません。",
+      "unavailableBody": "削除されたか、リンクが正しくない可能性があります。",
+      "unavailableTabTitle": "カードは利用できません"
     }
   },
   "hooks": {

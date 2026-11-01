@@ -17,6 +17,7 @@ describe("platformKey", () => {
     ["Shift", "⇧", "Shift"],
     ["Enter", "↩", "Enter"],
     ["Alt", "⌥", "Alt"],
+    ["Delete", "⌫", "Delete"],
     ["B", "B", "B"],
   ])("labels %p as %p on a Mac and %p elsewhere", (key, mac, other) => {
     expect(platformKey(key, true)).toBe(mac);
@@ -34,6 +35,11 @@ describe("ariaKeyShortcut", () => {
     expect(ariaKeyShortcut(["Esc"])).toBe("Escape");
     expect(ariaKeyShortcut(["←"])).toBe("ArrowLeft");
     expect(ariaKeyShortcut(["F"])).toBe("F");
+  });
+
+  test("names Delete as Backspace on a Mac, the key the card menu answers", () => {
+    expect(ariaKeyShortcut(["Delete"], true)).toBe("Backspace");
+    expect(ariaKeyShortcut(["Delete"], false)).toBe("Delete");
   });
 });
 

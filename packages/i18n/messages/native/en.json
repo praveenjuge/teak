@@ -258,7 +258,7 @@
     "trash": {
       "empty": "Empty Trash",
       "emptyTitle": "Empty Trash?",
-      "emptyMessage": "This permanently deletes {count, plural, one {# card} other {# cards}} and their files. This can’t be undone.",
+      "emptyMessage": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can’t be undone.",
       "emptyMessageMore": "This permanently deletes {count, plural, one {# or more cards} other {# or more cards}} and their files. This can’t be undone.",
       "emptying": "{count, plural, one {Deleting # card forever} other {Deleting # cards forever}}",
       "emptyingMore": "{count, plural, one {Deleting at least # card forever} other {Deleting at least # cards forever}}",
@@ -284,7 +284,7 @@
       "swipeHint": "Swipe left to archive, right to keep",
       "releaseToArchive": "Release to archive",
       "releaseToKeep": "Release to keep",
-      "caption": "{type} · Saved {date}",
+      "caption": "{type} · Added {date}",
       "finishedTitle": "All caught up",
       "summary": "{archived} archived · {kept} kept",
       "startOver": "Start over",

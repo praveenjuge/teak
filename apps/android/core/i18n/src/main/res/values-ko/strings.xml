@@ -654,7 +654,7 @@
     <string name="native_notes_taskFailed">할 일 목록을 업데이트하지 못했습니다. 다시 시도해 주세요.</string>
     <string name="native_notes_unchecked">체크 안 됨</string>
     <string name="native_revisit_archived">보관됨</string>
-    <string name="native_revisit_caption">%1$s · %2$s에 저장됨</string>
+    <string name="native_revisit_caption">%1$s · %2$s에 추가됨</string>
     <string name="native_revisit_close">다시 보기 닫기</string>
     <string name="native_revisit_emptyMessage">저장한 카드가 여기에 표시되어 다시 돌아볼 수 있습니다.</string>
     <string name="native_revisit_emptyTitle">다시 볼 카드가 없습니다</string>

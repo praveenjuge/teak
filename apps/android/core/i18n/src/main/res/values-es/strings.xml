@@ -681,7 +681,7 @@
     <string name="native_notes_taskFailed">No se pudo actualizar la lista de tareas. Vuelva a intentarlo.</string>
     <string name="native_notes_unchecked">Sin marcar</string>
     <string name="native_revisit_archived">Archivada</string>
-    <string name="native_revisit_caption">%1$s · Guardada el %2$s</string>
+    <string name="native_revisit_caption">%1$s · Añadida el %2$s</string>
     <string name="native_revisit_close">Salir de Repasar</string>
     <string name="native_revisit_emptyMessage">Las tarjetas que guarde aparecerán aquí para que las repase.</string>
     <string name="native_revisit_emptyTitle">No hay nada que repasar aquí</string>

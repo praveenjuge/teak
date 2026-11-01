@@ -284,7 +284,7 @@
       "swipeHint": "왼쪽으로 밀면 보관, 오른쪽으로 밀면 유지",
       "releaseToArchive": "놓으면 보관",
       "releaseToKeep": "놓으면 유지",
-      "caption": "{type} · {date}에 저장됨",
+      "caption": "{type} · {date}에 추가됨",
       "finishedTitle": "모두 확인했습니다",
       "summary": "{archived}개 보관 · {kept}개 유지",
       "startOver": "처음부터 다시",

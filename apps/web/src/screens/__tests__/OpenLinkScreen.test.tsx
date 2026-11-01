@@ -135,8 +135,15 @@ describe("opening a link card's page", () => {
 
   test("says the card isn't available, with a way back to Teak", async () => {
     await open(() => Promise.resolve({ target: "unavailable" }));
-    expect(container.textContent).toContain("This card isn’t available.");
+    expect(container.querySelector("h1")?.textContent).toBe(
+      "This card isn’t available."
+    );
+    expect(container.textContent).toContain(
+      "It may have been deleted, or the link is wrong."
+    );
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/");
+    expect(container.querySelector("a")?.textContent).toBe("Back to Teak");
+    expect(document.title).toBe("Card not available · Teak");
     expect(replaced).toEqual([]);
   });
 

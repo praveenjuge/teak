@@ -94,6 +94,8 @@ export function useScrolledPast(
 
 interface SidebarTitleProps {
   added?: string;
+  /** The exact date and time, shown on hover; Details leaves it out. */
+  addedExact?: string;
   editable: boolean;
   hostname?: string;
   label: string;
@@ -112,6 +114,7 @@ interface SidebarTitleProps {
 
 export function SidebarTitle({
   added,
+  addedExact,
   editable,
   hostname,
   label,
@@ -153,7 +156,9 @@ export function SidebarTitle({
           <>
             <span aria-hidden="true">·</span>
             <DialogDescription asChild className="text-xs">
-              <span className="truncate">{added}</span>
+              <span className="truncate" title={addedExact}>
+                {added}
+              </span>
             </DialogDescription>
           </>
         ) : null}

@@ -654,7 +654,7 @@
     <string name="native_notes_taskFailed">无法更新任务列表，请重试。</string>
     <string name="native_notes_unchecked">未勾选</string>
     <string name="native_revisit_archived">已归档</string>
-    <string name="native_revisit_caption">%1$s · 保存于 %2$s</string>
+    <string name="native_revisit_caption">%1$s · 添加于 %2$s</string>
     <string name="native_revisit_close">关闭回顾</string>
     <string name="native_revisit_emptyMessage">你保存的卡片会显示在这里，方便你回顾。</string>
     <string name="native_revisit_emptyTitle">这里没有可回顾的内容</string>

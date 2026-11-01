@@ -595,7 +595,7 @@
       "revisitMore": "Repasar {count} más",
       "undoHint": "<kbd>Z</kbd> deshace el último archivado",
       "openDetails": "Abrir detalles: {type}",
-      "saved": "Guardada el {date}",
+      "added": "Añadida el {date}",
       "inTrash": "En la papelera",
       "archived": "Archivada",
       "releaseToArchive": "Suelte para archivar",
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "No se pudo buscar por significado en este momento.",
       "noFilterMatches": "No se encontró nada que coincida con sus filtros",
       "clearFilters": "Borrar filtros",
+      "clearSearch": "Borrar búsqueda",
       "smartFolderSuffix": " (carpeta inteligente)",
       "folderCardCountSuffix": "{count, plural, one { tarjeta} other { tarjetas}}",
       "folderTitle": "Carpeta",
@@ -1645,7 +1646,9 @@
       "openInTeak": "Abrir en Teak",
       "openOriginalNow": "Abrir el original ahora",
       "tryOriginal": "Probar el original ↗",
-      "unavailable": "Esta tarjeta no está disponible."
+      "unavailable": "Esta tarjeta no está disponible.",
+      "unavailableBody": "Es posible que se haya eliminado o que el enlace sea incorrecto.",
+      "unavailableTabTitle": "Tarjeta no disponible"
     }
   },
   "hooks": {
