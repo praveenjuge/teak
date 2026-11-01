@@ -87,3 +87,22 @@ test("a kept card slides away as the next one takes its place", async () => {
   );
   expect(leaving?.textContent).toContain("Kept card");
 });
+
+test("a screen reader hears the position, not the whole card, after each keep", async () => {
+  await show(deckState({ current: card("c1", "First card"), total: 2 }));
+  await show(
+    deckState({
+      current: card("c2", "Second card"),
+      move: "keep",
+      position: 2,
+      total: 2,
+    })
+  );
+  const status = document.body.querySelector('[role="status"]');
+  expect(status?.textContent).toBe("2 of 2");
+  expect(document.body.querySelector("[aria-live], main")).toBeNull();
+  await show(deckState({ done: true, kept: 2, position: 2, total: 2 }));
+  expect(document.body.querySelector('[role="status"]')?.textContent).toBe(
+    "All caught up"
+  );
+});

@@ -157,16 +157,17 @@ export function SidebarTitle({
             </DialogDescription>
           </>
         ) : null}
-        {saveStatus ? (
-          <span
-            className={cn(
-              "ml-auto shrink-0 whitespace-nowrap pl-2",
-              saveStatus.error && "text-destructive"
-            )}
-          >
-            {saveStatus.label}
-          </span>
-        ) : null}
+        {/* Always in the page, so screen readers hear "Saving…", "Saved"
+            and "Couldn't save" as they change, not only the first one. */}
+        <span
+          className={cn(
+            "ml-auto shrink-0 whitespace-nowrap pl-2",
+            saveStatus?.error && "text-destructive"
+          )}
+          role="status"
+        >
+          {saveStatus?.label}
+        </span>
       </div>
 
       {editable ? (

@@ -475,10 +475,15 @@ export function RevisitDeck({
               <X className="size-4" />
             </Button>
           </header>
-          <main
-            aria-live="polite"
-            className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden px-4"
-          >
+          {/* Only the position is announced, not the whole card and its
+              buttons again on every keep or archive. */}
+          <div className="sr-only" role="status">
+            {deck.status === "ready" && deck.done ? t("allCaughtUp") : null}
+            {showActions
+              ? t("progress", { position: deck.position, total: deck.total })
+              : null}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden px-4">
             {renderBody()}
             {showActions ? (
               <div className="flex flex-col items-center gap-3">
@@ -518,7 +523,7 @@ export function RevisitDeck({
                 </p>
               </div>
             ) : null}
-          </main>
+          </div>
           <div aria-hidden="true" className="h-20 shrink-0" />
         </div>
       </DialogContent>

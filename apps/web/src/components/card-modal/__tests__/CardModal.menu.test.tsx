@@ -250,8 +250,11 @@ test("a card in Trash says so in the sidebar, with Restore and Delete forever", 
   const { handleRestore } = await render(
     linkCard({ isDeleted: true } as Partial<CardModalCard>)
   );
-  const status = document.querySelector("aside [role='status']");
-  expect(status?.textContent).toContain("This card is in Trash");
+  // The sidebar also holds the (empty) save status, so read every status.
+  const statuses = [...document.querySelectorAll("aside [role='status']")].map(
+    (element) => element.textContent
+  );
+  expect(statuses).toContain("This card is in Trash");
   expect(button("Delete forever")).toBeDefined();
   await act(() => button("Restore")?.click());
   expect(handleRestore).toHaveBeenCalledTimes(1);

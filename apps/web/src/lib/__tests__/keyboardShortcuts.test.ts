@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   ariaKeyShortcut,
+  cardAriaKeyShortcuts,
   keyboardShortcutGroups,
   openKeyboardShortcuts,
   platformKey,
@@ -40,6 +41,17 @@ describe("ariaKeyShortcut", () => {
   test("names Delete as Backspace on a Mac, the key the card menu answers", () => {
     expect(ariaKeyShortcut(["Delete"], true)).toBe("Backspace");
     expect(ariaKeyShortcut(["Delete"], false)).toBe("Delete");
+  });
+});
+
+describe("cardAriaKeyShortcuts", () => {
+  test("names every key a focused card answers, with the Mac's ⌫ as Backspace", () => {
+    expect(cardAriaKeyShortcuts(false, false)).toBe("Enter F T E X Delete");
+    expect(cardAriaKeyShortcuts(false, true)).toBe("Enter F T E X Backspace");
+  });
+
+  test("a card in Trash only selects and deletes forever", () => {
+    expect(cardAriaKeyShortcuts(true, false)).toBe("Enter X Delete");
   });
 });
 

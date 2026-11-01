@@ -62,8 +62,12 @@ mock.module("@/components/ui/context-menu", () => ({
 
 mock.module("@/components/ui/card", () => ({
   ...realCardUi,
-  Card: ({ children, className }: any) =>
-    React.createElement("div", { className, "data-card": "" }, children),
+  Card: ({ children, className, "aria-keyshortcuts": keys }: any) =>
+    React.createElement(
+      "div",
+      { "aria-keyshortcuts": keys, className, "data-card": "" },
+      children
+    ),
   CardContent: ({ children }: any) =>
     React.createElement("div", { className: "card-content" }, children),
 }));
@@ -139,6 +143,20 @@ describe("Cards/Card", () => {
         refresh: mock().mockRejectedValue(new Error("refresh failed")),
       })
     ).rejects.toThrow("refresh failed");
+  });
+
+  test("a card tells screen readers the keys it answers", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+    );
+    expect(markup).toContain('aria-keyshortcuts="Enter F T E X Delete"');
+    const trashed = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ isDeleted: true }) as any}
+        onToggleArchive={() => undefined}
+      />
+    );
+    expect(trashed).toContain('aria-keyshortcuts="Enter X Delete"');
   });
 
   test("its menu shows the key for each action a key also does", () => {
