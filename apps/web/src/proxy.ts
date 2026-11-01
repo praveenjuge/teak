@@ -48,10 +48,11 @@ export default async function proxy(request: NextRequest) {
       // first asking the server for a token.
       eagerAuth: true,
       redirectUri: config.redirectUri,
-      // The client renews its token 60 seconds before expiry through a
-      // server action that refreshes the session itself. Refreshing here only
-      // in the last 30 seconds keeps that request to one WorkOS refresh.
-      refreshBufferSeconds: 30,
+      // The client renews its token through a server action that refreshes
+      // the session itself, 60 seconds before expiry (30 for tokens of five
+      // minutes or less). Refreshing here only in the last 20 seconds keeps
+      // that request to one WorkOS refresh.
+      refreshBufferSeconds: 20,
     });
     const signedIn = Boolean(session.user);
     const respond = (response: NextResponse) => {
