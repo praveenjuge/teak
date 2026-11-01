@@ -1082,8 +1082,15 @@ export const previewFolderRule = query({
         maximumBytesRead: FOLDER_RULE_PREVIEW_BYTES,
       });
     let count = 0;
+    // The card's own text, without a read per card: a word only in a
+    // document's text can be missed here, though the rule itself finds it.
     for (const card of page.page) {
-      if (matches?.(card)) {
+      if (
+        matches?.(
+          card,
+          buildCardSearchText(card, undefined, card.aiTranscript)
+        )
+      ) {
         count += 1;
       }
     }
