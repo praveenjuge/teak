@@ -2,6 +2,9 @@
   "name": "@teak/web",
   "version": "1.0.91",
   "private": true,
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "build": "next build",
     "dev": "next dev",

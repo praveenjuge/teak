@@ -25,16 +25,22 @@ import {
   pressUploadFiles,
   registerShortcutsOpener,
 } from "../../lib/keyboardShortcuts";
+import { onDemand, whenIdle } from "../../lib/lazyWithPreload";
 import {
   type GoToViewOptions,
   LIBRARY_VIEWS,
   type LibraryView,
 } from "../../lib/libraryViews";
-import {
-  CommandPalette,
-  type CommandPaletteCommand,
-} from "../command-palette/CommandPalette";
+import type { CommandPaletteCommand } from "../command-palette/CommandPalette";
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
+
+// The palette and cmdk stay out of the first load: they load when the
+// browser is idle, or on the first open if that comes sooner.
+const CommandPalette = onDemand(() =>
+  import("../command-palette/CommandPalette").then(
+    (module) => module.CommandPalette
+  )
+);
 
 interface LibraryShortcutsProps {
   onGoToView: (view: LibraryView, options?: GoToViewOptions) => void;
@@ -69,6 +75,14 @@ export function LibraryShortcuts({
       action();
     },
     [setDialogOpen]
+  );
+
+  useEffect(
+    () =>
+      whenIdle(() => {
+        CommandPalette.preload().catch(() => undefined);
+      }),
+    []
   );
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -218,7 +232,9 @@ export function LibraryShortcuts({
     [closeDialogThen, newNote, onGoToView, onNavigate, setDialogOpen]
   );
 
-  useKeyboardShortcuts(shortcuts);
+  // The open palette's dialog holds the keys back, but on a first open its
+  // code may still be loading, with no dialog in the page yet.
+  useKeyboardShortcuts(shortcuts, { enabled: !isPaletteOpen });
 
   useEffect(
     () =>

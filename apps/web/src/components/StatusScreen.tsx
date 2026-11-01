@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Wordmark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/Wordmark";
 
 export function StatusScreen({
   message,
