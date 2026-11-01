@@ -4,6 +4,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import type * as React from "react";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "vadivam-react";
 
+import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { cn } from "../../lib/utils";
 
 function ContextMenu({
@@ -95,6 +96,7 @@ function ContextMenuSubContent({
 
 function ContextMenuContent({
   className,
+  onKeyDown,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Content>) {
   return (
@@ -105,6 +107,10 @@ function ContextMenuContent({
           className
         )}
         data-slot="context-menu-content"
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          runMenuItemShortcut(event);
+        }}
         {...props}
       />
     </ContextMenuPrimitive.Portal>

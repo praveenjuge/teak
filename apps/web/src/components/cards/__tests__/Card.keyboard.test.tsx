@@ -198,6 +198,92 @@ describe("Card keyboard access", () => {
   });
 });
 
+describe("Card menu shortcuts", () => {
+  const openContextMenu = async (card: HTMLElement) => {
+    await act(() => {
+      card.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+        })
+      );
+    });
+    const menu = document.querySelector<HTMLElement>('[role="menu"]');
+    expect(menu).not.toBeNull();
+    return menu as HTMLElement;
+  };
+
+  const pressInMenu = async (
+    menu: HTMLElement,
+    init: KeyboardEventInit & { key: string }
+  ) => {
+    const target =
+      document.activeElement instanceof HTMLElement &&
+      menu.contains(document.activeElement)
+        ? document.activeElement
+        : menu;
+    await act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        })
+      );
+    });
+  };
+
+  // Bug: a right-click menu listed F, T, E, X and Delete, but pressing them
+  // while it was open did nothing.
+  test.each([
+    ["f", "onToggleFavorite", ["card_123"]],
+    ["t", "onAddTags", ["card_123"]],
+    ["e", "onToggleArchive", ["card_123", true]],
+    ["x", "onEnterSelectionMode", ["card_123"]],
+    ["Delete", "onDelete", ["card_123"]],
+    ["Backspace", "onDelete", ["card_123"]],
+  ] as const)(
+    "pressing %p in the right-click menu runs %s and closes it",
+    async (key, handler, args) => {
+      const spy = mock();
+      const card = await renderCard({ [handler]: spy });
+      const menu = await openContextMenu(card);
+      await pressInMenu(menu, { key });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]).toEqual([...args]);
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+    }
+  );
+
+  test("copies with Ctrl+C while the right-click menu is open", async () => {
+    const onCopyImage = mock();
+    const card = await renderCard({ onCopyImage });
+    const menu = await openContextMenu(card);
+    const apple = /Mac|iPhone|iPad/.test(navigator.platform);
+    await pressInMenu(menu, {
+      key: "c",
+      [apple ? "metaKey" : "ctrlKey"]: true,
+    });
+    await act(() => Promise.resolve());
+    expect(onCopyImage).toHaveBeenCalledWith(
+      "my\\_file\\_name\\_v2 costs 2\\*3",
+      false
+    );
+  });
+
+  test("leaves keys with no shortcut to the menu", async () => {
+    const onToggleFavorite = mock();
+    const card = await renderCard({ onToggleFavorite });
+    const menu = await openContextMenu(card);
+    await pressInMenu(menu, { key: "f", metaKey: true });
+    await pressInMenu(menu, { key: "z" });
+    expect(onToggleFavorite).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+  });
+});
+
 describe("getCardAccessibleLabel", () => {
   test.each([
     [

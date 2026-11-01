@@ -508,6 +508,7 @@ export function AddCardActions({
         >
           {onNewNote ? (
             <DropdownMenuItem
+              aria-keyshortcuts="N"
               onSelect={() => {
                 keepFocusRef.current = true;
                 setTimeout(onNewNote, 0);
@@ -515,10 +516,11 @@ export function AddCardActions({
             >
               <PenLine />
               {t("noteOrLink")}
-              <DropdownMenuShortcut>{"N"}</DropdownMenuShortcut>
+              <DropdownMenuShortcut aria-hidden>{"N"}</DropdownMenuShortcut>
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
+            aria-keyshortcuts="U"
             disabled={isUploading}
             onSelect={() => {
               keepFocusRef.current = true;
@@ -527,7 +529,7 @@ export function AddCardActions({
           >
             <Upload />
             {t("uploadFiles")}
-            <DropdownMenuShortcut>{"U"}</DropdownMenuShortcut>
+            <DropdownMenuShortcut aria-hidden>{"U"}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={isRecording || isSubmitting}

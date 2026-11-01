@@ -4,6 +4,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import type * as React from "react";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "vadivam-react";
 
+import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { cn } from "../../lib/utils";
 
 function DropdownMenu({
@@ -33,6 +34,7 @@ function DropdownMenuTrigger({
 
 function DropdownMenuContent({
   className,
+  onKeyDown,
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
@@ -44,6 +46,10 @@ function DropdownMenuContent({
           className
         )}
         data-slot="dropdown-menu-content"
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          runMenuItemShortcut(event);
+        }}
         sideOffset={sideOffset}
         {...props}
       />
