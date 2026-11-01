@@ -232,7 +232,9 @@ export function LibraryShortcuts({
     [closeDialogThen, newNote, onGoToView, onNavigate, setDialogOpen]
   );
 
-  useKeyboardShortcuts(shortcuts);
+  // The open palette's dialog holds the keys back, but on a first open its
+  // code may still be loading, with no dialog in the page yet.
+  useKeyboardShortcuts(shortcuts, { enabled: !isPaletteOpen });
 
   useEffect(
     () =>
