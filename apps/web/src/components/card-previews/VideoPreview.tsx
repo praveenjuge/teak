@@ -55,6 +55,8 @@ export function VideoPreview({ card }: VideoPreviewProps) {
       controls
       // A new URL needs a new element: a <source> change doesn't reload.
       key={fileUrl}
+      // A link that expires mid-playback fails here, not on <source>.
+      onError={() => void media.onError()}
       preload="metadata"
     >
       <source
