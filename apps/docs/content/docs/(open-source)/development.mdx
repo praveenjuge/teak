@@ -302,15 +302,12 @@ A change to the public API ships on MCP, the SDK and the CLI in the same pull re
 
 ### MCP Registry
 
-The repo includes `server.json` for the MCP registry under the `com.teakvault/mcp` namespace. Publishing is manual because the namespace requires DNS verification for `teakvault.com`:
+The repo includes `server.json` for the MCP registry under the `com.teakvault/mcp` namespace, which the registry checks against a DNS record on `teakvault.com`. Each version tag publishes it through the `MCP Registry Release` workflow, which signs in with the domain's Ed25519 key from the `MCP_PRIVATE_KEY` secret. To publish by hand with [`mcp-publisher`](https://github.com/modelcontextprotocol/registry/releases):
 
 ```bash
-npm install -g mcp-publisher
-mcp-publisher login dns
+mcp-publisher login dns --domain teakvault.com --private-key "$PRIVATE_KEY"
 mcp-publisher publish
 ```
-
-Follow the CLI prompt to add the DNS TXT record, then publish once verification passes.
 
 ### Environment Variables
 
