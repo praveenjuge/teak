@@ -377,9 +377,9 @@ test("provenance audit retries are bounded by attempts and elapsed time", async 
   ).rejects.toThrow("npm audit signatures");
   expect(attempts).toBe(2);
 
-  await expect(
-    auditWhenAttested(() => "{}", { attempts: 31 })
-  ).rejects.toThrow("Invalid SDK attestation wait");
+  await expect(auditWhenAttested(() => "{}", { attempts: 31 })).rejects.toThrow(
+    "Invalid SDK attestation wait"
+  );
 });
 
 test("repeat publication accepts only identical registry metadata and bytes", async () => {

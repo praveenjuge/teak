@@ -19,7 +19,7 @@ Work in a fresh branch from `origin/main` (`git fetch origin`). Never merge with
 1. `bun run release:prepare <next patch>` (lockstep validator included).
 2. App Store: rewrite `version.whatsNew` in `apps/apple/store/store.config.json` from the Apple changes.
 3. Raycast: in `apps/raycast/CHANGELOG.md`, add `## [<title>] - {PR_MERGE_DATE}` at the top for what the store doesn't have, and give the previous entry its real merge date, as the store's copy has it.
-4. Prove Raycast outside the monorepo: copy `apps/raycast` to the scratchpad, then `npm ci`, `npx tsc --noEmit`, `bun test src/__tests__ --isolate`, `npx ray build -e dist` and `npx ray lint`.
+4. Prove Raycast outside the monorepo: copy `apps/raycast` to the scratchpad, then `npm ci`, `npx --no-install tsc --noEmit`, `bun test src/__tests__ --isolate`, `npx --no-install ray build -e dist` and `npx --no-install ray lint` (`--no-install` keeps them to the lockfile's versions).
 5. Commit (the pre-commit hook runs the affected checks), open the PR with the template, merge on green.
 
 ## 3. The tag workflows
@@ -46,9 +46,9 @@ Production needs 12 testers opted in for 14 days; Play Console's Dashboard shows
 
 Read "Raycast extension" in `apps/docs/content/docs/(open-source)/architecture.mdx`.
 
-- `ray publish` refuses `-I` for a public extension and stalls under a script's pseudo-terminal: run `npx ray publish` from `apps/raycast` in a Terminal-panel tab and read it there. It takes about 15 minutes (it clones `raycast/extensions`).
+- `ray publish` refuses `-I` for a public extension and stalls under a script's pseudo-terminal: run `npx --no-install ray publish` from `apps/raycast` (the `ray` that `@raycast/api` installs) in a Terminal-panel tab and read it there. It takes about 15 minutes (it clones `raycast/extensions`).
 - "getting fork" failing with a 422 about the `workflow` scope means the fork is behind a workflow change upstream; `gh repo sync praveenjuge/raycast-extensions --branch main` and run it again.
-- "some contributions are available" means the store changed the extension (the merge bot's changelog date, re-compressed `metadata/` screenshots). `npx @raycast/api@latest pull-contributions` starts a merge: keep ours for code and the changelog, theirs for the PNGs, restore anything outside `apps/raycast` to `HEAD`, commit, and publish again. Land the screenshots on `main` in a PR so the next publish doesn't stop on them.
+- "some contributions are available" means the store changed the extension (the merge bot's changelog date, re-compressed `metadata/` screenshots). `npx --no-install ray pull-contributions` starts a merge (the CLI's message suggests `@raycast/api@latest`; use the pinned one): keep ours for code and the changelog, theirs for the PNGs, restore anything outside `apps/raycast` to `HEAD`, commit, and publish again. Land the screenshots on `main` in a PR so the next publish doesn't stop on them.
 - It opens a draft PR titled "Update teak-raycast extension". Retitle it `Update Teak: <changelog title>`, write the description from the changes since the store version (the template's Description, Screencast and Checklist, with validation from step 2), and `gh pr ready <n> --repo raycast/extensions`.
 - Review bots comment within minutes. Fix in `apps/raycast` on a Teak PR first, then `ray publish` again to push the same commit to the store PR; reply on each thread and resolve it.
 
@@ -66,7 +66,7 @@ Check each, live, and report one table (product, where, status, next step):
 ## Gotchas
 
 - This shell aliases `cp` to ask before overwriting, which hangs a command; use `/bin/cp -f`. `rm` is blocked; use `trash`. The shell sets `pipefail`, so `… | grep -q` can fail when the producer gets SIGPIPE; capture into a variable first.
-- A hand-built Android bundle needs Java: use Homebrew's `openjdk@21` as `JAVA_HOME`, plus gitignored `apps/android/keystore.properties` and `apps/android/local.properties`.
-- A docs preview that fails on "CannotFetchFontFile" is Google Fonts timing out: `npx vercel redeploy <deployment id> --scope teak`.
+- A hand-built Android bundle needs Java: use Homebrew's `openjdk@21` as `JAVA_HOME`, plus the gitignored `keystore.properties` (see `apps/android/release.md`) and `local.properties` with `sdk.dir` in `apps/android`.
+- A docs preview that fails on "CannotFetchFontFile" is Google Fonts timing out: `npx --yes vercel@64.5.0 redeploy <deployment id> --scope teak`, or Redeploy in the Vercel dashboard.
 - Never launch the Mac app or take desktop screenshots unasked; drive Raycast's UI only when asked.
 - Outward steps (store uploads, notifying testers, the Raycast PR) are what "release" asks for; production rollouts and applying for Play production need their own go-ahead.
