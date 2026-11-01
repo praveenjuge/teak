@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useRef } from "react";
-import { AddCardActions } from "@/components/forms";
+import { AddCardActions, AddCardProvider } from "@/components/forms";
 import { LibraryShortcuts } from "@/components/shortcuts";
 import { AppSidebar, SidebarFolders } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -65,43 +65,42 @@ export function AppShell({
     });
   }, []);
 
-  const handleUpgrade = () => {
+  const handleUpgrade = useCallback(() => {
     router.push(SETTINGS_PLAN_HREF);
-  };
+  }, [router]);
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-      <SkipToContent />
-      <LibraryShortcuts
-        onGoToView={handleGoToView}
-        onNavigate={handleNavigate}
-        onSignOut={handleSignOut}
-        pathname={pathname}
-      />
-      <AppSidebar
-        activeView={view}
-        addActions={
-          <AddCardActions
-            onNewNote={handleNewNote}
-            onUpgrade={handleUpgrade}
-            upgradeUrl={SETTINGS_PLAN_HREF}
-            variant="header"
-          />
-        }
-        foldersSlot={
-          <SidebarFolders
-            activeFolderId={folderId}
-            LinkComponent={IntentLink}
-            onActiveFolderDeleted={() => router.push("/")}
-          />
-        }
-        isSettingsActive={pathname.startsWith("/settings")}
-        isTagsActive={pathname === "/tags"}
-        LinkComponent={IntentLink}
-      />
-      <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>
-        <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>
-      </SidebarInset>
+      <AddCardProvider
+        onNewNote={handleNewNote}
+        onUpgrade={handleUpgrade}
+        upgradeUrl={SETTINGS_PLAN_HREF}
+      >
+        <SkipToContent />
+        <LibraryShortcuts
+          onGoToView={handleGoToView}
+          onNavigate={handleNavigate}
+          onSignOut={handleSignOut}
+          pathname={pathname}
+        />
+        <AppSidebar
+          activeView={view}
+          addActions={<AddCardActions variant="header" />}
+          foldersSlot={
+            <SidebarFolders
+              activeFolderId={folderId}
+              LinkComponent={IntentLink}
+              onActiveFolderDeleted={() => router.push("/")}
+            />
+          }
+          isSettingsActive={pathname.startsWith("/settings")}
+          isTagsActive={pathname === "/tags"}
+          LinkComponent={IntentLink}
+        />
+        <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>
+          <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>
+        </SidebarInset>
+      </AddCardProvider>
     </SidebarProvider>
   );
 }

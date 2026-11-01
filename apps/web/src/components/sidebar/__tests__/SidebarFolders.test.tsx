@@ -91,7 +91,8 @@ afterEach(async () => {
 
 const render = async (
   activeFolderId: string | null,
-  onActiveFolderDeleted?: () => void
+  onActiveFolderDeleted?: () => void,
+  open = true
 ) => {
   if (!root) {
     const container = document.createElement("div");
@@ -100,7 +101,7 @@ const render = async (
   }
   await act(() =>
     root?.render(
-      <SidebarProvider defaultOpen>
+      <SidebarProvider defaultOpen={open}>
         <SidebarFolders
           activeFolderId={activeFolderId}
           LinkComponent={Link}
@@ -152,4 +153,34 @@ test("the Deleted toast clips a long folder name", async () => {
   expect(message?.endsWith("…”")).toBe(true);
   expect(Array.from(message ?? "").length).toBeLessThanOrEqual(50);
   expect(toastDurations).toEqual([10_000]);
+});
+
+const startNewFolder = async () => {
+  const add = document.querySelector<HTMLButtonElement>(
+    'button[title="New folder"]'
+  );
+  await act(async () => {
+    add?.click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+};
+
+test("New folder names the folder in place in the open sidebar", async () => {
+  await render(null);
+  await startNewFolder();
+
+  expect(
+    document.querySelector('[data-sidebar="menu"] input[aria-label]')
+  ).not.toBeNull();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+});
+
+test("New folder asks for the name in a dialog from the collapsed rail", async () => {
+  await render(null, undefined, false);
+  await startNewFolder();
+
+  expect(document.querySelector('[data-sidebar="menu"] input')).toBeNull();
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog?.querySelector("h2")?.textContent).toBe("New folder");
+  expect(document.activeElement?.closest('[role="dialog"]')).toBe(dialog);
 });

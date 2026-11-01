@@ -353,7 +353,16 @@ export const Card = memo(function Card({
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  const textInsets = showFavoriteMark ? "pr-11" : "";
+  const showQuickActions = !(isOptimistic || isSelectionMode);
+  // Touch screens keep the More button showing, so text makes room for it,
+  // and for the heart that moves beside it.
+  let textInsets = showFavoriteMark ? "pr-11" : "";
+  if (showQuickActions) {
+    textInsets = cn(
+      textInsets,
+      showFavoriteMark ? "pointer-coarse:pr-20" : "pointer-coarse:pr-11"
+    );
+  }
 
   const canDrag = !(isOptimistic || isSelectionMode || card.isDeleted);
   const handleDragStart = (event: DragEvent<HTMLElement>) => {
@@ -520,7 +529,6 @@ export const Card = memo(function Card({
         ]),
   ];
 
-  const showQuickActions = !(isOptimistic || isSelectionMode);
   const showHoverSelect =
     !(isOptimistic || isSelectionMode) && Boolean(onEnterSelectionMode);
   const isMediaCard =
@@ -628,7 +636,7 @@ export const Card = memo(function Card({
                 isMediaCard &&
                   "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10",
                 showQuickActions &&
-                  "group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
+                  "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
               )}
             >
               <Heart className="size-3.5 fill-destructive text-destructive" />
@@ -636,9 +644,11 @@ export const Card = memo(function Card({
           )}
 
           {showQuickActions && (
-            <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
+            <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
+              {/* Without hover, only More shows: it holds every action. */}
               {card.url && !card.isDeleted && (
                 <QuickActionButton
+                  className="pointer-coarse:hidden"
                   label={t("menu.openLink")}
                   onClick={openLink}
                 >
@@ -647,6 +657,7 @@ export const Card = memo(function Card({
               )}
               {!card.isDeleted && (
                 <QuickActionButton
+                  className="pointer-coarse:hidden"
                   label={
                     card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")
                   }

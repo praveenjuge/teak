@@ -92,8 +92,9 @@ const TagRow = memo(function TagRow({
       aria-label={t("moreFor", { tag: item.name })}
       className={cn(
         "mr-2 size-8 shrink-0 text-muted-foreground transition-opacity hover:text-foreground",
-        "md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100",
-        isMenuOpen && "md:opacity-100"
+        // Touch screens can't hover, so the button stays for them.
+        !isMenuOpen &&
+          "md:pointer-fine:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100"
       )}
       onClick={isMenuOpen ? undefined : () => onMenuOpenChange(item.name)}
       size="icon"
