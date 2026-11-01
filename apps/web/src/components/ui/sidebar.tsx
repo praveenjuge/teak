@@ -36,17 +36,14 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
-const SIDEBAR_PEEK_DELAY_MS = 250;
 
 interface SidebarContextProps {
   isMobile: boolean;
-  isPeeking: boolean;
   isResizing: boolean;
   open: boolean;
   openMobile: boolean;
   setOpen: (open: boolean) => void;
   setOpenMobile: (open: boolean) => void;
-  setPeeking: (peeking: boolean) => void;
   setResizing: (resizing: boolean) => void;
   setWidth: (width: number, options?: { persist?: boolean }) => void;
   state: "expanded" | "collapsed";
@@ -90,7 +87,6 @@ function SidebarProvider({
     clampSidebarWidth(defaultWidth)
   );
   const [isResizing, setResizing] = React.useState(false);
-  const [isPeeking, setPeeking] = React.useState(false);
   const setWidth = React.useCallback(
     (value: number, options?: { persist?: boolean }) => {
       const next = clampSidebarWidth(value);
@@ -116,7 +112,6 @@ function SidebarProvider({
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
-      setPeeking(false);
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -165,11 +160,9 @@ function SidebarProvider({
       open,
       setOpen,
       isMobile,
-      isPeeking: isPeeking && !open,
       isResizing,
       openMobile,
       setOpenMobile,
-      setPeeking,
       setResizing,
       setWidth,
       toggleSidebar,
@@ -180,7 +173,6 @@ function SidebarProvider({
       open,
       setOpen,
       isMobile,
-      isPeeking,
       isResizing,
       openMobile,
       setWidth,
@@ -228,76 +220,8 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const t = useTranslations("ui");
-  const { isMobile, isPeeking, setPeeking, state, openMobile, setOpenMobile } =
-    useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   const returnFocus = useReturnFocus(isMobile && openMobile);
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const isIconRail = state === "collapsed" && collapsible === "icon";
-  const peekTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const schedulePeek = React.useCallback(
-    (peek: boolean | null) => {
-      if (peekTimerRef.current) {
-        clearTimeout(peekTimerRef.current);
-        peekTimerRef.current = null;
-      }
-      if (peek === true) {
-        peekTimerRef.current = setTimeout(
-          () => setPeeking(true),
-          SIDEBAR_PEEK_DELAY_MS
-        );
-      } else if (peek === false) {
-        setPeeking(false);
-      }
-    },
-    [setPeeking]
-  );
-  React.useEffect(
-    () => () => {
-      if (peekTimerRef.current) {
-        clearTimeout(peekTimerRef.current);
-      }
-    },
-    []
-  );
-  React.useEffect(() => {
-    const container = isMobile ? null : containerRef.current;
-    if (!container) {
-      return;
-    }
-    const handleEnter = () => {
-      if (isIconRail) {
-        schedulePeek(true);
-      }
-    };
-    const handleLeave = () => {
-      schedulePeek(
-        container.querySelector('[data-state="open"]') === null ? false : null
-      );
-    };
-    container.addEventListener("mouseenter", handleEnter);
-    container.addEventListener("mouseleave", handleLeave);
-    return () => {
-      container.removeEventListener("mouseenter", handleEnter);
-      container.removeEventListener("mouseleave", handleLeave);
-    };
-  }, [isIconRail, isMobile, schedulePeek]);
-  React.useEffect(() => {
-    if (!isPeeking) {
-      return;
-    }
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (
-        containerRef.current?.contains(target) ||
-        target?.closest("[data-radix-popper-content-wrapper]")
-      ) {
-        return;
-      }
-      setPeeking(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isPeeking, setPeeking]);
 
   if (collapsible === "none") {
     return (
@@ -350,7 +274,6 @@ function Sidebar({
     );
   }
 
-  const visuallyCollapsed = state === "collapsed" && !isPeeking;
   let gapWidth = "w-(--sidebar-width)";
   if (state === "collapsed") {
     gapWidth = collapsible === "offcanvas" ? "w-0" : "w-(--sidebar-width-icon)";
@@ -359,8 +282,7 @@ function Sidebar({
   return (
     <div
       className="group peer hidden text-sidebar-foreground md:block"
-      data-collapsible={visuallyCollapsed ? collapsible : ""}
-      data-peeking={isPeeking || undefined}
+      data-collapsible={state === "collapsed" ? collapsible : ""}
       data-side={side}
       data-slot="sidebar"
       data-state={state}
@@ -378,18 +300,16 @@ function Sidebar({
       />
       <div
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width,box-shadow] duration-150 ease-out group-data-[resizing]/sidebar-wrapper:transition-none md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-150 ease-out group-data-[resizing]/sidebar-wrapper:transition-none md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
-          "group-data-[peeking]:z-30 group-data-[peeking]:shadow-[10px_0_28px_-8px_rgb(0_0_0/0.22)] dark:group-data-[peeking]:shadow-[8px_0_24px_-10px_rgb(0_0_0/0.7)]",
           className
         )}
         data-slot="sidebar-container"
-        ref={containerRef}
         {...props}
       >
         <div
@@ -759,7 +679,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button";
-  const { isMobile, isPeeking, state } = useSidebar();
+  const { isMobile, state } = useSidebar();
   const [tooltipOpen, setTooltipOpen] = React.useState(false);
 
   const button = (
@@ -786,7 +706,7 @@ function SidebarMenuButton({
   // Tooltips only help when the labels are hidden (collapsed to icons). Kept
   // closed otherwise: an open tooltip would take the drawer's first Escape.
   // Always controlled, so collapsing never switches Radix between modes.
-  const showTooltip = state === "collapsed" && !isPeeking && !isMobile;
+  const showTooltip = state === "collapsed" && !isMobile;
   return (
     <Tooltip onOpenChange={setTooltipOpen} open={showTooltip && tooltipOpen}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
