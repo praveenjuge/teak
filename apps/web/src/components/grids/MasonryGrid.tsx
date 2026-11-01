@@ -946,18 +946,25 @@ export const MasonryGrid = memo(function MasonryGrid({
             renderItem={renderItem}
           />
         ) : null}
-        <ConfigProvider theme={STILL_MASONRY_THEME}>
-          <Masonry
-            className={isSelectionMode ? "select-none" : ""}
-            columns={resolvedColumns}
-            fresh
-            gutter={gutter}
-            itemRender={renderItem}
-            items={masonryItems}
-            onLayoutChange={firstPaint ? endFirstPaint : undefined}
-            style={firstPaint ? MEASURING_STYLE : undefined}
-          />
-        </ConfigProvider>
+        {/* While the first paint shows, this copy only measures: hidden from
+            assistive technology and the keyboard, so no card is there twice. */}
+        <div
+          aria-hidden={firstPaint || undefined}
+          inert={firstPaint}
+          style={firstPaint ? MEASURING_STYLE : undefined}
+        >
+          <ConfigProvider theme={STILL_MASONRY_THEME}>
+            <Masonry
+              className={isSelectionMode ? "select-none" : ""}
+              columns={resolvedColumns}
+              fresh
+              gutter={gutter}
+              itemRender={renderItem}
+              items={masonryItems}
+              onLayoutChange={firstPaint ? endFirstPaint : undefined}
+            />
+          </ConfigProvider>
+        </div>
       </div>
       {filteredCards.length > 0 &&
         (visibleCount < filteredCards.length ||
