@@ -449,6 +449,21 @@ function AuthenticatedPopup({
   };
 
   const isUploading = fileUpload.state === "saving";
+  // One child or none: the card draws its details row only when there's something in it.
+  let details: ReactNode = null;
+  if (detailsCardId) {
+    details = (
+      <SaveDetails
+        alreadySaved={autoSave.state === "duplicate"}
+        cardId={detailsCardId}
+        key={detailsCardId}
+        onKeepOpen={() => setDetailsTouched(true)}
+        userId={user.id}
+      />
+    );
+  } else if (item?.kind === "page" && status?.tone === "loading") {
+    details = <DetailsPlaceholder />;
+  }
   const chooseFile = () => {
     if (isUploading) {
       return;
@@ -520,18 +535,7 @@ function AuthenticatedPopup({
           <>
             <StatusLine status={status} />
             <SavedItemCard busy={status.tone === "loading"} item={item}>
-              {detailsCardId ? (
-                <SaveDetails
-                  alreadySaved={autoSave.state === "duplicate"}
-                  cardId={detailsCardId}
-                  key={detailsCardId}
-                  onKeepOpen={() => setDetailsTouched(true)}
-                  userId={user.id}
-                />
-              ) : null}
-              {item.kind === "page" && status.tone === "loading" ? (
-                <DetailsPlaceholder />
-              ) : null}
+              {details}
             </SavedItemCard>
           </>
         ) : null}
