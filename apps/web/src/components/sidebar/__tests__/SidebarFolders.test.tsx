@@ -38,6 +38,13 @@ mock.module("convex/react", () => ({
   },
 }));
 mock.module("convex-helpers/react/cache/hooks", () => ({
+  // Read through @/lib/convexQueryHooks, which wraps both hooks.
+  usePaginatedQuery: () => ({
+    results: [],
+    status: "LoadingFirstPage",
+    isLoading: true,
+    loadMore: () => undefined,
+  }),
   useQuery: () => folders,
 }));
 mock.module("sonner", () => ({

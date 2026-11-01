@@ -76,7 +76,9 @@ export const useLinkPasteToastOwner = (job: PasteJob) => {
 };
 
 const getSnapshot = () => jobs;
-const getServerSnapshot = (): readonly PasteJob[] => [];
+// One array, so the server snapshot is the same value on every read.
+const NO_JOBS: readonly PasteJob[] = [];
+const getServerSnapshot = () => NO_JOBS;
 
 export const useLinkPasteJobs = () =>
   useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

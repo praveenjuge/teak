@@ -3,7 +3,6 @@
 import { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownAZ,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@/lib/convexQueryHooks";
 import { cn } from "@/lib/utils";
 import {
   TagManagerDialog,

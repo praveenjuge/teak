@@ -2,9 +2,9 @@ import { api } from "@teak/convex";
 import type { TagOperationKind } from "@teak/convex/shared/tags";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "@/lib/convexQueryHooks";
 import {
   isTagOperationStalled,
   TAG_OPERATION_OVERLAY_MS,

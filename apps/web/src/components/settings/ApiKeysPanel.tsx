@@ -1,7 +1,8 @@
 import type { TeakTranslator } from "@teak/i18n";
-import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Copy, KeyRound, RotateCw, Trash } from "vadivam-react";
+import { useLocalDateFormat } from "../../hooks/useLocalDateFormat";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Input } from "../ui/input";
@@ -10,6 +11,7 @@ import { SettingsList, SettingsListSkeleton } from "./SettingsDialog";
 import { SettingsSection } from "./SettingsSection";
 
 const API_DOCS_URL = "https://teakvault.com/docs/api";
+const CREATED_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
 
 export interface ApiKeyListItem {
   createdAt: number;
@@ -109,15 +111,13 @@ function ApiKeyRow({
   onRevoke: () => void;
 }) {
   const t = useTranslations("settings.apiKeys");
-  const locale = useIntlLocale();
-  const createdAt = new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-  }).format(item.createdAt);
+  const formatDate = useLocalDateFormat(CREATED_FORMAT);
+  const createdAt = formatDate?.(item.createdAt);
   const name = visibleKeyName(item.name);
   const identity = [
     name,
     item.maskedKey,
-    t("identityCreated", { date: createdAt }),
+    createdAt && t("identityCreated", { date: createdAt }),
   ]
     .filter(Boolean)
     .join(", ");
@@ -137,7 +137,7 @@ function ApiKeyRow({
           {item.maskedKey}
         </p>
         <p className="text-muted-foreground text-xs leading-5">
-          {t("created", { date: createdAt })}
+          {createdAt ? t("created", { date: createdAt }) : "\u00a0"}
         </p>
       </div>
       <div className="flex shrink-0 items-center text-muted-foreground">

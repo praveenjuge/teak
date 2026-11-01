@@ -63,7 +63,16 @@ export function WorkosAuthBoundary({
     identity !== null &&
     established.current !== identity;
   const signedIn = auth.isAuthenticated && identity !== null && !changed;
-  const profile = useQuery(api.auth.getAuthUser, signedIn ? {} : "skip");
+  // While Convex checks the session, the profile the server fetched for this
+  // page (its seed) opens the app at once; the client holds the live query
+  // until the session is accepted.
+  const awaitingConvex =
+    auth.isLoading && !loading && identity !== null && !changed;
+  const profile = useQuery(
+    api.auth.getAuthUser,
+    signedIn || awaitingConvex ? {} : "skip"
+  );
+  const openEarly = awaitingConvex && Boolean(profile);
   const [owner, setOwner] = useState<{
     identity: string;
     teakUserId: string;
@@ -158,10 +167,10 @@ export function WorkosAuthBoundary({
   if (timedOut) {
     return <AuthUnavailable />;
   }
-  if (loading || auth.isLoading || changed) {
+  if (loading || (auth.isLoading && !openEarly) || changed) {
     return loadingState;
   }
-  if (!(user && auth.isAuthenticated)) {
+  if (!(openEarly || (user && auth.isAuthenticated))) {
     return (
       <AuthUnavailable
         action={t("signIn")}

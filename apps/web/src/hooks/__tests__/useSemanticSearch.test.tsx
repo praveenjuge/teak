@@ -23,9 +23,8 @@ mock.module("convex/react", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { semanticSearchText, useSemanticSearch } = await import(
-  "../useSemanticSearch"
-);
+const { semanticSearchText } = await import("../../lib/cardsSearchState");
+const { useSemanticSearch } = await import("../useSemanticSearch");
 
 let root: Root | undefined;
 let pending = false;

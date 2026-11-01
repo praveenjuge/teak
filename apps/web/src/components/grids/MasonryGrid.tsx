@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import type { CardWithUrls } from "@/components/cards";
 import { Card } from "@/components/cards";
 import { Spinner } from "@/components/ui/spinner";
+import { useHydrated } from "../../hooks/useHydrated";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   type BulkCardAction,
@@ -39,6 +40,7 @@ import {
   type BulkBarView,
 } from "../selection/BulkActionBar";
 import { ConfirmDialog } from "../ui/confirm-dialog";
+import { FirstPaintGrid } from "./FirstPaintGrid";
 
 type MasonryCell = "add-form" | { card: Doc<"cards">; isPriority: boolean };
 interface MasonryItem {
@@ -66,6 +68,21 @@ export const columnsForWidth = (width: number, gutter: number): number =>
     MAX_COLUMNS,
     Math.max(1, Math.floor((width + gutter) / (MIN_COLUMN_WIDTH + gutter)))
   );
+
+// columnsForWidth in CSS: at least MIN_COLUMN_WIDTH wide, at most MAX_COLUMNS.
+const firstPaintColumns = (gutter: number) =>
+  `repeat(auto-fill, minmax(max(${MIN_COLUMN_WIDTH}px, calc((100% - ${
+    (MAX_COLUMNS - 1) * gutter
+  }px) / ${MAX_COLUMNS})), 1fr))`;
+// Over the first-paint grid until its first layout: there to measure and to
+// take focus, never seen or clicked.
+const MEASURING_STYLE = {
+  insetInline: 0,
+  opacity: 0,
+  pointerEvents: "none",
+  position: "absolute",
+  top: 0,
+} as const;
 
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 const DEFAULT_ROOT_MARGIN = "200px 0px";
@@ -228,6 +245,12 @@ export const MasonryGrid = memo(function MasonryGrid({
     return () => observer.disconnect();
   }, [columns, gutter]);
   const resolvedColumns = columns ?? measuredColumns ?? FALLBACK_COLUMNS;
+  // A server-rendered page shows its cards before the masonry can measure them.
+  const hydrated = useHydrated();
+  const [firstPaint, setFirstPaint] = useState(
+    !hydrated && columns === undefined
+  );
+  const endFirstPaint = useCallback(() => setFirstPaint(false), []);
   const loadMoreRequestedRef = useRef(false);
   const resetKeyRef = useRef(resolvedResetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
@@ -919,10 +942,19 @@ export const MasonryGrid = memo(function MasonryGrid({
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: keys reach this wrapper from the focused card, which is the interactive element */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: as above */}
       <div
+        className={firstPaint ? "relative" : undefined}
         onFocus={handleGridFocus}
         onKeyDown={handleGridKeyDown}
         ref={gridRef}
       >
+        {firstPaint ? (
+          <FirstPaintGrid
+            gridTemplateColumns={firstPaintColumns(gutter)}
+            gutter={gutter}
+            items={masonryItems}
+            renderItem={renderItem}
+          />
+        ) : null}
         <ConfigProvider theme={STILL_MASONRY_THEME}>
           <Masonry
             className={isSelectionMode ? "select-none" : ""}
@@ -931,6 +963,8 @@ export const MasonryGrid = memo(function MasonryGrid({
             gutter={gutter}
             itemRender={renderItem}
             items={masonryItems}
+            onLayoutChange={firstPaint ? endFirstPaint : undefined}
+            style={firstPaint ? MEASURING_STYLE : undefined}
           />
         </ConfigProvider>
       </div>

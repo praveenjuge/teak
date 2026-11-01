@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { useQuery } from "convex-helpers/react/cache/hooks";
+import { useQuery } from "@/lib/convexQueryHooks";
 import type { LibraryView } from "../lib/libraryViews";
 
 export function useViewHasHiddenCards({

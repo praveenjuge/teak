@@ -125,6 +125,12 @@ const confirmIn = async (label: string) => {
   });
 };
 
+test("shows each key's creation date in the browser", async () => {
+  await render();
+  await click("Create key");
+  expect(document.body.textContent).toMatch(/Created \w{3} \d{1,2}, 2026/);
+});
+
 test("revoking one key keeps another new key's one-time reveal", async () => {
   const { onRevoke } = await render();
   await click("Create key");

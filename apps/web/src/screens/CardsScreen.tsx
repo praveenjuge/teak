@@ -12,7 +12,6 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import type { Messages } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Authenticated, AuthLoading } from "convex/react";
-import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +44,7 @@ import {
 } from "@/hooks";
 import type { CardsVisualFilters } from "@/lib/cardsSearchState";
 import { clipFolderName } from "@/lib/clipFolderName";
+import { usePaginatedQuery, useQuery } from "@/lib/convexQueryHooks";
 import {
   LazyConnectedCardModal as ConnectedCardModal,
   preloadCardModal,
