@@ -4,6 +4,8 @@ import { capturePageErrors, routeConvexSocket } from "../helpers/page-hooks";
 import { describe, expect, test } from "../helpers/test";
 
 const redirectTarget = async (path: string, accept = "*/*") => {
+  // The path is a fixed test route on the local app.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(appPath(path), {
     headers: { accept },
     redirect: "manual",
