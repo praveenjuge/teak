@@ -595,7 +595,7 @@
       "revisitMore": "Revisitar mais {count}",
       "undoHint": "<kbd>Z</kbd> desfaz o último arquivamento",
       "openDetails": "Abrir detalhes: {type}",
-      "saved": "Salvo em {date}",
+      "added": "Adicionado em {date}",
       "inTrash": "Na Lixeira",
       "archived": "Arquivado",
       "releaseToArchive": "Solte para arquivar",
@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {Marcado como lido} watched {Marcado como assistido} listened {Marcado como ouvido} bought {Marcado como comprado} cooked {Marcado como preparado} played {Marcado como jogado} other {Marcado como concluído}}"
     },
     "heading": {
-      "addedOn": "Adicionado em {date}",
-      "addedToday": "Adicionado hoje",
-      "addedYesterday": "Adicionado ontem",
+      "addedOn": "Adicionado em {date} às {time}",
+      "addedToday": "Adicionado hoje às {time}",
+      "addedYesterday": "Adicionado ontem às {time}",
       "note": "Nota"
     },
     "panel": {
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "Não foi possível pesquisar por significado agora.",
       "noFilterMatches": "Nada encontrado com esses filtros",
       "clearFilters": "Limpar filtros",
+      "clearSearch": "Limpar pesquisa",
       "smartFolderSuffix": " (pasta inteligente)",
       "folderCardCountSuffix": "{count, plural, one { card} other { cards}}",
       "folderTitle": "Pasta",
@@ -1645,7 +1646,9 @@
       "openInTeak": "Abrir no Teak",
       "openOriginalNow": "Abrir o original agora",
       "tryOriginal": "Tentar o original ↗",
-      "unavailable": "Este card não está disponível."
+      "unavailable": "Este card não está disponível.",
+      "unavailableBody": "Ele pode ter sido excluído, ou o link está errado.",
+      "unavailableTabTitle": "Card indisponível"
     }
   },
   "hooks": {

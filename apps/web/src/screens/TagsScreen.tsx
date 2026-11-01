@@ -35,6 +35,7 @@ import {
 } from "../components/modals/TagManagerDialog";
 import { searchFieldClassName } from "../components/search/SearchBar";
 import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
 import {
@@ -214,6 +215,7 @@ export function TagsScreen({
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
+  useDocumentTitle(t("title"));
   const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);

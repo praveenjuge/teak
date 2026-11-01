@@ -100,6 +100,24 @@ test("Details shows Added and File size, and the rest behind More details", asyn
   expect(button("Fewer details")?.getAttribute("aria-expanded")).toBe("true");
 });
 
+test("Details leaves out Added when the dialog's top line already says it", async () => {
+  await render(imageCard(), { addedInHeader: true });
+  expect(detailLabels()).toEqual(["File size"]);
+});
+
+test("a note with nothing left to list has no empty Details heading", async () => {
+  await render(
+    imageCard({
+      content: "Groceries",
+      fileMetadata: undefined,
+      type: "text",
+    } as Partial<CardModalCard>),
+    { addedInHeader: true }
+  );
+  expect(detailLabels()).toEqual([]);
+  expect(document.body.textContent).not.toContain("Details");
+});
+
 test("Details stays open on the next card once someone opened it", async () => {
   await render(imageCard());
   await act(() => button("More details")?.click());

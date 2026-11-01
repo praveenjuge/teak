@@ -681,7 +681,7 @@
     <string name="native_notes_taskFailed">Impossible de mettre à jour la liste de tâches. Réessayez.</string>
     <string name="native_notes_unchecked">Non coché</string>
     <string name="native_revisit_archived">Archivée</string>
-    <string name="native_revisit_caption">%1$s · Enregistrée le %2$s</string>
+    <string name="native_revisit_caption">%1$s · Ajoutée le %2$s</string>
     <string name="native_revisit_close">Fermer Revoir</string>
     <string name="native_revisit_emptyMessage">Les fiches que vous enregistrez apparaissent ici pour que vous puissiez les revoir.</string>
     <string name="native_revisit_emptyTitle">Rien à revoir ici</string>
@@ -851,7 +851,7 @@
     <string name="native_trash_empty">Vider la corbeille</string>
     <string name="native_trash_emptyFailed">Impossible de vider la corbeille. Réessayez.</string>
     <plurals name="native_trash_emptyMessage">
-        <item quantity="one">Cette action supprime définitivement %1$d fiche et leurs fichiers. Elle est irréversible.</item>
+        <item quantity="one">Cette action supprime définitivement %1$d fiche et ses fichiers. Elle est irréversible.</item>
         <item quantity="other">Cette action supprime définitivement %1$d fiches et leurs fichiers. Elle est irréversible.</item>
     </plurals>
     <plurals name="native_trash_emptyMessageMore">

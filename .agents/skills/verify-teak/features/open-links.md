@@ -8,7 +8,7 @@ Opening a link card's page goes through one path on the web: the grid's "Open li
 - `open-check` shows "Opening <host>…", then "Open the original now" after 1.5 s, and goes on to the original by 4 s at the latest; a cached answer (alive for 24 hours, dead for 6) skips the check.
 - `archive-view` shows the bar ("Archived copy", "This page is no longer available · Saved <date> from <host>", "Try the original ↗", "Open in Teak") over the copy in a sandboxed frame on white; at 390 px the text reads "No longer available" and the two buttons move into a ⋯ menu.
 - `archive-missing` shows "Teak’s copy couldn’t be loaded." with "Try the original ↗" when the copy's object is gone.
-- `open-unavailable` shows "This card isn’t available." with "Back to Teak" for another account's card, a card in Trash, a note or an address that is no card.
+- `open-unavailable` shows the Teak wordmark, heading "This card isn’t available.", "It may have been deleted, or the link is wrong." and the button link "Back to Teak", laid out like the app's "Page not found", for another account's card, a card in Trash, a note or an address that is no card. The tab reads "Card not available · Teak", not "Opening link".
 - `dead-chip` shows the "Archived copy" chip after the site in the card dialog, with the tooltip "The original page was gone when last checked on <date>".
 
 ## How to get to it (user POV)
@@ -34,7 +34,7 @@ Steps:
 - **No copy.** Hover "Gone, with no copy (opens the original)" → "Open link": the tab opens the httpbin URL directly, never `/open`.
 - **Try the original.** In the archive tab, `click` "Try the original ↗": the real 404 loads in the same tab; Back returns to the copy. `click` "Open in Teak": the library opens with the card's dialog.
 - **Dialog chip.** Open "Gone: 404" in Teak: "Archived copy" sits after "httpbin.org"; hover it for the tooltip. `observe` the title link: its `href` is still the httpbin address.
-- **Unavailable.** Open `/open/not-a-card` and `/open/<id of "Gone, in Trash">`: "This card isn’t available." with "Back to Teak".
+- **Unavailable.** Open `/open/not-a-card` and `/open/<id of "Gone, in Trash">`: heading "This card isn’t available." with link "Back to Teak", and the tab title "Card not available · Teak".
 - **390 px and dark.** Resize to 390 × 844 in the archive tab: the bar reads "Archived copy" "No longer available" and a "More actions" button; its menu has "Try the original ↗" and "Open in Teak". Switch to dark: the bar follows, the frame stays white.
 - **Keyboard.** In the archive tab, `press` "Tab": focus reaches the bar's buttons before the frame; `press` "Escape": nothing happens.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/web/dead-link.e2e.ts`.

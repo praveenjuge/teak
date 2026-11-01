@@ -729,14 +729,18 @@ export function CardsScreen({
     ]
   );
 
-  let folderTabTitle: string | undefined;
+  // Everything keeps the plain "Teak" title; every other view names the tab
+  // in the UI language, which the route's static English metadata can't.
+  let tabTitle: string | undefined;
   if (isFolderView) {
-    folderTabTitle =
+    tabTitle =
       folder === null
         ? t("folderNotFound")
         : (folder?.name ?? t("folderTitle"));
+  } else if (view && view !== "all") {
+    tabTitle = libraryViewLabel(view, tv);
   }
-  useDocumentTitle(folderTabTitle);
+  useDocumentTitle(tabTitle);
 
   const allFolderNames = useMemo(
     () => allFolders?.map((item) => item.name),
@@ -760,12 +764,9 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <FolderX aria-hidden="true" className="size-4" />
           </span>
-          <div className="space-y-1">
-            <p className="font-medium">{t("folderNotFound")}</p>
-            <p className="text-muted-foreground text-sm">
-              {t("folderMayBeDeleted")}
-            </p>
-          </div>
+          <p className="text-muted-foreground text-sm">
+            {t("folderMayBeDeleted")}
+          </p>
           {onNavigateView ? (
             <Button onClick={() => onNavigateView("all")} variant="outline">
               {t("goToEverything")}

@@ -681,7 +681,7 @@
     <string name="native_notes_taskFailed">Die Aufgabenliste konnte nicht aktualisiert werden. Versuchen Sie es erneut.</string>
     <string name="native_notes_unchecked">Nicht abgehakt</string>
     <string name="native_revisit_archived">Archiviert</string>
-    <string name="native_revisit_caption">%1$s · Gespeichert am %2$s</string>
+    <string name="native_revisit_caption">%1$s · Hinzugefügt am %2$s</string>
     <string name="native_revisit_close">Wiedersehen schließen</string>
     <string name="native_revisit_emptyMessage">Karten, die Sie speichern, erscheinen hier, damit Sie sie wiedersehen.</string>
     <string name="native_revisit_emptyTitle">Hier gibt es nichts wiederzusehen</string>

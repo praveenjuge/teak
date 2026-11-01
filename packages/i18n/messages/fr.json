@@ -595,7 +595,7 @@
       "revisitMore": "En revoir {count} de plus",
       "undoHint": "<kbd>Z</kbd> annule le dernier archivage",
       "openDetails": "Ouvrir les détails : {type}",
-      "saved": "Enregistrée le {date}",
+      "added": "Ajoutée le {date}",
       "inTrash": "Dans la corbeille",
       "archived": "Archivée",
       "releaseToArchive": "Relâchez pour archiver",
@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {Marquée comme lue} watched {Marquée comme vue} listened {Marquée comme écoutée} bought {Marquée comme achetée} cooked {Marquée comme cuisinée} played {Marquée comme jouée} other {Marquée comme terminée}}"
     },
     "heading": {
-      "addedOn": "Ajoutée le {date}",
-      "addedToday": "Ajoutée aujourd’hui",
-      "addedYesterday": "Ajoutée hier",
+      "addedOn": "Ajoutée le {date} à {time}",
+      "addedToday": "Ajoutée aujourd’hui à {time}",
+      "addedYesterday": "Ajoutée hier à {time}",
       "note": "Note"
     },
     "panel": {
@@ -1048,7 +1048,7 @@
     "emptyTrash": {
       "button": "Vider la corbeille",
       "title": "Vider la corbeille ?",
-      "description": "Cette action supprime définitivement {count, plural, one {# fiche} other {# fiches}} et leurs fichiers. Elle est irréversible.",
+      "description": "Cette action supprime définitivement {count, plural, one {# fiche et ses fichiers} other {# fiches et leurs fichiers}}. Elle est irréversible.",
       "descriptionAtLeast": "Cette action supprime définitivement {count, plural, other {# fiches ou plus}} et leurs fichiers. Elle est irréversible.",
       "confirm": "Vider la corbeille",
       "emptying": "{count, plural, one {Suppression définitive de # fiche} other {Suppression définitive de # fiches}}",
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "La recherche par le sens est indisponible pour le moment.",
       "noFilterMatches": "Aucun résultat ne correspond à vos filtres",
       "clearFilters": "Effacer les filtres",
+      "clearSearch": "Effacer la recherche",
       "smartFolderSuffix": " (dossier intelligent)",
       "folderCardCountSuffix": "{count, plural, one { fiche} other { fiches}}",
       "folderTitle": "Dossier",
@@ -1645,7 +1646,9 @@
       "openInTeak": "Ouvrir dans Teak",
       "openOriginalNow": "Ouvrir l’original maintenant",
       "tryOriginal": "Essayer l’original ↗",
-      "unavailable": "Cette fiche n’est pas disponible."
+      "unavailable": "Cette fiche n’est pas disponible.",
+      "unavailableBody": "Elle a peut-être été supprimée, ou le lien est erroné.",
+      "unavailableTabTitle": "Fiche indisponible"
     }
   },
   "hooks": {

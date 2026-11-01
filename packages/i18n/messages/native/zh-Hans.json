@@ -284,7 +284,7 @@
       "swipeHint": "向左轻扫以归档，向右轻扫以保留",
       "releaseToArchive": "松开以归档",
       "releaseToKeep": "松开以保留",
-      "caption": "{type} · 保存于 {date}",
+      "caption": "{type} · 添加于 {date}",
       "finishedTitle": "已全部看完",
       "summary": "已归档 {archived} · 已保留 {kept}",
       "startOver": "重新开始",

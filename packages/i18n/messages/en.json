@@ -160,15 +160,15 @@
       "yearly": "Yearly",
       "perMonth": "/ month",
       "perYear": "/ year",
-      "bestValue": "Best Value • Save {percent}%",
+      "bestValue": "Best value • Save {percent}%",
       "features": {
-        "unlimitedCards": "Unlimited Cards",
-        "unlimitedStorage": "Unlimited Storage",
-        "summaryAndTags": "Automatic Summary and Tags",
-        "audioTranscription": "Automatic Audio Transcription",
-        "browserExtensions": "Browser Extensions",
-        "apps": "iOS, Mac & Android Apps",
-        "apiAndMcp": "API & MCP Access"
+        "unlimitedCards": "Unlimited cards",
+        "unlimitedStorage": "Unlimited storage",
+        "summaryAndTags": "Automatic summary and tags",
+        "audioTranscription": "Automatic audio transcription",
+        "browserExtensions": "Browser extensions",
+        "apps": "iOS, Mac & Android apps",
+        "apiAndMcp": "API & MCP access"
       },
       "cancelAnytime": "Cancel anytime."
     },
@@ -595,7 +595,7 @@
       "revisitMore": "Revisit {count} more",
       "undoHint": "<kbd>Z</kbd> undoes the last archive",
       "openDetails": "Open details: {type}",
-      "saved": "Saved {date}",
+      "added": "Added {date}",
       "inTrash": "In Trash",
       "archived": "Archived",
       "releaseToArchive": "Release to archive",
@@ -799,9 +799,9 @@
       "marked": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
     },
     "heading": {
-      "addedOn": "Added {date}",
-      "addedToday": "Added today",
-      "addedYesterday": "Added yesterday",
+      "addedOn": "Added {date} at {time}",
+      "addedToday": "Added today at {time}",
+      "addedYesterday": "Added yesterday at {time}",
       "note": "Note"
     },
     "panel": {
@@ -857,7 +857,7 @@
       "published": "Published",
       "publisher": "Publisher",
       "savedAgain": "Saved again",
-      "showAllOfType": "{type, select, text {Show all Text cards} link {Show all Link cards} image {Show all Image cards} video {Show all Video cards} audio {Show all Audio cards} document {Show all Document cards} palette {Show all Palette cards} quote {Show all Quote cards} other {Show all Card cards}}",
+      "showAllOfType": "{type, select, text {Show all Text cards} link {Show all Link cards} image {Show all Image cards} video {Show all Video cards} audio {Show all Audio cards} document {Show all Document cards} palette {Show all Palette cards} quote {Show all Quote cards} other {Show all cards}}",
       "text": "Text",
       "title": "Details",
       "url": "URL",
@@ -992,7 +992,7 @@
     },
     "accessibleLabel": {
       "titled": "{type, select, text {Text: {title}} link {Link: {title}} image {Image: {title}} video {Video: {title}} audio {Audio: {title}} document {Document: {title}} palette {Palette: {title}} quote {Quote: {title}} other {Card: {title}}}",
-      "untitled": "{type, select, text {Text card} link {Link card} image {Image card} video {Video card} audio {Audio card} document {Document card} palette {Palette card} quote {Quote card} other {Card card}}"
+      "untitled": "{type, select, text {Text card} link {Link card} image {Image card} video {Video card} audio {Audio card} document {Document card} palette {Palette card} quote {Quote card} other {Card}}"
     },
     "menu": {
       "addTags": "Add tags…",
@@ -1048,7 +1048,7 @@
     "emptyTrash": {
       "button": "Empty Trash",
       "title": "Empty Trash?",
-      "description": "This permanently deletes {count, plural, one {# card} other {# cards}} and their files. This can’t be undone.",
+      "description": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can’t be undone.",
       "descriptionAtLeast": "This permanently deletes {count, plural, other {# or more cards}} and their files. This can’t be undone.",
       "confirm": "Empty Trash",
       "emptying": "{count, plural, one {Deleting # card forever} other {Deleting # cards forever}}",
@@ -1597,6 +1597,7 @@
       "semanticUnavailable": "Couldn't search by meaning right now.",
       "noFilterMatches": "Nothing found matching your filters",
       "clearFilters": "Clear filters",
+      "clearSearch": "Clear search",
       "smartFolderSuffix": " (smart folder)",
       "folderCardCountSuffix": "{count, plural, one { card} other { cards}}",
       "folderTitle": "Folder",
@@ -1645,7 +1646,9 @@
       "openInTeak": "Open in Teak",
       "openOriginalNow": "Open the original now",
       "tryOriginal": "Try the original ↗",
-      "unavailable": "This card isn’t available."
+      "unavailable": "This card isn’t available.",
+      "unavailableBody": "It may have been deleted, or the link is wrong.",
+      "unavailableTabTitle": "Card not available"
     }
   },
   "hooks": {

@@ -104,13 +104,20 @@ export function formatAddedDate(
     today.getMonth(),
     today.getDate() - 1
   ).getTime();
+  // The time is part of the visible line: it's the only place a note's dialog
+  // says when the card was added, so it has to reach touch and keyboard too.
+  const time = saved.toLocaleTimeString(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   if (timestamp >= startOfToday) {
-    return t("addedToday");
+    return t("addedToday", { time });
   }
   if (timestamp >= startOfYesterday) {
-    return t("addedYesterday");
+    return t("addedYesterday", { time });
   }
   return t("addedOn", {
+    time,
     date: saved.toLocaleDateString(locale, {
       month: "short",
       day: "numeric",

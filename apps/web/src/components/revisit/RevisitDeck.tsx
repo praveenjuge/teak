@@ -408,7 +408,7 @@ export function RevisitDeck({
         <div className="mt-3 flex min-h-6 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
           <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
-          <span>{t("saved", { date: savedDate.format(card.createdAt) })}</span>
+          <span>{t("added", { date: savedDate.format(card.createdAt) })}</span>
           {live?.isDeleted ? (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
               {t("inTrash")}

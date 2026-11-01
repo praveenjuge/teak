@@ -681,7 +681,7 @@
     <string name="native_notes_taskFailed">Couldn\'t update the checklist. Try again.</string>
     <string name="native_notes_unchecked">Not checked</string>
     <string name="native_revisit_archived">Archived</string>
-    <string name="native_revisit_caption">%1$s · Saved %2$s</string>
+    <string name="native_revisit_caption">%1$s · Added %2$s</string>
     <string name="native_revisit_close">Close Revisit</string>
     <string name="native_revisit_emptyMessage">Cards you save show up here to look back on.</string>
     <string name="native_revisit_emptyTitle">Nothing to revisit here</string>
@@ -851,7 +851,7 @@
     <string name="native_trash_empty">Empty Trash</string>
     <string name="native_trash_emptyFailed">Couldn’t empty Trash. Try again.</string>
     <plurals name="native_trash_emptyMessage">
-        <item quantity="one">This permanently deletes %1$d card and their files. This can’t be undone.</item>
+        <item quantity="one">This permanently deletes %1$d card and its files. This can’t be undone.</item>
         <item quantity="other">This permanently deletes %1$d cards and their files. This can’t be undone.</item>
     </plurals>
     <plurals name="native_trash_emptyMessageMore">

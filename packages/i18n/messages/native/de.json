@@ -284,7 +284,7 @@
       "swipeHint": "Nach links wischen zum Archivieren, nach rechts zum Behalten",
       "releaseToArchive": "Loslassen zum Archivieren",
       "releaseToKeep": "Loslassen zum Behalten",
-      "caption": "{type} · Gespeichert am {date}",
+      "caption": "{type} · Hinzugefügt am {date}",
       "finishedTitle": "Alles erledigt",
       "summary": "{archived} archiviert · {kept} behalten",
       "startOver": "Von vorn beginnen",

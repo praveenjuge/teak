@@ -7,8 +7,8 @@ import { FolderDot } from "./FolderDot";
 
 /**
  * A folder page's title: a smart folder's name with a button to edit its
- * search, a folder's name with its card count, or plain "Folder" while it
- * loads or when it's gone.
+ * search, a folder's name with its card count, plain "Folder" while it
+ * loads, or "Folder not found" when it's gone, matching the tab title.
  */
 export function FolderPageTitle({
   folder,
@@ -68,6 +68,9 @@ export function FolderPageTitle({
         <span title={folder.name}>{folder.name}</span>
       </PageTitle>
     );
+  }
+  if (folder === null) {
+    return <PageTitle>{t("folderNotFound")}</PageTitle>;
   }
   return <PageTitle>{t("folderTitle")}</PageTitle>;
 }

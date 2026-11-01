@@ -145,8 +145,11 @@ export function platformKey(key: string, apple = isApplePlatform()): string {
   return MAC_KEY_SYMBOLS[key] ?? key;
 }
 
+// The Mac's Delete key is ⌫ (the browser calls it Backspace), as the card
+// menu shows it.
 const MAC_KEY_SYMBOLS: Record<string, string> = {
   Alt: "⌥",
+  Delete: "⌫",
   Enter: "↩",
   Shift: "⇧",
 };
@@ -165,6 +168,9 @@ export function ariaKeyShortcut(
     .map((key) => {
       if (key === "Mod") {
         return apple ? "Meta" : "Control";
+      }
+      if (key === "Delete" && apple) {
+        return "Backspace";
       }
       return ARIA_KEY_NAMES[key] ?? key;
     })

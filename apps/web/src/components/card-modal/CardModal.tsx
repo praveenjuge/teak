@@ -1365,6 +1365,7 @@ export function CardModal({
                       {actionBlock}
                     </div>
                     <CardMetadataPanel
+                      addedInHeader={!showTitle}
                       backlinks={backlinks}
                       card={card}
                       getCurrentValue={getCurrentValue}
