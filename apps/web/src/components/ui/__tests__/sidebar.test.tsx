@@ -7,7 +7,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SidebarMenuButton, SidebarProvider } = await import("../sidebar");
+const { Sidebar, SidebarMenuButton, SidebarProvider } = await import(
+  "../sidebar"
+);
 
 let root: Root | undefined;
 
@@ -59,4 +61,29 @@ test("a menu button shows its tooltip only while the sidebar is collapsed, witho
     warn.mockRestore();
     error.mockRestore();
   }
+});
+
+test("hovering the collapsed icon rail keeps it collapsed", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <SidebarProvider open={false}>
+        <Sidebar collapsible="icon">
+          <SidebarMenuButton tooltip="Trash">Trash</SidebarMenuButton>
+        </Sidebar>
+      </SidebarProvider>
+    )
+  );
+  const sidebarRoot = container.querySelector('[data-slot="sidebar"]');
+  const rail = container.querySelector('[data-slot="sidebar-container"]');
+  expect(sidebarRoot?.getAttribute("data-collapsible")).toBe("icon");
+
+  await act(async () => {
+    rail?.dispatchEvent(new MouseEvent("mouseenter"));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  });
+  expect(sidebarRoot?.getAttribute("data-collapsible")).toBe("icon");
+  expect(sidebarRoot?.getAttribute("data-state")).toBe("collapsed");
 });
