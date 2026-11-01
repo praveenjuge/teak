@@ -159,7 +159,8 @@ describe("ExportPanel", () => {
     expect(markup).toContain("Download archive");
     expect(markup).toContain("42 cards");
     expect(markup).toContain("2 files unavailable");
-    expect(markup).toContain("until");
+    // The server leaves the date to the browser, whose time zone it is in.
+    expect(markup).not.toContain("until");
   });
 
   test("renders a failed state and offers a retry", () => {

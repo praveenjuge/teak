@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
 import { ChevronRight, LogOut } from "vadivam-react";
 import { useHydrated } from "@/hooks/useHydrated";
+import { useLocalDateFormat } from "@/hooks/useLocalDateFormat";
 import { openKeyboardShortcuts } from "@/lib/keyboardShortcuts";
 import {
   SETTINGS_PLAN_HREF,
@@ -27,6 +28,8 @@ import {
   SettingsStack,
 } from "./SettingsSection";
 import { SettingValueSkeleton } from "./SettingValueSkeleton";
+
+const EXPORT_DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
 
 const LOADED = "fade-in-0 animate-in duration-300";
 
@@ -150,6 +153,7 @@ function useSummaries({
   const intlLocale = useIntlLocale();
   const { theme } = useTheme();
   const hydrated = useHydrated();
+  const formatDate = useLocalDateFormat(EXPORT_DATE_FORMAT);
 
   let plan: ReactNode = null;
   if (!accountLoading) {
@@ -189,11 +193,9 @@ function useSummaries({
     } else if (job?.downloadAvailable) {
       data = t("exportReady");
     } else if (job?.completedAt) {
-      data = t("exportLast", {
-        date: new Intl.DateTimeFormat(intlLocale, {
-          dateStyle: "medium",
-        }).format(job.completedAt),
-      });
+      data = formatDate
+        ? t("exportLast", { date: formatDate(job.completedAt) })
+        : null;
     } else {
       data = t("dataIdle");
     }

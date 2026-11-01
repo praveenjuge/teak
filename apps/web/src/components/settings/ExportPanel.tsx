@@ -4,6 +4,7 @@ import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CircleCheck } from "vadivam-react";
+import { useLocalDateFormat } from "../../hooks/useLocalDateFormat";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatCountdown } from "./importExportFormat";
@@ -50,15 +51,10 @@ interface ExportPanelProps {
 
 const ACTIVE_STATUSES: ExportJobStatus[] = ["pending", "running"];
 
-function formatExpiry(locale: string | undefined, expiresAt?: number): string {
-  if (!expiresAt) {
-    return "";
-  }
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(expiresAt));
-}
+const EXPIRY_FORMAT: Intl.DateTimeFormatOptions = {
+  dateStyle: "medium",
+  timeStyle: "short",
+};
 
 export function ExportPanel({
   exportState,
@@ -71,6 +67,7 @@ export function ExportPanel({
   const tData = useTranslations("settings.data");
   const tFormat = useTranslations("settings.format");
   const locale = useIntlLocale();
+  const formatDate = useLocalDateFormat(EXPIRY_FORMAT);
   const [isBusy, setIsBusy] = useState(false);
   const busyRef = useRef<boolean>(false);
   const [now, setNow] = useState(() => Date.now());
@@ -202,11 +199,9 @@ export function ExportPanel({
             {t("filesUnavailable", { count: job.filesOmitted })}
           </span>
         ) : null}
-        {job.expiresAt ? (
+        {job.expiresAt && formatDate ? (
           <span>
-            {t("availableUntil", {
-              date: formatExpiry(locale, job.expiresAt),
-            })}
+            {t("availableUntil", { date: formatDate(job.expiresAt) })}
           </span>
         ) : null}
       </>
@@ -220,9 +215,11 @@ export function ExportPanel({
       <Button
         disabled
         size="sm"
-        title={t("nextAvailable", {
-          date: formatExpiry(locale, resetAt),
-        })}
+        title={
+          formatDate
+            ? t("nextAvailable", { date: formatDate(resetAt) })
+            : undefined
+        }
         variant="secondary"
       >
         {t("availableIn", {

@@ -5,7 +5,7 @@ mock.module("server-only", () => ({}));
 process.env.NEXT_PUBLIC_CONVEX_URL ??= "https://fixture.convex.cloud";
 
 type Answer = (args: Record<string, unknown>) => Promise<unknown>;
-let answers: Record<string, Answer> = {};
+const answers = new Map<string, Answer>();
 const tokens: (string | undefined)[] = [];
 mock.module("convex/nextjs", () => ({
   fetchQuery: (
@@ -14,7 +14,7 @@ mock.module("convex/nextjs", () => ({
     options: { token?: string }
   ) => {
     tokens.push(options.token);
-    const answer = answers[getFunctionName(query)];
+    const answer = answers.get(getFunctionName(query));
     return answer ? answer(args) : Promise.resolve(null);
   },
 }));
@@ -25,12 +25,12 @@ const never = () => new Promise<never>(() => undefined);
 const names = (seeds: { name: string }[]) => seeds.map(({ name }) => name);
 
 beforeEach(() => {
-  answers = {};
+  answers.clear();
   tokens.length = 0;
 });
 
 test("fetches the page's first queries with the visitor's token", async () => {
-  answers["auth:getAuthUser"] = async () => ({ _id: "teak_A" });
+  answers.set("auth:getAuthUser", async () => ({ _id: "teak_A" }));
   const seeds = await fetchFirstLoadSeeds("https://app.example/tags", "tok");
 
   expect(names(seeds).sort()).toEqual([
@@ -46,9 +46,10 @@ test("fetches the page's first queries with the visitor's token", async () => {
 });
 
 test("leaves out queries that fail or miss the time budget", async () => {
-  answers["auth:getCardCreationStatus"] = () =>
-    Promise.reject(new Error("down"));
-  answers["tags:listTagSummary"] = never;
+  answers.set("auth:getCardCreationStatus", () =>
+    Promise.reject(new Error("down"))
+  );
+  answers.set("tags:listTagSummary", never);
   const started = Date.now();
   const seeds = await fetchFirstLoadSeeds("https://app.example/tags", "t", 50);
 
@@ -60,9 +61,9 @@ test("leaves out queries that fail or miss the time budget", async () => {
 });
 
 test("fetches a manual folder's first page once the folders name its kind", async () => {
-  answers["folders:listFolders"] = async () => [
+  answers.set("folders:listFolders", async () => [
     { _id: "manual123", kind: "manual" },
-  ];
+  ]);
   const seeds = await fetchFirstLoadSeeds(
     "https://app.example/f/manual123",
     "t"
@@ -72,13 +73,22 @@ test("fetches a manual folder's first page once the folders name its kind", asyn
 });
 
 test("skips a smart folder's cards, which depend on its saved search", async () => {
-  answers["folders:listFolders"] = async () => [
+  answers.set("folders:listFolders", async () => [
     { _id: "smart123", kind: "smart" },
-  ];
+  ]);
   const seeds = await fetchFirstLoadSeeds(
     "https://app.example/f/smart123",
     "t"
   );
   expect(names(seeds)).not.toContain("cards:searchCardsPaginated");
   expect(names(seeds)).toContain("folders:getFolder");
+});
+
+test("leaves a date filter's cards to the browser, whose time zone sets the range", async () => {
+  const seeds = await fetchFirstLoadSeeds(
+    "https://app.example/?date=this%20week",
+    "t"
+  );
+  expect(names(seeds)).not.toContain("cards:searchCardsPaginated");
+  expect(names(seeds)).toContain("auth:getAuthUser");
 });

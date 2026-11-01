@@ -33,6 +33,11 @@ export async function fetchFirstLoadSeeds(
   const seeds: QuerySeed[] = [];
   const started = new Set<string>();
   const seed = async ({ query, args }: FirstLoadQuery) => {
+    if (args.createdAtRange !== undefined) {
+      // A date filter's range comes from the clock in the visitor's time
+      // zone, which only the browser knows, so it asks for other args.
+      return;
+    }
     const name = getFunctionName(query);
     const argsJson = convexToJson(args as Value);
     const key = querySeedKey(name, argsJson);
