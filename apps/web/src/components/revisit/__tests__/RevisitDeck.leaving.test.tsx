@@ -99,10 +99,21 @@ test("a screen reader hears the position, not the whole card, after each keep", 
     })
   );
   const status = document.body.querySelector('[role="status"]');
-  expect(status?.textContent).toBe("2 of 2");
+  expect(status?.textContent).toBe("2 of 2. Text: Second card");
   expect(document.body.querySelector("[aria-live], main")).toBeNull();
   await show(deckState({ done: true, kept: 2, position: 2, total: 2 }));
   expect(document.body.querySelector('[role="status"]')?.textContent).toBe(
     "All caught up"
+  );
+});
+
+test("an empty deck and a failed load are announced as such", async () => {
+  await show(deckState({ done: true, position: 0, total: 0 }));
+  expect(document.body.querySelector('[role="status"]')?.textContent).toBe(
+    "Nothing to revisit here"
+  );
+  await show(deckState({ status: "error", total: 0 }));
+  expect(document.body.querySelector('[role="status"]')?.textContent).toBe(
+    "Couldn't load cards"
   );
 });

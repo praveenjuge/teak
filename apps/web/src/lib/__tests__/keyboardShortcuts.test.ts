@@ -59,6 +59,11 @@ describe("cardAriaKeyShortcuts", () => {
     );
   });
 
+  test("while cards are selected, a card only toggles itself", () => {
+    expect(cardAriaKeyShortcuts(false, false, true, true)).toBe("Enter X");
+    expect(cardAriaKeyShortcuts(true, true, false, true)).toBe("Enter X");
+  });
+
   test("a card in Trash only selects and deletes forever", () => {
     expect(cardAriaKeyShortcuts(true, false)).toBe("Enter X Delete");
     expect(cardAriaKeyShortcuts(true, false, true)).toBe("Enter X Delete");

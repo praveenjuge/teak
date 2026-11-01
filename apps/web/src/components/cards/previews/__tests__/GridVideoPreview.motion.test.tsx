@@ -18,12 +18,15 @@ const { GridVideoPreview } = await import("../GridVideoPreview");
 
 let root: Root | undefined;
 const realMatchMedia = window.matchMedia;
+const play = mock(() => Promise.resolve());
+HTMLMediaElement.prototype.play = play;
 
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
   window.matchMedia = realMatchMedia;
+  play.mockClear();
 });
 
 const prefersReducedMotion = (reduce: boolean) => {
@@ -61,6 +64,7 @@ describe("a hovered video card", () => {
     prefersReducedMotion(false);
     const container = await hoverPreview();
     expect(container.querySelector("video")).not.toBeNull();
+    expect(play).toHaveBeenCalledTimes(1);
   });
 
   test("keeps the still and its play button under reduced motion", async () => {
@@ -68,5 +72,6 @@ describe("a hovered video card", () => {
     const container = await hoverPreview();
     expect(container.querySelector("video")).toBeNull();
     expect(container.querySelector("img")).not.toBeNull();
+    expect(play).not.toHaveBeenCalled();
   });
 });

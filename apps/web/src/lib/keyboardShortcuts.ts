@@ -226,7 +226,8 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
 export function cardAriaKeyShortcuts(
   inTrash: boolean,
   apple = isApplePlatform(),
-  canCopy = false
+  canCopy = false,
+  selecting = false
 ): string {
   const {
     addTags,
@@ -236,6 +237,11 @@ export function cardAriaKeyShortcuts(
     favorite,
     select,
   } = cardMenuShortcuts(apple);
+  // While cards are selected, F, T, E and Delete act on the selection (the
+  // bar's buttons), so the focused card only toggles itself.
+  if (selecting) {
+    return ["Enter", select.keys].join(" ");
+  }
   const keys = inTrash
     ? ["Enter", select.keys, remove.keys]
     : [
