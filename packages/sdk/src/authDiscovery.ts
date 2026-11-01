@@ -43,6 +43,47 @@ const object = (value: unknown): Record<string, unknown> => {
   }
   return value as Record<string, unknown>;
 };
+// Deployments from before the single-document discovery publish none of
+// these in teak-oauth-clients.json; they still answer the RFC 9728 and
+// RFC 8414 documents, so clients read those from them instead.
+const SINGLE_DOCUMENT_FIELDS = [
+  "resource",
+  "authorization_endpoint",
+  "token_endpoint",
+  "code_challenge_methods_supported",
+] as const;
+
+async function readLegacyServer(
+  read: (url: string) => Promise<Record<string, unknown>>,
+  site: URL,
+  issuer: URL,
+  issuerHref: unknown,
+  issuerEndpoint: (raw: unknown) => string
+) {
+  const resource = await read(
+    `${site.origin}/.well-known/oauth-protected-resource/mcp`
+  );
+  const servers = resource.authorization_servers;
+  if (!Array.isArray(servers) || servers.length !== 1) {
+    throw new Error("Expected one OAuth authorization server");
+  }
+  if (servers[0] !== issuerHref) {
+    throw new Error("OAuth provider configuration changed; retry discovery");
+  }
+  const metadataUrl = new URL(issuer.origin);
+  metadataUrl.pathname = `/.well-known/oauth-authorization-server${issuer.pathname.replace(/\/$/, "")}`;
+  const metadata = await read(metadataUrl.href);
+  if (metadata.issuer !== issuerHref) {
+    throw new Error("OAuth issuer mismatch");
+  }
+  return {
+    resource: resource.resource,
+    authorizationEndpoint: issuerEndpoint(metadata.authorization_endpoint),
+    tokenEndpoint: issuerEndpoint(metadata.token_endpoint),
+    codeChallengeMethods: metadata.code_challenge_methods_supported,
+  };
+}
+
 // Cache is scoped to the deployment and transport. Call with forceRefresh after
 // sign-in/refresh failures so a client registration change needs no release.
 export function discoverAuthServer(
@@ -101,7 +142,12 @@ export function discoverAuthServer(
     const response = await fetchImpl(url, {
       method: "GET",
       // A plain RequestInit field; spread so Worker typings, which omit it, accept it.
-      ...({ credentials: "omit" } as RequestInit),
+      // A forced refresh asks the server again rather than reuse a copy the
+      // browser cached (the documents allow five minutes).
+      ...({
+        credentials: "omit",
+        ...(options.forceRefresh ? { cache: "no-cache" } : {}),
+      } as RequestInit),
       redirect: "error",
       headers: { Accept: "application/json" },
       signal: controller.signal,
@@ -137,10 +183,28 @@ export function discoverAuthServer(
       }
       return url.href;
     };
+    const server = SINGLE_DOCUMENT_FIELDS.every(
+      (field) => document[field] === undefined
+    )
+      ? await readLegacyServer(
+          read,
+          site,
+          issuer,
+          document.issuer,
+          issuerEndpoint
+        )
+      : {
+          resource: document.resource,
+          authorizationEndpoint: issuerEndpoint(
+            document.authorization_endpoint
+          ),
+          tokenEndpoint: issuerEndpoint(document.token_endpoint),
+          codeChallengeMethods: document.code_challenge_methods_supported,
+        };
     if (
       !(
-        Array.isArray(document.code_challenge_methods_supported) &&
-        document.code_challenge_methods_supported.includes("S256")
+        Array.isArray(server.codeChallengeMethods) &&
+        server.codeChallengeMethods.includes("S256")
       )
     ) {
       throw new Error("OAuth server does not support S256 PKCE");
@@ -157,17 +221,17 @@ export function discoverAuthServer(
     // The production resource, or this deployment's own (RFC 9728): never a
     // third party's audience.
     if (
-      document.resource !== PRODUCTION_WORKOS_RESOURCES.mcp &&
-      document.resource !== workosResourcesFor(site.origin).mcp
+      server.resource !== PRODUCTION_WORKOS_RESOURCES.mcp &&
+      server.resource !== workosResourcesFor(site.origin).mcp
     ) {
       throw new Error("OAuth resource mismatch");
     }
     return Object.freeze({
       primary: "workos",
       issuer: document.issuer as string,
-      authorizationEndpoint: issuerEndpoint(document.authorization_endpoint),
-      tokenEndpoint: issuerEndpoint(document.token_endpoint),
-      resource: document.resource as string,
+      authorizationEndpoint: server.authorizationEndpoint,
+      tokenEndpoint: server.tokenEndpoint,
+      resource: server.resource as string,
       clients: Object.freeze(
         Object.fromEntries(
           OAUTH_SURFACES.map((surface) => [surface, clients[surface]])

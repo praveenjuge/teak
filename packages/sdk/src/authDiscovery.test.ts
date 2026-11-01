@@ -105,11 +105,60 @@ describe("OAuth discovery", () => {
       });
       expect(new Headers(call.init?.headers).has("Authorization")).toBe(false);
     }
+    expect(f.calls[0]?.init?.cache).toBeUndefined();
     await discoverAuthServer("https://teak.example", {
       fetch: f.transport,
       forceRefresh: true,
     });
     expect(f.calls).toHaveLength(2);
+    // The documents allow caching, so a forced refresh skips the HTTP cache.
+    expect(f.calls[1]?.init?.cache).toBe("no-cache");
+  });
+  test("reads the separate RFC 9728 and RFC 8414 documents from a deployment that predates the single document", async () => {
+    const site = "https://legacy.example";
+    const issuer = "https://auth.example";
+    const answers: Record<string, unknown> = {
+      [`${site}/.well-known/teak-oauth-clients.json`]: {
+        primary: "workos",
+        issuer,
+        clients: clientIds,
+      },
+      [`${site}/.well-known/oauth-protected-resource/mcp`]: {
+        resource: "https://teakvault.com/mcp",
+        authorization_servers: [issuer],
+      },
+      [`${issuer}/.well-known/oauth-authorization-server`]: {
+        issuer,
+        authorization_endpoint: `${issuer}/oauth2/authorize`,
+        token_endpoint: `${issuer}/oauth2/token`,
+        code_challenge_methods_supported: ["S256"],
+      },
+    };
+    const urls: string[] = [];
+    const transport = asFetch((url) => {
+      urls.push(String(url));
+      const answer = answers[String(url)];
+      return Promise.resolve(
+        answer ? Response.json(answer) : new Response("", { status: 404 })
+      );
+    });
+    expect(await discoverAuthServer(site, { fetch: transport })).toEqual({
+      primary: "workos",
+      issuer,
+      authorizationEndpoint: `${issuer}/oauth2/authorize`,
+      tokenEndpoint: `${issuer}/oauth2/token`,
+      resource: "https://teakvault.com/mcp",
+      clients: clientIds,
+    });
+    expect(urls).toHaveLength(3);
+
+    answers[`${site}/.well-known/oauth-protected-resource/mcp`] = {
+      resource: "https://teakvault.com/mcp",
+      authorization_servers: ["https://other.example"],
+    };
+    await expect(
+      discoverAuthServer(site, { fetch: transport, forceRefresh: true })
+    ).rejects.toThrow("OAuth provider configuration changed");
   });
   test.each(["betterauth", undefined, "WorkOS"])(
     "rejects a %s provider as invalid discovery",

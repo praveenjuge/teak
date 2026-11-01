@@ -8,6 +8,7 @@ import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { GlobalFileDropProvider } from "@/components/providers/GlobalFileDropProvider";
+import { isDocumentRequest } from "@/lib/documentRequest";
 import type { QuerySeed } from "@/lib/firstLoadQueries";
 import { fetchFirstLoadSeeds } from "@/lib/firstLoadSeeds";
 import { localeFromCookie } from "@/lib/locale";
@@ -37,11 +38,17 @@ export default async function AuthenticatedAppProvider({
     return <AuthUnavailable />;
   }
 
+  const requestHeaders = await headers();
   // The proxy names the requested URL; a layout has no other way to know it.
-  const href = (await headers()).get("x-url");
+  const href = requestHeaders.get("x-url");
+  // Seeds fill the first paint of a page load. A router fetch re-renders a
+  // layout the browser already shows (after every token refresh, whose server
+  // action sets a cookie), and the browser ignores seeds then, so it skips
+  // the queries.
+  const wantsSeeds = isDocumentRequest(requestHeaders);
   const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
   const [seeds, sidebar, messages] = await Promise.all([
-    initialAuth.user && accessToken && href
+    wantsSeeds && initialAuth.user && accessToken && href
       ? fetchFirstLoadSeeds(href, accessToken)
       : ([] as QuerySeed[]),
     readSidebarCookies(),

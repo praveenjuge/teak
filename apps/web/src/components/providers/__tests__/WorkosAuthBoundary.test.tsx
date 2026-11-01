@@ -140,6 +140,48 @@ test("opens the vault from the server's profile while the backend checks the ses
   expect(ensureCalls()).toHaveLength(0);
 });
 
+const firePendingTimeouts = async (
+  schedule: () => Promise<void>
+): Promise<void> => {
+  const pending: (() => void)[] = [];
+  const setTimeoutSpy = spyOn(window, "setTimeout").mockImplementation(((
+    callback: () => void
+  ) => {
+    pending.push(callback);
+    return pending.length;
+  }) as never);
+  try {
+    await schedule();
+  } finally {
+    setTimeoutSpy.mockRestore();
+  }
+  await act(() => {
+    for (const callback of pending) {
+      callback();
+    }
+  });
+};
+
+test("keeps the vault it opened early when the backend is slow to accept the session", async () => {
+  transport = createConvexTransport();
+  serverProfile(profile);
+  await firePendingTimeouts(() =>
+    mount(useSignedIn, { backendAnswers: false })
+  );
+
+  expect(text()).toBe("Vault open");
+});
+
+test("gives up on a session the backend never checks when nothing opened early", async () => {
+  transport = createConvexTransport();
+  await firePendingTimeouts(() =>
+    mount(useSignedIn, { backendAnswers: false })
+  );
+
+  expect(text()).toContain("We couldn't check your session.");
+  expect(text()).not.toContain("Vault open");
+});
+
 test("bootstraps after the backend accepts the session when the server found no owner", async () => {
   transport = createConvexTransport();
   serverProfile(null);
