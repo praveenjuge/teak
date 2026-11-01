@@ -774,7 +774,8 @@ export function CardModal({
         </ShortcutTooltip>
       );
     }
-    if (canDownload && !card?.url) {
+    // A file with a URL downloads from the menu, which Trash doesn't have.
+    if (canDownload && (!card?.url || style === "quiet")) {
       return (
         <ShortcutTooltip keys={["O"]} label={t("header.downloadTooltip")}>
           <Button

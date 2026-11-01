@@ -383,22 +383,28 @@ test.each([
   }
 );
 
-test("a file card in Trash still offers Download beside Restore", async () => {
-  await render(
-    linkCard({
-      fileKey: "users/user_1/cards/card_1/file",
-      isDeleted: true,
-      type: "image",
-      url: undefined,
-    } as Partial<CardModalCard>)
-  );
-  const aside = document.querySelector("aside[aria-label='Card details']");
-  const download = Array.from(aside?.querySelectorAll("button") ?? []).find(
-    (element) => element.textContent?.trim() === "Download"
-  );
-  expect(download).toBeDefined();
-  expect(button("Restore")).toBeDefined();
-});
+test.each([
+  ["uploaded", undefined],
+  ["saved from a link", "https://example.com/lamp.png"],
+])(
+  "a %s file card in Trash still offers Download beside Restore",
+  async (_, url) => {
+    await render(
+      linkCard({
+        fileKey: "users/user_1/cards/card_1/file",
+        isDeleted: true,
+        type: "image",
+        url,
+      } as Partial<CardModalCard>)
+    );
+    const aside = document.querySelector("aside[aria-label='Card details']");
+    const download = Array.from(aside?.querySelectorAll("button") ?? []).find(
+      (element) => element.textContent?.trim() === "Download"
+    );
+    expect(download).toBeDefined();
+    expect(button("Restore")).toBeDefined();
+  }
+);
 
 test("a file card with nothing stored offers no Download", async () => {
   await render(linkCard({ type: "image", url: undefined }));
