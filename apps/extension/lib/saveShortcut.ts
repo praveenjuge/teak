@@ -10,6 +10,8 @@ import {
 export const SAVE_PAGE_COMMAND = "save-page";
 
 export interface SaveShortcutDependencies {
+  /** The card-limit tooltip, read when needed so it follows the language. */
+  cardLimitTitle: () => string;
   currentUrl: (tabId: number) => Promise<string | undefined>;
   hold: (tabId: number) => () => void;
   openPopup: () => Promise<void>;
@@ -25,6 +27,7 @@ export interface SaveShortcutDependencies {
  * the first save instead of starting another.
  */
 export function createSaveShortcut({
+  cardLimitTitle,
   currentUrl,
   hold,
   openPopup,
@@ -62,7 +65,7 @@ export function createSaveShortcut({
         pending = save(url, tab.id).finally(() => running.delete(url));
         running.set(url, pending);
       }
-      const outcome = shortcutOutcome(await pending);
+      const outcome = shortcutOutcome(await pending, cardLimitTitle());
       if ("openPopup" in outcome) {
         restore = true;
         // Firefox opens the popup only while a user action is handled, and

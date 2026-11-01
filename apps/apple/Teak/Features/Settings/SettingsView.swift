@@ -121,7 +121,7 @@ struct ProfileSection: View {
                     #if os(macOS)
                     if let user = account.user {
                         Button(user.hasPremium ? tr("native.settings.manage") : tr("native.app.upgrade")) {
-                            openURL(app.config.webURL.appending(path: "settings"))
+                            openURL(app.config.planURL)
                         }
                     }
                     #endif
