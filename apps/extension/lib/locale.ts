@@ -85,6 +85,7 @@ export interface BackgroundStrings {
   inline: TeakTranslator<"extension.inline">;
   locale: UiLocale;
   omnibox: TeakTranslator<"extension.omnibox">;
+  popupStatus: TeakTranslator<"extension.popup.status">;
 }
 
 export const backgroundStrings = (
@@ -95,6 +96,7 @@ export const backgroundStrings = (
   inline: createTeakTranslator(locale, messages, "extension.inline"),
   locale,
   omnibox: createTeakTranslator(locale, messages, "extension.omnibox"),
+  popupStatus: createTeakTranslator(locale, messages, "extension.popup.status"),
 });
 
 export const ENGLISH_STRINGS = backgroundStrings(
