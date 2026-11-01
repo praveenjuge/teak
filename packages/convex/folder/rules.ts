@@ -313,9 +313,14 @@ type RuleMatcher = (card: Doc<"cards">, text: string) => boolean;
  */
 const ruleTextFor = async (
   ctx: QueryCtx,
-  card: Doc<"cards">
+  card: Doc<"cards">,
+  transcript?: string
 ): Promise<string> => {
-  const own = buildCardSearchText(card, undefined, card.aiTranscript);
+  const own = buildCardSearchText(
+    card,
+    undefined,
+    transcript ?? card.aiTranscript
+  );
   const document = await ctx.db
     .query("cardSearchDocuments")
     .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
@@ -389,7 +394,9 @@ export interface AutoFileResult {
  */
 export const autoFileCard = async (
   ctx: MutationCtx,
-  card: Doc<"cards">
+  card: Doc<"cards">,
+  /** A transcript the caller is writing now, which the card no longer holds. */
+  transcript?: string
 ): Promise<AutoFileResult> => {
   if (card.isDeleted === true) {
     return { filedFolderIds: [] };
@@ -418,7 +425,7 @@ export const autoFileCard = async (
     if (!matches) {
       continue;
     }
-    text ??= await ruleTextFor(ctx, card);
+    text ??= await ruleTextFor(ctx, card, transcript);
     if (matches(card, text)) {
       next.push(folder._id);
       filedFolderIds.push(folder._id);

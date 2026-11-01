@@ -56,7 +56,11 @@ export const updateCardAI = internalMutation({
       (aiOcrText !== undefined &&
         (card.aiTags !== undefined || card.aiSummary !== undefined));
     const filed = aiDone
-      ? await autoFileCard(ctx, { ...card, ...updates })
+      ? await autoFileCard(
+          ctx,
+          { ...card, ...updates },
+          aiTranscript || undefined
+        )
       : undefined;
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
