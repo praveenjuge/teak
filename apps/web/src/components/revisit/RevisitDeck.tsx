@@ -28,6 +28,7 @@ import {
 } from "../../hooks/useRevisitDeck";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { cn } from "../../lib/utils";
+import { getCardAccessibleLabel } from "../cards/Card";
 import { CardBody } from "../cards/CardBody";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import {
@@ -104,10 +105,11 @@ const mediaWidth = (card: CardWithUrls): string | undefined => {
   return `min(100%, calc(var(--revisit-card-height) * ${width / height}))`;
 };
 
-function DeckCard({ card }: { card: CardWithUrls }) {
-  const { image, onImageError } = useLinkCardImage(card);
-  const tLinkTitle = useTranslations("lib.linkTitle");
-  const title = resolveLinkTitle(
+const deckCardTitle = (
+  card: CardWithUrls,
+  tLinkTitle: Parameters<typeof resolveLinkTitle>[1]
+) =>
+  resolveLinkTitle(
     {
       metadataTitle: card.metadataTitle,
       metadataTitleEdited: card.metadataTitleEdited,
@@ -116,6 +118,11 @@ function DeckCard({ card }: { card: CardWithUrls }) {
     },
     tLinkTitle
   );
+
+function DeckCard({ card }: { card: CardWithUrls }) {
+  const { image, onImageError } = useLinkCardImage(card);
+  const tLinkTitle = useTranslations("lib.linkTitle");
+  const title = deckCardTitle(card, tLinkTitle);
   return (
     <div
       className="max-h-(--revisit-card-height) overflow-hidden rounded-2xl bg-card shadow-lg ring-1 ring-border"
@@ -180,6 +187,8 @@ export function RevisitDeck({
   const t = useTranslations("revisit.deck");
   const tc = useTranslations("common");
   const types = useTranslations("cards.types");
+  const tCardLabel = useTranslations("cards.accessibleLabel");
+  const tLinkTitle = useTranslations("lib.linkTitle");
   const intlLocale = useIntlLocale();
   const savedDate = useMemo(
     () => new Intl.DateTimeFormat(intlLocale, { dateStyle: "medium" }),
@@ -432,6 +441,22 @@ export function RevisitDeck({
   };
 
   const showActions = deck.status === "ready" && !deck.done && deck.total > 0;
+  // What a screen reader hears as the deck changes: the position and which
+  // card it is (its label, as the grid names it), or why there's no card.
+  let statusText: string | null = null;
+  if (deck.status === "error") {
+    statusText = t("loadFailed");
+  } else if (deck.status === "ready" && deck.total === 0) {
+    statusText = t("empty");
+  } else if (deck.status === "ready" && deck.done) {
+    statusText = t("allCaughtUp");
+  } else if (showActions && deck.current) {
+    statusText = `${t("progress", { position: deck.position, total: deck.total })}. ${getCardAccessibleLabel(
+      deck.current,
+      deckCardTitle(deck.current, tLinkTitle),
+      tCardLabel
+    )}`;
+  }
 
   return (
     <Dialog
@@ -475,10 +500,12 @@ export function RevisitDeck({
               <X className="size-4" />
             </Button>
           </header>
-          <main
-            aria-live="polite"
-            className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden px-4"
-          >
+          {/* Only the position is announced, not the whole card and its
+              buttons again on every keep or archive. */}
+          <div className="sr-only" role="status">
+            {statusText}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden px-4">
             {renderBody()}
             {showActions ? (
               <div className="flex flex-col items-center gap-3">
@@ -518,7 +545,7 @@ export function RevisitDeck({
                 </p>
               </div>
             ) : null}
-          </main>
+          </div>
           <div aria-hidden="true" className="h-20 shrink-0" />
         </div>
       </DialogContent>

@@ -50,10 +50,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openCardLink } from "@/lib/openCardLink";
+import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { focusedCardShortcuts } from "../../lib/gridKeys";
+import { cardAriaKeyShortcuts } from "../../lib/keyboardShortcuts";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -170,6 +172,7 @@ export const Card = memo(function Card({
 }: CardProps) {
   const t = useTranslations("cards");
   const tLabel = useTranslations("cards.accessibleLabel");
+  const apple = useIsApplePlatform();
   const tLinkTitle = useTranslations("lib.linkTitle");
   const refreshCardMediaUrl = useAction(
     api.card.getFileUrl.refreshCardMediaUrl
@@ -533,6 +536,16 @@ export const Card = memo(function Card({
         <div className="group/card relative" data-card-shell="">
           <UICard
             aria-disabled={isOptimistic || undefined}
+            aria-keyshortcuts={
+              isOptimistic
+                ? undefined
+                : cardAriaKeyShortcuts(
+                    Boolean(card.isDeleted),
+                    apple,
+                    canCopy,
+                    Boolean(isSelectionMode)
+                  )
+            }
             aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
@@ -597,7 +610,7 @@ export const Card = memo(function Card({
               <button
                 aria-keyshortcuts="X"
                 aria-label={t("menu.select")}
-                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
+                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100"
                 onClick={handleSelect}
                 tabIndex={-1}
                 type="button"
@@ -614,7 +627,8 @@ export const Card = memo(function Card({
                 "pointer-events-none absolute top-2.5 right-2.5 z-10 flex size-7 items-center justify-center rounded-full transition-opacity duration-150",
                 isMediaCard &&
                   "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10",
-                showQuickActions && "group-hover/card:opacity-0"
+                showQuickActions &&
+                  "group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
               )}
             >
               <Heart className="size-3.5 fill-destructive text-destructive" />
@@ -622,7 +636,7 @@ export const Card = memo(function Card({
           )}
 
           {showQuickActions && (
-            <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+            <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
               {card.url && !card.isDeleted && (
                 <QuickActionButton
                   label={t("menu.openLink")}

@@ -1251,6 +1251,7 @@ export function CardModal({
                         "min-w-0 flex-1 truncate text-muted-foreground text-xs",
                         saveStatus === "error" && "text-destructive"
                       )}
+                      role="status"
                     >
                       {saveStatusLabel}
                     </span>

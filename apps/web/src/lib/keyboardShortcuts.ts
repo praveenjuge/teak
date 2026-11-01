@@ -217,6 +217,48 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
   } satisfies Record<string, MenuShortcut>;
 }
 
+/**
+ * What a focused card in the grid answers, for its `aria-keyshortcuts`: the
+ * card's menu items are hidden until hover, so this is how a screen reader
+ * learns them, copy included when the card can be copied. A card in Trash
+ * only selects and deletes forever.
+ */
+export function cardAriaKeyShortcuts(
+  inTrash: boolean,
+  apple = isApplePlatform(),
+  canCopy = false,
+  selecting = false
+): string {
+  const {
+    addTags,
+    archive,
+    copy,
+    delete: remove,
+    favorite,
+    select,
+  } = cardMenuShortcuts(apple);
+  // While cards are selected, F, T, E and Delete act on the selection (the
+  // bar's buttons), so the focused card only toggles itself.
+  if (selecting) {
+    return ["Enter", select.keys].join(" ");
+  }
+  const keys = inTrash
+    ? ["Enter", select.keys, remove.keys]
+    : [
+        "Enter",
+        favorite.keys,
+        addTags.keys,
+        archive.keys,
+        select.keys,
+        remove.keys,
+      ];
+  // Text, links and images copy with ⌘C (Ctrl+C), as their menu shows.
+  if (canCopy && !inTrash) {
+    keys.push(copy.keys);
+  }
+  return keys.join(" ");
+}
+
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
 export const NEW_NOTE_COMPOSER_ATTRIBUTE = "data-new-note-composer";
 

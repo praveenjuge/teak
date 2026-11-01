@@ -139,6 +139,11 @@ function ScrubPreview({
   );
 }
 
+/** Someone who asked for less motion keeps the still and the play button. */
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
 function HoverVideoPreview({
   aspectRatio,
   cardId,
@@ -180,6 +185,9 @@ function HoverVideoPreview({
     <div
       className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
       onMouseEnter={() => {
+        if (prefersReducedMotion()) {
+          return;
+        }
         setShouldLoadVideo(true);
         setIsHovering(true);
       }}
