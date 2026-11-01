@@ -1,6 +1,13 @@
 /// <reference types="bun" />
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { BADGES, type BadgeState, setTabBadge } from "../../lib/toolbarBadge";
+import { englishMessages, loadMessages, withEnglishFallback } from "@teak/i18n";
+import { backgroundStrings } from "../../lib/locale";
+import {
+  BADGES,
+  type BadgeState,
+  cardLimitTitle,
+  setTabBadge,
+} from "../../lib/toolbarBadge";
 
 interface Call {
   details: Record<string, unknown>;
@@ -86,5 +93,24 @@ describe("the toolbar badge", () => {
     globalThis.chrome.action.setBadgeText = (() =>
       Promise.reject(new Error("No tab with id: 3"))) as never;
     await expect(setTabBadge(3, "saved")).resolves.toBeUndefined();
+  });
+});
+
+describe("the card-limit tooltip", () => {
+  test("reads the popup's limit message in English", () => {
+    const strings = backgroundStrings("en", englishMessages);
+    expect(cardLimitTitle(strings.popupStatus)).toBe(
+      "You've reached the free limit\nUpgrade to Pro for unlimited cards."
+    );
+  });
+
+  test("follows the account's language", async () => {
+    const strings = backgroundStrings(
+      "de",
+      withEnglishFallback(await loadMessages("de"))
+    );
+    expect(cardLimitTitle(strings.popupStatus)).toBe(
+      "Sie haben das kostenlose Limit erreicht\nUpgraden Sie auf Pro für unbegrenzte Karten."
+    );
   });
 });

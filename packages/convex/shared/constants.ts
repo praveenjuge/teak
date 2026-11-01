@@ -279,6 +279,10 @@ export function normalizeHueFilters(values?: string[]): ColorHueBucket[] {
 
 export const FREE_TIER_LIMIT = 200;
 
+/** Pro prices in US cents. They match the Polar products in `polarPlans.ts`. */
+export const PRO_MONTHLY_PRICE_CENTS = 1900;
+export const PRO_YEARLY_PRICE_CENTS = 9900;
+
 export const LINK_PASTE_LIMIT = 100;
 
 export const LINK_PASTE_MAX_INPUT = 1000;
