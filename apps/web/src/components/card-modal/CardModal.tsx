@@ -84,6 +84,7 @@ import { LinkPreview } from "../card-previews/LinkPreview";
 import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
+import { handleCardMenuShortcut } from "../cards/CardMenu";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { EditLinkDialog } from "../cards/EditLinkDialog";
@@ -992,6 +993,7 @@ export function CardModal({
           align="end"
           className="w-60"
           onCloseAutoFocus={onMenuCloseAutoFocus}
+          onKeyDown={handleCardMenuShortcut}
         >
           {shownMenuGroups.map((group, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: groups keep their order.

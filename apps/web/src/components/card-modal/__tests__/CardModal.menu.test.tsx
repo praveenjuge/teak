@@ -85,15 +85,19 @@ async function render(
     linkThumbnail = thumbnailControl(),
     onMoreLikeThis = mock(),
     savePdf,
+    handleDelete = mock(async () => undefined),
     handleRestore = mock(async () => undefined),
     openLink = mock(),
+    toggleArchive,
     toggleDone,
   }: {
+    handleDelete?: (onClose?: () => void) => Promise<void>;
     handleRestore?: (onClose?: () => void) => Promise<void>;
     linkThumbnail?: LinkThumbnailControl;
     onMoreLikeThis?: (cardId: string) => void;
     openLink?: () => void;
     savePdf?: { isSaving: boolean; save: () => void };
+    toggleArchive?: () => void;
     toggleDone?: () => void;
   } = {}
 ) {
@@ -106,7 +110,7 @@ async function render(
         cardId={card._id}
         downloadFile={() => undefined}
         getCurrentValue={() => undefined}
-        handleDelete={async () => undefined}
+        handleDelete={handleDelete}
         handlePermanentDelete={async () => undefined}
         handleRestore={handleRestore}
         hasUnsavedChanges={false}
@@ -124,6 +128,7 @@ async function render(
           setTagInput: () => undefined,
           tagInput: "",
         }}
+        toggleArchive={toggleArchive}
         toggleDone={toggleDone}
         toggleFavorite={() => undefined}
         updateContent={() => undefined}
@@ -132,7 +137,15 @@ async function render(
       />
     )
   );
-  return { handleRestore, linkThumbnail, onMoreLikeThis, openLink, toggleDone };
+  return {
+    handleDelete,
+    handleRestore,
+    linkThumbnail,
+    onMoreLikeThis,
+    openLink,
+    toggleArchive,
+    toggleDone,
+  };
 }
 
 async function openMenu() {
@@ -379,3 +392,29 @@ test("a file card with nothing stored offers no Download", async () => {
   await openMenu();
   expect(downloadControls()).toEqual([]);
 });
+
+// Bug: the open menu lists E and Del, but pressing them there did nothing:
+// the menu renders outside the dialog, whose key handler never heard them.
+test.each([
+  ["e", "toggleArchive"],
+  ["Delete", "handleDelete"],
+  ["Backspace", "handleDelete"],
+] as const)(
+  "pressing %p in the open menu runs %s and closes the menu",
+  async (key, handler) => {
+    const spies = await render(linkCard(), {
+      handleDelete: mock(async () => undefined),
+      toggleArchive: mock(),
+    });
+    await openMenu();
+    const menu = document.querySelector<HTMLElement>("[role='menu']");
+    expect(menu).not.toBeNull();
+    await act(() => {
+      menu?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key })
+      );
+    });
+    expect(spies[handler]).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("[role='menu']")).toBeNull();
+  }
+);
