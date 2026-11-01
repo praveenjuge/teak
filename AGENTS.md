@@ -45,7 +45,7 @@ Every change ends with proof, every time. These rules are not optional and not "
 
 ## Release pointers
 
-Before any release, complete the shared preparation in `.agents/runbooks/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
+To release everything, load the `teak-release` skill. Before any release, complete the shared preparation in `.agents/runbooks/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
 
 - Apple (iPhone, iPad, Mac): `apps/apple/release.md`
 - Android: `apps/android/release.md`

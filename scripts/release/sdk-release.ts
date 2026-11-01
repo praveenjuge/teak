@@ -338,6 +338,51 @@ export async function installWhenResolvable(
   return install();
 }
 
+// npm serves a new version's attestations a few minutes after the version
+// itself, and until then `npm audit signatures` fails with a 404 for them
+// (v1.0.92's first verify did). Only that 404 is retried; every other audit
+// failure stops at once.
+export async function auditWhenAttested(
+  audit,
+  {
+    attempts = 30,
+    intervalMs = 10_000,
+    timeoutMs = 300_000,
+    now = Date.now,
+    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {}
+) {
+  if (
+    !Number.isInteger(attempts) ||
+    attempts < 1 ||
+    attempts > 30 ||
+    !Number.isInteger(intervalMs) ||
+    intervalMs < 0 ||
+    intervalMs > 10_000 ||
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > 300_000
+  ) {
+    throw new Error("Invalid SDK attestation wait window.");
+  }
+  const deadline = now() + timeoutMs;
+  for (let attempt = 1; attempt < attempts; attempt++) {
+    try {
+      return audit();
+    } catch (error) {
+      const stderr = String(error.stderr ?? "");
+      const notYetAttested =
+        /npm error code E404\b/.test(stderr) &&
+        stderr.includes("/-/npm/v1/attestations/");
+      if (!notYetAttested || now() >= deadline) {
+        throw error;
+      }
+    }
+    await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
+  }
+  return audit();
+}
+
 export async function verifyProvenance(artifact, metadataPath) {
   const directory = mkdtempSync(
     join(process.env.RUNNER_TEMP ?? tmpdir(), "sdk-provenance-")
@@ -383,16 +428,18 @@ export async function verifyProvenance(artifact, metadataPath) {
     )
   );
   const report = JSON.parse(
-    execFileSync(
-      "npm",
-      ["audit", "signatures", "--json", "--include-attestations", ...flags],
-      {
-        cwd: directory,
-        env: environment,
-        encoding: "utf8",
-        timeout: 60_000,
-        maxBuffer: 4 * 1024 * 1024,
-      }
+    await auditWhenAttested(() =>
+      execFileSync(
+        "npm",
+        ["audit", "signatures", "--json", "--include-attestations", ...flags],
+        {
+          cwd: directory,
+          env: environment,
+          encoding: "utf8",
+          timeout: 60_000,
+          maxBuffer: 4 * 1024 * 1024,
+        }
+      )
     )
   );
   const commit = execFileSync("git", ["rev-parse", "HEAD"], {

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, spawn } from "bun";
 import {
+  auditWhenAttested,
   inspectPublished,
   installWhenResolvable,
   provenanceReceipt,
@@ -308,6 +309,77 @@ test("provenance install retries are bounded by attempts and elapsed time", asyn
   await expect(
     installWhenResolvable(() => "installed", { attempts: 25 })
   ).rejects.toThrow("Invalid SDK install resolution");
+});
+
+const auditFailure = (code: string, url: string) =>
+  Object.assign(new Error("Command failed: npm audit signatures"), {
+    stderr: `npm error code ${code}\nnpm error 404 Not Found - GET ${url} - Not found\n`,
+  });
+const attestationsUrl =
+  "https://registry.npmjs.org/-/npm/v1/attestations/teak-sdk@1.0.1";
+
+test("provenance audit waits for npm to serve the attestations, and only that", async () => {
+  let calls = 0;
+  expect(
+    await auditWhenAttested(
+      () => {
+        calls++;
+        if (calls < 3) {
+          throw auditFailure("E404", attestationsUrl);
+        }
+        return "{}";
+      },
+      { intervalMs: 0 }
+    )
+  ).toBe("{}");
+  expect(calls).toBe(3);
+
+  for (const failure of [
+    auditFailure("E404", "https://registry.npmjs.org/teak-sdk"),
+    auditFailure("EINTEGRITY", attestationsUrl),
+    auditFailure("E401", attestationsUrl),
+  ]) {
+    let attempts = 0;
+    await expect(
+      auditWhenAttested(
+        () => {
+          attempts++;
+          throw failure;
+        },
+        { intervalMs: 0 }
+      )
+    ).rejects.toThrow("npm audit signatures");
+    expect(attempts).toBe(1);
+  }
+});
+
+test("provenance audit retries are bounded by attempts and elapsed time", async () => {
+  let attempts = 0;
+  const neverAttested = () => {
+    attempts++;
+    throw auditFailure("E404", attestationsUrl);
+  };
+  await expect(
+    auditWhenAttested(neverAttested, { attempts: 3, intervalMs: 0 })
+  ).rejects.toThrow("npm audit signatures");
+  expect(attempts).toBe(3);
+
+  attempts = 0;
+  let elapsed = 0;
+  await expect(
+    auditWhenAttested(neverAttested, {
+      now: () => elapsed,
+      wait: () => {
+        elapsed = 300_001;
+        return Promise.resolve();
+      },
+    })
+  ).rejects.toThrow("npm audit signatures");
+  expect(attempts).toBe(2);
+
+  await expect(auditWhenAttested(() => "{}", { attempts: 31 })).rejects.toThrow(
+    "Invalid SDK attestation wait"
+  );
 });
 
 test("repeat publication accepts only identical registry metadata and bytes", async () => {

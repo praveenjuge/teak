@@ -89,7 +89,7 @@ pointer here when one is missing.
 iPhone, iPad and Mac share one app info. While one platform's version is in
 review there are two (live and in review), and `asc validate` stops with
 "app infos match". So each version ships iOS first, and the Mac once iOS is
-live. The scheduled `Apple Release Status` check, every six hours, starts the
+live. The scheduled `Apple Release Status` check, every 15 minutes, starts the
 Mac release from `main` when the version on `main` is Ready for Distribution
 on iOS and has no Mac version yet. It does this once per version; a version
 `main` has moved past is left to the next release. A failed Mac run reports to
