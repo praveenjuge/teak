@@ -69,6 +69,8 @@ export function ImagePreview({ card }: ImagePreviewProps) {
     cardId: card._id,
     fallback: unavailable,
     onLoad: () => setLoadedUrl(fileUrl),
+    // A load that failed for good is over too: the fallback shows instead.
+    onPermanentError: () => setLoadedUrl(fileUrl),
     storageKey: card.fileKey,
   };
   const loading = loadedUrl !== fileUrl;

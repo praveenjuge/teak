@@ -215,4 +215,33 @@ describe("ImagePreview in a dialog left open", () => {
     expect(placeholder()).toBeNull();
     await act(() => root.unmount());
   });
+  test("stops pulsing when the image can't load, so its fallback shows", async () => {
+    refreshMediaUrl.mockImplementationOnce(() =>
+      Promise.reject(new Error("offline"))
+    );
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileKey: "cards/photo.jpg",
+              fileMetadata: { fileName: "photo.jpg", height: 800, width: 1200 },
+              fileUrl: "https://files.teakvault.com/cards/photo.jpg",
+            }) as any
+          }
+        />
+      )
+    );
+    await act(async () => {
+      container.querySelector("img")?.dispatchEvent(new Event("error"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-slot="media-loading"]')).toBeNull();
+    expect(container.textContent).toContain("photo.jpg");
+    await act(() => root.unmount());
+  });
 });
