@@ -539,7 +539,14 @@
       "SMART_FOLDER_IN_QUERY": "La búsqueda de una carpeta inteligente no puede usar otra carpeta inteligente",
       "SMART_FOLDER_MEMBERSHIP": "No se pueden añadir tarjetas a una carpeta inteligente; muestra las tarjetas que coinciden con su búsqueda",
       "QUERY_ON_MANUAL_FOLDER": "Solo las carpetas inteligentes tienen una búsqueda",
-      "SMART_FOLDER_TRASH": "Las carpetas inteligentes no muestran la papelera. Para buscar la palabra, póngala entre comillas"
+      "SMART_FOLDER_TRASH": "Las carpetas inteligentes no muestran la papelera. Para buscar la palabra, póngala entre comillas",
+      "RULES_ON_SMART_FOLDER": "Solo las carpetas manuales tienen reglas",
+      "TOO_MANY_RULES": "Puede tener reglas en hasta {max} carpetas",
+      "TOO_MANY_AUTO_TAGS": "Una carpeta puede añadir hasta {max} etiquetas",
+      "EMPTY_RULE_QUERY": "Añada una búsqueda para las tarjetas que se archivarán",
+      "RULE_QUERY_SIMILARITY": "Las reglas de carpeta no pueden usar like: ni mood:. Busque por palabras, etiquetas, tipo o sitio",
+      "RULE_RUN_NOT_FOUND": "No se encontró la ejecución de la regla",
+      "RULE_RUN_EXPIRED": "Esta ejecución de la regla ya no se puede deshacer"
     },
     "tags": {
       "EMPTY_NAME": "Póngale un nombre a la etiqueta",

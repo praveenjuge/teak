@@ -539,7 +539,14 @@
       "SMART_FOLDER_IN_QUERY": "スマートフォルダの検索条件にほかのスマートフォルダは使えません",
       "SMART_FOLDER_MEMBERSHIP": "スマートフォルダにはカードを追加できません。検索条件に一致するカードが表示されます",
       "QUERY_ON_MANUAL_FOLDER": "検索条件を設定できるのはスマートフォルダだけです",
-      "SMART_FOLDER_TRASH": "スマートフォルダにはゴミ箱のカードは表示されません。この単語を検索するには、引用符で囲んでください"
+      "SMART_FOLDER_TRASH": "スマートフォルダにはゴミ箱のカードは表示されません。この単語を検索するには、引用符で囲んでください",
+      "RULES_ON_SMART_FOLDER": "ルールを設定できるのは手動フォルダだけです",
+      "TOO_MANY_RULES": "ルールを設定できるフォルダは {max} 個までです",
+      "TOO_MANY_AUTO_TAGS": "フォルダで追加できるタグは {max} 個までです",
+      "EMPTY_RULE_QUERY": "振り分けるカードの検索条件を追加してください",
+      "RULE_QUERY_SIMILARITY": "フォルダルールでは like: と mood: は使えません。単語、タグ、種類、サイトで検索してください",
+      "RULE_RUN_NOT_FOUND": "ルールの実行が見つかりません",
+      "RULE_RUN_EXPIRED": "このルールの実行はもう元に戻せません"
     },
     "tags": {
       "EMPTY_NAME": "タグに名前を付けてください",
