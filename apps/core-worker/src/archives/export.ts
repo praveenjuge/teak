@@ -159,7 +159,9 @@ export const buildExportIntoBucket = async (
   bucket: R2Bucket,
   manifestKey: string,
   artifactKey: string,
-  fileName: string
+  fileName: string,
+  // Tests pass a small size so a few kilobytes span several parts.
+  partSize = PART_SIZE
 ): Promise<BuildExportResult> => {
   const manifestObject = await bucket.get(manifestKey);
   if (!manifestObject) {
@@ -243,7 +245,7 @@ export const buildExportIntoBucket = async (
   }
 
   const reader = zipStream.getReader();
-  const buffer = new Uint8Array(PART_SIZE);
+  const buffer = new Uint8Array(partSize);
   let fill = 0;
   let artifactBytes = 0;
   const checkpointParts = checkpoint?.parts ?? [];
@@ -293,11 +295,11 @@ export const buildExportIntoBucket = async (
     }
     let offset = 0;
     while (offset < value.length) {
-      const take = Math.min(PART_SIZE - fill, value.length - offset);
+      const take = Math.min(partSize - fill, value.length - offset);
       buffer.set(value.subarray(offset, offset + take), fill);
       fill += take;
       offset += take;
-      if (fill === PART_SIZE) {
+      if (fill === partSize) {
         await flushPart(buffer.subarray(0, fill));
         fill = 0;
       }

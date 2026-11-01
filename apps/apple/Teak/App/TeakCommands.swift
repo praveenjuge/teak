@@ -27,13 +27,13 @@ struct TeakCommands: Commands {
 
     @CommandsBuilder private func commands(language _: String) -> some Commands {
         CommandGroup(replacing: .newItem) {
-            Button(tr("apple.commands.newNote")) { inMainWindow { services.router.compose() } }
+            Button(tr("apple.commands.newNote")) { services.router.compose() }
                 .keyboardShortcut("n")
                 .disabled(!signedIn)
             Button(tr("apple.commands.uploadFiles")) { inMainWindow { services.router.isImportingFiles = true } }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
                 .disabled(!signedIn)
-            Button(tr("apple.commands.voiceMemo")) { inMainWindow { services.router.isRecording = true } }
+            Button(tr("apple.commands.voiceMemo")) { services.router.record() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(!signedIn)
             #if os(macOS)

@@ -15,6 +15,7 @@ final class AppServices {
     let language = LanguageModel()
     var openMainWindow: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
+    var openVoiceMemoWindow: (() -> Void)?
 
     private init() {
         PostHogReporting.start()
@@ -59,6 +60,13 @@ final class AppServices {
         router.tab = .settings
         #endif
     }
+
+    #if os(macOS)
+    func showVoiceMemo() {
+        NSApp.activate()
+        openVoiceMemoWindow?()
+    }
+    #endif
 }
 
 @main
@@ -92,6 +100,17 @@ struct TeakApp: App {
         .defaultSize(width: 900, height: 700)
         .commandsRemoved()
         // File addresses expire, so an image window isn't reopened at the next launch.
+        .restorationBehavior(.disabled)
+
+        Window(tr("native.capture.voiceMemo"), id: VoiceMemoView.windowID) {
+            VoiceMemoView()
+                .environments(services)
+                .preferredColorScheme(appearance.colorScheme)
+        }
+        .windowLevel(.floating)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
         .restorationBehavior(.disabled)
 
         Settings {

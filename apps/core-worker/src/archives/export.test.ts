@@ -9,6 +9,11 @@ import {
   parseExportManifest,
 } from "./export";
 
+// The resume tests use small parts, so one part plus a short last part takes
+// kilobytes instead of the 33 MiB the 32 MiB production part size needs.
+const PART_BYTES = 64 * 1024;
+const LARGE_BYTES = PART_BYTES + 2 * 1024;
+
 const encodeBase64 = (text: string): string =>
   Buffer.from(text, "utf8").toString("base64");
 
@@ -147,7 +152,7 @@ describe("build-export op", () => {
   test("resumes from checkpointed parts after a transient upload failure", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set("large.bin", {
-      bytes: new Uint8Array(33 * 1024 * 1024),
+      bytes: new Uint8Array(LARGE_BYTES),
     });
     bucket.objects.set("resume-manifest.json", {
       bytes: new TextEncoder().encode(
@@ -164,7 +169,8 @@ describe("build-export op", () => {
         bucket,
         "resume-manifest.json",
         "resume.zip",
-        "resume.zip"
+        "resume.zip",
+        PART_BYTES
       )
     ).rejects.toThrow("multipart_part_2_failed");
     expect(bucket.objects.has("resume.zip.checkpoint.json")).toBe(true);
@@ -173,7 +179,8 @@ describe("build-export op", () => {
       bucket,
       "resume-manifest.json",
       "resume.zip",
-      "resume.zip"
+      "resume.zip",
+      PART_BYTES
     );
     expect(result.filesIncluded).toBe(1);
     expect(bucket.objects.has("resume.zip.checkpoint.json")).toBe(false);
@@ -183,7 +190,7 @@ describe("build-export op", () => {
 
   test("a resumed archive stays valid when a file goes missing on the retry", async () => {
     const bucket = new FakeBucket();
-    const large = patternedBytes(33 * 1024 * 1024);
+    const large = patternedBytes(LARGE_BYTES);
     bucket.objects.set("small.txt", {
       bytes: new TextEncoder().encode("small file"),
     });
@@ -202,7 +209,7 @@ describe("build-export op", () => {
     });
     bucket.failMultipartPartOnce.add(2);
     await expect(
-      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip")
+      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip", PART_BYTES)
     ).rejects.toThrow("multipart_part_2_failed");
 
     bucket.failKeys.add("small.txt");
@@ -210,7 +217,8 @@ describe("build-export op", () => {
       bucket,
       "m.json",
       "out.zip",
-      "out.zip"
+      "out.zip",
+      PART_BYTES
     );
 
     expect(result.omittedPaths).toEqual(["small.txt"]);
@@ -230,7 +238,7 @@ describe("build-export op", () => {
     };
     const seed = (bucket: FakeBucket) => {
       bucket.objects.set("large.bin", {
-        bytes: patternedBytes(33 * 1024 * 1024),
+        bytes: patternedBytes(LARGE_BYTES),
       });
       bucket.objects.set("m.json", {
         bytes: new TextEncoder().encode(JSON.stringify(manifest)),
@@ -241,16 +249,28 @@ describe("build-export op", () => {
     setSystemTime(startedAt);
     const reference = new FakeBucket();
     seed(reference);
-    await buildExportIntoBucket(reference, "m.json", "out.zip", "out.zip");
+    await buildExportIntoBucket(
+      reference,
+      "m.json",
+      "out.zip",
+      "out.zip",
+      PART_BYTES
+    );
 
     const bucket = new FakeBucket();
     seed(bucket);
     bucket.failMultipartPartOnce.add(2);
     await expect(
-      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip")
+      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip", PART_BYTES)
     ).rejects.toThrow("multipart_part_2_failed");
     setSystemTime(new Date("2026-01-01T11:00:00Z"));
-    await buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip");
+    await buildExportIntoBucket(
+      bucket,
+      "m.json",
+      "out.zip",
+      "out.zip",
+      PART_BYTES
+    );
 
     expect(
       Buffer.compare(

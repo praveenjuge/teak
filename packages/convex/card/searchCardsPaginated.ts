@@ -522,7 +522,10 @@ export const searchCardsPaginatedHandler = async (
           }
         );
         for (const match of semantic) {
-          if (match.score >= SEMANTIC_MIN_SCORE) {
+          if (
+            match.score >= SEMANTIC_MIN_SCORE &&
+            !keywordMatches.has(match.cardId)
+          ) {
             matchedByMeaning.add(match.cardId);
           }
         }
@@ -608,6 +611,7 @@ export const searchCardsPaginatedHandler = async (
       const cardsById = new Map(
         uniqueResults.map((card) => [card._id, card] as const)
       );
+      const keywordMatches = new Set(cardsById.keys());
       const semantic = await loadSemanticMatches(
         ctx,
         searchArgs,
@@ -621,7 +625,10 @@ export const searchCardsPaginatedHandler = async (
         }
       );
       for (const match of semantic) {
-        if (match.score >= SEMANTIC_MIN_SCORE) {
+        if (
+          match.score >= SEMANTIC_MIN_SCORE &&
+          !keywordMatches.has(match.cardId)
+        ) {
           matchedByMeaning.add(match.cardId);
         }
       }

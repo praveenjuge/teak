@@ -1,6 +1,6 @@
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 import { workosRequest, workosUserPath } from "../shared/workosClient";
-import { WORKOS_SESSION_ID } from "../shared/workosIds";
+import { WORKOS_SESSION_CURSOR, WORKOS_SESSION_ID } from "../shared/workosIds";
 
 export interface WorkosSession {
   createdAt: number;
@@ -94,6 +94,12 @@ export async function listWorkosSessions(
   const after = payload.list_metadata?.after;
   if (after !== undefined && after !== null && typeof after !== "string") {
     throw invalidSession();
+  }
+  if (
+    after &&
+    (!WORKOS_SESSION_CURSOR.test(after) || after === options.after)
+  ) {
+    throw new Error("Device service returned an invalid page.");
   }
   return {
     sessions: payload.data.map((session) =>

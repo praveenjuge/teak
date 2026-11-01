@@ -80,7 +80,10 @@ final class VoiceRecorder {
 }
 
 struct VoiceMemoView: View {
+    static let windowID = "voice-memo"
     @Environment(CaptureModel.self) private var capture
+    @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var recorder = VoiceRecorder()
     @State private var isSaving = false
@@ -160,15 +163,26 @@ struct VoiceMemoView: View {
             }
         }
         .frame(minWidth: 360, minHeight: 420)
-        .interactiveDismissDisabled(recorder.isRecording || isSaving || recording != nil)
+        .interactiveDismissDisabled(isBusy)
+        #if os(macOS)
+        // The Mac's window closes only through Cancel while there's audio to lose.
+        .windowDismissBehavior(isBusy ? .disabled : .automatic)
+        .onChange(of: app.user == nil) { _, signedOut in
+            if signedOut { discard() }
+        }
+        // The window isn't the router's sheet, so it says it's open: the main window's alert stands down meanwhile.
+        .onAppear { router.isRecording = true }
+        .onDisappear { router.isRecording = false }
+        #endif
         .captureAlert()
-        // Signing out or closing the Mac window can take the sheet away
-        // mid-recording: stop the mic and drop the file.
+        // Signing out can take the sheet away mid-recording: stop the mic and drop the file.
         .onDisappear {
             recorder.cancel()
             if let recording, !isSaving { VoiceRecorder.discard(recording) }
         }
     }
+
+    private var isBusy: Bool { recorder.isRecording || isSaving || recording != nil }
 
     private var status: String {
         if isSaving { return tr("common.saving") }
@@ -215,7 +229,7 @@ struct VoiceMemoView: View {
                 if failure.isCardLimit { capture.alert = failure } else { uploadFailure = failure }
             } else {
                 recording = nil
-                dismiss()
+                close()
             }
         }
     }
@@ -224,6 +238,15 @@ struct VoiceMemoView: View {
         recorder.cancel()
         if let recording { VoiceRecorder.discard(recording) }
         recording = nil
+        close()
+    }
+
+    private func close() {
+        #if os(macOS)
+        // The window's close button is off while busy, which blocks a plain dismiss too.
+        withTransaction(\.dismissBehavior, .destructive) { dismiss() }
+        #else
         dismiss()
+        #endif
     }
 }

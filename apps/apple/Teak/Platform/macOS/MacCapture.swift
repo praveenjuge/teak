@@ -40,10 +40,15 @@ enum PasteboardReader {
 
 @MainActor
 enum BackgroundCapture {
-    static func save(_ items: [SharedItem]) {
+    /// `finished` gets whether everything saved.
+    static func save(_ items: [SharedItem], finished: (@MainActor (Bool) -> Void)? = nil) {
         let services = AppServices.shared
-        guard !items.isEmpty else { return CaptureHUD.show(tr("apple.mac.clipboardEmpty"), isError: true) }
+        guard !items.isEmpty else {
+            finished?(false)
+            return CaptureHUD.show(tr("apple.mac.clipboardEmpty"), isError: true)
+        }
         guard services.app.user != nil else {
+            finished?(false)
             CaptureHUD.show(tr("apple.mac.signInFirst"), isError: true)
             services.showMainWindow()
             return
@@ -52,8 +57,14 @@ enum BackgroundCapture {
             let before = services.capture.savedCount
             if let failure = await services.capture.save(items, showsAlert: false) {
                 CaptureHUD.show(failure.isCardLimit ? tr("native.capture.cardLimitMessage") : failure.message, isError: true)
-            } else if services.capture.savedCount > before {
-                CaptureHUD.show(services.capture.lastSaved ?? tr("native.capture.savedToTeak"))
+                finished?(false)
+            } else {
+                // No failure and nothing saved: signing out cut the save short.
+                let saved = services.capture.savedCount > before
+                if saved {
+                    CaptureHUD.show(services.capture.lastSaved ?? tr("native.capture.savedToTeak"))
+                }
+                finished?(saved)
             }
         }
     }
@@ -67,10 +78,13 @@ enum CaptureHUD {
     static func show(_ message: String, isError: Bool = false) {
         hideTask?.cancel()
         panel?.orderOut(nil)
-        let content = NSHostingView(rootView: HUDView(message: message, isError: isError))
-        content.layoutSubtreeIfNeeded()
-        let size = content.fittingSize
-        let hud = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel],
+        let content = hudView(message: message, isError: isError)
+        let size = content.frame.size
+        var origin = NSPoint.zero
+        if let screen = NSScreen.main?.visibleFrame {
+            origin = NSPoint(x: screen.midX - size.width / 2, y: screen.maxY - size.height - 24)
+        }
+        let hud = NSPanel(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless, .nonactivatingPanel],
                           backing: .buffered, defer: false)
         hud.isOpaque = false
         hud.backgroundColor = .clear
@@ -79,9 +93,6 @@ enum CaptureHUD {
         hud.ignoresMouseEvents = true
         hud.collectionBehavior = [.canJoinAllSpaces, .transient]
         hud.contentView = content
-        if let screen = NSScreen.main?.visibleFrame {
-            hud.setFrameOrigin(NSPoint(x: screen.midX - size.width / 2, y: screen.maxY - size.height - 24))
-        }
         hud.orderFrontRegardless()
         NSAccessibility.post(element: content, notification: .announcementRequested,
                              userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.high.rawValue])
@@ -93,19 +104,28 @@ enum CaptureHUD {
         }
     }
 
-    private struct HUDView: View {
-        let message: String
-        let isError: Bool
-
-        var body: some View {
-            Label(message, systemImage: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .font(.body.weight(.medium))
-                .fontDesign(.rounded)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .glassEffect(.regular, in: .capsule)
-                .padding(8)
-        }
+    /// AppKit rather than SwiftUI: a hosting view as a borderless panel's content kept
+    /// resizing the panel to its corner safe areas until AppKit threw (macOS 26).
+    private static func hudView(message: String, isError: Bool) -> NSView {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let label = NSTextField(wrappingLabelWithString: message)
+        label.font = font.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: font.pointSize) } ?? font
+        label.preferredMaxLayoutWidth = 420
+        let icon = NSImageView(image: NSImage(systemSymbolName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill",
+                                              accessibilityDescription: nil) ?? NSImage())
+        icon.symbolConfiguration = .init(pointSize: font.pointSize, weight: .medium)
+        let stack = NSStackView(views: [icon, label])
+        stack.spacing = 6
+        stack.edgeInsets = NSEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
+        // A horizontal stack's fitting height leaves out part of its vertical insets.
+        let inner = NSSize(width: stack.fittingSize.width,
+                           height: max(label.fittingSize.height, icon.fittingSize.height) + stack.edgeInsets.top + stack.edgeInsets.bottom)
+        let glass = NSGlassEffectView(frame: NSRect(x: 8, y: 8, width: inner.width, height: inner.height))
+        glass.cornerRadius = inner.height / 2
+        glass.contentView = stack
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: inner.width + 16, height: inner.height + 16))
+        container.addSubview(glass)
+        return container
     }
 }
 
@@ -115,11 +135,18 @@ final class QuickCapturePanel: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var language: String?
 
-    func show() {
+    func show(draft: String = "") {
+        if !draft.isEmpty { UserDefaults.standard.set(draft, forKey: MacPreferences.quickCaptureDraftKey) }
         if panel == nil || language != AppLanguage.current {
             panel?.orderOut(nil)
             panel = makePanel()
             language = AppLanguage.current
+        }
+        // An AppKit panel follows the system, not the scenes' preferredColorScheme, so it takes Teak's theme here.
+        panel?.appearance = switch Appearance(rawValue: UserDefaults.standard.string(forKey: "teak.appearance") ?? "") {
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        case .auto, nil: nil
         }
         NSApp.activate()
         panel?.center()
@@ -165,9 +192,14 @@ private struct QuickCaptureView: View {
                 .focused($focused)
                 .disabled(capture.isSavingText)
                 .accessibilityLabel(tr("native.capture.notePlaceholder"))
+                .accessibilityIdentifier("composer.text")
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
-                        Text(tr("native.capture.notePlaceholder")).foregroundStyle(.secondary).allowsHitTesting(false)
+                        // The text view pads each line by 5pt, so the placeholder starts where the caret does.
+                        Text(tr("native.capture.notePlaceholder"))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
                     }
                 }
             HStack {
@@ -178,6 +210,7 @@ private struct QuickCaptureView: View {
                     .keyboardShortcut(.return, modifiers: .command)
                     .buttonStyle(.glassProminent)
                     .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("composer.save")
             }
         }
         .padding(.horizontal, 20)
@@ -265,6 +298,16 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     private let menu = NSMenu()
     private let statusRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private var titles: [(item: NSMenuItem, title: () -> String)] = []
+    /// Drawn over the button while a drop saves, since a button's own image can't run symbol effects.
+    private let stateIcon = StateIconView()
+    private var savingCount = 0
+    private var anyFailed = false
+    private var resetTask: Task<Void, Never>?
+
+    private final class StateIconView: NSImageView {
+        // Clicks and drops belong to the button underneath.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
 
     override init() {
         super.init()
@@ -273,6 +316,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
         menu.addItem(statusRow)
         menu.addItem(.separator())
         add({ tr("apple.commands.quickCapture") }, #selector(quickCapture))
+        add({ tr("apple.commands.voiceMemo") }, #selector(voiceMemo))
         add({ tr("apple.commands.pasteAsNewCard") }, #selector(paste))
         menu.addItem(.separator())
         add({ tr("apple.mac.openLibrary") }, #selector(openLibrary))
@@ -293,20 +337,80 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
         if enabled, statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             if let button = item.button {
-                button.image = NSImage(named: "MenuBarIcon")
-                button.image?.size = NSSize(width: 18, height: 18)
-                button.image?.isTemplate = true
+                button.image = Self.appIcon
                 button.setAccessibilityLabel("Teak")
                 button.toolTip = tr("apple.mac.menuBarTooltip")
                 button.window?.registerForDraggedTypes([.fileURL, .URL, .string, .png, .tiff])
                 button.window?.delegate = self
+                stateIcon.frame = button.bounds
+                stateIcon.autoresizingMask = [.width, .height]
+                stateIcon.isHidden = true
+                button.addSubview(stateIcon)
             }
             item.menu = menu
             statusItem = item
         } else if !enabled, let item = statusItem {
+            showIdle()
+            stateIcon.removeFromSuperview()
             NSStatusBar.system.removeStatusItem(item)
             statusItem = nil
         }
+    }
+
+    private static var appIcon: NSImage? {
+        let image = NSImage(named: "MenuBarIcon")
+        image?.size = NSSize(width: 18, height: 18)
+        image?.isTemplate = true
+        return image
+    }
+
+    private static func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
+    }
+
+    // Saving bounces an upload arrow; when every drop is done the icon shows
+    // a check (or a warning) for a moment, then goes back to Teak's.
+    private func showSaving() {
+        savingCount += 1
+        resetTask?.cancel()
+        guard savingCount == 1, let button = statusItem?.button else { return }
+        button.image = nil
+        stateIcon.isHidden = false
+        stateIcon.removeAllSymbolEffects(animated: false)
+        stateIcon.image = Self.symbol("arrow.up.circle")
+        stateIcon.addSymbolEffect(.bounce.up, options: .repeat(.continuous))
+    }
+
+    private func finishSaving(_ saved: Bool) {
+        savingCount = max(0, savingCount - 1)
+        anyFailed = anyFailed || !saved
+        guard savingCount == 0, statusItem != nil else { return }
+        let failed = anyFailed
+        anyFailed = false
+        stateIcon.removeAllSymbolEffects()
+        if let image = Self.symbol(failed ? "exclamationmark.circle" : "checkmark.circle") {
+            stateIcon.setSymbolImage(image, contentTransition: .replace)
+        }
+        if failed {
+            stateIcon.addSymbolEffect(.wiggle, options: .nonRepeating)
+        } else {
+            stateIcon.addSymbolEffect(.bounce, options: .nonRepeating)
+        }
+        resetTask = Task {
+            try? await Task.sleep(for: .seconds(failed ? 2.5 : 1.5))
+            guard !Task.isCancelled else { return }
+            showIdle()
+        }
+    }
+
+    private func showIdle() {
+        resetTask?.cancel()
+        savingCount = 0
+        anyFailed = false
+        stateIcon.removeAllSymbolEffects(animated: false)
+        stateIcon.isHidden = true
+        statusItem?.button?.image = Self.appIcon
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -321,6 +425,14 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     }
 
     @objc private func quickCapture() { QuickCapturePanel.shared.show() }
+    @objc private func voiceMemo() {
+        let services = AppServices.shared
+        guard services.app.user != nil else {
+            CaptureHUD.show(tr("apple.mac.signInFirst"), isError: true)
+            return services.showMainWindow()
+        }
+        services.router.record()
+    }
     @objc private func paste() { BackgroundCapture.save(PasteboardReader.items(from: .general)) }
     @objc private func openLibrary() { AppServices.shared.showMainWindow() }
     // Not "openSettings": macOS 26 adds a gear to items with that action.
@@ -334,7 +446,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         let items = PasteboardReader.items(from: sender.draggingPasteboard)
         guard !items.isEmpty else { return false }
-        BackgroundCapture.save(items)
+        showSaving()
+        BackgroundCapture.save(items) { [weak self] saved in self?.finishSaving(saved) }
         return true
     }
 }

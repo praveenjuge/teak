@@ -86,13 +86,17 @@ struct CardEditView: View {
                 noteSection(draft)
             } else if CardEdit.canEditContent(card.type) {
                 Section(tr("cards.types.quote")) {
-                    TextField(tr("native.card.edit.quotePlaceholder"), text: contentBinding(draft), axis: .vertical)
+                    TextField(tr("native.card.edit.quotePlaceholder"), text: contentBinding(draft),
+                              prompt: Text(tr("native.card.edit.quotePlaceholder")), axis: .vertical)
                         .lineLimit(4...16)
+                        .labelsHidden()
                 }
             }
             Section(tr("native.card.sections.notes")) {
-                TextField(tr("native.card.edit.notesPlaceholder"), text: draft.notes, axis: .vertical)
+                TextField(tr("native.card.edit.notesPlaceholder"), text: draft.notes,
+                          prompt: Text(tr("native.card.edit.notesPlaceholder")), axis: .vertical)
                     .lineLimit(3...10)
+                    .labelsHidden()
                     .accessibilityIdentifier("edit.notes")
             }
             Section {
@@ -109,7 +113,8 @@ struct CardEditView: View {
                     }
                 }
                 HStack {
-                    TextField(tr("native.card.edit.tagPlaceholder"), text: $newTag)
+                    TextField(tr("native.card.edit.tagPlaceholder"), text: $newTag, prompt: Text(tr("native.card.edit.tagPlaceholder")))
+                        .labelsHidden()
                         .focused($tagFieldFocused)
                         .accessibilityIdentifier("edit.tag")
                         .onSubmit { addTag(draft) }
@@ -159,9 +164,12 @@ struct CardEditView: View {
 
     private func noteSection(_ draft: Binding<CardEditDraft>) -> some View {
         Section {
+            // A Mac form shows a field's title as a leading label and right-aligns the text,
+            // so the placeholder goes in the prompt and the label is hidden.
             TextField(tr("native.card.edit.notePlaceholder"), text: contentBinding(draft), selection: $contentSelection,
-                      axis: .vertical)
+                      prompt: Text(tr("native.card.edit.notePlaceholder")), axis: .vertical)
                 .lineLimit(4...16)
+                .labelsHidden()
                 .accessibilityIdentifier("edit.content")
                 .onKeyPress(keys: [.escape, .upArrow, .downArrow, .return]) { press in
                     linkKey(press.key, draft)

@@ -327,6 +327,44 @@ describe("hybrid search in the grid", () => {
     ).toEqual([]);
   });
 
+  test("a tag: search lists a card with the tag and the word as a word match", async () => {
+    const env = await setup();
+    const bauhaus = await env.insert({
+      content: "Bauhaus - Wikipedia",
+      tags: ["design"],
+    });
+    const poster = await env.insert({
+      content: "Modernist poster layouts",
+      tags: ["design"],
+    });
+    const untagged = await env.insert({ content: "Bauhaus chair" });
+    await env.cache("bauhaus", [
+      { id: bauhaus, score: STRONG },
+      { id: poster, score: STRONG },
+      { id: untagged, score: STRONG },
+    ]);
+    const marks = async (searchQuery: string) =>
+      (
+        await env.owner.query(api.cards.searchCardsPaginated, {
+          searchQuery,
+          paginationOpts: { numItems: 10, cursor: null },
+        })
+      ).page.map((card: { _id: string; matchedByMeaning?: true }) => [
+        card._id,
+        card.matchedByMeaning ?? false,
+      ]);
+    expect(await marks("bauhaus")).toEqual([
+      [untagged, false],
+      [poster, true],
+      [bauhaus, false],
+    ]);
+    expect(await marks("tag:design bauhaus")).toEqual([
+      [poster, true],
+      [bauhaus, false],
+    ]);
+    expect(await marks("tag:design bauhaus is:fav")).toEqual([]);
+  });
+
   test("another user's cached matches never reach this user's search", async () => {
     const env = await setup();
     const theirs = await env.insert({

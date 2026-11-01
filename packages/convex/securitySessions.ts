@@ -11,6 +11,7 @@ import { rateLimiter } from "./shared/rateLimits";
 import { workosIssuer } from "./shared/workosApi";
 import {
   WORKOS_CLIENT_ID,
+  WORKOS_SESSION_CURSOR,
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
   workosDisplayName,
@@ -416,7 +417,7 @@ export const listAuthkitSessions = action({
       throw new Error("Please sign in again.");
     }
     const cursor = paginationOpts.cursor;
-    if (cursor && !WORKOS_SESSION_ID.test(cursor)) {
+    if (cursor && !WORKOS_SESSION_CURSOR.test(cursor)) {
       throw new Error("Invalid device page. Please refresh.");
     }
     const apiKey = workosSessionApiKey();
@@ -426,9 +427,6 @@ export const listAuthkitSessions = action({
       after: cursor || undefined,
     });
     const next = result.after ?? "";
-    if (next && (!WORKOS_SESSION_ID.test(next) || next === cursor)) {
-      throw new Error("Device service returned an invalid page.");
-    }
     return {
       page: result.sessions
         .filter(isLiveSession)
@@ -479,7 +477,7 @@ export const revokeAuthkitSession = action({
       if (!next) {
         throw new Error("Device session was not found.");
       }
-      if (!WORKOS_SESSION_ID.test(next) || seen.has(next)) {
+      if (seen.has(next)) {
         throw new Error("Device service returned an invalid page.");
       }
       seen.add(next);
@@ -526,7 +524,8 @@ export const revokeOtherAuthkitSessions = action({
       if (!next) {
         break;
       }
-      if (!WORKOS_SESSION_ID.test(next) || seen.has(next)) {
+      // `listWorkosSessions` checks the cursor's format; this only stops a loop.
+      if (seen.has(next)) {
         throw new Error("Device service returned an invalid page.");
       }
       seen.add(next);
