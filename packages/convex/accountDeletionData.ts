@@ -116,6 +116,27 @@ export const ancillaryPage = internalMutation({
       await deleteFolderCardCounts(ctx, folder._id);
       await ctx.db.delete(folder._id);
     }
+    const ruleApplications = await ctx.db
+      .query("folderRuleApplications")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of ruleApplications) {
+      await ctx.db.delete(row._id);
+    }
+    const ruleRunChanges = await ctx.db
+      .query("folderRuleRunChanges")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of ruleRunChanges) {
+      await ctx.db.delete(row._id);
+    }
+    const ruleRuns = await ctx.db
+      .query("folderRuleRuns")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of ruleRuns) {
+      await ctx.db.delete(row._id);
+    }
     const tagSummaries = await ctx.db
       .query("userTagSummaries")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -252,6 +273,9 @@ export const ancillaryPage = internalMutation({
       moreTombstones ||
       folderRows.length > 0 ||
       folders.length > 0 ||
+      ruleApplications.length > 0 ||
+      ruleRunChanges.length > 0 ||
+      ruleRuns.length > 0 ||
       tagSummaries.length > 0 ||
       tagRefreshes.length > 0 ||
       tagCounts.length > 0 ||

@@ -4,6 +4,7 @@ import { accountDeletionOwnsRows } from "../../accountDeletion";
 import { mergeProcessingStages } from "../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../card/searchSync";
 import { storeCardTranscript } from "../../card/textContents";
+import { autoFileCard } from "../../folder/rules";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
@@ -46,8 +47,16 @@ export const updateCardAI = internalMutation({
         ? {}
         : await storeCardTranscript(ctx, card, aiTranscript)),
     };
+    // New AI tags are when the card is ready for folder rules: file it with
+    // what it now holds, in the same write. An OCR-only write doesn't.
+    const filed =
+      args.aiTags === undefined
+        ? undefined
+        : await autoFileCard(ctx, { ...card, ...updates });
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
+      ...(filed?.folderIds ? { folderIds: filed.folderIds } : {}),
+      ...(filed?.tags ? { tags: filed.tags } : {}),
       ...(processingStatus === undefined
         ? {}
         : {

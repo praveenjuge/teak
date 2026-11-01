@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { deleteCardFolderRuleRows } from "../folder/rules";
 import { recordCardTombstone } from "../publicApiTombstones";
 import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
 import { syncCardSearch } from "./searchSync";
@@ -68,6 +69,7 @@ export const cleanupDeletedCard = internalMutation({
     let deleted = false;
     try {
       await ctx.db.delete("cards", cardId);
+      await deleteCardFolderRuleRows(ctx, cardId);
       await recordCardTombstone(ctx, { cardId, userId: card.userId });
       await syncCardSearch(ctx, cardId, card.userId, card);
       deleted = true;

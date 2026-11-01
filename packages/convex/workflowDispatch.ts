@@ -38,6 +38,7 @@ import {
   ACTIVE_EXPORT_STATUSES,
   EXPORT_FAILURE_CLASS,
 } from "./export/constants";
+import { applyAutoFileRulesToCard } from "./folder/rules";
 import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
 import { importStagedPartKeys } from "./import/indexItems";
 import { articleSkipReason } from "./shared/article";
@@ -854,6 +855,42 @@ const handleRunFailure = async (
 
 export const INSTANCE_MISSING = "instance_missing";
 
+/**
+ * Folder rules run when a card's AI tags are written (`updateCardAI`). A
+ * card whose run ended without them, because AI failed or had nothing to
+ * say, is filed here with what it has. One waiting on the AI backfill isn't:
+ * its tags still come.
+ */
+const fileCardWithoutAiTags = async (
+  ctx: MutationCtx,
+  row: Doc<"workflowDispatches">
+): Promise<void> => {
+  const params = (row.params ?? {}) as Record<string, unknown>;
+  if (
+    row.kind !== "cardProcessing" ||
+    !row.cardId ||
+    params.archiveOnly === true ||
+    params.articleOnly === true
+  ) {
+    return;
+  }
+  const card = await ctx.db.get("cards", row.cardId);
+  if (
+    !card ||
+    card.isDeleted === true ||
+    // A failed run may have queued an archive or article run after it,
+    // which moves the revision on but leaves AI as it was.
+    (card.processingRev ?? 0) < (row.rev ?? 0) ||
+    card.aiTags !== undefined
+  ) {
+    return;
+  }
+  const metadata = card.processingStatus?.metadata?.status;
+  if (metadata !== "pending" && metadata !== "in_progress") {
+    await applyAutoFileRulesToCard(ctx, card._id);
+  }
+};
+
 export const complete = internalMutation({
   args: {
     error: v.optional(v.string()),
@@ -899,6 +936,7 @@ export const complete = internalMutation({
         await queueCardProcessing(ctx, waiting, { archiveOnly: true });
       }
     }
+    await fileCardWithoutAiTags(ctx, row);
     return null;
   },
 });

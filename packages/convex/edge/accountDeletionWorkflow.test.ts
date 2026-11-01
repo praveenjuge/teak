@@ -584,6 +584,32 @@ describe("durable deletion admission and tombstones", () => {
         cardCreatedAt: 1,
         addedAt: 1,
       });
+      await ctx.db.patch(folderId, { autoTags: ["kept"], hasRules: true });
+      await ctx.db.insert("folderRuleApplications", {
+        userId: "permanent-owner",
+        cardId: card,
+        folderId,
+        filed: true,
+        tagKeys: ["kept"],
+      });
+      const ruleRunId = await ctx.db.insert("folderRuleRuns", {
+        userId: "permanent-owner",
+        folderId,
+        status: "done",
+        phase: "file",
+        filedCount: 1,
+        taggedCount: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        expiresAt: 2,
+      });
+      await ctx.db.insert("folderRuleRunChanges", {
+        runId: ruleRunId,
+        userId: "permanent-owner",
+        cardId: card,
+        filed: true,
+        addedTags: ["kept"],
+      });
       await ctx.db.insert("cardSearchDocuments", {
         cardId: card,
         userId: "permanent-owner",
@@ -838,6 +864,9 @@ describe("durable deletion admission and tombstones", () => {
     for (const table of [
       "folders",
       "folderCards",
+      "folderRuleApplications",
+      "folderRuleRuns",
+      "folderRuleRunChanges",
       "cardSearchDocuments",
       "cardSearchTags",
       "cardTextContents",

@@ -5,6 +5,10 @@ export const MAX_FOLDERS_PER_CARD = 50;
 export const MAX_FOLDER_NAME_LENGTH = 300;
 export const MAX_FOLDER_CARD_IDS = 100;
 export const MAX_SMART_FOLDER_QUERY_LENGTH = 500;
+export const MAX_FOLDER_RULES = 50;
+export const MAX_FOLDER_AUTO_TAGS = 10;
+/** How long a rule run's changes are kept, so it can be undone. */
+export const FOLDER_RULE_RUN_UNDO_MS = 24 * 60 * 60 * 1000;
 
 export type FolderKind = "manual" | "smart";
 
@@ -42,6 +46,14 @@ export const FOLDER_ERROR_MESSAGES = {
   QUERY_ON_MANUAL_FOLDER: "Only smart folders have a search",
   SMART_FOLDER_TRASH:
     "Smart folders don't show Trash. To search for the word, put it in quotes",
+  RULES_ON_SMART_FOLDER: "Only manual folders have rules",
+  TOO_MANY_RULES: `You can have rules on up to ${MAX_FOLDER_RULES} folders`,
+  TOO_MANY_AUTO_TAGS: `A folder can add up to ${MAX_FOLDER_AUTO_TAGS} tags`,
+  EMPTY_RULE_QUERY: "Add a search for the cards to file",
+  RULE_QUERY_SIMILARITY:
+    "Folder rules can't use like: or mood:. Search by words, tags, type or site instead",
+  RULE_RUN_NOT_FOUND: "Rule run not found",
+  RULE_RUN_EXPIRED: "This rule run can no longer be undone",
 } as const;
 
 export const normalizeFolderName = (name: string): string => name.trim();
