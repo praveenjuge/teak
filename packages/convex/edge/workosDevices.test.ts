@@ -27,6 +27,18 @@ let repeated: boolean;
 let loseRevokeResponse: boolean;
 let omitRevoked: boolean;
 let revokeStatus: number | null;
+// WorkOS's sessions cursor is the bare ULID of the page's last session.
+const NEXT = "01M6BGVM1DD99GYZ0JV1J5P6HP";
+// When set, the provider pages these sessions the way WorkOS does: newest
+// first, `after` set only while more remain, and an unrecognized cursor
+// served as the first page again.
+let provider: ReturnType<typeof session>[] | null;
+let cursorFor: ((request: string, page: number) => string | null) | null;
+const ulid = (n: number) => `01M6BG${String(n).padStart(20, "0")}`;
+const sessions = (count: number) =>
+  Array.from({ length: count }, (_, index) =>
+    session(`session_${ulid(count - index)}`)
+  );
 function session(id: string, overrides = {}) {
   return {
     object: "session",
@@ -55,6 +67,8 @@ beforeEach(() => {
   loseRevokeResponse = false;
   omitRevoked = false;
   revokeStatus = null;
+  provider = null;
+  cursorFor = null;
   vi.stubGlobal(
     "fetch",
     async (input: Request | URL | string, init?: RequestInit) => {
@@ -98,12 +112,31 @@ beforeEach(() => {
       }
       expect(url.pathname).toBe("/user_management/users/user_OWNER/sessions");
       const cursor = url.searchParams.get("after") ?? "";
+      if (provider) {
+        const limit = Number(url.searchParams.get("limit"));
+        const start =
+          provider.findIndex((item) => item.id === `session_${cursor}`) + 1;
+        const data = provider.slice(start, start + limit);
+        const more = start + limit < provider.length;
+        return Response.json({
+          object: "list",
+          data,
+          list_metadata: {
+            before: null,
+            after:
+              cursorFor?.(cursor, calls.length) ??
+              (more
+                ? (data[data.length - 1]?.id.slice("session_".length) ?? null)
+                : null),
+          },
+        });
+      }
       const data = pages[cursor] ?? [];
       let next: string | null = null;
       if (repeated) {
-        next = `session_PAGE${calls.length}`;
-      } else if (cursor === "" && pages.session_NEXT) {
-        next = "session_NEXT";
+        next = ulid(calls.length);
+      } else if (cursor === "" && pages[NEXT]) {
+        next = NEXT;
       }
       return await Promise.resolve(
         Response.json({
@@ -168,7 +201,7 @@ describe("device requests to WorkOS are limited per account", () => {
   test("a revoke spends a token on every WorkOS page it reads", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const f = await setup();
-    pages.session_NEXT = [session("session_OTHER")];
+    pages[NEXT] = [session("session_OTHER")];
     // Two left: enough for both list pages, not for the revoke after them.
     for (let call = 0; call < deviceRequests - 2; call++) {
       await f.user.action(api.securitySessions.listAuthkitSessions, {
@@ -183,8 +216,100 @@ describe("device requests to WorkOS are limited per account", () => {
     ).rejects.toThrow("RATE_LIMITED");
     expect(calls.map((url) => url.searchParams.get("after"))).toEqual([
       null,
-      "session_NEXT",
+      NEXT,
     ]);
+    expect(revoked).toEqual([]);
+  });
+});
+describe("WorkOS device pages", () => {
+  const list = (f: Awaited<ReturnType<typeof setup>>, cursor: string | null) =>
+    f.user.action(api.securitySessions.listAuthkitSessions, {
+      paginationOpts: { cursor, numItems: 25 },
+    });
+
+  test("loads every device across pages with WorkOS's bare ULID cursor", async () => {
+    const f = await setup();
+    provider = sessions(27);
+    const first = await list(f, null);
+    expect(first.page).toHaveLength(25);
+    expect(first).toMatchObject({ isDone: false, continueCursor: ulid(3) });
+    const last = await list(f, first.continueCursor);
+    expect(last).toMatchObject({
+      page: [{ id: `session_${ulid(2)}` }, { id: `session_${ulid(1)}` }],
+      isDone: true,
+      continueCursor: "",
+    });
+    expect(calls.map((url) => url.searchParams.get("after"))).toEqual([
+      null,
+      ulid(3),
+    ]);
+  });
+
+  test.each([25, 24])(
+    "a last page of %i devices that WorkOS ends without a cursor is done",
+    async (count) => {
+      const f = await setup();
+      provider = sessions(count);
+      expect(await list(f, null)).toMatchObject({
+        isDone: true,
+        continueCursor: "",
+      });
+    }
+  );
+
+  test("an empty page after the last device is done", async () => {
+    const f = await setup();
+    provider = sessions(3);
+    expect(await list(f, ulid(1))).toEqual({
+      page: [],
+      isDone: true,
+      continueCursor: "",
+    });
+  });
+
+  test.each([
+    ["the request's own cursor", (request: string) => request],
+    ["a session id, which WorkOS would not recognize", () => "session_X"],
+    ["an opaque token", () => "not-a-cursor"],
+  ])("refuses a next cursor that is %s", async (_label, next) => {
+    const f = await setup();
+    provider = sessions(60);
+    cursorFor = (request) => next(request);
+    await expect(list(f, ulid(40))).rejects.toThrow("invalid page");
+  });
+
+  test.each([
+    "session_01M6BGVM1DD99GYZ0JV1J5P6HP",
+    "01m6bgvm1dd99gyz0jv1j5p6hp",
+  ])("refuses client cursor %s before reaching WorkOS", async (cursor) => {
+    const f = await setup();
+    await expect(list(f, cursor)).rejects.toThrow("Invalid device page");
+    expect(calls).toEqual([]);
+  });
+
+  test("revoke follows the cursor to a device past the first hundred", async () => {
+    const f = await setup();
+    provider = sessions(130);
+    await f.user.action(api.securitySessions.revokeAuthkitSession, {
+      sessionId: `session_${ulid(1)}`,
+    });
+    expect(revoked).toEqual([`session_${ulid(1)}`]);
+    expect(
+      calls.slice(0, 2).map((url) => url.searchParams.get("after"))
+    ).toEqual([null, ulid(31)]);
+  });
+
+  test("revoke stops when WorkOS cycles back to a cursor it already gave", async () => {
+    const f = await setup();
+    provider = sessions(300);
+    // Page three points back at page two's cursor instead of moving on.
+    cursorFor = (_request, page) => (page === 3 ? ulid(201) : null);
+    await expect(
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
+        sessionId: "session_MISSING",
+      })
+    ).rejects.toThrow("invalid page");
+    expect(calls).toHaveLength(3);
     expect(revoked).toEqual([]);
   });
 });
@@ -196,7 +321,7 @@ describe("owned WorkOS devices", () => {
       session("session_EXPIRED", { expires_at: "2000-01-01T00:00:00.000Z" }),
       session("session_REVOKED", { status: "revoked" }),
     ];
-    pages.session_NEXT = [
+    pages[NEXT] = [
       session("session_OTHER", { user_agent: "<script>private</script>" }),
     ];
     expect(
@@ -213,10 +338,10 @@ describe("owned WorkOS devices", () => {
         },
       ],
       isDone: false,
-      continueCursor: "session_NEXT",
+      continueCursor: NEXT,
     });
     const next = await f.user.action(api.securitySessions.listAuthkitSessions, {
-      paginationOpts: { cursor: "session_NEXT", numItems: 500 },
+      paginationOpts: { cursor: NEXT, numItems: 500 },
     });
     expect(next.page).toMatchObject([
       { id: "session_OTHER", name: "Browser", current: false },
@@ -226,14 +351,14 @@ describe("owned WorkOS devices", () => {
   });
   test("proves target ownership on a later page before provider revoke", async () => {
     const f = await setup();
-    pages.session_NEXT = [session("session_OTHER")];
+    pages[NEXT] = [session("session_OTHER")];
     await f.user.action(api.securitySessions.revokeAuthkitSession, {
       sessionId: "session_OTHER",
     });
     expect(revoked).toEqual(["session_OTHER"]);
     expect(
       calls.slice(0, 2).map((url) => url.searchParams.get("after"))
-    ).toEqual([null, "session_NEXT"]);
+    ).toEqual([null, NEXT]);
   });
   test("revokes the real current AuthKit sid", async () => {
     const f = await setup();
