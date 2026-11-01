@@ -106,7 +106,7 @@ describe("Apple release workflows", () => {
   });
 
   test("supports safe dry runs and scheduled two-platform status checks", () => {
-    expect(status).toContain('cron: "17 */6 * * *"');
+    expect(status).toContain('cron: "2,17,32,47 * * * *"');
     expect(status).toContain("--platform IOS");
     expect(status).toContain("--platform MAC_OS");
     expect(status).toContain("apple-release-issue.ts status");

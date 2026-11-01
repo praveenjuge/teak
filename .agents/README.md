@@ -60,6 +60,8 @@ Teak's own, edited here:
   section is what a delegated verifier returns.
 - `teak-convex-backend` (`packages/convex`) and `teak-core-worker`
   (`apps/core-worker`): the rules and proof steps for those workspaces.
+- `teak-release`: releasing every product from one prompt, in order, with
+  what went wrong last time; the runbooks stay the source for each product.
 
 Vendored, installed with `npx skills` and pinned in the root
 `skills-lock.json` (`scripts/repo/skills-drift.test.ts` checks them). Update
