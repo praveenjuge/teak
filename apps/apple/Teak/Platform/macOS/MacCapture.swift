@@ -59,10 +59,12 @@ enum BackgroundCapture {
                 CaptureHUD.show(failure.isCardLimit ? tr("native.capture.cardLimitMessage") : failure.message, isError: true)
                 finished?(false)
             } else {
-                if services.capture.savedCount > before {
+                // No failure and nothing saved: signing out cut the save short.
+                let saved = services.capture.savedCount > before
+                if saved {
                     CaptureHUD.show(services.capture.lastSaved ?? tr("native.capture.savedToTeak"))
                 }
-                finished?(true)
+                finished?(saved)
             }
         }
     }

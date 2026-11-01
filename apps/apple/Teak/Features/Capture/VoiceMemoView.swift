@@ -229,7 +229,7 @@ struct VoiceMemoView: View {
                 if failure.isCardLimit { capture.alert = failure } else { uploadFailure = failure }
             } else {
                 recording = nil
-                dismiss()
+                close()
             }
         }
     }
@@ -238,6 +238,15 @@ struct VoiceMemoView: View {
         recorder.cancel()
         if let recording { VoiceRecorder.discard(recording) }
         recording = nil
+        close()
+    }
+
+    private func close() {
+        #if os(macOS)
+        // The window's close button is off while busy, which blocks a plain dismiss too.
+        withTransaction(\.dismissBehavior, .destructive) { dismiss() }
+        #else
         dismiss()
+        #endif
     }
 }
