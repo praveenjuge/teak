@@ -247,6 +247,35 @@ describe("MasonryGrid keyboard actions", () => {
     expect(cardElement("card_a").getAttribute("aria-pressed")).toBe("false");
   });
 
+  test("a Delete forever that fails outright keeps every card selected", async () => {
+    const onPermanentDeleteCards = mock(() =>
+      Promise.reject(new Error("network"))
+    );
+    const { cardElement } = await renderGrid({
+      onPermanentDeleteCards,
+      showTrashOnly: true,
+    });
+    await press(cardElement("card_a"), "x");
+    await press(cardElement("card_b"), "x");
+    await press(cardElement("card_b"), "Delete");
+    await waitFor(
+      () =>
+        document.body.textContent?.includes("Delete 2 cards forever?") ?? false
+    );
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[role='alertdialog'] button"
+      ),
+    ].find((button) => button.textContent?.trim() === "Delete forever");
+    await act(async () => {
+      confirm?.click();
+      await Promise.resolve();
+    });
+    await waitFor(
+      () => document.body.textContent?.includes("2 cards selected") ?? false
+    );
+  });
+
   test("a card in the open folder can be removed from it from its menu", async () => {
     const inFolder = { ...card("card_a", "First card"), folderIds: ["f1"] };
     const elsewhere = card("card_b", "Second card");

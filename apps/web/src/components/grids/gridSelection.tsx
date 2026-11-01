@@ -70,13 +70,15 @@ export function useBulkDeleteForever(
       description={tDialog("bulkDescription", { count: cardIds.length })}
       onConfirm={() => {
         setOpen(false);
+        // A delete that failed outright keeps every card selected; the
+        // delete itself reports the error.
         onConfirm(cardIds)
           ?.then(({ failedIds }) => {
             if (failedIds.length > 0) {
               onFailed(...failedIds);
             }
           })
-          .catch(() => undefined);
+          .catch(() => onFailed(...cardIds));
       }}
       onOpenChange={setOpen}
       open={open}

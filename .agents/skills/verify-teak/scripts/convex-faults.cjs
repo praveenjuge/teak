@@ -69,9 +69,10 @@ async function injectFaults(page, rules) {
               journal: mod.journal,
             };
           }
-          if (rules.rewriteQuery && rules.rewriteQuery(name) !== undefined) {
+          const replacement = rules.rewriteQuery?.(name);
+          if (replacement !== undefined) {
             changed = true;
-            return { ...mod, value: rules.rewriteQuery(name) };
+            return { ...mod, value: replacement };
           }
           return mod;
         });

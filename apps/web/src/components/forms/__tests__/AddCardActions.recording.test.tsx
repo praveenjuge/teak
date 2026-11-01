@@ -216,3 +216,31 @@ test("a recording that fails to save stays in the dialog, to save again or downl
   expect(uploadFile).toHaveBeenCalledTimes(2);
   expect(dialog()).toBeNull();
 });
+
+test("while a recording saves it can be downloaded, and closing the dialog doesn't lose it", async () => {
+  let finishSave: (result: unknown) => void = () => undefined;
+  uploadFile.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishSave = resolve;
+      })
+  );
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Stop and Save").click());
+
+  const dialog = () => document.querySelector("[data-dialog]");
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(button("Download").disabled).toBe(false);
+  expect(button("Try again").disabled).toBe(true);
+
+  // Close it while the save waits, as offline it can wait a long time.
+  await act(async () => button("Dismiss").click());
+  expect(dialog()).toBeNull();
+
+  await act(async () => finishSave({ error: "Upload failed", success: false }));
+  expect(dialog()?.querySelector("p")?.textContent).toBe(
+    "Couldn't save the recording. Try again, or download it to keep it."
+  );
+  expect(button("Try again").disabled).toBe(false);
+});

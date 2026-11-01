@@ -167,11 +167,12 @@ export function AddCardProvider({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // A recording whose save failed, kept so it can be saved again or
-  // downloaded rather than lost.
+  // The recording until it's saved, so it can be downloaded meanwhile (a
+  // save can wait a long time offline) and saved again if it fails. `error`
+  // is null while the save runs.
   const [unsaved, setUnsaved] = useState<{
     blob: Blob;
-    error: string;
+    error: string | null;
     extension: string;
   } | null>(null);
 
@@ -258,11 +259,15 @@ export function AddCardProvider({
   const autoSaveAudio = useCallback(
     async (blob: Blob, extension: string) => {
       const toastId = toast.loading(t("savingRecording"));
-      const keep = (error: string) => setUnsaved({ blob, error, extension });
+      // A failed save shows again even if the dialog was closed meanwhile.
+      const keep = (error: string) => {
+        setUnsaved({ blob, error, extension });
+        setIsRecordingDialogOpen(true);
+      };
 
       try {
         setIsSubmitting(true);
-        setUnsaved(null);
+        setUnsaved({ blob, error: null, extension });
 
         const file = new File([blob], `recording_${Date.now()}.${extension}`, {
           type: blob.type,
@@ -282,6 +287,7 @@ export function AddCardProvider({
         });
 
         if (result.success) {
+          setUnsaved(null);
           setRecordingTime(0);
           setIsRecordingDialogOpen(false);
           onSuccess?.();
@@ -446,7 +452,10 @@ export function AddCardProvider({
       setIsRecordingDialogOpen(true);
       return;
     }
+    // A save under way carries on with the dialog closed; it reopens if the
+    // save fails.
     if (isSubmitting) {
+      setIsRecordingDialogOpen(false);
       return;
     }
     if (isRecording || unsaved) {
@@ -536,7 +545,7 @@ export function AddCardProvider({
   };
 
   let recordingStatusDescription = t("startingMicrophone");
-  if (unsaved && !isSubmitting) {
+  if (unsaved?.error && !isSubmitting) {
     recordingStatusDescription = unsaved.error;
   } else if (isSubmitting) {
     recordingStatusDescription = t("savingRecordingStatus");
@@ -612,9 +621,10 @@ export function AddCardProvider({
             <div className="font-mono text-2xl text-primary tabular-nums">
               {formatTime(recordingTime)}
             </div>
-            {unsaved && !isSubmitting ? (
+            {unsaved ? (
               <div className="flex flex-wrap justify-center gap-2">
                 <Button
+                  disabled={isSubmitting}
                   onClick={discardRecording}
                   type="button"
                   variant="outline"
@@ -630,6 +640,7 @@ export function AddCardProvider({
                   {t("downloadRecording")}
                 </Button>
                 <Button
+                  disabled={isSubmitting}
                   onClick={() =>
                     void autoSaveAudio(unsaved.blob, unsaved.extension)
                   }

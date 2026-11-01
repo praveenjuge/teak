@@ -6,8 +6,8 @@ When a read fails, a save fails or the connection drops, Teak says what happened
 
 - `errors-page` shows "Something went wrong. Please try again." with "Try again" (which reloads) in place of a page that fails to render, inside the app: the sidebar, or on phones its toggle, stays. Settings pages show it under the Settings header.
 - `errors-sidebar-folders` shows "Couldn't load your folders." with "Try again" in the sidebar's Folders group when folders can't be read; the views above it keep working (nothing in the collapsed rail).
-- `errors-tags-summary` stops Tags' loading skeleton after two failed attempts to build the tag summary, or 45 seconds without one, and shows "Couldn't load your tags." with "Try again". A summary that arrives later replaces it.
-- `errors-recording-save` keeps an audio recording whose save failed: the "Recording audio" dialog stays open saying "Couldn't save the recording. Try again, or download it to keep it." (or the card-limit or rate-limit reason) with "Discard", "Download" (a `recording_<time>.webm` or `.m4a` file) and "Try again". "Stop and Save" keeps the dialog open as "Saving recording…" until the save ends.
+- `errors-tags-summary` stops Tags' loading skeleton after two failed attempts to build the tag summary and shows "Couldn't load your tags." with "Try again" (which asks once more, without a reload). An attempt counts as failed when its request fails, or after 45 seconds without a summary; the second starts 5 seconds after the first fails, so a request that never answers shows the message after about 95 seconds. A summary that arrives later replaces it.
+- `errors-recording-save` keeps an audio recording until it's saved. "Stop and Save" keeps the dialog open as "Saving recording…" with "Download" (a `recording_<time>.webm` or `.m4a` file) available throughout; closing it lets the save carry on. If the save fails, the "Recording audio" dialog opens (again) saying "Couldn't save the recording. Try again, or download it to keep it." (or the card-limit or rate-limit reason) with "Discard", "Download" and "Try again", which saves again without a reload.
 - `errors-media-refresh` asks once for a fresh link when media fails to load: a link tile then falls back to its screenshot, and the card dialog's image, video, GIF and audio player reload with the new link before saying they're unavailable.
 - `errors-bulk-delete-forever` keeps the cards a bulk "Delete forever" couldn't delete selected ("1 card selected"), like every other bulk action.
 - `errors-sign-out` shows "Failed to sign out. Please try again." when signing out fails from the command palette or the blocked-account screen, as Settings already did.
@@ -45,6 +45,6 @@ Failures come from `scripts/convex-faults.cjs`, which makes named Convex functio
 
 - Inject faults before the page's first navigation; the helper wraps the socket as it opens.
 - Playwright's WebKit lets the clipboard be written after an await, which Safari doesn't, so copying an image works there before and after the fix; the unit test in `hooks/__tests__/useCardClipboard.test.ts` checks the write starts within the click.
-- "Try again" on these errors reloads the page: the query cache would hand a plain retry the same error.
+- "Try again" on the page error and the sidebar's folders error reloads the page: the query cache would hand a plain retry the same error. Tags' "Try again" and the recording's "Try again" retry in place.
 - The sign-out check really signs out if the route misses the request; sign in again (save new `storageState`) if it does.
 - Deleting the account can't be driven on the shared dev account; `lib/__tests__/accountDeletion.test.ts` and `hooks/__tests__/useSettingsController.delete.test.tsx` cover it.
