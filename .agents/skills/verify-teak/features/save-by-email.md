@@ -12,7 +12,7 @@ A user turns on Save by email in Settings and sends or forwards anything to `sav
 
 ## How to get to it (user POV)
 
-- Settings → Integrations (`/settings/integrations`) → region "Save by email" → "Turn on" / "Copy address" / "Turn off". Account's Integrations summary reads "Save by email on" or "Save by email off".
+- Settings → Integrations (`/settings/integrations`) → region "Save by email" → switch "Save by email" (on/off) / "Copy address". Account's Integrations summary reads "Save by email on" or "Save by email off".
 - In the library: search `#email`, or open a card saved by email.
 
 ## Driving it with e2e MCP
@@ -26,7 +26,7 @@ Preconditions:
 
 Steps:
 
-- **Settings.** `navigate` to `/settings`: the Integrations summary reads "Save by email on · …" (seeded). `navigate` to `/settings/integrations`: region "Save by email" has "Turn off" beside its title and shows `save@in.teakvault.com` (or the dev domain), then one line "Send from <sign-in email>…  Last email received …". `click` "Copy address": the toast "Address copied". `click` "Turn off": the button reads "Turn on" and the address is gone, and Account's summary reads "Save by email off". `click` "Turn on" again.
+- **Settings.** `navigate` to `/settings`: the Integrations summary reads "Save by email on · …" (seeded). `navigate` to `/settings/integrations`: region "Save by email" has the switch "Save by email" checked beside its title and shows `save@in.teakvault.com` (or the dev domain), then one line "Send from <sign-in email>…  Last email received …". `click` "Copy address": the toast "Address copied". `click` switch "Save by email": it reads unchecked, the address is gone, and Account's summary reads "Save by email off". `click` it again to turn it back on.
 - **Note.** `press` "/" and `type` "#scenario-email-in". Open the note headed "The Weekly Leaf — issue 12": it has "Read: Why maples blush" linking to `https://example.com/maples`, no tracking images, and no "utm_" in any link.
 - **Link.** In the same results, the link card for `example.com/essays/slow-reading` has the note "Worth a read:".
 - **Attachments.** `type` "#scenario-email-attachments" with `replace: true`: the body note and document cards "Itinerary.pdf", "Receipt.pdf", two "Scan.pdf", "請求書.pdf" are listed.

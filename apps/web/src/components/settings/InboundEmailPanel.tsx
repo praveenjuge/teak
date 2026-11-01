@@ -3,11 +3,12 @@
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Copy } from "vadivam-react";
+import { Copy, Mail } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";
-import { SettingsSection } from "./SettingsSection";
+import { SettingsSection, SettingsTile } from "./SettingsSection";
+import { SettingsSwitch } from "./SettingsSwitch";
 
 /** What `inbound.settings.getMine` returns for the signed-in account. */
 export interface InboundEmailState {
@@ -37,7 +38,7 @@ function MiddleTruncatedAddress({ address }: { address: string }) {
   const middle = at > 0 ? at : Math.ceil(address.length / 2);
   return (
     <span
-      className="flex h-9 min-w-0 flex-1 items-center rounded-md border bg-muted/40 px-3 font-mono text-sm"
+      className="flex h-8 min-w-0 flex-1 items-center rounded-md bg-muted px-3 font-mono text-[13px]"
       data-slot="inbound-address"
       title={address}
     >
@@ -91,6 +92,7 @@ export function InboundEmailSection({
   };
 
   const intro = t("intro");
+  const title = tIntegrations("saveByEmailTitle");
   const section = (props: {
     action?: ReactNode;
     children?: ReactNode;
@@ -99,8 +101,10 @@ export function InboundEmailSection({
     <SettingsSection
       action={props.action}
       description={props.description ?? intro}
+      flush
+      icon={<SettingsTile icon={Mail} tone="blue" />}
       id="save-by-email"
-      title={tIntegrations("saveByEmailTitle")}
+      title={title}
     >
       {props.children}
     </SettingsSection>
@@ -111,7 +115,7 @@ export function InboundEmailSection({
       action: (
         <span
           aria-busy="true"
-          className="block h-8 w-20 animate-pulse rounded-full bg-muted"
+          className="block h-[22px] w-[38px] animate-pulse rounded-full bg-muted"
           role="status"
         >
           <span className="sr-only">{t("loading")}</span>
@@ -121,7 +125,7 @@ export function InboundEmailSection({
   }
 
   const errorLine = error ? (
-    <p className="text-destructive text-xs leading-5" role="alert">
+    <p className="px-4 py-2.5 text-destructive text-xs leading-5" role="alert">
       {error}
     </p>
   ) : null;
@@ -130,14 +134,15 @@ export function InboundEmailSection({
     const unverified = state ? !state.senderVerified : false;
     return section({
       action: (
-        <Button
-          disabled={state === null || unverified || busy !== null}
-          onClick={() => void run("enable", onEnable)}
-          size="sm"
-        >
-          {busy === "enable" ? <Spinner /> : null}
-          {t("turnOn")}
-        </Button>
+        <>
+          {busy === "enable" ? <Spinner aria-label={t("turnOn")} /> : null}
+          <SettingsSwitch
+            checked={false}
+            disabled={state === null || unverified || busy !== null}
+            label={title}
+            onCheckedChange={() => void run("enable", onEnable)}
+          />
+        </>
       ),
       description: unverified
         ? t.rich("verifyToTurnOn", {
@@ -163,30 +168,31 @@ export function InboundEmailSection({
 
   return section({
     action: (
-      <Button
-        disabled={busy !== null}
-        onClick={() => void run("disable", onDisable)}
-        size="sm"
-        variant="outline"
-      >
-        {busy === "disable" ? <Spinner /> : null}
-        {t("turnOff")}
-      </Button>
+      <>
+        {busy === "disable" ? <Spinner aria-label={t("turnOff")} /> : null}
+        <SettingsSwitch
+          checked
+          disabled={busy !== null}
+          label={title}
+          onCheckedChange={() => void run("disable", onDisable)}
+        />
+      </>
     ),
     children: (
-      <div className="space-y-2">
-        <div className="flex min-w-0 gap-2">
+      <>
+        <div className="flex min-w-0 items-center gap-2 px-4 py-3">
           <MiddleTruncatedAddress address={state.address} />
           <Button
             aria-label={t("copyAddress")}
             onClick={() => void copy(state.address)}
+            size="sm"
             variant="outline"
           >
             <Copy />
             {tc("copy")}
           </Button>
         </div>
-        <p className="flex flex-wrap gap-x-2 text-[13px] text-muted-foreground leading-5">
+        <p className="flex flex-wrap gap-x-2 px-4 py-2.5 text-[13px] text-muted-foreground leading-5">
           <span>
             {t.rich(state.senderVerified ? "sendFrom" : "unverified", {
               sender: state.sender,
@@ -196,7 +202,7 @@ export function InboundEmailSection({
           {lastReceived ? <span>{lastReceived}</span> : null}
         </p>
         {errorLine}
-      </div>
+      </>
     ),
   });
 }

@@ -84,7 +84,7 @@ test("save by email: turn it on, then mail and its attachment become cards", {
   await gotoApp(browser, "/settings/integrations");
   await screen
     .getByRole("region", "Save by email")
-    .getByRole("button", "Turn on")
+    .getByRole("switch", "Save by email")
     .click();
   await expect(screen.getByText("save@in.teakvault.com")).toBeVisible();
   await expect(

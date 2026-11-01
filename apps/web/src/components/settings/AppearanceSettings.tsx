@@ -5,9 +5,9 @@ import type { ThemeValue } from "@/constants/settings";
 import type { LanguageSetting } from "@/hooks/useLanguageSetting";
 import { LanguageRow } from "./LanguageRow";
 import {
+  SettingsGroup,
   SettingsPageIntro,
-  SettingsSection,
-  SettingsStack,
+  SettingsRow,
 } from "./SettingsSection";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -24,27 +24,21 @@ export function AppearanceSettings({
   const tPages = useTranslations("settings.pages");
   return (
     <>
-      <SettingsPageIntro
-        description={tPages("appearance.description")}
-        title={tPages("appearance.title")}
-      />
-      <SettingsStack>
-        <SettingsSection
-          description={t("themeDescription")}
+      <SettingsPageIntro title={tPages("appearance.title")} />
+      <SettingsGroup>
+        <SettingsRow
+          action={<ThemeToggle onThemeChange={onThemeChange} />}
           id="theme"
-          title={t("themeTitle")}
-        >
-          <ThemeToggle onThemeChange={onThemeChange} />
-        </SettingsSection>
+          label={t("themeTitle")}
+        />
         {language ? (
-          <SettingsSection
+          <SettingsRow
             action={<LanguageRow {...language} />}
-            description={t("languageDescription")}
             id="language"
-            title={t("languageTitle")}
+            label={t("languageTitle")}
           />
         ) : null}
-      </SettingsStack>
+      </SettingsGroup>
     </>
   );
 }

@@ -3,12 +3,12 @@
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CircleCheck } from "vadivam-react";
+import { Archive, CircleCheck } from "vadivam-react";
 import { useLocalDateFormat } from "../../hooks/useLocalDateFormat";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatCountdown } from "./importExportFormat";
-import { SettingsSection } from "./SettingsSection";
+import { SettingsRow, SettingsSection, SettingsTile } from "./SettingsSection";
 
 export type ExportJobStatus =
   | "pending"
@@ -175,11 +175,12 @@ export function ExportPanel({
   }
 
   let action: ReactNode;
-  let status: ReactNode;
+  let label: ReactNode = t("title");
+  let description: ReactNode = null;
+  let icon: ReactNode = <SettingsTile icon={Archive} />;
   let footnote: ReactNode = null;
   if (isLoading) {
     action = <Spinner className="text-muted-foreground" />;
-    status = null;
   } else if (isActive) {
     action = (
       <Button
@@ -191,23 +192,23 @@ export function ExportPanel({
         {isBusy ? <Spinner /> : t("cancelExport")}
       </Button>
     );
-    status = (
-      <>
-        <Spinner className="size-4 shrink-0" />
-        <span className="font-medium text-foreground">{activeTitle}</span>
-        <span>{activeSubtitle}</span>
-      </>
+    icon = (
+      <span className="flex size-7 shrink-0 items-center justify-center">
+        <Spinner className="size-4" />
+      </span>
     );
+    label = activeTitle;
+    description = activeSubtitle;
   } else if (canDownload && job) {
     action = (
       <Button disabled={isBusy} onClick={handleDownload} size="sm">
         {isBusy ? <Spinner /> : t("downloadArchive")}
       </Button>
     );
-    status = (
-      <>
-        <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <span className="font-medium text-foreground">{t("ready")}</span>
+    icon = <SettingsTile icon={CircleCheck} tone="emerald" />;
+    label = t("ready");
+    description = (
+      <span className="flex flex-wrap gap-x-2 [&>span+span]:before:mr-2 [&>span+span]:before:content-['·']">
         <span>{t("cardCount", { count: job.cardCount ?? 0 })}</span>
         {typeof job.artifactBytes === "number" ? (
           <span>{formatBytes(job.artifactBytes, locale)}</span>
@@ -222,7 +223,7 @@ export function ExportPanel({
             {t("availableUntil", { date: formatDate(job.expiresAt) })}
           </span>
         ) : null}
-      </>
+      </span>
     );
     // The weekly limit still applies while the archive waits to be
     // downloaded, so say when the next export can start.
@@ -233,7 +234,12 @@ export function ExportPanel({
     }
   } else {
     action = canStartNew ? (
-      <Button disabled={isBusy} onClick={handleStart} size="sm">
+      <Button
+        disabled={isBusy}
+        onClick={handleStart}
+        size="sm"
+        variant="outline"
+      >
         {isBusy ? <Spinner /> : t("startExport")}
       </Button>
     ) : (
@@ -252,29 +258,24 @@ export function ExportPanel({
         })}
       </Button>
     );
-    status = <span>{idleCaption}</span>;
+    description = idleCaption;
   }
 
   return (
-    <SettingsSection
-      action={action}
-      description={tData("exportDescription")}
-      id="export"
-      title={tData("exportTitle")}
-    >
-      {status ? (
-        <p
-          aria-live="polite"
-          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground leading-5 [&>span+span]:before:mr-2 [&>span+span]:before:content-['·']"
-        >
-          {status}
-        </p>
-      ) : null}
-      {footnote ? (
-        <p className="mt-1 text-[13px] text-muted-foreground leading-5">
-          {footnote}
-        </p>
-      ) : null}
+    <SettingsSection id="export" layout="list" title={tData("exportTitle")}>
+      <div aria-live="polite">
+        <SettingsRow
+          action={action}
+          description={description}
+          icon={icon}
+          label={label}
+        />
+        {footnote ? (
+          <p className="border-t px-4 py-2.5 text-[13px] text-muted-foreground leading-5">
+            {footnote}
+          </p>
+        ) : null}
+      </div>
     </SettingsSection>
   );
 }

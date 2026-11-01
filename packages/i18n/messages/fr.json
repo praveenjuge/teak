@@ -40,7 +40,8 @@
       "docs": "Documentation",
       "changelog": "Nouveautés",
       "support": "Aide",
-      "version": "Version {version}"
+      "version": "Version {version}",
+      "versionLabel": "Version"
     },
     "header": {
       "title": "Réglages",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "ou déposez-le ici",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "Fichier"
     },
     "format": {
       "justNow": "à l’instant",
@@ -417,7 +419,11 @@
       "limitReached": "Vous avez atteint la limite de fiches de la formule gratuite. Passez à Pro pour continuer à enregistrer.",
       "unlimited": "{count, plural, one {# fiche enregistrée} other {# fiches enregistrées}}, sans limite.",
       "manageDescription": "Modifiez ou résiliez votre formule, et consultez vos factures.",
-      "includedTitle": "Inclus dans votre formule"
+      "includedTitle": "Inclus dans votre formule",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "Tout, sans limite.",
+      "proThanks": "Merci de soutenir Teak.",
+      "billingTitle": "Facturation"
     },
     "appearance": {
       "themeTitle": "Thème",
@@ -437,7 +443,8 @@
         "apple": "iPhone et Mac",
         "raycast": "Raycast"
       },
-      "allApps": "Toutes les applications"
+      "allApps": "Toutes les applications",
+      "get": "Obtenir"
     },
     "data": {
       "importTitle": "Importer",

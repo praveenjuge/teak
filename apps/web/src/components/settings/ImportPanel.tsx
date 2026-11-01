@@ -56,7 +56,7 @@ import {
   formatRelativeTime,
 } from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";
-import { SettingsSection } from "./SettingsSection";
+import { SettingsRow, SettingsSection, SettingsTile } from "./SettingsSection";
 
 interface ImportJob {
   completedAt?: number;
@@ -583,25 +583,11 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   return (
-    <SettingsSection
-      description={tData("importDescription")}
-      id="import"
-      title={tData("importTitle")}
-    >
-      <div className="min-w-0 space-y-4 text-sm">
-        {state.kind === "confirming" ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border px-4 py-3">
-            <FileText className="size-[18px] shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">
-                {state.pending.file.name}
-              </div>
-              <div className="text-muted-foreground text-xs leading-5">
-                {t(`sources.${state.pending.mode}.title`)} ·{" "}
-                {formatBytes(state.pending.file.size, locale)}
-              </div>
-            </div>
-            <div className="flex gap-2">
+    <SettingsSection id="import" layout="list" title={tData("importTitle")}>
+      {state.kind === "confirming" ? (
+        <SettingsRow
+          action={
+            <>
               <Button
                 onClick={() => setPending(null)}
                 size="sm"
@@ -612,33 +598,34 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               <Button onClick={confirmPending} size="sm">
                 {state.resume ? t("resumeUpload") : t("startImport")}
               </Button>
-            </div>
-          </div>
-        ) : null}
+            </>
+          }
+          description={`${t(`sources.${state.pending.mode}.title`)} · ${formatBytes(state.pending.file.size, locale)}`}
+          icon={<SettingsTile icon={FileText} />}
+          label={
+            <span className="block truncate">{state.pending.file.name}</span>
+          }
+        />
+      ) : null}
 
-        {state.kind === "idle" ? (
-          // biome-ignore lint/a11y/noStaticElementInteractions: dropping a file is a shortcut; "Choose file" does the same with the keyboard.
-          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: as above
-          <div
-            className={cn(
-              "flex flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-6 text-center transition-colors",
-              dragging && "border-primary bg-primary/5"
-            )}
-            data-no-drop=""
-            onDragLeave={() => setDragging(false)}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDrop={dropFile}
-          >
-            <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Upload className="size-4" />
-            </span>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Label className="sr-only" htmlFor="import-source">
-                {t("importFrom")}
-              </Label>
+      {state.kind === "idle" ? (
+        // biome-ignore lint/a11y/noStaticElementInteractions: dropping a file is a shortcut; "Choose file" does the same with the keyboard.
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: as above
+        <div
+          className={cn(
+            "divide-y transition-colors",
+            dragging && "bg-primary/5"
+          )}
+          data-no-drop=""
+          onDragLeave={() => setDragging(false)}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDrop={dropFile}
+        >
+          <SettingsRow
+            action={
               <Select
                 onValueChange={(value) => setSource(value as ImportMode)}
                 value={source}
@@ -650,7 +637,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent align="end">
                   {IMPORT_PICKER_MODES.map((mode) => (
                     <SelectItem key={mode} value={mode}>
                       {t(`sources.${mode}.title`)}
@@ -658,27 +645,54 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={() => fileInput.current?.click()} size="sm">
-                {t("chooseFile")}
-              </Button>
-              <span className="pointer-coarse:hidden text-muted-foreground text-xs">
-                {t("orDrop")}
+            }
+            label={
+              <Label className="font-normal" htmlFor="import-source">
+                {t("importFrom")}
+              </Label>
+            }
+          />
+          <SettingsRow
+            action={
+              <>
+                <span className="pointer-coarse:hidden text-muted-foreground text-xs max-sm:hidden">
+                  {t("orDrop")}
+                </span>
+                <Button
+                  onClick={() => fileInput.current?.click()}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Upload />
+                  {t("chooseFile")}
+                </Button>
+              </>
+            }
+            description={<ImportSourceHint mode={source} />}
+            label={t("file")}
+          />
+          {latest === null ? null : (
+            <div className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-muted-foreground text-xs leading-5">
+              {lastLoading ? <Spinner className="size-4" /> : null}
+              <span className="min-w-0 break-words">
+                {lastText}
+                {latest?.fileName ? (
+                  <span className="block break-words">
+                    {t("lastImportFile", {
+                      file: latest.fileName,
+                      source: t(`sources.${latest.mode}.title`),
+                    })}
+                  </span>
+                ) : null}
               </span>
             </div>
-            <div className="max-w-md space-y-1">
-              <ImportSourceHint mode={source} />
-            </div>
-          </div>
-        ) : null}
+          )}
+        </div>
+      ) : null}
 
-        {state.kind === "interrupted" ? (
-          <div className="space-y-2 rounded-xl border p-4">
-            <div className="font-medium">{t("uploadInterrupted")}</div>
-            <div className="text-muted-foreground">
-              {t("resumeHint", {
-                source: t(`sources.${state.job.mode}.title`),
-              })}
-            </div>
+      {state.kind === "interrupted" ? (
+        <SettingsRow
+          action={
             <Button
               onClick={() => resumeInput.current?.click()}
               size="sm"
@@ -687,116 +701,107 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               <Upload />
               {t("resumeUpload")}
             </Button>
-          </div>
-        ) : null}
-
-        <input
-          accept={acceptFor(source)}
-          aria-label={t("chooseFileFrom", {
-            source: t(`sources.${source}.title`),
+          }
+          description={t("resumeHint", {
+            source: t(`sources.${state.job.mode}.title`),
           })}
-          className="hidden"
-          onChange={(event) => handleInputChange(event, source)}
-          ref={fileInput}
-          type="file"
+          label={t("uploadInterrupted")}
         />
-        <input
-          accept={ALL_EXTENSIONS}
-          aria-label={t("chooseResumeFile")}
-          className="hidden"
-          onChange={handleResumeInput}
-          ref={resumeInput}
-          type="file"
-        />
+      ) : null}
 
-        {state.kind === "running" ? (
+      <input
+        accept={acceptFor(source)}
+        aria-label={t("chooseFileFrom", {
+          source: t(`sources.${source}.title`),
+        })}
+        className="hidden"
+        onChange={(event) => handleInputChange(event, source)}
+        ref={fileInput}
+        type="file"
+      />
+      <input
+        accept={ALL_EXTENSIONS}
+        aria-label={t("chooseResumeFile")}
+        className="hidden"
+        onChange={handleResumeInput}
+        ref={resumeInput}
+        type="file"
+      />
+
+      {state.kind === "running" ? (
+        <div className="min-w-0 px-4 py-3 text-sm">
           <ImportProgressSummary
             job={state.job}
             uploadPercent={uploadPercent}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        {running ||
-        state.kind === "interrupted" ||
-        (state.kind === "confirming" && state.resume) ? (
-          <Button onClick={() => void cancel()} size="sm" variant="outline">
+      {running ||
+      state.kind === "interrupted" ||
+      (state.kind === "confirming" && state.resume) ? (
+        <div className="flex justify-end px-4 py-2.5">
+          <Button onClick={() => void cancel()} size="sm" variant="ghost">
             {t("cancelImport")}
           </Button>
-        ) : null}
+        </div>
+      ) : null}
 
-        {state.kind === "idle" && latest !== null ? (
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
-            {lastLoading ? <Spinner className="size-4" /> : null}
-            <span className="min-w-0 break-words">
-              {lastText}
-              {latest?.fileName ? (
-                <span className="block break-words">
-                  {t("lastImportFile", {
-                    file: latest.fileName,
-                    source: t(`sources.${latest.mode}.title`),
-                  })}
-                </span>
-              ) : null}
-            </span>
-          </div>
-        ) : null}
+      {terminalFailure ? (
+        <div className="min-w-0 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+          <div className="font-medium">{t("importStopped")}</div>
+          <p className="mt-1 break-words">{terminalFailure}</p>
+        </div>
+      ) : null}
 
-        {terminalFailure ? (
-          <div className="min-w-0 rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-destructive">
-            <div className="font-medium">{t("importStopped")}</div>
-            <p className="mt-1 break-words">{terminalFailure}</p>
-          </div>
-        ) : null}
-
-        {finishedJob && failureSamples && failureSamples.length > 0 ? (
-          <div className="min-w-0 space-y-1.5">
-            <div className="font-medium">{t("failedItems")}</div>
-            <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
-              {failureSamples.map((sample) => (
-                <li
-                  className="flex min-w-0 items-start gap-2"
-                  key={`${sample.sourceIndex}-${sample.item}`}
-                >
-                  <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-                  <span className="min-w-0">
-                    {/* Older imports wrote reasons like "Row 4 has no url"
-                    under the label "Row 4". */}
-                    {sample.reason.startsWith(`${sample.item} `) ? null : (
-                      <span className="block break-words">{sample.item}</span>
-                    )}
-                    <span className="block break-words text-muted-foreground">
-                      {sample.reason}
-                    </span>
+      {finishedJob && failureSamples && failureSamples.length > 0 ? (
+        <div className="min-w-0 space-y-1.5 px-4 py-3 text-sm">
+          <div className="font-medium">{t("failedItems")}</div>
+          <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
+            {failureSamples.map((sample) => (
+              <li
+                className="flex min-w-0 items-start gap-2"
+                key={`${sample.sourceIndex}-${sample.item}`}
+              >
+                <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+                <span className="min-w-0">
+                  {/* Older imports wrote reasons like "Row 4 has no url"
+                  under the label "Row 4". */}
+                  {sample.reason.startsWith(`${sample.item} `) ? null : (
+                    <span className="block break-words">{sample.item}</span>
+                  )}
+                  <span className="block break-words text-muted-foreground">
+                    {sample.reason}
                   </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
-        {!running && job?.reportAvailable ? (
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <Button
-              className="min-w-0"
-              onClick={() => void copyReport()}
-              size="sm"
-              variant="outline"
-            >
-              <Copy />
-              {t("copyReport")}
-            </Button>
-            <Button
-              className="min-w-0"
-              onClick={() => void downloadReport()}
-              size="sm"
-              variant="outline"
-            >
-              <Download />
-              {t("downloadReport")}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      {!running && job?.reportAvailable ? (
+        <div className="flex min-w-0 flex-wrap justify-end gap-2 px-4 py-2.5">
+          <Button
+            className="min-w-0"
+            onClick={() => void copyReport()}
+            size="sm"
+            variant="outline"
+          >
+            <Copy />
+            {t("copyReport")}
+          </Button>
+          <Button
+            className="min-w-0"
+            onClick={() => void downloadReport()}
+            size="sm"
+            variant="outline"
+          >
+            <Download />
+            {t("downloadReport")}
+          </Button>
+        </div>
+      ) : null}
     </SettingsSection>
   );
 }

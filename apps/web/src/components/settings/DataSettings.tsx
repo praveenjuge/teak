@@ -23,10 +23,7 @@ export function DataSettings({
   const tPages = useTranslations("settings.pages");
   return (
     <>
-      <SettingsPageIntro
-        description={tPages("data.description")}
-        title={tPages("data.title")}
-      />
+      <SettingsPageIntro title={tPages("data.title")} />
       <SettingsStack>
         <ImportPanel />
         <ExportPanel

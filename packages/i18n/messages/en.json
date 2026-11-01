@@ -40,7 +40,8 @@
       "docs": "Docs",
       "changelog": "Changelog",
       "support": "Help",
-      "version": "Version {version}"
+      "version": "Version {version}",
+      "versionLabel": "Version"
     },
     "header": {
       "title": "Settings",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "or drop it here",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "File"
     },
     "format": {
       "justNow": "just now",
@@ -417,7 +419,11 @@
       "limitReached": "You’ve reached the free plan’s card limit. Upgrade to keep saving.",
       "unlimited": "{count, plural, one {# card saved} other {# cards saved}}, with no limit.",
       "manageDescription": "Change or cancel your plan, and see your invoices.",
-      "includedTitle": "Included in your plan"
+      "includedTitle": "Included in your plan",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "Everything, unlimited.",
+      "proThanks": "Thanks for supporting Teak.",
+      "billingTitle": "Billing"
     },
     "appearance": {
       "themeTitle": "Theme",
@@ -437,7 +443,8 @@
         "apple": "iPhone & Mac",
         "raycast": "Raycast"
       },
-      "allApps": "All apps"
+      "allApps": "All apps",
+      "get": "Get"
     },
     "data": {
       "importTitle": "Import",

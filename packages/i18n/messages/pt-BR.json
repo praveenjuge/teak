@@ -40,7 +40,8 @@
       "docs": "Documentação",
       "changelog": "Novidades",
       "support": "Ajuda",
-      "version": "Versão {version}"
+      "version": "Versão {version}",
+      "versionLabel": "Versão"
     },
     "header": {
       "title": "Configurações",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "ou solte aqui",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "Arquivo"
     },
     "format": {
       "justNow": "agora mesmo",
@@ -417,7 +419,11 @@
       "limitReached": "Você atingiu o limite de cards do plano Grátis. Faça upgrade para continuar salvando.",
       "unlimited": "{count, plural, one {# card salvo} other {# cards salvos}}, sem limite.",
       "manageDescription": "Altere ou cancele seu plano e veja suas faturas.",
-      "includedTitle": "Incluído no seu plano"
+      "includedTitle": "Incluído no seu plano",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "Tudo, sem limites.",
+      "proThanks": "Obrigado por apoiar o Teak.",
+      "billingTitle": "Cobrança"
     },
     "appearance": {
       "themeTitle": "Tema",
@@ -437,7 +443,8 @@
         "apple": "iPhone e Mac",
         "raycast": "Raycast"
       },
-      "allApps": "Todos os apps"
+      "allApps": "Todos os apps",
+      "get": "Baixar"
     },
     "data": {
       "importTitle": "Importar",

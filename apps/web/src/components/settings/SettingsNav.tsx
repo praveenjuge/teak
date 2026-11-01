@@ -5,14 +5,42 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   SETTINGS_SECTIONS,
+  type SettingsSectionId,
   settingsSectionForPath,
 } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
+import { SettingsTile, type SettingsTileTone } from "./SettingsSection";
+
+const SECTION_TONES: Record<SettingsSectionId, SettingsTileTone> = {
+  account: "gray",
+  plan: "amber",
+  appearance: "indigo",
+  integrations: "emerald",
+  security: "blue",
+  data: "cyan",
+};
+
+/** A settings page's icon on its own colored tile. */
+export function SettingsSectionTile({
+  id,
+  size = "sm",
+}: {
+  id: SettingsSectionId;
+  size?: "sm" | "md";
+}) {
+  const section = SETTINGS_SECTIONS.find((item) => item.id === id);
+  if (!section) {
+    return null;
+  }
+  return (
+    <SettingsTile icon={section.icon} size={size} tone={SECTION_TONES[id]} />
+  );
+}
 
 // Labels wrap rather than truncate: "Import & export" runs long in German,
 // French and the pseudo-locale.
 const NAV_LINK =
-  "flex min-h-8 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm leading-5 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring [&>svg]:size-4 [&>svg]:shrink-0";
+  "flex min-h-8 items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm leading-5 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring";
 
 export function SettingsNav() {
   const t = useTranslations("settings.nav");
@@ -21,7 +49,7 @@ export function SettingsNav() {
   return (
     <nav aria-label={t("label")}>
       <ul className="space-y-0.5">
-        {SETTINGS_SECTIONS.map(({ href, icon: Icon, id }) => {
+        {SETTINGS_SECTIONS.map(({ href, id }) => {
           const current = active?.id === id;
           return (
             <li key={id}>
@@ -35,7 +63,7 @@ export function SettingsNav() {
                 )}
                 href={href}
               >
-                <Icon />
+                <SettingsSectionTile id={id} />
                 <span className="min-w-0 break-words">{t(id)}</span>
               </Link>
             </li>

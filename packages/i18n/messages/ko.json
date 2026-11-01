@@ -40,7 +40,8 @@
       "docs": "문서",
       "changelog": "변경 사항",
       "support": "도움말",
-      "version": "버전 {version}"
+      "version": "버전 {version}",
+      "versionLabel": "버전"
     },
     "header": {
       "title": "설정",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "또는 여기에 놓기",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "파일"
     },
     "format": {
       "justNow": "방금 전",
@@ -417,7 +419,11 @@
       "limitReached": "무료 요금제의 카드 한도에 도달했습니다. 계속 저장하려면 업그레이드하세요.",
       "unlimited": "{count, plural, other {카드 #개 저장됨}}, 한도 없음.",
       "manageDescription": "요금제를 변경하거나 해지하고 청구서를 확인합니다.",
-      "includedTitle": "요금제에 포함된 기능"
+      "includedTitle": "요금제에 포함된 기능",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "모든 기능을 무제한으로.",
+      "proThanks": "Teak을 응원해 주셔서 감사합니다.",
+      "billingTitle": "결제"
     },
     "appearance": {
       "themeTitle": "테마",
@@ -437,7 +443,8 @@
         "apple": "iPhone 및 Mac",
         "raycast": "Raycast"
       },
-      "allApps": "모든 앱"
+      "allApps": "모든 앱",
+      "get": "받기"
     },
     "data": {
       "importTitle": "가져오기",

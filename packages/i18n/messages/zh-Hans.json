@@ -40,7 +40,8 @@
       "docs": "文档",
       "changelog": "更新日志",
       "support": "帮助",
-      "version": "版本 {version}"
+      "version": "版本 {version}",
+      "versionLabel": "版本"
     },
     "header": {
       "title": "设置",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "或拖放到这里",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "文件"
     },
     "format": {
       "justNow": "刚刚",
@@ -417,7 +419,11 @@
       "limitReached": "你已达到免费方案的卡片上限。升级后即可继续保存。",
       "unlimited": "{count, plural, other {已保存 # 张卡片}}，没有上限。",
       "manageDescription": "更改或取消方案，并查看你的发票。",
-      "includedTitle": "你的方案包含"
+      "includedTitle": "你的方案包含",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "一切，无限制。",
+      "proThanks": "感谢您支持 Teak。",
+      "billingTitle": "账单"
     },
     "appearance": {
       "themeTitle": "主题",
@@ -437,7 +443,8 @@
         "apple": "iPhone 和 Mac",
         "raycast": "Raycast"
       },
-      "allApps": "所有应用"
+      "allApps": "所有应用",
+      "get": "获取"
     },
     "data": {
       "importTitle": "导入",
