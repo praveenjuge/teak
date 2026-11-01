@@ -137,10 +137,7 @@ export function SettingsList({
   label?: string;
 }) {
   return (
-    <ul
-      aria-label={label}
-      className={cn("divide-y rounded-xl border", className)}
-    >
+    <ul aria-label={label} className={cn("divide-y", className)}>
       {children}
     </ul>
   );
@@ -158,10 +155,10 @@ export function SettingsListSkeleton({
   return (
     <div aria-busy="true" role="status">
       <span className="sr-only">{label}</span>
-      <div aria-hidden className="divide-y rounded-xl border">
+      <div aria-hidden className="divide-y">
         {SKELETON_ROW_KEYS.slice(0, rows).map((key) => (
           <div className="flex items-center gap-3 px-4 py-3" key={key}>
-            <span className="size-9 shrink-0 animate-pulse rounded-xl bg-muted" />
+            <span className="size-7 shrink-0 animate-pulse rounded-lg bg-muted" />
             <span className="flex-1 space-y-2">
               <span className="block h-3 w-2/5 animate-pulse rounded-full bg-muted" />
               <span className="block h-3 w-1/4 animate-pulse rounded-full bg-muted" />
@@ -174,5 +171,9 @@ export function SettingsListSkeleton({
 }
 
 export function SettingsEmptyState({ children }: { children: ReactNode }) {
-  return <p className="text-[13px] text-muted-foreground">{children}</p>;
+  return (
+    <p className="px-4 py-3 text-[13px] text-muted-foreground leading-5">
+      {children}
+    </p>
+  );
 }

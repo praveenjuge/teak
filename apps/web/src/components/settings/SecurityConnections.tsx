@@ -15,7 +15,11 @@ import {
   SettingsList,
   SettingsListSkeleton,
 } from "./SettingsDialog";
-import { SettingsSection } from "./SettingsSection";
+import {
+  SettingsSection,
+  SettingsTile,
+  type SettingsTileTone,
+} from "./SettingsSection";
 
 export interface DeviceSession {
   /** What the session's browser says; absent from older servers. */
@@ -169,11 +173,13 @@ function ConnectionList({
   icon,
   label,
   rows,
+  tone,
   verb,
 }: {
   icon: (row: ConnectionRow) => VadivamIcon;
   label: string;
   rows: ConnectionRow[];
+  tone: SettingsTileTone;
   verb: string;
 }) {
   const t = useTranslations("settings.connections");
@@ -199,7 +205,7 @@ function ConnectionList({
   return (
     <>
       {error ? (
-        <p className="mb-2 text-destructive text-sm" role="alert">
+        <p className="px-4 py-2.5 text-destructive text-sm" role="alert">
           {error}
         </p>
       ) : null}
@@ -212,7 +218,7 @@ function ConnectionList({
               data-testid={`connection-${row.id}`}
               key={row.id}
             >
-              <RowIcon className="size-[18px] shrink-0 text-muted-foreground" />
+              <SettingsTile icon={RowIcon} tone={tone} />
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <p className="min-w-0 truncate font-medium text-sm">
@@ -271,7 +277,7 @@ function ReadError({
   const tc = useTranslations("common");
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm"
+      className="flex items-center justify-between gap-3 bg-destructive/5 px-4 py-3 text-sm"
       role="alert"
     >
       <p className="text-destructive">{message}</p>
@@ -320,7 +326,7 @@ function SignOutOtherDevices({
     }
   };
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-end gap-1 px-2 py-1.5">
       <Button
         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
         disabled={busy}
@@ -392,7 +398,7 @@ function DeviceList(props: SecurityConnectionsProps) {
   });
   const hasOthers = rows.some((row) => !row.current);
   return (
-    <div className="space-y-2">
+    <div className="divide-y">
       {props.sessionsError ? (
         <ReadError
           message={t("devicesLoadFailed")}
@@ -403,6 +409,7 @@ function DeviceList(props: SecurityConnectionsProps) {
         icon={deviceIcon}
         label={t("devicesTitle")}
         rows={rows}
+        tone="blue"
         verb={t("signOut")}
       />
       {rows.length === 0 ? (
@@ -415,11 +422,10 @@ function DeviceList(props: SecurityConnectionsProps) {
       ) : null}
       {props.sessionsHasMore || props.sessionsLoadingMore ? (
         <Button
-          className="w-full"
+          className="h-11 w-full rounded-none text-muted-foreground"
           disabled={props.sessionsLoadingMore}
           onClick={props.onLoadMoreSessions}
-          size="sm"
-          variant="outline"
+          variant="ghost"
         >
           {props.sessionsLoadingMore ? <Spinner /> : t("showMoreDevices")}
         </Button>
@@ -456,11 +462,12 @@ function WorkosApps({
     action: () => onRevokeConnection({ consentId: connection.consentId }),
   }));
   return (
-    <div className="space-y-2">
+    <div className="divide-y">
       <ConnectionList
         icon={() => AppWindow}
         label={t("appsTitle")}
         rows={rows}
+        tone="indigo"
         verb={t("disconnect")}
       />
       {rows.length === 0 && connections.status === "Exhausted" ? (
@@ -468,11 +475,10 @@ function WorkosApps({
       ) : null}
       {connections.status === "Exhausted" ? null : (
         <Button
-          className="w-full"
+          className="h-11 w-full rounded-none text-muted-foreground"
           disabled={connections.status === "LoadingMore"}
           onClick={() => connections.loadMore(25)}
-          size="sm"
-          variant="outline"
+          variant="ghost"
         >
           {connections.status === "LoadingMore" ? (
             <Spinner />
@@ -489,19 +495,11 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
   const t = useTranslations("settings.connections");
   const identity = props.connectionIdentity;
   return (
-    <div className="flex flex-col gap-10" key={identity?.key}>
-      <SettingsSection
-        description={t("devicesDescription")}
-        id="devices"
-        title={t("devicesTitle")}
-      >
+    <div className="flex flex-col gap-7" key={identity?.key}>
+      <SettingsSection id="devices" layout="list" title={t("devicesTitle")}>
         <DeviceList {...props} />
       </SettingsSection>
-      <SettingsSection
-        description={t("appsDescription")}
-        id="connected-apps"
-        title={t("appsTitle")}
-      >
+      <SettingsSection id="connected-apps" layout="list" title={t("appsTitle")}>
         {identity ? (
           <RetryableQueryBoundary
             fallback={(retry) => (

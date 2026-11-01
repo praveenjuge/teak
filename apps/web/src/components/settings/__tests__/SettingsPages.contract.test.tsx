@@ -139,7 +139,7 @@ describe("SettingsOverview", () => {
     expect(markup).not.toContain("Upgrade to Pro");
   });
 
-  test("shows cards used, the way to upgrade, the apps and the shortcuts", () => {
+  test("shows cards used, the way to upgrade and the shortcuts", () => {
     const markup = renderToStaticMarkup(
       <SettingsOverview {...overviewProps} />
     );
@@ -150,8 +150,8 @@ describe("SettingsOverview", () => {
     expect(markup).toMatch(
       /<a[^>]*href="\/settings\/plan"[^>]*>Upgrade to Pro<\/a>/
     );
-    expect(markup).toContain("Apps and extensions");
-    expect(links(markup)).toContain("https://teakvault.com/apps");
+    expect(markup).toContain("197 cards left");
+    expect(markup).not.toContain("Apps and extensions");
     expect(markup).toContain("Keyboard shortcuts");
     expect(markup).toContain('aria-label="Keyboard shortcuts"');
   });
@@ -177,6 +177,7 @@ describe("PlanSettings", () => {
     expect(markup).toContain("Upgrade to Pro");
     expect(markup).toContain("Continue to checkout");
     expect(markup).not.toContain("Manage subscription");
+    expect(markup).not.toContain("Everything, unlimited.");
   });
 
   test("a full free plan says so", () => {
@@ -206,6 +207,9 @@ describe("PlanSettings", () => {
     );
 
     expect(markup).toContain("Manage subscription");
+    expect(markup).toContain("Teak Pro");
+    expect(markup).toContain("Everything, unlimited.");
+    expect(markup).toContain("Included in your plan");
     expect(markup).toContain("1,234 cards saved");
     expect(markup).not.toContain("Continue to checkout");
     expect(markup).not.toContain('role="progressbar"');
@@ -256,7 +260,9 @@ describe("IntegrationsSettings", () => {
     expect(markup).toContain(
       "Send or forward email to Teak, and it&#x27;s saved as cards."
     );
-    expect(markup).toContain("Turn on");
+    expect(markup).toMatch(
+      /<button[^>]*aria-checked="false"[^>]*aria-label="Save by email"[^>]*role="switch"/
+    );
     expect(markup).toContain('id="apps"');
     expect(markup).toContain('aria-label="Chrome (opens in a new tab)"');
     expect(markup).toContain('id="api-keys"');

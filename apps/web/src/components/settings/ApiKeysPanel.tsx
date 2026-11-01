@@ -13,7 +13,7 @@ import {
   SettingsList,
   SettingsListSkeleton,
 } from "./SettingsDialog";
-import { SettingsSection } from "./SettingsSection";
+import { SettingsSection, SettingsTile } from "./SettingsSection";
 
 const API_DOCS_URL = "https://teakvault.com/docs/api";
 const CREATED_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
@@ -140,8 +140,8 @@ function ApiKeyRow({
     .join(", ");
   const canRotate = item.status === "active" || item.status === "disabled";
   return (
-    <li className="flex items-center gap-3.5 px-4 py-3">
-      <KeyRound className="size-[18px] shrink-0 text-muted-foreground" />
+    <li className="flex items-center gap-3 px-4 py-2.5">
+      <SettingsTile icon={KeyRound} />
       <div className="min-w-0 flex-1">
         {name ? <p className="truncate font-medium text-sm">{name}</p> : null}
         <p
@@ -190,7 +190,7 @@ function RevealedKey({ value, onCopy }: { value: string; onCopy: () => void }) {
   const t = useTranslations("settings.apiKeys");
   const tc = useTranslations("common");
   return (
-    <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
+    <div className="space-y-2.5 bg-muted/40 px-4 py-3">
       <p className="font-medium text-sm">{t("copyNewKey")}</p>
       <div className="flex gap-2">
         <Input
@@ -379,11 +379,13 @@ export function ApiKeysPanel({
           </a>
         ),
       })}
+      flush
+      icon={<SettingsTile icon={KeyRound} tone="amber" />}
       id="api-keys"
       title={tIntegrations("apiTitle")}
     >
-      <div className="space-y-3" ref={listRef}>
-        <div className="flex flex-col gap-1.5">
+      <div className="divide-y" ref={listRef}>
+        <div className="flex flex-col gap-1.5 px-4 py-3">
           <Label className="font-normal text-xs" htmlFor="api-key-name">
             {t("nameLabel")}
           </Label>
@@ -407,8 +409,8 @@ export function ApiKeysPanel({
           <p
             className={
               feedback.error
-                ? "text-destructive text-xs leading-5"
-                : "text-muted-foreground text-xs leading-5"
+                ? "px-4 py-2.5 text-destructive text-xs leading-5"
+                : "px-4 py-2.5 text-muted-foreground text-xs leading-5"
             }
             role={feedback.error ? "alert" : "status"}
           >
@@ -447,7 +449,7 @@ export function ApiKeysPanel({
           </SettingsList>
         ) : null}
         {onRevokeAllKeys && keys?.length ? (
-          <div className="flex justify-end">
+          <div className="flex justify-end px-2 py-1.5">
             <Button
               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               disabled={busy !== null}

@@ -40,7 +40,8 @@
       "docs": "ドキュメント",
       "changelog": "更新履歴",
       "support": "ヘルプ",
-      "version": "バージョン {version}"
+      "version": "バージョン {version}",
+      "versionLabel": "バージョン"
     },
     "header": {
       "title": "設定",
@@ -332,7 +333,8 @@
         }
       },
       "orDrop": "またはここにドロップ",
-      "lastImportFile": "{file} · {source}"
+      "lastImportFile": "{file} · {source}",
+      "file": "ファイル"
     },
     "format": {
       "justNow": "たった今",
@@ -417,7 +419,11 @@
       "limitReached": "無料プランのカードの上限に達しました。保存を続けるには Pro にアップグレードしてください。",
       "unlimited": "{count, plural, other {# 件のカードを保存済み}}、上限はありません。",
       "manageDescription": "プランの変更や解約、請求書の確認ができます。",
-      "includedTitle": "ご利用のプランに含まれるもの"
+      "includedTitle": "ご利用のプランに含まれるもの",
+      "proEyebrow": "Teak Pro",
+      "proTitle": "すべて無制限。",
+      "proThanks": "Teak をご支援いただきありがとうございます。",
+      "billingTitle": "請求"
     },
     "appearance": {
       "themeTitle": "テーマ",
@@ -437,7 +443,8 @@
         "apple": "iPhone と Mac",
         "raycast": "Raycast"
       },
-      "allApps": "すべてのアプリ"
+      "allApps": "すべてのアプリ",
+      "get": "入手"
     },
     "data": {
       "importTitle": "インポート",

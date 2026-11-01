@@ -30,7 +30,7 @@ export function PlanOption({
   return (
     <label
       className={cn(
-        "relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left transition-[border-color,box-shadow] hover:border-foreground/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
+        "relative flex cursor-pointer flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-[border-color,box-shadow] hover:border-foreground/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
         selected && "border-primary ring-1 ring-primary hover:border-primary"
       )}
     >

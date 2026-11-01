@@ -30,7 +30,6 @@ function DeleteAccountSection({
           {t("action")}
         </Button>
       }
-      description={t("description")}
       id="danger-zone"
       title={t("title")}
       tone="destructive"
@@ -45,10 +44,7 @@ export function SecuritySettings({
   const tPages = useTranslations("settings.pages");
   return (
     <>
-      <SettingsPageIntro
-        description={tPages("security.description")}
-        title={tPages("security.title")}
-      />
+      <SettingsPageIntro title={tPages("security.title")} />
       <SettingsStack>
         <SecurityConnections {...connections} />
         <DeleteAccountSection onDeleteClick={onDeleteClick} />

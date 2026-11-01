@@ -73,6 +73,14 @@ const button = (container: HTMLElement, label: string) => {
   return found;
 };
 
+const emailSwitch = (container: HTMLElement) => {
+  const found = container.querySelector<HTMLButtonElement>('[role="switch"]');
+  if (!found) {
+    throw new Error("No Save by email switch");
+  }
+  return found;
+};
+
 const click = (element: HTMLElement) =>
   act(async () => {
     element.click();
@@ -84,10 +92,10 @@ describe("InboundEmailPanel", () => {
     const { container } = await render({ state: undefined });
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(container.textContent).toContain("Loading Save by email");
-    expect(container.textContent).not.toContain("Turn on");
+    expect(container.querySelector('[role="switch"]')).toBeNull();
   });
 
-  test("off: Turn on calls enable once, however often it's clicked", async () => {
+  test("off: the switch turns it on once, however often it's clicked", async () => {
     let resolve: () => void = () => undefined;
     const onEnable = mock(
       () =>
@@ -100,19 +108,23 @@ describe("InboundEmailPanel", () => {
       state: { ...on, enabled: false },
     });
     expect(container.textContent).not.toContain(ADDRESS);
+    expect(emailSwitch(container).getAttribute("aria-checked")).toBe("false");
+    expect(emailSwitch(container).getAttribute("aria-label")).toBe(
+      "Save by email"
+    );
 
-    await click(button(container, "Turn on"));
-    await click(button(container, "Turn on"));
+    await click(emailSwitch(container));
+    await click(emailSwitch(container));
     expect(onEnable).toHaveBeenCalledTimes(1);
-    expect(button(container, "Turn on").disabled).toBe(true);
+    expect(emailSwitch(container).disabled).toBe(true);
     await act(async () => {
       resolve();
       await Promise.resolve();
     });
-    expect(button(container, "Turn on").disabled).toBe(false);
+    expect(emailSwitch(container).disabled).toBe(false);
   });
 
-  test("off with an unverified sign-in email: says to verify it, and Turn on is disabled", async () => {
+  test("off with an unverified sign-in email: says to verify it, and the switch is disabled", async () => {
     const onEnable = mock(() => Promise.resolve());
     const { container } = await render({
       onEnable,
@@ -121,8 +133,8 @@ describe("InboundEmailPanel", () => {
     expect(container.textContent).toContain(
       "Verify your sign-in email, ada@example.com, to turn this on."
     );
-    expect(button(container, "Turn on").disabled).toBe(true);
-    await click(button(container, "Turn on"));
+    expect(emailSwitch(container).disabled).toBe(true);
+    await click(emailSwitch(container));
     expect(onEnable).not.toHaveBeenCalled();
   });
 
@@ -148,7 +160,7 @@ describe("InboundEmailPanel", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Address copied");
   });
 
-  test("on with an unverified sign-in email: says mail isn't saved, and Turn off still works", async () => {
+  test("on with an unverified sign-in email: says mail isn't saved, and the switch still turns it off", async () => {
     const { container, onDisable } = await render({
       state: { ...on, senderVerified: false },
     });
@@ -156,14 +168,15 @@ describe("InboundEmailPanel", () => {
       "Mail isn't saved until you verify your sign-in email, ada@example.com."
     );
     expect(container.textContent).not.toContain("Send from");
-    await click(button(container, "Turn off"));
+    await click(emailSwitch(container));
     expect(onDisable).toHaveBeenCalledTimes(1);
   });
 
-  test("on: Turn off calls disable", async () => {
+  test("on: the switch turns it off", async () => {
     const { container, onDisable } = await render({});
+    expect(emailSwitch(container).getAttribute("aria-checked")).toBe("true");
     expect(container.textContent).not.toContain("Last email received");
-    await click(button(container, "Turn off"));
+    await click(emailSwitch(container));
     expect(onDisable).toHaveBeenCalledTimes(1);
   });
 
@@ -171,7 +184,7 @@ describe("InboundEmailPanel", () => {
     const { container } = await render({
       onDisable: mock(() => Promise.reject({ data: { code: "RATE_LIMITED" } })),
     });
-    await click(button(container, "Turn off"));
+    await click(emailSwitch(container));
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       "Too many changes. Try again in a minute."
     );
@@ -181,7 +194,7 @@ describe("InboundEmailPanel", () => {
       onEnable: mock(() => Promise.reject(new Error("offline"))),
       state: { ...on, enabled: false },
     });
-    await click(button(failing.container, "Turn on"));
+    await click(emailSwitch(failing.container));
     expect(failing.container.querySelector('[role="alert"]')?.textContent).toBe(
       "Couldn't update Save by email. Try again."
     );
