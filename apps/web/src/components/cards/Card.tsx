@@ -64,7 +64,6 @@ import { CardBody } from "./CardBody";
 import {
   CardMenuEntries,
   type CardMenuEntry,
-  handleCardMenuShortcut,
   QuickActionButton,
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
@@ -637,11 +636,7 @@ export const Card = memo(function Card({
                     <Ellipsis />
                   </QuickActionButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48"
-                  onKeyDown={handleCardMenuShortcut}
-                >
+                <DropdownMenuContent align="end" className="w-48">
                   <CardMenuEntries
                     entries={menuItems}
                     Item={DropdownMenuItem}
@@ -655,7 +650,7 @@ export const Card = memo(function Card({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-48" onKeyDown={handleCardMenuShortcut}>
+      <ContextMenuContent className="w-48">
         <CardMenuEntries
           entries={menuItems}
           Item={ContextMenuItem}
