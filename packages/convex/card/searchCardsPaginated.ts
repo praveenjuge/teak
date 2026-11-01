@@ -521,13 +521,8 @@ export const searchCardsPaginatedHandler = async (
             readText: readExpressionText,
           }
         );
-        // A card that also holds the words is a word match, however close
-        // its meaning: only cards found by meaning alone are "related".
         for (const match of semantic) {
-          if (
-            match.score >= SEMANTIC_MIN_SCORE &&
-            !keywordMatches.has(match.cardId)
-          ) {
+          if (match.score >= SEMANTIC_MIN_SCORE) {
             matchedByMeaning.add(match.cardId);
           }
         }
@@ -625,14 +620,8 @@ export const searchCardsPaginatedHandler = async (
           readText: readExpressionText,
         }
       );
-      // As above: a card that holds the words is a word match, not related.
-      // `cardsById` also gains the meaning matches, so test the word matches.
-      const wordMatchIds = new Set(uniqueResults.map((card) => card._id));
       for (const match of semantic) {
-        if (
-          match.score >= SEMANTIC_MIN_SCORE &&
-          !wordMatchIds.has(match.cardId)
-        ) {
+        if (match.score >= SEMANTIC_MIN_SCORE) {
           matchedByMeaning.add(match.cardId);
         }
       }

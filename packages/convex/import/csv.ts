@@ -39,8 +39,9 @@ interface ScanOptions {
 
 /**
  * Reads records from `from`. When a quote is still open at the end of the
- * input, returns where its row started, so the caller can read that row
- * again with the quote ended at its line.
+ * input, or closes across lines with text right after it, returns where its
+ * row started, so the caller can read that row again with the quote ended at
+ * its line.
  */
 function scanCsv(
   input: string,
@@ -60,6 +61,8 @@ function scanCsv(
   let rowStart = from;
   let inQuotes = false;
   let quoted = false;
+  // The open quote ran past the end of its line.
+  let quoteSpannedLine = false;
   let index = from;
   const endField = () => {
     if (row.length >= MAX_CSV_COLUMNS) {
@@ -109,6 +112,9 @@ function scanCsv(
         continue;
       }
       if (!(lineQuotes && lineBreak)) {
+        if (lineBreak) {
+          quoteSpannedLine = true;
+        }
         index += 1;
         continue;
       }
@@ -119,6 +125,7 @@ function scanCsv(
     if (char === '"' && index === fieldStart && !quoted && !parts.length) {
       inQuotes = true;
       quoted = true;
+      quoteSpannedLine = false;
       index += 1;
       fieldStart = index;
       continue;
@@ -133,6 +140,12 @@ function scanCsv(
       }
       rowStart = index + 1;
     } else if (quoted && char !== " ") {
+      if (!lineQuotes && quoteSpannedLine) {
+        // A quote that opened on an earlier line closed on a quote that
+        // opens a later row's cell (`"https://a,x` then `"https://b",y`):
+        // it was a stray quote, so read its row again ending it at its line.
+        return { records, rowStart };
+      }
       // `"a"b`: RFC 4180 allows nothing between a closing quote and the
       // separator.
       problem ??= "text_after_quote";

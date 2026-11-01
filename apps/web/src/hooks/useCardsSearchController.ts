@@ -54,6 +54,7 @@ import {
   libraryViewFlags,
   quickCommandTarget,
 } from "../lib/libraryViews";
+import { relatedOnlyCardIds } from "../lib/relatedResults";
 import {
   comparableSearch,
   isSeededSort,
@@ -435,35 +436,36 @@ export function useCardsSearchController(
   const remoteCardsAreCurrent =
     !isSearchPending && remoteCardsKey === JSON.stringify(queryArgs);
 
+  const remoteFilterOptions = useMemo(
+    () =>
+      localSearchTerms === null
+        ? null
+        : {
+            searchTerms: localSearchTerms,
+            textMatchedByServer: remoteCardsAreCurrent,
+            types: searchState.filterTags,
+            styleFilters: searchState.styleFilters,
+            hueFilters: searchState.hueFilters,
+            hexFilters: searchState.hexFilters,
+            favoritesOnly: searchState.showFavoritesOnly,
+            showTrashOnly: searchState.showTrashOnly,
+            showArchivedOnly: searchState.showArchivedOnly,
+            createdAtRange: searchState.timeFilter?.range,
+            sort,
+            tag: searchState.tagFilter,
+          },
+    [localSearchTerms, remoteCardsAreCurrent, searchState, sort]
+  );
+
   const remoteSearchResults = useMemo(() => {
     if (!filtersResults) {
       return remoteCards;
     }
-    if (localSearchTerms === null) {
+    if (remoteFilterOptions === null) {
       return [];
     }
-    return filterLocalCards(remoteCards, {
-      searchTerms: localSearchTerms,
-      textMatchedByServer: remoteCardsAreCurrent,
-      types: searchState.filterTags,
-      styleFilters: searchState.styleFilters,
-      hueFilters: searchState.hueFilters,
-      hexFilters: searchState.hexFilters,
-      favoritesOnly: searchState.showFavoritesOnly,
-      showTrashOnly: searchState.showTrashOnly,
-      showArchivedOnly: searchState.showArchivedOnly,
-      createdAtRange: searchState.timeFilter?.range,
-      sort,
-      tag: searchState.tagFilter,
-    });
-  }, [
-    filtersResults,
-    localSearchTerms,
-    remoteCards,
-    remoteCardsAreCurrent,
-    searchState,
-    sort,
-  ]);
+    return filterLocalCards(remoteCards, remoteFilterOptions);
+  }, [filtersResults, remoteCards, remoteFilterOptions]);
 
   const matchedCards = useMemo(
     () =>
@@ -476,19 +478,20 @@ export function useCardsSearchController(
     [filtersResults, localSearchResults, remoteSearchResults, sort]
   );
 
-  // Cards the server found by meaning rather than by the words. Only the
-  // current answer says so: a cached card keeps the mark from an older one.
-  const relatedIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (filtersResults && remoteCardsAreCurrent) {
-      for (const card of remoteSearchResults) {
-        if ((card as { matchedByMeaning?: true }).matchedByMeaning === true) {
-          ids.add(card._id);
-        }
-      }
-    }
-    return ids;
-  }, [filtersResults, remoteCardsAreCurrent, remoteSearchResults]);
+  // Cards found only by meaning. Only the current answer says so: a cached
+  // card keeps the mark from an older one.
+  const relatedIds = useMemo(
+    () =>
+      filtersResults && remoteCardsAreCurrent && remoteFilterOptions
+        ? relatedOnlyCardIds(remoteSearchResults, remoteFilterOptions)
+        : new Set<string>(),
+    [
+      filtersResults,
+      remoteCardsAreCurrent,
+      remoteFilterOptions,
+      remoteSearchResults,
+    ]
+  );
   const [showRelated, setShowRelated] = useState(true);
   const relatedCount = useMemo(
     () => matchedCards.filter((card) => relatedIds.has(card._id)).length,

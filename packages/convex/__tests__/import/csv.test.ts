@@ -73,11 +73,25 @@ describe("shared CSV reader", () => {
     expect([...records.problems]).toEqual([[1, "unclosed_quote"]]);
   });
 
-  test("quotes pair across lines, and only the odd one out is flagged", () => {
+  test("many stray quotes each end at their line, in bounded work", () => {
     const records = parseCsvRecords(`h\n${'"x\n'.repeat(5001)}`);
-    expect(records.rows).toHaveLength(2502);
-    expect(records.rows[1]).toEqual(["x\nx"]);
-    expect(records.problems.get(2501)).toBe("unclosed_quote");
+    expect(records.rows).toHaveLength(5002);
+    expect(records.rows[1]).toEqual(["x"]);
+    expect(records.rows[5001]).toEqual(["x"]);
+    expect(records.problems.get(5001)).toBe("unclosed_quote");
+  });
+
+  test("an unclosed quote doesn't swallow a next row that opens with a quote", () => {
+    const records = parseCsvRecords(
+      'url,title\n"https://e.test/a,Broken\n"https://e.test/b",B\n"https://e.test/c",C'
+    );
+    expect(records.rows).toEqual([
+      ["url", "title"],
+      ["https://e.test/a,Broken"],
+      ["https://e.test/b", "B"],
+      ["https://e.test/c", "C"],
+    ]);
+    expect([...records.problems]).toEqual([[1, "unclosed_quote"]]);
   });
 
   test("text after a closing quote stays in the cell and flags the row", () => {
