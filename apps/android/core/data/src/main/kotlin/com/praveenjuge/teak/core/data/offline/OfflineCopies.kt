@@ -35,7 +35,6 @@ import javax.inject.Singleton
  * so Android doesn't clear them, and leave with the account whenever its session ends.
  */
 interface OfflineCopies {
-    /** Ids of the cards kept offline. */
     val kept: StateFlow<Set<String>>
 
     /** Goes up whenever a kept card or its file changes, for screens showing [file]. */
@@ -46,7 +45,6 @@ interface OfflineCopies {
 
     suspend fun remove(id: String)
 
-    /** The kept card, or null when it isn't kept. */
     suspend fun card(id: String): Card?
 
     /** Saves a newer copy of a kept card; does nothing for one that isn't kept. */
@@ -55,7 +53,6 @@ interface OfflineCopies {
     /** Changes the saved copy of a kept card in place, so nothing written meanwhile is lost. */
     suspend fun edit(id: String, change: (Card) -> Card)
 
-    /** The kept card's file, or null when it isn't kept or has none. */
     fun file(id: String): File?
 
     suspend fun clear()
@@ -127,7 +124,6 @@ class DiskOfflineCopies @Inject constructor(
         }
     }
 
-    /** The copies on disk were claimed by the account signed in now. */
     private fun owned(): Boolean = owned(sessions.state.value, claimedBy.value)
 
     private fun owned(session: SessionState, claimed: String?): Boolean {

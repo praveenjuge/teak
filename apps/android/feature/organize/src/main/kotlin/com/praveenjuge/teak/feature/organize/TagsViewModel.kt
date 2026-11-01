@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** The tag dialog that's open. */
 data class TagEditor(val kind: TagOperationKind, val tag: TagCount) {
     val title: UiText
         get() = when (kind) {
@@ -101,7 +100,6 @@ class TagsViewModel @Inject constructor(
         load()
     }
 
-    /** Subscribes to the summary again, after it failed to load. */
     fun reload() {
         _state.update { it.copy(isLoading = true, failed = false) }
         load()

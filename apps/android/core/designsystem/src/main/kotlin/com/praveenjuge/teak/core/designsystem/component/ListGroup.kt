@@ -56,10 +56,6 @@ fun ListGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
     }
 }
 
-/**
- * One row: a tonal icon circle, a label, and optional supporting and trailing text. Rows without
- * [onClick] are read-only. [destructive] marks actions that delete things.
- */
 @Composable
 fun ListRow(
     label: String,

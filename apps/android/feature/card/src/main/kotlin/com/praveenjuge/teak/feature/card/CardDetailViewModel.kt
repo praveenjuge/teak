@@ -77,7 +77,6 @@ data class CardDetailUiState(
     val isSavingLink: Boolean = false,
     /** Teak has been offline for a few seconds, so a card that hasn't loaded yet won't until it's back. */
     val isOffline: Boolean = false,
-    /** The card and its file are kept on the device for offline use. */
     val isKeptOffline: Boolean = false,
     /**
      * The kept file as a content link through the app's FileProvider, which the preview shows or plays instead of
@@ -444,7 +443,6 @@ class CardDetailViewModel @AssistedInject constructor(
     private fun versionedUri(file: java.io.File): String =
         files.contentUri(file).buildUpon().appendQueryParameter("v", file.lastModified().toString()).build().toString()
 
-    /** Opens a kept document's file in another app, for reading it offline. */
     fun openKeptDocument() {
         val card = _uiState.value.card ?: return
         val file = repository.offlineFile(card.id) ?: return
@@ -454,7 +452,6 @@ class CardDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /** Keeps the card and its file on the device, or removes the copy kept before. */
     fun toggleKeepOffline() {
         val card = _uiState.value.card ?: return
         if (_uiState.value.isKeptOffline) {

@@ -15,7 +15,6 @@ data class SearchSuggestion(
     val insert: String,
     /** `-tag:`, `OR`, or a value in the app's language. */
     val label: UiText,
-    /** What a hint does. */
     val detail: UiText?,
     /** A whole filter, so a space follows it. */
     val complete: Boolean,

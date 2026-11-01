@@ -93,7 +93,6 @@ class CardFiles @Inject constructor(
         file
     }
 
-    /** A content URI other apps can read [file] through, for "Open in another app". */
     fun contentUri(file: File): Uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
 
     suspend fun saveToDownloads(url: String, fileName: String, mimeType: String?) = withContext(Dispatchers.IO) {

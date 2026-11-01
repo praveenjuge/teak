@@ -60,7 +60,6 @@ sealed interface OutboxItem {
         override fun withOwner(ownerId: String?) = copy(ownerId = ownerId)
     }
 
-    /** A note or link saved from text, sent as `cards:createCard` once there's a connection. */
     @Serializable @SerialName("createText")
     data class CreateText(override val id: String, val text: String, override val ownerId: String? = null) : OutboxItem {
         override fun withOwner(ownerId: String?) = copy(ownerId = ownerId)
@@ -86,12 +85,10 @@ interface Outbox {
     /** The oldest waiting write, once the saved ones are read. */
     suspend fun next(): OutboxItem?
 
-    /** Whether any write is waiting, once the saved ones are read. */
     suspend fun hasPending(): Boolean = next() != null
 
     suspend fun remove(id: String)
 
-    /** Drops every waiting write. */
     suspend fun clear()
 }
 

@@ -231,7 +231,6 @@ internal fun AddScreen(
     }
 }
 
-/** A count written the way the app's language writes numbers. */
 @Composable
 internal fun formatCount(value: Int): String =
     NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(value)

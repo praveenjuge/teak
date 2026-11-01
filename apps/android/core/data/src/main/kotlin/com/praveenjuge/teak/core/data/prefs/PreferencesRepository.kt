@@ -22,7 +22,6 @@ interface PreferencesRepository {
     val theme: Flow<ThemePreference>
     suspend fun setTheme(theme: ThemePreference)
 
-    /** Material You: colors from the wallpaper instead of Teak's red. Off by default. */
     val useWallpaperColors: Flow<Boolean>
     suspend fun setUseWallpaperColors(enabled: Boolean)
 

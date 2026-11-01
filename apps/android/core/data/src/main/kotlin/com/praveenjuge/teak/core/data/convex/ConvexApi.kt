@@ -35,7 +35,6 @@ interface ConvexApi {
     suspend fun action(name: String, args: Map<String, Any?> = emptyMap()): JsonElement
     val isConnected: Flow<Boolean>
 
-    /** Whether the socket is up at this moment. */
     val connectedNow: Boolean
 
     /** Whether the client is signed in to the server at this moment; queries answer as no one until it is. */
@@ -182,7 +181,6 @@ internal val teakJson = Json {
 
 private const val GENERIC_FAILURE = "Something went wrong. Please try again."
 
-/** What to show for this failure: a [TeakException]'s text, else [fallback]. */
 fun Throwable.teakText(fallback: UiText): UiText = (this as? TeakException)?.text ?: fallback
 
 fun Throwable.toTeakException(): Throwable = when (this) {

@@ -435,7 +435,6 @@ class LibraryViewModel @AssistedInject constructor(
         }
     }
 
-    /** Adds the picked cards to a new folder named [name]. */
     fun addSelectedToNewFolder(name: String) {
         val current = _state.value
         val ids = current.pickedIds

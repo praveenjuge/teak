@@ -129,7 +129,6 @@ internal fun LinkDetailsSections(card: Card, onOpenImage: (String) -> Unit) {
     }
 }
 
-/** Keep and Remove for Teak's suggested tags. */
 internal class SuggestedTagActions(val keep: (String) -> Unit, val remove: (String) -> Unit)
 
 /** [suggested] is null in Trash, where Teak's tags show without Keep and Remove. */
@@ -293,7 +292,6 @@ private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
     }
 }
 
-/** Marks an Info row as one that opens something. */
 @Composable
 private fun RowChevron() {
     Icon(

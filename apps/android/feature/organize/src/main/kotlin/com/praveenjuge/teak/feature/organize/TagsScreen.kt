@@ -117,7 +117,6 @@ internal data class TagsActions(
     val onReload: () -> Unit = {},
 )
 
-/** A count written the way the app's language writes numbers. */
 @Composable
 private fun formatCount(value: Int): String =
     NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(value)

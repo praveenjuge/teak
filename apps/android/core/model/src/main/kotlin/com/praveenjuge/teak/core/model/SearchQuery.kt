@@ -206,7 +206,6 @@ object SearchQuery {
         return text.substring(0, start.coerceAtMost(text.length)) to text.substring(start.coerceAtMost(text.length))
     }
 
-    /** A date found in typed text, and the text around it as typed. */
     data class DateSplit(val filter: TimeFilter, val rest: String)
 
     /**

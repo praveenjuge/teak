@@ -143,7 +143,6 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
     }
 }
 
-/** The screens a tab's [backStack] can show; each one navigates within that stack. */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 private fun destinations(
     backStack: NavBackStack<NavKey>,

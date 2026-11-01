@@ -30,7 +30,6 @@ internal enum class Tab(val selected: ImageVector, val unselected: ImageVector) 
     Settings(Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
-/** The window's width, in Material's size classes. */
 internal enum class WindowWidth { Compact, Medium, Expanded }
 
 internal fun WindowSizeClass.windowWidth(): WindowWidth = when {
@@ -39,10 +38,6 @@ internal fun WindowSizeClass.windowWidth(): WindowWidth = when {
     else -> WindowWidth.Compact
 }
 
-/**
- * The navigation items for a window width. Wide windows give Favorites, Archive and Trash their own
- * rail items, in place of the library's chips; phones and narrow windows keep the four tabs.
- */
 internal fun navigationTabs(width: WindowWidth): List<Tab> = when (width) {
     WindowWidth.Expanded -> Tab.entries
     WindowWidth.Compact, WindowWidth.Medium -> listOf(Tab.Home, Tab.Folders, Tab.Add, Tab.Settings)

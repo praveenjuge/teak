@@ -17,7 +17,6 @@ enum class CardType {
 
     val wireName: String get() = name.lowercase()
 
-    /** The type's name in the app's language: "Image". */
     val labelText: UiText
         get() = when (this) {
             Text -> UiText.of("cards.types.text")
@@ -30,7 +29,6 @@ enum class CardType {
             Quote -> UiText.of("cards.types.quote")
         }
 
-    /** The library's title for the type: "Notes". */
     val pluralText: UiText
         get() = when (this) {
             Text -> UiText.of("native.filters.types.text")
@@ -43,7 +41,6 @@ enum class CardType {
             Quote -> UiText.of("native.filters.types.quote")
         }
 
-    /** The library's title for the type's favorites: "Favorite notes". */
     val favoritesText: UiText
         get() = when (this) {
             Text -> UiText.of("native.filters.favoriteTypes.text")

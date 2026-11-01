@@ -146,7 +146,6 @@ class DiskOfflineCopiesTest {
         assertEquals("Kept", copies.card("c5")?.content)
     }
 
-    /** Waits for the background download a changed file starts. */
     private suspend fun TestScope.eventually(condition: suspend () -> Boolean) {
         repeat(100) {
             testScheduler.advanceUntilIdle()
