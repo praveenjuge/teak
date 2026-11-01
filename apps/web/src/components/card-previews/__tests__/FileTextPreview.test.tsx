@@ -1,17 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  FileTextPreview,
-  SafeMarkdownPreview,
-  SourceCodePreview,
-} from "../FileTextPreview";
-import {
-  cachedFileTextPreview,
-  loadFileTextPreview,
-  prefetchFileTextPreview,
-} from "../fileTextPreviewCache";
-import { ImagePreview } from "../ImagePreview";
-import { VideoPreview } from "../VideoPreview";
+
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
+const { FileTextPreview, SafeMarkdownPreview, SourceCodePreview } =
+  await import("../FileTextPreview");
+const { cachedFileTextPreview, loadFileTextPreview, prefetchFileTextPreview } =
+  await import("../fileTextPreviewCache");
+const { ImagePreview } = await import("../ImagePreview");
+const { VideoPreview } = await import("../VideoPreview");
 
 describe("file text previews", () => {
   test("escapes source code instead of executing markup", () => {

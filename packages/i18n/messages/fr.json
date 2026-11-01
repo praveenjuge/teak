@@ -523,7 +523,8 @@
       "tags": "Tags",
       "folder": "Dossier"
     },
-    "skipToContent": "Aller au contenu"
+    "skipToContent": "Aller au contenu",
+    "offline": "Vous êtes hors ligne. Les modifications seront enregistrées à la reconnexion."
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "Dossiers",
       "newFolder": "Nouveau dossier",
       "emptyHint": "Regroupez des fiches liées. Créez un dossier, puis faites-y glisser des fiches.",
+      "loadFailed": "Impossible de charger vos dossiers.",
       "moreFor": "Plus d’options pour {name}",
       "renameItem": "Renommer…",
       "editSearch": "Modifier la recherche…",
@@ -1015,7 +1017,6 @@
       "editLink": "Modifier le lien…",
       "removeFromFolder": "Retirer de ce dossier"
     },
-    "copyImageFailed": "Impossible de copier l’image",
     "deleteForeverDialog": {
       "confirm": "Supprimer définitivement",
       "description": "Cette action supprime définitivement la fiche et ses fichiers. Elle est irréversible.",
@@ -1154,6 +1155,7 @@
       "placeholder": "Écrivez une note…",
       "upgradePlaceholder": "Passez à Pro pour ajouter d’autres fiches…",
       "saveFailed": "Impossible d’enregistrer la note",
+      "savingOffline": "Vous êtes hors ligne. Cette note sera enregistrée à la reconnexion.",
       "focus": "Concentration",
       "resaved": "Déjà dans Teak · Remonté en haut",
       "resavedFromArchive": "Déjà dans Teak · Sorti des Archives",
@@ -1180,7 +1182,7 @@
       "recordAudio": "Enregistrer de l’audio",
       "savingRecording": "Enregistrement de l’audio…",
       "recordingSaved": "Enregistrement audio sauvegardé",
-      "recordingSaveFailed": "Impossible de sauvegarder l’enregistrement audio",
+      "recordingNotSaved": "Impossible de sauvegarder l’enregistrement. Réessayez, ou téléchargez-le pour le conserver.",
       "microphoneUnsupported": "L’enregistrement par micro n’est pas pris en charge dans cette application.",
       "microphoneDenied": "L’accès au micro a été refusé. Autorisez-le et réessayez.",
       "microphoneMissing": "Aucun micro détecté. Branchez-en un et réessayez.",
@@ -1194,7 +1196,8 @@
       "recordingHint": "Parlez naturellement. Teak enregistrera ceci comme fiche audio.",
       "recordingTitle": "Enregistrement audio",
       "stopAndSave": "Arrêter et enregistrer",
-      "discardRecording": "Abandonner"
+      "discardRecording": "Abandonner",
+      "downloadRecording": "Télécharger"
     },
     "emptyState": {
       "title": "Ajoutons votre première fiche !",
@@ -1625,6 +1628,7 @@
       "title": "Tags",
       "findTag": "Trouver un tag",
       "loading": "Chargement des tags",
+      "loadFailed": "Impossible de charger vos tags.",
       "noTags": "Aucun tag pour l’instant",
       "noTagsDescription": "Les tags que vous ajoutez aux fiches, et ceux que Teak suggère, apparaissent ici.",
       "noMatches": "Aucun tag ne correspond à « {query} ».",

@@ -523,7 +523,8 @@
       "tags": "标签",
       "folder": "文件夹"
     },
-    "skipToContent": "跳到内容"
+    "skipToContent": "跳到内容",
+    "offline": "你已离线。重新联网后会保存更改。"
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "文件夹",
       "newFolder": "新建文件夹",
       "emptyHint": "将相关卡片归为一组。创建文件夹，然后把卡片拖到上面。",
+      "loadFailed": "无法加载你的文件夹。",
       "moreFor": "“{name}”的更多操作",
       "renameItem": "重命名…",
       "editSearch": "编辑搜索条件…",
@@ -1015,7 +1017,6 @@
       "editLink": "编辑链接…",
       "removeFromFolder": "从此文件夹中移除"
     },
-    "copyImageFailed": "无法复制图片",
     "deleteForeverDialog": {
       "confirm": "永久删除",
       "description": "这将永久删除此卡片及其文件。此操作无法撤销。",
@@ -1154,6 +1155,7 @@
       "placeholder": "写笔记…",
       "upgradePlaceholder": "升级到 Pro 以添加更多卡片…",
       "saveFailed": "无法保存笔记",
+      "savingOffline": "你已离线。重新联网后会保存这条笔记。",
       "focus": "专注",
       "resaved": "已在 Teak 中 · 已移到最前",
       "resavedFromArchive": "已在 Teak 中 · 已从归档中移回",
@@ -1180,7 +1182,7 @@
       "recordAudio": "录制音频",
       "savingRecording": "正在保存录音…",
       "recordingSaved": "录音已保存",
-      "recordingSaveFailed": "无法保存录音",
+      "recordingNotSaved": "无法保存录音。请重试，或下载以保留它。",
       "microphoneUnsupported": "此应用不支持麦克风录音。",
       "microphoneDenied": "麦克风权限被拒绝。请允许后重试。",
       "microphoneMissing": "未检测到麦克风。请连接麦克风后重试。",
@@ -1194,7 +1196,8 @@
       "recordingHint": "自然地说话即可。Teak 会将其保存为音频卡片。",
       "recordingTitle": "正在录制音频",
       "stopAndSave": "停止并保存",
-      "discardRecording": "丢弃"
+      "discardRecording": "丢弃",
+      "downloadRecording": "下载"
     },
     "emptyState": {
       "title": "来添加你的第一张卡片吧！",
@@ -1625,6 +1628,7 @@
       "title": "标签",
       "findTag": "查找标签",
       "loading": "正在加载标签",
+      "loadFailed": "无法加载你的标签。",
       "noTags": "还没有标签",
       "noTagsDescription": "你为卡片添加的标签以及 Teak 建议的标签都会显示在这里。",
       "noMatches": "没有符合“{query}”的标签。",

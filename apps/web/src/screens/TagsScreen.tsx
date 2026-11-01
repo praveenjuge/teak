@@ -49,6 +49,10 @@ export type TagSort = "count" | "name";
 
 const TAG_PAGE_SIZE = 150;
 const SUMMARY_RETRY_MS = 5000;
+// A request that never brings a summary counts as failed after this long.
+const SUMMARY_WAIT_MS = 45_000;
+// Requests tried without asking, before saying the tags couldn't load.
+const SUMMARY_AUTO_ATTEMPTS = 2;
 const SKELETON_WIDTHS = ["42%", "28%", "56%", "34%", "48%", "24%"];
 const SORT_LABELS = {
   count: "sortMostUsed",
@@ -216,6 +220,7 @@ export function TagsScreen({
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
+  const tc = useTranslations("common");
   useDocumentTitle(t("title"));
   const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
@@ -232,20 +237,34 @@ export function TagsScreen({
   } | null>(null);
 
   const [request, setRequest] = useState<"idle" | "pending" | "failed">("idle");
+  const [attempts, setAttempts] = useState(0);
   useEffect(() => {
     if (summary !== null || request !== "idle") {
       return;
     }
     setRequest("pending");
+    setAttempts((count) => count + 1);
     requestSummary({}).catch(() => setRequest("failed"));
   }, [request, requestSummary, summary]);
   useEffect(() => {
-    if (request !== "failed") {
+    if (summary !== null || request !== "pending") {
+      return;
+    }
+    const stalled = setTimeout(() => setRequest("failed"), SUMMARY_WAIT_MS);
+    return () => clearTimeout(stalled);
+  }, [request, summary]);
+  useEffect(() => {
+    if (request !== "failed" || attempts >= SUMMARY_AUTO_ATTEMPTS) {
       return;
     }
     const retry = setTimeout(() => setRequest("idle"), SUMMARY_RETRY_MS);
     return () => clearTimeout(retry);
-  }, [request]);
+  }, [attempts, request]);
+  // The summary can still arrive later, which replaces this.
+  const summaryFailed =
+    summary === null &&
+    request === "failed" &&
+    attempts >= SUMMARY_AUTO_ATTEMPTS;
 
   const items = useMemo(
     () =>
@@ -341,7 +360,23 @@ export function TagsScreen({
       </PageHeader>
 
       <div>
-        {matches === undefined && (
+        {summaryFailed ? (
+          <div
+            className="flex flex-col items-center gap-4 rounded-xl border bg-card px-6 py-12 text-center"
+            role="alert"
+          >
+            <p className="text-muted-foreground text-sm">{t("loadFailed")}</p>
+            <Button
+              onClick={() => setRequest("idle")}
+              type="button"
+              variant="outline"
+            >
+              {tc("tryAgain")}
+            </Button>
+          </div>
+        ) : null}
+
+        {matches === undefined && !summaryFailed && (
           <ul
             aria-label={t("loading")}
             className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"

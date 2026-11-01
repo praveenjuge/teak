@@ -182,3 +182,77 @@ test("the R shortcut starts a recording, and waits while one is running", async 
   });
   expect(recorderStarts).toHaveBeenCalledTimes(1);
 });
+
+test("a recording that fails to save stays in the dialog, to save again or download", async () => {
+  uploadFile.mockImplementationOnce(() =>
+    Promise.resolve({ error: "Upload failed", success: false })
+  );
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Stop and Save").click());
+
+  const dialog = () => document.querySelector("[data-dialog]");
+  expect(dialog()).not.toBeNull();
+  expect(dialog()?.querySelector("p")?.textContent).toBe(
+    "Couldn't save the recording. Try again, or download it to keep it."
+  );
+
+  const createObjectURL = mock(() => "blob:recording");
+  const downloads: string[] = [];
+  Object.assign(URL, { createObjectURL, revokeObjectURL: mock() });
+  const realClick = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+    downloads.push(this.download);
+  };
+  try {
+    await act(async () => button("Download").click());
+  } finally {
+    HTMLAnchorElement.prototype.click = realClick;
+  }
+  expect(createObjectURL).toHaveBeenCalledTimes(1);
+  expect(downloads[0]).toMatch(/^recording_\d+\.webm$/);
+
+  await act(async () => button("Try again").click());
+  expect(uploadFile).toHaveBeenCalledTimes(2);
+  expect(dialog()).toBeNull();
+});
+
+test("while a recording saves it can be downloaded, and closing the dialog doesn't lose it", async () => {
+  let finishSave: (result: unknown) => void = () => undefined;
+  uploadFile.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishSave = resolve;
+      })
+  );
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Stop and Save").click());
+
+  const dialog = () => document.querySelector("[data-dialog]");
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(button("Download").disabled).toBe(false);
+  expect(button("Try again").disabled).toBe(true);
+
+  // Close it while the save waits, as offline it can wait a long time.
+  await act(async () => button("Dismiss").click());
+  expect(dialog()).toBeNull();
+
+  // Record audio (or R) brings it back rather than starting another.
+  await act(async () => button("Record audio").click());
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  await act(async () => button("Dismiss").click());
+  await act(() => {
+    expect(pressRecordAudio()).toBe(true);
+  });
+  expect(dialog()).not.toBeNull();
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  await act(async () => button("Dismiss").click());
+
+  await act(async () => finishSave({ error: "Upload failed", success: false }));
+  expect(dialog()?.querySelector("p")?.textContent).toBe(
+    "Couldn't save the recording. Try again, or download it to keep it."
+  );
+  expect(button("Try again").disabled).toBe(false);
+});

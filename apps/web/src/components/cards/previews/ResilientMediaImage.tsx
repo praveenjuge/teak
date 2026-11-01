@@ -1,7 +1,12 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { useAction } from "convex/react";
-import type { CSSProperties, ImgHTMLAttributes, SyntheticEvent } from "react";
+import type {
+  CSSProperties,
+  ImgHTMLAttributes,
+  ReactNode,
+  SyntheticEvent,
+} from "react";
 import { useEffect, useState } from "react";
 import {
   appendMediaRetryParam,
@@ -13,8 +18,11 @@ interface ResilientMediaImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "alt" | "onError" | "src"> {
   alt: string;
   cardId?: string;
+  /** Shown once the image can't load; a blank block by default. */
+  fallback?: ReactNode;
   fallbackStyle?: CSSProperties;
-  onPermanentError?: (event: SyntheticEvent<HTMLImageElement>) => void;
+  /** Called with the URL that failed once no retry is left. */
+  onPermanentError?: (failedUrl: string) => void;
   src: string;
   storageKey?: string;
 }
@@ -22,6 +30,7 @@ interface ResilientMediaImageProps
 export function ResilientMediaImage({
   alt,
   cardId,
+  fallback,
   fallbackStyle,
   height = 512,
   onPermanentError,
@@ -45,10 +54,11 @@ export function ResilientMediaImage({
   }, [src, srcSet]);
 
   const handleError = async (event: SyntheticEvent<HTMLImageElement>) => {
+    // Read the element now: React clears currentTarget once this awaits.
     const attemptedUrl = event.currentTarget.currentSrc || displaySrc;
     if (!(cardId && storageKey && canRetryMedia(attemptedUrl, retryCount))) {
       setFailed(true);
-      onPermanentError?.(event);
+      onPermanentError?.(attemptedUrl);
       return;
     }
     setRetryCount(1);
@@ -63,13 +73,19 @@ export function ResilientMediaImage({
       setDisplaySrc(appendMediaRetryParam(url));
     } catch {
       setFailed(true);
-      onPermanentError?.(event);
+      onPermanentError?.(attemptedUrl);
     }
   };
 
   if (failed) {
     return (
-      <span aria-hidden className="block h-full w-full" style={fallbackStyle} />
+      fallback ?? (
+        <span
+          aria-hidden
+          className="block h-full w-full"
+          style={fallbackStyle}
+        />
+      )
     );
   }
   return (

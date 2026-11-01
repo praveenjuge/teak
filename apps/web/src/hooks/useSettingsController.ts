@@ -205,6 +205,14 @@ export function useSettingsController({
     }
   };
 
+  // A new attempt starts without the last one's error.
+  const openDeleteDialog = (open: boolean) => {
+    if (open) {
+      setDeleteError(null);
+    }
+    setDeleteDialogOpen(open);
+  };
+
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     setDeleteError(null);
@@ -258,7 +266,7 @@ export function useSettingsController({
     ...devices,
     handleRevokeOtherSessions,
     handleRevokeSession,
-    setDeleteDialogOpen,
+    setDeleteDialogOpen: openDeleteDialog,
     setDeleteError,
     signOutLoading,
   };

@@ -523,7 +523,8 @@
       "tags": "Etiquetas",
       "folder": "Carpeta"
     },
-    "skipToContent": "Saltar al contenido"
+    "skipToContent": "Saltar al contenido",
+    "offline": "No tiene conexión. Los cambios se guardarán cuando vuelva a conectarse."
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "Carpetas",
       "newFolder": "Nueva carpeta",
       "emptyHint": "Agrupe tarjetas relacionadas. Cree una carpeta y luego arrastre tarjetas a ella.",
+      "loadFailed": "No se pudieron cargar sus carpetas.",
       "moreFor": "Más opciones para {name}",
       "renameItem": "Cambiar nombre…",
       "editSearch": "Editar búsqueda…",
@@ -1015,7 +1017,6 @@
       "editLink": "Editar enlace…",
       "removeFromFolder": "Quitar de esta carpeta"
     },
-    "copyImageFailed": "No se pudo copiar la imagen",
     "deleteForeverDialog": {
       "confirm": "Eliminar definitivamente",
       "description": "Esto elimina de forma permanente la tarjeta y sus archivos. Esta acción no se puede deshacer.",
@@ -1154,6 +1155,7 @@
       "placeholder": "Escriba una nota…",
       "upgradePlaceholder": "Pásese a Pro para añadir más tarjetas…",
       "saveFailed": "No se pudo guardar la nota",
+      "savingOffline": "No tiene conexión. Esta nota se guardará cuando vuelva a conectarse.",
       "focus": "Concentración",
       "resaved": "Ya está en Teak · Se movió al principio",
       "resavedFromArchive": "Ya está en Teak · Se sacó del Archivo",
@@ -1180,7 +1182,7 @@
       "recordAudio": "Grabar audio",
       "savingRecording": "Guardando la grabación de audio…",
       "recordingSaved": "Grabación de audio guardada",
-      "recordingSaveFailed": "No se pudo guardar la grabación de audio",
+      "recordingNotSaved": "No se pudo guardar la grabación. Vuelva a intentarlo o descárguela para conservarla.",
       "microphoneUnsupported": "Esta aplicación no admite la grabación con micrófono.",
       "microphoneDenied": "Se denegó el permiso del micrófono. Permítalo y vuelva a intentarlo.",
       "microphoneMissing": "No se detectó ningún micrófono. Conecte uno y vuelva a intentarlo.",
@@ -1194,7 +1196,8 @@
       "recordingHint": "Hable con naturalidad. Teak lo guardará como una tarjeta de audio.",
       "recordingTitle": "Grabando audio",
       "stopAndSave": "Detener y guardar",
-      "discardRecording": "Descartar"
+      "discardRecording": "Descartar",
+      "downloadRecording": "Descargar"
     },
     "emptyState": {
       "title": "¡Añadamos su primera tarjeta!",
@@ -1625,6 +1628,7 @@
       "title": "Etiquetas",
       "findTag": "Buscar una etiqueta",
       "loading": "Cargando etiquetas",
+      "loadFailed": "No se pudieron cargar sus etiquetas.",
       "noTags": "Aún no hay etiquetas",
       "noTagsDescription": "Aquí aparecen las etiquetas que añade a sus tarjetas y las que sugiere Teak.",
       "noMatches": "Ninguna etiqueta coincide con «{query}».",

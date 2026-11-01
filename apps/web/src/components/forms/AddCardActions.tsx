@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
@@ -15,7 +16,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
+import { Download, Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -152,6 +153,7 @@ export function AddCardProvider({
 }: AddCardProviderProps) {
   const t = useTranslations("forms.addCardActions");
   const tLimits = useTranslations("forms.limits");
+  const tc = useTranslations("common");
   const errors = useServerErrors();
   const tUpload = useTranslations("hooks.upload");
   const tErrors = useTranslations("errors");
@@ -165,6 +167,14 @@ export function AddCardProvider({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The recording until it's saved, so it can be downloaded meanwhile (a
+  // save can wait a long time offline) and saved again if it fails. `error`
+  // is null while the save runs.
+  const [unsaved, setUnsaved] = useState<{
+    blob: Blob;
+    error: string | null;
+    extension: string;
+  } | null>(null);
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard = cardCreationStatus?.canCreateCard ?? true;
@@ -249,9 +259,15 @@ export function AddCardProvider({
   const autoSaveAudio = useCallback(
     async (blob: Blob, extension: string) => {
       const toastId = toast.loading(t("savingRecording"));
+      // A failed save shows again even if the dialog was closed meanwhile.
+      const keep = (error: string) => {
+        setUnsaved({ blob, error, extension });
+        setIsRecordingDialogOpen(true);
+      };
 
       try {
         setIsSubmitting(true);
+        setUnsaved({ blob, error: null, extension });
 
         const file = new File([blob], `recording_${Date.now()}.${extension}`, {
           type: blob.type,
@@ -271,6 +287,7 @@ export function AddCardProvider({
         });
 
         if (result.success) {
+          setUnsaved(null);
           setRecordingTime(0);
           setIsRecordingDialogOpen(false);
           onSuccess?.();
@@ -280,30 +297,28 @@ export function AddCardProvider({
 
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
           showUpgradeToast(toastId);
+          keep(tLimits("cardLimitReached"));
           return;
         }
 
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error(tLimits("rateLimited"), {
-            id: toastId,
-          });
+          toast.dismiss(toastId);
+          keep(tLimits("rateLimited"));
           return;
         }
 
-        throw new Error(
-          result.error
-            ? errors.byEnglishMessage(result.error)
-            : t("recordingSaveFailed")
-        );
+        // The dialog stays open with the recording and says it wasn't saved.
+        toast.dismiss(toastId);
+        keep(t("recordingNotSaved"));
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("recordingSaveFailed");
-        toast.error(errorMessage, { id: toastId });
+        toast.dismiss(toastId);
+        keep(t("recordingNotSaved"));
+        captureClientException(error, { "ui.action": "save-recording" });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [errors, onSuccess, showUpgradeToast, t, tLimits, uploadFile]
+    [onSuccess, showUpgradeToast, t, tLimits, uploadFile]
   );
 
   const startRecording = useCallback(async () => {
@@ -393,7 +408,8 @@ export function AddCardProvider({
     mediaRecorderRef.current.stop();
     mediaRecorderRef.current = null;
     setIsRecording(false);
-    setIsRecordingDialogOpen(false);
+    // The dialog stays open, saying "Saving recording…", until it's saved.
+    setIsSubmitting(true);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -412,16 +428,37 @@ export function AddCardProvider({
     }
     clearRecordingResources();
     setIsRecording(false);
+    setUnsaved(null);
     setRecordingTime(0);
     setIsRecordingDialogOpen(false);
   }, [clearRecordingResources]);
+
+  const downloadUnsaved = () => {
+    if (!unsaved) {
+      return;
+    }
+    const url = URL.createObjectURL(unsaved.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `recording_${Date.now()}.${unsaved.extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
 
   const handleDialogOpenChange = (open: boolean) => {
     if (open) {
       setIsRecordingDialogOpen(true);
       return;
     }
-    if (isRecording) {
+    // A save under way carries on with the dialog closed; it reopens if the
+    // save fails.
+    if (isSubmitting) {
+      setIsRecordingDialogOpen(false);
+      return;
+    }
+    if (isRecording || unsaved) {
       discardRecording();
       return;
     }
@@ -508,7 +545,9 @@ export function AddCardProvider({
   };
 
   let recordingStatusDescription = t("startingMicrophone");
-  if (isSubmitting) {
+  if (unsaved?.error && !isSubmitting) {
+    recordingStatusDescription = unsaved.error;
+  } else if (isSubmitting) {
     recordingStatusDescription = t("savingRecordingStatus");
   } else if (isRecording) {
     recordingStatusDescription = t("recordingHint");
@@ -530,22 +569,30 @@ export function AddCardProvider({
   );
   const recordRef = useRef(startRecording);
   recordRef.current = startRecording;
-  const canStartRecording = !(isRecording || isSubmitting);
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+  // A recording still waiting to be saved reopens its dialog instead of
+  // starting another: closing the dialog mustn't hide it for good.
+  const canStartRecording = !(isRecording || (isSubmitting && !unsaved));
+  const recordAudio = useCallback(() => {
+    if (unsavedRef.current) {
+      setIsRecordingDialogOpen(true);
+      return;
+    }
+    recordRef.current().catch(() => undefined);
+  }, []);
   useEffect(
     () =>
       registerRecordAudio(() => {
         if (!canStartRecording) {
           return false;
         }
-        recordRef.current().catch(() => undefined);
+        recordAudio();
         return true;
       }),
-    [canStartRecording]
+    [canStartRecording, recordAudio]
   );
   const uploadFiles = useCallback(() => uploadRef.current(), []);
-  const recordAudio = useCallback(() => {
-    recordRef.current().catch(() => undefined);
-  }, []);
   const controls = useMemo<AddCardControls>(
     () => ({
       canStartRecording,
@@ -568,36 +615,68 @@ export function AddCardProvider({
         <DialogContent
           className="max-w-sm text-center"
           onInteractOutside={(event) => {
-            if (isRecording) {
+            if (isRecording || isSubmitting || unsaved) {
               event.preventDefault();
             }
           }}
           showCloseButton={false}
         >
           <DialogTitle>{t("recordingTitle")}</DialogTitle>
-          <DialogDescription>{recordingStatusDescription}</DialogDescription>
+          <DialogDescription aria-live="polite">
+            {recordingStatusDescription}
+          </DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
               {formatTime(recordingTime)}
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                disabled={!isRecording || isSubmitting}
-                onClick={discardRecording}
-                type="button"
-                variant="outline"
-              >
-                {t("discardRecording")}
-              </Button>
-              <Button
-                disabled={!isRecording || isSubmitting}
-                onClick={stopRecording}
-                type="button"
-              >
-                <Square />
-                {t("stopAndSave")}
-              </Button>
-            </div>
+            {unsaved ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  disabled={isSubmitting}
+                  onClick={discardRecording}
+                  type="button"
+                  variant="outline"
+                >
+                  {t("discardRecording")}
+                </Button>
+                <Button
+                  onClick={downloadUnsaved}
+                  type="button"
+                  variant="outline"
+                >
+                  <Download />
+                  {t("downloadRecording")}
+                </Button>
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    void autoSaveAudio(unsaved.blob, unsaved.extension)
+                  }
+                  type="button"
+                >
+                  {tc("tryAgain")}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  disabled={!isRecording || isSubmitting}
+                  onClick={discardRecording}
+                  type="button"
+                  variant="outline"
+                >
+                  {t("discardRecording")}
+                </Button>
+                <Button
+                  disabled={!isRecording || isSubmitting}
+                  onClick={stopRecording}
+                  type="button"
+                >
+                  <Square />
+                  {t("stopAndSave")}
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -101,7 +101,7 @@ export interface CardProps {
   isTrashMode?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
-  onCopyImage?: (content: string, isImage: boolean) => void;
+  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onDelete?: (cardId: string) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;

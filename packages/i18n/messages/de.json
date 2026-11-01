@@ -523,7 +523,8 @@
       "tags": "Tags",
       "folder": "Ordner"
     },
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "offline": "Sie sind offline. Änderungen werden gespeichert, sobald Sie wieder verbunden sind."
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "Ordner",
       "newFolder": "Neuer Ordner",
       "emptyHint": "Gruppieren Sie zusammengehörige Karten. Erstellen Sie einen Ordner und ziehen Sie Karten darauf.",
+      "loadFailed": "Ihre Ordner konnten nicht geladen werden.",
       "moreFor": "Mehr für {name}",
       "renameItem": "Umbenennen…",
       "editSearch": "Suche bearbeiten…",
@@ -1015,7 +1017,6 @@
       "editLink": "Link bearbeiten…",
       "removeFromFolder": "Aus diesem Ordner entfernen"
     },
-    "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
       "confirm": "Endgültig löschen",
       "description": "Dadurch werden die Karte und ihre Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
@@ -1154,6 +1155,7 @@
       "placeholder": "Notiz schreiben…",
       "upgradePlaceholder": "Upgraden Sie auf Pro, um weitere Karten hinzuzufügen…",
       "saveFailed": "Die Notiz konnte nicht gespeichert werden",
+      "savingOffline": "Sie sind offline. Diese Notiz wird gespeichert, sobald Sie wieder verbunden sind.",
       "focus": "Fokus",
       "resaved": "Bereits in Teak · Nach oben verschoben",
       "resavedFromArchive": "Bereits in Teak · Aus dem Archiv zurückgeholt",
@@ -1180,7 +1182,7 @@
       "recordAudio": "Audio aufnehmen",
       "savingRecording": "Audioaufnahme wird gespeichert…",
       "recordingSaved": "Audioaufnahme gespeichert",
-      "recordingSaveFailed": "Die Audioaufnahme konnte nicht gespeichert werden",
+      "recordingNotSaved": "Die Aufnahme konnte nicht gespeichert werden. Versuchen Sie es erneut oder laden Sie sie herunter, um sie zu behalten.",
       "microphoneUnsupported": "Mikrofonaufnahmen werden in dieser App nicht unterstützt.",
       "microphoneDenied": "Der Mikrofonzugriff wurde verweigert. Erlauben Sie ihn und versuchen Sie es erneut.",
       "microphoneMissing": "Kein Mikrofon erkannt. Schließen Sie eines an und versuchen Sie es erneut.",
@@ -1194,7 +1196,8 @@
       "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
       "recordingTitle": "Audio wird aufgenommen",
       "stopAndSave": "Stoppen und speichern",
-      "discardRecording": "Verwerfen"
+      "discardRecording": "Verwerfen",
+      "downloadRecording": "Herunterladen"
     },
     "emptyState": {
       "title": "Fügen Sie Ihre erste Karte hinzu!",
@@ -1625,6 +1628,7 @@
       "title": "Tags",
       "findTag": "Tag suchen",
       "loading": "Tags werden geladen",
+      "loadFailed": "Ihre Tags konnten nicht geladen werden.",
       "noTags": "Noch keine Tags",
       "noTagsDescription": "Tags, die Sie Karten hinzufügen, und die Vorschläge von Teak erscheinen hier.",
       "noMatches": "Keine Tags passen zu „{query}“.",

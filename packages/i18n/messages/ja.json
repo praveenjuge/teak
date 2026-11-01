@@ -523,7 +523,8 @@
       "tags": "タグ",
       "folder": "フォルダ"
     },
-    "skipToContent": "コンテンツへスキップ"
+    "skipToContent": "コンテンツへスキップ",
+    "offline": "オフラインです。変更は再接続したときに保存されます。"
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "フォルダ",
       "newFolder": "新規フォルダ",
       "emptyHint": "関連するカードをまとめましょう。フォルダを作って、カードをドラッグしてください。",
+      "loadFailed": "フォルダを読み込めませんでした。",
       "moreFor": "{name} のその他の操作",
       "renameItem": "名前を変更…",
       "editSearch": "検索条件を編集…",
@@ -1015,7 +1017,6 @@
       "editLink": "リンクを編集…",
       "removeFromFolder": "このフォルダから削除"
     },
-    "copyImageFailed": "画像をコピーできませんでした",
     "deleteForeverDialog": {
       "confirm": "完全に削除",
       "description": "カードとそのファイルが完全に削除されます。この操作は元に戻せません。",
@@ -1154,6 +1155,7 @@
       "placeholder": "メモを書く…",
       "upgradePlaceholder": "さらにカードを追加するには Pro にアップグレードしてください…",
       "saveFailed": "メモを保存できませんでした",
+      "savingOffline": "オフラインです。このメモは再接続したときに保存されます。",
       "focus": "集中モード",
       "resaved": "すでに Teak にあります · 一番上に移動しました",
       "resavedFromArchive": "すでに Teak にあります · アーカイブから戻しました",
@@ -1180,7 +1182,7 @@
       "recordAudio": "音声を録音",
       "savingRecording": "録音を保存しています…",
       "recordingSaved": "録音を保存しました",
-      "recordingSaveFailed": "録音を保存できませんでした",
+      "recordingNotSaved": "録音を保存できませんでした。もう一度お試しいただくか、ダウンロードして保管してください。",
       "microphoneUnsupported": "このアプリではマイクでの録音に対応していません。",
       "microphoneDenied": "マイクへのアクセスが拒否されました。許可してからもう一度お試しください。",
       "microphoneMissing": "マイクが検出されませんでした。マイクを接続してからもう一度お試しください。",
@@ -1194,7 +1196,8 @@
       "recordingHint": "いつもどおりに話してください。Teak が音声カードとして保存します。",
       "recordingTitle": "録音中",
       "stopAndSave": "停止して保存",
-      "discardRecording": "破棄"
+      "discardRecording": "破棄",
+      "downloadRecording": "ダウンロード"
     },
     "emptyState": {
       "title": "最初のカードを追加しましょう！",
@@ -1625,6 +1628,7 @@
       "title": "タグ",
       "findTag": "タグを検索",
       "loading": "タグを読み込み中",
+      "loadFailed": "タグを読み込めませんでした。",
       "noTags": "タグはまだありません",
       "noTagsDescription": "カードに付けたタグや、Teak がおすすめするタグがここに表示されます。",
       "noMatches": "「{query}」に一致するタグはありません。",

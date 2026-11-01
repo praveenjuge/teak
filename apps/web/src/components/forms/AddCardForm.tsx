@@ -436,7 +436,10 @@ export function AddCardForm({
 
     resetDraft();
 
-    const toastId = toast.loading(tc("saving"));
+    // Offline, the note still shows at once and saves on reconnecting.
+    const toastId = toast.loading(
+      navigator.onLine ? tc("saving") : t("savingOffline")
+    );
     captureEvent("card_create_submitted", {
       card_type: "text",
       source: "web",

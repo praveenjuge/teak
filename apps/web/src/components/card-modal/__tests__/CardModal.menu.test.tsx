@@ -9,6 +9,12 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
 const realPanel = await import("../CardMetadataPanel");
 let panelProps: Parameters<typeof realPanel.CardMetadataPanel>[0] | undefined;
 mock.module("../CardMetadataPanel", () => ({

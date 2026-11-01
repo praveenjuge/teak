@@ -16,7 +16,7 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-narrow` keeps `U`, `R` and the palette's "Upload files" working at every width: they don't depend on the sidebar, so they work below 768 px with the drawer closed, and a recording started from the drawer's menu keeps going once the drawer closes.
 - `capture-composer-search` shows the composer only on Everything with no search or filter: a search's results start with the first match. `N` during a search goes to `/` and focuses the composer.
 - `capture-upload` uploads files as image, video, audio or document cards.
-- `capture-audio` records audio into an audio card; "Discard" or Esc throws a recording away.
+- `capture-audio` records audio into an audio card; "Discard" or Esc throws a recording away. A recording whose save fails stays in the dialog to save again or download ([errors](./errors.md)).
 
 ## How to get to it (user POV)
 
