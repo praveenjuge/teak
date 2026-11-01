@@ -9,7 +9,7 @@ Teak's web app can be installed from Chrome, Edge or Safari: it opens on the lib
 - `web-install-share-text` fills the composer from `title`, `text` and `url` and strips them from the URL with `compose`.
 - `web-install-share-files` hands the kept files to the upload queue ("File uploaded"), and deletes them from the cache; gone files show "Shared files couldn't be found. Share them again." In the installed app's window (`display-mode: standalone`) they upload at once. In a browser tab, where any website could have posted the form, the toast "Save the shared file to Teak?" (or "Save N shared files to Teak?") waits, and nothing uploads until its "Save". While it waits, the files stay in the cache and the tab remembers the share id (sessionStorage `teak:pending-share`), so a reload asks again; "Save" or closing the toast deletes them and forgets the id.
 - `web-install-share-fallback` is the `/share` route for a POST no worker answered: it keeps the text and adds `share=missing` when the form had files. It is never redirected to sign-in first.
-- `web-install-signed-out` keeps the share's text and file id through `/sign-in?next=…`, so both land after sign-in.
+- `web-install-signed-out` keeps the share's text and file id through the sign-in redirect (AuthKit returns to the same path and query), so both land after sign-in.
 
 ## How to get to it (user POV)
 

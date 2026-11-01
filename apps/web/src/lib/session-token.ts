@@ -28,6 +28,18 @@ export async function fetchSessionToken(
   }
 }
 
+// Convex asks for a forced token shortly before each one expires, but AuthKit
+// has usually renewed it already: hand that one over, and only make AuthKit
+// refresh again when it would return the token Convex already holds.
+export async function newerSessionToken(
+  held: string | null,
+  getAccessToken: () => Promise<string | undefined>,
+  refresh: () => Promise<string | undefined>
+): Promise<string | undefined> {
+  const token = await getAccessToken();
+  return token && token !== held ? token : await refresh();
+}
+
 const waitToRetry = (attempt: number) =>
   new Promise<void>((resolve) => {
     const retry = () => {

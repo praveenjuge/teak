@@ -4,7 +4,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 
 ## Sub-features
 
-- `auth-redirect` sends an anonymous visit to `/sign-in?next=<path>`, which hands off to the hosted page.
+- `auth-redirect` sends an anonymous page load straight to the hosted page, which returns to the same path after sign-in. A Next.js router fetch (no `text/html` in `Accept`) goes to `/sign-in?next=<path>` instead, which answers it with an empty 204 so the router reloads the page.
 - `auth-sign-in` signs in through the hosted email step, then the password step.
 - `auth-return` lands on `next`, or `/` when there is none.
 - `auth-signed-in-entry` sends a signed-in visit to `/sign-in` or `/sign-up` straight to `next` (or `/`) without the hosted page. `/sign-in?reauth=1` (after a failed callback) and `/sign-in?renew=1` (the app's "Sign in" buttons on "Please sign in again." and "Your session changed") still go through the hosted page.
@@ -31,7 +31,7 @@ Preconditions:
 
 Steps:
 
-- **Redirect.** `open_session` opens `/`. The first observation's document is "Sign in" on the hosted WorkOS origin, with heading "Sign in" and textbox "Email". The URL is no longer `localhost`.
+- **Redirect.** `open_session` opens `/`. The first observation's document is "Sign in" on the hosted WorkOS origin, with heading "Sign in" and textbox "Email". The URL is no longer `localhost`. A page load goes there in one redirect: `curl -sD - -o /dev/null -H 'accept: text/html' <app>/settings` answers 307 with `location` on the hosted `/user_management/authorize` and a `wos-auth-verifier` cookie, not `/sign-in`.
 - **Email step.** `type` the email into textbox "Email", then `tap` button "Continue with email". The page changes to the password step: textbox "Email" shows the address, textbox "Password" is focused, and there's a link "Change email".
 - **Password step.** `type` the password into textbox "Password", then `tap` button "Sign in". The app opens on `/`, with heading "Everything", sidebar links "Everything", "Favorites", "Tags", "Archive", "Trash" and "Settings", and the combobox "Search everything". Cards may show as the status "Loading cards" for up to a minute on a cold stack.
 - **Deep link.** Signed out, `navigate` to `/settings`, then sign in. The app lands on `/settings` (heading "Settings"), not `/`.

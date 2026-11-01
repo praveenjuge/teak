@@ -8,13 +8,13 @@ import {
   useAuth,
 } from "@workos-inc/authkit-nextjs/components";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
-import { type ReactNode, useCallback, useEffect } from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { preloadCardModal } from "@/components/card-modal/LazyCardModal";
 import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
 import { firstLoadQueries } from "@/lib/firstLoadQueries";
 import { whenIdle } from "@/lib/lazyWithPreload";
 import { getConvexUrl } from "@/lib/public-env";
-import { fetchSessionToken } from "@/lib/session-token";
+import { fetchSessionToken, newerSessionToken } from "@/lib/session-token";
 
 // Never closed: React replays effects in development and hides routes with
 // Activity, and closing a client that mounted auth or subscription effects
@@ -102,16 +102,23 @@ export default function ConvexClientProvider({
 function useAuthFromAuthKit() {
   const { user, loading } = useAuth();
   const { getAccessToken, refresh } = useAccessToken();
+  const handedOut = useRef<string | null>(null);
+  const nextToken = useCallback(
+    () => newerSessionToken(handedOut.current, getAccessToken, refresh),
+    [getAccessToken, refresh]
+  );
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
       if (!user) {
         return null;
       }
-      return await fetchSessionToken(
-        forceRefreshToken ? refresh : getAccessToken
+      const token = await fetchSessionToken(
+        forceRefreshToken ? nextToken : getAccessToken
       );
+      handedOut.current = token;
+      return token;
     },
-    [user, refresh, getAccessToken]
+    [user, nextToken, getAccessToken]
   );
   return {
     isLoading: loading,

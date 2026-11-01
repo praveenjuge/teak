@@ -19,6 +19,11 @@ const proxyAnalytics = (request: NextRequest, target: URL) => {
   return NextResponse.rewrite(target, { request: { headers } });
 };
 
+const hasPkceCookie = (response: NextResponse) =>
+  response.headers
+    .getSetCookie()
+    .some((cookie) => cookie.startsWith("wos-auth-verifier"));
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const analyticsTarget = resolveAnalyticsProxyTarget(request.nextUrl);
@@ -37,12 +42,17 @@ export default async function proxy(request: NextRequest) {
     if (request.nextUrl.origin !== config.origin) {
       return new NextResponse("Invalid sign-in origin.", { status: 400 });
     }
-    const { session, headers } = await authkit(request, {
+    const { session, headers, authorizationUrl } = await authkit(request, {
       // Page loads also carry the access token in a 30-second cookie that the
       // client reads (and deletes) as it starts, so Convex signs in without
       // first asking the server for a token.
       eagerAuth: true,
       redirectUri: config.redirectUri,
+      // The client renews its token through a server action that refreshes
+      // the session itself, 60 seconds before expiry (30 for tokens of five
+      // minutes or less). Refreshing here only in the last 20 seconds keeps
+      // that request to one WorkOS refresh.
+      refreshBufferSeconds: 20,
     });
     const signedIn = Boolean(session.user);
     const respond = (response: NextResponse) => {
@@ -59,6 +69,17 @@ export default async function proxy(request: NextRequest) {
       return respond(handleAuthkitProxy(request, headers, { redirect: entry }));
     }
     if (!(signedIn || SIGN_IN_ROUTES.has(pathname))) {
+      // A page load goes straight to AuthKit with the SDK's PKCE cookie. The
+      // SDK sets that cookie only for document loads; anything else (a router
+      // fetch can't follow the cross-origin hop) goes through /sign-in.
+      if (authorizationUrl) {
+        const direct = handleAuthkitProxy(request, headers, {
+          redirect: authorizationUrl,
+        });
+        if (hasPkceCookie(direct)) {
+          return respond(direct);
+        }
+      }
       const signIn = new URL("/sign-in", config.origin);
       signIn.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return respond(

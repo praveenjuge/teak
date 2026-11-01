@@ -52,6 +52,43 @@ describe("web sign-in routing", () => {
     );
     expect(response.headers.get("x-workos-session")).toBeNull();
   });
+  test("sends a signed-out page load straight to AuthKit", async () => {
+    globalThis.fetch = offline;
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/settings?tab=account", {
+        headers: { accept: "text/html" },
+      })
+    );
+    expect(response.status).toBe(307);
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/user_management/authorize");
+    expect(location.searchParams.get("client_id")).toBe("client_web123");
+    expect(location.searchParams.get("redirect_uri")).toBe(
+      "http://localhost:3142/callback"
+    );
+    expect(location.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((cookie) => cookie.startsWith("wos-auth-verifier"))
+    ).toBe(true);
+  });
+  test("sends a signed-out router fetch through sign-in", async () => {
+    globalThis.fetch = offline;
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/settings", {
+        headers: { accept: "*/*", rsc: "1" },
+      })
+    );
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3142/sign-in?next=%2Fsettings"
+    );
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((cookie) => cookie.startsWith("wos-auth-verifier"))
+    ).toBe(false);
+  });
   test("clears a signed-in hint the session no longer backs", async () => {
     globalThis.fetch = offline;
     const response = await proxy(
