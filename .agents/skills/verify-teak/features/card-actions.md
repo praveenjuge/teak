@@ -13,6 +13,7 @@ A user opens a card into a dialog to edit its notes, tags and folders, favorites
 - `card-tags` adds and removes tags; "secret" and "hidden" hide the card. Tags Teak added fold under "N suggested tags", where "Keep tag …" keeps one and "Remove Teak tag …" drops it.
 - `card-folders` adds the card to a folder.
 - `card-favorite` favorites and unfavorites a card from the grid or the dialog.
+- `card-menu-keys` runs the shortcut an item in a card's right-click or "More actions" menu lists (`F`, `T`, `E`, `X`, Delete or Backspace, ⌘C/Ctrl+C) when it is pressed while that menu is open, and closes the menu.
 - `card-archive` archives and unarchives a card.
 - `card-trash` moves a card to Trash, with "Undo".
 - `card-restore` restores a card from Trash.
@@ -28,6 +29,7 @@ A user opens a card into a dialog to edit its notes, tags and folders, favorites
 - `/?card=<id>` opens the dialog directly.
 - Each card's hover buttons ("Favorite", "More actions", "Select"), or `right_click` for the same menu.
 - Keys on a focused card: `f` favorite, `e` archive, `t` tags, `x` select, Delete moves to Trash.
+- The same keys while the card's right-click or "More actions" menu is open.
 - Keys in the open dialog: `o` (or ⌘↵) opens the link or downloads the file, `c` copies the link or text, `d` marks a link done, `n` notes, `t` tags.
 - `/archive` and `/trash` for archived and deleted cards.
 
@@ -54,6 +56,7 @@ Steps:
 - **Favorite.** In the dialog, `tap` "Favorite". It becomes "Unfavorite" (pressed). Close with "Close" or Escape. Proof: link "Favorites" lists the card. Tap "Unfavorite" to undo.
 - **Arrows after the card leaves the view.** Favorite three marked notes, open `/favorites?q=verify-<run-id>`, open the middle one and `tap` "Unfavorite". "Previous card" and "Next card" stay, and `press` "ArrowRight" opens the next note. Unfavorite the three to undo.
 - **Favorite twice quickly.** With the dialog focused, `press` "f" twice in a row. The button reads "Unfavorite" after the first press and "Favorite" after the second, and stays "Favorite" while both saves land (it never flips back to "Unfavorite"). Proof: reload; the card isn't a favorite.
+- **Keys in the menu.** `right_click` a marked card: the menu lists "Favorite F", "Add Tags… T", "Archive E", "Select X" and "Move to Trash Del" (⌫ on a Mac). `press` "f": the menu closes and the card shows the heart (right-click again: the item reads "Unfavorite"; press "f" to undo). `right_click` it and `press` "t": the menu closes and dialog "Add tags" opens (Escape). `right_click` it and `press` "x": the menu closes and the selection bar reads "1 card selected" (Escape). The hover "More actions" menu answers the same keys.
 - **Archive.** Open the card's "More actions" (in the dialog, or by right-clicking the card) and choose "Archive". The toast "Archived 1 card" offers "Undo", and the card leaves Everything. Proof: `/archive` lists it. There, choose "Unarchive"; the toast "Returned 1 card to the library" appears.
 - **Trash.** From the grid's menu, choose "Delete". The toast "Moved 1 card to Trash" offers "Undo". Proof: `/trash` lists the card.
 - **Trash from the dialog.** Use a second marked card. Open it, choose "Move to Trash" from the dialog's "More actions": the dialog closes and the toast "Card deleted" offers "Undo". `tap` "Undo"; the card is back in Everything. Delete the card for good in cleanup.

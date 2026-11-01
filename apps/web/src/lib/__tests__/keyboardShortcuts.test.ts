@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   ariaKeyShortcut,
   keyboardShortcutGroups,
+  matchesMenuShortcut,
   openKeyboardShortcuts,
   platformKey,
   pressUploadFiles,
@@ -87,5 +88,33 @@ describe("openKeyboardShortcuts", () => {
     unregister();
     expect(openKeyboardShortcuts()).toBe(false);
     expect(open).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("matchesMenuShortcut", () => {
+  const key = (value: string, modifiers: Partial<KeyboardEvent> = {}) => ({
+    altKey: false,
+    ctrlKey: false,
+    key: value,
+    metaKey: false,
+    shiftKey: false,
+    ...modifiers,
+  });
+
+  test.each([
+    ["F", key("f"), true],
+    ["F", key("F"), true],
+    ["F", key("t"), false],
+    ["F", key("f", { metaKey: true }), false],
+    ["Control+C", key("c", { ctrlKey: true }), true],
+    ["Control+C", key("c"), false],
+    ["Control+C", key("c", { metaKey: true }), false],
+    ["Meta+C", key("c", { metaKey: true }), true],
+    ["Delete", key("Delete"), true],
+    ["Delete", key("Backspace"), true],
+    ["Backspace", key("Delete"), true],
+    ["Delete", key("d"), false],
+  ] as const)("matches %p against %o: %p", (keys, event, expected) => {
+    expect(matchesMenuShortcut(keys, event)).toBe(expected);
   });
 });

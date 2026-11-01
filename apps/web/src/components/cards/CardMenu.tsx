@@ -1,7 +1,13 @@
-import type { ComponentProps, ComponentType, ReactNode } from "react";
+import type {
+  ComponentProps,
+  ComponentType,
+  KeyboardEvent,
+  ReactNode,
+} from "react";
 import {
   ariaKeyShortcut,
   type MenuShortcut,
+  matchesMenuShortcut,
 } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
@@ -59,6 +65,35 @@ export function CardMenuEntries({
       </Item>
     );
   });
+}
+
+/**
+ * An open menu takes focus from the card, so the card grid never hears the
+ * shortcuts the menu lists. Give the menu its own: a key that matches an
+ * item's shortcut picks that item, which runs it and closes the menu.
+ */
+export function handleCardMenuShortcut(event: KeyboardEvent<HTMLElement>) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  const item = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(
+      '[role="menuitem"][aria-keyshortcuts]'
+    )
+  ).find((candidate) =>
+    matchesMenuShortcut(
+      candidate.getAttribute("aria-keyshortcuts") ?? "",
+      event
+    )
+  );
+  if (!item) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (!(event.repeat || item.hasAttribute("data-disabled"))) {
+    item.click();
+  }
 }
 
 export function QuickActionButton({

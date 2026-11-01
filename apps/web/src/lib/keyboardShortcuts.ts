@@ -203,6 +203,36 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
   } satisfies Record<string, MenuShortcut>;
 }
 
+const DELETE_KEYS = new Set(["backspace", "delete"]);
+
+/**
+ * Whether a key press matches an `aria-keyshortcuts` value such as `F`,
+ * `Control+C` or `Delete`. Delete and Backspace stand for each other, as they
+ * do in the card grid.
+ */
+export function matchesMenuShortcut(
+  keys: string,
+  event: Pick<
+    KeyboardEvent,
+    "altKey" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
+  >
+): boolean {
+  const parts = keys.split("+");
+  const key = parts.at(-1)?.toLowerCase();
+  const modifiers = new Set(parts.slice(0, -1));
+  if (
+    !key ||
+    event.altKey !== modifiers.has("Alt") ||
+    event.ctrlKey !== modifiers.has("Control") ||
+    event.metaKey !== modifiers.has("Meta") ||
+    event.shiftKey !== modifiers.has("Shift")
+  ) {
+    return false;
+  }
+  const pressed = event.key.toLowerCase();
+  return pressed === key || (DELETE_KEYS.has(pressed) && DELETE_KEYS.has(key));
+}
+
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
 export const NEW_NOTE_COMPOSER_ATTRIBUTE = "data-new-note-composer";
 
