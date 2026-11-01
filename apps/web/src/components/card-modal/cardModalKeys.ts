@@ -84,3 +84,29 @@ export function cardModalKeyAction(
   }
   return action;
 }
+
+const OTHER_OVERLAYS = [
+  "[role='dialog'][data-state='open']",
+  "[role='alertdialog'][data-state='open']",
+  "[role='menu'][data-state='open']",
+  "[role='listbox'][data-state='open']",
+].join(", ");
+
+/**
+ * Whether Escape should close the card dialog although a tooltip is open. A
+ * tooltip (one keyboard focus opened on an action button, say) sits above the
+ * dialog and would take the first Escape for itself, so closing the card
+ * took two presses. Only when nothing else (a menu, a dialog over the card)
+ * is open: those keep their own Escape.
+ */
+export function escapeClosesOverTooltip(
+  dialog: Element | null,
+  root: ParentNode = document
+): boolean {
+  if (!(dialog && root.querySelector("[data-slot='tooltip-content']"))) {
+    return false;
+  }
+  return Array.from(root.querySelectorAll(OTHER_OVERLAYS)).every(
+    (overlay) => overlay === dialog
+  );
+}

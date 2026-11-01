@@ -250,14 +250,16 @@ describe("Omnivore", () => {
 });
 
 describe("OneTab", () => {
-  test("URL | Title lines, titles keep later pipes; other lines skipped", () => {
+  test("URL | Title lines, titles keep later pipes; other lines reported", () => {
     const items = parseOneTabText(fixture("onetab.txt"));
     expect(items.map((item) => item.card?.content ?? item.error)).toEqual([
       "First tab | with a pipe",
       "Second tab",
       "https://example.com/three",
+      "Line 5 isn't a link",
       "OneTab link is unsafe: only http and https links can be imported",
     ]);
+    expect(items[3]?.label).toBe("not a link line");
   });
 
   test("text with no links is not a OneTab export", () => {
@@ -266,13 +268,18 @@ describe("OneTab", () => {
 });
 
 describe("Text file of links", () => {
-  test("one link per line, with or without a title; blank and other lines skipped", () => {
+  test("one link per line, with or without a title; blank lines skipped, other lines reported", () => {
     const items = parseImportSource("links", fixture("links.txt"));
     expect(items.map((item) => [item.card?.url, item.card?.content])).toEqual([
       ["https://example.com/links/one", "First link"],
       ["https://example.com/links/two", "https://example.com/links/two"],
       ["https://example.com/links/three", "Third | with a pipe"],
+      [undefined, undefined],
     ]);
+    expect(items[3]).toEqual({
+      label: "not a link line",
+      error: "Line 6 isn't a link",
+    });
     expectValidCards(items);
   });
 

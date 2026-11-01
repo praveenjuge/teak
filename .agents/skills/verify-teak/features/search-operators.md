@@ -11,7 +11,7 @@ A user types `-` before a word, a phrase or a filter to leave those cards out (`
 - `ops-pills` keeps the operators as pills after Enter and in the URL: an excluded filter reads "Tag −design" with a muted label and the accessible name "Remove excluding tag design", an excluded word reads "−figma", and an OR group shows without its outer parentheses.
 - `ops-hidden` keeps hidden cards out: `-tag:hidden` never shows them, and `tag:hidden OR tag:x` shows them only through the `tag:hidden` side.
 - `ops-smart-folders` saves operators in a smart folder, shows them in its faded pills, and intersects them with a typed search.
-- `ops-shortcuts` lists `-word`, `-tag:x`, `a OR b`, `( … )` and `"phrase"` under "Search" in the `?` sheet.
+- `ops-shortcuts` lists `tag:design`, `type:note`, `site:github.com`, `folder:reading`, `is:fav`, `-word`, `-tag:x`, `a OR b`, `( … )` and `"phrase"` under "Search" in the `?` sheet, which has one "Close" button, inside its corner.
 - `ops-api` takes the operators in `GET /v1/cards?q=`, MCP `teak_v1_search_cards` and `teak search`; the CLI explains how to pass a search that starts with `-`.
 
 ## How to get to it (user POV)
@@ -52,7 +52,7 @@ Steps:
 - **OR and groups.** Search the table's rows, each inside parentheses after the pack tag (`#scenario-search-operators (tag:fonts OR tag:type)`): without them a space binds tighter than `OR`, so `#scenario-search-operators tag:fonts OR tag:type` also matches `tag:type` cards outside the pack. Compare the counts (scroll to the end, or read them through the API with `limit=100` and `nextCursor`).
 - **Hidden.** `#scenario-search-operators (tag:hidden OR tag:fonts)` shows "Hidden design diary" tiles; `#scenario-search-operators -tag:hidden diary` shows "Nothing found matching your filters".
 - **Smart folders.** Open "Fonts or type": its faded pills show the scenario tag and "tag:fonts OR tag:type". Type `-tag:fonts`: only "Type specimen" tiles remain (20). Open "GitHub or GitLab", type `is:archived OR repo`: the archived repos appear with the rest.
-- **Shortcuts.** Press `?`: the "Search" group lists the five rows.
+- **Shortcuts.** Press `?`: the "Search" group lists the ten rows, the "Go to" group reads "Everything", "Favorites", "Archive", "Trash", "Tags", "Settings", and "Anywhere" has "Focus notifications, to undo a change". There is one "Close" button, in the sheet's corner.
 - **API, CLI, MCP.** `GET $SITE/v1/cards?q=%23scenario-search-operators%20design%20-figma&limit=100` returns 60 items over its pages and none whose title has "Figma". `bun apps/cli/src/index.ts search '#scenario-search-operators (tag:fonts OR tag:type)' --all --json` returns 55. `bun apps/cli/src/index.ts search -tag:x` exits 2 with "To leave something out of a search, quote it". MCP `teak_v1_search_cards` with `q: "#scenario-search-operators -is:archived (site:github.com OR site:gitlab.com)"` returns 40.
 - **Break it.** `--design`, `- design`, `OR OR`, `(()`, `)design(`, `"-not negated"`, `to-do`, `price:<-5`, `-like:x`, `mood:x OR tag:y` and a 1,000-character `q` each search without an error.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/web/search-operators.e2e.ts`.
@@ -63,5 +63,5 @@ Steps:
 - `-design` also leaves out "designer": words match inside longer words.
 - In a shell, quote a search with a `-`, and pass one that starts with `-` after `--` (`teak search -- -tag:old`), or the CLI reads it as a flag.
 - A search of only exclusions reads the library newest first, so it can need several pages before the first match on a large library.
-- The pills keep the order filters, then words: a search typed as `-figma design` comes back as `design -figma`.
-- At 390 px the search box shows the pills that fit and clips the rest: a long tag pill can hide an excluded pill beside it. The search still applies every pill.
+- The pills keep the order filters, then words, then exclusions and groups: a search typed as `-figma design` comes back as `design -figma`, from Enter and from a URL alike.
+- At 390 px the search box's pills shrink to an ellipsis rather than being cut off at its edge; each pill's tooltip has its full text. The search still applies every pill.

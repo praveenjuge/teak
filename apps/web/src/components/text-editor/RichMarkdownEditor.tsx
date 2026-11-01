@@ -286,6 +286,19 @@ export function RichMarkdownEditor({
     Extension.create({
       name: "teakMarkdownSafety",
       addKeyboardShortcuts() {
+        // An open slash or `[[` menu closes on Esc first.
+        const leaveOnEscape = () => {
+          if (
+            !callbacks.current.blurOnEscape ||
+            isSuggesting(this.editor.state)
+          ) {
+            return false;
+          }
+          // At once, not a frame later as the blur command does, so the
+          // next key already goes to the page's shortcuts.
+          this.editor.view.dom.blur();
+          return true;
+        };
         return {
           "Mod-Enter": () => {
             if (callbacks.current.disabled) {
@@ -301,6 +314,7 @@ export function RichMarkdownEditor({
             callbacks.current.onOpenFullScreen?.();
             return Boolean(callbacks.current.onOpenFullScreen);
           },
+          Escape: leaveOnEscape,
         };
       },
       addProseMirrorPlugins() {

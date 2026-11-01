@@ -185,30 +185,83 @@ const withoutLoneHighSurrogate = (text: string): string => {
   return last >= 0xd8_00 && last <= 0xdb_ff ? text.slice(0, -1) : text;
 };
 
+const fromPlaceholders = (text: string) =>
+  text.replace(PLACEHOLDER, (placeholder) =>
+    String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
+  );
+
 /**
- * The first `maxLength` characters, stripped, with escaped punctuation and
- * entities kept literal. Both become placeholders before the cut, so it can't
- * split one. An escape or entity is at most `MAX_ENTITY_LENGTH` characters, so
- * that many times `maxLength`, plus one, of the source is enough, and one that
- * first cut splits falls past `maxLength`.
+ * Markup a cut source can end in: half an escape, entity, emphasis run, link
+ * or tag.
+ */
+const CUT_MARKUP_TAIL =
+  /\s*(?:\\|&#?[a-zA-Z0-9]*|[*_~`#]+|!?\[[^\]\n]*(?:\]\([^)\n]*)?|<[^>\n]*)$/;
+/** Stripped text this far past `maxLength` shows the read window was enough. */
+const WINDOW_MARGIN = 256;
+
+/**
+ * The first `maxLength` characters of the stripped text, with escaped
+ * punctuation and entities kept literal. Both become placeholders before
+ * stripping, and the cut comes after it, so it never splits an escape, an
+ * entity or a `**bold**` pair. The source is read in a window that grows until
+ * its stripped text is well past `maxLength` (link-heavy text shrinks a lot),
+ * and markup the window's own end splits is dropped.
  */
 function withEscapedPunctuation(
   text: string,
   maxLength: number,
   strip: (text: string) => string
 ): string {
-  const protectedText = decodeEntities(
-    text
-      .slice(0, MAX_ENTITY_LENGTH * maxLength + 1)
-      .replace(ESCAPED_PUNCTUATION, (_match, character: string) =>
-        toPlaceholder(character)
+  let windowLength = MAX_ENTITY_LENGTH * maxLength + 1;
+  let stripped = "";
+  for (;;) {
+    const window = text.slice(0, windowLength);
+    stripped = strip(
+      decodeEntities(
+        window.replace(ESCAPED_PUNCTUATION, (_match, character: string) =>
+          toPlaceholder(character)
+        )
       )
-  ).slice(0, maxLength);
-  return strip(withoutLoneHighSurrogate(protectedText)).replace(
-    PLACEHOLDER,
-    (placeholder) =>
-      String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
+    );
+    if (window.length === text.length) {
+      break;
+    }
+    stripped = stripped.replace(CUT_MARKUP_TAIL, "");
+    if (stripped.length >= maxLength * 2 + WINDOW_MARGIN) {
+      break;
+    }
+    windowLength *= 2;
+  }
+  return fromPlaceholders(
+    withoutLoneHighSurrogate(stripped.slice(0, maxLength)).trimEnd()
   );
+}
+
+/** A heading or list item line: its own block, not part of a paragraph. */
+const BLOCK_LINE = /^(?:>\s?)*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s)/;
+/** Text that already ends a sentence, past any closing emphasis. */
+const ENDS_SENTENCE = /(?:[.!?…:;。！？]|\p{Extended_Pictographic})$/u;
+
+const endsSentence = (line: string) =>
+  ENDS_SENTENCE.test(fromPlaceholders(line).replace(/[*_~`\s]+$/, ""));
+
+/**
+ * Joins a note's lines into one line of text. Lines of a paragraph join with
+ * a space, as Markdown wraps them; a heading or list item is its own
+ * sentence, so `## Save anything` then `- Paste a link` reads
+ * "Save anything. Paste a link" rather than running together.
+ */
+function joinLines(lines: readonly { block: boolean; text: string }[]): string {
+  const filled = lines.filter((line) => line.text.trim());
+  return filled
+    .map((line, index) => {
+      const next = filled[index + 1];
+      if (!(next && (line.block || next.block)) || endsSentence(line.text)) {
+        return line.text;
+      }
+      return `${line.text.replace(/\s+$/, "")}.`;
+    })
+    .join(" ");
 }
 
 const withoutCutToken = (input: string, limit: number): string => {
@@ -243,10 +296,13 @@ export function markdownToPlainText(
     ).map((rawLine) => {
       const line = rawLine.trim();
       return HORIZONTAL_RULE.test(line)
-        ? ""
-        : applyRules(line, LINE_MARKER_RULES);
+        ? { block: false, text: "" }
+        : {
+            block: BLOCK_LINE.test(line),
+            text: applyRules(line, LINE_MARKER_RULES),
+          };
     });
-    return applyRules(lines.join(" "), INLINE_RULES).trim();
+    return applyRules(joinLines(lines), INLINE_RULES).trim();
   });
 }
 

@@ -150,11 +150,33 @@ test("a card in a folder shows the folder among its tags, which changes folders"
   expect(button("Add to a folder")).toBeUndefined();
 });
 
-test("a card in no folder offers Add to a folder", async () => {
-  const onOpenFolders = mock();
-  await render(imageCard(), { onOpenFolders });
-  await act(() => button("Add to a folder")?.click());
-  expect(onOpenFolders).toHaveBeenCalledTimes(1);
+const notesField = () => document.querySelector("textarea[aria-label='Notes']");
+
+test("a note has no Notes field of its own, unless it already has notes", async () => {
+  await render(imageCard({ type: "text", content: "Buy milk" } as never));
+  expect(notesField()).toBeNull();
+  await act(() => root?.unmount());
+  root = undefined;
+
+  await render(
+    imageCard({
+      type: "text",
+      content: "Buy milk",
+      notes: "from the API",
+    } as never)
+  );
+  expect(notesField()).not.toBeNull();
+  await act(() => root?.unmount());
+  root = undefined;
+
+  await render(imageCard());
+  expect(notesField()).not.toBeNull();
+});
+
+test("a card in no folder leaves adding one to the dialog's single Add to folder… button", async () => {
+  await render(imageCard(), { onOpenFolders: mock() });
+  expect(button("Add to a folder")).toBeUndefined();
+  expect(button("Add to folder…")).toBeUndefined();
 });
 
 const linkCard = () =>

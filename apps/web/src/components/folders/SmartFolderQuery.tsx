@@ -38,7 +38,9 @@ function QueryChip({
     <li
       className={cn(
         "inline-flex h-6 max-w-[min(18rem,100%)] shrink-0 items-center gap-1 rounded-md px-2 text-xs",
-        "in-data-[inline]:max-w-40 in-data-[inline]:px-1.5",
+        // In the search box a chip shrinks to an ellipsis rather than being
+        // cut off at the box's edge.
+        "in-data-[inline]:min-w-10 in-data-[inline]:max-w-40 in-data-[inline]:shrink in-data-[inline]:px-1.5",
         dashed
           ? "border border-dashed text-muted-foreground"
           : "bg-secondary in-data-[inline]:bg-foreground/[0.06] in-data-[inline]:text-muted-foreground text-secondary-foreground"

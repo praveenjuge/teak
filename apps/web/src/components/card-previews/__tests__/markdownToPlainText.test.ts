@@ -54,7 +54,49 @@ describe("markdownToPlainText", () => {
 
   test("flattens list markers and collapses whitespace", () => {
     expect(markdownToPlainText("- asda - sda - sd")).toBe("asda - sda - sd");
-    expect(markdownToPlainText("1. First\n2. Second")).toBe("First Second");
+    expect(markdownToPlainText("1. First\n2. Second")).toBe("First. Second");
+  });
+
+  test("ends each heading and list item as a sentence, so blocks don't run together", () => {
+    expect(
+      markdownToPlainText(
+        "Intro text\n\n## Save anything\n\n- **Paste** a link\n- Drop in files.\n- [ ] Try it 🎉\n- Done"
+      )
+    ).toBe(
+      "Intro text. Save anything. Paste a link. Drop in files. Try it 🎉 Done"
+    );
+    expect(markdownToPlainText("Line one\nline two")).toBe("Line one line two");
+    expect(markdownToPlainText("# Only a heading")).toBe("Only a heading");
+    expect(markdownToPlainText("## Why?\n- because")).toBe("Why? because");
+  });
+
+  test("cuts after stripping, so a cut never leaves a stray marker", () => {
+    const welcome =
+      "Welcome to Teak.\n\n## Save anything\n\nThese cards live in the **Start here** folder.";
+    const cut = markdownToPlainText(welcome, { maxLength: 71 });
+    expect(cut).toBe(
+      "Welcome to Teak. Save anything. These cards live in the Start here fold"
+    );
+    expect(
+      markdownToPlainText(`${"x".repeat(55)} in the **Start here**`, {
+        maxLength: 64,
+      })
+    ).toBe(`${"x".repeat(55)} in the S`);
+    for (let length = 1; length < welcome.length; length += 1) {
+      expect(markdownToPlainText(welcome, { maxLength: length })).not.toMatch(
+        /[*#]/
+      );
+    }
+  });
+
+  test("never shows markup the read window splits at its end", () => {
+    const markupHeavy = `[a](https://example.com/${"p".repeat(60)}) `.repeat(
+      40
+    );
+    const preview = markdownToPlainText(`${markupHeavy}**bold text**`, {
+      maxLength: 50,
+    });
+    expect(preview).not.toMatch(/[*[\]()]/);
   });
 
   test("keeps link and image text without the markup", () => {

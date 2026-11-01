@@ -227,6 +227,9 @@ export const summarizeArticle = async (
         kind: "article",
         text: opening,
       }).join("\n");
+      if (!content.trim()) {
+        return { reason: "empty", status: "skipped" };
+      }
       const generated = await generateLinkMetadata(
         job,
         telemetry,

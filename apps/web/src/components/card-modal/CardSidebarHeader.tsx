@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode, RefObject } from "react";
 import { useEffect, useState } from "react";
-import { DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ariaKeyShortcut, isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { SiteFavicon } from "../cards/SiteFavicon";
@@ -152,7 +152,9 @@ export function SidebarTitle({
         {!showTitle && added ? (
           <>
             <span aria-hidden="true">·</span>
-            <span className="truncate">{added}</span>
+            <DialogDescription asChild className="text-xs">
+              <span className="truncate">{added}</span>
+            </DialogDescription>
           </>
         ) : null}
         {saveStatus ? (
@@ -169,7 +171,11 @@ export function SidebarTitle({
 
       {editable ? (
         <div className="group/title relative">
-          <DialogTitle className="sr-only">{title}</DialogTitle>
+          {/* Names the dialog; hidden from reading so the title isn't heard
+              twice, as this heading and as the "Title" field below. */}
+          <DialogTitle aria-hidden="true" className="sr-only">
+            {title}
+          </DialogTitle>
           <textarea
             aria-label={label}
             className="field-sizing-content -mx-1.5 block max-h-[calc(3lh+0.5rem)] w-[calc(100%+0.75rem)] resize-none overflow-hidden rounded-md bg-transparent px-1.5 py-1 font-semibold text-base leading-snug outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-muted/70 focus-visible:max-h-48 focus-visible:overflow-y-auto focus-visible:bg-muted/70"

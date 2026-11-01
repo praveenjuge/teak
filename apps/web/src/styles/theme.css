@@ -132,6 +132,8 @@
   --border: oklch(0.928 0.006 264.531);
   --input: oklch(0.928 0.006 264.531);
   --ring: oklch(0.707 0.022 261.325);
+  /* The keyboard focus ring: at least 3:1 against the page and Teak red. */
+  --focus-ring: oklch(0.28 0.13 262);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -166,6 +168,7 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
+  --focus-ring: oklch(0.88 0.09 255);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -189,6 +192,29 @@
   body {
     @apply bg-gray-50 text-foreground dark:bg-gray-950;
   }
+}
+
+/*
+ * Keyboard focus. Components draw their ring with `focus-visible:ring-*`
+ * utilities, mostly at half opacity in a pale grey that vanishes on white and
+ * on red buttons. These rules sit outside every layer, so they win over those
+ * utilities: the ring takes the full-strength focus colour, and shows at once
+ * instead of fading in with `transition-all`.
+ */
+:focus-visible {
+  --tw-ring-color: var(--focus-ring);
+  outline-color: var(--focus-ring);
+}
+
+/* A selected card keeps its red selection ring (drawn thicker) while focused. */
+[data-card-id][aria-pressed="true"]:focus-visible {
+  --tw-ring-color: var(--primary);
+}
+
+[class*="focus-visible:ring"]:focus-visible {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke,
+    opacity, translate, scale, rotate, transform;
 }
 
 :root {

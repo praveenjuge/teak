@@ -158,7 +158,64 @@ describe("parseGenericCsv", () => {
       "Row 4 has no url",
       "https://example.com/safe",
     ]);
-    expect(items[2]?.label).toBe("Row 4");
+    // The label names the row's title, so the error carries the row number.
+    expect(items[2]?.label).toBe("No link");
+  });
+
+  test("a row with neither url nor title is labeled by its row number alone", () => {
+    const items = parseGenericCsv(
+      "url,title,note\nhttps://a.test/x,X,\n,,just a note"
+    );
+    expect(items[1]).toEqual({ label: "Row 3", error: "This row has no url" });
+  });
+
+  test("an unclosed quote fails its own row and keeps the rows after it", () => {
+    const items = parseGenericCsv(
+      [
+        "url,title",
+        '"https://example.com/a,title',
+        "https://example.com/b,B",
+        "https://example.com/c,C",
+      ].join("\n")
+    );
+    expect(items.map((item) => item.error ?? item.card?.url)).toEqual([
+      "This row has a quote that is never closed. Close it, or remove it.",
+      "https://example.com/b",
+      "https://example.com/c",
+    ]);
+    expect(items[0]?.label).toBe("Row 2");
+  });
+
+  test("text after a closing quote fails the row instead of joining the cell", () => {
+    const items = parseGenericCsv(
+      ["url,title", '"https://x.test/a,"tail,T', "https://x.test/b,B"].join(
+        "\n"
+      )
+    );
+    expect(items.map((item) => item.error ?? item.card?.url)).toEqual([
+      "This row has text after a closing quote. Put the whole cell inside the quotes.",
+      "https://x.test/b",
+    ]);
+  });
+
+  test("links with spaces or without a real host go to the report", () => {
+    const items = parseGenericCsv(
+      [
+        "url,title",
+        '"https://example.com/a b",Space',
+        "https://nohost/,Single word",
+        "https://a..b/,Empty label",
+        "http://localhost:3000/x,Local",
+        "https://192.168.1.4/x,IP",
+      ].join("\n")
+    );
+    expect(items.map((item) => item.error ?? item.card?.url)).toEqual([
+      "Row 2: CSV link isn't a valid web address",
+      "Row 3: CSV link isn't a valid web address",
+      "Row 4: CSV link isn't a valid web address",
+      "http://localhost:3000/x",
+      "https://192.168.1.4/x",
+    ]);
   });
 
   test("row numbers count blank lines and keep a multi-line cell as one row", () => {
@@ -194,10 +251,25 @@ describe("parseGenericCsv", () => {
     expect(() => parseGenericCsv(fixture("no-url.csv"))).toThrow(
       IMPORT_FAILURE.MISSING_URL_COLUMN
     );
-    // Semicolon-separated files have one column, so they fail the same way.
-    expect(() =>
-      parseGenericCsv("url;title\nhttps://example.com/semi;Semi")
-    ).toThrow(IMPORT_FAILURE.MISSING_URL_COLUMN);
+  });
+
+  test("semicolon- and tab-separated files read like comma-separated ones", () => {
+    expect(
+      parseGenericCsv(
+        'url;title;tags\nhttps://example.com/semi;"Semi; colon";a, b'
+      )[0]?.card
+    ).toMatchObject({
+      url: "https://example.com/semi",
+      content: "Semi; colon",
+      tags: ["a", "b"],
+    });
+    expect(
+      parseGenericCsv("url\ttitle\nhttps://example.com/tab\tTab")[0]?.card
+    ).toMatchObject({ url: "https://example.com/tab", content: "Tab" });
+    // A comma in the header wins, so a semicolon in a title stays text.
+    expect(
+      parseGenericCsv("url,title\nhttps://example.com/c,A; B")[0]?.card?.content
+    ).toBe("A; B");
   });
 
   test("an empty file or a header with no rows is not a CSV export", () => {

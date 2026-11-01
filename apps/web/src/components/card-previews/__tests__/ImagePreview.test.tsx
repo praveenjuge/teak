@@ -16,6 +16,28 @@ const createImageCard = (overrides?: Record<string, unknown>) => ({
 });
 
 describe("ImagePreview", () => {
+  test.each([
+    [{ content: "Moodboard" }, "Moodboard"],
+    [
+      { content: "", aiSummary: "A red tulip in a glass vase" },
+      "A red tulip in a glass vase",
+    ],
+    [{ content: "", fileMetadata: { fileName: "tulip.jpg" } }, "tulip.jpg"],
+    [{ content: "  " }, "Image"],
+  ])("names the image by what it shows: %o", (overrides, alt) => {
+    const markup = renderToStaticMarkup(
+      <ImagePreview
+        card={
+          createImageCard({
+            fileUrl: "https://cdn.example.com/photo.jpg",
+            ...overrides,
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(`alt="${alt}"`);
+  });
+
   test("shows a fallback when no image URL is available", () => {
     const markup = renderToStaticMarkup(
       <ImagePreview

@@ -21,7 +21,7 @@ import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
-import { findLiveCardByUrl } from "./findDuplicateCard";
+import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight } from "./processingRuns";
@@ -36,7 +36,7 @@ import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { patchCardWithSearchSync, syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
-import { normalizeCardTags } from "./updateCard";
+import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
 
 // Older app versions send no `source`, so their cards report "unknown".
@@ -144,15 +144,33 @@ interface ImportedVisibleFields {
 
 export interface CreateCardOutcome {
   cardId: Id<"cards">;
-  outcome: "created" | "resaved";
+  /** `inTrash`: nothing was saved, since the link's card is in Trash. */
+  outcome: "created" | "inTrash" | "resaved";
   wasArchived?: boolean;
+  wasTrashed?: boolean;
 }
 
 export const createCardOutcomeValidator = v.object({
   cardId: v.id("cards"),
-  outcome: v.union(v.literal("created"), v.literal("resaved")),
+  outcome: v.union(
+    v.literal("created"),
+    v.literal("inTrash"),
+    v.literal("resaved")
+  ),
   wasArchived: v.optional(v.boolean()),
+  wasTrashed: v.optional(v.boolean()),
 });
+
+/**
+ * What a save does when the link's only card is in Trash: by default it makes
+ * a new card, as it always has. `report` saves nothing and answers `inTrash`
+ * with that card, so the client can offer to restore it; `restore` brings it
+ * back from Trash and moves it to the top, like any re-save.
+ */
+export const trashedDuplicateValidator = v.optional(
+  v.union(v.literal("report"), v.literal("restore"))
+);
+export type TrashedDuplicate = Infer<typeof trashedDuplicateValidator>;
 
 export const isBareLinkContent = (content: string, url: string): boolean => {
   const trimmed = content.trim();
@@ -212,6 +230,7 @@ export const createCardForUserHandler = async (
     resolveFolderIds?: () => Promise<Id<"folders">[]>;
     skipResave?: boolean;
     source?: CardCreationSource;
+    trashedDuplicate?: TrashedDuplicate;
   } = {}
 ): Promise<CreateCardOutcome> => {
   const tags = args.tags && normalizeCardTags(args.tags);
@@ -287,6 +306,32 @@ export const createCardForUserHandler = async (
         pageSnapshotKey,
         source: options.source ?? "unknown",
       });
+    }
+    const trashed = options.trashedDuplicate
+      ? await findTrashedCardByUrl(ctx, userId, finalUrl)
+      : null;
+    if (trashed && options.trashedDuplicate === "report") {
+      if (pageSnapshotKey) {
+        await queueObjectDeletion(ctx, pageSnapshotKey);
+      }
+      return { cardId: trashed._id, outcome: "inTrash" };
+    }
+    if (trashed) {
+      // Restoring counts the card again, so the free plan's cap applies.
+      await updateCardFieldForUserHandler(ctx, {
+        cardId: trashed._id,
+        field: "restore",
+        userId,
+      });
+      const restored = await ctx.db.get("cards", trashed._id);
+      if (restored) {
+        const outcome = await resaveCard(ctx, restored, {
+          now,
+          pageSnapshotKey,
+          source: options.source ?? "unknown",
+        });
+        return { ...outcome, wasTrashed: true };
+      }
     }
   }
 
@@ -460,7 +505,8 @@ const createCardForSession = async (
   {
     source: clientSource,
     ...args
-  }: Infer<typeof sessionCreateCardArgsValidator>
+  }: Infer<typeof sessionCreateCardArgsValidator>,
+  trashedDuplicate?: TrashedDuplicate
 ): Promise<CreateCardOutcome> => {
   const user = await requireSessionUser(ctx);
   const source: CardCreationSource = clientSource ?? "unknown";
@@ -468,6 +514,7 @@ const createCardForSession = async (
   try {
     return await createCardForUserHandler(ctx, user.teakUserId, args, {
       source,
+      trashedDuplicate,
     });
   } catch (error) {
     await queueCardOutcome(ctx, {
@@ -489,7 +536,11 @@ export const createCard = mutation({
 });
 
 export const createCardWithOutcome = mutation({
-  args: sessionCreateCardArgs,
+  args: {
+    ...sessionCreateCardArgs,
+    trashedDuplicate: trashedDuplicateValidator,
+  },
   returns: createCardOutcomeValidator,
-  handler: (ctx, args) => createCardForSession(ctx, args),
+  handler: (ctx, { trashedDuplicate, ...args }) =>
+    createCardForSession(ctx, args, trashedDuplicate),
 });

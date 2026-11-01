@@ -4,7 +4,9 @@ import {
   keyboardShortcutGroups,
   openKeyboardShortcuts,
   platformKey,
+  pressRecordAudio,
   pressUploadFiles,
+  registerRecordAudio,
   registerShortcutsOpener,
   registerUploadFiles,
 } from "../keyboardShortcuts";
@@ -61,12 +63,43 @@ describe("pressUploadFiles", () => {
   });
 });
 
+describe("pressRecordAudio", () => {
+  test("runs the latest registered recorder, and reports none", () => {
+    expect(pressRecordAudio()).toBe(false);
+    const record = mock(() => true);
+    const leave = registerRecordAudio(record);
+    expect(pressRecordAudio()).toBe(true);
+    expect(record).toHaveBeenCalledTimes(1);
+    leave();
+    expect(pressRecordAudio()).toBe(false);
+  });
+});
+
+describe("the Anywhere group", () => {
+  test("lists every New menu item with its own key, and no key twice", () => {
+    const anywhere = keyboardShortcutGroups().find(
+      (group) => group.id === "anywhere"
+    );
+    const rows = anywhere?.rows.map((row) => [row.keys.join(" "), row.label]);
+    expect(rows).toContainEqual(["N", "New note"]);
+    expect(rows).toContainEqual(["U", "Upload files"]);
+    expect(rows).toContainEqual(["R", "Record audio"]);
+    const keys = rows?.map(([keys]) => keys) ?? [];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
 describe("the Search group", () => {
   test("teaches the search operators", () => {
     const search = keyboardShortcutGroups().find(
       (group) => group.title === "Search"
     );
     expect(search?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([
+      ["tag:design", "Cards with a tag"],
+      ["type:note", "Cards of a type"],
+      ["site:github.com", "Cards from a site"],
+      ["folder:reading", "Cards in a folder"],
+      ["is:fav", "Favorites, archived, done or to-do"],
       ["-word", "Exclude a word"],
       ["-tag:x", "Exclude a tag, type, site or folder"],
       ["a OR b", "Either one"],
@@ -74,6 +107,22 @@ describe("the Search group", () => {
       ['"phrase"', "Exact words"],
     ]);
     expect(search?.rows.every((row) => row.syntax)).toBe(true);
+  });
+});
+
+describe("the Go to group", () => {
+  test("names each place alike, Tags included, with no repeated keys", () => {
+    const goTo = keyboardShortcutGroups().find((group) => group.id === "goTo");
+    expect(goTo?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([
+      ["G E", "Everything"],
+      ["G F", "Favorites"],
+      ["G A", "Archive"],
+      ["G T", "Trash"],
+      ["G L", "Tags"],
+      ["G S", "Settings"],
+    ]);
+    const keys = goTo?.rows.map((row) => row.keys.join(" ")) ?? [];
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
 

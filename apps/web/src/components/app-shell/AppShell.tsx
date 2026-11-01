@@ -17,6 +17,7 @@ import {
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { signOut } from "@/lib/sign-out-client";
 import { IntentLink } from "./IntentLink";
+import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
 
 export function AppShell({
   children,
@@ -70,6 +71,7 @@ export function AppShell({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
+      <SkipToContent />
       <LibraryShortcuts
         onGoToView={handleGoToView}
         onNavigate={handleNavigate}
@@ -97,7 +99,7 @@ export function AppShell({
         isTagsActive={pathname === "/tags"}
         LinkComponent={IntentLink}
       />
-      <SidebarInset className="min-w-0">
+      <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>
         <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>
       </SidebarInset>
     </SidebarProvider>

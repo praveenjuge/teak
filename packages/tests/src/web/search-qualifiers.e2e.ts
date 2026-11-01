@@ -149,9 +149,7 @@ test("text: is a chip that survives a reload and matches only image text", async
   const chip = screen.getByRole("button", "Remove text in image total due");
   await expect(chip).toBeVisible();
   await expect(browser).toHaveURL(/q=text%3A%22total(\+|%20)due%22/);
-  await expect(
-    screen.getByText("Nothing found matching your filters")
-  ).toBeVisible();
+  await expect(screen.getByText(/nothing found/i)).toBeVisible();
 
   await browser.reload();
   await expect(chip).toBeVisible({ timeout: 30_000 });

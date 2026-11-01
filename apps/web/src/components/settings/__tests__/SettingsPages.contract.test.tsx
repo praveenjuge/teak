@@ -83,7 +83,10 @@ describe("SettingsOverview", () => {
 
     expect(markup).toContain("Signed in as");
     expect(markup).toContain(">Ada Lovelace<");
-    expect(markup).toContain(">hello@example.com<");
+    // The address wraps only before its @, never at a hyphen inside it.
+    expect(markup).toContain('title="hello@example.com"');
+    expect(markup).toContain(">hello</span><wbr/>");
+    expect(markup).toContain(">@example.com<");
     expect(markup.split("Free Plan")).toHaveLength(2);
     expect(markup).toContain("Free Plan · 3 of 200 cards");
     expect(markup).toContain("Save by email off · no API keys");

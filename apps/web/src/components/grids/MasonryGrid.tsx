@@ -41,6 +41,16 @@ import {
 } from "../selection/BulkActionBar";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { FirstPaintGrid } from "./FirstPaintGrid";
+import {
+  columnsForWidth,
+  GRID_GUTTER,
+  gridColumnsTemplate,
+  MAX_COLUMNS,
+  MIN_COLUMN_WIDTH,
+} from "./gridColumns";
+import { useBulkDeleteForever, useSelectAllCards } from "./gridSelection";
+
+export { columnsForWidth } from "./gridColumns";
 
 type MasonryCell = "add-form" | { card: Doc<"cards">; isPriority: boolean };
 interface MasonryItem {
@@ -60,20 +70,6 @@ type MasonryColumns =
     };
 
 const DEFAULT_BATCH_SIZE = 24;
-const MIN_COLUMN_WIDTH = 200;
-const MAX_COLUMNS = 5;
-
-export const columnsForWidth = (width: number, gutter: number): number =>
-  Math.min(
-    MAX_COLUMNS,
-    Math.max(1, Math.floor((width + gutter) / (MIN_COLUMN_WIDTH + gutter)))
-  );
-
-// columnsForWidth in CSS: at least MIN_COLUMN_WIDTH wide, at most MAX_COLUMNS.
-const firstPaintColumns = (gutter: number) =>
-  `repeat(auto-fill, minmax(max(${MIN_COLUMN_WIDTH}px, calc((100% - ${
-    (MAX_COLUMNS - 1) * gutter
-  }px) / ${MAX_COLUMNS})), 1fr))`;
 const MEASURING_STYLE = {
   insetInline: 0,
   opacity: 0,
@@ -126,6 +122,10 @@ export interface MasonryGridProps {
   initialBatchSize?: number;
   isLoadingMore?: boolean;
   loadMoreRootMargin?: string;
+  /** The most columns a wide grid shows. */
+  maxColumns?: number;
+  /** The narrowest a column may get before the grid drops one. */
+  minColumnWidth?: number;
   onAddTags?: (cardId: string) => void;
   onAddToFolderDone?: (added: boolean) => void;
   onBulkAction?: (
@@ -142,6 +142,8 @@ export interface MasonryGridProps {
   onDeleteCard: (cardId: string) => Promise<boolean>;
   onLoadMore?: () => void;
   onPermanentDeleteCard?: (cardId: string) => void;
+  /** Deletes several cards in Trash forever, from the selection bar. */
+  onPermanentDeleteCards?: (cardIds: string[]) => Promise<unknown>;
   onRestoreCard?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
@@ -169,6 +171,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   onBulkAction,
   onRestoreCard,
   onPermanentDeleteCard,
+  onPermanentDeleteCards,
   onToggleArchive,
   onToggleFavorite,
   onAddTags,
@@ -182,7 +185,9 @@ export const MasonryGrid = memo(function MasonryGrid({
   isLoadingMore = false,
   loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
   columns,
-  gutter = 24,
+  gutter = GRID_GUTTER,
+  maxColumns = MAX_COLUMNS,
+  minColumnWidth = MIN_COLUMN_WIDTH,
   toastIdPrefix = "masonry",
 }: MasonryGridProps) {
   const t = useTranslations("grids.masonry");
@@ -232,12 +237,19 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
-        setMeasuredColumns(columnsForWidth(entry.contentRect.width, gutter));
+        setMeasuredColumns(
+          columnsForWidth(
+            entry.contentRect.width,
+            gutter,
+            minColumnWidth,
+            maxColumns
+          )
+        );
       }
     });
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [columns, gutter]);
+  }, [columns, gutter, maxColumns, minColumnWidth]);
   const resolvedColumns = columns ?? measuredColumns ?? FALLBACK_COLUMNS;
   const hydrated = useHydrated();
   const [firstPaint, setFirstPaint] = useState(
@@ -366,6 +378,9 @@ export const MasonryGrid = memo(function MasonryGrid({
         .filter((cardId) => !isOptimisticCard(cardId)),
     [visibleCards]
   );
+
+  useSelectAllCards(isSelectionMode, navigableIds, setSelectedCardIds);
+
   const cardOrderRef = useRef<{ current: string[]; previous: string[] }>({
     current: [],
     previous: [],
@@ -668,8 +683,24 @@ export const MasonryGrid = memo(function MasonryGrid({
     [folder, folderPickerMode, runBulk]
   );
 
+  const bulkDeleteForever = useBulkDeleteForever((cardIds) => {
+    exitSelectionMode();
+    if (onPermanentDeleteCards) {
+      onPermanentDeleteCards(cardIds).catch(() => undefined);
+      return;
+    }
+    for (const cardId of cardIds) {
+      onPermanentDeleteCard?.(cardId);
+    }
+  });
+  const requestBulkDeleteForever = bulkDeleteForever.request;
+
   const handleBulkAction = useCallback(
     (action: BulkBarAction) => {
+      if (action === "deleteForever") {
+        requestBulkDeleteForever(Array.from(selectedCardIds));
+        return;
+      }
       if (action === "addTags" || action === "removeTags") {
         setTagsDialogMode(action === "addTags" ? "add" : "remove");
         return;
@@ -716,7 +747,16 @@ export const MasonryGrid = memo(function MasonryGrid({
       }
       runBulk(action).catch(() => undefined);
     },
-    [addToFolder, folder, runBulk, selectedCards, t, toastIdPrefix]
+    [
+      addToFolder,
+      folder,
+      requestBulkDeleteForever,
+      runBulk,
+      selectedCardIds,
+      selectedCards,
+      t,
+      toastIdPrefix,
+    ]
   );
 
   const requestPermanentDelete = useMemo(
@@ -733,6 +773,20 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
     setPendingPermanentDeleteId(null);
   }, [onPermanentDeleteCard, pendingPermanentDeleteId]);
+
+  // "Remove from this folder" on one card, while its manual folder is open.
+  const removeCardFromFolder = useMemo(() => {
+    if (!(folder && onBulkAction)) {
+      return;
+    }
+    // The item only shows on cards in this folder, which is all Undo needs.
+    return (cardId: string) => {
+      onBulkAction("removeFromFolder", [cardId], {
+        folder: { folderId: folder.id, folderName: folder.name },
+        priorFolderIds: new Map([[cardId, [folder.id]]]),
+      }).catch(() => undefined);
+    };
+  }, [folder, onBulkAction]);
 
   const masonryItems = useMemo(() => {
     const items: MasonryItem[] = [];
@@ -774,6 +828,14 @@ export const MasonryGrid = memo(function MasonryGrid({
           onEditLink={setEditLinkCardId}
           onEnterSelectionMode={enterSelectionMode}
           onPermanentDelete={requestPermanentDelete}
+          onRemoveFromFolder={
+            removeCardFromFolder &&
+            !card.isDeleted &&
+            folder &&
+            ((card.folderIds ?? []) as string[]).includes(folder.id)
+              ? removeCardFromFolder
+              : undefined
+          }
           onRestore={onRestoreCard}
           onToggleArchive={onToggleArchive}
           onToggleFavorite={onToggleFavorite}
@@ -787,6 +849,8 @@ export const MasonryGrid = memo(function MasonryGrid({
       onDeleteCard,
       onRestoreCard,
       requestPermanentDelete,
+      removeCardFromFolder,
+      folder,
       onToggleArchive,
       onToggleFavorite,
       onAddTags,
@@ -940,7 +1004,11 @@ export const MasonryGrid = memo(function MasonryGrid({
       >
         {firstPaint ? (
           <FirstPaintGrid
-            gridTemplateColumns={firstPaintColumns(gutter)}
+            gridTemplateColumns={gridColumnsTemplate(
+              gutter,
+              minColumnWidth,
+              maxColumns
+            )}
             gutter={gutter}
             items={masonryItems}
             renderItem={renderItem}
@@ -1028,6 +1096,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         open={pendingPermanentDeleteId !== null}
         title={tDialog("title")}
       />
+      {bulkDeleteForever.dialog}
     </>
   );
 });

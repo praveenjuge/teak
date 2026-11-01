@@ -63,6 +63,7 @@ interface ImportJob {
   createdCount: number;
   failedCount: number;
   failureClass?: string;
+  fileName?: string;
   id: string;
   mode: ImportMode;
   parsedCount: number;
@@ -660,7 +661,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               <Button onClick={() => fileInput.current?.click()} size="sm">
                 {t("chooseFile")}
               </Button>
-              <span className="text-muted-foreground text-xs">
+              <span className="pointer-coarse:hidden text-muted-foreground text-xs">
                 {t("orDrop")}
               </span>
             </div>
@@ -726,7 +727,17 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         {state.kind === "idle" && latest !== null ? (
           <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
             {lastLoading ? <Spinner className="size-4" /> : null}
-            <span className="min-w-0 break-words">{lastText}</span>
+            <span className="min-w-0 break-words">
+              {lastText}
+              {latest?.fileName ? (
+                <span className="block break-words">
+                  {t("lastImportFile", {
+                    file: latest.fileName,
+                    source: t(`sources.${latest.mode}.title`),
+                  })}
+                </span>
+              ) : null}
+            </span>
           </div>
         ) : null}
 
@@ -748,7 +759,11 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                 >
                   <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
                   <span className="min-w-0">
-                    <span className="block break-words">{sample.item}</span>
+                    {/* Older imports wrote reasons like "Row 4 has no url"
+                    under the label "Row 4". */}
+                    {sample.reason.startsWith(`${sample.item} `) ? null : (
+                      <span className="block break-words">{sample.item}</span>
+                    )}
                     <span className="block break-words text-muted-foreground">
                       {sample.reason}
                     </span>

@@ -43,7 +43,8 @@
       "version": "Versão {version}"
     },
     "header": {
-      "title": "Configurações"
+      "title": "Configurações",
+      "subpageTitle": "{page} · Configurações"
     },
     "skeleton": {
       "loading": "Carregando configurações…"
@@ -94,7 +95,18 @@
       "signOutTitle": "Encerrar a sessão de {name}?",
       "signOutDescription": "A sessão de {name} que entrou em {date} sai do Teak e precisará entrar de novo.",
       "disconnectTitle": "Desconectar {name}?",
-      "disconnectDescription": "{name} perde o acesso à sua biblioteca do Teak em todas as instalações até você conectá-lo de novo."
+      "disconnectDescription": "{name} perde o acesso à sua biblioteca do Teak em todas as instalações até você conectá-lo de novo.",
+      "deviceExtension": "Extensão de navegador do Teak",
+      "deviceUnknown": "Dispositivo desconhecido",
+      "deviceBrowser": "Navegador",
+      "deviceOn": "{browser} no {os}",
+      "signedInLastActive": "Entrou em {date} · Última atividade em {active}",
+      "signOutOthers": "Encerrar sessão em outros dispositivos",
+      "signOutOthersTitle": "Encerrar a sessão em todos os outros dispositivos?",
+      "signOutOthersDescription": "Todos os outros navegadores e dispositivos conectados à sua conta saem do Teak e precisarão entrar de novo. Este dispositivo continua conectado.",
+      "signOutOthersConfirm": "Encerrar sessão em outros dispositivos",
+      "otherDevicesSignedOut": "{count, plural, =0 {Nenhum outro dispositivo estava conectado.} one {# outro dispositivo saiu.} other {# outros dispositivos saíram.}}",
+      "otherDevicesRemaining": "{count, plural, one {# dispositivo saiu.} other {# dispositivos saíram.}} Alguns ainda estão conectados; tente de novo em um minuto."
     },
     "apiKeys": {
       "revokeAllTitle": "Revogar todas as chaves de API?",
@@ -124,7 +136,11 @@
       "copyFailed": "Não foi possível copiar a chave. Selecione e copie manualmente.",
       "createKey": "Criar chave",
       "loading": "Carregando chaves de API…",
-      "revokeAll": "Revogar todas as chaves"
+      "revokeAll": "Revogar todas as chaves",
+      "nameLabel": "Nome de uma nova chave (opcional)",
+      "namePlaceholder": "Por exemplo, Raycast no meu notebook",
+      "empty": "Ainda não há chaves de API. Crie uma para usar a API, a CLI, o Raycast ou um cliente MCP.",
+      "listLabel": "Chaves de API"
     },
     "deleteAccount": {
       "title": "Excluir conta",
@@ -315,7 +331,8 @@
           "hint": "Um ZIP gerado em Exportar seus dados no Teak."
         }
       },
-      "orDrop": "ou solte aqui"
+      "orDrop": "ou solte aqui",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "agora mesmo",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Pasta"
-    }
+    },
+    "skipToContent": "Pular para o conteúdo"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {Marcar como lido} watched {Marcar como assistido} listened {Marcar como ouvido} bought {Marcar como comprado} cooked {Marcar como preparado} played {Marcar como jogado} other {Marcar como concluído}}",
       "markAsNot": "{verb, select, read {Marcar como não lido} watched {Marcar como não assistido} listened {Marcar como não ouvido} bought {Marcar como não comprado} cooked {Marcar como não preparado} played {Marcar como não jogado} other {Marcar como não concluído}}",
-      "state": "{verb, select, read {Lido} watched {Assistido} listened {Ouvido} bought {Comprado} cooked {Preparado} played {Jogado} other {Concluído}}"
+      "caption": "Concluído",
+      "marked": "{verb, select, read {Marcado como lido} watched {Marcado como assistido} listened {Marcado como ouvido} bought {Marcado como comprado} cooked {Marcado como preparado} played {Marcado como jogado} other {Marcado como concluído}}"
     },
     "heading": {
       "addedOn": "Adicionado em {date}",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "Adicionar uma tag",
       "addTagPlaceholder": "Adicionar tag…",
-      "addToFolder": "Adicionar a uma pasta",
       "andMore": "e mais",
       "colors": "Cores",
       "copyColor": "Copiar {hex}",
@@ -868,7 +886,20 @@
       },
       "file": "Arquivo",
       "openFile": "Abrir arquivo",
-      "untitled": "Documento"
+      "untitled": "Documento",
+      "kinds": {
+        "archive": "Arquivo compactado",
+        "audio": "Arquivo de áudio",
+        "design": "Arquivo de design",
+        "image": "Imagem",
+        "markdown": "Markdown",
+        "motion": "Animação",
+        "office": "Documento do Office",
+        "pdf": "PDF",
+        "source": "Código-fonte",
+        "text": "Arquivo de texto",
+        "tokens": "Tokens de design"
+      }
     },
     "fileText": {
       "loading": "Carregando a prévia do arquivo"
@@ -965,7 +996,7 @@
       "deleteForever": "Excluir permanentemente",
       "deselect": "Desmarcar",
       "favorite": "Favoritar",
-      "folders": "Pastas…",
+      "folders": "Adicionar à pasta…",
       "moreActions": "Mais ações",
       "moveToTrash": "Mover para a Lixeira",
       "openLink": "Abrir link",
@@ -974,13 +1005,16 @@
       "select": "Selecionar",
       "unarchive": "Desarquivar",
       "unfavorite": "Desfavoritar",
-      "editLink": "Editar link…"
+      "editLink": "Editar link…",
+      "removeFromFolder": "Remover desta pasta"
     },
     "copyImageFailed": "Não foi possível copiar a imagem",
     "deleteForeverDialog": {
       "confirm": "Excluir permanentemente",
       "description": "Isso exclui permanentemente o card e os arquivos dele. Isso não pode ser desfeito.",
-      "title": "Excluir este card permanentemente?"
+      "title": "Excluir este card permanentemente?",
+      "bulkTitle": "{count, plural, one {Excluir # card permanentemente?} other {Excluir # cards permanentemente?}}",
+      "bulkDescription": "{count, plural, one {Isso exclui permanentemente # card e os arquivos dele.} other {Isso exclui permanentemente # cards e os arquivos deles.}} Isso não pode ser desfeito."
     },
     "body": {
       "emptyNote": "Nota vazia",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "Esvaziando a lixeira",
       "rateLimited": "A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto.",
       "failed": "Não foi possível esvaziar a lixeira. Tente de novo."
+    },
+    "trash": {
+      "retention": "Os cards na lixeira são excluídos permanentemente após {days, plural, one {# dia} other {# dias}}."
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "Foco",
       "resaved": "Já está no Teak · Movido para o topo",
       "resavedFromArchive": "Já está no Teak · Tirado do Arquivo",
+      "inTrash": "Este link está na lixeira",
+      "restore": "Restaurar",
+      "restoring": "Restaurando…",
+      "restoredFromTrash": "Restaurado da lixeira · Movido para o topo",
+      "restoreFailed": "Não foi possível restaurar o card",
       "open": "Abrir",
       "saveLinks": "Salvar {count, plural, one {# link} other {# links}}",
       "saveFirstLinks": "Salvar os primeiros {count, plural, one {# link} other {# links}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "Mover para a pasta…",
       "removeFromFolder": "Remover de {folder}",
       "moveToTrash": "Mover para a Lixeira",
-      "cancelSelection": "Cancelar seleção"
+      "cancelSelection": "Cancelar seleção",
+      "deleteForever": "Excluir permanentemente"
     },
     "tagsDialog": {
       "tagTooLong": "As tags podem ter no máximo {max} caracteres.",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "Remover {kind, select, tag {tag} type {tipo} is {mostrar} site {site} folder {pasta} like {semelhante a} mood {estilo} price {preço} text {texto na imagem} other {filtro}} {label}",
       "removeExcludedQualifier": "Remover exceção de {kind, select, tag {tag} type {tipo} is {mostrar} site {site} folder {pasta} like {semelhante a} mood {estilo} price {preço} text {texto na imagem} other {filtro}} {label}",
       "removeUnknownFolder": "Remover {chip}: nenhuma pasta chamada {folder}",
-      "unknownFolder": "Nenhuma pasta chamada {folder}"
+      "unknownFolder": "Nenhuma pasta chamada {folder}",
+      "unknownType": "Nenhum tipo chamado {type}",
+      "removeUnknownType": "Remover {chip}: esse tipo de card não existe"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "Nada para revisitar aqui",
       "saveAsSmartFolder": "Salvar como pasta inteligente…",
-      "reshuffle": "Embaralhar de novo"
+      "reshuffle": "Embaralhar de novo",
+      "density": "Densidade",
+      "densities": {
+        "comfortable": "Confortável",
+        "compact": "Compacta"
+      }
     },
     "dates": {
       "today": "Hoje",
@@ -1322,6 +1372,18 @@
       "thisYear": "Este ano",
       "lastYear": "Ano passado",
       "lastWeekday": "{day} passado"
+    },
+    "results": {
+      "matches": "{count, plural, one {# card corresponde} other {# cards correspondem}}",
+      "matchesMore": "{count}+ cards correspondem",
+      "related": "{count, plural, one {# relacionado pelo significado} other {# relacionados pelo significado}}",
+      "hideRelated": "Ocultar relacionados",
+      "showRelated": "Mostrar relacionados",
+      "noMatchesFor": "Nenhum card corresponde a “{query}”",
+      "didYouMean": "Você quis dizer <link>{suggestion}</link>?",
+      "tryRemoving": "Ou remova um filtro:",
+      "filtersLabel": "Filtros desta pesquisa",
+      "removeFilter": "Remover {label}"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "Pesquisar",
       "newNote": "Nova nota",
       "uploadFiles": "Enviar arquivos",
-      "notifications": "Ir para as notificações (Desfazer)",
+      "recordAudio": "Gravar áudio",
+      "notifications": "Ir para as notificações para desfazer uma alteração",
       "keyboardShortcuts": "Atalhos de teclado",
-      "goToSettings": "Configurações"
+      "goToSettings": "Configurações",
+      "goToTags": "Tags",
+      "byTag": "Cards com uma tag",
+      "byType": "Cards de um tipo",
+      "bySite": "Cards de um site",
+      "byFolder": "Cards em uma pasta",
+      "byState": "Favoritos, arquivados, concluídos ou pendentes"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "Não foi possível remover a tag",
         "tags": "Não foi possível atualizar as tags",
         "other": "Falha na operação: {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# card excluído permanentemente} other {# cards excluídos permanentemente}}"
     },
     "clipboard": {
       "copyingImage": "Copiando imagem...",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} de {total} arquivos enviados.",
-      "partialFailureWithReason": "{successCount} de {total} arquivos enviados. Primeira falha: {file} — {reason}",
+      "partialFailureDetails": "{successCount} de {total} arquivos enviados. {details}",
+      "moreFiles": "{count, plural, one {mais #} other {mais #}}",
+      "failures": {
+        "empty": "{count, plural, one {Arquivo vazio, nada para salvar} other {Arquivos vazios, nada para salvar}}: {files}.",
+        "unsupported": "{count, plural, one {O Teak não salva este tipo de arquivo} other {O Teak não salva estes tipos de arquivo}}: {files}.",
+        "tooLarge": "{count, plural, one {Maior que {max}} other {Maiores que {max}}}: {files}.",
+        "mismatch": "{count, plural, one {O nome não corresponde ao conteúdo do arquivo} other {Os nomes não correspondem ao conteúdo dos arquivos}}: {files}.",
+        "other": "{count, plural, one {Não foi possível enviar} other {Não foi possível enviar}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# arquivo foi ignorado} other {# arquivos foram ignorados}}. Você pode enviar até {max} por vez."
     }
   },

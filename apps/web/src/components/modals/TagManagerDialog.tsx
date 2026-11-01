@@ -1,7 +1,7 @@
 "use client";
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Check, Search, Tag } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { useServerErrors } from "@/hooks/useServerErrors";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import type { StartTagOperationInput } from "../../hooks/useTagOperations";
+import { isImeComposing } from "../../lib/keyboardShortcuts";
 import {
   explainTagNameInput,
   MAX_TAG_NAME_LENGTH,
@@ -104,6 +105,7 @@ function TagManagerForm({
   const [name, setName] = useState(tag.name);
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<string | null>(initialTarget ?? null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [serverError, setServerError] = useState<{
     code?: string;
     message: string;
@@ -137,6 +139,17 @@ function TagManagerForm({
       (item) => item.name !== fromKey && (!needle || item.name.includes(needle))
     );
   }, [fromKey, query, tags]);
+  const shownTargets = mergeTargets.slice(0, MERGE_LIST_LIMIT);
+  const optionId = (index: number) => `${listId}-option-${index}`;
+  const activeTarget = shownTargets[activeIndex];
+
+  useEffect(() => {
+    if (mode === "merge") {
+      document
+        .getElementById(`${listId}-option-${activeIndex}`)
+        ?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [activeIndex, listId, mode]);
 
   let problem: string | null = null;
   if (mode === "rename") {
@@ -228,12 +241,44 @@ function TagManagerForm({
                 className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <Input
+                aria-activedescendant={
+                  activeTarget ? optionId(activeIndex) : undefined
+                }
+                aria-autocomplete="list"
                 aria-controls={listId}
+                aria-expanded="true"
                 aria-label={t("findTag")}
                 autoFocus
                 className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActiveIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (isImeComposing(event) || shownTargets.length === 0) {
+                    return;
+                  }
+                  const count = shownTargets.length;
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setActiveIndex((index) => (index + 1) % count);
+                  } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setActiveIndex((index) => (index - 1 + count) % count);
+                  } else if (
+                    event.key === "Enter" &&
+                    activeTarget &&
+                    activeTarget.name !== target
+                  ) {
+                    // The first Enter picks the highlighted tag; the next
+                    // one merges into it, as the button then says.
+                    event.preventDefault();
+                    setTarget(activeTarget.name);
+                    setServerError(null);
+                  }
+                }}
                 placeholder={t("findTag")}
+                role="combobox"
                 value={query}
               />
             </div>
@@ -248,21 +293,27 @@ function TagManagerForm({
                   {query.trim() ? t("noMatch") : t("noOtherTags")}
                 </p>
               )}
-              {mergeTargets.slice(0, MERGE_LIST_LIMIT).map((item) => {
+              {shownTargets.map((item, index) => {
                 const selected = item.name === target;
                 return (
                   <button
                     aria-selected={selected}
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent",
+                      index === activeIndex && "bg-accent/60",
                       selected && "bg-accent text-accent-foreground"
                     )}
+                    data-active={index === activeIndex ? "" : undefined}
+                    id={optionId(index)}
                     key={item.name}
                     onClick={() => {
                       setTarget(item.name);
+                      setActiveIndex(index);
                       setServerError(null);
                     }}
+                    onMouseEnter={() => setActiveIndex(index)}
                     role="option"
+                    tabIndex={-1}
                     type="button"
                   >
                     <Tag

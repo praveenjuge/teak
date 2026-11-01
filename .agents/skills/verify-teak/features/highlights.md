@@ -4,7 +4,7 @@ In a link's **Read** tab on the web, selecting text shows **Highlight** above it
 
 ## Sub-features
 
-- `highlight-create` shows **Highlight** (with an `H` hint) over a selection inside the article body (not the header, title or footer); the button or `H` makes it, `Esc` lets go of the selection; selecting and pressing `H` twice quickly makes one highlight.
+- `highlight-create` shows **Highlight** (with an `H` hint) over a selection inside the article body (not the header, title or footer); the button or `H` makes it, `Esc` lets go of the selection; selecting and pressing `H` twice quickly makes one highlight. A selection that starts or ends inside a word takes in the whole word ("…(Germ" saves "…(Germany"), in any script.
 - `highlight-touch` shows a bottom bar with **Highlight** on touch or under 768 px, and opens the note in a bottom sheet.
 - `highlight-note` opens a note field ("Add a note", up to 2,000 characters, a count past 1,800) that saves on blur, `⌘↵`/`Ctrl+Enter` or closing; **Remove highlight** removes it with an **Undo** toast.
 - `highlight-merge` merges a selection overlapping highlights into one covering them all (toast "Merged with an existing highlight", the older note kept); the same passage twice is one highlight.
@@ -31,6 +31,7 @@ Preconditions:
 Steps:
 
 - **Make one.** Open "Mulch depth and soil moisture in small plots" (Read). Select "kept 31% more moisture in July" by dragging; **Highlight** appears above it. Press `H`: the passage is painted and the panel shows "Highlights · 2" (the pack's one plus this). Select across the header and the first paragraph: only the body part is offered. Press `Esc` with a selection: the button goes and the dialog stays.
+- **Whole words.** In the same article, drag from the middle of one word to the middle of another (for example from "ept" of "kept" to "mois" of "moisture") and press `H`: the painted highlight and the panel's quote start at "kept" and end at "moisture".
 - **Note.** Click the painted words: the popover opens. Type a note, click away, reload: the note is in the panel. Remove it from the popover: the toast offers **Undo**, which brings it back.
 - **Note across the save.** Select text and press `H`, then click the painted words before the write returns (throttle the network in devtools to widen the gap). The popover stays open when the temporary highlight gets its saved id, and a draft typed meanwhile is kept and saved to the saved highlight. If another client merged the passage into a highlight that already has a note, an untouched field shows that note and closing it keeps the note. Removing the highlight elsewhere closes the popover, and a later highlight over the same text does not reopen it.
 - **Merge.** In the news story (12 highlights), select across two neighbouring highlights: one highlight covers both, the toast says "Merged with an existing highlight", and the count drops by one.

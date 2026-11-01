@@ -105,6 +105,7 @@ export function SecurityPageClient() {
         onLoadMoreSessions={settings.loadMoreSessions}
         onRetrySessions={settings.retrySessions}
         onRevokeConnection={settings.handleRevokeOAuthConnection}
+        onRevokeOtherSessions={settings.handleRevokeOtherSessions}
         onRevokeSession={settings.handleRevokeSession}
         sessions={settings.sessions}
         sessionsError={settings.sessionsError}

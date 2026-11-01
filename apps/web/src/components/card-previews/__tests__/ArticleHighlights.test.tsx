@@ -25,8 +25,13 @@ mock.module("convex/react", () => ({
   useAction: () => mock(),
 }));
 
-const { indexBodyText, placeHighlights, rangeOfSpan, spanOfRange } =
-  await import("../highlightDom");
+const {
+  indexBodyText,
+  placeHighlights,
+  rangeOfSpan,
+  snapSpanToWords,
+  spanOfRange,
+} = await import("../highlightDom");
 
 const IMAGE_URL = "https://files.test/rose.webp?sig=1";
 
@@ -220,6 +225,30 @@ describe("selecting in the reader", () => {
     );
     const back = span ? rangeOfSpan(index, span.start, span.end) : null;
     expect(back?.toString()).toBe("marigolds first");
+  });
+
+  test("a selection that starts or ends inside a word takes in the whole word", async () => {
+    const { body } = await mount();
+    const index = indexBodyText(body);
+    const paragraph = body.querySelector("p") as HTMLElement;
+    const range = document.createRange();
+    const bold = paragraph.querySelector("strong")?.firstChild as Text;
+    range.setStart(bold, "mari".length);
+    range.setEnd(paragraph.lastChild as Text, " fi".length);
+    const span = spanOfRange(index, range);
+    expect(span?.quote).toBe("marigolds first");
+  });
+
+  test.each([
+    ["Bauhaus (Germany) school", "Bauhaus (Germ", "Bauhaus (Germany"],
+    ["Bauhaus (Germany) school", "haus (Germany)", "Bauhaus (Germany)"],
+    ["the quick brown fox", " quick ", " quick "],
+    ["don't stop", "on", "don't"],
+    ["東京は日本の首都です", "東京", "東京"],
+  ])("in %p, %p snaps to %p", (text, picked, expected) => {
+    const start = text.indexOf(picked);
+    const span = snapSpanToWords(text, start, start + picked.length);
+    expect(text.slice(span.start, span.end)).toBe(expected);
   });
 
   test("a selection inside the body shows the Highlight button, which highlights it", async () => {

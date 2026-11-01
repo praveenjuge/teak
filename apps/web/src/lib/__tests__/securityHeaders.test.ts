@@ -222,7 +222,9 @@ describe("web security headers", () => {
     );
     expect(headers.get("Permissions-Policy")).toContain("camera=()");
     expect(headers.get("Permissions-Policy")).toContain("microphone=(self)");
-    expect(headers.get("Permissions-Policy")).toContain("tools=(self)");
+    // WebMCP's `tools` keeps its default (self); naming it makes Chromium
+    // without the origin trial log an error on every page.
+    expect(headers.get("Permissions-Policy")).not.toContain("tools=");
     expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(headers.get("X-Frame-Options")).toBe("DENY");
   });

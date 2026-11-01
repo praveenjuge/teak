@@ -21,7 +21,9 @@ import {
   focusLibrarySearch,
   focusNewNoteComposer,
   GO_TO_SETTINGS_KEY,
+  GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
+  pressRecordAudio,
   pressUploadFiles,
   registerShortcutsOpener,
 } from "../../lib/keyboardShortcuts";
@@ -210,6 +212,12 @@ export function LibraryShortcuts({
         }),
       },
       {
+        keys: "r",
+        run: closeDialogThen(() => {
+          pressRecordAudio();
+        }),
+      },
+      {
         alsoOver: CARD_DIALOG_ATTRIBUTE,
         keys: "?",
         run: () => setDialogOpen(!isDialogOpenRef.current),
@@ -220,6 +228,12 @@ export function LibraryShortcuts({
           onGoToView(view);
         }),
       })),
+      {
+        keys: `g ${GO_TO_TAGS_KEY}`,
+        run: closeDialogThen(() => {
+          onNavigate("/tags");
+        }),
+      },
       {
         keys: `g ${GO_TO_SETTINGS_KEY}`,
         run: closeDialogThen(() => {

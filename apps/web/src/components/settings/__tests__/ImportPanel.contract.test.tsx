@@ -268,6 +268,57 @@ describe("ImportPanel", () => {
     }
   });
 
+  test("names the last import's file and source, and hides drop text on touch", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "csv",
+      fileName: "reading-list.csv",
+      status: "completed",
+      createdCount: 2,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 2,
+      phase: "Import complete",
+      processedCount: 2,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("reading-list.csv · CSV file");
+      expect(markup).toMatch(/pointer-coarse:hidden[^>]*>or drop it here/);
+    } finally {
+      importQueryResult = null;
+    }
+  });
+
+  test("an older failed row doesn't repeat its row number", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "csv",
+      status: "completed",
+      createdCount: 1,
+      failedCount: 1,
+      reportAvailable: true,
+      parsedCount: 2,
+      phase: "Import complete",
+      processedCount: 2,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    failureSamplesResult = [
+      { item: "Row 4", reason: "Row 4 has no url", sourceIndex: 2 },
+    ];
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("Row 4 has no url");
+      expect(markup).not.toContain(">Row 4<");
+    } finally {
+      importQueryResult = null;
+      failureSamplesResult = undefined;
+    }
+  });
+
   test("renders job-level failures without requiring report rows", () => {
     importQueryResult = {
       id: "job",

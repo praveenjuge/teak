@@ -83,7 +83,9 @@ export const tagOperationTitle = (
   operation: TagOperationView,
   t: TagsTranslator = englishTags
 ) => {
-  const values = { from: operation.from, to: operation.to ?? "" };
+  // Tags list by their lowercase key, so the toast names the tag as the
+  // Tags page will show it, not as it was typed.
+  const values = { from: operation.from, to: tagKey(operation.to ?? "") };
   if (operation.status === "completed") {
     return t(`completed.${operation.kind}`, values);
   }
@@ -166,4 +168,20 @@ export const explainTagNameInput = (
     return translateErrorKey(t, "tags.NAME_TOO_LONG");
   }
   return null;
+};
+
+export const TAGS_QUERY_PARAM = "q";
+
+/**
+ * The Tags page's URL with its Find a tag text as `q`, or without `q` when
+ * the box is empty, so a reload or a shared link keeps the filter.
+ */
+export const tagsPageUrl = (href: string, query: string): string => {
+  const url = new URL(href);
+  if (query.trim()) {
+    url.searchParams.set(TAGS_QUERY_PARAM, query);
+  } else {
+    url.searchParams.delete(TAGS_QUERY_PARAM);
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
 };

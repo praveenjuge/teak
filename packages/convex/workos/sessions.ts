@@ -7,6 +7,8 @@ export interface WorkosSession {
   expiresAt: number;
   id: string;
   status: "active" | "expired" | "revoked";
+  /** When WorkOS last changed the session, such as refreshing it. */
+  updatedAt?: number;
   userAgent: string | null;
 }
 
@@ -18,6 +20,7 @@ const invalidSession = () =>
 const parseSession = (value: unknown, workosUserId: string): WorkosSession => {
   const session = value as {
     created_at?: unknown;
+    updated_at?: unknown;
     expires_at?: unknown;
     id?: unknown;
     status?: unknown;
@@ -27,6 +30,10 @@ const parseSession = (value: unknown, workosUserId: string): WorkosSession => {
   const createdAt =
     typeof session?.created_at === "string"
       ? Date.parse(session.created_at)
+      : Number.NaN;
+  const updatedAt =
+    typeof session?.updated_at === "string"
+      ? Date.parse(session.updated_at)
       : Number.NaN;
   const expiresAt =
     typeof session?.expires_at === "string"
@@ -50,6 +57,7 @@ const parseSession = (value: unknown, workosUserId: string): WorkosSession => {
       typeof session.user_agent === "string" ? session.user_agent : null,
     createdAt,
     expiresAt,
+    ...(Number.isFinite(updatedAt) ? { updatedAt } : {}),
   };
 };
 

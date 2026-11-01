@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
 import { addCaptureToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
+import { readComposerDraft, storeComposerDraft } from "../../lib/composerDraft";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
   ariaKeyShortcut,
@@ -182,10 +183,18 @@ export function AddCardForm({
   const tEditor = useTranslations("textEditor");
   const tc = useTranslations("common");
   const errors = useServerErrors();
+  const authUser = useQuery(api.auth.getAuthUser);
+  const accountId =
+    authUser && typeof authUser._id === "string" ? authUser._id : null;
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
   );
   const latestContentRef = useRef(content);
+  const accountIdRef = useRef(accountId);
+  accountIdRef.current = accountId;
+  // False once the browser refused to keep the draft, so closing the tab
+  // asks first instead of losing it.
+  const [draftStored, setDraftStored] = useState(true);
   const setContent = useCallback(
     (nextContent: string) => {
       latestContentRef.current = nextContent;
@@ -193,9 +202,30 @@ export function AddCardForm({
       if (draftContentRef) {
         draftContentRef.current = nextContent;
       }
+      const owner = accountIdRef.current;
+      if (owner) {
+        setDraftStored(storeComposerDraft(owner, nextContent));
+      }
     },
     [draftContentRef]
   );
+  // Brings the account's draft back after mount (the server render has no
+  // storage), or keeps what was typed before the account loaded.
+  const restoredForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!accountId || restoredForRef.current === accountId) {
+      return;
+    }
+    restoredForRef.current = accountId;
+    const current = latestContentRef.current;
+    const stored = readComposerDraft(accountId);
+    if (stored.trim() && !current.includes(stored)) {
+      // Text shared into Teak goes after the draft rather than over it.
+      setContent(current.trim() ? `${stored}\n\n${current}` : stored);
+      return;
+    }
+    setDraftStored(storeComposerDraft(accountId, current));
+  }, [accountId, setContent]);
   const {
     close: closeFocus,
     inlineEditorValue,
@@ -301,7 +331,7 @@ export function AddCardForm({
   };
 
   const [savingNotes, setSavingNotes] = useState(0);
-  useWarnBeforeUnload(savingNotes > 0);
+  useWarnBeforeUnload(savingNotes > 0 || (hasContent && !draftStored));
 
   const submitLinkList = async (
     submittedContent: string,
@@ -344,6 +374,52 @@ export function AddCardForm({
     }
   };
 
+  const restoreFromTrash = async (
+    submittedContent: string,
+    toastId: string | number
+  ) => {
+    toast.loading(t("restoring"), { id: toastId });
+    try {
+      const capture = prepareNoteCapture(submittedContent);
+      const saved = await createCard({
+        ...capture,
+        source: "web",
+        trashedDuplicate: "restore",
+      });
+      if (latestContentRef.current.trim() === submittedContent.trim()) {
+        resetDraft();
+      }
+      onSuccess?.();
+      // The card may have left Trash (or been deleted) since the first save.
+      let message = noteCaptureSavedMessage(capture, tEditor);
+      if (saved.wasTrashed) {
+        message = t("restoredFromTrash");
+      } else if (saved.outcome === "resaved") {
+        message = t("resaved");
+      }
+      toast.success(message, {
+        id: toastId,
+        ...(onOpenCard && {
+          action: {
+            label: t("open"),
+            onClick: () => onOpenCard(saved.cardId),
+          },
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to restore card:", error);
+      if (isCardLimitError(error)) {
+        showUpgradeToast(toastId);
+      } else if (isRateLimitError(error)) {
+        toast.error(tLimits("rateLimited"), { id: toastId });
+      } else {
+        toast.error(errors.message(error, t("restoreFailed")), {
+          id: toastId,
+        });
+      }
+    }
+  };
+
   const submitTextCard = async (): Promise<boolean> => {
     const submittedContent = latestContentRef.current;
     if (!submittedContent.trim()) {
@@ -370,7 +446,28 @@ export function AddCardForm({
     setSavingNotes((count) => count + 1);
     try {
       const capture = prepareNoteCapture(submittedContent);
-      const saved = await createCard({ ...capture, source: "web" });
+      const saved = await createCard({
+        ...capture,
+        source: "web",
+        trashedDuplicate: "report",
+      });
+
+      if (saved.outcome === "inTrash") {
+        // Nothing was saved: the draft comes back, and the toast offers the
+        // card in Trash instead of a second copy.
+        restoreDraft(submittedContent);
+        toast.info(t("inTrash"), {
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
+          action: {
+            label: t("restore"),
+            onClick: () => {
+              void restoreFromTrash(submittedContent, toastId);
+            },
+          },
+          id: toastId,
+        });
+        return false;
+      }
 
       onSuccess?.();
       if (saved.outcome === "resaved") {
@@ -470,6 +567,7 @@ export function AddCardForm({
             <MarkdownTextEditor
               ariaLabel={tEditor("note.contentLabel")}
               autoFocus={autoFocus}
+              blurOnEscape
               cardLinks={cardLinks}
               className={cn(
                 "h-full min-h-20 flex-1 p-2",
@@ -490,7 +588,10 @@ export function AddCardForm({
               variant="compact"
             />
 
-            <div className="absolute right-3 bottom-3 flex justify-end gap-2">
+            <div
+              className="absolute right-3 bottom-3 flex justify-end gap-2"
+              data-editor-avoid=""
+            >
               {hasContent && (
                 <>
                   <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label={t("focus")}>

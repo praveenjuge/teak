@@ -72,6 +72,59 @@ test("hands focus from the stand-in to the editor with no gap", async () => {
   expect(container.querySelector(".ProseMirror")?.textContent).toBe(value);
 });
 
+async function focusedEditor(blurOnEscape: boolean) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <LoadedMarkdownTextEditor
+        ariaLabel="Markdown content"
+        blurOnEscape={blurOnEscape}
+        onChange={() => undefined}
+        standInFocus={{ current: true }}
+        value="Kept text"
+      />
+    )
+  );
+  for (
+    let tick = 0;
+    tick < 50 && !document.activeElement?.closest(".ProseMirror");
+    tick++
+  ) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+  }
+  const editor = container.querySelector<HTMLElement>(".ProseMirror");
+  expect(document.activeElement?.closest(".ProseMirror")).toBe(editor);
+  return editor as HTMLElement;
+}
+
+const pressEscape = (target: HTMLElement) =>
+  act(() => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Escape",
+      })
+    );
+  });
+
+describe("Esc", () => {
+  test("leaves an editor that asks for it, keeping the text", async () => {
+    const editor = await focusedEditor(true);
+    await pressEscape(editor);
+    expect(document.activeElement?.closest(".ProseMirror")).toBeNull();
+    expect(editor.textContent).toBe("Kept text");
+  });
+
+  test("stays in an editor that doesn't", async () => {
+    const editor = await focusedEditor(false);
+    await pressEscape(editor);
+    expect(document.activeElement?.closest(".ProseMirror")).toBe(editor);
+  });
+});
+
 test("hands focus over once, not again when a hidden page comes back", async () => {
   const errors: unknown[] = [];
   const onError = (event: ErrorEvent) => errors.push(event.error);

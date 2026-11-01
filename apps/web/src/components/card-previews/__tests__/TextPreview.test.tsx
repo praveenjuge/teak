@@ -79,3 +79,15 @@ test("Cmd/Ctrl+E anywhere in the card opens Focus", async () => {
   await pressFocusKey(focusButton as Element);
   expect(await focusIsOpen()).toBe(true);
 });
+
+test("on a phone the note is only as tall as its text; on a wide screen it fills the stage", async () => {
+  const { cardDialog } = await renderCardWithDialogOver();
+  const wrapper = cardDialog.querySelector<HTMLElement>(
+    ".group\\/text-preview"
+  );
+  expect(wrapper?.className).toContain("max-md:[--teak-note-min-height:6rem]");
+  const fieldset = cardDialog.querySelector<HTMLElement>("fieldset");
+  expect(fieldset?.style.getPropertyValue("--teak-editor-min-height")).toBe(
+    "var(--teak-note-min-height, 55vh)"
+  );
+});

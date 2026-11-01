@@ -41,6 +41,7 @@ import {
 } from "../../lib/folders";
 import {
   GO_TO_SETTINGS_KEY,
+  GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
 } from "../../lib/keyboardShortcuts";
 import {
@@ -90,6 +91,9 @@ const ACTION_ICONS: Record<CommandPaletteActionId, VadivamIcon> = {
   "sign-out": LogOut,
 };
 
+// Key hints mean nothing on a touch screen without a keyboard.
+export const SHORTCUT_HINT_CLASS = "ml-auto pointer-coarse:hidden";
+
 const CARD_SCORE = 0.5;
 const SEARCH_ALL_SCORE = 0.01;
 
@@ -132,9 +136,9 @@ export function CommandPaletteResults({
   const trimmed = query.trim();
   return (
     <>
-      {/* cmdk doesn't count the server's card rows. */}
-      {(cards.status === "idle" ||
-        (cards.status === "ready" && cards.cards.length === 0)) && (
+      {/* cmdk doesn't count the server's card rows. Once a query is long
+          enough to search cards, "Search all" is always offered instead. */}
+      {trimmed.length < PALETTE_MIN_CARD_QUERY_LENGTH && (
         <CommandEmpty className="py-4 text-center text-[13px] text-muted-foreground">
           {t("noResults")}
         </CommandEmpty>
@@ -154,7 +158,7 @@ export function CommandPaletteResults({
             >
               <Icon />
               <span className="truncate">{label}</span>
-              <span aria-hidden="true" className="ml-auto">
+              <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
                 <ShortcutHint
                   row={{
                     keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
@@ -173,6 +177,15 @@ export function CommandPaletteResults({
         >
           <Hash />
           <span>{t("views.tags")}</span>
+          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
+            <ShortcutHint
+              row={{
+                keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
+                label: t("views.tags"),
+                sequence: true,
+              }}
+            />
+          </span>
         </CommandItem>
         <CommandItem
           keywords={[t("views.settings"), "account", "preferences", "billing"]}
@@ -181,7 +194,7 @@ export function CommandPaletteResults({
         >
           <Settings />
           <span>{t("views.settings")}</span>
-          <span aria-hidden="true" className="ml-auto">
+          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
             <ShortcutHint
               row={{
                 keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
@@ -192,16 +205,11 @@ export function CommandPaletteResults({
           </span>
         </CommandItem>
       </CommandGroup>
-      {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH &&
-        !(cards.status === "ready" && cards.cards.length === 0) && (
-          <CommandGroup forceMount heading={t("groups.cards")}>
-            <PaletteCardRows
-              cards={cards}
-              onSelect={onSelect}
-              query={trimmed}
-            />
-          </CommandGroup>
-        )}
+      {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH && (
+        <CommandGroup forceMount heading={t("groups.cards")}>
+          <PaletteCardRows cards={cards} onSelect={onSelect} query={trimmed} />
+        </CommandGroup>
+      )}
       <CommandGroup heading={t("groups.actions")}>
         {paletteActions(pathname).map((action) => {
           const Icon = ACTION_ICONS[action.id];
@@ -216,7 +224,7 @@ export function CommandPaletteResults({
               <Icon />
               <span className="truncate">{label}</span>
               {action.keys ? (
-                <span aria-hidden="true" className="ml-auto">
+                <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
                   <ShortcutHint row={{ keys: action.keys, label }} />
                 </span>
               ) : null}
@@ -478,6 +486,7 @@ export function CommandPalette({
       <CommandList
         aria-label={t("resultsLabel")}
         className="max-h-[min(50vh,360px)] pb-1"
+        label={t("resultsLabel")}
         ref={listRef}
       >
         <CommandPaletteResults

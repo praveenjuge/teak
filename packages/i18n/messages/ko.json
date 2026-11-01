@@ -43,7 +43,8 @@
       "version": "버전 {version}"
     },
     "header": {
-      "title": "설정"
+      "title": "설정",
+      "subpageTitle": "{page} · 설정"
     },
     "skeleton": {
       "loading": "설정을 불러오는 중…"
@@ -94,7 +95,18 @@
       "signOutTitle": "{name}에서 로그아웃하시겠습니까?",
       "signOutDescription": "{date}에 로그인한 {name} 세션이 Teak에서 로그아웃되며 다시 로그인해야 합니다.",
       "disconnectTitle": "{name} 연결을 해제하시겠습니까?",
-      "disconnectDescription": "다시 연결할 때까지 모든 설치에서 {name}이(가) Teak 라이브러리에 접근할 수 없게 됩니다."
+      "disconnectDescription": "다시 연결할 때까지 모든 설치에서 {name}이(가) Teak 라이브러리에 접근할 수 없게 됩니다.",
+      "deviceExtension": "Teak 브라우저 확장 프로그램",
+      "deviceUnknown": "알 수 없는 기기",
+      "deviceBrowser": "브라우저",
+      "deviceOn": "{os}의 {browser}",
+      "signedInLastActive": "{date}에 로그인함 · 마지막 활동 {active}",
+      "signOutOthers": "다른 기기 로그아웃",
+      "signOutOthersTitle": "다른 모든 기기에서 로그아웃하시겠습니까?",
+      "signOutOthersDescription": "계정에 로그인된 다른 모든 브라우저와 기기가 Teak에서 로그아웃되며 다시 로그인해야 합니다. 이 기기는 로그인 상태로 유지됩니다.",
+      "signOutOthersConfirm": "다른 기기 로그아웃",
+      "otherDevicesSignedOut": "{count, plural, =0 {로그인된 다른 기기가 없었습니다.} other {다른 기기 #대를 로그아웃했습니다.}}",
+      "otherDevicesRemaining": "{count, plural, other {기기 #대를 로그아웃했습니다.}} 아직 로그인된 기기가 있습니다. 1분 후에 다시 시도해 주세요."
     },
     "apiKeys": {
       "revokeAllTitle": "모든 API 키를 폐기하시겠습니까?",
@@ -124,7 +136,11 @@
       "copyFailed": "키를 복사하지 못했습니다. 직접 선택해서 복사하세요.",
       "createKey": "키 생성",
       "loading": "API 키를 불러오는 중…",
-      "revokeAll": "모든 키 폐기"
+      "revokeAll": "모든 키 폐기",
+      "nameLabel": "새 키 이름(선택 사항)",
+      "namePlaceholder": "예: 노트북의 Raycast",
+      "empty": "아직 API 키가 없습니다. API, CLI, Raycast 또는 MCP 클라이언트를 사용하려면 키를 만드세요.",
+      "listLabel": "API 키"
     },
     "deleteAccount": {
       "title": "계정 삭제",
@@ -315,7 +331,8 @@
           "hint": "Teak의 데이터 내보내기에서 받은 ZIP 파일입니다."
         }
       },
-      "orDrop": "또는 여기에 놓기"
+      "orDrop": "또는 여기에 놓기",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "방금 전",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "태그",
       "folder": "폴더"
-    }
+    },
+    "skipToContent": "본문으로 건너뛰기"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {읽음으로 표시} watched {시청함으로 표시} listened {들음으로 표시} bought {구매함으로 표시} cooked {요리함으로 표시} played {플레이함으로 표시} other {완료로 표시}}",
       "markAsNot": "{verb, select, read {읽지 않음으로 표시} watched {시청하지 않음으로 표시} listened {듣지 않음으로 표시} bought {구매하지 않음으로 표시} cooked {요리하지 않음으로 표시} played {플레이하지 않음으로 표시} other {미완료로 표시}}",
-      "state": "{verb, select, read {읽음} watched {시청함} listened {들음} bought {구매함} cooked {요리함} played {플레이함} other {완료}}"
+      "caption": "완료",
+      "marked": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
     },
     "heading": {
       "addedOn": "{date}에 추가됨",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "태그 추가",
       "addTagPlaceholder": "태그 추가…",
-      "addToFolder": "폴더에 추가",
       "andMore": "외 다수",
       "colors": "색상",
       "copyColor": "{hex} 복사",
@@ -868,7 +886,20 @@
       },
       "file": "파일",
       "openFile": "파일 열기",
-      "untitled": "문서"
+      "untitled": "문서",
+      "kinds": {
+        "archive": "압축 파일",
+        "audio": "오디오 파일",
+        "design": "디자인 파일",
+        "image": "이미지",
+        "markdown": "Markdown",
+        "motion": "애니메이션",
+        "office": "Office 문서",
+        "pdf": "PDF",
+        "source": "소스 코드",
+        "text": "텍스트 파일",
+        "tokens": "디자인 토큰"
+      }
     },
     "fileText": {
       "loading": "파일 미리보기를 불러오는 중"
@@ -965,7 +996,7 @@
       "deleteForever": "영구 삭제",
       "deselect": "선택 해제",
       "favorite": "즐겨찾기에 추가",
-      "folders": "폴더…",
+      "folders": "폴더에 추가…",
       "moreActions": "추가 작업",
       "moveToTrash": "휴지통으로 이동",
       "openLink": "링크 열기",
@@ -974,13 +1005,16 @@
       "select": "선택",
       "unarchive": "보관 해제",
       "unfavorite": "즐겨찾기에서 제거",
-      "editLink": "링크 편집…"
+      "editLink": "링크 편집…",
+      "removeFromFolder": "이 폴더에서 제거"
     },
     "copyImageFailed": "이미지를 복사하지 못했습니다",
     "deleteForeverDialog": {
       "confirm": "영구 삭제",
       "description": "카드와 파일이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
-      "title": "이 카드를 영구 삭제하시겠습니까?"
+      "title": "이 카드를 영구 삭제하시겠습니까?",
+      "bulkTitle": "{count, plural, other {카드 #개를 영구 삭제하시겠습니까?}}",
+      "bulkDescription": "{count, plural, other {카드 #개와 파일이 영구적으로 삭제됩니다.}} 이 작업은 되돌릴 수 없습니다."
     },
     "body": {
       "emptyNote": "빈 메모",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "휴지통을 비우는 중",
       "rateLimited": "방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요.",
       "failed": "휴지통을 비우지 못했습니다. 다시 시도하세요."
+    },
+    "trash": {
+      "retention": "휴지통의 카드는 {days, plural, other {#일}} 후 영구 삭제됩니다."
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "집중",
       "resaved": "이미 Teak에 있습니다 · 맨 위로 이동했습니다",
       "resavedFromArchive": "이미 Teak에 있습니다 · 보관함에서 꺼냈습니다",
+      "inTrash": "이 링크는 휴지통에 있습니다",
+      "restore": "복원",
+      "restoring": "복원하는 중…",
+      "restoredFromTrash": "휴지통에서 복원했습니다 · 맨 위로 이동했습니다",
+      "restoreFailed": "카드를 복원하지 못했습니다",
       "open": "열기",
       "saveLinks": "{count, plural, other {링크 #개 저장}}",
       "saveFirstLinks": "{count, plural, other {처음 링크 #개 저장}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "폴더로 이동…",
       "removeFromFolder": "{folder}에서 제거",
       "moveToTrash": "휴지통으로 이동",
-      "cancelSelection": "선택 취소"
+      "cancelSelection": "선택 취소",
+      "deleteForever": "영구 삭제"
     },
     "tagsDialog": {
       "tagTooLong": "태그는 최대 {max}자까지 가능합니다.",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제거",
       "removeExcludedQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제외 조건 제거",
       "removeUnknownFolder": "{chip} 제거: {folder} 폴더가 없습니다",
-      "unknownFolder": "{folder} 폴더가 없습니다"
+      "unknownFolder": "{folder} 폴더가 없습니다",
+      "unknownType": "{type} 유형이 없습니다",
+      "removeUnknownType": "{chip} 제거: 해당 카드 유형이 없습니다"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "다시 볼 카드가 없습니다",
       "saveAsSmartFolder": "스마트 폴더로 저장…",
-      "reshuffle": "다시 셔플"
+      "reshuffle": "다시 셔플",
+      "density": "밀도",
+      "densities": {
+        "comfortable": "여유 있게",
+        "compact": "좁게"
+      }
     },
     "dates": {
       "today": "오늘",
@@ -1322,6 +1372,18 @@
       "thisYear": "올해",
       "lastYear": "작년",
       "lastWeekday": "지난 {day}"
+    },
+    "results": {
+      "matches": "{count, plural, other {카드 #개 일치}}",
+      "matchesMore": "카드 {count}개 이상 일치",
+      "related": "{count, plural, other {의미가 비슷한 항목 #개}}",
+      "hideRelated": "관련 항목 숨기기",
+      "showRelated": "관련 항목 보기",
+      "noMatchesFor": "“{query}”와 일치하는 카드가 없습니다",
+      "didYouMean": "<link>{suggestion}</link>을(를) 찾으셨나요?",
+      "tryRemoving": "또는 필터 제거:",
+      "filtersLabel": "이 검색의 필터",
+      "removeFilter": "{label} 제거"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "검색",
       "newNote": "새 메모",
       "uploadFiles": "파일 업로드",
-      "notifications": "알림으로 이동(실행 취소)",
+      "recordAudio": "오디오 녹음",
+      "notifications": "알림으로 이동해 변경 실행 취소",
       "keyboardShortcuts": "키보드 단축키",
-      "goToSettings": "설정"
+      "goToSettings": "설정",
+      "goToTags": "태그",
+      "byTag": "태그가 있는 카드",
+      "byType": "유형별 카드",
+      "bySite": "사이트별 카드",
+      "byFolder": "폴더의 카드",
+      "byState": "즐겨찾기, 보관됨, 완료 또는 할 일"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "태그를 제거하지 못했습니다",
         "tags": "태그를 업데이트하지 못했습니다",
         "other": "{operation} 작업에 실패했습니다"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, other {카드 #개가 영구 삭제되었습니다}}"
     },
     "clipboard": {
       "copyingImage": "이미지를 복사하는 중...",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "파일 {total}개 중 {successCount}개를 업로드했습니다.",
-      "partialFailureWithReason": "파일 {total}개 중 {successCount}개를 업로드했습니다. 첫 번째 실패: {file} — {reason}",
+      "partialFailureDetails": "파일 {total}개 중 {successCount}개를 업로드했습니다. {details}",
+      "moreFiles": "{count, plural, other {외 #개}}",
+      "failures": {
+        "empty": "{count, plural, other {빈 파일이라 저장할 내용이 없습니다}}: {files}.",
+        "unsupported": "{count, plural, other {Teak에서 저장할 수 없는 파일 형식입니다}}: {files}.",
+        "tooLarge": "{count, plural, other {{max}를 초과합니다}}: {files}.",
+        "mismatch": "{count, plural, other {파일 이름이 내용과 일치하지 않습니다}}: {files}.",
+        "other": "{count, plural, other {업로드하지 못했습니다}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, other {파일 #개}}를 건너뛰었습니다. 한 번에 최대 {max}개까지 업로드할 수 있습니다."
     }
   },

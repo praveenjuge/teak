@@ -1,6 +1,12 @@
 import { useTranslations } from "@teak/i18n/react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  GRID_GUTTER,
+  gridColumnsTemplate,
+  MAX_COLUMNS,
+  MIN_COLUMN_WIDTH,
+} from "../grids/gridColumns";
 
 export function CardSkeleton() {
   return (
@@ -36,13 +42,32 @@ const SKELETON_OPACITIES = [
   "opacity-5",
 ];
 
-export function CardsGridSkeleton() {
+interface CardsGridSkeletonProps {
+  gutter?: number;
+  maxColumns?: number;
+  minColumnWidth?: number;
+}
+
+/** Stands in for the masonry with the same columns, so nothing jumps. */
+export function CardsGridSkeleton({
+  gutter = GRID_GUTTER,
+  maxColumns = MAX_COLUMNS,
+  minColumnWidth = MIN_COLUMN_WIDTH,
+}: CardsGridSkeletonProps = {}) {
   const t = useTranslations("feedback.cardsGrid");
   return (
     <div
       aria-label={t("loading")}
-      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5"
+      className="grid items-start"
       role="status"
+      style={{
+        gap: gutter,
+        gridTemplateColumns: gridColumnsTemplate(
+          gutter,
+          minColumnWidth,
+          maxColumns
+        ),
+      }}
     >
       {SKELETON_OPACITIES.map((opacity) => (
         <div className={opacity} key={opacity}>

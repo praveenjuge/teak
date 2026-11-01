@@ -4,7 +4,27 @@ import {
   type SearchUrlState,
   sameMembers,
   sameVisualFilters,
+  serializeSearchUrlState,
 } from "./searchUrlState";
+
+/**
+ * The query string a search writes. It keeps the URL's other params, except a
+ * `card` the page has already closed: closing replaces the URL through the
+ * router, which can land after this synchronous write, so a close that changes
+ * the search (a tag chip, a type) would otherwise keep the card in the URL and
+ * reopen it on reload.
+ */
+export function searchUrlQuery(
+  state: SearchUrlState,
+  currentSearch: string,
+  openCardId: string | null
+): string {
+  const params = new URLSearchParams(currentSearch);
+  if (openCardId === null) {
+    params.delete("card");
+  }
+  return serializeSearchUrlState(state, params);
+}
 
 export interface SearchUrlChange {
   filtersChanged: boolean;

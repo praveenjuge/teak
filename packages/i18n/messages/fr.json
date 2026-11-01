@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Réglages"
+      "title": "Réglages",
+      "subpageTitle": "{page} · Réglages"
     },
     "skeleton": {
       "loading": "Chargement des réglages…"
@@ -94,7 +95,18 @@
       "signOutTitle": "Déconnecter {name} ?",
       "signOutDescription": "La session {name} ouverte le {date} est déconnectée de Teak et devra se reconnecter.",
       "disconnectTitle": "Déconnecter {name} ?",
-      "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez."
+      "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez.",
+      "deviceExtension": "Extension de navigateur Teak",
+      "deviceUnknown": "Appareil inconnu",
+      "deviceBrowser": "Navigateur",
+      "deviceOn": "{browser} sur {os}",
+      "signedInLastActive": "Connecté le {date} · Dernière activité : {active}",
+      "signOutOthers": "Déconnecter les autres appareils",
+      "signOutOthersTitle": "Déconnecter tous les autres appareils ?",
+      "signOutOthersDescription": "Tous les autres navigateurs et appareils connectés à votre compte sont déconnectés de Teak et devront se reconnecter. Cet appareil reste connecté.",
+      "signOutOthersConfirm": "Déconnecter les autres appareils",
+      "otherDevicesSignedOut": "{count, plural, =0 {Aucun autre appareil n’était connecté.} one {# autre appareil déconnecté.} other {# autres appareils déconnectés.}}",
+      "otherDevicesRemaining": "{count, plural, one {# appareil déconnecté.} other {# appareils déconnectés.}} Certains sont encore connectés ; réessayez dans une minute."
     },
     "apiKeys": {
       "revokeAllTitle": "Révoquer toutes les clés d’API ?",
@@ -124,7 +136,11 @@
       "copyFailed": "Impossible de copier la clé. Sélectionnez-la et copiez-la manuellement.",
       "createKey": "Créer une clé",
       "loading": "Chargement des clés d’API…",
-      "revokeAll": "Révoquer toutes les clés"
+      "revokeAll": "Révoquer toutes les clés",
+      "nameLabel": "Nom d’une nouvelle clé (facultatif)",
+      "namePlaceholder": "Par exemple : Raycast sur mon ordinateur portable",
+      "empty": "Aucune clé d’API pour l’instant. Créez-en une pour utiliser l’API, la CLI, Raycast ou un client MCP.",
+      "listLabel": "Clés d’API"
     },
     "deleteAccount": {
       "title": "Supprimer le compte",
@@ -315,7 +331,8 @@
           "hint": "Un ZIP issu de Exporter vos données dans Teak."
         }
       },
-      "orDrop": "ou déposez-le ici"
+      "orDrop": "ou déposez-le ici",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "à l’instant",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Dossier"
-    }
+    },
+    "skipToContent": "Aller au contenu"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {Marquer comme lue} watched {Marquer comme vue} listened {Marquer comme écoutée} bought {Marquer comme achetée} cooked {Marquer comme cuisinée} played {Marquer comme jouée} other {Marquer comme terminée}}",
       "markAsNot": "{verb, select, read {Marquer comme non lue} watched {Marquer comme non vue} listened {Marquer comme non écoutée} bought {Marquer comme non achetée} cooked {Marquer comme non cuisinée} played {Marquer comme non jouée} other {Marquer comme non terminée}}",
-      "state": "{verb, select, read {Lue} watched {Vue} listened {Écoutée} bought {Achetée} cooked {Cuisinée} played {Jouée} other {Terminée}}"
+      "caption": "Terminé",
+      "marked": "{verb, select, read {Marquée comme lue} watched {Marquée comme vue} listened {Marquée comme écoutée} bought {Marquée comme achetée} cooked {Marquée comme cuisinée} played {Marquée comme jouée} other {Marquée comme terminée}}"
     },
     "heading": {
       "addedOn": "Ajoutée le {date}",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "Ajouter un tag",
       "addTagPlaceholder": "Ajouter un tag…",
-      "addToFolder": "Ajouter à un dossier",
       "andMore": "et plus",
       "colors": "Couleurs",
       "copyColor": "Copier {hex}",
@@ -868,7 +886,20 @@
       },
       "file": "Fichier",
       "openFile": "Ouvrir le fichier",
-      "untitled": "Document"
+      "untitled": "Document",
+      "kinds": {
+        "archive": "Archive",
+        "audio": "Fichier audio",
+        "design": "Fichier de design",
+        "image": "Image",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Document Office",
+        "pdf": "PDF",
+        "source": "Code source",
+        "text": "Fichier texte",
+        "tokens": "Tokens de design"
+      }
     },
     "fileText": {
       "loading": "Chargement de l’aperçu du fichier"
@@ -965,7 +996,7 @@
       "deleteForever": "Supprimer définitivement",
       "deselect": "Désélectionner",
       "favorite": "Ajouter aux favoris",
-      "folders": "Dossiers…",
+      "folders": "Ajouter à un dossier…",
       "moreActions": "Plus d’actions",
       "moveToTrash": "Placer dans la corbeille",
       "openLink": "Ouvrir le lien",
@@ -974,13 +1005,16 @@
       "select": "Sélectionner",
       "unarchive": "Désarchiver",
       "unfavorite": "Retirer des favoris",
-      "editLink": "Modifier le lien…"
+      "editLink": "Modifier le lien…",
+      "removeFromFolder": "Retirer de ce dossier"
     },
     "copyImageFailed": "Impossible de copier l’image",
     "deleteForeverDialog": {
       "confirm": "Supprimer définitivement",
       "description": "Cette action supprime définitivement la fiche et ses fichiers. Elle est irréversible.",
-      "title": "Supprimer définitivement cette fiche ?"
+      "title": "Supprimer définitivement cette fiche ?",
+      "bulkTitle": "{count, plural, one {Supprimer définitivement # fiche ?} other {Supprimer définitivement # fiches ?}}",
+      "bulkDescription": "{count, plural, one {Cette action supprime définitivement # fiche et ses fichiers.} other {Cette action supprime définitivement # fiches et leurs fichiers.}} Elle est irréversible."
     },
     "body": {
       "emptyNote": "Note vide",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "Vidage de la corbeille",
       "rateLimited": "La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute.",
       "failed": "Impossible de vider la corbeille. Réessayez."
+    },
+    "trash": {
+      "retention": "Les fiches de la corbeille sont supprimées définitivement après {days, plural, one {# jour} other {# jours}}."
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "Concentration",
       "resaved": "Déjà dans Teak · Remonté en haut",
       "resavedFromArchive": "Déjà dans Teak · Sorti des Archives",
+      "inTrash": "Ce lien est dans la corbeille",
+      "restore": "Restaurer",
+      "restoring": "Restauration…",
+      "restoredFromTrash": "Restaurée depuis la corbeille · Remontée en haut",
+      "restoreFailed": "Impossible de restaurer la fiche",
       "open": "Ouvrir",
       "saveLinks": "Enregistrer {count, plural, one {# lien} other {# liens}}",
       "saveFirstLinks": "Enregistrer les {count, plural, one {# premier lien} other {# premiers liens}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "Déplacer vers un dossier…",
       "removeFromFolder": "Retirer de {folder}",
       "moveToTrash": "Placer dans la corbeille",
-      "cancelSelection": "Annuler la sélection"
+      "cancelSelection": "Annuler la sélection",
+      "deleteForever": "Supprimer définitivement"
     },
     "tagsDialog": {
       "tagTooLong": "Un tag ne peut pas dépasser {max} caractères.",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "Retirer le filtre {kind, select, tag {tag} type {type} is {affichage} site {site} folder {dossier} like {similaire à} mood {ambiance} price {prix} text {texte dans l’image} other {de recherche}} {label}",
       "removeExcludedQualifier": "Retirer l’exclusion {kind, select, tag {du tag} type {du type} is {de l’affichage} site {du site} folder {du dossier} like {similaire à} mood {de l’ambiance} price {du prix} text {du texte dans l’image} other {du filtre}} {label}",
       "removeUnknownFolder": "Retirer {chip} : aucun dossier nommé {folder}",
-      "unknownFolder": "Aucun dossier nommé {folder}"
+      "unknownFolder": "Aucun dossier nommé {folder}",
+      "unknownType": "Aucun type nommé {type}",
+      "removeUnknownType": "Retirer {chip} : ce type de fiche n’existe pas"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "Rien à revoir ici",
       "saveAsSmartFolder": "Enregistrer comme dossier intelligent…",
-      "reshuffle": "Mélanger à nouveau"
+      "reshuffle": "Mélanger à nouveau",
+      "density": "Densité",
+      "densities": {
+        "comfortable": "Confortable",
+        "compact": "Compacte"
+      }
     },
     "dates": {
       "today": "Aujourd’hui",
@@ -1322,6 +1372,18 @@
       "thisYear": "Cette année",
       "lastYear": "L’année dernière",
       "lastWeekday": "{day} dernier"
+    },
+    "results": {
+      "matches": "{count, plural, one {# fiche correspond} other {# fiches correspondent}}",
+      "matchesMore": "{count}+ fiches correspondent",
+      "related": "{count, plural, one {# proche par le sens} other {# proches par le sens}}",
+      "hideRelated": "Masquer les proches",
+      "showRelated": "Afficher les proches",
+      "noMatchesFor": "Aucune fiche ne correspond à « {query} »",
+      "didYouMean": "Vouliez-vous dire <link>{suggestion}</link> ?",
+      "tryRemoving": "Ou retirez un filtre :",
+      "filtersLabel": "Filtres de cette recherche",
+      "removeFilter": "Retirer {label}"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "Rechercher",
       "newNote": "Nouvelle note",
       "uploadFiles": "Importer des fichiers",
-      "notifications": "Aller aux notifications (Annuler)",
+      "recordAudio": "Enregistrer de l’audio",
+      "notifications": "Aller aux notifications pour annuler une modification",
       "keyboardShortcuts": "Raccourcis clavier",
-      "goToSettings": "Réglages"
+      "goToSettings": "Réglages",
+      "goToTags": "Tags",
+      "byTag": "Fiches avec un tag",
+      "byType": "Fiches d’un type",
+      "bySite": "Fiches d’un site",
+      "byFolder": "Fiches d’un dossier",
+      "byState": "Favoris, archivées, terminées ou à faire"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "Impossible de retirer le tag",
         "tags": "Impossible de mettre à jour les tags",
         "other": "Échec de l’opération : {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# fiche supprimée définitivement} other {# fiches supprimées définitivement}}"
     },
     "clipboard": {
       "copyingImage": "Copie de l’image…",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} fichiers sur {total} importés.",
-      "partialFailureWithReason": "{successCount} fichiers sur {total} importés. Premier échec : {file} — {reason}",
+      "partialFailureDetails": "{successCount} fichiers sur {total} importés. {details}",
+      "moreFiles": "{count, plural, one {# autre} other {# autres}}",
+      "failures": {
+        "empty": "{count, plural, one {Fichier vide, rien à enregistrer} other {Fichiers vides, rien à enregistrer}} : {files}.",
+        "unsupported": "{count, plural, one {Teak ne peut pas enregistrer ce type de fichier} other {Teak ne peut pas enregistrer ces types de fichiers}} : {files}.",
+        "tooLarge": "{count, plural, one {Plus de {max}} other {Plus de {max}}} : {files}.",
+        "mismatch": "{count, plural, one {Le nom ne correspond pas au contenu du fichier} other {Les noms ne correspondent pas au contenu des fichiers}} : {files}.",
+        "other": "{count, plural, one {Impossible d’importer} other {Impossible d’importer}} : {files}.",
+        "otherWithReason": "{files} : {reason}"
+      },
       "skippedNote": "{count, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}}. Vous pouvez en importer jusqu’à {max} à la fois."
     }
   },

@@ -1,6 +1,6 @@
 ---
 title: "November 2026"
-description: A card's actions move beside it, into its details, so the card itself has nothing laid over it, a calmer browser extension popup that shows what you saved, and quicker capture on the Mac.
+description: A card's actions move beside it, into its details, a calmer browser extension popup, quicker capture on the Mac, and a round of fixes to saving, search, Trash, imports and Settings.
 type: changelog
 date: "2026-11-01"
 changelog:
@@ -9,7 +9,7 @@ changelog:
 
 ## A card's actions sit beside it
 
-- On the web, an open card no longer has a bar across its top. Its details beside it now start with where the card is from, its type and its title, which wraps onto a few lines instead of being cut off. Under the title are **Open** (or **Download**) and a row of labelled buttons: **Favorite**, **Read** (or **Watched**, **Bought** and so on) for a link, **Copy**, **Folder** and **More**. Scroll the details and the buttons stay pinned to the top in one line. See [Cards](/docs/features#grid).
+- On the web, an open card no longer has a bar across its top. Its details beside it now start with where the card is from, its type and its title, which wraps onto a few lines instead of being cut off. Under the title are **Open** (or **Download**) and a row of labelled buttons: **Favorite**, **Done** for a link (it marks the link read, watched, bought and so on), **Copy**, **Folder** and **More**. Scroll the details and the buttons stay pinned to the top in one line. See [Cards](/docs/features#grid).
 - Photos and videos fill the card, with nothing over them when you point at them.
 - To change a link's address, click the pencil beside its URL in **Details**. **Replace** and **Reset** for a link's image sit beside **Image** there too.
 - A card in Trash shows **Restore** and **Delete forever** at the top of its details.
@@ -26,6 +26,38 @@ changelog:
 - **Voice Memo** (⇧⌘R) records in its own small window that stays above other apps, and it's in the menu bar item's menu too.
 - Drop something on the menu bar icon and it shows an arrow while it saves, then a check. Dropping a file there no longer crashes Teak.
 - **New folder** is now the last row of **Folders** in the sidebar, and the note, notes and tag fields in **Edit card** keep your text on the left.
+
+## Saving is harder to lose
+
+- A note you're typing in the box at the top of your cards stays there through a reload until you save it or clear it. Press **Esc** to leave the box, so single-key shortcuts work again.
+- Pasting a list of links with repeats saves each link once, and the count says so before you save.
+- Saving a link that's in Trash offers **Restore** instead of quietly making a second copy.
+- When some uploads fail, the message names every file and says why in plain words, and the file picker only offers files Teak can save.
+- Press **R** to record audio. In a note, a table's **⋯** button no longer covers the header, and `[[` lists the closest title match first without covering **Save**.
+
+## Cards, selection and Trash
+
+- Right-clicking a card always opens its menu; releasing the button no longer picks the item under the pointer.
+- Clicking a tag on an open card shows every card with that tag.
+- Card previews read cleanly, with no stray Markdown symbols, and headings and lists read as sentences.
+- With cards selected, ⌘A (Ctrl+A) selects every card shown. In Trash you can select cards and **Delete forever** them together, and Trash says cards are deleted after 30 days.
+- Inside a folder, **Remove from this folder** is in each card's menu, with Undo.
+- Highlights snap to whole words, and the reader leaves out pages' own **[edit]** and **Read more** buttons.
+
+## Search finds what you asked for
+
+- A smart folder lists exactly the cards its search listed.
+- `type:` understands everyday words like `note`, `pdf`, `photo` and `bookmark`, and an unknown type shows a chip saying so. A date beside other words, like `kestrel last week`, becomes a date filter plus the word.
+- Searches show how many cards match and how many are related by meaning, with **Hide related**. When nothing matches, Teak suggests a close tag or title and lets you remove one filter at a time.
+- The command palette always offers to search everything for what you typed.
+- **View** has a **Compact** density. `G` then `L` opens Tags, and the shortcuts sheet lists the search filters.
+
+## Imports, Settings and devices
+
+- A CSV with a broken quote now imports every other row and lists the broken one. Semicolon-separated files import, lines in a text file that aren't links are listed instead of dropped, and **Last import** shows the file's name. See [Import](/docs/import).
+- Teak no longer writes a summary or tags for a link whose page couldn't be reached.
+- API keys can have names. **Security** lists this device first with when each device was last active, in your language, and **Sign out other devices** signs out everything but this one.
+- Keyboard focus is easy to see on every button, a **Skip to content** link comes first, and each Settings page reads its own name aloud.
 
 ## Fixes
 

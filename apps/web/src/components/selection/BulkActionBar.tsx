@@ -32,7 +32,7 @@ import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 export type BulkBarView = "library" | "archive" | "trash";
 
-export type BulkBarAction = BulkCardAction | "copyLinks";
+export type BulkBarAction = BulkCardAction | "copyLinks" | "deleteForever";
 
 export interface BulkBarFolder {
   id: string;
@@ -96,6 +96,8 @@ export function BulkActionBar({
     });
   const primaryShortcut = shortcutFor(primary.action);
   const primaryKeys = primaryShortcut ? [primaryShortcut.label] : undefined;
+  // Archive and Restore are everyday actions, so they stay neutral; the
+  // brand red is kept for adding picked cards to a folder.
   const primaryButton = (
     <Button
       aria-keyshortcuts={primaryShortcut?.keys}
@@ -104,11 +106,27 @@ export function BulkActionBar({
       onClick={() => onAction(primary.action)}
       size="sm"
       title={primaryKeys ? undefined : primary.label}
+      variant={addToFolder ? "default" : "secondary"}
     >
       <PrimaryIcon />
       <span className="truncate">{primary.label}</span>
     </Button>
   );
+  const deleteForeverShortcut = shortcutFor("deleteForever");
+  const deleteForeverButton =
+    view === "trash" && !addToFolder ? (
+      <Button
+        aria-keyshortcuts={deleteForeverShortcut?.keys}
+        className="text-destructive hover:text-destructive"
+        disabled={disabled}
+        onClick={() => onAction("deleteForever")}
+        size="sm"
+        variant="outline"
+      >
+        <Trash />
+        <span className="max-sm:sr-only">{t("deleteForever")}</span>
+      </Button>
+    ) : null;
 
   return (
     <div className="fade-in-0 fixed top-0 right-0 left-(--teak-content-left) z-50 animate-in border-b bg-background pt-[env(safe-area-inset-top)] transition-[left] duration-150 ease-out">
@@ -127,6 +145,16 @@ export function BulkActionBar({
           </ShortcutTooltip>
         ) : (
           primaryButton
+        )}
+        {deleteForeverButton && deleteForeverShortcut ? (
+          <ShortcutTooltip
+            keys={[deleteForeverShortcut.label]}
+            label={t("deleteForever")}
+          >
+            {deleteForeverButton}
+          </ShortcutTooltip>
+        ) : (
+          deleteForeverButton
         )}
         {view !== "trash" && !addToFolder && (
           <DropdownMenu>

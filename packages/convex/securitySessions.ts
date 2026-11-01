@@ -16,7 +16,11 @@ import {
   WORKOS_USER_ID,
   workosDisplayName,
 } from "./shared/workosIds";
-import { listWorkosSessions, revokeWorkosSession } from "./workos/sessions";
+import {
+  listWorkosSessions,
+  revokeWorkosSession,
+  type WorkosSession,
+} from "./workos/sessions";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -84,31 +88,75 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
     : null;
 }
 
-function sessionDisplayName(agent: string | null | undefined): string {
+/**
+ * What a session's user agent says, as parts each client words in its own
+ * language. Browser and system names are product names, so they stay as is;
+ * a client shows a value it doesn't know as its generic word.
+ */
+export interface SessionAgent {
+  browser?: "edge" | "firefox" | "chrome" | "safari";
+  kind: "browser" | "extension" | "unknown";
+  os?: "ipados" | "ios" | "android" | "macos" | "windows" | "linux";
+}
+
+const AGENT_BROWSERS: [RegExp, NonNullable<SessionAgent["browser"]>][] = [
+  [/Edg\//, "edge"],
+  [/Firefox\//, "firefox"],
+  [/(?:Chrome|CriOS)\//, "chrome"],
+  [/Safari\//, "safari"],
+];
+const AGENT_SYSTEMS: [RegExp, NonNullable<SessionAgent["os"]>][] = [
+  [/iPad/, "ipados"],
+  [/iPhone|iPod/, "ios"],
+  [/Android/, "android"],
+  [/Macintosh|Mac OS X/, "macos"],
+  [/Windows/, "windows"],
+  [/Linux/, "linux"],
+];
+
+export function describeSessionAgent(
+  agent: string | null | undefined
+): SessionAgent {
   if (!agent) {
-    return "Unknown device";
+    return { kind: "unknown" };
   }
   if (agent.startsWith("Teak Browser")) {
+    return { kind: "extension" };
+  }
+  const browser = AGENT_BROWSERS.find(([pattern]) => pattern.test(agent))?.[1];
+  const os = AGENT_SYSTEMS.find(([pattern]) => pattern.test(agent))?.[1];
+  return {
+    kind: "browser",
+    ...(browser ? { browser } : {}),
+    ...(os ? { os } : {}),
+  };
+}
+
+const BROWSER_NAMES: Record<NonNullable<SessionAgent["browser"]>, string> = {
+  edge: "Edge",
+  firefox: "Firefox",
+  chrome: "Chrome",
+  safari: "Safari",
+};
+const SYSTEM_NAMES: Record<NonNullable<SessionAgent["os"]>, string> = {
+  ipados: "iPadOS",
+  ios: "iOS",
+  android: "Android",
+  macos: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+};
+
+/** The English name clients that predate `agent` still show. */
+export function sessionDisplayName(agent: SessionAgent): string {
+  if (agent.kind === "unknown") {
+    return "Unknown device";
+  }
+  if (agent.kind === "extension") {
     return "Teak browser extension";
   }
-  const browsers: [RegExp, string][] = [
-    [/Edg\//, "Edge"],
-    [/Firefox\//, "Firefox"],
-    [/(?:Chrome|CriOS)\//, "Chrome"],
-    [/Safari\//, "Safari"],
-  ];
-  const platforms: [RegExp, string][] = [
-    [/iPad/, "iPadOS"],
-    [/iPhone|iPod/, "iOS"],
-    [/Android/, "Android"],
-    [/Macintosh|Mac OS X/, "macOS"],
-    [/Windows/, "Windows"],
-    [/Linux/, "Linux"],
-  ];
-  const browser =
-    browsers.find(([pattern]) => pattern.test(agent))?.[1] ?? "Browser";
-  const platform = platforms.find(([pattern]) => pattern.test(agent))?.[1];
-  return platform ? `${browser} on ${platform}` : browser;
+  const browser = agent.browser ? BROWSER_NAMES[agent.browser] : "Browser";
+  return agent.os ? `${browser} on ${SYSTEM_NAMES[agent.os]}` : browser;
 }
 
 export type TeakUserId = string & { readonly __brand: "TeakUserId" };
@@ -277,9 +325,51 @@ export async function getSessionProfile(
 const displayValidator = v.object({
   id: v.string(),
   name: v.string(),
+  agent: v.optional(
+    v.object({
+      kind: v.union(
+        v.literal("browser"),
+        v.literal("extension"),
+        v.literal("unknown")
+      ),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+    })
+  ),
   signedInAt: v.number(),
+  lastActiveAt: v.optional(v.number()),
   current: v.boolean(),
 });
+
+interface DisplaySession {
+  agent?: SessionAgent;
+  current: boolean;
+  id: string;
+  lastActiveAt?: number;
+  name: string;
+  signedInAt: number;
+}
+
+/** A session as Settings lists it; `lastActiveAt` only once it moved on. */
+export function displaySession(
+  session: WorkosSession,
+  currentSessionId: string
+): DisplaySession {
+  const agent = describeSessionAgent(session.userAgent);
+  return {
+    id: session.id,
+    name: sessionDisplayName(agent),
+    agent,
+    signedInAt: session.createdAt,
+    ...(session.updatedAt !== undefined && session.updatedAt > session.createdAt
+      ? { lastActiveAt: session.updatedAt }
+      : {}),
+    current: session.id === currentSessionId,
+  };
+}
+
+const isLiveSession = (session: WorkosSession) =>
+  session.status === "active" && session.expiresAt > Date.now();
 
 const sessionPageValidator = v.object({
   page: v.array(displayValidator),
@@ -318,7 +408,7 @@ export const listAuthkitSessions = action({
     ctx,
     { paginationOpts }
   ): Promise<{
-    page: { id: string; name: string; signedInAt: number; current: boolean }[];
+    page: DisplaySession[];
     isDone: boolean;
     continueCursor: string;
   }> => {
@@ -339,16 +429,8 @@ export const listAuthkitSessions = action({
     const next = result.after ?? "";
     return {
       page: result.sessions
-        .filter(
-          (session) =>
-            session.status === "active" && session.expiresAt > Date.now()
-        )
-        .map((session) => ({
-          id: session.id,
-          name: sessionDisplayName(session.userAgent),
-          signedInAt: session.createdAt,
-          current: session.id === user.sessionId,
-        })),
+        .filter(isLiveSession)
+        .map((session) => displaySession(session, user.sessionId)),
       isDone: !next,
       continueCursor: next,
     };
@@ -402,6 +484,66 @@ export const revokeAuthkitSession = action({
       after = next;
     }
     throw new Error("Could not verify this device. Please contact support.");
+  },
+});
+
+const MAX_OTHER_SESSION_PAGES = 20;
+// Leaves room in the per-minute WorkOS budget for the list pages and for
+// Settings to list devices again afterwards.
+const MAX_OTHER_SESSION_REVOKES = 20;
+
+/**
+ * Signs out every live session of this account except the one making the
+ * call. Revokes at most 20 per call; `hasMore` says some are left, which a
+ * later call (after the rate limit refills) finishes.
+ */
+export const revokeOtherAuthkitSessions = action({
+  args: {},
+  returns: v.object({ revokedCount: v.number(), hasMore: v.boolean() }),
+  handler: async (ctx) => {
+    const user = await getSessionUser(ctx);
+    if (!user) {
+      throw new Error("Please sign in again.");
+    }
+    const apiKey = workosSessionApiKey();
+    const others: string[] = [];
+    let after: string | undefined;
+    const seen = new Set<string>();
+    for (let page = 0; page < MAX_OTHER_SESSION_PAGES; page++) {
+      await chargeWorkosRequest(ctx, user.teakUserId);
+      const result = await listWorkosSessions(user.workosUserId, apiKey, {
+        limit: 100,
+        after,
+      });
+      for (const session of result.sessions) {
+        if (isLiveSession(session) && session.id !== user.sessionId) {
+          others.push(session.id);
+        }
+      }
+      const next = result.after;
+      if (!next) {
+        break;
+      }
+      // `listWorkosSessions` checks the cursor's format; this only stops a loop.
+      if (seen.has(next)) {
+        throw new Error("Device service returned an invalid page.");
+      }
+      seen.add(next);
+      after = next;
+    }
+    let revokedCount = 0;
+    for (const sessionId of others.slice(0, MAX_OTHER_SESSION_REVOKES)) {
+      if (sessionId === user.sessionId) {
+        continue;
+      }
+      await chargeWorkosRequest(ctx, user.teakUserId);
+      await revokeWorkosSession(sessionId, apiKey);
+      revokedCount += 1;
+    }
+    return {
+      revokedCount,
+      hasMore: others.length > MAX_OTHER_SESSION_REVOKES,
+    };
   },
 });
 

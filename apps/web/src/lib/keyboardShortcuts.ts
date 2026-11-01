@@ -45,6 +45,9 @@ export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
 
 export const GO_TO_SETTINGS_KEY = "s";
 
+/** `G T` is Trash, so Tags takes `G L`, as Gmail's go to label does. */
+export const GO_TO_TAGS_KEY = "l";
+
 // Keys and search syntax stay as typed; titles and labels are translated.
 const SHORTCUT_GROUPS: {
   id: ShortcutGroupId;
@@ -90,12 +93,18 @@ const SHORTCUT_GROUPS: {
       { id: "goToFavorites", keys: ["G", "F"], sequence: true },
       { id: "goToArchive", keys: ["G", "A"], sequence: true },
       { id: "goToTrash", keys: ["G", "T"], sequence: true },
+      { id: "goToTags", keys: ["G", "L"], sequence: true },
       { id: "goToSettings", keys: ["G", "S"], sequence: true },
     ],
   },
   {
     id: "search",
     rows: [
+      { id: "byTag", keys: ["tag:design"], syntax: true },
+      { id: "byType", keys: ["type:note"], syntax: true },
+      { id: "bySite", keys: ["site:github.com"], syntax: true },
+      { id: "byFolder", keys: ["folder:reading"], syntax: true },
+      { id: "byState", keys: ["is:fav"], syntax: true },
       { id: "excludeWord", keys: ["-word"], syntax: true },
       { id: "excludeFilter", keys: ["-tag:x"], syntax: true },
       { id: "eitherOne", keys: ["a OR b"], syntax: true },
@@ -110,6 +119,7 @@ const SHORTCUT_GROUPS: {
       { id: "search", keys: ["/"] },
       { id: "newNote", keys: ["N"] },
       { id: "uploadFiles", keys: ["U"] },
+      { id: "recordAudio", keys: ["R"] },
       { id: "notifications", keys: ["Alt", "T"], combo: true },
       { id: "keyboardShortcuts", keys: ["?"] },
     ],
@@ -246,6 +256,22 @@ export function registerUploadFiles(handler: () => boolean): () => void {
 
 export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
+}
+
+const recordAudioHandlers: Array<() => boolean> = [];
+
+export function registerRecordAudio(handler: () => boolean): () => void {
+  recordAudioHandlers.push(handler);
+  return () => {
+    const index = recordAudioHandlers.lastIndexOf(handler);
+    if (index >= 0) {
+      recordAudioHandlers.splice(index, 1);
+    }
+  };
+}
+
+export function pressRecordAudio(): boolean {
+  return recordAudioHandlers[recordAudioHandlers.length - 1]?.() ?? false;
 }
 
 let shortcutsOpener: (() => void) | null = null;

@@ -8,7 +8,9 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act, useState } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { ApiKeysPanel, nextRevealedKeys } = await import("../ApiKeysPanel");
+const { ApiKeysPanel, focusIndexAfterRemoval, nextRevealedKeys } = await import(
+  "../ApiKeysPanel"
+);
 type ApiKeyListItem = import("../ApiKeysPanel").ApiKeyListItem;
 
 let root: Root | undefined;
@@ -42,10 +44,13 @@ function Fixture({
     <ApiKeysPanel
       isLoading={false}
       keys={keys}
-      onCreateKey={() => {
+      onCreateKey={(name) => {
         const n = keys.length + 1;
         const id = `key_${n}`;
-        setKeys((current) => [listed(id, `p${n}`), ...current]);
+        setKeys((current) => [
+          { ...listed(id, `p${n}`), name: name ?? "Default API key" },
+          ...current,
+        ]);
         return Promise.resolve({ id, key: `teakapi_secret_live_p${n}_secret` });
       }}
       onRevokeAllKeys={() => {
@@ -190,4 +195,60 @@ test("a reveal without a known key id survives other keys' revokes", () => {
   expect(
     nextRevealedKeys([reveal], { kind: "revoked", keyId: "key_9" })
   ).toEqual([reveal]);
+});
+
+const typeName = (value: string) =>
+  act(async () => {
+    const input = document.querySelector<HTMLInputElement>("#api-key-name");
+    if (!input) {
+      throw new Error("No key name field");
+    }
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+
+test("an empty list says so, and the list has a name once keys exist", async () => {
+  await render();
+  expect(document.body.textContent).toContain("No API keys yet.");
+  expect(document.querySelector('ul[aria-label="API keys"]')).toBeNull();
+  await click("Create key");
+  expect(document.body.textContent).not.toContain("No API keys yet.");
+  expect(document.querySelector('ul[aria-label="API keys"]')).not.toBeNull();
+});
+
+test("a key gets the name typed before creating it, and the field clears", async () => {
+  await render();
+  await typeName("Raycast on my laptop");
+  await click("Create key");
+  expect(document.querySelector("li")?.textContent).toContain(
+    "Raycast on my laptop"
+  );
+  expect(document.querySelector<HTMLInputElement>("#api-key-name")?.value).toBe(
+    ""
+  );
+});
+
+test("after a revoke, focus moves to the next key, then to Create key", async () => {
+  await render();
+  await click("Create key");
+  await click("Create key");
+  await click(/^Revoke teakapi_secret_live_p2_/);
+  await confirmIn("Revoke key");
+  expect(document.activeElement?.getAttribute("aria-label")).toMatch(
+    /^Revoke teakapi_secret_live_p1_/
+  );
+  await click(/^Revoke teakapi_secret_live_p1_/);
+  await confirmIn("Revoke key");
+  expect(document.activeElement?.textContent?.trim()).toBe("Create key");
+});
+
+test("focus goes to the key that took the revoked one's place, else the one above", () => {
+  expect(focusIndexAfterRemoval(0, 2)).toBe(0);
+  expect(focusIndexAfterRemoval(2, 2)).toBe(1);
+  expect(focusIndexAfterRemoval(0, 0)).toBeNull();
 });

@@ -185,7 +185,11 @@ describe("saving a link that's already in Teak", () => {
     await type(KNOWN);
     await pressSaveShortcut();
 
-    expect(createCard).toHaveBeenCalledWith({ content: KNOWN, source: "web" });
+    expect(createCard).toHaveBeenCalledWith({
+      content: KNOWN,
+      source: "web",
+      trashedDuplicate: "report",
+    });
     const [message, options] = toast.success.mock.calls.at(-1) as [
       string,
       { action: { label: string; onClick: () => void } },
@@ -246,6 +250,11 @@ describe("the Save button", () => {
     ["a note", "Plain text", "Save"],
     ["one link", "https://example.com/a", "Save"],
     ["two links", links(2).join("\n"), "Save 2 links"],
+    [
+      "three lines with one link twice",
+      [...links(2), links(1)[0]].join("\n"),
+      "Save 2 links",
+    ],
     ["101 links", links(101).join("\n"), "Save first 100 links"],
   ])("reads its label for %s", async (_name, text, label) => {
     await render();
@@ -260,6 +269,15 @@ describe("the Save button", () => {
 });
 
 describe("pasting a list of links", () => {
+  test("leaves repeated links out of the job and its count", async () => {
+    await render();
+    await type([...links(2), links(1)[0]].join("\n"));
+    await pressSaveShortcut();
+
+    expect(startLinkPaste).toHaveBeenCalledWith({ urls: links(2) });
+    expect(toast.loading).toHaveBeenCalledWith("Saving links · 0 of 2");
+  });
+
   test("starts one job with every link, clears the draft and shows progress", async () => {
     await render();
     await type(links(12).join("\n"));

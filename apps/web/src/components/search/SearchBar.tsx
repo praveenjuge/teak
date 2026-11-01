@@ -28,7 +28,6 @@ import {
   FileText,
   Folder,
   Globe,
-  Hash,
   Image,
   Link as LinkIcon,
   ListFilter,
@@ -41,6 +40,7 @@ import {
   Split,
   Star,
   Tag,
+  TextSearch,
   Video,
   Volume2,
   X,
@@ -54,6 +54,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import type { CardDensity } from "@/lib/cardDensity";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
 import { timeFilterLabel } from "@/lib/timeFilterLabel";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,7 @@ import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
   canSortByRelevance?: boolean;
+  density?: CardDensity;
   filterTags: CardType[];
   HeaderActions?: ReactNode;
   hexFilters: string[];
@@ -87,6 +90,7 @@ export interface SearchBarProps {
   onActivate?: () => void;
   onAddQualifier?: (qualifier: string) => void;
   onClearAll: () => void;
+  onDensityChange?: (density: CardDensity) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onRemoveFilter: (filter: CardType) => void;
   onRemoveHexFilter: (hex: string) => void;
@@ -166,6 +170,8 @@ const suggestionIcon = (suggestion: SearchSuggestion) => {
 };
 
 const MAX_INLINE_CHIPS = 3;
+/** A phone's field fits one readable chip; the rest go under "+N". */
+const MAX_INLINE_CHIPS_PHONE = 1;
 
 const VISUAL_STYLE_MESSAGE_KEYS = {
   abstract: "abstract",
@@ -217,7 +223,7 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
     <button
       aria-label={chip.ariaLabel}
       className={cn(
-        "inline-flex h-6 min-w-0 max-w-44 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
+        "inline-flex h-6 min-w-10 max-w-80 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
         chip.dashed
           ? "border border-dashed text-muted-foreground"
           : "bg-background text-foreground shadow-xs ring-1 ring-border/70 hover:bg-accent"
@@ -293,6 +299,8 @@ export function SearchBar({
   placeholder: placeholderProp,
   sort = "newest",
   canSortByRelevance,
+  density,
+  onDensityChange,
   revisit,
   onSaveSearch,
   onSortChange,
@@ -322,6 +330,7 @@ export function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isPhone = useIsMobile();
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ index: number; query: string }>({
     index: -1,
@@ -483,8 +492,21 @@ export function SearchBar({
     });
   }
   for (const keyword of keywordTags) {
-    const { excluded, group, label } = describeKeywordChip(keyword);
-    let icon = <Hash />;
+    const { excluded, group, label, unknownType } =
+      describeKeywordChip(keyword);
+    if (unknownType) {
+      chips.push({
+        ariaLabel: t("bar.removeUnknownType", { chip: keyword }),
+        dashed: true,
+        excluded,
+        icon: <CircleSlash />,
+        key: `keyword-${keyword}`,
+        label: t("bar.unknownType", { type: unknownType }),
+        onRemove: () => onRemoveKeyword(keyword),
+      });
+      continue;
+    }
+    let icon = <TextSearch />;
     if (group) {
       icon = <Parentheses />;
     } else if (label.startsWith('"')) {
@@ -559,8 +581,9 @@ export function SearchBar({
       onRemove: () => onRemoveHexFilter(hex),
     });
   }
-  const inlineChips = chips.slice(0, MAX_INLINE_CHIPS);
-  const overflowChips = chips.slice(MAX_INLINE_CHIPS);
+  const maxInlineChips = isPhone ? MAX_INLINE_CHIPS_PHONE : MAX_INLINE_CHIPS;
+  const inlineChips = chips.slice(0, maxInlineChips);
+  const overflowChips = chips.slice(maxInlineChips);
   const canClear = hasAnyFilters || searchQuery.length > 0;
   const fieldShown = mobileOpen || canClear;
 
@@ -613,11 +636,13 @@ export function SearchBar({
               <ViewMenu
                 activeTypes={filterTags}
                 canSortByRelevance={canSortByRelevance}
+                density={density}
                 onClearTypes={() => {
                   for (const filter of filterTags) {
                     onRemoveFilter(filter);
                   }
                 }}
+                onDensityChange={onDensityChange}
                 onSaveSearch={onSaveSearch}
                 onSortChange={onSortChange}
                 onToggleType={onToggleFilter}

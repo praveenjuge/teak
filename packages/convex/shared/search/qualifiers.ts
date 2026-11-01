@@ -234,17 +234,51 @@ const trimEdgePunctuation = (value: string, keep = ""): string => {
   return value.slice(start, end);
 };
 
-const parseType = (value: string): CardType | null => {
-  const word = value.trim().toLowerCase();
-  const known = cardTypes as readonly string[];
-  if (known.includes(word)) {
+/**
+ * Everyday words for each card type, so `type:note` or `type:pdf` finds what
+ * people call them. Each also works with an `s` on the end. The Apple and
+ * Android ports keep the same list.
+ */
+export const CARD_TYPE_ALIASES: Readonly<Record<string, CardType>> = {
+  bookmark: "link",
+  clip: "video",
+  color: "palette",
+  colour: "palette",
+  doc: "document",
+  memo: "audio",
+  movie: "video",
+  note: "text",
+  pdf: "document",
+  photo: "image",
+  pic: "image",
+  picture: "image",
+  recording: "audio",
+  url: "link",
+  voice: "audio",
+  website: "link",
+};
+
+// A Map, so a word such as `constructor` never reads the object's prototype.
+const CARD_TYPE_ALIAS_MAP: ReadonlyMap<string, CardType> = new Map(
+  Object.entries(CARD_TYPE_ALIASES)
+);
+
+const typeForWord = (word: string): CardType | null => {
+  if ((cardTypes as readonly string[]).includes(word)) {
     return word as CardType;
   }
-  if (word.endsWith("s") && known.includes(word.slice(0, -1))) {
-    return word.slice(0, -1) as CardType;
-  }
-  return null;
+  return CARD_TYPE_ALIAS_MAP.get(word) ?? null;
 };
+
+export const parseCardTypeWord = (value: string): CardType | null => {
+  const word = value.trim().toLowerCase();
+  return (
+    typeForWord(word) ??
+    (word.endsWith("s") ? typeForWord(word.slice(0, -1)) : null)
+  );
+};
+
+const parseType = parseCardTypeWord;
 
 const PRICE_BOUND_PATTERN = /^(<=|>=|<|>|=)(\d{1,12}(?:\.\d{1,6})?)$/;
 

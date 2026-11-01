@@ -43,7 +43,8 @@
       "version": "バージョン {version}"
     },
     "header": {
-      "title": "設定"
+      "title": "設定",
+      "subpageTitle": "{page} · 設定"
     },
     "skeleton": {
       "loading": "設定を読み込み中…"
@@ -94,7 +95,18 @@
       "signOutTitle": "{name} をサインアウトしますか？",
       "signOutDescription": "{date} にサインインした {name} のセッションは Teak からサインアウトされ、もう一度サインインが必要になります。",
       "disconnectTitle": "{name} の接続を解除しますか？",
-      "disconnectDescription": "もう一度接続するまで、{name} はすべてのインストール先で Teak ライブラリにアクセスできなくなります。"
+      "disconnectDescription": "もう一度接続するまで、{name} はすべてのインストール先で Teak ライブラリにアクセスできなくなります。",
+      "deviceExtension": "Teak ブラウザ拡張機能",
+      "deviceUnknown": "不明なデバイス",
+      "deviceBrowser": "ブラウザ",
+      "deviceOn": "{os} の {browser}",
+      "signedInLastActive": "{date} にサインイン · 最終アクティブ {active}",
+      "signOutOthers": "ほかのデバイスをサインアウト",
+      "signOutOthersTitle": "ほかのすべてのデバイスをサインアウトしますか？",
+      "signOutOthersDescription": "アカウントにサインインしているほかのすべてのブラウザとデバイスは Teak からサインアウトされ、もう一度サインインが必要になります。このデバイスはサインインしたままです。",
+      "signOutOthersConfirm": "ほかのデバイスをサインアウト",
+      "otherDevicesSignedOut": "{count, plural, =0 {サインインしているほかのデバイスはありませんでした。} other {ほかの # 台のデバイスをサインアウトしました。}}",
+      "otherDevicesRemaining": "{count, plural, other {# 台のデバイスをサインアウトしました。}}まだサインインしているデバイスがあります。1 分後にもう一度お試しください。"
     },
     "apiKeys": {
       "revokeAllTitle": "すべての API キーを無効にしますか？",
@@ -124,7 +136,11 @@
       "copyFailed": "キーをコピーできませんでした。選択して手動でコピーしてください。",
       "createKey": "キーを作成",
       "loading": "API キーを読み込み中…",
-      "revokeAll": "すべてのキーを無効化"
+      "revokeAll": "すべてのキーを無効化",
+      "nameLabel": "新しいキーの名前（任意）",
+      "namePlaceholder": "例：ノートパソコンの Raycast",
+      "empty": "API キーはまだありません。API、CLI、Raycast、MCP クライアントを使うにはキーを作成してください。",
+      "listLabel": "API キー"
     },
     "deleteAccount": {
       "title": "アカウントを削除",
@@ -315,7 +331,8 @@
           "hint": "Teak の「データをエクスポート」で書き出した ZIP。"
         }
       },
-      "orDrop": "またはここにドロップ"
+      "orDrop": "またはここにドロップ",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "たった今",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "タグ",
       "folder": "フォルダ"
-    }
+    },
+    "skipToContent": "コンテンツへスキップ"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {既読にする} watched {視聴済みにする} listened {聴取済みにする} bought {購入済みにする} cooked {調理済みにする} played {プレイ済みにする} other {完了にする}}",
       "markAsNot": "{verb, select, read {未読にする} watched {未視聴にする} listened {未聴取にする} bought {未購入にする} cooked {未調理にする} played {未プレイにする} other {未完了にする}}",
-      "state": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
+      "caption": "完了",
+      "marked": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
     },
     "heading": {
       "addedOn": "{date} に追加",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "タグを追加",
       "addTagPlaceholder": "タグを追加…",
-      "addToFolder": "フォルダに追加",
       "andMore": "ほか",
       "colors": "色",
       "copyColor": "{hex} をコピー",
@@ -868,7 +886,20 @@
       },
       "file": "ファイル",
       "openFile": "ファイルを開く",
-      "untitled": "ドキュメント"
+      "untitled": "ドキュメント",
+      "kinds": {
+        "archive": "アーカイブファイル",
+        "audio": "音声ファイル",
+        "design": "デザインファイル",
+        "image": "画像",
+        "markdown": "Markdown",
+        "motion": "アニメーション",
+        "office": "Office ドキュメント",
+        "pdf": "PDF",
+        "source": "ソースコード",
+        "text": "テキストファイル",
+        "tokens": "デザイントークン"
+      }
     },
     "fileText": {
       "loading": "ファイルのプレビューを読み込み中"
@@ -965,7 +996,7 @@
       "deleteForever": "完全に削除",
       "deselect": "選択を解除",
       "favorite": "お気に入りに追加",
-      "folders": "フォルダ…",
+      "folders": "フォルダに追加…",
       "moreActions": "その他の操作",
       "moveToTrash": "ゴミ箱に移動",
       "openLink": "リンクを開く",
@@ -974,13 +1005,16 @@
       "select": "選択",
       "unarchive": "アーカイブ解除",
       "unfavorite": "お気に入りから削除",
-      "editLink": "リンクを編集…"
+      "editLink": "リンクを編集…",
+      "removeFromFolder": "このフォルダから削除"
     },
     "copyImageFailed": "画像をコピーできませんでした",
     "deleteForeverDialog": {
       "confirm": "完全に削除",
       "description": "カードとそのファイルが完全に削除されます。この操作は元に戻せません。",
-      "title": "このカードを完全に削除しますか？"
+      "title": "このカードを完全に削除しますか？",
+      "bulkTitle": "{count, plural, other {#件のカードを完全に削除しますか？}}",
+      "bulkDescription": "{count, plural, other {#件のカードとそのファイルが完全に削除されます。}}この操作は元に戻せません。"
     },
     "body": {
       "emptyNote": "空のメモ",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "ゴミ箱を空にしています",
       "rateLimited": "ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。",
       "failed": "ゴミ箱を空にできませんでした。もう一度お試しください。"
+    },
+    "trash": {
+      "retention": "ゴミ箱のカードは{days, plural, other {#日}}後に完全に削除されます。"
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "集中モード",
       "resaved": "すでに Teak にあります · 一番上に移動しました",
       "resavedFromArchive": "すでに Teak にあります · アーカイブから戻しました",
+      "inTrash": "このリンクはゴミ箱にあります",
+      "restore": "復元",
+      "restoring": "復元しています…",
+      "restoredFromTrash": "ゴミ箱から復元しました · 一番上に移動しました",
+      "restoreFailed": "カードを復元できませんでした",
       "open": "開く",
       "saveLinks": "{count, plural, other {# 件のリンクを保存}}",
       "saveFirstLinks": "{count, plural, other {最初の # 件のリンクを保存}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "フォルダに移動…",
       "removeFromFolder": "{folder} から削除",
       "moveToTrash": "ゴミ箱に移動",
-      "cancelSelection": "選択をキャンセル"
+      "cancelSelection": "選択をキャンセル",
+      "deleteForever": "完全に削除"
     },
     "tagsDialog": {
       "tagTooLong": "タグは {max} 文字以内にしてください。",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "{kind, select, tag {タグ} type {種類} is {表示} site {サイト} folder {フォルダ} like {類似} mood {ムード} price {価格} text {画像内のテキスト} other {フィルタ}} {label} を削除",
       "removeExcludedQualifier": "除外中の{kind, select, tag {タグ} type {種類} is {表示} site {サイト} folder {フォルダ} like {類似} mood {ムード} price {価格} text {画像内のテキスト} other {フィルタ}} {label} を削除",
       "removeUnknownFolder": "{chip} を削除：{folder} という名前のフォルダはありません",
-      "unknownFolder": "{folder} という名前のフォルダはありません"
+      "unknownFolder": "{folder} という名前のフォルダはありません",
+      "unknownType": "{type} という種類はありません",
+      "removeUnknownType": "{chip} を削除：その種類のカードはありません"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "振り返るカードはありません",
       "saveAsSmartFolder": "スマートフォルダとして保存…",
-      "reshuffle": "もう一度シャッフル"
+      "reshuffle": "もう一度シャッフル",
+      "density": "表示密度",
+      "densities": {
+        "comfortable": "標準",
+        "compact": "コンパクト"
+      }
     },
     "dates": {
       "today": "今日",
@@ -1322,6 +1372,18 @@
       "thisYear": "今年",
       "lastYear": "昨年",
       "lastWeekday": "先週の{day}"
+    },
+    "results": {
+      "matches": "{count, plural, other {#件のカードが一致}}",
+      "matchesMore": "{count}件以上のカードが一致",
+      "related": "{count, plural, other {意味が近いもの#件}}",
+      "hideRelated": "関連を非表示",
+      "showRelated": "関連を表示",
+      "noMatchesFor": "「{query}」に一致するカードはありません",
+      "didYouMean": "<link>{suggestion}</link> ですか？",
+      "tryRemoving": "またはフィルタを削除：",
+      "filtersLabel": "この検索のフィルタ",
+      "removeFilter": "{label} を削除"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "検索",
       "newNote": "新規メモ",
       "uploadFiles": "ファイルをアップロード",
-      "notifications": "通知に移動（元に戻す）",
+      "recordAudio": "音声を録音",
+      "notifications": "通知に移動して変更を元に戻す",
       "keyboardShortcuts": "キーボードショートカット",
-      "goToSettings": "設定"
+      "goToSettings": "設定",
+      "goToTags": "タグ",
+      "byTag": "タグの付いたカード",
+      "byType": "種類で絞り込む",
+      "bySite": "サイトで絞り込む",
+      "byFolder": "フォルダ内のカード",
+      "byState": "お気に入り・アーカイブ済み・完了・未完了"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "タグを削除できませんでした",
         "tags": "タグを更新できませんでした",
         "other": "{operation} に失敗しました"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, other {#件のカードを完全に削除しました}}"
     },
     "clipboard": {
       "copyingImage": "画像をコピーしています…",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "{total} 件中 {successCount} 件のファイルをアップロードしました。",
-      "partialFailureWithReason": "{total} 件中 {successCount} 件のファイルをアップロードしました。最初の失敗：{file} — {reason}",
+      "partialFailureDetails": "{total} 件中 {successCount} 件のファイルをアップロードしました。{details}",
+      "moreFiles": "{count, plural, other {ほか # 件}}",
+      "failures": {
+        "empty": "{count, plural, other {空のファイルのため保存できません}}: {files}。",
+        "unsupported": "{count, plural, other {Teak では保存できないファイル形式です}}: {files}。",
+        "tooLarge": "{count, plural, other {{max} を超えています}}: {files}。",
+        "mismatch": "{count, plural, other {ファイル名と内容が一致しません}}: {files}。",
+        "other": "{count, plural, other {アップロードできませんでした}}: {files}。",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, other {# 件のファイル}}をスキップしました。一度にアップロードできるのは {max} 件までです。"
     }
   },

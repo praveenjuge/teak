@@ -76,6 +76,16 @@ describe("CommandPaletteResults", () => {
     }
   });
 
+  test("hides keyboard hints on touch screens", () => {
+    const html = render({});
+    const hints = html.match(/<span aria-hidden="true" class="[^"]*"/g) ?? [];
+    expect(hints.length).toBeGreaterThan(0);
+    for (const hint of hints.filter((span) => span.includes("ml-auto"))) {
+      expect(hint).toContain("pointer-coarse:hidden");
+    }
+    expect(html).toMatch(/pointer-coarse:hidden[^>]*>.*then/);
+  });
+
   test("offers Empty Trash only in Trash", () => {
     expect(render({})).not.toContain(">Empty Trash<");
     expect(render({ pathname: "/trash" })).toContain(">Empty Trash<");
@@ -113,6 +123,15 @@ describe("CommandPaletteResults", () => {
     expect(html).not.toContain("No results");
   });
 
+  test("offers Search all without an empty message when no card matches", () => {
+    const html = render({
+      cards: { cards: [], status: "ready" },
+      query: "kestral",
+    });
+    expect(html).toContain("Search all for “kestral”");
+    expect(html).not.toContain("No results");
+  });
+
   test("shows an error row in the Cards group only", () => {
     const html = render({ cards: { status: "error" }, query: "bauhaus" });
     expect(html).toContain("Couldn’t search cards");
@@ -143,13 +162,24 @@ describe("CommandPaletteResults", () => {
     expect(html).toContain("Search all for “bauhaus”");
   });
 
-  test("hides the Cards group when no card matches", () => {
+  test("still offers to search everywhere when no card matches", () => {
     const html = render({
       cards: { status: "ready", cards: [] },
-      query: "zzzz",
+      query: "kestral",
     });
-    expect(headings(html)).not.toContain("Cards");
-    expect(html).not.toContain("Search all");
+    expect(headings(html)).toContain("Cards");
+    expect(html).toContain("Search all for “kestral”");
+    expect(html).not.toContain('value="card:');
+  });
+
+  test("names the results list in the app's language, not cmdk's", () => {
+    const html = renderToStaticMarkup(
+      <Command>
+        <CommandList label="Ergebnisse" />
+      </Command>
+    );
+    expect(html).toContain('aria-label="Ergebnisse"');
+    expect(html).not.toContain("Suggestions");
   });
 });
 

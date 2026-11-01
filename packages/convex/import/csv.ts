@@ -1,9 +1,25 @@
 import { ImportLimitExceeded } from "./sourceItems";
 
 const MAX_CSV_ROWS = 10_000;
+const MAX_CSV_COLUMNS = 256;
+/** Rows re-read after an unclosed quote before every quote ends at its line. */
+const MAX_QUOTE_RECOVERIES = 3;
+
+export type CsvDelimiter = "," | ";" | "\t";
 
 export interface CsvLimits {
+  delimiter?: CsvDelimiter;
   maxRows?: number;
+}
+
+/** What made a row unreliable; the row is still returned. */
+export type CsvRowProblem = "unclosed_quote" | "text_after_quote";
+
+export interface CsvRecords {
+  numbers: number[];
+  /** Row index (into `rows`) to what was wrong with that row. */
+  problems: Map<number, CsvRowProblem>;
+  rows: string[][];
 }
 
 /**
@@ -14,91 +30,201 @@ export function parseCsvRows(input: string, limits?: CsvLimits): string[][] {
   return parseCsvRecords(input, limits).rows;
 }
 
+interface ScanOptions {
+  delimiter: CsvDelimiter;
+  /** `first`: the first row's quotes end at its line; `all`: every row's. */
+  lineQuotes: false | "first" | "all";
+  maxRows: number;
+}
+
 /**
- * `parseCsvRows`, plus each row's record number as a spreadsheet shows it:
- * blank records are skipped but still counted, and a quoted cell spanning
- * several lines stays one record.
+ * Reads records from `from`. When a quote is still open at the end of the
+ * input, or closes across lines with text right after it, returns where its
+ * row started, so the caller can read that row again with the quote ended at
+ * its line.
  */
-export function parseCsvRecords(
+function scanCsv(
   input: string,
-  { maxRows = MAX_CSV_ROWS }: CsvLimits = {}
-): { numbers: number[]; rows: string[][] } {
-  const rows: string[][] = [];
-  const numbers: number[] = [];
-  let records = 0;
-  let row: string[] = [];
-  let pieces: string[] = [];
-  let blocks: string[] = [];
-  let pieceLength = 0;
-  const appendPiece = (piece: string) => {
-    pieces.push(piece);
-    pieceLength += piece.length;
-    if (pieceLength >= 65_536 || pieces.length >= 1024) {
-      blocks.push(pieces.join(""));
-      pieces = [];
-      pieceLength = 0;
-    }
-  };
-  let fieldStart = 0;
-  let inQuotes = false;
-  let index = 0;
+  from: number,
+  recordsBefore: number,
+  options: ScanOptions,
+  out: CsvRecords
+): { records: number; rowStart: number } | null {
+  const { delimiter, maxRows } = options;
   const length = input.length;
+  let lineQuotes = options.lineQuotes !== false;
+  let records = recordsBefore;
+  let row: string[] = [];
+  let parts: string[] = [];
+  let problem: CsvRowProblem | undefined;
+  let fieldStart = from;
+  let rowStart = from;
+  let inQuotes = false;
+  let quoted = false;
+  // The open quote ran past the end of its line.
+  let quoteSpannedLine = false;
+  let index = from;
   const endField = () => {
-    if (row.length >= 256) {
+    if (row.length >= MAX_CSV_COLUMNS) {
       throw new Error("CSV has too many columns");
     }
-    appendPiece(input.slice(fieldStart, index));
-    blocks.push(pieces.join(""));
-    row.push(blocks.join(""));
-    pieces = [];
-    blocks = [];
-    pieceLength = 0;
+    parts.push(input.slice(fieldStart, index));
+    row.push(parts.length === 1 ? (parts[0] ?? "") : parts.join(""));
+    parts = [];
+    quoted = false;
     fieldStart = index + 1;
   };
   const endRow = () => {
     endField();
     records += 1;
-    if (rows.length === 0 || !isEmptyRow(row)) {
-      if (rows.length > maxRows) {
+    if (out.rows.length === 0 || !isEmptyRow(row)) {
+      if (out.rows.length > maxRows) {
         throw new ImportLimitExceeded(
           `CSV exceeds ${maxRows.toLocaleString("en-US")} rows`
         );
       }
-      rows.push(row);
-      numbers.push(records);
+      if (problem) {
+        out.problems.set(out.rows.length, problem);
+      }
+      out.rows.push(row);
+      out.numbers.push(records);
     }
     row = [];
+    problem = undefined;
+    if (options.lineQuotes === "first") {
+      lineQuotes = false;
+    }
   };
   while (index < length) {
     const char = input[index];
-    if (char === '"') {
-      appendPiece(input.slice(fieldStart, index));
-      if (inQuotes && input[index + 1] === '"') {
-        appendPiece('"');
-        index += 2;
-      } else {
-        inQuotes = !inQuotes;
-        index += 1;
+    const lineBreak = char === "\r" || char === "\n";
+    if (inQuotes) {
+      if (char === '"') {
+        parts.push(input.slice(fieldStart, index));
+        if (input[index + 1] === '"') {
+          parts.push('"');
+          index += 2;
+        } else {
+          inQuotes = false;
+          index += 1;
+        }
+        fieldStart = index;
+        continue;
       }
+      if (!(lineQuotes && lineBreak)) {
+        if (lineBreak) {
+          quoteSpannedLine = true;
+        }
+        index += 1;
+        continue;
+      }
+      // This quote never closes, so it ends with its line.
+      inQuotes = false;
+      problem = "unclosed_quote";
+    }
+    if (char === '"' && index === fieldStart && !quoted && !parts.length) {
+      inQuotes = true;
+      quoted = true;
+      quoteSpannedLine = false;
+      index += 1;
       fieldStart = index;
       continue;
     }
-    if (!inQuotes && char === ",") {
+    if (char === delimiter) {
       endField();
-    }
-    if (!inQuotes && (char === "\r" || char === "\n")) {
+    } else if (lineBreak) {
       endRow();
       if (char === "\r" && input[index + 1] === "\n") {
         index += 1;
         fieldStart = index + 1;
       }
+      rowStart = index + 1;
+    } else if (quoted && char !== " ") {
+      if (!lineQuotes && quoteSpannedLine) {
+        // A quote that opened on an earlier line closed on a quote that
+        // opens a later row's cell (`"https://a,x` then `"https://b",y`):
+        // it was a stray quote, so read its row again ending it at its line.
+        return { records, rowStart };
+      }
+      // `"a"b`: RFC 4180 allows nothing between a closing quote and the
+      // separator.
+      problem ??= "text_after_quote";
     }
     index += 1;
   }
-  if (fieldStart < length || pieces.length || blocks.length || row.length) {
+  if (inQuotes) {
+    if (!lineQuotes) {
+      return { records, rowStart };
+    }
+    problem = "unclosed_quote";
+  }
+  if (fieldStart < length || parts.length || row.length) {
     endRow();
   }
-  return { numbers, rows };
+  return null;
+}
+
+/**
+ * `parseCsvRows`, plus each row's record number as a spreadsheet shows it:
+ * blank records are skipped but still counted, and a quoted cell spanning
+ * several lines stays one record.
+ *
+ * Lenient where RFC 4180 is strict, and every such row is listed in
+ * `problems`: a quote only opens at the start of a cell (`5" screen` keeps
+ * its quote), text after a closing quote stays in the cell, and a quote still
+ * open at the end of the file ends with its own line instead of swallowing
+ * every row after it.
+ */
+export function parseCsvRecords(
+  input: string,
+  { maxRows = MAX_CSV_ROWS, delimiter = "," }: CsvLimits = {}
+): CsvRecords {
+  const out: CsvRecords = { numbers: [], problems: new Map(), rows: [] };
+  let from = 0;
+  let records = 0;
+  for (let attempt = 0; ; attempt += 1) {
+    let lineQuotes: ScanOptions["lineQuotes"] = "first";
+    if (attempt === 0) {
+      lineQuotes = false;
+    } else if (attempt > MAX_QUOTE_RECOVERIES) {
+      lineQuotes = "all";
+    }
+    const unclosed = scanCsv(
+      input,
+      from,
+      records,
+      { delimiter, lineQuotes, maxRows },
+      out
+    );
+    if (!unclosed) {
+      return out;
+    }
+    from = unclosed.rowStart;
+    records = unclosed.records;
+  }
+}
+
+/**
+ * The separator a spreadsheet used: a comma, unless the header line has none
+ * and has semicolons or tabs instead (Excel writes semicolons in many
+ * European locales).
+ */
+export function detectCsvDelimiter(input: string): CsvDelimiter {
+  const header =
+    input
+      .split(/\r\n|\r|\n/, 20)
+      .find((line) => line.trim() !== "")
+      ?.replace(/"(?:[^"]|"")*"/g, "") ?? "";
+  const count = (character: string) => header.split(character).length - 1;
+  if (count(",") > 0) {
+    return ",";
+  }
+  const tabs = count("\t");
+  const semicolons = count(";");
+  if (tabs === 0 && semicolons === 0) {
+    return ",";
+  }
+  return tabs > semicolons ? "\t" : ";";
 }
 
 export function isEmptyRow(row: string[]): boolean {

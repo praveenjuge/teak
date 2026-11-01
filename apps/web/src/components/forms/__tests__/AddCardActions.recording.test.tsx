@@ -58,6 +58,7 @@ mock.module("@/components/ui/dialog", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { AddCardActions } = await import("../AddCardActions");
+const { pressRecordAudio } = await import("../../../lib/keyboardShortcuts");
 
 let root: Root | undefined;
 let grantMicrophone: (() => void) | undefined;
@@ -166,4 +167,18 @@ test("Discard throws the recording away and Stop and Save keeps it", async () =>
   await act(async () => grantMicrophone?.());
   await act(async () => button("Stop and Save").click());
   expect(uploadFile).toHaveBeenCalledTimes(1);
+});
+
+test("the R shortcut starts a recording, and waits while one is running", async () => {
+  await act(() => {
+    expect(pressRecordAudio()).toBe(true);
+  });
+  await act(async () => grantMicrophone?.());
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  expect(button("Record audio").getAttribute("aria-keyshortcuts")).toBe("R");
+
+  await act(() => {
+    expect(pressRecordAudio()).toBe(false);
+  });
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
 });

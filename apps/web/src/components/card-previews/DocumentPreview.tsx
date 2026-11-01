@@ -1,7 +1,11 @@
 "use client";
 
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import {
+  type FileFormat,
+  type FileKind,
+  inferFileFormat,
+} from "@teak/convex/shared/fileFormats";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
@@ -51,6 +55,54 @@ const previewFactLabels = (
   return facts;
 };
 
+const KIND_LABEL_KEYS = {
+  archive: "archive",
+  audio: "audio",
+  design: "design",
+  image: "image",
+  markdown: "markdown",
+  motion: "motion",
+  office: "office",
+  pdf: "pdf",
+  source: "source",
+  text: "text",
+  tokens: "tokens",
+} as const satisfies Record<FileKind, string>;
+
+/** Kinds whose label doesn't say which format the file is in. */
+const NAMES_FORMAT = new Set<string>([
+  "archive",
+  "design",
+  "office",
+  "source",
+  "tokens",
+]);
+
+/**
+ * What the file is, in words people read: "Source code", "JSON · Source
+ * code", "CSV · Text file". Never Teak's own ids ("text · text").
+ */
+export const documentKindLabel = (
+  format:
+    | Pick<FileFormat, "extension" | "kind" | "language">
+    | null
+    | undefined,
+  storedKind: string | undefined,
+  t: TeakTranslator<"cardPreviews.document.kinds">
+): string | undefined => {
+  const kind = format?.kind ?? storedKind;
+  if (!(kind && kind in KIND_LABEL_KEYS)) {
+    return;
+  }
+  const label = t(KIND_LABEL_KEYS[kind as FileKind]);
+  const extension = format?.extension.split(".").at(-1)?.toUpperCase();
+  const namesFormat =
+    NAMES_FORMAT.has(kind) ||
+    (format?.language !== undefined &&
+      !["markdown", "text"].includes(format.language));
+  return extension && namesFormat ? `${extension} · ${label}` : label;
+};
+
 const iconForKind = (kind?: string) => {
   if (kind === "archive") {
     return Archive;
@@ -67,6 +119,7 @@ const iconForKind = (kind?: string) => {
 export function DocumentPreview({ card }: DocumentPreviewProps) {
   const t = useTranslations("cardPreviews.document");
   const tFacts = useTranslations("cardPreviews.document.facts");
+  const tKinds = useTranslations("cardPreviews.document.kinds");
   const fileName = card.fileMetadata?.fileName || card.content || t("untitled");
   const mimeType = card.fileMetadata?.mimeType || "";
   const fileUrl = card.fileUrl;
@@ -94,7 +147,10 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{fileName}</p>
           <p className="text-muted-foreground text-xs">
-            {[format?.language, format?.kind, ...facts]
+            {[
+              documentKindLabel(format, card.fileMetadata?.kind, tKinds),
+              ...facts,
+            ]
               .filter(Boolean)
               .join(" · ") || t("file")}
           </p>

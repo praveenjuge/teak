@@ -47,6 +47,21 @@ const RASTER_DATA_URI =
  */
 const DROPPED_ELEMENTS =
   "body > header, script, style, link, template, iframe, frame, frameset, object, embed, canvas, video, audio, picture > source, form, button, input, select, textarea, svg, math, dialog";
+/**
+ * The page's own controls that aren't `<button>`s: anything acting as a
+ * button, and a wiki's "[edit]" links beside its headings.
+ */
+const DROPPED_CONTROLS =
+  '[role="button"], .mw-editsection, a[href*="action=edit"], a[href*="veaction=edit"]';
+/** Where a control's words can sit; headings and list items stay. */
+const CONTROL_TEXT_HOSTS = "a, span, label, div, p, small, summary";
+/**
+ * Text that is only page controls, such as "[edit]", "Read more", or a
+ * toggle's "Read more Show less", once arrows and dots are set aside.
+ */
+const CONTROL_TEXT =
+  /^(?:(?:\[ ?edit(?: source)? ?\]|(?:read|show|see|view) (?:more|less)) ?)+$/u;
+const CONTROL_TEXT_MAX_LENGTH = 40;
 const SAFE_LINK = /^(?:https?:|mailto:)/iu;
 /**
  * A task list's checkboxes, as words made up for this run: form controls go
@@ -88,6 +103,13 @@ const slimArchive = async (
       },
     })
     .on(DROPPED_ELEMENTS, {
+      element(element) {
+        if (!element.removed) {
+          element.remove();
+        }
+      },
+    })
+    .on(DROPPED_CONTROLS, {
       element(element) {
         if (!element.removed) {
           element.remove();
@@ -193,6 +215,46 @@ const cellsOf = (row: DomElement): DomElement[] =>
   );
 
 const escapeCell = (text: string) => text.replaceAll("|", "\\|");
+
+const isControlText = (text: string) =>
+  text.length <= CONTROL_TEXT_MAX_LENGTH &&
+  CONTROL_TEXT.test(
+    text
+      .toLowerCase()
+      .replace(/[.…:›»→↓↑▾▸▴◂+()-]/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim()
+  );
+
+/**
+ * Takes out what is left of the page's own controls: an element whose whole
+ * text is control words ("[edit]", "Read more Show less") and that holds no
+ * image. Before Readability, so its scoring never sees them.
+ */
+const dropControlText = (root: DomElement) => {
+  for (const element of root.querySelectorAll(CONTROL_TEXT_HOSTS)) {
+    if (
+      !element.querySelector("img") &&
+      isControlText(textOf(element)) &&
+      endsItsText(element)
+    ) {
+      element.remove();
+    }
+  }
+};
+
+/**
+ * Whether only more controls (or nothing) follow `element` in its parent, as
+ * a toggle trails a summary. "You can <a>read more</a> here." keeps its link.
+ */
+const endsItsText = (element: DomElement): boolean => {
+  let rest = "";
+  for (let node = element.nextSibling; node; node = node.nextSibling) {
+    rest += ` ${node.textContent ?? ""}`;
+  }
+  const text = rest.replace(/\s+/gu, " ").trim();
+  return text === "" || isControlText(text);
+};
 
 /**
  * The article element ready for Markdown: captions on their images, at most
@@ -478,6 +540,7 @@ export const extractArticle = async (
   const slim = await slimArchive(archiveHtml, pageUrl);
   const { document } = parseHTML(slim.html);
   moveStrandedIntoBody(document as unknown as BodyDocument);
+  dropControlText(document as unknown as DomElement);
   // Readability reads these for relative links; the archive's are absolute.
   for (const name of ["baseURI", "documentURI"] as const) {
     if (!(document as unknown as Record<string, unknown>)[name]) {

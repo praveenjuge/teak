@@ -110,16 +110,16 @@ const doneButton = () =>
   );
 
 test.each([
-  ["book", "Mark as read", "Read"],
-  ["article", "Mark as read", "Read"],
-  ["movie", "Mark as watched", "Watched"],
-  ["podcast", "Mark as listened", "Listened"],
-  ["product", "Mark as bought", "Bought"],
-  ["recipe", "Mark as cooked", "Cooked"],
-  ["game", "Mark as played", "Played"],
-  ["app", "Mark as done", "Done"],
-  ["a-category-from-the-future", "Mark as done", "Done"],
-  [undefined, "Mark as done", "Done"],
+  ["book", "Mark as read", "Marked as read"],
+  ["article", "Mark as read", "Marked as read"],
+  ["movie", "Mark as watched", "Marked as watched"],
+  ["podcast", "Mark as listened", "Marked as listened"],
+  ["product", "Mark as bought", "Marked as bought"],
+  ["recipe", "Mark as cooked", "Marked as cooked"],
+  ["game", "Mark as played", "Marked as played"],
+  ["app", "Mark as done", "Marked as done"],
+  ["a-category-from-the-future", "Mark as done", "Marked as done"],
+  [undefined, "Mark as done", "Marked as done"],
 ])("a %p link reads %p, then %p once done", async (category, notDone, done) => {
   await render(inCategory(category), () => undefined);
   expect(doneButton()?.getAttribute("aria-label")).toBe(notDone);
@@ -130,6 +130,19 @@ test.each([
   await render(inCategory(category, { completedAt: 1 }), () => undefined);
   expect(doneButton()?.getAttribute("aria-label")).toBe(done);
   expect(doneButton()?.getAttribute("aria-pressed")).toBe("true");
+});
+
+test("its caption reads Done, so it can't be taken for the reader's Read", async () => {
+  await render(inCategory("article"), () => undefined);
+  expect(doneButton()?.textContent).toBe("Done");
+  await act(() => root?.unmount());
+  document.body.innerHTML = "";
+  await render(inCategory("article", { completedAt: 1 }), () => undefined);
+  expect(doneButton()?.textContent).toBe("Done");
+  const captions = Array.from(
+    document.querySelectorAll("button span[aria-hidden='true']")
+  ).map((caption) => caption.textContent);
+  expect(captions).not.toContain("Read");
 });
 
 test("clicking it toggles the card", async () => {

@@ -322,6 +322,23 @@ describe("suggestions", () => {
     ]);
   });
 
+  test("an exact title comes first, then titles that start with the query", async () => {
+    const { insert, owner } = await setup();
+    const inWord = await insert({ content: "Garden plantings plan" });
+    const other = await insert({ content: "Notes on the garden plan" });
+    const wholeWord = await insert({ content: "Garden plan notes" });
+    const exact = await insert({ content: "Garden plan" });
+    const results = await owner.query(api.cards.searchCardLinkSuggestions, {
+      query: "garden plan",
+    });
+    expect(results.map((result: { id: string }) => result.id)).toEqual([
+      exact,
+      wholeWord,
+      inWord,
+      other,
+    ]);
+  });
+
   test("an archived card is offered when its text matches, but not as a recent card", async () => {
     const { insert, owner } = await setup();
     const archived = await insert({

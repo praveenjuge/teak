@@ -20,7 +20,9 @@ import {
 } from "./tableEditing";
 
 const BUTTON_SIZE = 28;
-const INSET = 4;
+/** The gap between the button and the table's top edge, which it sits above
+ * so it never covers a cell's text; editor.css leaves room for it there. */
+const GAP = 4;
 
 const tableElement = (editor: Editor, pos: number): HTMLElement | null => {
   const dom = editor.view.nodeDOM(pos);
@@ -102,13 +104,10 @@ export function TableMenu({ editor }: { editor: Editor }) {
       const rect = anchor.getBoundingClientRect();
       const parent = element.offsetParent;
       const base = parent?.getBoundingClientRect() ?? { left: 0, top: 0 };
-      const top = rect.top - base.top + (parent?.scrollTop ?? 0) + INSET;
+      const top =
+        rect.top - base.top + (parent?.scrollTop ?? 0) - BUTTON_SIZE - GAP;
       const left =
-        rect.right -
-        base.left +
-        (parent?.scrollLeft ?? 0) -
-        BUTTON_SIZE -
-        INSET;
+        rect.right - base.left + (parent?.scrollLeft ?? 0) - BUTTON_SIZE;
       element.style.top = `${top}px`;
       element.style.left = `${left}px`;
     });

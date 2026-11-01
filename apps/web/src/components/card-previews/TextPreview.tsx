@@ -30,6 +30,15 @@ interface TextPreviewProps {
   readOnly?: boolean;
 }
 
+/**
+ * On a wide screen the note fills most of the stage; on a phone, where the
+ * details stack under it, it is only as tall as its text (with room to tap),
+ * so a one-line note doesn't push Notes and Tags off the screen.
+ */
+export const TEXT_PREVIEW_CLASS =
+  "group/text-preview relative h-full max-md:[--teak-note-min-height:6rem]";
+export const TEXT_PREVIEW_MIN_HEIGHT = "var(--teak-note-min-height, 55vh)";
+
 export function TextPreview({
   card,
   cardLinks,
@@ -85,7 +94,7 @@ export function TextPreview({
   }, []);
 
   return (
-    <div className="group/text-preview relative h-full" ref={wrapperRef}>
+    <div className={TEXT_PREVIEW_CLASS} ref={wrapperRef}>
       {readOnly ? null : (
         <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label={t("focus")} side="left">
           <Button
@@ -107,7 +116,7 @@ export function TextPreview({
         cardLinks={cardLinks}
         className="h-full"
         disabled={readOnly}
-        minHeight="55vh"
+        minHeight={TEXT_PREVIEW_MIN_HEIGHT}
         onChange={onContentChange}
         onLimitExceeded={() => toast.error(tNote("tooLarge"))}
         onOpenFullScreen={readOnly ? undefined : openFocus}

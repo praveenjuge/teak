@@ -4,7 +4,11 @@ import {
   type SearchUrlState,
   serializeSearchUrlState,
 } from "../searchUrlState";
-import { createSearchUrlSync, searchUrlChange } from "../searchUrlSync";
+import {
+  createSearchUrlSync,
+  searchUrlChange,
+  searchUrlQuery,
+} from "../searchUrlSync";
 
 const search = (overrides: Partial<SearchUrlState> = {}): SearchUrlState => ({
   q: "",
@@ -180,5 +184,27 @@ describe("searchUrlChange", () => {
       searchUrlChange(search({ q: "type:ima" }), search({ q: "type:image" }))
         .typesChanged
     ).toBe(false);
+  });
+});
+
+describe("searchUrlQuery", () => {
+  test("a search written after its card closed drops the card", () => {
+    const params = new URLSearchParams(
+      searchUrlQuery(
+        search({ q: 'tag:"verify tag"' }),
+        "?card=abc123&type=link",
+        null
+      )
+    );
+    expect(params.has("card")).toBe(false);
+    expect(params.get("q")).toBe('tag:"verify tag"');
+  });
+
+  test("a search while a card is open keeps it", () => {
+    const params = new URLSearchParams(
+      searchUrlQuery(search({ q: "bauhaus" }), "?card=abc123", "abc123")
+    );
+    expect(params.get("card")).toBe("abc123");
+    expect(params.get("q")).toBe("bauhaus");
   });
 });

@@ -10,10 +10,24 @@ import { urlKey } from "../shared/utils/urlKey";
 import { cardReturnValidator } from "./getCards";
 import { attachCardDetailUrls } from "./queryUtils";
 
-export const findLiveCardByUrl = async (
+export const findLiveCardByUrl = (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
   url: string
+): Promise<Doc<"cards"> | null> => findCardByUrl(ctx, userId, url, undefined);
+
+/** The newest card in Trash saved from the same link, if any. */
+export const findTrashedCardByUrl = (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  url: string
+): Promise<Doc<"cards"> | null> => findCardByUrl(ctx, userId, url, true);
+
+const findCardByUrl = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  url: string,
+  isDeleted: true | undefined
 ): Promise<Doc<"cards"> | null> => {
   const key = urlKey(url);
   const [byKey, byExactUrl] = await Promise.all([
@@ -21,7 +35,7 @@ export const findLiveCardByUrl = async (
       ? ctx.db
           .query("cards")
           .withIndex("by_user_urlkey_deleted", (q) =>
-            q.eq("userId", userId).eq("urlKey", key).eq("isDeleted", undefined)
+            q.eq("userId", userId).eq("urlKey", key).eq("isDeleted", isDeleted)
           )
           .order("desc")
           .first()
@@ -32,7 +46,7 @@ export const findLiveCardByUrl = async (
     ctx.db
       .query("cards")
       .withIndex("by_user_url_deleted", (q) =>
-        q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
+        q.eq("userId", userId).eq("url", url).eq("isDeleted", isDeleted)
       )
       .order("desc")
       .first(),

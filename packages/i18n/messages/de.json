@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Einstellungen"
+      "title": "Einstellungen",
+      "subpageTitle": "{page} · Einstellungen"
     },
     "skeleton": {
       "loading": "Einstellungen werden geladen…"
@@ -94,7 +95,18 @@
       "signOutTitle": "{name} abmelden?",
       "signOutDescription": "Die Sitzung {name} (angemeldet: {date}) wird von Teak abgemeldet und muss sich erneut anmelden.",
       "disconnectTitle": "{name} trennen?",
-      "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden."
+      "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden.",
+      "deviceExtension": "Teak-Browsererweiterung",
+      "deviceUnknown": "Unbekanntes Gerät",
+      "deviceBrowser": "Browser",
+      "deviceOn": "{browser} unter {os}",
+      "signedInLastActive": "Angemeldet: {date} · Zuletzt aktiv: {active}",
+      "signOutOthers": "Andere Geräte abmelden",
+      "signOutOthersTitle": "Alle anderen Geräte abmelden?",
+      "signOutOthersDescription": "Alle anderen Browser und Geräte, die bei Ihrem Konto angemeldet sind, werden von Teak abgemeldet und müssen sich erneut anmelden. Dieses Gerät bleibt angemeldet.",
+      "signOutOthersConfirm": "Andere Geräte abmelden",
+      "otherDevicesSignedOut": "{count, plural, =0 {Es waren keine anderen Geräte angemeldet.} one {# anderes Gerät abgemeldet.} other {# andere Geräte abgemeldet.}}",
+      "otherDevicesRemaining": "{count, plural, one {# Gerät abgemeldet.} other {# Geräte abgemeldet.}} Einige sind noch angemeldet. Versuchen Sie es in einer Minute erneut."
     },
     "apiKeys": {
       "revokeAllTitle": "Alle API-Schlüssel widerrufen?",
@@ -124,7 +136,11 @@
       "copyFailed": "Der Schlüssel konnte nicht kopiert werden. Markieren und kopieren Sie ihn manuell.",
       "createKey": "Schlüssel erstellen",
       "loading": "API-Schlüssel werden geladen…",
-      "revokeAll": "Alle Schlüssel widerrufen"
+      "revokeAll": "Alle Schlüssel widerrufen",
+      "nameLabel": "Name für einen neuen Schlüssel (optional)",
+      "namePlaceholder": "Zum Beispiel: Raycast auf meinem Laptop",
+      "empty": "Noch keine API-Schlüssel. Erstellen Sie einen, um die API, die CLI, Raycast oder einen MCP-Client zu verwenden.",
+      "listLabel": "API-Schlüssel"
     },
     "deleteAccount": {
       "title": "Konto löschen",
@@ -315,7 +331,8 @@
           "hint": "Eine ZIP-Datei aus „Ihre Daten exportieren“ in Teak."
         }
       },
-      "orDrop": "oder hier ablegen"
+      "orDrop": "oder hier ablegen",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "gerade eben",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Ordner"
-    }
+    },
+    "skipToContent": "Zum Inhalt springen"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {Als gelesen markieren} watched {Als gesehen markieren} listened {Als gehört markieren} bought {Als gekauft markieren} cooked {Als gekocht markieren} played {Als gespielt markieren} other {Als erledigt markieren}}",
       "markAsNot": "{verb, select, read {Als ungelesen markieren} watched {Als nicht gesehen markieren} listened {Als nicht gehört markieren} bought {Als nicht gekauft markieren} cooked {Als nicht gekocht markieren} played {Als nicht gespielt markieren} other {Als nicht erledigt markieren}}",
-      "state": "{verb, select, read {Gelesen} watched {Gesehen} listened {Gehört} bought {Gekauft} cooked {Gekocht} played {Gespielt} other {Erledigt}}"
+      "caption": "Erledigt",
+      "marked": "{verb, select, read {Als gelesen markiert} watched {Als gesehen markiert} listened {Als gehört markiert} bought {Als gekauft markiert} cooked {Als gekocht markiert} played {Als gespielt markiert} other {Als erledigt markiert}}"
     },
     "heading": {
       "addedOn": "Hinzugefügt am {date}",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "Tag hinzufügen",
       "addTagPlaceholder": "Tag hinzufügen…",
-      "addToFolder": "Zu einem Ordner hinzufügen",
       "andMore": "und mehr",
       "colors": "Farben",
       "copyColor": "{hex} kopieren",
@@ -868,7 +886,20 @@
       },
       "file": "Datei",
       "openFile": "Datei öffnen",
-      "untitled": "Dokument"
+      "untitled": "Dokument",
+      "kinds": {
+        "archive": "Archivdatei",
+        "audio": "Audiodatei",
+        "design": "Designdatei",
+        "image": "Bild",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Office-Dokument",
+        "pdf": "PDF",
+        "source": "Quellcode",
+        "text": "Textdatei",
+        "tokens": "Design-Tokens"
+      }
     },
     "fileText": {
       "loading": "Dateivorschau wird geladen"
@@ -965,7 +996,7 @@
       "deleteForever": "Endgültig löschen",
       "deselect": "Auswahl aufheben",
       "favorite": "Als Favorit markieren",
-      "folders": "Ordner…",
+      "folders": "Zu Ordner hinzufügen…",
       "moreActions": "Weitere Aktionen",
       "moveToTrash": "In den Papierkorb legen",
       "openLink": "Link öffnen",
@@ -974,13 +1005,16 @@
       "select": "Auswählen",
       "unarchive": "Dearchivieren",
       "unfavorite": "Aus Favoriten entfernen",
-      "editLink": "Link bearbeiten…"
+      "editLink": "Link bearbeiten…",
+      "removeFromFolder": "Aus diesem Ordner entfernen"
     },
     "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
       "confirm": "Endgültig löschen",
       "description": "Dadurch werden die Karte und ihre Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
-      "title": "Diese Karte endgültig löschen?"
+      "title": "Diese Karte endgültig löschen?",
+      "bulkTitle": "{count, plural, one {# Karte endgültig löschen?} other {# Karten endgültig löschen?}}",
+      "bulkDescription": "{count, plural, one {Dadurch werden # Karte und ihre Dateien dauerhaft gelöscht.} other {Dadurch werden # Karten und ihre Dateien dauerhaft gelöscht.}} Dies kann nicht rückgängig gemacht werden."
     },
     "body": {
       "emptyNote": "Leere Notiz",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "Papierkorb wird geleert",
       "rateLimited": "Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut.",
       "failed": "Der Papierkorb konnte nicht geleert werden. Versuchen Sie es erneut."
+    },
+    "trash": {
+      "retention": "Karten im Papierkorb werden nach {days, plural, one {# Tag} other {# Tagen}} endgültig gelöscht."
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "Fokus",
       "resaved": "Bereits in Teak · Nach oben verschoben",
       "resavedFromArchive": "Bereits in Teak · Aus dem Archiv zurückgeholt",
+      "inTrash": "Dieser Link liegt im Papierkorb",
+      "restore": "Wiederherstellen",
+      "restoring": "Wird wiederhergestellt…",
+      "restoredFromTrash": "Aus dem Papierkorb wiederhergestellt · Nach oben verschoben",
+      "restoreFailed": "Die Karte konnte nicht wiederhergestellt werden",
       "open": "Öffnen",
       "saveLinks": "{count, plural, one {# Link} other {# Links}} speichern",
       "saveFirstLinks": "Die ersten {count, plural, one {# Link} other {# Links}} speichern"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "In Ordner verschieben…",
       "removeFromFolder": "Aus {folder} entfernen",
       "moveToTrash": "In den Papierkorb legen",
-      "cancelSelection": "Auswahl abbrechen"
+      "cancelSelection": "Auswahl abbrechen",
+      "deleteForever": "Endgültig löschen"
     },
     "tagsDialog": {
       "tagTooLong": "Tags dürfen höchstens {max} Zeichen lang sein.",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "{kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
       "removeExcludedQualifier": "Ausschluss {kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
       "removeUnknownFolder": "{chip} entfernen: kein Ordner namens {folder}",
-      "unknownFolder": "Kein Ordner namens {folder}"
+      "unknownFolder": "Kein Ordner namens {folder}",
+      "unknownType": "Kein Typ namens {type}",
+      "removeUnknownType": "{chip} entfernen: Diesen Kartentyp gibt es nicht"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "Hier gibt es nichts wiederzusehen",
       "saveAsSmartFolder": "Als intelligenten Ordner speichern…",
-      "reshuffle": "Neu mischen"
+      "reshuffle": "Neu mischen",
+      "density": "Dichte",
+      "densities": {
+        "comfortable": "Großzügig",
+        "compact": "Kompakt"
+      }
     },
     "dates": {
       "today": "Heute",
@@ -1322,6 +1372,18 @@
       "thisYear": "Dieses Jahr",
       "lastYear": "Letztes Jahr",
       "lastWeekday": "Letzten {day}"
+    },
+    "results": {
+      "matches": "{count, plural, one {# Karte passt} other {# Karten passen}}",
+      "matchesMore": "{count}+ Karten passen",
+      "related": "{count, plural, one {# inhaltlich ähnliche} other {# inhaltlich ähnliche}}",
+      "hideRelated": "Ähnliche ausblenden",
+      "showRelated": "Ähnliche einblenden",
+      "noMatchesFor": "Keine Karten passen zu „{query}“",
+      "didYouMean": "Meinten Sie <link>{suggestion}</link>?",
+      "tryRemoving": "Oder einen Filter entfernen:",
+      "filtersLabel": "Filter dieser Suche",
+      "removeFilter": "{label} entfernen"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "Suchen",
       "newNote": "Neue Notiz",
       "uploadFiles": "Dateien hochladen",
-      "notifications": "Zu Benachrichtigungen (Rückgängig)",
+      "recordAudio": "Audio aufnehmen",
+      "notifications": "Benachrichtigungen fokussieren, um etwas rückgängig zu machen",
       "keyboardShortcuts": "Tastenkürzel",
-      "goToSettings": "Einstellungen"
+      "goToSettings": "Einstellungen",
+      "goToTags": "Tags",
+      "byTag": "Karten mit einem Tag",
+      "byType": "Karten eines Typs",
+      "bySite": "Karten von einer Website",
+      "byFolder": "Karten in einem Ordner",
+      "byState": "Favoriten, archiviert, erledigt oder offen"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "Der Tag konnte nicht entfernt werden",
         "tags": "Die Tags konnten nicht aktualisiert werden",
         "other": "Fehlgeschlagen: {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# Karte endgültig gelöscht} other {# Karten endgültig gelöscht}}"
     },
     "clipboard": {
       "copyingImage": "Bild wird kopiert…",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} von {total} Dateien hochgeladen.",
-      "partialFailureWithReason": "{successCount} von {total} Dateien hochgeladen. Erster Fehler: {file} – {reason}",
+      "partialFailureDetails": "{successCount} von {total} Dateien hochgeladen. {details}",
+      "moreFiles": "{count, plural, one {# weitere} other {# weitere}}",
+      "failures": {
+        "empty": "{count, plural, one {Leere Datei, nichts zu speichern} other {Leere Dateien, nichts zu speichern}}: {files}.",
+        "unsupported": "{count, plural, one {Diesen Dateityp kann Teak nicht speichern} other {Diese Dateitypen kann Teak nicht speichern}}: {files}.",
+        "tooLarge": "{count, plural, one {Größer als {max}} other {Größer als {max}}}: {files}.",
+        "mismatch": "{count, plural, one {Der Name passt nicht zum Inhalt der Datei} other {Die Namen passen nicht zum Inhalt der Dateien}}: {files}.",
+        "other": "{count, plural, one {Nicht hochgeladen} other {Nicht hochgeladen}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# Datei wurde} other {# Dateien wurden}} übersprungen. Sie können bis zu {max} gleichzeitig hochladen."
     }
   },

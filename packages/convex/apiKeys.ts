@@ -19,6 +19,14 @@ import { rateLimiter } from "./shared/rateLimits";
 import { sha256Hex } from "./storage/r2Keys";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
+export const API_KEY_NAME_MAX_LENGTH = 64;
+
+/** A key's name on one line within 64 characters, or the default. */
+export const cleanApiKeyName = (name: string | undefined): string =>
+  Array.from(name?.replace(/\s+/g, " ").trim() ?? "")
+    .slice(0, API_KEY_NAME_MAX_LENGTH)
+    .join("")
+    .trim() || API_KEY_NAME_DEFAULT;
 const API_KEY_ACCESS = "full_access" as const;
 const COMPONENT_ENV = "live";
 const COMPONENT_SCOPES = [API_KEY_ACCESS];
@@ -229,7 +237,7 @@ export const createUserApiKey = mutation({
         "Active API key limit reached. Revoke unused keys first."
       );
     }
-    const name = args.name?.trim() || API_KEY_NAME_DEFAULT;
+    const name = cleanApiKeyName(args.name);
     const created = await componentApiKeys.create(ctx, {
       env: COMPONENT_ENV,
       name,

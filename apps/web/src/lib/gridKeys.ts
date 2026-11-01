@@ -2,7 +2,6 @@ import type {
   BulkBarAction,
   BulkBarView,
 } from "../components/selection/BulkActionBar";
-import type { BulkCardAction } from "./bulkCardActions";
 import type { GridDirection } from "./gridNavigation";
 import { cardMenuShortcuts, type MenuShortcut } from "./keyboardShortcuts";
 
@@ -24,7 +23,7 @@ export type GridCardKeyAction =
 
 export type GridKeyAction =
   | { type: "move"; direction: GridDirection }
-  | { type: "selection"; action: BulkCardAction }
+  | { type: "selection"; action: BulkBarAction }
   | { type: "card"; action: GridCardKeyAction }
   | { type: "cancelSelection" }
   | { type: "blocked" };
@@ -52,8 +51,13 @@ export function gridKeyAction(
   const inTrash = view === "trash";
   const isActionKey =
     key === "f" || key === "t" || key === "e" || isDeleteKey(key);
-  if (isActionKey && (addToFolder || (hasSelection && inTrash))) {
+  if (isActionKey && addToFolder) {
     return { type: "blocked" };
+  }
+  if (isActionKey && hasSelection && inTrash) {
+    return isDeleteKey(key)
+      ? { type: "selection", action: "deleteForever" }
+      : { type: "blocked" };
   }
   if (isActionKey && hasSelection) {
     if (key === "f") {
@@ -95,6 +99,20 @@ export function gridKeyAction(
     return { type: "cancelSelection" };
   }
   return null;
+}
+
+/** ⌘A on a Mac, Ctrl+A elsewhere: in selection mode it picks every card. */
+export function isSelectAllKey(
+  event: Pick<
+    globalThis.KeyboardEvent,
+    "altKey" | "ctrlKey" | "key" | "metaKey" | "repeat" | "shiftKey"
+  >
+): boolean {
+  return (
+    (event.metaKey || event.ctrlKey) &&
+    !(event.altKey || event.shiftKey || event.repeat) &&
+    event.key.toLowerCase() === "a"
+  );
 }
 
 type CardShortcuts = ReturnType<typeof cardMenuShortcuts>;

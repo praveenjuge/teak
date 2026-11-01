@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Settings"
+      "title": "Settings",
+      "subpageTitle": "{page} · Settings"
     },
     "skeleton": {
       "loading": "Loading settings…"
@@ -94,7 +95,18 @@
       "signOutTitle": "Sign out {name}?",
       "signOutDescription": "The {name} session that signed in {date} is signed out of Teak and needs to sign in again.",
       "disconnectTitle": "Disconnect {name}?",
-      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again."
+      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again.",
+      "deviceExtension": "Teak browser extension",
+      "deviceUnknown": "Unknown device",
+      "deviceBrowser": "Browser",
+      "deviceOn": "{browser} on {os}",
+      "signedInLastActive": "Signed in {date} · Last active {active}",
+      "signOutOthers": "Sign out other devices",
+      "signOutOthersTitle": "Sign out all other devices?",
+      "signOutOthersDescription": "Every other browser and device signed in to your account is signed out of Teak and needs to sign in again. This device stays signed in.",
+      "signOutOthersConfirm": "Sign out other devices",
+      "otherDevicesSignedOut": "{count, plural, =0 {No other devices were signed in.} one {Signed out # other device.} other {Signed out # other devices.}}",
+      "otherDevicesRemaining": "{count, plural, one {Signed out # device.} other {Signed out # devices.}} Some are still signed in; try again in a minute."
     },
     "apiKeys": {
       "revokeAllTitle": "Revoke all API keys?",
@@ -124,7 +136,11 @@
       "copyFailed": "Could not copy the key. Select and copy it manually.",
       "createKey": "Create key",
       "loading": "Loading API keys…",
-      "revokeAll": "Revoke all keys"
+      "revokeAll": "Revoke all keys",
+      "nameLabel": "Name for a new key (optional)",
+      "namePlaceholder": "For example, Raycast on my laptop",
+      "empty": "No API keys yet. Create one to use the API, the CLI, Raycast or an MCP client.",
+      "listLabel": "API keys"
     },
     "deleteAccount": {
       "title": "Delete account",
@@ -315,7 +331,8 @@
           "hint": "A ZIP from Export your data in Teak."
         }
       },
-      "orDrop": "or drop it here"
+      "orDrop": "or drop it here",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "just now",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Folder"
-    }
+    },
+    "skipToContent": "Skip to content"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {Mark as read} watched {Mark as watched} listened {Mark as listened} bought {Mark as bought} cooked {Mark as cooked} played {Mark as played} other {Mark as done}}",
       "markAsNot": "{verb, select, read {Mark as not read} watched {Mark as not watched} listened {Mark as not listened} bought {Mark as not bought} cooked {Mark as not cooked} played {Mark as not played} other {Mark as not done}}",
-      "state": "{verb, select, read {Read} watched {Watched} listened {Listened} bought {Bought} cooked {Cooked} played {Played} other {Done}}"
+      "caption": "Done",
+      "marked": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
     },
     "heading": {
       "addedOn": "Added {date}",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "Add a tag",
       "addTagPlaceholder": "Add tag…",
-      "addToFolder": "Add to a folder",
       "andMore": "and more",
       "colors": "Colors",
       "copyColor": "Copy {hex}",
@@ -868,7 +886,20 @@
       },
       "file": "File",
       "openFile": "Open file",
-      "untitled": "Document"
+      "untitled": "Document",
+      "kinds": {
+        "archive": "Archive",
+        "audio": "Audio file",
+        "design": "Design file",
+        "image": "Image",
+        "markdown": "Markdown",
+        "motion": "Animation",
+        "office": "Office document",
+        "pdf": "PDF",
+        "source": "Source code",
+        "text": "Text file",
+        "tokens": "Design tokens"
+      }
     },
     "fileText": {
       "loading": "Loading file preview"
@@ -965,7 +996,7 @@
       "deleteForever": "Delete forever",
       "deselect": "Deselect",
       "favorite": "Favorite",
-      "folders": "Folders…",
+      "folders": "Add to folder…",
       "moreActions": "More actions",
       "moveToTrash": "Move to Trash",
       "openLink": "Open link",
@@ -974,13 +1005,16 @@
       "select": "Select",
       "unarchive": "Unarchive",
       "unfavorite": "Unfavorite",
-      "editLink": "Edit link…"
+      "editLink": "Edit link…",
+      "removeFromFolder": "Remove from this folder"
     },
     "copyImageFailed": "Failed to copy image",
     "deleteForeverDialog": {
       "confirm": "Delete forever",
       "description": "This permanently deletes the card and its files. This can’t be undone.",
-      "title": "Delete this card forever?"
+      "title": "Delete this card forever?",
+      "bulkTitle": "{count, plural, one {Delete # card forever?} other {Delete # cards forever?}}",
+      "bulkDescription": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can’t be undone."
     },
     "body": {
       "emptyNote": "Empty note",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "Emptying Trash",
       "rateLimited": "Trash was emptied a few times just now. Try again in a minute.",
       "failed": "Couldn’t empty Trash. Try again."
+    },
+    "trash": {
+      "retention": "Cards in Trash are deleted forever after {days, plural, one {# day} other {# days}}."
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "Focus",
       "resaved": "Already in Teak · Moved to the top",
       "resavedFromArchive": "Already in Teak · Moved back from Archive",
+      "inTrash": "This link is in Trash",
+      "restore": "Restore",
+      "restoring": "Restoring…",
+      "restoredFromTrash": "Restored from Trash · Moved to the top",
+      "restoreFailed": "Couldn't restore the card",
       "open": "Open",
       "saveLinks": "Save {count, plural, one {# link} other {# links}}",
       "saveFirstLinks": "Save first {count, plural, one {# link} other {# links}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "Move to folder…",
       "removeFromFolder": "Remove from {folder}",
       "moveToTrash": "Move to Trash",
-      "cancelSelection": "Cancel selection"
+      "cancelSelection": "Cancel selection",
+      "deleteForever": "Delete forever"
     },
     "tagsDialog": {
       "tagTooLong": "Tags can be at most {max} characters.",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "Remove {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
       "removeExcludedQualifier": "Remove excluding {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
       "removeUnknownFolder": "Remove {chip}: no folder named {folder}",
-      "unknownFolder": "No folder named {folder}"
+      "unknownFolder": "No folder named {folder}",
+      "unknownType": "No type named {type}",
+      "removeUnknownType": "Remove {chip}: no such card type"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "Nothing to revisit here",
       "saveAsSmartFolder": "Save as smart folder…",
-      "reshuffle": "Reshuffle"
+      "reshuffle": "Reshuffle",
+      "density": "Density",
+      "densities": {
+        "comfortable": "Comfortable",
+        "compact": "Compact"
+      }
     },
     "dates": {
       "today": "Today",
@@ -1322,6 +1372,18 @@
       "thisYear": "This Year",
       "lastYear": "Last Year",
       "lastWeekday": "Last {day}"
+    },
+    "results": {
+      "matches": "{count, plural, one {# card matches} other {# cards match}}",
+      "matchesMore": "{count}+ cards match",
+      "related": "{count, plural, one {# related by meaning} other {# related by meaning}}",
+      "hideRelated": "Hide related",
+      "showRelated": "Show related",
+      "noMatchesFor": "Nothing found for “{query}”",
+      "didYouMean": "Did you mean <link>{suggestion}</link>?",
+      "tryRemoving": "Or remove a filter:",
+      "filtersLabel": "Filters in this search",
+      "removeFilter": "Remove {label}"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "Search",
       "newNote": "New note",
       "uploadFiles": "Upload files",
-      "notifications": "Go to notifications (Undo)",
+      "recordAudio": "Record audio",
+      "notifications": "Focus notifications, to undo a change",
       "keyboardShortcuts": "Keyboard shortcuts",
-      "goToSettings": "Go to Settings"
+      "goToSettings": "Settings",
+      "goToTags": "Tags",
+      "byTag": "Cards with a tag",
+      "byType": "Cards of a type",
+      "bySite": "Cards from a site",
+      "byFolder": "Cards in a folder",
+      "byState": "Favorites, archived, done or to-do"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "Failed to remove tag",
         "tags": "Failed to update tags",
         "other": "Failed to {operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, one {# card permanently deleted} other {# cards permanently deleted}}"
     },
     "clipboard": {
       "copyingImage": "Copying image...",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "Uploaded {successCount} of {total} files.",
-      "partialFailureWithReason": "Uploaded {successCount} of {total} files. First failure: {file} — {reason}",
+      "partialFailureDetails": "Uploaded {successCount} of {total} files. {details}",
+      "moreFiles": "{count, plural, one {# more} other {# more}}",
+      "failures": {
+        "empty": "{count, plural, one {Empty file, nothing to save} other {Empty files, nothing to save}}: {files}.",
+        "unsupported": "{count, plural, one {Teak can't save this type of file} other {Teak can't save these types of files}}: {files}.",
+        "tooLarge": "{count, plural, one {Larger than {max}} other {Larger than {max}}}: {files}.",
+        "mismatch": "{count, plural, one {The name doesn't match the file's contents} other {The names don't match the files' contents}}: {files}.",
+        "other": "{count, plural, one {Couldn't upload} other {Couldn't upload}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# file was} other {# files were}} skipped. You can upload up to {max} at a time."
     }
   },

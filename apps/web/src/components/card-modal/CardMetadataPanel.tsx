@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Ellipsis,
   EyeOff,
-  FolderPlus,
   Pencil,
   Plus,
   Sparkles,
@@ -470,30 +469,36 @@ export function CardMetadataPanel({
 
   const folderNames = cardFolders.map((folder) => folder.name).join(", ");
 
+  // A note's own text is its notes, so a "Notes" field on it would be a note
+  // on a note. It shows only for one that already has notes (from the API).
+  const showNotes = card.type !== "text" || Boolean(card.notes);
+
   return (
     <div className="space-y-6 px-5 py-5">
-      <PanelSection title={t("notes")}>
-        <div className="relative">
-          <textarea
-            aria-keyshortcuts={isDeleted ? undefined : "N"}
-            aria-label={t("notes")}
-            className="peer field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
-            dir="auto"
-            onBlur={onCommit}
-            onChange={(event) => onNotesChange(event.target.value)}
-            placeholder={isDeleted ? t("noNotes") : t("notesPlaceholder")}
-            readOnly={isDeleted}
-            ref={notesRef}
-            value={getCurrentValue("notes") ?? ""}
-          />
-          {!(isDeleted || getCurrentValue("notes")) && (
-            <ShortcutKeys
-              className="pointer-events-none absolute top-2 right-0 peer-focus:hidden max-sm:hidden"
-              keys={["N"]}
+      {showNotes ? (
+        <PanelSection title={t("notes")}>
+          <div className="relative">
+            <textarea
+              aria-keyshortcuts={isDeleted ? undefined : "N"}
+              aria-label={t("notes")}
+              className="peer field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
+              dir="auto"
+              onBlur={onCommit}
+              onChange={(event) => onNotesChange(event.target.value)}
+              placeholder={isDeleted ? t("noNotes") : t("notesPlaceholder")}
+              readOnly={isDeleted}
+              ref={notesRef}
+              value={getCurrentValue("notes") ?? ""}
             />
-          )}
-        </div>
-      </PanelSection>
+            {!(isDeleted || getCurrentValue("notes")) && (
+              <ShortcutKeys
+                className="pointer-events-none absolute top-2 right-0 peer-focus:hidden max-sm:hidden"
+                keys={["N"]}
+              />
+            )}
+          </div>
+        </PanelSection>
+      ) : null}
 
       <HighlightsSection card={card} control={highlights} />
 
@@ -586,18 +591,6 @@ export function CardMetadataPanel({
                     keys={["T"]}
                   />
                 )}
-                {cardFolders.length === 0 && onOpenFolders ? (
-                  <ShortcutTooltip label={t("addToFolder")} side="left">
-                    <button
-                      aria-label={t("addToFolder")}
-                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground [&_svg]:size-3.5"
-                      onClick={onOpenFolders}
-                      type="button"
-                    >
-                      <FolderPlus />
-                    </button>
-                  </ShortcutTooltip>
-                ) : null}
               </span>
             )}
           </div>

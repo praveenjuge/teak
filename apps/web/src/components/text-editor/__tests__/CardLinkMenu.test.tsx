@@ -3,7 +3,11 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CardLinkMenu, type CardLinkMenuState } from "../CardLinkMenu";
+import {
+  CardLinkMenu,
+  type CardLinkMenuState,
+  cardLinkMenuBoundary,
+} from "../CardLinkMenu";
 import { cardLinkPillState } from "../CardLinkPill";
 
 if (!GlobalRegistrator.isRegistered) {
@@ -173,5 +177,41 @@ describe("card link pills", () => {
       missing: true,
       title: "Missing card",
     });
+  });
+});
+
+describe("cardLinkMenuBoundary", () => {
+  const viewport = { height: 800, width: 390 };
+  const rect = (top: number, bottom: number) => ({
+    bottom,
+    height: bottom - top,
+    top,
+    width: 120,
+  });
+
+  test("stops above the composer's Save below the caret", () => {
+    expect(
+      cardLinkMenuBoundary(
+        { bottom: 220, top: 200 },
+        [rect(300, 332)],
+        viewport
+      )
+    ).toEqual({ height: 296, width: 390, x: 0, y: 0 });
+  });
+
+  test("starts below a bar above the caret, like Focus's Save", () => {
+    expect(
+      cardLinkMenuBoundary({ bottom: 120, top: 100 }, [rect(0, 48)], viewport)
+    ).toEqual({ height: 748, width: 390, x: 0, y: 52 });
+  });
+
+  test("ignores hidden controls and uses the whole viewport without any", () => {
+    expect(
+      cardLinkMenuBoundary(
+        { bottom: 220, top: 200 },
+        [{ bottom: 0, height: 0, top: 0, width: 0 }],
+        viewport
+      )
+    ).toEqual({ height: 800, width: 390, x: 0, y: 0 });
   });
 });

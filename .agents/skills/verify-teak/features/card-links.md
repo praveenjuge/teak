@@ -4,7 +4,7 @@ A user types `[[` in a note to link another card. The link is stored as `[[Title
 
 ## Sub-features
 
-- `link-insert` types `[[`, picks a card from the menu (arrows, Enter, Esc), and saves a pill.
+- `link-insert` types `[[`, picks a card from the menu (arrows, Enter, Esc), and saves a pill. A card whose title is the query is listed first, then titles that start with it.
 - `link-pills` shows each pill with the target's live title, opens the target on click or Enter, and shows "Missing card" for a trashed, deleted or foreign target.
 - `linked-from` lists the notes linking to the open card, up to 50 plus "and more", and opens one on click.
 - `link-tiles` shows links as their titles on grid tiles and in search.
@@ -29,6 +29,7 @@ Preconditions:
 Steps:
 
 - **Insert.** Mark the run: in the composer, `type` "verify-<run-id> see " then `type` "[[garden". The listbox "Link a card" shows "Garden plan". `press` "ArrowDown"/"ArrowUp" to move, `press` "Enter" to insert: a pill "Garden plan" replaces `[[garden`. `press` "Meta+Enter" to save. `type` "[[" then `press` "Escape": the list closes and `[[` stays as text. Inside a code block, `[[` opens no list.
+- **Ranking and room for Save.** With cards titled "verify-<run-id>-1" and "verify-<run-id>-12.txt", type `[[verify-<run-id>-1` in the composer: the first option is "verify-<run-id>-1". While the list is open, the composer's button "Save" stays uncovered and clickable (also at 390 px): the list stops above it, or opens above the caret when there's no room below.
 - **Live title.** Open the seeded "Garden plan" note, change its first line to "Garden plan 2026", close it. Open the note you made: the pill reads "Garden plan 2026". After **Open** below, change "Garden plan 2026" back to "Garden plan" so the next run finds the seeded title.
 - **Open.** `click` the pill (role link, name = the title): the dialog switches to "Garden plan 2026".
 - **Missing.** `press` "/", `type` "#scenario-card-links", open "Broken links": the pill for the card in Trash reads "Missing card", and so do "Gone" and "Someone else's". Restore "Trashed target" from Trash: its pill shows "Trashed target" again. Move it back to Trash so the next run starts from the seeded state.

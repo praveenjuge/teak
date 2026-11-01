@@ -50,11 +50,13 @@ const Link = ({
   </a>
 );
 
-const render = async () => {
+const render = async (
+  props: Partial<Parameters<typeof TagsScreen>[0]> = {}
+) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<TagsScreen LinkComponent={Link} />));
+  await act(() => root?.render(<TagsScreen LinkComponent={Link} {...props} />));
 };
 
 const rows = () =>
@@ -163,4 +165,31 @@ test("/ focuses the Find a tag box, like the library's search", async () => {
 
   expect(focusLibrarySearch()).toBe(true);
   expect(document.activeElement).toBe(find);
+});
+
+test("starts from the URL's filter and reports each change to keep it", async () => {
+  summary = {
+    isComplete: true,
+    items: [
+      { name: "design", count: 4 },
+      { name: "art", count: 1 },
+    ],
+  };
+  const changes: string[] = [];
+  await render({
+    initialQuery: "des",
+    onQueryChange: (query) => changes.push(query),
+  });
+  const find = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Find a tag"]'
+  );
+  if (!find) {
+    throw new Error("No find box");
+  }
+  expect(find.value).toBe("des");
+  expect(rows().map(([text]) => text)).toEqual(["design, 4 cards"]);
+
+  await typeInto(find, "ar");
+  expect(changes).toEqual(["ar"]);
+  expect(rows().map(([text]) => text)).toEqual(["art, 1 card"]);
 });

@@ -125,4 +125,28 @@ describe("DocumentPreview", () => {
     expect(markup).not.toContain("<iframe");
     expect(markup).toContain("invoice.pdf");
   });
+
+  test.each([
+    ["notes.txt", "text/plain", "Text file"],
+    ["data.csv", "text/csv", "CSV · Text file"],
+    ["App.tsx", "text/plain", "TSX · Source code"],
+    ["README.md", "text/markdown", "Markdown"],
+    ["deck.pptx", "", "PPTX · Office document"],
+  ])("names %s's kind in words (%s): %s", (fileName, mimeType, label) => {
+    const markup = renderToStaticMarkup(
+      <DocumentPreview
+        card={
+          createDocumentCard({
+            fileUrl: undefined,
+            fileMetadata: { fileName, mimeType },
+          }) as never
+        }
+      />
+    );
+
+    expect(markup).toContain(
+      `<p class="text-muted-foreground text-xs">${label}</p>`
+    );
+    expect(markup).not.toMatch(/text · text|source · |· office/);
+  });
 });

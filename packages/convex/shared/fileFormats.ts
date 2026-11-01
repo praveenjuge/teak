@@ -546,6 +546,14 @@ export const FILE_FORMATS = [
 
 export type FileFormatId = (typeof FILE_FORMATS)[number]["id"];
 
+/** What `validateUploadFile` says, word for word, so clients can tell the
+ * failures apart and explain them in the person's language. */
+export const FILE_VALIDATION_MESSAGES = {
+  INVALID_FILE_SIZE: "fileSize must be a positive number",
+  MIME_MISMATCH: "File extension does not match the provided MIME type",
+  UNSUPPORTED_FILE_TYPE: "Unsupported file type",
+} as const;
+
 export class FileFormatValidationError extends Error {
   readonly code:
     | "FILE_TOO_LARGE"
@@ -717,7 +725,7 @@ export const validateFileFormat = (input: {
     }
     throw new FileFormatValidationError(
       "UNSUPPORTED_FILE_TYPE",
-      "Unsupported file type"
+      FILE_VALIDATION_MESSAGES.UNSUPPORTED_FILE_TYPE
     );
   }
 
@@ -729,7 +737,7 @@ export const validateFileFormat = (input: {
   ) {
     throw new FileFormatValidationError(
       "MIME_MISMATCH",
-      "File extension does not match the provided MIME type"
+      FILE_VALIDATION_MESSAGES.MIME_MISMATCH
     );
   }
 
@@ -744,7 +752,7 @@ export const validateUploadFile = (input: {
   if (!(Number.isFinite(input.fileSize) && input.fileSize > 0)) {
     throw new FileFormatValidationError(
       "INVALID_FILE_SIZE",
-      "fileSize must be a positive number"
+      FILE_VALIDATION_MESSAGES.INVALID_FILE_SIZE
     );
   }
   if (input.fileSize > MAX_FILE_SIZE) {

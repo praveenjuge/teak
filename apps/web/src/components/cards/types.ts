@@ -107,6 +107,7 @@ export interface CardProps {
   onEditLink?: (cardId: string) => void;
   onEnterSelectionMode?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
+  onRemoveFromFolder?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;

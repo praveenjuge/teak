@@ -100,7 +100,7 @@ const toolError = async (browser: Browser, name: string, input: JsonValue) => {
 };
 
 test.describe("WebMCP", () => {
-  test("serves a Permissions-Policy that allows same-origin WebMCP tools", async ({
+  test("serves a Permissions-Policy that leaves WebMCP tools at their same-origin default", async ({
     browser,
     webAccount: _signedIn,
   }) => {
@@ -108,7 +108,10 @@ test.describe("WebMCP", () => {
     await gotoApp(browser, "/sign-in");
     const response = await home;
     expect(response.status).toBe(200);
-    expect(response.headers["permissions-policy"]).toContain("tools=(self)");
+    // `tools` defaults to self; naming it makes Chromium without the WebMCP
+    // origin trial log an error on every page.
+    expect(response.headers["permissions-policy"]).toContain("camera=()");
+    expect(response.headers["permissions-policy"]).not.toContain("tools=");
   });
 
   test.describe("authenticated tools", () => {

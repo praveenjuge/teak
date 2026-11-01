@@ -102,8 +102,8 @@ tools.map((tool) => tool.name);
   [remote MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
 - Tool descriptions are static strings. They never interpolate card content,
   following the spec's tool-poisoning guidance.
-- The web app serves `Permissions-Policy: tools=(self)`, so only Teak's own
-  pages can register and call these tools.
+- The `tools` permission keeps its default allowlist, `self`, and the web app
+  can't be framed, so only Teak's own pages can register and call these tools.
 
 ## Related
 

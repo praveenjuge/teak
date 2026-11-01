@@ -657,7 +657,7 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain('aria-label="Select"');
   });
 
-  test("leaves only More actions on a card in Trash", () => {
+  test("leaves only More actions and Select on a card in Trash", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={linkWithPreview({ isDeleted: true }) as any}
@@ -667,7 +667,26 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain('aria-label="More actions"');
     expect(markup).not.toContain('aria-label="Favorite"');
     expect(markup).not.toContain('aria-label="Open link"');
-    expect(markup).not.toContain('aria-label="Select"');
+    expect(markup).toContain('aria-label="Select"');
+  });
+
+  test("offers Remove from this folder only when the folder is open", () => {
+    const inFolder = renderToStaticMarkup(
+      <Card
+        card={linkWithPreview() as any}
+        onEditFolders={() => undefined}
+        onRemoveFromFolder={() => undefined}
+      />
+    );
+    expect(inFolder).toContain("Add to folder…");
+    expect(inFolder).toContain("Remove from this folder");
+
+    const elsewhere = renderToStaticMarkup(
+      <Card card={linkWithPreview() as any} onEditFolders={() => undefined} />
+    );
+    expect(elsewhere).toContain("Add to folder…");
+    expect(elsewhere).not.toContain("Remove from this folder");
+    expect(elsewhere).not.toContain("Folders…");
   });
 
   test("hides the hover actions while selecting cards", () => {

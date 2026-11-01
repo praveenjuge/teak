@@ -1,6 +1,6 @@
 import { IMPORT_FAILURE } from "../shared/importSources";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { parseCsvRecords } from "./csv";
+import { type CsvRowProblem, detectCsvDelimiter, parseCsvRecords } from "./csv";
 import {
   folderPath,
   linkItem,
@@ -9,6 +9,13 @@ import {
 } from "./sourceItems";
 
 const SOURCE = "CSV";
+
+const ROW_PROBLEMS: Record<CsvRowProblem, string> = {
+  unclosed_quote:
+    "This row has a quote that is never closed. Close it, or remove it.",
+  text_after_quote:
+    "This row has text after a closing quote. Put the whole cell inside the quotes.",
+};
 
 export type CsvField = "url" | "title" | "tags" | "folder" | "note" | "created";
 
@@ -61,7 +68,8 @@ export function splitCsvTags(cell: string): string[] {
 }
 
 /**
- * Any comma-separated CSV with a header row naming its columns (see
+ * Any comma-, semicolon- or tab-separated CSV (the header line decides) with
+ * a header row naming its columns (see
  * `CSV_HEADER_ALIASES`). Unknown columns are ignored; every row becomes a
  * link. Rows are numbered as a spreadsheet shows them, the header being
  * row 1 and blank lines counting.
@@ -70,8 +78,9 @@ export function parseGenericCsv(csv: string): ParsedBookmarkItem[] {
   const text = csv.charCodeAt(0) === 0xfe_ff ? csv.slice(1) : csv;
   const {
     numbers,
+    problems,
     rows: [header, ...rows],
-  } = parseCsvRecords(text);
+  } = parseCsvRecords(text, { delimiter: detectCsvDelimiter(text) });
   if (!header || header.every((name) => name.trim() === "")) {
     notAnExport(SOURCE);
   }
@@ -95,11 +104,20 @@ export function parseGenericCsv(csv: string): ParsedBookmarkItem[] {
     return index === undefined ? "" : (row[index] ?? "").trim();
   };
 
+  // Failed rows are listed as the label above the error, so the error doesn't
+  // repeat the row number.
   return rows.map((row, index) => {
     const label = `Row ${numbers[index + 1]}`;
+    const problem = problems.get(index + 1);
+    if (problem) {
+      return { label, error: ROW_PROBLEMS[problem] };
+    }
     const url = cell(row, "url");
     if (!url) {
-      return { label, error: `${label} has no url` };
+      const title = cell(row, "title");
+      return title
+        ? { label: title, error: `${label} has no url` }
+        : { label, error: "This row has no url" };
     }
     const folder = folderPath(cell(row, "folder").split("/"));
     const item = linkItem(SOURCE, {

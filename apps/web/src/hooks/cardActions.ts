@@ -158,6 +158,34 @@ export function createCardActions(
     }
   };
 
+  /** Deletes several cards in Trash forever, with one toast for all. */
+  const handleBulkPermanentDeleteCards = async (
+    cardIds: Id<"cards">[]
+  ): Promise<BulkDeleteResult> => {
+    const failedIds: Id<"cards">[] = [];
+    let deletedCount = 0;
+    let lastError: unknown;
+    for (const cardId of cardIds) {
+      try {
+        await permanentDeleteCard({ id: cardId });
+        deletedCount += 1;
+      } catch (error) {
+        captureClientException(error, { operation: "card.permanent_delete" });
+        failedIds.push(cardId);
+        lastError = error;
+      }
+    }
+    if (deletedCount > 0) {
+      config.onPermanentDeleteSuccess?.(
+        t("cardsPermanentlyDeleted", { count: deletedCount })
+      );
+    }
+    if (failedIds.length > 0) {
+      config.onError?.(lastError as Error, "permanent delete");
+    }
+    return { deletedCount, failedIds, requestedCount: cardIds.length };
+  };
+
   const handleToggleFavorite = async (cardId: Id<"cards">) => {
     try {
       await updateCardField({
@@ -203,6 +231,7 @@ export function createCardActions(
     handleBulkDeleteCards,
     handleRestoreCard,
     handlePermanentDeleteCard,
+    handleBulkPermanentDeleteCards,
     handleToggleFavorite,
     updateField,
   };

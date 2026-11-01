@@ -10,6 +10,7 @@ import {
   cardsSearchStateFromQuery,
   createInitialCardsSearchState,
   isSameSearch,
+  splitTimePhrase,
 } from "../cardsSearchState";
 
 const baseState = (): CardsSearchState => createInitialCardsSearchState();
@@ -262,14 +263,14 @@ describe("search qualifiers in the controller", () => {
     expect(state.qualifierChips).toEqual([]);
   });
 
-  it("reads a URL search back into chips and typed text", () => {
+  it("reads a URL search back into the chips Enter makes", () => {
     const fromUrl = cardsSearchStateFromQuery(
       'notes folder:"Reading list" "a phrase" site:example.com'
     );
     expect(fromUrl).toEqual({
-      keywordTags: ['"a phrase"'],
+      keywordTags: ['"a phrase"', "notes"],
       qualifierChips: ['folder:"Reading list"', "site:example.com"],
-      searchQuery: "notes",
+      searchQuery: "",
     });
     const terms = buildCardsSearchTerms({ ...baseState(), ...fromUrl });
     expect(
@@ -285,9 +286,9 @@ describe("search qualifiers in the controller", () => {
     const query = "design -tag:old (site:github.com OR site:gitlab.com) -figma";
     const fromUrl = cardsSearchStateFromQuery(query);
     expect(fromUrl).toEqual({
-      keywordTags: ["(site:github.com OR site:gitlab.com)", "-figma"],
+      keywordTags: ["design", "(site:github.com OR site:gitlab.com)", "-figma"],
       qualifierChips: ["-tag:old"],
-      searchQuery: "design",
+      searchQuery: "",
     });
     const terms = buildCardsSearchTerms({ ...baseState(), ...fromUrl });
     expect(isSameSearch(terms, query)).toBe(true);
@@ -297,13 +298,22 @@ describe("search qualifiers in the controller", () => {
       searchQuery: query,
     });
     expect(entered.qualifierChips).toEqual(["-tag:old"]);
-    expect(entered.keywordTags).toEqual([
-      "(site:github.com OR site:gitlab.com)",
-      "-figma",
-      "design",
-    ]);
+    expect(entered.keywordTags).toEqual(fromUrl.keywordTags);
     expect(entered.searchQuery).toBe("");
     expect(isSameSearch(buildCardsSearchTerms(entered), query)).toBe(true);
+  });
+
+  it("a URL and typing give the same chips, and the URL keeps its order", () => {
+    const query = "verify-navx -heron";
+    const fromUrl = cardsSearchStateFromQuery(query);
+    const typed = applyEnterToCardsSearchState({
+      ...baseState(),
+      searchQuery: query,
+    });
+    expect(fromUrl.keywordTags).toEqual(["verify-navx", "-heron"]);
+    expect(typed.keywordTags).toEqual(fromUrl.keywordTags);
+    expect(fromUrl.searchQuery).toBe("");
+    expect(buildCardsSearchTerms({ ...baseState(), ...fromUrl })).toBe(query);
   });
 
   it("a typed OR joins the pills as one group while typing", () => {
@@ -354,5 +364,44 @@ describe("search qualifiers in the controller", () => {
     expect(parseSearchQuery(buildCardsSearchTerms(entered)).canonical).toBe(
       "tag:x (tag:fonts OR tag:type)"
     );
+  });
+});
+
+describe("a date phrase beside words", () => {
+  // A Tuesday, so `last week` is the week before.
+  const now = new Date(2026, 0, 27, 12);
+  const enter = (searchQuery: string) =>
+    applyEnterToCardsSearchState({ ...baseState(), searchQuery }, { now });
+
+  it.each([
+    ["kestrel last week", ["kestrel"]],
+    ["last week kestrel", ["kestrel"]],
+    ["kestrel heron yesterday", ["kestrel", "heron"]],
+    ["design notes from jan 5 2026 to jan 20 2026", ["design", "notes"]],
+    ["-heron today", ["-heron"]],
+  ])("%p becomes a date chip and words", (query, keywords) => {
+    const next = enter(query);
+    expect(next.timeFilter).not.toBeNull();
+    expect(next.keywordTags).toEqual(keywords);
+    expect(next.searchQuery).toBe("");
+  });
+
+  it.each([
+    "things i may need",
+    "iphone 2024",
+    "design march",
+    "tag:design 2025",
+    '"last week" notes',
+    "design OR last week",
+  ])("%p keeps its words", (query) => {
+    expect(enter(query).timeFilter).toBeNull();
+  });
+
+  it("finds the date's range, not the words'", () => {
+    const next = enter("kestrel last week");
+    expect(next.timeFilter?.range).toEqual(
+      enter("last week").timeFilter?.range
+    );
+    expect(splitTimePhrase("kestrel", { now })).toBeNull();
   });
 });

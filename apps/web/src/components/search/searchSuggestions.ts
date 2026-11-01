@@ -1,8 +1,10 @@
 import {
+  CARD_TYPE_ALIASES,
   describePriceBound,
   formatSearchExpression,
   formatSearchQualifier,
   hostForDisplay,
+  parseCardTypeWord,
   parsePriceBound,
   parseSearchQuery,
   type SearchQualifier,
@@ -222,6 +224,15 @@ interface SuggestionText {
   types: CardTypesTranslator;
 }
 
+const TYPE_ALIASES_BY_TYPE = Object.fromEntries(
+  cardTypes.map((type) => [
+    type,
+    Object.entries(CARD_TYPE_ALIASES)
+      .filter(([, aliased]) => aliased === type)
+      .map(([alias]) => alias),
+  ])
+) as Record<CardType, string[]>;
+
 const countLabel = (count: number, locale?: string) =>
   count.toLocaleString(locale);
 
@@ -256,7 +267,13 @@ const valueSuggestions = (
       return rank(
         cardTypes,
         value,
-        (type) => `${type} ${CARD_TYPE_LABELS[type]}`,
+        (type) =>
+          [
+            type,
+            CARD_TYPE_LABELS[type],
+            types(type),
+            ...TYPE_ALIASES_BY_TYPE[type],
+          ].join(" "),
         limit
       ).map((type) =>
         complete({ key: "type", value: type }, "Types", types(type))
@@ -446,22 +463,41 @@ export function describeQualifierChip(
   return null;
 }
 
+const UNKNOWN_TYPE_WORD = /^type:(.+)$/i;
+
+/**
+ * The value of a `type:` word that names no card type, such as `banana` in
+ * `type:banana`: the search reads it as a plain word, which matches nothing,
+ * so its chip says so.
+ */
+const unknownTypeOf = (word: string): string | undefined => {
+  const value = UNKNOWN_TYPE_WORD.exec(word)?.[1];
+  return value && !parseCardTypeWord(value) ? value : undefined;
+};
+
 export function describeKeywordChip(chip: string): {
   excluded?: true;
   group?: true;
   label: string;
+  unknownType?: string;
 } {
-  const { expression } = parseSearchQuery(chip);
+  const { expression, terms } = parseSearchQuery(chip);
   if (!expression) {
-    return { label: chip };
+    const unknownType = terms.length === 1 ? unknownTypeOf(chip) : undefined;
+    return unknownType ? { label: chip, unknownType } : { label: chip };
   }
   if (
     expression.op === "not" &&
     (expression.item.op === "term" || expression.item.op === "phrase")
   ) {
+    const unknownType =
+      expression.item.op === "term"
+        ? unknownTypeOf(expression.item.value)
+        : undefined;
     return {
       excluded: true,
       label: formatSearchExpression(expression.item),
+      ...(unknownType ? { unknownType } : {}),
     };
   }
   return { group: true, label: formatSearchExpression(expression) };

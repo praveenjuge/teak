@@ -67,6 +67,7 @@ const setup = async () => {
     content: string;
     notes?: string;
     tags?: string[];
+    trashedDuplicate?: "report" | "restore";
     type?: "text" | "link";
     url?: string;
   }) =>
@@ -141,6 +142,59 @@ describe("saving a link that's already in Teak", () => {
     expect((await liveCards()).map((card) => card._id)).toEqual([
       result.cardId,
     ]);
+  });
+
+  test("says the link is in Trash, and saves nothing, when the web asks", async () => {
+    const { seedLink, save, get, liveCards } = await setup();
+    const trashed = await seedLink({ isDeleted: true });
+
+    expect(
+      await save({ content: VARIANT, trashedDuplicate: "report" })
+    ).toEqual({ cardId: trashed, outcome: "inTrash" });
+    expect(await liveCards()).toHaveLength(0);
+    const card = await get(trashed);
+    expect(card.isDeleted).toBe(true);
+    expect(card.savedAt).toBe(FIRST_SAVED);
+  });
+
+  test("restores the card from Trash and moves it to the top when asked", async () => {
+    const { seedLink, save, get, liveCards } = await setup();
+    const trashed = await seedLink({ isDeleted: true, isArchived: true });
+
+    expect(await save({ content: SAVED, trashedDuplicate: "restore" })).toEqual(
+      {
+        cardId: trashed,
+        outcome: "resaved",
+        wasArchived: true,
+        wasTrashed: true,
+      }
+    );
+    const card = await get(trashed);
+    expect(card.isDeleted).toBeUndefined();
+    expect(card.deletedAt).toBeUndefined();
+    expect(card.isArchived).toBeUndefined();
+    expect(card.savedAt).toBe(NOW);
+    expect((await liveCards()).map((live) => live._id)).toEqual([trashed]);
+  });
+
+  test("a card outside Trash still wins over one in it", async () => {
+    const { seedLink, save } = await setup();
+    await seedLink({ isDeleted: true });
+    const live = await seedLink();
+
+    expect(await save({ content: SAVED, trashedDuplicate: "report" })).toEqual({
+      cardId: live,
+      outcome: "resaved",
+    });
+  });
+
+  test("a new link with nothing in Trash is saved as usual when the web asks", async () => {
+    const { save, liveCards } = await setup();
+
+    expect(
+      (await save({ content: SAVED, trashedDuplicate: "report" })).outcome
+    ).toBe("created");
+    expect(await liveCards()).toHaveLength(1);
   });
 
   test.each([

@@ -59,7 +59,11 @@ const libraryTagHref = (name: string) =>
 
 export interface TagsScreenProps {
   headerLeading?: ReactNode;
+  /** The Find a tag text to start with, such as the URL's `q`. */
+  initialQuery?: string;
   LinkComponent: SidebarLinkComponent;
+  /** Called as the Find a tag text changes, so the page can keep it. */
+  onQueryChange?: (query: string) => void;
   tagHref?: (name: string) => string;
 }
 
@@ -204,7 +208,9 @@ function TagSortMenu({
 
 export function TagsScreen({
   headerLeading,
+  initialQuery = "",
   LinkComponent,
+  onQueryChange,
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
@@ -212,7 +218,7 @@ export function TagsScreen({
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);
   const { latest, start } = useTagOperations();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState<TagSort>("count");
   const [limit, setLimit] = useState(TAG_PAGE_SIZE);
   const [menuTag, setMenuTag] = useState<string | null>(null);
@@ -321,6 +327,7 @@ export function TagsScreen({
               onChange={(event) => {
                 setQuery(event.target.value);
                 setLimit(TAG_PAGE_SIZE);
+                onQueryChange?.(event.target.value);
               }}
               placeholder={t("findTag")}
               type="search"

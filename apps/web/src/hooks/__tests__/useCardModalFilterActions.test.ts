@@ -1,5 +1,9 @@
 import { describe, expect, mock, test } from "bun:test";
-import { createCardModalFilterActions } from "../useCardModalFilterActions";
+import { qualifierChipsFromText } from "../../lib/cardsSearchState";
+import {
+  createCardModalFilterActions,
+  tagQualifier,
+} from "../useCardModalFilterActions";
 
 describe("createCardModalFilterActions", () => {
   test("applies card type filter after closing modal", () => {
@@ -12,7 +16,7 @@ describe("createCardModalFilterActions", () => {
       addFilter: (filter) => {
         events.push(`filter:${filter}`);
       },
-      addKeywordTag: (_keyword) => undefined,
+      addQualifier: (_qualifier) => undefined,
     });
 
     actions.handleCardTypeClick("image");
@@ -20,7 +24,7 @@ describe("createCardModalFilterActions", () => {
     expect(events).toEqual(["close", "filter:image"]);
   });
 
-  test("applies keyword tag after closing modal", () => {
+  test("a tag chip closes the card and filters by that tag", () => {
     const events: string[] = [];
 
     const actions = createCardModalFilterActions({
@@ -28,8 +32,8 @@ describe("createCardModalFilterActions", () => {
         events.push("close");
       },
       addFilter: (_filter) => undefined,
-      addKeywordTag: (keyword) => {
-        events.push(`tag:${keyword}`);
+      addQualifier: (qualifier) => {
+        events.push(qualifier);
       },
     });
 
@@ -38,22 +42,34 @@ describe("createCardModalFilterActions", () => {
     expect(events).toEqual(["close", "tag:design"]);
   });
 
-  test("passes through callback values", () => {
-    const onCloseModal = mock(() => undefined);
-    const addFilter = mock((_filter: string) => undefined);
-    const addKeywordTag = mock((_keyword: string) => undefined);
-
+  test("a tag with spaces and emoji becomes one quoted tag filter, as typed", () => {
+    const addQualifier = mock((_qualifier: string) => undefined);
     const actions = createCardModalFilterActions({
-      onCloseModal,
-      addFilter: addFilter as never,
-      addKeywordTag,
+      onCloseModal: () => undefined,
+      addFilter: (_filter) => undefined,
+      addQualifier,
     });
 
-    actions.handleCardTypeClick("link");
-    actions.handleTagClick("notes");
+    actions.handleTagClick("verify tag 🎉 with spaces");
 
-    expect(onCloseModal).toHaveBeenCalledTimes(2);
-    expect(addFilter).toHaveBeenCalledWith("link");
-    expect(addKeywordTag).toHaveBeenCalledWith("notes");
+    expect(addQualifier).toHaveBeenCalledWith(
+      'tag:"verify tag 🎉 with spaces"'
+    );
+    expect(qualifierChipsFromText('tag:"verify tag 🎉 with spaces"')).toEqual([
+      tagQualifier("verify tag 🎉 with spaces"),
+    ]);
+  });
+
+  test("a blank tag does nothing", () => {
+    const onCloseModal = mock(() => undefined);
+    const addQualifier = mock((_qualifier: string) => undefined);
+    createCardModalFilterActions({
+      onCloseModal,
+      addFilter: (_filter) => undefined,
+      addQualifier,
+    }).handleTagClick("  ");
+
+    expect(onCloseModal).not.toHaveBeenCalled();
+    expect(addQualifier).not.toHaveBeenCalled();
   });
 });

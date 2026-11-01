@@ -43,7 +43,8 @@
       "version": "版本 {version}"
     },
     "header": {
-      "title": "设置"
+      "title": "设置",
+      "subpageTitle": "{page} · 设置"
     },
     "skeleton": {
       "loading": "正在加载设置…"
@@ -94,7 +95,18 @@
       "signOutTitle": "要退出登录 {name} 吗？",
       "signOutDescription": "于 {date} 登录的 {name} 会话将退出 Teak，需要重新登录。",
       "disconnectTitle": "要断开 {name} 吗？",
-      "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。"
+      "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。",
+      "deviceExtension": "Teak 浏览器扩展",
+      "deviceUnknown": "未知设备",
+      "deviceBrowser": "浏览器",
+      "deviceOn": "{os} 上的 {browser}",
+      "signedInLastActive": "登录于 {date} · 上次活动于 {active}",
+      "signOutOthers": "退出其他设备的登录",
+      "signOutOthersTitle": "要退出所有其他设备的登录吗？",
+      "signOutOthersDescription": "登录你账户的所有其他浏览器和设备都将退出 Teak，需要重新登录。此设备保持登录。",
+      "signOutOthersConfirm": "退出其他设备的登录",
+      "otherDevicesSignedOut": "{count, plural, =0 {没有其他已登录的设备。} other {已退出其他 # 台设备的登录。}}",
+      "otherDevicesRemaining": "{count, plural, other {已退出 # 台设备的登录。}}仍有设备处于登录状态，请一分钟后重试。"
     },
     "apiKeys": {
       "revokeAllTitle": "要吊销所有 API 密钥吗？",
@@ -124,7 +136,11 @@
       "copyFailed": "无法复制密钥。请手动选择并复制。",
       "createKey": "创建密钥",
       "loading": "正在加载 API 密钥…",
-      "revokeAll": "吊销所有密钥"
+      "revokeAll": "吊销所有密钥",
+      "nameLabel": "新密钥的名称（可选）",
+      "namePlaceholder": "例如：笔记本电脑上的 Raycast",
+      "empty": "还没有 API 密钥。创建一个即可使用 API、CLI、Raycast 或 MCP 客户端。",
+      "listLabel": "API 密钥"
     },
     "deleteAccount": {
       "title": "删除账户",
@@ -315,7 +331,8 @@
           "hint": "在 Teak 中通过“导出数据”生成的 ZIP 文件。"
         }
       },
-      "orDrop": "或拖放到这里"
+      "orDrop": "或拖放到这里",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "刚刚",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "标签",
       "folder": "文件夹"
-    }
+    },
+    "skipToContent": "跳到内容"
   },
   "errors": {
     "folders": {
@@ -770,7 +788,8 @@
     "done": {
       "markAs": "{verb, select, read {标为已读} watched {标为已看} listened {标为已听} bought {标为已买} cooked {标为已做} played {标为已玩} other {标为已完成}}",
       "markAsNot": "{verb, select, read {标为未读} watched {标为未看} listened {标为未听} bought {标为未买} cooked {标为未做} played {标为未玩} other {标为未完成}}",
-      "state": "{verb, select, read {已读} watched {已看} listened {已听} bought {已买} cooked {已做} played {已玩} other {已完成}}"
+      "caption": "完成",
+      "marked": "{verb, select, read {已标为已读} watched {已标为已看} listened {已标为已听} bought {已标为已买} cooked {已标为已做} played {已标为已玩} other {已标为已完成}}"
     },
     "heading": {
       "addedOn": "添加于 {date}",
@@ -781,7 +800,6 @@
     "panel": {
       "addTagLabel": "添加标签",
       "addTagPlaceholder": "添加标签…",
-      "addToFolder": "添加到文件夹",
       "andMore": "等",
       "colors": "颜色",
       "copyColor": "复制 {hex}",
@@ -868,7 +886,20 @@
       },
       "file": "文件",
       "openFile": "打开文件",
-      "untitled": "文档"
+      "untitled": "文档",
+      "kinds": {
+        "archive": "压缩文件",
+        "audio": "音频文件",
+        "design": "设计文件",
+        "image": "图片",
+        "markdown": "Markdown",
+        "motion": "动画",
+        "office": "Office 文档",
+        "pdf": "PDF",
+        "source": "源代码",
+        "text": "文本文件",
+        "tokens": "设计令牌"
+      }
     },
     "fileText": {
       "loading": "正在加载文件预览"
@@ -965,7 +996,7 @@
       "deleteForever": "永久删除",
       "deselect": "取消选择",
       "favorite": "收藏",
-      "folders": "文件夹…",
+      "folders": "添加到文件夹…",
       "moreActions": "更多操作",
       "moveToTrash": "移到废纸篓",
       "openLink": "打开链接",
@@ -974,13 +1005,16 @@
       "select": "选择",
       "unarchive": "取消归档",
       "unfavorite": "取消收藏",
-      "editLink": "编辑链接…"
+      "editLink": "编辑链接…",
+      "removeFromFolder": "从此文件夹中移除"
     },
     "copyImageFailed": "无法复制图片",
     "deleteForeverDialog": {
       "confirm": "永久删除",
       "description": "这将永久删除此卡片及其文件。此操作无法撤销。",
-      "title": "要永久删除此卡片吗？"
+      "title": "要永久删除此卡片吗？",
+      "bulkTitle": "{count, plural, other {要永久删除 # 张卡片吗？}}",
+      "bulkDescription": "{count, plural, other {这将永久删除 # 张卡片及其文件。}}此操作无法撤销。"
     },
     "body": {
       "emptyNote": "空笔记",
@@ -1014,6 +1048,9 @@
       "emptyingAll": "正在清空废纸篓",
       "rateLimited": "刚才已多次清空废纸篓。请一分钟后再试。",
       "failed": "无法清空废纸篓。请重试。"
+    },
+    "trash": {
+      "retention": "废纸篓中的卡片会在 {days, plural, other {# 天}}后永久删除。"
     }
   },
   "grids": {
@@ -1113,6 +1150,11 @@
       "focus": "专注",
       "resaved": "已在 Teak 中 · 已移到最前",
       "resavedFromArchive": "已在 Teak 中 · 已从归档中移回",
+      "inTrash": "此链接在废纸篓中",
+      "restore": "恢复",
+      "restoring": "正在恢复…",
+      "restoredFromTrash": "已从废纸篓恢复 · 已移到最前",
+      "restoreFailed": "无法恢复卡片",
       "open": "打开",
       "saveLinks": "{count, plural, other {保存 # 个链接}}",
       "saveFirstLinks": "{count, plural, other {保存前 # 个链接}}"
@@ -1170,7 +1212,8 @@
       "moveToFolder": "移到文件夹…",
       "removeFromFolder": "从 {folder} 中移除",
       "moveToTrash": "移到废纸篓",
-      "cancelSelection": "取消选择"
+      "cancelSelection": "取消选择",
+      "deleteForever": "永久删除"
     },
     "tagsDialog": {
       "tagTooLong": "标签最多 {max} 个字符。",
@@ -1238,7 +1281,9 @@
       "removeQualifier": "移除{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
       "removeExcludedQualifier": "移除排除的{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
       "removeUnknownFolder": "移除 {chip}：没有名为 {folder} 的文件夹",
-      "unknownFolder": "没有名为 {folder} 的文件夹"
+      "unknownFolder": "没有名为 {folder} 的文件夹",
+      "unknownType": "没有名为 {type} 的类型",
+      "removeUnknownType": "移除 {chip}：没有这种卡片类型"
     },
     "chips": {
       "titles": {
@@ -1310,7 +1355,12 @@
       },
       "nothingToRevisit": "这里没有可回顾的内容",
       "saveAsSmartFolder": "保存为智能文件夹…",
-      "reshuffle": "重新随机"
+      "reshuffle": "重新随机",
+      "density": "密度",
+      "densities": {
+        "comfortable": "宽松",
+        "compact": "紧凑"
+      }
     },
     "dates": {
       "today": "今天",
@@ -1322,6 +1372,18 @@
       "thisYear": "今年",
       "lastYear": "去年",
       "lastWeekday": "上{day}"
+    },
+    "results": {
+      "matches": "{count, plural, other {# 张卡片匹配}}",
+      "matchesMore": "{count}+ 张卡片匹配",
+      "related": "{count, plural, other {# 张含义相关}}",
+      "hideRelated": "隐藏相关",
+      "showRelated": "显示相关",
+      "noMatchesFor": "没有与“{query}”匹配的卡片",
+      "didYouMean": "您是不是要找 <link>{suggestion}</link>？",
+      "tryRemoving": "或移除一个筛选条件：",
+      "filtersLabel": "此搜索的筛选条件",
+      "removeFilter": "移除 {label}"
     }
   },
   "commandPalette": {
@@ -1404,9 +1466,16 @@
       "search": "搜索",
       "newNote": "新建笔记",
       "uploadFiles": "上传文件",
-      "notifications": "前往通知（撤销）",
+      "recordAudio": "录制音频",
+      "notifications": "转到通知以撤销更改",
       "keyboardShortcuts": "键盘快捷键",
-      "goToSettings": "设置"
+      "goToSettings": "设置",
+      "goToTags": "标签",
+      "byTag": "带某个标签的卡片",
+      "byType": "某种类型的卡片",
+      "bySite": "来自某个网站的卡片",
+      "byFolder": "某个文件夹中的卡片",
+      "byState": "收藏、已归档、已完成或待办"
     }
   },
   "extension": {
@@ -1598,7 +1667,8 @@
         "removeTag": "无法移除标签",
         "tags": "无法更新标签",
         "other": "操作失败：{operation}"
-      }
+      },
+      "cardsPermanentlyDeleted": "{count, plural, other {已永久删除 # 张卡片}}"
     },
     "clipboard": {
       "copyingImage": "正在复制图片…",
@@ -1775,7 +1845,16 @@
     },
     "upload": {
       "partialFailure": "已上传 {successCount} / {total} 个文件。",
-      "partialFailureWithReason": "已上传 {successCount} / {total} 个文件。首个失败项：{file} — {reason}",
+      "partialFailureDetails": "已上传 {successCount} / {total} 个文件。{details}",
+      "moreFiles": "{count, plural, other {另外 # 个}}",
+      "failures": {
+        "empty": "{count, plural, other {空文件，没有可保存的内容}}：{files}。",
+        "unsupported": "{count, plural, other {Teak 无法保存此类文件}}：{files}。",
+        "tooLarge": "{count, plural, other {超过 {max}}}：{files}。",
+        "mismatch": "{count, plural, other {文件名与文件内容不符}}：{files}。",
+        "other": "{count, plural, other {无法上传}}：{files}。",
+        "otherWithReason": "{files}：{reason}"
+      },
       "skippedNote": "已跳过 {count, plural, other {# 个文件}}。一次最多可以上传 {max} 个。"
     }
   },

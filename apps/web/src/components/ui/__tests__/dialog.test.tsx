@@ -110,12 +110,14 @@ test("closing a dialog opened without a trigger returns focus to the opener", as
   expect(document.activeElement).toBe(manage);
 });
 
-test("the Close button sits inside the dialog, where the keyboard can reach it", async () => {
+test("the one Close button sits inside the dialog, where the keyboard can reach it", async () => {
   await renderOpenedFromState();
-  const close = Array.from(
-    document.querySelectorAll("[role='dialog'] button")
-  ).find((button) => button.textContent === "Close") as HTMLButtonElement;
-  expect(close).toBeDefined();
+  const closes = document.querySelectorAll('[data-slot="dialog-close"]');
+  expect(closes.length).toBe(1);
+  const close = closes[0] as HTMLButtonElement;
+  expect(close.closest("[role='dialog']")).not.toBeNull();
+  expect(close.getAttribute("aria-label")).toBe("Close");
+  expect(close.tabIndex).not.toBe(-1);
   await act(() => close.click());
   expect(document.querySelector("[role='dialog']")).toBeNull();
 });
