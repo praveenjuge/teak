@@ -33,7 +33,6 @@ type PendingConfirm =
 
 type ApiKeysTranslator = TeakTranslator<"settings.apiKeys">;
 
-/** The confirmation each destructive key action asks for. */
 export function apiKeyConfirmCopy(
   pending: PendingConfirm,
   t: ApiKeysTranslator
@@ -59,10 +58,6 @@ export function apiKeyConfirmCopy(
       };
 }
 
-/**
- * The one-time reveals after an action: a revoked or regenerated key's reveal
- * goes away, and every other new key stays on screen until the dialog closes.
- */
 export function nextRevealedKeys(
   revealed: CreatedApiKey[],
   action:

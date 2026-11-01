@@ -3,7 +3,6 @@ import TeakCore
 
 struct CardDetailView: View {
     let route: CardRoute
-    /// The library the card was opened from, which shows the notes and Undo after it closes.
     let library: LibraryModel
     @Environment(AppModel.self) private var app
     // Leaves through the router and opens links directly: reading
@@ -39,7 +38,6 @@ struct CardDetailView: View {
         .onDisappear { model?.stop() }
     }
 
-    /// A link's title is renamed in the header, as on the web.
     private var editsTitle: Bool {
         guard let card = model?.card else { return false }
         return card.type == .link && !card.deleted
@@ -100,7 +98,6 @@ struct CardDetailView: View {
             }
             .animation(.smooth, value: model.notice)
             .environment(\.openURL, OpenURLAction { url in
-                // Notes open web and mail links; anything else, like a script or a file path, is ignored.
                 guard let id = CardLinkURL.cardId(url) else {
                     return ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
                 }
@@ -167,7 +164,6 @@ struct CardDetailView: View {
         }
     }
 
-    /// Shows similar cards on Home, whichever library the card was opened from.
     private func moreLikeThis(_ card: Card) {
         router.homePath.removeAll()
         router.foldersPath.removeAll()
@@ -231,7 +227,6 @@ struct CardDetailView: View {
         }
     }
 
-    /// An iPhone's header fits four buttons; a link's Done takes Edit's place there, and Edit leads More.
     private func editsInMenu(_ card: Card) -> Bool { !isWide && card.type == .link }
 
     @ViewBuilder private func moreMenu(_ card: Card, _ model: CardDetailModel) -> some View {
@@ -280,7 +275,6 @@ struct CardDetailView: View {
         Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { moveToTrash(card, model) }
     }
 
-    /// Trashes the card and closes it, with Undo in the library's note.
     private func moveToTrash(_ card: Card, _ model: CardDetailModel) {
         run {
             guard await model.moveToTrash() else { return false }
@@ -334,14 +328,11 @@ struct CardDetailView: View {
     }
 }
 
-/// The card's title in the header. A link's can be renamed there: Rename in the title menu, and on Mac the window
-/// title. A blank title puts the old one back.
 private struct CardTitle: ViewModifier {
     let title: String
     let editable: Bool
     let save: (String) -> Void
     @State private var draft = ""
-    /// The title last sent to be saved, until the card reports it.
     @State private var sent: String?
 
     func body(content: Content) -> some View {
@@ -350,12 +341,10 @@ private struct CardTitle: ViewModifier {
                 .navigationTitle($draft)
                 .toolbarTitleMenu { RenameButton() }
                 .onAppear { draft = title }
-                // Follows a saved title unless newer typing is still waiting to be saved.
                 .onChange(of: title) { old, saved in
                     if draft == old || draft == sent { draft = saved }
                     if sent == saved { sent = nil }
                 }
-                // Saves once the title settles, however often the field reports it.
                 .task(id: draft) {
                     let typed = draft
                     guard typed != title else { return }
@@ -367,7 +356,6 @@ private struct CardTitle: ViewModifier {
                         flush(typed)
                     }
                 }
-                // Closing the card before the title settles still saves it.
                 .onDisappear { flush(draft) }
         } else {
             content.navigationTitle(title)
@@ -381,7 +369,6 @@ private struct CardTitle: ViewModifier {
     }
 }
 
-/// Edit link…: a new address for a link card. Saving refreshes its preview.
 private struct EditLinkSheet: View {
     let address: String
     let save: (String) async -> String?

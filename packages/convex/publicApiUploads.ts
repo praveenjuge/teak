@@ -97,7 +97,6 @@ export const mintPendingUpload = async (
   };
 };
 
-/** A fresh signed URL for a pending key minted earlier. */
 export const signPendingUpload = async (args: {
   fileSize: number;
   key: string;
@@ -154,7 +153,6 @@ export const finalizeUploadedCardForUser = internalMutation({
     fileSize: v.optional(v.number()),
     mimeType: v.optional(v.string()),
     notes: v.optional(v.union(v.string(), v.null())),
-    /** A Save by email attachment: its card is recorded on the receipt. */
     emailAttachment: v.optional(emailAttachmentClaimValidator),
     source: v.optional(
       v.union(clientCardSourceValidator, v.literal("api"), v.literal("email"))

@@ -32,7 +32,6 @@ const fakes = ({
   aiError?: unknown;
   dimensions?: number;
   writeError?: unknown;
-  // How many writes fail with `writeError` before the rest succeed.
   writeFailures?: number;
   ranked?: Ranked[];
   filterError?: unknown;

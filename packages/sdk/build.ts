@@ -1,6 +1,3 @@
-// Builds the npm package into dist/: a browser ESM bundle, declarations, and
-// the manifest, README and LICENSE that `npm pack ./packages/sdk/dist` ships.
-// The workspace manifest points at src/ so the monorepo uses the source.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,8 +10,6 @@ const entry = resolve(sourceRoot, "index.ts");
 const output = resolve(here, "dist");
 const typesOutput = resolve(output, "types");
 
-// SDK files land at the top of dist/types; the Convex shared modules they
-// import land under dist/types/convex with their own relative layout.
 const declarationPath = (sourceFile: string) => {
   const base = sourceFile.replace(/\.tsx?$/, ".d.ts");
   if (base.startsWith(`${sourceRoot}/`)) {
@@ -32,8 +27,6 @@ const options: ts.CompilerOptions = {
   emitDeclarationOnly: true,
   noEmitOnError: true,
   rootDir: resolve(here, ".."),
-  // Resolve Convex modules as source, not as a node_modules library, so
-  // their declarations are emitted alongside the SDK's own.
   paths: { "@teak/convex/*": [resolve(convexRoot, "*")] },
   outDir: resolve(output, "unmapped"),
   moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -42,8 +35,6 @@ const options: ts.CompilerOptions = {
   skipLibCheck: true,
 };
 
-// Declarations must resolve without the monorepo: workspace imports become
-// relative paths into dist/types, and every relative path gets `.js`.
 const publishedSpecifier = (specifier: string, fromSource: string) => {
   if (specifier.startsWith("@teak/")) {
     const resolved = ts.resolveModuleName(

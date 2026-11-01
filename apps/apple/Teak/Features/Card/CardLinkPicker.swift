@@ -2,9 +2,6 @@ import SwiftUI
 import TeakCore
 import TeakSync
 
-/// The `[[` picker for a note: while the person types after `[[`, it finds
-/// cards the way the web's `[[` menu does, never offering Trash or the note
-/// itself. Escape, deleting the `[[` or typing `]` or `|` closes it.
 @MainActor @Observable
 final class CardLinkPickerModel {
     enum Results: Equatable {
@@ -17,7 +14,6 @@ final class CardLinkPickerModel {
 
     @ObservationIgnored private let cardId: String
     @ObservationIgnored private let backend: TeakBackend
-    /// Where the `[[` the picker was closed on starts: it stays closed until that `[[` goes.
     @ObservationIgnored private var dismissedStart: Int?
     @ObservationIgnored private var search: Task<Void, Never>?
 
@@ -35,7 +31,6 @@ final class CardLinkPickerModel {
         if case .ready(let cards) = results { cards } else { [] }
     }
 
-    /// The text below the cards: loading, failed, or nothing found.
     var message: String? {
         switch results {
         case .loading: tr("native.linkPicker.searching")
@@ -54,7 +49,6 @@ final class CardLinkPickerModel {
         show(next?.start == dismissedStart ? nil : next)
     }
 
-    /// Escape: closed until this `[[` is deleted.
     func dismiss() {
         dismissedStart = open?.start
         show(nil)
@@ -68,7 +62,6 @@ final class CardLinkPickerModel {
         return CardLinks.insertingLink(in: text, replacing: open, title: card.title, id: card.id)
     }
 
-    /// The highlighted card, for Return.
     var highlightedCard: LinkedCard? {
         cards.indices.contains(highlighted) ? cards[highlighted] : nil
     }
@@ -90,7 +83,6 @@ final class CardLinkPickerModel {
         guard previous == nil || previous?.query != next.query else { return }
         search?.cancel()
         let query = next.query
-        // The last answer stays up while the next one loads, so the list doesn't flash.
         search = Task { [weak self, backend, cardId] in
             try? await Task.sleep(for: Self.debounce)
             guard !Task.isCancelled else { return }
@@ -123,7 +115,6 @@ struct LinkEditPoint: Equatable {
     }
 }
 
-/// The picker's rows, shown under the note's field.
 struct CardLinkPicker: View {
     let model: CardLinkPickerModel
     let onPick: (LinkedCard) -> Void

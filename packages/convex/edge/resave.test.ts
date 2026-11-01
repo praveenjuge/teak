@@ -47,7 +47,6 @@ const setup = async () => {
     email_verified: true,
     external_id: "owner",
   });
-  /** Cards saved earlier, as they'd be months before the re-save. */
   const seed = (cards: DevScenarioCardDef[]) =>
     t.run((ctx) =>
       insertCompletedCards(ctx, "owner", cards, { ignoreCardLimit: true })

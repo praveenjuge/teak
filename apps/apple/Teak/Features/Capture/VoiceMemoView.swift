@@ -70,7 +70,6 @@ final class VoiceRecorder {
         return item
     }
 
-    /// Stops and throws the recording away, file included.
     func cancel() {
         if let item = stop() { VoiceRecorder.discard(item) }
     }
@@ -86,11 +85,9 @@ struct VoiceMemoView: View {
     @State private var recorder = VoiceRecorder()
     @State private var isSaving = false
     @State private var failure: String?
-    /// A finished recording that hasn't uploaded yet, kept for another try.
     @State private var recording: UploadItem?
     @State private var uploadFailure: CaptureModel.Alert?
     @State private var confirmDiscard = false
-    /// The system stopped the recording while the discard dialog was up: upload it only if it's kept.
     @State private var stoppedWhileConfirming = false
 
     var body: some View {
@@ -140,7 +137,6 @@ struct VoiceMemoView: View {
                     }
                 }
             }
-            // A failed upload shows here and keeps the recording for another try.
             .alert(uploadFailure?.title ?? "", isPresented: Binding(presenting: $uploadFailure), presenting: uploadFailure) { _ in
                 Button(tr("common.tryAgain")) { upload() }
                 Button(tr("native.app.ok"), role: .cancel) {}
@@ -153,7 +149,6 @@ struct VoiceMemoView: View {
                 Text(failure ?? "")
             }
             .sensoryFeedback(.start, trigger: recorder.isRecording)
-            // Keep and save what was recorded before the system stopped it.
             .onChange(of: recorder.stoppedOnItsOwn) { _, stopped in
                 guard stopped else { return }
                 if confirmDiscard {
@@ -166,7 +161,6 @@ struct VoiceMemoView: View {
         }
         .frame(minWidth: 360, minHeight: 420)
         .interactiveDismissDisabled(recorder.isRecording || isSaving || recording != nil)
-        // A card limit shows the usual alert, with Upgrade on the Mac.
         .captureAlert()
         // Signing out or closing the Mac window can take the sheet away
         // mid-recording: stop the mic and drop the file.
@@ -218,7 +212,6 @@ struct VoiceMemoView: View {
             let failure = await capture.upload([item], showsAlert: false)
             isSaving = false
             if let failure {
-                // Trying again can't get past a card limit; the recording stays.
                 if failure.isCardLimit { capture.alert = failure } else { uploadFailure = failure }
             } else {
                 recording = nil

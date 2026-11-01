@@ -18,7 +18,6 @@ struct CardSections: View {
     var openCard: (String) -> Void = { _ in }
     var openSource: (URL) -> Void = { _ in }
     var editFolders: (() -> Void)?
-    /// Keep and Remove for Teak's suggested tags; nil shows them without either, as in Trash.
     var suggestedTags: SuggestedTagActions?
     @Environment(\.filterLibrary) private var filterLibrary
     @Environment(\.dismiss) private var dismiss
@@ -94,7 +93,6 @@ struct CardSections: View {
         }
     }
 
-    /// A link's facts lead Info: a product's price, then the site's facts, then when it was published.
     private var linkRows: [DetailRow] {
         guard card.type == .link else { return [] }
         var rows = CardSheet.linkFacts(card)
@@ -137,7 +135,6 @@ struct CardSections: View {
         }
     }
 
-    /// The facts about the card, one group: what the hero already shows (a link's site and description) is left out.
     private var info: some View {
         let exif = card.type == .image ? ExifFacts.rows(card.fileMetadata?.exif) : []
         let shownAbove: Set<String> = card.type == .link
@@ -179,7 +176,6 @@ struct CardSections: View {
         }
     }
 
-    /// "From example.com": where a saved note or quote came from.
     @ViewBuilder private var source: some View {
         if let host = CardSourceRow.host(card.sourceUrl) {
             Divider().padding(.leading, 16)
@@ -225,7 +221,6 @@ struct CardSections: View {
     }
 }
 
-/// The disclosure mark on a row that goes somewhere.
 private struct Chevron: View {
     var body: some View {
         Image(systemName: "chevron.forward")
@@ -237,13 +232,11 @@ private struct Chevron: View {
 
 private struct InfoRow<Value: View>: View {
     let label: String
-    /// A row that opens something, marked with a chevron.
     var opens = false
     @ViewBuilder let value: Value
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        // Accessibility text sizes stack the value under its label instead of squeezing both onto one line.
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 16))
@@ -281,7 +274,6 @@ struct SuggestedTagActions {
     var remove: (String) -> Void
 }
 
-/// "Suggested by Teak": tags Teak added, each with Keep and Remove, like the web's card details.
 private struct SuggestedTagRow: View {
     let tags: [String]
     let actions: SuggestedTagActions?
@@ -301,8 +293,6 @@ private struct SuggestedTagRow: View {
         }
     }
 
-    /// A dashed chip. With actions, it opens a menu to keep, look up or remove the tag, so each choice is a full-size
-    /// target; in Trash it only looks the tag up.
     @ViewBuilder private func chip(_ tag: String) -> some View {
         if let actions {
             Menu {

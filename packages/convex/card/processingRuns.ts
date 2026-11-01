@@ -1,8 +1,3 @@
-/**
- * A card's processing runs in the dispatch queue: which one is current, and
- * what follows it.
- */
-
 import { cardProcessingInstanceId } from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -10,7 +5,6 @@ import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { mergeProcessingStages, stagePending } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchSync";
 
-/** The card's current run while it still waits to be sent, or null. */
 export const pendingRunToTakeOver = async (
   ctx: MutationCtx,
   card: Doc<"cards">
@@ -85,7 +79,6 @@ export const takeSnapshotWaitingAfterRun = async (
     return null;
   }
   await patchCardWithSearchSync(ctx, card._id, {
-    // The archive-only run takes the article from the new copy too.
     processingStatus: mergeProcessingStages(card.processingStatus, {
       archive: stagePending(),
       article: stagePending(),

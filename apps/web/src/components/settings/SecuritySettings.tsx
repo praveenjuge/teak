@@ -12,7 +12,6 @@ import {
   SettingsStack,
 } from "./SettingsSection";
 
-/** The last section of Security: deleting the account, behind a dialog. */
 function DeleteAccountSection({
   onDeleteClick,
 }: {

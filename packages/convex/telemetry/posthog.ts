@@ -34,7 +34,6 @@ const capturedErrors = new WeakSet<object>();
 const readToken = (): string | undefined =>
   env.POSTHOG_PROJECT_TOKEN?.trim() || undefined;
 
-/** Whether this deployment sends backend events at all. */
 export const isBackendCaptureEnabled = (): boolean => Boolean(readToken());
 
 export const backendAppVersion = (): string | undefined =>

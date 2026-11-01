@@ -25,16 +25,11 @@ import {
 
 interface LocaleSwitch {
   locale: UiLocale;
-  /** Loads the language's catalog, then renders the app in it. */
   switchLocale: (next: UiLocale) => Promise<void>;
 }
 
 const LocaleSwitchContext = createContext<LocaleSwitch | null>(null);
 
-/**
- * The signed-in app's language. The server picks it from the cookie for the
- * first render; switching loads the new catalog and swaps it in place.
- */
 export function LocaleProvider({
   children,
   initialLocale,
@@ -85,6 +80,5 @@ export function LocaleProvider({
   );
 }
 
-/** Switching the language, for the Settings row and account sync. */
 export const useLocaleSwitch = (): LocaleSwitch | null =>
   useContext(LocaleSwitchContext);

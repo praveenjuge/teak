@@ -4,10 +4,6 @@ import { HostBridge, type ToolResult } from "../bridge";
 
 type Listener = (event: { data: unknown; source: unknown }) => void;
 
-/**
- * Connects the view's bridge to the SDK's own host side, `AppBridge`, the way
- * Claude and the MCP Apps reference host do, over an in-memory channel.
- */
 const connectToSdkHost = async () => {
   const listeners: Listener[] = [];
   const hostWindow = {

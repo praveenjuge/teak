@@ -51,13 +51,11 @@ export const normalizeAiTags = (tags: readonly string[]): string[] =>
   );
 
 export interface GeneratedMetadata {
-  /** The language the model said the content is in, when it gave a valid one. */
   aiLanguage?: string;
   aiSummary: string;
   aiTags: string[];
 }
 
-/** `aiLanguage` as a spread: absent when the model gave none. */
 const languageOf = (value: unknown): Pick<GeneratedMetadata, "aiLanguage"> => {
   const aiLanguage = normalizeAiLanguage(value);
   return aiLanguage ? { aiLanguage } : {};

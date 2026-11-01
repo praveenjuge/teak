@@ -33,7 +33,6 @@ public enum CardType: String, CaseIterable, Codable, Sendable, Identifiable, Has
         }
     }
 
-    /// The library's title for this type's favorites: "Favorite notes".
     public var favoritesTitle: String {
         switch self {
         case .text: tr("native.filters.favoriteTypes.text")
@@ -292,7 +291,6 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
     public var aiSummary: String?
     public var aiTranscript: String?
     public var metadataTitle: String?
-    /// Someone typed this title, so a refreshed preview keeps it.
     public var metadataTitleEdited: Bool?
     public var metadataDescription: String?
     public var isFavorited: Bool?
@@ -475,7 +473,6 @@ public enum WorkOSClientID {
     }
 }
 
-/// The visual styles image search knows, by their backend ids.
 public enum VisualStyle {
     public static func label(_ id: String) -> String {
         switch id {

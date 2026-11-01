@@ -51,14 +51,11 @@ const STRUCTURED_DATA_MAX_ITEMS = 8;
 
 const TRAILING_SLASH_REGEX = /\/+$/;
 
-/** The stored link preview fields categorization reads. */
 export interface CategorizationLinkPreview {
-  /** Checked with `isLinkCategory` before use. */
   categoryHint?: unknown;
   description?: string;
   finalUrl?: string;
   imageUrl?: string;
-  /** The stored scrape; read through `buildRawSelectorMap`. */
   raw?: unknown;
   rawSha256?: string;
   rawStorageKey?: string;

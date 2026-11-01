@@ -18,7 +18,6 @@ type SlashCommandId =
 const isSlashCommandId = (id: string): id is SlashCommandId =>
   Object.hasOwn(englishMessages.textEditor.slashMenu.commands, id);
 
-/** A slash command's name in the UI language; unknown commands keep theirs. */
 export const slashCommandTitle = (
   t: TeakTranslator<"textEditor">,
   item: Pick<SlashCommandSuggestionItem, "id" | "title">

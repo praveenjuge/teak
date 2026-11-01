@@ -3,7 +3,6 @@ import type { TeakSaveResponse } from "../types/messages";
 
 export type BadgeState = "error" | "none" | "saved" | "saving";
 
-/** White text passes 4.5:1 on each colour, on light and dark toolbars. */
 export const BADGES: Record<
   BadgeState,
   { color?: string; text: string; title: string }
@@ -14,13 +13,8 @@ export const BADGES: Record<
   none: { text: "", title: "Save to Teak" },
 };
 
-/** How long "!" stays before the icon returns to the page's known state. */
 export const ERROR_BADGE_MS = 4000;
 
-/**
- * Paints one tab's icon. Always per tab, so no other tab shows this state.
- * `title` replaces the state's default tooltip.
- */
 export async function setTabBadge(
   tabId: number,
   state: BadgeState,
@@ -45,12 +39,10 @@ export async function setTabBadge(
 
 export type ShortcutOutcome =
   | { badge: BadgeState; saved?: true; title: string }
-  /** `title` is shown with "!" when the browser won't open the popup. */
   | { openPopup: true; title: string };
 
 export const RATE_LIMITED_TITLE = "Too many saves. Try again in a minute.";
 
-/** What the icon shows after a shortcut save, or that the popup must open. */
 export function shortcutOutcome(result: TeakSaveResponse): ShortcutOutcome {
   switch (result.status) {
     case "saved":

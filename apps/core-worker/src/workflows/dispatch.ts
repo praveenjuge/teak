@@ -70,7 +70,6 @@ const EVENT_UUID =
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-/** The string, undefined when absent, or null when it isn't a short string. */
 const optionalString = (
   value: unknown,
   max: number

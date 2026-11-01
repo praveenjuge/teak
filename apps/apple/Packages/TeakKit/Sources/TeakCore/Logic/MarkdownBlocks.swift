@@ -16,7 +16,6 @@ public struct MarkdownListItem: Hashable, Sendable {
     public let text: String
     /// A task item's state (`- [x]` is true, `- [ ]` false); nil for a plain item.
     public let checked: Bool?
-    /// The item's line in the note, counting from 0: the line a tap on its checkbox flips.
     public let line: Int
 
     public init(depth: Int, marker: String, text: String, checked: Bool? = nil, line: Int = 0) {
@@ -28,7 +27,6 @@ public struct MarkdownListItem: Hashable, Sendable {
     }
 }
 
-/// A GFM table: a header row and body rows of inline Markdown, every row as wide as the header.
 public struct MarkdownTable: Hashable, Sendable {
     public let header: [String]
     public let rows: [[String]]
@@ -49,7 +47,6 @@ public enum MarkdownBlocks {
     nonisolated(unsafe) static let fence = /^\s{0,3}(`{3,}|~{3,})/
     nonisolated(unsafe) static let delimiterRow = /^\s{0,3}\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/
 
-    /// The note's lines, split the same way for rendering and for ticking a task.
     static func lines(_ markdown: String) -> [String] {
         markdown.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -83,7 +80,6 @@ public enum MarkdownBlocks {
         return trimmed.count >= marker.count && trimmed.allSatisfy { $0 == character }
     }
 
-    /// Whether `lines[index]` runs on as paragraph text: not blank, and not the start of another block or a table.
     static func continuesParagraph(_ lines: [String], at index: Int) -> Bool {
         !isBlank(lines[index]) && !startsBlock(lines[index]) && table(lines, at: index) == nil
     }
@@ -96,7 +92,6 @@ public enum MarkdownBlocks {
         line.prefix(while: { $0 == " " || $0 == "\t" }).count
     }
 
-    /// A row's cells, split on unescaped pipes after dropping the outer ones, as the web counts them.
     static func cells(_ line: String) -> [String] {
         var row = Substring(line.trimmingCharacters(in: .whitespaces))
         if row.hasPrefix("|") { row = row.dropFirst() }

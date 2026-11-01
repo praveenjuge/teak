@@ -10,7 +10,6 @@ import {
   readAttribute,
 } from "./html";
 
-/** The facts about a page a text-only copy keeps. */
 export interface TextOnlyPage {
   baseUrl: string;
   dir?: string;
@@ -30,7 +29,6 @@ const TEXT_BLOCKS = new Set([
   "blockquote",
   "pre",
 ]);
-/** Containers whose loose text becomes a paragraph of its own. */
 const PARAGRAPH_LIKE = new Set([
   "div",
   "section",
@@ -60,15 +58,9 @@ interface TextBlock {
   tag: string;
 }
 
-/** A readable stylesheet for text-only copies; it needs nothing fetched. */
 const TEXT_ONLY_STYLE =
   "body{max-width:42rem;margin:2rem auto;padding:0 1rem;font:16px/1.6 system-ui,sans-serif;color:#1a1a1a;background:#fff}header{color:#666;font-size:.875rem;border-bottom:1px solid #e5e5e5;margin-bottom:1.5rem}pre{white-space:pre-wrap}a{color:#0b57d0}blockquote{border-left:3px solid #ddd;margin-left:0;padding-left:1rem;color:#444}";
 
-/**
- * The page's title and body text as a minimal document: headings,
- * paragraphs, list items, quotes, preformatted text and links, under a
- * "Text-only copy" heading.
- */
 export const buildTextOnlyDocument = async (
   html: string,
   page: TextOnlyPage,

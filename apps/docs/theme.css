@@ -19,21 +19,14 @@
   --blume-border: oklch(0.278 0.033 256.848 / 0.8);
 }
 
-/*
- * Wide pages (`mode: wide`, the API Quickstart) need the room for their
- * side-by-side Try it panels, not for text: keep prose, images and code at a
- * readable measure and let only the panels span the column.
- */
 article.prose.max-w-none > :not(:has([data-operation-panel])) {
   max-width: 48rem;
 }
 
-/* Step titles are headings for their step, not secondary text. */
 [data-blume-step] > p:first-of-type {
   color: var(--blume-foreground);
 }
 
-/* Inline code reads as a chip, the same in body text, tables and callouts. */
 article.prose :where(:not(pre)) > code {
   padding: 0.1em 0.4em;
   font-size: 0.875em;
@@ -42,7 +35,6 @@ article.prose :where(:not(pre)) > code {
   border-radius: 0.4em;
 }
 
-/* The API playground's "Try it" gets a chevron instead of the browser marker. */
 details[data-playground] > summary {
   display: flex;
   gap: 0.5rem;
@@ -77,7 +69,6 @@ blume-prompt a {
   border-radius: 9999px !important;
 }
 
-/* Every docs image is a framed 16:10 shot (scripts/docs-assets); give them one edge. */
 article.prose img[data-image-component] {
   border-radius: var(--blume-radius);
   box-shadow: 0 0 0 1px var(--blume-border);

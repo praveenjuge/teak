@@ -161,8 +161,6 @@ if (articleId) {
   ).cardId;
   console.log(`added    link ${ARTICLE}`);
 }
-// The highlight needs Teak's copy of the article, a minute or so after saving.
-// Only a single card's response carries `article`.
 for (let tries = 0; ; tries += 1) {
   const card = (await teak(["cards", "get", articleId])) as Card;
   if (card.article) {

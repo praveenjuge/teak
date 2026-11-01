@@ -93,7 +93,6 @@ export const callFilesOp = async <T>(
   );
 };
 
-/** A failed op whose own reply says a retry can clear it (an R2 hiccup). */
 export const isRetryableFilesError = (error: unknown): boolean =>
   error instanceof Error &&
   (error as Error & { retryable?: boolean }).retryable === true;

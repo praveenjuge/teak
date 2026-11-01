@@ -84,7 +84,6 @@ export const resolveAddInput = async (
   return { candidate: "", raw: await readStdin() };
 };
 
-// One link and nothing else; a link followed by words is a note about it.
 const isBareUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
 
 export const addCard = async (
@@ -100,8 +99,6 @@ export const addCard = async (
   }
 ) => {
   const api = client(options);
-  // One key per `teak add`, so the client's retry after a dropped connection
-  // gets the first answer instead of saving a second card.
   const requestOptions = { idempotencyKey: `teak-cli-${randomUUID()}` };
   const cardType = options.type as CardType | undefined;
   const tags = parseTags(options.tags);

@@ -136,7 +136,6 @@ export interface InboundEmailEventArgs {
   userId: string;
 }
 
-/** Maps a Save by email outcome to its event, for an action or the outbox. */
 export const recordInboundEmailEvent = async (
   args: InboundEmailEventArgs,
   record: <Name extends ServerEventName>(

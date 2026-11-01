@@ -54,7 +54,6 @@ test("-, OR and parentheses narrow the grid, suggest, and survive a reload", asy
     screen.getByRole("button", "Remove excluding figma")
   ).toBeVisible({ timeout: 30_000 });
   await shows([PLAIN], [FIGMA]);
-  // The plain word comes back into the search box, the operator as a pill.
   await expect(search).toHaveValue("design");
   await screen.getByRole("button", "Remove excluding figma").click();
   await shows([PLAIN, FIGMA], [FONTS]);

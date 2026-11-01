@@ -10,18 +10,11 @@ import {
 export const SAVE_PAGE_COMMAND = "save-page";
 
 export interface SaveShortcutDependencies {
-  /** The address the tab shows now, or undefined once it closed. */
   currentUrl: (tabId: number) => Promise<string | undefined>;
-  /** Stops badge checks painting the tab; returns the release. */
   hold: (tabId: number) => () => void;
   openPopup: () => Promise<void>;
   paint: (tabId: number, state: BadgeState, title?: string) => Promise<void>;
-  /** Re-checks the tab once a save's own badge is done. */
   refresh: (tab: chrome.tabs.Tab) => Promise<void>;
-  /**
-   * Queues the page in the pending-save store without signing in; `tabId`
-   * is the tab whose page becomes the link's saved copy.
-   */
   save: (url: string, tabId: number) => Promise<TeakSaveResponse>;
   wait?: (ms: number) => Promise<void>;
 }
@@ -85,9 +78,7 @@ export function createSaveShortcut({
         await flashError(tab, outcome.title);
         return;
       }
-      // The pending-save store has already marked the page as saved.
       if (outcome.saved) {
-        // A tab that moved on while the page saved gets its new page's badge.
         if (checkableUrl(await currentUrl(tab.id)) !== url) {
           restore = true;
           return;

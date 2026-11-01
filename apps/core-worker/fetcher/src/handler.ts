@@ -116,7 +116,6 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
       }
       inFlight += 1;
       streams += 1;
-      // The slot is held until the body ends, not just until it starts.
       const outcome = await performStreamedHop(hopRequest, deps, () => {
         inFlight -= 1;
         streams -= 1;

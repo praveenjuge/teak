@@ -36,12 +36,6 @@ const OPENING_BRACKET: Record<string, string> = {
 const count = (text: string, character: string) =>
   text.split(character).length - 1;
 
-/**
- * A URL written inside a sentence, less the punctuation that ends the
- * sentence or closes a bracket around it: `(https://x.com/a).` is
- * `https://x.com/a`. A closing bracket the URL opened stays, as in
- * `https://en.wikipedia.org/wiki/Teak_(wood)`.
- */
 export function trimTrailingUrlPunctuation(url: string): string {
   let end = url.length;
   while (end > 0) {

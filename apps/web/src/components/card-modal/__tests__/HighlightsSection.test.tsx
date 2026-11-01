@@ -72,7 +72,6 @@ describe("Highlights in the panel", () => {
       highlight("found"),
       highlight("lost", { start: undefined, end: undefined, unanchored: true }),
     ]);
-    // One jump button, plus each item's actions button.
     expect(html.match(/<button/g)).toHaveLength(3);
     expect(html).toContain("Not found in the saved article");
   });

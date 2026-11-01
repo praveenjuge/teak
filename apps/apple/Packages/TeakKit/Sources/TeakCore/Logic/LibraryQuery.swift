@@ -1,11 +1,9 @@
 import Foundation
 
-/// The folder a library view is scoped to. A smart folder is a saved search.
 public struct FolderScope: Hashable, Sendable {
     public let id: String
     public var name: String
     public var isSmart: Bool
-    /// A smart folder's saved search, so the view knows when it lists archived cards.
     public var query: String?
 
     public init(id: String, name: String, isSmart: Bool = false, query: String? = nil) {
@@ -44,7 +42,6 @@ public enum LibrarySort: Hashable, Sendable {
 
 public struct LibraryFilters: Hashable, Sendable {
     public var favoritesOnly = false
-    /// Trash and Archive are separate views: turning one on turns the other off.
     public var trashOnly = false { didSet { if trashOnly { archivedOnly = false } } }
     public var archivedOnly = false { didSet { if archivedOnly { trashOnly = false } } }
     public var types: [CardType] = []
@@ -82,7 +79,6 @@ public struct LibraryFilters: Hashable, Sendable {
         return isHome ? tr("native.filters.home") : tr("native.filters.filtered")
     }
 
-    /// Whether the title is Home: no view, folder, type or color picked.
     var isHome: Bool { !trashOnly && folder == nil && !archivedOnly && !favoritesOnly && types.isEmpty && hue == nil }
 }
 
@@ -151,7 +147,6 @@ public enum SearchTokens {
         SearchToken(kind: .tag, value: name, label: name)
     }
 
-    /// A chip for a parsed qualifier. Tags, types and favorites keep their own kinds.
     public static func token(for qualifier: SearchQualifier, likeTitle: String? = nil) -> SearchToken {
         switch qualifier.key {
         case .tag: return tag(qualifier.value)
@@ -165,7 +160,6 @@ public enum SearchTokens {
         }
     }
 
-    /// The "More like this" chip for a card.
     public static func like(cardId: String, title: String?) -> SearchToken {
         token(for: SearchQualifier(.like, cardId), likeTitle: title)
     }
@@ -201,7 +195,6 @@ public enum SearchTokens {
         if let hue = constants.colorHueAliases[facet], let bucket = ColorHue(hue) {
             return SearchToken(kind: .hue, value: hue, label: bucket.label)
         }
-        // Without "#" only six digits read as a color, so words like "bad" and "100" stay words.
         let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
         if isHex(hex), value.hasPrefix("#") || hex.count == 6 {
             let full = (hex.count == 3 ? hex.map { "\($0)\($0)" }.joined() : hex).uppercased()
@@ -210,11 +203,6 @@ public enum SearchTokens {
         return SearchToken(kind: .keyword, value: trimmed, label: trimmed)
     }
 
-    /// Chips for committed text. Filters with a search argument of their own
-    /// (a type, favorites, Archive, Trash, a color, a style or a date) become
-    /// chips; every other word stays in one word chip, as typed, and the
-    /// backend reads it. Text with `-`, `OR` or parentheses stays whole, since
-    /// lifting a filter out of it could change what it means.
     public static func parse(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -257,7 +245,6 @@ public enum SearchTokens {
         SearchToken(kind: .keyword, value: text, label: text)
     }
 
-    /// A qualifier's chip when it has a search argument of its own.
     private static func lifted(_ qualifier: SearchQualifier) -> SearchToken? {
         switch qualifier.key {
         case .type: token(for: qualifier)
@@ -290,7 +277,6 @@ public enum SearchTokens {
                 index += length
             } else {
                 let token = classify(words[index], now: now, timeZone: timeZone)
-                // A month name beside other words ("things i may need") is a word, not a date.
                 let lifts = liftedKinds.contains(token.kind)
                     && !(token.kind == .date && !(alone && words.count == 1) && TimeSearch.isMonthName(words[index]))
                 result.append(lifts ? .token(token) : .kept(input[index].source))
@@ -300,9 +286,6 @@ public enum SearchTokens {
         return result
     }
 
-    /// A date written inside typed text, and the text around it as typed:
-    /// "figma last week" searches "figma" from last week. A lone number isn't
-    /// read as a year beside other words, and text with operators is left whole.
     public static func splitDate(_ text: String, now: Date = Date(), timeZone: TimeZone = .current)
         -> (filter: TimeFilter, rest: String)? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -327,9 +310,6 @@ public enum SearchTokens {
         return nil
     }
 
-    /// The tokens the search field suggests for typed text: the filters it
-    /// would lift out, then hints for the word being typed (filters to start or
-    /// leave out, `OR`, types and `is:` values), as the web suggests them.
     public static func suggestions(for text: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -354,7 +334,6 @@ public enum SearchTokens {
                 add(hint(suggestion))
             }
         }
-        // The start of a word like "done" offers the Show chips too.
         let last = trimmed.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
         if !operators, !last.contains(":"), last.count >= 2 {
             for (option, words) in showOptions where words.contains(where: { $0.hasPrefix(last) }) {
@@ -375,8 +354,6 @@ public enum SearchTokens {
         return SearchToken(kind: .hint, value: suggestion.insert + (suggestion.complete ? " " : ""), label: label)
     }
 
-    /// The search text after picking a hint token while `text` is typed: the
-    /// hint replaces the word being typed.
     public static func applying(_ hint: SearchToken, to text: String) -> String {
         SearchQualifiers.currentWord(text).before + hint.value
     }
@@ -417,13 +394,11 @@ public struct LibraryQuery: Hashable, Sendable {
 
     public var isTrash: Bool { effectiveFilters.trashOnly }
 
-    /// The Archive view, a search for `is:archived`, or a smart folder that saves one.
     public var isArchive: Bool {
         !isTrash && (filters.archivedOnly || parsedSearch.has(.archived)
             || filters.folder?.query.map { SearchQualifiers.parse($0).has(.archived) } == true)
     }
 
-    /// The date the typed text names, alone or beside other words.
     public func timeFilter(now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {
         SearchTokens.splitDate(text, now: now, timeZone: timeZone)?.filter
     }
@@ -437,21 +412,16 @@ public struct LibraryQuery: Hashable, Sendable {
         return effective.isHome && narrowing ? tr("native.filters.filtered") : effective.title
     }
 
-    /// The search text the backend parses, with qualifiers and tags written
-    /// the canonical way.
     public func searchText(now: Date = Date(), timeZone: TimeZone = .current) -> String? {
         searchParts(now: now, timeZone: timeZone).words
     }
 
     private var parsedSearch: ParsedSearchQuery { SearchQualifiers.parse(searchText() ?? "") }
 
-    /// Whether the search names a tag that reveals hidden cards.
     public var revealsHiddenCards: Bool { parsedSearch.tags.contains(where: HiddenTags.isHidden) }
 
-    /// The anchor of a "More like this" search.
     public var likeCardId: String? { parsedSearch.likeCardId }
 
-    /// Whether the search has words or an anchor to look up by meaning.
     public var wantsSemanticResults: Bool {
         guard !isTrash else { return false }
         let parsed = parsedSearch
@@ -478,7 +448,6 @@ public struct LibraryQuery: Hashable, Sendable {
             default: break
             }
         }
-        // Typed text goes as written; a date in it filters by date instead.
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty {
             if range == nil, let date = SearchTokens.splitDate(typed, now: now, timeZone: timeZone) {
@@ -521,8 +490,6 @@ public struct LibraryQuery: Hashable, Sendable {
         return args
     }
 
-    /// The search a smart folder saves: types, favorites and archive as
-    /// qualifiers, then the search text. Colors, styles and dates aren't saved.
     public var smartFolderQuery: String? {
         guard !isTrash else { return nil }
         let effective = effectiveFilters
@@ -534,13 +501,10 @@ public struct LibraryQuery: Hashable, Sendable {
         return query.isEmpty ? nil : query
     }
 
-    /// Whether saving a smart folder would leave filters behind, including a
-    /// date typed beside other words.
     public var smartFolderDropsFilters: Bool {
         filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) } || timeFilter() != nil
     }
 
-    /// A name for a smart folder made from this search, like the web's.
     public var suggestedSmartFolderName: String {
         let effective = effectiveFilters
         var parts = effective.types.map(\.plural)

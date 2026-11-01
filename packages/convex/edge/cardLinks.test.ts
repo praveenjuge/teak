@@ -66,7 +66,6 @@ const setup = async () => {
     return id;
   };
 
-  /** The content edit the web, API, MCP and CLI all reach. */
   const edit = async (
     cardId: Id<"cards">,
     edits: CardFieldEdit[],

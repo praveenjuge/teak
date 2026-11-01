@@ -115,7 +115,6 @@ data class SimilarAnchor(val status: String, val title: String? = null)
 
 sealed interface RefreshOutcome {
     data object Queued : RefreshOutcome
-    /** The server's reason, or null when it gave none. */
     data class Refused(val message: String?) : RefreshOutcome
 }
 

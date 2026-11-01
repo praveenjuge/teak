@@ -15,10 +15,6 @@ const ONE_PIXEL_PNG = Uint8Array.from(
   (char) => char.charCodeAt(0)
 );
 
-/**
- * The real fetcher Container's handler, with the network behind it scripted:
- * every policy check runs, only the sockets are fake.
- */
 const network = (
   routes: Record<string, () => Response>,
   dns: Record<string, string[]> = {}

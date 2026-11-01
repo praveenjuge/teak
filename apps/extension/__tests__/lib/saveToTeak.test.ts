@@ -134,7 +134,6 @@ describe("OAuth content saving", () => {
           { request }
         )
       ).toEqual({ status: "duplicate", cardId: "existing-card" });
-      // The save itself moves the card to the top: no duplicate check first.
       expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
       expect(request.mock.calls[0]?.[1]?.method).toBe("POST");
     }

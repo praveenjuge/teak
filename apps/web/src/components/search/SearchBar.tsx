@@ -195,7 +195,6 @@ export const searchFieldClassName =
 interface FilterChip {
   ariaLabel: string;
   dashed?: boolean;
-  /** Leaves these cards out: a leading minus and a muted label. */
   excluded?: boolean;
   icon: ReactNode;
   key: string;

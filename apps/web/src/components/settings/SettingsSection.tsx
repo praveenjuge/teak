@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
-/** A Settings page's heading and what the page is for. */
 export function SettingsPageIntro({
   description,
   title,
@@ -20,22 +19,16 @@ export function SettingsPageIntro({
 }
 
 interface SettingsSectionProps {
-  /** A control beside the title, such as a toggle or a short button. */
   action?: ReactNode;
   children?: ReactNode;
   className?: string;
   description?: ReactNode;
   footer?: ReactNode;
-  /** The element id a deep link (`#id`) scrolls to; also names the region. */
   id: string;
   title?: string;
   tone?: "default" | "destructive";
 }
 
-/**
- * One group of settings on a page: a title and description, then its
- * controls. Groups sit on the page itself, set apart by space.
- */
 export function SettingsSection({
   action,
   children,
@@ -85,7 +78,6 @@ export function SettingsSection({
   );
 }
 
-/** A page's sections, spaced the same on every page. */
 export function SettingsStack({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-10">{children}</div>;
 }

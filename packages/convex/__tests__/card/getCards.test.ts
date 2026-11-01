@@ -43,8 +43,6 @@ const buildQuery = (cards: any[] = []) =>
     }),
   }) as any;
 
-// Applies a read's equality conditions, so reads of different index ranges
-// see different cards.
 const indexedQuery = (cards: any[]) => ({
   withIndex: (_index: string, range?: (q: any) => unknown) => {
     const conditions: [string, unknown][] = [];

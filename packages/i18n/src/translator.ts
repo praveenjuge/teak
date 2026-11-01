@@ -12,7 +12,6 @@ import {
   type PartialMessages,
 } from "./messages";
 
-/** A namespace in the catalog, such as `"common"` or `"cardModal.menu"`. */
 export type TeakNamespace = NamespaceKeys<Messages, NestedKeyOf<Messages>>;
 
 interface Catalog {
@@ -30,10 +29,6 @@ const fillFrom = (fallback: Catalog, catalog: Catalog): Catalog =>
     })
   );
 
-/**
- * A language's catalog with English filling any key it lacks, so a missing
- * translation shows English rather than a key name.
- */
 export const withEnglishFallback = (
   messages: PartialMessages | Messages
 ): Messages =>
@@ -52,7 +47,6 @@ const reportError = (error: IntlError) => {
   }
 };
 
-/** A translator outside React: background scripts and plain helpers. */
 export const createTeakTranslator = <const N extends TeakNamespace = never>(
   locale: UiLocale,
   messages: Messages,

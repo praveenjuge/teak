@@ -26,7 +26,6 @@ import javax.inject.Inject
 
 enum class DeleteStep { None, Warning, Confirm }
 
-/** What the last language change in Settings did. */
 sealed interface LanguageNotice {
     /** Saved; Undo switches back to [undoTo]. */
     data class Changed(val undoTo: String) : LanguageNotice

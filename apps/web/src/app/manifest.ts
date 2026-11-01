@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
 
-/** The installed web app, and the share sheet target it adds where supported. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Teak",

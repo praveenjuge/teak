@@ -1,10 +1,8 @@
 import SwiftUI
 import TeakCore
 
-/// What the open card offers the menu bar (Mac) and the iPad's command menu.
 struct CardCommands {
     let archived: Bool
-    /// A link's done verb ("read", "watched"…) and whether it's done; nil for other cards.
     let done: (verb: String, isDone: Bool)?
     let toggleArchive: () -> Void
     let toggleDone: () -> Void
@@ -52,7 +50,6 @@ struct TeakCommands: Commands {
             Button(tr("apple.commands.refreshLibrary")) { Task { await services.home.refresh() } }
                 .keyboardShortcut("r")
                 .disabled(!signedIn || !services.app.isOnline)
-            // Selecting acts on Home's cards, so it shows them.
             Button(tr("apple.commands.selectCards")) {
                 showHome()
                 services.home.beginSelection()
@@ -106,8 +103,6 @@ struct TeakCommands: Commands {
         }
     }
 
-    /// The main window's sheets show these, so on the Mac it comes forward
-    /// (or opens again) first.
     private func showHome() {
         services.router.homePath = []
         services.router.tab = .home

@@ -31,7 +31,6 @@ public enum TimeSearch {
     ]
     private static let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
-    /// Whether `word` is a bare month name, which reads as a date only when it is the whole search.
     public static func isMonthName(_ word: String) -> Bool {
         fullMonths.contains(word.lowercased())
     }
@@ -160,7 +159,6 @@ public enum TimeSearch {
             return month(calendar.component(.year, from: today), index)
         }
         if let m = query.wholeMatch(of: /([0-9]{4})/) {
-            // A number far from now ("1234", "4096") is a word, not a year.
             let year = Int(m.1)!
             guard (1900...calendar.component(.year, from: today) + 10).contains(year),
                   let start = validDate(year: year, month: 1, day: 1, calendar: calendar) else { return nil }

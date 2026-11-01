@@ -123,7 +123,6 @@ export const gunzipBase64 = async (value: string): Promise<string> => {
   ).text();
 };
 
-/** A refresh fetches the page again rather than reuse the day's copy. */
 export const fetchLinkPageForCard = (job: CardJob, url: string) =>
   job.deps.filesOp<FilesLinkPageResult>({
     op: "fetch-link-page",
@@ -137,7 +136,6 @@ export const fetchLinkPageForCard = (job: CardJob, url: string) =>
 export const REMOTE_ASSET_RETRYABLE_PREFIX =
   "workflow:linkMetadata:remoteAsset:retryable:";
 
-// Rate limits and server errors pass; a 404 or an image that isn't one won't.
 const isTransientAssetMiss = (reason: string, status?: number) =>
   reason === "fetch_failed" ||
   (reason === "http_error" &&
@@ -166,7 +164,6 @@ const storeRemoteAsset = async (
     fallbackContentType?: string;
     kind: FilesRemoteAssetKind;
     pageUrl: string;
-    /** Throw a retryable error, not null, when the host may answer later. */
     retryTransient?: boolean;
     role: string;
   }

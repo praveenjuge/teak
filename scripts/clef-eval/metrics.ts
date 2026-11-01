@@ -3,30 +3,20 @@ export const THRESHOLDS = [
 ];
 
 export interface ChoiceOutcome {
-  /** Clef's top answer and its probability. */
   choice: string;
   label: string;
   probability: number;
-  /** What the rules answer today, which Clef only replaces when sure. */
   rules: string;
 }
 
 export interface ThresholdRow {
-  /** Final answers (Clef's or the rules') that match the label. */
   accuracy: number;
   changed: number;
-  /** Changes among the items the rules got wrong. */
   coverage: number;
-  /** Changes that were right. */
   precision: number;
   threshold: number;
 }
 
-/**
- * For each threshold: how often Clef's change is right, how many of the
- * rules' mistakes it fixes, and the accuracy of the answers users would see.
- * `never` lists choices Clef may not change to (link category's `other`).
- */
 export const choiceRows = (
   outcomes: readonly ChoiceOutcome[],
   never: readonly string[] = []
@@ -72,7 +62,6 @@ export interface StyleRow {
   threshold: number;
 }
 
-/** Micro precision, recall and F1 of the top `cap` styles over a threshold. */
 export const styleRows = (
   outcomes: readonly StyleOutcome[],
   cap = 4
@@ -114,10 +103,6 @@ export interface StyleBreakdownRow {
   style: string;
 }
 
-/**
- * Precision and recall per style at one threshold, after the same top-`cap`
- * cut as `styleRows`, so one weak style can't hide in the overall numbers.
- */
 export const styleBreakdown = (
   outcomes: readonly StyleOutcome[],
   threshold: number,
@@ -165,7 +150,6 @@ export const styleBreakdown = (
     .sort((left, right) => left.style.localeCompare(right.style));
 };
 
-/** nDCG@k of an order against graded relevance (missing ids count as 0). */
 export const ndcgAt = (
   order: readonly string[],
   relevance: Readonly<Record<string, number>>,

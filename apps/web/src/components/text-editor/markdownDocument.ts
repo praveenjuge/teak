@@ -24,8 +24,6 @@ import { Marked, type Token, type Tokens, type TokensList } from "marked";
 import { CardLinkNode } from "./CardLinkNode";
 import { LiteralMarkdown } from "./LiteralMarkdown";
 
-/** The editor only supports top-level tables, so only the document holds
- * them: an insert or paste anywhere else lands beside the block instead. */
 const TopLevelDocument = Node.create({
   name: "doc",
   topNode: true,
@@ -69,7 +67,6 @@ export function documentExtensions({
   ];
 }
 
-/** Cells in one row of a GFM table's source, split on unescaped pipes. */
 const tableRowCellCount = (line: string) =>
   line
     .trim()
@@ -77,11 +74,6 @@ const tableRowCellCount = (line: string) =>
     .replace(/(?<!\\)\|$/u, "")
     .split(/(?<!\\)\|/u).length;
 
-/**
- * A table the editor can show and write back unchanged: top level, no column
- * alignment, and the same number of cells in every row. Anything else stays
- * literal Markdown.
- */
 function tableMeaning(table: Tokens.Table, nested: boolean): unknown[] {
   if (nested) {
     throw new Error("Nested table");

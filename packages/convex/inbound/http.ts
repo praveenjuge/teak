@@ -122,10 +122,6 @@ const cutText = (value: string, max: number): string => {
 // Up to two suffixes, so a compound format like `.tokens.json` survives.
 const FILE_EXTENSION_REGEX = /(?:\.[^.\s]{1,16}){1,2}$/u;
 
-/**
- * A long file name is cut to what uploads accept, before its extension,
- * which says its format.
- */
 const cutFileName = (fileName: string): string => {
   const name = fileName.trim();
   if (name.length <= MAX_FILE_NAME_LENGTH) {
@@ -150,12 +146,10 @@ interface InboundEmail {
   from: string;
   html: string | null;
   messageId: string | null;
-  /** The Subject header. */
   subjectLine: string;
   text: string | null;
 }
 
-/** The fields Convex reads; anything else the worker sends is ignored. */
 export const parseInboundEmail = (value: unknown): InboundEmail | null => {
   if (!(isRecord(value) && value.v === 1 && typeof value.from === "string")) {
     return null;
@@ -287,7 +281,6 @@ export const inboundEmail = httpAction(async (ctx, request) => {
   }
 });
 
-/** Why a finalize that failed for good drops its attachment, if it does. */
 const dropReasonFor = (
   code: string | undefined
 ): "format" | "limit" | "size" | null => {

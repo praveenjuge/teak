@@ -5,10 +5,8 @@
  * card's files together or not at all.
  */
 
-/** Path of the getting-started files among the Worker's static assets. */
 export const FILES_ONBOARDING_ASSET_PATH = "/onboarding/";
 
-/** At most this many files in one call. */
 export const FILES_ONBOARDING_MAX_FILES = 32;
 
 export interface FilesOnboardingFile {

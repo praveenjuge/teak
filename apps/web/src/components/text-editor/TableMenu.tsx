@@ -22,30 +22,20 @@ import {
 const BUTTON_SIZE = 28;
 const INSET = 4;
 
-/** The element ProseMirror renders for the table at `pos`. */
 const tableElement = (editor: Editor, pos: number): HTMLElement | null => {
   const dom = editor.view.nodeDOM(pos);
   return dom instanceof HTMLElement ? dom : null;
 };
 
-/**
- * The ⋯ button at a table's top-right, shown while a cell has the cursor or
- * the pointer is over the table. Alt+F10 focuses it from a cell, and closing
- * its menu returns focus to the cell.
- */
 export function TableMenu({ editor }: { editor: Editor }) {
   const t = useTranslations("textEditor");
   const [focusedTable, setFocusedTable] = useState<HTMLElement | null>(null);
   const [hoveredTable, setHoveredTable] = useState<HTMLElement | null>(null);
   const [overButton, setOverButton] = useState(false);
-  // Alt+F10 moves focus to the button, which blurs the editor; the button
-  // stays while it has focus.
   const [buttonFocused, setButtonFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const [, setRevision] = useState(0);
   const button = useRef<HTMLButtonElement>(null);
-  // Moving the pointer from the table onto the button, or opening the menu,
-  // keeps the table the button belongs to.
   const lastTable = useRef<HTMLElement | null>(null);
   const current = focusedTable ?? hoveredTable;
   if (current) {

@@ -6,7 +6,6 @@ enum AppTab: Hashable {
     case home, add, folders, settings, tags
 }
 
-/// A page in iPhone's Folders tab: a folder's cards, or a card opened from one.
 enum FoldersRoute: Hashable {
     case folder(String)
     case card(CardRoute)
@@ -36,7 +35,6 @@ final class AppRouter {
         let text: String
     }
 
-    /// Back to Home with nothing open, for the next person to sign in.
     func reset() {
         tab = .home
         homePath = []
@@ -56,7 +54,6 @@ final class AppRouter {
         isComposing = true
     }
 
-    /// Opens a card in the tab it was chosen from: iPhone's Folders tab keeps its own stack.
     func open(_ route: CardRoute) {
         if tab == .folders {
             foldersPath.append(.card(route))
@@ -66,7 +63,6 @@ final class AppRouter {
         }
     }
 
-    /// Leaves a card that was deleted, archived or moved away from.
     func close(_ id: String) {
         homePath.removeAll { $0.id == id }
         foldersPath.removeAll { route in
@@ -74,11 +70,8 @@ final class AppRouter {
         }
     }
 
-    /// A link that needs the library, held until the app knows who's signed in.
     private var pendingLink: TeakLink?
 
-    /// Follows a `teak://` link. Signed out, the app stays on the welcome
-    /// screen and a link into the library is dropped.
     func handle(_ url: URL, phase: AppPhase) {
         switch TeakLink(url) {
         case let .save(text): saveRequest = SaveRequest(text: text)
@@ -90,7 +83,6 @@ final class AppRouter {
         }
     }
 
-    /// Opens a held link once the library shows, or drops it when no one is signed in.
     func follow(_ phase: AppPhase) {
         guard let link = pendingLink else { return }
         switch phase {

@@ -10,7 +10,6 @@ import {
 const PAGE_URL = "https://site.example/blog/post";
 const ARCHIVE_KEY = "users/u1/cards/c1/page-archive/r1-archive.html";
 
-/** `n` distinct sentences of ten words each. */
 const sentences = (count: number, from = 0) =>
   Array.from(
     { length: count },
@@ -21,7 +20,6 @@ const sentences = (count: number, from = 0) =>
 const pngDataUri = (seed: string) =>
   `data:image/png;base64,${btoa(`PNG-${seed}-`.repeat(40))}`;
 
-/** Each image "encodes" to its first 16 bytes, so outputs stay distinct. */
 const encodeImage: EncodeArticleImage = ({ body }) =>
   Promise.resolve(body.slice(0, 16));
 
@@ -118,7 +116,6 @@ console.log(answer);</code></pre>
     }
     expect(result.markdown).toContain("- [x] Pack the tent");
     expect(result.markdown).toContain("- [ ] Buy the stove");
-    // An icon font's private-use glyphs in the page stay as they are.
     expect(result.markdown).toContain("- \uE000 \uE001 Check the map");
     expect(result.markdown).not.toMatch(/teaktask|search/u);
   });
@@ -142,7 +139,6 @@ console.log(answer);</code></pre>
       '![A quiet cat](teak-image:0 "The \\"first\\" cat")'
     );
     expect(result.markdown).toContain("![](teak-image:1)");
-    // The same image again is the same reference.
     expect(result.markdown).toContain("![again](teak-image:0)");
     expect(result.markdown).not.toContain("remote");
     expect(result.markdown).not.toContain("svg");
@@ -179,7 +175,6 @@ console.log(answer);</code></pre>
     if (result.kind !== "article") {
       throw new Error("expected an article");
     }
-    // Twenty kept, one of them refused by the encoder.
     expect(result.images).toHaveLength(19);
     expect(result.markdown).not.toContain("![i3]");
     expect(result.markdown).not.toContain("![i20]");
@@ -248,7 +243,6 @@ console.log(answer);</code></pre>
   });
 
   test("Japanese text counts its words without spaces between them", async () => {
-    // A page first saved as Shift-JIS reaches the archive already decoded.
     const japanese =
       "読書は心を豊かにし、新しい考えを与えてくれる大切な習慣です。".repeat(30);
     const result = await extractArticle(
@@ -263,7 +257,6 @@ console.log(answer);</code></pre>
     }
     expect(result.lang).toBe("ja");
     expect(result.markdown).toContain("読書は心を豊かにし");
-    // Hundreds of words, though the text has no spaces at all.
     expect(result.wordCount).toBeGreaterThan(500);
   });
 

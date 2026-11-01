@@ -45,7 +45,6 @@ object StagingArea {
     internal fun slotOf(path: String): File? = File(path).parentFile?.takeIf { it.parentFile?.name == DIRECTORY }
 }
 
-/** A file that wasn't staged, and why, in the app's language. */
 data class SkippedFile(val name: String, val reasonText: UiText) {
     companion object {
         fun tooLarge(name: String) = SkippedFile(name, UiText.of("native.errors.fileTooLargeSkipped"))
@@ -61,7 +60,6 @@ data class UploadStatus(
     val fileName: String,
     val state: State,
     val progress: Float,
-    /** Why the upload failed, in the app's language where Teak has words for it. */
     val errorText: UiText?,
     val errorCode: String?,
 ) {
@@ -248,7 +246,6 @@ class WorkManagerUploadRepository @Inject constructor(
     }
 }
 
-/** Copies up to [limit] bytes and returns how many it copied. */
 private fun InputStream.copyAtMost(output: OutputStream, limit: Long): Long {
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
     var copied = 0L

@@ -11,7 +11,6 @@ export const AUDIENCE_SLUGS = [
 export type AudienceSlug = (typeof AUDIENCE_SLUGS)[number];
 
 export interface AudienceFeature {
-  /** Text in backticks renders as inline code. */
   description: string;
   /** A Lucide icon name, rendered decoratively by blume's Icon. */
   icon: string;
@@ -19,7 +18,6 @@ export interface AudienceFeature {
 }
 
 export interface AudienceFaq {
-  /** Text in backticks renders as inline code; JSON-LD gets plain text. */
   answer: string;
   question: string;
 }
@@ -31,14 +29,11 @@ export interface AudiencePage {
   faqs: AudienceFaq[];
   features: AudienceFeature[];
   featuresTitle: string;
-  /** The page's guide in the docs, linked from the closing call to action. */
   guide: { href: string; label: string };
   h1: string;
   intro: string;
-  /** The link text on the homepage and in the footer. */
   navLabel: string;
   slug: AudienceSlug;
-  /** One line under the link on the homepage. */
   summary: string;
   /** Meta title without the " | Teak" suffix the layout adds. */
   title: string;
@@ -442,7 +437,6 @@ export interface TextSegment {
   text: string;
 }
 
-/** Splits copy on backticks into plain text and inline code segments. */
 export function splitInlineCode(text: string): TextSegment[] {
   return text
     .split("`")
@@ -450,7 +444,6 @@ export function splitInlineCode(text: string): TextSegment[] {
     .filter((segment) => segment.text.length > 0);
 }
 
-/** Copy as plain text, for meta tags and structured data. */
 export function toPlainText(text: string): string {
   return text.replaceAll("`", "");
 }
@@ -459,7 +452,6 @@ export function audiencePageUrl(slug: AudienceSlug): string {
   return `${SITE_URL}/${slug}`;
 }
 
-/** The page, breadcrumb and FAQ structured data for an audience page. */
 export function buildAudiencePageSchemas(page: AudiencePage) {
   const url = audiencePageUrl(page.slug);
 

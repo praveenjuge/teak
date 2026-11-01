@@ -28,13 +28,8 @@ import {
   readZipEntry,
 } from "./zip";
 
-/** A CSV import whose header names no url column (`IMPORT_FAILURE`). */
 export const INVALID_MISSING_URL_COLUMN = `invalid_${IMPORT_FAILURE.MISSING_URL_COLUMN}`;
 
-/**
- * The import's failure class for an `INVALID_INPUT` answer from
- * `index-import-source`, whose message is the error the op threw.
- */
 export function importIndexFailureClass(message: string): string {
   if (message === INVALID_MISSING_URL_COLUMN) {
     return IMPORT_FAILURE.MISSING_URL_COLUMN;

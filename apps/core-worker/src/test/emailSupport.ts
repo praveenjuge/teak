@@ -1,13 +1,9 @@
 import { readFileSync } from "node:fs";
 import type { Deps, EmailEnv, InboundMessage } from "../email/types";
 
-// Test helpers: .eml fixtures as Cloudflare would hand them over, and a fake
-// network that records every request.
-
 export const fixture = (name: string): string =>
   readFileSync(new URL(`../email/fixtures/${name}`, import.meta.url), "utf8");
 
-/** The message's top-level headers, folded lines merged, as a Headers. */
 export const headersOf = (eml: string): Headers => {
   const block = eml.split(/\r?\n\r?\n/, 1)[0] ?? "";
   const headers = new Headers();
@@ -74,7 +70,6 @@ const recordedBody = (body: RequestInit["body"]): unknown => {
   return body instanceof Uint8Array ? body : null;
 };
 
-/** A fake network: `respond` answers each request, in order. */
 export const fakeDeps = (
   respond: (
     request: RecordedRequest,

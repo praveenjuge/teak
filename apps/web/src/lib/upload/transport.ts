@@ -76,11 +76,6 @@ export const getUploadEtag = (
   return entry?.[1];
 };
 
-/**
- * Runs `upload` up to three times, retrying a network error, a timeout or a
- * 408, 429 or 5xx response. Each attempt gets its own signal, which aborts
- * when `signal` does or when the attempt passes `timeoutMs`.
- */
 export async function uploadWithTransientRetry(
   upload: (attemptSignal: AbortSignal) => Promise<UploadResponse>,
   signal: AbortSignal,

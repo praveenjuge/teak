@@ -6,15 +6,9 @@ import {
 import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import { ObjectWriteBlockedError } from "../../deletionGate";
 
-// A podcast episode's audio, streamed from its host into a temporary R2
-// object for transcription. Every hop goes through `safeFetch` (each one
-// checked, connections pinned). Only audio, or an MP4 episode, up to the
-// 100 MB upload cap; nothing longer is read past the cap.
-
 /** Tracking redirects stack up in front of episodes; each hop is checked. */
 export const EPISODE_MAX_REDIRECTS = 8;
 const PART_BYTES = 8 * 1024 * 1024;
-/** The whole download, body included. */
 export const EPISODE_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
@@ -25,11 +19,9 @@ export type EpisodeDownload =
 export interface EpisodeDownloadDeps {
   pinnedFetch: PinnedFetch;
   resolveDns: DnsResolver;
-  /** Tests shorten the whole download's time limit. */
   timeoutMs?: number;
 }
 
-/** `audio/*` or `video/mp4`, without parameters; anything else is refused. */
 export const episodeContentType = (header: string | null): string | null => {
   const type = header?.split(";")[0]?.trim().toLowerCase();
   if (!type) {
@@ -41,10 +33,6 @@ export const episodeContentType = (header: string | null): string | null => {
 const cancel = (response: Response) =>
   response.body?.cancel().catch(() => undefined);
 
-/**
- * Downloads `url` into `key`. Never leaves a partial object: a body over the
- * cap or a broken stream aborts the upload.
- */
 export const downloadEpisodeToR2 = async (
   bucket: R2Bucket,
   key: string,
@@ -92,7 +80,6 @@ export const downloadEpisodeToR2 = async (
     });
   } catch (error) {
     await cancel(response);
-    // The key is fenced: its account or card is being deleted.
     if (error instanceof ObjectWriteBlockedError) {
       return { reason: "blocked", stored: false };
     }

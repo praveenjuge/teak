@@ -52,7 +52,6 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const ALLOWED_PORTS = new Set(["", "80", "443"]);
 const MAX_REDIRECTS = 5;
 export const SAFE_FETCH_TIMEOUT_MS = 30_000;
-/** The longest a safeFetch can take: every hop it may follow, each to its timeout. */
 export const SAFE_FETCH_MAX_DURATION_MS =
   (MAX_REDIRECTS + 1) * SAFE_FETCH_TIMEOUT_MS;
 
@@ -171,8 +170,8 @@ const BLOCKED_IPV6: Cidr[] = [
   cidr("ff00::", 8, 6), // multicast
 ];
 
-const IPV4_MAPPED_PREFIX = cidr("::ffff:0:0", 96, 6); // ::ffff:0:0/96
-const IPV4_TRANSLATED_PREFIX = cidr("64:ff9b::", 96, 6); // 64:ff9b::/96
+const IPV4_MAPPED_PREFIX = cidr("::ffff:0:0", 96, 6);
+const IPV4_TRANSLATED_PREFIX = cidr("64:ff9b::", 96, 6);
 
 const inRange = (value: Bytes, range: Cidr): boolean => {
   if (value.length !== range.base.length) {
@@ -214,10 +213,6 @@ export const detectIpVersion = (host: string): 0 | 4 | 6 => {
   return parseIpv4ToBytes(host) === null ? 0 : 4;
 };
 
-/**
- * Returns true when the given IP literal points at a non-public destination
- * that server-side fetches must never reach.
- */
 export const isBlockedIp = (ip: string): boolean => {
   const version = detectIpVersion(ip);
   if (version === 4) {
@@ -246,11 +241,6 @@ export const isBlockedIp = (ip: string): boolean => {
   return true;
 };
 
-/**
- * Validates the structural properties of a URL (scheme, credentials, port).
- * Throws {@link SsrfError} when the URL violates the outbound policy. Returns
- * the parsed {@link URL} on success.
- */
 export const assertUrlStructureSafe = (rawUrl: string): URL => {
   let parsed: URL;
   try {

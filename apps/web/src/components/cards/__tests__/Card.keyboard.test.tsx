@@ -65,7 +65,6 @@ describe("Card keyboard access", () => {
     expect(document.activeElement).toBe(card);
   });
 
-  // Bug 01: the editor saves `<`, `>` and `&` as entities.
   test("is named after its text as typed, not its entities", async () => {
     const card = await renderCard({
       card: textCard({ content: "3 &lt; 5 &amp; &gt; quote" }),
@@ -114,7 +113,6 @@ describe("Card keyboard access", () => {
     }
   );
 
-  // Bug 19: Copy text copied the raw `[[Title|teak:<id>]]` token.
   test("copies a card link in the note as its title", async () => {
     const onCopyImage = mock();
     const container = document.createElement("div");
@@ -235,8 +233,6 @@ describe("Card menu shortcuts", () => {
     });
   };
 
-  // Bug: a right-click menu listed F, T, E, X and Delete, but pressing them
-  // while it was open did nothing.
   test.each([
     ["f", "onToggleFavorite", ["card_123"]],
     ["t", "onAddTags", ["card_123"]],

@@ -31,7 +31,6 @@ const abortUpload = async (env: FilesOpsEnv, key: string, uploadId: string) => {
   }
 };
 
-/** Convex starts the retention scan and continues it in bursts. */
 export const startIdempotencyCleanup = (convex: ConvexRpc) =>
   convex.mutation(internal.operationalRetention.startIdempotencyCleanup, {});
 
@@ -44,11 +43,6 @@ export const cleanUpSearchCaches = async (convex: ConvexRpc) => ({
   ),
 });
 
-/**
- * Aborts the multipart upload of every import whose upload window passed,
- * then fails the job and queues its source for deletion. A job whose abort
- * fails stays for the next hour, and the run reports it.
- */
 export const expireImportUploads = async (
   env: FilesOpsEnv,
   convex: ConvexRpc

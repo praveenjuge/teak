@@ -8,7 +8,6 @@ import { SidebarToggle } from "@/components/sidebar";
 import { settingsSectionForPath } from "@/lib/settingsSections";
 import { PageHeader, PageTitle } from "@/screens";
 
-/** Settings' page header; a Settings page shows where it sits under it. */
 export function SettingsHeader() {
   const t = useTranslations("settings");
   const section = settingsSectionForPath(usePathname());

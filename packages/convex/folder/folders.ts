@@ -148,7 +148,6 @@ const assertNameAvailable = async (
   exceptId?: Id<"folders">
 ) => {
   const nameKey = folderNameKey(name);
-  // Folders being deleted don't count toward the limit, so read past them.
   for await (const folder of ctx.db
     .query("folders")
     .withIndex("by_userId_and_nameKey", (q) =>

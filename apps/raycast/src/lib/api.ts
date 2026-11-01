@@ -63,13 +63,11 @@ export type {
 } from "./apiParsers";
 
 export interface CardSearchInput {
-  /** Archived cards to list; the API leaves them out by default. */
   archived?: "exclude" | "include" | "only";
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favorited?: boolean;
-  /** A folder id; a smart folder lists the cards its search finds. */
   folder?: string;
   hex?: string[];
   hue?: string[];
@@ -77,7 +75,6 @@ export interface CardSearchInput {
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
   shuffleSeed?: number;
-  /** A card id: only the cards closest to it in meaning. */
   similarTo?: string;
   sort?: RaycastSort;
   style?: string[];
@@ -86,7 +83,6 @@ export interface CardSearchInput {
   type?: RaycastCardType;
 }
 
-// Raycast shows processing state, so card lists ask for it too.
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
 export type { CreateCardInput, UpdateCardInput } from "teak-sdk";
@@ -189,8 +185,6 @@ const tokenProviderFor = (auth: AuthMode): TokenProvider => {
       }
       return accessToken;
     },
-    // Only an interactive OAuth session signs in again after a 401; an API
-    // key or a silent command reports the 401.
     onUnauthorized: (): Promise<string | null> | null =>
       source === "oauth" && auth === "interactive"
         ? reauthorizeTeak().catch(throwDiscoveryAsNetwork)
@@ -221,7 +215,6 @@ const toRaycastError = (error: unknown): unknown => {
   if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
     return new RaycastApiError("NETWORK_ERROR");
   }
-  // A non-JSON error page (an edge 429, say) still maps by its status.
   if (error.code === "PARSE_ERROR" && (error.status ?? 0) < 400) {
     return new RaycastApiError("REQUEST_FAILED", error.status);
   }
@@ -235,8 +228,6 @@ const toRaycastError = (error: unknown): unknown => {
   return new RaycastApiError(code, error.status);
 };
 
-// Each call gets its own client because the auth mode decides how the token
-// is found and whether a 401 signs in again.
 const withClient = async <T>(
   auth: AuthMode,
   call: (client: TeakClient) => Promise<T>,
@@ -288,7 +279,6 @@ export const searchCards = (
     ),
   );
 
-/** Whether any card is tagged `secret` or `hidden`, and so left out of lists. */
 export const hasHiddenCards = async (auth: AuthMode): Promise<boolean> => {
   const pages = await Promise.all(
     HIDDEN_TAGS.map((tag) => searchCards({ limit: 1, tag }, auth)),
@@ -362,7 +352,6 @@ export const setCardDone = (
     parseRaycastCard(await client.cards.setDone(requireCardId(cardId), done)),
   );
 
-/** Queues a refresh of the summary, tags and link preview; it finishes in the background. */
 export const refreshCard = async (
   cardId: string,
   auth: AuthMode,
@@ -528,7 +517,6 @@ export const createSmartFolder = (
   withClient(auth, async (client) =>
     parseFolder(await client.folders.create({ ...input, kind: "smart" })),
   ).catch((error: unknown) => {
-    // A 409 here is a folder that already has this name.
     throw error instanceof RaycastApiError && error.status === 409
       ? new RaycastApiError("FOLDER_EXISTS", 409)
       : error;

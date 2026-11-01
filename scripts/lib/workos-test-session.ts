@@ -26,16 +26,11 @@ export const WORKOS_SESSION_COOKIE_NAME = "wos-session";
 export const TEST_SESSION_EMAIL_DOMAIN = "example.org";
 
 export interface WorkosTestSessionOptions {
-  /**
-   * Sign in as this existing account, such as this checkout's seeded dev
-   * account, instead of creating a throwaway user. Cleanup then does nothing.
-   */
   account?: { email: string; password: string };
   apiKey: string;
   clientId: string;
   cookiePassword: string;
   label?: string;
-  /** The web's NEXT_PUBLIC_WORKOS_REDIRECT_URI; decides the Secure flag. */
   redirectUri: string;
 }
 
@@ -52,7 +47,6 @@ export interface WorkosTestSessionCookie {
 }
 
 export interface WorkosTestSession {
-  /** Deletes the WorkOS user. Safe to call more than once. */
   cleanup: () => Promise<void>;
   cookie: WorkosTestSessionCookie;
   email: string;

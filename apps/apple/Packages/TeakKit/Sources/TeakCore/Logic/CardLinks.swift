@@ -19,7 +19,6 @@ public enum CardLinks {
     private static let listItemRegex = regex(#"^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)"#)
     private static let codeIndent = 4
 
-    /// The patterns are constants that the tests run, so a bad one is a programming error.
     private static func regex(_ pattern: String) -> NSRegularExpression {
         do {
             return try NSRegularExpression(pattern: pattern)
@@ -38,24 +37,20 @@ public enum CardLinks {
         public let id: String
     }
 
-    /// Whether `markdown` might hold a link token: a cheap check before parsing.
     public static func mayHaveCardLinks(_ markdown: String?) -> Bool {
         markdown?.contains("|teak:") == true
     }
 
-    /// A card title made fit to store in a token: one line, 200 units at most.
     public static func tokenTitle(_ title: String) -> String {
         let safe = replace(spacesRegex, in: replace(titleUnsafeRegex, in: title, with: " "), with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return truncate(safe.isEmpty ? fallbackTitle : safe, max: titleMaxLength)
     }
 
-    /// A token that always matches the parse pattern, whatever the title.
     public static func formatToken(title: String, id: String) -> String {
         "[[\(tokenTitle(title))|teak:\(id)]]"
     }
 
-    /// Linked card ids in order, unique, at most `maxLinks`; code excluded.
     public static func parseIds(_ markdown: String?) -> [String] {
         var seen = Set<String>()
         var ids: [String] = []
@@ -66,7 +61,6 @@ public enum CardLinks {
         return ids
     }
 
-    /// Every token outside code replaced by `replace(title, id)`.
     public static func replaceTokens(_ markdown: String, _ replace: (String, String) -> String) -> String {
         let found = matches(markdown)
         guard !found.isEmpty else { return markdown }
@@ -81,12 +75,10 @@ public enum CardLinks {
         return result + source.substring(from: cursor)
     }
 
-    /// Tokens shown as their stored titles, for previews and search text.
     public static func tokensToText(_ markdown: String) -> String {
         replaceTokens(markdown) { title, _ in title }
     }
 
-    /// Every token outside code, in order.
     public static func matches(_ markdown: String) -> [Match] {
         guard mayHaveCardLinks(markdown) else { return [] }
         let masked = maskCode(markdown) as NSString
@@ -104,7 +96,6 @@ public enum CardLinks {
 
     // MARK: - Titles
 
-    /// `title` cut to `max` UTF-16 units on a whole grapheme, ending in `…`.
     private static func truncate(_ title: String, max: Int) -> String {
         guard title.utf16.count > max else { return title }
         var result = ""
@@ -131,7 +122,6 @@ public enum CardLinks {
                                        withTemplate: NSRegularExpression.escapedTemplate(for: template))
     }
 
-    /// Every UTF-16 unit but newlines replaced by a space, keeping indexes.
     private static func blank(_ units: ArraySlice<UInt16>) -> [UInt16] {
         units.map { $0 == 10 ? 10 : 32 }
     }
@@ -144,7 +134,6 @@ public enum CardLinks {
         regex.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length))
     }
 
-    /// Inline code spans in one line replaced by spaces, keeping every index.
     private static func maskCodeSpans(_ line: String) -> String {
         let runs = backtickRunRegex.matches(in: line, range: NSRange(location: 0, length: (line as NSString).length)).map(\.range)
         // Each run's next run of the same length, found in one pass from the
@@ -179,8 +168,6 @@ public enum CardLinks {
         return String(decoding: masked, as: UTF16.self)
     }
 
-    /// `markdown` with fenced code blocks, indented code blocks and inline
-    /// code spans replaced by spaces, so every index still points at the original.
     private static func maskCode(_ markdown: String) -> String {
         var fence: String?
         var previousBlank = true
@@ -238,9 +225,6 @@ extension CardLinks {
         }
     }
 
-    /// The `[[` the cursor is typing after, on the same line, or nil. A link
-    /// can't start inside code, a table row or another link, and the text
-    /// after `[[` can't hold the `]` or `|` a token is made of.
     public static func openQuery(in text: String, cursor: Int) -> OpenQuery? {
         let units = Array(text.utf16)
         guard cursor >= 2, cursor <= units.count else { return nil }

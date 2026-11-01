@@ -41,7 +41,6 @@ export const readAccountLocale = async (
   return isSupportedLocale(stored) ? stored : DEFAULT_LOCALE;
 };
 
-/** Saves the account's language; writes nothing when it's unchanged. */
 export const writeAccountLocale = async (
   ctx: MutationCtx,
   userId: string,
@@ -64,7 +63,6 @@ export const writeAccountLocale = async (
   });
 };
 
-/** The signed-in account's preferences, or null when signed out. */
 export const getPreferences = query({
   args: {},
   returns: v.union(v.null(), preferencesValidator),

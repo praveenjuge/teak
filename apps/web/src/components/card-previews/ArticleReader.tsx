@@ -50,7 +50,6 @@ import {
 export const ARTICLE_READER_ATTRIBUTE = "data-article-reader";
 export const ARTICLE_BODY_ATTRIBUTE = "data-article-body";
 
-/** An article is at most 512 KiB characters; CJK text takes 3 bytes each. */
 const ARTICLE_MAX_BYTES = 2.5 * 1024 * 1024;
 
 export type ArticleReaderState =
@@ -59,10 +58,6 @@ export type ArticleReaderState =
   | { kind: "failed" }
   | { kind: "none" };
 
-/**
- * What the Read tab can show for a card: its article, a stage still making
- * one, a failed stage, or nothing (the tab is hidden).
- */
 export const articleReaderState = (
   card: Pick<CardModalCard, "article" | "processingStatus" | "type">
 ): ArticleReaderState => {
@@ -136,7 +131,6 @@ function ArticleMessage({
   );
 }
 
-/** Loads the article's Markdown through the shared text cache, by its key. */
 const useArticleMarkdown = (
   textKey: string | undefined,
   url: string | undefined
@@ -165,7 +159,6 @@ const useArticleMarkdown = (
     })
       .catch(() => null)
       .then((markdown) => {
-        // A card moved on while this loaded: its answer is dropped.
         if (active) {
           setLoaded({ key: textKey, markdown });
         }
@@ -191,22 +184,16 @@ const useArticleMarkdown = (
 
 interface ArticleReaderProps {
   card: CardModalCard;
-  /** Filled with the selection's `H` and `Esc` while the article shows. */
   highlightControlsRef?: RefObject<ReaderHighlightControls | null>;
-  /** A highlight to scroll to and flash, from the details panel. */
   highlightJump?: HighlightJump | null;
-  /** The card's highlights and the reader's writes to them. */
   highlights?: CardHighlightsControl;
-  /** Refresh details, for an article that couldn't be prepared. */
   onRetry?: () => void;
   retrying?: boolean;
-  /** The link's title, when the article has none of its own. */
   title?: string;
 }
 
 const NO_IMAGES: readonly string[] = [];
 
-/** The card's article images, as the reader's `img` component reads them. */
 interface ReaderImages {
   cardId: string;
   imageKeys: readonly string[];
@@ -259,7 +246,6 @@ const READER_COMPONENTS: Components = {
     </a>
   ),
   img: ReaderImage,
-  // Wide tables scroll inside the column, never the page.
   table: ({ children }) => (
     <div className="reader-table">
       <table>{children}</table>

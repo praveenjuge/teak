@@ -1,8 +1,6 @@
 import AppIntents
 import TeakCore
 
-/// Finds cards with the library's own search, sent as typed. Never cards in
-/// Trash or hidden ones.
 struct SearchTeakIntent: AppIntent {
     static let title = LocalizedStringResource("intents.searchTitle", table: "AppIntents")
     static let description = IntentDescription(LocalizedStringResource("intents.searchDescription", table: "AppIntents"))

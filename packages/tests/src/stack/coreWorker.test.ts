@@ -42,7 +42,6 @@ interface Named {
   name?: string;
 }
 
-/** Every binding name a Wrangler config gives the Worker's `env`. */
 const bindingNames = (config: Record<string, unknown>): string[] => {
   const list = (value: unknown): Named[] =>
     Array.isArray(value) ? (value as Named[]) : [];
@@ -72,9 +71,6 @@ const bindingNames = (config: Record<string, unknown>): string[] => {
     .sort();
 };
 
-// Bindings the E2E Worker leaves out, and why. Anything else the deployed
-// Worker binds must be bound here too, real or faked, so a new binding can't
-// leave the local stack (and `bun run dev --local`) silently without it.
 const LEFT_OUT: Record<string, string> = {
   BROWSER:
     "Browser Run needs a Cloudflare account; without it screenshots fail as they do when the service is down",

@@ -1,9 +1,3 @@
-/**
- * Every image in the docs, in one list. `bun scripts/docs-assets/capture.ts`
- * captures the `web` shots from the local app; `bun scripts/docs-assets/render.ts`
- * frames every shot on the meadow and writes it to `apps/docs`.
- */
-
 export type MockId =
   | "ai-agents"
   | "api"
@@ -26,31 +20,17 @@ export type MockId =
   | "webmcp";
 
 interface ShotBase {
-  /** The image's alt text, also used as its Markdown alt. */
   alt: string;
-  /**
-   * Two pastel colors for a diagonal gradient that replaces the meadow behind
-   * the window. Blog images use one each, so the covers don't all look alike.
-   */
   backdrop?: [string, string];
-  /** Output file name, without extension. */
   name: string;
-  /** Where the image is written, relative to the repository root. */
   out?: string;
 }
 
-/** A capture of the real web app, signed in as the stack's seeded account. */
 export interface WebShot extends ShotBase {
   kind: "web";
-  /**
-   * `window` shows the whole app window; `focus` lifts one part of it (a
-   * dialog or a section) onto the meadow on its own; `raw` writes the bare
-   * capture, for the home page, which draws its own meadow behind it.
-   */
   layout: "focus" | "raw" | "window";
 }
 
-/** An HTML mock or diagram from `mocks.ts`, drawn in Teak's own type and colors. */
 export interface MockShot extends ShotBase {
   kind: "mock";
   mock: MockId;
@@ -263,7 +243,6 @@ export const SHOTS: Shot[] = [
   },
 ];
 
-/** The home page's feature showcase (`apps/docs/components/HomeFeatureShowcase.astro`). */
 SHOTS.push(
   {
     name: "library-web",
@@ -302,10 +281,6 @@ SHOTS.push(
   }
 );
 
-/**
- * The blog's images. Each post's cover is named after the post's file and
- * opens the post; posts may also show docs images from `DOCS_IMAGES`.
- */
 SHOTS.push(
   {
     name: "why-we-built-teak",
@@ -397,11 +372,6 @@ SHOTS.push(
   }
 );
 
-/**
- * Pages that need no image. Legal pages stay plain text, the Mac and
- * mobile pages wait for fresh native captures (`scripts/store-assets`), and
- * Raycast shows its store's install button.
- */
 export const PAGES_WITHOUT_IMAGES = [
   "(legal)/delete-account.mdx",
   "(legal)/privacy-policy.mdx",

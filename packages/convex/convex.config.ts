@@ -7,7 +7,6 @@ import { v } from "convex/values";
 const app = defineApp({
   env: {
     PUBLIC_ORIGIN: v.optional(v.string()),
-    // The web app's origin; links in API and MCP answers open it.
     SITE_URL: v.optional(v.string()),
     WORKOS_API_BASE_URL: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
@@ -19,9 +18,7 @@ const app = defineApp({
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
     WORKFLOW_RPC_SECRET: v.optional(v.string()),
-    // Save by email (inbound/): the Core Worker signs what it posts with this.
     EMAIL_INBOUND_SIGNING_SECRET: v.optional(v.string()),
-    // The domain of the shared save@ address; in.teakvault.com when unset.
     INBOUND_EMAIL_DOMAIN: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),

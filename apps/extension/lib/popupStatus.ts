@@ -26,7 +26,6 @@ export interface PopupStatus {
   tone: PopupTone;
 }
 
-/** The popup's status words, in the UI language. */
 export type PopupStatusStrings = TeakTranslator<"extension.popup.status">;
 
 export interface PopupStatusInput {
@@ -64,7 +63,6 @@ const errorStatus = (
       }
     : { autoClose: false, detail: message, title, tone: "error" };
 
-/** What a popup opened only to upload a file shows before one is chosen. */
 export const uploadPromptStatus = (t: PopupStatusStrings): PopupStatus => ({
   autoClose: false,
   detail: t("fileSizeLimit"),

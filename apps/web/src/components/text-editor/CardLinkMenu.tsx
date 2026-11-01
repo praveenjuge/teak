@@ -17,7 +17,6 @@ export type CardLinkMenuState =
   | { items: CardLinkSuggestion[]; status: "ready" };
 
 interface CardLinkMenuProps {
-  /** Where the `[[` is, for placing the menu; absent in static renders. */
   anchor?: { clientRect?: (() => DOMRect | null) | null; dom: HTMLElement };
   onChoose: (item: CardLinkSuggestion) => void;
   query: string;
@@ -27,7 +26,6 @@ interface CardLinkMenuProps {
 
 const MESSAGE_CLASS = "px-2 py-1.5 text-muted-foreground text-sm";
 
-/** The `[[` menu: cards to link, with loading, empty and error rows. */
 export function CardLinkMenu({
   anchor,
   onChoose,

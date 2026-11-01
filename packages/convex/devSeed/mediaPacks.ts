@@ -181,7 +181,6 @@ export const videoCaptionsPack = (): FolderScenarioPack => {
   };
 };
 
-/** A card as Save by email makes it, from the email the planner reads. */
 const emailCard = (
   scenario: FolderScenario,
   index: number,

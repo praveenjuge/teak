@@ -127,11 +127,6 @@ const heifWithExif = (tiff: Uint8Array): Uint8Array => {
   ]);
 };
 
-/**
- * A HEIF whose `iloc` lists `items` items that are not the Exif item, each
- * claiming 65,535 extents of zero bytes: sizes of 0 for offset, length, base
- * and index, so every extent is free to "read".
- */
 const heifWithEmptyExtents = (items: number): Uint8Array => {
   const ftyp = box("ftyp", new TextEncoder().encode("heic"), u32(0));
   const infe = box(
@@ -160,7 +155,6 @@ describe("heifExifLocation", () => {
     expect(heif.length).toBeLessThan(256 * 1024);
     const started = performance.now();
     expect(heifExifLocation(heif)).toBeNull();
-    // Walking every claimed extent took tens of seconds.
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });

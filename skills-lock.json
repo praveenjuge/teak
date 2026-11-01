@@ -67,6 +67,12 @@
       "skillPath": "harness/pstack/claude-code/skills/maintain-verification-skill/SKILL.md",
       "computedHash": "515e7ca21ff18f2cc0daf26243e1a4f41e2f7b73490fa5e116e7c73cf7a5eb6e"
     },
+    "no-comments": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "skillPath": "harness/pstack/claude-code/skills/no-comments/SKILL.md",
+      "computedHash": "ca1a800d5349336f5462bdb3afa0eaeb41600ec343ac5ff18290909aac81d7ab"
+    },
     "principle-prove-it-works": {
       "source": "cursor/plugins",
       "sourceType": "github",

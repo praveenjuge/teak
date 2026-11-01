@@ -3,10 +3,6 @@ import type { ComponentProps } from "react";
 import { LinkPreview } from "@/components/card-previews";
 import { useQuery } from "@/lib/convexQueryHooks";
 
-/**
- * A link with an archived copy: the preview shows an "Archived copy" chip
- * when the last check found its page gone.
- */
 export function CheckedLinkPreview(
   props: Omit<ComponentProps<typeof LinkPreview>, "linkState">
 ) {

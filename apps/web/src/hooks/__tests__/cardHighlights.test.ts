@@ -165,7 +165,6 @@ describe("createPendingHighlightIds", () => {
     const resolved = ids.resolve(tempId);
     finish({ highlight: { _id: "real_1" } });
     expect(await resolved).toBe("real_1");
-    // A real id is sent as it is.
     expect(await ids.resolve("real_2")).toBe("real_2");
   });
 

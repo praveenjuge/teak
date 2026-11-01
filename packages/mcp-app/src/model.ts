@@ -90,7 +90,6 @@ const hostOf = (url: string | null): string | null => {
   }
 };
 
-/** A link's address without its scheme, `www.` or a trailing slash. */
 const shortUrl = (url: string | null): string | null =>
   url
     ? url
@@ -174,7 +173,6 @@ export const toTeakCard = (value: unknown): TeakCard | null => {
   };
 };
 
-/** The type Teak gives an uploaded file, from its MIME type. */
 const fileCardType = (mimeType: unknown): CardType => {
   const kind = typeof mimeType === "string" ? mimeType.split("/")[0] : "";
   return kind === "image" || kind === "video" || kind === "audio"
@@ -192,10 +190,6 @@ const listSourceFor = (toolName: string | undefined): ListSource => {
   return "search";
 };
 
-/**
- * The view for one tool call: its name and input from the host, and the
- * result it returned.
- */
 export const viewFromToolResult = ({
   input,
   result,

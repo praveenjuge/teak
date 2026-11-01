@@ -71,7 +71,6 @@ const run = (args: string[], cwd: string) => {
   }
 };
 
-/** A throwaway CA and a `pinned.test` leaf it signed. */
 const makeCertificates = (dir: string) => {
   writeFileSync(
     join(dir, "ca.cnf"),

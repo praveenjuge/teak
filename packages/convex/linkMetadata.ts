@@ -387,11 +387,6 @@ export const updateCardScreenshot = internalMutation({
   handler: updateCardScreenshotHandler,
 });
 
-/**
- * Attaches a preview image stored after the preview itself (a retry once the
- * image's host stopped refusing). It applies only while the preview still
- * names that image and has none stored; otherwise the new object is deleted.
- */
 export const updateCardPreviewImageHandler = async (
   ctx: MutationCtx,
   {

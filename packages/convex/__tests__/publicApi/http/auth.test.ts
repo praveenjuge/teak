@@ -428,7 +428,6 @@ describe("Connect consent checks", () => {
       Authorization: `Bearer ${access}`,
     };
     if (attested) {
-      // What the Core Worker adds once it has charged the request.
       const expiresAt = String(now + 30);
       const signature = await hmacSha256Hex(
         secret,

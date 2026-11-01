@@ -33,8 +33,6 @@ enum SidebarItem: Hashable {
     }
 }
 
-/// The Mac's and iPad's sidebar: library views, folders and smart folders,
-/// tags and card types.
 struct SidebarMainView: View {
     let namespace: Namespace.ID
     @Environment(AppRouter.self) private var router

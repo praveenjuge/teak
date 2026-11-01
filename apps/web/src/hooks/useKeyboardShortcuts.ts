@@ -15,7 +15,6 @@ export const SHORTCUT_SEQUENCE_TIMEOUT_MS = 1000;
 
 export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
 
-/** Marks the open card's dialog, which some library shortcuts work over. */
 export const CARD_DIALOG_ATTRIBUTE = "data-card-dialog";
 
 const TYPING_ROLES = new Set([

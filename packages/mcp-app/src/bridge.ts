@@ -73,10 +73,8 @@ export class HostBridge {
     this.source = source;
   }
 
-  /** Starts listening, then completes the `ui/initialize` handshake. */
   async connect(appInfo: { name: string; version: string }) {
     this.source.addEventListener("message", (event) => {
-      // Only the host that embeds the view speaks for it.
       if (event.source === this.host) {
         this.receive(event.data);
       }

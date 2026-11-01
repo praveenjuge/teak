@@ -16,12 +16,10 @@ const DEFAULT_PICKER_HEX = "#FF5500";
 
 interface AddColorPopoverProps {
   colors: Doc<"cards">["colors"];
-  /** Hides the button, unless the popover is open: its color may be saving. */
   isFull?: boolean;
   onAddColor: (hex: string) => Promise<boolean>;
 }
 
-/** "Add color" under a palette: a color picker and a hex field. */
 export function AddColorPopover({
   colors,
   isFull = false,
@@ -52,7 +50,6 @@ export function AddColorPopover({
   const canAdd = hex !== null && !isTaken && !saving && !isFullNow;
 
   const save = async (value: string) => {
-    // A failed save keeps the typed color, so trying again is one click.
     setSaving(true);
     try {
       if (await onAddColor(value)) {
@@ -94,7 +91,6 @@ export function AddColorPopover({
       <PopoverContent
         className="w-64"
         onOpenAutoFocus={(event) => {
-          // The hex field, not the picker before it: most colors are pasted.
           event.preventDefault();
           hexInputRef.current?.focus();
         }}

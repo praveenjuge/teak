@@ -84,7 +84,6 @@ describe("SettingsOverview", () => {
     expect(markup).toContain("Signed in as");
     expect(markup).toContain(">Ada Lovelace<");
     expect(markup).toContain(">hello@example.com<");
-    // The plan and card count are said once, in the Plan summary.
     expect(markup.split("Free Plan")).toHaveLength(2);
     expect(markup).toContain("Free Plan · 3 of 200 cards");
     expect(markup).toContain("Save by email off · no API keys");

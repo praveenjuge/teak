@@ -53,7 +53,6 @@ const parseSession = (value: unknown, workosUserId: string): WorkosSession => {
   };
 };
 
-// One page of the user's AuthKit sessions, newest first.
 export async function listWorkosSessions(
   workosUserId: string,
   apiKey: string,
@@ -96,7 +95,6 @@ export async function listWorkosSessions(
   };
 }
 
-// A session WorkOS no longer has is already signed out.
 export async function revokeWorkosSession(sessionId: string, apiKey: string) {
   const response = await workosRequest(
     "/user_management/sessions/revoke",

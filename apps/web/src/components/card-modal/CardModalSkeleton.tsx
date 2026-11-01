@@ -2,7 +2,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { CARD_MODAL_SURFACE_CLASS } from "./cardModalFrame";
 
-/** The details panel's shape while the card loads. */
 function CardMetadataPanelSkeleton() {
   return (
     <div aria-hidden="true" className="space-y-6 px-5 py-5">
@@ -16,7 +15,6 @@ function CardMetadataPanelSkeleton() {
   );
 }
 
-/** The dialog's shape while its code or its card loads. */
 export function CardModalSkeleton() {
   return (
     <div className={CARD_MODAL_SURFACE_CLASS}>

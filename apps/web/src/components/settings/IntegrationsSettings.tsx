@@ -51,7 +51,6 @@ const APP_LINKS: readonly {
   },
 ];
 
-/** Where to get Teak's browser extensions and apps, as one row of tiles. */
 export function AppsSection() {
   const t = useTranslations("settings.integrations");
   return (
@@ -92,7 +91,6 @@ export function AppsSection() {
 
 interface IntegrationsSettingsProps {
   apiKeys: ComponentProps<typeof ApiKeysPanel>;
-  /** Save by email's state and switch; the section is left out without it. */
   inboundEmail?: InboundEmailPanelProps;
 }
 

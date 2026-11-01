@@ -54,7 +54,6 @@ import kotlinx.coroutines.launch
 /** Quick picks, since Material 3 has no color picker. Any hex code can be typed instead. */
 private val PRESETS = listOf("#E63946", "#F4A261", "#E9C46A", "#2A9D8F", "#4ECDC4", "#457B9D", "#6D597A", "#264653")
 
-/** Add color: a hex code for [card], checked as it's typed, with a preview of the color. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun AddColorSheet(card: Card, onAdd: (String) -> Unit, onDismiss: () -> Unit) {

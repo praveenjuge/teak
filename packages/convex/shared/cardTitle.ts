@@ -5,7 +5,6 @@ export type ParsedCardTitle =
   | { kind: "clear" }
   | { kind: "invalid" };
 
-/** Null or a blank string clears the title. */
 export const parseCardTitle = (value: unknown): ParsedCardTitle => {
   if (value === null) {
     return { kind: "clear" };

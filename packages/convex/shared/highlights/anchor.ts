@@ -15,7 +15,6 @@ import { HIGHLIGHT_CONTEXT_CHARS } from "./constants";
 export interface AnchorSelector {
   prefix?: string;
   quote: string;
-  /** Where the quote started last time: chooses between repeats. */
   start?: number;
   suffix?: string;
 }
@@ -29,11 +28,9 @@ export interface Anchor {
 
 const WHITESPACE = /\s+/gu;
 
-/** Each run of whitespace as one space, without leading or trailing space. */
 export const normalizeReaderText = (text: string): string =>
   text.replace(WHITESPACE, " ").trim();
 
-/** The context kept before and after `[start, end)` of `text`. */
 export const anchorContext = (
   text: string,
   start: number,
@@ -70,11 +67,6 @@ const FOLDED: Record<string, string> = {
 
 const IS_SPACE = /\s/u;
 
-/**
- * `text` without whitespace, with curly quotes, dashes and ellipses as
- * their plain forms and letters in lower case, plus each kept character's
- * index in `text`: a match here is a match that ignores those differences.
- */
 const foldText = (text: string): { folded: string; origin: number[] } => {
   let folded = "";
   const origin: number[] = [];
@@ -107,7 +99,6 @@ const occurrences = (haystack: string, needle: string): number[] => {
   return found;
 };
 
-/** How many characters of `context` agree with `text`, read outward. */
 const agreement = (
   context: string,
   text: string,
@@ -135,7 +126,6 @@ interface Candidate {
   start: number;
 }
 
-/** The candidate whose context agrees best, then the one nearest the hint. */
 const choose = (
   text: string,
   candidates: Candidate[],
@@ -211,17 +201,11 @@ export interface HighlightSpan {
   suffix?: string;
 }
 
-/** Whether two highlights share at least one character. */
 export const spansOverlap = (
   a: { end: number; start: number },
   b: { end: number; start: number }
 ): boolean => a.start < b.end && b.start < a.end;
 
-/**
- * One highlight covering two that overlap. Each quote is the text between
- * its offsets, so the union's quote is the first one's, then the part of
- * the other past its end.
- */
 export const unionSpans = (
   a: HighlightSpan,
   b: HighlightSpan

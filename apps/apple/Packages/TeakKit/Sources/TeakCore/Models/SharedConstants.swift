@@ -14,7 +14,6 @@ public struct SharedConstants: Decodable, Sendable {
         public let signupsPaused: String
     }
 
-    /// The search field's hints, from `packages/convex/shared/search/suggestionHints.ts`.
     public struct SearchSuggestionHints: Decodable, Sendable {
         public struct Hint: Decodable, Sendable {
             public let id: String
@@ -43,7 +42,6 @@ public struct SharedConstants: Decodable, Sendable {
     public let messages: Messages
     public let cardErrorMessages: [String: String]
     public let tagErrorMessages: [String: String]
-    /// The server's folder errors by code, sent in English with a general code such as `INVALID_INPUT`.
     public let folderErrorMessages: [String: String]
     public let hiddenTagKeys: [String]
     public let linkCategoryDoneVerbs: [String: String]

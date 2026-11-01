@@ -31,7 +31,6 @@ describe("capturePageSnapshot", () => {
   });
 
   test("skips a page over 20 MiB gzipped", async () => {
-    // Random characters barely compress.
     const noise = new Uint8Array(22 * 1024 * 1024);
     for (let offset = 0; offset < noise.length; offset += 65_536) {
       crypto.getRandomValues(noise.subarray(offset, offset + 65_536));

@@ -179,8 +179,6 @@ export const searchCardsPaginatedHandler = async (
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
   const tag = resolved.tags[0] ?? "";
-  // A word in the expression reads the search document's text for a card
-  // whose own fields leave some of it out (a document's text, a transcript).
   const readExpressionText = expressionTextReader(ctx, parsed.expression);
   const keepQualified = async (cards: Doc<"cards">[]) => {
     const texts = await Promise.all(cards.map(readExpressionText));

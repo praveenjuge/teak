@@ -107,15 +107,12 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
     });
     const [ref, args] = runMutation.mock.calls[1] ?? [];
     expect(nameOf(ref)).toBe("publicApiHighlights:createHighlightForApi");
-    // The reader's text drops the title heading and the bold markers; the
-    // suffix picks the second "water in the morning".
     const text =
       "Plant marigolds around the tomatoes. Water in the morning. In summer, water in the morning again.";
     const start = text.lastIndexOf("water in the morning");
     expect(args).toMatchObject({
       userId: "user_1",
       cardId: "card_1",
-      // The text the quote was found in, so a replaced article refuses it.
       articleKey: (await articleSource()).textKey,
       quote: "water in the morning",
       start,

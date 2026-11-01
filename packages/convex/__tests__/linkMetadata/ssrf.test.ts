@@ -307,7 +307,6 @@ describe("safeFetch", () => {
   });
 
   test("a caller can allow a longer redirect chain, every hop still checked", async () => {
-    // Six tracking hops, as podcast hosts stack in front of an episode.
     const chain = (requests: string[]) =>
       ((input: RequestInfo | URL) => {
         const url = new URL(String(input));

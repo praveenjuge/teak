@@ -40,7 +40,6 @@ export const buildEmbeddingText = (
   const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])]
     .map((tag) => tag.trim())
     .filter(Boolean);
-  // `[[Title|teak:<id>]]` links mean their titles, not their ids.
   const content = clean(
     card.content ? cardLinkTokensToText(card.content) : undefined
   );

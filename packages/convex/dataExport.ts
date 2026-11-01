@@ -77,7 +77,6 @@ interface ExportHighlight {
 }
 
 type ExportCardRow = {
-  /** Its highlights come from `getExportHighlights`, not with the card. */
   hasHighlights?: true;
 } & Pick<
   Doc<"cards">,
@@ -519,10 +518,6 @@ const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   updatedAt: card.updatedAt,
 });
 
-/**
- * One page of the cards an export takes, newest first. It writes nothing: the
- * export workflow keeps the ids in its own step results.
- */
 export const getExportSnapshotPage = internalQuery({
   args: {
     jobId: v.id("exportJobs"),
@@ -569,10 +564,6 @@ export const getExportSnapshotPage = internalQuery({
 
 const MAX_EXPORT_CARDS_PER_READ = 200;
 
-/**
- * The current contents of snapshotted cards, in the order given. Cards deleted
- * since the snapshot, or not the job owner's, are left out.
- */
 export const getExportCardsByIds = internalQuery({
   args: { jobId: v.id("exportJobs"), cardIds: v.array(v.id("cards")) },
   returns: v.array(v.any()),
@@ -605,13 +596,6 @@ export const getExportCardsByIds = internalQuery({
  */
 const EXPORT_HIGHLIGHT_READ_UNITS = 2_000_000;
 
-/**
- * The highlights of snapshotted cards, oldest first, starting from the first
- * id. It stops once it has read about `EXPORT_HIGHLIGHT_READ_UNITS` of text
- * (always after at least one card); `read` says how many ids it covered, and
- * the caller asks again from there. Cards deleted since, or not the job
- * owner's, come back with none.
- */
 export const getExportHighlights = internalQuery({
   args: { jobId: v.id("exportJobs"), cardIds: v.array(v.id("cards")) },
   returns: v.object({

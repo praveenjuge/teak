@@ -36,10 +36,6 @@ export interface StackOptions {
   echo: boolean;
   env?: NodeJS.ProcessEnv;
   ports: WorktreePorts;
-  /**
-   * Keep pushing the backend as its files change, for `bun run dev --local`.
-   * The suite pushes it once.
-   */
   watch?: boolean;
 }
 

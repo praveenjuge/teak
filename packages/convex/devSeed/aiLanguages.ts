@@ -9,12 +9,10 @@ import { link, SCENARIO_MARKER } from "./helpers";
 export const AI_LANGUAGES_SCENARIO = "ai-languages";
 export const AI_LANGUAGES_TAG = `scenario-${AI_LANGUAGES_SCENARIO}`;
 
-/** One seeded card and the language its AI tags and summary should be in. */
 export interface AiLanguageCase {
   card: DevScenarioCardDef;
   /** The BCP 47 primary tag processing should store as `aiLanguage`. */
   expected: string;
-  /** A short name for the live check's table. */
   label: string;
 }
 
@@ -137,7 +135,6 @@ export const AI_LANGUAGE_CASES: readonly AiLanguageCase[] = [
 export const aiLanguagesScenarioCards = (): DevScenarioCardDef[] =>
   AI_LANGUAGE_CASES.map((entry) => entry.card);
 
-/** The case a seeded card came from, matched by its link or its note. */
 export const aiLanguageCaseFor = (card: {
   content?: string;
   url?: string;

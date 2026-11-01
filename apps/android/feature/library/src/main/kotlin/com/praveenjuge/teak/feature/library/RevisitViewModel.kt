@@ -31,7 +31,6 @@ data class RevisitUiState(
     val archivingId: String? = null,
     /** Set after an archive, for the "Archived 1 card" note with Undo. */
     val archivedNote: Long? = null,
-    /** Why the last archive or Undo didn't go through. */
     val error: UiText? = null,
 ) {
     val current: CardSummary? get() = cards.getOrNull(position)
@@ -62,7 +61,6 @@ class RevisitViewModel @Inject constructor(
         deal()
     }
 
-    /** A fresh shuffle of the same view. */
     fun deal() {
         val view = query ?: return
         loading?.cancel()

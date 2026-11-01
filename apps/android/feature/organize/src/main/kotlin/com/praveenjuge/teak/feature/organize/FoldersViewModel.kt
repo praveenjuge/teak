@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** The folder dialog that's open: a new one, or editing [folder]. */
 sealed interface FolderEditor {
     val smart: Boolean
 
@@ -65,7 +64,6 @@ class FoldersViewModel @Inject constructor(
         load()
     }
 
-    /** Subscribes to the folders again, after they failed to load. */
     fun reload() {
         _state.update { it.copy(isLoading = true, failed = false) }
         load()

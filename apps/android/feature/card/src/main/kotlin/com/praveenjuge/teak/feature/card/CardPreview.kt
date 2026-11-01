@@ -270,7 +270,6 @@ private fun Swatch(hex: String, onCopy: (String) -> Unit, onRemove: (() -> Unit)
     }
 }
 
-/** The "+" after the last swatch, which opens Add color. */
 @Composable
 private fun AddColorTile(onClick: () -> Unit, modifier: Modifier) {
     val label = tr("native.card.palette.addColor")

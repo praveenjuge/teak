@@ -41,9 +41,7 @@ export interface SearchUrlState {
    * relative date keeps meaning the current week, month or day.
    */
   date?: string;
-  /** Hex colors, written without `#` in `color=`. */
   hexes?: string[];
-  /** Hue names, written in `color=` before any hex colors. */
   hues?: ColorHueBucket[];
   q: string;
   seed?: number;
@@ -76,7 +74,6 @@ export function parseTagParam(value: string | null): string {
  */
 export const MAX_URL_SEARCH_LENGTH = 500;
 
-/** Longest `style=`, `color=` or `date=` value the URL reads. */
 const MAX_URL_FILTER_LENGTH = 256;
 const MAX_URL_HEX_COLORS = 16;
 const HEX_COLOR_PATTERN = /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -308,7 +305,6 @@ export function comparableSearch(state: SearchUrlState): {
 const sameDate = (left?: string, right?: string): boolean =>
   (left ?? "").trim().toLowerCase() === (right ?? "").trim().toLowerCase();
 
-/** Whether two states differ in their colors, styles or date. */
 export const sameVisualFilters = (
   left: SearchUrlState,
   right: SearchUrlState

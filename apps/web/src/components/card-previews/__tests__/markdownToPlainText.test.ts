@@ -152,7 +152,6 @@ describe("markdownToPlainText", () => {
     expect(preview).toMatch(/^a( a)+$/);
   });
 
-  // The editor saves `<`, `>` and `&` as entities (bug 01).
   test.each([
     ["math: 3 &lt; 5 &amp; 7 &gt; 2", "math: 3 < 5 & 7 > 2"],
     ["&lt;b&gt;not bold&lt;/b&gt;", "<b>not bold</b>"],
@@ -192,7 +191,6 @@ describe("markdownToPlainText", () => {
   });
 });
 
-// Bug 17: the words typed around a URL were saved but never shown.
 test("never ends a preview on half of an emoji", () => {
   expect(markdownToPlainText("&#128512;", { maxLength: 1 })).toBe("");
   expect(markdownToPlainText("a&#128512;", { maxLength: 2 })).toBe("a");

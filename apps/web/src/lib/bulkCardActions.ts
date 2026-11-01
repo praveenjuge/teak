@@ -86,7 +86,6 @@ export const folderUndoSteps = (
         cardIds: updatedIds.filter((id) => had(id, source)),
         folder: {
           folderId: source,
-          // Without a name, the toast says "the folder".
           folderName: target.fromFolderName ?? "",
         },
       },

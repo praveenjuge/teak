@@ -10,10 +10,6 @@ import { urlKey } from "../shared/utils/urlKey";
 import { cardReturnValidator } from "./getCards";
 import { attachCardDetailUrls } from "./queryUtils";
 
-/**
- * The newest card outside Trash saved from the same link as `url`, ignoring
- * the differences `urlKey` ignores. Archived cards count.
- */
 export const findLiveCardByUrl = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,

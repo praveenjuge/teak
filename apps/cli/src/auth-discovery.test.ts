@@ -178,7 +178,6 @@ const login = async (
       timeout: 10_000,
     }
   );
-  // --json prints the link on stderr, keeping stdout to the JSON answer.
   const urlReader = (json ? child.stderr : child.stdout).getReader();
   let urlText = "";
   while (!urlText.includes("\n")) {

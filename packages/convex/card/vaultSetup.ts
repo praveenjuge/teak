@@ -2,11 +2,6 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
 
-/**
- * When the signed-in account's getting-started cards started on their way, or
- * null once they have landed (or for an account that never had any coming).
- * Clients show "Setting up your vault" instead of an empty library meanwhile.
- */
 export const getVaultSetup = query({
   args: {},
   returns: v.union(v.null(), v.object({ startedAt: v.number() })),

@@ -18,7 +18,6 @@ afterAll(() => server.stop(true));
 
 const ORIGIN = `http://1.1.1.1/teak-e2e-forward/${server.port}`;
 
-/** The Worker's link fetcher binding, answered by the fake. */
 const fakeNamespace = {
   get: () => new FakeLinkFetcher(),
   idFromName: (name: string) => name,
@@ -36,8 +35,6 @@ const check = (url: string) =>
     }
   );
 
-// The E2E stack's stand-in for the link fetcher Container
-// (packages/tests/src/stack/coreWorker.ts binds it).
 describe("the E2E link fetcher", () => {
   test("forwards only /teak-e2e-forward/<port> paths to that local port", () => {
     expect(e2eForwardTarget(`${ORIGIN}/status/404?x=1`)).toBe(

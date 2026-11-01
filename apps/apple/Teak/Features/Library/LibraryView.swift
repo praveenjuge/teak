@@ -137,7 +137,6 @@ struct LibraryView: View {
         #if os(macOS)
         false
         #else
-        // Kept while selecting, so the cards don't reflow into other columns and a draft survives.
         columns >= 3 && !library.isTrash
         #endif
     }
@@ -241,7 +240,6 @@ struct LibraryView: View {
         let selected = library.selection.map { $0.contains(card.id) }
         return Button {
             #if os(macOS)
-            // Command-click picks cards, as in Finder.
             if NSEvent.modifierFlags.contains(.command) { return library.toggleSelection(card.id) }
             #endif
             open(card)
@@ -275,7 +273,6 @@ struct LibraryView: View {
             open: open,
             edit: { editing = CardRoute(id: $0.id, summary: $0) },
             export: { card in
-                // The full card names the file, with its extension, before the save panel asks where.
                 Task {
                     let full = try? await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
                     guard let full, case let .file(url, name, _) = CardSheet.shareTarget(full) else {
@@ -286,7 +283,6 @@ struct LibraryView: View {
             },
             moveToTrash: { card in Task { await library.moveToTrash(card.id) } },
             confirmDeleteForever: { confirmingDeleteForever = $0 },
-            // Similar cards show on Home, as from the card's page, not inside the folder they came from.
             moreLikeThis: { card in
                 router.homePath.removeAll()
                 router.foldersPath.removeAll()
@@ -305,7 +301,6 @@ struct LibraryView: View {
         }
     }
 
-    /// A refresh failed: the cards from before stay, with a way to try again.
     private var refreshFailed: some View {
         HStack {
             Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
@@ -345,7 +340,6 @@ struct LibraryView: View {
                 if ["pending", "unavailable", "anchor_unavailable"].contains(library.semanticOutcome) {
                     Button(tr("common.tryAgain")) { library.reload() }.buttonStyle(.bordered)
                 } else if !library.tokens.isEmpty || (library.filters.isActive && library.filters.folder == nil) {
-                    // A folder page clears its search but stays on the folder.
                     Button(tr("native.library.clearFilters")) {
                         let folder = library.filters.folder
                         library.clearFilters()
@@ -359,7 +353,6 @@ struct LibraryView: View {
         }
     }
 
-    /// Why search by meaning found nothing, in the web's words.
     private var semanticMessage: String? {
         switch library.semanticOutcome {
         case "pending", "anchor_unavailable": tr("native.similar.pending")
@@ -430,13 +423,10 @@ struct LibraryView: View {
     }
 }
 
-/// The library's one header menu: select and revisit, what to show, and
-/// the order to show it in.
 struct LibraryMenu: View {
     @Bindable var library: LibraryModel
     let revisit: () -> Void
     let saveSmartFolder: (() -> Void)?
-    /// Asks before emptying Trash; set only in Trash.
     var emptyTrash: (() -> Void)?
 
     var body: some View {
@@ -500,7 +490,6 @@ struct LibraryMenu: View {
                         Button(tr("native.library.menu.saveSmartFolder"), systemImage: "folder.badge.gearshape", action: saveSmartFolder)
                     }
                     if narrowed {
-                        // A folder page keeps its folder.
                         Button(tr("native.library.clearFilters"), systemImage: "xmark.circle", role: .destructive) {
                             library.filters = LibraryFilters(folder: library.filters.folder)
                         }
@@ -516,7 +505,6 @@ struct LibraryMenu: View {
         .accessibilityIdentifier("library.more")
     }
 
-    /// Filters beyond the folder a page is scoped to.
     private var narrowed: Bool {
         var filters = library.filters
         filters.folder = nil
@@ -568,7 +556,6 @@ struct SelectionBar: View {
                         .glassEffectID("tags", in: glass)
                     Button(tr("native.bulk.addToFolderEllipsis"), systemImage: "folder.badge.plus", action: addToFolder)
                         .glassEffectID("folder", in: glass)
-                    // Unfavorites when every chosen card is already a favorite.
                     let unfavorite = !library.selectedCards.isEmpty && library.selectedCards.allSatisfy(\.favorited)
                     Button(unfavorite ? tr("native.bulk.removeFromFavorites") : tr("native.bulk.addToFavorites"),
                            systemImage: unfavorite ? "heart.slash" : "heart") {

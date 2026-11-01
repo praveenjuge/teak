@@ -61,7 +61,6 @@ describe("LinkPreview", () => {
     );
   });
 
-  // Bug 17: the words typed around a URL were saved but never shown.
   test("shows the words saved with the link, outside the link itself", () => {
     const markup = renderToStaticMarkup(
       <LinkPreview

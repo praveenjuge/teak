@@ -144,12 +144,6 @@ export const saveCursor = internalMutation({
   },
 });
 
-/**
- * Checks the vector ledger and repairs what it can: it starts embed jobs that
- * died again and retries vector deletes that gave up. It resumes from where
- * the last run stopped and, when it stops short of the end, schedules the
- * next run.
- */
 export const sweepVectorLedger = internalAction({
   args: { pagesPerRun: v.optional(v.number()) },
   returns: v.object({ ...countsValidator.fields, complete: v.boolean() }),

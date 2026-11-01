@@ -12,7 +12,6 @@ const setup = () => {
   return t;
 };
 type Backend = ReturnType<typeof setup>;
-// Sign-in calls this with WorkOS's signed, verified session claims.
 const input = {
   workosUserId: "user_workos_a",
   email: "owner@example.com",

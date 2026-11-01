@@ -74,8 +74,6 @@ const firstPaintColumns = (gutter: number) =>
   `repeat(auto-fill, minmax(max(${MIN_COLUMN_WIDTH}px, calc((100% - ${
     (MAX_COLUMNS - 1) * gutter
   }px) / ${MAX_COLUMNS})), 1fr))`;
-// Over the first-paint grid until its first layout: there to measure and to
-// take focus, never seen or clicked.
 const MEASURING_STYLE = {
   insetInline: 0,
   opacity: 0,
@@ -94,10 +92,6 @@ const PRIORITY_CARD_COUNT = 10;
 // included. Without motion the items stay mounted.
 const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
 
-/**
- * The cards still in the grid next to one that left it, nearest first: the
- * ones after it, then the ones before it.
- */
 export function neighborOf(
   cardId: string,
   order: { current: readonly string[]; previous: readonly string[] }
@@ -245,7 +239,6 @@ export const MasonryGrid = memo(function MasonryGrid({
     return () => observer.disconnect();
   }, [columns, gutter]);
   const resolvedColumns = columns ?? measuredColumns ?? FALLBACK_COLUMNS;
-  // A server-rendered page shows its cards before the masonry can measure them.
   const hydrated = useHydrated();
   const [firstPaint, setFirstPaint] = useState(
     !hydrated && columns === undefined
@@ -373,8 +366,6 @@ export const MasonryGrid = memo(function MasonryGrid({
         .filter((cardId) => !isOptimisticCard(cardId)),
     [visibleCards]
   );
-  // The order before the last change too, so focus can find where a card
-  // that just left (deleted from its dialog) used to be.
   const cardOrderRef = useRef<{ current: string[]; previous: string[] }>({
     current: [],
     previous: [],

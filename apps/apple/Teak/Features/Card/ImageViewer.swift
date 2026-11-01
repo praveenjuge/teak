@@ -1,13 +1,11 @@
 import SwiftUI
 import TeakCore
 
-/// What the image viewer shows: the image's addresses, sharpest first, and its name.
 struct ImageViewerItem: Codable, Hashable, Identifiable {
     var urls: [URL]
     var title: String
     var id: [URL] { urls }
 
-    /// The original file first, for detail when zoomed in, then the renditions the card view uses.
     init(card: Card) {
         let name = card.fileMetadata?.fileName?.lowercased() ?? ""
         let original = name.hasSuffix(".svg") ? nil : SafeURL.sanitize(card.fileUrl)
@@ -17,7 +15,6 @@ struct ImageViewerItem: Codable, Hashable, Identifiable {
     }
 }
 
-/// The image at full size, loaded once for the viewer: large enough to stay sharp when zoomed in.
 private struct FullImage: View {
     let item: ImageViewerItem
     @Binding var image: CGImage?
@@ -47,7 +44,6 @@ private struct FullImage: View {
 #if os(iOS)
 import UIKit
 
-/// Full screen, with pinch and double-tap zoom. Swiping down, or Close, puts it away.
 struct ImageViewer: View {
     let item: ImageViewerItem
     @Environment(\.dismiss) private var dismiss
@@ -95,8 +91,6 @@ private struct ZoomableImage: UIViewRepresentable {
     }
 }
 
-/// A scroll view that zooms its image, keeps it centered, and reports a pull down past the top so the
-/// viewer can fade and close, as Photos does.
 private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     var onPull: ((Double) -> Void)?
     var onDismiss: (() -> Void)?
@@ -142,7 +136,6 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
               image.size.width > 0, image.size.height > 0 else { return }
         let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
         let fitted = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        // A new image or a rotation fits the image to the screen again.
         if fitted != fittedSize {
             fittedSize = fitted
             zoomScale = minimumZoomScale
@@ -162,7 +155,6 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) { centerImage() }
 
-    /// How far the image is pulled down past its resting place, while it isn't zoomed in.
     private var pullDistance: Double {
         guard zoomScale <= minimumZoomScale + 0.01 else { return 0 }
         return max(0, -(contentOffset.y + contentInset.top))
@@ -191,8 +183,6 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 #endif
 
 #if os(macOS)
-/// The Mac's image window: fits the image, zooms with a pinch, a double-click or the toolbar, and scrolls
-/// around when zoomed in.
 struct ImageWindow: View {
     static let id = "image"
     let item: ImageViewerItem
@@ -252,7 +242,6 @@ struct ImageWindow: View {
     private static func fitted(_ image: CGImage, in size: CGSize) -> CGSize {
         let width = Double(image.width), height = Double(image.height)
         guard width > 0, height > 0, size.width > 0, size.height > 0 else { return .zero }
-        // Never blown up past the image's own size when it fits.
         let scale = min(size.width / width, size.height / height, 1)
         return CGSize(width: width * scale, height: height * scale)
     }

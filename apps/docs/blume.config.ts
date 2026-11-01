@@ -132,7 +132,6 @@ export default defineConfig({
     ],
   },
   seo: {
-    // Link previews in Teak's colors: the wordmark, slate text, red accent.
     og: {
       logo: "/logos/logo-light.svg",
       titles: { "/blog": "The Teak Blog" },

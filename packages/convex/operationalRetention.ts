@@ -33,10 +33,6 @@ export const cleanupExpiredRecords = internalMutation({
   handler: (ctx, args) => cleanUpExpiredRecords(ctx, args),
 });
 
-/**
- * The Core Worker's hourly Cron Trigger calls this. It starts a scan, which
- * continues itself in bursts, or skips while another scan holds the lease.
- */
 export const startIdempotencyCleanup = internalMutation({
   args: {},
   returns: cleanupReport,

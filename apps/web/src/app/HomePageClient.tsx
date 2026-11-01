@@ -49,7 +49,6 @@ export function HomePageClient({
   const colorParam = searchParams.get("color");
   const dateParam = searchParams.get("date");
   const focusComposer = searchParams.get(FOCUS_COMPOSER_PARAM) === "1";
-  // A share from the system share sheet fills the composer once, as the page opens.
   const [composerDraft] = useState(() => {
     const shared = readSharedText(searchParams);
     return shared ? sharedDraft(shared) : undefined;
@@ -118,8 +117,6 @@ export function HomePageClient({
     [router]
   );
 
-  // The URL of the card entry this page pushed over the list, while the
-  // card is still open in it.
   const cardEntryUrlRef = useRef<string | null>(null);
 
   const setCardUrlParam = (cardId: string | null, replace = false) => {

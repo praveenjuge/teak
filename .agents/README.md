@@ -82,6 +82,19 @@ folders the installer adds; the drift test fails while they're there.
   [adapter](https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md)
   instead. In Teak, a generated verification skill lives in `.agents/skills/`,
   not `.cursor/skills/`.
+- Comments: `no-comments`, from pstack. Type `/no-comments` to spawn the
+  `comment-sicko` agent over the current diff (or the paths you name). It
+  deletes comments the code already says and flags the symbols that need a
+  rename, type, test or lint rule instead of prose.
+
+## Agents
+
+`agents/` holds subagent definitions; `.claude/agents` links here, so Claude
+Code offers them as subagent types.
+
+- `comment-sicko`: vendored verbatim from pstack
+  (`harness/pstack/claude-code/agents/comment-sicko.md` in `cursor/plugins`).
+  `npx skills` doesn't install agents, so update it by copying that file.
 
 ## Other files
 

@@ -70,7 +70,6 @@ async function render() {
   await act(() => root?.render(<Harness />));
 }
 
-// Bug 31: the Undo toast left after sonner's 4 seconds, before Undo was reached.
 test("a delete's Undo toast stays up for 10 seconds, and Undo restores", async () => {
   await render();
   await act(async () => {

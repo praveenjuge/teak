@@ -2,16 +2,11 @@ import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@teak/i18n";
 import { createTranslator } from "use-intl/core";
 import type en from "../../i18n/messages/en.json";
 
-/** The catalog keys the view reads: its own text and the card type names. */
 export interface AppMessages {
   cards: { types: (typeof en)["cards"]["types"] };
   mcpApp: (typeof en)["mcpApp"];
 }
 
-/**
- * The Teak language for a host's BCP 47 locale (`en-US`, `pt-BR`, `zh-CN`).
- * Chinese other than Simplified, and any language Teak isn't in, is English.
- */
 export const resolveAppLocale = (hostLocale: string | undefined): Locale => {
   if (!hostLocale) {
     return DEFAULT_LOCALE;

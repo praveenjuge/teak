@@ -22,7 +22,6 @@ const messageKeys = [
   ...Object.values(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS),
 ];
 
-// Each file is named in full, so the test reads only these three.
 const english = flattenCatalog(
   await Bun.file(
     new URL("../../../../i18n/messages/en.json", import.meta.url)

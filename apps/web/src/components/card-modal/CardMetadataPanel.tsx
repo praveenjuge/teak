@@ -47,7 +47,6 @@ import { PageArchiveRow } from "./PageArchiveRow";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
-  /** Keeps a tag Teak suggested as one of the card's own tags. */
   acceptAiTag?: (tag: string) => void;
   addTag: () => void;
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -57,7 +56,6 @@ export interface CardTagsControl {
   tagInput: string;
 }
 
-/** Cards whose notes link here with `[[…]]`, and whether there are more. */
 export interface CardBacklinks {
   backlinks: { id: string; title: string; type: string }[];
   hasMore: boolean;
@@ -68,18 +66,14 @@ export interface SavePdfControl {
   save: () => void;
 }
 
-/** Replacing a link's preview image, and going back to the original. */
 export interface CardImageControl {
   busy: boolean;
   onReplace: () => void;
-  /** Left out when the card shows its original image. */
   onReset?: () => void;
 }
 
-/** A link's highlights, for the panel's list. */
 export interface CardHighlightsPanelControl {
   items: CardHighlight[];
-  /** Shows the highlight in the Read tab. */
   onJump?: (highlightId: string) => void;
   onRemove: (highlight: CardHighlight) => void;
 }
@@ -89,11 +83,9 @@ interface CardMetadataPanelProps {
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
   highlights?: CardHighlightsPanelControl;
-  /** A link's preview image, which can be replaced from Details. */
   image?: CardImageControl;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
   onCommit: () => void;
-  /** Opens "Edit link" from the URL row. */
   onEditLink?: () => void;
   onNotesChange: (notes: string) => void;
   onOpenCard?: (cardId: string) => void;
@@ -158,18 +150,15 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
   ));
 }
 
-/** A small icon button at the end of a Details row, like Edit link. */
 const ROW_ICON_BUTTON_CLASS =
   "-mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5";
 
-/** A small text button in a Details row, like Replace. */
 const ROW_TEXT_BUTTON_CLASS =
   "inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors last:-mr-1.5 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5";
 
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
 
-/** "Linked from": the notes that link to this card, newest first. */
 export function LinkedFromSection({
   backlinks,
   onOpenCard,
@@ -222,7 +211,6 @@ const isAnchored = (highlight: CardHighlight) =>
   highlight.start !== undefined &&
   highlight.end !== undefined;
 
-/** Whether the card's article is still on its way. */
 const articleOnItsWay = (card: CardModalCard) => {
   const stage = card.processingStatus?.article?.status;
   return (
@@ -252,11 +240,6 @@ function HighlightText({ highlight }: { highlight: CardHighlight }) {
   );
 }
 
-/**
- * "Highlights · N": the passages highlighted in a link's article, in article
- * order. One found in the article jumps to it in the Read tab; one that
- * isn't says so, and can still be removed.
- */
 export function HighlightsSection({
   card,
   control,
@@ -320,7 +303,6 @@ export function HighlightsSection({
   );
 }
 
-/** Tags Teak added, folded away until someone wants to look. */
 function SuggestedTags({
   disabled,
   onAccept,

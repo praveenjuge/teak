@@ -320,7 +320,6 @@ describe("x link metadata", () => {
     });
 
     test("a hung oEmbed endpoint falls back to the syndication lookup", async () => {
-      // Every lookup's time limit has already run out.
       const timeout = spyOn(AbortSignal, "timeout").mockImplementation(() =>
         AbortSignal.abort(new DOMException("timed out", "TimeoutError"))
       );
@@ -334,7 +333,6 @@ describe("x link metadata", () => {
                 user: { name: "jack", screen_name: "jack" },
               });
             }
-            // oEmbed never answers; only its signal ends the request.
             return new Promise((_resolve, reject) => {
               const signal = init?.signal;
               if (signal?.aborted) {

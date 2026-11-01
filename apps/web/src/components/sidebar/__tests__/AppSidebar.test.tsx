@@ -135,7 +135,6 @@ describe("AppSidebar", () => {
       "Trash",
       "Settings",
     ]);
-    // The foot sits outside the scrolling content, so many folders never hide it.
     const foot = document.querySelector('[data-slot="sidebar-footer"]');
     expect(
       [...(foot?.querySelectorAll("a") ?? [])].map(

@@ -112,8 +112,6 @@ describe("validateImportCard highlights", () => {
   });
 
   test("cuts a long quote or note to fit instead of refusing the card", () => {
-    // Overlapping highlights merge into one quote that can run past 5,000
-    // characters, and Teak's export writes it out as it is.
     expect(
       link([
         {

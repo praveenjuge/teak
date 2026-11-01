@@ -8,7 +8,6 @@ import {
 } from "../test/fakeConvex";
 import { AI_GATE_TTL_MS, type AiGateMemo, createAiGateReader } from "./aiGate";
 
-/** The Cache API's match and put, kept in a map like one data center's. */
 const createMemoryCache = (
   failures: { match?: boolean; put?: boolean } = {}
 ) => {

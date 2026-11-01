@@ -66,18 +66,8 @@ export const describeTargets = (): string =>
 export interface DevArgs {
   action: "run" | "help" | "check" | "status" | "stop";
   all: boolean;
-  /**
-   * Start the web stack in its own session and return once it is ready, so
-   * it outlives the shell that started it (agent tools stop background
-   * commands after a while).
-   */
   detach: boolean;
   headless: boolean;
-  /**
-   * Run the web stack on a local backend, the WorkOS emulator and the Files
-   * Worker in Miniflare (the E2E suite's stack, pushing the backend as it
-   * changes) instead of the shared dev deployment.
-   */
   local: boolean;
   push: boolean;
   target: string;
@@ -263,11 +253,6 @@ export type DevLaunch =
   | { detach: boolean; install: boolean; kind: "local" }
   | { install: boolean; kind: "main"; setup: boolean };
 
-/**
- * What `bun run dev` does before scripts/dev/dev-main.ts takes over: a run
- * installs packages on a fresh checkout, and the web stack runs setup first.
- * A detached web stack starts another `bun run dev` that does its own setup.
- */
 export const planDevLaunch = (
   args: DevArgs,
   hasNodeModules: boolean

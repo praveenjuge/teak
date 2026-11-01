@@ -33,10 +33,6 @@ export function saveStateLabel(
   }
 }
 
-/**
- * What to say when a note or quote is left emptied: an empty one isn't
- * saved (the composer won't make one either), so it keeps its last text.
- */
 export function emptiedContentNotice(
   card: CardModalCard | null | undefined,
   getCurrentValue: GetCurrentValue,

@@ -20,10 +20,6 @@ export const RRF_K = 60;
 export const SEMANTIC_QUERY_MAX_CHARS = VECTOR_QUERY_MAX_CHARS;
 const SEMANTIC_QUERY_MIN_CHARS = 2;
 
-/**
- * The words a search embeds: its words and phrases, including those in OR
- * groups, but never excluded ones or hex colors.
- */
 export const semanticQueryText = (parsed: ParsedSearchQuery): string => {
   const words = [
     ...parsed.terms,

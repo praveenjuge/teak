@@ -88,7 +88,6 @@ const launch = (executablePath: string, signal: AbortSignal) => {
 
 const IMAGE_BROWSERS = "/opt/pw-browsers";
 
-/** The newest Chromium in the image of a Claude Code cloud session. */
 export const cloudChromiumPath = (): string | undefined => {
   if (
     process.env.CLAUDE_CODE_REMOTE !== "true" ||

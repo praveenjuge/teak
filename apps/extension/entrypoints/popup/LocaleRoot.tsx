@@ -20,10 +20,6 @@ export interface PopupLocale {
   messages: Messages;
 }
 
-/**
- * The stored language and its catalog. `index.html` says `lang="en"`, so
- * this sets the document's language once it is known.
- */
 export async function loadPopupLocale(): Promise<PopupLocale> {
   let loaded: PopupLocale;
   try {
@@ -36,10 +32,6 @@ export async function loadPopupLocale(): Promise<PopupLocale> {
   return loaded;
 }
 
-/**
- * The popup in the account's language. It follows a change while open, such
- * as the one `/v1/me` brings right after sign-in.
- */
 export function LocaleRoot({
   children,
   initial,
@@ -68,7 +60,6 @@ export function LocaleRoot({
   );
 }
 
-/** Development builds only: switches the popup, menus and omnibox to `en-XA`. */
 function DevMenu() {
   const t = useTranslations("extension.popup");
   const pseudo = useUiLocale() === PSEUDO_LOCALE;

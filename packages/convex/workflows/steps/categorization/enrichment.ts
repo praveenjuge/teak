@@ -83,7 +83,6 @@ export const isJsonLdEntity = (value: unknown): value is JsonLdEntity =>
 const prop = (value: unknown, key: string): unknown =>
   isJsonLdEntity(value) ? value[key] : undefined;
 
-/** `String(value)`, or undefined for a missing value, as `?.toString()` did. */
 const stringified = (value: unknown): string | undefined =>
   value === undefined || value === null ? undefined : String(value);
 
@@ -302,7 +301,6 @@ const readRawSelectorEntry = (value: unknown): RawSelectorEntry | undefined => {
   };
 };
 
-/** Indexes a stored scrape (`linkPreview.raw`) by selector, first result each. */
 export const buildRawSelectorMap = (raw: unknown): RawSelectorMap => {
   const map = new Map<string, RawSelectorEntry>();
   if (!Array.isArray(raw)) {

@@ -1,8 +1,5 @@
 import { Parser } from "htmlparser2";
 
-// A podcast's RSS 2.0 or Atom feed, read only for its episodes' titles,
-// links and audio files (`<enclosure>`, or Atom's `<link rel="enclosure">`).
-
 /** A feed of 5,000 episodes is about 2 MiB; anything past that is dropped. */
 export const MAX_FEED_ITEMS = 5000;
 

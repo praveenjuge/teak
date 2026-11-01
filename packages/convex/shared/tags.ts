@@ -51,7 +51,6 @@ export const CARD_TAG_ERROR_MESSAGES = {
   TOO_MANY_TAGS: `A card can have at most ${MAX_CARD_TAGS} tags`,
 } as const;
 
-/** Trims each tag, drops empty ones and keeps the first of each case variant. */
 export const normalizeTagList = (tags: readonly string[]): string[] => {
   const seen = new Set<string>();
   const normalized: string[] = [];

@@ -1,22 +1,12 @@
 import { PAGE_SNAPSHOT_MAX_BYTES } from "@teak/convex/shared/pageArchive";
 
-/**
- * The page as the browser shows it, sent with a link save so Teak's saved
- * copy is what the person saw: pages behind a sign-in, or built by scripts,
- * included. Gzipped here; Teak inlines its styles and images itself.
- */
 export interface PageSnapshot {
-  /** The page's HTML, gzipped. */
   gzip: Uint8Array<ArrayBuffer>;
-  /** Where the tab was when the page was read. */
   url: string;
 }
 
-/** A snapshot that takes longer than this is skipped, never waited for. */
 export const PAGE_SNAPSHOT_TIMEOUT_MS = 3000;
-/** How long uploading a snapshot may hold up the save it belongs to. */
 export const PAGE_SNAPSHOT_UPLOAD_TIMEOUT_MS = 10_000;
-/** Markup past this many characters isn't worth compressing. */
 const MAX_HTML_CHARACTERS = 60 * 1024 * 1024;
 
 /**
@@ -145,11 +135,6 @@ const isSerializedPage = (
       typeof (value as { url?: unknown }).url === "string"
   );
 
-/**
- * The tab's page, gzipped, or null: a page the extension can't read, one
- * over 20 MiB gzipped, or one that takes more than 3 seconds. A snapshot
- * never holds up a save.
- */
 export async function capturePageSnapshot(
   tabId: number,
   dependencies: CapturePageSnapshotDependencies = {}
@@ -195,16 +180,10 @@ export async function capturePageSnapshot(
 
 export interface UploadPageSnapshotDependencies {
   fetchImpl?: typeof fetch;
-  /** An authorized request to Teak's API: null when signed out. */
   request: (path: string, init?: RequestInit) => Promise<Response | null>;
   timeoutMs?: number;
 }
 
-/**
- * Uploads a snapshot to Teak and returns its key for `POST /v1/cards`, or
- * null when anything goes wrong or it takes more than 10 seconds: the save
- * then goes on without it, and Teak fetches the page itself.
- */
 export async function uploadPageSnapshot(
   snapshot: PageSnapshot,
   {

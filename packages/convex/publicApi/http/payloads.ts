@@ -249,7 +249,6 @@ type PatchPayloadResult =
   | { code?: "CONTENT_TOO_LARGE"; error: string }
   | { payload: PatchCardPayload };
 
-/** A PATCH body's list of 1 to 12 palette colors, or undefined when it isn't one. */
 const parsePaletteColorList = (value: unknown): string[] | undefined => {
   const colors = parseStringArray(value);
   return colors?.length && colors.length <= MAX_PALETTE_COLORS
@@ -260,7 +259,6 @@ const parsePaletteColorList = (value: unknown): string[] | undefined => {
 const explainPaletteColorList = (field: "addColors" | "removeColors") =>
   `\`${field}\` must be a list of 1 to ${MAX_PALETTE_COLORS} hex codes`;
 
-/** Parses a PATCH body, saying which field is wrong when one is. */
 export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { error: "Body must be a JSON object" };

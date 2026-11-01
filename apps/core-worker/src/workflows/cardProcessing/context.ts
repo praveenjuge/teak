@@ -20,15 +20,10 @@ import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
 
 export interface CardProcessingDeps {
-  /** The account's AI gate, reused for up to a minute (`src/ai/aiGate.ts`). */
   aiGate: AiGateReader;
   convex: ConvexRpc;
   filesOp: FilesOpCaller;
   pinnedFetch: PinnedFetch;
-  /**
-   * The same hops for podcasts: a show's lookup and feed, which run past the
-   * default hop's 1 MiB, and the episode's audio, streamed rather than held.
-   */
   podcastFetch: { episode: PinnedFetch; feed: PinnedFetch };
   resolveDns: DnsResolver;
 }

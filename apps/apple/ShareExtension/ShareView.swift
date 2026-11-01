@@ -13,16 +13,12 @@ final class ShareModel {
     }
 
     private(set) var phase: Phase = .saving
-    /// What's being saved, shown while it uploads; nil until the items load.
     private(set) var preview: SharePreview?
-    /// Thumbnails of the preview's files, added as each is drawn.
     private(set) var thumbnails: [URL: CGImage] = [:]
     private(set) var isSavingDetails = false
     var detailsError: String?
-    /// The user's folders, loaded once the folder checklist opens; nil until then.
     private(set) var folders: [Folder]?
     private(set) var foldersError: String?
-    /// The folders picked for the saved cards, and the ones already saved on them.
     var folderIds: [String] = []
     private var savedFolderIds: [String] = []
     private let providers: [NSItemProvider]
@@ -32,19 +28,16 @@ final class ShareModel {
         self.providers = providers
     }
 
-    /// The one card just saved, which can take tags and a note.
     var savedCardId: String? {
         guard case let .done(result) = phase, result.isComplete, result.createdCardIds.count == 1 else { return nil }
         return result.createdCardIds.first
     }
 
-    /// Every card just saved, which can go into folders together.
     var savedCardIds: [String] {
         guard case let .done(result) = phase, result.isComplete else { return [] }
         return result.createdCardIds
     }
 
-    /// The picked folders' names, in the order picked.
     var folderNames: [String] {
         folderIds.compactMap { id in folders?.first { $0.id == id }?.name }
     }
@@ -59,8 +52,6 @@ final class ShareModel {
         }
     }
 
-    /// Puts the saved cards in the picked folders, and takes them out of ones unpicked since.
-    /// The cards are added to, or removed from, each folder the choice changed; other folders stay.
     func saveFolders() async -> Bool {
         let cardIds = savedCardIds
         guard let convex else { return true }
@@ -93,7 +84,6 @@ final class ShareModel {
         return saved
     }
 
-    /// Saves the folders picked and the tags and note typed after saving. Empty fields change nothing.
     func saveDetails(tags: String, note: String) async -> Bool {
         guard await saveFolders() else { return false }
         guard let id = savedCardId, let convex else { return true }
@@ -120,10 +110,8 @@ final class ShareModel {
         }
     }
 
-    /// Saves what was shared, drawing the preview's thumbnails at `thumbnailSize` points alongside.
     func run(thumbnailSize: CGFloat, scale: CGFloat) async {
         let loaded = await ItemProviders.load(providers, limit: TeakLimits.maxFilesPerUpload)
-        // Blank text saves nothing, so it says so rather than failing as if offline.
         let items = ShareImporter.removingEmptyAndDuplicates(loaded)
         guard !items.isEmpty else { return phase = .empty }
         let preview = SharePreview(items: items)
@@ -153,9 +141,6 @@ final class ShareModel {
     }
 }
 
-/// What you shared and how saving went, then tags, a note and folders for what was saved.
-/// On iPhone and iPad the preview sits large in the sheet with the controls near your thumb;
-/// on the Mac it's a compact row.
 struct ShareView: View {
     let model: ShareModel
     let close: () -> Void
@@ -165,7 +150,6 @@ struct ShareView: View {
     @State private var isEditing = false
     @State private var isPickingFolders = false
     @State private var hasAppeared = false
-    /// How much of the auto-close wait is left, from 1 to 0, drawn inside the Done button.
     @State private var countdown: CGFloat = 1
     @State private var isCountingDown = false
     @State private var shakes = 0
@@ -175,7 +159,6 @@ struct ShareView: View {
 
     enum Field { case tags, note }
 
-    /// A quick save closes by itself after this long; typing or choosing folders keeps it open.
     private static let autoClose: Double = 3
 
     #if os(iOS)
@@ -225,7 +208,6 @@ struct ShareView: View {
     // MARK: Layout
 
     #if os(iOS)
-    /// Fills the sheet when there's room; scrolls in landscape or above the keyboard when there isn't.
     private var layout: some View {
         GeometryReader { proxy in
             ScrollView {
@@ -247,7 +229,6 @@ struct ShareView: View {
         .animation(.spring(duration: 0.5, bounce: 0.2), value: model.phase)
     }
 
-    /// A soft wash of the shared image's colors behind the top of the sheet.
     private var ambience: some View {
         GeometryReader { proxy in
             if let file = model.preview?.files.first, let image = model.thumbnails[file] {
@@ -326,7 +307,6 @@ struct ShareView: View {
             .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.5), value: model.phase)
     }
 
-    /// The fields and Done after a save, or the way out after anything else.
     @ViewBuilder private var controls: some View {
         if isSaved {
             details
@@ -374,7 +354,6 @@ struct ShareView: View {
             if result.needsSignIn {
                 tr("native.share.signInMessage")
             } else if result.isComplete {
-                // "Saved 3 items" already says how many.
                 result.successfulItems == 1 ? model.preview?.title : nil
             } else {
                 Self.failureMessage(result)
@@ -394,7 +373,6 @@ struct ShareView: View {
                   result.totalItems.formatted(.number.locale(locale)))
     }
 
-    /// Why the first item wasn't saved. Too many items is Teak's own text; other reasons carry the error's.
     static func failureMessage(_ result: ShareImportResult) -> String {
         guard let failure = result.failures.first else { return tr("native.errors.offline") }
         if failure.reason == .tooManyItems {
@@ -405,7 +383,6 @@ struct ShareView: View {
 
     // MARK: Actions
 
-    /// Close, or open Teak to sign in.
     @ViewBuilder private var actions: some View {
         if case let .done(result) = model.phase, result.needsSignIn {
             HStack(spacing: 10) {
@@ -435,7 +412,6 @@ struct ShareView: View {
         .controlSize(.large)
     }
 
-    /// Tags and a note for one saved card; folders for one or several. Rows rise in one after another.
     private var details: some View {
         VStack(spacing: 14) {
             VStack(spacing: 0) {
@@ -496,7 +472,6 @@ struct ShareView: View {
         .frame(minHeight: 50)
     }
 
-    /// Opens the folder checklist; shows the folders picked, or a prompt like the fields above.
     private var foldersRow: some View {
         let names = model.folderNames
         let summary = names.formatted(.list(type: .and).locale(AppLanguage.locale))
@@ -522,8 +497,6 @@ struct ShareView: View {
         .animation(.smooth(duration: 0.25), value: names)
     }
 
-    /// Saves what was typed, then closes. While the card waits to close by itself, a lighter
-    /// band drains across the button.
     private var doneButton: some View {
         Button(action: finish) {
             ZStack {
@@ -573,7 +546,6 @@ struct ShareView: View {
     }
 }
 
-/// Shakes its content side to side once each time the trigger changes, like a wrong password.
 private struct Shake: ViewModifier {
     let trigger: Int
 
@@ -592,7 +564,6 @@ private struct Shake: ViewModifier {
 }
 
 private extension View {
-    /// Fades and lifts a row into place, a beat after the one before it.
     func reveal(order: Int) -> some View {
         modifier(Reveal(order: order))
     }

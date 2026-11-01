@@ -117,7 +117,6 @@ export default class FakeWorkersAi extends WorkerEntrypoint {
         text
       );
     }
-    // Its summaries are English, whatever the note's language.
     return chatReply(
       { language: "en", summary: summaryFor(text), tags: tagsFor(text) },
       text

@@ -158,7 +158,6 @@ describe("device requests to WorkOS are limited per account", () => {
     ).rejects.toThrow("RATE_LIMITED");
     expect(calls).toHaveLength(deviceRequests);
     expect(revoked).toEqual([]);
-    // The bucket refills, so the Settings page works again a minute later.
     vi.advanceTimersByTime(60_000);
     await f.user.action(api.securitySessions.revokeAuthkitSession, {
       sessionId: claims.sid,

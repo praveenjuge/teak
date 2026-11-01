@@ -304,7 +304,6 @@ describe("continuesOperator", () => {
     ["-(design ", true],
     ["(a OR b) ", false],
     ['"(quoted" ', false],
-    // A word after `x OR y` joins the y side of the OR.
     ["x OR y ", true],
     ["foo OR bar ", true],
     ["(a OR b) c ", false],

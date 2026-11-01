@@ -23,12 +23,6 @@ export type PageArchiveRowState =
 
 const SAVING = new Set(["pending", "in_progress"]);
 
-/**
- * What the Details row says about a link's saved copy: its size once saved
- * (a copy being refreshed keeps showing the one it has), "Saving a copy…"
- * while the first is made, or why none could be. Nothing for other cards, or
- * a link whose copy was never started.
- */
 export const pageArchiveRowState = (
   card: Pick<CardModalCard, "pageArchive" | "processingStatus" | "type">
 ): PageArchiveRowState | null => {
@@ -58,7 +52,6 @@ const FAILURE_MESSAGES = {
   unreachable: "archiveFailedUnreachable",
 } as const satisfies Record<PageArchiveFailureReason, string>;
 
-/** The side panel's "Archived copy" row, in the Details list. */
 export function PageArchiveRow({ card }: { card: CardModalCard }) {
   const t = useTranslations("cardModal.details");
   const locale = useIntlLocale(US_ENGLISH_LOCALE);

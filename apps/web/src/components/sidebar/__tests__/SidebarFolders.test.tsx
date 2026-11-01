@@ -38,7 +38,6 @@ mock.module("convex/react", () => ({
   },
 }));
 mock.module("convex-helpers/react/cache/hooks", () => ({
-  // Read through @/lib/convexQueryHooks, which wraps both hooks.
   usePaginatedQuery: () => ({
     results: [],
     status: "LoadingFirstPage",
@@ -152,6 +151,5 @@ test("the Deleted toast clips a long folder name", async () => {
   expect(message?.startsWith("Deleted “Reading list for the long")).toBe(true);
   expect(message?.endsWith("…”")).toBe(true);
   expect(Array.from(message ?? "").length).toBeLessThanOrEqual(50);
-  // Long enough to reach Undo.
   expect(toastDurations).toEqual([10_000]);
 });

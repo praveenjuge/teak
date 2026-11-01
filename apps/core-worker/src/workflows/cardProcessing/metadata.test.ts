@@ -1050,7 +1050,6 @@ describe("generating metadata", () => {
           MAX_AI_METADATA_INPUT_CHARS
         );
         expect(aiPrompts[0]).not.toContain("[Content truncated");
-        // The stored transcript is whole; only the AI input is cut.
         expect(String(saved()?.aiTranscript)).toContain("cue8");
       });
 

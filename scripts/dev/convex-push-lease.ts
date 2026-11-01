@@ -14,11 +14,6 @@ export interface LeaseState {
   lastPush: { at: number; commit: string; label: string } | null;
 }
 
-/**
- * Why a lease call failed: the deployed code has no lease functions yet (the
- * first push), the deployment refuses dev tooling (TEAK_DEV_DEPLOYMENT is
- * unset), or anything else, such as a network error, worth retrying.
- */
 export type LeaseFailure = "missing-functions" | "refused" | "unreachable";
 
 export type LeaseResult =

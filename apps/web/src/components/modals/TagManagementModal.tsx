@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
 
-// The tag's name beside its remove button: shaped like the outline button,
-// but not one, since it has nothing to do.
 const TAG_CHIP_CLASS =
   "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-l-full border border-r-0 bg-background px-3 font-medium text-sm has-[>svg]:px-2.5 dark:border-input dark:bg-input/30 [&_svg]:size-4 [&_svg]:shrink-0";
 

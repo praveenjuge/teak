@@ -12,7 +12,6 @@ import { memoryArea } from "../helpers/chromeStorage";
 const SAVED_URL = "https://example.com/saved";
 const NEW_URL = "https://example.com/new";
 
-/** A clock whose timers fire only when the test moves time forward. */
 function fakeClock() {
   let now = 1_000_000;
   let nextId = 1;
@@ -37,7 +36,6 @@ function fakeClock() {
           timer.run();
         }
       }
-      // Lets the checks the timers started finish.
       for (let i = 0; i < 20; i++) {
         await Promise.resolve();
       }

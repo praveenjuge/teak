@@ -8,10 +8,6 @@ import { env } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 import { E2E_EMAIL_INBOUND_SIGNING_SECRET } from "../stack/config";
 
-// Save by email end to end: the Core Worker's email handler reads a message as
-// Cloudflare hands it over and posts to this stack's backend, which saves the
-// body as a card and the attachment through the local Core Worker.
-
 const PDF = Buffer.from(
   "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
 ).toString("base64");
@@ -81,7 +77,6 @@ test("save by email: turn it on, then mail and its attachment become cards", {
   const api = clientFor(account.apiKey ?? "");
   const marker = `mail${Date.now().toString(36)}`;
 
-  // Off: mail from the owner is refused at delivery.
   const early = message(account.email, `${marker}early`);
   await deliver(early.inbound);
   expect(early.rejections).toEqual([REJECT_CANT_SAVE]);
@@ -96,7 +91,6 @@ test("save by email: turn it on, then mail and its attachment become cards", {
     screen.getByText(`Send from ${account.email}`, { exact: false })
   ).toBeVisible();
 
-  // Mail failing DMARC is refused even from the owner's address.
   const spoofed = message(account.email, `${marker}spoof`, "fail");
   await deliver(spoofed.inbound);
   expect(spoofed.rejections).toEqual([REJECT_CANT_SAVE]);
@@ -115,7 +109,6 @@ test("save by email: turn it on, then mail and its attachment become cards", {
     )
     .toEqual(["document", "text"]);
 
-  // A redelivery saves nothing new.
   await deliver(message(account.email, marker).inbound);
   expect((await api.cards.list({ tag: "email" })).items).toHaveLength(2);
 

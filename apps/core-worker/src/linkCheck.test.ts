@@ -18,7 +18,6 @@ import { createContainerNetwork } from "./test/cardProcessingKit";
 const PUBLIC = "93.184.216.34";
 const PUBLIC_V6 = "2606:2800:220:1:248:1893:25c8:1946";
 
-/** Names map to their A and AAAA answers; anything else is NXDOMAIN. */
 const dns = (
   records: Record<
     string,
@@ -46,10 +45,6 @@ interface Upstream {
   url: string;
 }
 
-/**
- * The real fetcher handler behind the Container hop, with `route` standing
- * in for the internet.
- */
 const network = (
   route: (url: string, method: string) => Response | undefined
 ) => {
@@ -348,8 +343,6 @@ describe("check-link requests", () => {
     const result = await checkLink(
       { url: "https://example.com/" },
       {
-        // A Worker-side bug that hands over a private address still stops at
-        // the Container.
         hop: (url, _addresses, init) =>
           createContainerPinnedFetch(container.env)(url, ["10.0.0.1"], init),
         lookup: dns({ "example.com": resolves() }),
@@ -414,7 +407,6 @@ describe("check-link requests", () => {
 describe("the check-link op", () => {
   const SECRET = "test-secret";
 
-  /** Any R2 call fails the test: the check never reads or writes storage. */
   const untouchableBucket = new Proxy(
     {},
     {

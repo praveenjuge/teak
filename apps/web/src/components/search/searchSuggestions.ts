@@ -44,13 +44,11 @@ export interface SearchSuggestionSources {
 
 export type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
 
-/** A shared hint's catalog key, as the `search` translator takes it. */
 const searchMessage = <K extends `search.${string}`>(key: K) =>
   key.slice("search.".length) as K extends `search.${infer Rest}`
     ? Rest
     : never;
 
-/** A suggestion group's heading in the UI language. */
 export const searchSuggestionGroupLabel = (
   group: SearchSuggestionGroup,
   t: SearchTranslator = englishSearch
@@ -62,7 +60,6 @@ export interface SearchSuggestion {
   group: SearchSuggestionGroup;
   id: string;
   insert: string;
-  /** The qualifier it inserts, or `OR`. */
   key: SearchQualifierKey | "OR";
   label: string;
   type?: CardType;
@@ -220,7 +217,6 @@ const complete = (
 };
 
 interface SuggestionText {
-  /** The locale for counts; undefined is the browser's. */
   locale?: string;
   t: SearchTranslator;
   types: CardTypesTranslator;
@@ -314,7 +310,6 @@ const excluded = (suggestion: SearchSuggestion): SearchSuggestion => ({
   insert: `-${suggestion.insert}`,
 });
 
-/** Suggestions for a token after a `-`: the filters to leave out. */
 const excludeSuggestions = (
   token: string,
   sources: SearchSuggestionSources,
@@ -365,7 +360,6 @@ export function buildSearchSuggestions(
     return excludeSuggestions(token.slice(1), sources, text);
   }
 
-  // `OR` joins two words or filters, so it is offered only after one.
   if (afterWord && /^or?$/i.test(token)) {
     const positive = buildSearchSuggestions(token, sources, text);
     return {
@@ -427,7 +421,6 @@ export function buildSearchSuggestions(
 }
 
 export interface QualifierChipDescription {
-  /** The chip leaves these cards out: `-tag:old`. */
   excluded?: true;
   label: string;
   qualifier: SearchQualifier;
@@ -453,10 +446,6 @@ export function describeQualifierChip(
   return null;
 }
 
-/**
- * How a word pill reads: an excluded word or phrase (`-figma`) shows the word
- * after a minus, and an OR group shows without its outer parentheses.
- */
 export function describeKeywordChip(chip: string): {
   excluded?: true;
   group?: true;

@@ -50,7 +50,6 @@ const setContent = async (
   await syncCardSearch(ctx, cardId, userId, previous);
 };
 
-/** A card id that existed once: inserted, then hard-deleted. */
 const deletedCardId = async (ctx: MutationCtx, userId: string) => {
   const id = await ctx.db.insert("cards", {
     content: "Deleted at once",

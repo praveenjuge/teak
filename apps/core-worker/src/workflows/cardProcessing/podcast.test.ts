@@ -17,11 +17,6 @@ import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry } from "../telemetry";
 import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
 
-// A podcast link's transcript: its audio found, streamed into a temporary
-// object, transcribed and deleted, with the summary and tags rewritten from
-// what is said. Whisper and the renderer are fakes; the link metadata op
-// runs for real against a fake Workers AI.
-
 const EPISODE_PAGE = "https://podcast.example.com/episodes/42";
 const AUDIO = "https://audio.example.com/42.mp3";
 const TRACK = "workflows/steps/podcast/mutations:trackPodcastAudio";
@@ -148,7 +143,6 @@ const setup = (
   };
 };
 
-/** The temporary object was stored, then deleted and forgotten. */
 const expectCleanedUp = (
   ctx: Pick<ReturnType<typeof setup>, "bucket" | "card" | "tracked">
 ) => {
@@ -195,7 +189,6 @@ describe("transcribePodcastEpisode", () => {
     expect(aiPrompts[0]).toContain("Title: Episode 42: Leaves");
     expect(aiPrompts[0]).toContain("Transcript: Today we talk about leaves.");
     expect(ctx.siteRequests).toEqual([AUDIO]);
-    // Whisper read the stored object, which is now gone.
     expect(ctx.fakes.calls[0]?.params).toMatchObject({
       mimeType: "audio/mpeg",
       transcribe: true,
@@ -283,7 +276,6 @@ describe("transcribePodcastEpisode", () => {
     expect(saved?.aiTranscript).toBe("Today we talk about leaves.");
     expect(saved?.aiSummary).toBeUndefined();
     expect(saved?.aiTags).toBeUndefined();
-    // The page's summary keeps its language.
     expect(saved).not.toHaveProperty("aiLanguage");
     expect(ctx.card).toMatchObject({
       aiSummary: "From the page",
@@ -402,7 +394,6 @@ describe("transcribePodcastEpisode", () => {
     let env: ReturnType<typeof setup>["env"] | undefined;
     const ctx = setup(podcastCard(), {
       handlers: {
-        // Account deletion freezes each registered key it finds.
         "storage/ownership:registerObject": async (args) => {
           if (env) {
             await freezeObject(env, String(args.key));
@@ -423,7 +414,6 @@ describe("transcribePodcastEpisode", () => {
   test("an edit during transcription refuses the write and still deletes the audio", async () => {
     const ctx = setup(podcastCard(), {
       processAudio: () => {
-        // The person edits the card while Whisper runs.
         ctx.card.processingRev = 2;
         return transcribed("Today we talk about leaves.");
       },

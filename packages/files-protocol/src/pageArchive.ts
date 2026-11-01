@@ -1,4 +1,3 @@
-/** `archive-page`: a link's saved copy, written to `destinationKey`. */
 export interface FilesArchivePageParams {
   /** When the copy is taken, recorded inside it. */
   capturedAt: number;

@@ -9,7 +9,6 @@ import { SearchBar } from "../SearchBar";
 
 const noop = () => undefined;
 
-/** The chips' accessible names, in the order the search bar shows them. */
 const shownChips = (state: CardsSearchState): string[] => {
   const markup = renderToStaticMarkup(
     <SearchBar

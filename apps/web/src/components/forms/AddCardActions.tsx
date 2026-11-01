@@ -43,8 +43,6 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
-// The first item of the sidebar's view menu, styled like the views below it;
-// just its icon in the collapsed rail.
 const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
 
 export function NewMenuPlaceholder() {
@@ -321,7 +319,6 @@ export function AddCardActions({
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      // A start that was closed or replaced owns nothing to clean up.
       if (attempt !== startAttemptRef.current) {
         return;
       }
@@ -364,7 +361,6 @@ export function AddCardActions({
     }
   }, [isRecording]);
 
-  // Stops the recorder without its save handler, so nothing is kept.
   const discardRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
     if (recorder) {
@@ -381,8 +377,6 @@ export function AddCardActions({
     setIsRecordingDialogOpen(false);
   }, [clearRecordingResources]);
 
-  // Esc cancels, as in any dialog: it discards a recording rather than
-  // saving it. A stray click outside does nothing while recording.
   const handleDialogOpenChange = (open: boolean) => {
     if (open) {
       setIsRecordingDialogOpen(true);

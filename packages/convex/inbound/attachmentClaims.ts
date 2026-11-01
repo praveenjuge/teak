@@ -6,7 +6,6 @@ import type { MutationCtx } from "../_generated/server";
 // one finalize at a time, and its card is recorded on the receipt in the same
 // transaction that creates it, so a retry never makes a second card.
 
-/** A finalize that hasn't finished in this long is taken over. */
 export const ATTACHMENT_CLAIM_TTL_MS = 2 * 60 * 1000;
 
 export const emailAttachmentClaimValidator = v.object({
@@ -37,10 +36,6 @@ const loadAttachment = async (
   return { attachment, attachments, position, receipt };
 };
 
-/**
- * The card already made for this attachment, if any. Throws IN_PROGRESS when
- * another finalize holds the claim now.
- */
 export const checkEmailAttachmentClaim = async (
   ctx: MutationCtx,
   claim: EmailAttachmentClaim

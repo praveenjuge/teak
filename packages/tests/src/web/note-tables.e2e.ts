@@ -11,7 +11,6 @@ import { expect, generateTestContent, test } from "./fixtures";
 
 const lexer = new Marked({ gfm: true });
 
-/** The header and body cell text of the first table in `markdown`. */
 const tableCells = (markdown: string) => {
   const table = lexer.lexer(markdown).find((token) => token.type === "table") as
     | {
@@ -76,13 +75,11 @@ describe("Tables in notes", { trace: "on", video: "retain-on-failure" }, () => {
     await screen.getByRole("button", "Table options").click();
     await screen.getByRole("menuitem", "Add column right").click();
     await expect(table.getByRole("columnheader")).toHaveCount(4);
-    // Into the new, empty column beside "Team", then delete it.
     await editor.press("Tab");
     await screen.getByRole("button", "Table options").click();
     await screen.getByRole("menuitem", "Delete column").click();
     await expect(table.getByRole("columnheader")).toHaveCount(3);
 
-    // Keyboard only: Alt+F10 reaches the ⋯ button, Esc returns to the cell.
     await editor.press("Alt+F10");
     await expect(screen.getByRole("button", "Table options")).toBeFocused();
     await browser.keyboard.press("Enter");

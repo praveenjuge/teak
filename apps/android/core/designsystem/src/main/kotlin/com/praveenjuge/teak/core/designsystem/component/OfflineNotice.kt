@@ -19,7 +19,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.i18n.tr
 
-/** One quiet line saying Teak is offline and that changes made now are kept for later. */
 @Composable
 fun OfflineNotice(modifier: Modifier = Modifier) {
     Row(

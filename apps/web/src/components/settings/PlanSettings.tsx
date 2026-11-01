@@ -26,7 +26,6 @@ interface UsageMeterProps {
   limit: number;
 }
 
-/** How much of the free plan's card limit is used, as a bar. */
 export function UsageMeter({ count, limit }: UsageMeterProps) {
   const t = useTranslations("settings.plan");
   const locale = useIntlLocale();

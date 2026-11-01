@@ -97,11 +97,9 @@ test("adding the first color keeps the open popover and its typed color", async 
   });
   expect(onAddColor).toHaveBeenCalledWith("#2A9D8F");
 
-  // The optimistic update shows the color before the save settles.
   await render(["#2A9D8F"], onAddColor);
   expect(hexField()?.value).toBe("2a9d8f");
 
-  // The save fails and the color goes away again: the typed color is still there.
   await act(async () => {
     finishSave(false);
     await Promise.resolve();

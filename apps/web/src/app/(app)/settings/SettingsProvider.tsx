@@ -37,7 +37,6 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-/** What every Settings page reads: the account, its keys, devices and more. */
 export function useSettings(): SettingsContextValue {
   const value = useContext(SettingsContext);
   if (!value) {

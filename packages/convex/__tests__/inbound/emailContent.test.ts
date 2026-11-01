@@ -8,9 +8,6 @@ import {
 } from "../../inbound/emailContent";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../../shared/markdown";
 
-// What a saved email becomes: one link, or a Markdown note headed by its
-// subject, with forwarding noise, trackers and redirect wrappers removed.
-
 const plan = (email: {
   html?: string | null;
   subject?: string | null;
@@ -488,7 +485,6 @@ ${pixels}
 
 describe("planEmailCards: size", () => {
   test("a body past the text card cap is cut to valid UTF-8 that fits", () => {
-    // Multi-byte characters, so a naive byte cut would split one.
     const text = "é漢🎉".repeat(80_000);
     const markdown = markdownOf(plan({ subject: "Big", text }));
     expect(byteLength(markdown)).toBeLessThanOrEqual(

@@ -12,9 +12,6 @@ const bootstrapResult = v.union(
   v.object({ status: v.literal("quarantined"), reason: v.string() })
 );
 
-// Creates the Teak owner on first sign-in from the signed session claims, and
-// brings an existing owner's address, verification and name up to date. Released apps still handle
-// `quarantined`/`profile_pending`, which this no longer returns.
 export const ensureUser = mutation({
   args: {},
   returns: bootstrapResult,

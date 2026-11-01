@@ -40,7 +40,6 @@ const MARKDOWN = [
   "Water weekly.",
 ].join("\n");
 
-/** Puts the Markdown in the reader's text cache, as a fetch would. */
 const seed = async (key: string, markdown: string) => {
   await requestFileTextPreview({
     cacheKey: key,
@@ -93,7 +92,6 @@ describe("ArticleReader", () => {
     const html = render();
 
     expect(html).toContain(`${ARTICLE_READER_ATTRIBUTE}="card_1"`);
-    // The title and the body take their own direction, never the header's.
     expect(html).not.toMatch(/<article[^>]*\sdir=/u);
     expect(html).toMatch(/<h1[^>]*\sdir="auto"/u);
     expect(html).toMatch(/<div[^>]*\sdir="auto"[^>]*data-article-body/u);
@@ -101,7 +99,6 @@ describe("ArticleReader", () => {
     expect(html).toContain(">example.com<");
     expect(html).toContain(">Ada Writer<");
     expect(html).toContain(">8 min read<");
-    // The Markdown's own opening heading repeats the title: only one stays.
     expect(html.match(/Gardens in spring/gu)).toHaveLength(1);
     expect(html).toMatch(/<h1[^>]*>Gardens in spring<\/h1>/u);
     expect(html).toContain("<h2>Care</h2>");
@@ -115,10 +112,7 @@ describe("ArticleReader", () => {
     expect(html).toContain('alt="A rose"');
     expect(html).toContain(">The first rose<");
     expect(html).not.toContain("teak-image:");
-    expect(html.match(/<img /gu)?.filter(Boolean).length).toBe(
-      // The favicon and the one image the article has.
-      2
-    );
+    expect(html.match(/<img /gu)?.filter(Boolean).length).toBe(2);
   });
 
   test("strips scripts, frames and javascript: links and images", async () => {
@@ -172,7 +166,6 @@ describe("ArticleReader", () => {
       />
     );
     expect(html).toContain("Article shortened to fit.");
-    // At least one minute, and the link's title when the article has none.
     expect(html).toContain(">1 min read<");
     expect(html).toMatch(/<h1[^>]*>Fallback title<\/h1>/u);
   });

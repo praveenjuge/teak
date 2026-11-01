@@ -85,7 +85,6 @@ export function SubscriptionSection({
   );
 }
 
-/** What Pro includes, as a checklist. */
 export function ProFeatureList({ title }: { title?: string }) {
   const t = useTranslations("settings.subscription");
   return (
@@ -108,7 +107,6 @@ export function ProFeatureList({ title }: { title?: string }) {
   );
 }
 
-/** Settings → Plan, on the free plan: pick monthly or yearly and check out. */
 export function UpgradeCard({
   loadingPlanId,
   monthlyPlanId,

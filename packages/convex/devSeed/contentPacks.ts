@@ -610,7 +610,6 @@ export const checklistsPack = (): FolderScenarioPack => {
 export const NOTE_TABLES_WIDE = { cols: 20, rows: 200 } as const;
 export const NOTE_TABLES_LARGE_BYTES = 510 * 1024;
 
-/** A GFM table from a header row and body rows. */
 const gfmTable = (rows: string[][], delimiter = "---") =>
   [
     `| ${rows[0].join(" | ")} |`,

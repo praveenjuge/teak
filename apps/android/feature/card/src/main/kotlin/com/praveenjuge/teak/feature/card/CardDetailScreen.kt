@@ -151,7 +151,6 @@ internal class CardDetailCallbacks(
     val onSetFolders: (List<String>) -> Unit = {},
     val onCreateFolder: (String, (Folder) -> Unit) -> Unit = { _, _ -> },
     val onToggleTask: (MarkdownListItem) -> Unit = {},
-    /** Opens the card's PDF in the app's reader. */
     val onViewPdf: () -> Unit = {},
     val onSaveTitle: (String) -> Unit = {},
     val onEditLink: () -> Unit = {},

@@ -35,8 +35,6 @@ const applyTheme = () =>
 applyTheme();
 darkScheme.addEventListener("change", applyTheme);
 
-// Nothing renders until the stored language loads (a few milliseconds), so
-// the popup never flashes English first.
 void loadPopupLocale().then((initial) => {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>

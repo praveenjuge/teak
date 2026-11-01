@@ -29,7 +29,6 @@ export const cardListSortWithShuffleValidator = v.union(
   v.literal("shuffle")
 );
 
-/** The public `archived` filter: none (the default), only archived, or both. */
 export type ArchivedFilter = "exclude" | "only" | "include";
 
 export const archivedFilterValidator = v.union(
@@ -38,10 +37,6 @@ export const archivedFilterValidator = v.union(
   v.literal("include")
 );
 
-/**
- * Which cards a read returns: the library (unarchived, the default), the
- * Archive view, both, or Trash (every trashed card, archived or not).
- */
 export type CardListScope =
   | "library"
   | "archive"
@@ -61,7 +56,6 @@ export const cardListScope = (
   return archived === "include" ? "libraryAndArchive" : "library";
 };
 
-/** The `isArchived` index value a scope reads; `"any"` reads every value. */
 export const scopeArchivedMatch = (
   scope: CardListScope = "library"
 ): true | undefined | "any" => {
@@ -71,7 +65,6 @@ export const scopeArchivedMatch = (
   return scope === "archive" ? true : undefined;
 };
 
-/** The `isDeleted` index value a scope reads. */
 export const scopeDeletedMatch = (
   scope: CardListScope = "library"
 ): true | undefined => (scope === "trash" ? true : undefined);
@@ -319,7 +312,6 @@ export const cardListStream = (
   };
 };
 
-/** The first `limit` cards `buildCardListQuery` returns, in `order`. */
 export const takeCardList = (
   ctx: QueryCtx,
   options: CardListQueryOptions,

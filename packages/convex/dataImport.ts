@@ -345,10 +345,6 @@ const holdsClaim = (job: Doc<"importJobs">, token: string) =>
   job.completionClaim?.token === token &&
   job.completionClaim.expiresAt > Date.now();
 
-/**
- * Claims an upload for one `completeImportUpload` call. A second call while
- * the claim is live is refused before it reaches R2.
- */
 export const claimCompletion = internalMutation({
   args: { jobId: v.id("importJobs"), userId: v.string(), uploadId: v.string() },
   returns: v.string(),

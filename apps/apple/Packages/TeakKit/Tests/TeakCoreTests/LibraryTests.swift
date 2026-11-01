@@ -40,7 +40,6 @@ private func day(_ milliseconds: Double) -> String {
         #expect(day(result.range.upperBound) == end)
     }
 
-    /// The words people type stay English; dates and weekdays read in the app's language.
     @Test func labelsDatesInTheAppsLanguage() {
         let german = Locale(identifier: "de")
         #expect(TimeSearch.parse("2024-06-05", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "5. Juni 2024")
@@ -170,9 +169,7 @@ private func day(_ milliseconds: Double) -> String {
             return
         }
         #expect(day(start) == "2026-01-25")
-        // A lone number beside words stays a word, and operators keep the text whole.
         #expect(LibraryQuery(text: "iphone 2024").searchArgs(now: tuesdayNoon, timeZone: newYork)["createdAtRange"] == nil)
-        // So does a month name: only the whole search "march" is a date.
         let may = LibraryQuery(text: "things i may need").searchArgs(now: tuesdayNoon, timeZone: newYork)
         #expect(may["createdAtRange"] == nil)
         #expect(may["searchQuery"] == "things i may need")
@@ -182,7 +179,6 @@ private func day(_ milliseconds: Double) -> String {
         #expect(SearchTokens.parse("top 100 bad sites", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
             == "-figma last week")
-        // A smart folder saves only the words, so saving warns that the date is left behind.
         #expect(LibraryQuery(text: "figma last week").smartFolderDropsFilters)
         #expect(!LibraryQuery(text: "figma").smartFolderDropsFilters)
     }
@@ -193,7 +189,6 @@ private func day(_ milliseconds: Double) -> String {
     ])
     func searchTextIsSentAsTyped(text: String) {
         #expect(LibraryQuery(text: text).searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"] == .string(text))
-        // Pressing Return keeps it whole, so the operators reach the backend.
         let tokens = SearchTokens.parse(text, now: tuesdayNoon, timeZone: newYork)
         #expect(tokens.map(\.kind) == [.keyword])
         #expect(LibraryQuery(tokens: tokens).searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"] == .string(text))
@@ -237,7 +232,6 @@ private func day(_ milliseconds: Double) -> String {
         let show = try #require(SearchTokens.suggestions(for: "is:arch").first)
         #expect(show.kind == .qualifier)
         #expect(show.value == "is:archived")
-        // After other words a pick writes into the text, so the words stay.
         let typed = try #require(SearchTokens.suggestions(for: "design -type:quote type:ima").first)
         #expect(typed.kind == .hint)
         #expect(SearchTokens.applying(typed, to: "design -type:quote type:ima") == "design -type:quote type:image ")
@@ -331,7 +325,6 @@ private func day(_ milliseconds: Double) -> String {
     }
 
     @Test func oneCardOnlyAddsWhatWasPicked() {
-        // A link shared again keeps the folders it was already in.
         #expect(FolderChoice.change(selected: ["f1", "f2"], saved: [], cardCount: 1) == .update(add: ["f1", "f2"], remove: []))
         #expect(FolderChoice.change(selected: [], saved: ["f1"], cardCount: 1) == .update(add: [], remove: ["f1"]))
         #expect(FolderChoice.change(selected: ["f2", "f1"], saved: ["f1", "f2"], cardCount: 1) == .none)

@@ -5,7 +5,6 @@ import { useEffect, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 export interface PasteJob {
-  /** Lines the composer never sent, past the most one paste may send. */
   extraOmitted: number;
   jobId: Id<"linkPasteJobs">;
   toastId: string | number;
@@ -45,7 +44,6 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-/** How many composers are showing each job's toast right now. */
 const trackers = new Map<Id<"linkPasteJobs">, number>();
 
 /**

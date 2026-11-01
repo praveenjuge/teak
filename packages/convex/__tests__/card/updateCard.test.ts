@@ -236,7 +236,6 @@ describe("card/updateCard.ts", () => {
     } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
-    // Another account's card reads as missing, as `updateCardField` says.
     await expect(
       updateHandler(ctx, { id: "c1", content: "Hi" })
     ).rejects.toThrow("Card not found");

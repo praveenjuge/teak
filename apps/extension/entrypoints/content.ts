@@ -237,10 +237,8 @@ const ICONS: Record<Exclude<ButtonState, "idle">, IconNode> = {
   error: X,
 };
 
-// English until the background answers with the UI language's labels.
 let labels: InlineLabels = ENGLISH_INLINE_LABELS;
 
-/** Asks the background for the labels, and relabels buttons already shown. */
 const refreshLabels = async () => {
   const response = await sendRuntimeMessage<InlineLabelsResponse>({
     type: MESSAGE_TYPES.GET_INLINE_LABELS,

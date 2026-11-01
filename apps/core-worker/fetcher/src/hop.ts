@@ -26,7 +26,6 @@ const isPositiveInteger = (value: unknown, max: number): value is number =>
   value > 0 &&
   value <= max;
 
-/** A streamed hop may ask for more bytes and time than a buffered one. */
 export const HOP_LIMITS = {
   buffered: {
     maxBytes: FETCHER_HOP_MAX_BYTES,

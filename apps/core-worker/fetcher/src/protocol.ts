@@ -3,7 +3,6 @@ import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/s
 export const FETCHER_PORT = 8080;
 export const FETCHER_PROTOCOL = 3;
 export const FETCHER_PATH = "/fetch";
-/** Fetch a link's page and match scrape selectors against its static HTML. */
 export const FETCHER_PAGE_PATH = "/fetch-page";
 /**
  * One request to addresses the Worker already checked, for `safeFetch`
@@ -32,7 +31,6 @@ export interface FetcherRequest {
   url: string;
 }
 
-/** Facts about a 200 response's bytes, sent as response headers. */
 export const FETCHER_HEADERS = {
   contentType: "x-teak-asset-content-type",
   height: "x-teak-asset-height",
@@ -71,12 +69,10 @@ export interface FetcherPageResponse {
   }>;
 }
 
-/** The request headers a hop may carry; anything else is refused. */
 export const FETCHER_HOP_REQUEST_HEADERS = ["accept", "user-agent"] as const;
 /** The most bytes a hop returns, plus one so the caller can tell it was cut. */
 export const FETCHER_HOP_MAX_BYTES = 4 * 1024 * 1024;
 export const FETCHER_HOP_MAX_TIMEOUT_MS = 30_000;
-/** A streamed hop's limits: the upload cap, and the time for all of it. */
 export const FETCHER_STREAM_MAX_BYTES = 100 * 1024 * 1024;
 export const FETCHER_STREAM_MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -92,7 +88,6 @@ export interface FetcherHopRequest {
     Record<(typeof FETCHER_HOP_REQUEST_HEADERS)[number], string>
   >;
   maxBytes: number;
-  /** GET when absent. */
   method?: (typeof FETCHER_HOP_METHODS)[number];
   timeoutMs: number;
   url: string;

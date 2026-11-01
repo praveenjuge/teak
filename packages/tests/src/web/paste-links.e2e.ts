@@ -75,7 +75,6 @@ describe("Pasting a list of links", () => {
       COMPOSER_EDITOR,
       [
         `https://example.com/new/1?${run}`,
-        // The same link with a tracking parameter and www.
         `https://www.example.com/known?${run}&utm_source=newsletter`,
         `https://example.com/new/2?${run}`,
       ].join("\n")

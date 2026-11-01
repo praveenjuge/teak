@@ -54,7 +54,6 @@ export interface CardDetailsSource {
       status?: string;
     };
   };
-  /** When the card was last saved: `createdAt`, or later when the same link was saved again. */
   savedAt?: number;
   type?: string;
   updatedAt: number;
@@ -104,7 +103,6 @@ const present = (fields: Array<{ label: string; value?: string | null }>) =>
     Boolean(field.value?.trim())
   );
 
-/** The labels of the rows Details shows before "More details". */
 export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
   new Set([t("added"), t("savedAgain"), t("fileSize")]);
 

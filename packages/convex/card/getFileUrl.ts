@@ -40,7 +40,6 @@ const cardOwnsMediaKey = (
   card.thumbnailOverride?.storageKey === key ||
   card.metadata?.linkPreview?.screenshotStorageKey === key ||
   card.metadata?.linkPreview?.imageStorageKey === key ||
-  // An image in the reader's article, signed again once its URL expires.
   Boolean(card.article?.imageKeys?.includes(key)) ||
   Boolean(
     card.metadata?.linkPreview?.media?.some(

@@ -1353,7 +1353,6 @@ describe("publicApiHttp card endpoints", () => {
         expect(new URL(signed ?? "").origin).toBe("https://files.test");
         expect(new URL(signed ?? "").pathname).toBe(`/${imageKey}`);
         expect(new URL(signed ?? "").searchParams.get("sig")).toBeTruthy();
-        // A reference with no image left is dropped, never sent as a token.
         expect(body.text).not.toContain("teak-image:");
       } finally {
         global.fetch = originalFetch;

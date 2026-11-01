@@ -99,7 +99,6 @@ final class LibraryFlowTests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
-    /// Picks an item from the library's header menu ("More").
     @MainActor private func filter(_ name: String) {
         let button = byId("library.more").waitToAppear()
         tap(button)
@@ -185,7 +184,6 @@ final class LibraryFlowTests: XCTestCase {
         tap(byId("detail.more").waitToAppear())
         tap(menuItem("Move to Trash").waitToAppear())
         tile(containing: note).waitToDisappear()
-        // Moving to Trash asks nothing and offers Undo, which puts the card back.
         tap(byId("status.undo").waitToAppear())
         tile(containing: note).waitToAppear()
 
@@ -239,7 +237,6 @@ final class LibraryFlowTests: XCTestCase {
         let selected = app.staticTexts["1 selected"].firstMatch
         selected.waitToAppear()
 
-        // A search chip shows other cards, so the selection and its bar go.
         let search = app.searchFields.firstMatch
         tap(search)
         submit("link", into: search)
@@ -262,7 +259,6 @@ final class LibraryFlowTests: XCTestCase {
         tap(menuItem("Favorite").waitToAppear())
         favorited.waitToAppear()
 
-        // Unfavoriting on the card's page clears the tile's heart once back, with no refresh.
         tap(tile(containing: note))
         tap(app.buttons["Unfavorite"].firstMatch.waitToAppear())
         app.buttons["Favorite"].firstMatch.waitToAppear()
@@ -278,13 +274,11 @@ final class LibraryFlowTests: XCTestCase {
         let page = marker("done")
         save("https://example.org/\(page)", expecting: "example.org")
 
-        // Marking a link done flips the toggle and says so.
         tap(tile(containing: "example.org"))
         tap(app.buttons["Mark as done"].firstMatch.waitToAppear())
         app.staticTexts["Marked as done"].firstMatch.waitToAppear()
         app.buttons["Done"].firstMatch.waitToAppear()
 
-        // Archiving leaves the library, shows in Archive and comes back.
         tap(byId("detail.more").waitToAppear())
         tap(menuItem("Archive").waitToAppear())
         app.staticTexts["Archived 1 card"].firstMatch.waitToAppear()
@@ -297,7 +291,6 @@ final class LibraryFlowTests: XCTestCase {
         filter("Archive")
         tile(containing: "example.org").waitToAppear()
 
-        // Revisit deals the view's cards one at a time; Keep moves on.
         filter("Revisit")
         let position = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 of ")).firstMatch
         position.waitToAppear(20)
@@ -315,7 +308,6 @@ final class LibraryFlowTests: XCTestCase {
             save("Revisit \(note)", expecting: note)
         }
 
-        // Archive the first card, keep every other one to the end of the deck.
         filter("Revisit")
         let first = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 of ")).firstMatch
         first.waitToAppear(20)
@@ -328,7 +320,6 @@ final class LibraryFlowTests: XCTestCase {
         finished.waitToAppear()
         app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 archived")).firstMatch.waitToAppear()
 
-        // Undo last archive returns to the archived card, not the last one kept.
         tap(app.buttons["Undo last archive"].firstMatch)
         first.waitToAppear()
         finished.waitToDisappear()
@@ -338,7 +329,6 @@ final class LibraryFlowTests: XCTestCase {
     func testFoldersOpenFromTheFoldersTabOrSidebar() async throws {
         try await start()
         let name = marker("folder")
-        // iPhone has a Folders tab; iPad and Mac keep folders in the sidebar.
         let tabBar = app.tabBars.buttons["Folders"]
         if tabBar.waitForExistence(timeout: 3) {
             tap(tabBar)

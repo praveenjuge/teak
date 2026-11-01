@@ -36,7 +36,6 @@ type ReadyArticle = Extract<
 const readyArticle = (card: Doc<"cards">): ReadyArticle | undefined =>
   card.article?.status === "ready" ? card.article : undefined;
 
-/** The article objects a card holds, which a new article may replace. */
 const articleKeys = (article: ReadyArticle | undefined): string[] =>
   article ? [article.textKey, ...article.imageKeys] : [];
 
@@ -58,10 +57,6 @@ const queueReplacedKeys = async (
   }
 };
 
-/**
- * The card fields that say a link has no article text: cleared only when
- * they describe the article (a link never has a document's text).
- */
 const clearedArticleText = (card: Doc<"cards">) =>
   card.documentTextKey === undefined ||
   card.documentTextKey === readyArticle(card)?.textKey
@@ -118,7 +113,6 @@ export const saveArticleTextHandler = async (
 ): Promise<boolean> => {
   const card = await ctx.db.get("cards", args.cardId);
   if (!card || (await getAccountDeletionState(ctx, card.userId))) {
-    // Nothing will point at these objects; they are this run's alone.
     if (!card) {
       for (const key of [args.textKey, ...args.article.imageKeys]) {
         await queueObjectDeletion(ctx, key);
@@ -133,8 +127,6 @@ export const saveArticleTextHandler = async (
     articleSkipReason(card) === "frozen" &&
     articleObjectDigest(current.textKey) !== articleObjectDigest(args.textKey)
   ) {
-    // Highlighted while this run extracted the article: the article they
-    // were made in stays, and the new objects it doesn't use go.
     await queueReplacedKeys(
       ctx,
       [args.textKey, ...args.article.imageKeys],
@@ -204,7 +196,6 @@ export const saveArticleTextHandler = async (
   // The embedding reads the article's opening; the search text may not change.
   await markCardForEmbedding(ctx, card._id, card.userId);
   if (card.hasHighlights) {
-    // Highlights an import brought are found in the article now.
     await ctx.scheduler.runAfter(
       0,
       internal.highlight.anchorPending.anchorPendingHighlights,
@@ -245,7 +236,6 @@ export const saveArticleText = internalMutation({
   handler: saveArticleTextHandler,
 });
 
-/** A page that isn't an article: its old article, if any, goes. */
 export const recordNoArticle = internalMutation({
   args: { cardId: v.id("cards"), wordCount: v.optional(v.number()) },
   returns: v.boolean(),
@@ -256,7 +246,6 @@ export const recordNoArticle = internalMutation({
     }
     const previous = readyArticle(card);
     if (previous && articleSkipReason(card) === "frozen") {
-      // Highlighted while this run read the page: their article stays.
       await patchCardWithSearchSync(ctx, card._id, {
         processingStatus: mergeProcessingStages(card.processingStatus, {
           article: stageCompleted(Date.now()),
@@ -333,10 +322,6 @@ export const markArticleStage = internalMutation({
   },
 });
 
-/**
- * "summarize article": the link's summary, written again from its article.
- * Only `aiSummary` changes; tags stay as they are.
- */
 export const saveArticleSummary = internalMutation({
   args: { cardId: v.id("cards"), aiSummary: v.string() },
   returns: v.boolean(),
@@ -368,7 +353,6 @@ export const droppedArticleFields = (card: Doc<"cards">) =>
     ? { article: undefined, ...clearedArticleText(card) }
     : ({} as Record<string, never>);
 
-/** Deletes a dropped article's text row and queues its objects for deletion. */
 export const discardArticleObjects = async (
   ctx: MutationCtx,
   card: Doc<"cards">

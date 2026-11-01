@@ -25,7 +25,6 @@ object AppLanguage {
     private const val APPLIED = "applied"
     private const val PENDING = "pending"
 
-    /** The language the app shows now. */
     fun current(context: Context): String = chosen(context) ?: match(systemLocales())
 
     /**
@@ -65,7 +64,6 @@ object AppLanguage {
         return prefs(context).getString(PENDING, null)?.takeIf { it in codes }
     }
 
-    /** The account took the system's choice. */
     fun systemChoiceSaved(context: Context) {
         prefs(context).edit { remove(PENDING) }
     }

@@ -25,7 +25,6 @@ export const readerTitleOf = (card: Doc<"cards">): string | undefined =>
   card.metadataTitle ??
   card.metadata?.linkPreview?.title;
 
-/** The article a card's highlights point into, or null. */
 export const articleSourceOf = (card: Doc<"cards">) =>
   card.article?.status === "ready"
     ? {
@@ -35,7 +34,6 @@ export const articleSourceOf = (card: Doc<"cards">) =>
       }
     : null;
 
-/** The reader's text of an article, read from storage. */
 export const readArticleReaderText = async (source: {
   imageCount: number;
   textKey: string;
@@ -98,7 +96,6 @@ export const saveAnchors = internalMutation({
   handler: (ctx, args) => applyAnchors(ctx, args),
 });
 
-/** Finds where each waiting highlight is in the card's article. */
 export const anchorPendingHighlights = internalAction({
   args: { cardId: v.id("cards") },
   returns: v.number(),

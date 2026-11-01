@@ -402,7 +402,6 @@ describe("Cards/Card", () => {
     expect(image("image/svg+xml")).not.toContain("Copy image");
   });
 
-  // Bug 30: Trash offers only Restore and Delete forever.
   test("offers no Open link for a link in Trash", () => {
     const trashed = renderToStaticMarkup(
       <Card card={createLinkCard({ isDeleted: true }) as any} />
@@ -413,7 +412,6 @@ describe("Cards/Card", () => {
     expect(items).toEqual(["Restore", "Delete forever"]);
   });
 
-  // Bug 02: an emptied note was a blank strip the quick actions covered.
   test("shows an empty note as Empty note", () => {
     const markup = renderToStaticMarkup(
       <Card
@@ -425,7 +423,6 @@ describe("Cards/Card", () => {
     expect(markup).toContain("Empty note");
   });
 
-  // Bug 01: the editor saves `<`, `>` and `&` as entities.
   test("shows a note's angle brackets and ampersands as typed", () => {
     const markup = renderToStaticMarkup(
       <Card
@@ -442,7 +439,6 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("&amp;lt;");
   });
 
-  // Bug 17: the words typed around a URL were saved but never shown.
   test("shows the words saved with a link, without the URL", () => {
     const markup = renderToStaticMarkup(
       <Card

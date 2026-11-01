@@ -427,7 +427,6 @@ describe("requests without a known user", () => {
   });
 
   test("rotating IPv6 addresses inside one /64 cannot outrun the address limit", async () => {
-    // A single host is routinely handed a whole /64.
     const shared = env({ unknown: new FakeLimiter(2) });
     const statuses: (number | "forwarded")[] = [];
     for (const address of [

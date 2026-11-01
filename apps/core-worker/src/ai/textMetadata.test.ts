@@ -96,7 +96,6 @@ describe("signed text/link metadata", () => {
         ...expected,
         validationRetryCount: 0,
       });
-      // An invalid language is dropped, never a retry.
       expect(run).toHaveBeenCalledTimes(1);
     }
   );

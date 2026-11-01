@@ -27,7 +27,6 @@ const CONVEX_DIR = join(ROOT, "packages/convex");
 const ACCOUNT_PATH = join(dirname(stackStatePath(ROOT)), "dev-account.json");
 const POLL_MS = 20_000;
 
-/** The languages the release gate holds to `GATE_ACCURACY`. */
 export const GATED_LANGUAGES = ["ja", "es", "de", "ko", "zh", "fr"] as const;
 export const GATE_ACCURACY = 0.9;
 
@@ -111,7 +110,6 @@ const LANGUAGE_SCRIPTS: Record<string, SummaryScript> = {
   zh: "han",
 };
 
-/** The script a summary in this language is written in. */
 export const expectedScript = (language: string): SummaryScript =>
   LANGUAGE_SCRIPTS[language] ?? "latin";
 
@@ -122,11 +120,6 @@ export interface LanguageScore {
   scriptMatches: number;
 }
 
-/**
- * Accuracy per expected language, over every card in the pack. A card with
- * no summary yet (unfinished, failed or out of time) counts as a miss, so
- * failures can't lift a language over the bar.
- */
 export const scoreRows = (rows: readonly ReportRow[]): LanguageScore[] => {
   const scores = new Map<string, LanguageScore>();
   for (const row of rows) {
@@ -156,7 +149,6 @@ export const scoreRows = (rows: readonly ReportRow[]): LanguageScore[] => {
   );
 };
 
-/** Gated languages under the bar (by language or by script), or with no cards. */
 export const gateFailures = (scores: readonly LanguageScore[]): string[] =>
   GATED_LANGUAGES.filter((language) => {
     const score = scores.find((entry) => entry.language === language);

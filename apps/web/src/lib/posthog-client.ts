@@ -100,7 +100,6 @@ export const identifyPostHogUser = (
     localStorage.setItem(IDENTITY_KEY, identity);
   });
 
-/** Person properties that describe the account, such as its UI language. */
 export const setPostHogPersonProperties = (
   properties: Record<string, string>
 ): void =>

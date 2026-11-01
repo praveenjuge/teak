@@ -12,16 +12,13 @@ import TeakSync
 final class LanguageModel {
     private(set) var code = AppLanguage.current
     private(set) var isSaving = false
-    /// The language before the last change in Settings, while Undo is offered.
     private(set) var undoTo: String?
     var error: String?
 
     var locale: Locale { Locale(identifier: code) }
 
     @ObservationIgnored private let defaults = UserDefaults.standard
-    /// The language the app last gave the system, to notice a change made there.
     @ObservationIgnored private static let appliedKey = "teak.language.applied"
-    /// A language picked in the system's list that the account hasn't taken yet; kept until a save succeeds.
     @ObservationIgnored private static let pendingKey = "teak.language.pending"
     private var pendingSystemChoice: String? {
         get { defaults.string(forKey: Self.pendingKey).flatMap(AppLanguage.supported) }
@@ -38,7 +35,6 @@ final class LanguageModel {
         }
     }
 
-    /// Follows the account's language while signed in.
     func watch(_ backend: TeakBackend) async {
         while !Task.isCancelled {
             do {
@@ -68,7 +64,6 @@ final class LanguageModel {
         if account != code, !isSaving { apply(account) }
     }
 
-    /// Settings → Language: switches now, saves to the account, and switches back if that fails.
     func choose(_ next: String, backend: TeakBackend) {
         let previous = code
         guard next != previous, !isSaving else { return }
@@ -118,7 +113,6 @@ final class LanguageModel {
     }
 }
 
-/// Settings → Language. Each language is listed in its own name.
 struct LanguageSection: View {
     @Environment(LanguageModel.self) private var language
     @Environment(AppModel.self) private var app

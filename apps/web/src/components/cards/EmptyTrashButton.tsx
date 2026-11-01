@@ -20,14 +20,11 @@ const isRateLimited = (error: unknown) =>
   );
 
 interface EmptyTrashControlProps {
-  /** Cards in Trash; undefined while loading. */
   count: number | undefined;
-  /** Trash holds more than `count`: the count stops before it reads too much. */
   more?: boolean;
   onEmpty: () => void;
 }
 
-/** Trash's Empty Trash button and the confirmation it asks for. */
 export function EmptyTrashControl({
   count,
   more = false,

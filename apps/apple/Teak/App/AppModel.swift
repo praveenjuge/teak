@@ -38,7 +38,6 @@ final class AppModel {
     @ObservationIgnored private var tokenTask: Task<Void, Never>?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private let defaults: UserDefaults
-    /// Puts the app's screens back to a fresh start when the user signs out.
     @ObservationIgnored var onSignedOut: (() -> Void)?
 
     init(config: TeakConfig = .current) {
@@ -52,8 +51,6 @@ final class AppModel {
     var phase: AppPhase {
         if keychainFailed, user == nil { return .failed(tr("native.errors.generic")) }
         if !sessionLoaded || (keychainUnavailable && user == nil) { return .loading }
-        // Signed in, the library stays up offline (sheets and drafts with it)
-        // and shows a banner instead.
         if user != nil { return .signedIn }
         if !isOnline { return .offline }
         if let configurationError, authMode == nil { return .failed(configurationError) }
@@ -137,7 +134,6 @@ final class AppModel {
                teakUserId != previous?.teakUserId || next.email != previous?.email {
                 PostHogReporting.identify(teakUserId: teakUserId, email: next.email)
             }
-            // Signing out, deleting the account or a session ending empties Spotlight.
             if state == .signedOut { await spotlight.removeAll() }
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
@@ -253,7 +249,6 @@ final class AppModel {
         }
     }
 
-    /// What `operation` returns, or nil once `limit` passes; a late result is dropped.
     private func firstOrNil<T: Sendable>(within limit: Duration,
                                          _ operation: @escaping @Sendable () async -> T?) async -> T? {
         let (results, continuation) = AsyncStream.makeStream(of: T?.self)

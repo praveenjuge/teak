@@ -72,7 +72,6 @@ interface FinalizeArgs {
   content?: string;
   /** A fixed id for the stored key, so a retried finalize writes one object. */
   destinationObjectId?: string;
-  /** A Save by email attachment's claim on its receipt (inbound/). */
   emailAttachment?: EmailAttachmentClaim;
   fileEtag?: string;
   fileKey: string;

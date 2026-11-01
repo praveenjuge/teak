@@ -915,7 +915,6 @@ const asCardContent = (value: unknown): CardContent => {
     typeof value.text !== "string" ||
     typeof value.charCount !== "number" ||
     typeof value.truncated !== "boolean" ||
-    // Unknown kinds pass, so a kind added later never breaks this build.
     typeof value.kind !== "string"
   ) {
     throw new TeakApiError("PARSE_ERROR");
@@ -964,8 +963,6 @@ const MAX_RETRY_WAIT_MS = 5000;
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-// A body that isn't JSON (a proxy's HTML 502, a plain-text 429) still names
-// the failure through its status.
 const codeForStatus = (status: number): TeakApiErrorCode => {
   switch (status) {
     case 401:
@@ -983,7 +980,6 @@ const codeForStatus = (status: number): TeakApiErrorCode => {
   }
 };
 
-/** Retry-After as an absolute time: delta-seconds or an HTTP date. */
 const retryAtFromHeader = (value: string | null): number | undefined => {
   if (!value?.trim()) {
     return;
@@ -1038,12 +1034,6 @@ const canRetry = (init: RequestInit) => {
   );
 };
 
-/**
- * How long to wait before trying a failed request again, or null to give up:
- * only a busy or unreachable service, or a keyed write whose first attempt is
- * still running, is retried, and never for longer than the server asks or
- * MAX_RETRY_WAIT_MS.
- */
 const retryDelay = (error: TeakApiError, attempt: number): number | null => {
   const retryable =
     error.code === "NETWORK_ERROR" ||
@@ -1090,7 +1080,6 @@ export const createTeakClient = (options: {
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
-    // The timeout covers the whole exchange: the headers and then the body.
     try {
       let response: Response;
       try {

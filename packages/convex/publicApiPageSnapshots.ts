@@ -11,7 +11,6 @@ import { registerOwnedObject } from "./storage/ownership";
 import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
-/** The snapshot is the page's HTML, gzipped by the extension. */
 export const PAGE_SNAPSHOT_CONTENT_TYPE = "application/gzip";
 
 export const pageSnapshotUploadValidator = v.object({

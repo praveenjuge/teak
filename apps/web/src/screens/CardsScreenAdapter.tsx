@@ -12,7 +12,6 @@ import { CardsScreen, type SearchUrlChange } from "./CardsScreen";
 interface CardsScreenAdapterProps {
   addToFolderId?: string;
   cardIdFromUrl: string | null;
-  /** Text the composer starts with, such as a share from the system share sheet. */
   composerDraft?: string;
   contentContainerClassName?: string;
   focusComposer?: boolean;

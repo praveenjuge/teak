@@ -1,8 +1,6 @@
 import AppIntents
 import TeakCore
 
-/// A folder in Shortcuts. Pickers offer only folders you add cards to by
-/// hand: a smart folder fills itself from its search.
 struct FolderEntity: AppEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(
         name: LocalizedStringResource("intents.folderEntity", table: "AppIntents"))

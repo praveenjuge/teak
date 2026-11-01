@@ -3,13 +3,10 @@ import type { TeakTranslator } from "@teak/i18n";
 // on every page, so they take the translated labels from the background.
 import { extension } from "@teak/i18n/messages/en.json";
 
-/** The inline "Save to Teak" button's words, one per state. */
 export type InlineLabels = Record<keyof typeof extension.inline, string>;
 
-/** Where `errorWithReason` takes the reason, which the content script adds. */
 export const REASON_PLACEHOLDER = "{reason}";
 
-/** Shown until the background answers. Its `{reason}` is the placeholder. */
 export const ENGLISH_INLINE_LABELS: InlineLabels = extension.inline;
 
 export const inlineLabels = (
@@ -26,7 +23,6 @@ export const inlineLabels = (
   saveFailed: t("saveFailed"),
 });
 
-/** The failed label with its reason, for example the server's message. */
 export const withReason = (labels: InlineLabels, reason: string): string =>
   labels.errorWithReason.split(REASON_PLACEHOLDER).join(reason);
 

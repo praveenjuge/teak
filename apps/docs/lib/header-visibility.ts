@@ -1,10 +1,5 @@
 import { SESSION_HINT_COOKIE } from "@teak/convex/shared/sessionHint";
 
-// The header renders Login and Register for signed-out visitors and "Open
-// Teak" for signed-in ones, and leans on a script and a CSS rule to show only
-// one set. A page that ships the links without both shows all three, so the
-// build checks every page (scripts/check-header-visibility.ts).
-
 const SIGNED_IN_ONLY = "data-signed-in-only";
 const SIGNED_OUT_ONLY = "data-signed-out-only";
 

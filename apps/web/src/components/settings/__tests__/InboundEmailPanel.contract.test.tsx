@@ -133,7 +133,6 @@ describe("InboundEmailPanel", () => {
     const address = container.querySelector('[data-slot="inbound-address"]');
     expect(address?.getAttribute("title")).toBe(ADDRESS);
     expect(address?.textContent).toBe(ADDRESS);
-    // Only the name before the @ gives way on a narrow screen.
     expect(address?.querySelector(".shrink-0")?.textContent).toBe(
       "@in.teakvault.com"
     );

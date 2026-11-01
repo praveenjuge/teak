@@ -76,10 +76,6 @@ export type LinkBylineTranslator = TeakTranslator<"lib.linkByline">;
 const englishLinkByline: LinkBylineTranslator =
   englishTranslator("lib.linkByline");
 
-/**
- * "By {author} · Publisher · Date". The names are the card's stored text;
- * only the "By" and the date format follow the UI language.
- */
 export function formatLinkByline(
   source: LinkBylineSource,
   now = Date.now(),

@@ -28,7 +28,6 @@ export const MAX_TABLE_COLUMNS = 20;
 export const MAX_TABLE_ROWS = 200;
 
 export interface TableAt {
-  /** The cursor's column and row, counting the header row as 0. */
   col: number;
   cols: number;
   map: TableMap;
@@ -38,7 +37,6 @@ export interface TableAt {
   start: number;
 }
 
-/** The table around the cursor, with the cursor's place in it. */
 export function tableAt(state: EditorState): TableAt | null {
   const { $from } = state.selection;
   const table = findTable($from);
@@ -71,7 +69,6 @@ export const canAddTableRow = (table: TableAt) => table.rows < MAX_TABLE_ROWS;
 export const canAddTableColumn = (table: TableAt) =>
   table.cols < MAX_TABLE_COLUMNS;
 
-/** Moves the cursor into a cell's text. */
 const selectCell = (editor: Editor, row: number, col: number): boolean => {
   const table = tableAt(editor.state);
   const node = table && editor.state.doc.nodeAt(table.pos);
@@ -85,18 +82,12 @@ const selectCell = (editor: Editor, row: number, col: number): boolean => {
   return true;
 };
 
-/**
- * The slash menu's Table: a 3×3 table with a header row and the cursor in
- * its first cell. In a list or quote it goes after the whole block, so the
- * block isn't split around it (tables are top level only).
- */
 export function insertNewTable(editor: Editor, range: Range): boolean {
   const $from = editor.state.doc.resolve(range.from);
   const chain = editor.chain().focus().deleteRange(range);
   if ($from.depth <= 1) {
     return chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }
-  // The end of the top-level block, once the slash text is gone.
   const pos = $from.after(1) - (range.to - range.from);
   return chain
     .command(({ tr, state }) => {
@@ -108,11 +99,6 @@ export function insertNewTable(editor: Editor, range: Range): boolean {
     .run();
 }
 
-/**
- * A paste while the cursor is in a cell. A cell holds one line, so pasted
- * tables go after the table, one paragraph goes in with its formatting, and
- * anything else goes in as one line of plain text. False outside a table.
- */
 export function pasteIntoTable(
   editor: Editor,
   text: string,
@@ -126,7 +112,6 @@ export function pasteIntoTable(
     return editor.chain().focus().insertContentAt($from.after(1), blocks).run();
   }
   const [only] = blocks ?? [];
-  // Soft line breaks inside a paragraph become spaces too.
   const oneLine = (value: string) => value.replace(/\s*\r?\n\s*/g, " ");
   if (blocks?.length === 1 && only?.type === "paragraph") {
     return editor.commands.insertContent(
@@ -141,11 +126,6 @@ export function pasteIntoTable(
   });
 }
 
-/**
- * Puts the cursor in the table that `element` renders, unless it is already
- * there, so a ⋯ menu opened by hover acts on the hovered table and not on
- * another table the cursor was left in.
- */
 export function cursorIntoTableElement(
   editor: Editor,
   element: HTMLElement
@@ -201,7 +181,6 @@ const singleLineCells = new Plugin({
   },
 });
 
-/** "Header" in an empty header cell while it has the cursor. */
 const headerPlaceholder = (label: () => string) =>
   new Plugin({
     props: {
@@ -226,13 +205,6 @@ const headerPlaceholder = (label: () => string) =>
     },
   });
 
-/**
- * Keys inside a table: Enter (and Shift+Enter, since a cell is one line)
- * moves down the column, adding a row from the last one; Tab adds a row only
- * under the row cap; Backspace at the start of an empty table removes it.
- * `isSuggesting` lets an open slash or `[[` menu keep Enter. An empty header
- * cell with the cursor shows "Header".
- */
 export const TableKeys = (
   isSuggesting: (state: EditorState) => boolean,
   headerLabel: () => string = () => englishTextEditor("table.headerPlaceholder")
@@ -258,7 +230,6 @@ export const TableKeys = (
         this.editor.commands.addRowAfter();
         return selectCell(this.editor, table.row + 1, table.col);
       };
-      // At the cap, Tab in the last cell stays put instead of adding a row.
       const stayAtCap = () => {
         const table = tableAt(this.editor.state);
         if (!table || isSuggesting(this.editor.state)) {
@@ -298,7 +269,6 @@ export type TableAction =
   | "deleteColumn"
   | "deleteTable";
 
-/** Adds one ⋯ menu action to a command chain. */
 export function withTableAction(
   chain: ChainedCommands,
   action: TableAction
@@ -329,7 +299,6 @@ export interface TableActionState {
   label: string;
 }
 
-/** The ⋯ menu's actions for the cursor's cell, with why any is off. */
 export function tableActions(
   table: TableAt,
   t: TextEditorTranslator = englishTextEditor

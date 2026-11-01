@@ -70,8 +70,6 @@ const pseudoElements = (
     return element;
   });
 
-// The text a reader sees: literals, tag contents, and one branch of each
-// plural or select (`other`), not the ICU syntax around them.
 const visibleLength = (elements: MessageFormatElement[]): number =>
   elements.reduce((length, element) => {
     if (element.type === TYPE.literal) {

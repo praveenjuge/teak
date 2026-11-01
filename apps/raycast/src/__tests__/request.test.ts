@@ -574,7 +574,6 @@ describe("raycast request handling", () => {
 
   test("discovery outage remains a connection failure without opening sign-in", async () => {
     getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
-    // Without a saved connection, even a fresh token waits for discovery.
     for (const key of Object.keys(await raycastLocalStorageMock.allItems())) {
       await raycastLocalStorageMock.removeItem(key);
     }

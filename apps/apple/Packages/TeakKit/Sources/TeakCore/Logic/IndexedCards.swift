@@ -53,19 +53,15 @@ public struct IndexedCard: Hashable, Sendable {
         creationTime = card.creationTime
     }
 
-    /// The site a link card came from, without `www.`.
     public var host: String? { url.flatMap { SafeURL.hostname($0.absoluteString) } }
 
-    /// The line under the title: the site, or what kind of card it is.
     public var subtitle: String { host ?? type.label }
 
-    /// Spotlight's description: the site, then the start of the text.
     public var summary: String? {
         let parts = [host, previewText == title ? nil : previewText].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " — ")
     }
 
-    /// Extra words Spotlight matches: the site and the card's type.
     public var keywords: [String] { [host, type.label].compactMap { $0 } }
 
     /// Changes when anything Spotlight shows changes. A thumbnail's address
@@ -110,12 +106,9 @@ public struct IndexedCard: Hashable, Sendable {
     }
 }
 
-/// What Shortcuts and Spotlight may read from the library, and when.
 public enum CardIndex {
-    /// The most cards a Shortcuts search returns.
     public static let searchLimit = 20
 
-    /// How many of the newest cards Spotlight refreshes when the app opens.
     public static let refreshCount = 500
 
     /// The most cards one page of `searchMobileCardSummariesPaginated` holds.
@@ -140,7 +133,6 @@ public enum CardIndex {
         }
     }
 
-    /// Whether a library view could list hidden cards.
     public static func revealsHidden(_ query: LibraryQuery) -> Bool {
         query.revealsHiddenCards || revealsHidden(query.searchText() ?? "")
             || query.filters.folder?.query.map(revealsHidden) == true
@@ -159,8 +151,6 @@ public enum CardIndex {
         return args
     }
 
-    /// A Shortcuts search's cards: the library's matches, then the archived
-    /// ones when asked for, at most `limit`.
     public static func results(_ cards: [CardSummary], archived: [CardSummary] = [], includeArchived: Bool = false,
                                limit: Int = searchLimit) -> [IndexedCard] {
         var seen = Set<String>()
@@ -170,7 +160,6 @@ public enum CardIndex {
             .prefix(limit))
     }
 
-    /// What Spotlight should change after a library view loads.
     public struct Changes: Equatable, Sendable {
         public var index: [IndexedCard] = []
         public var remove: [String] = []

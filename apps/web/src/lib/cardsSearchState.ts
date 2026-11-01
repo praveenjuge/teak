@@ -28,7 +28,6 @@ import {
   timeFilterFromUrl,
 } from "./searchUrlState";
 
-/** The text a search sends to semantic search, or "" when it sends none. */
 export const semanticSearchText = (
   searchQuery: string,
   folderQuery?: string
@@ -177,10 +176,6 @@ const phraseChips = (phrases: readonly string[]) =>
 const isExcludedQualifier = (expression: SearchExpression | undefined) =>
   expression?.op === "not" && expression.item.op === "qualifier";
 
-/**
- * The operators of a query as pills: an excluded filter (`-tag:old`) joins
- * the filter pills, and an excluded word or an OR group joins the words.
- */
 const expressionChips = (parsed: ReturnType<typeof parseSearchQuery>) => {
   const qualifierChips: string[] = [];
   const keywordTags: string[] = [];
@@ -241,7 +236,6 @@ export function withTypeQualifiersAsFilters(
   return { ...state, filterTags, qualifierChips };
 }
 
-/** The colors, styles and date a URL names, as search state. */
 export function visualFiltersFromUrl(
   urlState: SearchUrlState | undefined,
   options: { now?: Date; weekStart?: 0 | 1 } = {}

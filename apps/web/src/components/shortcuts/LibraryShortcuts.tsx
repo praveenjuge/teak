@@ -34,8 +34,6 @@ import {
 import type { CommandPaletteCommand } from "../command-palette/CommandPalette";
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
 
-// The palette and cmdk stay out of the first load: they load when the
-// browser is idle, or on the first open if that comes sooner.
 const CommandPalette = onDemand(() =>
   import("../command-palette/CommandPalette").then(
     (module) => module.CommandPalette
@@ -271,7 +269,6 @@ export function LibraryShortcuts({
             action();
             return;
           }
-          // Opened over a card, the list hands the keys back to the card.
           returnShortcutsFocus(event);
         }}
         onOpenChange={setDialogOpen}

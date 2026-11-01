@@ -17,8 +17,6 @@ struct CardTile: View {
             .overlay(alignment: isSelected == nil ? .topTrailing : .bottomTrailing) { badge }
             .opacity(isTrashed ? 0.6 : 1)
             .contentShape(shape)
-            // One line of text for the whole tile, which the button around it reads as its label.
-            // Images and the quote marks are decoration.
             .accessibilityRepresentation { Text(accessibilityText) }
     }
 
@@ -35,7 +33,6 @@ struct CardTile: View {
                 .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
                 .contentTransition(.symbolEffect(.replace))
         } else if card.favorited {
-            // Over a photo, a small backdrop keeps the red heart readable on red and orange.
             Image(systemName: "heart.fill")
                 .font(.footnote)
                 .foregroundStyle(.red)

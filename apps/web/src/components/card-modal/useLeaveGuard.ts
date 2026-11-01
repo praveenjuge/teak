@@ -10,10 +10,6 @@ export function useLeaveGuard({
   saveChanges,
 }: {
   cardId?: string | null;
-  /**
-   * Said once the card is left with an edit that isn't saved on purpose,
-   * like a note emptied of everything (an empty note isn't saved).
-   */
   discardNotice?: string | null;
   hasUnsavedChanges: boolean;
   saveChanges: (options: { silent: boolean }) => Promise<boolean>;

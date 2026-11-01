@@ -98,8 +98,6 @@
   border-color: var(--primary);
 }
 
-/* Tables: GFM tables in notes. The wrapper scrolls sideways on narrow
- * screens, so a wide table never widens the page. */
 .teak-markdown-editor .block-editor-content .ProseMirror .tableWrapper {
   margin: 0.75rem 0;
   overflow-x: auto;
@@ -220,7 +218,6 @@
   }
 }
 
-/* A `[[…]]` card link is a pill, not a text link. */
 .block-editor-content .ProseMirror [data-card-link-pill] a,
 .block-editor-content .ProseMirror [data-card-link-pill] a:hover {
   color: var(--secondary-foreground);

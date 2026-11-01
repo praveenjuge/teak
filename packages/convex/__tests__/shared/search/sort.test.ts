@@ -15,7 +15,6 @@ const order = (cards: Card[], sort: "newest" | "oldest") =>
     .map((card) => card.id);
 
 describe("compareCardsBySavedAt", () => {
-  // First saved long ago, saved again most recently.
   const resaved: Card = {
     id: "resaved",
     _creationTime: 1,

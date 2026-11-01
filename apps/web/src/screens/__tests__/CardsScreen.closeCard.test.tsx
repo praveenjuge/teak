@@ -11,7 +11,6 @@ const realGrids = { ...(await import("@/components/grids")) };
 const RealMasonryGrid = realGrids.MasonryGrid;
 type GridProps = Parameters<typeof RealMasonryGrid>[0];
 const gridRenders: GridProps[] = [];
-// Records what the library hands the grid, then renders the real grid.
 mock.module("@/components/grids", () => ({
   ...realGrids,
   MasonryGrid: (props: GridProps) => {

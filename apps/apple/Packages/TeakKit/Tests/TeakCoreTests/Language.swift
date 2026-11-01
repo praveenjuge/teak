@@ -53,7 +53,6 @@ actor LanguageLock {
 
     private var readers = 0
     private var writing = false
-    /// What the app group held when the lock was last taken from idle.
     private var saved: String?
     private var waiting: [(exclusive: Bool, continuation: CheckedContinuation<Void, Never>)] = []
 

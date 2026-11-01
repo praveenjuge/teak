@@ -46,7 +46,6 @@ async function setup(email: string) {
   const t = convexTest(schema, modules);
   polarTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  // The account's email is the signed session's address.
   const client = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
     subject: workosUserId,

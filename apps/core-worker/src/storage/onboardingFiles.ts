@@ -10,7 +10,6 @@ import {
 import { isValidUploadKey } from "./upload";
 
 export interface OnboardingFilesEnv {
-  /** Static assets (`assets/` beside `wrangler.jsonc`). */
   ASSETS?: Fetcher;
   BUCKET: R2Bucket;
 }

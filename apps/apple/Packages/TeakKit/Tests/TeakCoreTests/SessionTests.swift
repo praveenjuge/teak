@@ -105,7 +105,6 @@ private func request() -> AuthKitRequest {
         #expect(storage.json?["refresh_token"] as? String == "rotated")
     }
 
-    /// Token times are WorkOS's: a device clock an hour fast refreshes once, then trusts the new token.
     @Test func aFastDeviceClockDoesNotRefreshWithoutEnd() async throws {
         let storage = MemoryStorage(Fixture.stored(refresh: "old"))
         let transport = ScriptedTransport { _, _ in

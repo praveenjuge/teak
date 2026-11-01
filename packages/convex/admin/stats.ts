@@ -527,7 +527,6 @@ export const isAutoInternalAccount = (
   return email.includes("e2e-") || RESERVED_EMAIL_DOMAIN.test(domain);
 };
 
-/** A user as `adminMetrics:usersPage` returns it. */
 export interface MetricsUserRow {
   createdAt: number;
   deleted: boolean;
@@ -536,7 +535,6 @@ export interface MetricsUserRow {
   teakUserId: string;
 }
 
-/** A card as `adminMetrics:cardsPage` returns it. */
 export interface MetricsCardRow {
   createdAt: number;
   deleted: boolean;
@@ -557,7 +555,6 @@ export const autoInternalUserIds = (users: MetricsUserRow[]): string[] =>
 const SNAPSHOT_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TOP_STORAGE = 20;
 
-/** The UTC day a daily snapshot covers: `date`, or yesterday. */
 export const snapshotDay = (date: string | undefined, now: number) => {
   const day = date ?? utcDay(now - DAY_MS);
   if (!SNAPSHOT_DATE.test(day)) {
@@ -717,14 +714,9 @@ export const snapshotBilling = (
 type MetadataStatus = "pending" | "completed" | "failed";
 type OverviewStage = "classify" | "categorize" | "metadata" | "renderables";
 
-/**
- * A card as `admin:overviewCardsPage` returns it: what both the admin
- * overview and the daily snapshot count, so one scan feeds both.
- */
 export interface OverviewCardRow {
   cardId: Id<"cards">;
   createdAt: number;
-  /** `_creationTime`, which the snapshot counts by. */
   creationTime: number;
   deleted: boolean;
   fileSize: number;
@@ -771,7 +763,6 @@ export const toOverviewCardRow = (
   ...(card.processingStatus ? { processingStatus: card.processingStatus } : {}),
 });
 
-/** A scanned card as the daily snapshot counts it (`MetricsCardRow`). */
 export const toMetricsCardRow = (card: OverviewCardRow): MetricsCardRow => ({
   userId: card.userId,
   createdAt: card.creationTime,

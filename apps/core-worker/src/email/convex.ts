@@ -13,9 +13,7 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 // again later (Email Routing tells it to). Convex keeps a receipt per message,
 // so a retry never saves it twice.
 
-/** Waits between the three tries of a message. */
 export const INGEST_RETRY_DELAYS_MS = [1000, 3000];
-/** How long one request to Convex may take before it counts as unreachable. */
 export const CONVEX_TIMEOUT_MS = 30_000;
 export const FINALIZE_RETRY_DELAYS_MS = [1000];
 
@@ -41,7 +39,6 @@ export interface ConvexTarget {
 
 export class DeliveryError extends Error {}
 
-/** A status worth trying again: the server or the network, not the request. */
 export const isTransientStatus = (status: number): boolean =>
   status >= 500 || status === 408 || status === 429;
 
@@ -156,7 +153,6 @@ export const ingestEmail = async (
       lastProblem = `convex_status_${response.status}`;
       continue;
     }
-    // A signing or configuration fault: the sender retries later, once fixed.
     throw new DeliveryError(`convex_status_${response.status}`);
   }
   throw new DeliveryError(lastProblem);

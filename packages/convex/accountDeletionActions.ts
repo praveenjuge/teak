@@ -11,7 +11,6 @@ import { closeBillingCustomer } from "./billing";
 import { workosRequest, workosUserPath } from "./shared/workosClient";
 import { WORKOS_USER_ID } from "./shared/workosIds";
 
-// A user WorkOS no longer has is already deleted.
 const deleteWorkosUser = async (workosUserId: string) => {
   if (!WORKOS_USER_ID.test(workosUserId)) {
     throw new Error("deletion_workos_user_id_invalid");

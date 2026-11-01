@@ -44,14 +44,12 @@ const CAPTURED_AT = Date.UTC(2026, 9, 19, 9);
 const markedUrl = (slug: string) =>
   `https://example.com/reader/${slug}#${SCENARIO_MARKER}-reader`;
 
-/** A small picture, drawn rather than fetched. */
 const svgImage = (hue: number, label: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="hsl(${hue} 55% 55%)"/><text x="60" y="360" font-family="sans-serif" font-size="64" fill="white">${label}</text></svg>`;
 
 const paragraph = (index: number, topic: string) =>
   `Paragraph ${index + 1} on ${topic}: a garden rewards the patience of whoever tends it, season after season, and the notes kept along the way become the best guide to the next planting. Soil, light and water each ask for attention, and the gardener who writes things down learns which of them matters most in their own plot.`;
 
-/** A 3,000-word article with images, code, a table and a blockquote. */
 const longForm = (): string => {
   const parts = [
     "# The patient garden",
@@ -350,7 +348,6 @@ export const seedReaderMix = async (
 
 const encoder = new TextEncoder();
 
-/** Writes the mix's copies, Markdown and images, then records the articles. */
 export const writeReaderMixObjects = internalAction({
   args: {
     archives: v.array(

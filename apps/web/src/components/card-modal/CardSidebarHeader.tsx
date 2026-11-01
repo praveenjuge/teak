@@ -6,19 +6,12 @@ import { cn } from "../../lib/utils";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-/** The card's one main action (Open, Download, Restore), in ink. */
 export const SIDEBAR_PRIMARY_CLASS =
   "h-9 w-full rounded-full bg-foreground text-background hover:bg-foreground/85";
 
-/** The same action, as a small pill in the pinned bar. */
 export const SIDEBAR_PRIMARY_COMPACT_CLASS =
   "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
 
-/**
- * One action in the sidebar's icon row: an icon over a short label, in a
- * cell as wide as its neighbors. The accessible name is `label`, which can
- * say more than the short `caption` shown under the icon.
- */
 export function ActionCell({
   caption,
   children,
@@ -35,7 +28,6 @@ export function ActionCell({
   label: string;
   pressed?: boolean;
   shortcut?: readonly string[];
-  /** "primary" tints a pressed cell in the brand color, like Done. */
   tone?: "primary";
 }) {
   return (
@@ -101,7 +93,6 @@ export function useScrolledPast(
 }
 
 interface SidebarTitleProps {
-  /** "Added today" and the like, shown when the card has no title. */
   added?: string;
   editable: boolean;
   hostname?: string;
@@ -119,11 +110,6 @@ interface SidebarTitleProps {
   typeTitle: string;
 }
 
-/**
- * The top of the sidebar: where the card is from and what it is, then its
- * title, which wraps and can be renamed in place. Whether edits saved shows
- * at the end of the first line, so it never moves the actions below.
- */
 export function SidebarTitle({
   added,
   editable,

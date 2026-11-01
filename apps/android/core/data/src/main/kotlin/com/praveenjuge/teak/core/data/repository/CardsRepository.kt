@@ -50,7 +50,6 @@ internal const val CARD_SOURCE = "android"
 
 private const val SERVER_CHECK_TIMEOUT_MS = 5_000L
 
-/** A library page: [search] goes as typed, and [range] narrows it to when cards were saved. */
 data class CardQuery(
     val search: String = "",
     val range: CreatedAtRange? = null,
@@ -96,15 +95,12 @@ interface CardsRepository {
     /** The new card's id, or null when Teak is offline and the text waits to be saved. */
     suspend fun createFromText(text: String): String?
 
-    /** Ids of the cards kept for offline use. */
     val keptOffline: Flow<Set<String>>
 
-    /** Keeps [card] and its file on the device for offline use. */
     suspend fun keepOffline(card: Card)
 
     suspend fun removeOfflineCopy(id: String)
 
-    /** A kept card's file on the device, to open instead of downloading it. */
     fun offlineFile(id: String): File?
 
     /** Goes up whenever a kept card or its file changes, so a screen showing [offlineFile] reads it again. */

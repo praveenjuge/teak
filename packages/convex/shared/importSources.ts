@@ -109,10 +109,6 @@ export const IMPORT_SOURCES: Record<ImportMode, ImportSource> = {
   },
 };
 
-/**
- * The sources the import picker offers, in its order: the general ones
- * first, then the named services, then Teak's own archive.
- */
 export const IMPORT_PICKER_MODES: readonly ImportMode[] = (
   [
     "bookmarks",

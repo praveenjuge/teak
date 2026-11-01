@@ -3,32 +3,25 @@ import Foundation
 /// Marking a link done. Ports `doneActionLabel` and `ACTIONABLE_LINK_CATEGORIES`
 /// (`packages/convex/shared/linkCategories.ts`) and the web's toggle copy.
 public enum LinkDone {
-    /// The verb for a category: "read", "watched", "bought"…, else "done".
     public static func verb(_ category: String?) -> String {
         guard let category, !category.isEmpty else { return "done" }
         return SharedConstants.shared.linkCategoryDoneVerbs[category] ?? "done"
     }
 
-    /// Whether `is:todo` lists a link of this category while it isn't done.
     public static func isActionable(_ category: String?) -> Bool {
         category.map(SharedConstants.shared.actionableLinkCategories.contains) ?? false
     }
 
-    /// The toggle's label while the link isn't done: "Mark as read".
     public static func markLabel(_ category: String?) -> String { words(category).markAs }
 
-    /// The toggle's label that takes it back: "Mark as not read".
     public static func unmarkLabel(_ category: String?) -> String { words(category).markAsNot }
 
-    /// The toggle's label once it's done: "Read".
     public static func doneLabel(_ category: String?) -> String { words(category).state }
 
-    /// The confirmation after a change: "Marked as read" or "Marked as not read".
     public static func toast(_ category: String?, done: Bool) -> String {
         done ? words(category).markedAs : words(category).markedAsNot
     }
 
-    /// The done badge's spoken label on a tile.
     public static func badgeLabel(_ category: String?) -> String { words(category).markedAs }
 
     public struct Words: Equatable, Sendable {
@@ -138,7 +131,6 @@ public enum ExifFacts {
         (value ?? "").replacing(/\s+/, with: " ").trimmingCharacters(in: .whitespaces)
     }
 
-    /// One decimal at most, with no trailing ".0".
     private static func trimDecimal(_ value: Double) -> String {
         let rounded = (value * 10).rounded() / 10
         return rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
@@ -153,14 +145,12 @@ public enum ExifFacts {
         return "\(cleanMake) \(cleanModel)"
     }
 
-    /// 0.3 s and longer read as decimals, shorter ones as fractions.
     public static func exposure(_ seconds: Double?) -> String? {
         guard let seconds = positive(seconds) else { return nil }
         if seconds >= 0.3 { return "\(trimDecimal(seconds)) s" }
         return "1/\(Int((1 / seconds).rounded())) s"
     }
 
-    /// "UTC+5:30", "UTC-8" or "UTC", or nil without a believable offset.
     private static func utcOffset(_ minutes: Double?) -> String? {
         guard let minutes, minutes.isFinite, minutes.rounded() == minutes, abs(minutes) <= 14 * 60 else { return nil }
         let total = Int(minutes)
@@ -170,7 +160,6 @@ public enum ExifFacts {
         return "UTC\(sign)\(abs(total) / 60)" + (rest == 0 ? "" : String(format: ":%02d", rest))
     }
 
-    /// The web's "May 17, 2026, 09:00 AM" in English; other languages put the date and time in their own order.
     private static func format(_ milliseconds: Double, in timeZone: TimeZone, locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -244,7 +233,6 @@ public enum PublishedDate {
     }
 }
 
-/// The "From" row on a card saved from somewhere else: the source's host.
 public enum CardSourceRow {
     public static func host(_ sourceUrl: String?) -> String? { SafeURL.hostname(sourceUrl) }
 }

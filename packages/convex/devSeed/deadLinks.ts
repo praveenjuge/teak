@@ -85,7 +85,6 @@ export const DEAD_LINK_CASES: readonly DeadLinkCase[] = [
   },
 ];
 
-/** The origin a run points at, without a trailing slash. */
 export const deadLinksOrigin = (origin?: string): string => {
   if (origin === undefined) {
     return DEAD_LINKS_PUBLIC_ORIGIN;
@@ -168,7 +167,6 @@ export const deadLinksScenario = (userId: string, origin: string) => {
   return { archives, cards };
 };
 
-/** Writes each archived copy the pack's cards point at. */
 export const writeStubPageArchives = internalAction({
   args: {
     archives: v.array(

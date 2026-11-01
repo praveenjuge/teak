@@ -47,17 +47,11 @@ export function I18nProvider({
 
 const useI18nState = () => useContext(I18nContext) ?? ENGLISH;
 
-/** The active UI locale (a language, or the dev pseudo-locale). */
 export const useUiLocale = (): UiLocale => useI18nState().locale;
 
-/**
- * The locale to hand `Intl`: the UI language, or in English the locale the
- * caller used before translation (see `intlLocale`).
- */
 export const useIntlLocale = (englishLocale?: string) =>
   intlLocale(useUiLocale(), englishLocale);
 
-/** Messages from the catalog, optionally scoped to a namespace. */
 export function useTranslations<const N extends TeakNamespace = never>(
   namespace?: N
 ) {

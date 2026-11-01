@@ -19,7 +19,6 @@ const IMPORT_PATTERN =
 const FONT_SRC_PATTERN = /(\bsrc\s*:\s*)([^;}]*)/giu;
 const CHARSET_RULE = /^\s*@charset\s+["'][^"']*["']\s*;/iu;
 
-/** An absolute http(s) URL for `value` against `base`, or null. */
 export const resolveHttpUrl = (value: string, base: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed || trimmed.startsWith("#")) {
@@ -66,7 +65,6 @@ const insideAny = (index: number, ranges: [number, number][]) => {
   return false;
 };
 
-/** Splits a declaration value on commas outside parentheses and quotes. */
 const splitTopLevel = (value: string): string[] => {
   const parts: string[] = [];
   let depth = 0;
@@ -116,11 +114,6 @@ const fontSourceRank = (source: string): number => {
   return byExtension >= 0 ? byExtension : FONT_FORMAT_ORDER.length;
 };
 
-/**
- * Keeps one fetched source per `@font-face` (woff2 first, then woff, TrueType
- * and OpenType), beside any `local()` ones, so the archive inlines a single
- * file for each face.
- */
 export const selectFontSources = (css: string): string =>
   css.replace(FONT_FACE_PATTERN, (block) =>
     block.replace(FONT_SRC_PATTERN, (_whole, prefix: string, value: string) => {
@@ -134,7 +127,6 @@ export const selectFontSources = (css: string): string =>
     })
   );
 
-/** Every `url()` in `css`, resolved against `base`, fonts told from images. */
 export const cssUrlRefs = (css: string, base: string): CssUrlRef[] => {
   const fontFaces = fontFaceRanges(css);
   const refs: CssUrlRef[] = [];
@@ -154,21 +146,13 @@ export const cssUrlRefs = (css: string, base: string): CssUrlRef[] => {
   return refs;
 };
 
-/** An inert stand-in for a reference the archive doesn't carry. */
 export const EMPTY_CSS_URL = "url(data:,)";
 
-/** Data URIs a stylesheet may keep: images and fonts, never documents. */
 const KEPT_DATA_URI = /^data:(?:image\/|font\/|application\/(?:x-)?font)/iu;
 
 const quoteCssUrl = (value: string) =>
   `url("${value.replace(/["\\\n\r]/gu, (char) => `\\${char.charCodeAt(0).toString(16)} `)}")`;
 
-/**
- * Rewrites every `url()` in `css`: `replace` gets the absolute URL and its
- * kind and returns a data URI, or null to drop the reference. Data URIs
- * already in the CSS stay only when they are images or fonts, and references
- * into the page (`url(#id)`) stay as they are.
- */
 export const rewriteCssUrls = (
   css: string,
   base: string,
@@ -207,12 +191,10 @@ export const rewriteCssUrls = (
 export interface CssImport {
   /** What follows the URL: `layer`, `supports()` and a media query list. */
   conditions: string;
-  /** The whole rule, as it appears in the stylesheet. */
   rule: string;
   url: string;
 }
 
-/** The `@import` rules of a stylesheet, resolved against `base`. */
 export const cssImports = (css: string, base: string): CssImport[] =>
   Array.from(css.matchAll(IMPORT_PATTERN), (match) => ({
     conditions: (match[4] ?? "").trim(),
@@ -220,7 +202,6 @@ export const cssImports = (css: string, base: string): CssImport[] =>
     url: resolveHttpUrl(urlOf(match), base) ?? "",
   }));
 
-/** The text inside the parentheses that open `text`, or null. */
 const parenthesized = (text: string): string | null => {
   let depth = 0;
   for (let index = 0; index < text.length; index += 1) {

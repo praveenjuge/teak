@@ -67,7 +67,6 @@ export const saveLinkedPdfFor = async (
   }
   try {
     await ensureObjectOwnership(ctx, userId, claim.fileKey);
-    // A Worker that can't be reached, times out or errors is unavailable.
     const outcome = await callFilesWorkerJson<FilesLinkedPdfResult>({
       op: "store-linked-pdf",
       params: { destinationKey: claim.fileKey, url: claim.pdfUrl },

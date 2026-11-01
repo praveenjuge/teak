@@ -31,8 +31,6 @@ const PAGE = `
   </form>
 </body>`;
 
-// The serialized page is checked as text: it is the page's own markup, and
-// reading it back as HTML is what the archive does later, not this test.
 const openingTag = (html: string, id: string) =>
   html.match(new RegExp(`<[a-z]+\\b[^>]*\\bid="${id}"[^>]*>`, "u"))?.[0] ?? "";
 const attribute = (html: string, id: string, name: string) => {

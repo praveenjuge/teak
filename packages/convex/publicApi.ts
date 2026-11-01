@@ -617,8 +617,6 @@ export const listTagsForUser = internalQuery({
   },
 });
 
-// The background tag summary answers GET /v1/tags when it is complete and no
-// refresh is pending, which saves the live count's index walk.
 export const getFreshTagSummaryForUser = internalQuery({
   args: {
     userId: v.string(),
@@ -1031,7 +1029,6 @@ export const executeBulkCardsForUser = internalMutation({
               index,
               status: "success",
               cardId,
-              // The link was already saved, so that card moved to the top.
               ...(outcome === "resaved" ? { resaved: true } : {}),
               ...(wasArchived ? { wasArchived: true } : {}),
             });

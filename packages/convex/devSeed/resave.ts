@@ -7,7 +7,6 @@ const START = Date.UTC(2023, 9, 1);
 const SPAN = 3 * 365 * DAY;
 
 export const RESAVE_LINK_COUNT = 300;
-/** Every 15th of the 300 links is archived. */
 export const RESAVE_ARCHIVED_EVERY = 15;
 export const RESAVE_TRASHED_COUNT = 5;
 export const RESAVE_FOLDERS = [
@@ -84,7 +83,6 @@ export const resavePack = (): FolderScenarioPack => {
   };
 };
 
-/** The links a free account at the card limit has to save again. */
 export const RESAVE_AT_LIMIT_LINKS: DevScenarioCardDef[] = [1, 2, 3, 4, 5].map(
   (n) => ({
     type: "link",

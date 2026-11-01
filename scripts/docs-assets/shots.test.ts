@@ -23,7 +23,6 @@ const pages = readdirSync(docsDir, { recursive: true, encoding: "utf8" })
   .map((file) => file.split(path.sep).join("/"))
   .sort();
 
-/** Every `images/<name>.webp` a page shows, with its alt text. */
 const imagesOn = (page: string) =>
   [
     ...readFileSync(path.join(docsDir, page), "utf8").matchAll(
@@ -121,11 +120,6 @@ describe("blog images", () => {
     .sort();
   const sourceOf = (post: string) =>
     readFileSync(path.join(blogDir, post), "utf8");
-  /**
-   * Every image a post shows, with where it comes from: its own
-   * (`./images/<name>.webp`), a docs one (`../docs/images/<name>.webp`), or
-   * neither, which no post may use.
-   */
   const imagesOnPost = (post: string) =>
     [...sourceOf(post).matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)].map(
       ([, alt, src]) => {
@@ -147,7 +141,6 @@ describe("blog images", () => {
 
   test("every post opens with its cover, the image named after it", () => {
     const wrong = posts.filter((post) => {
-      // The first line of the body, after the frontmatter.
       const body = sourceOf(post).split(/^---$/m).slice(2).join("---");
       const first = body.split("\n").find((line) => line.trim());
       const slug = post.replace(/\.mdx$/, "");

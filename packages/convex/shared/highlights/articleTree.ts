@@ -9,7 +9,6 @@
 import { defaultSchema } from "hast-util-sanitize";
 import { parseArticleImageToken } from "../article";
 
-/** The few hast shapes the reader touches. */
 export interface ArticleHastNode {
   children?: ArticleHastNode[];
   properties?: Record<string, unknown>;
@@ -28,7 +27,6 @@ const textOf = (node: ArticleHastNode): string =>
 const normalizeTitle = (text: string) =>
   text.replace(/\s+/gu, " ").trim().toLocaleLowerCase();
 
-/** Element children in order, skipping whitespace text between blocks. */
 const firstElement = (nodes: ArticleHastNode[]): ArticleHastNode | undefined =>
   nodes.find(
     (node) =>
@@ -103,10 +101,6 @@ export const ARTICLE_SANITIZE_SCHEMA = {
 // React drops whitespace text inside these, so the page never has it.
 const TABLE_ELEMENTS = new Set(["table", "tbody", "thead", "tfoot", "tr"]);
 
-/**
- * The text the reader shows for a sanitized tree, as the page's
- * `textContent` reads it: an image shows its caption (its title).
- */
 export const articleTreeText = (node: ArticleHastNode): string => {
   if (node.type === "text") {
     return node.value ?? "";

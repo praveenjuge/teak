@@ -103,8 +103,6 @@ const teakWithEnv = async (
 };
 const teak = (...args: string[]) => teakWithEnv({}, ...args);
 
-// Runs the CLI with `input` piped to stdin; `keepOpen` leaves the pipe open,
-// like a parent process that never closes it.
 const teakWithStdin = async (
   input: string,
   keepOpen: boolean,

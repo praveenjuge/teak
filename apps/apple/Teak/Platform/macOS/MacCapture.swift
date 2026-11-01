@@ -113,7 +113,6 @@ enum CaptureHUD {
 final class QuickCapturePanel: NSObject, NSWindowDelegate {
     static let shared = QuickCapturePanel()
     private var panel: NSPanel?
-    /// The language the panel was built in; a new one rebuilds it.
     private var language: String?
 
     func show() {
@@ -265,7 +264,6 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
     private let statusRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    /// Each item's title, read again when the menu opens so it follows the app's language.
     private var titles: [(item: NSMenuItem, title: () -> String)] = []
 
     override init() {

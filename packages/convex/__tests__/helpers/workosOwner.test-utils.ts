@@ -4,7 +4,6 @@ interface Backend {
   run: <T>(fn: (ctx: MutationCtx) => Promise<T>) => Promise<T>;
 }
 
-// A verified WorkOS-created owner, the way sign-in leaves one.
 export const seedWorkosOwner = async (t: Backend, teakUserId: string) => {
   const workosUserId = `user_${Buffer.from(teakUserId).toString("hex")}`;
   const email = `${teakUserId}@example.test`;
@@ -20,8 +19,6 @@ export const seedWorkosOwner = async (t: Backend, teakUserId: string) => {
   return workosUserId;
 };
 
-// Sign-in only ever marks an owner verified; an unverified row is one created
-// before that, so tests set it directly.
 export const setOwnerVerified = (
   t: Backend,
   workosUserId: string,

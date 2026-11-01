@@ -56,7 +56,6 @@ export const buildCardSearchText = (
 ): string =>
   [
     ...SEARCH_FIELDS.map((field) => {
-      // A `[[Title|teak:<id>]]` link is searchable by its title, not its id.
       if (field === "content" && card.content) {
         return cardLinkTokensToText(card.content);
       }
@@ -675,7 +674,6 @@ const TAG_ROW_SYNCED_FIELDS = [
   "syncGeneration",
 ] as const;
 
-/** Writes one exact-tag row, patching only the fields that changed. */
 const writeCardSearchTag = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,

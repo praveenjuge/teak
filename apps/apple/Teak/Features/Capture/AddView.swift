@@ -106,7 +106,6 @@ struct AddView: View {
     #endif
 }
 
-/// "Saving 2 of 5…", with the numbers in the app's language.
 private func savingProgress(_ upload: (done: Int, total: Int)) -> String {
     let locale = AppLanguage.locale
     return tr("native.capture.savingProgress", min(upload.done + 1, upload.total).formatted(.number.locale(locale)),

@@ -7,10 +7,6 @@ import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
 import { buildR2UserPrefix } from "../storage/r2";
 
-// What the Core Worker's podcast step asks of Convex
-// (workflows/steps/podcast/mutations.ts): a transcription slot per owner,
-// and the episode audio listed on the card while it is stored.
-
 const modules = import.meta.glob("../**/*.ts");
 
 afterEach(() => {
@@ -79,7 +75,6 @@ test("the episode audio is the card's while stored, and forgotten after", async 
   expect(await track(true)).toBe(true);
   const stored = await card();
   expect(stored?.workflowArtifactKeys).toEqual(["users/owner/raw/kept", key]);
-  // Deleting the card deletes everything it lists, the audio included.
   expect(cardStorageObjectKeys(stored ?? {})).toContain(key);
 
   expect(await track(false)).toBe(true);

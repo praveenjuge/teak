@@ -9,17 +9,13 @@ public enum HiddenTags {
 
     public static func isHiddenTagList(_ tags: [String]?) -> Bool { (tags ?? []).contains(where: isHidden) }
 
-    /// What to say when an edit hides a card that wasn't hidden: the first
-    /// hidden tag added, as the web's toast words it.
     public static func addedHint(before: [String]?, after: [String]) -> String? {
         guard !isHiddenTagList(before), let tag = after.first(where: isHidden) else { return nil }
         return tr("native.tags.card.hiddenAdded", SearchQualifiers.tagKey(tag))
     }
 
-    /// The note above results when the search names a hidden tag.
     public static var searchHint: String { tr("native.library.showsHiddenCards") }
 
-    /// Under an empty view whose cards are all hidden. It names #secret and #hidden, the hidden tags.
     public static var emptyViewHint: String { tr("native.tags.card.hiddenCards") }
 }
 
@@ -30,7 +26,6 @@ public enum TagOperations {
 
     public static var maxNameLength: Int { SharedConstants.shared.limits.maxTagNameLength }
 
-    /// The web's text for a tag error code, or nil for one it doesn't word.
     public static func message(_ code: String) -> String? {
         switch code {
         case "EMPTY_NAME": tr("errors.tags.EMPTY_NAME")
@@ -74,8 +69,6 @@ public enum TagOperations {
 
     public static func changed(_ count: Int) -> String { tr("native.tags.changed", count: count) }
 
-    /// The tag list as it will read once the summary catches up with a
-    /// finished change, so the list doesn't show the old name meanwhile.
     public static func applying(_ kind: Kind, from: String, to: String?, to items: [TagSummary.Item]) -> [TagSummary.Item] {
         let fromKey = SearchQualifiers.tagKey(from)
         guard let source = items.first(where: { SearchQualifiers.tagKey($0.name) == fromKey }) else { return items }
@@ -141,12 +134,10 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
         }
     }
 
-    /// What changed, and how many cards didn't: "Archived 7 cards. 3 couldn't be changed."
     public static func partial(_ done: String, failed: Int) -> String {
         failed > 0 ? tr("native.bulk.partial", count: failed, done) : done
     }
 
-    /// The action that puts cards back, for Undo.
     public var undo: BulkCardAction? {
         switch self {
         case .archive: .unarchive
@@ -162,7 +153,6 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
         updated == 0 ? failure : Self.partial(done(updated, folder: folder), failed: failed)
     }
 
-    /// Ids split into the chunks one call may carry.
     public static func chunks(_ ids: [String]) -> [[String]] {
         stride(from: 0, to: ids.count, by: chunkSize).map { Array(ids[$0..<min($0 + chunkSize, ids.count)]) }
     }

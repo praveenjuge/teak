@@ -382,7 +382,6 @@ describe("link page cache", () => {
     );
     expect(calls).toHaveLength(2);
     expect(calls[1]?.body).toEqual({ selectors: SELECTORS, url: URL_ });
-    // The next ordinary fetch reads the page the fresh one kept.
     expect(titleOf(await fetchLinkPage(env, params))).toBe("After");
     expect(calls).toHaveLength(2);
   });

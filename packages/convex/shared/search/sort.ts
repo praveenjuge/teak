@@ -32,7 +32,6 @@ interface SavedCard {
   savedAt?: number;
 }
 
-/** "Newest first" and "Oldest first": by `savedAtOf`, then `_creationTime`. */
 export const compareCardsBySavedAt = (
   left: SavedCard,
   right: SavedCard,

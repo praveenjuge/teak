@@ -10,7 +10,6 @@ object Tags {
 
     fun isHiddenList(tags: List<String>?): Boolean = tags.orEmpty().any(::isHidden)
 
-    /** Why [name] can't be a tag, or null when it can. */
     fun invalidNameText(name: String): UiText? {
         val trimmed = name.trim()
         return when {

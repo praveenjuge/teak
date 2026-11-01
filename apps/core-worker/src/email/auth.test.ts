@@ -55,8 +55,6 @@ describe("verifySender", () => {
   });
 
   test("only the topmost authentication header counts, and it must be Cloudflare's", async () => {
-    // The real Cloudflare pass sits below another server's header: refused,
-    // because a header above Cloudflare's can only have been added after it.
     expect(await verdictFor("foreign-topmost.eml")).toEqual({
       ok: false,
       reason: "no_cloudflare_results",

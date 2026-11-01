@@ -48,7 +48,6 @@ export const documentTextKey = (
 const digestOfKey = (key: string): string | null =>
   /\/document-text\/([a-f0-9]{64})\.txt$/.exec(key)?.[1] ?? null;
 
-/** A document's text or an article's Markdown: both are named by their digest. */
 const digestOfStoredTextKey = (key: string): string | null =>
   digestOfKey(key) ?? articleObjectDigest(key);
 

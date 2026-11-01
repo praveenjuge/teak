@@ -16,7 +16,6 @@ const settles: Array<() => void> = [];
 const realConvexReact = await import("convex/react");
 const write = (args: unknown) => {
   writes.push(args as Write);
-  // Each write waits until the test lets it land, like a slow network.
   return new Promise<null>((resolve) => settles.push(() => resolve(null)));
 };
 mock.module("convex/react", () => ({
@@ -57,7 +56,6 @@ const baseCard = {
   userId: "user_a",
 };
 
-/** The card as the server last sent it; writes don't change it here. */
 async function renderHook(card: Record<string, unknown>) {
   let hook = {} as ReturnType<typeof useCardModal>;
   function Harness() {
@@ -112,7 +110,6 @@ test("pressing favorite twice quickly shows the second press until both land", a
   await act(() => hook().toggleFavorite());
   expect(hook().card?.isFavorited).toBe(false);
 
-  // The first press lands; the second is still on its way.
   await act(async () => {
     settles.shift()?.();
     await Promise.resolve();

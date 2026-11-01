@@ -20,7 +20,6 @@ test("the container images build with the repo's pinned Bun on one Alpine", asyn
   const fetcher = await baseImages("../fetcher/Dockerfile");
   expect(renderer[0]).toBe(`oven/bun:${bun}-alpine`);
   expect(fetcher[0]).toBe(`oven/bun:${bun}-alpine`);
-  // Both ship a compiled Bun binary on the same runtime image.
   expect(fetcher[1]).toStartWith("alpine:");
   expect(fetcher).toEqual(renderer);
 });
@@ -145,7 +144,6 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.ratelimits ?? []).toEqual([]);
 });
 
-// dev:local reads the production vars, so it must blank the token.
 test("dev:local sends nothing to PostHog", () => {
   const { values } = parseArgs({
     args: packageJson.scripts["dev:local"].split(" ").slice(2),
@@ -157,7 +155,6 @@ test("dev:local sends nothing to PostHog", () => {
   expect(values.var).toContain("POSTHOG_PROJECT_TOKEN:");
 });
 
-// Remote local development runs the development config, never production's.
 test("dev runs the development Worker config", () => {
   expect(packageJson.scripts.dev).toBe(
     "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts"

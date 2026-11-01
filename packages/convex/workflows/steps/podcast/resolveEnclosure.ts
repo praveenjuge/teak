@@ -23,11 +23,9 @@ export interface Enclosure {
 }
 
 export interface EnclosureLookupInput {
-  /** The page's JSON-LD: read this run, or stored from an earlier one. */
   entities: unknown[];
   rawMap: RawSelectorMap;
   sourceUrl: string;
-  /** The page's title, to find the episode in its show's feed. */
   title?: string;
 }
 
@@ -124,7 +122,6 @@ export const findJsonLdAudio = (entities: unknown[]): Enclosure | null => {
   return null;
 };
 
-/** An Apple Podcasts episode link's show and episode ids, or null. */
 export const parseApplePodcastUrl = (
   url: string
 ): { episodeId: string; showId: string } | null => {
@@ -154,7 +151,6 @@ interface ItunesEpisode {
   wrapperType?: unknown;
 }
 
-/** The episode's audio in an iTunes lookup answer, or null. */
 export const findItunesEpisode = (
   lookup: unknown,
   episodeId: string
@@ -184,7 +180,6 @@ export const findItunesEpisode = (
   return { source: "apple", url, ...(mimeType ? { mimeType } : {}) };
 };
 
-/** The show's feed the page links to (RSS first, then Atom), or undefined. */
 export const findFeedUrl = (
   rawMap: RawSelectorMap,
   sourceUrl: string
@@ -206,7 +201,6 @@ export const findFeedUrl = (
     sourceUrl
   );
 
-/** A URL without its scheme, hash or trailing slash, for comparing links. */
 const comparableUrl = (url: string | undefined): string | undefined => {
   if (!url) {
     return;
@@ -289,7 +283,6 @@ const lookUpFeed = async (
   return matchFeedItem(parseFeed(text), input);
 };
 
-/** The episode's audio file, or null when it has none Teak can reach. */
 export const resolveEnclosure = async (
   input: EnclosureLookupInput,
   deps: RemoteFetchDeps

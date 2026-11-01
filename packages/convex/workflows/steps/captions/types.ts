@@ -1,4 +1,3 @@
-/** A video's captions as one transcript. */
 export interface VideoCaptions {
   /** Made by the site's speech recognition rather than a person. */
   auto: boolean;

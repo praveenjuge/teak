@@ -1,9 +1,3 @@
-/**
- * Blog posts are content pages with `type: blog` under `content/blog`. Blume
- * gives them a feed and BlogPosting structured data; Teak adds the `/blog`
- * index and each post's byline from these helpers.
- */
-
 export interface BlogAuthor {
   name: string;
   url?: string;
@@ -27,7 +21,6 @@ export const isBlogPost = (data: {
 }): data is BlogFrontmatter =>
   data.type === "blog" && Boolean(data.date) && data.draft !== true;
 
-/** Frontmatter `authors` as a list, whether it names one author or several. */
 export const blogAuthors = (authors: AuthorField): BlogAuthor[] => {
   if (!authors) {
     return [];
@@ -46,11 +39,9 @@ export const formatPostDate = (date: string | Date) =>
     year: "numeric",
   });
 
-/** A post's slug: the file name, which is also its cover's name in `images/`. */
 export const postSlug = (href: string) =>
   href.split("/").filter(Boolean).at(-1);
 
-/** Newest first; posts on the same day keep their title order. */
 export const sortPosts = <T extends { date: string | Date; title: string }>(
   posts: T[]
 ) =>

@@ -14,7 +14,6 @@ import { DEMO_COLUMNS } from "./home-demo-cards";
 const pagesDir = path.join(import.meta.dir, "..", "pages");
 const docsDir = path.join(import.meta.dir, "..", "content", "docs");
 
-/** Docs pages by URL path; `(group)` folders don't appear in URLs. */
 const docsFiles = new Map(
   readdirSync(docsDir, { recursive: true, encoding: "utf8" })
     .filter((file) => file.endsWith(".mdx"))
@@ -28,7 +27,6 @@ const docsFiles = new Map(
     ])
 );
 
-/** Heading anchors as the docs site writes them, for plain-word headings. */
 const headingAnchors = (file: string) =>
   readFileSync(file, "utf8")
     .split("\n")
@@ -43,7 +41,6 @@ const headingAnchors = (file: string) =>
     );
 const demoCardIds = new Set(DEMO_COLUMNS.flat().map((card) => card.id));
 
-// Products these pages must never name: no comparisons, only Teak's own words.
 const OTHER_PRODUCTS = [
   "Pinterest",
   "Notion",

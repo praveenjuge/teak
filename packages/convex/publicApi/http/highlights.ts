@@ -21,11 +21,9 @@ import {
 const CARD_HIGHLIGHTS_PATH = /^\/v1\/cards\/([^/]+)\/highlights$/;
 const HIGHLIGHT_PATH = /^\/v1\/highlights\/([^/]+)$/;
 
-/** `/v1/cards/{cardId}/highlights`. */
 export const isCardHighlightsPath = (pathname: string): boolean =>
   CARD_HIGHLIGHTS_PATH.test(pathname);
 
-/** `/v1/highlights/{highlightId}`. */
 export const isHighlightPath = (pathname: string): boolean =>
   HIGHLIGHT_PATH.test(pathname);
 
@@ -172,7 +170,6 @@ const createHighlight = async (
   }
 };
 
-/** `GET` and `POST /v1/cards/{cardId}/highlights`. */
 export const handleCardHighlightsRequest = async (
   ctx: ActionCtx,
   request: Request,
@@ -204,7 +201,6 @@ export const handleCardHighlightsRequest = async (
   }
 };
 
-/** `PATCH` (the note) and `DELETE /v1/highlights/{highlightId}`. */
 export const handleHighlightRequest = async (
   ctx: ActionCtx,
   request: Request,

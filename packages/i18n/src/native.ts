@@ -27,7 +27,6 @@ const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"];
 
 export type Segment = { text: string } | { arg: string } | { count: true };
 
-/** A message as the apps need it: one form, or one per plural category. */
 export type NativeMessage =
   | { kind: "plain"; segments: Segment[] }
   | { kind: "plural"; forms: Record<string, Segment[]> };
@@ -108,7 +107,6 @@ const segmentsOf = (
     }
   });
 
-/** Parses a message, throwing when it uses ICU the apps can't render. */
 export const parseNativeMessage = (message: string): NativeMessage => {
   const walk = splitAtPlural(parse(message, { ignoreTag: false }));
   if (!walk.plural) {
@@ -131,7 +129,6 @@ export const parseNativeMessage = (message: string): NativeMessage => {
   };
 };
 
-/** The argument order code passes values in, read from the English message. */
 export const argumentsOf = (english: string): Arguments => {
   const walk = splitAtPlural(parse(english, { ignoreTag: false }));
   const message = parseNativeMessage(english);
@@ -151,19 +148,13 @@ export const argumentsOf = (english: string): Arguments => {
 };
 
 export interface NativeCatalogs {
-  /** Each key's argument order, from English. */
   arguments: Map<string, Arguments>;
-  /** Every key the apps can read, by locale, in English key order. */
   messages: Record<Locale, Map<string, string>>;
 }
 
 const readJson = async (path: string) =>
   flattenCatalog(await Bun.file(path).json());
 
-/**
- * Loads the keys one platform reads: the shared `native` namespace, its own
- * namespace (`apple` or `android`) and the shared web namespaces.
- */
 export const loadNativeCatalogs = async (
   messagesDir: string,
   platform: "apple" | "android"
@@ -203,11 +194,9 @@ export const position = (args: Arguments, segment: Segment): number => {
 };
 
 export interface TranslationCall {
-  /** Whether the call passes a `count`. */
   count: boolean;
   key: string;
   line: number;
-  /** How many other values it passes. */
   values: number;
 }
 
@@ -229,7 +218,6 @@ const skipString = (source: string, start: number): number => {
 const OPEN = "([{";
 const CLOSE = ")]}";
 
-/** The index after the bracket that closes the one at `start`. */
 const skipGroup = (source: string, start: number): number => {
   let depth = 0;
   let index = start;
@@ -252,7 +240,6 @@ const skipGroup = (source: string, start: number): number => {
   return index;
 };
 
-/** Splits a call's argument list at its top-level commas. */
 const splitArguments = (inner: string): string[] => {
   const parts: string[] = [];
   let depth = 0;
@@ -324,7 +311,6 @@ export const findTranslationCalls = (
   return calls;
 };
 
-/** Problems with a call: an unknown key, or a count or values that don't fit the message. */
 export const checkTranslationCall = (
   call: TranslationCall,
   args: Map<string, Arguments>

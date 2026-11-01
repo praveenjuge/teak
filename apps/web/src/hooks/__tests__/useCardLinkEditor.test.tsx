@@ -54,7 +54,6 @@ test("keeps the last targets while a changed id list loads", async () => {
   await render(formatCardLinkToken("Gone", A));
   expect(hook.targets?.get(A)?.missing).toBe(true);
 
-  // A second link is added; its query has no answer yet.
   await render(
     `${formatCardLinkToken("Gone", A)} ${formatCardLinkToken("New", B)}`
   );

@@ -8,7 +8,6 @@ import TeakCore
 // The New Note and Voice Memo controls run these too, so this file and IntentSession.swift
 // are also in the TeakWidgets extension, as Apple requires for a control that opens its app.
 
-/// Opens Teak on a new note.
 struct NewNoteIntent: AppIntent {
     static let title = LocalizedStringResource("intents.newNoteTitle", table: "AppIntents")
     static let description = IntentDescription(LocalizedStringResource("intents.newNoteDescription", table: "AppIntents"))
@@ -21,7 +20,6 @@ struct NewNoteIntent: AppIntent {
     }
 }
 
-/// Opens Teak on the voice memo recorder.
 struct RecordVoiceMemoIntent: AppIntent {
     static let title = LocalizedStringResource("intents.recordVoiceMemoTitle", table: "AppIntents")
     static let description = IntentDescription(LocalizedStringResource("intents.recordVoiceMemoDescription", table: "AppIntents"))
@@ -34,7 +32,6 @@ struct RecordVoiceMemoIntent: AppIntent {
     }
 }
 
-/// Hands `link` to the app's router, or says "Open Teak and sign in" when signed out.
 @MainActor
 func openInTeak(_ link: TeakLink) async throws {
     try await IntentSession.requireSignedIn()

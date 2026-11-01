@@ -70,7 +70,6 @@ describe("card/createCard.ts", () => {
   });
 
   const savedEnv = new Map<string, string | undefined>();
-  // Backend events are queued only where PostHog and the Core Worker are set.
   const enableAnalytics = () => {
     for (const [key, value] of Object.entries({
       FILES_BASE: "https://files.test",

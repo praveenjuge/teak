@@ -15,14 +15,12 @@ export interface InboundEmailState {
   enabled: boolean;
   lastReceivedAt: number | null;
   sender: string;
-  /** Mail is saved only from a verified sign-in email. */
   senderVerified: boolean;
 }
 
 export interface InboundEmailPanelProps {
   onDisable: () => Promise<unknown>;
   onEnable: () => Promise<unknown>;
-  /** `undefined` while loading; `null` when it can't be shown. */
   state: InboundEmailState | null | undefined;
 }
 
@@ -34,10 +32,6 @@ const senderName = (chunks: ReactNode) => (
   <span className="font-medium">{chunks}</span>
 );
 
-/**
- * The address cut before its `@` on narrow screens: the name gives way to an
- * ellipsis and the domain always shows.
- */
 function MiddleTruncatedAddress({ address }: { address: string }) {
   const at = address.lastIndexOf("@");
   const middle = at > 0 ? at : Math.ceil(address.length / 2);
@@ -53,7 +47,6 @@ function MiddleTruncatedAddress({ address }: { address: string }) {
   );
 }
 
-/** Settings → Integrations → Save by email: its switch and, when on, the address. */
 export function InboundEmailSection({
   onDisable,
   onEnable,

@@ -29,10 +29,7 @@ final class CardPager {
     private(set) var isLoadingMore = false
     private(set) var isDone = false
     private(set) var error: (any Error)?
-    /// The cards shown are from before a refresh whose first page failed.
     private(set) var isStale = false
-    /// Hears every load where every page has arrived: the cards, and the ids
-    /// that dropped out since the last such load of the same search.
     @ObservationIgnored var onLoad: (@MainActor (_ cards: [CardSummary], _ left: [String]) -> Void)?
 
     @ObservationIgnored private let backend: TeakBackend
@@ -40,7 +37,6 @@ final class CardPager {
     @ObservationIgnored private var args: ConvexArgs = [:]
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var loadedIds: (generation: Int, ids: Set<String>)?
-    /// A refresh shows the cards it had until its first page arrives, and keeps them if that fails.
     @ObservationIgnored private var kept: [CardSummary]?
 
     init(backend: TeakBackend) {
@@ -66,7 +62,6 @@ final class CardPager {
         subscribe(Slot(cursor: cursor))
     }
 
-    /// Loads a failed page again: everything when the first page failed, else that page.
     func retry() {
         guard let index = slots.firstIndex(where: { $0.error != nil }) else { return }
         guard index > 0 else { return restart(keepingCards: !cards.isEmpty) }
@@ -151,7 +146,6 @@ final class CardPager {
         isLoadingMore = slots.count > 1 && slots.last?.page == nil && slots.last?.error == nil
         isDone = slots.last?.page?.isDone == true
         error = slots.lazy.compactMap(\.error).first
-        // While a page loads or splits, the cards after it aren't listed yet.
         guard !slots.isEmpty, slots.allSatisfy({ $0.page != nil }) else { return }
         let ids = Set(merged.map(\.id))
         let left = loadedIds?.generation == generation ? loadedIds?.ids.subtracting(ids) ?? [] : []

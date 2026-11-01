@@ -371,16 +371,10 @@ export function normalizeHexColor(value: string): string | null {
   return parsed.hex.slice(0, 7).toUpperCase();
 }
 
-/** The most colors a palette card holds, when it's saved or a color is added. */
 export const MAX_PALETTE_COLORS = 12;
 
 const PALETTE_HEX_PATTERN = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-/**
- * A hex code someone typed for a palette (`#RGB` or `#RRGGBB`, with or
- * without the `#`) as `#RRGGBB`, or null when it isn't one. Stricter than
- * `normalizeHexColor`, which also reads `rgb()` and `hsl()` text.
- */
 export function parsePaletteHex(value: string): string | null {
   const trimmed = value.trim();
   return PALETTE_HEX_PATTERN.test(trimmed) ? normalizeHexColor(trimmed) : null;

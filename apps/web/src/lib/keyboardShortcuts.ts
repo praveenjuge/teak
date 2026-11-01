@@ -18,7 +18,6 @@ const englishShortcuts = createTeakTranslator(
 
 export interface ShortcutRow {
   combo?: boolean;
-  /** Stable id of a row in the shortcuts list. */
   id?: ShortcutRowId;
   keys: string[];
   label: string;
@@ -117,7 +116,6 @@ const SHORTCUT_GROUPS: {
   },
 ];
 
-/** The shortcuts list, titled and labelled in the translator's language. */
 export const keyboardShortcutGroups = (
   t: ShortcutsTranslator = englishShortcuts
 ): ShortcutGroup[] =>
@@ -252,7 +250,6 @@ export function pressUploadFiles(): boolean {
 
 let shortcutsOpener: (() => void) | null = null;
 
-/** The shell's keyboard shortcuts sheet registers how to open it. */
 export function registerShortcutsOpener(open: () => void): () => void {
   shortcutsOpener = open;
   return () => {
@@ -262,7 +259,6 @@ export function registerShortcutsOpener(open: () => void): () => void {
   };
 }
 
-/** Opens the keyboard shortcuts sheet, as `?` does. */
 export function openKeyboardShortcuts(): boolean {
   if (!shortcutsOpener) {
     return false;

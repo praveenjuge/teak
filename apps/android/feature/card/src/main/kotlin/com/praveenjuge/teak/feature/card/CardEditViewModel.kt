@@ -108,7 +108,6 @@ class CardEditViewModel @AssistedInject constructor(
         showLinkPicker(next?.takeIf { it.start != dismissedLinkStart })
     }
 
-    /** Puts a link to [card] where the `[[` and its query were typed. */
     fun pickLink(card: LinkedCard) {
         val open = openLink ?: return
         val content = _uiState.value.draft?.editableContent ?: return

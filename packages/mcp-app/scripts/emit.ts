@@ -1,7 +1,3 @@
-/**
- * Writes the built view into the Convex module that serves it at
- * `ui://teak/cards.html` (packages/convex/mcp/appHtml.generated.ts).
- */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

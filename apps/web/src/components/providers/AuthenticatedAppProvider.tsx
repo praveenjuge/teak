@@ -26,7 +26,6 @@ export default async function AuthenticatedAppProvider({
   loading,
 }: {
   children: ReactNode;
-  /** What shows while the session loads; the app shell's skeleton by default. */
   loading?: ReactNode;
 }) {
   await connection();

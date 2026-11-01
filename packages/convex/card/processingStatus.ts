@@ -76,7 +76,6 @@ export const shouldRunRenderablesStage = (cardType: CardType): boolean =>
 export const shouldRunCategorizeStage = (cardType: CardType): boolean =>
   cardType === "link";
 
-/** Links get a saved copy of their page. */
 export const shouldRunArchiveStage = (cardType: CardType): boolean =>
   cardType === "link";
 

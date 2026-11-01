@@ -10,17 +10,13 @@ final class CardDetailModel {
     private(set) var isLoading = true
     private(set) var favoriteOverride: Bool?
     private(set) var doneOverride: Bool?
-    /// A note's content with a ticked task, shown until the saved card catches up.
     private(set) var contentOverride: String?
-    /// The card's tags with a kept suggestion that's still saving.
     private(set) var tagsOverride: [String]?
     private(set) var isSaving = false
     private(set) var isRefreshing = false
-    /// Live titles for the `[[…|teak:id]]` pills in a note, by id.
     private(set) var linkTargets: [String: CardLinkTarget] = [:]
     private(set) var backlinks: CardBacklinks?
     var message: String?
-    /// A short confirmation, like "Marked as read", sometimes with Undo.
     private(set) var notice: LibraryModel.StatusMessage?
 
     @ObservationIgnored private let backend: TeakBackend
@@ -57,8 +53,6 @@ final class CardDetailModel {
                     }
                     return
                 } catch {
-                    // A card that never loaded keeps its spinner through a brief error, and says it's unavailable
-                    // once retrying hasn't helped.
                     failures += 1
                     if card != nil || failures >= 3 { isLoading = false }
                     try? await Task.sleep(for: .seconds(2))
@@ -80,7 +74,6 @@ final class CardDetailModel {
     var isFavorited: Bool { favoriteOverride ?? card?.favorited ?? false }
     var isDone: Bool { doneOverride ?? card?.isDone ?? false }
 
-    /// The card as shown, with any task tick that's still saving.
     var displayedCard: Card? {
         guard var card else { return nil }
         if let contentOverride { card.content = contentOverride }
@@ -88,8 +81,6 @@ final class CardDetailModel {
         return card
     }
 
-    /// Ticks or unticks one task in a note right away, moving it as the web does, and saves the note. A failed save
-    /// puts the note back and says so.
     func toggleTask(_ item: MarkdownListItem) async {
         guard let card = displayedCard, card.type == .text, !card.deleted,
               let next = TaskLists.toggle(card.content, item: item) else { return }
@@ -106,8 +97,6 @@ final class CardDetailModel {
         }
     }
 
-    /// One live lookup for the note's pills, redone only when its links change,
-    /// and one for the notes that link here.
     private func watchLinks(_ card: Card?) {
         if backlinksTask == nil, card != nil {
             backlinksTask = Task {
@@ -148,7 +137,6 @@ final class CardDetailModel {
         notice = nil
     }
 
-    /// Marks a link done (or not) right away and undoes it if the save fails.
     func toggleDone() async -> Bool {
         let next = !isDone
         doneOverride = next
@@ -215,7 +203,6 @@ final class CardDetailModel {
         let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, change.args(cardId: id))
     }
 
-    /// Saves a link title typed in the header. A blank title leaves the one the card has.
     func saveTitle(_ input: String) async {
         guard let card, let change = CardEdit.titleChange(input, current: CardSheet.linkTitle(card)) else { return }
         message = nil
@@ -226,7 +213,6 @@ final class CardDetailModel {
         }
     }
 
-    /// Saves a link's new address, which refreshes its preview. Returns why it couldn't, for the form to show.
     func saveLink(_ input: String) async -> String? {
         if let invalid = LinkEdit.validationError(input) { return invalid }
         guard let change = LinkEdit.change(input, current: card?.url) else { return nil }
@@ -265,7 +251,6 @@ final class CardDetailModel {
         }
     }
 
-    /// Adds a color to a palette; the card's colors update live. Returns whether it saved.
     func addColor(_ hex: String) async -> Bool {
         message = nil
         do {
@@ -278,7 +263,6 @@ final class CardDetailModel {
         }
     }
 
-    /// Removes a palette color by its RGB, with Undo, which adds the stored color (alpha and all) back at the end.
     func removeColor(_ stored: String) async -> Bool {
         guard let hex = PaletteEdit.storedHex(stored) else { return false }
         message = nil

@@ -100,7 +100,6 @@ export const SPOTIFY_SOURCES: SelectorSource[] = [
   { selector: "meta[name='music:musician_description']", attribute: "content" },
 ];
 
-// Where a podcast episode's audio is: its own audio tag, or the show's feed.
 export const PODCAST_SOURCES: SelectorSource[] = [
   { selector: "meta[property='og:audio']", attribute: "content" },
   { selector: "meta[property='og:audio:secure_url']", attribute: "content" },

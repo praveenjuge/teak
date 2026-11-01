@@ -615,8 +615,6 @@ describe("core worker handler", () => {
     expect(archive.headers.get("content-security-policy")).toBe(
       "sandbox allow-popups allow-popups-to-escape-sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:"
     );
-    // Its links may open new tabs, but it never runs scripts or reads the
-    // files origin.
     expect(archive.headers.get("content-security-policy")).not.toMatch(
       /allow-scripts|allow-same-origin/u
     );
@@ -642,8 +640,6 @@ describe("core worker handler", () => {
   ] as const)(
     "never runs scripts in a stored %s opened from its signed link",
     async (storedType, params) => {
-      // An article image or preview fetched from a page keeps the type its
-      // server sent, and Convex signs those keys without a type of its own.
       const env_ = env();
       const key = "users/u1/cards/c1/article/r1/0.svg";
       (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
@@ -874,7 +870,6 @@ describe("core worker handler", () => {
         httpMetadata: { contentType: "image/svg+xml" },
       });
       const url = await signedUrl(`/${key}`);
-      // The edge copy an older deploy stored: no Content-Security-Policy.
       stored.set(new URL(url).origin + new URL(url).pathname, {
         bytes: bytes.slice().buffer,
         headers: new Headers({
@@ -904,8 +899,6 @@ describe("core worker handler", () => {
     });
 
     test("an object too large for the edge cache streams straight through", async () => {
-      // Export archives reach 5 GB; the Cache API keeps at most 512 MB, so a
-      // second copy of the stream would only pile up unread.
       const env_ = env();
       seed(env_);
       const bucket = env_.BUCKET as unknown as FakeBucket;

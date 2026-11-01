@@ -76,10 +76,6 @@ const unquote = (value: string): string =>
     ? value.slice(1, -1)
     : value;
 
-/**
- * An Authentication-Results (or ARC-Authentication-Results) value: its
- * authserv-id and each method's result with its properties.
- */
 export const parseAuthResults = (
   value: string,
   arc: boolean
@@ -117,7 +113,6 @@ export const parseAuthResults = (
   return { authservId, results };
 };
 
-/** The single mailbox in the From header, or why there isn't one. */
 const fromAddress = (
   headers: Header[]
 ): { address: string } | { reason: "multiple_from" | "no_from" } => {

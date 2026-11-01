@@ -34,10 +34,6 @@ export interface CardHighlightsControl {
 
 const HIGHLIGHT_TOAST_ID = "card-highlight";
 
-/**
- * A link card's highlights, and the reader's writes to them: each one
- * changes the list at once and rolls back with a toast when it fails.
- */
 export function useCardHighlights(
   cardId: string | null | undefined,
   enabled: boolean

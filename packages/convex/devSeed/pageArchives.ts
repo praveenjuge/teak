@@ -27,7 +27,6 @@ const markedUrl = (slug: string) =>
 type ArchiveSetup =
   | {
       kind: "full" | "text_only";
-      /** The stub object written to R2. */
       stub: "full" | "text_only";
       source: "extension" | "server";
     }
@@ -211,7 +210,6 @@ export const seedPageArchiveMix = async (
   return { cards: ids.length, status: "seeded" };
 };
 
-/** Writes the mix's stub archives to R2 through the Core Worker. */
 export const writeStubArchives = internalAction({
   args: {
     stubs: v.array(

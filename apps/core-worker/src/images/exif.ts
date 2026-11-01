@@ -107,7 +107,6 @@ const textOf = (value: IfdValue | undefined): string | undefined =>
 
 const OFFSET = /^([+-])(\d{2}):(\d{2})$/u;
 
-/** The camera's clock time, read as if that clock were UTC. */
 const clockTime = (original: string | undefined): number | undefined => {
   const match = original?.match(
     /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/u
@@ -150,7 +149,6 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   const original = textOf(exifIfd.get(0x90_03));
   const offset = textOf(exifIfd.get(0x90_11));
   const clock = clockTime(original);
-  // Only an offset that is a real zone moves the time; any other reads as UTC.
   const zone = clock === undefined ? undefined : offsetMinutes(offset);
   const facts: ExifFacts = {
     exposureTime: numberOf(exifIfd.get(0x82_9a)),

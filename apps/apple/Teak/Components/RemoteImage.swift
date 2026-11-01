@@ -90,7 +90,6 @@ struct RemoteImage: View {
     @State private var image: CGImage?
     @State private var placeholderImage: CGImage?
     @State private var failed = false
-    /// What `image` was loaded for, so a tile that only shrinks keeps it.
     @State private var loaded: Request?
 
     private struct Request: Equatable {

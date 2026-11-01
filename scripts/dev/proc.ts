@@ -63,11 +63,6 @@ const settleGroup = async (pgid: number): Promise<void> => {
 
 let exitSignalOwned = false;
 
-/**
- * Hands SIGINT and SIGTERM to `handler` (a script stopping its own servers).
- * Until it runs, runCommand forwards a signal to its tree and leaves the exit
- * to the handler; otherwise it re-raises the signal so exit codes stay standard.
- */
 export const onExitSignal = (handler: (signal: NodeJS.Signals) => void) => {
   exitSignalOwned = true;
   const once = (signal: NodeJS.Signals) => {

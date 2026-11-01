@@ -2,12 +2,6 @@ import Foundation
 import Observation
 import os
 
-/// The language Teak's own text is in: the account's Language setting, or the
-/// system's language for the app while signed out. The app group keeps it, so
-/// the share and Safari extensions speak it too.
-///
-/// Text comes from `Localizable.xcstrings`, which `apps/apple/scripts/i18n.ts`
-/// generates from `packages/i18n`. Read it with `tr`.
 public enum AppLanguage {
     public struct Option: Decodable, Sendable, Hashable, Identifiable {
         /// A BCP 47 code, such as `pt-BR`.
@@ -16,7 +10,6 @@ public enum AppLanguage {
         public let name: String
     }
 
-    /// Teak's languages, in the order the Language setting lists them.
     public static var options: [Option] { SharedConstants.shared.locales }
     public static var codes: [String] { options.map(\.id) }
 
@@ -32,7 +25,6 @@ public enum AppLanguage {
 
     private static let state = OSAllocatedUnfairLock<String?>(initialState: nil)
 
-    /// The language now in use.
     public static var current: String {
         state.withLock { cached in
             if let cached { return cached }
@@ -51,8 +43,6 @@ public enum AppLanguage {
         Bundle.preferredLocalizations(from: codes, forPreferences: Locale.preferredLanguages).first ?? "en"
     }
 
-    /// Switches every later lookup to `code` and shares it with the extensions.
-    /// Views that read text through `tr` update in place, keeping their state.
     public static func use(_ code: String) {
         guard let code = supported(code) else { return }
         state.withLock { $0 = code }
@@ -67,7 +57,6 @@ public enum AppLanguage {
         LanguageObservation.shared.changed()
     }
 
-    /// One of Teak's codes for a stored or system value, or nil.
     public static func supported(_ value: String) -> String? {
         codes.contains(value) ? value : nil
     }
@@ -83,7 +72,6 @@ public enum AppLanguage {
         }
     }
 
-    /// The catalog's text for `key` in `code`, falling back to English.
     static func format(_ key: String, in code: String) -> String {
         let missing = "\u{1}"
         let text = bundle(code).localizedString(forKey: key, value: missing, table: nil)
@@ -117,7 +105,6 @@ final class LanguageObservation: Observable, Sendable {
     }
 }
 
-/// `tr` in a given language, for tests and previews.
 public func tr(_ key: String, count: Int? = nil, _ args: [String], in code: String) -> String {
     let format = AppLanguage.format(key, in: code)
     var values: [any CVarArg] = []

@@ -22,7 +22,6 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
     public static var offline: TeakError { TeakError(code: offlineCode, message: TeakMessages.offline) }
     public static var signedOut: TeakError { TeakError(code: unauthenticatedCode, message: tr("native.errors.signInAgain")) }
 
-    /// A server error in the app's language: the catalog's text for its code, else the server's message.
     public static func card(code: String?, message: String?, fallback: String = TeakMessages.genericFailure) -> TeakError {
         let known = code.flatMap(localizedMessage) ?? message.flatMap(localizedFolderMessage)
         let tooFast = code == rateLimited ? tr("errors.cards.RATE_LIMITED") : nil

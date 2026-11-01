@@ -71,7 +71,6 @@ export const buildEdgeRateLimitSigningPayload = ({
   expiresAt: string;
 }): string => ["edge-rate-limit", "1", expiresAt, credentialSha256].join("\n");
 
-/** Splits an attestation header value (`<expiresAt>.<signature>`). */
 export const parseEdgeRateLimitAttestation = (
   value: string | null
 ): { expiresAt: string; signature: string } | null => {

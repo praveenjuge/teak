@@ -36,7 +36,6 @@ const setup = (respond: (url: string) => Response) => {
 
 const MiB = 1024 * 1024;
 
-/** An upstream body of `chunks` 1 MiB pieces that records a cancel. */
 const upstream = (chunks: number) => {
   const state = { cancelled: false, pulled: 0 };
   const body = new ReadableStream<Uint8Array>({
@@ -190,7 +189,6 @@ describe("fetcher streamed hop", () => {
     const { hop, stream } = setup(() => new Response(upstream(4).body));
     const first = await stream({ maxBytes: 10 * MiB });
     expect((await stream({ maxBytes: 10 * MiB })).status).toBe(503);
-    // Buffered hops for page details keep working meanwhile.
     expect((await hop({})).status).toBe(200);
 
     expect((await first.arrayBuffer()).byteLength).toBe(4 * MiB);

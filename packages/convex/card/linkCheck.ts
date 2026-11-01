@@ -33,18 +33,13 @@ import { getR2Url } from "../storage/fileUrls";
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
-/** An alive answer opens the original without a check for this long. */
 export const LINK_CHECK_ALIVE_TTL_MS = 24 * HOUR;
-/** A dead answer opens the archived copy without a check for this long. */
 export const LINK_CHECK_DEAD_TTL_MS = 6 * HOUR;
-/** How long one open holds the check for its card. */
 export const LINK_CHECK_CLAIM_MS = 5000;
-/** How long a second open waits for the check in flight. */
 export const LINK_CHECK_WAIT_MS = 4000;
 const LINK_CHECK_POLL_INTERVAL_MS = 250;
 /** The Worker answers within 3.5 s; this covers the request around it. */
 export const LINK_CHECK_WORKER_TIMEOUT_MS = 4000;
-/** An unchanged alive answer is not written again within this long. */
 export const LINK_CHECK_ALIVE_REWRITE_MS = HOUR;
 
 const storedOutcomeValidator = v.union(v.literal("alive"), v.literal("dead"));
@@ -66,14 +61,12 @@ export const linkOpenTargetValidator = v.union(
   v.object({
     target: v.literal("original"),
     url: v.string(),
-    /** Absent when the card has no archived copy, so nothing was checked. */
     outcome: v.optional(openOutcomeValidator),
     reason: v.optional(v.string()),
   }),
   v.object({
     target: v.literal("archive"),
     url: v.string(),
-    /** A signed URL for the copy; absent when one couldn't be made. */
     archiveUrl: v.optional(v.string()),
     capturedAt: v.number(),
     kind: v.union(v.literal("full"), v.literal("text_only")),
@@ -115,7 +108,6 @@ const checkStateValidator = v.union(
     kind: v.literal("archive"),
     archive: archivedCopyValidator,
     cardId: v.id("cards"),
-    /** A fresh alive or dead answer, if there is one. */
     cached: v.union(
       v.null(),
       v.object({
@@ -127,7 +119,6 @@ const checkStateValidator = v.union(
   })
 );
 
-/** The card as the open needs it, with the cached answer when it is fresh. */
 export const readLinkCheckState = internalQuery({
   args: { cardId: v.string(), userId: v.string() },
   returns: checkStateValidator,
@@ -180,11 +171,6 @@ const claimValidator = v.union(
   })
 );
 
-/**
- * Claims the check for this card for 5 s, unless another open holds it (a
- * double click, two tabs) or a fresh answer arrived meanwhile. A claim spends
- * one `linkChecks` token; past the limit nothing is claimed.
- */
 export const claimLinkCheck = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: claimValidator,
@@ -222,11 +208,6 @@ export const claimLinkCheck = internalMutation({
   },
 });
 
-/**
- * Keeps an alive or dead answer and lets go of the claim. An unsure answer
- * is never kept, so the next open checks again. An alive answer with the
- * same status as one written within the hour isn't written again.
- */
 export const finishLinkCheck = internalMutation({
   args: {
     cardId: v.id("cards"),
@@ -237,7 +218,6 @@ export const finishLinkCheck = internalMutation({
       v.literal("unsure")
     ),
     reason: v.optional(v.string()),
-    /** The link that was checked. */
     url: v.string(),
     userId: v.string(),
   },
@@ -304,7 +284,6 @@ export const finishLinkCheck = internalMutation({
   },
 });
 
-/** The row a second open waits on. */
 export const readLinkCheck = internalQuery({
   args: { cardId: v.id("cards") },
   returns: v.union(
@@ -332,10 +311,6 @@ export const readLinkCheck = internalQuery({
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * Another open holds the check: wait up to 4 s for its answer, polling the
- * row. It never spends a token or calls the Worker itself.
- */
 const waitForCheckInFlight = async (
   ctx: ActionCtx,
   cardId: Id<"cards">
@@ -350,7 +325,6 @@ const waitForCheckInFlight = async (
       return { outcome: row.outcome, reason: row.reason };
     }
     if (row?.checkingUntil === undefined || row.checkingUntil <= Date.now()) {
-      // The check ended unsure, or its open gave up: nothing to wait for.
       return null;
     }
   }
@@ -359,7 +333,6 @@ const waitForCheckInFlight = async (
 
 const OUTCOMES = new Set<FilesLinkCheckOutcome>(["alive", "dead", "unsure"]);
 
-/** The Worker's answer, or Convex's own reason when it couldn't ask. */
 type CheckAnswer = Omit<FilesLinkCheckResult, "reason"> & { reason: string };
 
 const askWorker = async (url: string): Promise<CheckAnswer> => {
@@ -379,7 +352,6 @@ const askWorker = async (url: string): Promise<CheckAnswer> => {
   }
 };
 
-/** A signed URL for the copy, or none when one can't be made. */
 const signedArchiveUrl = (key: string): Promise<string | undefined> =>
   getR2Url(key).catch(() => undefined);
 
@@ -470,10 +442,6 @@ export const checkCardLinkFor = async (
     : original(result.outcome, result.reason);
 };
 
-/**
- * Where `/open/<cardId>` should go: the original, the archived copy when the
- * original is gone, or nowhere when the card isn't the caller's.
- */
 export const checkCardLinkForOpen = action({
   args: { cardId: v.string() },
   returns: linkOpenTargetValidator,
@@ -483,7 +451,6 @@ export const checkCardLinkForOpen = action({
   },
 });
 
-/** The last check's answer when it was dead, for the card dialog's chip. */
 export const getLinkCheck = query({
   args: { cardId: v.id("cards") },
   returns: v.union(

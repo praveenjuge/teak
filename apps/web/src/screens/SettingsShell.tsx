@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 interface SettingsShellProps {
   children: ReactNode;
   header?: ReactNode;
-  /** The list of Settings pages, shown beside the content on wide screens. */
   nav?: ReactNode;
 }
 

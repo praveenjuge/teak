@@ -12,7 +12,6 @@ function SkeletonBar({ className }: { className: string }) {
   );
 }
 
-/** Settings while the app loads: the nav, Account's heading, profile and pages. */
 export function SettingsPageSkeleton() {
   const t = useTranslations("settings.skeleton");
   return (

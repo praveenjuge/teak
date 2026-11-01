@@ -115,7 +115,6 @@ export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
   addToFolderId?: string;
-  /** Text the composer starts with, such as a share from the system share sheet. */
   composerDraft?: string;
   contentContainerClassName?: string;
   focusComposer?: boolean;
@@ -920,7 +919,6 @@ export function CardsScreen({
       title = <PageTitle>{t("folderTitle")}</PageTitle>;
     }
   }
-  // A folder view searches only that folder, even before its name loads.
   let searchPlaceholder = libraryViewSearchPlaceholder(view ?? "all", tv);
   if (folder) {
     searchPlaceholder = t("searchFolder", {

@@ -17,7 +17,6 @@ import {
   transformArticleTree,
 } from "./articleTree";
 
-/** Stand-ins for the article's signed image URLs: only their count matters. */
 const placeholderImageUrls = (count: number): string[] =>
   Array.from({ length: count }, (_, index) => `https://image.invalid/${index}`);
 

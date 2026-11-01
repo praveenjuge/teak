@@ -34,7 +34,6 @@ export default defineSchema({
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
     workosDeletedAt: v.optional(v.number()),
-    // The WorkOS name, from the session's claims (first and last name).
     name: v.optional(v.string()),
     role: v.optional(v.literal("admin")),
     // Set when account deletion starts, so sign-in stops at the mapping row.
@@ -484,9 +483,7 @@ export default defineSchema({
      * `SEARCH_PREFIX_MAX_BYTES`.
      */
     text: v.string(),
-    /** The R2 object holding a document's whole text, or an article's Markdown. */
     sourceKey: v.optional(r2KeyValidator),
-    /** A transcript part's place, from 0. */
     part: v.optional(v.number()),
     charCount: v.number(),
     truncated: v.boolean(),
@@ -898,8 +895,6 @@ export default defineSchema({
     ),
     isApproximate: v.boolean(),
   }).index("by_date", ["date"]),
-  // The admin overview as the Core Worker last counted it (hourly), one row
-  // with onboarding cards and one without. Aggregates only.
   adminOverviews: defineTable({
     includeOnboarding: v.boolean(),
     ...adminOverviewFields,

@@ -57,7 +57,6 @@ type WorkflowJob = NonNullable<
 >;
 type StagedState = NonNullable<WorkflowJob["stagedItems"]>;
 
-/** An item read from the source that is waiting to become a card. */
 export type StagedItem = Omit<
   Extract<ImportIndexItem, { status: "pending" }>,
   "status"
@@ -100,7 +99,6 @@ const IMPORT_STEP: StepConfig = {
 const FINALIZE_STEP = retryConfig(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
-/** Staged items are written to R2 in objects of about this size. */
 export const STAGED_PART_BYTES = 8 * 1024 * 1024;
 const MARKDOWN_READS_AT_ONCE = 8;
 const REPORT_PAGE_SIZE = 200;
@@ -113,14 +111,12 @@ const reportLabel = (text: string) =>
 const failureClassOf = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message.slice(0, 160) : fallback;
 
-/** The reason a person reads for an archive file that couldn't be imported. */
 export const FILE_EXTRACT_FAILED_REASON =
   "This file couldn't be imported from the archive. Upload it on its own.";
 
 const jsonBytes = (value: unknown) =>
   encoder.encode(JSON.stringify(value)).byteLength;
 
-/** Splits items into runs of at most `maxBytes` of JSON (and `maxItems`). */
 const chunkByBytes = <T>(
   items: T[],
   maxBytes: number,
@@ -148,10 +144,6 @@ const chunkByBytes = <T>(
   return chunks;
 };
 
-/**
- * Cross-page duplicate links are tracked by a short hash of their URL key
- * (`normalizeIndexItem` fills `seen` with keys), not the URL itself.
- */
 const seenHash = async (key: string) => (await sha256Hex(key)).slice(0, 32);
 const linkSeenHash = (url: string) => seenHash(urlKey(url) ?? url);
 
@@ -327,7 +319,6 @@ export const runImport = (
     return { items, nextCursor: page.nextCursor, seen };
   };
 
-  /** Runs `read` for a page, turning a non-transient error into a failure. */
   const indexing = async <T>(
     read: () => Promise<Outcome<T>>
   ): Promise<Outcome<T>> => {
@@ -698,7 +689,6 @@ export const runImport = (
       item.fileName ?? "file"
     );
 
-  /** Reads staged parts, keeping the last one read. */
   const stagedPartReader = (job: WorkflowJob) => {
     let cached: { items: StagedItem[]; part: number } | undefined;
     return async (part: number): Promise<StagedItem[]> => {
@@ -718,7 +708,6 @@ export const runImport = (
     };
   };
 
-  /** The next items to create, from the job's position, within one part. */
   const nextStagedBatch = async (
     staged: StagedState,
     readPart: (part: number) => Promise<StagedItem[]>
@@ -802,7 +791,6 @@ export const runImport = (
     }
   };
 
-  /** Files extracted for the batch at the job's position, never created. */
   const unclaimedStagedFiles = async (job: WorkflowJob): Promise<string[]> => {
     if (!job.stagedItems) {
       return [];
@@ -931,7 +919,6 @@ export const runImport = (
       )
     );
 
-  /** Indexes the source; returns the finished run when indexing failed. */
   const indexSource = async (
     staged: StagedState | undefined
   ): Promise<{ status: ImportOutcome } | null> => {

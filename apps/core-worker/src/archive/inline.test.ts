@@ -24,7 +24,6 @@ const fakeDeps = (
   options: {
     assets?: Record<string, FetchedAsset | null>;
     defaultAsset?: (url: string, kind: "font" | "image") => FetchedAsset | null;
-    /** Where a stylesheet request ends up, by the URL asked for. */
     redirects?: Record<string, string>;
     sheets?: Record<string, string | Uint8Array>;
     sheetType?: string;
@@ -76,7 +75,6 @@ const archive = (
     ...extra,
   });
 
-/** Parses the archive the way a browser would, to read it back. */
 const parse = (html: string) => {
   const found: {
     attributes: Array<{ name: string; tag: string; value: string }>;
@@ -226,7 +224,6 @@ describe("buildPageArchive: header", () => {
     expect(result.html).toContain(
       "default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:; media-src 'none'"
     );
-    // The page's own policy, which could block the inlined images, is gone.
     expect(result.html).not.toContain("img-src https:");
   });
 
@@ -468,8 +465,6 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     const deps = fakeDeps();
     const started = performance.now();
     const result = await archive(`<style>${css}</style><p>Hi</p>`, deps);
-    // Each url() was compared with every other: about a minute of CPU. Now
-    // about a second; the bound leaves room for a slow runner.
     expect(performance.now() - started).toBeLessThan(20_000);
     expect(deps.recorded.assets).toHaveLength(PAGE_ARCHIVE_MAX_REQUESTS);
     expect(deps.recorded.assets[0]).toEqual({
@@ -655,7 +650,6 @@ describe("buildPageArchive: budget", () => {
       const index = Number(/\/i\/(\d+)\.png$/u.exec(url)?.[1]);
       return sum + (sizes[index] ?? 0);
     }, 0);
-    // The request that crosses the limit is the last one let through.
     expect(fetchedBytes).toBeLessThan(
       PAGE_ARCHIVE_MAX_INPUT_BYTES + 300 * 1024
     );
@@ -689,7 +683,6 @@ describe("buildPageArchive: budget", () => {
     expect(Math.max(...keptSizes)).toBeLessThanOrEqual(
       Math.min(...droppedFetchedSizes)
     );
-    // Every image keeps its alt text, kept or not.
     expect(imgs).toHaveLength(300);
   }, 30_000);
 
@@ -721,7 +714,6 @@ describe("buildPageArchive: budget", () => {
   describe("drops fonts only once every image is gone", () => {
     const deps = fakeDeps({
       defaultAsset: (_url, kind) => ({
-        // Fonts weigh more than images, so size alone would drop them first.
         body: bytesOf(kind === "font" ? 3000 : 1000),
         contentType: kind === "font" ? "font/woff2" : "image/png",
         height: 1,

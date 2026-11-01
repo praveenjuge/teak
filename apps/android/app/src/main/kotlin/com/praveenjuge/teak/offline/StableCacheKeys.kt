@@ -21,7 +21,6 @@ internal object StableCacheKeys : Interceptor {
     }
 }
 
-/** The link without its signature, or null when it isn't a signed link. */
 internal fun stableCacheKey(url: String): String? {
     val parsed = url.toHttpUrlOrNull() ?: return null
     if (parsed.queryParameter("exp") == null || parsed.queryParameter("sig") == null) return null

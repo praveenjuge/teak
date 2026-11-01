@@ -13,7 +13,6 @@ export const englishCardTypes: CardTypesTranslator = createTeakTranslator(
   "cards.types"
 );
 
-/** A card type's name, such as "Image", or "Card" for an unknown type. */
 export function cardTypeLabel(
   type: string | undefined,
   t: CardTypesTranslator = englishCardTypes

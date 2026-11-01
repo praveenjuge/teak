@@ -24,7 +24,6 @@ const setup = () => {
 };
 type Backend = ReturnType<typeof setup>;
 
-// Each card with its transcript, which lives in `cardTextContents`.
 const cardsOf = (t: Backend) =>
   t.run(async (ctx) => {
     const cards = await ctx.db
@@ -104,7 +103,6 @@ interface WorkerCall {
   };
 }
 
-/** Answers Core Worker ops the way a Worker with the assets binding does. */
 const stubCoreWorker = () => {
   const calls: WorkerCall[] = [];
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {

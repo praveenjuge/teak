@@ -36,10 +36,6 @@ const linkHostname = (url?: string): string | undefined => {
   }
 };
 
-/**
- * The start of a card's text, with `[[…]]` links shown as their saved titles,
- * or as what `linkTitle` returns for each one.
- */
 export const cardPreviewText = (
   card: TitledCard,
   linkTitle: (title: string, id: string) => string = (title) => title

@@ -138,10 +138,8 @@ function ThumbnailDropZone({
   );
 }
 
-/** A link's note shows in full here, unlike the grid's three lines. */
 const NOTE_MAX_LENGTH = 4000;
 
-/** The latest link check, when it found the page gone (`getLinkCheck`). */
 export interface LinkPreviewLinkState {
   checkedAt: number;
   outcome: "dead";

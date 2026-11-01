@@ -10,10 +10,6 @@ function readFlag(key: string, fallback: boolean): boolean {
   }
 }
 
-/**
- * A yes or no this browser remembers, like a panel someone collapsed. When
- * storage is blocked it still works, and forgets on reload.
- */
 export function useStoredFlag(
   key: string,
   fallback = false

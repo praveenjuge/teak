@@ -23,7 +23,6 @@ export const MAX_TAG_SUMMARY_ITEMS = 3000;
 export const TAG_COUNT_FOLD_ROWS = 1000;
 export const TAG_SUMMARY_RETRY_MAX_ATTEMPTS = 8;
 
-/** Backoff for a failed tag-summary recompute: 5s doubling, capped at 2 minutes. */
 export const tagSummaryRetryDelayMs = (attempt: number): number | null =>
   attempt >= TAG_SUMMARY_RETRY_MAX_ATTEMPTS
     ? null
@@ -103,7 +102,6 @@ export const markTagSummaryDirty = async (
 
 export type TagCountDeltas = Map<string, Map<string, number>>;
 
-/** Whether a tag row counts toward its tag: outside Trash and Archive. */
 export const isCountedTagRow = (
   row: Pick<Doc<"cardSearchTags">, "isArchived" | "isDeleted">
 ) => row.isDeleted === undefined && row.isArchived === undefined;
@@ -221,7 +219,6 @@ export const tagCountsReady = internalQuery({
       .unique()) !== null,
 });
 
-/** Folds a page of the user's count changes into `userTagCounts`. */
 export const foldTagCountDeltas = internalMutation({
   args: { userId: v.string() },
   returns: v.boolean(),
@@ -288,7 +285,6 @@ export const writeTagSummary = internalMutation({
   },
 });
 
-/** Re-marks the summary dirty after a failed recompute gave up retrying. */
 export const rearmTagSummaryRefresh = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),

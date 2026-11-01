@@ -30,8 +30,6 @@ export function DeleteAccountDialog({
   const confirmPhrase = t("confirmPhrase");
   const [confirmation, setConfirmation] = useState("");
   const [wasOpen, setWasOpen] = useState(open);
-  // Every open starts empty, however the last one closed (Cancel, Escape,
-  // the close button or a click outside).
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {

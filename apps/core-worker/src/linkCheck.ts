@@ -142,7 +142,6 @@ const unsure = (
   ...(httpStatus === undefined ? {} : { httpStatus }),
 });
 
-/** The final status, after redirects: 404 and 410 are the only dead ones. */
 export const classifyLinkStatus = (status: number): FilesLinkCheckResult => {
   if (status === 404 || status === 410) {
     return { httpStatus: status, outcome: "dead", reason: `http_${status}` };
@@ -169,7 +168,6 @@ const isRedirect = (response: Response) =>
   response.headers.has("location");
 
 export interface LinkCheckDeps {
-  /** One SSRF-checked request from the link fetcher, never following redirects. */
   hop: PinnedFetch;
   lookup: DnsLookup;
   timeoutMs?: number;
@@ -271,7 +269,6 @@ export const checkLink = async (
   }
 };
 
-/** The `check-link` op: its params, checked, then the check. */
 export const checkLinkOp = (
   env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
   params: Record<string, unknown>

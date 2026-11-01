@@ -45,7 +45,6 @@ describe("Highlighting a saved article", () => {
       timeout: 15_000,
     });
 
-    // Select the passage inside the article body, as a drag would.
     const selected = await browser.evaluate((passage) => {
       const body = document.querySelector("[data-article-body]");
       const walker = document.createTreeWalker(
@@ -74,7 +73,6 @@ describe("Highlighting a saved article", () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByText(PASSAGE)).toBeVisible();
 
-    // Click the highlighted words to open their note.
     const point = await browser.evaluate((passage) => {
       const body = document.querySelector("[data-article-body]");
       const walker = document.createTreeWalker(
@@ -103,7 +101,6 @@ describe("Highlighting a saved article", () => {
     const note = screen.getByRole("textbox", "Note on this highlight");
     await expect(note).toBeVisible();
     await note.fill("Worth trying in the dry plot");
-    // Leaving the field saves the note.
     await browser.keyboard.press("Tab");
     await browser.keyboard.press("Escape");
     await expect(panel.getByText("Worth trying in the dry plot")).toBeVisible();

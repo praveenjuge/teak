@@ -142,7 +142,6 @@ object CardEdit {
     }
 }
 
-/** Changing a link card's address from Edit link… */
 object LinkEdit {
     // An http or https scheme, then a host: what the server's `new URL` check needs, without spaces.
     private val link = Regex("""https?://([^/?#\s@]+@)?[^/?#\s:@]+(:\d*)?([/?#]\S*)?""", RegexOption.IGNORE_CASE)
@@ -150,7 +149,6 @@ object LinkEdit {
     /** The server's words for an address it refuses. */
     val invalidMessage: UiText get() = UiText.of("native.card.editLink.invalid")
 
-    /** Why [input] can't be saved, or null when it's an http or https link. */
     fun validationError(input: String): UiText? = if (link.matches(input.trim())) null else invalidMessage
 
     /** The write saving [input] makes, or null when it isn't a link or is the address the card has. */
@@ -161,7 +159,6 @@ object LinkEdit {
     }
 }
 
-/** Emptying Trash: what the confirmation and the note after it say. */
 object EmptyTrash {
     /** The confirmation: the count from `cards:trashCount`, as "or more" when Trash holds more. */
     fun message(count: Int, more: Boolean): UiText =

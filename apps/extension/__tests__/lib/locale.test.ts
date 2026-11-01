@@ -34,7 +34,6 @@ let items: Map<string, unknown>;
 let listeners: Set<ChangeListener>;
 let menus: { id?: string; title?: string; contexts?: string[] }[];
 
-/** Writes like chrome.storage.local, telling listeners as the browser does. */
 const store = (values: Record<string, unknown>) => {
   const changes: Record<string, chrome.storage.StorageChange> = {};
   for (const [key, value] of Object.entries(values)) {

@@ -60,7 +60,6 @@ const commands: SlashCommandSuggestionItem[] = [
 ];
 const slashKey = new PluginKey("teakSlashCommands");
 const cardLinkKey = new PluginKey("teakCardLinks");
-/** An open slash or `[[` menu keeps Enter and Tab inside a table cell. */
 const isSuggesting = (state: EditorState) =>
   Boolean(
     slashKey.getState(state)?.active || cardLinkKey.getState(state)?.active
@@ -72,7 +71,6 @@ const inCode = (editor: Editor) =>
   editor.isActive("literalMarkdown") ||
   editor.isActive("code");
 
-/** Enter on a selected pill opens its card. */
 const openSelectedCardLink = (
   editor: Editor,
   open?: (cardId: string) => void
@@ -178,7 +176,6 @@ export function RichMarkdownEditor({
         }),
         items: ({ query }) =>
           commands.filter((item) => {
-            // People search in the UI language; the English title still works.
             const title = slashCommandTitle(translate.current, item);
             const titles =
               title === item.title ? title : `${title} ${item.title}`;
@@ -257,8 +254,6 @@ export function RichMarkdownEditor({
                 const state = linkStateRef.current;
                 const items = state.status === "ready" ? state.items : [];
                 if (!(current && items.length)) {
-                  // Enter waits for a search in flight; with no match or an
-                  // error it types a new line as usual.
                   return (
                     event.key === "Enter" &&
                     Boolean(current) &&
@@ -492,8 +487,6 @@ export function RichMarkdownEditor({
     }
   }, [editor, onEditorReady]);
 
-  // The `[[` menu's cards: searched after typing pauses; a slower answer to
-  // an older query is dropped.
   useEffect(() => {
     const search = callbacks.current.cardLinks?.search;
     if (linkQuery === undefined || !search) {

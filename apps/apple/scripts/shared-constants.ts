@@ -1,7 +1,3 @@
-/**
- * Regenerate after changing these constants in packages/convex/shared:
- *   bun --no-env-file run apps/apple/scripts/shared-constants.ts --write
- */
 import { resolve } from "node:path";
 import {
   CARD_ERROR_MESSAGES,

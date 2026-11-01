@@ -8,7 +8,6 @@ import { cleanHighlightNote } from "@teak/convex/shared/highlights/constants";
 import type { FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 
-/** One of a card's highlights, as the reader and the panel read them. */
 export type CardHighlight = FunctionReturnType<
   typeof api.highlight.highlights.listForCard
 >[number];
@@ -111,7 +110,6 @@ export type HighlightProblem =
   | "rateLimited"
   | "tooLong";
 
-/** What went wrong with a highlight write, for the toast that says so. */
 export const highlightProblem = (error: unknown): HighlightProblem => {
   const data =
     error instanceof ConvexError
@@ -214,7 +212,6 @@ export const optimisticHighlightId = (span: {
 export const createPendingHighlightIds = () => {
   const pending = new Map<string, Promise<string | null>>();
   return {
-    /** Records what the optimistic `tempId` becomes once `saved` returns. */
     track(tempId: string, saved: Promise<{ highlight: { _id: string } }>) {
       pending.set(
         tempId,
@@ -224,7 +221,6 @@ export const createPendingHighlightIds = () => {
         )
       );
     },
-    /** The id to send for `id`: itself, or null when its create failed. */
     resolve(id: string): Promise<string | null> {
       if (!id.startsWith(OPTIMISTIC_ID_PREFIX)) {
         return Promise.resolve(id);
