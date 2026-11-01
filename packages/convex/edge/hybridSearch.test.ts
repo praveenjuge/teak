@@ -202,6 +202,28 @@ describe("hybrid search in the grid", () => {
     ]);
   });
 
+  test("never marks a card that holds the words, however close its meaning", async () => {
+    const env = await setup();
+    const cards = await seedLibrary(env);
+    await env.cache("reading nook", [
+      { id: cards.keyword, score: STRONG },
+      { id: cards.armchair, score: STRONG },
+    ]);
+    const page = await env.owner.query(api.cards.searchCardsPaginated, {
+      searchQuery: "reading nook",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(
+      page.page.map((card: { _id: string; matchedByMeaning?: true }) => [
+        card._id,
+        card.matchedByMeaning ?? false,
+      ])
+    ).toEqual([
+      [cards.armchair, true],
+      [cards.keyword, false],
+    ]);
+  });
+
   test("merges strong meaning matches with keyword matches, newest first", async () => {
     const env = await setup();
     const cards = await seedLibrary(env);

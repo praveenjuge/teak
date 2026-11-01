@@ -521,8 +521,13 @@ export const searchCardsPaginatedHandler = async (
             readText: readExpressionText,
           }
         );
+        // A card that also holds the words is a word match, however close
+        // its meaning: only cards found by meaning alone are "related".
         for (const match of semantic) {
-          if (match.score >= SEMANTIC_MIN_SCORE) {
+          if (
+            match.score >= SEMANTIC_MIN_SCORE &&
+            !keywordMatches.has(match.cardId)
+          ) {
             matchedByMeaning.add(match.cardId);
           }
         }

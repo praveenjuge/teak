@@ -136,9 +136,9 @@ export function CommandPaletteResults({
   const trimmed = query.trim();
   return (
     <>
-      {/* cmdk doesn't count the server's card rows. */}
-      {(cards.status === "idle" ||
-        (cards.status === "ready" && cards.cards.length === 0)) && (
+      {/* cmdk doesn't count the server's card rows. Once a query is long
+          enough to search cards, "Search all" is always offered instead. */}
+      {trimmed.length < PALETTE_MIN_CARD_QUERY_LENGTH && (
         <CommandEmpty className="py-4 text-center text-[13px] text-muted-foreground">
           {t("noResults")}
         </CommandEmpty>

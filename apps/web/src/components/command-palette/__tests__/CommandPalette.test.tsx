@@ -123,6 +123,15 @@ describe("CommandPaletteResults", () => {
     expect(html).not.toContain("No results");
   });
 
+  test("offers Search all without an empty message when no card matches", () => {
+    const html = render({
+      cards: { cards: [], status: "ready" },
+      query: "kestral",
+    });
+    expect(html).toContain("Search all for “kestral”");
+    expect(html).not.toContain("No results");
+  });
+
   test("shows an error row in the Cards group only", () => {
     const html = render({ cards: { status: "error" }, query: "bauhaus" });
     expect(html).toContain("Couldn’t search cards");
