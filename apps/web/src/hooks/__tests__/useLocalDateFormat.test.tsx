@@ -32,7 +32,8 @@ test("leaves the date out of the server's HTML, then fills it in once hydrated",
   expect(html).toBe("<p>Saved</p>");
 
   const container = document.createElement("div");
-  container.innerHTML = html;
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  container.append(...parsed.body.childNodes);
   document.body.append(container);
   const recoverable: unknown[] = [];
   const root = await act(() =>
