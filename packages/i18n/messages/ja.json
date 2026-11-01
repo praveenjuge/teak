@@ -1113,6 +1113,11 @@
       "focus": "集中モード",
       "resaved": "すでに Teak にあります · 一番上に移動しました",
       "resavedFromArchive": "すでに Teak にあります · アーカイブから戻しました",
+      "inTrash": "このリンクはゴミ箱にあります",
+      "restore": "復元",
+      "restoring": "復元しています…",
+      "restoredFromTrash": "ゴミ箱から復元しました · 一番上に移動しました",
+      "restoreFailed": "カードを復元できませんでした",
       "open": "開く",
       "saveLinks": "{count, plural, other {# 件のリンクを保存}}",
       "saveFirstLinks": "{count, plural, other {最初の # 件のリンクを保存}}"
@@ -1404,6 +1409,7 @@
       "search": "検索",
       "newNote": "新規メモ",
       "uploadFiles": "ファイルをアップロード",
+      "recordAudio": "音声を録音",
       "notifications": "通知に移動（元に戻す）",
       "keyboardShortcuts": "キーボードショートカット",
       "goToSettings": "設定"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "{total} 件中 {successCount} 件のファイルをアップロードしました。",
-      "partialFailureWithReason": "{total} 件中 {successCount} 件のファイルをアップロードしました。最初の失敗：{file} — {reason}",
+      "partialFailureDetails": "{total} 件中 {successCount} 件のファイルをアップロードしました。{details}",
+      "moreFiles": "{count, plural, other {ほか # 件}}",
+      "failures": {
+        "empty": "{count, plural, other {空のファイルのため保存できません}}: {files}。",
+        "unsupported": "{count, plural, other {Teak では保存できないファイル形式です}}: {files}。",
+        "tooLarge": "{count, plural, other {{max} を超えています}}: {files}。",
+        "mismatch": "{count, plural, other {ファイル名と内容が一致しません}}: {files}。",
+        "other": "{count, plural, other {アップロードできませんでした}}: {files}。",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, other {# 件のファイル}}をスキップしました。一度にアップロードできるのは {max} 件までです。"
     }
   },

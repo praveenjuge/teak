@@ -110,6 +110,7 @@ const SHORTCUT_GROUPS: {
       { id: "search", keys: ["/"] },
       { id: "newNote", keys: ["N"] },
       { id: "uploadFiles", keys: ["U"] },
+      { id: "recordAudio", keys: ["R"] },
       { id: "notifications", keys: ["Alt", "T"], combo: true },
       { id: "keyboardShortcuts", keys: ["?"] },
     ],
@@ -246,6 +247,22 @@ export function registerUploadFiles(handler: () => boolean): () => void {
 
 export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
+}
+
+const recordAudioHandlers: Array<() => boolean> = [];
+
+export function registerRecordAudio(handler: () => boolean): () => void {
+  recordAudioHandlers.push(handler);
+  return () => {
+    const index = recordAudioHandlers.lastIndexOf(handler);
+    if (index >= 0) {
+      recordAudioHandlers.splice(index, 1);
+    }
+  };
+}
+
+export function pressRecordAudio(): boolean {
+  return recordAudioHandlers[recordAudioHandlers.length - 1]?.() ?? false;
 }
 
 let shortcutsOpener: (() => void) | null = null;

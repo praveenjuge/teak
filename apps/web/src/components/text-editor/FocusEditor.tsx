@@ -173,6 +173,7 @@ export function FocusEditor({
               isTyping &&
                 "pointer-events-none opacity-0 [&_button]:pointer-events-auto"
             )}
+            data-editor-avoid=""
             data-focus-chrome={isTyping ? "hidden" : "visible"}
           >
             <Button

@@ -5,7 +5,7 @@ import {
   MAX_FILES_PER_UPLOAD,
   type UploadMultipleFilesResultItem,
 } from "@teak/convex/shared";
-import { useTranslations } from "@teak/i18n/react";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import {
   createContext,
   type ReactNode,
@@ -31,6 +31,7 @@ import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import {
   dataTransferHasFiles,
+  describeUploadFailures,
   extractFilesFromDataTransfer,
   formatPartialFailureMessage,
   formatSkippedNote,
@@ -69,6 +70,7 @@ export function GlobalFileDropProvider({
   const t = useTranslations("providers.fileDrop");
   const tUpload = useTranslations("lib.upload");
   const serverErrors = useServerErrors();
+  const intlLocale = useIntlLocale();
   const [isDragActive, setIsDragActive] = useState(false);
   const { isOnline } = useNetworkStatus();
   const { uploadMultipleFiles } = useFileUpload();
@@ -159,12 +161,19 @@ export function GlobalFileDropProvider({
         return;
       }
 
+      // Known failures read as friendly sentences naming every file; others
+      // keep the server's reason, translated where Teak knows it.
+      const failures = summary.failures.map((failure) =>
+        failure.success
+          ? failure
+          : { ...failure, error: serverErrors.byEnglishMessage(failure.error) }
+      );
+      const described = { ...summary, failures };
+
       if (summary.successCount === 0) {
-        const first = summary.firstFailure;
         const reason =
-          first && !first.success
-            ? serverErrors.byEnglishMessage(first.error)
-            : t("uploadFailed");
+          describeUploadFailures(failures, tUpload, intlLocale) ||
+          t("uploadFailed");
         toast.error(
           withSkippedNote(
             summary.total === 1
@@ -180,14 +189,16 @@ export function GlobalFileDropProvider({
       }
 
       toast.error(
-        withSkippedNote(formatPartialFailureMessage(summary, tUpload)),
+        withSkippedNote(
+          formatPartialFailureMessage(described, tUpload, intlLocale)
+        ),
         {
           ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         }
       );
     },
-    [handleUpgrade, serverErrors, t, tUpload]
+    [handleUpgrade, intlLocale, serverErrors, t, tUpload]
   );
 
   const handlersRef = useRef<UploadQueueHandlers | null>(null);

@@ -19,10 +19,18 @@ test.each([
   ["Arabic, right to left", "هذه ملاحظة قصيرة", 3],
   ["emoji between words", "Ship it 🚀 today", 3],
   [
-    "numbers, and a hyphenated word as two",
+    "numbers, and a hyphenated word as one",
     "Version 2 of the long-term plan",
-    7,
+    6,
   ],
+  ["a hyphenated marker", "verify-capx-9", 1],
+  [
+    "words joined by marks other than spaces",
+    "snake_case example.com and/or it's",
+    4,
+  ],
+  ["a dash between spaces", "before - after", 2],
+  ["a sentence's full stop", "One. Two three.", 3],
 ] as const)("counts %s", (_name, markdown, expected) => {
   expect(countWords(markdown)).toBe(expected);
 });

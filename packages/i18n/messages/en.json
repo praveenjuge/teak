@@ -1113,6 +1113,11 @@
       "focus": "Focus",
       "resaved": "Already in Teak · Moved to the top",
       "resavedFromArchive": "Already in Teak · Moved back from Archive",
+      "inTrash": "This link is in Trash",
+      "restore": "Restore",
+      "restoring": "Restoring…",
+      "restoredFromTrash": "Restored from Trash · Moved to the top",
+      "restoreFailed": "Couldn't restore the card",
       "open": "Open",
       "saveLinks": "Save {count, plural, one {# link} other {# links}}",
       "saveFirstLinks": "Save first {count, plural, one {# link} other {# links}}"
@@ -1404,6 +1409,7 @@
       "search": "Search",
       "newNote": "New note",
       "uploadFiles": "Upload files",
+      "recordAudio": "Record audio",
       "notifications": "Go to notifications (Undo)",
       "keyboardShortcuts": "Keyboard shortcuts",
       "goToSettings": "Go to Settings"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "Uploaded {successCount} of {total} files.",
-      "partialFailureWithReason": "Uploaded {successCount} of {total} files. First failure: {file} — {reason}",
+      "partialFailureDetails": "Uploaded {successCount} of {total} files. {details}",
+      "moreFiles": "{count, plural, one {# more} other {# more}}",
+      "failures": {
+        "empty": "{count, plural, one {Empty file, nothing to save} other {Empty files, nothing to save}}: {files}.",
+        "unsupported": "{count, plural, one {Teak can't save this type of file} other {Teak can't save these types of files}}: {files}.",
+        "tooLarge": "{count, plural, one {Larger than {max}} other {Larger than {max}}}: {files}.",
+        "mismatch": "{count, plural, one {The name doesn't match the file's contents} other {The names don't match the files' contents}}: {files}.",
+        "other": "{count, plural, one {Couldn't upload} other {Couldn't upload}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# file was} other {# files were}} skipped. You can upload up to {max} at a time."
     }
   },

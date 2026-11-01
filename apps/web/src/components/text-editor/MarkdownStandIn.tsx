@@ -55,6 +55,7 @@ export function EditorFieldset({
 export function MarkdownStandIn({
   ariaLabel,
   autoFocus,
+  blurOnEscape,
   disabled,
   focus,
   onChange,
@@ -75,6 +76,15 @@ export function MarkdownStandIn({
   const text = typed.markdown === value ? typed.text : value;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      blurOnEscape &&
+      event.key === "Escape" &&
+      !(event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)
+    ) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
     if (!(event.metaKey || event.ctrlKey) || disabled) {
       return;
     }

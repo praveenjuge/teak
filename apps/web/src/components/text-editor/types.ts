@@ -22,6 +22,8 @@ export interface CardLinkOptions {
 export interface MarkdownTextEditorProps {
   ariaLabel?: string;
   autoFocus?: boolean;
+  /** Esc leaves the editor (keeping its text) when no menu of its is open. */
+  blurOnEscape?: boolean;
   cardLinks?: CardLinkOptions;
   className?: string;
   disabled?: boolean;

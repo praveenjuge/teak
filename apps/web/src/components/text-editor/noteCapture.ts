@@ -1,5 +1,9 @@
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
-import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import {
+  isSafeExternalUrl,
+  sanitizeExternalUrl,
+} from "@teak/convex/shared/utils/safeUrl";
+import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import {
   createTeakTranslator,
   englishMessages,
@@ -211,7 +215,22 @@ export function extractLinkList(markdown: string): string[] | null {
     }
     links.push(...lines);
   }
-  return links.length >= 2 ? links : null;
+  return links.length >= 2 ? uniqueLinks(links) : null;
+}
+
+/** Drops repeats the way the server does (`normalizePastedUrls`), so the
+ * Save button and progress count the links that will be saved. */
+function uniqueLinks(links: string[]): string[] {
+  const seen = new Set<string>();
+  return links.filter((link) => {
+    const url = sanitizeExternalUrl(link) ?? link;
+    const key = urlKey(url) ?? url;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 export function noteCaptureSavedMessage(

@@ -3,7 +3,9 @@ import {
   computePosition,
   flip,
   offset,
+  type Rect,
   shift,
+  size,
 } from "@floating-ui/dom";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useRef } from "react";
@@ -25,6 +27,47 @@ interface CardLinkMenuProps {
 }
 
 const MESSAGE_CLASS = "px-2 py-1.5 text-muted-foreground text-sm";
+const MAX_HEIGHT = 256;
+const MIN_HEIGHT = 80;
+const AVOID_GAP = 4;
+
+/**
+ * The part of the viewport the menu may use: above any of the editor's
+ * `[data-editor-avoid]` controls (the composer's Save) that sit below the
+ * caret, and below those above it (Focus's top bar), so it never covers them.
+ */
+export function cardLinkMenuBoundary(
+  caret: Pick<DOMRect, "bottom" | "top">,
+  avoid: Pick<DOMRect, "bottom" | "height" | "top" | "width">[],
+  viewport: { height: number; width: number }
+): Rect {
+  let top = 0;
+  let bottom = viewport.height;
+  for (const rect of avoid) {
+    if (rect.width === 0 || rect.height === 0) {
+      continue;
+    }
+    if (rect.top >= caret.bottom) {
+      bottom = Math.min(bottom, rect.top - AVOID_GAP);
+    } else if (rect.bottom <= caret.top) {
+      top = Math.max(top, rect.bottom + AVOID_GAP);
+    }
+  }
+  return {
+    x: 0,
+    y: top,
+    width: viewport.width,
+    height: Math.max(0, bottom - top),
+  };
+}
+
+const avoidedRects = (editor: HTMLElement) =>
+  Array.from(
+    editor
+      .closest("form, [role='dialog']")
+      ?.querySelectorAll<HTMLElement>("[data-editor-avoid]") ?? [],
+    (element) => element.getBoundingClientRect()
+  );
 
 export function CardLinkMenu({
   anchor,
@@ -62,10 +105,29 @@ export function CardLinkMenu({
       getBoundingClientRect: () => anchor.clientRect?.() ?? new DOMRect(),
     };
     return autoUpdate(reference, element, () => {
+      const boundary = cardLinkMenuBoundary(
+        reference.getBoundingClientRect(),
+        avoidedRects(anchor.dom),
+        { height: window.innerHeight, width: window.innerWidth }
+      );
       computePosition(reference, element, {
         placement: "bottom-start",
         strategy: "fixed",
-        middleware: [offset(4), flip(), shift({ padding: 16 })],
+        middleware: [
+          offset(4),
+          flip({ boundary, padding: 8 }),
+          shift({ padding: 16 }),
+          size({
+            boundary,
+            padding: 8,
+            apply: ({ availableHeight }) => {
+              element.style.maxHeight = `${Math.max(
+                MIN_HEIGHT,
+                Math.min(MAX_HEIGHT, availableHeight)
+              )}px`;
+            },
+          }),
+        ],
       }).then(({ x, y }) => {
         element.style.left = `${x}px`;
         element.style.top = `${y}px`;

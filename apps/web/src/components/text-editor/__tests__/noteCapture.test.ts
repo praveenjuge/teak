@@ -44,11 +44,7 @@ const LISTS: [name: string, text: string, links: string[]][] = [
   [
     "the same link three times",
     "https://example.com/same\nhttps://example.com/same\nhttps://example.com/same",
-    [
-      "https://example.com/same",
-      "https://example.com/same",
-      "https://example.com/same",
-    ],
+    ["https://example.com/same"],
   ],
   [
     "a numbered list",
@@ -115,6 +111,31 @@ describe("extractLinkList", () => {
       ["https://example.com/a", "https://example.com/b"],
     ],
   ])("reads %s", (_name, text, links) => {
+    expect(extractLinkList(text)).toEqual(links);
+  });
+
+  test.each([
+    [
+      "a repeated link",
+      "https://example.com/a\nhttps://example.com/b\nhttps://example.com/a",
+      ["https://example.com/a", "https://example.com/b"],
+    ],
+    [
+      "variants the server counts as one page",
+      "https://www.example.com/a/\nhttp://example.com/a?utm_source=x#top\nhttps://example.com/b",
+      ["https://www.example.com/a/", "https://example.com/b"],
+    ],
+    [
+      "the same link twice",
+      "https://example.com/a\nhttps://example.com/a",
+      ["https://example.com/a"],
+    ],
+    [
+      "links whose parameters differ",
+      "https://example.com/a?page=1\nhttps://example.com/a?page=2",
+      ["https://example.com/a?page=1", "https://example.com/a?page=2"],
+    ],
+  ])("counts %s once, as the server saves it", (_name, text, links) => {
     expect(extractLinkList(text)).toEqual(links);
   });
 

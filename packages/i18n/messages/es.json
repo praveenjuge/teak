@@ -1113,6 +1113,11 @@
       "focus": "Concentración",
       "resaved": "Ya está en Teak · Se movió al principio",
       "resavedFromArchive": "Ya está en Teak · Se sacó del Archivo",
+      "inTrash": "Este enlace está en la papelera",
+      "restore": "Restaurar",
+      "restoring": "Restaurando…",
+      "restoredFromTrash": "Restaurada de la papelera · Se movió al principio",
+      "restoreFailed": "No se pudo restaurar la tarjeta",
       "open": "Abrir",
       "saveLinks": "Guardar {count, plural, one {# enlace} other {# enlaces}}",
       "saveFirstLinks": "Guardar los primeros {count, plural, one {# enlace} other {# enlaces}}"
@@ -1404,6 +1409,7 @@
       "search": "Buscar",
       "newNote": "Nueva nota",
       "uploadFiles": "Subir archivos",
+      "recordAudio": "Grabar audio",
       "notifications": "Ir a las notificaciones (Deshacer)",
       "keyboardShortcuts": "Atajos de teclado",
       "goToSettings": "Ajustes"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "Se subieron {successCount} de {total} archivos.",
-      "partialFailureWithReason": "Se subieron {successCount} de {total} archivos. Primer error: {file} — {reason}",
+      "partialFailureDetails": "Se subieron {successCount} de {total} archivos. {details}",
+      "moreFiles": "{count, plural, one {# más} other {# más}}",
+      "failures": {
+        "empty": "{count, plural, one {Archivo vacío, no hay nada que guardar} other {Archivos vacíos, no hay nada que guardar}}: {files}.",
+        "unsupported": "{count, plural, one {Teak no puede guardar este tipo de archivo} other {Teak no puede guardar estos tipos de archivo}}: {files}.",
+        "tooLarge": "{count, plural, one {Supera {max}} other {Superan {max}}}: {files}.",
+        "mismatch": "{count, plural, one {El nombre no coincide con el contenido del archivo} other {Los nombres no coinciden con el contenido de los archivos}}: {files}.",
+        "other": "{count, plural, one {No se pudo subir} other {No se pudieron subir}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "Se {count, plural, one {omitió # archivo} other {omitieron # archivos}}. Puede subir hasta {max} a la vez."
     }
   },

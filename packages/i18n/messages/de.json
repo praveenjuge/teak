@@ -1113,6 +1113,11 @@
       "focus": "Fokus",
       "resaved": "Bereits in Teak · Nach oben verschoben",
       "resavedFromArchive": "Bereits in Teak · Aus dem Archiv zurückgeholt",
+      "inTrash": "Dieser Link liegt im Papierkorb",
+      "restore": "Wiederherstellen",
+      "restoring": "Wird wiederhergestellt…",
+      "restoredFromTrash": "Aus dem Papierkorb wiederhergestellt · Nach oben verschoben",
+      "restoreFailed": "Die Karte konnte nicht wiederhergestellt werden",
       "open": "Öffnen",
       "saveLinks": "{count, plural, one {# Link} other {# Links}} speichern",
       "saveFirstLinks": "Die ersten {count, plural, one {# Link} other {# Links}} speichern"
@@ -1404,6 +1409,7 @@
       "search": "Suchen",
       "newNote": "Neue Notiz",
       "uploadFiles": "Dateien hochladen",
+      "recordAudio": "Audio aufnehmen",
       "notifications": "Zu Benachrichtigungen (Rückgängig)",
       "keyboardShortcuts": "Tastenkürzel",
       "goToSettings": "Einstellungen"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} von {total} Dateien hochgeladen.",
-      "partialFailureWithReason": "{successCount} von {total} Dateien hochgeladen. Erster Fehler: {file} – {reason}",
+      "partialFailureDetails": "{successCount} von {total} Dateien hochgeladen. {details}",
+      "moreFiles": "{count, plural, one {# weitere} other {# weitere}}",
+      "failures": {
+        "empty": "{count, plural, one {Leere Datei, nichts zu speichern} other {Leere Dateien, nichts zu speichern}}: {files}.",
+        "unsupported": "{count, plural, one {Diesen Dateityp kann Teak nicht speichern} other {Diese Dateitypen kann Teak nicht speichern}}: {files}.",
+        "tooLarge": "{count, plural, one {Größer als {max}} other {Größer als {max}}}: {files}.",
+        "mismatch": "{count, plural, one {Der Name passt nicht zum Inhalt der Datei} other {Die Namen passen nicht zum Inhalt der Dateien}}: {files}.",
+        "other": "{count, plural, one {Nicht hochgeladen} other {Nicht hochgeladen}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# Datei wurde} other {# Dateien wurden}} übersprungen. Sie können bis zu {max} gleichzeitig hochladen."
     }
   },

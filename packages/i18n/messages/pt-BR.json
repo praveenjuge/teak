@@ -1113,6 +1113,11 @@
       "focus": "Foco",
       "resaved": "Já está no Teak · Movido para o topo",
       "resavedFromArchive": "Já está no Teak · Tirado do Arquivo",
+      "inTrash": "Este link está na lixeira",
+      "restore": "Restaurar",
+      "restoring": "Restaurando…",
+      "restoredFromTrash": "Restaurado da lixeira · Movido para o topo",
+      "restoreFailed": "Não foi possível restaurar o card",
       "open": "Abrir",
       "saveLinks": "Salvar {count, plural, one {# link} other {# links}}",
       "saveFirstLinks": "Salvar os primeiros {count, plural, one {# link} other {# links}}"
@@ -1404,6 +1409,7 @@
       "search": "Pesquisar",
       "newNote": "Nova nota",
       "uploadFiles": "Enviar arquivos",
+      "recordAudio": "Gravar áudio",
       "notifications": "Ir para as notificações (Desfazer)",
       "keyboardShortcuts": "Atalhos de teclado",
       "goToSettings": "Configurações"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} de {total} arquivos enviados.",
-      "partialFailureWithReason": "{successCount} de {total} arquivos enviados. Primeira falha: {file} — {reason}",
+      "partialFailureDetails": "{successCount} de {total} arquivos enviados. {details}",
+      "moreFiles": "{count, plural, one {mais #} other {mais #}}",
+      "failures": {
+        "empty": "{count, plural, one {Arquivo vazio, nada para salvar} other {Arquivos vazios, nada para salvar}}: {files}.",
+        "unsupported": "{count, plural, one {O Teak não salva este tipo de arquivo} other {O Teak não salva estes tipos de arquivo}}: {files}.",
+        "tooLarge": "{count, plural, one {Maior que {max}} other {Maiores que {max}}}: {files}.",
+        "mismatch": "{count, plural, one {O nome não corresponde ao conteúdo do arquivo} other {Os nomes não correspondem ao conteúdo dos arquivos}}: {files}.",
+        "other": "{count, plural, one {Não foi possível enviar} other {Não foi possível enviar}}: {files}.",
+        "otherWithReason": "{files}: {reason}"
+      },
       "skippedNote": "{count, plural, one {# arquivo foi ignorado} other {# arquivos foram ignorados}}. Você pode enviar até {max} por vez."
     }
   },

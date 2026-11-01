@@ -2,12 +2,16 @@ import { describe, expect, test } from "bun:test";
 import {
   capBatchForQueue,
   dataTransferHasFiles,
+  describeUploadFailures,
   extractFilesFromDataTransfer,
+  formatFileNames,
   formatPartialFailureMessage,
   formatSkippedNote,
   isBlockedDropTarget,
   isDataTransferItemFolder,
   summarizeBatchResults,
+  uploadAcceptAttribute,
+  uploadFailureKind,
 } from "../fileDrop";
 
 function makeFile(name: string, type = "text/plain"): File {
@@ -228,8 +232,122 @@ describe("summarizeBatchResults / formatPartialFailureMessage", () => {
     expect(summary.successCount).toBe(3);
     expect(summary.firstFailure?.file).toBe("video.mov");
     expect(formatPartialFailureMessage(summary)).toBe(
-      "Uploaded 3 of 5 files. First failure: video.mov — is too large"
+      "Uploaded 3 of 5 files. Couldn't upload: video.mov and doc.pdf."
     );
+  });
+
+  test("explains the server's validation failures in plain words, naming each file", () => {
+    const summary = summarizeBatchResults([
+      { file: "a.png", success: true, cardId: "1" },
+      { file: "b.png", success: true, cardId: "2" },
+      { file: "c.png", success: true, cardId: "3" },
+      {
+        file: "x-empty.txt",
+        success: false,
+        error: "fileSize must be a positive number",
+        errorCode: "INVALID_INPUT",
+      },
+      {
+        file: "notes.exe",
+        success: false,
+        error: "Unsupported file type",
+        errorCode: "INVALID_INPUT",
+      },
+    ]);
+    const message = formatPartialFailureMessage(summary);
+    expect(message).toBe(
+      "Uploaded 3 of 5 files. Empty file, nothing to save: x-empty.txt. Teak can't save this type of file: notes.exe."
+    );
+    expect(message).not.toContain("fileSize");
+  });
+});
+
+describe("upload failures", () => {
+  test.each([
+    [{ error: "fileSize must be a positive number" }, "empty"],
+    [{ error: "Unsupported file type" }, "unsupported"],
+    [{ error: "anything", errorCode: "UNSUPPORTED_TYPE" }, "unsupported"],
+    [{ error: "anything", errorCode: "FILE_TOO_LARGE" }, "tooLarge"],
+    [{ error: "fileSize must not exceed 104857600 bytes" }, "tooLarge"],
+    [
+      { error: "File extension does not match the provided MIME type" },
+      "mismatch",
+    ],
+    [{ error: "anything", errorCode: "TYPE_MISMATCH" }, "mismatch"],
+    [{ error: "The upload stopped responding." }, "other"],
+  ] as const)("reads %p as %p", (failure, kind) => {
+    expect(uploadFailureKind(failure)).toBe(kind);
+  });
+
+  test("names up to three files, then says how many more", () => {
+    expect(formatFileNames(["a.txt"])).toBe("a.txt");
+    expect(formatFileNames(["a.txt", "b.txt"])).toBe("a.txt and b.txt");
+    expect(formatFileNames(["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"])).toBe(
+      "a.txt, b.txt, c.txt, and 2 more"
+    );
+  });
+
+  test("groups files by what went wrong", () => {
+    const empty = (file: string) => ({
+      error: "fileSize must be a positive number",
+      file,
+      success: false as const,
+    });
+    expect(
+      describeUploadFailures([
+        empty("a.txt"),
+        {
+          error: "x",
+          errorCode: "FILE_TOO_LARGE",
+          file: "big.mov",
+          success: false,
+        },
+        empty("b.txt"),
+      ])
+    ).toBe(
+      "Empty files, nothing to save: a.txt and b.txt. Larger than 100 MB: big.mov."
+    );
+  });
+
+  test("keeps an unknown reason when the files share it, and drops it otherwise", () => {
+    expect(
+      describeUploadFailures([
+        { error: "Network down", file: "a.txt", success: false },
+        { error: "Network down", file: "b.txt", success: false },
+      ])
+    ).toBe("a.txt and b.txt: Network down");
+    expect(
+      describeUploadFailures([
+        { error: "Network down", file: "a.txt", success: false },
+        { error: "Timed out", file: "b.txt", success: false },
+      ])
+    ).toBe("Couldn't upload: a.txt and b.txt.");
+  });
+});
+
+describe("uploadAcceptAttribute", () => {
+  const accepted = uploadAcceptAttribute().split(",");
+
+  test("offers the formats Teak saves", () => {
+    for (const entry of [
+      ".png",
+      ".pdf",
+      ".mp3",
+      ".webm",
+      ".md",
+      ".txt",
+      ".js",
+    ]) {
+      expect(accepted).toContain(entry);
+    }
+    expect(accepted).toContain("image/png");
+  });
+
+  test("never offers every file", () => {
+    expect(accepted).not.toContain("*/*");
+    expect(accepted).not.toContain(".exe");
+    expect(accepted).not.toContain("application/octet-stream");
+    expect(new Set(accepted).size).toBe(accepted.length);
   });
 });
 

@@ -103,6 +103,27 @@
   overflow-x: auto;
 }
 
+/* Room above a table for its "Table options" button (TableMenu), so the
+ * button never sits over a header cell's text. */
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror[contenteditable="true"]
+  .tableWrapper {
+  margin-top: 2.25rem;
+}
+
+/* A placeholder is a hint, not text: an empty header cell isn't named
+ * "Header", and the editor's own placeholder is already its
+ * aria-placeholder. Browsers without alt text for `content` keep the
+ * library's rule. */
+.teak-markdown-editor .block-editor-content .ProseMirror .is-empty::before,
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder) / "";
+}
+
 .teak-markdown-editor .block-editor-content .ProseMirror table {
   width: 100%;
   table-layout: auto;

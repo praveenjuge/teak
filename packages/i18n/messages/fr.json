@@ -1113,6 +1113,11 @@
       "focus": "Concentration",
       "resaved": "Déjà dans Teak · Remonté en haut",
       "resavedFromArchive": "Déjà dans Teak · Sorti des Archives",
+      "inTrash": "Ce lien est dans la corbeille",
+      "restore": "Restaurer",
+      "restoring": "Restauration…",
+      "restoredFromTrash": "Restaurée depuis la corbeille · Remontée en haut",
+      "restoreFailed": "Impossible de restaurer la fiche",
       "open": "Ouvrir",
       "saveLinks": "Enregistrer {count, plural, one {# lien} other {# liens}}",
       "saveFirstLinks": "Enregistrer les {count, plural, one {# premier lien} other {# premiers liens}}"
@@ -1404,6 +1409,7 @@
       "search": "Rechercher",
       "newNote": "Nouvelle note",
       "uploadFiles": "Importer des fichiers",
+      "recordAudio": "Enregistrer de l’audio",
       "notifications": "Aller aux notifications (Annuler)",
       "keyboardShortcuts": "Raccourcis clavier",
       "goToSettings": "Réglages"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "{successCount} fichiers sur {total} importés.",
-      "partialFailureWithReason": "{successCount} fichiers sur {total} importés. Premier échec : {file} — {reason}",
+      "partialFailureDetails": "{successCount} fichiers sur {total} importés. {details}",
+      "moreFiles": "{count, plural, one {# autre} other {# autres}}",
+      "failures": {
+        "empty": "{count, plural, one {Fichier vide, rien à enregistrer} other {Fichiers vides, rien à enregistrer}} : {files}.",
+        "unsupported": "{count, plural, one {Teak ne peut pas enregistrer ce type de fichier} other {Teak ne peut pas enregistrer ces types de fichiers}} : {files}.",
+        "tooLarge": "{count, plural, one {Plus de {max}} other {Plus de {max}}} : {files}.",
+        "mismatch": "{count, plural, one {Le nom ne correspond pas au contenu du fichier} other {Les noms ne correspondent pas au contenu des fichiers}} : {files}.",
+        "other": "{count, plural, one {Impossible d’importer} other {Impossible d’importer}} : {files}.",
+        "otherWithReason": "{files} : {reason}"
+      },
       "skippedNote": "{count, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}}. Vous pouvez en importer jusqu’à {max} à la fois."
     }
   },

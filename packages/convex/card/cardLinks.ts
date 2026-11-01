@@ -317,13 +317,45 @@ export const searchCardLinkSuggestions = query({
         continue;
       }
       results.push(await linkedCard(card, lookup));
-      if (results.length >= SUGGESTION_LIMIT) {
-        break;
-      }
     }
-    return results;
+    return rankCardLinkSuggestions(results, text).slice(0, SUGGESTION_LIMIT);
   },
 });
+
+const normalizedTitle = (value: string) =>
+  value.normalize("NFKC").trim().toLocaleLowerCase();
+
+const WORD_CHARACTER = /[\p{L}\p{N}]/u;
+
+/**
+ * Puts a card whose title is the query first, then titles that start with it
+ * as a whole word ("plan" before "plan notes"), then titles that start with
+ * it at all ("plan" before "planner"), and leaves the search order otherwise.
+ */
+export const rankCardLinkSuggestions = <T extends { title: string }>(
+  items: T[],
+  query: string
+): T[] => {
+  const wanted = normalizedTitle(query);
+  if (!wanted) {
+    return items;
+  }
+  const rank = (title: string) => {
+    const normalized = normalizedTitle(title);
+    if (normalized === wanted) {
+      return 0;
+    }
+    if (!normalized.startsWith(wanted)) {
+      return 3;
+    }
+    const next = normalized.charAt(wanted.length);
+    return WORD_CHARACTER.test(next) ? 2 : 1;
+  };
+  return items
+    .map((item, index) => ({ index, item, rank: rank(item.title) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ item }) => item);
+};
 
 const searchSuggestionCards = async (
   ctx: QueryCtx,

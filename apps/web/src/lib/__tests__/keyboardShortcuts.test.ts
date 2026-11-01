@@ -4,7 +4,9 @@ import {
   keyboardShortcutGroups,
   openKeyboardShortcuts,
   platformKey,
+  pressRecordAudio,
   pressUploadFiles,
+  registerRecordAudio,
   registerShortcutsOpener,
   registerUploadFiles,
 } from "../keyboardShortcuts";
@@ -58,6 +60,32 @@ describe("pressUploadFiles", () => {
     const leave = registerUploadFiles(() => false);
     expect(pressUploadFiles()).toBe(false);
     leave();
+  });
+});
+
+describe("pressRecordAudio", () => {
+  test("runs the latest registered recorder, and reports none", () => {
+    expect(pressRecordAudio()).toBe(false);
+    const record = mock(() => true);
+    const leave = registerRecordAudio(record);
+    expect(pressRecordAudio()).toBe(true);
+    expect(record).toHaveBeenCalledTimes(1);
+    leave();
+    expect(pressRecordAudio()).toBe(false);
+  });
+});
+
+describe("the Anywhere group", () => {
+  test("lists every New menu item with its own key, and no key twice", () => {
+    const anywhere = keyboardShortcutGroups().find(
+      (group) => group.id === "anywhere"
+    );
+    const rows = anywhere?.rows.map((row) => [row.keys.join(" "), row.label]);
+    expect(rows).toContainEqual(["N", "New note"]);
+    expect(rows).toContainEqual(["U", "Upload files"]);
+    expect(rows).toContainEqual(["R", "Record audio"]);
+    const keys = rows?.map(([keys]) => keys) ?? [];
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
 

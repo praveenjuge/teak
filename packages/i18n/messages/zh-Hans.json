@@ -1113,6 +1113,11 @@
       "focus": "专注",
       "resaved": "已在 Teak 中 · 已移到最前",
       "resavedFromArchive": "已在 Teak 中 · 已从归档中移回",
+      "inTrash": "此链接在废纸篓中",
+      "restore": "恢复",
+      "restoring": "正在恢复…",
+      "restoredFromTrash": "已从废纸篓恢复 · 已移到最前",
+      "restoreFailed": "无法恢复卡片",
       "open": "打开",
       "saveLinks": "{count, plural, other {保存 # 个链接}}",
       "saveFirstLinks": "{count, plural, other {保存前 # 个链接}}"
@@ -1404,6 +1409,7 @@
       "search": "搜索",
       "newNote": "新建笔记",
       "uploadFiles": "上传文件",
+      "recordAudio": "录制音频",
       "notifications": "前往通知（撤销）",
       "keyboardShortcuts": "键盘快捷键",
       "goToSettings": "设置"
@@ -1775,7 +1781,16 @@
     },
     "upload": {
       "partialFailure": "已上传 {successCount} / {total} 个文件。",
-      "partialFailureWithReason": "已上传 {successCount} / {total} 个文件。首个失败项：{file} — {reason}",
+      "partialFailureDetails": "已上传 {successCount} / {total} 个文件。{details}",
+      "moreFiles": "{count, plural, other {另外 # 个}}",
+      "failures": {
+        "empty": "{count, plural, other {空文件，没有可保存的内容}}：{files}。",
+        "unsupported": "{count, plural, other {Teak 无法保存此类文件}}：{files}。",
+        "tooLarge": "{count, plural, other {超过 {max}}}：{files}。",
+        "mismatch": "{count, plural, other {文件名与文件内容不符}}：{files}。",
+        "other": "{count, plural, other {无法上传}}：{files}。",
+        "otherWithReason": "{files}：{reason}"
+      },
       "skippedNote": "已跳过 {count, plural, other {# 个文件}}。一次最多可以上传 {max} 个。"
     }
   },

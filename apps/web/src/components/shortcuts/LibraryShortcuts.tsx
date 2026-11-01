@@ -22,6 +22,7 @@ import {
   focusNewNoteComposer,
   GO_TO_SETTINGS_KEY,
   GO_TO_VIEW_KEYS,
+  pressRecordAudio,
   pressUploadFiles,
   registerShortcutsOpener,
 } from "../../lib/keyboardShortcuts";
@@ -207,6 +208,12 @@ export function LibraryShortcuts({
         keys: "u",
         run: closeDialogThen(() => {
           pressUploadFiles();
+        }),
+      },
+      {
+        keys: "r",
+        run: closeDialogThen(() => {
+          pressRecordAudio();
         }),
       },
       {

@@ -2,7 +2,7 @@ import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { useTranslations } from "@teak/i18n/react";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -31,8 +31,16 @@ import {
 } from "@/hooks/useFileUploadCore";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
+import {
+  describeUploadFailures,
+  uploadAcceptAttribute,
+  uploadFailureKind,
+} from "@/lib/upload/fileDrop";
 import { useQuery } from "../../lib/convexQueryHooks";
-import { registerUploadFiles } from "../../lib/keyboardShortcuts";
+import {
+  registerRecordAudio,
+  registerUploadFiles,
+} from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 interface AddCardActionsProps {
@@ -118,6 +126,8 @@ export function AddCardActions({
   const errors = useServerErrors();
   const tUpload = useTranslations("hooks.upload");
   const tErrors = useTranslations("errors");
+  const tUploadMessages = useTranslations("lib.upload");
+  const intlLocale = useIntlLocale();
   const uploadTranslators = useMemo(
     () => ({ errors: tErrors, upload: tUpload }),
     [tErrors, tUpload]
@@ -398,7 +408,7 @@ export function AddCardActions({
 
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "*/*";
+    input.accept = uploadAcceptAttribute();
     input.multiple = true;
     input.style.display = "none";
     // Cancelling the picker fires `cancel`, not `change`.
@@ -447,12 +457,18 @@ export function AddCardActions({
         }
 
         toast.error(
-          t("uploadFailed", {
-            name: file.name,
-            error: result.error
-              ? errors.byEnglishMessage(result.error)
-              : t("uploadFailedReason"),
-          }),
+          uploadFailureKind(result) === "other"
+            ? t("uploadFailed", {
+                name: file.name,
+                error: result.error
+                  ? errors.byEnglishMessage(result.error)
+                  : t("uploadFailedReason"),
+              })
+            : describeUploadFailures(
+                [{ ...result, file: file.name }],
+                tUploadMessages,
+                intlLocale
+              ),
           { ...MANUAL_CLOSE_TOAST_OPTIONS, id: toastId }
         );
       }
@@ -482,6 +498,20 @@ export function AddCardActions({
         return true;
       }),
     [isUploading]
+  );
+  const recordRef = useRef(startRecording);
+  recordRef.current = startRecording;
+  const canStartRecording = !(isRecording || isSubmitting);
+  useEffect(
+    () =>
+      registerRecordAudio(() => {
+        if (!canStartRecording) {
+          return false;
+        }
+        recordRef.current().catch(() => undefined);
+        return true;
+      }),
+    [canStartRecording]
   );
   const keepFocusRef = useRef<boolean>(false);
 
@@ -526,6 +556,7 @@ export function AddCardActions({
             <DropdownMenuShortcut aria-hidden>{"U"}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
+            aria-keyshortcuts="R"
             disabled={isRecording || isSubmitting}
             onSelect={() => {
               keepFocusRef.current = true;
@@ -534,6 +565,7 @@ export function AddCardActions({
           >
             <Mic />
             {t("recordAudio")}
+            <DropdownMenuShortcut aria-hidden>{"R"}</DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -552,16 +584,19 @@ export function AddCardActions({
             <Upload className="size-4" />
           </Button>
         </ShortcutTooltip>
-        <Button
-          aria-label={t("recordAudio")}
-          disabled={isRecording || isSubmitting}
-          onClick={() => void startRecording()}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Mic className="size-4" />
-        </Button>
+        <ShortcutTooltip keys={["R"]} label={t("recordAudio")}>
+          <Button
+            aria-keyshortcuts="R"
+            aria-label={t("recordAudio")}
+            disabled={isRecording || isSubmitting}
+            onClick={() => void startRecording()}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Mic className="size-4" />
+          </Button>
+        </ShortcutTooltip>
       </div>
     );
 
