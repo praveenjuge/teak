@@ -38,7 +38,9 @@ const guideFiles = (): string[] =>
 // Guides that record Teak's own deployments must say when someone last
 // checked them, so the weekly audit can find the stale ones.
 const reviewedGuides = (): string[] =>
-  trackedFiles(":(glob).agents/{guides,runbooks,records}/*.md");
+  ["guides", "runbooks", "records"]
+    .flatMap((folder) => trackedFiles(`:(glob).agents/${folder}/*.md`))
+    .sort();
 
 export const rootedPaths = (markdown: string): string[] =>
   [...markdown.matchAll(/`([^`\s]+)`/g)]
@@ -54,6 +56,10 @@ describe("agent guide paths", () => {
         "Read `apps/docs/AGENTS.md`, `.agents/plans/<file>.md`, `src/index.ts`, `packages/tests/.e2e/x` and `packages/sdk/dist`."
       )
     ).toEqual(["apps/docs/AGENTS.md"]);
+  });
+
+  test("finds the guides that record a review date", () => {
+    expect(reviewedGuides().length).toBeGreaterThan(0);
   });
 
   test.each(reviewedGuides())("%s says when it was last reviewed", (file) => {
