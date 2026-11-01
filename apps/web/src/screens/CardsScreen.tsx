@@ -10,7 +10,7 @@ import {
 } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import type { Messages } from "@teak/i18n";
-import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import { useTranslations } from "@teak/i18n/react";
 import { Authenticated, AuthLoading } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +33,8 @@ import type { AddCardFormProps } from "@/components/forms";
 import { AddCardEmptyState, AddCardForm } from "@/components/forms";
 import { MasonryGrid, type MasonryGridHandle } from "@/components/grids";
 import { CardsSearchHeader } from "@/components/search";
+import { NoSearchResults } from "@/components/search/NoSearchResults";
+import { SearchResultsSummary } from "@/components/search/SearchResultsSummary";
 import { Button } from "@/components/ui/button";
 import {
   useBulkCardActions,
@@ -52,7 +54,7 @@ import {
 import { EmptyTrashButton } from "../components/cards/EmptyTrashButton";
 import { TrashRetentionNote } from "../components/cards/TrashRetentionNote";
 import { isOptimisticCard } from "../components/cards/types";
-import { FolderDot } from "../components/folders/FolderDot";
+import { FolderPageTitle } from "../components/folders/FolderPageTitle";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
 import {
   FolderNameDialog,
@@ -62,9 +64,12 @@ import {
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
 import { cardActionFailedMessage } from "../hooks/cardActions";
+import { useCardDensity } from "../hooks/useCardDensity";
 import type { CloseCardOptions } from "../hooks/useCardQueryParamState";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
+import { useNoResultsHelp } from "../hooks/useNoResultsHelp";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
 import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
@@ -73,7 +78,6 @@ import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
 import { getAdjacentCardIdsKeepingPlace } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
-  FOLDER_ICON_CLASSES,
   type FolderSummary,
   manualFolders,
 } from "../lib/folders";
@@ -93,7 +97,7 @@ import {
   type SearchUrlChange,
 } from "../lib/searchUrlSync";
 import { tagsAfterAdding, tagsAfterRemoving } from "../lib/tagManagement";
-import { PageTitle } from "./PageHeader";
+import { PageHeader, PageTitle } from "./PageHeader";
 
 type CardsScreenMessage = keyof Messages["screens"]["cards"];
 
@@ -176,7 +180,7 @@ export function CardsScreen({
   const tc = useTranslations("common");
   const tv = useTranslations("lib.libraryViews");
   const tActions = useTranslations("hooks.cardActions");
-  const intlLocale = useIntlLocale();
+  const density = useCardDensity();
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
@@ -346,6 +350,10 @@ export function CardsScreen({
     addQualifier,
     clearAllFilters,
     displayCards,
+    exactCount,
+    relatedCount,
+    setShowRelated,
+    showRelated,
     filterTags,
     hasNoFilters,
     hasNoSearchFilters,
@@ -718,6 +726,30 @@ export function CardsScreen({
     ]
   );
 
+  let folderTabTitle: string | undefined;
+  if (isFolderView) {
+    folderTabTitle =
+      folder === null
+        ? t("folderNotFound")
+        : (folder?.name ?? t("folderTitle"));
+  }
+  useDocumentTitle(folderTabTitle);
+
+  const allFolderNames = useMemo(
+    () => allFolders?.map((item) => item.name),
+    [allFolders]
+  );
+  const noResultsHelp = useNoResultsHelp({
+    controller: searchController,
+    folderNames: allFolderNames,
+    foundNothing:
+      displayCards.length === 0 &&
+      !hasNoSearchFilters &&
+      cardsStatus === "Exhausted" &&
+      !searchController.isSearchPending &&
+      !semanticSearch.isPending,
+  });
+
   const renderEmptyState = () => {
     if (isFolderView && folder === null) {
       return (
@@ -852,14 +884,14 @@ export function CardsScreen({
 
     if (displayCards.length === 0) {
       return (
-        <div className="space-y-4 py-12 text-center">
-          <p className="text-muted-foreground">
-            {listsTodo ? t("nothingLeftToDo") : t("noFilterMatches")}
-          </p>
-          <Button onClick={clearAllFilters} variant="outline">
-            {t("clearFilters")}
-          </Button>
-        </div>
+        <NoSearchResults
+          chips={noResultsHelp.chips}
+          onClearAll={clearAllFilters}
+          onUseSuggestion={noResultsHelp.applySuggestion}
+          query={searchTerms}
+          suggestion={noResultsHelp.suggestion}
+          todo={Boolean(listsTodo)}
+        />
       );
     }
 
@@ -870,57 +902,7 @@ export function CardsScreen({
     <PageTitle>{libraryViewLabel(view ?? "all", tv)}</PageTitle>
   );
   if (isFolderView) {
-    if (folder && isSmartFolder) {
-      title = (
-        <PageTitle
-          icon={
-            <FolderSearch
-              aria-hidden="true"
-              className={
-                folder.color
-                  ? `size-4 shrink-0 ${FOLDER_ICON_CLASSES[folder.color]}`
-                  : "size-4 shrink-0 text-muted-foreground"
-              }
-            />
-          }
-          trailing={
-            <Button
-              aria-label={t("editSearch")}
-              className="size-7 shrink-0 text-muted-foreground"
-              onClick={editSmartFolder}
-              size="icon"
-              title={t("editSearch")}
-              variant="ghost"
-            >
-              <Pencil className="size-3.5" />
-            </Button>
-          }
-        >
-          <span title={folder.name}>{folder.name}</span>
-          <span className="sr-only">{t("smartFolderSuffix")}</span>
-        </PageTitle>
-      );
-    } else if (folder) {
-      title = (
-        <PageTitle
-          count={
-            <>
-              {folder.activeCardCount.toLocaleString(intlLocale)}
-              <span className="sr-only">
-                {t("folderCardCountSuffix", {
-                  count: folder.activeCardCount,
-                })}
-              </span>
-            </>
-          }
-          icon={<FolderDot className="size-2" color={folder.color} />}
-        >
-          <span title={folder.name}>{folder.name}</span>
-        </PageTitle>
-      );
-    } else {
-      title = <PageTitle>{t("folderTitle")}</PageTitle>;
-    }
+    title = <FolderPageTitle folder={folder} onEditSearch={editSmartFolder} />;
   }
   let searchPlaceholder = libraryViewSearchPlaceholder(view ?? "all", tv);
   if (folder) {
@@ -931,41 +913,77 @@ export function CardsScreen({
     searchPlaceholder = t("searchThisFolder");
   }
 
+  const folderMissing = isFolderView && folder === null;
+  const showsResultCount =
+    !showVaultSetup &&
+    (isSmartFolder || !hasNoSearchFilters) &&
+    (displayCards.length > 0 || relatedCount > 0) &&
+    cardsStatus !== "LoadingFirstPage";
+
   const content = (
     <>
-      <CardsSearchHeader
-        {...searchBarProps}
-        HeaderActions={
-          view === "trash" && !isFolderView ? <EmptyTrashButton /> : undefined
-        }
-        leading={headerLeading}
-        lockedChips={
-          folder && isSmartFolder ? (
-            <SmartFolderQuery
-              className="max-w-[45%] shrink-0"
-              folderNames={folderNames}
-              inline
-              query={folder.query ?? ""}
-            />
-          ) : undefined
-        }
-        onSaveSearch={
-          saveableQuery === null
-            ? undefined
-            : () => setFolderDialog({ mode: "save", query: saveableQuery })
-        }
-        onSortChange={revisit.onSortChange}
-        placeholder={searchPlaceholder}
-        revisit={revisit.offer}
-        similarAnchorTitle={similarAnchorTitle}
-        title={title}
-      />
+      {folderMissing ? (
+        // Nothing to search or arrange in a folder that isn't there.
+        <PageHeader leading={headerLeading} title={title} />
+      ) : (
+        <CardsSearchHeader
+          {...searchBarProps}
+          density={density.density}
+          HeaderActions={
+            view === "trash" && !isFolderView ? <EmptyTrashButton /> : undefined
+          }
+          leading={headerLeading}
+          lockedChips={
+            folder && isSmartFolder ? (
+              <SmartFolderQuery
+                className="max-w-[45%] shrink-0"
+                folderNames={folderNames}
+                inline
+                query={folder.query ?? ""}
+              />
+            ) : undefined
+          }
+          onDensityChange={density.setDensity}
+          onSaveSearch={
+            saveableQuery === null
+              ? undefined
+              : () => setFolderDialog({ mode: "save", query: saveableQuery })
+          }
+          onSortChange={revisit.onSortChange}
+          placeholder={searchPlaceholder}
+          revisit={revisit.offer}
+          similarAnchorTitle={similarAnchorTitle}
+          title={title}
+        />
+      )}
+
+      {folder && isSmartFolder ? (
+        // Phones hide the search box behind its button, and the folder's
+        // search with it; show the search the folder runs below the header.
+        <SmartFolderQuery
+          className="mb-3 sm:hidden"
+          folderNames={folderNames}
+          query={folder.query ?? ""}
+        />
+      ) : null}
 
       {view === "trash" && !isFolderView && !showVaultSetup ? (
         <TrashRetentionNote />
       ) : null}
 
       {showVaultSetup ? <VaultSetupState /> : null}
+
+      {showsResultCount ? (
+        <SearchResultsSummary
+          exactCount={exactCount}
+          hasMore={
+            cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
+          }
+          onShowRelatedChange={setShowRelated}
+          relatedCount={relatedCount}
+          showRelated={showRelated}
+        />
+      ) : null}
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
@@ -974,11 +992,14 @@ export function CardsScreen({
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
           folder={gridFolder}
+          gutter={density.layout.gutter}
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
           initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
+          maxColumns={density.layout.maxColumns}
+          minColumnWidth={density.layout.minColumnWidth}
           {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}

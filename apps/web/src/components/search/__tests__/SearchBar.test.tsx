@@ -118,6 +118,23 @@ describe("SearchBar filter chips", () => {
     ]);
   });
 
+  test("marks a plain word with a search icon, not the tag sign", () => {
+    const markup = renderSearchBar("", { keywordTags: ["design"] });
+    expect(markup).toMatch(
+      /aria-label="Remove design"[\s\S]*?vadivam-text-search/
+    );
+    expect(markup).not.toContain("vadivam-hash");
+  });
+
+  test("says so when a type: word names no card type", () => {
+    const markup = renderSearchBar("", {
+      keywordTags: ["type:banana"],
+    });
+    expect(chipNames(markup)).toEqual(["type:banana: no such card type"]);
+    expect(markup).toContain(">No type named banana<");
+    expect(markup).toContain('title="No type named banana"');
+  });
+
   test("folds chips past the third into a +N menu", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link", "image", "quote"],

@@ -83,6 +83,8 @@ describe("buildSearchSuggestions", () => {
     expect(inserts("site:例")).toEqual(["site:例え.jp"]);
     expect(inserts('folder:"read')).toEqual(['folder:"Reading list"']);
     expect(inserts("type:im")).toEqual(["type:image"]);
+    expect(inserts("type:pd")).toEqual(["type:document"]);
+    expect(inserts("type:phot")).toEqual(["type:image"]);
     expect(inserts("is:")).toEqual([
       "is:fav",
       "is:archived",

@@ -29,6 +29,7 @@ import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import {
   ariaKeyShortcut,
   GO_TO_SETTINGS_KEY,
+  GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
 } from "../../lib/keyboardShortcuts";
 import {
@@ -187,7 +188,21 @@ export function AppSidebar({
               <SidebarMenuButton
                 asChild
                 isActive={isTagsActive}
-                tooltip={t("tags")}
+                tooltip={{
+                  className: "flex items-center gap-2",
+                  children: (
+                    <>
+                      {t("tags")}
+                      <ShortcutHint
+                        row={{
+                          keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
+                          label: t("tags"),
+                          sequence: true,
+                        }}
+                      />
+                    </>
+                  ),
+                }}
               >
                 <LinkComponent
                   aria-current={isTagsActive ? "page" : undefined}

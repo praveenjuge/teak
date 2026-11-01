@@ -243,11 +243,33 @@ object SearchQuery {
         return value.substring(start, end)
     }
 
+    // Everyday words for each card type, as on the web (CARD_TYPE_ALIASES in
+    // packages/convex/shared/search/qualifiers.ts). Each also works with an `s`.
+    private val CARD_TYPE_ALIASES: Map<String, CardType> = mapOf(
+        "bookmark" to CardType.Link,
+        "clip" to CardType.Video,
+        "color" to CardType.Palette,
+        "colour" to CardType.Palette,
+        "doc" to CardType.Document,
+        "memo" to CardType.Audio,
+        "movie" to CardType.Video,
+        "note" to CardType.Text,
+        "pdf" to CardType.Document,
+        "photo" to CardType.Image,
+        "pic" to CardType.Image,
+        "picture" to CardType.Image,
+        "recording" to CardType.Audio,
+        "url" to CardType.Link,
+        "voice" to CardType.Audio,
+        "website" to CardType.Link,
+    )
+
+    private fun typeForWord(word: String): CardType? =
+        if (word in CARD_TYPES) CardType.entries.first { it.wireName == word } else CARD_TYPE_ALIASES[word]
+
     private fun parseType(value: String): CardType? {
         val word = value.trim().lowercase()
-        if (word in CARD_TYPES) return CardType.entries.first { it.wireName == word }
-        if (word.endsWith("s") && word.dropLast(1) in CARD_TYPES) return CardType.entries.first { it.wireName == word.dropLast(1) }
-        return null
+        return typeForWord(word) ?: if (word.endsWith("s")) typeForWord(word.dropLast(1)) else null
     }
 
     fun parsePriceBound(value: String): PriceBound? {

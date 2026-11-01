@@ -95,7 +95,7 @@ On the web, the sidebar holds everything around your cards:
 - **Everything**, **Favorites**, and **Tags**, then your folders, then **Archive**, **Trash**, and **Settings** at the bottom. Each is its own page you can bookmark or share. See [Tags and filters](#tags-and-filters) for the Tags page.
 - **Folders** lists your folders, each with a folder icon in its color and how many cards it holds; smart folders show a search icon instead of a count. Drag a card onto a folder to add it. See [Folders](#folders).
 
-Every page has the same slim header: the page's name on the left (a folder shows its color and card count), the search box in the middle, in the same place on every page, and the page's buttons on the right, such as **View**. Use **View** to narrow the open page to text, links, images, video, audio, documents, palettes, or quotes (pick more than one to combine them), to change the order, or to save the search as a smart folder. The header stays at the top as you scroll, and selecting cards swaps it for the selection's actions.
+Every page has the same slim header: the page's name on the left (a folder shows its color and card count), the search box in the middle, in the same place on every page, and the page's buttons on the right, such as **View**. Use **View** to narrow the open page to text, links, images, video, audio, documents, palettes, or quotes (pick more than one to combine them), to change the order, to pick **Comfortable** or **Compact** cards (Compact fits up to seven columns; this browser remembers it), or to save the search as a smart folder. The header stays at the top as you scroll, and selecting cards swaps it for the selection's actions.
 
 ![The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder](./images/view-menu.webp)
 
@@ -123,7 +123,7 @@ Special tokens work automatically:
 | **Date** | `today`, `this week`, `january`, `last year` | Date saved (or saved again) |
 | **Quick view** | `favorites` / `fav`, `archive`, `trash` / `bin` / `deleted` | Opens that page; type it again to go back to Everything |
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
-| **Type** | `type:link`, `type:images` | Cards of that type |
+| **Type** | `type:link`, `type:images`, `type:notes`, `type:pdf` | Cards of that type. Everyday words work too: `note` (text), `pdf` or `doc` (document), `photo` or `picture` (image), `color` (palette), `voice` or `memo` (audio), `url` or `bookmark` (link), `movie` (video) |
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
 | **Done** | `is:done` | Links you marked read, watched, listened to, bought, cooked, played or done |
 | **To do** | `is:todo` | Articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done |
@@ -153,7 +153,9 @@ site:github.com tag:design "design system"
 tag:fonts OR tag:type
 ```
 
-As you type, the search box suggests filters, your tags and folders, and the sites you save most. Pick one with the arrow keys and **Enter**, or click it, and it becomes a removable pill inside the search box. **Esc** closes the suggestions, and **Backspace** in an empty search box removes the last pill. The address bar keeps the whole search, so you can bookmark or share it.
+As you type, the search box suggests filters, your tags and folders, and the sites you save most. Pick one with the arrow keys and **Enter**, or click it, and it becomes a removable pill inside the search box. **Enter** turns a date at the start or end of what you typed into its own pill, so `kestrel last week` searches "kestrel" among the cards saved last week. **Esc** closes the suggestions, and **Backspace** in an empty search box removes the last pill. The address bar keeps the whole search, so you can bookmark or share it, and opening that address shows the same pills.
+
+Above the results, Teak says how many cards match your words and how many more it found by meaning; **Hide related** leaves those out. When nothing matches, Teak suggests a spelling your own tags, folders and titles use ("Did you mean kestrel?") and lets you drop one filter at a time.
 
 The same search works in the iPhone, iPad, Mac and Android apps: `-`, `OR`, parentheses, `site:` and every filter above find the same cards there as on the web. Their search field suggests filters to start, filters to leave out after a `-`, and `OR` after a word; the web also suggests your tags, folders and sites. A date beside other words, like `figma last week`, filters by when the cards were saved and still searches the words.
 
@@ -322,8 +324,9 @@ Anywhere in your library:
 | `N` | Write a new note (opens **Everything** first if needed) |
 | `U` | Upload files |
 | `G` then `E`, `F`, `A`, or `T` | Go to **Everything**, **Favorites**, **Archive**, or **Trash** |
+| `G` then `L` | Go to **Tags** |
 | `G` then `S` | Go to **Settings** |
-| `Alt` `T` (`⌥` `T` on a Mac) | Go to notifications, for example to **Undo** |
+| `Alt` `T` (`⌥` `T` on a Mac) | Focus notifications, for example to **Undo** a change |
 | `⌘K` (`Ctrl+K` on Windows and Linux) | Open the command palette |
 | `?` | Show the keyboard shortcuts |
 

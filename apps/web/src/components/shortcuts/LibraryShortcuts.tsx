@@ -21,6 +21,7 @@ import {
   focusLibrarySearch,
   focusNewNoteComposer,
   GO_TO_SETTINGS_KEY,
+  GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
   pressRecordAudio,
   pressUploadFiles,
@@ -227,6 +228,12 @@ export function LibraryShortcuts({
           onGoToView(view);
         }),
       })),
+      {
+        keys: `g ${GO_TO_TAGS_KEY}`,
+        run: closeDialogThen(() => {
+          onNavigate("/tags");
+        }),
+      },
       {
         keys: `g ${GO_TO_SETTINGS_KEY}`,
         run: closeDialogThen(() => {

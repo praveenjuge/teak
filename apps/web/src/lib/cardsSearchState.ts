@@ -248,18 +248,31 @@ export function visualFiltersFromUrl(
   };
 }
 
+/**
+ * Reads a search from a URL into the chips pressing Enter on it would make,
+ * so `/?q=verify-navx -heron` shows two chips, not a chip and loose text.
+ * Each word stays a word chip: a URL's words are what the search matched,
+ * so a color or style word isn't turned into a color or style filter.
+ */
 export function cardsSearchStateFromQuery(
   query: string
 ): Pick<CardsSearchState, "keywordTags" | "qualifierChips" | "searchQuery"> {
   const parsed = parseSearchQuery(query);
   const operators = expressionChips(parsed);
   return {
-    keywordTags: [...phraseChips(parsed.phrases), ...operators.keywordTags],
+    keywordTags: addChips(
+      [],
+      [
+        ...phraseChips(parsed.phrases),
+        ...parsed.terms,
+        ...operators.keywordTags,
+      ]
+    ),
     qualifierChips: [
       ...parsed.qualifiers.map(formatSearchQualifier),
       ...operators.qualifierChips,
     ],
-    searchQuery: parsed.terms.join(" "),
+    searchQuery: "",
   };
 }
 
@@ -268,6 +281,61 @@ export function isSameSearch(left: string, right: string): boolean {
     parseSearchQuery(left).canonical.toLowerCase() ===
     parseSearchQuery(right).canonical.toLowerCase()
   );
+}
+
+const MAX_TIME_PHRASE_WORDS = 9;
+
+/**
+ * Finds a date phrase at the start or end of a longer search, such as
+ * `kestrel last week` or `yesterday design notes`, and returns its filter
+ * with the words left over. A lone month name, year or number beside other
+ * words stays a word (`things i may need`, `iphone 2024`), and words with
+ * quotes, parentheses, `-` or a qualifier are never part of a date.
+ */
+export function splitTimePhrase(
+  query: string,
+  options: { now?: Date; weekStart?: 0 | 1 } = {}
+): { rest: string; timeFilter: TimeFilter } | null {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) {
+    return null;
+  }
+  const parseOptions = {
+    now: options.now ?? new Date(),
+    weekStart: options.weekStart ?? 0,
+  };
+  const dateOf = (phraseWords: string[]) => {
+    if (phraseWords.some((word) => /[:"“”()]|^-|^#/.test(word))) {
+      return null;
+    }
+    const filter = parseTimeSearchQuery(phraseWords.join(" "), parseOptions);
+    if (
+      !filter ||
+      (phraseWords.length === 1 &&
+        (filter.kind === "month" || /^\d+$/.test(phraseWords[0] ?? "")))
+    ) {
+      return null;
+    }
+    return filter;
+  };
+  const longest = Math.min(MAX_TIME_PHRASE_WORDS, words.length - 1);
+  for (let length = longest; length >= 1; length -= 1) {
+    const trailing =
+      words.at(-length - 1) === "OR" ? null : dateOf(words.slice(-length));
+    if (trailing) {
+      return {
+        rest: words.slice(0, -length).join(" "),
+        timeFilter: trailing,
+      };
+    }
+    // A date beside OR is one side of the OR, not a filter on the whole.
+    const leading =
+      words[length] === "OR" ? null : dateOf(words.slice(0, length));
+    if (leading) {
+      return { rest: words.slice(length).join(" "), timeFilter: leading };
+    }
+  }
+  return null;
 }
 
 export function applyEnterToCardsSearchState(
@@ -292,6 +360,14 @@ export function applyEnterToCardsSearchState(
       timeFilter: parsedTime,
       searchQuery: "",
     };
+  }
+
+  const split = splitTimePhrase(state.searchQuery, options);
+  if (split) {
+    return applyEnterToCardsSearchState(
+      { ...state, searchQuery: split.rest, timeFilter: split.timeFilter },
+      options
+    );
   }
 
   const quickCommand = resolveQuickSearchCommand(state.searchQuery);
@@ -330,10 +406,11 @@ export function applyEnterToCardsSearchState(
     ...parsed.qualifiers.map(formatSearchQualifier),
     ...operators.qualifierChips,
   ];
-  const keywordAdditions: string[] = [
-    ...phraseChips(parsed.phrases),
-    ...operators.keywordTags,
-  ].filter((phrase) => !state.keywordTags.includes(phrase));
+  // Words go before exclusions and groups, as the search reads them back
+  // from a URL, so the URL keeps the order they were typed in.
+  const keywordAdditions: string[] = phraseChips(parsed.phrases).filter(
+    (phrase) => !state.keywordTags.includes(phrase)
+  );
 
   for (const token of parsed.terms) {
     const classified = classifySearchToken(token);
@@ -384,6 +461,14 @@ export function applyEnterToCardsSearchState(
       )
     ) {
       keywordAdditions.push(classified.value);
+    }
+  }
+
+  for (const chip of operators.keywordTags) {
+    if (
+      !(state.keywordTags.includes(chip) || keywordAdditions.includes(chip))
+    ) {
+      keywordAdditions.push(chip);
     }
   }
 

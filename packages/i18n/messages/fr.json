@@ -1263,7 +1263,9 @@
       "removeQualifier": "Retirer le filtre {kind, select, tag {tag} type {type} is {affichage} site {site} folder {dossier} like {similaire à} mood {ambiance} price {prix} text {texte dans l’image} other {de recherche}} {label}",
       "removeExcludedQualifier": "Retirer l’exclusion {kind, select, tag {du tag} type {du type} is {de l’affichage} site {du site} folder {du dossier} like {similaire à} mood {de l’ambiance} price {du prix} text {du texte dans l’image} other {du filtre}} {label}",
       "removeUnknownFolder": "Retirer {chip} : aucun dossier nommé {folder}",
-      "unknownFolder": "Aucun dossier nommé {folder}"
+      "unknownFolder": "Aucun dossier nommé {folder}",
+      "unknownType": "Aucun type nommé {type}",
+      "removeUnknownType": "Retirer {chip} : ce type de fiche n’existe pas"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "Rien à revoir ici",
       "saveAsSmartFolder": "Enregistrer comme dossier intelligent…",
-      "reshuffle": "Mélanger à nouveau"
+      "reshuffle": "Mélanger à nouveau",
+      "density": "Densité",
+      "densities": {
+        "comfortable": "Confortable",
+        "compact": "Compacte"
+      }
     },
     "dates": {
       "today": "Aujourd’hui",
@@ -1347,6 +1354,18 @@
       "thisYear": "Cette année",
       "lastYear": "L’année dernière",
       "lastWeekday": "{day} dernier"
+    },
+    "results": {
+      "matches": "{count, plural, one {# fiche correspond} other {# fiches correspondent}}",
+      "matchesMore": "{count}+ fiches correspondent",
+      "related": "{count, plural, one {# proche par le sens} other {# proches par le sens}}",
+      "hideRelated": "Masquer les proches",
+      "showRelated": "Afficher les proches",
+      "noMatchesFor": "Aucune fiche ne correspond à « {query} »",
+      "didYouMean": "Vouliez-vous dire <link>{suggestion}</link> ?",
+      "tryRemoving": "Ou retirez un filtre :",
+      "filtersLabel": "Filtres de cette recherche",
+      "removeFilter": "Retirer {label}"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "Nouvelle note",
       "uploadFiles": "Importer des fichiers",
       "recordAudio": "Enregistrer de l’audio",
-      "notifications": "Aller aux notifications (Annuler)",
+      "notifications": "Aller aux notifications pour annuler une modification",
       "keyboardShortcuts": "Raccourcis clavier",
-      "goToSettings": "Réglages"
+      "goToSettings": "Réglages",
+      "goToTags": "Tags",
+      "byTag": "Fiches avec un tag",
+      "byType": "Fiches d’un type",
+      "bySite": "Fiches d’un site",
+      "byFolder": "Fiches d’un dossier",
+      "byState": "Favoris, archivées, terminées ou à faire"
     }
   },
   "extension": {

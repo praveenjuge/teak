@@ -41,6 +41,7 @@ import {
 } from "../../lib/folders";
 import {
   GO_TO_SETTINGS_KEY,
+  GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
 } from "../../lib/keyboardShortcuts";
 import {
@@ -173,6 +174,15 @@ export function CommandPaletteResults({
         >
           <Hash />
           <span>{t("views.tags")}</span>
+          <span aria-hidden="true" className="ml-auto">
+            <ShortcutHint
+              row={{
+                keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
+                label: t("views.tags"),
+                sequence: true,
+              }}
+            />
+          </span>
         </CommandItem>
         <CommandItem
           keywords={[t("views.settings"), "account", "preferences", "billing"]}
@@ -192,16 +202,11 @@ export function CommandPaletteResults({
           </span>
         </CommandItem>
       </CommandGroup>
-      {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH &&
-        !(cards.status === "ready" && cards.cards.length === 0) && (
-          <CommandGroup forceMount heading={t("groups.cards")}>
-            <PaletteCardRows
-              cards={cards}
-              onSelect={onSelect}
-              query={trimmed}
-            />
-          </CommandGroup>
-        )}
+      {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH && (
+        <CommandGroup forceMount heading={t("groups.cards")}>
+          <PaletteCardRows cards={cards} onSelect={onSelect} query={trimmed} />
+        </CommandGroup>
+      )}
       <CommandGroup heading={t("groups.actions")}>
         {paletteActions(pathname).map((action) => {
           const Icon = ACTION_ICONS[action.id];
@@ -478,6 +483,7 @@ export function CommandPalette({
       <CommandList
         aria-label={t("resultsLabel")}
         className="max-h-[min(50vh,360px)] pb-1"
+        label={t("resultsLabel")}
         ref={listRef}
       >
         <CommandPaletteResults

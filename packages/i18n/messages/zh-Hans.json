@@ -1263,7 +1263,9 @@
       "removeQualifier": "移除{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
       "removeExcludedQualifier": "移除排除的{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
       "removeUnknownFolder": "移除 {chip}：没有名为 {folder} 的文件夹",
-      "unknownFolder": "没有名为 {folder} 的文件夹"
+      "unknownFolder": "没有名为 {folder} 的文件夹",
+      "unknownType": "没有名为 {type} 的类型",
+      "removeUnknownType": "移除 {chip}：没有这种卡片类型"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "这里没有可回顾的内容",
       "saveAsSmartFolder": "保存为智能文件夹…",
-      "reshuffle": "重新随机"
+      "reshuffle": "重新随机",
+      "density": "密度",
+      "densities": {
+        "comfortable": "宽松",
+        "compact": "紧凑"
+      }
     },
     "dates": {
       "today": "今天",
@@ -1347,6 +1354,18 @@
       "thisYear": "今年",
       "lastYear": "去年",
       "lastWeekday": "上{day}"
+    },
+    "results": {
+      "matches": "{count, plural, other {# 张卡片匹配}}",
+      "matchesMore": "{count}+ 张卡片匹配",
+      "related": "{count, plural, other {# 张含义相关}}",
+      "hideRelated": "隐藏相关",
+      "showRelated": "显示相关",
+      "noMatchesFor": "没有与“{query}”匹配的卡片",
+      "didYouMean": "您是不是要找 <link>{suggestion}</link>？",
+      "tryRemoving": "或移除一个筛选条件：",
+      "filtersLabel": "此搜索的筛选条件",
+      "removeFilter": "移除 {label}"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "新建笔记",
       "uploadFiles": "上传文件",
       "recordAudio": "录制音频",
-      "notifications": "前往通知（撤销）",
+      "notifications": "转到通知以撤销更改",
       "keyboardShortcuts": "键盘快捷键",
-      "goToSettings": "设置"
+      "goToSettings": "设置",
+      "goToTags": "标签",
+      "byTag": "带某个标签的卡片",
+      "byType": "某种类型的卡片",
+      "bySite": "来自某个网站的卡片",
+      "byFolder": "某个文件夹中的卡片",
+      "byState": "收藏、已归档、已完成或待办"
     }
   },
   "extension": {

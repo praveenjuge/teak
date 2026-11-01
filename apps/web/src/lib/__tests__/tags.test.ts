@@ -7,6 +7,7 @@ import {
   type TagOperationView,
   tagOperationDescription,
   tagOperationTitle,
+  tagsPageUrl,
 } from "../tags";
 
 const items = [
@@ -111,14 +112,19 @@ describe("isTagOperationStalled", () => {
 describe("tag operation copy", () => {
   test("titles and progress for each state", () => {
     expect(tagOperationTitle(operation())).toBe(
-      "Renaming “design” to “Design Systems”…"
+      "Renaming “design” to “design systems”…"
     );
     expect(tagOperationDescription(operation())).toBe(
       "120 of 300 cards changed"
     );
     expect(
       tagOperationTitle(operation({ kind: "merge", status: "completed" }))
-    ).toBe("Merged “design” into “Design Systems”");
+    ).toBe("Merged “design” into “design systems”");
+    expect(
+      tagOperationTitle(
+        operation({ status: "completed", to: "  Verify-NAVX-T1 " })
+      )
+    ).toBe("Renamed “design” to “verify-navx-t1”");
     expect(
       tagOperationDescription(operation({ status: "completed", changed: 1 }))
     ).toBe("1 card changed");
@@ -138,5 +144,17 @@ describe("tag operation copy", () => {
       "Tags can be at most 64 characters"
     );
     expect(explainTagNameInput("ok")).toBeNull();
+  });
+});
+
+describe("tagsPageUrl", () => {
+  test("keeps the Find a tag text in the URL, and drops it when cleared", () => {
+    expect(tagsPageUrl("https://teak.test/tags", "design")).toBe(
+      "/tags?q=design"
+    );
+    expect(tagsPageUrl("https://teak.test/tags?q=design&x=1", "  ")).toBe(
+      "/tags?x=1"
+    );
+    expect(tagsPageUrl("https://teak.test/tags", "a b")).toBe("/tags?q=a+b");
   });
 });

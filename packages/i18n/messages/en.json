@@ -1263,7 +1263,9 @@
       "removeQualifier": "Remove {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
       "removeExcludedQualifier": "Remove excluding {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
       "removeUnknownFolder": "Remove {chip}: no folder named {folder}",
-      "unknownFolder": "No folder named {folder}"
+      "unknownFolder": "No folder named {folder}",
+      "unknownType": "No type named {type}",
+      "removeUnknownType": "Remove {chip}: no such card type"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "Nothing to revisit here",
       "saveAsSmartFolder": "Save as smart folder…",
-      "reshuffle": "Reshuffle"
+      "reshuffle": "Reshuffle",
+      "density": "Density",
+      "densities": {
+        "comfortable": "Comfortable",
+        "compact": "Compact"
+      }
     },
     "dates": {
       "today": "Today",
@@ -1347,6 +1354,18 @@
       "thisYear": "This Year",
       "lastYear": "Last Year",
       "lastWeekday": "Last {day}"
+    },
+    "results": {
+      "matches": "{count, plural, one {# card matches} other {# cards match}}",
+      "matchesMore": "{count}+ cards match",
+      "related": "{count, plural, one {# related by meaning} other {# related by meaning}}",
+      "hideRelated": "Hide related",
+      "showRelated": "Show related",
+      "noMatchesFor": "No cards match “{query}”",
+      "didYouMean": "Did you mean <link>{suggestion}</link>?",
+      "tryRemoving": "Or remove a filter:",
+      "filtersLabel": "Filters in this search",
+      "removeFilter": "Remove {label}"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "New note",
       "uploadFiles": "Upload files",
       "recordAudio": "Record audio",
-      "notifications": "Go to notifications (Undo)",
+      "notifications": "Focus notifications, to undo a change",
       "keyboardShortcuts": "Keyboard shortcuts",
-      "goToSettings": "Go to Settings"
+      "goToSettings": "Settings",
+      "goToTags": "Tags",
+      "byTag": "Cards with a tag",
+      "byType": "Cards of a type",
+      "bySite": "Cards from a site",
+      "byFolder": "Cards in a folder",
+      "byState": "Favorites, archived, done or to-do"
     }
   },
   "extension": {

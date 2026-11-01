@@ -208,10 +208,23 @@ public enum SearchQualifiers {
         tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
+    /// Everyday words for each card type, as on the web (`CARD_TYPE_ALIASES` in
+    /// packages/convex/shared/search/qualifiers.ts). Each also works with an `s`.
+    private static let cardTypeAliases: [String: CardType] = [
+        "bookmark": .link, "clip": .video, "color": .palette, "colour": .palette,
+        "doc": .document, "memo": .audio, "movie": .video, "note": .text,
+        "pdf": .document, "photo": .image, "pic": .image, "picture": .image,
+        "recording": .audio, "url": .link, "voice": .audio, "website": .link,
+    ]
+
+    private static func typeForWord(_ word: String) -> CardType? {
+        CardType(rawValue: word) ?? cardTypeAliases[word]
+    }
+
     private static func parseType(_ value: String) -> CardType? {
         let word = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if let type = CardType(rawValue: word) { return type }
-        return word.hasSuffix("s") ? CardType(rawValue: String(word.dropLast())) : nil
+        if let type = typeForWord(word) { return type }
+        return word.hasSuffix("s") ? typeForWord(String(word.dropLast())) : nil
     }
 
     public static func parsePriceBound(_ value: String) -> PriceBound? {

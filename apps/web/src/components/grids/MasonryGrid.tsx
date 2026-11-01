@@ -45,6 +45,8 @@ import {
   columnsForWidth,
   GRID_GUTTER,
   gridColumnsTemplate,
+  MAX_COLUMNS,
+  MIN_COLUMN_WIDTH,
 } from "./gridColumns";
 import { useBulkDeleteForever, useSelectAllCards } from "./gridSelection";
 
@@ -68,7 +70,6 @@ type MasonryColumns =
     };
 
 const DEFAULT_BATCH_SIZE = 24;
-
 const MEASURING_STYLE = {
   insetInline: 0,
   opacity: 0,
@@ -121,6 +122,10 @@ export interface MasonryGridProps {
   initialBatchSize?: number;
   isLoadingMore?: boolean;
   loadMoreRootMargin?: string;
+  /** The most columns a wide grid shows. */
+  maxColumns?: number;
+  /** The narrowest a column may get before the grid drops one. */
+  minColumnWidth?: number;
   onAddTags?: (cardId: string) => void;
   onAddToFolderDone?: (added: boolean) => void;
   onBulkAction?: (
@@ -181,6 +186,8 @@ export const MasonryGrid = memo(function MasonryGrid({
   loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
   columns,
   gutter = GRID_GUTTER,
+  maxColumns = MAX_COLUMNS,
+  minColumnWidth = MIN_COLUMN_WIDTH,
   toastIdPrefix = "masonry",
 }: MasonryGridProps) {
   const t = useTranslations("grids.masonry");
@@ -230,12 +237,19 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
-        setMeasuredColumns(columnsForWidth(entry.contentRect.width, gutter));
+        setMeasuredColumns(
+          columnsForWidth(
+            entry.contentRect.width,
+            gutter,
+            minColumnWidth,
+            maxColumns
+          )
+        );
       }
     });
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [columns, gutter]);
+  }, [columns, gutter, maxColumns, minColumnWidth]);
   const resolvedColumns = columns ?? measuredColumns ?? FALLBACK_COLUMNS;
   const hydrated = useHydrated();
   const [firstPaint, setFirstPaint] = useState(
@@ -990,7 +1004,11 @@ export const MasonryGrid = memo(function MasonryGrid({
       >
         {firstPaint ? (
           <FirstPaintGrid
-            gridTemplateColumns={gridColumnsTemplate(gutter)}
+            gridTemplateColumns={gridColumnsTemplate(
+              gutter,
+              minColumnWidth,
+              maxColumns
+            )}
             gutter={gutter}
             items={masonryItems}
             renderItem={renderItem}

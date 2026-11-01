@@ -143,13 +143,24 @@ describe("CommandPaletteResults", () => {
     expect(html).toContain("Search all for “bauhaus”");
   });
 
-  test("hides the Cards group when no card matches", () => {
+  test("still offers to search everywhere when no card matches", () => {
     const html = render({
       cards: { status: "ready", cards: [] },
-      query: "zzzz",
+      query: "kestral",
     });
-    expect(headings(html)).not.toContain("Cards");
-    expect(html).not.toContain("Search all");
+    expect(headings(html)).toContain("Cards");
+    expect(html).toContain("Search all for “kestral”");
+    expect(html).not.toContain('value="card:');
+  });
+
+  test("names the results list in the app's language, not cmdk's", () => {
+    const html = renderToStaticMarkup(
+      <Command>
+        <CommandList label="Ergebnisse" />
+      </Command>
+    );
+    expect(html).toContain('aria-label="Ergebnisse"');
+    expect(html).not.toContain("Suggestions");
   });
 });
 

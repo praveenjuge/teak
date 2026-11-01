@@ -75,24 +75,12 @@ function DialogContent({
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay className={overlayClassName}>
-        {showCloseButton ? (
-          // The mouse target sits on the backdrop, outside the focus trap;
-          // keyboard and screen reader users get the Close button inside
-          // the content below.
-          <DialogPrimitive.Close
-            aria-hidden
-            className="absolute top-3 right-3 rounded-full ring-offset-background transition-opacity focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-white [&_svg:not([class*='size-'])]:size-6 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-            data-slot="dialog-close"
-            tabIndex={-1}
-          >
-            <XIcon className="text-white" />
-          </DialogPrimitive.Close>
-        ) : null}
-      </DialogOverlay>
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         className={cn(
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in sm:max-w-lg",
+          // The title leaves room for the Close button in the corner.
+          showCloseButton && "[&_[data-slot=dialog-title]]:pr-8",
           className
         )}
         data-slot="dialog-content"
@@ -123,11 +111,14 @@ function DialogContent({
       >
         {children}
         {showCloseButton ? (
+          // Inside the dialog's own corner, so it never lands on whatever
+          // sits in the viewport's corner behind the backdrop.
           <DialogPrimitive.Close
-            className="sr-only rounded-full focus-visible:not-sr-only focus-visible:absolute focus-visible:top-3 focus-visible:right-3 focus-visible:bg-accent focus-visible:px-3 focus-visible:py-1 focus-visible:text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={t("close")}
+            className="absolute top-3 right-3 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
             data-slot="dialog-close"
           >
-            {t("close")}
+            <XIcon aria-hidden="true" />
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>

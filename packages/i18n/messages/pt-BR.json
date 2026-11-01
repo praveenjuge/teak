@@ -1263,7 +1263,9 @@
       "removeQualifier": "Remover {kind, select, tag {tag} type {tipo} is {mostrar} site {site} folder {pasta} like {semelhante a} mood {estilo} price {preço} text {texto na imagem} other {filtro}} {label}",
       "removeExcludedQualifier": "Remover exceção de {kind, select, tag {tag} type {tipo} is {mostrar} site {site} folder {pasta} like {semelhante a} mood {estilo} price {preço} text {texto na imagem} other {filtro}} {label}",
       "removeUnknownFolder": "Remover {chip}: nenhuma pasta chamada {folder}",
-      "unknownFolder": "Nenhuma pasta chamada {folder}"
+      "unknownFolder": "Nenhuma pasta chamada {folder}",
+      "unknownType": "Nenhum tipo chamado {type}",
+      "removeUnknownType": "Remover {chip}: esse tipo de card não existe"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "Nada para revisitar aqui",
       "saveAsSmartFolder": "Salvar como pasta inteligente…",
-      "reshuffle": "Embaralhar de novo"
+      "reshuffle": "Embaralhar de novo",
+      "density": "Densidade",
+      "densities": {
+        "comfortable": "Confortável",
+        "compact": "Compacta"
+      }
     },
     "dates": {
       "today": "Hoje",
@@ -1347,6 +1354,18 @@
       "thisYear": "Este ano",
       "lastYear": "Ano passado",
       "lastWeekday": "{day} passado"
+    },
+    "results": {
+      "matches": "{count, plural, one {# card corresponde} other {# cards correspondem}}",
+      "matchesMore": "{count}+ cards correspondem",
+      "related": "{count, plural, one {# relacionado pelo significado} other {# relacionados pelo significado}}",
+      "hideRelated": "Ocultar relacionados",
+      "showRelated": "Mostrar relacionados",
+      "noMatchesFor": "Nenhum card corresponde a “{query}”",
+      "didYouMean": "Você quis dizer <link>{suggestion}</link>?",
+      "tryRemoving": "Ou remova um filtro:",
+      "filtersLabel": "Filtros desta pesquisa",
+      "removeFilter": "Remover {label}"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "Nova nota",
       "uploadFiles": "Enviar arquivos",
       "recordAudio": "Gravar áudio",
-      "notifications": "Ir para as notificações (Desfazer)",
+      "notifications": "Ir para as notificações para desfazer uma alteração",
       "keyboardShortcuts": "Atalhos de teclado",
-      "goToSettings": "Configurações"
+      "goToSettings": "Configurações",
+      "goToTags": "Tags",
+      "byTag": "Cards com uma tag",
+      "byType": "Cards de um tipo",
+      "bySite": "Cards de um site",
+      "byFolder": "Cards em uma pasta",
+      "byState": "Favoritos, arquivados, concluídos ou pendentes"
     }
   },
   "extension": {

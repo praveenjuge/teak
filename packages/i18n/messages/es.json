@@ -1263,7 +1263,9 @@
       "removeQualifier": "Quitar {kind, select, tag {etiqueta} type {tipo} is {mostrar} site {sitio} folder {carpeta} like {similar a} mood {ambiente} price {precio} text {texto en imagen} other {filtro}} {label}",
       "removeExcludedQualifier": "Quitar la exclusión de {kind, select, tag {etiqueta} type {tipo} is {mostrar} site {sitio} folder {carpeta} like {similar a} mood {ambiente} price {precio} text {texto en imagen} other {filtro}} {label}",
       "removeUnknownFolder": "Quitar {chip}: no hay ninguna carpeta llamada {folder}",
-      "unknownFolder": "No hay ninguna carpeta llamada {folder}"
+      "unknownFolder": "No hay ninguna carpeta llamada {folder}",
+      "unknownType": "No hay ningún tipo llamado {type}",
+      "removeUnknownType": "Quitar {chip}: no existe ese tipo de tarjeta"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "No hay nada que repasar aquí",
       "saveAsSmartFolder": "Guardar como carpeta inteligente…",
-      "reshuffle": "Volver a mezclar"
+      "reshuffle": "Volver a mezclar",
+      "density": "Densidad",
+      "densities": {
+        "comfortable": "Amplia",
+        "compact": "Compacta"
+      }
     },
     "dates": {
       "today": "Hoy",
@@ -1347,6 +1354,18 @@
       "thisYear": "Este año",
       "lastYear": "El año pasado",
       "lastWeekday": "El {day} pasado"
+    },
+    "results": {
+      "matches": "{count, plural, one {# tarjeta coincide} other {# tarjetas coinciden}}",
+      "matchesMore": "Coinciden {count}+ tarjetas",
+      "related": "{count, plural, one {# relacionada por significado} other {# relacionadas por significado}}",
+      "hideRelated": "Ocultar relacionadas",
+      "showRelated": "Mostrar relacionadas",
+      "noMatchesFor": "Ninguna tarjeta coincide con «{query}»",
+      "didYouMean": "¿Quiso decir <link>{suggestion}</link>?",
+      "tryRemoving": "O quite un filtro:",
+      "filtersLabel": "Filtros de esta búsqueda",
+      "removeFilter": "Quitar {label}"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "Nueva nota",
       "uploadFiles": "Subir archivos",
       "recordAudio": "Grabar audio",
-      "notifications": "Ir a las notificaciones (Deshacer)",
+      "notifications": "Ir a las notificaciones para deshacer un cambio",
       "keyboardShortcuts": "Atajos de teclado",
-      "goToSettings": "Ajustes"
+      "goToSettings": "Ajustes",
+      "goToTags": "Etiquetas",
+      "byTag": "Tarjetas con una etiqueta",
+      "byType": "Tarjetas de un tipo",
+      "bySite": "Tarjetas de un sitio",
+      "byFolder": "Tarjetas de una carpeta",
+      "byState": "Favoritas, archivadas, hechas o pendientes"
     }
   },
   "extension": {

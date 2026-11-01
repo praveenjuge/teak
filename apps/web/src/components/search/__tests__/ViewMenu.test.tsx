@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import type { CardDensity } from "../../../lib/cardDensity";
 import type { LibrarySort } from "../../../lib/searchUrlState";
 
 if (!GlobalRegistrator.isRegistered) {
@@ -20,7 +21,12 @@ afterEach(async () => {
 });
 
 async function openMenu(
-  options: { revisit?: "empty" | "ready"; sort?: LibrarySort } = {}
+  options: {
+    density?: CardDensity;
+    onDensityChange?: (density: CardDensity) => void;
+    revisit?: "empty" | "ready";
+    sort?: LibrarySort;
+  } = {}
 ) {
   const onSortChange = mock((_sort: LibrarySort) => undefined);
   const container = document.createElement("div");
@@ -30,6 +36,8 @@ async function openMenu(
     root?.render(
       <ViewMenu
         activeTypes={[]}
+        density={options.density}
+        onDensityChange={options.onDensityChange}
         onSortChange={onSortChange}
         revisit={options.revisit}
         sort={options.sort}
@@ -54,6 +62,34 @@ const revisitItem = () =>
   [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
     (item) => item.textContent?.startsWith("Revisit")
   );
+
+describe("Density in the View menu", () => {
+  test("offers Comfortable and Compact, with the current one checked", async () => {
+    const onDensityChange = mock((_density: CardDensity) => undefined);
+    await openMenu({ density: "compact", onDensityChange });
+    const items = [
+      ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ].filter((item) =>
+      ["Comfortable", "Compact"].includes(item.textContent?.trim() ?? "")
+    );
+    expect(
+      items.map((item) => [
+        item.textContent?.trim(),
+        item.getAttribute("aria-checked"),
+      ])
+    ).toEqual([
+      ["Comfortable", "false"],
+      ["Compact", "true"],
+    ]);
+    await act(() => items[0]?.click());
+    expect(onDensityChange).toHaveBeenCalledWith("comfortable");
+  });
+
+  test("is left out where the page can't change it", async () => {
+    await openMenu();
+    expect(document.body.textContent).not.toContain("Density");
+  });
+});
 
 describe("Revisit in the View menu", () => {
   test("is the last sort, after Shuffle", async () => {

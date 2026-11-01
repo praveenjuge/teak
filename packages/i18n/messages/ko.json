@@ -1263,7 +1263,9 @@
       "removeQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제거",
       "removeExcludedQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제외 조건 제거",
       "removeUnknownFolder": "{chip} 제거: {folder} 폴더가 없습니다",
-      "unknownFolder": "{folder} 폴더가 없습니다"
+      "unknownFolder": "{folder} 폴더가 없습니다",
+      "unknownType": "{type} 유형이 없습니다",
+      "removeUnknownType": "{chip} 제거: 해당 카드 유형이 없습니다"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "다시 볼 카드가 없습니다",
       "saveAsSmartFolder": "스마트 폴더로 저장…",
-      "reshuffle": "다시 셔플"
+      "reshuffle": "다시 셔플",
+      "density": "밀도",
+      "densities": {
+        "comfortable": "여유 있게",
+        "compact": "좁게"
+      }
     },
     "dates": {
       "today": "오늘",
@@ -1347,6 +1354,18 @@
       "thisYear": "올해",
       "lastYear": "작년",
       "lastWeekday": "지난 {day}"
+    },
+    "results": {
+      "matches": "{count, plural, other {카드 #개 일치}}",
+      "matchesMore": "카드 {count}개 이상 일치",
+      "related": "{count, plural, other {의미가 비슷한 항목 #개}}",
+      "hideRelated": "관련 항목 숨기기",
+      "showRelated": "관련 항목 보기",
+      "noMatchesFor": "“{query}”와 일치하는 카드가 없습니다",
+      "didYouMean": "<link>{suggestion}</link>을(를) 찾으셨나요?",
+      "tryRemoving": "또는 필터 제거:",
+      "filtersLabel": "이 검색의 필터",
+      "removeFilter": "{label} 제거"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "새 메모",
       "uploadFiles": "파일 업로드",
       "recordAudio": "오디오 녹음",
-      "notifications": "알림으로 이동(실행 취소)",
+      "notifications": "알림으로 이동해 변경 실행 취소",
       "keyboardShortcuts": "키보드 단축키",
-      "goToSettings": "설정"
+      "goToSettings": "설정",
+      "goToTags": "태그",
+      "byTag": "태그가 있는 카드",
+      "byType": "유형별 카드",
+      "bySite": "사이트별 카드",
+      "byFolder": "폴더의 카드",
+      "byState": "즐겨찾기, 보관됨, 완료 또는 할 일"
     }
   },
   "extension": {

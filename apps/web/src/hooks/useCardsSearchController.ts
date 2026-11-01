@@ -84,8 +84,12 @@ export interface UseCardsSearchControllerResult {
     state: SearchUrlState,
     options?: { keepSearch?: boolean }
   ) => void;
+  /** Cards seen in earlier answers, kept for instant local results. */
+  cachedCards: Doc<"cards">[];
   clearAllFilters: () => void;
   displayCards: Doc<"cards">[];
+  /** Cards that hold the search's words, out of the ones shown or hidden. */
+  exactCount: number;
   filterTags: CardType[];
   hasActiveSearch: boolean;
   hasNoFilters: boolean;
@@ -97,6 +101,8 @@ export interface UseCardsSearchControllerResult {
   librarySort: LibrarySort;
   qualifierChips: string[];
   queryArgs: CardsSearchQueryArgs;
+  /** Cards the server matched by meaning rather than by the words. */
+  relatedCount: number;
   resetKey: string;
   reshuffle: () => void;
   searchBarProps: SearchBarProps;
@@ -106,10 +112,13 @@ export interface UseCardsSearchControllerResult {
     cards: Doc<"cards">[] | undefined,
     remoteQueryKey?: string
   ) => void;
+  setShowRelated: (show: boolean) => void;
   setSort: (sort: LibrarySort) => void;
   setTimeFilter: (timeFilter: TimeFilter | null) => void;
   showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
+  /** Whether cards matched only by meaning are shown with the others. */
+  showRelated: boolean;
   showTrashOnly: boolean;
   shuffleSeed?: number;
   sort: CardListSort;
@@ -277,8 +286,13 @@ export function useCardsSearchController(
     ? searchState.searchQuery
     : debouncedSearchQuery;
 
+  // Words count whether they are still typed or already chips, so Enter
+  // never takes a search out of Best match.
   const canSortByRelevance =
-    semanticSearchText(remoteSearchQuery, folderQuery) !== "";
+    semanticSearchText(
+      buildCardsSearchTerms({ ...searchState, searchQuery: remoteSearchQuery }),
+      folderQuery
+    ) !== "";
   useEffect(() => {
     if (!canSortByRelevance) {
       setSortPicked(false);
@@ -354,6 +368,18 @@ export function useCardsSearchController(
     [folderQuery, searchTerms]
   );
 
+  // A smart folder's own query narrows the list even before anything is
+  // typed, so its results go through the same checks a search's do: the
+  // server's word index matches any word, and only these checks keep the
+  // cards that hold every one.
+  const filtersResults = useMemo(
+    () =>
+      hasActiveSearch ||
+      (folderQuery !== undefined &&
+        parseSearchQuery(folderQuery).canonical !== ""),
+    [folderQuery, hasActiveSearch]
+  );
+
   const hasFolderQualifier = useMemo(() => {
     if (localSearchTerms === null) {
       return true;
@@ -369,7 +395,7 @@ export function useCardsSearchController(
   const localSearchResults = useMemo(() => {
     // Without a search the grid shows the remote list as is
     // (`mergeLocalAndRemoteSearchResults`), so filtering the cache is waste.
-    if (!hasActiveSearch || hasFolderQualifier || localSearchTerms === null) {
+    if (!filtersResults || hasFolderQualifier || localSearchTerms === null) {
       return [];
     }
     const matches = filterLocalCards(
@@ -394,9 +420,9 @@ export function useCardsSearchController(
       ? matches
       : shuffleBySeed(matches, shuffleSeed, (card) => card._id);
   }, [
+    filtersResults,
     folderId,
     folderQuery,
-    hasActiveSearch,
     hasFolderQualifier,
     localCards,
     localSearchTerms,
@@ -410,7 +436,7 @@ export function useCardsSearchController(
     !isSearchPending && remoteCardsKey === JSON.stringify(queryArgs);
 
   const remoteSearchResults = useMemo(() => {
-    if (!hasActiveSearch) {
+    if (!filtersResults) {
       return remoteCards;
     }
     if (localSearchTerms === null) {
@@ -431,7 +457,7 @@ export function useCardsSearchController(
       tag: searchState.tagFilter,
     });
   }, [
-    hasActiveSearch,
+    filtersResults,
     localSearchTerms,
     remoteCards,
     remoteCardsAreCurrent,
@@ -439,15 +465,41 @@ export function useCardsSearchController(
     sort,
   ]);
 
-  const displayCards = useMemo(
+  const matchedCards = useMemo(
     () =>
       mergeLocalAndRemoteSearchResults(
         remoteSearchResults,
         localSearchResults,
-        hasActiveSearch,
+        filtersResults,
         sort
       ),
-    [hasActiveSearch, localSearchResults, remoteSearchResults, sort]
+    [filtersResults, localSearchResults, remoteSearchResults, sort]
+  );
+
+  // Cards the server found by meaning rather than by the words. Only the
+  // current answer says so: a cached card keeps the mark from an older one.
+  const relatedIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (filtersResults && remoteCardsAreCurrent) {
+      for (const card of remoteSearchResults) {
+        if ((card as { matchedByMeaning?: true }).matchedByMeaning === true) {
+          ids.add(card._id);
+        }
+      }
+    }
+    return ids;
+  }, [filtersResults, remoteCardsAreCurrent, remoteSearchResults]);
+  const [showRelated, setShowRelated] = useState(true);
+  const relatedCount = useMemo(
+    () => matchedCards.filter((card) => relatedIds.has(card._id)).length,
+    [matchedCards, relatedIds]
+  );
+  const displayCards = useMemo(
+    () =>
+      showRelated || relatedCount === 0
+        ? matchedCards
+        : matchedCards.filter((card) => !relatedIds.has(card._id)),
+    [matchedCards, relatedCount, relatedIds, showRelated]
   );
 
   const resetKey = useMemo(
@@ -723,7 +775,12 @@ export function useCardsSearchController(
     searchTerms,
     queryArgs,
     hasActiveSearch,
+    cachedCards: localCards,
     displayCards,
+    exactCount: matchedCards.length - relatedCount,
+    relatedCount,
+    setShowRelated,
+    showRelated,
     isSearchPending,
     resetKey,
     hasNoFilters,

@@ -73,7 +73,8 @@ afterEach(async () => {
 
 test("starts from the search in the URL without waiting for the debounce", async () => {
   await mount({ q: "design", sort: "oldest", types: [] });
-  expect(controller.searchBarProps.searchQuery).toBe("design");
+  expect(controller.searchBarProps.searchQuery).toBe("");
+  expect(controller.searchBarProps.keywordTags).toEqual(["design"]);
   expect(controller.queryArgs).toMatchObject({
     searchQuery: "design",
     sort: "oldest",
@@ -258,9 +259,20 @@ test("back and forward replace the search with the URL's", async () => {
   await act(() =>
     controller.applyUrlState({ q: "colors", sort: "oldest", types: [] })
   );
-  expect(controller.keywordTags).toEqual([]);
-  expect(controller.searchBarProps.searchQuery).toBe("colors");
+  expect(controller.keywordTags).toEqual(["colors"]);
+  expect(controller.searchBarProps.searchQuery).toBe("");
   expect(controller.sort).toBe("oldest");
+});
+
+test("a URL search shows the chips typing it would, in the URL's order", async () => {
+  await mount({ q: "verify-navx -heron", sort: "newest", types: [] });
+  expect(controller.searchBarProps.searchQuery).toBe("");
+  expect(controller.searchBarProps.keywordTags).toEqual([
+    "verify-navx",
+    "-heron",
+  ]);
+  expect(controller.urlState.q).toBe("verify-navx -heron");
+  expect(controller.sort).toBe("relevance");
 });
 
 test("back and forward apply at once, without the typing pause", async () => {

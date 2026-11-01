@@ -1263,7 +1263,9 @@
       "removeQualifier": "{kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
       "removeExcludedQualifier": "Ausschluss {kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
       "removeUnknownFolder": "{chip} entfernen: kein Ordner namens {folder}",
-      "unknownFolder": "Kein Ordner namens {folder}"
+      "unknownFolder": "Kein Ordner namens {folder}",
+      "unknownType": "Kein Typ namens {type}",
+      "removeUnknownType": "{chip} entfernen: Diesen Kartentyp gibt es nicht"
     },
     "chips": {
       "titles": {
@@ -1335,7 +1337,12 @@
       },
       "nothingToRevisit": "Hier gibt es nichts wiederzusehen",
       "saveAsSmartFolder": "Als intelligenten Ordner speichern…",
-      "reshuffle": "Neu mischen"
+      "reshuffle": "Neu mischen",
+      "density": "Dichte",
+      "densities": {
+        "comfortable": "Großzügig",
+        "compact": "Kompakt"
+      }
     },
     "dates": {
       "today": "Heute",
@@ -1347,6 +1354,18 @@
       "thisYear": "Dieses Jahr",
       "lastYear": "Letztes Jahr",
       "lastWeekday": "Letzten {day}"
+    },
+    "results": {
+      "matches": "{count, plural, one {# Karte passt} other {# Karten passen}}",
+      "matchesMore": "{count}+ Karten passen",
+      "related": "{count, plural, one {# inhaltlich ähnliche} other {# inhaltlich ähnliche}}",
+      "hideRelated": "Ähnliche ausblenden",
+      "showRelated": "Ähnliche einblenden",
+      "noMatchesFor": "Keine Karten passen zu „{query}“",
+      "didYouMean": "Meinten Sie <link>{suggestion}</link>?",
+      "tryRemoving": "Oder einen Filter entfernen:",
+      "filtersLabel": "Filter dieser Suche",
+      "removeFilter": "{label} entfernen"
     }
   },
   "commandPalette": {
@@ -1430,9 +1449,15 @@
       "newNote": "Neue Notiz",
       "uploadFiles": "Dateien hochladen",
       "recordAudio": "Audio aufnehmen",
-      "notifications": "Zu Benachrichtigungen (Rückgängig)",
+      "notifications": "Benachrichtigungen fokussieren, um etwas rückgängig zu machen",
       "keyboardShortcuts": "Tastenkürzel",
-      "goToSettings": "Einstellungen"
+      "goToSettings": "Einstellungen",
+      "goToTags": "Tags",
+      "byTag": "Karten mit einem Tag",
+      "byType": "Karten eines Typs",
+      "bySite": "Karten von einer Website",
+      "byFolder": "Karten in einem Ordner",
+      "byState": "Favoriten, archiviert, erledigt oder offen"
     }
   },
   "extension": {
