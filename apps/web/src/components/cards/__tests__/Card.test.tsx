@@ -149,7 +149,9 @@ describe("Cards/Card", () => {
     const markup = renderToStaticMarkup(
       <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
     );
-    expect(markup).toContain('aria-keyshortcuts="Enter F T E X Delete"');
+    expect(markup).toContain(
+      'aria-keyshortcuts="Enter F T E X Delete Control+C"'
+    );
     const trashed = renderToStaticMarkup(
       <Card
         card={createLinkCard({ isDeleted: true }) as any}

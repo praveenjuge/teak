@@ -50,8 +50,18 @@ describe("cardAriaKeyShortcuts", () => {
     expect(cardAriaKeyShortcuts(false, true)).toBe("Enter F T E X Backspace");
   });
 
+  test("a card that copies adds its copy key, per platform", () => {
+    expect(cardAriaKeyShortcuts(false, false, true)).toBe(
+      "Enter F T E X Delete Control+C"
+    );
+    expect(cardAriaKeyShortcuts(false, true, true)).toBe(
+      "Enter F T E X Backspace Meta+C"
+    );
+  });
+
   test("a card in Trash only selects and deletes forever", () => {
     expect(cardAriaKeyShortcuts(true, false)).toBe("Enter X Delete");
+    expect(cardAriaKeyShortcuts(true, false, true)).toBe("Enter X Delete");
   });
 });
 

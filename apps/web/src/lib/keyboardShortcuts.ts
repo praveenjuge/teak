@@ -220,15 +220,18 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
 /**
  * What a focused card in the grid answers, for its `aria-keyshortcuts`: the
  * card's menu items are hidden until hover, so this is how a screen reader
- * learns them. A card in Trash only selects and deletes forever.
+ * learns them, copy included when the card can be copied. A card in Trash
+ * only selects and deletes forever.
  */
 export function cardAriaKeyShortcuts(
   inTrash: boolean,
-  apple = isApplePlatform()
+  apple = isApplePlatform(),
+  canCopy = false
 ): string {
   const {
     addTags,
     archive,
+    copy,
     delete: remove,
     favorite,
     select,
@@ -243,6 +246,10 @@ export function cardAriaKeyShortcuts(
         select.keys,
         remove.keys,
       ];
+  // Text, links and images copy with ⌘C (Ctrl+C), as their menu shows.
+  if (canCopy && !inTrash) {
+    keys.push(copy.keys);
+  }
   return keys.join(" ");
 }
 

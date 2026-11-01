@@ -539,7 +539,7 @@ export const Card = memo(function Card({
             aria-keyshortcuts={
               isOptimistic
                 ? undefined
-                : cardAriaKeyShortcuts(Boolean(card.isDeleted), apple)
+                : cardAriaKeyShortcuts(Boolean(card.isDeleted), apple, canCopy)
             }
             aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
