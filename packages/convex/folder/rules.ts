@@ -303,7 +303,25 @@ export const autoTagsForJoinedFolders = async (
   return added.size > 0 ? { added, tags } : { added };
 };
 
-type RuleMatcher = (card: Doc<"cards">) => boolean;
+type RuleMatcher = (card: Doc<"cards">, text: string) => boolean;
+
+/**
+ * The text a rule's words are checked against: the card's own fields, plus
+ * what its search document holds beyond them (a document's text, a moved
+ * transcript), as search sees it. The document can trail a write in the same
+ * mutation, so the fields come first.
+ */
+const ruleTextFor = async (
+  ctx: QueryCtx,
+  card: Doc<"cards">
+): Promise<string> => {
+  const own = buildCardSearchText(card, undefined, card.aiTranscript);
+  const document = await ctx.db
+    .query("cardSearchDocuments")
+    .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
+    .unique();
+  return document?.searchableText ? `${own}\n${document.searchableText}` : own;
+};
 
 const buildRuleMatcher = async (
   ctx: QueryCtx,
@@ -320,14 +338,13 @@ const buildRuleMatcher = async (
   if (!resolved) {
     return null;
   }
-  return (card) => {
+  return (card, text) => {
     if (card.isDeleted === true) {
       return false;
     }
     if (parsed.archived && card.isArchived !== true) {
       return false;
     }
-    const text = buildCardSearchText(card);
     return resolved.matches(card, text) && resolved.matchesWords(text);
   };
 };
@@ -381,6 +398,7 @@ export const autoFileCard = async (
   const current = card.folderIds ?? [];
   const next = [...current];
   const filedFolderIds: Id<"folders">[] = [];
+  let text: string | undefined;
   for (const folder of folders) {
     if (next.length >= MAX_FOLDERS_PER_CARD) {
       break;
@@ -397,7 +415,11 @@ export const autoFileCard = async (
       card.userId,
       folder.autoFileQuery ?? ""
     );
-    if (matches?.(card)) {
+    if (!matches) {
+      continue;
+    }
+    text ??= await ruleTextFor(ctx, card);
+    if (matches(card, text)) {
       next.push(folder._id);
       filedFolderIds.push(folder._id);
     }
@@ -487,8 +509,9 @@ export const toFolderRuleRunSummary = (
 export const startFolderRuleRun = async (
   ctx: MutationCtx,
   folder: Doc<"folders">,
-  plan: { runFile: boolean; runTags: boolean }
+  requested: { runFile: boolean; runTags: boolean }
 ): Promise<Id<"folderRuleRuns"> | undefined> => {
+  let plan = requested;
   if (!(plan.runFile || plan.runTags)) {
     return undefined;
   }
@@ -502,6 +525,17 @@ export const startFolderRuleRun = async (
         updatedAt: now,
         completedAt: now,
       });
+      // The run it replaces may not have finished: run whatever it still had
+      // to do, with the folder's rules as they are now.
+      plan = {
+        runTags:
+          plan.runTags ||
+          (previous.phase === "tag" && (folder.autoTags?.length ?? 0) > 0),
+        runFile:
+          plan.runFile ||
+          (folder.autoFileQuery !== undefined &&
+            folder.autoFilePaused !== true),
+      };
     }
   }
   const runId = await ctx.db.insert("folderRuleRuns", {
@@ -659,7 +693,7 @@ export const runFolderRuleBatchHandler = async (
         card.isDeleted === true ||
         current.includes(folder._id) ||
         current.length >= MAX_FOLDERS_PER_CARD ||
-        !matches(card)
+        !matches(card, await ruleTextFor(ctx, card))
       ) {
         continue;
       }
@@ -881,19 +915,42 @@ export const deleteCardFolderRuleRows = async (
   ctx: MutationCtx,
   cardId: Id<"cards">
 ): Promise<void> => {
-  for (const row of await ctx.db
+  const applications = await ctx.db
     .query("folderRuleApplications")
     .withIndex("by_cardId_and_folderId", (q) => q.eq("cardId", cardId))
-    .take(MAX_FOLDERS_PER_CARD * 4)) {
+    .take(FOLDER_RULE_CLEANUP_BATCH_SIZE);
+  for (const row of applications) {
     await ctx.db.delete("folderRuleApplications", row._id);
   }
-  for (const row of await ctx.db
+  const changes = await ctx.db
     .query("folderRuleRunChanges")
     .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
-    .take(MAX_FOLDER_RULES * 4)) {
+    .take(FOLDER_RULE_CLEANUP_BATCH_SIZE);
+  for (const row of changes) {
     await ctx.db.delete("folderRuleRunChanges", row._id);
   }
+  // A card can collect rows from folders it joined and left over time: the
+  // rest go in batches of their own.
+  if (
+    applications.length === FOLDER_RULE_CLEANUP_BATCH_SIZE ||
+    changes.length === FOLDER_RULE_CLEANUP_BATCH_SIZE
+  ) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.folder.rules.deleteCardFolderRuleRowsBatch,
+      { cardId }
+    );
+  }
 };
+
+export const deleteCardFolderRuleRowsBatch = internalMutation({
+  args: { cardId: v.id("cards") },
+  returns: v.null(),
+  handler: async (ctx, { cardId }) => {
+    await deleteCardFolderRuleRows(ctx, cardId);
+    return null;
+  },
+});
 
 /** Deletes rule runs past their undo window, with their changes. */
 export const deleteExpiredFolderRuleRuns = internalMutation({
@@ -905,10 +962,10 @@ export const deleteExpiredFolderRuleRuns = internalMutation({
       .query("folderRuleRuns")
       .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
       .take(10);
+    // A run still running or undoing a day on is stuck; its batch, if one
+    // is still scheduled, stops once the run is gone. Every run here loses
+    // rows, so the loop always moves on.
     for (const run of runs) {
-      if (run.status === "running" || run.status === "undoing") {
-        continue;
-      }
       const changes = await ctx.db
         .query("folderRuleRunChanges")
         .withIndex("by_runId", (q) => q.eq("runId", run._id))

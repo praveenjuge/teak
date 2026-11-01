@@ -47,12 +47,17 @@ export const updateCardAI = internalMutation({
         ? {}
         : await storeCardTranscript(ctx, card, aiTranscript)),
     };
-    // New AI tags are when the card is ready for folder rules: file it with
-    // what it now holds, in the same write. An OCR-only write doesn't.
-    const filed =
-      args.aiTags === undefined
-        ? undefined
-        : await autoFileCard(ctx, { ...card, ...updates });
+    // New AI output (tags, or a summary alone) is when the card is ready for
+    // folder rules: file it with what it now holds, in the same write. Text
+    // read from images later (a link's screenshot) checks again, but only on
+    // a card whose AI has run, so an early OCR write files nothing.
+    const aiDone =
+      writesAiOutput ||
+      (aiOcrText !== undefined &&
+        (card.aiTags !== undefined || card.aiSummary !== undefined));
+    const filed = aiDone
+      ? await autoFileCard(ctx, { ...card, ...updates })
+      : undefined;
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
       ...(filed?.folderIds ? { folderIds: filed.folderIds } : {}),

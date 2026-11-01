@@ -232,6 +232,57 @@ describe("auto-file rules", () => {
   });
 });
 
+describe("auto-file triggers", () => {
+  test("a summary alone files the card, as from the AI backfill", async () => {
+    const { t, insert, createFolder, card, runScheduled } = await setup();
+    const folder = await createFolder("Bread", { autoFileQuery: "sourdough" });
+    await runScheduled();
+    const id = await insert({ content: "sourdough loaf" });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: id,
+      aiSummary: "A loaf",
+      processingStatus: { metadata: { status: "completed" } },
+    });
+    expect((await card(id)).folderIds).toEqual([folder._id]);
+  });
+
+  test("text read from a link's image after AI files it; before AI it doesn't", async () => {
+    const { t, insert, createFolder, card, writeAiTags, runScheduled } =
+      await setup();
+    const folder = await createFolder("Receipts", {
+      autoFileQuery: 'text:"total due"',
+    });
+    await runScheduled();
+    const early = await insert({ type: "link", content: "https://a.example" });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: early,
+      aiOcrText: "TOTAL DUE 12.00",
+    });
+    expect((await card(early)).folderIds).toBeUndefined();
+
+    const late = await insert({ type: "link", content: "https://b.example" });
+    await writeAiTags(late, ["shop"]);
+    expect((await card(late)).folderIds).toBeUndefined();
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: late,
+      aiOcrText: "TOTAL DUE 12.00",
+    });
+    expect((await card(late)).folderIds).toEqual([folder._id]);
+  });
+
+  test("words only a transcript holds match", async () => {
+    const { insert, createFolder, card, runScheduled } = await setup();
+    const memo = await insert({
+      type: "audio",
+      content: "Voice memo",
+      aiTranscript: "the crowded studio was loud",
+    });
+    const folder = await createFolder("Studio", { autoFileQuery: "crowded" });
+    await runScheduled();
+    expect((await card(memo)).folderIds).toEqual([folder._id]);
+  });
+});
+
 describe("auto-tags", () => {
   test("every way into the folder adds its tags", async () => {
     const { t, owner, insert, createFolder, card, runScheduled } =
@@ -466,6 +517,57 @@ describe("rule runs", () => {
     expect((await run(folder._id, second))?.status).toBe("done");
   });
 
+  test("saving tags while a filing run is going still files every match", async () => {
+    const { insert, createFolder, updateRules, card, runScheduled } =
+      await setup();
+    const ids: Id<"cards">[] = [];
+    for (let index = 0; index < FOLDER_RULE_BATCH_SIZE + 2; index += 1) {
+      ids.push(await insert({ aiTags: ["fonts"] }));
+    }
+    const folder = await createFolder("Fonts", { autoFileQuery: "tag:fonts" });
+    await updateRules(folder._id, { autoTags: ["type"] });
+    await runScheduled();
+    for (const id of ids) {
+      expect(await card(id)).toMatchObject({
+        folderIds: [folder._id],
+        tags: ["type"],
+      });
+    }
+  });
+
+  test("cleanup deletes runs stuck past their day, and stops", async () => {
+    const { t, runScheduled } = await setup();
+    await t.run(async (ctx) => {
+      const folderId = await ctx.db.insert("folders", {
+        userId: "owner",
+        name: "Stuck",
+        nameKey: "stuck",
+        kind: "manual",
+        activeCardCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      for (let index = 0; index < 12; index += 1) {
+        await ctx.db.insert("folderRuleRuns", {
+          userId: "owner",
+          folderId,
+          status: index % 2 === 0 ? "running" : "undoing",
+          phase: "file",
+          filedCount: 0,
+          taggedCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          expiresAt: index,
+        });
+      }
+    });
+    await t.mutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {});
+    await runScheduled();
+    expect(
+      await t.run((ctx) => ctx.db.query("folderRuleRuns").collect())
+    ).toEqual([]);
+  });
+
   test("expired runs are cleaned up with their changes", async () => {
     const { t, insert, createFolder, runScheduled } = await setup();
     await insert({ aiTags: ["fonts"] });
@@ -551,6 +653,36 @@ describe("rule validation", () => {
 });
 
 describe("cleanup", () => {
+  test("deleting a card for good removes all its rule records, past one batch", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    const id = await insert({ isDeleted: true, deletedAt: 1 });
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 130; index += 1) {
+        const folderId = await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Old ${index}`,
+          nameKey: `old ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+        });
+        await ctx.db.insert("folderRuleApplications", {
+          userId: "owner",
+          cardId: id,
+          folderId,
+          filed: true,
+          tagKeys: [],
+        });
+      }
+    });
+    await owner.mutation(api.cards.permanentDeleteCard, { id });
+    await runScheduled();
+    expect(
+      await t.run((ctx) => ctx.db.query("folderRuleApplications").collect())
+    ).toEqual([]);
+  });
+
   test("deleting a folder or a card for good removes its rule records", async () => {
     const { t, owner, insert, createFolder, runScheduled } = await setup();
     const folder = await createFolder("Fonts", { autoTags: ["type"] });
