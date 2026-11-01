@@ -115,6 +115,14 @@ jobs:
             workflow: extension-release.yml
             apple: false
             title_prefix: ""
+          - name: Android
+            workflow: android-release.yml
+            apple: false
+            title_prefix: ""
+          - name: MCP Registry
+            workflow: mcp-registry-release.yml
+            apple: false
+            title_prefix: ""
           # The native Apple app replaced the Expo iPhone app and Teak for Mac
           # (off sale). Its Mac listing is released by hand until the first
           # Mac version is live: asc can't validate a Mac submission while

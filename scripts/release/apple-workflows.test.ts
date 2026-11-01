@@ -68,6 +68,8 @@ describe("Apple release workflows", () => {
       "sdk-release.yml",
       "cli-release.yml",
       "extension-release.yml",
+      "android-release.yml",
+      "mcp-registry-release.yml",
       "apple-release.yml",
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);

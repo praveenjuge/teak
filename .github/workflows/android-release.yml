@@ -1,0 +1,176 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  POSTHOG_CLI_VERSION: "0.18.10"
+  POSTHOG_CLI_HOST: https://us.posthog.com
+  # The upload certificate in apps/android/release.md; Play rejects any other.
+  UPLOAD_CERT_SHA256: "5C:3E:DD:C4:BE:80:5D:6F:F6:CC:7E:38:A2:92:6A:AD:9E:55:86:10:A3:5E:18:ED:F6:A3:B8:47:93:1D:1C:11"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version $version." >&2
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "$version"
+          {
+            echo "version=$version"
+            echo "version_code=$((major * 1000000 + minor * 1000 + patch))"
+            echo "tag=v$version"
+          } >> "$GITHUB_OUTPUT"
+
+      # Each tag builds once: the bundle on the release is the one whose
+      # mapping PostHog has, so a rerun must not replace it with a new build.
+      - name: Check if version already built
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          expected_asset="teak-android-${VERSION}.aab"
+          if gh release view "$TAG_NAME" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
+            echo "Release $TAG_NAME already has $expected_asset; skipping the Android build."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check release secrets
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
+          POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          POSTHOG_CLI_PROJECT_ID: ${{ secrets.POSTHOG_CLI_PROJECT_ID }}
+        run: |
+          missing=()
+          for name in ANDROID_UPLOAD_KEYSTORE_BASE64 ANDROID_UPLOAD_KEYSTORE_PASSWORD \
+            POSTHOG_PROJECT_TOKEN POSTHOG_CLI_API_KEY POSTHOG_CLI_PROJECT_ID; do
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing secrets: ${missing[*]}. See \"Automated build\" in apps/android/release.md." >&2
+            exit 1
+          fi
+
+      - name: Set up Java
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        if: steps.check.outputs.should_run == 'true'
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # A release build starts clean, so nothing from a cache reaches the bundle.
+          cache-disabled: true
+
+      - name: Install the Android 17 SDK and posthog-cli
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
+          npm install --global "@posthog/cli@${POSTHOG_CLI_VERSION}"
+
+      - name: Restore the upload key
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          keystore="$RUNNER_TEMP/teak-upload.jks"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          echo "TEAK_UPLOAD_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+
+      # The PostHog Gradle plugin uploads the R8 mapping as part of the
+      # release bundle, tagged with the map ID the bundle carries.
+      - name: Lint, unit tests and the signed release bundle
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: apps/android
+        env:
+          TEAK_UPLOAD_KEY_ALIAS: upload
+          TEAK_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          POSTHOG_ANDROID_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
+          POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          POSTHOG_CLI_PROJECT_ID: ${{ secrets.POSTHOG_CLI_PROJECT_ID }}
+        run: |
+          set -o pipefail
+          ./gradlew clean lint testDebugUnitTest :app:bundleRelease --console=plain | tee "$RUNNER_TEMP/gradle.log"
+          if ! grep -q '^> Task :app:uploadPostHogProguardMappingsRelease$' "$RUNNER_TEMP/gradle.log"; then
+            echo "The R8 mapping upload to PostHog didn't run." >&2
+            exit 1
+          fi
+
+      - name: Verify the bundle
+        id: bundle
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          bundle="apps/android/app/build/outputs/bundle/release/app-release.aab"
+          mapping="apps/android/app/build/outputs/mapping/release/mapping.txt"
+          jarsigner -verify "$bundle" > /dev/null
+          fingerprint="$(keytool -printcert -jarfile "$bundle" | awk '/SHA256:/ {print $2; exit}')"
+          if [ "$fingerprint" != "$UPLOAD_CERT_SHA256" ]; then
+            echo "The bundle is signed with $fingerprint, not the upload key." >&2
+            exit 1
+          fi
+          manifest="$(unzip -p "$bundle" base/manifest/AndroidManifest.xml | strings)"
+          if ! grep -q "$VERSION_CODE" <<< "$manifest"; then
+            echo "The bundle's manifest doesn't carry version code $VERSION_CODE." >&2
+            exit 1
+          fi
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          cp "$bundle" "$out/teak-android-${VERSION}.aab"
+          cp "$mapping" "$out/teak-android-${VERSION}-mapping.txt"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+          {
+            echo "- Android: teak-android-${VERSION}.aab, version code $VERSION_CODE, signed with the upload key"
+            echo "- PostHog: R8 mapping uploaded"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach the bundle and mapping to the GitHub release
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OUT: ${{ steps.bundle.outputs.dir }}
+        run: |
+          # Another release job may create the release at the same moment.
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --title "$VERSION" --verify-tag || true
+          fi
+          gh release upload "$TAG_NAME" "$OUT/teak-android-${VERSION}.aab" "$OUT/teak-android-${VERSION}-mapping.txt" --clobber
+
+      - name: Remove the upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/teak-upload.jks"

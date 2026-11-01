@@ -97,8 +97,24 @@ One-time setup (done 31 Oct 2026, first published as 1.0.91):
    `teakvault.com`, where the public key is
    `openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base64`.
 
-To publish a release (after the version tag exists, from the repository root,
-with `mcp-publisher` from the registry's releases):
+3. Store the key's 32-byte seed, as hex, in the repository secret
+   `MCP_PRIVATE_KEY`:
+
+   ```bash
+   openssl pkey -in key.pem -outform DER | tail -c 32 | xxd -p -c 64 | gh secret set MCP_PRIVATE_KEY -R praveenjuge/teak
+   ```
+
+Every version tag then publishes through
+`.github/workflows/mcp-registry-release.yml`, which `Version Tag` waits for
+like the other products. It checks that `server.json` carries the tag's
+version, skips a version the registry already lists, verifies the pinned
+`mcp-publisher` with cosign, logs in with `login dns --domain teakvault.com`,
+publishes, and confirms the version at
+`https://registry.modelcontextprotocol.io/v0/servers/com.teakvault%2Fmcp/versions/<version>`.
+A run without `MCP_PRIVATE_KEY` fails and names this section.
+
+To publish by hand instead, from the repository root with `mcp-publisher`
+from the registry's releases:
 
 ```bash
 PRIVATE_KEY="$(openssl pkey -in key.pem -outform DER | tail -c 32 | xxd -p -c 64)"
@@ -106,7 +122,5 @@ mcp-publisher login dns --domain teakvault.com --private-key "$PRIVATE_KEY"
 mcp-publisher publish
 ```
 
-Then confirm the version is listed:
-`curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=com.teakvault/mcp"`.
-The registry refuses a version it already has, so a retry after a successful
-publish needs the next release.
+The registry refuses a version it already has, so a missed version can only
+be skipped; the next release publishes the next one.
