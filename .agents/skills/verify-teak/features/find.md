@@ -5,6 +5,7 @@ A user finds cards again by typing in the search box, narrowing with qualifiers 
 ## Sub-features
 
 - `find-search` filters the grid live as you type, keeping the query in `?q=` (at most 500 characters: the box stops taking more, and the URL never cuts what you typed).
+- `find-word-match` lists a card that holds the typed word as a word match, not one "related by meaning", with or without qualifiers: `tag:recipes soup` and `is:fav soup` mark no soup card `matchedByMeaning`, though both also match by meaning.
 - `find-slash` focuses the search box with `/`, and on Tags the "Find a tag" box.
 - `find-qualifiers` turns `tag:`, `type:`, `is:`, `site:`, `folder:` and quoted phrases into chips, through the "Search suggestions" list or Enter.
 - `find-enter` turns a plain word into a keyword chip on Enter; color, style and time words become their own filters, kept in the URL (`?color=blue,ff5733&style=minimal&date=This+Week`) through a reload and Back; `fav`, `trash` and `archive` navigate.
@@ -33,6 +34,7 @@ Preconditions:
 Steps:
 
 - **Search.** `press` "/" (focus outside a field). The combobox is focused. `type` the marker. The URL gains `?q=` and the marked cards are listed. On the dev deployment related seeded cards can also appear by meaning; judge the step by the marked cards, not by an empty remainder.
+- **Word match with a qualifier.** `navigate` to `/?q=tag%3Arecipes%20soup` and wait about 10 s for the meaning matches. "Text: Recipe idea: roasted tomato soup…" and "Link: Tomato soup - Wikipedia" are listed. The grid doesn't show the mark, so read it from the page's Convex WebSocket frames (Playwright `page.on("websocket")`, `framereceived`): in the last `Transition` whose value has a `page` of cards, neither card has `matchedByMeaning: true`. Do the same for `is:fav soup` (only the recipe card) and `tag:design bauhaus` ("Link: Bauhaus - Wikipedia").
 - **No match.** `type` "tag:zzzz-no-match-<run-id>" with `replace: true`. The text "Nothing found matching your filters" and a button "Clear filters" appear. Use a `tag:` qualifier: a plain nonsense word still matches cards by meaning on the dev deployment (see Gotchas).
 - **Clear.** `tap` button "Clear all" (the X in the field). The query empties and the full grid returns.
 - **Keyword chip.** `type` the marker and `press` "Enter". The input empties and a chip button "Remove <marker>" appears (lowercased). Proof that it persists: `navigate` to the current URL; the chip is still there.
