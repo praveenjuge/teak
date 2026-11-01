@@ -98,7 +98,7 @@ export function SidebarFolders({
   const tc = useTranslations("common");
   const intlLocale = useIntlLocale();
   const errors = useServerErrors();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
   const folders = useFolders();
   const [dialog, setDialog] = useState<{
     focusQuery?: boolean;
@@ -215,7 +215,14 @@ export function SidebarFolders({
     await deleteNow(folder);
   };
 
-  const openCreate = () => setIsCreating(true);
+  const openCreate = () => {
+    // The collapsed rail has no room to type a name in.
+    if (state === "collapsed" && !isMobile) {
+      setDialog({ folder: null });
+      return;
+    }
+    setIsCreating(true);
+  };
 
   return (
     <SidebarGroup className="pt-3">
@@ -344,7 +351,7 @@ export function SidebarFolders({
                 </LinkComponent>
               </SidebarMenuButton>
               {!isSmart && folder.activeCardCount > 0 && (
-                <SidebarMenuBadge className="transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
+                <SidebarMenuBadge className="pointer-coarse:right-8 transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
                   {folder.activeCardCount}
                 </SidebarMenuBadge>
               )}

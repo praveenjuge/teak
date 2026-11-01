@@ -31,6 +31,7 @@ import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { VaultSetupState } from "@/components/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@/components/forms";
 import { AddCardEmptyState, AddCardForm } from "@/components/forms";
+import { AddCardButton } from "@/components/forms/AddCardActions";
 import { MasonryGrid, type MasonryGridHandle } from "@/components/grids";
 import { CardsSearchHeader } from "@/components/search";
 import { NoSearchResults } from "@/components/search/NoSearchResults";
@@ -918,6 +919,7 @@ export function CardsScreen({
   }
 
   const folderMissing = isFolderView && folder === null;
+  const isTrashView = view === "trash" && !isFolderView;
   const showsResultCount =
     !showVaultSetup &&
     (isSmartFolder || !hasNoSearchFilters) &&
@@ -933,9 +935,7 @@ export function CardsScreen({
         <CardsSearchHeader
           {...searchBarProps}
           density={density.density}
-          HeaderActions={
-            view === "trash" && !isFolderView ? <EmptyTrashButton /> : undefined
-          }
+          HeaderActions={isTrashView ? <EmptyTrashButton /> : <AddCardButton />}
           leading={headerLeading}
           lockedChips={
             folder && isSmartFolder ? (
@@ -971,9 +971,7 @@ export function CardsScreen({
         />
       ) : null}
 
-      {view === "trash" && !isFolderView && !showVaultSetup ? (
-        <TrashRetentionNote />
-      ) : null}
+      {isTrashView && !showVaultSetup ? <TrashRetentionNote /> : null}
 
       {showVaultSetup ? <VaultSetupState /> : null}
 
@@ -1008,6 +1006,8 @@ export function CardsScreen({
           ref={gridRef}
           resetKey={resetKey}
           showAddForm={
+            // Hidden during a search, so the results start at the top.
+            hasNoSearchFilters &&
             !(
               showTrashOnly ||
               showArchivedOnly ||

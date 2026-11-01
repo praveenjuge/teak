@@ -651,7 +651,11 @@ export function SearchBar({
               />
             </div>
           ) : null}
-          {HeaderActions}
+          {HeaderActions ? (
+            <div className={cn("contents", mobileOpen && "max-sm:hidden")}>
+              {HeaderActions}
+            </div>
+          ) : null}
         </>
       }
       leading={
@@ -787,7 +791,10 @@ export function SearchBar({
             </button>
           ) : (
             !focused && (
-              <Kbd aria-hidden="true" className="bg-background max-sm:hidden">
+              <Kbd
+                aria-hidden="true"
+                className="pointer-coarse:hidden bg-background max-sm:hidden"
+              >
                 /
               </Kbd>
             )

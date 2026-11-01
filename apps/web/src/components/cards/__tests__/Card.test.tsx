@@ -180,6 +180,31 @@ describe("Cards/Card", () => {
     expect(markup).toContain("Refresh details</div>");
   });
 
+  test("its menu leaves the key hints out on touch screens", async () => {
+    const { CardMenuEntries } = await import("../CardMenu");
+    const markup = renderToStaticMarkup(
+      <CardMenuEntries
+        entries={[
+          {
+            icon: () => null,
+            id: "favorite",
+            label: "Favorite",
+            onSelect: () => undefined,
+            shortcut: { keys: "F", label: "F" },
+          },
+        ]}
+        Item={({ children }) => <div>{children}</div>}
+        Separator={() => <hr />}
+        Shortcut={({ children, className }) => (
+          <kbd className={className}>{children}</kbd>
+        )}
+      />
+    );
+    expect(markup).toBe(
+      '<div>Favorite<kbd class="pointer-coarse:hidden">F</kbd></div>'
+    );
+  });
+
   test("in selection mode, its menu shows only keys that act on this card", () => {
     const markup = renderToStaticMarkup(
       <Card
@@ -707,6 +732,48 @@ describe("Cards/Card redesign", () => {
     expect(elsewhere).toContain("Add to folder…");
     expect(elsewhere).not.toContain("Remove from this folder");
     expect(elsewhere).not.toContain("Folders…");
+  });
+
+  test("keeps More on screen for touch, which can't hover, and leaves the rest to it", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={linkWithPreview() as any}
+        onEnterSelectionMode={() => undefined}
+      />
+    );
+    const button = (label: string) =>
+      markup.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0];
+    const toolbar = markup.match(
+      /<div class="([^"]*)">(?:(?!<div).)*aria-label="Open link"/
+    )?.[1];
+
+    expect(toolbar).toContain("pointer-coarse:opacity-100");
+    expect(toolbar).toContain("pointer-coarse:pointer-events-auto");
+    expect(button("More actions")).not.toContain("pointer-coarse:hidden");
+    expect(button("Open link")).toContain("pointer-coarse:hidden");
+    expect(button("Favorite")).toContain("pointer-coarse:hidden");
+    // Select is in the More menu on touch, as the hover circle never shows.
+    expect(button("Select")).not.toContain("pointer-coarse:opacity-100");
+  });
+
+  test("makes room on touch for More, and the heart beside it, over a note", () => {
+    const note = (isFavorited: boolean) =>
+      renderToStaticMarkup(
+        <Card
+          card={
+            {
+              ...createLinkCard(),
+              isFavorited,
+              type: "text",
+              url: undefined,
+              content: "Groceries",
+            } as any
+          }
+        />
+      );
+    expect(note(false)).toContain("pointer-coarse:pr-11");
+    expect(note(true)).toContain("pointer-coarse:pr-20");
+    expect(note(true)).toContain("pointer-coarse:right-11");
   });
 
   test("hides the hover actions while selecting cards", () => {

@@ -219,6 +219,14 @@ describe("AddCardForm", () => {
     );
   });
 
+  test("shows the N key hint only where there's a keyboard to press it", () => {
+    const markup = renderToStaticMarkup(<AddCardForm />);
+    const hint = markup.match(
+      /class="([^"]*group-focus-within\/composer:hidden[^"]*)"/
+    )?.[1];
+    expect(hint).toContain("pointer-coarse:hidden");
+  });
+
   test("renders with custom upgrade link component", () => {
     const UpgradeLink = ({ children, href, className }: any) =>
       React.createElement("a", { href, className }, children);

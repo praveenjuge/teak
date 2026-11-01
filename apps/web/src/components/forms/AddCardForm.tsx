@@ -552,7 +552,7 @@ export function AddCardForm({
       >
         {!hasContent && (
           <ShortcutKeys
-            className="pointer-events-none absolute top-3 right-3 group-focus-within/composer:hidden max-sm:hidden"
+            className="pointer-events-none absolute top-3 right-3 pointer-coarse:hidden group-focus-within/composer:hidden max-sm:hidden"
             keys={["N"]}
           />
         )}

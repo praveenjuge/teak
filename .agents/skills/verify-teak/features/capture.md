@@ -12,7 +12,9 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-draft` keeps the composer's unsaved note through a reload, per account, and Esc leaves the composer with the note kept.
 - `capture-paste-links` saves a pasted list of links, one per line, as one link card each, in the background.
 - `capture-focus` saves from the full-screen Focus editor.
-- `capture-new-menu` opens the sidebar "New" menu: "Note or link" (N), "Upload files" (U), "Record audio" (R).
+- `capture-new-menu` opens the sidebar "New" menu: "Note or link" (N), "Upload files" (U), "Record audio" (R) On phones (below 768 px) the same menu opens from the "+" button "New" at the right of the page header, since the sidebar is a closed drawer there; touch screens show no key letters in it.
+- `capture-narrow` keeps `U`, `R` and the palette's "Upload files" working at every width: they don't depend on the sidebar, so they work below 768 px with the drawer closed, and a recording started from the drawer's menu keeps going once the drawer closes.
+- `capture-composer-search` shows the composer only on Everything with no search or filter: a search's results start with the first match. `N` during a search goes to `/` and focuses the composer.
 - `capture-upload` uploads files as image, video, audio or document cards.
 - `capture-audio` records audio into an audio card; "Discard" or Esc throws a recording away.
 
@@ -21,7 +23,8 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - The composer, textbox "Markdown content", at the top of `/` (Everything only).
 - Press `N` anywhere to focus the composer. From another view it goes to `/?compose=1`; the library drops the `compose` param from the URL and focuses the composer.
 - The sidebar button "New" under the logo, styled like the view links below it (just its "+" in the collapsed rail).
-- Press `U` to open the file picker, `R` to record audio.
+- Press `U` to open the file picker, `R` to record audio, at any width.
+- On a phone, the "+" button "New" in the page header (after "Search" and "View"); hidden on Trash, where "Empty Trash" sits.
 - Command palette (Ctrl+K): "New note", "Upload files".
 
 ## Driving it with e2e MCP
@@ -46,6 +49,7 @@ Steps:
 - **Esc.** With text in the composer and no menu open, `press` "Escape": focus leaves the composer and the text stays; then `press` "x" or "/": no letter is typed into the note, and the shortcut runs. With the slash or `[[` menu open, Esc closes the menu first.
 - **Focus editor.** `type` into the composer, then `tap` button "Focus" (or `press` "Control+e"). A full-screen editor with its own textbox "Markdown content" opens. `press` "Control+Enter" to save; the card appears in the grid. Its word count (after a second's pause) counts `verify-capx-9` or `long-term` as one word.
 - **New menu.** `tap` button "New". The menu has items "Note or link", "Upload files" and "Record audio", showing N, U and R (each name also contains its shortcut letter, so match with `exact: false`). "Note or link" focuses the composer. `press` "r" with nothing focused: dialog "Recording audio" opens. The `?` sheet lists "Record audio" with R under "Anywhere".
+- **Phones and narrow windows.** At 740 × 900 (mouse), `press` "u" with nothing focused: the file chooser opens (Playwright `filechooser`); `press` "r": dialog "Recording audio"; "Discard". Ctrl+K, `type` "Upload files", `tap` the option "Upload files" (card results can rank first, so don't just press Enter): the file chooser opens. Emulate an iPhone (`devices['iPhone 13']`): the header has "Search", "View" and "New"; `tap` "New": "Note or link", "Upload files", "Record audio" with no key letters; "Record audio" opens the dialog. `navigate` to `/?q=design`: no textbox "Markdown content", and the first card sits right under "N cards match".
 - **Upload.** The picker's file input is created on demand, so the `e2e` `upload` tool finds no input. Drive the chooser over CDP instead (`apps/docs/content/docs/(open-source)/development.mdx`, "Cloud sessions in detail"). The toasts go "Uploading…" then "File uploaded" ("Uploaded <n> files" for several), and a button "Image: <name>" (or "Video:", "Audio:", "Document:") appears. The input's `accept` lists only the extensions and media types Teak saves (no `*/*`). Upload three good files with an empty `x-empty.txt` and a `.exe`: the toast reads "Uploaded 3 of 5 files. Empty file, nothing to save: x-empty.txt. Teak can't save this type of file: <name>.exe." and never server text like "fileSize must be a positive number"; more than three failed files of one kind read "a, b, c, and 2 more".
 - **Paste an image.** Copy an image, click into textbox "Markdown content" and paste. The toasts go "Uploading…" then "File uploaded", an "Image: <name>" card appears, and the composer stays empty. Headless, dispatch a `paste` `ClipboardEvent` whose `clipboardData` holds a `File` on the focused editor. Pasting with focus outside any text field uploads the same way.
 - **Record audio.** Needs Chromium launched with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. "Record audio" opens dialog "Recording audio". `tap` "Stop and Save"; the toast "Audio recording saved" appears and an "Audio:" card follows. Record again and `tap` "Discard" (or `press` "Escape"): the dialog closes, no toast appears and no card is added. A click outside the dialog while recording leaves it open.
