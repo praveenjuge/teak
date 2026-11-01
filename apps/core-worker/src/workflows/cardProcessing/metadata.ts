@@ -62,7 +62,6 @@ export const buildLinkContentParts = (
     url?: string;
   },
   siteSummary?: string,
-  /** A video's captions or a podcast's transcript, or the page's article. */
   bodyText?: string | { kind: "article"; text: string }
 ): string[] => {
   const preview =
@@ -154,9 +153,7 @@ const linkSiteSummary = async (
 };
 
 export interface MetadataResult {
-  /** The language of the saved tags and summary, when the model gave one. */
   aiLanguage?: string;
-  /** `AI_METADATA_PROMPT_VERSION` of the prompts that wrote them. */
   aiPromptVersion?: number;
   aiTagsCount: number;
   cardType?: string;
@@ -191,10 +188,6 @@ interface Generated {
   visualStyles?: string[];
 }
 
-/**
- * A video link's captions as its transcript (Vimeo), or undefined for any
- * other link and whenever the site has none or can't be reached.
- */
 const videoCaptions = async (
   job: CardJob,
   card: CardDoc
@@ -295,7 +288,6 @@ const generateForType = async (
       if (!card.content?.trim()) {
         return empty;
       }
-      // `[[Title|teak:<id>]]` links reach the model as their titles.
       const result = await generateTextMetadata(
         job,
         telemetry,

@@ -23,13 +23,6 @@ import { buildLinkContentParts } from "./metadata";
 import { downloadEpisodeToR2 } from "./podcastAudio";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
-// A podcast episode link's transcript: the episode's public audio is found
-// (og:audio, JSON-LD, Apple's lookup, the show's feed), streamed into a
-// temporary object, transcribed with Whisper, and deleted. The summary and
-// tags are then written from what is said (owner decision). It runs after
-// the card's processing completes and never fails the card: a miss logs its
-// reason.
-
 export type PodcastMissReason =
   | "ai_off"
   | "already_transcribed"
@@ -51,13 +44,11 @@ const miss = (reason: PodcastMissReason): PodcastOutcome => ({
   transcribed: false,
 });
 
-/** Whether processing should go on to transcribe this card's episode. */
 export const isPodcastLink = (
   cardType: string | undefined,
   category: string | undefined
 ): boolean => cardType === "link" && category === "podcast";
 
-/** The page's scraped tags and stored JSON-LD, read back when archived. */
 const pageData = async (job: CardJob, loaded: LoadedCard) => {
   const { card } = loaded;
   const hydrated = await hydrateArchivedMetadata(job.env, loaded.keyPrefix, {
@@ -82,7 +73,6 @@ const pageData = async (job: CardJob, loaded: LoadedCard) => {
   const linkCategory = hydrated.metadata.linkCategory as
     | { raw?: { structured?: unknown }; sourceUrl?: string }
     | undefined;
-  // JSON-LD stored for another URL describes another page.
   const structured =
     linkCategory?.sourceUrl === card.url
       ? linkCategory?.raw?.structured
@@ -94,7 +84,6 @@ const pageData = async (job: CardJob, loaded: LoadedCard) => {
   };
 };
 
-/** An episode whose audio was found and whose transcription slot is taken. */
 export interface PodcastEpisode {
   audioUrl: string;
 }
@@ -104,7 +93,6 @@ interface EligibleCard {
   url: string;
 }
 
-/** The card, when its episode can be transcribed now, or why it can't. */
 const loadEligibleCard = async (
   job: CardJob,
   options: { keepTranscript?: boolean }
@@ -242,7 +230,6 @@ export const transcribeFoundEpisode = async (
           );
           generated = result;
         } catch (error) {
-          // The transcript is kept; the summary from the page stays.
           console.warn("[cardProcessing/podcast] summary not regenerated", {
             cardId: job.cardId,
             message: error instanceof Error ? error.message : String(error),
@@ -289,11 +276,6 @@ export const transcribeFoundEpisode = async (
   }
 };
 
-/**
- * Finds and transcribes the episode in one pass. The AI backfills pass
- * `keepTranscript`, so an episode transcribed before isn't downloaded and
- * transcribed again.
- */
 export const transcribePodcastEpisode = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,

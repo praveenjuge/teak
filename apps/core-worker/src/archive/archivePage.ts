@@ -44,17 +44,14 @@ export type ArchivePageEnv = LinkPageEnv &
   };
 
 export interface ArchivePageDeps {
-  /** Cloudflare's DNS over HTTPS unless a test gives its own. */
   resolveDns?: DnsResolver;
 }
 
 const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
-/** Each subresource's own limit; the whole archive has a deadline too. */
 const SUBRESOURCE_TIMEOUT_MS = 15_000;
 /** Leaves the step's 5 minutes room to write and record the copy. */
 const ARCHIVE_DEADLINE_MS = 3 * 60 * 1000;
 
-/** The user part of a key, up to and including `/cards/`. */
 const cardsRoot = (key: string): string | null => {
   const index = key.indexOf("/cards/");
   return index > 0 ? key.slice(0, index + "/cards/".length) : null;
@@ -161,11 +158,6 @@ const failureFromPage = (
   }
 };
 
-/**
- * Fetchers for the inliner: stylesheets and fonts through one SSRF-checked
- * `/hop` per request (4 MiB each), images through the fetcher's `/fetch`,
- * which checks them too and reports their size.
- */
 export const createArchiveFetchers = (
   env: ArchivePageEnv,
   pageUrl: string,
@@ -203,8 +195,6 @@ export const createArchiveFetchers = (
         finalUrl,
       };
     } catch {
-      // A refused address (SsrfError), a timeout or a network error: the
-      // subresource is left out.
       return null;
     }
   };
@@ -323,7 +313,6 @@ export const runArchivePage = async (
   return {
     bytes: archive.bytes,
     kind: archive.kind,
-    // A snapshot names its page with `<base href>`.
     pageUrl: archive.baseUrl,
     source,
     storageKey: params.destinationKey,

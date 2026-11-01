@@ -169,7 +169,6 @@ describe("archive-page", () => {
   });
 
   test("an oversized snapshot falls back to the fetched page", async () => {
-    // Random bytes don't compress, so this valid gzip is over 20 MiB.
     const noise = new Uint8Array(20 * 1024 * 1024 + 1024);
     for (let offset = 0; offset < noise.length; offset += 65_536) {
       crypto.getRandomValues(noise.subarray(offset, offset + 65_536));

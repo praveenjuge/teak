@@ -88,7 +88,6 @@ const recordStage = (job: CardJob, screenshot: ProcessingStageStatus) =>
     guardOf(job)
   );
 
-/** Asks the renderer for the screenshot; a busy renderer is retried. */
 const render = async (
   job: CardJob,
   params: FilesCaptureScreenshotParams
@@ -134,7 +133,6 @@ const save = async (
   return { status: "captured" };
 };
 
-/** The key the screenshot is written to, registered to the card's owner. */
 const screenshotTarget = async (
   job: CardJob,
   userId: string
@@ -163,7 +161,6 @@ const capture = async (
   if (linkPreview?.status !== "success") {
     return { status: "skipped" };
   }
-  // A refresh takes it again: the page, or how it's captured, may have changed.
   if (linkPreview.screenshotStorageKey && attempt === 1 && !job.refresh) {
     return { status: "skipped" };
   }

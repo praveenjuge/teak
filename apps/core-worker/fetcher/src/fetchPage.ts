@@ -103,7 +103,6 @@ export type FetchPageOutcome =
       status?: number;
     };
 
-// The two types the request's accept header names.
 const HTML_TYPE_REGEX = /text\/html|application\/xhtml\+xml/i;
 
 const fail = (

@@ -368,7 +368,6 @@ describe("handleEmail: attachments", () => {
         v: 1,
       },
     ]);
-    // Finalizes are signed for their own route.
     expect(finalizes[0]?.headers.get("x-teak-signature")).toMatch(
       /^[0-9a-f]{64}$/
     );
@@ -409,7 +408,6 @@ describe("handleEmail: attachments", () => {
       if (request.method === "PUT") {
         const seen = (tries.get(request.url) ?? 0) + 1;
         tries.set(request.url, seen);
-        // Part 0 works on its third try; part 1 never does.
         const ok = request.url === uploadUrl(0) && seen === 3;
         return new Response(null, { status: ok ? 200 : 500 });
       }
@@ -493,7 +491,6 @@ describe("handleEmail: attachments", () => {
     await expect(handleEmail(message, TEST_ENV, net.deps)).rejects.toThrow(
       "attachments_incomplete"
     );
-    // Tried twice (one retry), as for a 5xx.
     expect(finalizes).toBe(2);
     expect(net.logs.at(-1)).toEqual({
       event: "inbound_email_attachments",

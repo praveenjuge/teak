@@ -5,11 +5,6 @@ import type { ConvexRpc } from "../convexRpc";
 export type AiGate = FunctionReturnType<typeof internal.adminAccess.getAiGate>;
 export type AiGateReader = (userId: string) => Promise<AiGate>;
 
-/**
- * How long an answer from `adminAccess:getAiGate` is reused. Pausing AI from
- * the admin console, or turning it off for one account, reaches every run
- * within this long.
- */
 export const AI_GATE_TTL_MS = 60_000;
 
 const AI_GATE_CACHE_NAME = "ai-gate";
@@ -28,7 +23,6 @@ interface GateAnswer {
 
 export type AiGateMemo = Map<string, GateAnswer>;
 
-/** Answers this isolate has read, shared by every run it serves. */
 const isolateMemo: AiGateMemo = new Map();
 
 const openEdgeCache = async (): Promise<Cache | null> => {

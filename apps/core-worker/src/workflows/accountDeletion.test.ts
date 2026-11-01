@@ -284,7 +284,6 @@ describe("runAccountDeletion", () => {
       runAccountDeletion(test.run, { convex: test.convex, ops })
     ).rejects.toThrow("deletion_object_write_pending");
 
-    // The busy first key doesn't stop the rest being frozen.
     expect([...frozenKeys]).toEqual(keys(2));
     expect(backend.failures).toEqual([
       {

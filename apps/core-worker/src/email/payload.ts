@@ -28,13 +28,11 @@ export interface InboundEmailPayload {
 
 const HIGH_SURROGATE_END_REGEX = /[\uD800-\uDBFF]$/u;
 
-/** The first `length` UTF-16 units, never ending inside a surrogate pair. */
 const prefix = (value: string, length: number): string => {
   const cut = value.slice(0, length);
   return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
 };
 
-// Without the two quotes around it.
 const jsonBytes = (value: string): number =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength - 2;
 
@@ -116,7 +114,6 @@ export const hmacSha256Hex = async (
   );
 };
 
-/** What the signature covers: route, time and the exact body. */
 export const signingString = (
   path: string,
   timestamp: string,

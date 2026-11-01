@@ -25,10 +25,6 @@ import { isValidUploadKey } from "../storage/upload";
 import { resolveHttpUrl } from "./css";
 import { createRewriter, htmlResponse } from "./html";
 
-/**
- * Re-encodes an article image as WebP, at most 1600 px wide; null leaves it
- * out. The Core Worker's IMAGES binding, or a stand-in in tests.
- */
 export type EncodeArticleImage = (image: {
   body: Uint8Array;
   contentType: string;
@@ -36,11 +32,9 @@ export type EncodeArticleImage = (image: {
 
 export interface ExtractArticleOptions {
   encodeImage?: EncodeArticleImage;
-  /** The longest Markdown kept; past it the article is cut and `truncated`. */
   maxMarkdownChars?: number;
 }
 
-/** The archive's images, before Readability picks the article's own. */
 const CANDIDATE_SCHEME = "teak-candidate:";
 /** The archive inlines at most 200 subresources; this is a safety net. */
 const MAX_CANDIDATES = 400;
@@ -77,12 +71,6 @@ interface SlimPage {
   tasks: TaskMarks;
 }
 
-/**
- * The archive without what Readability can't use: scripts, styles, media
- * and inline styles go, links become absolute, and each raster `data:` image
- * becomes `teak-candidate:<k>` so the DOM stays small. Other images go: the
- * archive's images are all inlined, so nothing is fetched again.
- */
 const slimArchive = async (
   html: string,
   pageUrl: string
@@ -159,7 +147,6 @@ const slimArchive = async (
           indexes.set(src, index);
           candidates.push(src);
         }
-        // The same image again is the same candidate, and so the same image.
         element.setAttribute("src", `${CANDIDATE_SCHEME}${index}`);
       },
     })
@@ -326,7 +313,6 @@ const createTurndown = () => {
   return service;
 };
 
-/** Cuts Markdown at the last block boundary that fits. */
 const truncateMarkdown = (
   markdown: string,
   maxChars: number
@@ -337,7 +323,6 @@ const truncateMarkdown = (
   const head = markdown.slice(0, maxChars);
   const boundary = head.lastIndexOf("\n\n");
   const cut = boundary > maxChars / 2 ? head.slice(0, boundary) : head;
-  // A cut inside a code fence leaves it open; close it.
   const fences = cut.match(/^\s*```/gmu)?.length ?? 0;
   return {
     markdown: `${cut.trimEnd()}${fences % 2 === 1 ? "\n```" : ""}`,
@@ -485,11 +470,6 @@ const moveStrandedIntoBody = (document: BodyDocument) => {
   }
 };
 
-/**
- * The article in a link's saved copy: Readability over the archive, then
- * Markdown with `teak-image:<n>` images. A page without enough text, or one
- * Readability doesn't think is readable and that is short, is `none`.
- */
 export const extractArticle = async (
   archiveHtml: string,
   pageUrl: string,
@@ -561,7 +541,6 @@ export const extractArticle = async (
   };
 };
 
-/** The IMAGES binding as an article image encoder: WebP, at most 1600 px. */
 export const imagesBindingEncoder = (
   images: ImagesBinding | undefined
 ): EncodeArticleImage | undefined =>
@@ -599,10 +578,6 @@ export const parseExtractArticleParams = (
   return { archiveKey, pageUrl };
 };
 
-/**
- * `extract-article`: reads the saved copy and returns its article. It
- * writes nothing; the workflow step stores what it returns.
- */
 export const runExtractArticle = async (
   env: { BUCKET: R2Bucket; IMAGES?: ImagesBinding },
   params: FilesExtractArticleParams,

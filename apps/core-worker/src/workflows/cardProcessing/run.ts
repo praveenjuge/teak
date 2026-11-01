@@ -628,14 +628,12 @@ const articleSteps = async (
       ? `${extracted.status}:${extracted.reason}`
       : extracted.status;
   }
-  // A short article adds little to the summary the page's details made.
   if (extracted.wordCount >= ARTICLE_SUMMARY_MIN_WORDS) {
     await summarizeArticleStep(job, step);
   }
   return "article";
 };
 
-/** "summarize article", logged; only a superseded run's error escapes. */
 const summarizeArticleStep = async (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"]

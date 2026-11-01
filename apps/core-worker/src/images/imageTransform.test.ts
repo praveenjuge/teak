@@ -223,7 +223,6 @@ describe("Cloudflare image transformations", () => {
       width: 300,
     });
 
-    // One pixel wide, this would be a strip ten million pixels tall.
     const started = performance.now();
     await expect(render(rect(0.001, 10_000))).rejects.toThrow(
       "svg_render_failed"

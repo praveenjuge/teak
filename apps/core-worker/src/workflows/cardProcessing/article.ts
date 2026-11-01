@@ -61,7 +61,6 @@ const markStage = (
     guardOf(job)
   );
 
-/** The stage failed for good: the step ran out of retries. */
 export const markArticleFailed = async (job: CardJob): Promise<null> => {
   const loaded = await loadCard(job);
   const status = loaded?.card.processingStatus?.article?.status;
@@ -89,7 +88,6 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   const { card } = loaded;
   const skip = articleSkipReason(card, { refresh: job.refresh });
   if (skip) {
-    // A link without a copy has no article to wait for.
     const stage = card.processingStatus?.article?.status;
     if (
       skip !== "already_extracted" &&

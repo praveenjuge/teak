@@ -95,7 +95,6 @@ const callsTo = (name: string) => calls.filter((call) => call.name === name);
 
 let instances = 0;
 
-/** Starts a run at revision 1 and waits for it to settle in `status`. */
 const process = async (status: "complete" | "errored") => {
   const worker = server.getWorker();
   await using workflow = await worker.introspectWorkflow("CARD_PROCESSING");

@@ -25,21 +25,12 @@ export const orderPinnedAddresses = (
     }))
     .sort((left, right) => left.family - right.family);
 
-/** One connection attempt: where to connect, and the origin it speaks for. */
 export interface PinnedAttempt {
-  /** The original host (with any non-default port), sent as `Host`. */
   host: string;
-  /** The original hostname, for TLS SNI and the certificate check. */
   serverName?: string;
-  /** The URL with its host replaced by the address to connect to. */
   target: string;
 }
 
-/**
- * The connections a request may make: one per validated address, IPv4 first.
- * A URL whose host is already an IP literal connects to that literal, which
- * the policy checked, and needs no SNI.
- */
 export const pinnedAttempts = (
   url: string,
   validatedAddresses: string[]
@@ -100,8 +91,6 @@ export const createPinnedFetch =
       const pinnedInit: BunPinnedInit = {
         ...init,
         headers,
-        // Every connection is new and closes after its response, as with
-        // the per-request Undici Agent this replaced.
         keepalive: false,
         // A proxy would resolve the name itself; never use one.
         proxy: false,

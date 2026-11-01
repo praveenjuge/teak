@@ -127,8 +127,6 @@ describe("exact object deletion fence", () => {
     const start = Date.now();
     setSystemTime(new Date(start));
     try {
-      // The web uploader retries the same signed URL after a dropped
-      // connection; Save by email counts a 409 as a refused upload.
       let attempts = 0;
       const t = fixture(() => {
         attempts += 1;
@@ -182,8 +180,6 @@ describe("exact object deletion fence", () => {
     }
   );
   test("parts of one upload go up side by side, and freeze waits for every one", async () => {
-    // The import uploader sends three 64 MiB parts at once; each is held open
-    // while its body streams into R2.
     const t = fixture();
     const pending: Array<() => void> = [];
     t.env.BUCKET.resumeMultipartUpload = () => ({
@@ -519,7 +515,6 @@ describe("gate calls while Cloudflare restarts the object", () => {
     message: string,
     flags: { overloaded?: boolean; retryable?: boolean }
   ) => Object.assign(new Error(message), flags);
-  // Each `get` is a new stub; the first `failures` calls throw `error`.
   const flakyGates = (failures: number, error: Error) => {
     let calls = 0;
     const namespace = {

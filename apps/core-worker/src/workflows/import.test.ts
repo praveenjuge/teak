@@ -450,7 +450,6 @@ interface Staged {
   parts: number;
 }
 
-/** A Convex fake for jobs that stage their items in R2. */
 const stagedBackend = (job: Record<string, unknown> = {}) => {
   const backend = importBackend({
     parsedCount: 0,
@@ -539,7 +538,6 @@ const stagedBackend = (job: Record<string, unknown> = {}) => {
   };
 };
 
-/** Answers the first call to `name` as lost, after Convex ran it. */
 const loseResponseOnce =
   (name: string) =>
   (fetcher: typeof fetch): typeof fetch => {
@@ -773,7 +771,6 @@ describe("runImport with items staged in R2", () => {
       type: "link",
       url: `https://example.com/${String(index === 120 ? 5 : index)}`,
     }));
-    // The earlier run recorded page 1 but never wrote its part.
     const test = setup(backend, archive(cards));
 
     expect(await runImport(test.run, { convex: test.convex })).toEqual({
@@ -938,7 +935,6 @@ describe("runImport with items staged in R2", () => {
           const entries = (spec.params.entries ?? []) as Array<{
             path: string;
           }>;
-          // The archive op extracts all of a batch or none of it.
           return spec.op === "extract-import-files" &&
             entries.some((entry) => entry.path === "files/bad.pdf")
             ? Promise.reject(
@@ -960,7 +956,6 @@ describe("runImport with items staged in R2", () => {
         sourceIndex: 1,
       },
     ]);
-    // People read the sentence; the Core Worker's code stays in the logs.
     expect(warn).toHaveBeenCalledWith(
       "[workflows/import] file extraction failed",
       {

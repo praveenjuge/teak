@@ -167,7 +167,6 @@ export const fetchLinkPage = async (
 ): Promise<FilesLinkPageResult> => {
   const cache = env.LINK_PAGE_CACHE;
   const key = cache ? await cacheKey(params) : "";
-  // A refresh must see the page as it is now, so it skips the kept copy.
   const cached = cache && !params.fresh ? await readCached(cache, key) : null;
   if (cached) {
     return cached;

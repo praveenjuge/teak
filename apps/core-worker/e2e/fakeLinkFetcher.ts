@@ -12,7 +12,6 @@ import {
 
 export const E2E_FORWARD_SEGMENT = "teak-e2e-forward";
 
-/** The local address a forwarded hop goes to, or null for any other hop. */
 export const e2eForwardTarget = (url: string): string | null => {
   let parsed: URL;
   try {

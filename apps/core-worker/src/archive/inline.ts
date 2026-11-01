@@ -31,25 +31,15 @@ import { buildTextOnlyDocument } from "./textOnly";
 
 const MIB = 1024 * 1024;
 
-/** The most a whole archive may weigh, in bytes of UTF-8. */
 export const PAGE_ARCHIVE_BUDGET_BYTES = 20 * MIB;
-/** Subresource requests per archive, across CSS, fonts and images. */
 export const PAGE_ARCHIVE_MAX_REQUESTS = 200;
-/** Fetched bytes per archive, across CSS, fonts and images. */
 export const PAGE_ARCHIVE_MAX_INPUT_BYTES = 60 * MIB;
-/** Stylesheets per archive, `@import`s included. */
 export const PAGE_ARCHIVE_MAX_STYLESHEETS = 40;
 /** The most one stylesheet or font may weigh (a fetcher hop's limit). */
 export const PAGE_ARCHIVE_MAX_TEXT_BYTES = 4 * MIB;
-/** Images wider than this are re-encoded to this width. */
 export const PAGE_ARCHIVE_IMAGE_WIDTH = 1600;
-/** Subresources fetched at once. */
 const FETCH_CONCURRENCY = 4;
 
-/**
- * The archive's own policy: nothing loads from the network and no script
- * runs, wherever the file is opened.
- */
 export const PAGE_ARCHIVE_CSP =
   "default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:; media-src 'none'";
 
@@ -68,21 +58,17 @@ export type PageArchiveSource = "extension" | "server";
 export interface FetchedAsset {
   body: Uint8Array;
   contentType: string;
-  /** Where the request ended up after redirects, when it moved. */
   finalUrl?: string;
   height?: number;
   width?: number;
 }
 
 export interface PageArchiveDeps {
-  /** An image (through the fetcher's `/fetch`) or a font (through `/hop`). */
   fetchAsset: (
     url: string,
     kind: "font" | "image"
   ) => Promise<FetchedAsset | null>;
-  /** A stylesheet's bytes, through `/hop`; at most 4 MiB. */
   fetchText: (url: string) => Promise<FetchedAsset | null>;
-  /** Re-encodes an image to `width` pixels wide WebP, or null to keep it. */
   images?: {
     resize: (
       asset: FetchedAsset,
@@ -94,7 +80,6 @@ export interface PageArchiveDeps {
 export interface BuildPageArchiveInput extends PageArchiveDeps {
   budgetBytes?: number;
   capturedAt: number;
-  /** Fetches still running at this time (epoch ms) are dropped. */
   deadline?: number;
   html: string;
   maxInputBytes?: number;
@@ -104,13 +89,10 @@ export interface BuildPageArchiveInput extends PageArchiveDeps {
 }
 
 export interface PageArchive {
-  /** The page's address: its `<base href>`, or `pageUrl`. */
   baseUrl: string;
   bytes: number;
-  /** Images and fonts left out to fit the budget or the input limits. */
   dropped: number;
   html: string;
-  /** Images and fonts carried inside the file. */
   inlined: number;
   kind: PageArchiveKind;
 }
@@ -140,7 +122,6 @@ const CHARSET_META =
 
 const stripCharsetMeta = (html: string) => html.replace(CHARSET_META, "");
 
-/** `<noscript>` content becomes ordinary markup, which the next pass sees. */
 const unwrapNoscript = (html: string) =>
   createRewriter()
     .on("noscript", {
@@ -151,7 +132,6 @@ const unwrapNoscript = (html: string) =>
     .transform(htmlResponse(html))
     .text();
 
-/** Elements an archive never carries, with their content. */
 const REMOVED_ELEMENTS = [
   "script",
   "iframe",
@@ -171,7 +151,6 @@ const REMOVED_ELEMENTS = [
   "meta[http-equiv]",
 ].join(", ");
 
-/** Attributes whose value can be a URL a browser acts on. */
 const URL_ATTRIBUTES = new Set([
   "action",
   "background",
@@ -188,7 +167,6 @@ const URL_ATTRIBUTES = new Set([
   "xlink:href",
 ]);
 
-/** Attributes that only ever load or report something. */
 const ALWAYS_REMOVED_ATTRIBUTES = new Set([
   "ping",
   "srcdoc",
@@ -301,14 +279,10 @@ interface CollectedPage {
    * an element around it is removed.
    */
   html: string;
-  /** Per numbered `<img>`: a URL to fetch, or null. */
   images: Array<string | null>;
   lang?: string;
-  /** Per numbered element: its `style` attribute. */
   styleAttributes: string[];
-  /** Per numbered `<style>`: its CSS. */
   styleBlocks: string[];
-  /** Absolute stylesheet URLs, in document order. */
   stylesheets: string[];
   title: string;
 }
@@ -452,7 +426,6 @@ const collectPage = async (
   return page;
 };
 
-/** Counts requests and bytes against the archive's input limits. */
 class InputBudget {
   private bytes = 0;
   private requests = 0;
@@ -518,34 +491,24 @@ const dataUri = (asset: FetchedAsset) =>
 interface InlineAsset {
   dataUri: string;
   kind: "font" | "image";
-  /** How many times the archive repeats it. */
   references: number;
 }
 
-/** A light box standing in for an image the archive left out. */
 const DROPPED_IMAGE =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1' preserveAspectRatio='none'%3E%3Crect width='1' height='1' fill='%23ececec'/%3E%3C/svg%3E";
 
 interface RenderPlan {
-  /** Asset URLs carried in the file. */
   kept: ReadonlySet<string>;
 }
 
 interface PageStylesheets {
-  /** Per numbered `<style>`. */
   blocks: string[];
-  /** Per stylesheet URL; empty when it couldn't be fetched. */
   linked: Map<string, string>;
 }
 
 const absolutizeCss = (css: string, base: string) =>
   rewriteCssUrls(selectFontSources(css), base, ({ url }) => url);
 
-/**
- * Fetches the page's stylesheets and resolves their `@import`s (and those of
- * its `<style>` blocks) one level deep, then makes every reference absolute
- * and keeps one source per font face.
- */
 const loadStylesheets = async (
   page: CollectedPage,
   budget: InputBudget,
@@ -610,7 +573,6 @@ const loadStylesheets = async (
  */
 interface FetchedSheet {
   css: string;
-  /** The URL it was served from, after redirects. */
   url: string;
 }
 
@@ -898,7 +860,6 @@ const countReferences = (
 const weightOf = (asset: InlineAsset) =>
   asset.dataUri.length * Math.max(1, asset.references);
 
-/** What leaving an asset out saves: its data URIs less their stand-ins. */
 const savingOf = (asset: InlineAsset) =>
   Math.max(
     0,
@@ -998,7 +959,6 @@ export const buildPageArchive = async (
     [...assets]
       .filter(([, asset]) => asset.kind === kind)
       .sort(([, left], [, right]) => weightOf(right) - weightOf(left));
-  // Images go first, largest first; fonts only when that isn't enough.
   const dropOrder = [...byWeight("image"), ...byWeight("font")];
   const kept = new Set(assets.keys());
   let estimate = wholeBytes;

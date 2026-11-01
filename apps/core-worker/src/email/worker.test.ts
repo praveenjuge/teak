@@ -5,10 +5,6 @@ import { hmacSha256Hex } from "../lib";
 import { fixture, messageOf } from "../test/emailSupport";
 import { FakeBucket, withObjectGates } from "../test/testsupport";
 
-// The Core Worker's email() entry point: which Convex deployment it posts to,
-// and that attachment uploads to its own origin are stored without leaving
-// the Worker.
-
 const FILES_ORIGIN = "https://files.teakvault.com";
 const FILES_SECRET = "test-files-secret";
 const KEY = "users/u1/cards/upload-pending/attachment";
@@ -18,7 +14,6 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-/** An upload URL signed the way Convex signs an attachment's. */
 const signedUploadUrl = async (): Promise<string> => {
   const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
   const signature = await hmacSha256Hex(
@@ -70,7 +65,6 @@ test("posts to the primary Convex deployment and stores attachments in-process",
     log.mockRestore();
   }
 
-  // Convex is reached over the network; the upload never is.
   expect(outbound).toEqual([
     "POST https://primary.convex.site/inbound/email",
     "POST https://primary.convex.site/inbound/email/attachments",

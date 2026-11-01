@@ -319,7 +319,6 @@ describe("handleAiBackfillBatch", () => {
     expect(card.aiTranscript).toBe("Today, leaves.");
     expect(requests).toEqual([audioUrl]);
 
-    // A later backfill of the same card doesn't fetch the episode again.
     await consume(card, answers, [message()], 1, extra);
     expect(requests).toEqual([audioUrl]);
   });

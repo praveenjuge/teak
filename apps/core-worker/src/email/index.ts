@@ -28,13 +28,11 @@ export const REJECT_UNREADABLE = "550 5.6.0 Message could not be read";
 /** Email Routing's own limit; anything larger never reaches a Worker. */
 export const MAX_MESSAGE_BYTES = 25 * 1024 * 1024;
 export const UPLOAD_RETRY_DELAYS_MS = [500, 1500];
-/** One PUT of an attachment (at most about 18 MB) to the Core Worker. */
 export const UPLOAD_TIMEOUT_MS = 60_000;
 export const UPLOAD_CONCURRENCY = 2;
 
 const AUTO_PRECEDENCE = new Set(["bulk", "junk", "list"]);
 
-/** Auto-replies, bounces and list traffic: never saved, never answered. */
 export const isAutomated = (message: InboundMessage): boolean => {
   const autoSubmitted = message.headers
     .get("auto-submitted")
@@ -92,7 +90,6 @@ const putWithRetries = async (
   return "upload_failed";
 };
 
-/** Outcomes a later delivery of the same email could still turn into cards. */
 const INCOMPLETE_OUTCOME_REGEX =
   /^(?:upload_failed|unreachable|status_(?:5\d\d|408|429))$/u;
 
@@ -228,7 +225,6 @@ export const handleEmail = async (
   }
 };
 
-/** The real dependencies around the Core Worker's own `fetch`. */
 export const emailDeps = (fetchImpl: Deps["fetch"]): Deps => ({
   fetch: fetchImpl,
   log: (entry) => console.log(JSON.stringify(entry)),

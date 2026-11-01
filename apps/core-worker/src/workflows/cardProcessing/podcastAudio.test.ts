@@ -9,9 +9,6 @@ import {
   episodeContentType,
 } from "./podcastAudio";
 
-// Episode audio streamed into a temporary R2 object: the size cap, the
-// content type, every redirect hop checked, and no partial object ever.
-
 const KEY = "users/user_1/card_1/podcast-audio/episode";
 const EPISODE = "https://audio.example.com/episode.mp3";
 const MiB = 1024 * 1024;
@@ -22,7 +19,6 @@ const audio = (
   status = 200
 ) => new Response(body, { headers, status });
 
-/** A body streamed in `chunks` pieces of `size` bytes, no Content-Length. */
 const streamed = (chunks: number, size: number) =>
   new ReadableStream<Uint8Array>({
     start(controller) {
@@ -127,7 +123,6 @@ describe("downloadEpisodeToR2", () => {
 
   test("uneven network reads still upload equal parts, as R2 requires", async () => {
     const bucket = new FakeBucket();
-    // About 20 MiB in reads of varying size, like a real connection's.
     const sizes = Array.from({ length: 90 }, (_, i) => 100_000 + i * 3001);
     const total = sizes.reduce((sum, size) => sum + size, 0);
     const { deps } = network(() =>
@@ -156,7 +151,6 @@ describe("downloadEpisodeToR2", () => {
       contentType: "audio/mpeg",
       stored: true,
     });
-    // Every read's bytes come back whole and in order.
     const expected = new Uint8Array(total);
     let offset = 0;
     sizes.forEach((size, i) => {

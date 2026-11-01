@@ -48,16 +48,11 @@ const NEW_SNAPSHOT_FUNCTIONS = [
   "dataExport:getExportCardsByIds",
 ];
 
-/**
- * A Convex deployment holding one export job over `cards` (newest first),
- * with both the step-state snapshot and the older `exportJobItems` one.
- */
 const exportBackend = (
   cards: FakeCard[],
   options: {
     cancelRequested?: boolean;
     folders?: Array<{ id: string; name: string }>;
-    /** Each card's highlights, read apart from the card as Convex does. */
     highlights?: Record<
       string,
       Array<{
@@ -127,7 +122,6 @@ const exportBackend = (
       };
     },
     "dataExport:getExportFolderNames": () => options.folders ?? [],
-    // One card a read, as when each card's highlights fill a query.
     "dataExport:getExportHighlights": ({ cardIds }) => {
       const [first] = cardIds as string[];
       const highlights = first ? options.highlights?.[first] : undefined;
@@ -168,7 +162,6 @@ const exportBackend = (
   return { cards, handlers, items, job, owned };
 };
 
-/** A Convex deployment from before the snapshot moved to step state. */
 const refuseNewSnapshot =
   (fetcher: typeof fetch): typeof fetch =>
   async (input, init) => {
@@ -376,8 +369,6 @@ describe("runExport", () => {
       note: "why",
     });
     expect(archive.cards[0]).not.toHaveProperty("hasHighlights");
-    // Only the highlighted cards are asked about, from where the last read
-    // stopped.
     expect(
       test
         .callsTo("dataExport:getExportHighlights")
@@ -421,8 +412,6 @@ describe("runExport", () => {
       card("c2"),
       card("c1"),
     ]);
-    // The run snapshotted c3, c2 and c1 before it was evicted. Since then c4
-    // was saved, c2 was edited and c1 was deleted.
     const c2 = backend.cards.find((entry) => entry._id === "c2") as FakeCard;
     c2.content = "edited after the snapshot";
     (backend.cards.find((entry) => entry._id === "c1") as FakeCard).isDeleted =

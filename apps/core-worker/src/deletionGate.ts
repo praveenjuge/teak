@@ -214,7 +214,6 @@ const openLeases = async (
   return true;
 };
 
-/** Writes that may run side by side, each with a lease of its own. */
 const isLeasedWrite = (op: GateWrite): op is "part" | "put" =>
   op === "part" || op === "put";
 

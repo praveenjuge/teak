@@ -49,7 +49,6 @@ const clefAnswer = (decision: null) => ({
   data: { decision, model: "@cf/cloudflare/clef", version: 1 },
 });
 
-/** A link's saved copy, written where the step asked. */
 const archivedPage = (params: Record<string, unknown>): OpAnswer => ({
   data: {
     bytes: 2048,
@@ -61,7 +60,6 @@ const archivedPage = (params: Record<string, unknown>): OpAnswer => ({
   },
 });
 
-/** A saved copy that isn't an article, unless a test says otherwise. */
 const NOT_AN_ARTICLE: OpAnswer = {
   data: { kind: "none", reason: "too_short", wordCount: 40 },
 };
@@ -79,7 +77,6 @@ const setup = (
   card: FakeCard | null,
   answers: Partial<Record<FilesOp, OpAnswer | (() => OpAnswer)>>,
   options: {
-    /** Podcast audio needs a bucket with multipart uploads. */
     bucket?: FakeBucket;
     deps?: Partial<CardProcessingDeps>;
     archiveOnly?: boolean;
@@ -265,8 +262,6 @@ describe("card processing", () => {
       "in_progress",
       "completed",
     ]);
-    // The metadata and the saved copy fetch the page; the screenshot is taken
-    // from that copy, so it keeps the page's styles.
     expect(ops.opsCalled().filter((op) => op === "fetch-link-page")).toEqual([
       "fetch-link-page",
       "fetch-link-page",
@@ -384,7 +379,6 @@ describe("card processing", () => {
       "store link preview image",
       "report complete",
     ]);
-    // No stage waits on it: the card was complete before it started.
     expect(
       Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
     ).not.toContain("in_progress");
@@ -636,7 +630,6 @@ describe("card processing", () => {
     expect(card.processingStatus?.categorize?.status).toBe("completed");
     expect(card.processingStatus?.metadata?.status).toBe("completed");
     expect(reported(convex)).toEqual(["complete"]);
-    // One fetch for the preview, one for structured data: no retries.
     expect(
       ops.opsCalled().filter((op) => op === "fetch-link-page")
     ).toHaveLength(2);
@@ -1176,7 +1169,6 @@ describe("archive page", () => {
   const ARCHIVED_AT = Date.UTC(2026, 9, 1);
   const SNAPSHOT_KEY = `users/x/cards/upload-pending-v2/page-snapshot/${"a".repeat(8)}`;
 
-  /** A link whose AI processing is done, so only the archive is left. */
   const processedLink = (fields: Partial<FakeCard> = {}) =>
     makeCard({
       content: "https://example.com/article",
@@ -1425,7 +1417,6 @@ describe("archive page", () => {
         .filter((delay) => delay.name === "archive page")
         .map((delay) => delay.delay)
     ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
-    // With no copy there is no article to wait for: its stage closes.
     expect(fakeStep.names().slice(-7)).toEqual([
       "archive page",
       "mark archive failed",
@@ -1465,8 +1456,6 @@ describe("archive page", () => {
       type: "link",
       url: "https://example.com/article",
     });
-    // Convex was unreachable for every attempt, so the step never marked
-    // the stage in progress.
     const outage = new Error(
       "convex_rpc_unavailable:card/processingRpc:getCardForProcessing:503"
     );
@@ -1519,7 +1508,6 @@ describe("article steps", () => {
   const CAPTURED_AT = Date.UTC(2026, 9, 1);
   const ARCHIVE_KEY = "users/x/cards/k/page-archive/r1-archive.html";
 
-  /** A link whose copy is saved, so only its article is left. */
   const archivedLink = (fields: Partial<FakeCard> = {}) =>
     makeCard({
       content: "https://example.com/article",
@@ -1621,7 +1609,6 @@ describe("article steps", () => {
       searchText: "Gardens\n\nPlant in spring. A rose",
       truncated: false,
     });
-    // Every object is registered to the account before it is written.
     const registered = convex
       .callsTo("storage/ownership:registerObject")
       .map((call) => call.args.key);
@@ -1633,7 +1620,6 @@ describe("article steps", () => {
     expect(bucket.puts[0]?.httpMetadata).toEqual({
       contentType: "image/webp",
     });
-    // The summary is written again from the article; the tags stay.
     expect(card.aiSummary).toBe("From the article");
     expect(card.aiTags).toEqual(["kept"]);
     const prompt = String(
@@ -1709,7 +1695,6 @@ describe("article steps", () => {
       "extract article",
       "report complete",
     ]);
-    // It reads the copy the run just saved.
     const extractCall = ops.calls.find((call) => call.op === "extract-article");
     expect(extractCall?.params.archiveKey).toEndWith(
       "/page-archive/r1-archive.html"
@@ -1806,7 +1791,6 @@ describe("article steps", () => {
       mode: "article_only",
     });
 
-    // An article older than the copy is taken again.
     const stale = archivedLink({
       article: { ...extracted, extractedAt: CAPTURED_AT - 1 },
     });
@@ -1844,7 +1828,6 @@ describe("article steps", () => {
     expect(refreshed.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
     expect(refreshed.article).toEqual(extracted);
 
-    // The extension sent the page again after the copy was taken.
     const resaved = archivedLink({
       article: extracted,
       hasHighlights: true,
@@ -1861,7 +1844,6 @@ describe("article steps", () => {
     expect(resave.ops.opsCalled()).toEqual([]);
     expect(resaved.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
 
-    // Without highlights, the same refresh takes both again.
     const plain = archivedLink({ article: extracted, processingRev: 2 });
     const unfrozen = setup(
       plain,

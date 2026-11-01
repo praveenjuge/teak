@@ -1,6 +1,3 @@
-// The one address everyone sends to: save@<domain>. Anything after a "+" is
-// ignored, and letter case never matters.
-
 export const DEFAULT_INBOUND_DOMAIN = "in.teakvault.com";
 
 const SAVE_ADDRESS_REGEX = /^save(?:\+[^@]*)?@([^@]+)$/i;

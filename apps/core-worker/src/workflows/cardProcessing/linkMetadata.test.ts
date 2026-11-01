@@ -789,8 +789,6 @@ describe("link page cache on refresh", () => {
   const titled = (title: string) =>
     `<html><head><meta property="og:title" content="${title}"></head></html>`;
 
-  // The real fetch-link-page op, its Container and a KV cache; the site's
-  // page changes between saves.
   const setupCached = () => {
     const site = { html: titled("Before the edit") };
     const requests: string[] = [];
@@ -862,13 +860,11 @@ describe("link page cache on refresh", () => {
     expect(await process(false)).toBe("Before the edit");
 
     site.html = titled("After the edit");
-    // An ordinary save within the day still reuses the kept page.
     expect(await process(false)).toBe("Before the edit");
     expect(network.requests).toHaveLength(1);
 
     expect(await process(true)).toBe("After the edit");
     expect(network.requests).toHaveLength(2);
-    // The fresh page replaced the kept one.
     expect(await process(false)).toBe("After the edit");
     expect(network.requests).toHaveLength(2);
   });

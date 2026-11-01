@@ -1,11 +1,8 @@
-/** Small HTML helpers the archive's passes share. */
-
 import { Parser } from "htmlparser2";
 
 const encoder = new TextEncoder();
 export const byteLength = (text: string) => encoder.encode(text).byteLength;
 
-/** `&`, quotes and angle brackets, for a value inside a quoted attribute. */
 export const escapeHtmlAttribute = (value: string): string =>
   value
     .replaceAll("&", "&amp;")

@@ -138,10 +138,6 @@ const readArchiveCards = async (
   return inputs;
 };
 
-/**
- * Adds their highlights to the cards that have some. Convex reads as many
- * cards' highlights as fit one query and says how far it got.
- */
 const readHighlights = async (
   convex: ConvexRpc,
   jobId: Id<"exportJobs">,

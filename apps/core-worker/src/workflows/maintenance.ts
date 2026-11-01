@@ -350,7 +350,6 @@ interface Page<T> {
   rows: T[];
 }
 
-/** Visits up to MAX_METRICS_PAGES pages; true when it reached the end. */
 const visitPages = async <T>(
   readPage: (cursor: string | null) => Promise<Page<T>>,
   visit: (rows: T[]) => void

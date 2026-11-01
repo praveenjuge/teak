@@ -281,7 +281,6 @@ const pages =
     };
   };
 
-/** A card as `admin:overviewCardsPage` returns it. */
 const card = (
   cardId: string,
   userId: string,
@@ -382,7 +381,6 @@ describe("admin snapshot", () => {
           [
             card("c1", "reader", dayStart + 3_600_000, { fileSize: 100 }),
             card("c2", "new", dayStart - 3 * DAY_MS),
-            // The snapshot leaves onboarding cards out.
             card("c3", "new", dayStart + 7_200_000, {
               fileSize: 5000,
               onboarding: true,
@@ -486,7 +484,6 @@ describe("admin snapshot", () => {
 
     await runMaintenance(test.run, { convex: test.convex });
 
-    // Every card is read once, through one page query, for all three rows.
     expect(
       test.calls
         .map((call) => call.name)

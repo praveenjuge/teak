@@ -205,8 +205,6 @@ describe("build-export op", () => {
       buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip")
     ).rejects.toThrow("multipart_part_2_failed");
 
-    // A transient read error on the retry drops the small file, which shifts
-    // every byte after it.
     bucket.failKeys.add("small.txt");
     const result = await buildExportIntoBucket(
       bucket,

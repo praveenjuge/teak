@@ -1,12 +1,6 @@
 import type { Attachment, Email } from "postal-mime";
 
-// Which parts of a message become their own file cards. Signatures, calendar
-// invites, Outlook's winmail.dat and small images the HTML shows inline (logos,
-// spacers) are left out; Convex then checks each file's format and size like
-// any upload.
-
 export const MAX_ATTACHMENTS = 50;
-/** An inline image the HTML references and smaller than this is decoration. */
 export const DECORATION_MAX_BYTES = 16 * 1024;
 
 const SKIPPED_TYPES = new Set([
@@ -19,7 +13,6 @@ const SKIPPED_TYPES = new Set([
 
 const SKIPPED_NAMES = new Set(["smime.p7s", "winmail.dat"]);
 
-/** Extensions for a part that has no file name of its own. */
 const EXTENSIONS: Record<string, string> = {
   "application/msword": "doc",
   "application/pdf": "pdf",

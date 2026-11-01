@@ -397,7 +397,6 @@ describe("edge rate limits", () => {
   test("refuses a streamed body before reading it", async () => {
     const { calls, fetcher } = upstream();
     let pulls = 0;
-    // A body that never ends, sent without a Content-Length.
     const body = new ReadableStream<Uint8Array>({
       pull(controller) {
         pulls += 1;
