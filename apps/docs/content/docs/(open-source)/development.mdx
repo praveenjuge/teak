@@ -186,7 +186,7 @@ Give the environment network access to Convex, WorkOS and Polar (and Playwright'
 
 <Visibility for="agents">
 
-### Cloud sessions in detail
+**Cloud sessions in detail**
 
 What runs in a Claude Code on the web session (and similar Linux VMs), what doesn't, and the fix for each. Last verified 2026-10-25 on a 4-vCPU, 16 GB VM with Chromium 153 in the image. The image, the proxy and the CLIs change under this section: to re-check it, start a fresh session on `main`, run `bun run doctor`, `bun run dev --detach` and sign in, `bun run dev --local --detach` and sign in, `bun test src/workflows/cardProcessing/engine.test.ts` in `apps/core-worker`, and `wrangler dev --local -c development/wrangler.jsonc` there until both Containers build. Update the date and fix what drifted in the same PR.
 

@@ -55,7 +55,7 @@ Every write a processing run makes carries the run's processing revision. Editin
 
 <Visibility for="agents">
 
-### Search by meaning in detail
+**Search by meaning in detail**
 
 **Model.** `@cf/google/embeddinggemma-300m` on Workers AI (a Beta model): 768 dimensions, cosine, up to 512 input tokens, so `truncateForEmbedding` cuts text to an estimated 480. The code adds the model's retrieval prompts itself (`task: search result | query: …` for queries, `title: none | text: …` for cards). The constants live in `packages/files-protocol/src/embeddings.ts`. It was chosen over bge-base-en-v1.5, bge-m3 and qwen3-embedding-0.6b on a 38-card, 33-query set with five non-English queries (Recall@5 0.977, MRR 0.965); the set is small, so treat small differences as noise. Changing the model changes the dimensions, which needs a new index and a re-embed of every card. Bump `CARD_EMBEDDING_VERSION` for any change to the model, the prompts or the text a card is embedded from.
 
