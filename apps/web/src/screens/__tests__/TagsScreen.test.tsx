@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
@@ -159,6 +159,60 @@ test("asks for the first snapshot when there is none", async () => {
   await render();
   expect(requestSummary).toHaveBeenCalledTimes(1);
   expect(document.querySelector('[aria-label="Loading tags"]')).not.toBeNull();
+});
+
+const errorText = () =>
+  document.querySelector('[role="alert"]')?.textContent ?? null;
+const advance = (ms: number) =>
+  act(async () => {
+    jest.advanceTimersByTime(ms);
+    await Promise.resolve();
+  });
+
+test("says the tags couldn't load once asking for them keeps failing, and Try again asks again", async () => {
+  jest.useFakeTimers();
+  try {
+    summary = null;
+    requestSummary.mockImplementation(() => Promise.reject(new Error("down")));
+    await render();
+    await advance(0);
+    expect(requestSummary).toHaveBeenCalledTimes(1);
+    expect(errorText()).toBeNull();
+
+    await advance(5000);
+    expect(requestSummary).toHaveBeenCalledTimes(2);
+    expect(errorText()).toBe("Couldn't load your tags.Try again");
+    expect(document.querySelector('[aria-label="Loading tags"]')).toBeNull();
+
+    // No more silent retries; Try again asks once more.
+    await advance(60_000);
+    expect(requestSummary).toHaveBeenCalledTimes(2);
+    const retry = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Try again"
+    );
+    await act(async () => retry?.click());
+    expect(requestSummary).toHaveBeenCalledTimes(3);
+  } finally {
+    requestSummary.mockImplementation(async () => null);
+    jest.useRealTimers();
+  }
+});
+
+test("a request that never brings the tags stops the skeleton too", async () => {
+  jest.useFakeTimers();
+  try {
+    summary = null;
+    await render();
+    await advance(45_000);
+    expect(requestSummary).toHaveBeenCalledTimes(1);
+    await advance(5000);
+    expect(requestSummary).toHaveBeenCalledTimes(2);
+    expect(errorText()).toBeNull();
+    await advance(45_000);
+    expect(errorText()).toBe("Couldn't load your tags.Try again");
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test("/ focuses the Find a tag box, like the library's search", async () => {

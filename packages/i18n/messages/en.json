@@ -523,7 +523,8 @@
       "tags": "Tags",
       "folder": "Folder"
     },
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "offline": "You're offline. Changes will save when you reconnect."
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "Folders",
       "newFolder": "New folder",
       "emptyHint": "Group related cards. Make a folder, then drag cards onto it.",
+      "loadFailed": "Couldn't load your folders.",
       "moreFor": "More for {name}",
       "renameItem": "Rename…",
       "editSearch": "Edit search…",
@@ -1015,7 +1017,6 @@
       "editLink": "Edit link…",
       "removeFromFolder": "Remove from this folder"
     },
-    "copyImageFailed": "Failed to copy image",
     "deleteForeverDialog": {
       "confirm": "Delete forever",
       "description": "This permanently deletes the card and its files. This can’t be undone.",
@@ -1154,6 +1155,7 @@
       "placeholder": "Write a note...",
       "upgradePlaceholder": "Upgrade to Pro to add more cards...",
       "saveFailed": "Failed to save note",
+      "savingOffline": "You're offline. This note will save when you reconnect.",
       "focus": "Focus",
       "resaved": "Already in Teak · Moved to the top",
       "resavedFromArchive": "Already in Teak · Moved back from Archive",
@@ -1180,7 +1182,7 @@
       "recordAudio": "Record audio",
       "savingRecording": "Saving audio recording...",
       "recordingSaved": "Audio recording saved",
-      "recordingSaveFailed": "Failed to save audio recording",
+      "recordingNotSaved": "Couldn't save the recording. Try again, or download it to keep it.",
       "microphoneUnsupported": "Microphone recording is not supported in this app.",
       "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
       "microphoneMissing": "No microphone was detected. Connect one and retry.",
@@ -1194,7 +1196,8 @@
       "recordingHint": "Speak naturally. Teak will save this as an audio card.",
       "recordingTitle": "Recording audio",
       "stopAndSave": "Stop and Save",
-      "discardRecording": "Discard"
+      "discardRecording": "Discard",
+      "downloadRecording": "Download"
     },
     "emptyState": {
       "title": "Let's add your first card!",
@@ -1625,6 +1628,7 @@
       "title": "Tags",
       "findTag": "Find a tag",
       "loading": "Loading tags",
+      "loadFailed": "Couldn't load your tags.",
       "noTags": "No tags yet",
       "noTagsDescription": "Tags you add to cards, and the ones Teak suggests, show up here.",
       "noMatches": "No tags match “{query}”.",

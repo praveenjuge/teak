@@ -523,7 +523,8 @@
       "tags": "Tags",
       "folder": "Pasta"
     },
-    "skipToContent": "Pular para o conteúdo"
+    "skipToContent": "Pular para o conteúdo",
+    "offline": "Você está offline. As alterações serão salvas quando você se reconectar."
   },
   "errors": {
     "folders": {
@@ -664,6 +665,7 @@
       "title": "Pastas",
       "newFolder": "Nova pasta",
       "emptyHint": "Agrupe cards relacionados. Crie uma pasta e arraste cards para ela.",
+      "loadFailed": "Não foi possível carregar suas pastas.",
       "moreFor": "Mais opções para {name}",
       "renameItem": "Renomear…",
       "editSearch": "Editar pesquisa…",
@@ -1015,7 +1017,6 @@
       "editLink": "Editar link…",
       "removeFromFolder": "Remover desta pasta"
     },
-    "copyImageFailed": "Não foi possível copiar a imagem",
     "deleteForeverDialog": {
       "confirm": "Excluir permanentemente",
       "description": "Isso exclui permanentemente o card e os arquivos dele. Isso não pode ser desfeito.",
@@ -1154,6 +1155,7 @@
       "placeholder": "Escreva uma nota...",
       "upgradePlaceholder": "Faça upgrade para o Pro para adicionar mais cards...",
       "saveFailed": "Não foi possível salvar a nota",
+      "savingOffline": "Você está offline. Esta nota será salva quando você se reconectar.",
       "focus": "Foco",
       "resaved": "Já está no Teak · Movido para o topo",
       "resavedFromArchive": "Já está no Teak · Tirado do Arquivo",
@@ -1180,7 +1182,7 @@
       "recordAudio": "Gravar áudio",
       "savingRecording": "Salvando a gravação de áudio...",
       "recordingSaved": "Gravação de áudio salva",
-      "recordingSaveFailed": "Não foi possível salvar a gravação de áudio",
+      "recordingNotSaved": "Não foi possível salvar a gravação. Tente de novo ou baixe-a para guardá-la.",
       "microphoneUnsupported": "Este app não permite gravar com o microfone.",
       "microphoneDenied": "A permissão do microfone foi negada. Permita o acesso e tente de novo.",
       "microphoneMissing": "Nenhum microfone foi detectado. Conecte um e tente de novo.",
@@ -1194,7 +1196,8 @@
       "recordingHint": "Fale naturalmente. O Teak vai salvar isto como um card de áudio.",
       "recordingTitle": "Gravando áudio",
       "stopAndSave": "Parar e salvar",
-      "discardRecording": "Descartar"
+      "discardRecording": "Descartar",
+      "downloadRecording": "Baixar"
     },
     "emptyState": {
       "title": "Vamos adicionar seu primeiro card!",
@@ -1625,6 +1628,7 @@
       "title": "Tags",
       "findTag": "Encontrar uma tag",
       "loading": "Carregando tags",
+      "loadFailed": "Não foi possível carregar suas tags.",
       "noTags": "Nenhuma tag ainda",
       "noTagsDescription": "As tags que você adiciona aos cards e as que o Teak sugere aparecem aqui.",
       "noMatches": "Nenhuma tag corresponde a “{query}”.",

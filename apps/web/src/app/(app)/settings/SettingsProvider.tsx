@@ -24,6 +24,7 @@ import {
   type LanguageSetting,
   useLanguageSetting,
 } from "@/hooks/useLanguageSetting";
+import { deleteAccountAndLeave } from "@/lib/accountDeletion";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { signOut } from "@/lib/sign-out-client";
@@ -117,11 +118,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const language = useLanguageSetting();
 
   const settings = useSettingsController({
-    onDeleteAccount: async () => {
-      await deleteMyAccount({});
-      toast.success(t("deletionRequested"));
-      await signOut();
-    },
+    onDeleteAccount: () =>
+      deleteAccountAndLeave({
+        deleteAccount: () => deleteMyAccount({}),
+        leave: () => window.location.assign("/sign-in"),
+        onDeleted: () => toast.success(t("deletionRequested")),
+        signOut,
+      }),
     onOpenExternal: (url) => {
       const safeUrl = sanitizeExternalUrl(url);
       if (!safeUrl) {

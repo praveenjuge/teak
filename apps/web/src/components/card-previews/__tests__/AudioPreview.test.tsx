@@ -1,10 +1,19 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const realConvexReact = await import("convex/react");
+const refreshMediaUrl = mock(() =>
+  Promise.resolve({ url: "https://files.teakvault.com/cards/memo-fresh.m4a" })
+);
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => refreshMediaUrl,
+}));
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
@@ -174,5 +183,49 @@ describe("AudioPreview playback progress", () => {
         .slice(0, 50)
         .every((bar) => bar.className.includes("bg-primary"))
     ).toBe(true);
+  });
+});
+
+describe("AudioPreview in a dialog left open", () => {
+  let openRoot: Root | undefined;
+  afterEach(async () => {
+    await act(() => openRoot?.unmount());
+    openRoot = undefined;
+    document.body.innerHTML = "";
+  });
+
+  test("asks for a fresh URL once before saying the recording can't play", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    openRoot = createRoot(container);
+    await act(() =>
+      openRoot?.render(
+        <AudioPreview
+          card={
+            createAudioCard({
+              fileKey: "cards/memo.m4a",
+              fileUrl: "https://files.teakvault.com/cards/memo.m4a",
+            }) as any
+          }
+        />
+      )
+    );
+    const audio = () => container.querySelector("audio") as HTMLAudioElement;
+    await act(async () => {
+      audio().dispatchEvent(new Event("error"));
+      await Promise.resolve();
+    });
+    expect(refreshMediaUrl).toHaveBeenCalledTimes(1);
+    expect(audio().getAttribute("src")).toBe(
+      "https://files.teakvault.com/cards/memo-fresh.m4a?teak_retry=1"
+    );
+    expect(container.querySelector('[role="status"]')).toBeNull();
+
+    await act(async () => {
+      audio().dispatchEvent(new Event("error"));
+      await Promise.resolve();
+    });
+    expect(refreshMediaUrl).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
   });
 });

@@ -11,7 +11,6 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { memo, useRef } from "react";
-import { toast } from "sonner";
 import {
   Archive,
   ArchiveRestore,
@@ -246,7 +245,7 @@ export const Card = memo(function Card({
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
-      void handleCopyImage();
+      handleCopyImage();
     }
   };
 
@@ -299,31 +298,25 @@ export const Card = memo(function Card({
     onAddTags?.(card._id);
   };
 
-  const handleCopyImage = async () => {
+  // Runs straight from the click or key press: the clipboard write has to
+  // start before any await (see copyCardContentToClipboard).
+  const handleCopyImage = () => {
     if (isOptimistic) {
       return;
     }
-    let contentToCopy = "";
-    let isImage = false;
     if (card.type === "image") {
-      isImage = true;
-      const fallbackUrl = card.fileUrl ?? card.thumbnailUrl ?? "";
-      try {
-        contentToCopy = await resolveImageCopyUrl({
-          cardId: card._id,
-          fallbackUrl,
-          fileKey: card.fileKey,
-          refresh: refreshCardMediaUrl,
-        });
-      } catch {
-        toast.error(t("copyImageFailed"));
-        return;
-      }
-    } else {
-      contentToCopy = cardCopyText(card);
+      const url = resolveImageCopyUrl({
+        cardId: card._id,
+        fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
+        fileKey: card.fileKey,
+        refresh: refreshCardMediaUrl,
+      });
+      onCopyImage?.(url, true);
+      return;
     }
-    if (contentToCopy) {
-      onCopyImage?.(contentToCopy, isImage);
+    const text = cardCopyText(card);
+    if (text) {
+      onCopyImage?.(text, false);
     }
   };
 
@@ -413,7 +406,7 @@ export const Card = memo(function Card({
             icon: Copy,
             id: "copy",
             label: copyMenuLabel,
-            onSelect: () => void handleCopyImage(),
+            onSelect: handleCopyImage,
             shortcut: shortcuts.copy,
           },
         ]

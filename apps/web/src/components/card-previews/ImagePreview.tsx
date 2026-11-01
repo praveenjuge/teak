@@ -1,5 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
+import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 
 type CardWithUrls = Doc<"cards"> & {
   detailUrl?: string;
@@ -37,18 +38,26 @@ export function ImagePreview({ card }: ImagePreviewProps) {
     imageWidth > 0 &&
     imageHeight / imageWidth >= TALL_IMAGE_RATIO;
 
+  const unavailable = (
+    <p className="text-muted-foreground text-sm">
+      {card.fileMetadata?.fileName || t("unavailable")}
+    </p>
+  );
   if (!fileUrl) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        {card.fileMetadata?.fileName || t("unavailable")}
-      </p>
-    );
+    return unavailable;
   }
+  // A dialog left open can outlive its signed URL; this asks for a new one.
+  const recovery = {
+    cardId: card._id,
+    fallback: unavailable,
+    storageKey: card.fileKey,
+  };
 
   if (isTallImage) {
     return (
       <div className="flex min-h-full w-full max-w-3xl items-start justify-center self-start">
-        <img
+        <ResilientMediaImage
+          {...recovery}
           alt={imageAlt}
           className="block h-auto w-full rounded-md object-contain shadow-sm"
           data-fit="width"
@@ -62,7 +71,8 @@ export function ImagePreview({ card }: ImagePreviewProps) {
 
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <img
+      <ResilientMediaImage
+        {...recovery}
         alt={imageAlt}
         className="block h-auto max-h-[60dvh] w-auto max-w-full rounded-md object-contain shadow-sm md:max-h-full"
         data-fit="contain"

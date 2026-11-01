@@ -42,7 +42,16 @@ export function useSelectAllCards(
  * "Delete forever" for the cards selected in Trash: asks first, naming how
  * many, then deletes them all.
  */
-export function useBulkDeleteForever(onConfirm: (cardIds: string[]) => void) {
+/**
+ * Asks before deleting the selected cards forever. When `onConfirm` reports
+ * cards it couldn't delete, `onFailed` gets them, to keep them selected.
+ */
+export function useBulkDeleteForever(
+  onConfirm: (
+    cardIds: string[]
+  ) => Promise<{ failedIds: readonly string[] }> | undefined,
+  onFailed: (...failedIds: string[]) => void
+) {
   const tDialog = useTranslations("cards.deleteForeverDialog");
   // Kept after closing, so the dialog's count holds while it fades out.
   const [cardIds, setCardIds] = useState<string[]>([]);
@@ -61,7 +70,13 @@ export function useBulkDeleteForever(onConfirm: (cardIds: string[]) => void) {
       description={tDialog("bulkDescription", { count: cardIds.length })}
       onConfirm={() => {
         setOpen(false);
-        onConfirm(cardIds);
+        onConfirm(cardIds)
+          ?.then(({ failedIds }) => {
+            if (failedIds.length > 0) {
+              onFailed(...failedIds);
+            }
+          })
+          .catch(() => undefined);
       }}
       onOpenChange={setOpen}
       open={open}

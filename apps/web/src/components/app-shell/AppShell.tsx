@@ -1,11 +1,13 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useRef } from "react";
+import { type ReactNode, useCallback } from "react";
 import { AddCardActions, AddCardProvider } from "@/components/forms";
 import { LibraryShortcuts } from "@/components/shortcuts";
 import { AppSidebar, SidebarFolders } from "@/components/sidebar";
+import { SidebarFoldersBoundary } from "@/components/sidebar/SidebarFoldersBoundary";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { useSignOut } from "@/hooks/useSignOut";
 import { folderIdForPath } from "@/lib/folders";
 import { focusNewNoteComposer } from "@/lib/keyboardShortcuts";
 import {
@@ -15,8 +17,8 @@ import {
   libraryViewHref,
 } from "@/lib/libraryViews";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
-import { signOut } from "@/lib/sign-out-client";
 import { IntentLink } from "./IntentLink";
+import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
 
 export function AppShell({
@@ -54,16 +56,10 @@ export function AppShell({
     [pathname, router]
   );
 
-  const signingOutRef = useRef<boolean>(false);
+  const { signOut } = useSignOut();
   const handleSignOut = useCallback(() => {
-    if (signingOutRef.current) {
-      return;
-    }
-    signingOutRef.current = true;
-    signOut().catch(() => {
-      signingOutRef.current = false;
-    });
-  }, []);
+    signOut().catch(() => undefined);
+  }, [signOut]);
 
   const handleUpgrade = useCallback(() => {
     router.push(SETTINGS_PLAN_HREF);
@@ -77,6 +73,7 @@ export function AppShell({
         upgradeUrl={SETTINGS_PLAN_HREF}
       >
         <SkipToContent />
+        <OfflineNotice />
         <LibraryShortcuts
           onGoToView={handleGoToView}
           onNavigate={handleNavigate}
@@ -87,11 +84,13 @@ export function AppShell({
           activeView={view}
           addActions={<AddCardActions variant="header" />}
           foldersSlot={
-            <SidebarFolders
-              activeFolderId={folderId}
-              LinkComponent={IntentLink}
-              onActiveFolderDeleted={() => router.push("/")}
-            />
+            <SidebarFoldersBoundary>
+              <SidebarFolders
+                activeFolderId={folderId}
+                LinkComponent={IntentLink}
+                onActiveFolderDeleted={() => router.push("/")}
+              />
+            </SidebarFoldersBoundary>
           }
           isSettingsActive={pathname.startsWith("/settings")}
           isTagsActive={pathname === "/tags"}

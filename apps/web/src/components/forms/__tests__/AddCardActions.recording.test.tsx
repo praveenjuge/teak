@@ -182,3 +182,37 @@ test("the R shortcut starts a recording, and waits while one is running", async 
   });
   expect(recorderStarts).toHaveBeenCalledTimes(1);
 });
+
+test("a recording that fails to save stays in the dialog, to save again or download", async () => {
+  uploadFile.mockImplementationOnce(() =>
+    Promise.resolve({ error: "Upload failed", success: false })
+  );
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Stop and Save").click());
+
+  const dialog = () => document.querySelector("[data-dialog]");
+  expect(dialog()).not.toBeNull();
+  expect(dialog()?.querySelector("p")?.textContent).toBe(
+    "Couldn't save the recording. Try again, or download it to keep it."
+  );
+
+  const createObjectURL = mock(() => "blob:recording");
+  const downloads: string[] = [];
+  Object.assign(URL, { createObjectURL, revokeObjectURL: mock() });
+  const realClick = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+    downloads.push(this.download);
+  };
+  try {
+    await act(async () => button("Download").click());
+  } finally {
+    HTMLAnchorElement.prototype.click = realClick;
+  }
+  expect(createObjectURL).toHaveBeenCalledTimes(1);
+  expect(downloads[0]).toMatch(/^recording_\d+\.webm$/);
+
+  await act(async () => button("Try again").click());
+  expect(uploadFile).toHaveBeenCalledTimes(2);
+  expect(dialog()).toBeNull();
+});

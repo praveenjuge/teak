@@ -2,6 +2,7 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
+import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import { Button } from "@/components/ui/button";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
@@ -33,7 +34,13 @@ export function formatAudioTime(seconds: number) {
 
 export function AudioPreview({ card }: AudioPreviewProps) {
   const t = useTranslations("cardPreviews.audio");
-  const fileUrl = card.fileUrl;
+  // A dialog left open can outlive its signed URL; this asks for a new one.
+  const media = useMediaUrlRecovery({
+    cardId: card._id,
+    src: card.fileUrl,
+    storageKey: card.fileKey,
+  });
+  const fileUrl = media.src;
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -165,8 +172,15 @@ export function AudioPreview({ card }: AudioPreviewProps) {
                 setCurrentTime(0);
               }}
               onError={() => {
-                setLoadFailed(true);
                 setIsPlaying(false);
+                media
+                  .onError()
+                  .then((retrying) => {
+                    if (!retrying) {
+                      setLoadFailed(true);
+                    }
+                  })
+                  .catch(() => setLoadFailed(true));
               }}
               onLoadedMetadata={syncDuration}
               onPause={() => setIsPlaying(false)}
