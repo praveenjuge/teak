@@ -3,7 +3,7 @@
   "name": "com.teakvault/mcp",
   "title": "Teak",
   "description": "Remote MCP server for saving, searching, syncing, and managing Teak cards.",
-  "version": "1.0.91",
+  "version": "1.0.92",
   "websiteUrl": "https://teakvault.com",
   "documentationUrl": "https://teakvault.com/docs/mcp",
   "remotes": [
