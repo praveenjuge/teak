@@ -43,7 +43,8 @@
       "version": "版本 {version}"
     },
     "header": {
-      "title": "设置"
+      "title": "设置",
+      "subpageTitle": "{page} · 设置"
     },
     "skeleton": {
       "loading": "正在加载设置…"
@@ -94,7 +95,18 @@
       "signOutTitle": "要退出登录 {name} 吗？",
       "signOutDescription": "于 {date} 登录的 {name} 会话将退出 Teak，需要重新登录。",
       "disconnectTitle": "要断开 {name} 吗？",
-      "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。"
+      "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。",
+      "deviceExtension": "Teak 浏览器扩展",
+      "deviceUnknown": "未知设备",
+      "deviceBrowser": "浏览器",
+      "deviceOn": "{os} 上的 {browser}",
+      "signedInLastActive": "登录于 {date} · 上次活动于 {active}",
+      "signOutOthers": "退出其他设备的登录",
+      "signOutOthersTitle": "要退出所有其他设备的登录吗？",
+      "signOutOthersDescription": "登录你账户的所有其他浏览器和设备都将退出 Teak，需要重新登录。此设备保持登录。",
+      "signOutOthersConfirm": "退出其他设备的登录",
+      "otherDevicesSignedOut": "{count, plural, =0 {没有其他已登录的设备。} other {已退出其他 # 台设备的登录。}}",
+      "otherDevicesRemaining": "{count, plural, other {已退出 # 台设备的登录。}}仍有设备处于登录状态，请一分钟后重试。"
     },
     "apiKeys": {
       "revokeAllTitle": "要吊销所有 API 密钥吗？",
@@ -124,7 +136,11 @@
       "copyFailed": "无法复制密钥。请手动选择并复制。",
       "createKey": "创建密钥",
       "loading": "正在加载 API 密钥…",
-      "revokeAll": "吊销所有密钥"
+      "revokeAll": "吊销所有密钥",
+      "nameLabel": "新密钥的名称（可选）",
+      "namePlaceholder": "例如：笔记本电脑上的 Raycast",
+      "empty": "还没有 API 密钥。创建一个即可使用 API、CLI、Raycast 或 MCP 客户端。",
+      "listLabel": "API 密钥"
     },
     "deleteAccount": {
       "title": "删除账户",
@@ -315,7 +331,8 @@
           "hint": "在 Teak 中通过“导出数据”生成的 ZIP 文件。"
         }
       },
-      "orDrop": "或拖放到这里"
+      "orDrop": "或拖放到这里",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "刚刚",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "标签",
       "folder": "文件夹"
-    }
+    },
+    "skipToContent": "跳到内容"
   },
   "errors": {
     "folders": {

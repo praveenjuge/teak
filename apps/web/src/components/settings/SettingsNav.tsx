@@ -9,8 +9,10 @@ import {
 } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 
+// Labels wrap rather than truncate: "Import & export" runs long in German,
+// French and the pseudo-locale.
 const NAV_LINK =
-  "flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>svg]:size-4 [&>svg]:shrink-0";
+  "flex min-h-8 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm leading-5 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring [&>svg]:size-4 [&>svg]:shrink-0";
 
 export function SettingsNav() {
   const t = useTranslations("settings.nav");
@@ -34,7 +36,7 @@ export function SettingsNav() {
                 href={href}
               >
                 <Icon />
-                <span className="truncate">{t(id)}</span>
+                <span className="min-w-0 break-words">{t(id)}</span>
               </Link>
             </li>
           );

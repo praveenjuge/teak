@@ -40,8 +40,8 @@ Every source keeps a link's original save date when the file has one. Folders be
 | Source | File to upload | What comes in |
 |---|---|---|
 | **Browser bookmarks** | The HTML file from your browser's export (`.html`) | Each bookmark becomes a link card with its name and tags. Bookmark folders become folders. |
-| **CSV file** | Any comma-separated CSV with a header row (`.csv`) | Each row becomes a link card. Teak reads the columns in [CSV columns](#csv-columns) and ignores the rest. Folder paths like `Work/Design` become one folder, **Work / Design**. |
-| **Text file of links** | A `.txt` file with one link per line, optionally followed by ` \| Title`. OneTab's **Export URLs** text works as it is. | Each link becomes a link card, with its title when the line has one. Blank lines and lines that aren't links are skipped. |
+| **CSV file** | Any CSV with a header row (`.csv`), separated by commas, semicolons or tabs | Each row becomes a link card. Teak reads the columns in [CSV columns](#csv-columns) and ignores the rest. Folder paths like `Work/Design` become one folder, **Work / Design**. |
+| **Text file of links** | A `.txt` file with one link per line, optionally followed by ` \| Title`. OneTab's **Export URLs** text works as it is. | Each link becomes a link card, with its title when the line has one. Blank lines are skipped; other lines that aren't links are listed in the import report with their line number. |
 | **Pocket** | The CSV from Pocket's export (`.csv`), or its older HTML export | Links with their titles and tags. Archived items go to Archive. |
 | **Raindrop.io** | The CSV from **Settings → Backups → Export** (`.csv`) | Links with titles, notes, tags, favorites, and saved dates. Collections become folders, and the `highlights` column becomes [highlights](/docs/features#highlights). |
 | **Instapaper** | The CSV from **Settings → Export** (`.csv`) | Links with titles, tags, and the highlighted text as a [highlight](/docs/features#highlights). **Archive** goes to Archive, **Starred** to Favorites, and your own folders become folders. |
@@ -73,7 +73,7 @@ url,title,tags,folder,note,created
 https://example.com,Example,"design, type",Work/Design,A note,2024-05-01
 ```
 
-Quote a cell that holds a comma or a line break. If two columns share a name, Teak reads the first. Rows without a link, or with a link that isn't `http` or `https`, are listed in the import report with their row number as a spreadsheet shows it (the header is row 1, and blank lines count). Teak reads comma-separated files only: export semicolon-separated spreadsheets as CSV with commas first.
+Quote a cell that holds a comma or a line break. If two columns share a name, Teak reads the first. Rows without a link, with a link that isn't `http` or `https`, or with a link that has spaces or no real host, are listed in the import report with their row number as a spreadsheet shows it (the header is row 1, and blank lines count). So is a row with a quote that never closes, or with text after a closing quote; the rows after it still import. Teak reads the separator from the header row: commas, or semicolons or tabs when the header has no comma, as many European spreadsheet apps export.
 
 :::note[Folders are no longer tags]
 Before October 2026, folders in bookmark and Raindrop files were added to each card as tags. They now become Teak folders instead, and keep their nesting in the folder name.
@@ -107,7 +107,7 @@ Teak shows how many items were created, skipped, and failed. If any items failed
     Teak says "This doesn't look like a … export" when the file doesn't match the source you picked. Check **Import from**, and that the file is the one the source's guidance names. A wrong file fails before any cards are created.
   </AccordionItem>
   <AccordionItem title="My CSV has no url column">
-    The first row of the file must name the columns, and one of them must be the link: `url`, `link`, `href`, `address` or `website`. Add that header row and import the file again. A file separated by semicolons reads as one column, so save it with commas.
+    The first row of the file must name the columns, and one of them must be the link: `url`, `link`, `href`, `address` or `website`. Add that header row and import the file again.
   </AccordionItem>
   <AccordionItem title="Some items were skipped">
     Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.

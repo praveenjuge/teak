@@ -53,6 +53,28 @@ export interface SettingsOverviewProps {
   signOutLoading: boolean;
 }
 
+/**
+ * An address that wraps only before its `@`, never at a hyphen or dot inside
+ * a part; a part wider than the screen ends in an ellipsis instead.
+ */
+export function EmailAddress({ email }: { email: string }) {
+  const at = email.lastIndexOf("@");
+  const parts = at > 0 ? [email.slice(0, at), email.slice(at)] : [email];
+  const part =
+    "inline-block max-w-full truncate whitespace-nowrap align-bottom";
+  return (
+    <span title={email}>
+      <span className={part}>{parts[0]}</span>
+      {parts[1] ? (
+        <>
+          <wbr />
+          <span className={part}>{parts[1]}</span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function ProfileSection({
   accountLoading,
   email,
@@ -69,14 +91,20 @@ function ProfileSection({
   let who: ReactNode = <SettingValueSkeleton className="mx-0 mt-1.5 w-56" />;
   if (!accountLoading) {
     who = (
-      <span className={`${LOADED} [overflow-wrap:anywhere]`}>
+      <span className={LOADED}>
         {displayName ? (
           <>
-            <span className="text-foreground">{displayName}</span>
+            <span className="text-foreground [overflow-wrap:anywhere]">
+              {displayName}
+            </span>
             {" · "}
           </>
         ) : null}
-        <span>{email ?? tContent("notAvailable")}</span>
+        {email ? (
+          <EmailAddress email={email} />
+        ) : (
+          <span>{tContent("notAvailable")}</span>
+        )}
       </span>
     );
   }
@@ -124,7 +152,7 @@ function SectionRow({
         <Icon className="size-[18px] shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1">
           <span className="block font-medium text-sm leading-5">{t(id)}</span>
-          <span className="block min-h-5 truncate text-[13px] text-muted-foreground leading-5">
+          <span className="block min-h-5 break-words text-[13px] text-muted-foreground leading-5">
             {summary ?? <SettingValueSkeleton className="mx-0 mt-1.5 w-28" />}
           </span>
         </span>

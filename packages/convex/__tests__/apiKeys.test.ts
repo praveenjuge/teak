@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
+  cleanApiKeyName,
   createUserApiKey,
   listUserApiKeys,
   revokeAllUserApiKeys,
@@ -439,5 +440,14 @@ describe("apiKeys", () => {
     expect(result).toBeNull();
     expect(ctx.runMutation).not.toHaveBeenCalled();
     expect(ctx.runQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("cleanApiKeyName", () => {
+  test("keeps a name on one line within 64 characters, else the default", () => {
+    expect(cleanApiKeyName("  Raycast \n laptop ")).toBe("Raycast laptop");
+    expect(cleanApiKeyName("😀".repeat(70))).toBe("😀".repeat(64));
+    expect(cleanApiKeyName("   ")).toBe("Default API key");
+    expect(cleanApiKeyName(undefined)).toBe("Default API key");
   });
 });

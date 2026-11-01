@@ -110,16 +110,65 @@ export function cleanHighlights(
   return kept.length ? kept : undefined;
 }
 
+const HOST_LABEL = /^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$/i;
+const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+
+/**
+ * Whether a parsed link's host can be a web address: an IP, `localhost`, or
+ * dotted DNS labels. `new URL` accepts hosts like `a..b` or a single word.
+ */
+export function isImportableHost(hostname: string): boolean {
+  if (
+    hostname === "localhost" ||
+    hostname.startsWith("[") ||
+    IPV4.test(hostname)
+  ) {
+    return true;
+  }
+  const labels = hostname.replace(/\.$/, "").split(".");
+  return labels.length >= 2 && labels.every((label) => HOST_LABEL.test(label));
+}
+
+/**
+ * Why a source's link can't become a card, or `undefined` when it can.
+ * `new URL` quietly drops line breaks and encodes spaces, so a cell that ran
+ * into the next row, or a sentence, would otherwise pass as a link.
+ */
+export function importLinkProblem(
+  source: string,
+  rawUrl: string
+): string | undefined {
+  if (!rawUrl) {
+    return `${source} item has no link`;
+  }
+  const unsafe = `${source} link is unsafe: only http and https links can be imported`;
+  const invalid = `${source} link isn't a valid web address`;
+  if (/\s/.test(rawUrl)) {
+    return /^[a-z][a-z0-9+.-]*:/i.test(rawUrl) && !/^https?:/i.test(rawUrl)
+      ? unsafe
+      : invalid;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return invalid;
+  }
+  if (!sanitizeExternalUrl(rawUrl)) {
+    return unsafe;
+  }
+  return isImportableHost(parsed.hostname) ? undefined : invalid;
+}
+
 export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
   const rawUrl = link.url.trim();
-  const url = sanitizeExternalUrl(rawUrl);
   const title = link.title?.replace(/\s+/g, " ").trim() ?? "";
-  if (!url) {
+  const problem = importLinkProblem(source, rawUrl);
+  const url = problem ? undefined : sanitizeExternalUrl(rawUrl);
+  if (problem || !url) {
     return {
       label: title || rawUrl || `${source} item`,
-      error: rawUrl
-        ? `${source} link is unsafe: only http and https links can be imported`
-        : `${source} item has no link`,
+      error: problem ?? `${source} item has no link`,
     };
   }
   const notes = link.notes?.trim().slice(0, MAX_NOTES_LENGTH);

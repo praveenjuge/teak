@@ -208,6 +208,7 @@ describe("owned WorkOS devices", () => {
         {
           id: "session_CURRENT",
           name: "Chrome on macOS",
+          agent: { kind: "browser", browser: "chrome", os: "macos" },
           current: true,
           signedInAt: Date.parse("2026-01-01T00:00:00.000Z"),
         },
@@ -219,10 +220,81 @@ describe("owned WorkOS devices", () => {
       paginationOpts: { cursor: "session_NEXT", numItems: 500 },
     });
     expect(next.page).toMatchObject([
-      { id: "session_OTHER", name: "Browser", current: false },
+      {
+        id: "session_OTHER",
+        name: "Browser",
+        agent: { kind: "browser" },
+        current: false,
+      },
     ]);
     expect(next.isDone).toBe(true);
     expect(calls[1].searchParams.get("limit")).toBe("100");
+  });
+  test("names devices in parts and says when a session was last active", async () => {
+    const f = await setup();
+    pages[""] = [
+      session("session_CURRENT", {
+        user_agent: "Teak Browser Extension/1.0",
+        updated_at: "2026-03-01T10:00:00.000Z",
+      }),
+      session("session_OTHER", {
+        user_agent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1",
+      }),
+      session("session_THIRD", { user_agent: null }),
+    ];
+    const { page } = await f.user.action(
+      api.securitySessions.listAuthkitSessions,
+      { paginationOpts }
+    );
+    expect(page).toMatchObject([
+      {
+        agent: { kind: "extension" },
+        lastActiveAt: Date.parse("2026-03-01T10:00:00.000Z"),
+        name: "Teak browser extension",
+      },
+      {
+        agent: { kind: "browser", browser: "safari", os: "ios" },
+        name: "Safari on iOS",
+      },
+      { agent: { kind: "unknown" }, name: "Unknown device" },
+    ]);
+    // An unchanged session has no separate last-active time.
+    expect(page[1]).not.toHaveProperty("lastActiveAt");
+  });
+  test("signs out every other live session and never this one", async () => {
+    const f = await setup();
+    pages[""] = [
+      session("session_CURRENT"),
+      session("session_OTHER"),
+      session("session_REVOKED", { status: "revoked" }),
+    ];
+    pages.session_NEXT = [session("session_LATER")];
+    expect(
+      await f.user.action(api.securitySessions.revokeOtherAuthkitSessions, {})
+    ).toEqual({ revokedCount: 2, hasMore: false });
+    expect(revoked).toEqual(["session_OTHER", "session_LATER"]);
+  });
+  test("signs out other sessions in batches within the request limit", async () => {
+    const f = await setup();
+    pages[""] = [
+      session("session_CURRENT"),
+      ...Array.from({ length: 25 }, (_, index) =>
+        session(`session_MANY${index}`)
+      ),
+    ];
+    expect(
+      await f.user.action(api.securitySessions.revokeOtherAuthkitSessions, {})
+    ).toEqual({ revokedCount: 20, hasMore: true });
+    expect(revoked).not.toContain(claims.sid);
+    expect(calls.length).toBeLessThanOrEqual(deviceRequests);
+  });
+  test("denies signing out other devices without a valid session", async () => {
+    const f = await setup({ email_verified: false });
+    await expect(
+      f.user.action(api.securitySessions.revokeOtherAuthkitSessions, {})
+    ).rejects.toThrow("sign in");
+    expect(calls).toEqual([]);
   });
   test("proves target ownership on a later page before provider revoke", async () => {
     const f = await setup();

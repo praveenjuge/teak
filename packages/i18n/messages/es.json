@@ -43,7 +43,8 @@
       "version": "Versión {version}"
     },
     "header": {
-      "title": "Ajustes"
+      "title": "Ajustes",
+      "subpageTitle": "{page} · Ajustes"
     },
     "skeleton": {
       "loading": "Cargando ajustes…"
@@ -94,7 +95,18 @@
       "signOutTitle": "¿Cerrar sesión en {name}?",
       "signOutDescription": "Se cerrará la sesión de Teak de {name}, iniciada el {date}, y tendrá que volver a iniciarse.",
       "disconnectTitle": "¿Desconectar {name}?",
-      "disconnectDescription": "{name} perderá el acceso a su biblioteca de Teak en todas sus instalaciones hasta que vuelva a conectarla."
+      "disconnectDescription": "{name} perderá el acceso a su biblioteca de Teak en todas sus instalaciones hasta que vuelva a conectarla.",
+      "deviceExtension": "Extensión de navegador de Teak",
+      "deviceUnknown": "Dispositivo desconocido",
+      "deviceBrowser": "Navegador",
+      "deviceOn": "{browser} en {os}",
+      "signedInLastActive": "Sesión iniciada el {date} · Última actividad: {active}",
+      "signOutOthers": "Cerrar sesión en otros dispositivos",
+      "signOutOthersTitle": "¿Cerrar sesión en todos los demás dispositivos?",
+      "signOutOthersDescription": "Se cerrará la sesión de Teak en todos los demás navegadores y dispositivos de su cuenta, y tendrán que volver a iniciarla. Este dispositivo seguirá con la sesión iniciada.",
+      "signOutOthersConfirm": "Cerrar sesión en otros dispositivos",
+      "otherDevicesSignedOut": "{count, plural, =0 {No había otros dispositivos con la sesión iniciada.} one {Se cerró la sesión en # dispositivo más.} other {Se cerró la sesión en # dispositivos más.}}",
+      "otherDevicesRemaining": "{count, plural, one {Se cerró la sesión en # dispositivo.} other {Se cerró la sesión en # dispositivos.}} Algunos siguen con la sesión iniciada; vuelva a intentarlo en un minuto."
     },
     "apiKeys": {
       "revokeAllTitle": "¿Revocar todas las claves de API?",
@@ -124,7 +136,11 @@
       "copyFailed": "No se pudo copiar la clave. Selecciónela y cópiela manualmente.",
       "createKey": "Crear clave",
       "loading": "Cargando claves de API…",
-      "revokeAll": "Revocar todas las claves"
+      "revokeAll": "Revocar todas las claves",
+      "nameLabel": "Nombre de una clave nueva (opcional)",
+      "namePlaceholder": "Por ejemplo, Raycast en mi portátil",
+      "empty": "Aún no hay claves de API. Cree una para usar la API, la CLI, Raycast o un cliente MCP.",
+      "listLabel": "Claves de API"
     },
     "deleteAccount": {
       "title": "Eliminar cuenta",
@@ -315,7 +331,8 @@
           "hint": "Un ZIP de Exportar sus datos en Teak."
         }
       },
-      "orDrop": "o suéltelo aquí"
+      "orDrop": "o suéltelo aquí",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "justo ahora",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Etiquetas",
       "folder": "Carpeta"
-    }
+    },
+    "skipToContent": "Saltar al contenido"
   },
   "errors": {
     "folders": {

@@ -129,12 +129,20 @@ export const settingsTabsContentClassName =
 export function SettingsList({
   children,
   className,
+  label,
 }: {
   children: ReactNode;
   className?: string;
+  /** The list's accessible name, read before its items. */
+  label?: string;
 }) {
   return (
-    <ul className={cn("divide-y rounded-xl border", className)}>{children}</ul>
+    <ul
+      aria-label={label}
+      className={cn("divide-y rounded-xl border", className)}
+    >
+      {children}
+    </ul>
   );
 }
 

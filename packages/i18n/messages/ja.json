@@ -43,7 +43,8 @@
       "version": "バージョン {version}"
     },
     "header": {
-      "title": "設定"
+      "title": "設定",
+      "subpageTitle": "{page} · 設定"
     },
     "skeleton": {
       "loading": "設定を読み込み中…"
@@ -94,7 +95,18 @@
       "signOutTitle": "{name} をサインアウトしますか？",
       "signOutDescription": "{date} にサインインした {name} のセッションは Teak からサインアウトされ、もう一度サインインが必要になります。",
       "disconnectTitle": "{name} の接続を解除しますか？",
-      "disconnectDescription": "もう一度接続するまで、{name} はすべてのインストール先で Teak ライブラリにアクセスできなくなります。"
+      "disconnectDescription": "もう一度接続するまで、{name} はすべてのインストール先で Teak ライブラリにアクセスできなくなります。",
+      "deviceExtension": "Teak ブラウザ拡張機能",
+      "deviceUnknown": "不明なデバイス",
+      "deviceBrowser": "ブラウザ",
+      "deviceOn": "{os} の {browser}",
+      "signedInLastActive": "{date} にサインイン · 最終アクティブ {active}",
+      "signOutOthers": "ほかのデバイスをサインアウト",
+      "signOutOthersTitle": "ほかのすべてのデバイスをサインアウトしますか？",
+      "signOutOthersDescription": "アカウントにサインインしているほかのすべてのブラウザとデバイスは Teak からサインアウトされ、もう一度サインインが必要になります。このデバイスはサインインしたままです。",
+      "signOutOthersConfirm": "ほかのデバイスをサインアウト",
+      "otherDevicesSignedOut": "{count, plural, =0 {サインインしているほかのデバイスはありませんでした。} other {ほかの # 台のデバイスをサインアウトしました。}}",
+      "otherDevicesRemaining": "{count, plural, other {# 台のデバイスをサインアウトしました。}}まだサインインしているデバイスがあります。1 分後にもう一度お試しください。"
     },
     "apiKeys": {
       "revokeAllTitle": "すべての API キーを無効にしますか？",
@@ -124,7 +136,11 @@
       "copyFailed": "キーをコピーできませんでした。選択して手動でコピーしてください。",
       "createKey": "キーを作成",
       "loading": "API キーを読み込み中…",
-      "revokeAll": "すべてのキーを無効化"
+      "revokeAll": "すべてのキーを無効化",
+      "nameLabel": "新しいキーの名前（任意）",
+      "namePlaceholder": "例：ノートパソコンの Raycast",
+      "empty": "API キーはまだありません。API、CLI、Raycast、MCP クライアントを使うにはキーを作成してください。",
+      "listLabel": "API キー"
     },
     "deleteAccount": {
       "title": "アカウントを削除",
@@ -315,7 +331,8 @@
           "hint": "Teak の「データをエクスポート」で書き出した ZIP。"
         }
       },
-      "orDrop": "またはここにドロップ"
+      "orDrop": "またはここにドロップ",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "たった今",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "タグ",
       "folder": "フォルダ"
-    }
+    },
+    "skipToContent": "コンテンツへスキップ"
   },
   "errors": {
     "folders": {

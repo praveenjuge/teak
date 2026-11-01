@@ -56,6 +56,17 @@ export function useSettingsController({
   const revokeAuthkitSession = useAction(
     api.securitySessions.revokeAuthkitSession
   );
+  const revokeOtherAuthkitSessions = useAction(
+    api.securitySessions.revokeOtherAuthkitSessions
+  );
+  // Never signs out this device: the server skips the calling session.
+  const handleRevokeOtherSessions = async () => {
+    const result = await revokeOtherAuthkitSessions({});
+    if (devices.isCurrentIdentity()) {
+      await devices.refreshSessions();
+    }
+    return result;
+  };
   const handleRevokeSession = async (sessionId: string, current: boolean) => {
     await revokeAuthkitSession({ sessionId });
     if (!devices.isCurrentIdentity()) {
@@ -149,8 +160,8 @@ export function useSettingsController({
     await (onDownloadFile ?? onOpenExternal)(result.url);
   };
 
-  const handleCreateApiKey = async () =>
-    (await createKey({ name: "Default API key" })) as {
+  const handleCreateApiKey = async (name?: string) =>
+    (await createKey({ name: name?.trim() || "Default API key" })) as {
       id: string;
       key: string;
     };
@@ -245,6 +256,7 @@ export function useSettingsController({
     keys,
     connectionIdentity,
     ...devices,
+    handleRevokeOtherSessions,
     handleRevokeSession,
     setDeleteDialogOpen,
     setDeleteError,

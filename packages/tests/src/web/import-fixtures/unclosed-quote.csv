@@ -1,0 +1,5 @@
+url,title
+"https://example.com/unclosed/a,Broken row
+https://example.com/unclosed/b,After one
+https://example.com/unclosed/c,After two
+https://example.com/has space,Space in link

@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Settings"
+      "title": "Settings",
+      "subpageTitle": "{page} · Settings"
     },
     "skeleton": {
       "loading": "Loading settings…"
@@ -94,7 +95,18 @@
       "signOutTitle": "Sign out {name}?",
       "signOutDescription": "The {name} session that signed in {date} is signed out of Teak and needs to sign in again.",
       "disconnectTitle": "Disconnect {name}?",
-      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again."
+      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again.",
+      "deviceExtension": "Teak browser extension",
+      "deviceUnknown": "Unknown device",
+      "deviceBrowser": "Browser",
+      "deviceOn": "{browser} on {os}",
+      "signedInLastActive": "Signed in {date} · Last active {active}",
+      "signOutOthers": "Sign out other devices",
+      "signOutOthersTitle": "Sign out all other devices?",
+      "signOutOthersDescription": "Every other browser and device signed in to your account is signed out of Teak and needs to sign in again. This device stays signed in.",
+      "signOutOthersConfirm": "Sign out other devices",
+      "otherDevicesSignedOut": "{count, plural, =0 {No other devices were signed in.} one {Signed out # other device.} other {Signed out # other devices.}}",
+      "otherDevicesRemaining": "{count, plural, one {Signed out # device.} other {Signed out # devices.}} Some are still signed in; try again in a minute."
     },
     "apiKeys": {
       "revokeAllTitle": "Revoke all API keys?",
@@ -124,7 +136,11 @@
       "copyFailed": "Could not copy the key. Select and copy it manually.",
       "createKey": "Create key",
       "loading": "Loading API keys…",
-      "revokeAll": "Revoke all keys"
+      "revokeAll": "Revoke all keys",
+      "nameLabel": "Name for a new key (optional)",
+      "namePlaceholder": "For example, Raycast on my laptop",
+      "empty": "No API keys yet. Create one to use the API, the CLI, Raycast or an MCP client.",
+      "listLabel": "API keys"
     },
     "deleteAccount": {
       "title": "Delete account",
@@ -315,7 +331,8 @@
           "hint": "A ZIP from Export your data in Teak."
         }
       },
-      "orDrop": "or drop it here"
+      "orDrop": "or drop it here",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "just now",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Folder"
-    }
+    },
+    "skipToContent": "Skip to content"
   },
   "errors": {
     "folders": {

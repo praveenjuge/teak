@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parseCsvRows, readCsvTable } from "../../import/csv";
+import {
+  detectCsvDelimiter,
+  parseCsvRecords,
+  parseCsvRows,
+  readCsvTable,
+} from "../../import/csv";
 import {
   cleanTags,
   folderPath,
@@ -39,6 +44,63 @@ describe("shared CSV reader", () => {
       expect(parseCsvRows(input)).toEqual(rows);
     });
   }
+
+  test("a quote only opens a quoted cell at the start of the cell", () => {
+    expect(parseCsvRows('a,5" screen,b\n1,2,3')).toEqual([
+      ["a", '5" screen', "b"],
+      ["1", "2", "3"],
+    ]);
+  });
+
+  test("an unclosed quote ends with its line, and the row is flagged", () => {
+    const records = parseCsvRecords(
+      'url,title\n"https://e.test/a,title\nhttps://e.test/b,B\nhttps://e.test/c,C'
+    );
+    expect(records.rows).toEqual([
+      ["url", "title"],
+      ["https://e.test/a,title"],
+      ["https://e.test/b", "B"],
+      ["https://e.test/c", "C"],
+    ]);
+    expect(records.numbers).toEqual([1, 2, 3, 4]);
+    expect([...records.problems]).toEqual([[1, "unclosed_quote"]]);
+  });
+
+  test("a closed multi-line cell before an unclosed quote stays one row", () => {
+    const records = parseCsvRecords('a,"x\ny"\n\n"b\nc,d');
+    expect(records.rows).toEqual([["a", "x\ny"], ["b"], ["c", "d"]]);
+    expect(records.numbers).toEqual([1, 3, 4]);
+    expect([...records.problems]).toEqual([[1, "unclosed_quote"]]);
+  });
+
+  test("quotes pair across lines, and only the odd one out is flagged", () => {
+    const records = parseCsvRecords(`h\n${'"x\n'.repeat(5001)}`);
+    expect(records.rows).toHaveLength(2502);
+    expect(records.rows[1]).toEqual(["x\nx"]);
+    expect(records.problems.get(2501)).toBe("unclosed_quote");
+  });
+
+  test("text after a closing quote stays in the cell and flags the row", () => {
+    const records = parseCsvRecords('"a,"tail,b\n"c" ,d');
+    expect(records.rows).toEqual([
+      ["a,tail", "b"],
+      ["c ", "d"],
+    ]);
+    expect([...records.problems]).toEqual([[0, "text_after_quote"]]);
+  });
+
+  test("reads semicolon and tab separators, and detects them from the header", () => {
+    expect(parseCsvRows('a;"b;c"\n1;2', { delimiter: ";" })).toEqual([
+      ["a", "b;c"],
+      ["1", "2"],
+    ]);
+    expect(detectCsvDelimiter("url,title")).toBe(",");
+    expect(detectCsvDelimiter("\n\nurl;title;tags")).toBe(";");
+    expect(detectCsvDelimiter("url\ttitle")).toBe("\t");
+    expect(detectCsvDelimiter('"a,b";c')).toBe(";");
+    expect(detectCsvDelimiter("url")).toBe(",");
+    expect(detectCsvDelimiter("url;title,x")).toBe(",");
+  });
 
   test("matches columns by name, ignoring case and order; strips a BOM", () => {
     const table = readCsvTable("﻿Title,URL,Extra\nA,https://a.test,x\n\n");

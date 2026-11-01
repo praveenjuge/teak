@@ -139,9 +139,11 @@ export const staticSecurityHeaders: { key: string; value: string }[] = [
   },
   {
     key: "Permissions-Policy",
-    // The WebMCP `tools` feature defaults to self; pin it explicitly so the
-    // page's own modelContext tools keep working if the default ever changes.
-    value: "camera=(), geolocation=(), microphone=(self), tools=(self)",
+    // No `tools=(self)` for WebMCP: the feature's default allowlist is
+    // already self, so Teak's pages register their tools and cross-origin
+    // frames can't. Chromium without the WebMCP origin trial logs an error
+    // on every page for a directive it doesn't know.
+    value: "camera=(), geolocation=(), microphone=(self)",
   },
   {
     key: "X-DNS-Prefetch-Control",

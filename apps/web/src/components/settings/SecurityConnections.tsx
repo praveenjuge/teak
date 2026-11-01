@@ -18,10 +18,62 @@ import {
 import { SettingsSection } from "./SettingsSection";
 
 export interface DeviceSession {
+  /** What the session's browser says; absent from older servers. */
+  agent?: { browser?: string; kind: string; os?: string };
   current: boolean;
   id: string;
+  lastActiveAt?: number;
+  /** The server's English name, shown when `agent` is missing. */
   name: string;
   signedInAt: number;
+}
+
+// Product names, the same in every language.
+const BROWSER_NAMES: Record<string, string> = {
+  chrome: "Chrome",
+  edge: "Edge",
+  firefox: "Firefox",
+  safari: "Safari",
+};
+const SYSTEM_NAMES: Record<string, string> = {
+  android: "Android",
+  ios: "iOS",
+  ipados: "iPadOS",
+  linux: "Linux",
+  macos: "macOS",
+  windows: "Windows",
+};
+const MOBILE_SYSTEMS = new Set(["android", "ios", "ipados"]);
+
+/** A device's name in the UI's language, from the parts the server sends. */
+export function deviceName(
+  session: Pick<DeviceSession, "agent" | "name">,
+  t: ConnectionsTranslator
+): string {
+  const { agent } = session;
+  if (!agent) {
+    return session.name;
+  }
+  if (agent.kind === "extension") {
+    return t("deviceExtension");
+  }
+  if (agent.kind !== "browser") {
+    return t("deviceUnknown");
+  }
+  const browser =
+    (agent.browser && BROWSER_NAMES[agent.browser]) || t("deviceBrowser");
+  const os = agent.os && SYSTEM_NAMES[agent.os];
+  return os ? t("deviceOn", { browser, os }) : browser;
+}
+
+/** This device first, then the rest in the server's order (newest first). */
+export function orderDeviceSessions<T extends { current: boolean }>(
+  sessions: T[]
+): T[] {
+  return [
+    ...sessions.filter((session) => session.current),
+    ...sessions.filter((session) => !session.current),
+  ];
 }
 
 export interface ConnectionTarget {
@@ -38,6 +90,10 @@ export interface SecurityConnectionsProps {
   onLoadMoreSessions: () => void;
   onRetrySessions?: () => void;
   onRevokeConnection: (target: ConnectionTarget) => Promise<void>;
+  onRevokeOtherSessions?: () => Promise<{
+    hasMore: boolean;
+    revokedCount: number;
+  }>;
   onRevokeSession: (sessionId: string, current: boolean) => Promise<void>;
   sessions: DeviceSession[] | undefined;
   sessionsError?: string | null;
@@ -69,6 +125,7 @@ interface ConnectionRow {
   detail: string;
   id: string;
   lastUsedAt?: number;
+  mobile?: boolean;
   name: string;
 }
 
@@ -110,10 +167,12 @@ export function appDisconnectConfirm(
 
 function ConnectionList({
   icon,
+  label,
   rows,
   verb,
 }: {
   icon: (row: ConnectionRow) => VadivamIcon;
+  label: string;
   rows: ConnectionRow[];
   verb: string;
 }) {
@@ -144,7 +203,7 @@ function ConnectionList({
           {error}
         </p>
       ) : null}
-      <SettingsList>
+      <SettingsList label={label}>
         {rows.map((row) => {
           const RowIcon = icon(row);
           return (
@@ -224,10 +283,77 @@ function ReadError({
 }
 
 function deviceIcon(row: ConnectionRow): VadivamIcon {
-  return MOBILE_DEVICE.test(row.name) ? Smartphone : Laptop;
+  return row.mobile || MOBILE_DEVICE.test(row.name) ? Smartphone : Laptop;
 }
 
 const MOBILE_DEVICE = /iphone|ipad|android|ios|mobile/i;
+
+function SignOutOtherDevices({
+  onRevokeOtherSessions,
+}: {
+  onRevokeOtherSessions: NonNullable<
+    SecurityConnectionsProps["onRevokeOtherSessions"]
+  >;
+}) {
+  const t = useTranslations("settings.connections");
+  const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    error: boolean;
+    message: string;
+  } | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const result = await onRevokeOtherSessions();
+      setFeedback({
+        error: false,
+        message: result.hasMore
+          ? t("otherDevicesRemaining", { count: result.revokedCount })
+          : t("otherDevicesSignedOut", { count: result.revokedCount }),
+      });
+    } catch {
+      setFeedback({ error: true, message: t("updateFailed") });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        disabled={busy}
+        onClick={() => setConfirmOpen(true)}
+        size="sm"
+        variant="ghost"
+      >
+        {busy ? <Spinner /> : null}
+        {t("signOutOthers")}
+      </Button>
+      {feedback ? (
+        <p
+          className={
+            feedback.error
+              ? "text-destructive text-xs leading-5"
+              : "text-muted-foreground text-xs leading-5"
+          }
+          role={feedback.error ? "alert" : "status"}
+        >
+          {feedback.message}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        confirmLabel={t("signOutOthersConfirm")}
+        description={t("signOutOthersDescription")}
+        onConfirm={() => void run()}
+        onOpenChange={setConfirmOpen}
+        open={confirmOpen}
+        title={t("signOutOthersTitle")}
+      />
+    </div>
+  );
+}
 
 function DeviceList(props: SecurityConnectionsProps) {
   const t = useTranslations("settings.connections");
@@ -243,19 +369,28 @@ function DeviceList(props: SecurityConnectionsProps) {
   if (!props.sessions) {
     return <SettingsListSkeleton label={t("loadingDevices")} rows={1} />;
   }
-  const rows = props.sessions.map((session) => ({
-    id: session.id,
-    name: session.name,
-    current: session.current,
-    detail: t("signedIn", {
-      date: formatDateTime(locale, session.signedInAt),
-    }),
-    actionLabel: t(session.current ? "signOutCurrentLabel" : "signOutLabel", {
-      name: session.name,
-    }),
-    confirm: deviceSignOutConfirm(session, t, locale),
-    action: () => props.onRevokeSession(session.id, session.current),
-  }));
+  const rows = orderDeviceSessions(props.sessions).map((session) => {
+    const name = deviceName(session, t);
+    const signedIn = formatDateTime(locale, session.signedInAt);
+    return {
+      id: session.id,
+      name,
+      current: session.current,
+      mobile: MOBILE_SYSTEMS.has(session.agent?.os ?? ""),
+      detail: session.lastActiveAt
+        ? t("signedInLastActive", {
+            date: signedIn,
+            active: formatDateTime(locale, session.lastActiveAt),
+          })
+        : t("signedIn", { date: signedIn }),
+      actionLabel: t(session.current ? "signOutCurrentLabel" : "signOutLabel", {
+        name,
+      }),
+      confirm: deviceSignOutConfirm({ ...session, name }, t, locale),
+      action: () => props.onRevokeSession(session.id, session.current),
+    };
+  });
+  const hasOthers = rows.some((row) => !row.current);
   return (
     <div className="space-y-2">
       {props.sessionsError ? (
@@ -264,9 +399,19 @@ function DeviceList(props: SecurityConnectionsProps) {
           retry={props.onRetrySessions}
         />
       ) : null}
-      <ConnectionList icon={deviceIcon} rows={rows} verb={t("signOut")} />
+      <ConnectionList
+        icon={deviceIcon}
+        label={t("devicesTitle")}
+        rows={rows}
+        verb={t("signOut")}
+      />
       {rows.length === 0 ? (
         <SettingsEmptyState>{t("noDevices")}</SettingsEmptyState>
+      ) : null}
+      {hasOthers && props.onRevokeOtherSessions ? (
+        <SignOutOtherDevices
+          onRevokeOtherSessions={props.onRevokeOtherSessions}
+        />
       ) : null}
       {props.sessionsHasMore || props.sessionsLoadingMore ? (
         <Button
@@ -314,6 +459,7 @@ function WorkosApps({
     <div className="space-y-2">
       <ConnectionList
         icon={() => AppWindow}
+        label={t("appsTitle")}
         rows={rows}
         verb={t("disconnect")}
       />

@@ -779,7 +779,7 @@ export function CardsScreen({
       searchController.isSearchPending ||
       (displayCards.length === 0 && semanticSearch.isPending)
     ) {
-      return <CardsGridSkeleton />;
+      return <CardsGridSkeleton {...density.layout} />;
     }
 
     if (isSmartFolder && displayCards.length === 0 && hasNoSearchFilters) {
@@ -839,7 +839,7 @@ export function CardsScreen({
 
     if (displayCards.length === 0 && hasNoFilters) {
       if (vaultSetup === "loading") {
-        return <CardsGridSkeleton />;
+        return <CardsGridSkeleton {...density.layout} />;
       }
       return (
         <>

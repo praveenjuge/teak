@@ -51,6 +51,12 @@ interface ExportPanelProps {
 
 const ACTIVE_STATUSES: ExportJobStatus[] = ["pending", "running"];
 
+/**
+ * "Cancel export" takes "Start export"'s place, so the second click of a
+ * double-click would cancel the export it just started.
+ */
+export const CANCEL_AFTER_START_GUARD_MS = 1000;
+
 const EXPIRY_FORMAT: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
@@ -70,6 +76,7 @@ export function ExportPanel({
   const formatDate = useLocalDateFormat(EXPIRY_FORMAT);
   const [isBusy, setIsBusy] = useState(false);
   const busyRef = useRef<boolean>(false);
+  const startedAtRef = useRef(0);
   const [now, setNow] = useState(() => Date.now());
 
   const job = exportState?.job ?? null;
@@ -113,11 +120,21 @@ export function ExportPanel({
     }
   };
 
-  const handleStart = () =>
-    runAction(onStartExport, t("starting"), t("started"), t("startFailed"));
+  const handleStart = () => {
+    startedAtRef.current = Date.now();
+    return runAction(
+      onStartExport,
+      t("starting"),
+      t("started"),
+      t("startFailed")
+    );
+  };
 
   const handleCancel = () => {
-    if (!job) {
+    if (
+      !job ||
+      Date.now() - startedAtRef.current < CANCEL_AFTER_START_GUARD_MS
+    ) {
       return;
     }
     return runAction(
@@ -159,6 +176,7 @@ export function ExportPanel({
 
   let action: ReactNode;
   let status: ReactNode;
+  let footnote: ReactNode = null;
   if (isLoading) {
     action = <Spinner className="text-muted-foreground" />;
     status = null;
@@ -206,6 +224,13 @@ export function ExportPanel({
         ) : null}
       </>
     );
+    // The weekly limit still applies while the archive waits to be
+    // downloaded, so say when the next export can start.
+    if (!canStartNew && formatDate) {
+      footnote = t("nextAvailable", { date: formatDate(resetAt) });
+    } else if (canStartNew) {
+      footnote = t("quotaCaption");
+    }
   } else {
     action = canStartNew ? (
       <Button disabled={isBusy} onClick={handleStart} size="sm">
@@ -243,6 +268,11 @@ export function ExportPanel({
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground leading-5 [&>span+span]:before:mr-2 [&>span+span]:before:content-['·']"
         >
           {status}
+        </p>
+      ) : null}
+      {footnote ? (
+        <p className="mt-1 text-[13px] text-muted-foreground leading-5">
+          {footnote}
         </p>
       ) : null}
     </SettingsSection>

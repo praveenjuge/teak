@@ -4,7 +4,7 @@ A user picks Teak's language in the web app's Settings → Appearance → Langua
 
 ## Sub-features
 
-- `language-row` lists the eight languages by their own names, with the English name beside each, under Theme on Settings → Appearance.
+- `language-row` lists the eight languages by their own names, each with its name in the UI's language beside it ("Deutsch German" in English, "English Englisch" in German; none beside the UI's own language), in the listbox "Language", under Theme on Settings → Appearance.
 - `language-switch` re-renders the open page in the chosen language within a second, keeps the route and scroll, sets `<html lang>`, and shows "Language changed" with Undo.
 - `language-persist` saves the choice to the account: a reload, a second browser and `/v1/me` all read it. The account wins over a stale `teak-locale` cookie.
 - `language-formats` formats dates, counts and plurals in the language (`1 Karte`, `2 Karten`; one form in ja, ko, zh-Hans).
@@ -33,7 +33,7 @@ Preconditions:
 
 Steps:
 
-- **Row.** `navigate` to `/settings/appearance`. A combobox named "Language" shows "English". Open it: eight options, "Deutsch German" … "简体中文 Chinese (Simplified)", each with its `lang`. Screenshot.
+- **Row.** `navigate` to `/settings/appearance`. A combobox named "Language" shows "English". Open it: the listbox "Language" has eight options, from "English" (with no second name) to "简体中文 Chinese (Simplified)", among them "Deutsch German", each with its `lang`. Screenshot. After switching to Deutsch, open it again: "English Englisch", "Deutsch" with no second name, "Français Französisch" and "简体中文 Chinesisch (Vereinfacht)".
 - **Switch.** Pick "Deutsch". Without a navigation, the row titles read "Design" and "Sprache", the toast reads "Sprache geändert" with "Rückgängig", and `document.documentElement.lang` is `de` (`call` evaluate). Go to `/`: the sidebar and search placeholder are German. Reload: still German.
 - **Undo.** Switch to "日本語", then press the toast's undo button: back to German, the toast says so in German.
 - **Persistence.** `GET $SITE/v1/me` with the key from `scripts/api-key.ts`: `"locale":"de"`. `bun apps/cli/src/index.ts whoami`: a line "Language: Deutsch".

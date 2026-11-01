@@ -91,6 +91,9 @@ const ACTION_ICONS: Record<CommandPaletteActionId, VadivamIcon> = {
   "sign-out": LogOut,
 };
 
+// Key hints mean nothing on a touch screen without a keyboard.
+export const SHORTCUT_HINT_CLASS = "ml-auto pointer-coarse:hidden";
+
 const CARD_SCORE = 0.5;
 const SEARCH_ALL_SCORE = 0.01;
 
@@ -155,7 +158,7 @@ export function CommandPaletteResults({
             >
               <Icon />
               <span className="truncate">{label}</span>
-              <span aria-hidden="true" className="ml-auto">
+              <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
                 <ShortcutHint
                   row={{
                     keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
@@ -174,7 +177,7 @@ export function CommandPaletteResults({
         >
           <Hash />
           <span>{t("views.tags")}</span>
-          <span aria-hidden="true" className="ml-auto">
+          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
             <ShortcutHint
               row={{
                 keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
@@ -191,7 +194,7 @@ export function CommandPaletteResults({
         >
           <Settings />
           <span>{t("views.settings")}</span>
-          <span aria-hidden="true" className="ml-auto">
+          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
             <ShortcutHint
               row={{
                 keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
@@ -221,7 +224,7 @@ export function CommandPaletteResults({
               <Icon />
               <span className="truncate">{label}</span>
               {action.keys ? (
-                <span aria-hidden="true" className="ml-auto">
+                <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
                   <ShortcutHint row={{ keys: action.keys, label }} />
                 </span>
               ) : null}

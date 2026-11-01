@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Einstellungen"
+      "title": "Einstellungen",
+      "subpageTitle": "{page} · Einstellungen"
     },
     "skeleton": {
       "loading": "Einstellungen werden geladen…"
@@ -94,7 +95,18 @@
       "signOutTitle": "{name} abmelden?",
       "signOutDescription": "Die Sitzung {name} (angemeldet: {date}) wird von Teak abgemeldet und muss sich erneut anmelden.",
       "disconnectTitle": "{name} trennen?",
-      "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden."
+      "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden.",
+      "deviceExtension": "Teak-Browsererweiterung",
+      "deviceUnknown": "Unbekanntes Gerät",
+      "deviceBrowser": "Browser",
+      "deviceOn": "{browser} unter {os}",
+      "signedInLastActive": "Angemeldet: {date} · Zuletzt aktiv: {active}",
+      "signOutOthers": "Andere Geräte abmelden",
+      "signOutOthersTitle": "Alle anderen Geräte abmelden?",
+      "signOutOthersDescription": "Alle anderen Browser und Geräte, die bei Ihrem Konto angemeldet sind, werden von Teak abgemeldet und müssen sich erneut anmelden. Dieses Gerät bleibt angemeldet.",
+      "signOutOthersConfirm": "Andere Geräte abmelden",
+      "otherDevicesSignedOut": "{count, plural, =0 {Es waren keine anderen Geräte angemeldet.} one {# anderes Gerät abgemeldet.} other {# andere Geräte abgemeldet.}}",
+      "otherDevicesRemaining": "{count, plural, one {# Gerät abgemeldet.} other {# Geräte abgemeldet.}} Einige sind noch angemeldet. Versuchen Sie es in einer Minute erneut."
     },
     "apiKeys": {
       "revokeAllTitle": "Alle API-Schlüssel widerrufen?",
@@ -124,7 +136,11 @@
       "copyFailed": "Der Schlüssel konnte nicht kopiert werden. Markieren und kopieren Sie ihn manuell.",
       "createKey": "Schlüssel erstellen",
       "loading": "API-Schlüssel werden geladen…",
-      "revokeAll": "Alle Schlüssel widerrufen"
+      "revokeAll": "Alle Schlüssel widerrufen",
+      "nameLabel": "Name für einen neuen Schlüssel (optional)",
+      "namePlaceholder": "Zum Beispiel: Raycast auf meinem Laptop",
+      "empty": "Noch keine API-Schlüssel. Erstellen Sie einen, um die API, die CLI, Raycast oder einen MCP-Client zu verwenden.",
+      "listLabel": "API-Schlüssel"
     },
     "deleteAccount": {
       "title": "Konto löschen",
@@ -315,7 +331,8 @@
           "hint": "Eine ZIP-Datei aus „Ihre Daten exportieren“ in Teak."
         }
       },
-      "orDrop": "oder hier ablegen"
+      "orDrop": "oder hier ablegen",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "gerade eben",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Ordner"
-    }
+    },
+    "skipToContent": "Zum Inhalt springen"
   },
   "errors": {
     "folders": {

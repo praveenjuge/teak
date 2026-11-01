@@ -1,13 +1,18 @@
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, KeyRound, RotateCw, Trash } from "vadivam-react";
 import { useLocalDateFormat } from "../../hooks/useLocalDateFormat";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Spinner } from "../ui/spinner";
-import { SettingsList, SettingsListSkeleton } from "./SettingsDialog";
+import {
+  SettingsEmptyState,
+  SettingsList,
+  SettingsListSkeleton,
+} from "./SettingsDialog";
 import { SettingsSection } from "./SettingsSection";
 
 const API_DOCS_URL = "https://teakvault.com/docs/api";
@@ -78,10 +83,27 @@ export function nextRevealedKeys(
   }
 }
 
+/** Matches the server's cap (`API_KEY_NAME_MAX_LENGTH` in `apiKeys.ts`). */
+export const API_KEY_NAME_MAX_LENGTH = 64;
+
+/**
+ * Where focus goes once a revoked key leaves the list: the key that took its
+ * place, else the one above it, else `null` (no keys left).
+ */
+export function focusIndexAfterRemoval(
+  removedIndex: number,
+  remaining: number
+): number | null {
+  if (remaining === 0) {
+    return null;
+  }
+  return Math.min(removedIndex, remaining - 1);
+}
+
 interface ApiKeysPanelProps {
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
-  onCreateKey: () => Promise<CreatedApiKey | null>;
+  onCreateKey: (name?: string) => Promise<CreatedApiKey | null>;
   onRevokeAllKeys?: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
@@ -150,6 +172,7 @@ function ApiKeyRow({
         ) : null}
         <Button
           aria-label={t("revokeLabel", { identity })}
+          data-api-key-revoke=""
           disabled={disabled}
           onClick={onRevoke}
           size="icon"
@@ -207,6 +230,28 @@ export function ApiKeysPanel({
     error: boolean;
   } | null>(null);
   const actionInFlight = useRef<boolean>(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
+  // The revoked key's row and its Revoke button leave the list, which would
+  // drop focus to the page; this says where it was.
+  const revokedFocus = useRef<{ id: string; index: number } | null>(null);
+
+  useEffect(() => {
+    const pending = revokedFocus.current;
+    if (!(pending && keys) || busy !== null) {
+      return;
+    }
+    if (keys.some((key) => key.id === pending.id)) {
+      return;
+    }
+    revokedFocus.current = null;
+    const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>(
+      "[data-api-key-revoke]"
+    );
+    const index = focusIndexAfterRemoval(pending.index, buttons?.length ?? 0);
+    (index === null ? createButtonRef.current : buttons?.[index])?.focus();
+  }, [keys, busy]);
 
   const perform = async (id: string, action: () => Promise<string>) => {
     if (actionInFlight.current) {
@@ -230,10 +275,12 @@ export function ApiKeysPanel({
 
   const create = () =>
     perform("create", async () => {
-      const key = await onCreateKey();
+      const name = newKeyName.trim();
+      const key = await onCreateKey(name || undefined);
       if (!key) {
         throw new Error("No API key returned");
       }
+      setNewKeyName("");
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "created", key })
       );
@@ -252,7 +299,16 @@ export function ApiKeysPanel({
     });
   const revoke = (item: ApiKeyListItem) =>
     perform(item.id, async () => {
-      await onRevokeKey(item.id);
+      revokedFocus.current = {
+        id: item.id,
+        index: keys?.findIndex((key) => key.id === item.id) ?? 0,
+      };
+      try {
+        await onRevokeKey(item.id);
+      } catch (error) {
+        revokedFocus.current = null;
+        throw error;
+      }
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "revoked", keyId: item.id })
       );
@@ -304,6 +360,7 @@ export function ApiKeysPanel({
           className="shrink-0"
           disabled={isLoading || busy !== null}
           onClick={() => void create()}
+          ref={createButtonRef}
           size="sm"
         >
           {busy === "create" ? <Spinner /> : null}
@@ -325,7 +382,27 @@ export function ApiKeysPanel({
       id="api-keys"
       title={tIntegrations("apiTitle")}
     >
-      <div className="space-y-3">
+      <div className="space-y-3" ref={listRef}>
+        <div className="flex flex-col gap-1.5">
+          <Label className="font-normal text-xs" htmlFor="api-key-name">
+            {t("nameLabel")}
+          </Label>
+          <Input
+            className="h-8 sm:max-w-xs"
+            disabled={isLoading || busy !== null}
+            id="api-key-name"
+            maxLength={API_KEY_NAME_MAX_LENGTH}
+            onChange={(event) => setNewKeyName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                void create();
+              }
+            }}
+            placeholder={t("namePlaceholder")}
+            value={newKeyName}
+          />
+        </div>
         {feedback ? (
           <p
             className={
@@ -348,8 +425,11 @@ export function ApiKeysPanel({
         {isLoading ? (
           <SettingsListSkeleton label={t("loading")} rows={2} />
         ) : null}
+        {!isLoading && keys?.length === 0 ? (
+          <SettingsEmptyState>{t("empty")}</SettingsEmptyState>
+        ) : null}
         {keys?.length ? (
-          <SettingsList>
+          <SettingsList label={t("listLabel")}>
             {keys.map((item) => (
               <ApiKeyRow
                 busy={busy === item.id}

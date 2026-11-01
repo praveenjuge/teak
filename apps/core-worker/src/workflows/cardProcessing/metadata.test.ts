@@ -160,20 +160,59 @@ describe("link content for the prompt", () => {
   test.each([
     ["no preview", { url: "https://example.com" }, "URL: https://example.com"],
     [
+      "no URL",
+      { content: "https://fallback.com" },
+      "URL: https://fallback.com",
+    ],
+  ])(
+    "falls back to the URL before a preview with %s",
+    (_name, card, expected) => {
+      expect(buildLinkContentParts(card)).toEqual([expected]);
+    }
+  );
+
+  test.each([
+    [
+      "a failed preview",
+      {
+        metadata: {
+          linkPreview: { status: "error", title: "Ignored" },
+        },
+        url: "https://example.com/a",
+      },
+    ],
+    [
       "an empty preview",
       {
         metadata: { linkPreview: { status: "success" } },
         url: "https://e.com",
       },
-      "URL: https://e.com",
     ],
     [
-      "no URL",
-      { content: "https://fallback.com" },
-      "URL: https://fallback.com",
+      "a failed preview and no URL",
+      {
+        content: "https://fallback.com",
+        metadata: { linkPreview: { status: "error" } },
+      },
     ],
-  ])("falls back to the URL with %s", (_name, card, expected) => {
-    expect(buildLinkContentParts(card)).toEqual([expected]);
+  ])("has nothing to describe from the URL alone with %s", (_name, card) => {
+    expect(buildLinkContentParts(card)).toEqual([]);
+  });
+
+  test("names the URL beside text that came from elsewhere", () => {
+    expect(
+      buildLinkContentParts(
+        { url: "https://example.com/v" },
+        undefined,
+        "A transcript."
+      )
+    ).toEqual(["URL: https://example.com/v", "Transcript: A transcript."]);
+    expect(buildLinkContentParts({ content: "x" }, "An abstract.").at(-1)).toBe(
+      "Summary: An abstract."
+    );
+    expect(buildLinkContentParts({}, "An abstract.")).toEqual([
+      "Summary: An abstract.",
+    ]);
   });
 
   test("adds the site's summary after the preview", () => {
@@ -924,6 +963,21 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Title: Example Site");
       expect(aiPrompts[0]).toContain("URL: https://example.com");
       expect(saved()).toMatchObject({ aiTags: ["website"] });
+    });
+
+    test("a page that couldn't be reached gets no invented summary or tags", async () => {
+      aiResult = {
+        summary: "This page provides technical information about SETX.",
+        tags: ["windows"],
+      };
+      const { generate, saved } = setup({
+        metadata: { linkPreview: { status: "error" } },
+        url: "https://example.com/imported/a",
+      });
+      expect((await generate("link")).mode).toBe("skipped");
+      expect(aiPrompts).toEqual([]);
+      expect(saved()).toMatchObject({ aiTags: [] });
+      expect(saved()).not.toHaveProperty("aiSummary");
     });
 
     test("a French page is summarized with its language", async () => {

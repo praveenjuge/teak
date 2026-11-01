@@ -43,7 +43,8 @@
       "version": "Version {version}"
     },
     "header": {
-      "title": "Réglages"
+      "title": "Réglages",
+      "subpageTitle": "{page} · Réglages"
     },
     "skeleton": {
       "loading": "Chargement des réglages…"
@@ -94,7 +95,18 @@
       "signOutTitle": "Déconnecter {name} ?",
       "signOutDescription": "La session {name} ouverte le {date} est déconnectée de Teak et devra se reconnecter.",
       "disconnectTitle": "Déconnecter {name} ?",
-      "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez."
+      "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez.",
+      "deviceExtension": "Extension de navigateur Teak",
+      "deviceUnknown": "Appareil inconnu",
+      "deviceBrowser": "Navigateur",
+      "deviceOn": "{browser} sur {os}",
+      "signedInLastActive": "Connecté le {date} · Dernière activité : {active}",
+      "signOutOthers": "Déconnecter les autres appareils",
+      "signOutOthersTitle": "Déconnecter tous les autres appareils ?",
+      "signOutOthersDescription": "Tous les autres navigateurs et appareils connectés à votre compte sont déconnectés de Teak et devront se reconnecter. Cet appareil reste connecté.",
+      "signOutOthersConfirm": "Déconnecter les autres appareils",
+      "otherDevicesSignedOut": "{count, plural, =0 {Aucun autre appareil n’était connecté.} one {# autre appareil déconnecté.} other {# autres appareils déconnectés.}}",
+      "otherDevicesRemaining": "{count, plural, one {# appareil déconnecté.} other {# appareils déconnectés.}} Certains sont encore connectés ; réessayez dans une minute."
     },
     "apiKeys": {
       "revokeAllTitle": "Révoquer toutes les clés d’API ?",
@@ -124,7 +136,11 @@
       "copyFailed": "Impossible de copier la clé. Sélectionnez-la et copiez-la manuellement.",
       "createKey": "Créer une clé",
       "loading": "Chargement des clés d’API…",
-      "revokeAll": "Révoquer toutes les clés"
+      "revokeAll": "Révoquer toutes les clés",
+      "nameLabel": "Nom d’une nouvelle clé (facultatif)",
+      "namePlaceholder": "Par exemple : Raycast sur mon ordinateur portable",
+      "empty": "Aucune clé d’API pour l’instant. Créez-en une pour utiliser l’API, la CLI, Raycast ou un client MCP.",
+      "listLabel": "Clés d’API"
     },
     "deleteAccount": {
       "title": "Supprimer le compte",
@@ -315,7 +331,8 @@
           "hint": "Un ZIP issu de Exporter vos données dans Teak."
         }
       },
-      "orDrop": "ou déposez-le ici"
+      "orDrop": "ou déposez-le ici",
+      "lastImportFile": "{file} · {source}"
     },
     "format": {
       "justNow": "à l’instant",
@@ -498,7 +515,8 @@
     "skeleton": {
       "tags": "Tags",
       "folder": "Dossier"
-    }
+    },
+    "skipToContent": "Aller au contenu"
   },
   "errors": {
     "folders": {

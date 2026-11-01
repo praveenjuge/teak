@@ -84,12 +84,14 @@ export const buildLinkContentParts = (
   if (preview?.publishedAt) {
     contentParts.push(`Published: ${preview.publishedAt}`);
   }
-  if (contentParts.length === 0) {
+  const fromPage = contentParts.length > 0;
+  if (!fromPage) {
     const urlFallback = card.url || card.content;
     if (urlFallback) {
       contentParts.push(`URL: ${urlFallback}`);
     }
   }
+  const partsBeforeText = contentParts.length;
   const promptOverhead = buildLinkMetadataPrompt(
     "",
     card.url || card.content
@@ -112,6 +114,17 @@ export const buildLinkContentParts = (
     if (room > 0) {
       contentParts.push(`${label}${trimmed.slice(0, room)}`);
     }
+  }
+  // A page that was fetched and couldn't be read (or read empty), with no
+  // summary, article or transcript, leaves only its URL, and a model asked
+  // about a URL alone invents a summary and tags. Nothing to say is the
+  // honest answer. A preview not fetched yet still describes the URL.
+  if (
+    card.metadata?.linkPreview &&
+    !fromPage &&
+    contentParts.length === partsBeforeText
+  ) {
+    return [];
   }
   return contentParts;
 };

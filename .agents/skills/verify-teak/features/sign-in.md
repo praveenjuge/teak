@@ -60,6 +60,7 @@ Steps:
 - A brand-new account can only be made on the local E2E stack (WorkOS emulator): staging can't send codes to `example.org`. `src/journey/01-signup.e2e.ts` covers it.
 - `navigate` can observe a page load mid-stream, showing only the status "Loading"; `observe` again before judging the first paint.
 - Sign-out leaves the page at once, so its toasts vanish. Assert the hosted "Email" textbox, not a toast.
-- "Sign out <device> (this device)" in Settings → Security also signs you out. Don't tap it during other recipes.
+- "Sign out <device> (this device)" in Settings → Security also signs you out. Don't tap it during other recipes. "Sign out other devices" never signs out this browser, but it ends every other session of the account, including other runs' and your own other browsers'; confirm it only on a throwaway account.
+- Each sign-in is its own session, so signing in twice from the same browser adds a second, alike-named row under Devices; the rows differ by their sign-in time and "Last active".
 - If the app shows "Please sign in again." or "We couldn't check your session", the session broke. Reopen the session rather than driving on; if it happens again, run the doctor and read `.agents/.state/stack.log`.
 - Anything else on the sign-in page, like "Sign-in is temporarily unavailable" (503) or "Invalid sign-in origin." (400), is a stack or configuration failure. Run the doctor.

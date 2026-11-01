@@ -76,6 +76,16 @@ describe("CommandPaletteResults", () => {
     }
   });
 
+  test("hides keyboard hints on touch screens", () => {
+    const html = render({});
+    const hints = html.match(/<span aria-hidden="true" class="[^"]*"/g) ?? [];
+    expect(hints.length).toBeGreaterThan(0);
+    for (const hint of hints.filter((span) => span.includes("ml-auto"))) {
+      expect(hint).toContain("pointer-coarse:hidden");
+    }
+    expect(html).toMatch(/pointer-coarse:hidden[^>]*>.*then/);
+  });
+
   test("offers Empty Trash only in Trash", () => {
     expect(render({})).not.toContain(">Empty Trash<");
     expect(render({ pathname: "/trash" })).toContain(">Empty Trash<");
