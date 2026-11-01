@@ -14,7 +14,7 @@ import {
 import { getSessionUser, requireSessionUser } from "../securitySessions";
 
 // Account display preferences. The language is chosen in Settings; the public
-// API reads it (`/v1/me`) but has no setter (scripts/public-parity.ts).
+// API reads it (`/v1/me`) but has no setter (scripts/repo/public-parity.ts).
 
 export const UNSUPPORTED_LOCALE_ERROR = {
   code: "UNSUPPORTED_LOCALE",

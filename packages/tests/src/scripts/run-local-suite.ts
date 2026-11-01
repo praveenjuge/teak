@@ -2,13 +2,13 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveWorktree } from "../../../../scripts/dev/worktree-env.ts";
 import {
   isStackRunning,
   readStackState,
   type StackUrls,
 } from "../../../../scripts/lib/stack-state.ts";
-import { prepareCheckout } from "../../../../scripts/setup.ts";
-import { resolveWorktree } from "../../../../scripts/worktree-env.ts";
+import { prepareCheckout } from "../../../../scripts/setup/setup.ts";
 import { localBackendEnv, setupBackend } from "../stack/backend";
 import { seedLocalDevAccount } from "../stack/devAccount";
 import { type RunningStack, STACK_LOG_PATH, startStack } from "../stack/stack";

@@ -138,7 +138,7 @@
       // writers leave them:
       // - SharedConstants.json: apps/apple/scripts/shared-constants.ts,
       //   checked in apps/apple/tests/shared-constants.test.ts
-      // - Safari manifests: scripts/release-version.mjs, every release
+      // - Safari manifests: scripts/release/release-version.ts, every release
       // - xcassets Contents.json: Xcode
       // - .agents/skills/workos: vendored (skills-lock.json hashes it)
       "includes": [

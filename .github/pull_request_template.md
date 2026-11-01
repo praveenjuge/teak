@@ -1,6 +1,6 @@
 <!--
 Fill every section that applies and delete the rest, along with these comments.
-This PR is public. Agents: read .agents/pull-requests.md before writing it.
+This PR is public. Read "Pull requests" in apps/docs/content/docs/(open-source)/development.mdx before writing it.
 -->
 
 ## Summary
@@ -18,7 +18,7 @@ This PR is public. Agents: read .agents/pull-requests.md before writing it.
 <!--
 Evidence from a verify-teak run (.agents/skills/verify-teak): screenshots, a walkthrough video, or captured API/CLI/MCP output from the dev stack with seeded data.
 Link a private artifact page from the session, or embed images already hosted on GitHub.
-Check every frame before linking it (.agents/pull-requests.md, "Screenshots and video").
+Check every frame before linking it (development.mdx, "Pull requests").
 Delete this section for changes with nothing to show, such as docs or CI.
 -->
 

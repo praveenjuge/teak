@@ -16,12 +16,12 @@ import {
   headCommit,
   leaseHolder,
   leaseStatus,
-} from "../../../../scripts/convex-push-lease.ts";
+} from "../../../../scripts/dev/convex-push-lease.ts";
+import { runCommand } from "../../../../scripts/dev/proc.ts";
 import {
   isStackRunning,
   readStackState,
 } from "../../../../scripts/lib/stack-state.ts";
-import { runCommand } from "../../../../scripts/proc.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
 
@@ -213,7 +213,7 @@ const checkLog = (logPath: string) => {
   if (latestPushFailed(readFileSync(logPath, "utf-8"))) {
     report(
       "fail",
-      `backend: the latest push in ${logPath} failed schema validation, so this branch's backend isn't live (.agents/cloud.md, "The backend you test against")`
+      `backend: the latest push in ${logPath} failed schema validation, so this branch's backend isn't live (development.mdx, "Cloud sessions in detail")`
     );
   }
 };

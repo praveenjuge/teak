@@ -639,7 +639,7 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     locale: "de",
   },
   "ai-languages": {
-    description: `Notes in Japanese, Spanish, German, Korean, Chinese, Hindi and Arabic, an English note with a Spanish quote, one with no words at all, and French and Portuguese Wikipedia links, all run through AI processing so their tags and summary come back in the content's language. Images, PDFs and audio need uploaded files, so they aren't seeded. Search \`#${AI_LANGUAGES_TAG}\`; \`bun --no-env-file run scripts/ai-language-check.ts\` scores it.`,
+    description: `Notes in Japanese, Spanish, German, Korean, Chinese, Hindi and Arabic, an English note with a Spanish quote, one with no words at all, and French and Portuguese Wikipedia links, all run through AI processing so their tags and summary come back in the content's language. Images, PDFs and audio need uploaded files, so they aren't seeded. Search \`#${AI_LANGUAGES_TAG}\`; \`bun --no-env-file run scripts/seed/ai-language-check.ts\` scores it.`,
     cards: firstPageOnly(aiLanguagesScenarioCards()),
   },
   "page-archive-mix": {

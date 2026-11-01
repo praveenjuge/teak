@@ -32,6 +32,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
 
       - name: Read root version
         id: version
@@ -44,7 +48,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          node scripts/release-version.mjs lockstep "$VERSION"
+          node scripts/release/release-version.ts lockstep "$VERSION"
 
       - name: Detect and verify release version change
         id: version-change
@@ -57,7 +61,7 @@ jobs:
             echo "Root version is unchanged at $VERSION; no release tag is needed."
             exit 0
           fi
-          node scripts/release-version.mjs patch "$previous_version" "$VERSION"
+          node scripts/release/release-version.ts patch "$previous_version" "$VERSION"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Create version tag
@@ -124,6 +128,10 @@ jobs:
     steps:
       - name: Checkout release orchestration
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
 
       - name: Reuse or dispatch and wait for release workflow
         env:
@@ -160,7 +168,7 @@ jobs:
           active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")][0].id // empty' <<< "$runs")"
           if [ -n "$active" ]; then
             echo "Waiting for existing $WORKFLOW run $active."
-            node scripts/watch-release-run.mjs "$GITHUB_REPOSITORY" "$active"
+            node scripts/release/watch-release-run.ts "$GITHUB_REPOSITORY" "$active"
             echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$active" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -187,5 +195,5 @@ jobs:
             echo "Could not resolve the dispatched $WORKFLOW run." >&2
             exit 1
           fi
-          node scripts/watch-release-run.mjs "$GITHUB_REPOSITORY" "$run_id"
+          node scripts/release/watch-release-run.ts "$GITHUB_REPOSITORY" "$run_id"
           echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"

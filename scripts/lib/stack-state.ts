@@ -1,6 +1,6 @@
 /**
  * The state file a running stack records, and the process helpers that start
- * and stop one. `bun run dev` (scripts/dev-stack.ts) and the E2E suite's stack
+ * and stop one. `bun run dev` (scripts/dev/dev-stack.ts) and the E2E suite's stack
  * (packages/tests/src/stack) share them, so each refuses to start on the
  * other's ports and either can be stopped after a crash.
  *
@@ -17,7 +17,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import type { WorktreePorts } from "../worktree-env.ts";
+import type { WorktreePorts } from "../dev/worktree-env.ts";
 
 export interface StackUrls {
   apiOrigin: string;
@@ -134,8 +134,8 @@ const commands = ():
 };
 
 const STACK_OWNERS = [
-  "scripts/dev-main.ts",
-  "scripts/dev.ts",
+  "scripts/dev/dev-main.ts",
+  "scripts/dev/dev.ts",
   "run-local-suite.ts",
 ];
 const STACK_MEMBERS = ["convex", "next"];

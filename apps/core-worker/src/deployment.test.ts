@@ -160,6 +160,6 @@ test("dev:local sends nothing to PostHog", () => {
 // Remote local development runs the development config, never production's.
 test("dev runs the development Worker config", () => {
   expect(packageJson.scripts.dev).toBe(
-    "bun --no-env-file run ../../scripts/core-worker-dev.ts"
+    "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts"
   );
 });

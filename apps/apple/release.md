@@ -9,7 +9,7 @@ and release workflows are gone.
 
 ## Canonical release
 
-1. Complete the shared preparation in `../../.agents/releases.md`. It moves the
+1. Complete the shared preparation in `../../.agents/runbooks/releases.md`. It moves the
    Safari extension manifest and `MARKETING_VERSION` in `project.yml` and the
    generated `Teak.xcodeproj` with every other version source.
 2. Merge that scoped version change to `main`.

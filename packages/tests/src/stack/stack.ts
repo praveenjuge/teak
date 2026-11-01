@@ -4,6 +4,10 @@ import { dirname, join } from "node:path";
 import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
 import {
+  isPortInUse,
+  type WorktreePorts,
+} from "../../../../scripts/dev/worktree-env.ts";
+import {
   recordStartingStack,
   type StackState,
   type StackUrls,
@@ -11,10 +15,6 @@ import {
   stopGroup,
   waitFor,
 } from "../../../../scripts/lib/stack-state.ts";
-import {
-  isPortInUse,
-  type WorktreePorts,
-} from "../../../../scripts/worktree-env.ts";
 import { localBackendEnv } from "./backend";
 import { emulatorWebEnv, stackUrls } from "./config";
 import { startCoreWorker } from "./coreWorker";

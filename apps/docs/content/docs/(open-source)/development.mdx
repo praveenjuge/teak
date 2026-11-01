@@ -105,7 +105,7 @@ A package that two or more workspaces depend on takes its version from the `cata
 - `apps/cli` is published with `npm publish`, which doesn't resolve `catalog:`, so its ranges match the catalog's.
 - `apps/raycast` installs from its own npm lockfile for the Raycast store, so its versions move on their own.
 
-`scripts/repo-hygiene.test.ts` checks all of this.
+`scripts/repo/repo-hygiene.test.ts` checks all of this.
 
 ## The shared development deployment
 
@@ -138,7 +138,7 @@ A Claude Code cloud session uses `dev+cloud-<hash>-main@example.org` instead, na
 
 ### Worktrees
 
-Every linked worktree leases its own block of ports the first time it runs, recorded in the repository's git directory (`scripts/worktree-env.ts`), so web apps in different worktrees run side by side. The main checkout keeps web 3000, docs 3001 and extension 3003. `bun run dev --status` prints the ports.
+Every linked worktree leases its own block of ports the first time it runs, recorded in the repository's git directory (`scripts/dev/worktree-env.ts`), so web apps in different worktrees run side by side. The main checkout keeps web 3000, docs 3001 and extension 3003. `bun run dev --status` prints the ports.
 
 `packages/convex/convex.json` registers `http://localhost:*/callback`, which covers every one of those web ports, as a sign-in callback on the development deployment's WorkOS environment, and lists each port as a CORS origin. The deployment's API and MCP links (`appUrl`, `settingsUrl`) point at `TEAK_DEV_APP_URL` (port 3000), so links from a worktree's API responses open the main checkout's web app.
 
@@ -186,20 +186,52 @@ Give the environment network access to Convex, WorkOS and Polar (and Playwright'
 
 <Visibility for="agents">
 
-`.agents/cloud.md` lists the environment settings a cloud session needs, what does and doesn't run there (the browser to drive the app with, Docker builds, the end-to-end suite), and the fix for each.
+### Cloud sessions in detail
+
+What runs in a Claude Code on the web session (and similar Linux VMs), what doesn't, and the fix for each. Last verified 2026-10-25 on a 4-vCPU, 16 GB VM with Chromium 153 in the image. The image, the proxy and the CLIs change under this section: to re-check it, start a fresh session on `main`, run `bun run doctor`, `bun run dev --detach` and sign in, `bun run dev --local --detach` and sign in, `bun test src/workflows/cardProcessing/engine.test.ts` in `apps/core-worker`, and `wrangler dev --local -c development/wrangler.jsonc` there until both Containers build. Update the date and fix what drifted in the same PR.
+
+**Environment settings**
+
+- **Secrets:** only `CONVEX_DEPLOY_KEY`. Shell exports win over the dotenv files `bun run dev` writes, so a stale `WORKOS_COOKIE_PASSWORD` breaks `bun run smoke:web` and the end-to-end suite refuses to start while `CONVEX_DEPLOYMENT` names the dev deployment. The SessionStart hook warns when `CONVEX_DEPLOYMENT`, `WORKOS_*` or `NEXT_PUBLIC_*` are exported; prefix commands with `env -u NAME` until they're removed.
+- **Setup script:** `bash .agents/setup` (about 90 seconds on a fresh VM). The SessionStart hook runs `.agents/setup --session` (about 15 seconds) to connect to the dev deployment and reinstall when `bun.lock` moved past `node_modules/.teak-install`, and `.agents/setup --warm` in the background to fill the Turbo cache (log in `.turbo/teak-warm.log`).
+- **Network:** "Full", or "Custom" with the default list plus `*.convex.cloud`, `*.convex.site`, `api.workos.com`, `*.authkit.app`, `*.polar.sh`, `*.posthog.com`, `*.workers.dev`, `nodejs.org`, GitHub release downloads, Playwright's download hosts, `dl-cdn.alpinelinux.org` (Container builds), `fonts.gstatic.com` (docs), `www.raycast.com` (`ray lint`) and `docs.mcp.cloudflare.com`. If a host is refused, the proxy names it.
+- **Turbo remote cache (optional):** add `TURBO_TOKEN` and `TURBO_TEAM` to the environment's variables.
+- **`NODE_OPTIONS`:** nothing to set; the hook adds `--use-openssl-ca` so Node tasks under Turbo trust the proxy.
+
+**Accounts.** A Claude Code session signs in as `dev+cloud-<hash>-main@example.org`, named after `CLAUDE_CODE_REMOTE_SESSION_ID`, so each session starts with a fresh seeded vault; resuming on a new VM keeps the account with a new password. `bun run dev` prunes other cloud accounts unused for 14 days through `devSeed:pruneCloudAccount`, and says so in `.agents/.state/stack.log`. Codex and Amp use `dev+<hostname>-main@example.org`.
+
+**Driving the app.** The app runs on the VM's `localhost` with no port forwarding, so drive it with headless Chromium through the `e2e` MCP server (`config: "packages/tests/e2e.config.ts"`) and send screenshots. While the dev stack runs, that config starts the image's Chromium with a DevTools port and attaches over CDP (`packages/tests/src/config/cloud-chromium.ts`); the SessionStart hook links the end-to-end suite's pinned browsers into `/opt/pw-browsers`, where MCP servers look. For file uploads, e2e's `upload` tool can't reach the composer's on-the-fly input or Settings' hidden import input: read the port from `/tmp/teak-cloud-chromium-*/DevToolsActivePort`, `chromium.connectOverCDP` with the repo's `playwright-core`, then use `page.on("filechooser")` and `setFiles`, or `setInputFiles` on `input[type=file][accept=".csv"]`. Audio recording needs `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`; MP4 doesn't play in Playwright's Chromium, so check video with WebM. If "We couldn't check your session" follows a sign-in, test a bare `new WebSocket("wss://reminiscent-kangaroo-59.convex.cloud/api/1.46.0/sync")` in the page.
+
+**Works** against the dev deployment: sign-in and sign-out, the seeded vault, the composer, uploads and previews, AI summaries, tags and transcripts, search, the card modal, trash, bulk actions, Settings (API keys, import, export), the REST API, MCP, the CLI with `--api-key`, Polar's sandbox checkout, `bun run smoke:web`, the unit tests, typecheck, lint and the production builds. The browser extension signs in too: `bunx wxt build --mode development` in `apps/extension`, then load `apps/extension/.output/chrome-mv3-dev` with `--disable-extensions-except` and `--load-extension` and open its `popup.html`. A production extension build signs in against production, so don't use it here.
+
+**Needs care**
+
+- **Containers:** the hook starts Docker (`.agents/hooks/start-docker.sh`, log in `/tmp/teak-dockerd.log`) and exports `WRANGLER_DOCKER_BIN=scripts/dev/cloud-docker.sh`, which adds the proxy's CA to the images `wrangler dev` builds. Build an image by hand with `scripts/dev/cloud-docker-build.sh teak-renderer apps/core-worker/container` (or `teak-fetcher . apps/core-worker/fetcher/Dockerfile`) and never deploy what it builds; a `wrangler deploy` from a session fails at the download step on purpose.
+- **End-to-end suite:** `bun run dev --stop` first, then `bun run --cwd packages/tests e2e`, then `bun run dev --detach`. Run one Chromium at a time on 4 vCPUs. If a browser is missing, run `env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD bun --cwd=packages/tests x e2e-web install chromium webkit`.
+- **The backend is whatever was pushed last.** If `.agents/.state/stack.log` says "Schema validation failed", another branch's documents block your push and your frontend runs against its backend. Check `bunx convex run devPushLease:status` in `packages/convex` before trusting a backend result.
+- **Checks beside the running stack** can push `@teak/convex` HTTP tests past vitest's 5 s timeout; rerun a failing file alone before calling it a regression.
+- **After `bun install` changes `next`**, restart the stack: the running server answers "Internal Server Error".
+- **The first watch-mode `convex dev`** sometimes crashes downloading the local dashboard behind the proxy; the local stack restarts itself up to twice.
+
+**Doesn't work**
+
+- Cloudflare credentials: `bun run dev core` and deploys can't run. `bun run dev --local` and the end-to-end stack run the Worker in Miniflare without them.
+- Browser sign-in for the CLI and Raycast from your own browser (the loopback can't reach the VM). Use `TEAK_API_KEY` with `TEAK_API_URL=https://reminiscent-kangaroo-59.convex.site`.
+- Apple and Android builds (no macOS, Xcode, Android SDK or `/dev/kvm`).
+- Background processes across a reclaimed VM: run `bun run dev --detach` again each session.
 
 </Visibility>
 
 ## Environment and configuration
 
-Every environment value has one owner and one classification. Names and metadata live in `scripts/env-contract.ts`; values are never committed, printed, or pasted into docs.
+Every environment value has one owner and one classification. Names and metadata live in `scripts/env/env-contract.ts`; values are never committed, printed, or pasted into docs.
 
 ### Where values come from
 
 `setup`, `doctor`, `dev` and `audit:env` run with Bun's automatic dotenv loading turned off (`--no-env-file`). They read only:
 
 1. Explicit shell exports (CI, `export`, a command prefix).
-2. The dotenv files declared for the command's target in `scripts/env-targets.ts`, read through `scripts/env-loader.ts`.
+2. The dotenv files declared for the command's target in `scripts/env/env-targets.ts`, read through `scripts/env/env-loader.ts`.
 3. Provider stores: the Convex dashboard, Vercel, Wrangler, GitHub.
 4. Files setup writes from canonical facts, which are never edited by hand.
 
@@ -207,9 +239,9 @@ Precedence is top-down: a shell export wins over a dotenv file, and a dotenv fil
 
 ### Canonical facts and generated aliases
 
-`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts, and `SITE_URL` is the canonical app origin. Framework aliases (`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by setup (`scripts/env-aliases.ts`). Frameworks need the aliases at build time, but nobody maintains them by hand.
+`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts, and `SITE_URL` is the canonical app origin. Framework aliases (`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by setup (`scripts/env/env-aliases.ts`). Frameworks need the aliases at build time, but nobody maintains them by hand.
 
-Root `.env*` files are legacy: supported commands ignore them. `scripts/dotenv-audit.ts` still scans their names for production selectors, because editors and other tools may load them. Put new values in a shell export or the target's declared file. Teak never deletes or rewrites your dotenv files.
+Root `.env*` files are legacy: supported commands ignore them. `scripts/env/dotenv-audit.ts` still scans their names for production selectors, because editors and other tools may load them. Put new values in a shell export or the target's declared file. Teak never deletes or rewrites your dotenv files.
 
 ### Classifications
 
@@ -219,14 +251,14 @@ Root `.env*` files are legacy: supported commands ignore them. `scripts/dotenv-a
 - `build-metadata`: derived from provider metadata, such as the commit SHA or version.
 - `platform-binding`: provisioned by the platform, not supplied by an operator.
 
-Classification is derived from the contract's metadata (`scripts/env-classify.ts`), so it can't drift from the declared fields. Values that are the same in every deployment are typed code with an optional override, not configuration.
+Classification is derived from the contract's metadata (`scripts/env/env-classify.ts`), so it can't drift from the declared fields. Values that are the same in every deployment are typed code with an optional override, not configuration.
 
 ### Diagnostics
 
 - `bun run audit:env`: the contract-versus-repository audit plus the dotenv audit.
-- `bun run scripts/dotenv-audit.ts [--json]`: local dotenv state, names only.
+- `bun run scripts/env/dotenv-audit.ts [--json]`: local dotenv state, names only.
 - `bun run doctor --target <t> --json`: readiness with stable check IDs, remediations, and redacted output safe to attach to a bug report.
-- `bun run scripts/env-contract-report.ts [--json]`: baseline metrics and per-target manual-supply counts.
+- `bun run scripts/env/env-contract-report.ts [--json]`: baseline metrics and per-target manual-supply counts.
 
 ## Reporting Setup Problems
 
@@ -285,6 +317,23 @@ Follow the CLI prompt to add the DNS TXT record, then publish once verification 
 See **[Self-Hosting → Environment settings](/docs/self-hosting#detailed-environment-reference)** for every env var required across web, mobile, extension, and the Convex backend.
 
 Optional development URL overrides on the deployment: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (default: the development deployment's site URL), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`). The shared development deployment leaves them unset.
+
+## Pull requests
+
+Teak's repository is public, so every pull request title, body, comment and linked image is public. Fill `.github/pull_request_template.md` and follow these rules for anything you post on GitHub.
+
+- **Title:** a conventional commit, `type(scope): outcome`, such as `fix(web): steady grid selection`. The scope is the workspace (`web`, `extension`, `convex`, `docs`...).
+- **Body:** fill the template's sections in order, and delete the ones that don't apply and every HTML comment. Lead with the user-visible outcome, then what a reviewer needs to read the diff. Report verification faithfully: the commands you ran and what they returned, what you drove in the running app, and anything you couldn't check and why.
+- **Never include** secrets of any kind (name a new env var, never its value); real user data such as emails, card content, IP addresses, analytics IDs or production account IDs (describe counts and patterns instead); names of people, employers, clients or other companies and their internal products (services Teak already integrates with are fine); links a reviewer can't open, internal hostnames or local paths; or raw logs you haven't trimmed and redacted.
+- **Screenshots and video:** capture only the local or development stack, signed in as the seeded account. Look at every frame before you link it, and recapture when one shows other tabs, bookmarks, notifications, devtools with cookies or headers, a terminal with env output, or anything above. Cover the states the change touches (empty, loading, populated, error; light and dark; 390px and 1440px). For API, CLI and MCP changes, use captured requests and output with tokens replaced by `<redacted>`. Don't commit screenshots to the branch only to show them in the pull request.
+
+Before you post, re-read the title and body as a stranger would, and tick the template's "Safe to publish" boxes only once each one is true.
+
+<Visibility for="agents">
+
+Keep the attribution lines your harness adds and nothing else about the session. Agents can't upload GitHub attachments, so publish screenshots and video as a private artifact page from the session and link it under Proof (the owner can open it; the text must still stand without it), or send them to the owner and summarize them in text. When in doubt about a detail, leave it out and tell the owner in the session.
+
+</Visibility>
 
 ## Maintainer setup
 

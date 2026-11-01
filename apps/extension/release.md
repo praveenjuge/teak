@@ -4,7 +4,7 @@ The extension ships through `.github/workflows/extension-release.yml`: Chrome to
 
 ## Canonical release
 
-1. Complete the shared preparation in `../../.agents/releases.md` and merge the scoped version change to `main`.
+1. Complete the shared preparation in `../../.agents/runbooks/releases.md` and merge the scoped version change to `main`.
 2. `Version Tag` verifies the patch and lockstep invariants, creates `v<version>`, and dispatches every product release for that tag.
 3. `Extension Release` runs two jobs from the tag:
    - Chrome: verifies the extension version, builds the production Chrome zip, submits it to the Chrome Web Store, and attaches `teak-extension-<version>-chrome.zip`.

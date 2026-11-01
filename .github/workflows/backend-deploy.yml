@@ -8,7 +8,7 @@ on:
       - "packages/convex/**"
       - "packages/files-protocol/**"
       - "apps/core-worker/**"
-      - "scripts/check-files-readiness.ts"
+      - "scripts/setup/check-files-readiness.ts"
       - "bun.lock"
   workflow_dispatch:
 
@@ -39,10 +39,10 @@ jobs:
           test -n "$CONVEX_DEPLOY_KEY"
           test -n "$POSTHOG_PROJECT_TOKEN"
       - name: Wait for compatible core worker
-        run: bun run scripts/check-files-readiness.ts --prod --wait
+        run: bun run scripts/setup/check-files-readiness.ts --prod --wait
       - name: Resolve build metadata
         run: |
-          release="$(bun --no-env-file run scripts/build-metadata.ts --release teak-backend)"
+          release="$(bun --no-env-file run scripts/release/build-metadata.ts --release teak-backend)"
           echo "TEAK_BACKEND_RELEASE=$release" >> "$GITHUB_ENV"
           echo "TEAK_BACKEND_SHA=${release#teak-backend@}" >> "$GITHUB_ENV"
       - name: Configure backend release context

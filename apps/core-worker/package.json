@@ -5,10 +5,10 @@
   "scripts": {
     "cf-typegen": "wrangler types",
     "cf-typegen:check": "wrangler types --check",
-    "check": "bun run ../../scripts/check-cloudflare.ts",
+    "check": "bun run ../../scripts/cloudflare/check-cloudflare.ts",
     "deploy": "wrangler deploy",
     "deploy:development": "wrangler deploy --config development/wrangler.jsonc",
-    "dev": "bun --no-env-file run ../../scripts/core-worker-dev.ts",
+    "dev": "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts",
     "dev:local": "wrangler dev --var POSTHOG_PROJECT_TOKEN:",
     "fetcher:live-check": "bun fetcher/scripts/live-check.ts",
     "test": "bun test src container/src fetcher/src",

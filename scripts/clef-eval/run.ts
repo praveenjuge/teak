@@ -38,7 +38,7 @@ import {
   type ClefModel,
   DECISION_THRESHOLDS,
 } from "../../packages/files-protocol/src/index";
-import { CLOUDFLARE_ACCOUNT_ID } from "../core-worker-dev-boundary";
+import { CLOUDFLARE_ACCOUNT_ID } from "../dev/core-worker-dev-boundary";
 import {
   type ChoiceOutcome,
   choiceRows,

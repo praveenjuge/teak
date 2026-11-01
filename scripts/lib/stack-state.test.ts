@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mainWorktreePorts } from "../worktree-env.ts";
+import { mainWorktreePorts } from "../dev/worktree-env.ts";
 import {
   isProcessAlive,
   isStackRunning,
@@ -38,12 +38,12 @@ describe("stack liveness", () => {
     expect(isStackRunning(state(process.pid))).toBe(false);
   });
 
-  test("bun run dev's stack runs as scripts/dev-main.ts", () => {
+  test("bun run dev's stack runs as scripts/dev/dev-main.ts", () => {
     const owner = Bun.spawn([
       "sh",
       "-c",
       "sleep 30; :",
-      "/repo/scripts/dev-main.ts",
+      "/repo/scripts/dev/dev-main.ts",
     ]);
     try {
       expect(isStackRunning(state(owner.pid))).toBe(true);

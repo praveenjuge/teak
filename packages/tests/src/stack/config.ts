@@ -1,5 +1,5 @@
+import type { WorktreePorts } from "../../../../scripts/dev/worktree-env.ts";
 import type { StackUrls } from "../../../../scripts/lib/stack-state.ts";
-import type { WorktreePorts } from "../../../../scripts/worktree-env.ts";
 
 export type StackPorts = Pick<
   WorktreePorts,

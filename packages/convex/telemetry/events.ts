@@ -11,7 +11,7 @@ import { captureBackendEvent } from "./posthog";
 
 // Mutations queue their events in the workflow dispatch outbox
 // (`./schedule.ts`). These three actions stay only for jobs scheduled before
-// that (`.agents/sunset.md`).
+// that (`.agents/records/sunset.md`).
 
 export const emitCardOutcome = internalAction({
   args: {

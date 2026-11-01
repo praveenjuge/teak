@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { slotPorts, stackPorts } from "../../../../scripts/worktree-env.ts";
+import { slotPorts, stackPorts } from "../../../../scripts/dev/worktree-env.ts";
 import { coreWorkerOrigin, stackUrls } from "./config";
 
 describe("stack ports", () => {

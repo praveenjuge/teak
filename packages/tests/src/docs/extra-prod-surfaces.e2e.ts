@@ -79,7 +79,7 @@ const probes: Probe[] = [
     body: /"skills"/,
   },
   {
-    // A Cloudflare redirect to the teakvault.com index (.agents/environment.md, "Rules set outside the repository").
+    // A Cloudflare redirect to the teakvault.com index (.agents/guides/environment.md, "Rules set outside the repository").
     name: "api subdomain agent skills index",
     url: "https://api.teakvault.com/.well-known/agent-skills/index.json",
     kind: "json",

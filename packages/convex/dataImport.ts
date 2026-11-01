@@ -465,7 +465,7 @@ export const setPhase = internalMutation({
   },
 });
 
-/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/records/sunset.md`. */
 export const insertItems = internalMutation({
   args: { jobId: v.id("importJobs"), items: v.array(itemInputValidator) },
   returns: v.null(),
@@ -501,7 +501,7 @@ export const insertItems = internalMutation({
                 .first()
             : null) ??
           // Items written before `urlKey` existed match only by address,
-          // until those jobs expire (`.agents/sunset.md`).
+          // until those jobs expire (`.agents/records/sunset.md`).
           (await ctx.db
             .query("importJobItems")
             .withIndex("by_jobId_and_url", (q) =>
@@ -545,7 +545,7 @@ export const insertItems = internalMutation({
   },
 });
 
-/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/records/sunset.md`. */
 export const getPendingItems = internalQuery({
   args: { jobId: v.id("importJobs"), limit: v.number() },
   returns: v.any(),
@@ -590,7 +590,7 @@ export const getUnclaimedFileKeysPage = internalQuery({
 
 export { importedBookmarkTitle } from "./import/items";
 
-/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/records/sunset.md`. */
 export const createPendingBatch = internalMutation({
   args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
   returns: v.object({
@@ -691,7 +691,7 @@ export const createPendingBatch = internalMutation({
   },
 });
 
-/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/records/sunset.md`. */
 export const failItems = internalMutation({
   args: {
     jobId: v.id("importJobs"),
@@ -727,7 +727,7 @@ export const failItems = internalMutation({
   },
 });
 
-/** Legacy staging: jobs queued before `stagedItems`. See `.agents/sunset.md`. */
+/** Legacy staging: jobs queued before `stagedItems`. See `.agents/records/sunset.md`. */
 export const setExtractedFile = internalMutation({
   args: { itemId: v.id("importJobItems"), key: v.string() },
   returns: v.null(),
