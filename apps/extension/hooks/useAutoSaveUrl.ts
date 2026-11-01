@@ -30,6 +30,8 @@ export const TAB_READ_DELAY_MS = 300;
 export interface UseAutoSaveUrlResult {
   cardId?: string;
   code?: string;
+  /** The tab's own title and icon, for the popup's preview of the page. */
+  currentTab?: { favIconUrl?: string; title?: string };
   currentUrl?: string;
   duplicateCard?: DuplicateCard | null;
   error?: string;
@@ -67,6 +69,8 @@ export const useAutoSaveUrl = (
   const [state, setState] = useState<AutoSaveState>("idle");
   const [error, setError] = useState<string>();
   const [currentUrl, setCurrentUrl] = useState<string>();
+  const [currentTab, setCurrentTab] =
+    useState<UseAutoSaveUrlResult["currentTab"]>();
   const [cardId, setCardId] = useState<string>();
   const [code, setCode] = useState<string>();
   const hasCheckedRef = useRef(false);
@@ -108,6 +112,10 @@ export const useAutoSaveUrl = (
         }
 
         setCurrentUrl(currentTab.url);
+        setCurrentTab({
+          favIconUrl: currentTab.favIconUrl,
+          title: currentTab.title,
+        });
 
         if (!isValidUrl(currentTab.url)) {
           setState("invalid-url");
@@ -186,6 +194,7 @@ export const useAutoSaveUrl = (
     code,
     state,
     error,
+    currentTab,
     currentUrl,
     duplicateCard,
   };

@@ -127,3 +127,13 @@
     "SN Pro", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", system-ui, sans-serif;
 }
+
+/* The saving bar under a page or file preview in the popup. */
+@keyframes teak-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}

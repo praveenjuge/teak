@@ -1,17 +1,13 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
-import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import {
-  ArrowUpRight,
-  BookmarkCheck,
-  Check,
-  Info,
-  LoaderCircle,
-  Sparkles,
-  Upload,
-  type VadivamIcon,
-  X,
-} from "vadivam-react";
+  type ChangeEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { ArrowUpRight, LoaderCircle, LogOut, Upload } from "vadivam-react";
 import { Button } from "../../components/ui/button";
 import { Wordmark } from "../../components/Wordmark";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
@@ -23,12 +19,16 @@ import {
   type FileUploadState,
   getPopupStatus,
   type PopupStatus,
-  type PopupTone,
+  previewItem,
+  type SavedItem,
   uploadPromptStatus,
 } from "../../lib/popupStatus";
 import { cn } from "../../lib/utils";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
-import { SaveDetails } from "./SaveDetails";
+import { AccountMenu, menuItemClass, type SessionUser } from "./AccountMenu";
+import { DetailsPlaceholder, SaveDetails } from "./SaveDetails";
+import { SavedItemCard, StatusLine } from "./SavedItem";
+import { TONES } from "./tones";
 
 // Firefox closes the toolbar popup as its file picker opens, and the chosen
 // file with it, so there "Upload file" opens this page in a window of its own.
@@ -48,34 +48,6 @@ const openUploadWindow = async () => {
   });
   window.close();
 };
-
-const TONES: Record<PopupTone, { className: string; icon: VadivamIcon }> = {
-  error: { className: "bg-destructive/10 text-destructive", icon: X },
-  existing: {
-    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    icon: BookmarkCheck,
-  },
-  info: { className: "bg-muted text-muted-foreground", icon: Info },
-  loading: {
-    className: "bg-primary/10 text-primary [&>svg]:animate-spin",
-    icon: LoaderCircle,
-  },
-  success: {
-    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    icon: Check,
-  },
-  upgrade: {
-    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    icon: Sparkles,
-  },
-};
-
-interface SessionUser {
-  email: string;
-  id: string;
-  image?: string;
-  name?: string;
-}
 
 function App() {
   const t = useTranslations("extension.popup");
@@ -147,20 +119,23 @@ function StatusView({
   status: PopupStatus;
   children?: ReactNode;
 }) {
-  const { className, icon: Icon } = TONES[status.tone];
+  const { chip, icon: Icon } = TONES[status.tone];
   return (
     <div
       aria-live="polite"
-      className="flex flex-col items-center gap-3 text-center"
+      className="flex flex-col items-center gap-4 text-center"
       role="status"
     >
       <div
-        className={`flex size-12 items-center justify-center rounded-full ${className}`}
+        className={cn(
+          "flex size-12 items-center justify-center rounded-full ring-8",
+          chip
+        )}
       >
         <Icon aria-hidden="true" className="size-5" strokeWidth={2.5} />
       </div>
       <div className="space-y-1">
-        <p className="font-medium text-base">{status.title}</p>
+        <p className="font-semibold text-base tracking-tight">{status.title}</p>
         {status.detail ? (
           <p className="line-clamp-3 max-w-64 text-balance break-words text-muted-foreground">
             {status.detail}
@@ -282,9 +257,11 @@ function AuthPanel({
 
   return (
     <div className="flex min-h-80 flex-col items-center justify-center gap-6 px-8 py-10 text-center">
-      <Wordmark className="h-7 w-auto" title="Teak" variant="primary" />
+      <Wordmark className="h-6 w-auto" title="Teak" variant="primary" />
       <div className="space-y-1.5">
-        <h1 className="font-medium text-base">{t("headline")}</h1>
+        <h1 className="font-semibold text-lg tracking-tight">
+          {t("headline")}
+        </h1>
         <p className="text-balance text-muted-foreground">
           {t("signInPrompt")}
         </p>
@@ -346,6 +323,8 @@ function AuthenticatedPopup({
     fileName?: string;
     state: FileUploadState;
   }>({ state: "idle" });
+  const [chosenFile, setChosenFile] = useState<SavedItem>();
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const baseStatus = getPopupStatus(
     {
@@ -370,6 +349,17 @@ function AuthenticatedPopup({
       ? autoSave.cardId
       : undefined;
   const autoClose = Boolean(status?.autoClose);
+  const item = previewItem({
+    autoSave: {
+      state: autoSave.state,
+      tab: autoSave.currentTab,
+      url: autoSave.currentUrl,
+    },
+    chosenFile,
+    fileState: fileUpload.state,
+    isRecentSave,
+    status,
+  });
 
   useEffect(() => {
     if (!autoClose) {
@@ -389,6 +379,12 @@ function AuthenticatedPopup({
     const fileName = file.name;
     const fail = (error: string, code?: string) =>
       setFileUpload({ code, error, fileName, state: "error" });
+    setChosenFile({
+      kind: "file",
+      mimeType: file.type,
+      name: fileName,
+      size: file.size,
+    });
     setFileUpload({ fileName, state: "saving" });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
       fail(t("fileInvalid"));
@@ -453,27 +449,97 @@ function AuthenticatedPopup({
   };
 
   const isUploading = fileUpload.state === "saving";
+  // One child or none: the card draws its details row only when there's something in it.
+  let details: ReactNode = null;
+  if (detailsCardId) {
+    details = (
+      <SaveDetails
+        alreadySaved={autoSave.state === "duplicate"}
+        cardId={detailsCardId}
+        key={detailsCardId}
+        onKeepOpen={() => setDetailsTouched(true)}
+        userId={user.id}
+      />
+    );
+  } else if (item?.kind === "page" && status?.tone === "loading") {
+    details = <DetailsPlaceholder />;
+  }
+  const chooseFile = () => {
+    if (isUploading) {
+      return;
+    }
+    if (UPLOADS_IN_WINDOW && !IS_UPLOAD_WINDOW) {
+      void openUploadWindow();
+      return;
+    }
+    fileInput.current?.click();
+  };
 
   return (
     <div className="flex min-h-80 flex-col">
-      <header className="flex items-center justify-between py-3 pr-2 pl-4">
+      <header className="flex items-center justify-between py-2.5 pr-2.5 pl-4">
         <a href={APP_URL} rel="noopener noreferrer" target="_blank">
           <Wordmark className="h-5 w-auto" title="Teak" variant="primary" />
         </a>
-        <Button asChild size="sm" variant="ghost">
-          <a href={APP_URL} rel="noopener noreferrer" target="_blank">
+        <AccountMenu label={t("menu")} user={user}>
+          <a
+            className={menuItemClass}
+            href={APP_URL}
+            rel="noopener noreferrer"
+            role="menuitem"
+            target="_blank"
+          >
+            <ArrowUpRight aria-hidden="true" />
             {t("openTeak")}
-            <ArrowUpRight />
           </a>
-        </Button>
+          <button
+            aria-disabled={isUploading || undefined}
+            className={menuItemClass}
+            onClick={chooseFile}
+            role="menuitem"
+            type="button"
+          >
+            <Upload aria-hidden="true" />
+            {t("uploadFile")}
+          </button>
+          <hr className="-mx-1 my-1 border-border" />
+          <button
+            aria-disabled={signOutLoading || undefined}
+            className={menuItemClass}
+            onClick={() => {
+              if (!signOutLoading) {
+                void handleSignOut();
+              }
+            }}
+            role="menuitem"
+            type="button"
+          >
+            <LogOut aria-hidden="true" />
+            {t("signOut")}
+          </button>
+        </AccountMenu>
       </header>
 
       <div className="px-4">
         <PendingSavesNotice count={pendingCount} />
       </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-5 px-8 py-8">
-        {status ? (
+      <main
+        className={
+          item
+            ? "flex flex-1 flex-col justify-center gap-3 px-4 pt-1 pb-5"
+            : "flex flex-1 flex-col items-center justify-center gap-5 px-8 py-8"
+        }
+      >
+        {item && status ? (
+          <>
+            <StatusLine status={status} />
+            <SavedItemCard busy={status.tone === "loading"} item={item}>
+              {details}
+            </SavedItemCard>
+          </>
+        ) : null}
+        {status && !item ? (
           <StatusView status={status}>
             {status.tone === "upgrade" ? (
               <Button asChild size="sm">
@@ -487,16 +553,13 @@ function AuthenticatedPopup({
                 </a>
               </Button>
             ) : null}
+            {IS_UPLOAD_WINDOW && fileUpload.state === "idle" ? (
+              <Button onClick={chooseFile} size="sm">
+                <Upload />
+                {t("uploadFile")}
+              </Button>
+            ) : null}
           </StatusView>
-        ) : null}
-        {detailsCardId ? (
-          <SaveDetails
-            alreadySaved={autoSave.state === "duplicate"}
-            cardId={detailsCardId}
-            key={detailsCardId}
-            onKeepOpen={() => setDetailsTouched(true)}
-            userId={user.id}
-          />
         ) : null}
       </main>
 
@@ -508,59 +571,17 @@ function AuthenticatedPopup({
 
       <PrivateSessionNotice className="px-6 pb-3" show={privateSession} />
 
-      <footer className="flex items-center gap-1 border-t py-2 pr-2 pl-4">
-        <span
-          className="min-w-0 flex-1 truncate text-muted-foreground text-xs"
-          title={user.email}
-        >
-          {user.email}
-        </span>
-        <Button
-          disabled={signOutLoading}
-          onClick={() => {
-            void handleSignOut();
-          }}
-          size="sm"
-          variant="ghost"
-        >
-          {t("signOut")}
-        </Button>
-        {UPLOADS_IN_WINDOW && !IS_UPLOAD_WINDOW ? (
-          <Button
-            onClick={() => {
-              void openUploadWindow();
-            }}
-            size="sm"
-            variant="outline"
-          >
-            <Upload />
-            {t("uploadFile")}
-          </Button>
-        ) : (
-          <Button
-            aria-disabled={isUploading}
-            asChild
-            className={
-              isUploading ? "pointer-events-none opacity-50" : "cursor-pointer"
-            }
-            size="sm"
-            variant="outline"
-          >
-            <label>
-              <Upload />
-              {t("uploadFile")}
-              <input
-                className="sr-only"
-                disabled={isUploading}
-                onChange={(event) => {
-                  void handleFileSelected(event);
-                }}
-                type="file"
-              />
-            </label>
-          </Button>
-        )}
-      </footer>
+      {/* Outside the menu, so closing the menu doesn't drop the chosen file. */}
+      <input
+        className="sr-only"
+        disabled={isUploading}
+        onChange={(event) => {
+          void handleFileSelected(event);
+        }}
+        ref={fileInput}
+        tabIndex={-1}
+        type="file"
+      />
     </div>
   );
 }

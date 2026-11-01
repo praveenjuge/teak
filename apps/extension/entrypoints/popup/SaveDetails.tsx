@@ -60,6 +60,17 @@ const failureMessage = (
   return tags ? t("tagsFailed") : t("noteFailed");
 };
 
+/** The tag and note rows, greyed out, while the page saves, so the card doesn't jump when they arrive. */
+export function DetailsPlaceholder() {
+  const t = useTranslations("extension.popup.details");
+  return (
+    <div aria-hidden="true" className="text-muted-foreground/60 text-sm">
+      <p className="flex min-h-11 items-center px-3">{t("addTags")}</p>
+      <p className="min-h-16 border-t px-3 py-2.5">{t("addNote")}</p>
+    </div>
+  );
+}
+
 export function SaveDetails({
   alreadySaved,
   cardId,
@@ -221,10 +232,10 @@ export function SaveDetails({
 
   if (loadState === "loading") {
     return (
-      <div aria-busy="true" className="w-full" role="status">
+      <div aria-busy="true" className="w-full space-y-2 p-3" role="status">
         <span className="sr-only">{t("loadingTags")}</span>
-        <div className="h-8 w-full animate-pulse rounded-lg bg-muted" />
-        <div className="mt-2 h-14 w-full animate-pulse rounded-lg bg-muted" />
+        <div className="h-6 w-1/2 animate-pulse rounded-md bg-muted" />
+        <div className="h-12 w-full animate-pulse rounded-md bg-muted" />
       </div>
     );
   }
@@ -232,7 +243,7 @@ export function SaveDetails({
   if (loadState === "error") {
     return (
       <div
-        className="flex w-full items-center justify-between gap-2 rounded-lg bg-muted/60 py-1 pr-1 pl-3 text-left text-xs"
+        className="flex w-full items-center justify-between gap-2 py-1.5 pr-1.5 pl-3 text-left text-xs"
         role="alert"
       >
         <span className="text-muted-foreground">{t("loadFailed")}</span>
@@ -249,9 +260,9 @@ export function SaveDetails({
   }
 
   return (
-    <div className="w-full space-y-2 text-left starting:opacity-0 transition-opacity duration-150">
-      <div>
-        <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-lg border border-input px-1.5 py-1 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+    <div className="w-full text-left starting:opacity-0 transition-opacity duration-150">
+      <div className="space-y-2 px-2 py-2 transition-colors focus-within:bg-muted/40">
+        <div className="flex min-h-7 flex-wrap items-center gap-1">
           {tags.map((tag) => (
             <span
               className="inline-flex h-6 max-w-full items-center gap-0.5 rounded-md bg-secondary pr-0.5 pl-2 text-secondary-foreground text-xs"
@@ -302,46 +313,46 @@ export function SaveDetails({
             value={tagInput}
           />
         </div>
+        {suggestions.length > 0 ? (
+          <div
+            aria-label={t("suggestedTags")}
+            className="flex flex-wrap gap-1"
+            id="teak-tag-options"
+            role="listbox"
+          >
+            {suggestions.map((tag, index) => (
+              <div
+                aria-selected={index === highlighted}
+                className="inline-flex h-6 max-w-40 cursor-default items-center rounded-md border border-dashed px-2 text-muted-foreground text-xs hover:border-solid hover:bg-accent hover:text-foreground aria-selected:border-solid aria-selected:bg-accent aria-selected:text-foreground"
+                dir="auto"
+                id={`teak-tag-option-${index}`}
+                key={tag}
+                onMouseDown={(event) => {
+                  // Keeps focus in the input, so it doesn't blur first.
+                  event.preventDefault();
+                  if (addTag(tag)) {
+                    save();
+                  }
+                }}
+                role="option"
+                tabIndex={-1}
+                title={tag}
+              >
+                <span className="truncate">{tag}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {tagError ? (
+          <p className="px-1 text-destructive text-xs" role="alert">
+            {tagError}
+          </p>
+        ) : null}
       </div>
-      {suggestions.length > 0 ? (
-        <div
-          aria-label={t("suggestedTags")}
-          className="flex flex-wrap gap-1"
-          id="teak-tag-options"
-          role="listbox"
-        >
-          {suggestions.map((tag, index) => (
-            <div
-              aria-selected={index === highlighted}
-              className="inline-flex h-6 max-w-40 cursor-default items-center rounded-md border border-dashed px-2 text-muted-foreground text-xs hover:border-solid hover:bg-accent hover:text-foreground aria-selected:border-solid aria-selected:bg-accent aria-selected:text-foreground"
-              dir="auto"
-              id={`teak-tag-option-${index}`}
-              key={tag}
-              onMouseDown={(event) => {
-                // Keeps focus in the input, so it doesn't blur first.
-                event.preventDefault();
-                if (addTag(tag)) {
-                  save();
-                }
-              }}
-              role="option"
-              tabIndex={-1}
-              title={tag}
-            >
-              <span className="truncate">{tag}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {tagError ? (
-        <p className="px-1 text-destructive text-xs" role="alert">
-          {tagError}
-        </p>
-      ) : null}
-      <div className="relative">
+      <div className="relative border-t transition-colors focus-within:bg-muted/40">
         <textarea
           aria-label={t("note")}
-          className="field-sizing-content block max-h-[8.5rem] min-h-14 w-full resize-none overflow-y-auto rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="field-sizing-content block max-h-[8.5rem] min-h-16 w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
           dir="auto"
           onBlur={save}
           onChange={(event) => {
@@ -364,7 +375,7 @@ export function SaveDetails({
       </div>
       {saveError ? (
         <div
-          className="flex items-center justify-between gap-2 rounded-lg bg-destructive/10 py-1 pr-1 pl-3 text-destructive text-xs"
+          className="flex items-center justify-between gap-2 border-t bg-destructive/10 py-1 pr-1.5 pl-3 text-destructive text-xs"
           role="alert"
         >
           <span>{saveError}</span>
