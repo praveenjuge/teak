@@ -51,6 +51,7 @@ import {
   cardIn50FoldersPack,
   exportUglyPack,
   type FolderScenarioPack,
+  folderRulesPack,
   folders500Pack,
   foldersOnePack,
   foldersUglyPack,
@@ -301,6 +302,21 @@ const seedFolderScenario = async (
           ? undefined
           : parseSearchQuery(folder.query).canonical
       );
+      const rules = {
+        ...(folder.autoTags ? { autoTags: folder.autoTags } : {}),
+        ...(folder.autoFileQuery === undefined
+          ? {}
+          : {
+              autoFileQuery: parseSearchQuery(folder.autoFileQuery).canonical,
+            }),
+        ...(folder.autoFilePaused ? { autoFilePaused: true as const } : {}),
+      };
+      if (Object.keys(rules).length > 0) {
+        await ctx.db.patch("folders", folderId, {
+          ...rules,
+          hasRules: true,
+        });
+      }
       byKey.set(key, folderId);
       total += 1;
       created += 1;
@@ -482,6 +498,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "1,000 links, nine in ten on one host, so qualifiers page through more than one scan budget. 200 per page.",
     cards: searchQualifiersVolumePage,
+  },
+  "folder-rules": {
+    description:
+      "A folder for each rule shape, saved but not yet run: tags only with a card inside to tag, a search matching two typography cards, tags and a search with a sourdough card to file, a paused search, and a folder whose secret tag hides its cards.",
+    folders: folderRulesPack,
   },
   "smart-folders": {
     description:

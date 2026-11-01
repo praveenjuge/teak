@@ -1032,6 +1032,65 @@ export const deleteExpiredFolderRuleRuns = internalMutation({
 
 // Public functions for the web app.
 
+export const FOLDER_RULE_PREVIEW_LIMIT = 500;
+const FOLDER_RULE_PREVIEW_BYTES = 4 * 1024 * 1024;
+
+/**
+ * How many of the newest cards an auto-file search matches, with the same
+ * matcher the rule uses, or why the search can't be a rule. `capped` means
+ * the count covers only the newest cards.
+ */
+export const previewFolderRule = query({
+  args: { query: v.string() },
+  returns: v.union(
+    v.object({ matches: v.number(), capped: v.boolean() }),
+    v.object({ error: v.string() }),
+    v.null()
+  ),
+  handler: async (ctx, args) => {
+    const user = await getSessionUser(ctx);
+    if (!user) {
+      return null;
+    }
+    let canonical: string;
+    try {
+      canonical = await normalizeAutoFileQuery(
+        ctx,
+        user.teakUserId,
+        args.query
+      );
+    } catch (error) {
+      const message =
+        error instanceof ConvexError
+          ? (error.data as { message?: unknown } | undefined)?.message
+          : undefined;
+      if (typeof message === "string") {
+        return { error: message };
+      }
+      throw error;
+    }
+    const matches = await buildRuleMatcher(ctx, user.teakUserId, canonical);
+    const page = await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted_created", (q) =>
+        q.eq("userId", user.teakUserId)
+      )
+      .order("desc")
+      .paginate({
+        cursor: null,
+        numItems: FOLDER_RULE_PREVIEW_LIMIT,
+        maximumBytesRead: FOLDER_RULE_PREVIEW_BYTES,
+      });
+    let count = 0;
+    for (const card of page.page) {
+      if (matches?.(card)) {
+        count += 1;
+      }
+    }
+    return { matches: count, capped: !page.isDone };
+  },
+});
+
 export const getFolderRuleRun = query({
   args: { folderId: v.id("folders"), runId: v.id("folderRuleRuns") },
   returns: v.union(folderRuleRunValidator, v.null()),

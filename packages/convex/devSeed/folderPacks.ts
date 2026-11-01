@@ -15,7 +15,14 @@ export interface FolderScenarioCard
 
 export interface FolderScenarioPack {
   cards: FolderScenarioCard[];
-  folders: { color?: FolderColor; name: string; query?: string }[];
+  folders: {
+    autoFilePaused?: true;
+    autoFileQuery?: string;
+    autoTags?: string[];
+    color?: FolderColor;
+    name: string;
+    query?: string;
+  }[];
 }
 
 export const FOLDER_SCENARIOS = [
@@ -25,6 +32,7 @@ export const FOLDER_SCENARIOS = [
   "folders-ugly",
   "search-qualifiers",
   "smart-folders",
+  "folder-rules",
   "export-ugly",
   "palette-mixed",
   "focus-notes",
@@ -388,6 +396,59 @@ export const smartFoldersPack = (): FolderScenarioPack => {
         ...tagged("design"),
         isArchived: true,
       }),
+    ],
+  };
+};
+
+/**
+ * A folder for each rule shape, saved without running, so saving one in the
+ * Rules dialog shows its run: tags only (with a card already inside to tag),
+ * a search that matches two cards, both with a card to file and tag, a paused
+ * search, and a folder whose tag hides its cards.
+ */
+export const folderRulesPack = (): FolderScenarioPack => {
+  const scenario = "folder-rules" as const;
+  const card = (
+    index: number,
+    label: string,
+    folders: number[],
+    tags: string[] = []
+  ) =>
+    folderScenarioCard(scenario, index, label, folders, {
+      tags: [`scenario-${scenario}`, ...tags],
+    });
+  return {
+    folders: [
+      {
+        name: "Rules: tags only",
+        color: "blue",
+        autoTags: ["to-read", "later"],
+      },
+      {
+        name: "Rules: typography",
+        color: "violet",
+        autoFileQuery: "tag:typography",
+      },
+      {
+        name: "Rules: sourdough",
+        color: "amber",
+        autoTags: ["recipe"],
+        autoFileQuery: "sourdough",
+      },
+      {
+        name: "Rules: paused",
+        autoFileQuery: `tag:scenario-${scenario}`,
+        autoFilePaused: true,
+      },
+      { name: "Rules: private", color: "gray", autoTags: ["secret"] },
+    ],
+    cards: [
+      card(0, "Folder rules pack", []),
+      card(1, "Already in the tags-only folder, without its tags", [0]),
+      card(2, "Variable fonts in practice", [], ["typography"]),
+      card(3, "Kerning pairs worth knowing", [], ["typography"]),
+      card(4, "Sourdough starter, day one", []),
+      card(5, "Rye crackers, nothing to file", []),
     ],
   };
 };

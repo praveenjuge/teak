@@ -1,3 +1,7 @@
 export * from "./folder/folders";
 export * from "./folder/membership";
-export { getFolderRuleRun, undoFolderRuleRun } from "./folder/rules";
+export {
+  getFolderRuleRun,
+  previewFolderRule,
+  undoFolderRuleRun,
+} from "./folder/rules";

@@ -657,6 +657,38 @@
       "label": "検索条件：{query}",
       "noFolderNamed": "{name} という名前のフォルダはありません",
       "excluded": "除外"
+    },
+    "rulesDialog": {
+      "title": "{name} のルール",
+      "description": "ルールは新しいカードと、すでにあるカードに適用されます。",
+      "tagsLegend": "追加するタグ",
+      "tagsHelp": "このフォルダに入れたカードには、これらのタグが付きます。",
+      "tagInputLabel": "追加するタグ",
+      "addTag": "タグを追加",
+      "removeTag": "{tag} を削除",
+      "tagsLimit": "{max} 個まで",
+      "hiddenWarning": "タグ {tag} があるため、このフォルダのカードはライブラリに表示されなくなります。",
+      "fileLegend": "一致するカードを自動で振り分ける",
+      "fileHelp": "この検索条件に一致するカードは、Teak が読み取った後にこのフォルダに振り分けられます。",
+      "searchLabel": "検索条件",
+      "enabledLabel": "一致するカードを振り分ける",
+      "checking": "確認中…",
+      "matches": "{count, plural, =0 {一致するカードはありません} other {# 枚のカードが一致}}",
+      "matchesCapped": "{count, plural, =0 {最新のカードに一致するものはありません} other {最新のカードのうち # 枚が一致}}",
+      "saveFailed": "ルールを保存できませんでした",
+      "lastRun": "前回の実行で {filed, plural, other {# 枚}}のカードを振り分け、{tagged, plural, other {# 枚}}のカードにタグを付けました。",
+      "lastRunRunning": "ルールをカードに適用しています。",
+      "lastRunUndone": "前回の実行は元に戻されました。",
+      "undoLastRun": "前回の実行を元に戻す",
+      "undoFailed": "実行を元に戻せませんでした"
+    },
+    "ruleRun": {
+      "running": "{name} のルールを適用しています…",
+      "done": "{name} で {filed, plural, other {# 枚}}のカードを振り分け、{tagged, plural, other {# 枚}}のカードにタグを付けました",
+      "nothing": "{name} で変更が必要なカードはありませんでした",
+      "undoing": "{name} のルールの実行を元に戻しています…",
+      "undone": "{name} のルールの実行を元に戻しました",
+      "undoFailed": "実行を元に戻せませんでした"
     }
   },
   "sidebar": {
@@ -681,7 +713,9 @@
       "restoreFailed": "フォルダを復元できませんでした",
       "deleteFailed": "フォルダを削除できませんでした",
       "deleted": "「{name}」を削除しました",
-      "deletedDescription": "中のカードはライブラリに残っています。"
+      "deletedDescription": "中のカードはライブラリに残っています。",
+      "rulesItem": "ルール…",
+      "hasRules": "ルールあり"
     },
     "newFolder": {
       "nameLabel": "新規フォルダの名前",
@@ -1627,7 +1661,8 @@
       "savedSmartFolderDescription": "条件に一致するカードは、保存するたびにここに表示されます。",
       "open": "開く",
       "unsavableFilters": "色、スタイル、日付はスマートフォルダに保存されません。",
-      "loadFailed": "カードを読み込めませんでした。"
+      "loadFailed": "カードを読み込めませんでした。",
+      "folderRules": "フォルダのルール"
     },
     "tags": {
       "sortMostUsed": "使用回数順",

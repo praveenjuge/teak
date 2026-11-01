@@ -657,6 +657,38 @@
       "label": "Recherche : {query}",
       "noFolderNamed": "Aucun dossier nommé {name}",
       "excluded": "sauf"
+    },
+    "rulesDialog": {
+      "title": "Règles de {name}",
+      "description": "Les règles s’appliquent aux nouvelles fiches et à celles que vous avez déjà.",
+      "tagsLegend": "Ajouter ces tags",
+      "tagsHelp": "Chaque fiche placée dans ce dossier reçoit ces tags.",
+      "tagInputLabel": "Tag à ajouter",
+      "addTag": "Ajouter le tag",
+      "removeTag": "Retirer {tag}",
+      "tagsLimit": "Jusqu’à {max} tags",
+      "hiddenWarning": "Les fiches de ce dossier seront masquées de votre bibliothèque à cause du tag {tag}.",
+      "fileLegend": "Classer automatiquement les fiches correspondantes",
+      "fileHelp": "Les fiches qui correspondent à cette recherche sont classées ici une fois que Teak les a lues.",
+      "searchLabel": "Recherche",
+      "enabledLabel": "Classer les fiches correspondantes",
+      "checking": "Vérification…",
+      "matches": "{count, plural, =0 {Aucune fiche ne correspond} one {# fiche correspond} other {# fiches correspondent}}",
+      "matchesCapped": "{count, plural, =0 {Aucune de vos fiches les plus récentes ne correspond} one {# de vos fiches les plus récentes correspond} other {# de vos fiches les plus récentes correspondent}}",
+      "saveFailed": "Impossible d’enregistrer les règles",
+      "lastRun": "La dernière exécution a classé {filed, plural, one {# fiche} other {# fiches}} et tagué {tagged, plural, one {# fiche} other {# fiches}}.",
+      "lastRunRunning": "Les règles s’appliquent encore à vos fiches.",
+      "lastRunUndone": "La dernière exécution a été annulée.",
+      "undoLastRun": "Annuler la dernière exécution",
+      "undoFailed": "Impossible d’annuler l’exécution"
+    },
+    "ruleRun": {
+      "running": "Application des règles de {name}…",
+      "done": "{filed, plural, one {# fiche classée} other {# fiches classées}} et {tagged, plural, one {# fiche taguée} other {# fiches taguées}} dans {name}",
+      "nothing": "Aucune fiche n’avait besoin de changer pour {name}",
+      "undoing": "Annulation de l’exécution des règles de {name}…",
+      "undone": "Exécution des règles de {name} annulée",
+      "undoFailed": "Impossible d’annuler l’exécution"
     }
   },
   "sidebar": {
@@ -681,7 +713,9 @@
       "restoreFailed": "Impossible de restaurer le dossier",
       "deleteFailed": "Impossible de supprimer le dossier",
       "deleted": "« {name} » supprimé",
-      "deletedDescription": "Ses fiches sont toujours dans votre bibliothèque."
+      "deletedDescription": "Ses fiches sont toujours dans votre bibliothèque.",
+      "rulesItem": "Règles…",
+      "hasRules": "A des règles"
     },
     "newFolder": {
       "nameLabel": "Nom du nouveau dossier",
@@ -1627,7 +1661,8 @@
       "savedSmartFolderDescription": "Il affiche toutes les fiches correspondantes, au fur et à mesure que vous les enregistrez.",
       "open": "Ouvrir",
       "unsavableFilters": "Les couleurs, styles et dates ne sont pas enregistrés dans un dossier intelligent.",
-      "loadFailed": "Impossible de charger vos fiches."
+      "loadFailed": "Impossible de charger vos fiches.",
+      "folderRules": "Règles du dossier"
     },
     "tags": {
       "sortMostUsed": "Plus utilisés",

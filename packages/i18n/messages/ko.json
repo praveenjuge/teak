@@ -657,6 +657,38 @@
       "label": "검색: {query}",
       "noFolderNamed": "{name} 폴더가 없습니다",
       "excluded": "제외"
+    },
+    "rulesDialog": {
+      "title": "{name} 규칙",
+      "description": "규칙은 새 카드와 이미 있는 카드에 적용됩니다.",
+      "tagsLegend": "추가할 태그",
+      "tagsHelp": "이 폴더에 넣는 모든 카드에 이 태그가 추가됩니다.",
+      "tagInputLabel": "추가할 태그",
+      "addTag": "태그 추가",
+      "removeTag": "{tag} 제거",
+      "tagsLimit": "최대 {max}개",
+      "hiddenWarning": "{tag} 태그 때문에 이 폴더의 카드는 라이브러리에서 숨겨집니다.",
+      "fileLegend": "일치하는 카드 자동 분류",
+      "fileHelp": "이 검색어와 일치하는 카드는 Teak이 읽은 후 이 폴더로 분류됩니다.",
+      "searchLabel": "검색어",
+      "enabledLabel": "일치하는 카드 분류",
+      "checking": "확인 중…",
+      "matches": "{count, plural, =0 {일치하는 카드가 없습니다} other {카드 #개가 일치합니다}}",
+      "matchesCapped": "{count, plural, =0 {최근 카드 중 일치하는 카드가 없습니다} other {최근 카드 중 #개가 일치합니다}}",
+      "saveFailed": "규칙을 저장하지 못했습니다",
+      "lastRun": "지난 실행에서 카드 {filed, plural, other {#개}}를 분류하고 카드 {tagged, plural, other {#개}}에 태그를 추가했습니다.",
+      "lastRunRunning": "아직 카드에 규칙을 적용하고 있습니다.",
+      "lastRunUndone": "지난 실행을 실행 취소했습니다.",
+      "undoLastRun": "지난 실행 취소",
+      "undoFailed": "실행을 취소하지 못했습니다"
+    },
+    "ruleRun": {
+      "running": "{name} 규칙을 적용하는 중…",
+      "done": "{name}에서 카드 {filed, plural, other {#개}}를 분류하고 카드 {tagged, plural, other {#개}}에 태그를 추가했습니다",
+      "nothing": "{name}에서 바꿀 카드가 없었습니다",
+      "undoing": "{name} 규칙 실행을 취소하는 중…",
+      "undone": "{name} 규칙 실행을 취소했습니다",
+      "undoFailed": "실행을 취소하지 못했습니다"
     }
   },
   "sidebar": {
@@ -681,7 +713,9 @@
       "restoreFailed": "폴더를 복원하지 못했습니다",
       "deleteFailed": "폴더를 삭제하지 못했습니다",
       "deleted": "“{name}”을(를) 삭제했습니다",
-      "deletedDescription": "폴더의 카드는 라이브러리에 그대로 남아 있습니다."
+      "deletedDescription": "폴더의 카드는 라이브러리에 그대로 남아 있습니다.",
+      "rulesItem": "규칙…",
+      "hasRules": "규칙 있음"
     },
     "newFolder": {
       "nameLabel": "새 폴더 이름",
@@ -1627,7 +1661,8 @@
       "savedSmartFolderDescription": "일치하는 모든 카드를 저장하는 대로 보여 줍니다.",
       "open": "열기",
       "unsavableFilters": "색상, 스타일, 날짜는 스마트 폴더에 저장되지 않습니다.",
-      "loadFailed": "카드를 불러오지 못했습니다."
+      "loadFailed": "카드를 불러오지 못했습니다.",
+      "folderRules": "폴더 규칙"
     },
     "tags": {
       "sortMostUsed": "많이 사용한 순",

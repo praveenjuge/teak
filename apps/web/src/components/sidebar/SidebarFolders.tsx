@@ -15,6 +15,7 @@ import {
   Pencil,
   Plus,
   Trash,
+  Zap,
 } from "vadivam-react";
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
+import { useFolderRuleRunToast } from "@/hooks/useFolderRuleRunToast";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { bulkActionCopy } from "@/lib/bulkCardActions";
 import { clipFolderName } from "@/lib/clipFolderName";
@@ -53,11 +55,12 @@ import {
   type FolderSummary,
   folderColorLabel,
   folderPath,
+  hasFolderRules,
   isCardDrag,
 } from "../../lib/folders";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "../folders/FolderDot";
-import { FolderNameDialog } from "../lazyDialogs";
+import { FolderNameDialog, FolderRulesDialog } from "../lazyDialogs";
 import type { SidebarLinkComponent } from "./AppSidebar";
 import { SidebarNewFolder } from "./SidebarNewFolder";
 
@@ -105,6 +108,8 @@ export function SidebarFolders({
     folder: FolderSummary | null;
   } | null>(null);
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null);
+  const [rulesFolderId, setRulesFolderId] = useState<string | null>(null);
+  const followRuleRun = useFolderRuleRunToast();
   const [isCreating, setIsCreating] = useState(false);
   const [dropFolderId, setDropFolderId] = useState<string | null>(null);
 
@@ -348,6 +353,13 @@ export function SidebarFolders({
                   <span dir="auto" title={folder.name}>
                     {folder.name}
                   </span>
+                  {hasFolderRules(folder) ? (
+                    <Zap
+                      aria-label={t("hasRules")}
+                      className="size-3 shrink-0 text-sidebar-foreground opacity-55"
+                      role="img"
+                    />
+                  ) : null}
                 </LinkComponent>
               </SidebarMenuButton>
               {!isSmart && folder.activeCardCount > 0 && (
@@ -378,12 +390,19 @@ export function SidebarFolders({
                     <Pencil />
                     {t("renameItem")}
                   </DropdownMenuItem>
-                  {isSmart && (
+                  {isSmart ? (
                     <DropdownMenuItem
                       onSelect={() => setDialog({ folder, focusQuery: true })}
                     >
                       <FolderSearch />
                       {t("editSearch")}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={() => setRulesFolderId(folder._id)}
+                    >
+                      <Zap />
+                      {t("rulesItem")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSub>
@@ -445,6 +464,16 @@ export function SidebarFolders({
           }
         }}
         open={dialog !== null}
+      />
+      <FolderRulesDialog
+        folder={folders?.find((folder) => folder._id === rulesFolderId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRulesFolderId(null);
+          }
+        }}
+        onRunStarted={followRuleRun}
+        open={rulesFolderId !== null}
       />
     </SidebarGroup>
   );

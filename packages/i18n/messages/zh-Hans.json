@@ -657,6 +657,38 @@
       "label": "搜索：{query}",
       "noFolderNamed": "没有名为 {name} 的文件夹",
       "excluded": "排除"
+    },
+    "rulesDialog": {
+      "title": "{name} 的规则",
+      "description": "规则会应用于新卡片和你已有的卡片。",
+      "tagsLegend": "添加这些标签",
+      "tagsHelp": "放入此文件夹的每张卡片都会加上这些标签。",
+      "tagInputLabel": "要添加的标签",
+      "addTag": "添加标签",
+      "removeTag": "移除 {tag}",
+      "tagsLimit": "最多 {max} 个",
+      "hiddenWarning": "由于标签 {tag}，此文件夹中的卡片将在资料库中隐藏。",
+      "fileLegend": "自动归档匹配的卡片",
+      "fileHelp": "与此搜索条件匹配的卡片，在 Teak 读取后会归档到这里。",
+      "searchLabel": "搜索条件",
+      "enabledLabel": "归档匹配的卡片",
+      "checking": "正在检查…",
+      "matches": "{count, plural, =0 {没有匹配的卡片} other {# 张卡片匹配}}",
+      "matchesCapped": "{count, plural, =0 {最新的卡片中没有匹配的} other {最新的卡片中有 # 张匹配}}",
+      "saveFailed": "无法保存规则",
+      "lastRun": "上次运行归档了 {filed, plural, other {# 张}}卡片，并为 {tagged, plural, other {# 张}}卡片添加了标签。",
+      "lastRunRunning": "规则仍在应用到你的卡片。",
+      "lastRunUndone": "上次运行已撤销。",
+      "undoLastRun": "撤销上次运行",
+      "undoFailed": "无法撤销运行"
+    },
+    "ruleRun": {
+      "running": "正在应用 {name} 的规则…",
+      "done": "已在 {name} 中归档 {filed, plural, other {# 张}}卡片，并为 {tagged, plural, other {# 张}}卡片添加了标签",
+      "nothing": "{name} 中没有需要更改的卡片",
+      "undoing": "正在撤销 {name} 的规则运行…",
+      "undone": "已撤销 {name} 的规则运行",
+      "undoFailed": "无法撤销运行"
     }
   },
   "sidebar": {
@@ -681,7 +713,9 @@
       "restoreFailed": "无法恢复文件夹",
       "deleteFailed": "无法删除文件夹",
       "deleted": "已删除“{name}”",
-      "deletedDescription": "其中的卡片仍在你的资料库中。"
+      "deletedDescription": "其中的卡片仍在你的资料库中。",
+      "rulesItem": "规则…",
+      "hasRules": "有规则"
     },
     "newFolder": {
       "nameLabel": "新文件夹名称",
@@ -1627,7 +1661,8 @@
       "savedSmartFolderDescription": "它会显示所有符合条件的卡片，包括你之后保存的卡片。",
       "open": "打开",
       "unsavableFilters": "颜色、风格和日期不会保存在智能文件夹中。",
-      "loadFailed": "无法加载你的卡片。"
+      "loadFailed": "无法加载你的卡片。",
+      "folderRules": "文件夹规则"
     },
     "tags": {
       "sortMostUsed": "最常用",
