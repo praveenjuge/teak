@@ -83,6 +83,13 @@ val FOLDER_ERROR_MESSAGES: Map<String, String> = mapOf(
     "SMART_FOLDER_MEMBERSHIP" to "Cards can't be added to a smart folder; it shows the cards that match its search",
     "QUERY_ON_MANUAL_FOLDER" to "Only smart folders have a search",
     "SMART_FOLDER_TRASH" to "Smart folders don't show Trash. To search for the word, put it in quotes",
+    "RULES_ON_SMART_FOLDER" to "Only manual folders have rules",
+    "TOO_MANY_RULES" to "You can have rules on up to 50 folders",
+    "TOO_MANY_AUTO_TAGS" to "A folder can add up to 10 tags",
+    "EMPTY_RULE_QUERY" to "Add a search for the cards to file",
+    "RULE_QUERY_SIMILARITY" to "Folder rules can't use like: or mood:. Search by words, tags, type or site instead",
+    "RULE_RUN_NOT_FOUND" to "Rule run not found",
+    "RULE_RUN_EXPIRED" to "This rule run can no longer be undone",
 )
 
 val HIDDEN_TAG_KEYS: List<String> = listOf(
