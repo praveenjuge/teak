@@ -37,6 +37,7 @@ struct RootView: View {
             AppServices.shared.openMainWindow = { openWindow(id: "main") }
             #if os(macOS)
             AppServices.shared.openSettingsWindow = { openSettings() }
+            AppServices.shared.openVoiceMemoWindow = { openWindow(id: VoiceMemoView.windowID) }
             #endif
         }
         .onChange(of: scenePhase) { _, phase in
@@ -115,9 +116,10 @@ struct MainView: View {
         #endif
         .task { AppServices.shared.folders.start() }
         .task { await AppServices.shared.language.watch(AppServices.shared.app.backend) }
+        #if os(iOS)
         .sheet(isPresented: $router.isComposing) { NoteComposerView() }
-
         .sheet(isPresented: $router.isRecording) { VoiceMemoView() }
+        #endif
         .fileImporter(isPresented: $router.isImportingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case let .success(urls) = result { Task { await capture.uploadPicked(urls) } }
         }

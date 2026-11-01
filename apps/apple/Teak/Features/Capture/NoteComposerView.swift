@@ -20,15 +20,8 @@ struct NoteComposerView: View {
                 .accessibilityLabel(tr("native.capture.notePlaceholder"))
                 .accessibilityIdentifier("composer.text")
                 .scrollContentBackground(.hidden)
-                #if os(macOS)
-                // The Mac's text view ignores content margins, so the editor itself is inset to meet the placeholder.
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-                #else
                 .contentMargins(.horizontal, 20, for: .scrollContent)
                 .contentMargins(.vertical, 12, for: .scrollContent)
-                #endif
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
                         Text(tr("native.capture.notePlaceholder"))

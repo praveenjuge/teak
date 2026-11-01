@@ -376,7 +376,7 @@ struct LibraryView: View {
             ToolbarItem {
                 Menu(tr("native.app.nav.add"), systemImage: "plus") {
                     Button(tr("native.capture.newNote"), systemImage: "square.and.pencil") { router.compose() }
-                    Button(tr("native.capture.voiceMemo"), systemImage: "mic") { router.isRecording = true }
+                    Button(tr("native.capture.voiceMemo"), systemImage: "mic") { router.record() }
                     Button(tr("apple.library.uploadFiles"), systemImage: "arrow.up.doc") { router.isImportingFiles = true }
                 }
                 .accessibilityIdentifier("library.add")

@@ -31,7 +31,7 @@ struct AddView: View {
                 }
                 AddAction(tr("native.capture.voiceMemo"), detail: tr("native.capture.voiceMemoDetail"),
                           symbol: "mic") {
-                    Button(tr("native.capture.recordEllipsis")) { router.isRecording = true }
+                    Button(tr("native.capture.recordEllipsis")) { router.record() }
                 }
             }
             Section {
@@ -75,7 +75,7 @@ struct AddView: View {
         return List {
             Section(tr("native.capture.write")) {
                 row(tr("native.capture.noteOrLink"), symbol: "doc.text.fill", color: .blue) { router.compose() }
-                row(tr("native.capture.voiceMemo"), symbol: "mic.fill", color: .orange) { router.isRecording = true }
+                row(tr("native.capture.voiceMemo"), symbol: "mic.fill", color: .orange) { router.record() }
             }
             Section(tr("native.capture.upload")) {
                 PhotosPicker(selection: $photos, maxSelectionCount: TeakLimits.maxFilesPerUpload,

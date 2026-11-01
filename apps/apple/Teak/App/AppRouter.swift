@@ -50,8 +50,22 @@ final class AppRouter {
     }
 
     func compose(_ text: String = "") {
+        #if os(macOS)
+        // The Mac writes every note in the Quick Capture window.
+        QuickCapturePanel.shared.show(draft: text)
+        #else
         composerText = text
         isComposing = true
+        #endif
+    }
+
+    func record() {
+        #if os(macOS)
+        // The Mac records in its own floating window, like Quick Capture.
+        AppServices.shared.showVoiceMemo()
+        #else
+        isRecording = true
+        #endif
     }
 
     func open(_ route: CardRoute) {
@@ -102,7 +116,7 @@ final class AppRouter {
             tab = .home
             if homePath.last?.id != id { homePath = [CardRoute(id: id, summary: nil)] }
         case .newNote: compose()
-        case .voiceMemo: isRecording = true
+        case .voiceMemo: record()
         case .save, .connect: break
         }
     }
