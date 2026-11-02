@@ -1658,7 +1658,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "Karte gelöscht. Sie finden sie mit einer Suche nach „trash“.",
       "cardDeleted": "Karte gelöscht",
       "cardRestored": "Karte wiederhergestellt",
       "cardPermanentlyDeleted": "Karte endgültig gelöscht",

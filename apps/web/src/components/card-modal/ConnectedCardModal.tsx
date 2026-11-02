@@ -83,7 +83,6 @@ export function ConnectedCardModal({
     isDownloading,
   } = useCardModal(cardId, {
     card: resolvedCard,
-    onCardTypeClick,
     onCardUpdate,
   });
 

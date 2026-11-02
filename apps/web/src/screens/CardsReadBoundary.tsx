@@ -8,7 +8,6 @@ import { RetryableQueryBoundary } from "../components/feedback/RetryableQueryBou
 
 interface CardsReadBoundaryProps {
   children: (retryKey: string | undefined) => ReactNode;
-  contentContainerClassName?: string;
   headerLeading?: ReactNode;
   resetKey: string;
 }
@@ -23,7 +22,6 @@ export const isCardsReadError = (error: unknown): boolean =>
 
 export function CardsReadBoundary({
   children,
-  contentContainerClassName,
   headerLeading,
   resetKey,
 }: CardsReadBoundaryProps) {
@@ -32,26 +30,19 @@ export function CardsReadBoundary({
   return (
     <RetryableQueryBoundary
       catches={isCardsReadError}
-      fallback={(retry) => {
-        const content = (
-          <>
-            {headerLeading ? (
-              <div className="flex h-12 items-center">{headerLeading}</div>
-            ) : null}
-            <div className="space-y-4 py-12 text-center" role="alert">
-              <p className="text-muted-foreground">{t("loadFailed")}</p>
-              <Button onClick={retry} variant="outline">
-                {tc("tryAgain")}
-              </Button>
-            </div>
-          </>
-        );
-        return contentContainerClassName ? (
-          <main className={contentContainerClassName}>{content}</main>
-        ) : (
-          content
-        );
-      }}
+      fallback={(retry) => (
+        <>
+          {headerLeading ? (
+            <div className="flex h-12 items-center">{headerLeading}</div>
+          ) : null}
+          <div className="space-y-4 py-12 text-center" role="alert">
+            <p className="text-muted-foreground">{t("loadFailed")}</p>
+            <Button onClick={retry} variant="outline">
+              {tc("tryAgain")}
+            </Button>
+          </div>
+        </>
+      )}
       onCatch={(error) =>
         captureClientException(error, { "ui.boundary": "cards" })
       }

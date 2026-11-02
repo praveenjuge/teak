@@ -159,11 +159,6 @@ export interface AddCardFormProps {
   onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
-  UpgradeLinkComponent?: React.ComponentType<{
-    href: string;
-    children: React.ReactNode;
-    className?: string;
-  }>;
   upgradeUrl?: string;
 }
 

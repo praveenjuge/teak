@@ -122,7 +122,6 @@ export type { SearchUrlChange } from "../lib/searchUrlSync";
 interface CardsScreenProps {
   addToFolderId?: string;
   composerDraft?: string;
-  contentContainerClassName?: string;
   focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
@@ -145,7 +144,6 @@ interface CardsScreenProps {
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
-  UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
   view?: LibraryView;
 }
@@ -168,9 +166,7 @@ export function CardsScreen({
   headerLeading,
   onNavigateView,
   view,
-  UpgradeLinkComponent,
   upgradeUrl,
-  contentContainerClassName,
   toastIdPrefix,
   searchUrlState,
   onSearchUrlStateChange,
@@ -531,7 +527,6 @@ export function CardsScreen({
   );
 
   const cardActions = useCardActions({
-    onDeleteSuccess: (message?: string) => message && toast(message),
     onRestoreSuccess: (message?: string) => message && toast(message),
     onPermanentDeleteSuccess: (message?: string) => message && toast(message),
     onError: (_error: Error, operation: string) => {
@@ -716,12 +711,10 @@ export function CardsScreen({
         onFocus={handleComposerFocus}
         onOpenCard={composerHandlers.onOpenCard}
         onUpgrade={onUpgrade}
-        UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
     ),
     [
-      UpgradeLinkComponent,
       composerFocus.pending,
       composerHandlers,
       handleComposerFocus,
@@ -851,7 +844,6 @@ export function CardsScreen({
           <AddCardEmptyState
             draftContentRef={draftContentRef}
             onFocus={handleComposerFocus}
-            UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}
           />
           {hiddenCardsHint ? (
@@ -1121,13 +1113,5 @@ export function CardsScreen({
     </>
   );
 
-  return (
-    <div className="relative">
-      {contentContainerClassName ? (
-        <main className={contentContainerClassName}>{content}</main>
-      ) : (
-        content
-      )}
-    </div>
-  );
+  return <div className="relative">{content}</div>;
 }

@@ -820,7 +820,6 @@ export const MasonryGrid = memo(function MasonryGrid({
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
           isTabStop={card._id === tabStopId}
-          isTrashMode={showTrashOnly}
           onAddTags={onAddTags}
           onClick={handleCardClick}
           onCopyImage={onCopyImage}
@@ -856,7 +855,6 @@ export const MasonryGrid = memo(function MasonryGrid({
       onToggleFavorite,
       onAddTags,
       onCopyImage,
-      showTrashOnly,
       isSelectionMode,
       selectedCardIds,
       enterSelectionMode,

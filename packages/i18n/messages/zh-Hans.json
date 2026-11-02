@@ -1658,7 +1658,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "卡片已删除。搜索“trash”即可找到它",
       "cardDeleted": "卡片已删除",
       "cardRestored": "卡片已恢复",
       "cardPermanentlyDeleted": "卡片已永久删除",

@@ -27,9 +27,6 @@ const uploadFile = mock(() => Promise.resolve({ success: true }));
 mock.module("@/hooks/useFileUploadCore", () => ({
   useFileUploadCore: () => ({ uploadFile }),
 }));
-mock.module("../../shortcuts/ShortcutTooltip", () => ({
-  ShortcutTooltip: ({ children }: { children: ReactNode }) => children,
-}));
 mock.module("@/components/ui/dialog", () => ({
   Dialog: ({
     children,
@@ -57,7 +54,7 @@ mock.module("@/components/ui/dialog", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { AddCardActions } = await import("../AddCardActions");
+const { AddCardProvider } = await import("../AddCardActions");
 const { pressRecordAudio } = await import("../../../lib/keyboardShortcuts");
 
 let root: Root | undefined;
@@ -99,7 +96,13 @@ beforeEach(async () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<AddCardActions />));
+  await act(() =>
+    root?.render(
+      <AddCardProvider>
+        <span />
+      </AddCardProvider>
+    )
+  );
 });
 
 afterEach(async () => {
@@ -116,18 +119,23 @@ const button = (name: string) =>
   ) as HTMLButtonElement;
 
 test("closing the dialog while the microphone prompt is open never starts a recording", async () => {
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => button("Dismiss").click());
   await act(async () => grantMicrophone?.());
 
   expect(recorderStarts).not.toHaveBeenCalled();
   expect(stopTrack).toHaveBeenCalledTimes(1);
-  expect(button("Record audio").disabled).toBe(false);
+  // Nothing is left running, so a new recording can start.
+  expect(pressRecordAudio()).toBe(true);
   expect(document.querySelector("[data-dialog]")).toBeNull();
 });
 
 test("granting the microphone with the dialog open starts recording", async () => {
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
 
   expect(recorderStarts).toHaveBeenCalledTimes(1);
@@ -135,10 +143,14 @@ test("granting the microphone with the dialog open starts recording", async () =
 });
 
 test("a closed start that fails later leaves the next recording running", async () => {
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   const denyFirst = denyMicrophone;
   await act(async () => button("Dismiss").click());
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => denyFirst?.());
 
@@ -148,7 +160,9 @@ test("a closed start that fails later leaves the next recording running", async 
 });
 
 test("dismissing the dialog while recording discards the recording", async () => {
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => button("Dismiss").click());
 
@@ -158,12 +172,16 @@ test("dismissing the dialog while recording discards the recording", async () =>
 });
 
 test("Discard throws the recording away and Stop and Save keeps it", async () => {
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => button("Discard").click());
   expect(uploadFile).not.toHaveBeenCalled();
 
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => button("Stop and Save").click());
   expect(uploadFile).toHaveBeenCalledTimes(1);
@@ -175,7 +193,6 @@ test("the R shortcut starts a recording, and waits while one is running", async 
   });
   await act(async () => grantMicrophone?.());
   expect(recorderStarts).toHaveBeenCalledTimes(1);
-  expect(button("Record audio").getAttribute("aria-keyshortcuts")).toBe("R");
 
   await act(() => {
     expect(pressRecordAudio()).toBe(false);
@@ -187,7 +204,9 @@ test("a recording that fails to save stays in the dialog, to save again or downl
   uploadFile.mockImplementationOnce(() =>
     Promise.resolve({ error: "Upload failed", success: false })
   );
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => button("Stop and Save").click());
 
@@ -225,7 +244,9 @@ test("while a recording saves it can be downloaded, and closing the dialog doesn
         finishSave = resolve;
       })
   );
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   await act(async () => grantMicrophone?.());
   await act(async () => button("Stop and Save").click());
 
@@ -239,7 +260,9 @@ test("while a recording saves it can be downloaded, and closing the dialog doesn
   expect(dialog()).toBeNull();
 
   // Record audio (or R) brings it back rather than starting another.
-  await act(async () => button("Record audio").click());
+  await act(() => {
+    pressRecordAudio();
+  });
   expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
   expect(recorderStarts).toHaveBeenCalledTimes(1);
   await act(async () => button("Dismiss").click());

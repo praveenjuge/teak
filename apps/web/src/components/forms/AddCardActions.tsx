@@ -52,14 +52,13 @@ import {
   registerRecordAudio,
   registerUploadFiles,
 } from "../../lib/keyboardShortcuts";
-import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-interface AddCardActionsProps {
+interface AddCardProviderProps {
+  children: ReactNode;
   onNewNote?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
-  variant?: "toolbar" | "header";
 }
 
 const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
@@ -134,10 +133,6 @@ interface AddCardControls {
 }
 
 const AddCardContext = createContext<AddCardControls | null>(null);
-
-type AddCardProviderProps = Omit<AddCardActionsProps, "variant"> & {
-  children: ReactNode;
-};
 
 /**
  * Owns uploading and recording, and the U and R shortcuts, for everything
@@ -772,66 +767,16 @@ function NewMenu({
   );
 }
 
-function AddCardTriggers({
-  controls,
-  variant,
-}: {
-  controls: AddCardControls;
-  variant: "toolbar" | "header";
-}) {
-  const t = useTranslations("forms.addCardActions");
-  if (variant === "header") {
-    return <NewMenu controls={controls} trigger={<NewMenuTrigger />} />;
-  }
-  return (
-    <div className="flex items-center gap-1">
-      <ShortcutTooltip keys={["U"]} label={t("uploadFiles")}>
-        <Button
-          aria-keyshortcuts="U"
-          aria-label={t("uploadFiles")}
-          disabled={controls.isUploading}
-          onClick={controls.uploadFiles}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Upload className="size-4" />
-        </Button>
-      </ShortcutTooltip>
-      <ShortcutTooltip keys={["R"]} label={t("recordAudio")}>
-        <Button
-          aria-keyshortcuts="R"
-          aria-label={t("recordAudio")}
-          disabled={!controls.canStartRecording}
-          onClick={controls.recordAudio}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Mic className="size-4" />
-        </Button>
-      </ShortcutTooltip>
-    </div>
-  );
-}
-
 /**
- * The New menu, or upload and record buttons. Inside an AddCardProvider it
- * uses that provider; on its own it brings one.
+ * The sidebar's New menu. It uses the AddCardProvider the app shell mounts,
+ * which owns uploading and recording.
  */
-export function AddCardActions({
-  variant = "toolbar",
-  ...providerProps
-}: AddCardActionsProps) {
+export function AddCardActions() {
   const controls = useContext(AddCardContext);
-  if (controls) {
-    return <AddCardTriggers controls={controls} variant={variant} />;
+  if (!controls) {
+    return null;
   }
-  return (
-    <AddCardProvider {...providerProps}>
-      <AddCardActions variant={variant} />
-    </AddCardProvider>
-  );
+  return <NewMenu controls={controls} trigger={<NewMenuTrigger />} />;
 }
 
 /**

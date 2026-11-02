@@ -1658,7 +1658,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "Card excluído. Para encontrá-lo, pesquise “trash”",
       "cardDeleted": "Card excluído",
       "cardRestored": "Card restaurado",
       "cardPermanentlyDeleted": "Card excluído permanentemente",
