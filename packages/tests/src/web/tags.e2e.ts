@@ -91,3 +91,28 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   ).not.toBeVisible();
   expect(await tagsOf(alpha)).toBeUndefined();
 });
+
+test("a long tag truncates on a phone instead of widening the page", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const longTag = "W".repeat(64);
+  const id = await library.client.mutation(api.cards.createCard, {
+    content: "Card with a long tag",
+    type: "text",
+    tags: [longTag],
+  });
+  library.ids.push(id);
+
+  await browser.setViewport({ width: 320, height: 640 });
+  await gotoApp(browser, "/tags");
+  await expect(
+    screen.getByRole("link", `${longTag.toLowerCase()}, `, { exact: false })
+  ).toBeVisible({ timeout: 60_000 });
+  expect(
+    await browser.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth
+    )
+  ).toBe(true);
+});

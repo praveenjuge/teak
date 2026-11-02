@@ -152,6 +152,19 @@ describe("SearchBar filter chips", () => {
     expect(markup).toContain('aria-label="Search favorites"');
     expect(markup).toContain('placeholder="Search favorites"');
   });
+
+  test("on a phone, chips take the placeholder's room in the field", () => {
+    const inputClasses = (markup: string) =>
+      markup.match(/<input[^>]*class="([^"]*)"[^>]*name="q"/)?.[1] ?? "";
+    const withChip = inputClasses(
+      renderSearchBar("", { keywordTags: ["design"] })
+    );
+    expect(withChip).toContain("max-sm:placeholder:text-transparent");
+    expect(withChip).toContain("max-sm:min-w-10");
+    // Without chips the placeholder names what the field searches.
+    const empty = inputClasses(renderSearchBar(""));
+    expect(empty).not.toContain("max-sm:placeholder:text-transparent");
+  });
 });
 
 describe("SearchBar View menu", () => {

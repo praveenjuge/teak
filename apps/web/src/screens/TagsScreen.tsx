@@ -379,7 +379,7 @@ export function TagsScreen({
         {matches === undefined && !summaryFailed && (
           <ul
             aria-label={t("loading")}
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {SKELETON_WIDTHS.map((width) => (
               <li
@@ -417,7 +417,7 @@ export function TagsScreen({
         {visible.length > 0 && (
           <ul
             aria-label={t("list")}
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {visible.map((item) => (
               <TagRow
