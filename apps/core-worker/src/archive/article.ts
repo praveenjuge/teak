@@ -54,13 +54,14 @@ const DROPPED_ELEMENTS =
 const DROPPED_CONTROLS =
   '[role="button"], .mw-editsection, a[href*="action=edit"], a[href*="veaction=edit"]';
 /**
- * A wiki's page chrome: "From Wikipedia, the free encyclopedia" and other
- * screen-only lines (`.noprint`), the short description it hides with CSS,
- * navigation boxes and the skip link. Readability can't see CSS, so it would
- * keep them as the article's first lines.
+ * A MediaWiki page's chrome: "From Wikipedia, the free encyclopedia"
+ * (`#siteSub`), the skip link, and inside the article body its screen-only
+ * lines (`.noprint`), the short description it hides with CSS and its
+ * navigation boxes. Readability can't see CSS, so it would keep them as the
+ * article's first lines. Other sites' `noprint` or `navbox` content stays.
  */
 const DROPPED_WIKI_CHROME =
-  ".noprint, .shortdescription, .navbox, .mw-jump-link";
+  "#siteSub, .mw-jump-link, .mw-parser-output .noprint, .mw-parser-output .shortdescription, .mw-parser-output .navbox";
 /** A MediaWiki infobox: the fact table a wiki article opens with. */
 const INFOBOX = 'table[class~="infobox"]';
 /** Where a control's words can sit; headings and list items stay. */

@@ -127,6 +127,19 @@ describe("extractArticle", () => {
     );
   });
 
+  test("keeps a page's own text marked noprint or navbox when it isn't a wiki", async () => {
+    const html = page(`<article class="noprint">
+      <p>SCREENMARK ${sentences(12)}</p>
+      <div class="navbox"><p>${sentences(12, 20)}</p></div>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).toContain("SCREENMARK");
+    expect(result.markdown).toContain("Sentence 31");
+  });
+
   test("keeps an infobox fact whose value has a picture, even when the picture is dropped", async () => {
     const wiki = page(`
       <div id="content"><div class="mw-parser-output">
