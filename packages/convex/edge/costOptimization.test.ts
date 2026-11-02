@@ -134,8 +134,17 @@ test("reordered normalized tags preserve exact-tag rows and generations", async 
       updatedAt: 30,
     });
     const after = await searchState(ctx, id);
-    expect(after.tags).toEqual(before.tags);
-    expect(after.sync).toEqual(before.sync);
+    // The same rows in the same generation, and no new tag sync: only the
+    // casing they were typed in moves onto them and the sync's snapshot.
+    expect(after.tags.map(({ label: _label, ...row }) => row)).toEqual(
+      before.tags.map(({ label: _label, ...row }) => row)
+    );
+    expect(after.tags.map((row) => row.label)).toEqual(["ALPHA", "Beta"]);
+    expect({ ...after.sync, tags: undefined }).toEqual({
+      ...before.sync,
+      tags: undefined,
+    });
+    expect(after.sync?.tags).toEqual([" Beta ", "ALPHA"]);
     for (const tag of ["alpha", "beta"]) {
       expect(
         (

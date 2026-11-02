@@ -89,23 +89,50 @@ const typedTagLabels = (tags: string[] | undefined) => {
 };
 
 /**
- * An edit that only re-cases a counted card's tags keeps its tag rows (no tag
- * sync runs), so the new casing goes straight to the tag counts.
+ * An edit that only re-cases a card's tags runs no tag sync: its rows and
+ * their generations stay. The new casing goes onto those rows in place, into
+ * the tag-sync snapshot (so a chain still pending writes it, not the old
+ * casing), and, for counted rows, straight to the tag counts.
  */
 const recordTagCasingChanges = async (
   ctx: MutationCtx,
+  cardId: Id<"cards">,
   previousCard: Pick<Doc<"cards">, "tags">,
-  card: Pick<Doc<"cards">, "isArchived" | "isDeleted" | "tags" | "userId">
+  card: Pick<Doc<"cards">, "tags" | "userId">
 ) => {
-  if (card.isDeleted === true || card.isArchived === true) {
+  const before = typedTagLabels(previousCard.tags);
+  const changed = [...typedTagLabels(card.tags)].filter(
+    ([tag, label]) => before.get(tag) !== label
+  );
+  if (changed.length === 0) {
     return;
   }
-  const before = typedTagLabels(previousCard.tags);
   const labels: TagLabels = new Map();
-  for (const [tag, label] of typedTagLabels(card.tags)) {
-    if (before.get(tag) !== label) {
+  for (const [tag, label] of changed) {
+    const row = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_tag", (query) =>
+        query.eq("cardId", cardId).eq("tag", tag)
+      )
+      .unique();
+    if (!row) {
+      continue;
+    }
+    if (row.label !== label) {
+      await ctx.db.patch("cardSearchTags", row._id, { label });
+    }
+    if (row.isCounted) {
       addTagLabel(labels, card.userId, tag, label);
     }
+  }
+  const tagState = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  if (tagState && tagState.userId === card.userId) {
+    await ctx.db.patch("cardSearchTagSyncStates", tagState._id, {
+      tags: card.tags,
+    });
   }
   if (labels.size > 0) {
     await recordTagCountDeltas(ctx, new Map(), labels);
@@ -450,7 +477,7 @@ export const syncCardSearchDocumentHandler = async (
     previousCard.userId === card.userId &&
     currentTags === JSON.stringify(buildCardSearchTags(previousCard))
   ) {
-    await recordTagCasingChanges(ctx, previousCard, card);
+    await recordTagCasingChanges(ctx, cardId, previousCard, card);
   }
   // Even reading the tag-sync state row puts it in this transaction's OCC
   // read set, where it races the running tag chain.
@@ -660,10 +687,6 @@ export const syncCardSearchTagsBatchHandler = async (
     for (const [tag, label] of labels) {
       writes += await writeCardSearchTag(ctx, cardId, card, tag, label, {
         countDeltas,
-        // A re-case alone leaves the rows' casing behind (it writes the
-        // counts directly), so a chain that may move the counts passes on
-        // every counted tag's casing rather than trusting the row.
-        passLabels: chainState.tagCountsChanged !== false,
         tagGeneration,
         tagLabels,
       });
@@ -736,12 +759,10 @@ const writeCardSearchTag = async (
   label: string | undefined,
   {
     countDeltas,
-    passLabels,
     tagGeneration,
     tagLabels,
   }: {
     countDeltas: TagCountDeltas;
-    passLabels: boolean;
     tagGeneration: number;
     tagLabels: TagLabels;
   }
@@ -769,12 +790,11 @@ const writeCardSearchTag = async (
   const isCounted = isCountedTagRow(tagValue) ? (true as const) : undefined;
   const relabels = label !== undefined && label !== existingTag?.label;
   // A counted row passes its casing on to the tag's count when the casing
-  // changed, the row starts counting (out of Trash or Archive), or the chain
-  // asks for it.
+  // changed or the row starts counting (out of Trash or Archive).
   if (
     label !== undefined &&
     isCounted &&
-    (relabels || passLabels || !existingTag?.isCounted)
+    (relabels || !existingTag?.isCounted)
   ) {
     addTagLabel(tagLabels, tagValue.userId, tag, label);
   }

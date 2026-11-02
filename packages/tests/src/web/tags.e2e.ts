@@ -76,10 +76,11 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   await merge.getByRole("option", "design systems", { exact: false }).click();
   await merge.getByRole("button", "Merge into “Design Systems”").click();
   await expect(
-    screen.getByText("Merged “web” into “design systems”", { exact: false })
+    screen.getByText("Merged “web” into “Design Systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
   expect(await tagsOf(alpha)).toEqual(["Design Systems"]);
-  expect(await tagsOf(gamma)).toEqual(["design systems"]);
+  // Merged cards take the target's casing.
+  expect(await tagsOf(gamma)).toEqual(["Design Systems"]);
 
   await screen.getByRole("button", "More for Design Systems").click();
   await screen.getByRole("menuitem", "Delete…").click();

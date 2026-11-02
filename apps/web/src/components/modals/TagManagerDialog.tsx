@@ -182,6 +182,8 @@ function TagManagerForm({
     delete: t("deleteDescription", { name: shownName, count: tag.count }),
   };
   const targetItem = tags.find((item) => item.name === target);
+  // Merged cards take the target as Tags shows it, so they keep its casing.
+  const mergeTo = targetItem ? tagDisplayName(targetItem) : (target ?? "");
   const submitLabels: Record<TagManagerMode, string> = {
     rename: tc("rename"),
     merge: target
@@ -213,7 +215,7 @@ function TagManagerForm({
                 : {
                     kind: mode,
                     from: tag.name,
-                    to: mode === "merge" ? (target ?? "") : trimmed,
+                    to: mode === "merge" ? mergeTo : trimmed,
                   }
             ).catch(() => undefined);
           }

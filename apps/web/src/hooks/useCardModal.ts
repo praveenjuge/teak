@@ -520,6 +520,9 @@ export function useCardModal(
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
+      // A full card has room again, so the reason the typed tag wasn't
+      // added no longer holds; Enter says so again if it still applies.
+      setTagError(null);
       void writeTags(currentTags().filter((tag) => tag !== tagToRemove));
     },
     [currentTags, writeTags]

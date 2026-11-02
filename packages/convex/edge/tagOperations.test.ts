@@ -508,6 +508,41 @@ describe("tag summary snapshot", () => {
     expect(fresh?.items).toContainEqual({ name: "design systems", count: 3 });
   });
 
+  test("a re-case holds through a tag sync still queued, and in a full recount", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, cardId, {
+          ...value,
+          updatedAt: Date.now(),
+        })
+      );
+    const label = async () =>
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design systems"
+      )?.label;
+
+    const a = await insert({ tags: ["Design Systems"] });
+    await runScheduled();
+    // An edit queues a tag sync; a re-case lands before that sync runs.
+    await patch(a, { tags: ["Design Systems", "queued"] });
+    await patch(a, { tags: ["DESIGN SYSTEMS", "queued"] });
+    await runScheduled();
+    // Before tag counts are ready, the summary recounts the tag rows.
+    expect(await label()).toBe("DESIGN SYSTEMS");
+
+    // A re-case alone: the rows and the counts both take it.
+    await patch(a, { tags: ["Design systems", "queued"] });
+    await runScheduled();
+    expect(await label()).toBe("Design systems");
+    await t.run(async (ctx) => {
+      await ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 });
+      await markTagSummaryDirty(ctx, "owner", 0);
+    });
+    await runScheduled();
+    expect(await label()).toBe("Design systems");
+  });
+
   test("a burst of tag changes schedules one recompute", async () => {
     const { t, insert } = await setup();
     for (let index = 0; index < 5; index += 1) {

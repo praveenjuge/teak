@@ -85,6 +85,15 @@ test("a card with 100 tags says it is full", async () => {
   expect(hook().tagError).toBe("A card can have at most 100 tags");
 });
 
+test("removing a tag from a full card clears its error", async () => {
+  const tags = Array.from({ length: 100 }, (_, index) => `tag${index}`);
+  const hook = await addTagTo(tags, "one more");
+  expect(hook().tagError).toBe("A card can have at most 100 tags");
+  await act(() => hook().removeTag("tag0"));
+  expect(hook().tagError).toBeNull();
+  expect(hook().tagInput).toBe("one more");
+});
+
 test("a 64-character tag is saved", async () => {
   const hook = await addTagTo(["work"], "a".repeat(64));
   expect(hook().tagError).toBeNull();
