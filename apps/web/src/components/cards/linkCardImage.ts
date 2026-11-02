@@ -1,3 +1,4 @@
+import { isLowDetailScreenshot } from "@teak/convex/shared/screenshotDetail";
 import { useState } from "react";
 import type { CardWithUrls, LinkPreviewMetadata } from "./types";
 
@@ -80,7 +81,11 @@ export function resolveLinkCardImage(
         storageKey: stringOrUndefined(primaryKey),
       }
     : undefined;
-  const screenshotUrl = stringOrUndefined(card.screenshotUrl);
+  // A screenshot of a near-blank page reads as an empty grey tile; the text
+  // layout says more.
+  const screenshotUrl = isLowDetailScreenshot(storedPreview)
+    ? undefined
+    : stringOrUndefined(card.screenshotUrl);
   const screenshot: LinkCardImage | undefined = screenshotUrl
     ? {
         size: sizeOf(

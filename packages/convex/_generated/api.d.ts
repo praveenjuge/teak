@@ -190,6 +190,7 @@ import type * as migration_backfillFolderCardCounts from "../migration/backfillF
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
+import type * as migration_backfillScreenshotBytes from "../migration/backfillScreenshotBytes.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
@@ -271,6 +272,7 @@ import type * as shared_price from "../shared/price.js";
 import type * as shared_publicApiHeaders from "../shared/publicApiHeaders.js";
 import type * as shared_publicApiLimits from "../shared/publicApiLimits.js";
 import type * as shared_rateLimits from "../shared/rateLimits.js";
+import type * as shared_screenshotDetail from "../shared/screenshotDetail.js";
 import type * as shared_search_constants from "../shared/search/constants.js";
 import type * as shared_search_expression from "../shared/search/expression.js";
 import type * as shared_search_index from "../shared/search/index.js";
@@ -553,6 +555,7 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
+  "migration/backfillScreenshotBytes": typeof migration_backfillScreenshotBytes;
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
@@ -634,6 +637,7 @@ declare const fullApi: ApiFromModules<{
   "shared/publicApiHeaders": typeof shared_publicApiHeaders;
   "shared/publicApiLimits": typeof shared_publicApiLimits;
   "shared/rateLimits": typeof shared_rateLimits;
+  "shared/screenshotDetail": typeof shared_screenshotDetail;
   "shared/search/constants": typeof shared_search_constants;
   "shared/search/expression": typeof shared_search_expression;
   "shared/search/index": typeof shared_search_index;
