@@ -545,6 +545,34 @@ describe("tag summary snapshot", () => {
     expect(await label()).toBe("Design systems");
   });
 
+  test("a re-case refreshes Tags for a tag row written before counting", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    const a = await insert({ tags: ["Design"] });
+    await runScheduled();
+    // A row from before tag counting: no isCounted, so the full recount
+    // (used until counts are ready) is what reads it.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", a))
+        .collect();
+      for (const row of rows) {
+        await ctx.db.patch("cardSearchTags", row._id, {
+          isCounted: undefined,
+        });
+      }
+    });
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 2000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
   test("a re-case that also reorders a card's tags mid-sync still syncs every tag", async () => {
     const { t, runScheduled } = await setup();
     const tags = Array.from(

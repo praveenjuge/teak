@@ -108,6 +108,7 @@ const recordTagCasingChanges = async (
     return;
   }
   const labels: TagLabels = new Map();
+  let relabeled = false;
   for (const [tag, label] of changed) {
     const row = await ctx.db
       .query("cardSearchTags")
@@ -120,6 +121,7 @@ const recordTagCasingChanges = async (
     }
     if (row.label !== label) {
       await ctx.db.patch("cardSearchTags", row._id, { label });
+      relabeled = true;
     }
     if (row.isCounted) {
       addTagLabel(labels, card.userId, tag, label);
@@ -142,6 +144,10 @@ const recordTagCasingChanges = async (
   }
   if (labels.size > 0) {
     await recordTagCountDeltas(ctx, new Map(), labels);
+  }
+  // Rows written before counting reach Tags only through the full recount,
+  // so any new casing on a row refreshes the summary.
+  if (labels.size > 0 || relabeled) {
     await markTagSummaryDirty(ctx, card.userId);
   }
 };
