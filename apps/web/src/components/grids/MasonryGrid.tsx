@@ -26,7 +26,7 @@ import {
 import type { FolderSummary } from "../../lib/folders";
 import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
-import { isOptimisticCard } from "../cards/types";
+import { isOptimisticCard, type PinTarget } from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,
@@ -147,7 +147,7 @@ export interface MasonryGridProps {
   onRestoreCard?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
-  onTogglePin?: (cardId: string, source?: "grid" | "shortcut") => void;
+  onTogglePin?: (card: PinTarget, source?: "grid" | "shortcut") => void;
   ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
@@ -964,7 +964,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       },
       deleteForever: () => requestPermanentDelete?.(card._id),
       favorite: onToggleFavorite && (() => onToggleFavorite(card._id)),
-      pin: onTogglePin && (() => onTogglePin(card._id, "shortcut")),
+      pin: onTogglePin && (() => onTogglePin(card, "shortcut")),
       select: () => {
         if (isSelectionMode) {
           toggleCardSelection(card._id);

@@ -155,6 +155,42 @@ describe("pinning cards to the top of the library", () => {
     expect(await pinned()).toEqual(["Alpha", "Charlie", "Bravo"]);
   });
 
+  test("a hidden pin stays out of the row and doesn't block reordering it", async () => {
+    const { insert, owner, pin, pinned } = await setup();
+    const a = await insert("Alpha");
+    const b = await insert("Bravo");
+    const secret = await insert("Secret", { tags: ["secret"], isHidden: true });
+    for (const id of [a, secret, b]) {
+      await pin(id);
+    }
+    expect(await pinned()).toEqual(["Bravo", "Alpha"]);
+    // The row sends only the cards it shows.
+    await owner.mutation(api.cards.reorderPinnedCards, { cardIds: [a, b] });
+    expect(await pinned()).toEqual(["Alpha", "Bravo"]);
+    const order = await owner.run(async (ctx) =>
+      (
+        await ctx.db
+          .query("cards")
+          .withIndex("by_user_pin_position", (q) =>
+            q.eq("userId", "owner").gte("pinPosition", Number.NEGATIVE_INFINITY)
+          )
+          .collect()
+      ).map((card) => card.content)
+    );
+    expect(order).toEqual(["Alpha", "Bravo", "Secret"]);
+    // A full list that names the hidden pin still works.
+    await owner.mutation(api.cards.reorderPinnedCards, {
+      cardIds: [secret, b, a],
+    });
+    expect(await pinned()).toEqual(["Bravo", "Alpha"]);
+    // Leaving out a visible pin is still refused.
+    expect(
+      await errorCode(
+        owner.mutation(api.cards.reorderPinnedCards, { cardIds: [a, secret] })
+      )
+    ).toBe("INVALID_INPUT");
+  });
+
   test("archiving or trashing unpins, and restoring doesn't pin again", async () => {
     const { insert, owner, pin, pinned } = await setup();
     const archived = await insert("Archived");

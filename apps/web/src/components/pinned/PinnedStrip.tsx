@@ -23,7 +23,7 @@ import {
   type GridKeyContext,
   gridKeyAction,
 } from "../../lib/gridKeys";
-import { movedIds } from "../../lib/pinnedCards";
+import { movedIds, type PinTarget } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
 import { Card, type CardWithUrls } from "../cards/Card";
 
@@ -54,7 +54,7 @@ export interface PinnedStripProps {
   onReorder: (cardIds: Id<"cards">[]) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
-  onTogglePin: (cardId: string, source?: "grid" | "shortcut") => void;
+  onTogglePin: (card: PinTarget, source?: "grid" | "shortcut") => void;
 }
 
 /**
@@ -143,7 +143,12 @@ export function PinnedStrip({
       archive: onToggleArchive && (() => onToggleArchive(cardId, true)),
       delete: onDeleteCard && (() => onDeleteCard(cardId)),
       favorite: onToggleFavorite && (() => onToggleFavorite(cardId)),
-      pin: () => onTogglePin(cardId, "shortcut"),
+      pin: () => {
+        const card = cards.find((candidate) => candidate._id === cardId);
+        if (card) {
+          onTogglePin(card, "shortcut");
+        }
+      },
     };
     const handler = run[action.action];
     if (handler) {

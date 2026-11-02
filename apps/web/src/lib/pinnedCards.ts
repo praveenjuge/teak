@@ -37,6 +37,12 @@ export function showsPinnedStrip({
   );
 }
 
+/** A card to pin or unpin: its id and whether it's pinned now. */
+export interface PinTarget {
+  _id: string;
+  pinPosition?: number;
+}
+
 export const isPinned = (card: Pick<Doc<"cards">, "pinPosition">): boolean =>
   card.pinPosition !== undefined;
 

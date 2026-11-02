@@ -17,6 +17,7 @@ import {
   inPinOrder,
   isPinLimitError,
   isPinned,
+  type PinTarget,
   showsPinnedStrip,
   withPinnedFirst,
 } from "../lib/pinnedCards";
@@ -136,15 +137,16 @@ export function usePinnedStrip({
   const shown = showsPinnedStrip({ ...where, view });
   const pinned = usePinnedCards();
   const { reorderPins, togglePin } = usePinActions();
+  // The card's own pin state decides: the row's list leaves hidden pins
+  // out and is empty while it loads.
   const toggle = useCallback(
-    (cardId: string, source: "grid" | "shortcut" = "grid") => {
-      const pin = pinned?.find((card) => card._id === cardId);
+    (card: PinTarget, source: "grid" | "shortcut" = "grid") => {
       togglePin(
-        { _id: cardId as Id<"cards">, pinPosition: pin?.pinPosition },
+        { _id: card._id as Id<"cards">, pinPosition: card.pinPosition },
         source
       ).catch(() => undefined);
     },
-    [pinned, togglePin]
+    [togglePin]
   );
   return {
     shown,

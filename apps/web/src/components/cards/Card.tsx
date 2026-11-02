@@ -283,7 +283,7 @@ export const Card = memo(function Card({
     if (isOptimistic) {
       return;
     }
-    onTogglePin?.(card._id);
+    onTogglePin?.(card);
   };
 
   const handleToggleArchive = () => {

@@ -1,3 +1,7 @@
+import type { PinTarget } from "../../lib/pinnedCards";
+
+export type { PinTarget } from "../../lib/pinnedCards";
+
 export interface LinkPreviewMetadata {
   description?: string;
   faviconUrl?: string;
@@ -113,7 +117,7 @@ export interface CardProps {
   onRestore?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
-  onTogglePin?: (cardId: string) => void;
+  onTogglePin?: (card: PinTarget) => void;
   onToggleSelection?: (cardId: string) => void;
 }
 

@@ -87,7 +87,9 @@ export const setCardPinnedForUser = async (
 
 /**
  * Puts the pinned cards in the given order. `cardIds` must name every
- * pinned card exactly once, so a stale list can't drop or revive a pin.
+ * visible pinned card exactly once, so a stale list can't drop or revive a
+ * pin. Hidden pins, which the web row doesn't show, may be left out: they
+ * keep their order after the named cards.
  */
 export const reorderPinnedCardsForUser = async (
   ctx: MutationCtx,
@@ -98,17 +100,21 @@ export const reorderPinnedCardsForUser = async (
   const unique = new Set(cardIds);
   if (
     unique.size !== cardIds.length ||
-    cardIds.length !== pins.length ||
-    cardIds.some((id) => !byId.has(id))
+    cardIds.some((id) => !byId.has(id)) ||
+    keepVisible(pins).some((card) => !unique.has(card._id))
   ) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: PIN_ERROR_MESSAGES.ORDER_MISMATCH,
     });
   }
+  const order = [
+    ...cardIds,
+    ...pins.map((card) => card._id as string).filter((id) => !unique.has(id)),
+  ];
   const now = Date.now();
   const ordered: Doc<"cards">[] = [];
-  for (const [index, id] of cardIds.entries()) {
+  for (const [index, id] of order.entries()) {
     const card = byId.get(id) as Doc<"cards">;
     // Only cards that moved are written, so a reorder conflicts with as
     // few concurrent card writes as possible.
