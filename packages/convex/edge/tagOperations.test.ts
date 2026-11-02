@@ -545,6 +545,36 @@ describe("tag summary snapshot", () => {
     expect(await label()).toBe("Design systems");
   });
 
+  test("accepting a suggested tag while its sync is queued keeps the typed casing", async () => {
+    const { t, summary, runScheduled } = await setup();
+    const cardId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "suggested",
+        aiTags: ["design systems"],
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+      // The tag sync is queued, not run.
+      await syncCardSearchDocumentHandler(ctx, id);
+      return id;
+    });
+    // The suggestion is kept, in the casing the person chose, before it runs.
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, cardId, {
+        tags: ["Design Systems"],
+        updatedAt: 2000,
+      })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design systems"
+      )?.label
+    ).toBe("Design Systems");
+  });
+
   test("a full recount names a tag by its latest casing, not by row order", async () => {
     const { t, insert, summary, runScheduled } = await setup();
     // Counts aren't marked ready, so the summary recounts the tag rows.

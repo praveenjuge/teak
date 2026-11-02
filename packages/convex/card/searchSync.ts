@@ -89,16 +89,16 @@ const typedTagLabels = (tags: string[] | undefined) => {
 };
 
 /**
- * An edit that only re-cases a card's tags runs no tag sync: its rows and
- * their generations stay. The new casing goes onto those rows in place, into
- * the tag-sync snapshot (so a chain still pending writes it, not the old
- * casing), and, for counted rows, straight to the tag counts.
+ * An edit that only re-cases a card's tags (or keeps a suggested one) runs no
+ * new tag sync: its rows and their generations stay. The new casing goes onto
+ * those rows in place and, for active rows, straight to the tag counts; a
+ * chain still pending starts over on the card as it is now.
  */
 const recordTagCasingChanges = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   previousCard: Pick<Doc<"cards">, "tags">,
-  card: Pick<Doc<"cards">, "tags" | "userId">
+  card: Doc<"cards">
 ) => {
   const before = typedTagLabels(previousCard.tags);
   const changed = [...typedTagLabels(card.tags)].filter(
@@ -133,16 +133,15 @@ const recordTagCasingChanges = async (
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
-  if (tagState?.tags && tagState.userId === card.userId) {
-    // Re-case the snapshot's tags where they stand: a chain still running
-    // keeps its offset into this list, so its order and length must hold.
-    const casing = new Map(changed);
-    const tags = tagState.tags.map(
-      (tag) => casing.get(normalizeCardSearchTag(tag)) ?? tag
-    );
-    if (tags.some((tag, index) => tag !== tagState.tags?.[index])) {
-      await ctx.db.patch("cardSearchTagSyncStates", tagState._id, { tags });
-    }
+  if (tagState?.pending && tagState.userId === card.userId) {
+    // A chain still running reads its card from its snapshot, which has the
+    // old casing (and may lack a tag just moved over from the suggestions).
+    // Start it over on the card as it is now: the tag set is the same, so it
+    // keeps its rows and tag generation; only its progress restarts.
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId, {
+      kind: "record",
+      card,
+    });
   }
   if (labels.size > 0) {
     await recordTagCountDeltas(ctx, new Map(), labels);
