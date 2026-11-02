@@ -12,10 +12,56 @@ import type { TagSummaryItem } from "../lib/tags";
 import { timeFilterLabel } from "../lib/timeFilterLabel";
 import type { UseCardsSearchControllerResult } from "./useCardsSearchController";
 
+/** A word that is search syntax rather than text: `-word`, `#tag`, `key:value`, `(`, `OR`. */
+const SEARCH_SYNTAX = /^[-#(]|^[a-z]+:|^OR$/i;
+
+/**
+ * Whether anything but words narrows the search: a tag, type, date, color,
+ * style or qualifier, or the favorites filter (which a new note wouldn't
+ * pass, so the search would still find nothing).
+ */
+export const searchHasFilters = (search: {
+  filterTags: readonly unknown[];
+  hexFilters: readonly unknown[];
+  hueFilters: readonly unknown[];
+  qualifierChips?: readonly unknown[];
+  showFavoritesOnly: boolean;
+  styleFilters: readonly unknown[];
+  tagFilter?: unknown;
+  timeFilter?: unknown;
+}): boolean =>
+  Boolean(search.tagFilter || search.timeFilter || search.showFavoritesOnly) ||
+  search.filterTags.length > 0 ||
+  search.hexFilters.length > 0 ||
+  search.hueFilters.length > 0 ||
+  search.styleFilters.length > 0 ||
+  (search.qualifierChips?.length ?? 0) > 0;
+
+/**
+ * The text a search that found nothing would save as a note: its words,
+ * when the search is only words (no filters, no search syntax).
+ */
+export const searchNoteText = (
+  searchTerms: string,
+  hasFilters: boolean
+): string | null => {
+  const words = searchTerms.trim();
+  if (
+    hasFilters ||
+    !words ||
+    words.split(/\s+/).some((word) => SEARCH_SYNTAX.test(word))
+  ) {
+    return null;
+  }
+  return words;
+};
+
 /**
  * What the empty state of a search offers: each of its filters as a chip to
- * drop, and a "Did you mean" built from the person's own tags, folder names
- * and card titles. The tags are read only once a search has found nothing.
+ * drop, a "Did you mean" built from the person's own tags, folder names
+ * and card titles, and the words themselves to save as a note when the
+ * search is nothing but words. The tags are read only once a search has
+ * found nothing.
  */
 export function useNoResultsHelp({
   controller,
@@ -27,6 +73,7 @@ export function useNoResultsHelp({
   foundNothing: boolean;
 }): {
   chips: RemovableSearchChip[];
+  noteText: string | null;
   suggestion: string | null;
   applySuggestion: (search: string) => void;
 } {
@@ -38,7 +85,11 @@ export function useNoResultsHelp({
     applyUrlState,
     cachedCards,
     filterTags,
+    hexFilters,
+    hueFilters,
     searchBarProps,
+    showFavoritesOnly,
+    styleFilters,
     searchTerms,
     tagFilter,
     timeFilter,
@@ -105,5 +156,21 @@ export function useNoResultsHelp({
       onRemove: () => searchBarProps.onRemoveFilter(type),
     });
   }
-  return { chips, suggestion, applySuggestion };
+  const noteText = foundNothing
+    ? searchNoteText(
+        searchTerms,
+        searchHasFilters({
+          filterTags,
+          hexFilters,
+          hueFilters,
+          qualifierChips: searchBarProps.qualifierChips,
+          showFavoritesOnly,
+          styleFilters,
+          tagFilter,
+          timeFilter,
+        })
+      )
+    : null;
+
+  return { applySuggestion, chips, noteText, suggestion };
 }

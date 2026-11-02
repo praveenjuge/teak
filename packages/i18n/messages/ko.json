@@ -1394,7 +1394,8 @@
       "didYouMean": "<link>{suggestion}</link>을(를) 찾으셨나요?",
       "tryRemoving": "또는 필터 제거:",
       "filtersLabel": "이 검색의 필터",
-      "removeFilter": "{label} 제거"
+      "removeFilter": "{label} 제거",
+      "saveAsNote": "메모로 저장"
     }
   },
   "commandPalette": {

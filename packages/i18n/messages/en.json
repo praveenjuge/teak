@@ -1394,7 +1394,8 @@
       "didYouMean": "Did you mean <link>{suggestion}</link>?",
       "tryRemoving": "Or remove a filter:",
       "filtersLabel": "Filters in this search",
-      "removeFilter": "Remove {label}"
+      "removeFilter": "Remove {label}",
+      "saveAsNote": "Save as a note"
     }
   },
   "commandPalette": {

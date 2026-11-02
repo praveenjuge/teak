@@ -1394,7 +1394,8 @@
       "didYouMean": "<link>{suggestion}</link> ですか？",
       "tryRemoving": "またはフィルタを削除：",
       "filtersLabel": "この検索のフィルタ",
-      "removeFilter": "{label} を削除"
+      "removeFilter": "{label} を削除",
+      "saveAsNote": "メモとして保存"
     }
   },
   "commandPalette": {
