@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import {
   type FinalizeUploadedCardArgs,
@@ -40,6 +40,8 @@ import {
   useFileUploadCore,
 } from "@/hooks/useFileUploadCore";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { formatClockTime } from "@/lib/clockTime";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   describeUploadFailures,
@@ -52,14 +54,13 @@ import {
   registerRecordAudio,
   registerUploadFiles,
 } from "../../lib/keyboardShortcuts";
-import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
-interface AddCardActionsProps {
+interface AddCardProviderProps {
+  children: ReactNode;
   onNewNote?: () => void;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   upgradeUrl?: string;
-  variant?: "toolbar" | "header";
 }
 
 const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
@@ -92,12 +93,6 @@ function NewMenuTrigger() {
       </DropdownMenuTrigger>
     </SidebarMenuItem>
   );
-}
-
-function formatTime(seconds: number) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 interface AudioRecordingFormat {
@@ -134,10 +129,6 @@ interface AddCardControls {
 }
 
 const AddCardContext = createContext<AddCardControls | null>(null);
-
-type AddCardProviderProps = Omit<AddCardActionsProps, "variant"> & {
-  children: ReactNode;
-};
 
 /**
  * Owns uploading and recording, and the U and R shortcuts, for everything
@@ -216,30 +207,7 @@ export function AddCardProvider({
     uploadTranslators
   );
 
-  const handleUpgrade = useCallback(() => {
-    if (onUpgrade) {
-      onUpgrade();
-      return;
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.location.assign(upgradeUrl);
-  }, [onUpgrade, upgradeUrl]);
-
-  const showUpgradeToast = useCallback(
-    (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(tLimits("cardLimitReached"), {
-        ...MANUAL_CLOSE_TOAST_OPTIONS,
-        action: {
-          label: tLimits("upgrade"),
-          onClick: handleUpgrade,
-        },
-        id: toastId,
-      });
-    },
-    [handleUpgrade, tLimits]
-  );
+  const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
 
   const clearRecordingResources = useCallback(() => {
     if (timerRef.current) {
@@ -627,7 +595,7 @@ export function AddCardProvider({
           </DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
-              {formatTime(recordingTime)}
+              {formatClockTime(recordingTime)}
             </div>
             {unsaved ? (
               <div className="flex flex-wrap justify-center gap-2">
@@ -772,66 +740,16 @@ function NewMenu({
   );
 }
 
-function AddCardTriggers({
-  controls,
-  variant,
-}: {
-  controls: AddCardControls;
-  variant: "toolbar" | "header";
-}) {
-  const t = useTranslations("forms.addCardActions");
-  if (variant === "header") {
-    return <NewMenu controls={controls} trigger={<NewMenuTrigger />} />;
-  }
-  return (
-    <div className="flex items-center gap-1">
-      <ShortcutTooltip keys={["U"]} label={t("uploadFiles")}>
-        <Button
-          aria-keyshortcuts="U"
-          aria-label={t("uploadFiles")}
-          disabled={controls.isUploading}
-          onClick={controls.uploadFiles}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Upload className="size-4" />
-        </Button>
-      </ShortcutTooltip>
-      <ShortcutTooltip keys={["R"]} label={t("recordAudio")}>
-        <Button
-          aria-keyshortcuts="R"
-          aria-label={t("recordAudio")}
-          disabled={!controls.canStartRecording}
-          onClick={controls.recordAudio}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Mic className="size-4" />
-        </Button>
-      </ShortcutTooltip>
-    </div>
-  );
-}
-
 /**
- * The New menu, or upload and record buttons. Inside an AddCardProvider it
- * uses that provider; on its own it brings one.
+ * The sidebar's New menu. It uses the AddCardProvider the app shell mounts,
+ * which owns uploading and recording.
  */
-export function AddCardActions({
-  variant = "toolbar",
-  ...providerProps
-}: AddCardActionsProps) {
+export function AddCardActions() {
   const controls = useContext(AddCardContext);
-  if (controls) {
-    return <AddCardTriggers controls={controls} variant={variant} />;
+  if (!controls) {
+    return null;
   }
-  return (
-    <AddCardProvider {...providerProps}>
-      <AddCardActions variant={variant} />
-    </AddCardProvider>
-  );
+  return <NewMenu controls={controls} trigger={<NewMenuTrigger />} />;
 }
 
 /**

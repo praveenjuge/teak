@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
+import { isHiddenTagList } from "@teak/convex/shared/tags";
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
 import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import type { OptimisticLocalStore } from "convex/browser";
@@ -134,6 +135,130 @@ function updateCardsInDetailQueries(
       });
     }
   }
+}
+
+type UpdateCardFieldArgs = FunctionArgs<typeof api.cards.updateCardField>;
+
+/** A card before and after an optimistic edit. */
+export interface CardFieldChange {
+  after: Doc<"cards">;
+  before: Doc<"cards">;
+}
+
+/** The fields whose result the client predicts; the rest wait for the server. */
+const PREDICTED_FIELDS = new Set<UpdateCardFieldArgs["field"]>([
+  "aiSummary",
+  "content",
+  "delete",
+  "done",
+  "isFavorited",
+  "metadataTitle",
+  "notes",
+  "removeAiTag",
+  "restore",
+  "tags",
+  "undone",
+  "url",
+]);
+
+const TEXT_FIELDS = new Set<UpdateCardFieldArgs["field"]>([
+  "aiSummary",
+  "content",
+  "metadataTitle",
+  "notes",
+  "url",
+]);
+
+/**
+ * The card as `updateCardField` will leave it, or `null` for a field the
+ * client doesn't predict (colors, archiving) and leaves to the server.
+ */
+export function cardAfterFieldUpdate(
+  card: Doc<"cards">,
+  { field, value, tagToRemove }: UpdateCardFieldArgs,
+  now: number
+): Doc<"cards"> | null {
+  switch (field) {
+    case "isFavorited":
+      return { ...card, isFavorited: !card.isFavorited, updatedAt: now };
+    case "delete":
+      return { ...card, isDeleted: true, deletedAt: now, updatedAt: now };
+    case "restore":
+      return {
+        ...card,
+        isDeleted: undefined,
+        deletedAt: undefined,
+        updatedAt: now,
+      };
+    case "done":
+    case "undone":
+      return card.type === "link"
+        ? {
+            ...card,
+            completedAt:
+              field === "done" ? (card.completedAt ?? now) : undefined,
+            updatedAt: now,
+          }
+        : card;
+    case "tags": {
+      const tags = Array.isArray(value) && value.length > 0 ? value : undefined;
+      return {
+        ...card,
+        tags,
+        isHidden: isHiddenTagList(tags) ? true : undefined,
+        updatedAt: now,
+      };
+    }
+    case "removeAiTag": {
+      if (!tagToRemove) {
+        return null;
+      }
+      const aiTags = card.aiTags?.filter((tag) => tag !== tagToRemove);
+      return {
+        ...card,
+        aiTags: aiTags && aiTags.length > 0 ? aiTags : undefined,
+        updatedAt: now,
+      };
+    }
+    default:
+      if (!TEXT_FIELDS.has(field)) {
+        return null;
+      }
+      return {
+        ...card,
+        [field]: typeof value === "string" ? value.trim() || undefined : value,
+        ...(field === "metadataTitle" ? { metadataTitleEdited: true } : {}),
+        updatedAt: now,
+      };
+  }
+}
+
+/**
+ * Applies an `updateCardField` edit to every cached copy of the card: the
+ * lists, the open dialog and the single-card query. It only writes to the
+ * local store, so Convex can replay it, and returns the first copy before
+ * and after for a caller that keeps its own cache.
+ */
+export function applyCardFieldUpdate(
+  localStore: OptimisticLocalStore,
+  args: UpdateCardFieldArgs,
+  now = Date.now()
+): CardFieldChange | null {
+  if (!PREDICTED_FIELDS.has(args.field)) {
+    return null;
+  }
+  let change: CardFieldChange | null = null;
+  const update = (card: Doc<"cards">): Doc<"cards"> => {
+    const after = cardAfterFieldUpdate(card, args, now) ?? card;
+    change ??= { after, before: card };
+    return after;
+  };
+  updateCardInSearchQueries(localStore, args.cardId, update);
+  const single = localStore.getQuery(api.cards.getCard, { id: args.cardId });
+  if (single) {
+    localStore.setQuery(api.cards.getCard, { id: args.cardId }, update(single));
+  }
+  return change;
 }
 
 const listsNewestFirst = (sort: SearchFilterArgs["sort"]) =>

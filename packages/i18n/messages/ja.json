@@ -1400,7 +1400,8 @@
       "didYouMean": "<link>{suggestion}</link> ですか？",
       "tryRemoving": "またはフィルタを削除：",
       "filtersLabel": "この検索のフィルタ",
-      "removeFilter": "{label} を削除"
+      "removeFilter": "{label} を削除",
+      "saveAsNote": "メモとして保存"
     }
   },
   "commandPalette": {
@@ -1666,7 +1667,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "カードを削除しました。「trash」で検索すると見つかります",
       "cardDeleted": "カードを削除しました",
       "cardRestored": "カードを復元しました",
       "cardPermanentlyDeleted": "カードを完全に削除しました",

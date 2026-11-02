@@ -23,6 +23,7 @@ import {
   type BulkFolderTarget,
   collectCardLinks,
 } from "../../lib/bulkCardActions";
+import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
@@ -735,18 +736,14 @@ export const MasonryGrid = memo(function MasonryGrid({
           });
           return;
         }
-        navigator.clipboard
-          .writeText(links.join("\n"))
-          .then(() =>
-            toast.success(t("copiedLinks", { count: links.length }), {
-              id: `${toastIdPrefix}-copy-links`,
-            })
-          )
-          .catch(() =>
-            toast.error(t("copyLinksFailed"), {
-              id: `${toastIdPrefix}-copy-links`,
-            })
-          );
+        void copyText(
+          links.join("\n"),
+          {
+            copied: t("copiedLinks", { count: links.length }),
+            failed: t("copyLinksFailed"),
+          },
+          `${toastIdPrefix}-copy-links`
+        );
         return;
       }
       runBulk(action).catch(() => undefined);
@@ -823,7 +820,6 @@ export const MasonryGrid = memo(function MasonryGrid({
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
           isTabStop={card._id === tabStopId}
-          isTrashMode={showTrashOnly}
           onAddTags={onAddTags}
           onClick={handleCardClick}
           onCopyImage={onCopyImage}
@@ -843,7 +839,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onRestore={onRestoreCard}
           onToggleArchive={onToggleArchive}
           onToggleFavorite={onToggleFavorite}
-          onTogglePin={showTrashOnly ? undefined : onTogglePin}
+          onTogglePin={onTogglePin}
           onToggleSelection={toggleCardSelection}
         />
       );
@@ -861,7 +857,6 @@ export const MasonryGrid = memo(function MasonryGrid({
       onTogglePin,
       onAddTags,
       onCopyImage,
-      showTrashOnly,
       isSelectionMode,
       selectedCardIds,
       enterSelectionMode,

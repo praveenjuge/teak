@@ -31,7 +31,7 @@ The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events
 
 Client events (`captureEvent`):
 
-- `card_create_submitted` {card_type, source, via}
+- `card_create_submitted` {card_type, source, via}: `via` is `text_form` (the composer), `link_paste` (several links pasted into it), `recording` (Record audio) or `empty_search` ("Save as a note" on a search that found nothing)
 - `search_performed` {zero_result, qualifiers?}: `qualifiers` lists the qualifier keys the search used (`text`, `tag`, `price`…), never their values
 - `search_operator_used` {negation, or, groups}: sent with `search_performed` when the search used `-`, `OR` or parentheses. Each flag says whether that operator appeared (`groups` is a parenthesised group the operators' precedence needed)
 - `similar_search_opened` {source}: "More like this" in a card's details

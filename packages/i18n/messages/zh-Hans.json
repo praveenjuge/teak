@@ -1400,7 +1400,8 @@
       "didYouMean": "您是不是要找 <link>{suggestion}</link>？",
       "tryRemoving": "或移除一个筛选条件：",
       "filtersLabel": "此搜索的筛选条件",
-      "removeFilter": "移除 {label}"
+      "removeFilter": "移除 {label}",
+      "saveAsNote": "保存为笔记"
     }
   },
   "commandPalette": {
@@ -1666,7 +1667,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "卡片已删除。搜索“trash”即可找到它",
       "cardDeleted": "卡片已删除",
       "cardRestored": "卡片已恢复",
       "cardPermanentlyDeleted": "卡片已永久删除",

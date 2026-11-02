@@ -32,6 +32,7 @@ import { VaultSetupState } from "@/components/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@/components/forms";
 import { AddCardEmptyState, AddCardForm } from "@/components/forms";
 import { AddCardButton } from "@/components/forms/AddCardActions";
+import { useSaveSearchAsNote } from "@/components/forms/useSaveNote";
 import { MasonryGrid, type MasonryGridHandle } from "@/components/grids";
 import { CardsSearchHeader } from "@/components/search";
 import { NoSearchResults } from "@/components/search/NoSearchResults";
@@ -124,7 +125,6 @@ export type { SearchUrlChange } from "../lib/searchUrlSync";
 interface CardsScreenProps {
   addToFolderId?: string;
   composerDraft?: string;
-  contentContainerClassName?: string;
   focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
@@ -147,7 +147,6 @@ interface CardsScreenProps {
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
-  UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
   view?: LibraryView;
 }
@@ -170,9 +169,7 @@ export function CardsScreen({
   headerLeading,
   onNavigateView,
   view,
-  UpgradeLinkComponent,
   upgradeUrl,
-  contentContainerClassName,
   toastIdPrefix,
   searchUrlState,
   onSearchUrlStateChange,
@@ -536,7 +533,6 @@ export function CardsScreen({
   );
 
   const cardActions = useCardActions({
-    onDeleteSuccess: (message?: string) => message && toast(message),
     onRestoreSuccess: (message?: string) => message && toast(message),
     onPermanentDeleteSuccess: (message?: string) => message && toast(message),
     onError: (_error: Error, operation: string) => {
@@ -723,12 +719,10 @@ export function CardsScreen({
         onFocus={handleComposerFocus}
         onOpenCard={composerHandlers.onOpenCard}
         onUpgrade={onUpgrade}
-        UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
     ),
     [
-      UpgradeLinkComponent,
       composerFocus.pending,
       composerHandlers,
       handleComposerFocus,
@@ -763,6 +757,18 @@ export function CardsScreen({
       cardsStatus === "Exhausted" &&
       !searchController.isSearchPending &&
       !semanticSearch.isPending,
+  });
+  // Words a search found nothing for can become a note, which the same
+  // search then finds. Only where a new note shows: not Trash, Archive,
+  // Favorites or a folder.
+  const searchNote = useSaveSearchAsNote({
+    noteText:
+      showTrashOnly || showArchivedOnly || view === "favorites" || isFolderView
+        ? null
+        : noResultsHelp.noteText,
+    onOpenCard: composerHandlers.onOpenCard,
+    onUpgrade,
+    upgradeUrl,
   });
 
   const renderEmptyState = () => {
@@ -858,7 +864,6 @@ export function CardsScreen({
           <AddCardEmptyState
             draftContentRef={draftContentRef}
             onFocus={handleComposerFocus}
-            UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}
           />
           {hiddenCardsHint ? (
@@ -899,8 +904,10 @@ export function CardsScreen({
         <NoSearchResults
           chips={noResultsHelp.chips}
           onClearAll={clearAllFilters}
+          onSaveAsNote={searchNote.save}
           onUseSuggestion={noResultsHelp.applySuggestion}
           query={searchTerms}
+          savingNote={searchNote.saving}
           suggestion={noResultsHelp.suggestion}
           todo={Boolean(listsTodo)}
         />
@@ -1131,13 +1138,5 @@ export function CardsScreen({
     </>
   );
 
-  return (
-    <div className="relative">
-      {contentContainerClassName ? (
-        <main className={contentContainerClassName}>{content}</main>
-      ) : (
-        content
-      )}
-    </div>
-  );
+  return <div className="relative">{content}</div>;
 }

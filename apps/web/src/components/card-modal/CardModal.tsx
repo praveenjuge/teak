@@ -71,6 +71,7 @@ import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
+import { copyText } from "../../lib/clipboard";
 import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
@@ -650,9 +651,15 @@ export function CardModal({
   const copyFailed = t("toasts.copyFailed");
   const copyCard = () => {
     if (card?.url) {
-      void copyToClipboard(card.url, t("toasts.copiedLink"), copyFailed);
+      void copyText(card.url, {
+        copied: t("toasts.copiedLink"),
+        failed: copyFailed,
+      });
     } else if (copyableText) {
-      void copyToClipboard(copyableText, t("toasts.copiedText"), copyFailed);
+      void copyText(copyableText, {
+        copied: t("toasts.copiedText"),
+        failed: copyFailed,
+      });
     }
   };
 
@@ -1538,13 +1545,4 @@ export function CardModal({
       />
     </>
   );
-}
-
-async function copyToClipboard(text: string, message: string, failed: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(message);
-  } catch {
-    toast.error(failed);
-  }
 }

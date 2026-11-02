@@ -824,6 +824,13 @@ describe("Cards/Card redesign", () => {
       />
     );
     expect(archived).not.toContain("Pin to top");
+    const trashed = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ isDeleted: true }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(trashed).not.toContain("Pin to top");
     const noHandler = renderToStaticMarkup(
       <Card card={createLinkCard() as any} />
     );

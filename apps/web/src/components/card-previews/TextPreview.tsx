@@ -1,9 +1,9 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import {
   ariaKeyShortcut,
   FOCUS_NOTE_KEYS,
@@ -15,11 +15,6 @@ import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import type { CardLinkOptions } from "../text-editor/types";
 import { useFocusMode } from "../text-editor/useFocusMode";
 import { Button } from "../ui/button";
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface TextPreviewProps {
   card: CardWithUrls;

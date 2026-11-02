@@ -6,6 +6,7 @@ import { getFunctionName } from "convex/server";
 import {
   addCaptureToSearchQueries,
   addCardToSearchQueries,
+  applyCardFieldUpdate,
   cardMatchesSearchQuery,
   updateCardInSearchQueries,
 } from "../cardQueryOptimisticUpdates";
@@ -272,6 +273,99 @@ describe("card query optimistic updates", () => {
     updateCardInSearchQueries(localStore, "card-1" as Id<"cards">, () => null);
 
     expect(written).toEqual([]);
+  });
+});
+
+/** A local store holding one grid page and the single-card query. */
+const storeWith = (cards: Doc<"cards">[]) => {
+  const queries = new Map<string, unknown>([
+    [getFunctionName(api.cards.searchCards), [{ args: {}, value: cards }]],
+    [getFunctionName(api.cards.searchCardsPaginated), []],
+    [getFunctionName(api.cards.getCardByUrlId), []],
+  ]);
+  let single: Doc<"cards"> | undefined = cards[0];
+  const writes: string[] = [];
+  const localStore = {
+    getAllQueries: (query: unknown) =>
+      queries.get(getFunctionName(query as typeof api.cards.searchCards)) ?? [],
+    getQuery: () => single,
+    setQuery: (query: unknown, args: unknown, value: unknown) => {
+      const name = getFunctionName(query as typeof api.cards.searchCards);
+      writes.push(name);
+      if (name === getFunctionName(api.cards.getCard)) {
+        single = value as Doc<"cards">;
+      } else {
+        queries.set(name, [{ args, value }]);
+      }
+    },
+  } as unknown as OptimisticLocalStore;
+  return {
+    grid: () =>
+      (
+        queries.get(getFunctionName(api.cards.searchCards)) as Array<{
+          value: Doc<"cards">[];
+        }>
+      )[0]?.value,
+    localStore,
+    single: () => single,
+    writes,
+  };
+};
+
+describe("an edit to one card's field", () => {
+  const cardId = "card-1" as Id<"cards">;
+
+  it("hides a card at once when it gets a hidden tag", () => {
+    const store = storeWith([card()]);
+    const change = applyCardFieldUpdate(
+      store.localStore,
+      { cardId, field: "tags", value: ["Secret"] },
+      5
+    );
+    expect(store.grid()).toEqual([]);
+    expect(change?.after).toMatchObject({ isHidden: true, tags: ["Secret"] });
+    expect(store.single()).toMatchObject({ isHidden: true, updatedAt: 5 });
+  });
+
+  it("takes a deleted card out of the grid and marks its own query deleted", () => {
+    const store = storeWith([card()]);
+    const change = applyCardFieldUpdate(
+      store.localStore,
+      { cardId, field: "delete" },
+      5
+    );
+    expect(store.grid()).toEqual([]);
+    expect(change?.before.isDeleted).toBeUndefined();
+    expect(change?.after).toMatchObject({ deletedAt: 5, isDeleted: true });
+    expect(store.single()?.isDeleted).toBe(true);
+  });
+
+  it("marks a link done, and an edited title as the person's own", () => {
+    const link = card({ type: "link", url: "https://example.com" });
+    const store = storeWith([link]);
+    applyCardFieldUpdate(store.localStore, { cardId, field: "done" }, 5);
+    expect(store.single()?.completedAt).toBe(5);
+    applyCardFieldUpdate(
+      store.localStore,
+      { cardId, field: "metadataTitle", value: "  Mine  " },
+      6
+    );
+    expect(store.single()).toMatchObject({
+      metadataTitle: "Mine",
+      metadataTitleEdited: true,
+    });
+  });
+
+  it("leaves fields it can't predict to the server", () => {
+    const store = storeWith([card()]);
+    expect(
+      applyCardFieldUpdate(store.localStore, {
+        cardId,
+        field: "addColor",
+        value: "#ff0000",
+      })
+    ).toBeNull();
+    expect(store.writes).toEqual([]);
   });
 });
 

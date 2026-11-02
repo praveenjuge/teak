@@ -93,6 +93,41 @@ describe("NoSearchResults", () => {
     expect(button("Clear filters")).toBeDefined();
   });
 
+  test("offers to save the words as a note only when asked to", async () => {
+    const onSaveAsNote = mock(() => undefined);
+    await render(
+      <NoSearchResults
+        chips={[]}
+        onClearAll={() => undefined}
+        onSaveAsNote={onSaveAsNote}
+        query="call the dentist"
+      />
+    );
+    await act(() => button("Save as a note")?.click());
+    expect(onSaveAsNote).toHaveBeenCalledTimes(1);
+    expect(button("Clear search")).toBeDefined();
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+    await render(
+      <NoSearchResults chips={[]} onClearAll={() => undefined} query="x" />
+    );
+    expect(button("Save as a note")).toBeUndefined();
+  });
+
+  test("can't save the note again while the first save is in flight", async () => {
+    await render(
+      <NoSearchResults
+        chips={[]}
+        onClearAll={() => undefined}
+        onSaveAsNote={() => undefined}
+        query="call the dentist"
+        savingNote
+      />
+    );
+    expect(button("Save as a note")?.disabled).toBe(true);
+  });
+
   test("keeps the filters message when nothing was typed", async () => {
     await render(
       <NoSearchResults

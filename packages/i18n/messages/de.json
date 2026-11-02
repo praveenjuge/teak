@@ -1400,7 +1400,8 @@
       "didYouMean": "Meinten Sie <link>{suggestion}</link>?",
       "tryRemoving": "Oder einen Filter entfernen:",
       "filtersLabel": "Filter dieser Suche",
-      "removeFilter": "{label} entfernen"
+      "removeFilter": "{label} entfernen",
+      "saveAsNote": "Als Notiz speichern"
     }
   },
   "commandPalette": {
@@ -1666,7 +1667,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "Karte gelöscht. Sie finden sie mit einer Suche nach „trash“.",
       "cardDeleted": "Karte gelöscht",
       "cardRestored": "Karte wiederhergestellt",
       "cardPermanentlyDeleted": "Karte endgültig gelöscht",

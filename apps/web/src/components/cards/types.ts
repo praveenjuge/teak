@@ -102,7 +102,6 @@ export interface CardProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTabStop?: boolean;
-  isTrashMode?: boolean;
   /** False where the card moves another way (the pinned row's drag). */
   nativeDrag?: boolean;
   onAddTags?: (cardId: string) => void;

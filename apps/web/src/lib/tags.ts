@@ -70,15 +70,6 @@ export const tagErrorCode = (error: unknown): string | undefined => {
   return undefined;
 };
 
-export const tagOperationProgressLabel = (
-  operation: TagOperationView,
-  t: TagsTranslator = englishTags
-) =>
-  t("progress", {
-    changed: Math.min(operation.changed, operation.total),
-    total: operation.total,
-  });
-
 export const tagOperationTitle = (
   operation: TagOperationView,
   t: TagsTranslator = englishTags

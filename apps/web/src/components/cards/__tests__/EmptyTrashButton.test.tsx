@@ -8,19 +8,38 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const toasts: string[] = [];
+const errorToasts: string[] = [];
 mock.module("sonner", () => ({
   toast: Object.assign(
     (message: string) => {
       toasts.push(message);
     },
-    { error: () => undefined, success: () => undefined }
+    {
+      error: (message: string) => {
+        errorToasts.push(message);
+      },
+      success: () => undefined,
+    }
   ),
 }));
+
+let emptyTrashFailure: unknown;
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useMutation: () => () => Promise.reject(emptyTrashFailure),
+}));
+mock.module("@/lib/convexQueryHooks", () => ({
+  useQuery: () => ({ count: 2, more: false }),
+}));
+const { ConvexError } = await import("convex/values");
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { requestEmptyTrash } = await import("@/lib/commandPalette");
-const { EmptyTrashControl } = await import("../EmptyTrashButton");
+const { EmptyTrashButton, EmptyTrashControl } = await import(
+  "../EmptyTrashButton"
+);
 
 let root: Root | undefined;
 let container: HTMLDivElement;
@@ -31,6 +50,7 @@ afterEach(async () => {
   container?.remove();
   document.body.innerHTML = "";
   toasts.length = 0;
+  errorToasts.length = 0;
 });
 
 async function render(
@@ -118,5 +138,34 @@ describe("EmptyTrashControl", () => {
     });
     expect(dialog()).toBeNull();
     expect(toasts).toEqual(["Trash is empty."]);
+  });
+});
+
+describe("EmptyTrashButton", () => {
+  test("says when emptying is rate-limited, and otherwise that it failed", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => root?.render(<EmptyTrashButton />));
+
+    for (const failure of [
+      new ConvexError({ code: "RATE_LIMITED" }),
+      new Error("offline"),
+    ]) {
+      emptyTrashFailure = failure;
+      await act(async () => {
+        button().click();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        confirmButton().click();
+        await Promise.resolve();
+      });
+    }
+
+    expect(errorToasts).toEqual([
+      "Trash was emptied a few times just now. Try again in a minute.",
+      "Couldn’t empty Trash. Try again.",
+    ]);
   });
 });

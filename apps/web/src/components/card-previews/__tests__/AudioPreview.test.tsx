@@ -17,7 +17,7 @@ mock.module("convex/react", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { AudioPreview, formatAudioTime } = await import("../AudioPreview");
+const { AudioPreview } = await import("../AudioPreview");
 
 const createAudioCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_audio",
@@ -38,19 +38,6 @@ const createAudioCard = (overrides?: Record<string, unknown>) => ({
   ...overrides,
 });
 
-describe("formatAudioTime", () => {
-  test("formats seconds as minutes and padded seconds", () => {
-    expect(formatAudioTime(0)).toBe("0:00");
-    expect(formatAudioTime(84.7)).toBe("1:24");
-    expect(formatAudioTime(605)).toBe("10:05");
-  });
-
-  test("falls back to 0:00 for unknown durations", () => {
-    expect(formatAudioTime(Number.POSITIVE_INFINITY)).toBe("0:00");
-    expect(formatAudioTime(Number.NaN)).toBe("0:00");
-  });
-});
-
 describe("AudioPreview", () => {
   test("renders a player with the stored duration, seek control, and file name", () => {
     const markup = renderToStaticMarkup(
@@ -63,6 +50,19 @@ describe("AudioPreview", () => {
     expect(markup).toContain(">1:24<");
     expect(markup).toContain('src="https://files.example.com/memo.m4a"');
     expect(markup).toContain("Kickoff voice memo.m4a");
+  });
+
+  test("shows an hour-long recording's length with its hours, as its card does", () => {
+    const markup = renderToStaticMarkup(
+      <AudioPreview
+        card={
+          createAudioCard({
+            fileMetadata: { duration: 4500.6, mimeType: "audio/mp4" },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">1:15:00<");
   });
 
   test("disables seeking until the duration is known", () => {

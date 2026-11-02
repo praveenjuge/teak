@@ -1400,7 +1400,8 @@
       "didYouMean": "Vouliez-vous dire <link>{suggestion}</link> ?",
       "tryRemoving": "Ou retirez un filtre :",
       "filtersLabel": "Filtres de cette recherche",
-      "removeFilter": "Retirer {label}"
+      "removeFilter": "Retirer {label}",
+      "saveAsNote": "Enregistrer comme note"
     }
   },
   "commandPalette": {
@@ -1666,7 +1667,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "Fiche supprimée. Retrouvez-la en recherchant « trash »",
       "cardDeleted": "Fiche supprimée",
       "cardRestored": "Fiche restaurée",
       "cardPermanentlyDeleted": "Fiche supprimée définitivement",
