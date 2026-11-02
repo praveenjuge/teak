@@ -284,6 +284,41 @@ describe("auto-file triggers", () => {
     expect((await card(memo)).folderIds).toEqual([folder._id]);
   });
 
+  test("words the same AI write replaces don't match", async () => {
+    const { t, insert, createFolder, card, runScheduled } = await setup();
+    await createFolder("Pottery", { autoFileQuery: "pottery" });
+    await runScheduled();
+    const id = await insert({
+      content: "Weekend notes",
+      aiSummary: "Notes from a pottery class",
+    });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: id,
+      aiTags: ["bread"],
+      aiSummary: "Notes about baking bread",
+      processingStatus: { metadata: { status: "completed" } },
+    });
+    expect((await card(id)).folderIds).toBeUndefined();
+  });
+
+  test("a transcript written after the AI files the card", async () => {
+    const { t, insert, createFolder, card, writeAiTags, runScheduled } =
+      await setup();
+    const folder = await createFolder("Studio", { autoFileQuery: "crowded" });
+    await runScheduled();
+    const episode = await insert({
+      type: "link",
+      content: "https://pod.example",
+    });
+    await writeAiTags(episode, ["podcast"]);
+    expect((await card(episode)).folderIds).toBeUndefined();
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: episode,
+      aiTranscript: "the crowded studio was loud",
+    });
+    expect((await card(episode)).folderIds).toEqual([folder._id]);
+  });
+
   test("words only a transcript holds match", async () => {
     const { insert, createFolder, card, runScheduled } = await setup();
     const memo = await insert({
