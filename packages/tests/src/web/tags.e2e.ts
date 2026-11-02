@@ -61,33 +61,63 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   await rename.getByLabel("New name").fill("Design Systems");
   await rename.getByRole("button", "Rename").click();
   await expect(
-    screen.getByText("Renamed “design” to “Design Systems”", { exact: false })
+    screen.getByText("Renamed “design” to “Design Systems”", { exact: true })
   ).toBeVisible({ timeout: 30_000 });
   await expect(tagRow("design systems")).toBeVisible();
+  // Tags lists it as it was typed, while its link narrows by the key.
+  await expect(
+    screen.getByText("Design Systems", { exact: true })
+  ).toBeVisible();
   expect(await tagsOf(alpha)).toEqual(["Design Systems", "web"]);
 
   await screen.getByRole("button", "More for web").click();
   await screen.getByRole("menuitem", "Merge into…").click();
   const merge = screen.getByRole("dialog", "Merge “web” into…");
   await merge.getByRole("option", "design systems", { exact: false }).click();
-  await merge.getByRole("button", "Merge into “design systems”").click();
+  await merge.getByRole("button", "Merge into “Design Systems”").click();
   await expect(
-    screen.getByText("Merged “web” into “design systems”", { exact: false })
+    screen.getByText("Merged “web” into “Design Systems”", { exact: true })
   ).toBeVisible({ timeout: 30_000 });
   expect(await tagsOf(alpha)).toEqual(["Design Systems"]);
-  expect(await tagsOf(gamma)).toEqual(["design systems"]);
+  // Merged cards take the target's casing.
+  expect(await tagsOf(gamma)).toEqual(["Design Systems"]);
 
-  await screen.getByRole("button", "More for design systems").click();
+  await screen.getByRole("button", "More for Design Systems").click();
   await screen.getByRole("menuitem", "Delete…").click();
   await screen
-    .getByRole("dialog", "Delete “design systems”?")
+    .getByRole("dialog", "Delete “Design Systems”?")
     .getByRole("button", "Delete tag")
     .click();
   await expect(
     screen.getByText("Deleted “design systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
   await expect(
-    screen.getByRole("button", "More for design systems")
+    screen.getByRole("button", "More for Design Systems")
   ).not.toBeVisible();
   expect(await tagsOf(alpha)).toBeUndefined();
+});
+
+test("a long tag truncates on a phone instead of widening the page", async ({
+  browser,
+  screen,
+  library,
+}) => {
+  const longTag = "W".repeat(64);
+  const id = await library.client.mutation(api.cards.createCard, {
+    content: "Card with a long tag",
+    type: "text",
+    tags: [longTag],
+  });
+  library.ids.push(id);
+
+  await browser.setViewport({ width: 320, height: 640 });
+  await gotoApp(browser, "/tags");
+  await expect(
+    screen.getByRole("link", `${longTag.toLowerCase()}, `, { exact: false })
+  ).toBeVisible({ timeout: 60_000 });
+  expect(
+    await browser.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth
+    )
+  ).toBe(true);
 });

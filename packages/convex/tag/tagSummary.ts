@@ -31,6 +31,8 @@ export const tagSummaryRetryDelayMs = (attempt: number): number | null =>
 export const tagSummaryItemValidator = v.object({
   name: v.string(),
   count: v.number(),
+  // The casing the tag was last typed in on a card, when that's known.
+  label: v.optional(v.string()),
 });
 
 export const tagSummaryValidator = v.object({
@@ -41,6 +43,7 @@ export const tagSummaryValidator = v.object({
 
 interface TagCount {
   count: number;
+  label?: string;
   name: string;
 }
 
@@ -101,6 +104,18 @@ export const markTagSummaryDirty = async (
 };
 
 export type TagCountDeltas = Map<string, Map<string, number>>;
+/** A casing a tag was typed in, and when its card was edited. */
+export interface TagLabel {
+  at: number;
+  label: string;
+}
+
+/** The casing each user's tags were last typed in, by tag key. */
+export type TagLabels = Map<string, Map<string, TagLabel>>;
+
+/** The later of two casings by edit time; a tie goes to the one seen last. */
+const laterLabel = (current: TagLabel | undefined, next: TagLabel): TagLabel =>
+  current && current.at > next.at ? current : next;
 
 export const isCountedTagRow = (
   row: Pick<Doc<"cardSearchTags">, "isArchived" | "isDeleted">
@@ -117,14 +132,41 @@ export const addTagCountDelta = (
   deltas.set(userId, tags);
 };
 
+export const addTagLabel = (
+  labels: TagLabels,
+  userId: string,
+  tag: string,
+  label: TagLabel
+) => {
+  const tags = labels.get(userId) ?? new Map<string, TagLabel>();
+  tags.set(tag, laterLabel(tags.get(tag), label));
+  labels.set(userId, tags);
+};
+
 export const recordTagCountDeltas = async (
   ctx: MutationCtx,
-  deltas: TagCountDeltas
+  deltas: TagCountDeltas,
+  labels: TagLabels = new Map()
 ) => {
-  for (const [userId, tags] of deltas) {
-    for (const [tag, delta] of tags) {
-      if (delta !== 0) {
-        await ctx.db.insert("tagCountDeltas", { userId, tag, delta });
+  for (const userId of new Set([...deltas.keys(), ...labels.keys()])) {
+    const tagDeltas = deltas.get(userId);
+    const tagLabels = labels.get(userId);
+    const tags = new Set([
+      ...(tagDeltas?.keys() ?? []),
+      ...(tagLabels?.keys() ?? []),
+    ]);
+    for (const tag of tags) {
+      const delta = tagDeltas?.get(tag) ?? 0;
+      const label = tagLabels?.get(tag);
+      // A new casing is worth a row even when the count didn't change.
+      if (delta !== 0 || label !== undefined) {
+        await ctx.db.insert("tagCountDeltas", {
+          userId,
+          tag,
+          delta,
+          label: label?.label,
+          labelAt: label?.at,
+        });
       }
     }
   }
@@ -133,10 +175,13 @@ export const recordTagCountDeltas = async (
 export const applyTagCounts = async (
   ctx: MutationCtx,
   userId: string,
-  deltas: Map<string, number>
+  deltas: Map<string, number>,
+  labels: Map<string, TagLabel> = new Map()
 ) => {
-  for (const [tag, delta] of deltas) {
-    if (delta === 0) {
+  for (const tag of new Set([...deltas.keys(), ...labels.keys()])) {
+    const delta = deltas.get(tag) ?? 0;
+    const label = labels.get(tag);
+    if (delta === 0 && label === undefined) {
       continue;
     }
     const row = await ctx.db
@@ -145,13 +190,36 @@ export const applyTagCounts = async (
         q.eq("userId", userId).eq("tag", tag)
       )
       .unique();
+    // Only a casing edited after the stored one replaces it, so a sync that
+    // runs late can't undo a newer edit on another card.
+    // A newer edit with the same casing still moves `labelAt` on, so an
+    // older edit folded later can't win.
+    const newer =
+      label !== undefined &&
+      label.at >= (row?.labelAt ?? Number.NEGATIVE_INFINITY);
+    const relabel =
+      newer && (label.label !== row?.label || label.at !== row?.labelAt)
+        ? { label: label.label, labelAt: label.at }
+        : {};
+    if (delta === 0) {
+      if (row && "label" in relabel) {
+        await ctx.db.patch("userTagCounts", row._id, relabel);
+      }
+      continue;
+    }
     const count = (row?.count ?? 0) + delta;
     if (!row) {
-      await ctx.db.insert("userTagCounts", { userId, tag, count });
+      await ctx.db.insert("userTagCounts", {
+        userId,
+        tag,
+        count,
+        label: label?.label,
+        labelAt: label?.at,
+      });
     } else if (count === 0) {
       await ctx.db.delete("userTagCounts", row._id);
     } else {
-      await ctx.db.patch("userTagCounts", row._id, { count });
+      await ctx.db.patch("userTagCounts", row._id, { count, ...relabel });
     }
   }
 };
@@ -177,13 +245,21 @@ export const countTagSummaryPage = internalQuery({
       )
       .paginate({ cursor, numItems: TAG_SUMMARY_PAGE_ROWS });
     const counts = new Map<string, number>();
+    const labels = new Map<string, string>();
     for (const row of page.page) {
       if (row.isDeleted === undefined && row.isArchived === undefined) {
         counts.set(row.tag, (counts.get(row.tag) ?? 0) + 1);
+        if (row.label) {
+          labels.set(row.tag, row.label);
+        }
       }
     }
     return {
-      counts: Array.from(counts, ([name, count]) => ({ name, count })),
+      counts: Array.from(counts, ([name, count]) => ({
+        name,
+        count,
+        label: labels.get(name),
+      })),
       continueCursor: page.isDone ? null : page.continueCursor,
     };
   },
@@ -202,7 +278,9 @@ export const countTagCountsPage = internalQuery({
       .paginate({ cursor, numItems: TAG_SUMMARY_PAGE_ROWS });
     return {
       counts: page.page.flatMap((row) =>
-        row.count > 0 ? [{ name: row.tag, count: row.count }] : []
+        row.count > 0
+          ? [{ name: row.tag, count: row.count, label: row.label }]
+          : []
       ),
       continueCursor: page.isDone ? null : page.continueCursor,
     };
@@ -231,11 +309,23 @@ export const foldTagCountDeltas = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .take(TAG_COUNT_FOLD_ROWS);
     const totals = new Map<string, number>();
+    // The casing edited last wins; rows come oldest first, so of two edited
+    // at the same time the one recorded last does.
+    const labels = new Map<string, TagLabel>();
     for (const row of rows) {
       totals.set(row.tag, (totals.get(row.tag) ?? 0) + row.delta);
+      if (row.label !== undefined) {
+        labels.set(
+          row.tag,
+          laterLabel(labels.get(row.tag), {
+            label: row.label,
+            at: row.labelAt ?? row._creationTime,
+          })
+        );
+      }
       await ctx.db.delete("tagCountDeltas", row._id);
     }
-    await applyTagCounts(ctx, userId, totals);
+    await applyTagCounts(ctx, userId, totals, labels);
     return rows.length < TAG_COUNT_FOLD_ROWS;
   },
 });
@@ -331,12 +421,15 @@ export const recomputeTagSummary = internalAction({
       }
       // The full recount of `cardSearchTags` stays as the repair path for
       // tag rows that are not counted yet.
-      const pageQuery =
+      const recounts = !(
         folded &&
         (await ctx.runQuery(internal.tag.tagSummary.tagCountsReady, {}))
-          ? internal.tag.tagSummary.countTagCountsPage
-          : internal.tag.tagSummary.countTagSummaryPage;
+      );
+      const pageQuery = recounts
+        ? internal.tag.tagSummary.countTagSummaryPage
+        : internal.tag.tagSummary.countTagCountsPage;
       const totals = new Map<string, number>();
+      const labels = new Map<string, string>();
       let cursor: string | null = null;
       let isDone = false;
       let pages = 0;
@@ -345,15 +438,48 @@ export const recomputeTagSummary = internalAction({
           counts: TagCount[];
           continueCursor: string | null;
         } = await ctx.runQuery(pageQuery, { userId, cursor });
-        for (const { name, count } of page.counts) {
+        for (const { name, count, label } of page.counts) {
           totals.set(name, (totals.get(name) ?? 0) + count);
+          if (label !== undefined) {
+            labels.set(name, label);
+          }
         }
         cursor = page.continueCursor;
         isDone = cursor === null;
         pages += 1;
       }
+      // A recount reads casing off the tag rows in index order, not edit
+      // order. The count rows keep the latest casing in edit order, so they
+      // win where they have one.
+      if (recounts) {
+        let countCursor: string | null = null;
+        for (let page = 0; page < TAG_SUMMARY_MAX_PAGES; page += 1) {
+          const counted: {
+            counts: TagCount[];
+            continueCursor: string | null;
+          } = await ctx.runQuery(internal.tag.tagSummary.countTagCountsPage, {
+            userId,
+            cursor: countCursor,
+          });
+          for (const { name, label } of counted.counts) {
+            if (label !== undefined && totals.has(name)) {
+              labels.set(name, label);
+            }
+          }
+          countCursor = counted.continueCursor;
+          if (countCursor === null) {
+            break;
+          }
+        }
+      }
       const items = sortTagCounts(
-        Array.from(totals, ([name, count]) => ({ name, count }))
+        Array.from(totals, ([name, count]) => {
+          // Only a casing that differs from the key is worth sending.
+          const label = labels.get(name);
+          return label === undefined || label === name
+            ? { name, count }
+            : { name, count, label };
+        })
       );
       await ctx.runMutation(internal.tag.tagSummary.writeTagSummary, {
         userId,

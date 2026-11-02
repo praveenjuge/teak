@@ -223,7 +223,7 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
     <button
       aria-label={chip.ariaLabel}
       className={cn(
-        "inline-flex h-6 min-w-10 max-w-80 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
+        "inline-flex h-6 min-w-12 max-w-80 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
         chip.dashed
           ? "border border-dashed text-muted-foreground"
           : "bg-background text-foreground shadow-xs ring-1 ring-border/70 hover:bg-accent"
@@ -586,6 +586,9 @@ export function SearchBar({
   const overflowChips = chips.slice(maxInlineChips);
   const canClear = hasAnyFilters || searchQuery.length > 0;
   const fieldShown = mobileOpen || canClear;
+  // On a phone the field is too narrow for chips and the placeholder both:
+  // the chips get the room, and the input keeps enough of it to type in.
+  const hasChips = chips.length > 0 || Boolean(lockedChips);
 
   const clearAll = () => {
     onClearAll();
@@ -759,7 +762,10 @@ export function SearchBar({
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
-            className="h-full min-w-20 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+            className={cn(
+              "h-full min-w-20 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden",
+              hasChips && "max-sm:min-w-10 max-sm:placeholder:text-transparent"
+            )}
             data-library-search=""
             id={inputId}
             maxLength={MAX_URL_SEARCH_LENGTH}

@@ -162,3 +162,54 @@ test("text: is a chip that survives a reload and matches only image text", async
     })
   ).toBeVisible({ timeout: 30_000 });
 });
+
+test("on a phone, a search chip gets the room its placeholder had", async ({
+  browser,
+  screen,
+  webAccount: _signedIn,
+}) => {
+  const term = "phonechipsearch";
+  const measure = () =>
+    browser.evaluate((label: string) => {
+      const chip = document.querySelector(
+        `button[aria-label="Remove ${label}"]`
+      );
+      const text = [...(chip?.querySelectorAll("span") ?? [])].find(
+        (span) => span.textContent === label
+      );
+      const input = document.querySelector<HTMLInputElement>(
+        'input[role="combobox"]'
+      );
+      if (!(chip && text && input)) {
+        return null;
+      }
+      return {
+        chipRight: chip.getBoundingClientRect().right,
+        inputLeft: input.getBoundingClientRect().left,
+        shown: text.clientWidth,
+        full: text.scrollWidth,
+        placeholderAlpha:
+          getComputedStyle(input, "::placeholder")
+            .color.match(/[\d.]+/g)
+            ?.map(Number)[3] ?? 1,
+      };
+    }, term);
+
+  await browser.setViewport({ width: 390, height: 844 });
+  await gotoApp(browser, `/?q=${term}`);
+  await expect(screen.getByRole("button", `Remove ${term}`)).toBeVisible({
+    timeout: 60_000,
+  });
+  const phone = await measure();
+  // Most of the chip reads, its × isn't cut off, and no placeholder shows.
+  expect(phone?.shown ?? 0).toBeGreaterThan((phone?.full ?? 0) / 2);
+  expect(phone?.chipRight ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+    (phone?.inputLeft ?? 0) + 1
+  );
+  expect(phone?.placeholderAlpha).toBe(0);
+
+  await browser.setViewport({ width: 1440, height: 900 });
+  const desktop = await measure();
+  expect(desktop?.shown).toBe(desktop?.full);
+  expect(desktop?.placeholderAlpha).not.toBe(0);
+});

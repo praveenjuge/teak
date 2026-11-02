@@ -635,7 +635,9 @@ export const getFreshTagSummaryForUser = internalQuery({
       .query("tagSummaryRefreshes")
       .withIndex("by_userId", (query) => query.eq("userId", userId))
       .first();
-    return pendingRefresh ? null : { items: summary.items };
+    return pendingRefresh
+      ? null
+      : { items: summary.items.map(({ name, count }) => ({ name, count })) };
   },
 });
 

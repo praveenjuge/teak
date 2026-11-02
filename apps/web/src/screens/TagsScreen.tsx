@@ -41,6 +41,7 @@ import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
 import {
   applyTagOperationToSummary,
   type TagSummaryItem,
+  tagDisplayName,
   tagKey,
 } from "../lib/tags";
 import { PageHeader, PageTitle } from "./PageHeader";
@@ -93,7 +94,7 @@ const TagRow = memo(function TagRow({
   const intlLocale = useIntlLocale();
   const trigger = (
     <Button
-      aria-label={t("moreFor", { tag: item.name })}
+      aria-label={t("moreFor", { tag: tagDisplayName(item) })}
       className={cn(
         "mr-2 size-8 shrink-0 text-muted-foreground transition-opacity hover:text-foreground",
         // Touch screens can't hover, so the button stays for them.
@@ -116,7 +117,10 @@ const TagRow = memo(function TagRow({
       )}
     >
       <LinkComponent
-        aria-label={t("rowLabel", { tag: item.name, count: item.count })}
+        aria-label={t("rowLabel", {
+          tag: tagDisplayName(item),
+          count: item.count,
+        })}
         className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         href={href}
       >
@@ -125,7 +129,7 @@ const TagRow = memo(function TagRow({
           className="size-4 shrink-0 text-muted-foreground opacity-60"
         />
         <span className="truncate font-medium text-sm" dir="auto">
-          {item.name}
+          {tagDisplayName(item)}
         </span>
         <span className="ml-auto shrink-0 pl-3 text-muted-foreground text-sm tabular-nums">
           {item.count.toLocaleString(intlLocale)}
@@ -379,7 +383,7 @@ export function TagsScreen({
         {matches === undefined && !summaryFailed && (
           <ul
             aria-label={t("loading")}
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {SKELETON_WIDTHS.map((width) => (
               <li
@@ -417,7 +421,7 @@ export function TagsScreen({
         {visible.length > 0 && (
           <ul
             aria-label={t("list")}
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {visible.map((item) => (
               <TagRow

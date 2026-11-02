@@ -5,8 +5,10 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  CARD_SEARCH_TAG_SYNC_BATCH_SIZE,
   patchCardWithSearchSync,
   syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
 } from "../card/searchSync";
 import schema from "../schema";
 import { TAG_OPERATION_STALL_MS } from "../shared/tags";
@@ -442,6 +444,286 @@ describe("tag summary snapshot", () => {
     ]);
   });
 
+  test("a tag reads in the casing it was last typed in; AI tags never change it", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, cardId, {
+          ...value,
+          updatedAt: Date.now(),
+        })
+      );
+    const item = async (name: string) =>
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === name
+      );
+
+    const a = await insert({ tags: ["Design Systems"], aiTags: ["web"] });
+    await insert({ aiTags: ["design systems", "WEB"] });
+    await runScheduled();
+    expect(await item("design systems")).toEqual({
+      name: "design systems",
+      count: 2,
+      label: "Design Systems",
+    });
+    // A tag only Teak suggested keeps its key.
+    expect(await item("web")).toEqual({ name: "web", count: 2 });
+
+    // An edit that keeps the casing leaves it; a new casing replaces it.
+    await patch(a, { notes: "edited" });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    await patch(a, { tags: ["DESIGN systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("DESIGN systems");
+
+    // A re-case keeps the card's tag rows; a later edit that changes its tag
+    // set still passes on the casing the card now has.
+    await patch(a, { tags: ["design systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBeUndefined();
+    // The row still holds "Design Systems" from before the re-cases.
+    await patch(a, { tags: ["Design Systems", "new"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    await patch(a, { tags: ["DESIGN systems"] });
+    await runScheduled();
+
+    // Typed in lowercase on a card saved now, it reads as its key again.
+    await insert({
+      tags: ["design systems"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await runScheduled();
+    expect(await item("design systems")).toEqual({
+      name: "design systems",
+      count: 3,
+    });
+
+    // The public API lists tags by key, without the casing.
+    await patch(a, { tags: ["Design Systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    const fresh = await t.query(internal.publicApi.getFreshTagSummaryForUser, {
+      userId: "owner",
+    });
+    expect(fresh?.items).toContainEqual({ name: "design systems", count: 3 });
+  });
+
+  test("a re-case holds through a tag sync still queued, and in a full recount", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, cardId, {
+          ...value,
+          updatedAt: Date.now(),
+        })
+      );
+    const label = async () =>
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design systems"
+      )?.label;
+
+    const a = await insert({ tags: ["Design Systems"] });
+    await runScheduled();
+    // An edit queues a tag sync; a re-case lands before that sync runs.
+    await patch(a, { tags: ["Design Systems", "queued"] });
+    await patch(a, { tags: ["DESIGN SYSTEMS", "queued"] });
+    await runScheduled();
+    // Before tag counts are ready, the summary recounts the tag rows.
+    expect(await label()).toBe("DESIGN SYSTEMS");
+
+    // A re-case alone: the rows and the counts both take it.
+    await patch(a, { tags: ["Design systems", "queued"] });
+    await runScheduled();
+    expect(await label()).toBe("Design systems");
+    await t.run(async (ctx) => {
+      await ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 });
+      await markTagSummaryDirty(ctx, "owner", 0);
+    });
+    await runScheduled();
+    expect(await label()).toBe("Design systems");
+  });
+
+  test("across cards, the casing edited last wins even if its sync runs first", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const a = await insert({ tags: ["design"] });
+    const b = await insert({ tags: ["design"] });
+    await runScheduled();
+    // B's edit queues a tag sync; A is re-cased later, before B's sync runs.
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, b, {
+        tags: ["Design", "queued"],
+        updatedAt: 2000,
+      })
+    );
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
+  test("a newer edit to the casing a tag already shows still beats an older queued one", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const b = await insert({ tags: ["design"] });
+    const c = await insert({ tags: ["design"] });
+    // Saved last, so the tag reads "DESIGN" (edited at 1000).
+    await insert({ tags: ["DESIGN"] });
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, b, {
+        tags: ["Design", "queued"],
+        updatedAt: 2000,
+      })
+    );
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, c, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    // C's casing is folded before B's queued sync runs.
+    await t.mutation(internal.tag.tagSummary.foldTagCountDeltas, {
+      userId: "owner",
+    });
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
+  test("accepting a suggested tag while its sync is queued keeps the typed casing", async () => {
+    const { t, summary, runScheduled } = await setup();
+    const cardId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "suggested",
+        aiTags: ["design systems"],
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+      // The tag sync is queued, not run.
+      await syncCardSearchDocumentHandler(ctx, id);
+      return id;
+    });
+    // The suggestion is kept, in the casing the person chose, before it runs.
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, cardId, {
+        tags: ["Design Systems"],
+        updatedAt: 2000,
+      })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design systems"
+      )?.label
+    ).toBe("Design Systems");
+  });
+
+  test("a full recount names a tag by its latest casing, not by row order", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    // Counts aren't marked ready, so the summary recounts the tag rows.
+    const older = await insert({ tags: ["Design"], createdAt: 1000 });
+    await insert({ tags: ["design"], createdAt: 2000 });
+    await runScheduled();
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, older, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
+  test("a re-case refreshes Tags for a tag row written before counting", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    const a = await insert({ tags: ["Design"] });
+    await runScheduled();
+    // A row from before tag counting: no isCounted, so the full recount
+    // (used until counts are ready) is what reads it.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", a))
+        .collect();
+      for (const row of rows) {
+        await ctx.db.patch("cardSearchTags", row._id, {
+          isCounted: undefined,
+        });
+      }
+    });
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 2000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
+  test("a re-case that also reorders a card's tags mid-sync still syncs every tag", async () => {
+    const { t, runScheduled } = await setup();
+    const tags = Array.from(
+      { length: CARD_SEARCH_TAG_SYNC_BATCH_SIZE + 8 },
+      (_, index) => `tag-${index}`
+    );
+    const cardId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "many tags",
+        tags,
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+      await syncCardSearchDocumentHandler(ctx, id);
+      // One batch runs: the first 32 tags have rows, the last 8 don't yet.
+      await syncCardSearchTagsBatchHandler(ctx, id, "owner");
+      return id;
+    });
+    // Reversed, with one tag re-cased, before the rest of the sync runs.
+    const reversed = [...tags]
+      .reverse()
+      .map((tag) => (tag === "tag-0" ? "TAG-0" : tag));
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, cardId, { tags: reversed, updatedAt: 2000 })
+    );
+    await runScheduled();
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", cardId))
+        .collect()
+    );
+    expect(rows.map((row) => row.tag).sort()).toEqual([...tags].sort());
+    expect(rows.find((row) => row.tag === "tag-0")?.label).toBe("TAG-0");
+  });
+
   test("a burst of tag changes schedules one recompute", async () => {
     const { t, insert } = await setup();
     for (let index = 0; index < 5; index += 1) {
@@ -573,7 +855,9 @@ describe("tag summary snapshot", () => {
       await markTagSummaryDirty(ctx, "owner", 0);
     });
     await runScheduled();
-    expect((await summary())?.items).toEqual(expected);
+    // The recount gives the same counts, and the same casing ("IDEAS").
+    expect((await summary())?.items).toMatchObject(expected);
+    expect((await summary())?.items[0]?.label).toBe("IDEAS");
   });
 
   test("the backfill counts tag rows written before counting, then serves summaries", async () => {

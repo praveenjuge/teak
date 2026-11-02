@@ -1126,7 +1126,14 @@ const handleTagsRequest = async (
     );
     if (summary) {
       return json(200, {
-        items: summary.items,
+        // The API lists tags by key; the casing a tag was typed in isn't
+        // part of its contract.
+        items: summary.items.map(
+          ({ name, count }: { name: string; count: number }) => ({
+            name,
+            count,
+          })
+        ),
         isComplete: summary.isComplete,
       });
     }

@@ -81,3 +81,36 @@ test("the merge picker moves with the arrows, picks with Enter, then merges", as
   );
   expect(submit).toBeDefined();
 });
+
+test("merging into a tag keeps the casing Tags shows for it", async () => {
+  const onStart = mock(async (_input: unknown) => undefined);
+  const container = document.body.appendChild(document.createElement("div"));
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <TagManagerDialog
+        mode="merge"
+        onModeChange={() => undefined}
+        onOpenChange={() => undefined}
+        onStart={onStart}
+        open
+        tag={{ name: "web", count: 1 }}
+        tags={[
+          { name: "design systems", count: 4, label: "Design Systems" },
+          { name: "web", count: 1 },
+        ]}
+      />
+    )
+  );
+  expect(activeOption()).toContain("Design Systems");
+  await press("Enter");
+  const submit = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent === "Merge into “Design Systems”"
+  );
+  await act(async () => submit?.click());
+  expect(onStart).toHaveBeenCalledWith({
+    kind: "merge",
+    from: "web",
+    to: "Design Systems",
+  });
+});

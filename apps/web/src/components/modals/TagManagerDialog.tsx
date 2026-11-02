@@ -23,6 +23,7 @@ import {
   explainTagNameInput,
   MAX_TAG_NAME_LENGTH,
   type TagSummaryItem,
+  tagDisplayName,
   tagErrorCode,
   tagKey,
 } from "../../lib/tags";
@@ -102,7 +103,8 @@ function TagManagerForm({
   const intlLocale = useIntlLocale();
   const inputId = useId();
   const listId = useId();
-  const [name, setName] = useState(tag.name);
+  const shownName = tagDisplayName(tag);
+  const [name, setName] = useState(shownName);
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<string | null>(initialTarget ?? null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -155,13 +157,13 @@ function TagManagerForm({
   if (mode === "rename") {
     problem = trimmed ? explainTagNameInput(trimmed, tErrors) : null;
     if (!problem && existing) {
-      problem = t("nameTaken", { name: existing.name });
+      problem = t("nameTaken", { name: tagDisplayName(existing) });
     }
   }
   const canSubmit =
     !(isSaving || problem) &&
     (mode === "delete" ||
-      (mode === "rename" && Boolean(trimmed) && trimmed !== tag.name) ||
+      (mode === "rename" && Boolean(trimmed) && trimmed !== shownName) ||
       (mode === "merge" && target !== null));
 
   const mergeSuggestion =
@@ -171,17 +173,24 @@ function TagManagerForm({
 
   const titles: Record<TagManagerMode, string> = {
     rename: t("renameTitle"),
-    merge: t("mergeTitle", { name: tag.name }),
-    delete: t("deleteTitle", { name: tag.name }),
+    merge: t("mergeTitle", { name: shownName }),
+    delete: t("deleteTitle", { name: shownName }),
   };
   const descriptions: Record<TagManagerMode, string> = {
-    rename: t("renameDescription", { name: tag.name, count: tag.count }),
-    merge: t("mergeDescription", { name: tag.name }),
-    delete: t("deleteDescription", { name: tag.name, count: tag.count }),
+    rename: t("renameDescription", { name: shownName, count: tag.count }),
+    merge: t("mergeDescription", { name: shownName }),
+    delete: t("deleteDescription", { name: shownName, count: tag.count }),
   };
+  const targetItem = tags.find((item) => item.name === target);
+  // Merged cards take the target as Tags shows it, so they keep its casing.
+  const mergeTo = targetItem ? tagDisplayName(targetItem) : (target ?? "");
   const submitLabels: Record<TagManagerMode, string> = {
     rename: tc("rename"),
-    merge: target ? t("mergeInto", { name: target }) : t("merge"),
+    merge: target
+      ? t("mergeInto", {
+          name: targetItem ? tagDisplayName(targetItem) : target,
+        })
+      : t("merge"),
     delete: t("deleteTag"),
   };
 
@@ -206,7 +215,7 @@ function TagManagerForm({
                 : {
                     kind: mode,
                     from: tag.name,
-                    to: mode === "merge" ? (target ?? "") : trimmed,
+                    to: mode === "merge" ? mergeTo : trimmed,
                   }
             ).catch(() => undefined);
           }
@@ -323,9 +332,9 @@ function TagManagerForm({
                     <span
                       className="min-w-0 flex-1 truncate"
                       dir="auto"
-                      title={item.name}
+                      title={tagDisplayName(item)}
                     >
-                      {item.name}
+                      {tagDisplayName(item)}
                     </span>
                     {selected ? (
                       <Check aria-hidden="true" className="size-4" />

@@ -9,7 +9,7 @@ import {
 } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   ChevronDown,
   Ellipsis,
@@ -52,6 +52,8 @@ export interface CardTagsControl {
   removeAiTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   setTagInput: (value: string) => void;
+  /** Why the typed tag wasn't added; shown under the field. */
+  tagError?: string | null;
   tagInput: string;
 }
 
@@ -409,6 +411,7 @@ export function CardMetadataPanel({
   const clipboard = useTranslations("lib.clipboard");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const tagErrorId = useId();
   const [isDetailsOpen, setIsDetailsOpen] = useStoredFlag(DETAILS_EXPANDED_KEY);
   const folders = useFolders();
   const cardFolderIds = useMemo(
@@ -592,9 +595,11 @@ export function CardMetadataPanel({
             {!isDeleted && (
               <span className="flex min-w-24 flex-1 items-center gap-1">
                 <input
+                  aria-describedby={tags.tagError ? tagErrorId : undefined}
+                  aria-invalid={tags.tagError ? true : undefined}
                   aria-keyshortcuts="T"
                   aria-label={t("addTagLabel")}
-                  className="peer h-6 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
+                  className="peer h-6 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40 aria-invalid:ring-1 aria-invalid:ring-destructive/60"
                   enterKeyHint="done"
                   maxLength={100}
                   onChange={(event) => tags.setTagInput(event.target.value)}
@@ -612,6 +617,15 @@ export function CardMetadataPanel({
               </span>
             )}
           </div>
+          {tags.tagError && !isDeleted ? (
+            <p
+              className="mt-1.5 text-destructive text-xs"
+              id={tagErrorId}
+              role="alert"
+            >
+              {tags.tagError}
+            </p>
+          ) : null}
           <SuggestedTags
             disabled={isDeleted}
             onAccept={tags.acceptAiTag}

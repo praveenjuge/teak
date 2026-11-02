@@ -241,3 +241,22 @@ test("without the controls, Details has neither Edit link nor Image", async () =
   expect(button("Edit link…")).toBeUndefined();
   expect(detailLabels()).not.toContain("Image");
 });
+
+test("a tag that can't be added says why under the tag field", async () => {
+  const tags = {
+    addTag: mock(),
+    removeAiTag: mock(),
+    removeTag: mock(),
+    setTagInput: mock(),
+    tagError: "Each tag must be at most 64 characters",
+    tagInput: "a".repeat(65),
+  };
+  await render(imageCard(), { tags });
+  const field = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Add a tag"]'
+  );
+  const alert = document.querySelector('[role="alert"]');
+  expect(alert?.textContent).toBe("Each tag must be at most 64 characters");
+  expect(field?.getAttribute("aria-invalid")).toBe("true");
+  expect(field?.getAttribute("aria-describedby")).toBe(alert?.id ?? "");
+});

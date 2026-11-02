@@ -19,10 +19,12 @@ import { cardSiteHost } from "../shared/utils/urlHost";
 import { urlKey } from "../shared/utils/urlKey";
 import {
   addTagCountDelta,
+  addTagLabel,
   isCountedTagRow,
   markTagSummaryDirty,
   recordTagCountDeltas,
   type TagCountDeltas,
+  type TagLabels,
 } from "../tag/tagSummary";
 import {
   cardLinksMayChange,
@@ -73,6 +75,83 @@ export const buildCardSearchText = (
 
 export const normalizeCardSearchTag = (tag: string): string =>
   tag.trim().toLowerCase();
+
+/** Each tag key of a card's own tags, with the casing it was first typed in. */
+const typedTagLabels = (tags: string[] | undefined) => {
+  const labels = new Map<string, string>();
+  for (const tag of tags ?? []) {
+    const key = normalizeCardSearchTag(tag);
+    if (key && !labels.has(key)) {
+      labels.set(key, tag.trim());
+    }
+  }
+  return labels;
+};
+
+/**
+ * An edit that only re-cases a card's tags (or keeps a suggested one) runs no
+ * new tag sync: its rows and their generations stay. The new casing goes onto
+ * those rows in place and, for active rows, straight to the tag counts; a
+ * chain still pending starts over on the card as it is now.
+ */
+const recordTagCasingChanges = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  previousCard: Pick<Doc<"cards">, "tags">,
+  card: Doc<"cards">
+) => {
+  const before = typedTagLabels(previousCard.tags);
+  const changed = [...typedTagLabels(card.tags)].filter(
+    ([tag, label]) => before.get(tag) !== label
+  );
+  if (changed.length === 0) {
+    return;
+  }
+  const labels: TagLabels = new Map();
+  let relabeled = false;
+  for (const [tag, label] of changed) {
+    const row = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_tag", (query) =>
+        query.eq("cardId", cardId).eq("tag", tag)
+      )
+      .unique();
+    if (!row) {
+      continue;
+    }
+    if (row.label !== label) {
+      await ctx.db.patch("cardSearchTags", row._id, { label });
+      relabeled = true;
+    }
+    // Active rows pass the casing on, including ones written before
+    // counting (no isCounted): it only relabels a count row that exists.
+    if (isCountedTagRow(row)) {
+      addTagLabel(labels, card.userId, tag, { label, at: card.updatedAt });
+    }
+  }
+  const tagState = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  if (tagState?.pending && tagState.userId === card.userId) {
+    // A chain still running reads its card from its snapshot, which has the
+    // old casing (and may lack a tag just moved over from the suggestions).
+    // Start it over on the card as it is now: the tag set is the same, so it
+    // keeps its rows and tag generation; only its progress restarts.
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId, {
+      kind: "record",
+      card,
+    });
+  }
+  if (labels.size > 0) {
+    await recordTagCountDeltas(ctx, new Map(), labels);
+  }
+  // Rows written before counting reach Tags only through the full recount,
+  // so any new casing on a row refreshes the summary.
+  if (labels.size > 0 || relabeled) {
+    await markTagSummaryDirty(ctx, card.userId);
+  }
+};
 
 export const buildCardSearchTags = (
   card: Pick<Doc<"cards">, "tags" | "aiTags">
@@ -406,6 +485,13 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   const currentTags = JSON.stringify(buildCardSearchTags(card));
+  if (
+    previousCard &&
+    previousCard.userId === card.userId &&
+    currentTags === JSON.stringify(buildCardSearchTags(previousCard))
+  ) {
+    await recordTagCasingChanges(ctx, cardId, previousCard, card);
+  }
   // Even reading the tag-sync state row puts it in this transaction's OCC
   // read set, where it races the running tag chain.
   if (
@@ -576,6 +662,7 @@ export const syncCardSearchTagsBatchHandler = async (
   const chainState = state;
   const stateId = state._id;
   const countDeltas: TagCountDeltas = new Map();
+  const tagLabels: TagLabels = new Map();
   let budget = CARD_SEARCH_TAG_SYNC_BATCH_SIZE;
   let processed = 0;
   let writes = 0;
@@ -583,7 +670,7 @@ export const syncCardSearchTagsBatchHandler = async (
 
   const continueLater = async () => {
     await ctx.db.patch("cardSearchTagSyncStates", stateId, { offset, phase });
-    await recordTagCountDeltas(ctx, countDeltas);
+    await recordTagCountDeltas(ctx, countDeltas, tagLabels);
     await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
     return { complete: false, processed, writes };
   };
@@ -601,18 +688,21 @@ export const syncCardSearchTagsBatchHandler = async (
     }
     const source = phase === "tags" ? (card.tags ?? []) : (card.aiTags ?? []);
     const sourceSlice = source.slice(offset, offset + budget);
-    const tags = Array.from(
-      new Set(sourceSlice.map(normalizeCardSearchTag).filter(Boolean))
-    );
-    for (const tag of tags) {
-      writes += await writeCardSearchTag(
-        ctx,
-        cardId,
-        card,
-        tag,
+    // A card's own tags carry the casing they were typed in; AI tags don't,
+    // so they never replace it.
+    const labels = new Map<string, string | undefined>();
+    for (const sourceTag of sourceSlice) {
+      const tag = normalizeCardSearchTag(sourceTag);
+      if (tag && !labels.has(tag)) {
+        labels.set(tag, phase === "tags" ? sourceTag.trim() : undefined);
+      }
+    }
+    for (const [tag, label] of labels) {
+      writes += await writeCardSearchTag(ctx, cardId, card, tag, label, {
+        countDeltas,
         tagGeneration,
-        countDeltas
-      );
+        tagLabels,
+      });
     }
     processed += sourceSlice.length;
     budget -= sourceSlice.length;
@@ -655,7 +745,7 @@ export const syncCardSearchTagsBatchHandler = async (
   } else {
     await ctx.db.delete("cardSearchTagSyncStates", stateId);
   }
-  await recordTagCountDeltas(ctx, countDeltas);
+  await recordTagCountDeltas(ctx, countDeltas, tagLabels);
   if (ownerId && state.tagCountsChanged !== false) {
     await markTagSummaryDirty(ctx, ownerId);
   }
@@ -679,8 +769,16 @@ const writeCardSearchTag = async (
   cardId: Id<"cards">,
   card: CardSyncSource,
   tag: string,
-  tagGeneration: number,
-  countDeltas: TagCountDeltas
+  label: string | undefined,
+  {
+    countDeltas,
+    tagGeneration,
+    tagLabels,
+  }: {
+    countDeltas: TagCountDeltas;
+    tagGeneration: number;
+    tagLabels: TagLabels;
+  }
 ): Promise<number> => {
   const existingTag = await ctx.db
     .query("cardSearchTags")
@@ -703,8 +801,21 @@ const writeCardSearchTag = async (
     syncGeneration: tagGeneration,
   };
   const isCounted = isCountedTagRow(tagValue) ? (true as const) : undefined;
+  const relabels = label !== undefined && label !== existingTag?.label;
+  // A counted row passes its casing on to the tag's count when the casing
+  // changed or the row starts counting (out of Trash or Archive).
+  if (
+    label !== undefined &&
+    isCounted &&
+    (relabels || !existingTag?.isCounted)
+  ) {
+    addTagLabel(tagLabels, tagValue.userId, tag, {
+      label,
+      at: card.updatedAt,
+    });
+  }
   if (!existingTag) {
-    await ctx.db.insert("cardSearchTags", { ...tagValue, isCounted });
+    await ctx.db.insert("cardSearchTags", { ...tagValue, isCounted, label });
     if (isCounted) {
       addTagCountDelta(countDeltas, tagValue.userId, tag, 1);
     }
@@ -718,6 +829,9 @@ const writeCardSearchTag = async (
   }
   if (existingTag.isCounted !== isCounted) {
     changes.isCounted = isCounted;
+  }
+  if (relabels) {
+    changes.label = label;
   }
   if (Object.keys(changes).length === 0) {
     return 0;
