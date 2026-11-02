@@ -582,12 +582,8 @@ const truncateMarkdown = (
   };
 };
 
-/**
- * `[](url)` or `[](url "title")`, with Turndown's backslash escapes; not an
- * image's `![](…)`.
- */
-const EMPTY_LINK =
-  /(?<!!)\[\]\((?:\\.|[^\\()\s])*(?:\s+"(?:[^"\\]|\\.)*")?\)/gu;
+/** A Markdown link or image's optional `"title"`. */
+const MARKDOWN_TITLE = `(?:\\s+"(?:[^"\\\\]|\\\\.)*")?`;
 
 const decodeDataUri = (
   uri: string
@@ -662,13 +658,18 @@ const settleImages = async (
   let settled = markdown;
   for (const index of order) {
     if (!numbers.has(index)) {
-      settled = settled.replace(
-        new RegExp(
-          `!\\[[^\\]]*\\]\\(${CANDIDATE_SCHEME}${index}(?!\\d)(?:\\s+"(?:[^"\\\\]|\\\\.)*")?\\)`,
-          "gu"
-        ),
-        ""
-      );
+      const image = `!\\[[^\\]]*\\]\\(${CANDIDATE_SCHEME}${index}(?!\\d)${MARKDOWN_TITLE}\\)`;
+      // A link that only wrapped the dropped image goes with it, so it
+      // doesn't read as an empty "[](…)".
+      settled = settled
+        .replace(
+          new RegExp(
+            `\\[${image}\\]\\((?:\\\\.|[^\\\\()\\s])*${MARKDOWN_TITLE}\\)`,
+            "gu"
+          ),
+          ""
+        )
+        .replace(new RegExp(image, "gu"), "");
     }
   }
   settled = settled.replace(
@@ -678,8 +679,6 @@ const settleImages = async (
       return number === undefined ? "" : articleImageToken(number);
     }
   );
-  // A link that only wrapped a dropped image would read as an empty "[](…)".
-  settled = settled.replace(EMPTY_LINK, "");
   return { images, markdown: settled.replace(/\n{3,}/gu, "\n\n").trim() };
 };
 

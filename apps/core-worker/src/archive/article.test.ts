@@ -172,6 +172,25 @@ describe("extractArticle", () => {
     expect(result.markdown).not.toContain("File:Stock");
   });
 
+  test("keeps empty brackets that are part of code", async () => {
+    const html = page(`<article>
+      <p>${sentences(12)}</p>
+      <pre><code>auto f = []() { return 1; };</code></pre>
+      <p>Call <code>[](int x)</code> once per item.</p>
+      <p><a href="/wiki/File:Gone.jpg"><img src="${pngDataUri("gone")}" alt="Gone"></a></p>
+      <p>${sentences(12, 20)}</p>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL, {
+      encodeImage: () => Promise.resolve(null),
+    });
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).toContain("auto f = []() { return 1; };");
+    expect(result.markdown).toContain("`[](int x)`");
+    expect(result.markdown).not.toContain("File:Gone");
+  });
+
   test("turns headings, lists, tables, code, quotes and links into Markdown", async () => {
     const html = page(`<article>
       <h1>A careful guide to notes</h1>
