@@ -127,6 +127,80 @@ describe("extractArticle", () => {
     );
   });
 
+  test("keeps an infobox fact whose value has a picture, even when the picture is dropped", async () => {
+    const wiki = page(`
+      <div id="content"><div class="mw-parser-output">
+        <table class="infobox">
+          <caption>Acme Editor</caption>
+          <tr><th>Developer</th><td><img src="${pngDataUri("acme")}" alt="Acme logo" width="100" height="100"> Acme Corp</td></tr>
+          <tr><th>License</th><td>MIT</td></tr>
+          <tr><th colspan="2">Releases</th></tr>
+        </table>
+        <p>LEADMARK ${sentences(12)}</p>
+        <h2>History</h2>
+        <p>${sentences(12, 20)}</p>
+      </div></div>`);
+    for (const encoder of [encodeImage, () => Promise.resolve(null)]) {
+      const result = await extractArticle(
+        wiki,
+        "https://en.wikipedia.org/wiki/Acme_Editor",
+        { encodeImage: encoder }
+      );
+      if (result.kind !== "article") {
+        throw new Error(`expected an article, got ${result.kind}`);
+      }
+      expect(result.markdown).toContain(
+        [
+          "### Acme Editor",
+          "",
+          "- **Developer:** Acme Corp",
+          "- **License:** MIT",
+          "- **Releases**",
+        ].join("\n")
+      );
+    }
+    const kept = await extractArticle(
+      wiki,
+      "https://en.wikipedia.org/wiki/Acme_Editor",
+      { encodeImage }
+    );
+    if (kept.kind !== "article") {
+      throw new Error(`expected an article, got ${kept.kind}`);
+    }
+    // The picture still leads, without the fact as its caption.
+    expect(kept.markdown.startsWith("![Acme logo](teak-image:0)")).toBe(true);
+  });
+
+  test("puts infobox facts before the first heading, not inside a code block", async () => {
+    const wiki = page(`
+      <div id="content"><div class="mw-parser-output">
+        <table class="infobox">
+          <caption>Shell</caption>
+          <tr><th>Paradigm</th><td>Scripting</td></tr>
+        </table>
+        <p>LEADMARK ${sentences(12)}</p>
+        <pre><code>echo hi
+# This is a comment
+echo bye</code></pre>
+        <h2>History</h2>
+        <p>${sentences(12, 20)}</p>
+      </div></div>`);
+    const result = await extractArticle(
+      wiki,
+      "https://en.wikipedia.org/wiki/Shell",
+      { encodeImage }
+    );
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).toContain(
+      "```\necho hi\n# This is a comment\necho bye\n```"
+    );
+    const facts = result.markdown.indexOf("### Shell");
+    expect(result.markdown.indexOf("echo bye")).toBeLessThan(facts);
+    expect(facts).toBeLessThan(result.markdown.indexOf("## History"));
+  });
+
   test("leaves out a caption whose picture was dropped, and keeps a quote's", async () => {
     const html = page(`<article>
       <figure><a href="/wiki/File:Emblem.svg"><svg viewBox="0 0 1 1"></svg></a><figcaption>ORPHANCAPTION the emblem</figcaption></figure>

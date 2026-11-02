@@ -418,24 +418,28 @@ const liftInfoboxes = (
     const lines: string[] = [];
     const pictures = table.ownerDocument.createElement("div");
     for (const row of tableRows(table)) {
+      const cells = cellsOf(row);
+      // A one-cell row is a picture and its caption; in a label and value
+      // row the picture sits beside a fact, which stays a fact.
+      const isPictureRow = cells.length === 1;
       const images = [...row.querySelectorAll("img")].filter(
         (image) => !isIcon(image)
       );
-      if (images.length > 0) {
-        // Readability turns the caption's element into a plain <p>, so the
-        // row's own words are the caption.
-        const label = spacedText(row);
-        for (const image of images) {
-          if (label && !image.getAttribute("title")) {
-            image.setAttribute("title", label);
-          }
-          const picture = table.ownerDocument.createElement("p");
-          picture.appendChild(image);
-          pictures.appendChild(picture);
+      // Readability turns the caption's element into a plain <p>, so the
+      // row's own words are the caption.
+      const pictureCaption = isPictureRow ? spacedText(row) : "";
+      for (const image of images) {
+        if (pictureCaption && !image.getAttribute("title")) {
+          image.setAttribute("title", pictureCaption);
         }
+        const picture = table.ownerDocument.createElement("p");
+        picture.appendChild(image);
+        pictures.appendChild(picture);
+      }
+      if (isPictureRow && images.length > 0) {
         continue;
       }
-      const [first, ...rest] = cellsOf(row);
+      const [first, ...rest] = cells;
       const label = spacedText(first);
       const value = rest.map(spacedText).filter(Boolean).join(" ");
       if (label && value) {
@@ -458,7 +462,28 @@ const liftInfoboxes = (
   return facts;
 };
 
-const FIRST_HEADING = /^#{1,6} /mu;
+const HEADING = /^#{1,6} /u;
+const FENCE = /^(`{3,}|~{3,})/u;
+
+/** Where the Markdown's first heading starts, skipping code blocks. */
+const firstHeadingIndex = (markdown: string): number => {
+  let offset = 0;
+  let fence = "";
+  for (const line of markdown.split("\n")) {
+    const marker = FENCE.exec(line)?.[1];
+    if (fence) {
+      if (marker?.startsWith(fence) && line.trim() === marker) {
+        fence = "";
+      }
+    } else if (marker) {
+      fence = marker;
+    } else if (HEADING.test(line)) {
+      return offset;
+    }
+    offset += line.length + 1;
+  }
+  return -1;
+};
 
 /**
  * The infobox facts after the article's opening paragraphs, before its first
@@ -469,11 +494,11 @@ const withFacts = (markdown: string, facts: string[]): string => {
     return markdown;
   }
   const block = `---\n\n${facts.join("\n\n")}\n\n---`;
-  const heading = FIRST_HEADING.exec(markdown);
-  if (!heading || heading.index === 0) {
+  const heading = firstHeadingIndex(markdown);
+  if (heading <= 0) {
     return `${markdown}\n\n${block}`;
   }
-  return `${markdown.slice(0, heading.index).trimEnd()}\n\n${block}\n\n${markdown.slice(heading.index)}`;
+  return `${markdown.slice(0, heading).trimEnd()}\n\n${block}\n\n${markdown.slice(heading)}`;
 };
 
 const escapeTitle = (title: string) =>
