@@ -143,7 +143,11 @@ describe("Cards/Card", () => {
 
   test("its menu shows the key for each action a key also does", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+      <Card
+        card={createLinkCard() as any}
+        onEnterSelectionMode={() => undefined}
+        onToggleArchive={() => undefined}
+      />
     );
     for (const [label, key] of [
       ["Add tags…", "T"],
@@ -167,6 +171,7 @@ describe("Cards/Card", () => {
         isSelected
         isSelectionMode
         onToggleArchive={() => undefined}
+        onToggleSelection={() => undefined}
       />
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
@@ -714,6 +719,14 @@ describe("Cards/Card redesign", () => {
     expect(pinned).toContain("Unpin<kbd>P</kbd>");
     expect(pinned).toContain("data-pin-mark");
     expect(pinned).toContain('aria-label="Pinned"');
+  });
+
+  test("offers no Select where cards can't be selected, like the Pinned row", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+    );
+    expect(markup).not.toContain("Select<kbd>X</kbd>");
+    expect(markup).toContain("Pin to top<kbd>P</kbd>");
   });
 
   test("offers no pin on an archived card, or without a pin handler", () => {

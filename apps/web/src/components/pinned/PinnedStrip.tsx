@@ -26,6 +26,7 @@ import {
 import { movedIds, type PinTarget } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
 import { Card, type CardWithUrls } from "../cards/Card";
+import { CardFoldersDialog, EditLinkDialog } from "../lazyDialogs";
 
 type StripCard = Doc<"cards">;
 
@@ -76,6 +77,11 @@ export function PinnedStrip({
   const ids = useMemo(() => cards.map((card) => card._id as string), [cards]);
   const listRef = useRef<HTMLUListElement>(null);
   const [announcement, setAnnouncement] = useState("");
+  // The grid's Folders and Edit link dialogs don't reach cards here.
+  const [foldersCardId, setFoldersCardId] = useState<string | null>(null);
+  const [editLinkCardId, setEditLinkCardId] = useState<string | null>(null);
+  const foldersCard = cards.find((card) => card._id === foldersCardId);
+  const editLinkCard = cards.find((card) => card._id === editLinkCardId);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     // A touch has to rest on a card before it moves it, so a swipe still
@@ -192,6 +198,8 @@ export function PinnedStrip({
                 onCardClick={onCardClick}
                 onCopyImage={onCopyImage}
                 onDeleteCard={onDeleteCard}
+                onEditFolders={setFoldersCardId}
+                onEditLink={setEditLinkCardId}
                 onToggleArchive={onToggleArchive}
                 onToggleFavorite={onToggleFavorite}
                 onTogglePin={onTogglePin}
@@ -206,6 +214,29 @@ export function PinnedStrip({
       <p aria-live="polite" className="sr-only" role="status">
         {announcement}
       </p>
+      <CardFoldersDialog
+        cardId={foldersCard ? foldersCard._id : null}
+        folderIds={(foldersCard?.folderIds ?? []) as string[]}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFoldersCardId(null);
+          }
+        }}
+        open={foldersCard !== undefined}
+      />
+      <EditLinkDialog
+        card={
+          editLinkCard?.url
+            ? { id: editLinkCard._id, url: editLinkCard.url }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditLinkCardId(null);
+          }
+        }}
+        open={Boolean(editLinkCard?.url)}
+      />
     </section>
   );
 }
@@ -216,10 +247,16 @@ function PinnedStripItem({
   onCardClick,
   onCopyImage,
   onDeleteCard,
+  onEditFolders,
+  onEditLink,
   onToggleArchive,
   onToggleFavorite,
   onTogglePin,
-}: Omit<PinnedStripProps, "cards" | "onReorder"> & { card: StripCard }) {
+}: Omit<PinnedStripProps, "cards" | "onReorder"> & {
+  card: StripCard;
+  onEditFolders: (cardId: string) => void;
+  onEditLink: (cardId: string) => void;
+}) {
   const { isDragging, listeners, setNodeRef, transform, transition } =
     useSortable({ id: card._id });
   return (
@@ -240,6 +277,8 @@ function PinnedStripItem({
         onClick={onCardClick}
         onCopyImage={onCopyImage}
         onDelete={onDeleteCard}
+        onEditFolders={onEditFolders}
+        onEditLink={onEditLink}
         onToggleArchive={onToggleArchive}
         onToggleFavorite={onToggleFavorite}
         onTogglePin={onTogglePin}

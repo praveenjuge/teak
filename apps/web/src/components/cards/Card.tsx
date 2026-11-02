@@ -400,7 +400,8 @@ export const Card = memo(function Card({
         shortcut: shortcuts.select,
       };
   // Trash selects cards too, for "Delete forever" and "Restore" in bulk.
-  const canSelectInTrash = Boolean(
+  // The Pinned row has no selection, so its cards offer no Select.
+  const canSelect = Boolean(
     isSelectionMode ? onToggleSelection : onEnterSelectionMode
   );
   const menuItems: CardMenuEntry[] = [
@@ -427,7 +428,7 @@ export const Card = memo(function Card({
       : []),
     ...(card.isDeleted
       ? [
-          ...(canSelectInTrash ? [selectItem] : []),
+          ...(canSelect ? [selectItem] : []),
           {
             icon: RotateCcw,
             id: "restore",
@@ -445,7 +446,7 @@ export const Card = memo(function Card({
           },
         ]
       : [
-          selectItem,
+          ...(canSelect ? [selectItem] : []),
           {
             icon: Tag,
             id: "addTags",
