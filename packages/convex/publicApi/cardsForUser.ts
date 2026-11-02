@@ -20,6 +20,7 @@ import {
   explainInvalidCardSource,
   normalizeCardSource,
 } from "../shared/cardSource";
+import { isCardHidden } from "../shared/tags";
 import { explainCardTypeMismatch, explainInvalidTags } from "./http/shared";
 
 const quickSaveResultValidator = v.object({
@@ -289,7 +290,12 @@ export const reorderPinnedCardsForUser = internalMutation({
     const cards: NonNullable<
       Awaited<ReturnType<typeof getCardForUserHandler>>
     >[] = [];
+    // Like the list, leave hidden pins out unless the caller named them.
+    const named = new Set<string>(args.cardIds);
     for (const card of await readPinnedCards(ctx, userId)) {
+      if (isCardHidden(card) && !named.has(card._id)) {
+        continue;
+      }
       const withUrls = await getCardForUserHandler(ctx, userId, card._id);
       if (withUrls) {
         cards.push(withUrls);

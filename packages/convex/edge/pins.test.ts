@@ -300,4 +300,25 @@ describe("pinning cards to the top of the library", () => {
       "Alpha",
     ]);
   });
+
+  test("the API reorder answers with hidden pins only when it names them", async () => {
+    const { t, insert, pin } = await setup();
+    const a = await insert("Alpha");
+    const secret = await insert("Secret", { tags: ["secret"], isHidden: true });
+    await pin(a);
+    await pin(secret);
+    const contents = (cards: { content: string }[]) =>
+      cards.map((card) => card.content);
+
+    const visibleOnly = await t.mutation(
+      internal.publicApi.cardsForUser.reorderPinnedCardsForUser,
+      { userId: "owner", cardIds: [a] }
+    );
+    expect(contents(visibleOnly)).toEqual(["Alpha"]);
+    const named = await t.mutation(
+      internal.publicApi.cardsForUser.reorderPinnedCardsForUser,
+      { userId: "owner", cardIds: [secret, a] }
+    );
+    expect(contents(named)).toEqual(["Secret", "Alpha"]);
+  });
 });
