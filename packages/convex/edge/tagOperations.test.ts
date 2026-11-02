@@ -575,6 +575,42 @@ describe("tag summary snapshot", () => {
     ).toBe("DESIGN");
   });
 
+  test("a newer edit to the casing a tag already shows still beats an older queued one", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const b = await insert({ tags: ["design"] });
+    const c = await insert({ tags: ["design"] });
+    // Saved last, so the tag reads "DESIGN" (edited at 1000).
+    await insert({ tags: ["DESIGN"] });
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, b, {
+        tags: ["Design", "queued"],
+        updatedAt: 2000,
+      })
+    );
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, c, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    // C's casing is folded before B's queued sync runs.
+    await t.mutation(internal.tag.tagSummary.foldTagCountDeltas, {
+      userId: "owner",
+    });
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
   test("accepting a suggested tag while its sync is queued keeps the typed casing", async () => {
     const { t, summary, runScheduled } = await setup();
     const cardId = await t.run(async (ctx) => {

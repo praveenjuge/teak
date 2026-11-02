@@ -192,10 +192,13 @@ export const applyTagCounts = async (
       .unique();
     // Only a casing edited after the stored one replaces it, so a sync that
     // runs late can't undo a newer edit on another card.
-    const relabel =
+    // A newer edit with the same casing still moves `labelAt` on, so an
+    // older edit folded later can't win.
+    const newer =
       label !== undefined &&
-      label.label !== row?.label &&
-      label.at >= (row?.labelAt ?? Number.NEGATIVE_INFINITY)
+      label.at >= (row?.labelAt ?? Number.NEGATIVE_INFINITY);
+    const relabel =
+      newer && (label.label !== row?.label || label.at !== row?.labelAt)
         ? { label: label.label, labelAt: label.at }
         : {};
     if (delta === 0) {
