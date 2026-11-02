@@ -52,6 +52,19 @@ describe("AudioPreview", () => {
     expect(markup).toContain("Kickoff voice memo.m4a");
   });
 
+  test("shows an hour-long recording's length with its hours, as its card does", () => {
+    const markup = renderToStaticMarkup(
+      <AudioPreview
+        card={
+          createAudioCard({
+            fileMetadata: { duration: 4500.6, mimeType: "audio/mp4" },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">1:15:00<");
+  });
+
   test("disables seeking until the duration is known", () => {
     const markup = renderToStaticMarkup(
       <AudioPreview
