@@ -16,6 +16,28 @@ import type { UseCardsSearchControllerResult } from "./useCardsSearchController"
 const SEARCH_SYNTAX = /^[-#(]|^[a-z]+:|^OR$/i;
 
 /**
+ * Whether anything but words narrows the search: a tag, type, date, color,
+ * style or qualifier, or the favorites filter (which a new note wouldn't
+ * pass, so the search would still find nothing).
+ */
+export const searchHasFilters = (search: {
+  filterTags: readonly unknown[];
+  hexFilters: readonly unknown[];
+  hueFilters: readonly unknown[];
+  qualifierChips?: readonly unknown[];
+  showFavoritesOnly: boolean;
+  styleFilters: readonly unknown[];
+  tagFilter?: unknown;
+  timeFilter?: unknown;
+}): boolean =>
+  Boolean(search.tagFilter || search.timeFilter || search.showFavoritesOnly) ||
+  search.filterTags.length > 0 ||
+  search.hexFilters.length > 0 ||
+  search.hueFilters.length > 0 ||
+  search.styleFilters.length > 0 ||
+  (search.qualifierChips?.length ?? 0) > 0;
+
+/**
  * The text a search that found nothing would save as a note: its words,
  * when the search is only words (no filters, no search syntax).
  */
@@ -66,6 +88,7 @@ export function useNoResultsHelp({
     hexFilters,
     hueFilters,
     searchBarProps,
+    showFavoritesOnly,
     styleFilters,
     searchTerms,
     tagFilter,
@@ -133,15 +156,20 @@ export function useNoResultsHelp({
       onRemove: () => searchBarProps.onRemoveFilter(type),
     });
   }
-  const hasFilters =
-    Boolean(tagFilter || timeFilter) ||
-    filterTags.length > 0 ||
-    hexFilters.length > 0 ||
-    hueFilters.length > 0 ||
-    styleFilters.length > 0 ||
-    (searchBarProps.qualifierChips?.length ?? 0) > 0;
   const noteText = foundNothing
-    ? searchNoteText(searchTerms, hasFilters)
+    ? searchNoteText(
+        searchTerms,
+        searchHasFilters({
+          filterTags,
+          hexFilters,
+          hueFilters,
+          qualifierChips: searchBarProps.qualifierChips,
+          showFavoritesOnly,
+          styleFilters,
+          tagFilter,
+          timeFilter,
+        })
+      )
     : null;
 
   return { applySuggestion, chips, noteText, suggestion };
