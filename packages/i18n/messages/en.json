@@ -1658,7 +1658,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "Card deleted. Find it by searching 'trash'",
       "cardDeleted": "Card deleted",
       "cardRestored": "Card restored",
       "cardPermanentlyDeleted": "Card permanently deleted",

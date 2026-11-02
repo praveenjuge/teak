@@ -1,9 +1,10 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import { Button } from "@/components/ui/button";
+import type { CardWithUrls as BaseCardWithUrls } from "@/hooks/useCardModal";
+import { formatClockTime } from "@/lib/clockTime";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
   AUDIO_WAVE_DETAIL_BARS,
@@ -12,24 +13,12 @@ import {
 } from "../cards/previews/AudioWavePreview";
 import type { WaveformMetadata } from "../cards/types";
 
-type CardWithUrls = Doc<"cards"> & {
+type CardWithUrls = BaseCardWithUrls & {
   fileMetadata?: { waveform?: WaveformMetadata };
-  fileUrl?: string;
-  thumbnailUrl?: string;
 };
 
 interface AudioPreviewProps {
   card: CardWithUrls;
-}
-
-export function formatAudioTime(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds < 0) {
-    return "0:00";
-  }
-  const whole = Math.floor(seconds);
-  const mins = Math.floor(whole / 60);
-  const secs = whole % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export function AudioPreview({ card }: AudioPreviewProps) {
@@ -65,10 +54,10 @@ export function AudioPreview({ card }: AudioPreviewProps) {
   let timeLabel = "";
   if (duration > 0) {
     timeLabel = hasStarted
-      ? `${formatAudioTime(currentTime)} / ${formatAudioTime(duration)}`
-      : formatAudioTime(duration);
+      ? `${formatClockTime(currentTime)} / ${formatClockTime(duration)}`
+      : formatClockTime(duration);
   } else if (hasStarted) {
-    timeLabel = formatAudioTime(currentTime);
+    timeLabel = formatClockTime(currentTime);
   }
 
   const togglePlayback = () => {
@@ -136,8 +125,8 @@ export function AudioPreview({ card }: AudioPreviewProps) {
               <input
                 aria-label={t("seek")}
                 aria-valuetext={t("seekPosition", {
-                  current: formatAudioTime(currentTime),
-                  duration: formatAudioTime(duration),
+                  current: formatClockTime(currentTime),
+                  duration: formatClockTime(duration),
                 })}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
                 disabled={loadFailed || duration <= 0}

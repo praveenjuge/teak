@@ -29,6 +29,7 @@ import {
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useServerErrors } from "../../hooks/useServerErrors";
+import { useUpgradeAction } from "../../hooks/useUpgradeAction";
 import {
   dataTransferHasFiles,
   describeUploadFailures,
@@ -88,19 +89,7 @@ export function GlobalFileDropProvider({
     };
   }, []);
 
-  const handleUpgrade = useCallback(() => {
-    if (onUpgrade) {
-      onUpgrade();
-      return;
-    }
-    if (!upgradeUrl) {
-      return;
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.location.assign(upgradeUrl);
-  }, [onUpgrade, upgradeUrl]);
+  const { handleUpgrade } = useUpgradeAction(onUpgrade, upgradeUrl);
 
   const resolveResultToast = useCallback(
     (results: UploadMultipleFilesResultItem[], skippedCount: number) => {

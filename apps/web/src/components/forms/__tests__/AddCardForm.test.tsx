@@ -227,18 +227,6 @@ describe("AddCardForm", () => {
     expect(hint).toContain("pointer-coarse:hidden");
   });
 
-  test("renders with custom upgrade link component", () => {
-    const UpgradeLink = ({ children, href, className }: any) =>
-      React.createElement("a", { href, className }, children);
-
-    expect(() => {
-      React.createElement(AddCardForm, {
-        UpgradeLinkComponent: UpgradeLink,
-        upgradeUrl: "/settings",
-      });
-    }).not.toThrow();
-  });
-
   test("renders header capture actions", () => {
     expect(() => {
       React.createElement(AddCardActions, {});

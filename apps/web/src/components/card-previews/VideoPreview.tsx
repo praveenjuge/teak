@@ -1,14 +1,9 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
+import type { CardWithUrls } from "@/hooks/useCardModal";
 
 interface VideoPreviewProps {
   card: CardWithUrls;

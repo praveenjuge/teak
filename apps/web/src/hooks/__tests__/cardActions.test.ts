@@ -3,7 +3,6 @@ import {
   configureClientTelemetry,
   resetClientTelemetry,
 } from "@teak/convex/shared/clientTelemetry";
-import { testId } from "@/__tests__/helpers/testDoubles";
 import { cardActionFailedMessage, createCardActions } from "../cardActions";
 
 describe("defaults", () => {
@@ -17,14 +16,13 @@ describe("defaults", () => {
       updateCardField: mockUpdate,
       permanentDeleteCard: mock(),
     });
-    await actions2.handleDeleteCard("c1" as any);
+    await actions2.handleRestoreCard("c1" as any);
   });
 });
 
 describe("createCardActions", () => {
   const mockPermanentDeleteCard = mock();
   const mockUpdateCardField = mock();
-  const mockOnDeleteSuccess = mock();
   const mockOnRestoreSuccess = mock();
   const mockOnPermanentDeleteSuccess = mock();
   const mockOnError = mock();
@@ -35,7 +33,6 @@ describe("createCardActions", () => {
     updateCardField: mockUpdateCardField,
   };
   const config = {
-    onDeleteSuccess: mockOnDeleteSuccess,
     onRestoreSuccess: mockOnRestoreSuccess,
     onPermanentDeleteSuccess: mockOnPermanentDeleteSuccess,
     onError: mockOnError,
@@ -44,7 +41,6 @@ describe("createCardActions", () => {
   beforeEach(() => {
     mockPermanentDeleteCard.mockReset();
     mockUpdateCardField.mockReset();
-    mockOnDeleteSuccess.mockReset();
     mockOnRestoreSuccess.mockReset();
     mockOnPermanentDeleteSuccess.mockReset();
     mockOnError.mockReset();
@@ -63,74 +59,20 @@ describe("createCardActions", () => {
   describe("initialization", () => {
     test("creates actions object with all methods", () => {
       expect(actions).toBeDefined();
-      expect(typeof actions.handleDeleteCard).toBe("function");
-      expect(typeof actions.handleBulkDeleteCards).toBe("function");
       expect(typeof actions.handleRestoreCard).toBe("function");
       expect(typeof actions.handlePermanentDeleteCard).toBe("function");
-      expect(typeof actions.handleToggleFavorite).toBe("function");
       expect(typeof actions.updateField).toBe("function");
     });
 
     test("works without optional config", () => {
       const minimalActions = createCardActions(dependencies);
       expect(minimalActions).toBeDefined();
-      expect(typeof minimalActions.handleDeleteCard).toBe("function");
+      expect(typeof minimalActions.handleRestoreCard).toBe("function");
     });
 
     test("works with empty config", () => {
       const emptyConfigActions = createCardActions(dependencies, {});
       expect(emptyConfigActions).toBeDefined();
-    });
-  });
-
-  describe("handleDeleteCard", () => {
-    test("calls updateCardField with delete field", async () => {
-      mockUpdateCardField.mockResolvedValue(undefined);
-      await actions.handleDeleteCard("c1" as any);
-      expect(mockUpdateCardField).toHaveBeenCalledWith({
-        cardId: "c1",
-        field: "delete",
-      });
-    });
-
-    test("calls onDeleteSuccess callback with message", async () => {
-      mockUpdateCardField.mockResolvedValue(undefined);
-      await actions.handleDeleteCard("c1" as any);
-      expect(mockOnDeleteSuccess).toHaveBeenCalledWith(
-        "Card deleted. Find it by searching 'trash'"
-      );
-    });
-
-    test("does not call onDeleteSuccess on error", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleDeleteCard("c1" as any);
-      expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
-    });
-
-    test("calls onError callback with error and operation", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleDeleteCard("c1" as any);
-      expect(mockOnError).toHaveBeenCalledWith(error, "delete");
-    });
-
-    test("reports the exception on error", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleDeleteCard("c1" as any);
-      expect(mockCaptureException).toHaveBeenCalled();
-      const callArgs = mockCaptureException.mock.calls[0];
-      expect(callArgs[0]).toBe(error);
-      expect(callArgs[1].operation).toBe("card.delete");
-    });
-
-    test("does not include raw card IDs in telemetry context", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleDeleteCard("c123" as any);
-      const callArgs = mockCaptureException.mock.calls[0];
-      expect(JSON.stringify(callArgs[1])).not.toContain("c123");
     });
   });
 
@@ -171,59 +113,6 @@ describe("createCardActions", () => {
       expect(mockCaptureException).toHaveBeenCalled();
       const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.restore");
-    });
-  });
-
-  describe("handleBulkDeleteCards", () => {
-    test("returns summary for full success", async () => {
-      mockUpdateCardField.mockResolvedValue(undefined);
-      const result = await actions.handleBulkDeleteCards([
-        testId("cards", "c1"),
-        testId("cards", "c2"),
-      ]);
-
-      expect(result).toEqual({
-        requestedCount: 2,
-        deletedCount: 2,
-        failedIds: [],
-      });
-      expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
-    });
-
-    test("returns summary with failed ids on partial failure", async () => {
-      mockUpdateCardField
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error("fail c2"))
-        .mockRejectedValueOnce(new Error("fail c3"));
-
-      const result = await actions.handleBulkDeleteCards([
-        testId("cards", "c1"),
-        testId("cards", "c2"),
-        testId("cards", "c3"),
-      ]);
-
-      expect(result).toEqual({
-        requestedCount: 3,
-        deletedCount: 1,
-        failedIds: [testId("cards", "c2"), testId("cards", "c3")],
-      });
-      expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockOnDeleteSuccess).not.toHaveBeenCalled();
-    });
-
-    test("returns full failure summary", async () => {
-      mockUpdateCardField.mockRejectedValue(new Error("always fail"));
-
-      const result = await actions.handleBulkDeleteCards([
-        testId("cards", "c1"),
-        testId("cards", "c2"),
-      ]);
-
-      expect(result).toEqual({
-        requestedCount: 2,
-        deletedCount: 0,
-        failedIds: [testId("cards", "c1"), testId("cards", "c2")],
-      });
     });
   });
 
@@ -301,33 +190,6 @@ describe("createCardActions", () => {
       expect(mockCaptureException).toHaveBeenCalled();
       const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.permanent_delete");
-    });
-  });
-
-  describe("handleToggleFavorite", () => {
-    test("calls updateCardField with isFavorited field", async () => {
-      mockUpdateCardField.mockResolvedValue(undefined);
-      await actions.handleToggleFavorite("c1" as any);
-      expect(mockUpdateCardField).toHaveBeenCalledWith({
-        cardId: "c1",
-        field: "isFavorited",
-      });
-    });
-
-    test("handles error without success callback", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleToggleFavorite("c1" as any);
-      expect(mockOnError).toHaveBeenCalledWith(error, "toggle favorite");
-    });
-
-    test("reports the exception on error", async () => {
-      const error = new Error("fail");
-      mockUpdateCardField.mockRejectedValue(error);
-      await actions.handleToggleFavorite("c1" as any);
-      expect(mockCaptureException).toHaveBeenCalled();
-      const callArgs = mockCaptureException.mock.calls[0];
-      expect(callArgs[1].operation).toBe("card.favorite");
     });
   });
 
@@ -441,10 +303,9 @@ describe("createCardActions", () => {
   describe("error handling", () => {
     test("handles multiple operations without interfering", async () => {
       mockUpdateCardField.mockResolvedValue(undefined);
-      await actions.handleDeleteCard("c1" as any);
       await actions.handleRestoreCard("c2" as any);
-      await actions.handleToggleFavorite("c3" as any);
-      expect(mockUpdateCardField).toHaveBeenCalledTimes(3);
+      await actions.updateField("c3" as any, "isFavorited");
+      expect(mockUpdateCardField).toHaveBeenCalledTimes(2);
     });
 
     test("preserves error context for each operation", async () => {
@@ -454,11 +315,11 @@ describe("createCardActions", () => {
         .mockRejectedValueOnce(error1)
         .mockRejectedValueOnce(error2);
 
-      await actions.handleDeleteCard("c1" as any);
+      await actions.updateField("c1" as any, "delete");
       await actions.handleRestoreCard("c2" as any);
 
       expect(mockOnError).toHaveBeenCalledTimes(2);
-      expect(mockOnError).toHaveBeenNthCalledWith(1, error1, "delete");
+      expect(mockOnError).toHaveBeenNthCalledWith(1, error1, "update delete");
       expect(mockOnError).toHaveBeenNthCalledWith(2, error2, "restore");
     });
   });

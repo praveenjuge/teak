@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { openCardLink } from "@/lib/openCardLink";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
-import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import { applyCardFieldUpdate } from "../lib/cardQueryOptimisticUpdates";
 import { cardActionFailedMessage } from "./cardActions";
 import { useServerErrors } from "./useServerErrors";
 import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
@@ -58,12 +58,9 @@ interface PendingChanges {
 export type CardSaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 export interface CardModalConfig {
-  onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardWithUrls) => void;
-  onClose?: () => void;
   onError?: (error: Error, operation: string) => void;
   onOpenLink?: (url: string) => void;
-  onSuccess?: (message: string) => void;
 }
 
 export interface CardModalOptions extends CardModalConfig {
@@ -153,89 +150,7 @@ export function useCardModal(
   const updateCardField = useMutation(
     api.cards.updateCardField
   ).withOptimisticUpdate((localStore, args) => {
-    const { cardId: updateCardId, field, value, tagToRemove } = args;
-
-    const now = Date.now();
-
-    switch (field) {
-      case "isFavorited": {
-        const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          isFavorited: !card.isFavorited,
-          updatedAt: now,
-        });
-        updateCardInSearchQueries(localStore, updateCardId, toggleFavorite);
-        break;
-      }
-
-      case "done":
-      case "undone": {
-        const setDone = (card: Doc<"cards">): Doc<"cards"> =>
-          card.type === "link"
-            ? {
-                ...card,
-                completedAt:
-                  field === "done" ? (card.completedAt ?? now) : undefined,
-                updatedAt: now,
-              }
-            : card;
-        updateCardInSearchQueries(localStore, updateCardId, setDone);
-        break;
-      }
-
-      case "tags": {
-        const tags =
-          Array.isArray(value) && value.length > 0 ? value : undefined;
-        const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          tags,
-          isHidden: isHiddenTagList(tags) ? true : undefined,
-          updatedAt: now,
-        });
-        updateCardInSearchQueries(localStore, updateCardId, updateTags);
-        break;
-      }
-
-      case "removeAiTag": {
-        if (!tagToRemove) {
-          break;
-        }
-        const removeAiTag = (card: Doc<"cards">): Doc<"cards"> => {
-          const updatedAiTags = card.aiTags?.filter(
-            (tag) => tag !== tagToRemove
-          );
-          return {
-            ...card,
-            aiTags:
-              updatedAiTags && updatedAiTags.length > 0
-                ? updatedAiTags
-                : undefined,
-            updatedAt: now,
-          };
-        };
-        updateCardInSearchQueries(localStore, updateCardId, removeAiTag);
-        break;
-      }
-
-      case "content":
-      case "url":
-      case "notes":
-      case "metadataTitle":
-      case "aiSummary": {
-        const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          [field]:
-            typeof value === "string" ? value.trim() || undefined : value,
-          ...(field === "metadataTitle" ? { metadataTitleEdited: true } : {}),
-          updatedAt: now,
-        });
-        updateCardInSearchQueries(localStore, updateCardId, updateTextField);
-        break;
-      }
-
-      default:
-        break;
-    }
+    applyCardFieldUpdate(localStore, args);
   });
 
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
@@ -397,20 +312,12 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, content }));
   }, []);
 
-  const updateUrl = useCallback((url: string) => {
-    setPendingChanges((prev) => ({ ...prev, url }));
-  }, []);
-
   const updateNotes = useCallback((notes: string) => {
     setPendingChanges((prev) => ({ ...prev, notes }));
   }, []);
 
   const updateTitle = useCallback((metadataTitle: string | undefined) => {
     setPendingChanges((prev) => ({ ...prev, metadataTitle }));
-  }, []);
-
-  const updateAiSummary = useCallback((summary: string) => {
-    setPendingChanges((prev) => ({ ...prev, aiSummary: summary }));
   }, []);
 
   // The state on screen, which a quick second press toggles from. Each press
@@ -751,28 +658,6 @@ export function useCardModal(
     saveState = "saved";
   }
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, onClose?: () => void) => {
-      if (e.key === "Enter" && tagInput.trim()) {
-        e.preventDefault();
-        addTag();
-      } else if (e.key === "Escape") {
-        if (onClose) {
-          onClose();
-        } else {
-          config.onClose?.();
-        }
-      }
-    },
-    [tagInput, addTag, config.onClose]
-  );
-
-  const handleCardTypeClick = useCallback(() => {
-    if (card?.type) {
-      config.onCardTypeClick?.(card.type);
-    }
-  }, [card?.type, config.onCardTypeClick]);
-
   const getCurrentValue = useCallback(
     (field: TextField) =>
       pendingChanges[field] === undefined
@@ -805,10 +690,8 @@ export function useCardModal(
     tagInput,
     setTagInput,
     updateContent,
-    updateUrl,
     updateNotes,
     updateTitle,
-    updateAiSummary,
     toggleFavorite,
     toggleDone,
     removeAiTag,
@@ -820,12 +703,9 @@ export function useCardModal(
     handlePermanentDelete,
     openLink,
     downloadFile,
-    handleKeyDown,
-    handleCardTypeClick,
     saveChanges,
     hasUnsavedChanges,
     getCurrentValue,
-    isSaved,
     saveState,
     isDownloading,
   };

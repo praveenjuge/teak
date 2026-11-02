@@ -1,14 +1,8 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import { cn } from "@/lib/utils";
-
-type CardWithUrls = Doc<"cards"> & {
-  detailUrl?: string;
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface ImagePreviewProps {
   card: CardWithUrls;

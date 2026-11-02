@@ -98,7 +98,6 @@ export interface CardProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTabStop?: boolean;
-  isTrashMode?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;

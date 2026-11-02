@@ -118,14 +118,6 @@ export function SettingsDialogBody({
   );
 }
 
-export const settingsTabsClassName = "min-h-0 flex-1 gap-0";
-export const settingsTabsListClassName =
-  "h-auto w-full shrink-0 justify-start gap-5 rounded-none border-b bg-transparent p-0 px-6 dark:bg-transparent";
-export const settingsTabsTriggerClassName =
-  "-mb-px h-auto flex-none rounded-none border-0 border-transparent border-b-2 px-0.5 pt-0 pb-2.5 text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none dark:text-muted-foreground dark:data-[state=active]:border-foreground dark:data-[state=active]:bg-transparent";
-export const settingsTabsContentClassName =
-  "min-h-0 min-w-0 flex-1 overflow-y-auto px-6 pt-5 pb-6";
-
 export function SettingsList({
   children,
   className,

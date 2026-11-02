@@ -2,6 +2,7 @@ import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/clipboard";
 import { englishTranslator } from "@/lib/englishTranslators";
 import { sizeSvgRoot } from "@/lib/svgSize";
 
@@ -112,27 +113,31 @@ export async function copyCardContentToClipboard(
   const imageToastId = options.copyImageToastId ?? DEFAULT_IMAGE_TOAST_ID;
   const t = options.t ?? englishClipboard;
 
-  try {
-    if (isImage) {
-      toast.loading(t("copyingImage"), { id: imageToastId });
-      const png = Promise.resolve(content).then(fetchImageAsPng);
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": png }),
-      ]);
-      toast.success(t("imageCopied"), { id: imageToastId });
-      return;
-    }
-    await navigator.clipboard.writeText(await content);
-    toast.success(t("copied"));
-  } catch (error) {
-    console.error("Failed to copy:", error);
-
+  if (!isImage) {
     try {
       await navigator.clipboard.writeText(await content);
-      toast.success(t("linkCopied"), { id: imageToastId });
-    } catch {
-      toast.error(t("copyFailed"), { id: imageToastId });
+      toast.success(t("copied"));
+      return;
+    } catch (error) {
+      // A write refused mid-gesture (the page lost focus) often works again.
+      console.error("Failed to copy, trying again:", error);
     }
+    await copyText(content, { copied: t("copied"), failed: t("copyFailed") });
+    return;
+  }
+  try {
+    toast.loading(t("copyingImage"), { id: imageToastId });
+    const png = Promise.resolve(content).then(fetchImageAsPng);
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+    toast.success(t("imageCopied"), { id: imageToastId });
+  } catch (error) {
+    console.error("Failed to copy the image:", error);
+    // An image the browser won't copy is still worth its link.
+    await copyText(
+      content,
+      { copied: t("linkCopied"), failed: t("copyFailed") },
+      imageToastId
+    );
   }
 }
 

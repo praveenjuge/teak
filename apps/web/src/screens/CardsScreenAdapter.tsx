@@ -13,7 +13,6 @@ interface CardsScreenAdapterProps {
   addToFolderId?: string;
   cardIdFromUrl: string | null;
   composerDraft?: string;
-  contentContainerClassName?: string;
   focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
@@ -32,7 +31,6 @@ interface CardsScreenAdapterProps {
   replaceCardId: (cardId: string | null) => void;
   searchUrlState?: SearchUrlState;
   toastIdPrefix?: string;
-  UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
   view?: LibraryView;
 }
@@ -46,7 +44,6 @@ export function CardsScreenAdapter({
   onAddCardsToFolder,
   onAddToFolderDone,
   onFocusComposerHandled,
-  contentContainerClassName,
   onUpgrade,
   popCardEntry,
   pushCardId,
@@ -57,7 +54,6 @@ export function CardsScreenAdapter({
   searchUrlState,
   onSearchUrlStateChange,
   toastIdPrefix,
-  UpgradeLinkComponent,
   upgradeUrl,
   view,
 }: CardsScreenAdapterProps) {
@@ -75,7 +71,6 @@ export function CardsScreenAdapter({
 
   return (
     <CardsReadBoundary
-      contentContainerClassName={contentContainerClassName}
       headerLeading={headerLeading}
       resetKey={JSON.stringify([folderId, view, addToFolderId, searchUrlState])}
     >
@@ -83,7 +78,6 @@ export function CardsScreenAdapter({
         <CardsScreen
           addToFolderId={addToFolderId}
           composerDraft={composerDraft}
-          contentContainerClassName={contentContainerClassName}
           focusComposer={focusComposer}
           folderId={folderId}
           headerLeading={headerLeading}
@@ -103,7 +97,6 @@ export function CardsScreenAdapter({
           searchUrlState={searchUrlState}
           selectedCardId={selectedCardId}
           toastIdPrefix={toastIdPrefix}
-          UpgradeLinkComponent={UpgradeLinkComponent}
           upgradeUrl={upgradeUrl}
           view={view}
         />

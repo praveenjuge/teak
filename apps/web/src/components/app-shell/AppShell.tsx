@@ -82,7 +82,7 @@ export function AppShell({
         />
         <AppSidebar
           activeView={view}
-          addActions={<AddCardActions variant="header" />}
+          addActions={<AddCardActions />}
           foldersSlot={
             <SidebarFoldersBoundary>
               <SidebarFolders

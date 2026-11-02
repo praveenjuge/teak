@@ -1,28 +1,18 @@
 import { api } from "@teak/convex";
-import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
-import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
-import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import type { FunctionArgs } from "convex/server";
+import { useCallback, useRef } from "react";
+import {
+  applyCardFieldUpdate,
+  type CardFieldChange,
+  updateCardInSearchQueries,
+} from "../lib/cardQueryOptimisticUpdates";
 import { type CardActionsConfig, createCardActions } from "./cardActions";
 
 interface UiCardActionsConfig extends CardActionsConfig {
   onCardUpdate?: (card: Doc<"cards">) => void;
-}
-
-function updateSingleCardQuery(
-  localStore: OptimisticLocalStore,
-  cardId: Id<"cards">,
-  updater: (card: Doc<"cards">) => Doc<"cards">
-) {
-  const currentCard = localStore.getQuery(api.cards.getCard, { id: cardId });
-  if (currentCard) {
-    localStore.setQuery(
-      api.cards.getCard,
-      { id: cardId },
-      updater(currentCard)
-    );
-  }
 }
 
 export function useCardActions(config: UiCardActionsConfig = {}) {
@@ -33,123 +23,40 @@ export function useCardActions(config: UiCardActionsConfig = {}) {
   ).withOptimisticUpdate((localStore, { id }) => {
     updateCardInSearchQueries(localStore, id, () => null);
   });
-  const updateCardField = useMutation(
+  // Convex runs the optimistic update inside the mutation call and replays
+  // it as results arrive, so it only records the change here; the caller's
+  // own cache hears about it once per edit, and again if the edit fails.
+  const optimisticChange = useRef<CardFieldChange | null>(null);
+  const runUpdateCardField = useMutation(
     api.cards.updateCardField
   ).withOptimisticUpdate((localStore, args) => {
-    const { cardId, field, value, tagToRemove } = args;
-
-    const now = Date.now();
-    const updateSearchQueries = (
-      updater: (card: Doc<"cards">) => Doc<"cards"> | null
-    ) => {
-      const updatedCard = updateCardInSearchQueries(
-        localStore,
-        cardId,
-        updater
-      );
-      if (updatedCard) {
-        onCardUpdate?.(updatedCard);
-      }
-    };
-
-    switch (field) {
-      case "isFavorited": {
-        const toggleFavorite = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          isFavorited: !card.isFavorited,
-          updatedAt: now,
-        });
-        updateSearchQueries(toggleFavorite);
-        updateSingleCardQuery(localStore, cardId, toggleFavorite);
-        break;
-      }
-
-      case "delete": {
-        const markDeleted = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          isDeleted: true,
-          deletedAt: now,
-          updatedAt: now,
-        });
-        updateSearchQueries(markDeleted);
-        updateSingleCardQuery(localStore, cardId, markDeleted);
-        break;
-      }
-
-      case "restore": {
-        const markRestored = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          isDeleted: undefined,
-          deletedAt: undefined,
-          updatedAt: now,
-        });
-        updateSearchQueries(markRestored);
-        updateSingleCardQuery(localStore, cardId, markRestored);
-        break;
-      }
-
-      case "tags": {
-        const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          tags: Array.isArray(value) && value.length > 0 ? value : undefined,
-          updatedAt: now,
-        });
-        updateSearchQueries(updateTags);
-        updateSingleCardQuery(localStore, cardId, updateTags);
-        break;
-      }
-
-      case "removeAiTag": {
-        if (!tagToRemove) {
-          break;
-        }
-        const removeAiTag = (card: Doc<"cards">): Doc<"cards"> => {
-          const updatedAiTags = card.aiTags?.filter(
-            (tag) => tag !== tagToRemove
-          );
-          return {
-            ...card,
-            aiTags:
-              updatedAiTags && updatedAiTags.length > 0
-                ? updatedAiTags
-                : undefined,
-            updatedAt: now,
-          };
-        };
-        updateSearchQueries(removeAiTag);
-        updateSingleCardQuery(localStore, cardId, removeAiTag);
-        break;
-      }
-
-      case "content":
-      case "url":
-      case "notes":
-      case "aiSummary": {
-        const updateTextField = (card: Doc<"cards">): Doc<"cards"> => ({
-          ...card,
-          [field]:
-            typeof value === "string" ? value.trim() || undefined : value,
-          updatedAt: now,
-        });
-        updateSearchQueries(updateTextField);
-        updateSingleCardQuery(localStore, cardId, updateTextField);
-        break;
-      }
-
-      default:
-        break;
-    }
+    const change = applyCardFieldUpdate(localStore, args);
+    optimisticChange.current ??= change;
   });
+  const updateCardField = useCallback(
+    async (args: FunctionArgs<typeof api.cards.updateCardField>) => {
+      optimisticChange.current = null;
+      const result = runUpdateCardField(args);
+      const change = optimisticChange.current as CardFieldChange | null;
+      optimisticChange.current = null;
+      if (change) {
+        onCardUpdate?.(change.after);
+      }
+      try {
+        return await result;
+      } catch (error) {
+        if (change) {
+          onCardUpdate?.(change.before);
+        }
+        throw error;
+      }
+    },
+    [onCardUpdate, runUpdateCardField]
+  );
 
-  const cardActions = createCardActions(
+  return createCardActions(
     { permanentDeleteCard, updateCardField },
     cardActionsConfig,
     t
   );
-
-  return {
-    ...cardActions,
-    handleBulkDeleteCards: (cardIds: Id<"cards">[]) =>
-      cardActions.handleBulkDeleteCards(cardIds),
-  };
 }

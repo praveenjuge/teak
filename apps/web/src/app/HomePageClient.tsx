@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SidebarToggle } from "@/components/sidebar";
@@ -233,7 +232,6 @@ export function HomePageClient({
       }}
       searchUrlState={searchUrlState}
       toastIdPrefix="web-masonry"
-      UpgradeLinkComponent={Link}
       upgradeUrl={SETTINGS_PLAN_HREF}
       view={view}
     />

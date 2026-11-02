@@ -45,7 +45,6 @@ export const cardActionFailedMessage = (
 };
 
 export interface CardActionsConfig {
-  onDeleteSuccess?: (message?: string) => void;
   onError?: (error: Error, operation: string) => void;
   onPermanentDeleteSuccess?: (message?: string) => void;
   onRestoreSuccess?: (message?: string) => void;
@@ -89,55 +88,6 @@ export function createCardActions(
   config: CardActionsConfig = {},
   t: CardActionsTranslator = englishCardActions
 ) {
-  const deleteCardInternal = async (
-    cardId: Id<"cards">,
-    options: {
-      suppressSuccessCallback?: boolean;
-      suppressErrorCallback?: boolean;
-    } = {}
-  ): Promise<boolean> => {
-    try {
-      await updateCardField({ cardId, field: "delete" });
-      if (!options.suppressSuccessCallback) {
-        config.onDeleteSuccess?.(t("deletedFindInTrash"));
-      }
-      return true;
-    } catch (error) {
-      captureClientException(error, { operation: "card.delete" });
-      if (!options.suppressErrorCallback) {
-        config.onError?.(error as Error, "delete");
-      }
-      return false;
-    }
-  };
-
-  const handleDeleteCard = (cardId: Id<"cards">) => deleteCardInternal(cardId);
-
-  const handleBulkDeleteCards = async (
-    cardIds: Id<"cards">[]
-  ): Promise<BulkDeleteResult> => {
-    const failedIds: Id<"cards">[] = [];
-    let deletedCount = 0;
-
-    for (const cardId of cardIds) {
-      const didDelete = await deleteCardInternal(cardId, {
-        suppressSuccessCallback: true,
-        suppressErrorCallback: true,
-      });
-      if (didDelete) {
-        deletedCount += 1;
-      } else {
-        failedIds.push(cardId);
-      }
-    }
-
-    return {
-      requestedCount: cardIds.length,
-      deletedCount,
-      failedIds,
-    };
-  };
-
   const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
       await updateCardField({ cardId, field: "restore" });
@@ -186,18 +136,6 @@ export function createCardActions(
     return { deletedCount, failedIds, requestedCount: cardIds.length };
   };
 
-  const handleToggleFavorite = async (cardId: Id<"cards">) => {
-    try {
-      await updateCardField({
-        cardId,
-        field: "isFavorited",
-      });
-    } catch (error) {
-      captureClientException(error, { operation: "card.favorite" });
-      config.onError?.(error as Error, "toggle favorite");
-    }
-  };
-
   const updateField = async (
     cardId: Id<"cards">,
     field:
@@ -227,12 +165,9 @@ export function createCardActions(
   };
 
   return {
-    handleDeleteCard,
-    handleBulkDeleteCards,
     handleRestoreCard,
     handlePermanentDeleteCard,
     handleBulkPermanentDeleteCards,
-    handleToggleFavorite,
     updateField,
   };
 }

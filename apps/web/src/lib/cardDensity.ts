@@ -18,6 +18,3 @@ export const CARD_GRID_LAYOUTS: Record<CardDensity, CardGridLayout> = {
   comfortable: { gutter: 24, maxColumns: 5, minColumnWidth: 200 },
   compact: { gutter: 12, maxColumns: 7, minColumnWidth: 150 },
 };
-
-export const isCardDensity = (value: unknown): value is CardDensity =>
-  (CARD_DENSITIES as readonly unknown[]).includes(value);

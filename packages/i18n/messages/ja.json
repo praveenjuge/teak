@@ -1658,7 +1658,6 @@
   },
   "hooks": {
     "cardActions": {
-      "deletedFindInTrash": "カードを削除しました。「trash」で検索すると見つかります",
       "cardDeleted": "カードを削除しました",
       "cardRestored": "カードを復元しました",
       "cardPermanentlyDeleted": "カードを完全に削除しました",
