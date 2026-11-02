@@ -80,9 +80,8 @@ export const tagOperationTitle = (
   operation: TagOperationView,
   t: TagsTranslator = englishTags
 ) => {
-  // Tags list by their lowercase key, so the toast names the tag as the
-  // Tags page will show it, not as it was typed.
-  const values = { from: operation.from, to: tagKey(operation.to ?? "") };
+  // Tags shows a renamed or merged tag as it was typed, so the toast does too.
+  const values = { from: operation.from, to: (operation.to ?? "").trim() };
   if (operation.status === "completed") {
     return t(`completed.${operation.kind}`, values);
   }

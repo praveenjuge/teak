@@ -136,19 +136,19 @@ describe("isTagOperationStalled", () => {
 describe("tag operation copy", () => {
   test("titles and progress for each state", () => {
     expect(tagOperationTitle(operation())).toBe(
-      "Renaming “design” to “design systems”…"
+      "Renaming “design” to “Design Systems”…"
     );
     expect(tagOperationDescription(operation())).toBe(
       "120 of 300 cards changed"
     );
     expect(
       tagOperationTitle(operation({ kind: "merge", status: "completed" }))
-    ).toBe("Merged “design” into “design systems”");
+    ).toBe("Merged “design” into “Design Systems”");
     expect(
       tagOperationTitle(
         operation({ status: "completed", to: "  Verify-NAVX-T1 " })
       )
-    ).toBe("Renamed “design” to “verify-navx-t1”");
+    ).toBe("Renamed “design” to “Verify-NAVX-T1”");
     expect(
       tagOperationDescription(operation({ status: "completed", changed: 1 }))
     ).toBe("1 card changed");

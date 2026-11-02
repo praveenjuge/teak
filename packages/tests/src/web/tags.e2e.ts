@@ -61,7 +61,7 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   await rename.getByLabel("New name").fill("Design Systems");
   await rename.getByRole("button", "Rename").click();
   await expect(
-    screen.getByText("Renamed “design” to “Design Systems”", { exact: false })
+    screen.getByText("Renamed “design” to “Design Systems”", { exact: true })
   ).toBeVisible({ timeout: 30_000 });
   await expect(tagRow("design systems")).toBeVisible();
   // Tags lists it as it was typed, while its link narrows by the key.
@@ -76,7 +76,7 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   await merge.getByRole("option", "design systems", { exact: false }).click();
   await merge.getByRole("button", "Merge into “Design Systems”").click();
   await expect(
-    screen.getByText("Merged “web” into “Design Systems”", { exact: false })
+    screen.getByText("Merged “web” into “Design Systems”", { exact: true })
   ).toBeVisible({ timeout: 30_000 });
   expect(await tagsOf(alpha)).toEqual(["Design Systems"]);
   // Merged cards take the target's casing.
