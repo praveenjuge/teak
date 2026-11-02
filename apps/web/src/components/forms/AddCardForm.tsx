@@ -16,14 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
-import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
-import { isCardLimitError, isRateLimitError } from "@/lib/cardErrors";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
-import { addCaptureToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import { readComposerDraft, storeComposerDraft } from "../../lib/composerDraft";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
@@ -37,11 +34,7 @@ import {
   ShortcutKeys,
   ShortcutTooltip,
 } from "../shortcuts/ShortcutTooltip";
-import {
-  extractLinkList,
-  noteCaptureSavedMessage,
-  prepareNoteCapture,
-} from "../text-editor/noteCapture";
+import { extractLinkList } from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
 import {
   addLinkPasteJob,
@@ -51,6 +44,7 @@ import {
   useLinkPasteToastOwner,
 } from "./linkPasteJobs";
 import { linkPasteToast } from "./linkPasteToast";
+import { useSaveNote } from "./useSaveNote";
 
 function isPasteActiveError(err: unknown): boolean {
   return (
@@ -133,11 +127,9 @@ export function AddCardForm({
   upgradeUrl = SETTINGS_PLAN_HREF,
 }: AddCardFormProps) {
   const t = useTranslations("forms.addCard");
-  const tLimits = useTranslations("forms.limits");
   const tPaste = useTranslations("forms.pasteLinks");
   const tEditor = useTranslations("textEditor");
   const tc = useTranslations("common");
-  const errors = useServerErrors();
   const authUser = useQuery(api.auth.getAuthUser);
   const accountId =
     authUser && typeof authUser._id === "string" ? authUser._id : null;
@@ -241,14 +233,11 @@ export function AddCardForm({
     hasShownBlockedToastRef.current = false;
   }, [cardCreationStatus?.canCreateCard, pasteInProgress, showUpgradeToast]);
 
-  const createCard = useMutation(
-    api.cards.createCardWithOutcome
-  ).withOptimisticUpdate((localStore, args) => {
-    addCaptureToSearchQueries(localStore, {
-      content: args.content ?? "",
-      id: crypto.randomUUID() as Id<"cards">,
-      now: Date.now(),
-    });
+  const { saveNote } = useSaveNote({
+    onOpenCard,
+    onSuccess,
+    onUpgrade,
+    upgradeUrl,
   });
   const startLinkPaste = useMutation(api.card.pasteLinks.startLinkPaste);
 
@@ -309,52 +298,6 @@ export function AddCardForm({
     }
   };
 
-  const restoreFromTrash = async (
-    submittedContent: string,
-    toastId: string | number
-  ) => {
-    toast.loading(t("restoring"), { id: toastId });
-    try {
-      const capture = prepareNoteCapture(submittedContent);
-      const saved = await createCard({
-        ...capture,
-        source: "web",
-        trashedDuplicate: "restore",
-      });
-      if (latestContentRef.current.trim() === submittedContent.trim()) {
-        resetDraft();
-      }
-      onSuccess?.();
-      // The card may have left Trash (or been deleted) since the first save.
-      let message = noteCaptureSavedMessage(capture, tEditor);
-      if (saved.wasTrashed) {
-        message = t("restoredFromTrash");
-      } else if (saved.outcome === "resaved") {
-        message = t("resaved");
-      }
-      toast.success(message, {
-        id: toastId,
-        ...(onOpenCard && {
-          action: {
-            label: t("open"),
-            onClick: () => onOpenCard(saved.cardId),
-          },
-        }),
-      });
-    } catch (error) {
-      console.error("Failed to restore card:", error);
-      if (isCardLimitError(error)) {
-        showUpgradeToast(toastId);
-      } else if (isRateLimitError(error)) {
-        toast.error(tLimits("rateLimited"), { id: toastId });
-      } else {
-        toast.error(errors.message(error, t("restoreFailed")), {
-          id: toastId,
-        });
-      }
-    }
-  };
-
   const submitTextCard = async (): Promise<boolean> => {
     const submittedContent = latestContentRef.current;
     if (!submittedContent.trim()) {
@@ -370,82 +313,16 @@ export function AddCardForm({
     }
 
     resetDraft();
-
-    // Offline, the note still shows at once and saves on reconnecting.
-    const toastId = toast.loading(
-      navigator.onLine ? tc("saving") : t("savingOffline")
-    );
-    captureEvent("card_create_submitted", {
-      card_type: "text",
-      source: "web",
-      via: "text_form",
-    });
-
     setSavingNotes((count) => count + 1);
     try {
-      const capture = prepareNoteCapture(submittedContent);
-      const saved = await createCard({
-        ...capture,
-        source: "web",
-        trashedDuplicate: "report",
-      });
-
-      if (saved.outcome === "inTrash") {
-        // Nothing was saved: the draft comes back, and the toast offers the
-        // card in Trash instead of a second copy.
-        restoreDraft(submittedContent);
-        toast.info(t("inTrash"), {
-          ...MANUAL_CLOSE_TOAST_OPTIONS,
-          action: {
-            label: t("restore"),
-            onClick: () => {
-              void restoreFromTrash(submittedContent, toastId);
-            },
-          },
-          id: toastId,
-        });
-        return false;
-      }
-
-      onSuccess?.();
-      if (saved.outcome === "resaved") {
-        toast.success(
-          saved.wasArchived ? t("resavedFromArchive") : t("resaved"),
-          {
-            id: toastId,
-            ...(onOpenCard && {
-              action: {
-                label: t("open"),
-                onClick: () => onOpenCard(saved.cardId),
-              },
-            }),
+      return await saveNote(submittedContent, {
+        onNotSaved: () => restoreDraft(submittedContent),
+        onRestored: () => {
+          if (latestContentRef.current.trim() === submittedContent.trim()) {
+            resetDraft();
           }
-        );
-      } else {
-        toast.success(noteCaptureSavedMessage(capture, tEditor), {
-          id: toastId,
-        });
-      }
-      return true;
-    } catch (error) {
-      console.error("Failed to create card:", error);
-
-      restoreDraft(submittedContent);
-
-      // A plain Error here is Convex's own text ("[CONVEX M(...)] Server
-      // Error"), which isn't for people; server reasons still come through.
-      const errorMessage = errors.message(error, t("saveFailed"));
-
-      if (isCardLimitError(error)) {
-        showUpgradeToast(toastId);
-      } else if (isRateLimitError(error)) {
-        toast.error(tLimits("rateLimited"), {
-          id: toastId,
-        });
-      } else {
-        toast.error(errorMessage, { id: toastId });
-      }
-      return false;
+        },
+      });
     } finally {
       setSavingNotes((count) => count - 1);
     }
