@@ -32,6 +32,7 @@ import {
   type GlobalOptions,
   openBrowser,
   write,
+  writeList,
 } from "./runtime";
 
 type PageFetcher = (cursor?: string) => Promise<CardsPage>;
@@ -590,10 +591,11 @@ export const showFolder = async (ref: string, options: GlobalOptions) => {
 
 export const listFolders = async (options: GlobalOptions) => {
   const result = await client(options).folders.list();
-  write(
-    options.json ? result : result.items.map(formatFolderLine).join("\n"),
-    options
-  );
+  if (options.json) {
+    write(result, options);
+    return;
+  }
+  writeList(result.items.map(formatFolderLine), "No folders yet.", options);
 };
 
 export const createFolder = async (
@@ -839,8 +841,13 @@ export const listHighlights = async (
   options: GlobalOptions
 ) => {
   const result = await client(options).highlights.list(cardId);
-  write(
-    options.json ? result : result.items.map(formatHighlight).join("\n"),
+  if (options.json) {
+    write(result, options);
+    return;
+  }
+  writeList(
+    result.items.map(formatHighlight),
+    "No highlights on this card.",
     options
   );
 };
