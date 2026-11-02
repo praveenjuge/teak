@@ -49,11 +49,12 @@ export const updateCardAI = internalMutation({
     };
     // New AI output (tags, or a summary alone) is when the card is ready for
     // folder rules: file it with what it now holds, in the same write. Text
-    // read from images later (a link's screenshot) checks again, but only on
-    // a card whose AI has run, so an early OCR write files nothing.
+    // that arrives later (read from a link's screenshot, or a podcast's
+    // transcript) checks again, but only on a card whose AI has run, so an
+    // early write files nothing.
     const aiDone =
       writesAiOutput ||
-      (aiOcrText !== undefined &&
+      ((aiOcrText !== undefined || aiTranscript !== undefined) &&
         (card.aiTags !== undefined || card.aiSummary !== undefined));
     const filed = aiDone
       ? await autoFileCard(

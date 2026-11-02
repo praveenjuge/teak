@@ -15,6 +15,7 @@ import {
   buildCardSearchText,
   patchCardWithSearchSync,
 } from "../card/searchSync";
+import { readCardTranscript } from "../card/textContents";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
@@ -306,27 +307,20 @@ export const autoTagsForJoinedFolders = async (
 type RuleMatcher = (card: Doc<"cards">, text: string) => boolean;
 
 /**
- * The text a rule's words are checked against: the card's own fields, plus
- * what its search document holds beyond them (a document's text, a moved
- * transcript), as search sees it. The document can trail a write in the same
- * mutation, so the fields come first.
+ * The text a rule's words are checked against, built the way the card's
+ * search document is, from the card as the caller is about to write it. The
+ * stored document can trail that write, so it is never read here.
  */
 const ruleTextFor = async (
   ctx: QueryCtx,
   card: Doc<"cards">,
   transcript?: string
-): Promise<string> => {
-  const own = buildCardSearchText(
+): Promise<string> =>
+  buildCardSearchText(
     card,
     undefined,
-    transcript ?? card.aiTranscript
+    transcript ?? card.aiTranscript ?? (await readCardTranscript(ctx, card))
   );
-  const document = await ctx.db
-    .query("cardSearchDocuments")
-    .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
-    .unique();
-  return document?.searchableText ? `${own}\n${document.searchableText}` : own;
-};
 
 const buildRuleMatcher = async (
   ctx: QueryCtx,
@@ -343,15 +337,11 @@ const buildRuleMatcher = async (
   if (!resolved) {
     return null;
   }
-  return (card, text) => {
-    if (card.isDeleted === true) {
-      return false;
-    }
-    if (parsed.archived && card.isArchived !== true) {
-      return false;
-    }
-    return resolved.matches(card, text) && resolved.matchesWords(text);
-  };
+  return (card: Doc<"cards">, text: string): boolean =>
+    card.isDeleted !== true &&
+    (!parsed.archived || card.isArchived === true) &&
+    resolved.matches(card, text) &&
+    resolved.matchesWords(text);
 };
 
 const activeFilingFolders = async (
@@ -402,10 +392,13 @@ export const autoFileCard = async (
     return { filedFolderIds: [] };
   }
   const folders = await activeFilingFolders(ctx, card.userId);
+  if (folders.length === 0) {
+    return { filedFolderIds: [] };
+  }
+  const text = await ruleTextFor(ctx, card, transcript);
   const current = card.folderIds ?? [];
   const next = [...current];
   const filedFolderIds: Id<"folders">[] = [];
-  let text: string | undefined;
   for (const folder of folders) {
     if (next.length >= MAX_FOLDERS_PER_CARD) {
       break;
@@ -417,19 +410,16 @@ export const autoFileCard = async (
     if (existing?.filed === true) {
       continue;
     }
-    const matches = await buildRuleMatcher(
+    const matcher = await buildRuleMatcher(
       ctx,
       card.userId,
       folder.autoFileQuery ?? ""
     );
-    if (!matches) {
+    if (!matcher?.(card, text)) {
       continue;
     }
-    text ??= await ruleTextFor(ctx, card, transcript);
-    if (matches(card, text)) {
-      next.push(folder._id);
-      filedFolderIds.push(folder._id);
-    }
+    next.push(folder._id);
+    filedFolderIds.push(folder._id);
   }
   if (filedFolderIds.length === 0) {
     return { filedFolderIds };
