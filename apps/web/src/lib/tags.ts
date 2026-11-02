@@ -18,8 +18,14 @@ export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
 export interface TagSummaryItem {
   count: number;
+  /** The casing the tag was last typed in, when Teak knows it. */
+  label?: string;
   name: string;
 }
+
+/** How a tag reads in a list: the casing it was typed in, else its key. */
+export const tagDisplayName = (item: TagSummaryItem): string =>
+  item.label ?? item.name;
 
 export interface TagOperationView {
   _id: string;
@@ -129,8 +135,14 @@ export const applyTagOperationToSummary = (
     return rest;
   }
   const toKey = tagKey(operation.to);
+  const label = operation.to.trim();
   if (toKey === fromKey) {
-    return [...items];
+    // A rename that only changes the case keeps the tag and its new casing.
+    return items.map((item) =>
+      item.name === fromKey && operation.kind === "rename"
+        ? { ...item, label }
+        : item
+    );
   }
   const target = rest.find((item) => item.name === toKey);
   const merged = target
@@ -139,7 +151,7 @@ export const applyTagOperationToSummary = (
           ? { ...item, count: item.count + source.count }
           : item
       )
-    : [...rest, { name: toKey, count: source.count }];
+    : [...rest, { name: toKey, count: source.count, label }];
   return merged.sort((left, right) =>
     left.count === right.count
       ? left.name.localeCompare(right.name)

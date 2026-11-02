@@ -321,7 +321,14 @@ export default defineSchema({
     .index("by_userId", ["userId"]),
   userTagSummaries: defineTable({
     userId: v.string(),
-    items: v.array(v.object({ name: v.string(), count: v.number() })),
+    items: v.array(
+      v.object({
+        name: v.string(),
+        count: v.number(),
+        // The casing the tag was last typed in, when that's known.
+        label: v.optional(v.string()),
+      })
+    ),
     isComplete: v.boolean(),
     computedAt: v.number(),
   }).index("by_userId", ["userId"]),
@@ -329,6 +336,9 @@ export default defineSchema({
     userId: v.string(),
     tag: v.string(),
     count: v.number(),
+    // The casing the tag was last typed in on a card. Tags no card has been
+    // saved or edited with since this field arrived have none.
+    label: v.optional(v.string()),
   }).index("by_userId_and_tag", ["userId", "tag"]),
   // Count changes the tag sync records without touching the shared
   // `userTagCounts` rows; the tag summary refresh folds them in.
@@ -336,6 +346,8 @@ export default defineSchema({
     userId: v.string(),
     tag: v.string(),
     delta: v.number(),
+    // The casing a card's tag was typed in, when that changed.
+    label: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
   // One row, written when `migration/backfillTagCounts` has counted every
   // tag row. Until then tag summaries recount `cardSearchTags`.
@@ -652,6 +664,8 @@ export default defineSchema({
     // Archive). Rows written before counting existed lack it until
     // `migration/backfillTagCounts` runs.
     isCounted: v.optional(v.literal(true)),
+    // The casing the card's own tag is typed in (not set by AI tags).
+    label: v.optional(v.string()),
   })
     .index("by_cardId_and_tag", ["cardId", "tag"])
     .index("by_cardId_and_generation", ["cardId", "syncGeneration"])

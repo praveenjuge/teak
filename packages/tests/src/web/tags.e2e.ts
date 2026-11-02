@@ -64,30 +64,34 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
     screen.getByText("Renamed “design” to “Design Systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
   await expect(tagRow("design systems")).toBeVisible();
+  // Tags lists it as it was typed, while its link narrows by the key.
+  await expect(
+    screen.getByText("Design Systems", { exact: true })
+  ).toBeVisible();
   expect(await tagsOf(alpha)).toEqual(["Design Systems", "web"]);
 
   await screen.getByRole("button", "More for web").click();
   await screen.getByRole("menuitem", "Merge into…").click();
   const merge = screen.getByRole("dialog", "Merge “web” into…");
   await merge.getByRole("option", "design systems", { exact: false }).click();
-  await merge.getByRole("button", "Merge into “design systems”").click();
+  await merge.getByRole("button", "Merge into “Design Systems”").click();
   await expect(
     screen.getByText("Merged “web” into “design systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
   expect(await tagsOf(alpha)).toEqual(["Design Systems"]);
   expect(await tagsOf(gamma)).toEqual(["design systems"]);
 
-  await screen.getByRole("button", "More for design systems").click();
+  await screen.getByRole("button", "More for Design Systems").click();
   await screen.getByRole("menuitem", "Delete…").click();
   await screen
-    .getByRole("dialog", "Delete “design systems”?")
+    .getByRole("dialog", "Delete “Design Systems”?")
     .getByRole("button", "Delete tag")
     .click();
   await expect(
     screen.getByText("Deleted “design systems”", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
   await expect(
-    screen.getByRole("button", "More for design systems")
+    screen.getByRole("button", "More for Design Systems")
   ).not.toBeVisible();
   expect(await tagsOf(alpha)).toBeUndefined();
 });

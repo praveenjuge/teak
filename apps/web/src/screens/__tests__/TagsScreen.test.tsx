@@ -8,7 +8,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 interface Summary {
   isComplete: boolean;
-  items: { count: number; name: string }[];
+  items: { count: number; label?: string; name: string }[];
 }
 let summary: Summary | null | undefined;
 const requestSummary = mock(async () => null);
@@ -107,6 +107,25 @@ test("lists tags most-used first, each opening the library narrowed to it", asyn
     ["web, 3 cards", "/?tag=web"],
     ["art, 1 card", "/?tag=art"],
   ]);
+});
+
+test("a tag reads as it was typed, while its link narrows by the tag itself", async () => {
+  summary = {
+    isComplete: true,
+    items: [
+      { name: "design systems", count: 2, label: "Design Systems" },
+      { name: "web", count: 1 },
+    ],
+  };
+  await render();
+
+  expect(rows()).toEqual([
+    ["Design Systems, 2 cards", "/?tag=design+systems"],
+    ["web, 1 card", "/?tag=web"],
+  ]);
+  expect(
+    document.querySelector('button[aria-label="More for Design Systems"]')
+  ).not.toBeNull();
 });
 
 test("a tag's More button hides until hover only where a mouse can hover", async () => {

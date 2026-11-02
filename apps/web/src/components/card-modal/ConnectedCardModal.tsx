@@ -62,6 +62,7 @@ export function ConnectedCardModal({
     card,
     tagInput,
     setTagInput,
+    tagError,
     updateContent,
     updateNotes,
     updateTitle,
@@ -193,6 +194,7 @@ export function ConnectedCardModal({
         removeAiTag,
         removeTag,
         setTagInput,
+        tagError,
         tagInput,
       }}
       toggleArchive={toggleArchive}

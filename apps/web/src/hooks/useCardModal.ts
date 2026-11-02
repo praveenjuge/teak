@@ -105,7 +105,14 @@ export function useCardModal(
   const t = useTranslations("hooks.cardActions");
   const tc = useTranslations("common");
   const serverErrors = useServerErrors();
-  const [tagInput, setTagInput] = useState("");
+  const [tagInput, setTagInputValue] = useState("");
+  // Why the last tag typed wasn't added, shown under the tag field until the
+  // text changes.
+  const [tagError, setTagError] = useState<string | null>(null);
+  const setTagInput = useCallback((value: string) => {
+    setTagInputValue(value);
+    setTagError(null);
+  }, []);
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
@@ -132,7 +139,8 @@ export function useCardModal(
     setEditsCardId(cardId);
     setPendingChanges({});
     setSavedValues({});
-    setTagInput("");
+    setTagInputValue("");
+    setTagError(null);
     setIsSaved(false);
     setSaveFailed(false);
   }
@@ -472,7 +480,7 @@ export function useCardModal(
     const newTags = [...tags, tag];
     const invalid = explainInvalidCardTags(newTags, tags);
     if (invalid) {
-      toast.error(serverErrors.byEnglishMessage(invalid));
+      setTagError(serverErrors.byEnglishMessage(invalid));
       return;
     }
     const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
@@ -502,6 +510,7 @@ export function useCardModal(
     cardId,
     currentTags,
     serverErrors,
+    setTagInput,
     t,
     tagInput,
     tc,
@@ -689,6 +698,7 @@ export function useCardModal(
     card: cardWithOptimisticUpdates,
     tagInput,
     setTagInput,
+    tagError,
     updateContent,
     updateNotes,
     updateTitle,

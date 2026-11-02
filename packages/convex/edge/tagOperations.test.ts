@@ -442,6 +442,60 @@ describe("tag summary snapshot", () => {
     ]);
   });
 
+  test("a tag reads in the casing it was last typed in; AI tags never change it", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, cardId, {
+          ...value,
+          updatedAt: Date.now(),
+        })
+      );
+    const item = async (name: string) =>
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === name
+      );
+
+    const a = await insert({ tags: ["Design Systems"], aiTags: ["web"] });
+    await insert({ aiTags: ["design systems", "WEB"] });
+    await runScheduled();
+    expect(await item("design systems")).toEqual({
+      name: "design systems",
+      count: 2,
+      label: "Design Systems",
+    });
+    // A tag only Teak suggested keeps its key.
+    expect(await item("web")).toEqual({ name: "web", count: 2 });
+
+    // An edit that keeps the casing leaves it; a new casing replaces it.
+    await patch(a, { notes: "edited" });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    await patch(a, { tags: ["DESIGN systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("DESIGN systems");
+
+    // Typed in lowercase, it reads as its key again.
+    await insert({ tags: ["design systems"] });
+    await runScheduled();
+    expect(await item("design systems")).toEqual({
+      name: "design systems",
+      count: 3,
+    });
+
+    // The public API lists tags by key, without the casing.
+    await patch(a, { tags: ["Design Systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    const fresh = await t.query(internal.publicApi.getFreshTagSummaryForUser, {
+      userId: "owner",
+    });
+    expect(fresh?.items).toContainEqual({ name: "design systems", count: 3 });
+  });
+
   test("a burst of tag changes schedules one recompute", async () => {
     const { t, insert } = await setup();
     for (let index = 0; index < 5; index += 1) {

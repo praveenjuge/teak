@@ -64,22 +64,29 @@ async function addTagTo(tags: string[], input: string) {
   return () => hook;
 }
 
-test("a tag longer than 64 characters says why and keeps what was typed", async () => {
+test("a tag longer than 64 characters says why beside the field and keeps what was typed", async () => {
   const hook = await addTagTo(["work"], "a".repeat(65));
   expect(write).not.toHaveBeenCalled();
-  expect(errors).toEqual(["Each tag must be at most 64 characters"]);
+  expect(hook().tagError).toBe("Each tag must be at most 64 characters");
+  expect(errors).toEqual([]);
   expect(hook().tagInput).toBe("a".repeat(65));
+});
+
+test("editing the tag clears its error", async () => {
+  const hook = await addTagTo(["work"], "a".repeat(65));
+  await act(() => hook().setTagInput("a".repeat(64)));
+  expect(hook().tagError).toBeNull();
 });
 
 test("a card with 100 tags says it is full", async () => {
   const tags = Array.from({ length: 100 }, (_, index) => `tag${index}`);
-  await addTagTo(tags, "one more");
+  const hook = await addTagTo(tags, "one more");
   expect(write).not.toHaveBeenCalled();
-  expect(errors).toEqual(["A card can have at most 100 tags"]);
+  expect(hook().tagError).toBe("A card can have at most 100 tags");
 });
 
 test("a 64-character tag is saved", async () => {
-  await addTagTo(["work"], "a".repeat(64));
-  expect(errors).toEqual([]);
+  const hook = await addTagTo(["work"], "a".repeat(64));
+  expect(hook().tagError).toBeNull();
   expect(write).toHaveBeenCalledTimes(1);
 });
