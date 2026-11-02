@@ -492,8 +492,12 @@ describe("tag summary snapshot", () => {
     await patch(a, { tags: ["DESIGN systems"] });
     await runScheduled();
 
-    // Typed in lowercase, it reads as its key again.
-    await insert({ tags: ["design systems"] });
+    // Typed in lowercase on a card saved now, it reads as its key again.
+    await insert({
+      tags: ["design systems"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
     await runScheduled();
     expect(await item("design systems")).toEqual({
       name: "design systems",
@@ -543,6 +547,32 @@ describe("tag summary snapshot", () => {
     });
     await runScheduled();
     expect(await label()).toBe("Design systems");
+  });
+
+  test("across cards, the casing edited last wins even if its sync runs first", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const a = await insert({ tags: ["design"] });
+    const b = await insert({ tags: ["design"] });
+    await runScheduled();
+    // B's edit queues a tag sync; A is re-cased later, before B's sync runs.
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, b, {
+        tags: ["Design", "queued"],
+        updatedAt: 2000,
+      })
+    );
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
   });
 
   test("accepting a suggested tag while its sync is queued keeps the typed casing", async () => {

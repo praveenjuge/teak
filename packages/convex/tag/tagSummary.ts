@@ -104,8 +104,18 @@ export const markTagSummaryDirty = async (
 };
 
 export type TagCountDeltas = Map<string, Map<string, number>>;
+/** A casing a tag was typed in, and when its card was edited. */
+export interface TagLabel {
+  at: number;
+  label: string;
+}
+
 /** The casing each user's tags were last typed in, by tag key. */
-export type TagLabels = Map<string, Map<string, string>>;
+export type TagLabels = Map<string, Map<string, TagLabel>>;
+
+/** The later of two casings by edit time; a tie goes to the one seen last. */
+const laterLabel = (current: TagLabel | undefined, next: TagLabel): TagLabel =>
+  current && current.at > next.at ? current : next;
 
 export const isCountedTagRow = (
   row: Pick<Doc<"cardSearchTags">, "isArchived" | "isDeleted">
@@ -126,10 +136,10 @@ export const addTagLabel = (
   labels: TagLabels,
   userId: string,
   tag: string,
-  label: string
+  label: TagLabel
 ) => {
-  const tags = labels.get(userId) ?? new Map<string, string>();
-  tags.set(tag, label);
+  const tags = labels.get(userId) ?? new Map<string, TagLabel>();
+  tags.set(tag, laterLabel(tags.get(tag), label));
   labels.set(userId, tags);
 };
 
@@ -150,7 +160,13 @@ export const recordTagCountDeltas = async (
       const label = tagLabels?.get(tag);
       // A new casing is worth a row even when the count didn't change.
       if (delta !== 0 || label !== undefined) {
-        await ctx.db.insert("tagCountDeltas", { userId, tag, delta, label });
+        await ctx.db.insert("tagCountDeltas", {
+          userId,
+          tag,
+          delta,
+          label: label?.label,
+          labelAt: label?.at,
+        });
       }
     }
   }
@@ -160,7 +176,7 @@ export const applyTagCounts = async (
   ctx: MutationCtx,
   userId: string,
   deltas: Map<string, number>,
-  labels: Map<string, string> = new Map()
+  labels: Map<string, TagLabel> = new Map()
 ) => {
   for (const tag of new Set([...deltas.keys(), ...labels.keys()])) {
     const delta = deltas.get(tag) ?? 0;
@@ -174,8 +190,14 @@ export const applyTagCounts = async (
         q.eq("userId", userId).eq("tag", tag)
       )
       .unique();
+    // Only a casing edited after the stored one replaces it, so a sync that
+    // runs late can't undo a newer edit on another card.
     const relabel =
-      label !== undefined && label !== row?.label ? { label } : {};
+      label !== undefined &&
+      label.label !== row?.label &&
+      label.at >= (row?.labelAt ?? Number.NEGATIVE_INFINITY)
+        ? { label: label.label, labelAt: label.at }
+        : {};
     if (delta === 0) {
       if (row && "label" in relabel) {
         await ctx.db.patch("userTagCounts", row._id, relabel);
@@ -184,7 +206,13 @@ export const applyTagCounts = async (
     }
     const count = (row?.count ?? 0) + delta;
     if (!row) {
-      await ctx.db.insert("userTagCounts", { userId, tag, count, label });
+      await ctx.db.insert("userTagCounts", {
+        userId,
+        tag,
+        count,
+        label: label?.label,
+        labelAt: label?.at,
+      });
     } else if (count === 0) {
       await ctx.db.delete("userTagCounts", row._id);
     } else {
@@ -278,12 +306,19 @@ export const foldTagCountDeltas = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .take(TAG_COUNT_FOLD_ROWS);
     const totals = new Map<string, number>();
-    // Rows come oldest first, so the newest casing wins.
-    const labels = new Map<string, string>();
+    // The casing edited last wins; rows come oldest first, so of two edited
+    // at the same time the one recorded last does.
+    const labels = new Map<string, TagLabel>();
     for (const row of rows) {
       totals.set(row.tag, (totals.get(row.tag) ?? 0) + row.delta);
       if (row.label !== undefined) {
-        labels.set(row.tag, row.label);
+        labels.set(
+          row.tag,
+          laterLabel(labels.get(row.tag), {
+            label: row.label,
+            at: row.labelAt ?? row._creationTime,
+          })
+        );
       }
       await ctx.db.delete("tagCountDeltas", row._id);
     }

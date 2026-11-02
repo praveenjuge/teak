@@ -126,7 +126,7 @@ const recordTagCasingChanges = async (
     // Active rows pass the casing on, including ones written before
     // counting (no isCounted): it only relabels a count row that exists.
     if (isCountedTagRow(row)) {
-      addTagLabel(labels, card.userId, tag, label);
+      addTagLabel(labels, card.userId, tag, { label, at: card.updatedAt });
     }
   }
   const tagState = await ctx.db
@@ -809,7 +809,10 @@ const writeCardSearchTag = async (
     isCounted &&
     (relabels || !existingTag?.isCounted)
   ) {
-    addTagLabel(tagLabels, tagValue.userId, tag, label);
+    addTagLabel(tagLabels, tagValue.userId, tag, {
+      label,
+      at: card.updatedAt,
+    });
   }
   if (!existingTag) {
     await ctx.db.insert("cardSearchTags", { ...tagValue, isCounted, label });

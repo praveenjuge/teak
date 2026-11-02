@@ -336,9 +336,11 @@ export default defineSchema({
     userId: v.string(),
     tag: v.string(),
     count: v.number(),
-    // The casing the tag was last typed in on a card. Tags no card has been
-    // saved or edited with since this field arrived have none.
+    // The casing the tag was last typed in on a card, and when that card was
+    // edited. Tags no card has been saved or edited with since these fields
+    // arrived have none.
     label: v.optional(v.string()),
+    labelAt: v.optional(v.number()),
   }).index("by_userId_and_tag", ["userId", "tag"]),
   // Count changes the tag sync records without touching the shared
   // `userTagCounts` rows; the tag summary refresh folds them in.
@@ -346,8 +348,10 @@ export default defineSchema({
     userId: v.string(),
     tag: v.string(),
     delta: v.number(),
-    // The casing a card's tag was typed in, when that changed.
+    // The casing a card's tag was typed in, when that changed, and when that
+    // card was edited (so a later edit wins, whichever sync runs first).
     label: v.optional(v.string()),
+    labelAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
   // One row, written when `migration/backfillTagCounts` has counted every
   // tag row. Until then tag summaries recount `cardSearchTags`.
