@@ -16,7 +16,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
-import type { KeyboardEvent, MouseEvent } from "react";
+import type { KeyboardEvent } from "react";
 import { useMemo, useRef, useState } from "react";
 import {
   type GridCardKeyAction,
@@ -76,9 +76,6 @@ export function PinnedStrip({
   const ids = useMemo(() => cards.map((card) => card._id as string), [cards]);
   const listRef = useRef<HTMLUListElement>(null);
   const [announcement, setAnnouncement] = useState("");
-  // A drag ends with a click on the card under the pointer; that click
-  // shouldn't open it.
-  const draggedRef = useRef<boolean>(false);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     // A touch has to rest on a card before it moves it, so a swipe still
@@ -157,14 +154,6 @@ export function PinnedStrip({
     }
   };
 
-  const swallowClickAfterDrag = (event: MouseEvent<HTMLElement>) => {
-    if (draggedRef.current) {
-      draggedRef.current = false;
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
-
   if (cards.length === 0) {
     return null;
   }
@@ -180,13 +169,9 @@ export function PinnedStrip({
       <DndContext
         accessibility={{ announcements: SILENT }}
         collisionDetection={closestCenter}
-        onDragCancel={() => {
-          draggedRef.current = false;
-        }}
+        // dnd-kit stops the click that ends a drag, so a drop never opens
+        // the card under the pointer.
         onDragEnd={handleDragEnd}
-        onDragStart={() => {
-          draggedRef.current = true;
-        }}
         sensors={sensors}
       >
         <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
@@ -196,7 +181,6 @@ export function PinnedStrip({
             aria-label={t("ariaLabel")}
             className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pt-1 pb-3"
             data-pinned-strip=""
-            onClickCapture={swallowClickAfterDrag}
             onKeyDown={handleKeyDown}
             ref={listRef}
           >

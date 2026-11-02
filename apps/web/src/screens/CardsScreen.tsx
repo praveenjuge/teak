@@ -567,14 +567,15 @@ export function CardsScreen({
 
   const handleToggleFavorite = useCallback(
     (cardId: string) => {
-      const card = displayCards.find(
+      // Cards in the Pinned row aren't in the grid's list.
+      const card = [...displayCards, ...pinned.strip.cards].find(
         (candidate: Doc<"cards">) => candidate._id === cardId
       );
       runBulkAction(card?.isFavorited ? "unfavorite" : "favorite", [cardId], {
         silent: true,
       }).catch(() => undefined);
     },
-    [displayCards, runBulkAction]
+    [displayCards, pinned.strip.cards, runBulkAction]
   );
 
   // Adding or removing a tag can take the card out of this list (a hidden
