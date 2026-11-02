@@ -56,6 +56,122 @@ describe("extractArticle", () => {
     }
   });
 
+  test("keeps the gaps between a table cell's lines and blocks", async () => {
+    const html = page(`<article>
+      <p>${sentences(12)}</p>
+      <table>
+        <tr><th>Item</th><th>Detail</th></tr>
+        <tr><td>Food energy<br><span>(per 100 g)</span></td><td><div>Line one</div><div>Line two</div></td></tr>
+      </table>
+      <p>${sentences(12, 20)}</p>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).toContain(
+      "| Food energy (per 100 g) | Line one Line two |"
+    );
+  });
+
+  test("opens a wiki article on its text, with its infobox as facts after the opening", async () => {
+    const wiki = page(`
+      <div id="siteSub" class="noprint">From Wikipedia, the free encyclopedia</div>
+      <div id="content"><div class="mw-parser-output">
+        <div class="shortdescription noprint" style="display:none">Soup made with tomatoes</div>
+        <table class="infobox hrecipe">
+          <caption class="infobox-title">Tomato soup</caption>
+          <tr><td colspan="2"><a href="/wiki/File:Soup.jpg"><img src="${pngDataUri("soup")}" alt=""></a><div class="infobox-caption">A bowl of it</div></td></tr>
+          <tr><th>Type</th><td><a href="/wiki/Soup">Soup</a></td></tr>
+          <tr><th>Food energy<br><span>(per 100 g serving)</span></th><td>30 kcal</td></tr>
+          <tr><th>Nutritional value</th><td><table class="infobox"><tr><th>Protein</th><td>0.8 g</td></tr><tr><th>Fat</th><td>0.3 g</td></tr></table></td></tr>
+          <tr><td colspan="2"><img src="${pngDataUri("logo")}" alt="Commons logo" width="12" height="16"> Media: Tomato soup</td></tr>
+        </table>
+        <p>LEADMARK <b>Tomato soup</b> is a soup made with tomatoes. ${sentences(10)}</p>
+        <h2>History</h2>
+        <p>${sentences(12, 20)}</p>
+      </div></div>`);
+    const result = await extractArticle(
+      wiki,
+      "https://en.wikipedia.org/wiki/Tomato_soup",
+      {
+        encodeImage,
+      }
+    );
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    const { markdown } = result;
+    expect(markdown).not.toContain("From Wikipedia");
+    expect(markdown).not.toContain("Soup made with tomatoes");
+    expect(markdown).not.toContain("| Type |");
+    // The picture stays on top; the text comes before the facts.
+    expect(markdown.indexOf("teak-image:0")).toBeLessThan(
+      markdown.indexOf("LEADMARK")
+    );
+    expect(markdown).toContain('"A bowl of it"');
+    // A logo in the infobox is an icon, not a picture for the top.
+    expect(markdown).not.toContain("Commons logo");
+    expect(markdown).not.toContain("teak-image:1");
+    const facts = markdown.indexOf("### Tomato soup");
+    expect(markdown.indexOf("LEADMARK")).toBeLessThan(facts);
+    expect(facts).toBeLessThan(markdown.indexOf("## History"));
+    expect(markdown).toContain(
+      [
+        "### Tomato soup",
+        "",
+        "- **Type:** Soup",
+        "- **Food energy (per 100 g serving):** 30 kcal",
+        "- **Nutritional value:** Protein 0.8 g; Fat 0.3 g",
+      ].join("\n")
+    );
+  });
+
+  test("leaves out a caption whose picture was dropped, and keeps a quote's", async () => {
+    const html = page(`<article>
+      <figure><a href="/wiki/File:Emblem.svg"><svg viewBox="0 0 1 1"></svg></a><figcaption>ORPHANCAPTION the emblem</figcaption></figure>
+      <p>${sentences(12)}</p>
+      <figure><blockquote><p>Less is more.</p></blockquote><figcaption>QUOTECAPTION Mies</figcaption></figure>
+      <p>${sentences(12, 20)}</p>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).not.toContain("ORPHANCAPTION");
+    expect(result.markdown).toContain("QUOTECAPTION");
+    expect(result.markdown.startsWith("Sentence 0")).toBe(true);
+  });
+
+  test("leaves out a link whose only content was a dropped image", async () => {
+    const html = page(`<article>
+      <p>${sentences(12)}</p>
+      <p><a href="/wiki/File:Gone.jpg"><img src="https://elsewhere.example/gone.jpg" alt=""></a></p>
+      <p>${sentences(12, 20)}</p>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).not.toContain("[](");
+  });
+
+  test("leaves out a link around an image that couldn't be kept", async () => {
+    const html = page(`<article>
+      <p>${sentences(12)}</p>
+      <p><a href="https://en.wikipedia.org/wiki/File:Stock_(food).jpg"><img src="${pngDataUri("big")}" alt="Pot"></a></p>
+      <p>${sentences(12, 20)}</p>
+    </article>`);
+    const result = await extractArticle(html, PAGE_URL, {
+      encodeImage: () => Promise.resolve(null),
+    });
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    expect(result.markdown).not.toContain("[](");
+    expect(result.markdown).not.toContain("File:Stock");
+  });
+
   test("turns headings, lists, tables, code, quotes and links into Markdown", async () => {
     const html = page(`<article>
       <h1>A careful guide to notes</h1>

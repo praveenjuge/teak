@@ -53,6 +53,16 @@ const DROPPED_ELEMENTS =
  */
 const DROPPED_CONTROLS =
   '[role="button"], .mw-editsection, a[href*="action=edit"], a[href*="veaction=edit"]';
+/**
+ * A wiki's page chrome: "From Wikipedia, the free encyclopedia" and other
+ * screen-only lines (`.noprint`), the short description it hides with CSS,
+ * navigation boxes and the skip link. Readability can't see CSS, so it would
+ * keep them as the article's first lines.
+ */
+const DROPPED_WIKI_CHROME =
+  ".noprint, .shortdescription, .navbox, .mw-jump-link";
+/** A MediaWiki infobox: the fact table a wiki article opens with. */
+const INFOBOX = 'table[class~="infobox"]';
 /** Where a control's words can sit; headings and list items stay. */
 const CONTROL_TEXT_HOSTS = "a, span, label, div, p, small, summary";
 /**
@@ -110,6 +120,13 @@ const slimArchive = async (
       },
     })
     .on(DROPPED_CONTROLS, {
+      element(element) {
+        if (!element.removed) {
+          element.remove();
+        }
+      },
+    })
+    .on(DROPPED_WIKI_CHROME, {
       element(element) {
         if (!element.removed) {
           element.remove();
@@ -180,6 +197,7 @@ const slimArchive = async (
 
 /** The few DOM members this file uses, from linkedom; Workers have no DOM types. */
 interface DomNode {
+  childNodes?: Iterable<DomNode>;
   nextSibling: DomNode | null;
   nodeName: string;
   parentNode: DomElement | null;
@@ -187,13 +205,16 @@ interface DomNode {
 }
 
 interface DomElement extends DomNode {
+  appendChild: (node: DomNode) => void;
   children: Iterable<DomElement>;
   closest: (selector: string) => DomElement | null;
   getAttribute: (name: string) => string | null;
   hasAttribute: (name: string) => boolean;
+  ownerDocument: { createElement: (name: string) => DomElement };
   querySelector: (selector: string) => DomElement | null;
   querySelectorAll: (selector: string) => Iterable<DomElement>;
   remove: () => void;
+  replaceWith: (node: DomNode) => void;
   setAttribute: (name: string, value: string) => void;
 }
 
@@ -202,6 +223,75 @@ type TurndownInput = Parameters<TurndownService["turndown"]>[0];
 
 const textOf = (node: DomNode | null | undefined): string =>
   (node?.textContent ?? "").replace(/\s+/gu, " ").trim();
+
+/** Elements a browser shows on their own line, so their text never runs on. */
+const BLOCK_NODES = new Set([
+  "ADDRESS",
+  "BLOCKQUOTE",
+  "CAPTION",
+  "DD",
+  "DIV",
+  "DL",
+  "DT",
+  "FIGCAPTION",
+  "FIGURE",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "HR",
+  "LI",
+  "OL",
+  "P",
+  "SECTION",
+  "TD",
+  "TH",
+  "UL",
+]);
+
+/**
+ * A cell's text as it reads on the page: a `<br>` or a block between two
+ * words becomes a space, and a table inside the cell reads row by row,
+ * "Protein 0.8 g; Fat 0.3 g", where `textContent` would run it all together.
+ */
+const spacedText = (node: DomNode | null | undefined): string => {
+  const parts: string[] = [];
+  const walk = (current: DomNode) => {
+    if (current.nodeName === "#text") {
+      parts.push(current.textContent ?? "");
+      return;
+    }
+    if (current.nodeName === "BR") {
+      parts.push(" ");
+      return;
+    }
+    if (current.nodeName === "TABLE") {
+      const rows = tableRows(current as DomElement)
+        .map((row) => cellsOf(row).map(spacedText).join(" ").trim())
+        .filter(Boolean);
+      parts.push(` ${rows.join("; ")} `);
+      return;
+    }
+    const block = BLOCK_NODES.has(current.nodeName);
+    if (block) {
+      parts.push(" ");
+    }
+    for (const child of current.childNodes ?? []) {
+      walk(child);
+    }
+    if (block) {
+      parts.push(" ");
+    }
+  };
+  if (node) {
+    for (const child of node.childNodes ?? []) {
+      walk(child);
+    }
+  }
+  return parts.join("").replace(/\s+/gu, " ").trim();
+};
 
 /** A GFM table needs a header row: the first row becomes one. */
 const tableRows = (table: DomElement): DomElement[] =>
@@ -265,6 +355,12 @@ const prepareArticle = (article: DomElement): number[] => {
   for (const figure of article.querySelectorAll("figure")) {
     const caption = figure.querySelector("figcaption");
     const image = figure.querySelector("img");
+    // A caption whose picture didn't survive (an SVG, a video) describes
+    // nothing on the page. A figure with words of its own (a quote) stays.
+    if (caption && !image && textOf(figure) === textOf(caption)) {
+      figure.remove();
+      continue;
+    }
     if (caption && image && !image.getAttribute("title")) {
       const text = textOf(caption);
       if (text) {
@@ -292,6 +388,92 @@ const prepareArticle = (article: DomElement): number[] => {
     }
   }
   return kept;
+};
+
+/**
+ * Takes each infobox out of the article's opening, so it starts with its
+ * first paragraph: the infobox's pictures stay where it was, and its rows
+ * become a "label: value" list for the end of the article, under the
+ * infobox's own caption. Returns those lists as Markdown, in page order.
+ */
+/** Below this many pixels an infobox image is an icon (a logo, a flag). */
+const INFOBOX_ICON_MAX_PX = 48;
+
+const isIcon = (image: DomElement): boolean =>
+  ["width", "height"].some((name) => {
+    const size = Number(image.getAttribute(name));
+    return size > 0 && size < INFOBOX_ICON_MAX_PX;
+  });
+
+const liftInfoboxes = (
+  article: DomElement,
+  escapeText: (text: string) => string
+): string[] => {
+  const facts: string[] = [];
+  const infoboxes = [...article.querySelectorAll(INFOBOX)].filter(
+    (table) => !table.parentNode?.closest(INFOBOX)
+  );
+  for (const table of infoboxes) {
+    const caption = spacedText(table.querySelector("caption"));
+    const lines: string[] = [];
+    const pictures = table.ownerDocument.createElement("div");
+    for (const row of tableRows(table)) {
+      const images = [...row.querySelectorAll("img")].filter(
+        (image) => !isIcon(image)
+      );
+      if (images.length > 0) {
+        // Readability turns the caption's element into a plain <p>, so the
+        // row's own words are the caption.
+        const label = spacedText(row);
+        for (const image of images) {
+          if (label && !image.getAttribute("title")) {
+            image.setAttribute("title", label);
+          }
+          const picture = table.ownerDocument.createElement("p");
+          picture.appendChild(image);
+          pictures.appendChild(picture);
+        }
+        continue;
+      }
+      const [first, ...rest] = cellsOf(row);
+      const label = spacedText(first);
+      const value = rest.map(spacedText).filter(Boolean).join(" ");
+      if (label && value) {
+        lines.push(`- **${escapeText(label)}:** ${escapeText(value)}`);
+      } else if (label && label !== caption) {
+        lines.push(
+          first?.nodeName === "TH"
+            ? `- **${escapeText(label)}**`
+            : `- ${escapeText(label)}`
+        );
+      }
+    }
+    table.replaceWith(pictures);
+    if (lines.length > 0) {
+      facts.push(
+        `${caption ? `### ${escapeText(caption)}\n\n` : ""}${lines.join("\n")}`
+      );
+    }
+  }
+  return facts;
+};
+
+const FIRST_HEADING = /^#{1,6} /mu;
+
+/**
+ * The infobox facts after the article's opening paragraphs, before its first
+ * heading (or at the end when it has none), set off by rules.
+ */
+const withFacts = (markdown: string, facts: string[]): string => {
+  if (facts.length === 0) {
+    return markdown;
+  }
+  const block = `---\n\n${facts.join("\n\n")}\n\n---`;
+  const heading = FIRST_HEADING.exec(markdown);
+  if (!heading || heading.index === 0) {
+    return `${markdown}\n\n${block}`;
+  }
+  return `${markdown.slice(0, heading.index).trimEnd()}\n\n${block}\n\n${markdown.slice(heading.index)}`;
 };
 
 const escapeTitle = (title: string) =>
@@ -343,6 +525,14 @@ const createTurndown = () => {
       }`;
     },
   });
+  // A link whose image was dropped would read as an empty "[](…)".
+  service.addRule("emptyLink", {
+    filter: (node) =>
+      node.nodeName === "A" &&
+      !(node as unknown as DomElement).querySelector("img") &&
+      !textOf(node as unknown as DomNode),
+    replacement: () => "",
+  });
   service.addRule("strikethrough", {
     filter: ["del", "s"],
     replacement: (content) => (content.trim() ? `~~${content}~~` : ""),
@@ -352,7 +542,7 @@ const createTurndown = () => {
     replacement: (_content, node) => {
       const rows = tableRows(node as unknown as DomElement)
         .map((row) =>
-          cellsOf(row).map((cell) => escapeCell(textOf(cell)) || " ")
+          cellsOf(row).map((cell) => escapeCell(spacedText(cell)) || " ")
         )
         .filter((cells) => cells.length > 0);
       const [header, ...body] = rows;
@@ -391,6 +581,13 @@ const truncateMarkdown = (
     truncated: true,
   };
 };
+
+/**
+ * `[](url)` or `[](url "title")`, with Turndown's backslash escapes; not an
+ * image's `![](…)`.
+ */
+const EMPTY_LINK =
+  /(?<!!)\[\]\((?:\\.|[^\\()\s])*(?:\s+"(?:[^"\\]|\\.)*")?\)/gu;
 
 const decodeDataUri = (
   uri: string
@@ -481,6 +678,8 @@ const settleImages = async (
       return number === undefined ? "" : articleImageToken(number);
     }
   );
+  // A link that only wrapped a dropped image would read as an empty "[](…)".
+  settled = settled.replace(EMPTY_LINK, "");
   return { images, markdown: settled.replace(/\n{3,}/gu, "\n\n").trim() };
 };
 
@@ -563,13 +762,18 @@ export const extractArticle = async (
   if (!content) {
     return { kind: "none", reason: "no_content", wordCount: 0 };
   }
+  const turndown = createTurndown();
+  const facts = liftInfoboxes(content, (text) => turndown.escape(text));
   prepareArticle(content);
-  const converted = createTurndown()
-    .turndown(content as unknown as TurndownInput)
-    .replace(slim.tasks.pattern, (_mark, task: string) =>
-      task === "done" ? "[x] " : "[ ] "
-    )
-    .trim();
+  const converted = withFacts(
+    turndown
+      .turndown(content as unknown as TurndownInput)
+      .replace(slim.tasks.pattern, (_mark, task: string) =>
+        task === "done" ? "[x] " : "[ ] "
+      )
+      .trim(),
+    facts
+  );
   const { markdown: cut, truncated } = truncateMarkdown(
     converted,
     options.maxMarkdownChars ?? FILES_EXTRACTED_TEXT_MAX_CHARACTERS
