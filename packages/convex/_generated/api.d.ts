@@ -128,6 +128,8 @@ import type * as fileUploads from "../fileUploads.js";
 import type * as folder_folderRows from "../folder/folderRows.js";
 import type * as folder_folders from "../folder/folders.js";
 import type * as folder_membership from "../folder/membership.js";
+import type * as folder_ruleShape from "../folder/ruleShape.js";
+import type * as folder_rules from "../folder/rules.js";
 import type * as folders from "../folders.js";
 import type * as highlight_anchorPending from "../highlight/anchorPending.js";
 import type * as highlight_highlightRows from "../highlight/highlightRows.js";
@@ -491,6 +493,8 @@ declare const fullApi: ApiFromModules<{
   "folder/folderRows": typeof folder_folderRows;
   "folder/folders": typeof folder_folders;
   "folder/membership": typeof folder_membership;
+  "folder/ruleShape": typeof folder_ruleShape;
+  "folder/rules": typeof folder_rules;
   folders: typeof folders;
   "highlight/anchorPending": typeof highlight_anchorPending;
   "highlight/highlightRows": typeof highlight_highlightRows;

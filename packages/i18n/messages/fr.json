@@ -539,7 +539,14 @@
       "SMART_FOLDER_IN_QUERY": "La recherche d’un dossier intelligent ne peut pas utiliser un autre dossier intelligent",
       "SMART_FOLDER_MEMBERSHIP": "Impossible d’ajouter des fiches à un dossier intelligent ; il affiche les fiches correspondant à sa recherche",
       "QUERY_ON_MANUAL_FOLDER": "Seuls les dossiers intelligents ont une recherche",
-      "SMART_FOLDER_TRASH": "Les dossiers intelligents n’affichent pas la corbeille. Pour rechercher ce mot, mettez-le entre guillemets"
+      "SMART_FOLDER_TRASH": "Les dossiers intelligents n’affichent pas la corbeille. Pour rechercher ce mot, mettez-le entre guillemets",
+      "RULES_ON_SMART_FOLDER": "Seuls les dossiers manuels ont des règles",
+      "TOO_MANY_RULES": "Vous pouvez avoir des règles sur jusqu’à {max} dossiers",
+      "TOO_MANY_AUTO_TAGS": "Un dossier peut ajouter jusqu’à {max} tags",
+      "EMPTY_RULE_QUERY": "Ajoutez une recherche pour les fiches à classer",
+      "RULE_QUERY_SIMILARITY": "Les règles de dossier ne peuvent pas utiliser like: ni mood:. Recherchez plutôt par mots, tags, type ou site",
+      "RULE_RUN_NOT_FOUND": "Exécution de règle introuvable",
+      "RULE_RUN_EXPIRED": "Cette exécution de règle ne peut plus être annulée"
     },
     "tags": {
       "EMPTY_NAME": "Nommez le tag",

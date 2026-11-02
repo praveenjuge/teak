@@ -4,6 +4,7 @@ import { accountDeletionOwnsRows } from "../../accountDeletion";
 import { mergeProcessingStages } from "../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../card/searchSync";
 import { storeCardTranscript } from "../../card/textContents";
+import { autoFileCard } from "../../folder/rules";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
@@ -46,8 +47,26 @@ export const updateCardAI = internalMutation({
         ? {}
         : await storeCardTranscript(ctx, card, aiTranscript)),
     };
+    // New AI output (tags, or a summary alone) is when the card is ready for
+    // folder rules: file it with what it now holds, in the same write. Text
+    // that arrives later (read from a link's screenshot, or a podcast's
+    // transcript) checks again, but only on a card whose AI has run, so an
+    // early write files nothing.
+    const aiDone =
+      writesAiOutput ||
+      ((aiOcrText !== undefined || aiTranscript !== undefined) &&
+        (card.aiTags !== undefined || card.aiSummary !== undefined));
+    const filed = aiDone
+      ? await autoFileCard(
+          ctx,
+          { ...card, ...updates },
+          aiTranscript || undefined
+        )
+      : undefined;
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
+      ...(filed?.folderIds ? { folderIds: filed.folderIds } : {}),
+      ...(filed?.tags ? { tags: filed.tags } : {}),
       ...(processingStatus === undefined
         ? {}
         : {

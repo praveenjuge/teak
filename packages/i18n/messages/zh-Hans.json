@@ -539,7 +539,14 @@
       "SMART_FOLDER_IN_QUERY": "智能文件夹的搜索条件不能引用其他智能文件夹",
       "SMART_FOLDER_MEMBERSHIP": "无法将卡片添加到智能文件夹；它会显示符合其搜索条件的卡片",
       "QUERY_ON_MANUAL_FOLDER": "只有智能文件夹才有搜索条件",
-      "SMART_FOLDER_TRASH": "智能文件夹不显示废纸篓中的卡片。若要搜索这个词，请将其放在引号中"
+      "SMART_FOLDER_TRASH": "智能文件夹不显示废纸篓中的卡片。若要搜索这个词，请将其放在引号中",
+      "RULES_ON_SMART_FOLDER": "只有手动文件夹才能设置规则",
+      "TOO_MANY_RULES": "最多可以为 {max} 个文件夹设置规则",
+      "TOO_MANY_AUTO_TAGS": "一个文件夹最多可以添加 {max} 个标签",
+      "EMPTY_RULE_QUERY": "请添加用于归档卡片的搜索条件",
+      "RULE_QUERY_SIMILARITY": "文件夹规则不能使用 like: 或 mood:。请改用词语、标签、类型或网站搜索",
+      "RULE_RUN_NOT_FOUND": "找不到规则运行",
+      "RULE_RUN_EXPIRED": "此规则运行已无法撤销"
     },
     "tags": {
       "EMPTY_NAME": "请为标签命名",

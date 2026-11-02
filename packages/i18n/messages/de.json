@@ -539,7 +539,14 @@
       "SMART_FOLDER_IN_QUERY": "Die Suche eines intelligenten Ordners kann keinen anderen intelligenten Ordner verwenden",
       "SMART_FOLDER_MEMBERSHIP": "Karten können nicht zu einem intelligenten Ordner hinzugefügt werden; er zeigt die Karten, die zu seiner Suche passen",
       "QUERY_ON_MANUAL_FOLDER": "Nur intelligente Ordner haben eine Suche",
-      "SMART_FOLDER_TRASH": "Intelligente Ordner zeigen den Papierkorb nicht. Um nach dem Wort zu suchen, setzen Sie es in Anführungszeichen"
+      "SMART_FOLDER_TRASH": "Intelligente Ordner zeigen den Papierkorb nicht. Um nach dem Wort zu suchen, setzen Sie es in Anführungszeichen",
+      "RULES_ON_SMART_FOLDER": "Nur manuelle Ordner haben Regeln",
+      "TOO_MANY_RULES": "Sie können Regeln für bis zu {max} Ordner haben",
+      "TOO_MANY_AUTO_TAGS": "Ein Ordner kann bis zu {max} Tags hinzufügen",
+      "EMPTY_RULE_QUERY": "Fügen Sie eine Suche für die einzuordnenden Karten hinzu",
+      "RULE_QUERY_SIMILARITY": "Ordnerregeln können like: und mood: nicht verwenden. Suchen Sie stattdessen nach Wörtern, Tags, Typ oder Website",
+      "RULE_RUN_NOT_FOUND": "Regeldurchlauf nicht gefunden",
+      "RULE_RUN_EXPIRED": "Dieser Regeldurchlauf kann nicht mehr rückgängig gemacht werden"
     },
     "tags": {
       "EMPTY_NAME": "Geben Sie dem Tag einen Namen",

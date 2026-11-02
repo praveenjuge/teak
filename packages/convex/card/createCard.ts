@@ -6,6 +6,7 @@ import {
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
+import { autoTagsForJoinedFolders } from "../folder/rules";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
@@ -22,6 +23,7 @@ import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
+import { withHiddenFlag } from "./hiddenCards";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight } from "./processingRuns";
@@ -417,7 +419,15 @@ export const createCardForUserHandler = async (
   const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
   const folderIds = await options.resolveFolderIds?.();
   if (folderIds?.length) {
-    await ctx.db.patch("cards", cardId, { folderIds });
+    const inserted = await ctx.db.get("cards", cardId);
+    const { tags } = inserted
+      ? await autoTagsForJoinedFolders(ctx, inserted, folderIds, [])
+      : { tags: undefined };
+    await ctx.db.patch(
+      "cards",
+      cardId,
+      withHiddenFlag({ folderIds, ...(tags ? { tags } : {}) })
+    );
   }
   await syncCardSearch(ctx, cardId, userId);
 
