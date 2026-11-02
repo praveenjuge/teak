@@ -347,6 +347,23 @@ describe("teak empty lists", () => {
     );
   });
 
+  test("a filtered listing says the filters found nothing", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    expectEmpty(
+      await teak("cards", "favorites", "--tag", "unused"),
+      "No cards match those filters."
+    );
+    expectEmpty(
+      await teak("trash", "--type", "image"),
+      "No cards match those filters."
+    );
+    expectEmpty(
+      await teak("search", "nothing", "--tag", "unused"),
+      "No cards match those filters."
+    );
+    expectEmpty(await teak("cards", "favorites"), "No favorite cards yet.");
+  });
+
   test("--json keeps printing the empty list on stdout", async () => {
     routes.set("GET /v1/cards", emptyPage);
     const result = await teak("--json", "search", "nothing");

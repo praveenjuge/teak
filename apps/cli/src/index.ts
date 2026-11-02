@@ -96,12 +96,35 @@ const meaningSearchSkipped = (
 const relevanceUnscored = (page: CardsPage, options: Record<string, unknown>) =>
   options.sort === "relevance" && page.relevanceRanked === false;
 
+const FILTER_OPTIONS = [
+  "archived",
+  "createdAfter",
+  "createdBefore",
+  "date",
+  "folder",
+  "hex",
+  "hue",
+  "query",
+  "style",
+  "tag",
+  "type",
+];
+
+const hasFilters = (options: Record<string, unknown>) =>
+  FILTER_OPTIONS.some((key) => {
+    const value = options[key];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
+
 const emptyListingMessage = (
   mode: ListMode,
   options: Record<string, unknown>
 ) => {
-  if (mode === "search") {
-    return "No cards match that search.";
+  // Say what the filters found, not that the whole collection is empty.
+  if (mode === "search" || hasFilters(options)) {
+    return mode === "search" && !hasFilters({ ...options, query: undefined })
+      ? "No cards match that search."
+      : "No cards match those filters.";
   }
   if (mode === "favorites") {
     return "No favorite cards yet.";
