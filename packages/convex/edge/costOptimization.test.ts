@@ -144,7 +144,8 @@ test("reordered normalized tags preserve exact-tag rows and generations", async 
       ...before.sync,
       tags: undefined,
     });
-    expect(after.sync?.tags).toEqual([" Beta ", "ALPHA"]);
+    // The snapshot keeps its order (a running chain's offset counts on it).
+    expect(after.sync?.tags).toEqual(["ALPHA", "Beta"]);
     for (const tag of ["alpha", "beta"]) {
       expect(
         (

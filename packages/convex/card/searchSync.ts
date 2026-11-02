@@ -129,10 +129,16 @@ const recordTagCasingChanges = async (
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
-  if (tagState && tagState.userId === card.userId) {
-    await ctx.db.patch("cardSearchTagSyncStates", tagState._id, {
-      tags: card.tags,
-    });
+  if (tagState?.tags && tagState.userId === card.userId) {
+    // Re-case the snapshot's tags where they stand: a chain still running
+    // keeps its offset into this list, so its order and length must hold.
+    const casing = new Map(changed);
+    const tags = tagState.tags.map(
+      (tag) => casing.get(normalizeCardSearchTag(tag)) ?? tag
+    );
+    if (tags.some((tag, index) => tag !== tagState.tags?.[index])) {
+      await ctx.db.patch("cardSearchTagSyncStates", tagState._id, { tags });
+    }
   }
   if (labels.size > 0) {
     await recordTagCountDeltas(ctx, new Map(), labels);

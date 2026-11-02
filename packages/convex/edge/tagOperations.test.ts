@@ -5,8 +5,10 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  CARD_SEARCH_TAG_SYNC_BATCH_SIZE,
   patchCardWithSearchSync,
   syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
 } from "../card/searchSync";
 import schema from "../schema";
 import { TAG_OPERATION_STALL_MS } from "../shared/tags";
@@ -541,6 +543,44 @@ describe("tag summary snapshot", () => {
     });
     await runScheduled();
     expect(await label()).toBe("Design systems");
+  });
+
+  test("a re-case that also reorders a card's tags mid-sync still syncs every tag", async () => {
+    const { t, runScheduled } = await setup();
+    const tags = Array.from(
+      { length: CARD_SEARCH_TAG_SYNC_BATCH_SIZE + 8 },
+      (_, index) => `tag-${index}`
+    );
+    const cardId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "many tags",
+        tags,
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+      await syncCardSearchDocumentHandler(ctx, id);
+      // One batch runs: the first 32 tags have rows, the last 8 don't yet.
+      await syncCardSearchTagsBatchHandler(ctx, id, "owner");
+      return id;
+    });
+    // Reversed, with one tag re-cased, before the rest of the sync runs.
+    const reversed = [...tags]
+      .reverse()
+      .map((tag) => (tag === "tag-0" ? "TAG-0" : tag));
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, cardId, { tags: reversed, updatedAt: 2000 })
+    );
+    await runScheduled();
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", cardId))
+        .collect()
+    );
+    expect(rows.map((row) => row.tag).sort()).toEqual([...tags].sort());
+    expect(rows.find((row) => row.tag === "tag-0")?.label).toBe("TAG-0");
   });
 
   test("a burst of tag changes schedules one recompute", async () => {
