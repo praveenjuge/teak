@@ -361,6 +361,14 @@ describe("teak empty lists", () => {
       await teak("search", "nothing", "--tag", "unused"),
       "No cards match those filters."
     );
+    expectEmpty(
+      await teak("cards", "list", "--favorited"),
+      "No favorite cards yet."
+    );
+    expectEmpty(
+      await teak("cards", "list", "--similar-to", "card_a"),
+      "No similar cards yet."
+    );
     expectEmpty(await teak("cards", "favorites"), "No favorite cards yet.");
   });
 

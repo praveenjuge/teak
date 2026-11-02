@@ -120,16 +120,24 @@ const emptyListingMessage = (
   mode: ListMode,
   options: Record<string, unknown>
 ) => {
+  // `list --favorited` and `list --similar-to` are the favorites and similar
+  // listings by another name.
+  let kind = mode;
+  if (mode === "list" && options.similarTo) {
+    kind = "similar";
+  } else if (mode === "list" && options.favorited === true) {
+    kind = "favorites";
+  }
   // Say what the filters found, not that the whole collection is empty.
-  if (mode === "search" || hasFilters(options)) {
-    return mode === "search" && !hasFilters({ ...options, query: undefined })
+  if (kind === "search" || hasFilters(options)) {
+    return kind === "search" && !hasFilters({ ...options, query: undefined })
       ? "No cards match that search."
       : "No cards match those filters.";
   }
-  if (mode === "favorites") {
+  if (kind === "favorites") {
     return "No favorite cards yet.";
   }
-  if (mode === "similar") {
+  if (kind === "similar") {
     return "No similar cards yet.";
   }
   return options.trashed === true ? "Trash is empty." : "No cards.";
