@@ -287,6 +287,8 @@ export const metadataValidator = v.optional(
         screenshotUpdatedAt: v.optional(v.number()),
         screenshotWidth: v.optional(v.number()),
         screenshotHeight: v.optional(v.number()),
+        // The stored JPEG's size, which says how much the page shows.
+        screenshotBytes: v.optional(v.number()),
         error: v.optional(
           v.object({
             type: v.optional(v.string()),
