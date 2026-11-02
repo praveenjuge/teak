@@ -511,12 +511,13 @@ export function CardsScreen({
     [displayCards, selectedCardId]
   );
 
+  // The dialog's arrows step through the Pinned row, then the grid.
   const neighborIds = useMemo(
     () =>
-      displayCards
+      [...pinned.strip.cards, ...displayCards]
         .map((card: Doc<"cards">) => card._id as string)
         .filter((id: string) => !isOptimisticCard(id)),
-    [displayCards]
+    [displayCards, pinned.strip.cards]
   );
   // The last list that held the open card, so the arrows still step from
   // its place after an edit takes it out of the view.
