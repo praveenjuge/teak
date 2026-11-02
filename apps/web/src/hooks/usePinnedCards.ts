@@ -129,12 +129,22 @@ export function usePinActions() {
  * update takes the card out of it at once.
  */
 export function usePinnedStrip({
+  addToFolderId,
+  folderId,
+  queryArgs,
   view = "all",
-  ...where
-}: Omit<Parameters<typeof showsPinnedStrip>[0], "view"> & {
+}: {
+  addToFolderId?: string;
+  folderId?: string;
+  queryArgs: Parameters<typeof showsPinnedStrip>[0]["queryArgs"];
   view?: LibraryView;
 }) {
-  const shown = showsPinnedStrip({ ...where, view });
+  const shown = showsPinnedStrip({
+    isAddingToFolder: Boolean(addToFolderId),
+    isFolderView: Boolean(folderId),
+    queryArgs,
+    view,
+  });
   const pinned = usePinnedCards();
   const { reorderPins, togglePin } = usePinActions();
   // The card's own pin state decides: the row's list leaves hidden pins

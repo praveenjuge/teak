@@ -24,6 +24,11 @@ describe("showsPinnedStrip", () => {
     expect(showsPinnedStrip({ ...plain, isFolderView: true })).toBe(false);
   });
 
+  test("hides while adding cards to a folder, so pinned cards stay selectable", () => {
+    const plain = { isFolderView: false, queryArgs: {}, view: "all" as const };
+    expect(showsPinnedStrip({ ...plain, isAddingToFolder: true })).toBe(false);
+  });
+
   test.each([
     { searchQuery: "design" },
     { types: ["link" as const] },

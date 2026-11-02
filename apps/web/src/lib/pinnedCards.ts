@@ -7,13 +7,16 @@ import type { LibraryView } from "./libraryViews";
 /**
  * The pinned strip shows on the plain library: the All view with no search,
  * filter, folder or sort other than newest. Anywhere else pinned cards list
- * where they'd rank, with their pin mark.
+ * where they'd rank, with their pin mark. Adding cards to a folder selects
+ * from the grid, so pinned cards stay in it then.
  */
 export function showsPinnedStrip({
+  isAddingToFolder = false,
   isFolderView,
   queryArgs,
   view,
 }: {
+  isAddingToFolder?: boolean;
   isFolderView: boolean;
   queryArgs: CardsSearchQueryArgs;
   view: LibraryView;
@@ -21,6 +24,7 @@ export function showsPinnedStrip({
   return (
     view === "all" &&
     !isFolderView &&
+    !isAddingToFolder &&
     !(
       queryArgs.searchQuery ||
       queryArgs.types?.length ||

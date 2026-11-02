@@ -298,7 +298,7 @@ export function CardsScreen({
   }, [onSearchUrlStateChange, urlState, urlSync]);
 
   const queryArgs = searchController.queryArgs;
-  const pinned = usePinnedStrip({ isFolderView, queryArgs, view });
+  const pinned = usePinnedStrip({ addToFolderId, folderId, queryArgs, view });
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
   const reportedSearchKeyRef = useRef<string | null>(null);
   const relevance = useRelevanceRanking({
