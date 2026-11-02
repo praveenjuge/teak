@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import {
   type FinalizeUploadedCardArgs,
@@ -40,6 +40,7 @@ import {
   useFileUploadCore,
 } from "@/hooks/useFileUploadCore";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   describeUploadFailures,
@@ -211,30 +212,7 @@ export function AddCardProvider({
     uploadTranslators
   );
 
-  const handleUpgrade = useCallback(() => {
-    if (onUpgrade) {
-      onUpgrade();
-      return;
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.location.assign(upgradeUrl);
-  }, [onUpgrade, upgradeUrl]);
-
-  const showUpgradeToast = useCallback(
-    (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(tLimits("cardLimitReached"), {
-        ...MANUAL_CLOSE_TOAST_OPTIONS,
-        action: {
-          label: tLimits("upgrade"),
-          onClick: handleUpgrade,
-        },
-        id: toastId,
-      });
-    },
-    [handleUpgrade, tLimits]
-  );
+  const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
 
   const clearRecordingResources = useCallback(() => {
     if (timerRef.current) {

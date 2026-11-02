@@ -1,6 +1,5 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import {
   LINK_PASTE_ACTIVE_CODE,
@@ -15,9 +14,11 @@ import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { isCardLimitError, isRateLimitError } from "@/lib/cardErrors";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
@@ -50,47 +51,6 @@ import {
   useLinkPasteToastOwner,
 } from "./linkPasteJobs";
 import { linkPasteToast } from "./linkPasteToast";
-
-function getCardErrorCode(err: unknown): string | null {
-  if (!err || typeof err !== "object") {
-    return null;
-  }
-
-  const maybeError = err as {
-    code?: string;
-    message?: string;
-    data?: { code?: string };
-  };
-
-  if (
-    maybeError.code &&
-    Object.values(CARD_ERROR_CODES).includes(
-      maybeError.code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
-    )
-  ) {
-    return maybeError.code;
-  }
-
-  if (
-    maybeError.data?.code &&
-    Object.values(CARD_ERROR_CODES).includes(
-      maybeError.data
-        .code as (typeof CARD_ERROR_CODES)[keyof typeof CARD_ERROR_CODES]
-    )
-  ) {
-    return maybeError.data.code;
-  }
-
-  return null;
-}
-
-function isCardLimitError(err: unknown): boolean {
-  return getCardErrorCode(err) === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
-}
-
-function isRateLimitError(err: unknown): boolean {
-  return getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
-}
 
 function isPasteActiveError(err: unknown): boolean {
   return (
@@ -248,29 +208,9 @@ export function AddCardForm({
   const cardLinks = useCardLinkEditor({ onOpenCard, value: content });
   const hasShownBlockedToastRef = useRef<boolean>(false);
 
-  const handleUpgrade = useCallback(() => {
-    if (onUpgrade) {
-      onUpgrade();
-      return;
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.location.assign(upgradeUrl);
-  }, [onUpgrade, upgradeUrl]);
-
-  const showUpgradeToast = useCallback(
-    (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(tLimits("cardLimitReached"), {
-        ...MANUAL_CLOSE_TOAST_OPTIONS,
-        action: {
-          label: tLimits("upgrade"),
-          onClick: handleUpgrade,
-        },
-        id: toastId,
-      });
-    },
-    [handleUpgrade, tLimits]
+  const { handleUpgrade, showUpgradeToast } = useUpgradeAction(
+    onUpgrade,
+    upgradeUrl
   );
 
   const pasteJobs = useLinkPasteJobs();

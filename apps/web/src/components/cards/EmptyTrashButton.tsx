@@ -8,16 +8,9 @@ import { toast } from "sonner";
 import { Trash } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { isRateLimitError } from "@/lib/cardErrors";
 import { registerEmptyTrash } from "@/lib/commandPalette";
 import { useQuery } from "@/lib/convexQueryHooks";
-
-const isRateLimited = (error: unknown) =>
-  Boolean(
-    error &&
-      typeof error === "object" &&
-      "data" in error &&
-      (error as { data?: { code?: unknown } }).data?.code === "RATE_LIMITED"
-  );
 
 interface EmptyTrashControlProps {
   count: number | undefined;
@@ -91,7 +84,7 @@ export function EmptyTrashButton() {
       const { count, more } = await emptyTrash({});
       toast.success(more ? t("emptyingAll") : t("emptying", { count }));
     } catch (error) {
-      toast.error(isRateLimited(error) ? t("rateLimited") : t("failed"));
+      toast.error(isRateLimitError(error) ? t("rateLimited") : t("failed"));
     }
   };
 

@@ -4,6 +4,7 @@ import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Copy, Mail } from "vadivam-react";
+import { isRateLimitError } from "../../lib/cardErrors";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";
@@ -24,10 +25,6 @@ export interface InboundEmailPanelProps {
   onEnable: () => Promise<unknown>;
   state: InboundEmailState | null | undefined;
 }
-
-const isRateLimited = (error: unknown) =>
-  (error as { data?: { code?: unknown } } | null)?.data?.code ===
-  "RATE_LIMITED";
 
 const senderName = (chunks: ReactNode) => (
   <span className="font-medium">{chunks}</span>
@@ -75,7 +72,7 @@ export function InboundEmailSection({
     try {
       await change();
     } catch (caught) {
-      setError(t(isRateLimited(caught) ? "rateLimited" : "genericError"));
+      setError(t(isRateLimitError(caught) ? "rateLimited" : "genericError"));
     } finally {
       inFlight.current = false;
       setBusy(null);
