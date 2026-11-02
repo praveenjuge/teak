@@ -67,6 +67,7 @@ import {
   VERSION,
   write,
   writeError,
+  writeList,
 } from "./runtime";
 
 export { getUploadFileInfo, mimeFor } from "./files";
@@ -94,6 +95,53 @@ const meaningSearchSkipped = (
 
 const relevanceUnscored = (page: CardsPage, options: Record<string, unknown>) =>
   options.sort === "relevance" && page.relevanceRanked === false;
+
+const FILTER_OPTIONS = [
+  "archived",
+  "createdAfter",
+  "createdBefore",
+  "date",
+  "folder",
+  "hex",
+  "hue",
+  "query",
+  "style",
+  "tag",
+  "type",
+];
+
+const hasFilters = (options: Record<string, unknown>) =>
+  FILTER_OPTIONS.some((key) => {
+    const value = options[key];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
+
+const emptyListingMessage = (
+  mode: ListMode,
+  options: Record<string, unknown>
+) => {
+  // `list --favorited` and `list --similar-to` are the favorites and similar
+  // listings by another name.
+  let kind = mode;
+  if (mode === "list" && options.similarTo) {
+    kind = "similar";
+  } else if (mode === "list" && options.favorited === true) {
+    kind = "favorites";
+  }
+  // Say what the filters found, not that the whole collection is empty.
+  if (kind === "search" || hasFilters(options)) {
+    return kind === "search" && !hasFilters({ ...options, query: undefined })
+      ? "No cards match that search."
+      : "No cards match those filters.";
+  }
+  if (kind === "favorites") {
+    return "No favorite cards yet.";
+  }
+  if (kind === "similar") {
+    return "No similar cards yet.";
+  }
+  return options.trashed === true ? "Trash is empty." : "No cards.";
+};
 
 const writeCards = async (
   options: ClientOptions & Record<string, unknown>,
@@ -127,17 +175,22 @@ const writeCards = async (
     return mode === "search" ? api.cards.search(input) : api.cards.list(input);
   };
   const page = await collectPages(fetchPage, options.all === true);
-  write(
-    options.json
-      ? listingJson(
-          page,
-          options.sort === "shuffle"
-            ? (shuffleSeed ?? (options.seed as number | undefined))
-            : undefined
-        )
-      : page.items.map(formatCardLine).join("\n"),
-    options
-  );
+  if (options.json) {
+    write(
+      listingJson(
+        page,
+        options.sort === "shuffle"
+          ? (shuffleSeed ?? (options.seed as number | undefined))
+          : undefined
+      ),
+      options
+    );
+  } else if (page.items.length > 0) {
+    write(page.items.map(formatCardLine).join("\n"), options);
+  } else if (!page.similarity || page.similarity === "ok") {
+    // A similar-cards listing that isn't ready says why below instead.
+    writeList([], emptyListingMessage(mode, options), options);
+  }
   if (!(options.json || page.pageInfo.nextCursor === null)) {
     process.stderr.write(`nextCursor: ${page.pageInfo.nextCursor}\n`);
   }
@@ -246,10 +299,13 @@ export const formatBulkResult = (value: unknown, position: number) => {
 
 const listTags = async (options: GlobalOptions) => {
   const result = await client(options).tags.list();
-  write(
-    options.json
-      ? result
-      : result.items.map((tag) => `${tag.name}  ${tag.count}`).join("\n"),
+  if (options.json) {
+    write(result, options);
+    return;
+  }
+  writeList(
+    result.items.map((tag) => `${tag.name}  ${tag.count}`),
+    "No tags yet.",
     options
   );
 };
@@ -591,15 +647,18 @@ cards
   .action(async (options) => {
     const opts = { ...program.opts(), ...options };
     const result = await client(opts).cards.changes(options);
-    write(
-      opts.json
-        ? result
-        : [
-            ...result.items.map(formatCardLine),
-            ...result.deletedIds.map((id) => `deleted ${id}`),
-          ].join("\n"),
-      opts
-    );
+    if (opts.json) {
+      write(result, opts);
+    } else {
+      writeList(
+        [
+          ...result.items.map(formatCardLine),
+          ...result.deletedIds.map((id) => `deleted ${id}`),
+        ],
+        "No changes since then.",
+        opts
+      );
+    }
     if (!(opts.json || result.pageInfo.nextCursor === null)) {
       process.stderr.write(`nextCursor: ${result.pageInfo.nextCursor}\n`);
     }
