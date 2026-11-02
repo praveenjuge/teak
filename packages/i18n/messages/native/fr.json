@@ -258,7 +258,7 @@
     "trash": {
       "empty": "Vider la corbeille",
       "emptyTitle": "Vider la corbeille ?",
-      "emptyMessage": "Cette action supprime définitivement {count, plural, one {# fiche} other {# fiches}} et leurs fichiers. Elle est irréversible.",
+      "emptyMessage": "Cette action supprime définitivement {count, plural, one {# fiche et ses fichiers} other {# fiches et leurs fichiers}}. Elle est irréversible.",
       "emptyMessageMore": "Cette action supprime définitivement {count, plural, one {# fiches ou plus} other {# fiches ou plus}} et leurs fichiers. Elle est irréversible.",
       "emptying": "{count, plural, one {Suppression définitive de # fiche} other {Suppression définitive de # fiches}}",
       "emptyingMore": "{count, plural, one {Suppression définitive d’au moins # fiche} other {Suppression définitive d’au moins # fiches}}",
@@ -284,7 +284,7 @@
       "swipeHint": "Balayez vers la gauche pour archiver, vers la droite pour conserver",
       "releaseToArchive": "Relâchez pour archiver",
       "releaseToKeep": "Relâchez pour conserver",
-      "caption": "{type} · Enregistrée le {date}",
+      "caption": "{type} · Ajoutée le {date}",
       "finishedTitle": "Vous êtes à jour",
       "summary": "{archived} archivées · {kept} conservées",
       "startOver": "Recommencer",

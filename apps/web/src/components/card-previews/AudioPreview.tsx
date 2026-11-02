@@ -2,6 +2,7 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
+import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import { Button } from "@/components/ui/button";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
@@ -33,7 +34,13 @@ export function formatAudioTime(seconds: number) {
 
 export function AudioPreview({ card }: AudioPreviewProps) {
   const t = useTranslations("cardPreviews.audio");
-  const fileUrl = card.fileUrl;
+  // A dialog left open can outlive its signed URL; this asks for a new one.
+  const media = useMediaUrlRecovery({
+    cardId: card._id,
+    src: card.fileUrl,
+    storageKey: card.fileKey,
+  });
+  const fileUrl = media.src;
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -164,11 +171,22 @@ export function AudioPreview({ card }: AudioPreviewProps) {
                 setIsPlaying(false);
                 setCurrentTime(0);
               }}
-              onError={() => {
-                setLoadFailed(true);
+              onError={(event) => {
                 setIsPlaying(false);
+                media
+                  .onError(event.currentTarget, isPlaying)
+                  .then((retrying) => {
+                    if (!retrying) {
+                      setLoadFailed(true);
+                    }
+                  })
+                  .catch(() => setLoadFailed(true));
               }}
-              onLoadedMetadata={syncDuration}
+              onLoadedMetadata={(event) => {
+                syncDuration();
+                // A refreshed link carries on from where the old one stopped.
+                media.resume(event.currentTarget);
+              }}
               onPause={() => setIsPlaying(false)}
               onPlay={() => setIsPlaying(true)}
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}

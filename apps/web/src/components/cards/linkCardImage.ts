@@ -1,4 +1,5 @@
-import { type SyntheticEvent, useState } from "react";
+import { isLowDetailScreenshot } from "@teak/convex/shared/screenshotDetail";
+import { useState } from "react";
 import type { CardWithUrls, LinkPreviewMetadata } from "./types";
 
 interface ImageSize {
@@ -80,7 +81,11 @@ export function resolveLinkCardImage(
         storageKey: stringOrUndefined(primaryKey),
       }
     : undefined;
-  const screenshotUrl = stringOrUndefined(card.screenshotUrl);
+  // A screenshot of a near-blank page reads as an empty grey tile; the text
+  // layout says more.
+  const screenshotUrl = isLowDetailScreenshot(storedPreview)
+    ? undefined
+    : stringOrUndefined(card.screenshotUrl);
   const screenshot: LinkCardImage | undefined = screenshotUrl
     ? {
         size: sizeOf(
@@ -103,7 +108,7 @@ export function resolveLinkCardImage(
 
 export function useLinkCardImage(card: CardWithUrls): {
   image: LinkCardImage | undefined;
-  onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;
+  onImageError: (failedUrl: string) => void;
 } {
   const [useScreenshot, setUseScreenshot] = useState(false);
   const image =
@@ -112,12 +117,10 @@ export function useLinkCardImage(card: CardWithUrls): {
       : undefined;
   const screenshotUrl = stringOrUndefined(card.screenshotUrl);
 
-  const onImageError = (event: SyntheticEvent<HTMLImageElement>) => {
-    const target = event.currentTarget;
-    if (!useScreenshot && screenshotUrl && target.src !== screenshotUrl) {
+  // When the screenshot fails too, the image shows its blank fallback.
+  const onImageError = (failedUrl: string) => {
+    if (!useScreenshot && screenshotUrl && failedUrl !== screenshotUrl) {
       setUseScreenshot(true);
-    } else {
-      target.style.display = "none";
     }
   };
 

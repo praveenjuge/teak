@@ -16,6 +16,9 @@ import {
   type ArchivedCopy,
   ArchivedCopyView,
 } from "@/components/open-link/ArchivedCopyView";
+import { buttonVariants } from "@/components/ui/button";
+import { Wordmark } from "@/components/Wordmark";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { cn } from "@/lib/utils";
 
@@ -100,15 +103,26 @@ function CheckingLink({
 
 function UnavailableCard() {
   const t = useTranslations("screens.openLink");
+  useDocumentTitle(t("unavailableTabTitle"));
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background p-4 text-center">
-      <p className="text-sm">{t("unavailable")}</p>
-      <Link
-        className="text-muted-foreground text-sm underline-offset-4 hover:text-foreground hover:underline"
-        href="/"
-      >
-        {t("backToTeak")}
-      </Link>
+    <main className="flex min-h-dvh items-center justify-center bg-background p-6">
+      <div className="flex max-w-xs flex-col items-center gap-6 text-center">
+        <Wordmark className="h-6 w-auto text-foreground" variant="current" />
+        <div className="space-y-2">
+          <h1 className="font-semibold text-foreground text-lg">
+            {t("unavailable")}
+          </h1>
+          <p className="text-balance text-base text-muted-foreground">
+            {t("unavailableBody")}
+          </p>
+        </div>
+        <Link
+          className={buttonVariants({ className: "min-w-32", size: "lg" })}
+          href="/"
+        >
+          {t("backToTeak")}
+        </Link>
+      </div>
     </main>
   );
 }

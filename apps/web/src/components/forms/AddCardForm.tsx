@@ -436,7 +436,10 @@ export function AddCardForm({
 
     resetDraft();
 
-    const toastId = toast.loading(tc("saving"));
+    // Offline, the note still shows at once and saves on reconnecting.
+    const toastId = toast.loading(
+      navigator.onLine ? tc("saving") : t("savingOffline")
+    );
     captureEvent("card_create_submitted", {
       card_type: "text",
       source: "web",
@@ -546,13 +549,13 @@ export function AddCardForm({
         value={content}
       />
       <Card
-        className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+        className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         data-new-note-composer=""
         onFocus={onFocus}
       >
         {!hasContent && (
           <ShortcutKeys
-            className="pointer-events-none absolute top-3 right-3 group-focus-within/composer:hidden max-sm:hidden"
+            className="pointer-events-none absolute top-3 right-3 pointer-coarse:hidden group-focus-within/composer:hidden max-sm:hidden"
             keys={["N"]}
           />
         )}

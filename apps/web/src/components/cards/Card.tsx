@@ -10,8 +10,7 @@ import {
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
-import { memo, useRef } from "react";
-import { toast } from "sonner";
+import { memo, use, useRef } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -52,16 +51,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openCardLink } from "@/lib/openCardLink";
+import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { focusedCardShortcuts } from "../../lib/gridKeys";
+import { cardAriaKeyShortcuts } from "../../lib/keyboardShortcuts";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
+import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import { CardBody } from "./CardBody";
 import {
@@ -174,12 +176,14 @@ export const Card = memo(function Card({
 }: CardProps) {
   const t = useTranslations("cards");
   const tLabel = useTranslations("cards.accessibleLabel");
+  const apple = useIsApplePlatform();
   const tLinkTitle = useTranslations("lib.linkTitle");
   const refreshCardMediaUrl = useAction(
     api.card.getFileUrl.refreshCardMediaUrl
   );
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
+  const isFirstPaintCopy = use(FirstPaintCopyContext);
   const cardRef = useRef<HTMLDivElement>(null);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
@@ -247,7 +251,7 @@ export const Card = memo(function Card({
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
-      void handleCopyImage();
+      handleCopyImage();
     }
   };
 
@@ -307,31 +311,25 @@ export const Card = memo(function Card({
     onAddTags?.(card._id);
   };
 
-  const handleCopyImage = async () => {
+  // Runs straight from the click or key press: the clipboard write has to
+  // start before any await (see copyCardContentToClipboard).
+  const handleCopyImage = () => {
     if (isOptimistic) {
       return;
     }
-    let contentToCopy = "";
-    let isImage = false;
     if (card.type === "image") {
-      isImage = true;
-      const fallbackUrl = card.fileUrl ?? card.thumbnailUrl ?? "";
-      try {
-        contentToCopy = await resolveImageCopyUrl({
-          cardId: card._id,
-          fallbackUrl,
-          fileKey: card.fileKey,
-          refresh: refreshCardMediaUrl,
-        });
-      } catch {
-        toast.error(t("copyImageFailed"));
-        return;
-      }
-    } else {
-      contentToCopy = cardCopyText(card);
+      const url = resolveImageCopyUrl({
+        cardId: card._id,
+        fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
+        fileKey: card.fileKey,
+        refresh: refreshCardMediaUrl,
+      });
+      onCopyImage?.(url, true);
+      return;
     }
-    if (contentToCopy) {
-      onCopyImage?.(contentToCopy, isImage);
+    const text = cardCopyText(card);
+    if (text) {
+      onCopyImage?.(text, false);
     }
   };
 
@@ -363,11 +361,18 @@ export const Card = memo(function Card({
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
   const pinned = card.pinPosition !== undefined;
   const showPinMark = pinned && !isOptimistic;
-  let textInsets = "";
-  if (showFavoriteMark && showPinMark) {
-    textInsets = "pr-19";
-  } else if (showFavoriteMark || showPinMark) {
-    textInsets = "pr-11";
+  const showQuickActions = !(isOptimistic || isSelectionMode);
+  // Text makes room for the heart and pin marks, and on touch screens for
+  // the More button that keeps showing beside them.
+  const marks = Number(showFavoriteMark) + Number(showPinMark);
+  let textInsets = ["", "pr-11", "pr-19"][marks] ?? "";
+  if (showQuickActions) {
+    textInsets = cn(
+      textInsets,
+      ["pointer-coarse:pr-11", "pointer-coarse:pr-20", "pointer-coarse:pr-28"][
+        marks
+      ]
+    );
   }
 
   const canDrag =
@@ -421,7 +426,7 @@ export const Card = memo(function Card({
             icon: Copy,
             id: "copy",
             label: copyMenuLabel,
-            onSelect: () => void handleCopyImage(),
+            onSelect: handleCopyImage,
             shortcut: shortcuts.copy,
           },
         ]
@@ -548,7 +553,6 @@ export const Card = memo(function Card({
         ]),
   ];
 
-  const showQuickActions = !(isOptimistic || isSelectionMode);
   const showHoverSelect =
     !(isOptimistic || isSelectionMode) && Boolean(onEnterSelectionMode);
   const isMediaCard =
@@ -564,6 +568,16 @@ export const Card = memo(function Card({
         <div className="group/card relative" data-card-shell="">
           <UICard
             aria-disabled={isOptimistic || undefined}
+            aria-keyshortcuts={
+              isOptimistic
+                ? undefined
+                : cardAriaKeyShortcuts(
+                    Boolean(card.isDeleted),
+                    apple,
+                    canCopy,
+                    Boolean(isSelectionMode)
+                  )
+            }
             aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
@@ -573,7 +587,9 @@ export const Card = memo(function Card({
               isSelected &&
                 "ring-2 ring-primary ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-primary"
             )}
-            data-card-id={isOptimistic ? undefined : card._id}
+            data-card-id={
+              isOptimistic || isFirstPaintCopy ? undefined : card._id
+            }
             draggable={canDrag}
             onClick={handleClick}
             onDragStart={canDrag ? handleDragStart : undefined}
@@ -628,7 +644,7 @@ export const Card = memo(function Card({
               <button
                 aria-keyshortcuts="X"
                 aria-label={t("menu.select")}
-                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
+                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100"
                 onClick={handleSelect}
                 tabIndex={-1}
                 type="button"
@@ -642,7 +658,8 @@ export const Card = memo(function Card({
             <div
               className={cn(
                 "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
-                showQuickActions && "group-hover/card:opacity-0"
+                showQuickActions &&
+                  "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
               )}
             >
               {showPinMark ? (
@@ -677,9 +694,11 @@ export const Card = memo(function Card({
           ) : null}
 
           {showQuickActions && (
-            <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+            <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
+              {/* Without hover, only More shows: it holds every action. */}
               {card.url && !card.isDeleted && (
                 <QuickActionButton
+                  className="pointer-coarse:hidden"
                   label={t("menu.openLink")}
                   onClick={openLink}
                 >
@@ -688,6 +707,7 @@ export const Card = memo(function Card({
               )}
               {!card.isDeleted && (
                 <QuickActionButton
+                  className="pointer-coarse:hidden"
                   label={
                     card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")
                   }

@@ -321,6 +321,65 @@ const emptyPage = () =>
   json({ items: [], pageInfo: { hasMore: false, nextCursor: null } });
 const noContent = () => new Response(null, { status: 204 });
 
+describe("teak empty lists", () => {
+  const expectEmpty = (
+    result: { code: number; stderr: string; stdout: string },
+    message: string
+  ) => {
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(message);
+  };
+
+  test("each human listing says when it has nothing to show", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    routes.set("GET /v1/tags", () => json({ items: [] }));
+    routes.set("GET /v1/folders", () => json({ items: [] }));
+    routes.set("GET /v1/cards/card_a/highlights", () => json({ items: [] }));
+    expectEmpty(await teak("ls"), "No cards.");
+    expectEmpty(await teak("search", "nothing"), "No cards match that search.");
+    expectEmpty(await teak("trash"), "Trash is empty.");
+    expectEmpty(await teak("tags", "list"), "No tags yet.");
+    expectEmpty(await teak("folders", "list"), "No folders yet.");
+    expectEmpty(
+      await teak("highlights", "list", "card_a"),
+      "No highlights on this card."
+    );
+  });
+
+  test("a filtered listing says the filters found nothing", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    expectEmpty(
+      await teak("cards", "favorites", "--tag", "unused"),
+      "No cards match those filters."
+    );
+    expectEmpty(
+      await teak("trash", "--type", "image"),
+      "No cards match those filters."
+    );
+    expectEmpty(
+      await teak("search", "nothing", "--tag", "unused"),
+      "No cards match those filters."
+    );
+    expectEmpty(
+      await teak("cards", "list", "--favorited"),
+      "No favorite cards yet."
+    );
+    expectEmpty(
+      await teak("cards", "list", "--similar-to", "card_a"),
+      "No similar cards yet."
+    );
+    expectEmpty(await teak("cards", "favorites"), "No favorite cards yet.");
+  });
+
+  test("--json keeps printing the empty list on stdout", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    const result = await teak("--json", "search", "nothing");
+    expect(JSON.parse(result.stdout).items).toEqual([]);
+    expect(result.stderr).not.toContain("No cards");
+  });
+});
+
 describe("teak parity commands", () => {
   test("add lets Teak detect the card type unless --type is given", async () => {
     routes.set("POST /v1/cards", () =>

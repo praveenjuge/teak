@@ -322,7 +322,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
 @Suite(.english) struct EmptyTrashTests {
     @Test func confirmationCountsTheCards() {
-        #expect(EmptyTrash.message(count: 1, more: false) == "This permanently deletes 1 card and their files. This can’t be undone.")
+        #expect(EmptyTrash.message(count: 1, more: false) == "This permanently deletes 1 card and its files. This can’t be undone.")
         #expect(EmptyTrash.message(count: 3, more: false) == "This permanently deletes 3 cards and their files. This can’t be undone.")
         #expect(EmptyTrash.message(count: 40, more: true)
             == "This permanently deletes 40 or more cards and their files. This can’t be undone.")

@@ -26,7 +26,7 @@ import {
 import type { FolderSummary } from "../../lib/folders";
 import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
-import { isOptimisticCard, type PinTarget } from "../cards/types";
+import { allFavorited, isOptimisticCard, type PinTarget } from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,
@@ -138,12 +138,14 @@ export interface MasonryGridProps {
     }
   ) => Promise<{ failedIds: string[] }>;
   onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
-  onCopyImage?: (content: string, isImage: boolean) => void;
+  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onDeleteCard: (cardId: string) => Promise<boolean>;
   onLoadMore?: () => void;
   onPermanentDeleteCard?: (cardId: string) => void;
   /** Deletes several cards in Trash forever, from the selection bar. */
-  onPermanentDeleteCards?: (cardIds: string[]) => Promise<unknown>;
+  onPermanentDeleteCards?: (
+    cardIds: string[]
+  ) => Promise<{ failedIds: readonly string[] }>;
   onRestoreCard?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
@@ -528,13 +530,13 @@ export const MasonryGrid = memo(function MasonryGrid({
     [focusCard]
   );
 
-  const enterSelectionMode = useCallback((cardId?: string) => {
+  // Also keeps the cards a bulk action couldn't change selected, to retry.
+  const enterSelectionMode = useCallback((...cardIds: string[]) => {
     setIsSelectionMode(true);
-    if (cardId) {
-      setSelectedCardIds(new Set([cardId]));
+    if (cardIds.length > 0) {
+      setSelectedCardIds(new Set(cardIds));
     }
   }, []);
-
   const exitSelectionMode = useCallback(() => {
     setIsSelectionMode(false);
     setSelectedCardIds(new Set());
@@ -602,8 +604,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     () => filteredCards.filter((card) => selectedCardIds.has(card._id)),
     [filteredCards, selectedCardIds]
   );
-  const allSelectedFavorited =
-    selectedCards.length > 0 && selectedCards.every((card) => card.isFavorited);
+  const allSelectedFavorited = allFavorited(selectedCards);
 
   const selectionTags = useMemo(() => {
     const byName = new Map<string, string>();
@@ -648,8 +649,7 @@ export const MasonryGrid = memo(function MasonryGrid({
             onAddToFolderDone?.(true);
           }
         } else {
-          setSelectedCardIds(new Set(failedIds));
-          setIsSelectionMode(true);
+          enterSelectionMode(...failedIds);
         }
       } finally {
         setIsBulkBusy(false);
@@ -657,6 +657,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     },
     [
       addToFolder,
+      enterSelectionMode,
       exitSelectionMode,
       isBulkBusy,
       onAddToFolderDone,
@@ -690,13 +691,12 @@ export const MasonryGrid = memo(function MasonryGrid({
   const bulkDeleteForever = useBulkDeleteForever((cardIds) => {
     exitSelectionMode();
     if (onPermanentDeleteCards) {
-      onPermanentDeleteCards(cardIds).catch(() => undefined);
-      return;
+      return onPermanentDeleteCards(cardIds);
     }
     for (const cardId of cardIds) {
       onPermanentDeleteCard?.(cardId);
     }
-  });
+  }, enterSelectionMode);
   const requestBulkDeleteForever = bulkDeleteForever.request;
 
   const handleBulkAction = useCallback(

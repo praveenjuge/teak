@@ -6,7 +6,10 @@ import { initialCardsSearchQueryArgs } from "./cardsSearchState";
 import { type FolderSummary, folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
 import { parseSearchUrlState } from "./searchUrlState";
-import { settingsSectionForPath } from "./settingsSections";
+import {
+  settingsDataForPath,
+  settingsSectionForPath,
+} from "./settingsSections";
 
 export interface FirstLoadQuery {
   args: Record<string, unknown>;
@@ -59,11 +62,15 @@ export function firstLoadQueries(
     return queries;
   }
   if (settingsSectionForPath(url.pathname)) {
-    queries.push(
-      { query: api.auth.getCurrentUser, args: {} },
-      { query: api.apiKeys.listUserApiKeys, args: {} },
-      { query: api.dataExport.getLatestExport, args: {} }
-    );
+    // Only what the page shows, as SettingsProvider loads it.
+    const data = settingsDataForPath(url.pathname);
+    queries.push({ query: api.auth.getCurrentUser, args: {} });
+    if (data.apiKeys) {
+      queries.push({ query: api.apiKeys.listUserApiKeys, args: {} });
+    }
+    if (data.exportState) {
+      queries.push({ query: api.dataExport.getLatestExport, args: {} });
+    }
     return queries;
   }
   const folderId = folderIdForPath(url.pathname);

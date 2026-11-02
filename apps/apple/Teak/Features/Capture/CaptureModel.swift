@@ -236,7 +236,7 @@ private struct CaptureAlert: ViewModifier {
                       presenting: capture.alert) { alert in
             #if os(macOS)
             if alert.isCardLimit {
-                Button(tr("native.app.upgrade")) { NSWorkspace.shared.open(AppServices.shared.app.config.webURL.appending(path: "settings")) }
+                Button(tr("native.app.upgrade")) { NSWorkspace.shared.open(AppServices.shared.app.config.planURL) }
             }
             #endif
             Button(tr("native.app.ok"), role: .cancel) {}

@@ -284,7 +284,7 @@
       "swipeHint": "Deslice a la izquierda para archivar y a la derecha para conservar",
       "releaseToArchive": "Suelte para archivar",
       "releaseToKeep": "Suelte para conservar",
-      "caption": "{type} · Guardada el {date}",
+      "caption": "{type} · Añadida el {date}",
       "finishedTitle": "Está todo al día",
       "summary": "Archivadas: {archived} · Conservadas: {kept}",
       "startOver": "Empezar de nuevo",

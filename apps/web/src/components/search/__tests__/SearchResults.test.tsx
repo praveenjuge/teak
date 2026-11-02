@@ -106,5 +106,17 @@ describe("NoSearchResults", () => {
     );
     expect(document.body.textContent).not.toContain("Did you mean");
     expect(button("Remove Link")).toBeUndefined();
+    expect(button("Clear filters")).toBeDefined();
+  });
+
+  test("offers Clear search when only typed words found nothing", async () => {
+    const onClearAll = mock(() => undefined);
+    await render(
+      <NoSearchResults chips={[]} onClearAll={onClearAll} query="qzxwvplm" />
+    );
+    expect(document.body.textContent).toContain("Nothing found for “qzxwvplm”");
+    expect(button("Clear filters")).toBeUndefined();
+    await act(() => button("Clear search")?.click());
+    expect(onClearAll).toHaveBeenCalledTimes(1);
   });
 });

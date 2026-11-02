@@ -6,6 +6,7 @@ import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   type ReactNode,
@@ -24,8 +25,17 @@ import {
   type LanguageSetting,
   useLanguageSetting,
 } from "@/hooks/useLanguageSetting";
+import {
+  deleteAccountAndLeave,
+  LEAVE_AFTER_DELETION_URL,
+} from "@/lib/accountDeletion";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { useQuery } from "@/lib/convexQueryHooks";
+import {
+  NO_SETTINGS_DATA,
+  type SettingsData,
+  settingsDataForPath,
+} from "@/lib/settingsSections";
 import { signOut } from "@/lib/sign-out-client";
 
 interface SettingsContextValue {
@@ -108,6 +118,28 @@ function useCheckout(hasPremium: boolean | undefined): PlanCheckout {
   };
 }
 
+/**
+ * Loads each kind of data the first time a page shows it, then keeps it, so
+ * moving between Settings pages doesn't reload what one already showed.
+ */
+function useSettingsDataToLoad(): SettingsData {
+  const wanted = settingsDataForPath(usePathname());
+  const [loaded, setLoaded] = useState(NO_SETTINGS_DATA);
+  const next: SettingsData = {
+    apiKeys: loaded.apiKeys || wanted.apiKeys,
+    exportState: loaded.exportState || wanted.exportState,
+    sessions: loaded.sessions || wanted.sessions,
+  };
+  if (
+    next.apiKeys !== loaded.apiKeys ||
+    next.exportState !== loaded.exportState ||
+    next.sessions !== loaded.sessions
+  ) {
+    setLoaded(next);
+  }
+  return next;
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const t = useTranslations("app.settings");
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
@@ -115,13 +147,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const enableInboundEmail = useMutation(api.inbound.settings.enable);
   const disableInboundEmail = useMutation(api.inbound.settings.disable);
   const language = useLanguageSetting();
+  const load = useSettingsDataToLoad();
 
   const settings = useSettingsController({
-    onDeleteAccount: async () => {
-      await deleteMyAccount({});
-      toast.success(t("deletionRequested"));
-      await signOut();
-    },
+    load,
+    onDeleteAccount: () =>
+      deleteAccountAndLeave({
+        deleteAccount: () => deleteMyAccount({}),
+        leave: () => window.location.assign(LEAVE_AFTER_DELETION_URL),
+        onDeleted: () => toast.success(t("deletionRequested")),
+        signOut,
+      }),
     onOpenExternal: (url) => {
       const safeUrl = sanitizeExternalUrl(url);
       if (!safeUrl) {

@@ -53,6 +53,9 @@ public struct TeakConfig: Sendable {
 
     public var isProduction: Bool { environment == "production" }
 
+    /// The web app's Plan page, where upgrading and managing Pro happen.
+    public var planURL: URL { webURL.appending(path: "settings/plan") }
+
     public var sharedContainer: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
     }

@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
 import type { PointerEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "vadivam-react";
 import { CARD_SURFACE } from "../cardDisplay";
 import type { ScrubMetadata } from "../types";
@@ -139,6 +139,14 @@ function ScrubPreview({
   );
 }
 
+/** Someone who asked for less motion keeps the still and the play button. */
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+/** Long enough that moving back onto the card plays on without reloading. */
+export const HOVER_VIDEO_RELEASE_MS = 2000;
+
 function HoverVideoPreview({
   aspectRatio,
   cardId,
@@ -156,8 +164,16 @@ function HoverVideoPreview({
 }) {
   const t = useTranslations("cards.previews");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+  const cancelRelease = useCallback(() => {
+    if (releaseTimerRef.current !== null) {
+      clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => cancelRelease, [cancelRelease]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -180,11 +196,31 @@ function HoverVideoPreview({
     <div
       className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
       onMouseEnter={() => {
+        if (prefersReducedMotion()) {
+          return;
+        }
+        cancelRelease();
         setShouldLoadVideo(true);
         setIsHovering(true);
       }}
       onMouseLeave={() => {
         setIsHovering(false);
+        // With a still to fall back on, a video that's done playing leaves
+        // the page, so sweeping over a grid doesn't leave one per card.
+        // Without one, its first frame is the card's picture, so it stays.
+        if (thumbnailUrl) {
+          cancelRelease();
+          releaseTimerRef.current = setTimeout(() => {
+            releaseTimerRef.current = null;
+            // A removed video can keep its buffer and decoder until it's
+            // collected; dropping its source frees them now, and stops a
+            // download that's still running.
+            const video = videoRef.current;
+            video?.removeAttribute("src");
+            video?.load();
+            setShouldLoadVideo(false);
+          }, HOVER_VIDEO_RELEASE_MS);
+        }
       }}
       style={{ aspectRatio }}
     >

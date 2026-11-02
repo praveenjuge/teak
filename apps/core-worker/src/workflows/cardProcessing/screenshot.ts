@@ -117,12 +117,15 @@ const render = async (
 const save = async (
   job: CardJob,
   screenshotKey: string,
-  { height, width }: FilesCaptureScreenshotResult
+  { height, storedBytes, width }: FilesCaptureScreenshotResult
 ): Promise<ScreenshotOutcome> => {
   await job.deps.convex.mutation(
     internal.linkMetadata.updateCardScreenshot,
     {
       cardId: job.cardId,
+      // How much the page shows: a near-blank page's JPEG is tiny, and its
+      // tile uses the text layout instead (`isLowDetailScreenshot`).
+      screenshotBytes: storedBytes,
       screenshotHeight: height,
       screenshotStorageKey: screenshotKey,
       screenshotUpdatedAt: Date.now(),

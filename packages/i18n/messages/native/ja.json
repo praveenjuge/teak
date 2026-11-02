@@ -284,7 +284,7 @@
       "swipeHint": "左にスワイプでアーカイブ、右にスワイプで残す",
       "releaseToArchive": "指を離してアーカイブ",
       "releaseToKeep": "指を離して残す",
-      "caption": "{type} · {date} に保存",
+      "caption": "{type} · {date} に追加",
       "finishedTitle": "すべて確認しました",
       "summary": "アーカイブ {archived} 件 · 残す {kept} 件",
       "startOver": "最初からやり直す",

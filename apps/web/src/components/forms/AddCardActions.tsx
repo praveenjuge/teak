@@ -1,12 +1,22 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
-import { Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
+import { Download, Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,6 +46,7 @@ import {
   uploadAcceptAttribute,
   uploadFailureKind,
 } from "@/lib/upload/fileDrop";
+import { cn } from "@/lib/utils";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
   registerRecordAudio,
@@ -114,15 +125,35 @@ const selectAudioRecordingFormat = (): AudioRecordingFormat => {
   return AUDIO_RECORDING_CANDIDATES[0];
 };
 
-export function AddCardActions({
+interface AddCardControls {
+  canStartRecording: boolean;
+  isUploading: boolean;
+  newNote?: () => void;
+  recordAudio: () => void;
+  uploadFiles: () => void;
+}
+
+const AddCardContext = createContext<AddCardControls | null>(null);
+
+type AddCardProviderProps = Omit<AddCardActionsProps, "variant"> & {
+  children: ReactNode;
+};
+
+/**
+ * Owns uploading and recording, and the U and R shortcuts, for everything
+ * inside it. The app shell mounts it once so they work while the phone's
+ * menu, which holds the New button, is closed.
+ */
+export function AddCardProvider({
+  children,
   onNewNote,
   onSuccess,
   onUpgrade,
   upgradeUrl = SETTINGS_PLAN_HREF,
-  variant = "toolbar",
-}: AddCardActionsProps) {
+}: AddCardProviderProps) {
   const t = useTranslations("forms.addCardActions");
   const tLimits = useTranslations("forms.limits");
+  const tc = useTranslations("common");
   const errors = useServerErrors();
   const tUpload = useTranslations("hooks.upload");
   const tErrors = useTranslations("errors");
@@ -136,6 +167,14 @@ export function AddCardActions({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The recording until it's saved, so it can be downloaded meanwhile (a
+  // save can wait a long time offline) and saved again if it fails. `error`
+  // is null while the save runs.
+  const [unsaved, setUnsaved] = useState<{
+    blob: Blob;
+    error: string | null;
+    extension: string;
+  } | null>(null);
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard = cardCreationStatus?.canCreateCard ?? true;
@@ -220,9 +259,15 @@ export function AddCardActions({
   const autoSaveAudio = useCallback(
     async (blob: Blob, extension: string) => {
       const toastId = toast.loading(t("savingRecording"));
+      // A failed save shows again even if the dialog was closed meanwhile.
+      const keep = (error: string) => {
+        setUnsaved({ blob, error, extension });
+        setIsRecordingDialogOpen(true);
+      };
 
       try {
         setIsSubmitting(true);
+        setUnsaved({ blob, error: null, extension });
 
         const file = new File([blob], `recording_${Date.now()}.${extension}`, {
           type: blob.type,
@@ -242,6 +287,7 @@ export function AddCardActions({
         });
 
         if (result.success) {
+          setUnsaved(null);
           setRecordingTime(0);
           setIsRecordingDialogOpen(false);
           onSuccess?.();
@@ -251,30 +297,28 @@ export function AddCardActions({
 
         if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
           showUpgradeToast(toastId);
+          keep(tLimits("cardLimitReached"));
           return;
         }
 
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error(tLimits("rateLimited"), {
-            id: toastId,
-          });
+          toast.dismiss(toastId);
+          keep(tLimits("rateLimited"));
           return;
         }
 
-        throw new Error(
-          result.error
-            ? errors.byEnglishMessage(result.error)
-            : t("recordingSaveFailed")
-        );
+        // The dialog stays open with the recording and says it wasn't saved.
+        toast.dismiss(toastId);
+        keep(t("recordingNotSaved"));
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("recordingSaveFailed");
-        toast.error(errorMessage, { id: toastId });
+        toast.dismiss(toastId);
+        keep(t("recordingNotSaved"));
+        captureClientException(error, { "ui.action": "save-recording" });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [errors, onSuccess, showUpgradeToast, t, tLimits, uploadFile]
+    [onSuccess, showUpgradeToast, t, tLimits, uploadFile]
   );
 
   const startRecording = useCallback(async () => {
@@ -364,7 +408,8 @@ export function AddCardActions({
     mediaRecorderRef.current.stop();
     mediaRecorderRef.current = null;
     setIsRecording(false);
-    setIsRecordingDialogOpen(false);
+    // The dialog stays open, saying "Saving recording…", until it's saved.
+    setIsSubmitting(true);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -383,16 +428,37 @@ export function AddCardActions({
     }
     clearRecordingResources();
     setIsRecording(false);
+    setUnsaved(null);
     setRecordingTime(0);
     setIsRecordingDialogOpen(false);
   }, [clearRecordingResources]);
+
+  const downloadUnsaved = () => {
+    if (!unsaved) {
+      return;
+    }
+    const url = URL.createObjectURL(unsaved.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `recording_${Date.now()}.${unsaved.extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
 
   const handleDialogOpenChange = (open: boolean) => {
     if (open) {
       setIsRecordingDialogOpen(true);
       return;
     }
-    if (isRecording) {
+    // A save under way carries on with the dialog closed; it reopens if the
+    // save fails.
+    if (isSubmitting) {
+      setIsRecordingDialogOpen(false);
+      return;
+    }
+    if (isRecording || unsaved) {
       discardRecording();
       return;
     }
@@ -479,7 +545,9 @@ export function AddCardActions({
   };
 
   let recordingStatusDescription = t("startingMicrophone");
-  if (isSubmitting) {
+  if (unsaved?.error && !isSubmitting) {
+    recordingStatusDescription = unsaved.error;
+  } else if (isSubmitting) {
     recordingStatusDescription = t("savingRecordingStatus");
   } else if (isRecording) {
     recordingStatusDescription = t("recordingHint");
@@ -501,108 +569,44 @@ export function AddCardActions({
   );
   const recordRef = useRef(startRecording);
   recordRef.current = startRecording;
-  const canStartRecording = !(isRecording || isSubmitting);
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+  // A recording still waiting to be saved reopens its dialog instead of
+  // starting another: closing the dialog mustn't hide it for good.
+  const canStartRecording = !(isRecording || (isSubmitting && !unsaved));
+  const recordAudio = useCallback(() => {
+    if (unsavedRef.current) {
+      setIsRecordingDialogOpen(true);
+      return;
+    }
+    recordRef.current().catch(() => undefined);
+  }, []);
   useEffect(
     () =>
       registerRecordAudio(() => {
         if (!canStartRecording) {
           return false;
         }
-        recordRef.current().catch(() => undefined);
+        recordAudio();
         return true;
       }),
-    [canStartRecording]
+    [canStartRecording, recordAudio]
   );
-  const keepFocusRef = useRef<boolean>(false);
-
-  const triggers =
-    variant === "header" ? (
-      <DropdownMenu>
-        <NewMenuTrigger />
-        <DropdownMenuContent
-          align="start"
-          className="w-52"
-          onCloseAutoFocus={(event) => {
-            if (keepFocusRef.current) {
-              keepFocusRef.current = false;
-              event.preventDefault();
-            }
-          }}
-          side="bottom"
-        >
-          {onNewNote ? (
-            <DropdownMenuItem
-              aria-keyshortcuts="N"
-              onSelect={() => {
-                keepFocusRef.current = true;
-                setTimeout(onNewNote, 0);
-              }}
-            >
-              <PenLine />
-              {t("noteOrLink")}
-              <DropdownMenuShortcut aria-hidden>{"N"}</DropdownMenuShortcut>
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
-            aria-keyshortcuts="U"
-            disabled={isUploading}
-            onSelect={() => {
-              keepFocusRef.current = true;
-              handleFileUpload();
-            }}
-          >
-            <Upload />
-            {t("uploadFiles")}
-            <DropdownMenuShortcut aria-hidden>{"U"}</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            aria-keyshortcuts="R"
-            disabled={isRecording || isSubmitting}
-            onSelect={() => {
-              keepFocusRef.current = true;
-              startRecording().catch(() => undefined);
-            }}
-          >
-            <Mic />
-            {t("recordAudio")}
-            <DropdownMenuShortcut aria-hidden>{"R"}</DropdownMenuShortcut>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ) : (
-      <div className="flex items-center gap-1">
-        <ShortcutTooltip keys={["U"]} label={t("uploadFiles")}>
-          <Button
-            aria-keyshortcuts="U"
-            aria-label={t("uploadFiles")}
-            disabled={globalFileDrop?.isUploading}
-            onClick={handleFileUpload}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Upload className="size-4" />
-          </Button>
-        </ShortcutTooltip>
-        <ShortcutTooltip keys={["R"]} label={t("recordAudio")}>
-          <Button
-            aria-keyshortcuts="R"
-            aria-label={t("recordAudio")}
-            disabled={isRecording || isSubmitting}
-            onClick={() => void startRecording()}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Mic className="size-4" />
-          </Button>
-        </ShortcutTooltip>
-      </div>
-    );
+  const uploadFiles = useCallback(() => uploadRef.current(), []);
+  const controls = useMemo<AddCardControls>(
+    () => ({
+      canStartRecording,
+      isUploading,
+      newNote: onNewNote,
+      recordAudio,
+      uploadFiles,
+    }),
+    [canStartRecording, isUploading, onNewNote, recordAudio, uploadFiles]
+  );
 
   return (
-    <>
-      {triggers}
+    <AddCardContext.Provider value={controls}>
+      {children}
 
       <Dialog
         onOpenChange={handleDialogOpenChange}
@@ -611,39 +615,255 @@ export function AddCardActions({
         <DialogContent
           className="max-w-sm text-center"
           onInteractOutside={(event) => {
-            if (isRecording) {
+            if (isRecording || isSubmitting || unsaved) {
               event.preventDefault();
             }
           }}
           showCloseButton={false}
         >
           <DialogTitle>{t("recordingTitle")}</DialogTitle>
-          <DialogDescription>{recordingStatusDescription}</DialogDescription>
+          <DialogDescription aria-live="polite">
+            {recordingStatusDescription}
+          </DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
               {formatTime(recordingTime)}
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                disabled={!isRecording || isSubmitting}
-                onClick={discardRecording}
-                type="button"
-                variant="outline"
-              >
-                {t("discardRecording")}
-              </Button>
-              <Button
-                disabled={!isRecording || isSubmitting}
-                onClick={stopRecording}
-                type="button"
-              >
-                <Square />
-                {t("stopAndSave")}
-              </Button>
-            </div>
+            {unsaved ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  disabled={isSubmitting}
+                  onClick={discardRecording}
+                  type="button"
+                  variant="outline"
+                >
+                  {t("discardRecording")}
+                </Button>
+                <Button
+                  onClick={downloadUnsaved}
+                  type="button"
+                  variant="outline"
+                >
+                  <Download />
+                  {t("downloadRecording")}
+                </Button>
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    void autoSaveAudio(unsaved.blob, unsaved.extension)
+                  }
+                  type="button"
+                >
+                  {tc("tryAgain")}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  disabled={!isRecording || isSubmitting}
+                  onClick={discardRecording}
+                  type="button"
+                  variant="outline"
+                >
+                  {t("discardRecording")}
+                </Button>
+                <Button
+                  disabled={!isRecording || isSubmitting}
+                  onClick={stopRecording}
+                  type="button"
+                >
+                  <Square />
+                  {t("stopAndSave")}
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+    </AddCardContext.Provider>
+  );
+}
+
+function NewMenuItems({
+  controls,
+  keepFocusRef,
+}: {
+  controls: AddCardControls;
+  keepFocusRef: { current: boolean };
+}) {
+  const t = useTranslations("forms.addCardActions");
+  // Key hints mean nothing without a keyboard.
+  const hint = (key: string) => (
+    <DropdownMenuShortcut aria-hidden className="pointer-coarse:hidden">
+      {key}
+    </DropdownMenuShortcut>
+  );
+  const { newNote } = controls;
+  return (
+    <>
+      {newNote ? (
+        <DropdownMenuItem
+          aria-keyshortcuts="N"
+          onSelect={() => {
+            keepFocusRef.current = true;
+            setTimeout(newNote, 0);
+          }}
+        >
+          <PenLine />
+          {t("noteOrLink")}
+          {hint("N")}
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuItem
+        aria-keyshortcuts="U"
+        disabled={controls.isUploading}
+        onSelect={() => {
+          keepFocusRef.current = true;
+          controls.uploadFiles();
+        }}
+      >
+        <Upload />
+        {t("uploadFiles")}
+        {hint("U")}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        aria-keyshortcuts="R"
+        disabled={!controls.canStartRecording}
+        onSelect={() => {
+          keepFocusRef.current = true;
+          controls.recordAudio();
+        }}
+      >
+        <Mic />
+        {t("recordAudio")}
+        {hint("R")}
+      </DropdownMenuItem>
     </>
+  );
+}
+
+function NewMenu({
+  align = "start",
+  controls,
+  trigger,
+}: {
+  align?: "start" | "end";
+  controls: AddCardControls;
+  trigger: ReactNode;
+}) {
+  const keepFocusRef = useRef<boolean>(false);
+  return (
+    <DropdownMenu>
+      {trigger}
+      <DropdownMenuContent
+        align={align}
+        className="w-52"
+        onCloseAutoFocus={(event) => {
+          if (keepFocusRef.current) {
+            keepFocusRef.current = false;
+            event.preventDefault();
+          }
+        }}
+        side="bottom"
+      >
+        <NewMenuItems controls={controls} keepFocusRef={keepFocusRef} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function AddCardTriggers({
+  controls,
+  variant,
+}: {
+  controls: AddCardControls;
+  variant: "toolbar" | "header";
+}) {
+  const t = useTranslations("forms.addCardActions");
+  if (variant === "header") {
+    return <NewMenu controls={controls} trigger={<NewMenuTrigger />} />;
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <ShortcutTooltip keys={["U"]} label={t("uploadFiles")}>
+        <Button
+          aria-keyshortcuts="U"
+          aria-label={t("uploadFiles")}
+          disabled={controls.isUploading}
+          onClick={controls.uploadFiles}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <Upload className="size-4" />
+        </Button>
+      </ShortcutTooltip>
+      <ShortcutTooltip keys={["R"]} label={t("recordAudio")}>
+        <Button
+          aria-keyshortcuts="R"
+          aria-label={t("recordAudio")}
+          disabled={!controls.canStartRecording}
+          onClick={controls.recordAudio}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <Mic className="size-4" />
+        </Button>
+      </ShortcutTooltip>
+    </div>
+  );
+}
+
+/**
+ * The New menu, or upload and record buttons. Inside an AddCardProvider it
+ * uses that provider; on its own it brings one.
+ */
+export function AddCardActions({
+  variant = "toolbar",
+  ...providerProps
+}: AddCardActionsProps) {
+  const controls = useContext(AddCardContext);
+  if (controls) {
+    return <AddCardTriggers controls={controls} variant={variant} />;
+  }
+  return (
+    <AddCardProvider {...providerProps}>
+      <AddCardActions variant={variant} />
+    </AddCardProvider>
+  );
+}
+
+/**
+ * The phone header's "+": the New menu where the sidebar, and its New
+ * button, is hidden. Wider screens don't show it.
+ */
+export function AddCardButton({ className }: { className?: string }) {
+  const t = useTranslations("forms.addCardActions");
+  const controls = useContext(AddCardContext);
+  if (!controls) {
+    return null;
+  }
+  return (
+    <NewMenu
+      align="end"
+      controls={controls}
+      trigger={
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={t("new")}
+            className={cn(
+              "size-9 shrink-0 text-muted-foreground md:hidden",
+              className
+            )}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Plus className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+      }
+    />
   );
 }

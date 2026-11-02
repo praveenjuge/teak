@@ -523,7 +523,8 @@
       "tags": "태그",
       "folder": "폴더"
     },
-    "skipToContent": "본문으로 건너뛰기"
+    "skipToContent": "본문으로 건너뛰기",
+    "offline": "오프라인 상태입니다. 다시 연결되면 변경 사항이 저장됩니다."
   },
   "errors": {
     "folders": {
@@ -595,7 +596,7 @@
       "revisitMore": "{count}개 더 다시 보기",
       "undoHint": "<kbd>Z</kbd>를 누르면 마지막 보관을 취소합니다",
       "openDetails": "세부 정보 열기: {type}",
-      "saved": "{date}에 저장됨",
+      "added": "{date}에 추가됨",
       "inTrash": "휴지통에 있음",
       "archived": "보관됨",
       "releaseToArchive": "놓으면 보관",
@@ -664,6 +665,7 @@
       "title": "폴더",
       "newFolder": "새 폴더",
       "emptyHint": "관련 카드를 묶어 보세요. 폴더를 만든 다음 카드를 폴더로 끌어 놓으면 됩니다.",
+      "loadFailed": "폴더를 불러오지 못했습니다.",
       "moreFor": "{name} 더 보기",
       "renameItem": "이름 변경…",
       "editSearch": "검색 편집…",
@@ -801,9 +803,9 @@
       "marked": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
     },
     "heading": {
-      "addedOn": "{date}에 추가됨",
-      "addedToday": "오늘 추가됨",
-      "addedYesterday": "어제 추가됨",
+      "addedOn": "{date} {time}에 추가됨",
+      "addedToday": "오늘 {time}에 추가됨",
+      "addedYesterday": "어제 {time}에 추가됨",
       "note": "메모"
     },
     "panel": {
@@ -830,6 +832,7 @@
       "showTagged": "{tag} 태그가 붙은 카드 보기",
       "suggestedTags": "{count, plural, other {추천 태그 #개}}",
       "summary": "요약",
+      "folders": "폴더",
       "tags": "태그",
       "teakTagHint": "Teak이 추가한 태그입니다. {tag} 태그가 붙은 카드 보기",
       "highlights": "하이라이트 · {count, number}",
@@ -1019,7 +1022,6 @@
       "pin": "맨 위에 고정",
       "unpin": "고정 해제"
     },
-    "copyImageFailed": "이미지를 복사하지 못했습니다",
     "deleteForeverDialog": {
       "confirm": "영구 삭제",
       "description": "카드와 파일이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
@@ -1159,6 +1161,7 @@
       "placeholder": "메모를 작성하세요...",
       "upgradePlaceholder": "카드를 더 추가하려면 Pro로 업그레이드하세요...",
       "saveFailed": "메모를 저장하지 못했습니다",
+      "savingOffline": "오프라인 상태입니다. 다시 연결되면 이 메모가 저장됩니다.",
       "focus": "집중",
       "resaved": "이미 Teak에 있습니다 · 맨 위로 이동했습니다",
       "resavedFromArchive": "이미 Teak에 있습니다 · 보관함에서 꺼냈습니다",
@@ -1185,7 +1188,7 @@
       "recordAudio": "오디오 녹음",
       "savingRecording": "오디오 녹음을 저장하는 중...",
       "recordingSaved": "오디오 녹음이 저장되었습니다",
-      "recordingSaveFailed": "오디오 녹음을 저장하지 못했습니다",
+      "recordingNotSaved": "녹음을 저장하지 못했습니다. 다시 시도하거나 다운로드해서 보관하세요.",
       "microphoneUnsupported": "이 앱에서는 마이크 녹음을 지원하지 않습니다.",
       "microphoneDenied": "마이크 권한이 거부되었습니다. 권한을 허용한 후 다시 시도하세요.",
       "microphoneMissing": "마이크가 감지되지 않았습니다. 마이크를 연결한 후 다시 시도하세요.",
@@ -1199,7 +1202,8 @@
       "recordingHint": "자연스럽게 말하세요. Teak이 오디오 카드로 저장합니다.",
       "recordingTitle": "오디오 녹음 중",
       "stopAndSave": "중지 및 저장",
-      "discardRecording": "버리기"
+      "discardRecording": "버리기",
+      "downloadRecording": "다운로드"
     },
     "emptyState": {
       "title": "첫 카드를 추가해 보세요!",
@@ -1605,6 +1609,7 @@
       "semanticUnavailable": "지금은 의미로 검색할 수 없습니다.",
       "noFilterMatches": "필터와 일치하는 항목이 없습니다",
       "clearFilters": "필터 지우기",
+      "clearSearch": "검색 지우기",
       "smartFolderSuffix": " (스마트 폴더)",
       "folderCardCountSuffix": "{count, plural, other {개의 카드}}",
       "folderTitle": "폴더",
@@ -1632,6 +1637,7 @@
       "title": "태그",
       "findTag": "태그 찾기",
       "loading": "태그를 불러오는 중",
+      "loadFailed": "태그를 불러오지 못했습니다.",
       "noTags": "아직 태그가 없습니다",
       "noTagsDescription": "카드에 추가한 태그와 Teak이 추천한 태그가 여기에 표시됩니다.",
       "noMatches": "“{query}”와(과) 일치하는 태그가 없습니다.",
@@ -1653,7 +1659,9 @@
       "openInTeak": "Teak에서 열기",
       "openOriginalNow": "지금 원본 열기",
       "tryOriginal": "원본 열어 보기 ↗",
-      "unavailable": "이 카드를 사용할 수 없습니다."
+      "unavailable": "이 카드를 사용할 수 없습니다.",
+      "unavailableBody": "삭제되었거나 링크가 잘못되었을 수 있습니다.",
+      "unavailableTabTitle": "카드를 사용할 수 없음"
     }
   },
   "hooks": {

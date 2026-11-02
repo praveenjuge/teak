@@ -13,6 +13,13 @@ import {
   softwareApplicationSchema,
   websiteSchema,
 } from "@/lib/jsonld";
+import {
+  SIDEBAR_COOKIE_NAME,
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_WIDTH_COOKIE_NAME,
+} from "@/lib/sidebarState";
 
 const snPro = localFont({
   src: "../styles/fonts/SNPro-VariableRegular.woff2",
@@ -59,6 +66,10 @@ export const viewport: Viewport = {
 // breaking for Chinese, Japanese and Korean apply from the start.
 const HTML_LANG_FROM_COOKIE = `try{var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=([^;]+)/);if(m&&${JSON.stringify(SUPPORTED_LOCALES)}.indexOf(m[1])>-1)document.documentElement.lang=m[1]}catch(e){}`;
 
+// Same for the sidebar: the app's loading frame reads these to draw the
+// column at the width, and in the state, people left it.
+const SIDEBAR_FROM_COOKIE = `try{var d=document.documentElement,c=document.cookie;if(/(?:^|; )${SIDEBAR_COOKIE_NAME}=false(?:;|$)/.test(c))d.setAttribute("data-sidebar-collapsed","");var w=c.match(/(?:^|; )${SIDEBAR_WIDTH_COOKIE_NAME}=(\\d+)/);d.style.setProperty("--app-loading-sidebar-width",Math.min(${SIDEBAR_MAX_WIDTH},Math.max(${SIDEBAR_MIN_WIDTH},w?+w[1]:${SIDEBAR_DEFAULT_WIDTH}))+"px")}catch(e){}`;
+
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html
@@ -69,7 +80,9 @@ export default function RootLayout({ children }: PropsWithChildren) {
       <head>
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed script with no user input, so <html lang> is right before first paint.
-          dangerouslySetInnerHTML={{ __html: HTML_LANG_FROM_COOKIE }}
+          dangerouslySetInnerHTML={{
+            __html: HTML_LANG_FROM_COOKIE + SIDEBAR_FROM_COOKIE,
+          }}
         />
         <link href="//files.teakvault.com" rel="dns-prefetch" />
         <link href="https://files.teakvault.com" rel="preconnect" />

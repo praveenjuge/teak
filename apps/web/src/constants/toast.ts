@@ -11,6 +11,7 @@ export const TOAST_IDS = {
   apiKeyCreate: "api-key-create",
   uploadQueue: "upload-queue",
   language: "language",
+  offline: "offline",
 } as const;
 
 export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {

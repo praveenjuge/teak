@@ -100,6 +100,24 @@ test("Details shows Added and File size, and the rest behind More details", asyn
   expect(button("Fewer details")?.getAttribute("aria-expanded")).toBe("true");
 });
 
+test("Details leaves out Added when the dialog's top line already says it", async () => {
+  await render(imageCard(), { addedInHeader: true });
+  expect(detailLabels()).toEqual(["File size"]);
+});
+
+test("a note with nothing left to list has no empty Details heading", async () => {
+  await render(
+    imageCard({
+      content: "Groceries",
+      fileMetadata: undefined,
+      type: "text",
+    } as Partial<CardModalCard>),
+    { addedInHeader: true }
+  );
+  expect(detailLabels()).toEqual([]);
+  expect(document.body.textContent).not.toContain("Details");
+});
+
 test("Details stays open on the next card once someone opened it", async () => {
   await render(imageCard());
   await act(() => button("More details")?.click());
@@ -140,12 +158,17 @@ test("a suggestion the card already has as its own tag isn't suggested", async (
   expect(button("2 suggested tags")).toBeDefined();
 });
 
-test("a card in a folder shows the folder among its tags, which changes folders", async () => {
+test("a card in a folder shows it under Folders, apart from its tags, and it changes folders", async () => {
   const onOpenFolders = mock();
   await render(imageCard({ folderIds: ["folder_1"] } as never), {
     onOpenFolders,
   });
-  await act(() => button("In Moodboard. Change folders")?.click());
+  const chip = button("In Moodboard. Change folders");
+  expect(chip?.closest("section")?.getAttribute("aria-label")).toBe("Folders");
+  const tags = document.querySelector("section[aria-label='Tags']");
+  expect(tags).not.toBeNull();
+  expect(tags?.textContent).not.toContain("Moodboard");
+  await act(() => chip?.click());
   expect(onOpenFolders).toHaveBeenCalledTimes(1);
   expect(button("Add to a folder")).toBeUndefined();
 });

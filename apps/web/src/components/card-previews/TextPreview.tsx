@@ -114,7 +114,8 @@ export function TextPreview({
       <MarkdownTextEditor
         ariaLabel={tNote("contentLabel")}
         cardLinks={cardLinks}
-        className="h-full"
+        // Room for the focus button, so a long first line doesn't run under it.
+        className={readOnly ? "h-full" : "h-full pr-9"}
         disabled={readOnly}
         minHeight={TEXT_PREVIEW_MIN_HEIGHT}
         onChange={onContentChange}

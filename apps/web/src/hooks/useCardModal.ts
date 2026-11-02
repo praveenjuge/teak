@@ -95,6 +95,9 @@ export function getUnsavedUpdates(
 }
 
 /** Tags compare as the server stores them: trimmed, ignoring case. */
+/** How long "Saved" shows after edits are written. */
+const SAVED_CONFIRMATION_MS = 2000;
+
 const tagKey = (tag: string) => tag.trim().toLowerCase();
 
 export function useCardModal(
@@ -109,6 +112,16 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
+  // One timer hides "Saved", and each save restarts it, so an earlier save's
+  // timer (on this card or the last one) never cuts the new "Saved" short.
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopSavedTimer = useCallback(() => {
+    if (savedTimerRef.current !== null) {
+      clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => stopSavedTimer, [stopSavedTimer]);
   // Saves still in flight, for this card or one left meanwhile.
   const [savesInFlight, setSavesInFlight] = useState(0);
   const isSaving = savesInFlight > 0;
@@ -328,9 +341,11 @@ export function useCardModal(
         if (!silent) {
           toast.success(t("changesSaved"));
         }
-        setTimeout(() => {
+        stopSavedTimer();
+        savedTimerRef.current = setTimeout(() => {
+          savedTimerRef.current = null;
           setIsSaved(false);
-        }, 2000);
+        }, SAVED_CONFIRMATION_MS);
         return true;
       } catch (error) {
         console.error("Failed to save changes:", error);
@@ -343,7 +358,7 @@ export function useCardModal(
         setSavesInFlight((count) => count - 1);
       }
     },
-    [cardId, unsavedUpdates, updateCardField, notifyError, t]
+    [cardId, unsavedUpdates, updateCardField, notifyError, stopSavedTimer, t]
   );
 
   const saveBeforeLeaving = useCallback(() => {

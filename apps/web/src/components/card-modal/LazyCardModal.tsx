@@ -19,9 +19,9 @@ export const LazyConnectedCardModal = onDemand(
     ]).then(([module]) => module.ConnectedCardModal),
   (props: ConnectedCardModalProps) => (
     <CardModalLoading
+      card={props.card}
       onCancel={props.onCancel}
       open={props.open}
-      type={props.card?.type}
     />
   )
 );
@@ -29,13 +29,13 @@ export const LazyConnectedCardModal = onDemand(
 export const preloadCardModal = LazyConnectedCardModal.preload;
 
 function CardModalLoading({
+  card,
   onCancel,
   open,
-  type,
 }: {
+  card?: { content?: string; type?: string } | null;
   onCancel?: () => void;
   open: boolean;
-  type?: string;
 }) {
   const t = useTranslations("cardModal.header");
   return (
@@ -50,7 +50,7 @@ function CardModalLoading({
       <DialogContent
         aria-busy="true"
         aria-describedby={undefined}
-        className={cardModalFrameClass(type)}
+        className={cardModalFrameClass(card)}
         overlayClassName={CARD_MODAL_OVERLAY_CLASS}
         showCloseButton={false}
       >

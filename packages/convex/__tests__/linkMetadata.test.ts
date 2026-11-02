@@ -104,6 +104,83 @@ describe("linkMetadata", () => {
       );
     });
 
+    test("records the new screenshot's size", async () => {
+      const ctx = createMockCtx();
+      ctx.db.get.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        metadata: { linkPreview: { screenshotStorageKey: "old" } },
+      });
+
+      await updateCardScreenshotHandler(ctx, {
+        cardId: testId("cards", "c1"),
+        screenshotBytes: 9000,
+        screenshotHeight: 720,
+        screenshotStorageKey: "new",
+        screenshotUpdatedAt: 2,
+        screenshotWidth: 1280,
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: {
+            linkPreview: {
+              screenshotBytes: 9000,
+              screenshotHeight: 720,
+              screenshotStorageKey: "new",
+              screenshotUpdatedAt: 2,
+              screenshotWidth: 1280,
+            },
+          },
+        })
+      );
+    });
+
+    test("drops the old screenshot's size when a new one comes without one", async () => {
+      const ctx = createMockCtx();
+      ctx.db.get.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: { screenshotBytes: 9000, screenshotStorageKey: "old" },
+        },
+      });
+
+      await updateCardScreenshotHandler(ctx, {
+        cardId: testId("cards", "c1"),
+        screenshotStorageKey: "new",
+        screenshotUpdatedAt: 2,
+      });
+
+      const [, , patch] = ctx.db.patch.mock.calls[0];
+      expect(patch.metadata.linkPreview).toEqual({
+        screenshotStorageKey: "new",
+        screenshotUpdatedAt: 2,
+      });
+    });
+
+    test("keeps the size when the same screenshot is recorded again", async () => {
+      const ctx = createMockCtx();
+      ctx.db.get.mockResolvedValue({
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: { screenshotBytes: 9000, screenshotStorageKey: "same" },
+        },
+      });
+
+      await updateCardScreenshotHandler(ctx, {
+        cardId: testId("cards", "c1"),
+        screenshotStorageKey: "same",
+        screenshotUpdatedAt: 3,
+      });
+
+      const [, , patch] = ctx.db.patch.mock.calls[0];
+      expect(patch.metadata.linkPreview.screenshotBytes).toBe(9000);
+    });
+
     test("handles delete error gracefully", async () => {
       const ctx = createMockCtx();
       const card = {
@@ -862,6 +939,7 @@ describe("linkMetadata storage cleanup", () => {
         type: "link",
         metadata: {
           linkPreview: {
+            screenshotBytes: 52_000,
             screenshotStorageKey: "old_screenshot",
             screenshotUpdatedAt: 1000,
             screenshotWidth: 1200,
@@ -890,6 +968,7 @@ describe("linkMetadata storage cleanup", () => {
         expect.objectContaining({
           metadata: expect.objectContaining({
             linkPreview: expect.objectContaining({
+              screenshotBytes: 52_000,
               screenshotStorageKey: "old_screenshot",
               screenshotUpdatedAt: 1000,
               screenshotWidth: 1200,

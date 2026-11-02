@@ -1,3 +1,9 @@
+import {
+  FREE_TIER_LIMIT,
+  PRO_MONTHLY_PRICE_CENTS,
+  PRO_YEARLY_PRICE_CENTS,
+} from "@teak/convex/shared/constants";
+
 const SITE_URL = "https://teakvault.com";
 const APP_URL = "https://app.teakvault.com";
 const SITE_NAME = "Teak";
@@ -42,15 +48,23 @@ export const softwareApplicationSchema = {
       name: "Free Tier",
       price: "0",
       priceCurrency: "USD",
-      description: "200 cards free",
+      description: `${FREE_TIER_LIMIT} cards free`,
     },
     {
       "@type": "Offer",
-      name: "Pro",
-      price: "19",
+      name: "Pro - Monthly",
+      price: String(PRO_MONTHLY_PRICE_CENTS / 100),
       priceCurrency: "USD",
       billingIncrement: "P1M",
-      description: "Unlimited cards and premium features",
+      description: "Unlimited cards, billed monthly",
+    },
+    {
+      "@type": "Offer",
+      name: "Pro - Yearly",
+      price: String(PRO_YEARLY_PRICE_CENTS / 100),
+      priceCurrency: "USD",
+      billingIncrement: "P1Y",
+      description: "Unlimited cards, billed yearly",
     },
   ],
   featureList: [

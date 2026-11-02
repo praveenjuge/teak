@@ -220,6 +220,8 @@ export const updateCardMetadataHandler = async (
       nextLinkPreview.screenshotHeight =
         nextLinkPreview.screenshotHeight ??
         previousLinkPreview.screenshotHeight;
+      nextLinkPreview.screenshotBytes =
+        nextLinkPreview.screenshotBytes ?? previousLinkPreview.screenshotBytes;
     }
   }
 
@@ -328,8 +330,10 @@ export const updateCardScreenshotHandler = async (
     screenshotUpdatedAt,
     screenshotWidth,
     screenshotHeight,
+    screenshotBytes,
   }: {
     cardId: Id<"cards">;
+    screenshotBytes?: number;
     screenshotHeight?: number;
     screenshotStorageKey: string;
     screenshotUpdatedAt: number;
@@ -349,12 +353,20 @@ export const updateCardScreenshotHandler = async (
       ? existingLinkPreview.screenshotStorageKey
       : undefined;
 
+  const { screenshotBytes: previousBytes, ...keptLinkPreview } =
+    existingLinkPreview;
+  // A new screenshot's size says nothing about the old one's, so the old
+  // size goes unless the same file is being recorded again.
+  const sameScreenshot =
+    existingLinkPreview.screenshotStorageKey === screenshotStorageKey;
+  const bytes = screenshotBytes ?? (sameScreenshot ? previousBytes : undefined);
   const updatedLinkPreview = {
-    ...existingLinkPreview,
+    ...keptLinkPreview,
     screenshotStorageKey,
     screenshotUpdatedAt,
     ...(typeof screenshotWidth === "number" ? { screenshotWidth } : {}),
     ...(typeof screenshotHeight === "number" ? { screenshotHeight } : {}),
+    ...(typeof bytes === "number" ? { screenshotBytes: bytes } : {}),
   };
 
   const updatedMetadata = {
@@ -383,6 +395,7 @@ export const updateCardScreenshot = internalMutation({
     screenshotUpdatedAt: v.number(),
     screenshotWidth: v.optional(v.number()),
     screenshotHeight: v.optional(v.number()),
+    screenshotBytes: v.optional(v.number()),
   },
   handler: updateCardScreenshotHandler,
 });

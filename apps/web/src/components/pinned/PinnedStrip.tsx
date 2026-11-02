@@ -50,7 +50,7 @@ export interface PinnedStripProps {
   cards: StripCard[];
   onAddTags?: (cardId: string) => void;
   onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
-  onCopyImage?: (content: string, isImage: boolean) => void;
+  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onDeleteCard?: (cardId: string) => unknown;
   onReorder: (cardIds: Id<"cards">[]) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;

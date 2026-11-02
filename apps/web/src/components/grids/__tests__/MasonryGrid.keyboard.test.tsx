@@ -184,7 +184,7 @@ describe("MasonryGrid keyboard actions", () => {
   });
 
   test("in Trash, Delete with cards selected asks to delete them all forever", async () => {
-    const onPermanentDeleteCards = mock(async () => undefined);
+    const onPermanentDeleteCards = mock(async () => ({ failedIds: [] }));
     const { cardElement, handlers } = await renderGrid({
       onPermanentDeleteCards,
       showTrashOnly: true,
@@ -214,6 +214,66 @@ describe("MasonryGrid keyboard actions", () => {
     ];
     expect(new Set(cardIds)).toEqual(new Set(["card_a", "card_b"]));
     expect(handlers.onPermanentDeleteCard).not.toHaveBeenCalled();
+  });
+
+  test("cards that couldn't be deleted forever stay selected to try again", async () => {
+    const onPermanentDeleteCards = mock(async () => ({
+      failedIds: ["card_b"],
+    }));
+    const { cardElement } = await renderGrid({
+      onPermanentDeleteCards,
+      showTrashOnly: true,
+    });
+    await press(cardElement("card_a"), "x");
+    await press(cardElement("card_b"), "x");
+    await press(cardElement("card_b"), "Delete");
+    await waitFor(
+      () =>
+        document.body.textContent?.includes("Delete 2 cards forever?") ?? false
+    );
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[role='alertdialog'] button"
+      ),
+    ].find((button) => button.textContent?.trim() === "Delete forever");
+    await act(async () => {
+      confirm?.click();
+      await Promise.resolve();
+    });
+    await waitFor(
+      () => document.body.textContent?.includes("1 card selected") ?? false
+    );
+    expect(cardElement("card_b").getAttribute("aria-pressed")).toBe("true");
+    expect(cardElement("card_a").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("a Delete forever that fails outright keeps every card selected", async () => {
+    const onPermanentDeleteCards = mock(() =>
+      Promise.reject(new Error("network"))
+    );
+    const { cardElement } = await renderGrid({
+      onPermanentDeleteCards,
+      showTrashOnly: true,
+    });
+    await press(cardElement("card_a"), "x");
+    await press(cardElement("card_b"), "x");
+    await press(cardElement("card_b"), "Delete");
+    await waitFor(
+      () =>
+        document.body.textContent?.includes("Delete 2 cards forever?") ?? false
+    );
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[role='alertdialog'] button"
+      ),
+    ].find((button) => button.textContent?.trim() === "Delete forever");
+    await act(async () => {
+      confirm?.click();
+      await Promise.resolve();
+    });
+    await waitFor(
+      () => document.body.textContent?.includes("2 cards selected") ?? false
+    );
   });
 
   test("a card in the open folder can be removed from it from its menu", async () => {

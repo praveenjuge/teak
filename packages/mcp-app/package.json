@@ -23,7 +23,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "typescript": "catalog:",
-    "vite": "8.2.1",
+    "vite": "8.2.4",
     "vite-plugin-singlefile": "2.3.4",
     "zod": "catalog:"
   }

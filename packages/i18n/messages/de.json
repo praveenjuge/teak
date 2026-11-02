@@ -523,7 +523,8 @@
       "tags": "Tags",
       "folder": "Ordner"
     },
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "offline": "Sie sind offline. Änderungen werden gespeichert, sobald Sie wieder verbunden sind."
   },
   "errors": {
     "folders": {
@@ -595,7 +596,7 @@
       "revisitMore": "{count} weitere wiedersehen",
       "undoHint": "<kbd>Z</kbd> macht das letzte Archivieren rückgängig",
       "openDetails": "Details öffnen: {type}",
-      "saved": "Gespeichert am {date}",
+      "added": "Hinzugefügt am {date}",
       "inTrash": "Im Papierkorb",
       "archived": "Archiviert",
       "releaseToArchive": "Loslassen zum Archivieren",
@@ -664,6 +665,7 @@
       "title": "Ordner",
       "newFolder": "Neuer Ordner",
       "emptyHint": "Gruppieren Sie zusammengehörige Karten. Erstellen Sie einen Ordner und ziehen Sie Karten darauf.",
+      "loadFailed": "Ihre Ordner konnten nicht geladen werden.",
       "moreFor": "Mehr für {name}",
       "renameItem": "Umbenennen…",
       "editSearch": "Suche bearbeiten…",
@@ -801,9 +803,9 @@
       "marked": "{verb, select, read {Als gelesen markiert} watched {Als gesehen markiert} listened {Als gehört markiert} bought {Als gekauft markiert} cooked {Als gekocht markiert} played {Als gespielt markiert} other {Als erledigt markiert}}"
     },
     "heading": {
-      "addedOn": "Hinzugefügt am {date}",
-      "addedToday": "Heute hinzugefügt",
-      "addedYesterday": "Gestern hinzugefügt",
+      "addedOn": "Hinzugefügt am {date} um {time}",
+      "addedToday": "Heute um {time} hinzugefügt",
+      "addedYesterday": "Gestern um {time} hinzugefügt",
       "note": "Notiz"
     },
     "panel": {
@@ -830,6 +832,7 @@
       "showTagged": "Karten mit dem Tag {tag} anzeigen",
       "suggestedTags": "{count, plural, one {# vorgeschlagener Tag} other {# vorgeschlagene Tags}}",
       "summary": "Zusammenfassung",
+      "folders": "Ordner",
       "tags": "Tags",
       "teakTagHint": "Von Teak hinzugefügter Tag. Karten mit dem Tag {tag} anzeigen",
       "highlights": "Markierungen · {count, number}",
@@ -1019,7 +1022,6 @@
       "pin": "Oben anheften",
       "unpin": "Lösen"
     },
-    "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
       "confirm": "Endgültig löschen",
       "description": "Dadurch werden die Karte und ihre Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
@@ -1159,6 +1161,7 @@
       "placeholder": "Notiz schreiben…",
       "upgradePlaceholder": "Upgraden Sie auf Pro, um weitere Karten hinzuzufügen…",
       "saveFailed": "Die Notiz konnte nicht gespeichert werden",
+      "savingOffline": "Sie sind offline. Diese Notiz wird gespeichert, sobald Sie wieder verbunden sind.",
       "focus": "Fokus",
       "resaved": "Bereits in Teak · Nach oben verschoben",
       "resavedFromArchive": "Bereits in Teak · Aus dem Archiv zurückgeholt",
@@ -1185,7 +1188,7 @@
       "recordAudio": "Audio aufnehmen",
       "savingRecording": "Audioaufnahme wird gespeichert…",
       "recordingSaved": "Audioaufnahme gespeichert",
-      "recordingSaveFailed": "Die Audioaufnahme konnte nicht gespeichert werden",
+      "recordingNotSaved": "Die Aufnahme konnte nicht gespeichert werden. Versuchen Sie es erneut oder laden Sie sie herunter, um sie zu behalten.",
       "microphoneUnsupported": "Mikrofonaufnahmen werden in dieser App nicht unterstützt.",
       "microphoneDenied": "Der Mikrofonzugriff wurde verweigert. Erlauben Sie ihn und versuchen Sie es erneut.",
       "microphoneMissing": "Kein Mikrofon erkannt. Schließen Sie eines an und versuchen Sie es erneut.",
@@ -1199,7 +1202,8 @@
       "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
       "recordingTitle": "Audio wird aufgenommen",
       "stopAndSave": "Stoppen und speichern",
-      "discardRecording": "Verwerfen"
+      "discardRecording": "Verwerfen",
+      "downloadRecording": "Herunterladen"
     },
     "emptyState": {
       "title": "Fügen Sie Ihre erste Karte hinzu!",
@@ -1605,6 +1609,7 @@
       "semanticUnavailable": "Die Suche nach Bedeutung ist gerade nicht möglich.",
       "noFilterMatches": "Nichts gefunden, das Ihren Filtern entspricht",
       "clearFilters": "Filter zurücksetzen",
+      "clearSearch": "Suche zurücksetzen",
       "smartFolderSuffix": " (intelligenter Ordner)",
       "folderCardCountSuffix": "{count, plural, one { Karte} other { Karten}}",
       "folderTitle": "Ordner",
@@ -1632,6 +1637,7 @@
       "title": "Tags",
       "findTag": "Tag suchen",
       "loading": "Tags werden geladen",
+      "loadFailed": "Ihre Tags konnten nicht geladen werden.",
       "noTags": "Noch keine Tags",
       "noTagsDescription": "Tags, die Sie Karten hinzufügen, und die Vorschläge von Teak erscheinen hier.",
       "noMatches": "Keine Tags passen zu „{query}“.",
@@ -1653,7 +1659,9 @@
       "openInTeak": "In Teak öffnen",
       "openOriginalNow": "Original jetzt öffnen",
       "tryOriginal": "Original versuchen ↗",
-      "unavailable": "Diese Karte ist nicht verfügbar."
+      "unavailable": "Diese Karte ist nicht verfügbar.",
+      "unavailableBody": "Sie wurde möglicherweise gelöscht, oder der Link ist falsch.",
+      "unavailableTabTitle": "Karte nicht verfügbar"
     }
   },
   "hooks": {

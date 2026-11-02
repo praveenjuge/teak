@@ -337,6 +337,13 @@ final class Counter: @unchecked Sendable {
         }
     }
 
+    @Test func upgradeAndManageOpenThePlanPage() {
+        let config = TeakConfig(convexURL: URL(string: "https://convex.invalid")!,
+                                webURL: URL(string: "https://app.teakvault.com")!,
+                                appGroup: "group.test", keychainAccessGroup: nil, posthogToken: nil, environment: "test")
+        #expect(config.planURL.absoluteString == "https://app.teakvault.com/settings/plan")
+    }
+
     @Test func aServerCursorErrorIsTypedSoPagingCanRestart() {
         #expect(TeakError.server(message: "Uncaught Error: InvalidCursor: stale cursor").isInvalidCursor)
         #expect(!TeakError.server(message: "Uncaught Error: Something else").isInvalidCursor)

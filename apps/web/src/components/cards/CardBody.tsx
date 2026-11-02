@@ -3,7 +3,6 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
-import type { SyntheticEvent } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
 import { CARD_SURFACE, readableTextOn, splitNotePreview } from "./cardDisplay";
@@ -22,7 +21,7 @@ interface CardBodyProps {
   isPriority: boolean;
   link: {
     image: LinkCardImage | undefined;
-    onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;
+    onImageError: (failedUrl: string) => void;
     title: string;
   };
   textInsets: string;

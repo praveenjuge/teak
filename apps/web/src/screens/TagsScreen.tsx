@@ -35,6 +35,7 @@ import {
 } from "../components/modals/TagManagerDialog";
 import { searchFieldClassName } from "../components/search/SearchBar";
 import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
 import {
@@ -48,6 +49,10 @@ export type TagSort = "count" | "name";
 
 const TAG_PAGE_SIZE = 150;
 const SUMMARY_RETRY_MS = 5000;
+// A request that never brings a summary counts as failed after this long.
+const SUMMARY_WAIT_MS = 45_000;
+// Requests tried without asking, before saying the tags couldn't load.
+const SUMMARY_AUTO_ATTEMPTS = 2;
 const SKELETON_WIDTHS = ["42%", "28%", "56%", "34%", "48%", "24%"];
 const SORT_LABELS = {
   count: "sortMostUsed",
@@ -91,8 +96,9 @@ const TagRow = memo(function TagRow({
       aria-label={t("moreFor", { tag: item.name })}
       className={cn(
         "mr-2 size-8 shrink-0 text-muted-foreground transition-opacity hover:text-foreground",
-        "md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100",
-        isMenuOpen && "md:opacity-100"
+        // Touch screens can't hover, so the button stays for them.
+        !isMenuOpen &&
+          "md:pointer-fine:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100"
       )}
       onClick={isMenuOpen ? undefined : () => onMenuOpenChange(item.name)}
       size="icon"
@@ -214,6 +220,8 @@ export function TagsScreen({
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
+  const tc = useTranslations("common");
+  useDocumentTitle(t("title"));
   const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);
@@ -229,20 +237,34 @@ export function TagsScreen({
   } | null>(null);
 
   const [request, setRequest] = useState<"idle" | "pending" | "failed">("idle");
+  const [attempts, setAttempts] = useState(0);
   useEffect(() => {
     if (summary !== null || request !== "idle") {
       return;
     }
     setRequest("pending");
+    setAttempts((count) => count + 1);
     requestSummary({}).catch(() => setRequest("failed"));
   }, [request, requestSummary, summary]);
   useEffect(() => {
-    if (request !== "failed") {
+    if (summary !== null || request !== "pending") {
+      return;
+    }
+    const stalled = setTimeout(() => setRequest("failed"), SUMMARY_WAIT_MS);
+    return () => clearTimeout(stalled);
+  }, [request, summary]);
+  useEffect(() => {
+    if (request !== "failed" || attempts >= SUMMARY_AUTO_ATTEMPTS) {
       return;
     }
     const retry = setTimeout(() => setRequest("idle"), SUMMARY_RETRY_MS);
     return () => clearTimeout(retry);
-  }, [request]);
+  }, [attempts, request]);
+  // The summary can still arrive later, which replaces this.
+  const summaryFailed =
+    summary === null &&
+    request === "failed" &&
+    attempts >= SUMMARY_AUTO_ATTEMPTS;
 
   const items = useMemo(
     () =>
@@ -338,7 +360,23 @@ export function TagsScreen({
       </PageHeader>
 
       <div>
-        {matches === undefined && (
+        {summaryFailed ? (
+          <div
+            className="flex flex-col items-center gap-4 rounded-xl border bg-card px-6 py-12 text-center"
+            role="alert"
+          >
+            <p className="text-muted-foreground text-sm">{t("loadFailed")}</p>
+            <Button
+              onClick={() => setRequest("idle")}
+              type="button"
+              variant="outline"
+            >
+              {tc("tryAgain")}
+            </Button>
+          </div>
+        ) : null}
+
+        {matches === undefined && !summaryFailed && (
           <ul
             aria-label={t("loading")}
             className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"

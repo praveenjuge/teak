@@ -91,7 +91,9 @@ export function NoSearchResults({
         </div>
       ) : null}
       <Button onClick={onClearAll} variant="outline">
-        {tCards("clearFilters")}
+        {chips.length === 0 && query
+          ? tCards("clearSearch")
+          : tCards("clearFilters")}
       </Button>
     </div>
   );

@@ -9,6 +9,12 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
 const realPanel = await import("../CardMetadataPanel");
 let panelProps: Parameters<typeof realPanel.CardMetadataPanel>[0] | undefined;
 mock.module("../CardMetadataPanel", () => ({
@@ -250,8 +256,11 @@ test("a card in Trash says so in the sidebar, with Restore and Delete forever", 
   const { handleRestore } = await render(
     linkCard({ isDeleted: true } as Partial<CardModalCard>)
   );
-  const status = document.querySelector("aside [role='status']");
-  expect(status?.textContent).toContain("This card is in Trash");
+  // The sidebar also holds the (empty) save status, so read every status.
+  const statuses = [...document.querySelectorAll("aside [role='status']")].map(
+    (element) => element.textContent
+  );
+  expect(statuses).toContain("This card is in Trash");
   expect(button("Delete forever")).toBeDefined();
   await act(() => button("Restore")?.click());
   expect(handleRestore).toHaveBeenCalledTimes(1);

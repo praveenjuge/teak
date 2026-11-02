@@ -22,6 +22,7 @@ export function QuotePreview({
   readOnly = false,
 }: QuotePreviewProps) {
   const t = useTranslations("cardPreviews.quote");
+  const tTypes = useTranslations("cards.types");
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
@@ -37,6 +38,7 @@ export function QuotePreview({
         </span>
 
         <Textarea
+          aria-label={tTypes("quote")}
           className="min-h-0 w-auto min-w-48 max-w-full resize-none rounded-none border-0 bg-transparent p-0 text-center font-medium text-xl italic leading-relaxed shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-2xl md:leading-relaxed dark:bg-transparent"
           onChange={(e) => {
             const newContent = e.target.value;

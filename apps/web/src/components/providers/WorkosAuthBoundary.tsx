@@ -13,9 +13,9 @@ import {
 } from "react";
 import Loading from "@/app/loading";
 import { Button } from "@/components/ui/button";
+import { useSignOut } from "@/hooks/useSignOut";
 import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { signOut } from "@/lib/sign-out-client";
 import { StatusScreen } from "../StatusScreen";
 import { AuthUnavailable } from "./AuthUnavailable";
 import { PostHogIdentify } from "./PostHogIdentify";
@@ -214,9 +214,20 @@ export function WorkosAuthBoundary({
       onAction={retryBootstrap}
       role="status"
     >
-      <Button onClick={() => void signOut()} variant="ghost">
-        {t("signOut")}
-      </Button>
+      <BlockedSignOutButton label={t("signOut")} />
     </StatusScreen>
+  );
+}
+
+function BlockedSignOutButton({ label }: { label: string }) {
+  const { signOut, signingOut } = useSignOut();
+  return (
+    <Button
+      disabled={signingOut}
+      onClick={() => void signOut()}
+      variant="ghost"
+    >
+      {label}
+    </Button>
   );
 }

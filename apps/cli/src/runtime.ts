@@ -524,6 +524,20 @@ export const write = (value: unknown, options: GlobalOptions) => {
   process.stdout.write(`${String(value)}\n`);
 };
 
+// A human listing with nothing in it says so on stderr and leaves stdout
+// empty, so a pipe gets no stray blank line and a person gets an answer.
+export const writeList = (
+  lines: string[],
+  emptyMessage: string,
+  options: GlobalOptions
+) => {
+  if (lines.length === 0) {
+    process.stderr.write(`${emptyMessage}\n`);
+    return;
+  }
+  write(lines.join("\n"), options);
+};
+
 export const writeError = (error: unknown, options: GlobalOptions) => {
   if (options.json) {
     const code = error instanceof TeakApiError ? error.code : "REQUEST_FAILED";

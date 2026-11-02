@@ -107,7 +107,7 @@ export interface CardProps {
   nativeDrag?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
-  onCopyImage?: (content: string, isImage: boolean) => void;
+  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onDelete?: (cardId: string) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;
@@ -127,3 +127,7 @@ const UUID_REGEX =
 export function isOptimisticCard(cardId: string): boolean {
   return UUID_REGEX.test(cardId);
 }
+
+/** Whether there are cards and every one is a favorite. */
+export const allFavorited = (cards: readonly { isFavorited?: boolean }[]) =>
+  cards.length > 0 && cards.every((card) => card.isFavorited === true);

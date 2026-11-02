@@ -9,6 +9,7 @@ import {
 import type { TeakSaveResponse } from "../../types/messages";
 
 const PAGE = "https://example.com/article";
+const LIMIT_TITLE = "Limit reached\nUpgrade";
 
 function setup(
   save: (url: string) => Promise<TeakSaveResponse>,
@@ -26,6 +27,7 @@ function setup(
   let popups = 0;
   let lastTab: chrome.tabs.Tab | undefined;
   const shortcut = createSaveShortcut({
+    cardLimitTitle: () => LIMIT_TITLE,
     currentUrl: () => Promise.resolve(showing ? showing() : lastTab?.url),
     hold: () => {
       held += 1;
@@ -177,6 +179,23 @@ describe("the save shortcut", () => {
     }));
     await run.shortcut(tab(PAGE));
     expect(run.popups()).toBe(1);
+  });
+
+  test("at the card limit without a popup, ! shows the card-limit title", async () => {
+    const run = setup(
+      async () => ({
+        status: "error",
+        code: "CARD_LIMIT_REACHED",
+        message: "limit",
+      }),
+      { popupOpens: false }
+    );
+    await run.shortcut(tab(PAGE));
+    expect(run.painted.at(-1)).toEqual({
+      state: "error",
+      tabId: 7,
+      title: LIMIT_TITLE,
+    });
   });
 
   test("when the browser won't open the popup, ! says to sign in", async () => {

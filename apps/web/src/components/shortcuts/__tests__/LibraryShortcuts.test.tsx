@@ -18,7 +18,7 @@ mock.module("next-themes", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { isApplePlatform } = await import("../../../lib/platform");
-const { LibraryShortcuts } = await import("../LibraryShortcuts");
+const { LibraryShortcuts, toggledTheme } = await import("../LibraryShortcuts");
 
 let root: Root | undefined;
 
@@ -76,4 +76,13 @@ test("keys typed while the palette is still loading stay out of the library", as
   await press("g");
   await press("f");
   expect(onGoToView).not.toHaveBeenCalled();
+});
+
+test("Toggle theme flips light and dark, and flipping back follows the system again", () => {
+  // Following a light system: one toggle goes dark, the next back to System.
+  expect(toggledTheme("light", "light")).toBe("dark");
+  expect(toggledTheme("dark", "light")).toBe("system");
+  // Following a dark system.
+  expect(toggledTheme("dark", "dark")).toBe("light");
+  expect(toggledTheme("light", "dark")).toBe("system");
 });

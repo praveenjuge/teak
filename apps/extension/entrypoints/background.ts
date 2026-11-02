@@ -58,7 +58,7 @@ import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { createSaveShortcut, SAVE_PAGE_COMMAND } from "../lib/saveShortcut";
 import { saveToTeak } from "../lib/saveToTeak";
 import { captureExtensionEvent, reportUncaughtErrors } from "../lib/telemetry";
-import { setTabBadge } from "../lib/toolbarBadge";
+import { cardLimitTitle, setTabBadge } from "../lib/toolbarBadge";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
@@ -480,6 +480,7 @@ export default defineBackground(() => {
     });
     savedPages = checks;
     const saveFromShortcut = createSaveShortcut({
+      cardLimitTitle: () => cardLimitTitle(locale.current.popupStatus),
       currentUrl: (tabId) =>
         chrome.tabs.get(tabId).then(
           (tab) => tab.url,

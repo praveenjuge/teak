@@ -1,7 +1,6 @@
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { useTranslations } from "@teak/i18n/react";
-import type { SyntheticEvent } from "react";
 import { CircleCheck } from "vadivam-react";
 import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
@@ -32,7 +31,7 @@ export function LinkCardBody({
   card: CardWithUrls;
   image: LinkCardImage | undefined;
   isPriority?: boolean;
-  onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;
+  onImageError: (failedUrl: string) => void;
   textInsets: string;
   title: string;
 }) {

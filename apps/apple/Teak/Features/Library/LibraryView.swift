@@ -592,7 +592,7 @@ struct StatusToast: View {
             }
             #if os(macOS)
             if status.isCardLimit {
-                Button(tr("native.app.upgrade")) { openURL(app.config.webURL.appending(path: "settings")) }
+                Button(tr("native.app.upgrade")) { openURL(app.config.planURL) }
                     .buttonStyle(.borderless)
             }
             #endif

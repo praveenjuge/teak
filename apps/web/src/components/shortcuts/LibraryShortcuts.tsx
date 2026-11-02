@@ -49,6 +49,18 @@ interface LibraryShortcutsProps {
   pathname: string | null;
 }
 
+/**
+ * Flips light and dark. Flipping back to what the system uses goes back to
+ * following the system, so one toggle never turns "System" off for good.
+ */
+export function toggledTheme(
+  resolved: string | undefined,
+  system: string | undefined
+): "dark" | "light" | "system" {
+  const next = resolved === "dark" ? "light" : "dark";
+  return next === system ? "system" : next;
+}
+
 export function LibraryShortcuts({
   onGoToView,
   onNavigate,
@@ -94,7 +106,7 @@ export function LibraryShortcuts({
   const afterPaletteCloseRef = useRef<(() => void) | null>(null);
   const returnPaletteFocus = useReturnFocus(isPaletteOpen);
   const returnShortcutsFocus = useReturnFocus(isDialogOpen);
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme, systemTheme } = useTheme();
 
   const newNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
@@ -159,7 +171,7 @@ export function LibraryShortcuts({
           onNavigate(settingsDataHref(command.id));
           return;
         case "toggle-theme":
-          setTheme(resolvedTheme === "dark" ? "light" : "dark");
+          setTheme(toggledTheme(resolvedTheme, systemTheme));
           return;
         case "shuffle":
           onNavigate(
@@ -179,7 +191,15 @@ export function LibraryShortcuts({
           return;
       }
     },
-    [newNote, onNavigate, onSignOut, resolvedTheme, setDialogOpen, setTheme]
+    [
+      newNote,
+      onNavigate,
+      onSignOut,
+      resolvedTheme,
+      setDialogOpen,
+      setTheme,
+      systemTheme,
+    ]
   );
 
   const handlePaletteSelect = useCallback(

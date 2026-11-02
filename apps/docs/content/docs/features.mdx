@@ -32,6 +32,10 @@ Open a palette to change its colors. **Add color** takes a color from the picker
 Ordinary file uploads (images, video, audio, documents, source files, Markdown, ZIP archives, and design files) are supported up to 100 MB. For [Teak archive imports](/docs/import#limits), the archive itself can be up to 5 GiB (exempt from the 100 MB upload limit), while each attached file inside is limited to 20 MiB. `.md` and `.markdown` files become editable text cards limited to 512 KiB of valid UTF-8.
 :::
 
+### Saving while offline or when a save fails
+
+If you lose your connection, Teak says so, and a note you save meanwhile appears at once and is saved when you're back online. If a voice recording can't be saved, it stays in the recording window so you can try again or download it.
+
 ### Saving links
 
 Paste a link on the home page to save it as a link card. Paste a list of links, one per line, and Teak saves each as its own card (up to 100 at a time).
@@ -99,7 +103,7 @@ Every page has the same slim header: the page's name on the left (a folder shows
 
 ![The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder](./images/view-menu.webp)
 
-Drag the sidebar's edge to make it wider or narrower, and double-click the edge to reset it. Collapse it to icons with the button at its top (or ⌘B, Ctrl+B on Windows and Linux), and bring it back with the same button, now under the logo; rest the pointer on the icons to see the full sidebar for a moment. Teak remembers the width and your choice on each device. On a phone, the button at the start of the header opens it as a drawer, and the search icon opens the search box.
+Drag the sidebar's edge to make it wider or narrower, and double-click the edge to reset it. Collapse it to icons with the button at its top (or ⌘B, Ctrl+B on Windows and Linux), and bring it back with the same button, now under the logo; rest the pointer on an icon to see its name and shortcut. Teak remembers the width and your choice on each device. On a phone, the button at the start of the header opens it as a drawer, the search icon opens the search box, and **+** at the end of the header adds a note or link, uploads files, or records audio. On a phone or tablet, each card keeps its **⋯** menu showing, since there's no pointer to rest on it.
 
 ### Smart search
 
@@ -260,7 +264,7 @@ Cards show in a masonry grid that adapts to different sizes and aspect ratios. L
 
 Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`) for everything else in its right-click menu.
 
-Click a card to open it. Everything about the card sits in the details beside it. At the top: where it's from and its type (click the type to see every card of that type), then its title, which wraps onto a few lines; for a link, click it to rename. Under the title are one main button, **Open** for a link or **Download** for a file, and a row of buttons: **Favorite**, the done button for a link (**Read**, **Watched**, **Bought** and so on), **Copy**, **Folder** and **More** (`⋯`). Scroll the details and those buttons stay pinned to the top in one line. Below them are the card's notes, tags and folders, summary, colors, and details, all editable in place: a note saves on its own as you type (**Saved** shows beside the type for a moment), and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**; open it to keep one as your own tag or remove it. **Details** shows when you added the card, when you saved it again if you did, and its size, with **More details** for the rest. To change a link's address, click the pencil beside its **URL** in **Details**.
+Click a card to open it. Everything about the card sits in the details beside it. At the top: where it's from and its type (click the type to see every card of that type), then its title, which wraps onto a few lines; for a link, click it to rename. Under the title are one main button, **Open** for a link or **Download** for a file, and a row of buttons: **Favorite**, the done button for a link (**Read**, **Watched**, **Bought** and so on), **Copy**, **Folder** and **More** (`⋯`). Scroll the details and those buttons stay pinned to the top in one line. Below them are the card's notes, its folders, its tags, summary, colors, and details, all editable in place: a note saves on its own as you type (**Saved** shows beside the type for a moment), and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**; open it to keep one as your own tag or remove it. **Details** shows when you added the card, when you saved it again if you did, and its size, with **More details** for the rest. To change a link's address, click the pencil beside its **URL** in **Details**.
 
 **More** holds the rest: Save PDF, More like this, Refresh details, Pin to top, Archive, and Move to Trash. Deleting a card shows **Undo**. A card in Trash says so at the top of its details, with **Restore** and **Delete forever** in place of its buttons.
 

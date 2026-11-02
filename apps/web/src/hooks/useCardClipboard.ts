@@ -73,85 +73,62 @@ function getSvgDimensions(svgText: string): { width: number; height: number } {
   return { width: 500, height: 500 };
 }
 
-function getErrorName(error: unknown): string {
-  if (error instanceof DOMException) {
-    return error.name;
+/** The image at `url` as a PNG, the one image type every browser copies. */
+async function fetchImageAsPng(url: string): Promise<Blob> {
+  const response = await fetch(url);
+  // An error page is not the image: copy the link instead of the page.
+  if (!response.ok) {
+    throw new Error(`Image request failed with status ${response.status}`);
   }
-  if (typeof error === "object" && error !== null && "name" in error) {
-    return String(error.name);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error(`Expected an image, got ${blob.type || "no type"}`);
   }
-  return "";
+  if (blob.type === "image/png") {
+    return blob;
+  }
+  if (blob.type === "image/svg+xml") {
+    const svgText = await blob.text();
+    const { width, height } = getSvgDimensions(svgText);
+    const sized = new Blob([sizeSvgRoot(svgText, width, height)], {
+      type: "image/svg+xml",
+    });
+    return convertToPng(sized, width, height);
+  }
+  return convertToPng(blob);
 }
 
+/**
+ * Copies a card's text or image. Call it straight from the click or key
+ * press, without awaiting anything first: Safari only lets the clipboard be
+ * written during that gesture, so the image is handed over as a promise
+ * that the clipboard waits for, and `content` may be one too.
+ */
 export async function copyCardContentToClipboard(
-  content: string,
+  content: string | Promise<string>,
   isImage: boolean,
   options: CopyCardContentOptions = {}
 ): Promise<void> {
   const imageToastId = options.copyImageToastId ?? DEFAULT_IMAGE_TOAST_ID;
   const t = options.t ?? englishClipboard;
 
-  if (isImage) {
-    toast.loading(t("copyingImage"), { id: imageToastId });
-  }
-
   try {
     if (isImage) {
-      const response = await fetch(content);
-      // An error page is not the image: copy the link instead of the page.
-      if (!response.ok) {
-        throw new Error(`Image request failed with status ${response.status}`);
-      }
-      const blob = await response.blob();
-      if (!blob.type.startsWith("image/")) {
-        throw new Error(`Expected an image, got ${blob.type || "no type"}`);
-      }
-
-      try {
-        await navigator.clipboard.write([
-          new ClipboardItem({ [blob.type]: blob }),
-        ]);
-        toast.success(t("imageCopied"), { id: imageToastId });
-        return;
-      } catch (originalError) {
-        const errorName = getErrorName(originalError);
-
-        if (errorName === "NotAllowedError") {
-          if (blob.type === "image/svg+xml") {
-            const svgText = await blob.text();
-            const { width, height } = getSvgDimensions(svgText);
-            const svgWithDimensions = sizeSvgRoot(svgText, width, height);
-            const sizedBlob = new Blob([svgWithDimensions], {
-              type: "image/svg+xml",
-            });
-
-            const pngBlob = await convertToPng(sizedBlob, width, height);
-            await navigator.clipboard.write([
-              new ClipboardItem({ "image/png": pngBlob }),
-            ]);
-            toast.success(t("imageCopied"), { id: imageToastId });
-            return;
-          }
-
-          const pngBlob = await convertToPng(blob);
-          await navigator.clipboard.write([
-            new ClipboardItem({ "image/png": pngBlob }),
-          ]);
-          toast.success(t("imageCopied"), { id: imageToastId });
-          return;
-        }
-
-        throw originalError;
-      }
+      toast.loading(t("copyingImage"), { id: imageToastId });
+      const png = Promise.resolve(content).then(fetchImageAsPng);
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": png }),
+      ]);
+      toast.success(t("imageCopied"), { id: imageToastId });
+      return;
     }
-
-    await navigator.clipboard.writeText(content);
+    await navigator.clipboard.writeText(await content);
     toast.success(t("copied"));
   } catch (error) {
     console.error("Failed to copy:", error);
 
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(await content);
       toast.success(t("linkCopied"), { id: imageToastId });
     } catch {
       toast.error(t("copyFailed"), { id: imageToastId });
@@ -164,7 +141,7 @@ export function useCardClipboard(options: CopyCardContentOptions = {}) {
   const t = useTranslations("hooks.clipboard");
 
   const handleCopyImage = useCallback(
-    async (content: string, isImage: boolean) => {
+    async (content: string | Promise<string>, isImage: boolean) => {
       await copyCardContentToClipboard(content, isImage, {
         copyImageToastId,
         t,

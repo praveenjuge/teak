@@ -1,6 +1,25 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ImagePreview } from "../ImagePreview";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "http://localhost:3000" });
+}
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const realConvexReact = await import("convex/react");
+const refreshMediaUrl = mock(() =>
+  Promise.resolve({ url: "https://files.teakvault.com/cards/photo-fresh.jpg" })
+);
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => refreshMediaUrl,
+}));
+
+const { act } = await import("react");
+const { createRoot } = await import("react-dom/client");
+const { ImagePreview } = await import("../ImagePreview");
 
 const createImageCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_image",
@@ -122,5 +141,107 @@ describe("ImagePreview", () => {
 
     expect(markup).not.toContain("#112233");
     expect(markup).not.toContain("#445566");
+  });
+});
+
+describe("ImagePreview in a dialog left open", () => {
+  let root: Root | undefined;
+  afterEach(async () => {
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+  });
+
+  test("asks for a fresh URL once the old one has expired, then says it's unavailable", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() =>
+      root?.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileKey: "cards/photo.jpg",
+              fileMetadata: { fileName: "photo.jpg" },
+              fileUrl: "https://files.teakvault.com/cards/photo.jpg",
+            }) as never
+          }
+        />
+      )
+    );
+    const img = () => container.querySelector("img");
+    await act(async () => {
+      img()?.dispatchEvent(new Event("error"));
+      await Promise.resolve();
+    });
+    expect(refreshMediaUrl).toHaveBeenCalledTimes(1);
+    expect(img()?.getAttribute("src")).toBe(
+      "https://files.teakvault.com/cards/photo-fresh.jpg?teak_retry=1"
+    );
+
+    await act(async () => {
+      img()?.dispatchEvent(new Event("error"));
+      await Promise.resolve();
+    });
+    expect(refreshMediaUrl).toHaveBeenCalledTimes(1);
+    expect(img()).toBeNull();
+    expect(container.textContent).toBe("photo.jpg");
+  });
+  test("pulses in the image's box until the image has loaded", async () => {
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileUrl: "https://cdn.example.com/photo.jpg",
+              fileMetadata: { width: 1200, height: 800 },
+            }) as any
+          }
+        />
+      )
+    );
+    const image = container.querySelector("img") as HTMLImageElement;
+    const placeholder = () =>
+      container.querySelector('[data-slot="media-loading"]');
+    expect(image.dataset.loading).toBe("true");
+    expect(placeholder()?.className).toContain("animate-pulse");
+
+    await act(() => {
+      image.dispatchEvent(new Event("load"));
+    });
+    expect(image.dataset.loading).toBeUndefined();
+    expect(placeholder()).toBeNull();
+    await act(() => root.unmount());
+  });
+  test("stops pulsing when the image can't load, so its fallback shows", async () => {
+    refreshMediaUrl.mockImplementationOnce(() =>
+      Promise.reject(new Error("offline"))
+    );
+    const container = document.createElement("div");
+    const root: Root = createRoot(container);
+    await act(() =>
+      root.render(
+        <ImagePreview
+          card={
+            createImageCard({
+              fileKey: "cards/photo.jpg",
+              fileMetadata: { fileName: "photo.jpg", height: 800, width: 1200 },
+              fileUrl: "https://files.teakvault.com/cards/photo.jpg",
+            }) as any
+          }
+        />
+      )
+    );
+    await act(async () => {
+      container.querySelector("img")?.dispatchEvent(new Event("error"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-slot="media-loading"]')).toBeNull();
+    expect(container.textContent).toContain("photo.jpg");
+    await act(() => root.unmount());
   });
 });

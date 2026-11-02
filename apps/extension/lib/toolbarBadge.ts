@@ -1,4 +1,5 @@
 import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
+import type { TeakTranslator } from "@teak/i18n";
 import type { TeakSaveResponse } from "../types/messages";
 
 export type BadgeState = "error" | "none" | "saved" | "saving";
@@ -43,7 +44,14 @@ export type ShortcutOutcome =
 
 export const RATE_LIMITED_TITLE = "Too many saves. Try again in a minute.";
 
-export function shortcutOutcome(result: TeakSaveResponse): ShortcutOutcome {
+/** The tooltip at the card limit, in the account's language. */
+export const cardLimitTitle = (t: TeakTranslator<"extension.popup.status">) =>
+  `${t("freeLimitReached")}\n${t("upgradeForUnlimited")}`;
+
+export function shortcutOutcome(
+  result: TeakSaveResponse,
+  limitTitle: string
+): ShortcutOutcome {
   switch (result.status) {
     case "saved":
       return { badge: "saved", saved: true, title: "Saved to Teak" };
@@ -53,10 +61,7 @@ export function shortcutOutcome(result: TeakSaveResponse): ShortcutOutcome {
       return { openPopup: true, title: "Sign in to Teak to save this page." };
     default:
       if (result.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-        return {
-          openPopup: true,
-          title: "You've reached the free limit. Upgrade to Pro for more.",
-        };
+        return { openPopup: true, title: limitTitle };
       }
       return {
         badge: "error",

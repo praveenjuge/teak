@@ -25,4 +25,23 @@ describe("software application structured data", () => {
       DOCS_ORGANIZATION_ID
     );
   });
+
+  test("offers Free and both Pro prices from the shared billing constants", () => {
+    expect(
+      softwareApplicationSchema.offers.map(
+        (offer) =>
+          [
+            offer.price,
+            "billingIncrement" in offer ? offer.billingIncrement : null,
+          ] as const
+      )
+    ).toEqual([
+      ["0", null],
+      ["19", "P1M"],
+      ["99", "P1Y"],
+    ]);
+    expect(softwareApplicationSchema.offers[0].description).toBe(
+      "200 cards free"
+    );
+  });
 });

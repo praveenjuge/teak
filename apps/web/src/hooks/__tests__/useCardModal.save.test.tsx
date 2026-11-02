@@ -247,3 +247,59 @@ test("edits sent on leaving a card count as saving until they land", async () =>
   });
   expect(hook().saveState).not.toBe("saving");
 });
+
+const wait = (ms: number) =>
+  act(() => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+
+test("a second save keeps 'Saved' up for its own full time", async () => {
+  write = mock(async () => null);
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => hook().updateNotes("A's note"));
+  await act(async () => {
+    await hook().saveChanges({ silent: true });
+  });
+  expect(hook().saveState).toBe("saved");
+  await wait(1500);
+
+  await openCardB();
+  await act(() => hook().updateNotes("B's note"));
+  await act(async () => {
+    await hook().saveChanges({ silent: true });
+  });
+  // The first save's timer would have run out here.
+  await wait(800);
+  expect(hook().saveState).toBe("saved");
+  await wait(1400);
+  expect(hook().saveState).toBe("idle");
+});
+
+test("typing doesn't take the leave-the-page listeners down and up", async () => {
+  write = mock(async () => null);
+  const added = mock();
+  const removed = mock();
+  const add = window.addEventListener;
+  const remove = window.removeEventListener;
+  window.addEventListener = ((type: string, ...rest: never[]) => {
+    if (type === "beforeunload") {
+      added();
+    }
+    return add.call(window, type, ...rest);
+  }) as typeof window.addEventListener;
+  window.removeEventListener = ((type: string, ...rest: never[]) => {
+    if (type === "beforeunload") {
+      removed();
+    }
+    return remove.call(window, type, ...rest);
+  }) as typeof window.removeEventListener;
+  try {
+    const hook = await renderHook();
+    for (const text of ["N", "Ne", "New", "New n", "New note"]) {
+      await act(() => hook().updateNotes(text));
+    }
+    expect(added).toHaveBeenCalledTimes(1);
+    expect(removed).not.toHaveBeenCalled();
+  } finally {
+    window.addEventListener = add;
+    window.removeEventListener = remove;
+  }
+});
