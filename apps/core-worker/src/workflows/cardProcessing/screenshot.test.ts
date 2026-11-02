@@ -31,7 +31,10 @@ const PAGE: OpAnswer = {
     source: "static",
   },
 };
-const CAPTURED: OpAnswer = { data: { height: 900, width: 1440 } };
+const CAPTURED_BYTES = 84_210;
+const CAPTURED: OpAnswer = {
+  data: { height: 900, storedBytes: CAPTURED_BYTES, width: 1440 },
+};
 const BUSY = new Error("files_worker_error:RENDERER_UNAVAILABLE:503:r");
 
 const linkCard = (preview: Record<string, unknown> = {}) =>
@@ -113,6 +116,7 @@ describe("screenshot", () => {
     expect(
       convex.callsTo("linkMetadata:updateCardScreenshot")[0]?.args
     ).toMatchObject({
+      screenshotBytes: CAPTURED_BYTES,
       screenshotHeight: 900,
       screenshotStorageKey: params.destinationKey,
       screenshotWidth: 1440,
