@@ -114,6 +114,14 @@ export async function copyCardContentToClipboard(
   const t = options.t ?? englishClipboard;
 
   if (!isImage) {
+    try {
+      await navigator.clipboard.writeText(await content);
+      toast.success(t("copied"));
+      return;
+    } catch (error) {
+      // A write refused mid-gesture (the page lost focus) often works again.
+      console.error("Failed to copy, trying again:", error);
+    }
     await copyText(content, { copied: t("copied"), failed: t("copyFailed") });
     return;
   }

@@ -57,7 +57,25 @@ describe("copyCardContentToClipboard", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Copied to clipboard");
   });
 
-  test("a text copy that fails says so, and never that a link was copied", async () => {
+  test("a text copy that works on its second try says it copied, not that a link was", async () => {
+    const writeText = mock((_text: string) =>
+      writeText.mock.calls.length === 1
+        ? Promise.reject(new Error("Document is not focused."))
+        : Promise.resolve()
+    );
+    setClipboard(writeText);
+
+    await copyCardContentToClipboard("some note text", false);
+
+    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(toastSuccess).toHaveBeenCalledWith("Copied to clipboard");
+    expect(toastSuccess).not.toHaveBeenCalledWith(
+      "Link copied to clipboard",
+      expect.anything()
+    );
+  });
+
+  test("a text copy that keeps failing says so", async () => {
     const writeText = mock((_text: string) =>
       Promise.reject(new Error("not allowed"))
     );
@@ -65,7 +83,7 @@ describe("copyCardContentToClipboard", () => {
 
     await copyCardContentToClipboard("some note text", false);
 
-    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledTimes(2);
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith("Failed to copy to clipboard");
   });
