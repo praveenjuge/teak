@@ -2,9 +2,9 @@
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Copy, Mail } from "vadivam-react";
 import { isRateLimitError } from "../../lib/cardErrors";
+import { copyText } from "../../lib/clipboard";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";
@@ -79,14 +79,8 @@ export function InboundEmailSection({
     }
   };
 
-  const copy = async (address: string) => {
-    try {
-      await navigator.clipboard.writeText(address);
-      toast.success(t("addressCopied"));
-    } catch {
-      toast.error(t("copyFailed"));
-    }
-  };
+  const copy = (address: string) =>
+    copyText(address, { copied: t("addressCopied"), failed: t("copyFailed") });
 
   const intro = t("intro");
   const title = tIntegrations("saveByEmailTitle");

@@ -1,4 +1,3 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { X } from "vadivam-react";
 import {
@@ -7,13 +6,9 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { AddColorPopover } from "./AddColorPopover";
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface PalettePreviewProps {
   card: CardWithUrls;

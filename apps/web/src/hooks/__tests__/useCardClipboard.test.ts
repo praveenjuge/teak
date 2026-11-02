@@ -57,35 +57,17 @@ describe("copyCardContentToClipboard", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Copied to clipboard");
   });
 
-  test("falls back to writeText retry and reports link copy", async () => {
-    const writeText = mock((_text: string) => {
-      if (writeText.mock.calls.length === 1) {
-        return Promise.reject(new Error("first attempt failed"));
-      }
-      return Promise.resolve();
-    });
-    setClipboard(writeText);
-
-    await copyCardContentToClipboard("https://example.com", false);
-
-    expect(writeText).toHaveBeenCalledTimes(2);
-    expect(toastSuccess).toHaveBeenCalledWith("Link copied to clipboard", {
-      id: "copy-image",
-    });
-  });
-
-  test("shows error when fallback copy also fails", async () => {
+  test("a text copy that fails says so, and never that a link was copied", async () => {
     const writeText = mock((_text: string) =>
-      Promise.reject(new Error("always fails"))
+      Promise.reject(new Error("not allowed"))
     );
     setClipboard(writeText);
 
-    await copyCardContentToClipboard("content", false);
+    await copyCardContentToClipboard("some note text", false);
 
-    expect(writeText).toHaveBeenCalledTimes(2);
-    expect(toastError).toHaveBeenCalledWith("Failed to copy to clipboard", {
-      id: "copy-image",
-    });
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith("Failed to copy to clipboard");
   });
 
   test("copies the link, not an error page, when the image fails to load", async () => {

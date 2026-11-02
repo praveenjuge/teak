@@ -1,4 +1,3 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import {
   getSafeUrlHostname,
   sanitizeExternalUrl,
@@ -14,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatLinkByline } from "../../lib/linkByline";
@@ -31,25 +31,6 @@ function formatFactValue(value: string, locale: string | undefined) {
   }
   return value;
 }
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-  screenshotUrl?: string;
-  linkPreviewMedia?: Array<{
-    contentType?: string;
-    height?: number;
-    posterContentType?: string;
-    posterHeight?: number;
-    posterUrl?: string;
-    posterWidth?: number;
-    type: "image" | "video";
-    url: string;
-    width?: number;
-  }>;
-  linkPreviewImageUrl?: string;
-  hasThumbnailOverride?: true;
-};
 
 export interface LinkPreviewThumbnail {
   onFile: (file: File) => void;

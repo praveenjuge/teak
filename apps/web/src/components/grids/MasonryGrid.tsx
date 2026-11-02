@@ -23,6 +23,7 @@ import {
   type BulkFolderTarget,
   collectCardLinks,
 } from "../../lib/bulkCardActions";
+import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
@@ -732,18 +733,14 @@ export const MasonryGrid = memo(function MasonryGrid({
           });
           return;
         }
-        navigator.clipboard
-          .writeText(links.join("\n"))
-          .then(() =>
-            toast.success(t("copiedLinks", { count: links.length }), {
-              id: `${toastIdPrefix}-copy-links`,
-            })
-          )
-          .catch(() =>
-            toast.error(t("copyLinksFailed"), {
-              id: `${toastIdPrefix}-copy-links`,
-            })
-          );
+        void copyText(
+          links.join("\n"),
+          {
+            copied: t("copiedLinks", { count: links.length }),
+            failed: t("copyLinksFailed"),
+          },
+          `${toastIdPrefix}-copy-links`
+        );
         return;
       }
       runBulk(action).catch(() => undefined);

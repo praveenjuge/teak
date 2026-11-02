@@ -1,12 +1,7 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { Textarea } from "@/components/ui/textarea";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import type { GetCurrentValue } from "../card-modal/types";
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface QuotePreviewProps {
   card: CardWithUrls;

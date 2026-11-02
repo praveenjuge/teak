@@ -15,13 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { SHORTCUTS_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import {
   keyboardShortcutGroups,
   platformKey,
   type ShortcutRow,
 } from "../../lib/keyboardShortcuts";
-import { isApplePlatform } from "../../lib/platform";
 import { cn } from "../../lib/utils";
 
 interface KeyboardShortcutsDialogProps {
@@ -74,7 +74,7 @@ export function KeyboardShortcutsDialog({
                       {row.label}
                     </dt>
                     <dd className="shrink-0">
-                      <ShortcutKeys row={row} />
+                      <ShortcutRowKeys row={row} />
                     </dd>
                   </div>
                 ))}
@@ -87,9 +87,10 @@ export function KeyboardShortcutsDialog({
   );
 }
 
-function ShortcutKeys({ row }: { row: ShortcutRow }) {
+/** A row's keys, read out as words; the same keys ShortcutKeys shows. */
+function ShortcutRowKeys({ row }: { row: ShortcutRow }) {
   const t = useTranslations("modals.shortcuts");
-  const apple = isApplePlatform();
+  const apple = useIsApplePlatform();
   const shown = {
     ...row,
     keys: row.keys.map((key) => platformKey(key, apple)),
@@ -158,5 +159,5 @@ export function shortcutAccessibleLabel(
 }
 
 export function ShortcutHint({ row }: { row: ShortcutRow }) {
-  return <ShortcutKeys row={row} />;
+  return <ShortcutRowKeys row={row} />;
 }

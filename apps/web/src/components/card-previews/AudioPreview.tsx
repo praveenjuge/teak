@@ -1,9 +1,9 @@
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import { Button } from "@/components/ui/button";
+import type { CardWithUrls as BaseCardWithUrls } from "@/hooks/useCardModal";
 import { formatClockTime } from "@/lib/clockTime";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
@@ -13,10 +13,8 @@ import {
 } from "../cards/previews/AudioWavePreview";
 import type { WaveformMetadata } from "../cards/types";
 
-type CardWithUrls = Doc<"cards"> & {
+type CardWithUrls = BaseCardWithUrls & {
   fileMetadata?: { waveform?: WaveformMetadata };
-  fileUrl?: string;
-  thumbnailUrl?: string;
 };
 
 interface AudioPreviewProps {

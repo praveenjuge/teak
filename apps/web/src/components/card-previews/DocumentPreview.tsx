@@ -1,6 +1,5 @@
 "use client";
 
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import {
   type FileFormat,
   type FileKind,
@@ -11,13 +10,9 @@ import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
 import { Button } from "@/components/ui/button";
+import type { CardWithUrls } from "@/hooks/useCardModal";
 import { FileTextPreview } from "./FileTextPreview";
 import { MEDIA_LOADING_CLASS } from "./ImagePreview";
-
-type CardWithUrls = Doc<"cards"> & {
-  fileUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface DocumentPreviewProps {
   card: CardWithUrls;
