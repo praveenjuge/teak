@@ -97,7 +97,8 @@ const signIn = async (context: BrowserContext) => {
     await page
       .getByRole("textbox", { name: "Password" })
       .fill(stack.account.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    // Hosted WorkOS says "Sign in"; the local stack's emulator, "Continue".
+    await page.getByRole("button", { name: /^(Sign in|Continue)$/ }).click();
     await page
       .getByRole("heading", { name: "Everything" })
       .waitFor({ timeout: 120_000 });
@@ -334,6 +335,23 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
     await page.getByRole("button", { name: "View", exact: true }).click();
     await page.getByRole("menuitemradio", { name: "Revisit" }).waitFor();
     await page.waitForTimeout(300);
+  },
+  "pinned-cards": async (page) => {
+    await library(page);
+    const strip = page.locator("[data-pinned-strip] [data-card-id]");
+    // Strip cards come first in the page, so the first grid card is the one
+    // after them.
+    while ((await strip.count()) < 3) {
+      const pinned = await strip.count();
+      await page.locator("[data-card-id]").nth(pinned).focus();
+      await page.keyboard.press("p");
+      await strip.nth(pinned).waitFor();
+    }
+    await page.evaluate(() =>
+      (document.activeElement as HTMLElement | null)?.blur()
+    );
+    await page.mouse.move(0, 0);
+    await settle(page);
   },
   folder: async (page) => {
     await library(page);

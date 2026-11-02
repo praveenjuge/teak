@@ -81,6 +81,78 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   expect((await apiFetch("/v1/cards/not-a-card", apiKey)).status).toBe(404);
 });
 
+test("pins cards to the top in order, up to the cap, and archiving unpins", async () => {
+  const openapi = await loadOpenApi();
+  const marker = `api-pins-${Date.now()}`;
+  const created = await apiFetch("/v1/cards/bulk", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      operation: "create",
+      items: Array.from({ length: 13 }, (_, index) => ({
+        content: `${marker} ${index}`,
+      })),
+    }),
+  });
+  const ids = (
+    (await created.json()) as { results: { cardId: string }[] }
+  ).results.map((result) => result.cardId);
+  expect(ids).toHaveLength(13);
+
+  const pin = (cardId: string, isPinned = true) =>
+    apiFetch(`/v1/cards/${cardId}/pin`, apiKey, {
+      method: "PATCH",
+      body: JSON.stringify({ isPinned }),
+    });
+  for (const cardId of ids.slice(0, 12)) {
+    const pinned = await pin(cardId);
+    expect(pinned.status).toBe(200);
+    const body = await pinned.json();
+    openapi.validate(`/v1/cards/${cardId}/pin`, "PATCH", 200, body);
+    expect(body.isPinned).toBe(true);
+  }
+  const refused = await pin(ids[12] as string);
+  expect(refused.status).toBe(400);
+  expect(await refused.json()).toMatchObject({ code: "PIN_LIMIT_REACHED" });
+
+  const listed = await apiFetch("/v1/cards?pinned=true", apiKey);
+  const listedIds = (
+    (await listed.json()) as { items: { id: string }[] }
+  ).items.map((card) => card.id);
+  expect(listedIds).toEqual([...ids.slice(0, 12)].reverse());
+
+  const order = [...listedIds].reverse();
+  const reordered = await apiFetch("/v1/cards/pinned/order", apiKey, {
+    method: "PUT",
+    body: JSON.stringify({ cardIds: order }),
+  });
+  expect(reordered.status).toBe(200);
+  const reorderedBody = await reordered.json();
+  openapi.validate("/v1/cards/pinned/order", "PUT", 200, reorderedBody);
+  expect(reorderedBody.items.map((card: { id: string }) => card.id)).toEqual(
+    order
+  );
+  const mismatch = await apiFetch("/v1/cards/pinned/order", apiKey, {
+    method: "PUT",
+    body: JSON.stringify({ cardIds: order.slice(1) }),
+  });
+  expect(mismatch.status).toBe(400);
+
+  const archived = await apiFetch(`/v1/cards/${order[0]}`, apiKey, {
+    method: "PATCH",
+    body: JSON.stringify({ isArchived: true }),
+  });
+  expect(archived.ok).toBe(true);
+  const afterArchive = await apiFetch(
+    `/v1/cards?q=${encodeURIComponent("is:pinned")}`,
+    apiKey
+  );
+  const remaining = (
+    (await afterArchive.json()) as { items: { id: string }[] }
+  ).items.map((card) => card.id);
+  expect(remaining).toHaveLength(11);
+  expect(remaining).not.toContain(order[0]);
+});
+
 test("saving a URL as content creates a link card, not a text card", async () => {
   const bookUrl =
     "https://www.goodreads.com/book/show/2767052-the-hunger-games";

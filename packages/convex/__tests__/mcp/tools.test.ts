@@ -245,6 +245,65 @@ describe("MCP tools", () => {
     expect(refused.isError).toBe(true);
   });
 
+  test("pin tools reach the pin routes with their bodies", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json(
+          operation.method === "PATCH"
+            ? { id: "card_1", isPinned: true }
+            : {
+                items: [{ id: "card_2" }, { id: "card_1" }],
+                pageInfo: { hasMore: false, nextCursor: null },
+              }
+        )
+      );
+    }) as PublicApiToolExecutor;
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 71, method: "tools/call" }),
+        executor
+      );
+
+    const pinned = await call("teak_v1_set_card_pinned", {
+      cardId: "card_1",
+      isPinned: true,
+    });
+    const listed = await call("teak_v1_list_pinned_cards", {});
+    const reordered = await call("teak_v1_reorder_pinned_cards", {
+      cardIds: ["card_2", "card_1"],
+    });
+    const refused = await call("teak_v1_reorder_pinned_cards", {
+      cardIds: Array.from({ length: 13 }, (_, index) => `card_${index}`),
+    });
+
+    expect(captured[0]).toMatchObject({
+      method: "PATCH",
+      path: "/v1/cards/card_1/pin",
+      body: { isPinned: true },
+    });
+    expect(pinned.content[0]?.text).toBe("Card pinned");
+    expect(captured[1]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards",
+      query: { pinned: true },
+    });
+    expect(listed.structuredContent).toMatchObject({ total: 2 });
+    expect(captured[2]).toMatchObject({
+      method: "PUT",
+      path: "/v1/cards/pinned/order",
+      body: { cardIds: ["card_2", "card_1"] },
+    });
+    expect(reordered.structuredContent).toMatchObject({
+      items: [{ id: "card_2" }, { id: "card_1" }],
+    });
+    expect(refused.isError).toBe(true);
+    expect(captured).toHaveLength(3);
+  });
+
   test("highlight tools reach the highlight routes with their bodies", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {

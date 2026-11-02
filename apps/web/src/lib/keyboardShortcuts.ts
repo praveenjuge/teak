@@ -60,6 +60,8 @@ const SHORTCUT_GROUPS: {
       { id: "nextOrPreviousCard", keys: ["J", "K"] },
       { id: "openCard", keys: ["Enter"] },
       { id: "favorite", keys: ["F"] },
+      { id: "pin", keys: ["P"] },
+      { id: "movePinned", keys: ["Alt ←", "Alt →"] },
       { id: "addTags", keys: ["T"] },
       { id: "archive", keys: ["E"] },
       { id: "moveToTrash", keys: ["Delete"] },
@@ -73,6 +75,7 @@ const SHORTCUT_GROUPS: {
     rows: [
       { id: "previousOrNextCard", keys: ["←", "→"] },
       { id: "favorite", keys: ["F"] },
+      { id: "pin", keys: ["P"] },
       { id: "addTag", keys: ["T"] },
       { id: "writeNote", keys: ["N"] },
       { id: "focusNote", keys: ["Mod", "E"], combo: true },
@@ -207,6 +210,7 @@ export function cardMenuShortcuts(apple = isApplePlatform()) {
       ? { keys: "Backspace", label: "⌫" }
       : { keys: "Delete", label: "Del" },
     favorite: letter("F"),
+    pin: letter("P"),
     select: letter("X"),
   } satisfies Record<string, MenuShortcut>;
 }

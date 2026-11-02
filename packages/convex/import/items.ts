@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { createCardForUserHandler } from "../card/createCard";
 import { findLiveCardByUrl } from "../card/findDuplicateCard";
+import { readPinnedCards } from "../card/pins";
 import {
   getOrCreateImportFolderIds,
   type ImportFolderCache,
@@ -10,6 +11,7 @@ import {
 import { insertImportedHighlights } from "../highlight/highlights";
 import { cardTypeValidator, colorValidator } from "../schema";
 import type { TeakUserId } from "../securitySessions";
+import { MAX_PINNED_CARDS } from "../shared/pins";
 
 export const importItemFields = {
   sourceIndex: v.number(),
@@ -31,6 +33,7 @@ export const importItemFields = {
   // A Teak archive's `savedAt`, only when it is later than `createdAt`.
   importedSavedAt: v.optional(v.number()),
   importedCompletedAt: v.optional(v.number()),
+  importedPinPosition: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),
@@ -56,6 +59,7 @@ export type ImportCardItem = {
   | "height"
   | "importedCompletedAt"
   | "importedCreatedAt"
+  | "importedPinPosition"
   | "importedSavedAt"
   | "isArchived"
   | "isFavorited"
@@ -104,6 +108,22 @@ export type ImportCardOutcome =
   | { kind: "created"; cardId: Id<"cards"> }
   | { kind: "duplicate" }
   | { kind: "error"; code?: string; message?: string; retryAt?: number };
+
+/**
+ * Pins a card from a Teak archive where the archive had it, while there's
+ * room. Pins past the cap stay unpinned.
+ */
+async function restoreImportedPin(
+  ctx: MutationCtx,
+  userId: TeakUserId,
+  cardId: Id<"cards">,
+  pinPosition: number
+) {
+  const pins = await readPinnedCards(ctx, userId);
+  if (pins.length < MAX_PINNED_CARDS) {
+    await ctx.db.patch("cards", cardId, { pinPosition });
+  }
+}
 
 export async function createImportedCard(
   ctx: MutationCtx,
@@ -168,6 +188,9 @@ export async function createImportedCard(
         { _id: cardId, userId },
         item.highlights
       );
+    }
+    if (item.importedPinPosition !== undefined && item.isArchived !== true) {
+      await restoreImportedPin(ctx, userId, cardId, item.importedPinPosition);
     }
     return { kind: "created", cardId };
   } catch (error) {

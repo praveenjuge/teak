@@ -57,6 +57,7 @@ export const PUBLIC_API_ERROR_CODES = [
   "NO_CONTENT",
   "NOT_IN_TRASH",
   "PAGE_SNAPSHOT_TOO_LARGE",
+  "PIN_LIMIT_REACHED",
   "QUOTE_NOT_FOUND",
   "TAG_EXISTS",
   "TAG_OPERATION_RUNNING",
@@ -92,6 +93,8 @@ interface CardsQueryOptions {
   limit: number;
   matchesNothing?: boolean;
   mode: import("../../shared/search/semantic").SearchMode;
+  /** `pinned=true` or `is:pinned`: only pinned cards. */
+  pinnedOnly: boolean;
   qualifiers?: {
     archivedInTrash?: boolean;
     done?: boolean;

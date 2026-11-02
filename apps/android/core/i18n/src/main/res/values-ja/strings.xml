@@ -530,6 +530,7 @@
     <string name="native_filters_is_archived">アーカイブ済み</string>
     <string name="native_filters_is_done">完了</string>
     <string name="native_filters_is_fav">お気に入り</string>
+    <string name="native_filters_is_pinned">ピン留め</string>
     <string name="native_filters_is_todo">未完了</string>
     <string name="native_filters_price_atLeast">%1$s 以上</string>
     <string name="native_filters_price_atMost">%1$s 以下</string>
@@ -864,6 +865,7 @@
     <string name="search_suggestions_isOptions_archived">アーカイブ済み</string>
     <string name="search_suggestions_isOptions_done">完了</string>
     <string name="search_suggestions_isOptions_fav">お気に入り</string>
+    <string name="search_suggestions_isOptions_pinned">ピン留め</string>
     <string name="search_suggestions_isOptions_todo">未完了</string>
     <string name="search_suggestions_orDetail">どちらか一方に一致</string>
     <string name="search_visualStyles_abstract">抽象的</string>

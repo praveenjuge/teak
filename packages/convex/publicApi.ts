@@ -19,6 +19,7 @@ import {
   buildTagCardListQuery,
   cardListScope,
 } from "./card/listQuery";
+import { readPinnedCards } from "./card/pins";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { resolveFolderNames } from "./card/searchPlanner";
@@ -164,6 +165,7 @@ export const searchCardsPageForUser = internalQuery({
     expression: v.optional(v.string()),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
+    pinned: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),
     sort: v.optional(apiCardSortValidator),
@@ -286,6 +288,7 @@ export const shuffleCardsPageForUser = internalQuery({
     expression: v.optional(v.string()),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
+    pinned: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),
     limit: v.optional(v.number()),
@@ -476,6 +479,7 @@ export const scanCardsPageForUser = internalQuery({
     type: v.optional(cardTypeValidator),
     types: v.optional(v.array(cardTypeValidator)),
     favorited: v.optional(v.boolean()),
+    pinned: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),
     sort: v.optional(apiCardSortValidator),
@@ -524,6 +528,70 @@ export const scanCardsPageForUser = internalQuery({
       items: applyQuoteFormattingToList(cardsWithUrls),
       nextCursor: page.nextCursor,
       scannedRows: page.scannedRows,
+    };
+  },
+});
+
+/**
+ * `GET /v1/cards?pinned=true` without a search: the pinned cards in their
+ * pinned order, as one page. The pin cap keeps it to one short read.
+ */
+export const pinnedCardsPageForUser = internalQuery({
+  args: {
+    userId: v.string(),
+    showTrashOnly: v.optional(v.boolean()),
+    archived: v.optional(archivedFilterValidator),
+    folderId: v.optional(v.id("folders")),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
+    type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
+    favorited: v.optional(v.boolean()),
+    createdAfter: v.optional(v.number()),
+    createdBefore: v.optional(v.number()),
+    tags: v.optional(v.array(v.string())),
+    sites: v.optional(v.array(v.string())),
+    phrases: v.optional(v.array(v.string())),
+    prices: v.optional(v.array(priceBoundValidator)),
+    done: v.optional(v.boolean()),
+    todo: v.optional(v.boolean()),
+    folderNames: v.optional(v.array(v.string())),
+    expression: v.optional(v.string()),
+  },
+  returns: paginatedCardsResultValidator,
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const empty = { items: [], pageInfo: { nextCursor: null, hasMore: false } };
+    // Archiving or trashing a card unpins it.
+    if (args.showTrashOnly || args.archived === "only") {
+      return empty;
+    }
+    const folderIds = await resolveFolderNames(
+      ctx,
+      userId,
+      args.folderNames ?? []
+    );
+    if (!folderIds) {
+      return empty;
+    }
+    const options = normalizeCardsQueryOptions({
+      ...args,
+      ...(await resolveQueryExpression(ctx, userId, args.expression)),
+      folderIds,
+      pinned: true,
+    });
+    const pinned = await readPinnedCards(ctx, userId);
+    const items: Doc<"cards">[] = [];
+    for (const card of pinned) {
+      if (await matchesStructuredFiltersWithText(ctx, card, options)) {
+        items.push(card);
+      }
+    }
+    const cardsWithUrls = await attachFileUrls(ctx, items);
+    return {
+      items: applyQuoteFormattingToList(cardsWithUrls),
+      pageInfo: { nextCursor: null, hasMore: false },
     };
   },
 });

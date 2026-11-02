@@ -11,7 +11,7 @@ public enum SearchQualifierKey: String, CaseIterable, Sendable {
 }
 
 public enum SearchIsValue: String, Sendable {
-    case fav, archived, done, todo
+    case fav, archived, done, todo, pinned
 
     public var label: String {
         switch self {
@@ -19,6 +19,7 @@ public enum SearchIsValue: String, Sendable {
         case .archived: tr("native.filters.is.archived")
         case .done: tr("native.filters.is.done")
         case .todo: tr("native.filters.is.todo")
+        case .pinned: tr("native.filters.is.pinned")
         }
     }
 }
@@ -75,6 +76,7 @@ public enum SearchQualifiers {
     private static let archivedWords: Set<String> = ["archived", "archive"]
     private static let doneWords: Set<String> = ["done", "completed", "finished"]
     private static let todoWords: Set<String> = ["todo", "to-do"]
+    private static let pinnedWords: Set<String> = ["pinned", "pin", "pins"]
     private static let maxMoodLength = 200
     private static let maxOCRTextLength = 200
     /// Lowercasing can lengthen a tag, so keys allow more than a name's 64.
@@ -292,6 +294,7 @@ public enum SearchQualifiers {
             if favoriteWords.contains(word) { return SearchQualifier(key, SearchIsValue.fav.rawValue) }
             if doneWords.contains(word) { return SearchQualifier(key, SearchIsValue.done.rawValue) }
             if todoWords.contains(word) { return SearchQualifier(key, SearchIsValue.todo.rawValue) }
+            if pinnedWords.contains(word) { return SearchQualifier(key, SearchIsValue.pinned.rawValue) }
             return archivedWords.contains(word) ? SearchQualifier(key, SearchIsValue.archived.rawValue) : nil
         case .site:
             return normalizeHost(value).map { SearchQualifier(key, $0) }

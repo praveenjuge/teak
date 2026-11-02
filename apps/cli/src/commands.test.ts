@@ -480,6 +480,70 @@ describe("teak parity commands", () => {
     expect(detail.stdout).toContain("done: 2026-10-17T00:00:00.000Z");
   });
 
+  test("pin pins and unpins, pins lists in order and order reorders", async () => {
+    routes.set("PATCH /v1/cards/card_a/pin", () =>
+      json(card("card_a", { isPinned: true }))
+    );
+    routes.set("PATCH /v1/cards/full/pin", () =>
+      json(
+        {
+          code: "PIN_LIMIT_REACHED",
+          error: "You can pin up to 12 cards. Unpin one first.",
+        },
+        400
+      )
+    );
+    routes.set("GET /v1/cards", () =>
+      json({
+        items: [card("card_b"), card("card_a")],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
+    );
+    routes.set("PUT /v1/cards/pinned/order", () =>
+      json({ items: [card("card_a"), card("card_b")] })
+    );
+
+    const pinned = await teak("pin", "card_a");
+    const unpinned = await teak("cards", "pin", "card_a", "--remove");
+    const full = await teak("pin", "full");
+    const listed = await teak("cards", "pins");
+    const reordered = await teak("cards", "pins", "order", "card_a", "card_b");
+
+    expect(
+      requests.map(
+        (request) => `${request.method} ${request.path.split("?")[0]}`
+      )
+    ).toEqual([
+      "PATCH /v1/cards/card_a/pin",
+      "PATCH /v1/cards/card_a/pin",
+      "PATCH /v1/cards/full/pin",
+      "GET /v1/cards",
+      "PUT /v1/cards/pinned/order",
+    ]);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({ isPinned: true });
+    expect(JSON.parse(requests[1]?.body ?? "{}")).toEqual({ isPinned: false });
+    expect(requests[3]?.path).toContain("pinned=true");
+    expect(JSON.parse(requests[4]?.body ?? "{}")).toEqual({
+      cardIds: ["card_a", "card_b"],
+    });
+    expect(pinned.code).toBe(0);
+    expect(unpinned.code).toBe(0);
+    expect(full.code).not.toBe(0);
+    expect(full.stderr).toContain("You can pin up to 12 cards");
+    expect(
+      listed.stdout
+        .trim()
+        .split("\n")
+        .map((line) => line.split(" ")[0])
+    ).toEqual(["card_b", "card_a"]);
+    expect(
+      reordered.stdout
+        .trim()
+        .split("\n")
+        .map((line) => line.split(" ")[0])
+    ).toEqual(["card_a", "card_b"]);
+  });
+
   test("cards save-pdf saves a paper once and says when it already has", async () => {
     let created = true;
     routes.set("POST /v1/cards/paper/save-pdf", () => {

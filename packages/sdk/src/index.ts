@@ -62,6 +62,7 @@ export const ERROR_CODES = [
   "NOT_IN_TRASH",
   "PAGE_SNAPSHOT_TOO_LARGE",
   "PARSE_ERROR",
+  "PIN_LIMIT_REACHED",
   "QUOTE_NOT_FOUND",
   "RATE_LIMITED",
   "REQUEST_FAILED",
@@ -158,6 +159,11 @@ export interface Card {
    * predate hidden cards leave it out.
    */
   isHidden?: boolean;
+  /**
+   * Pinned to the top of the library. Servers that predate pinning leave
+   * it out.
+   */
+  isPinned?: boolean;
   linkAuthor: string | null;
   /**
    * What a link is (`article`, `movie`, `product`…), or null. A plain
@@ -648,8 +654,13 @@ export const buildCardsSearchParams = (input: {
   /** How `query` finds cards; the API defaults to `hybrid`. */
   mode?: SearchMode;
   /**
+   * Only cards pinned to the top of the library. Without `query`, they come
+   * back in their pinned order as one page.
+   */
+  pinned?: boolean;
+  /**
    * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
-   * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`,
+   * `is:fav`, `is:archived`, `is:pinned`, `site:github.com`, `folder:"Reading list"`,
    * `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"total due"` (only
    * the words Teak read in images, video thumbnails, link previews and scanned
    * PDFs) and `"quoted phrases"`. A `-` leaves cards out (`design -figma`,
@@ -692,6 +703,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.favorited) {
     search.set("favorited", "true");
+  }
+  if (input.pinned) {
+    search.set("pinned", "true");
   }
   if (input.trashed) {
     search.set("trashed", "true");
@@ -796,6 +810,12 @@ const asPage = (value: unknown): CardsPage => {
     throw new TeakApiError("PARSE_ERROR");
   }
   return value as unknown as CardsPage;
+};
+const asPinnedCards = (value: unknown): CardsPage["items"] => {
+  if (!(isObject(value) && Array.isArray(value.items))) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return value.items as CardsPage["items"];
 };
 const asFolder = (value: unknown): Folder => {
   if (
@@ -1275,6 +1295,26 @@ export const createTeakClient = (options: {
           asPage
         ),
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
+      /**
+       * The cards pinned to the top of the library, first to last (at most
+       * 12). Takes the `list` filters.
+       */
+      pinned: (input: Parameters<typeof qs>[0] = {}) =>
+        request(
+          `/v1/cards?${qs({ include: "content,metadata", ...input, pinned: true })}`,
+          { method: "GET" },
+          asPage
+        ),
+      /**
+       * Sets the pinned cards' order. List every pinned card's id exactly
+       * once, first to last; returns the pinned cards in that order.
+       */
+      reorderPinned: (cardIds: readonly string[]) =>
+        request(
+          "/v1/cards/pinned/order",
+          { body: JSON.stringify({ cardIds }), method: "PUT" },
+          asPinnedCards
+        ),
       /** Cards this card links to with `[[…]]`, and cards linking to it. */
       links: (id: string) =>
         request(cardPath(id), { method: "GET" }, (value): CardLinks => {
@@ -1366,6 +1406,16 @@ export const createTeakClient = (options: {
         request(
           `${cardPath(id)}/done`,
           { method: done ? "POST" : "DELETE" },
+          asCard
+        ),
+      /**
+       * Pins a card to the top of the library (a new pin goes first), or
+       * unpins it. Pinning past 12 cards fails with `PIN_LIMIT_REACHED`.
+       */
+      setPinned: (id: string, isPinned: boolean) =>
+        request(
+          `${cardPath(id)}/pin`,
+          { body: JSON.stringify({ isPinned }), method: "PATCH" },
           asCard
         ),
       setFavorite: (id: string, isFavorited: boolean) =>

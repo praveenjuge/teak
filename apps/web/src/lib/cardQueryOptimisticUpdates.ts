@@ -15,6 +15,9 @@ export function cardMatchesSearchQuery(
   card: Doc<"cards">,
   args: SearchFilterArgs
 ): boolean {
+  if (args.excludePinned && card.pinPosition !== undefined) {
+    return false;
+  }
   const isSmartFolder = args.folderQuery !== undefined;
   if (
     args.folderId &&

@@ -18,7 +18,7 @@ export const SEARCH_QUALIFIER_KEYS = [
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
-export type SearchIsValue = "fav" | "archived" | "done" | "todo";
+export type SearchIsValue = "fav" | "archived" | "done" | "todo" | "pinned";
 
 export type PriceComparison = "<" | ">" | "<=" | ">=" | "=";
 
@@ -70,6 +70,8 @@ export interface ParsedSearchQuery {
   folders: string[];
   ocrTexts: string[];
   phrases: string[];
+  /** `is:pinned`: only cards pinned to the top of the library. */
+  pinned: boolean;
   prices: PriceBound[];
   qualifiers: SearchQualifier[];
   similarity?: SearchSimilarity | null;
@@ -95,6 +97,7 @@ const FAVORITE_WORDS = new Set([
 const ARCHIVED_WORDS = new Set(["archived", "archive"]);
 const DONE_WORDS = new Set(["done", "completed", "finished"]);
 const TODO_WORDS = new Set(["todo", "to-do"]);
+const PINNED_WORDS = new Set(["pinned", "pin", "pins"]);
 
 interface RawToken {
   negated: boolean;
@@ -366,6 +369,9 @@ const parseQualifier = (
       }
       if (TODO_WORDS.has(word)) {
         return { key, value: "todo" };
+      }
+      if (PINNED_WORDS.has(word)) {
+        return { key, value: "pinned" };
       }
       return ARCHIVED_WORDS.has(word) ? { key, value: "archived" } : null;
     }
@@ -808,6 +814,7 @@ const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
     archived: is.has("archived"),
     done: is.has("done"),
     todo: is.has("todo"),
+    pinned: is.has("pinned"),
     sites,
     folders,
     similarity,

@@ -775,7 +775,9 @@
       "shortcutsHint": "Pressione <kbd>?</kbd> para ver todos os atalhos",
       "unarchive": "Desarquivar",
       "unfavorite": "Desfavoritar",
-      "editLink": "Editar link…"
+      "editLink": "Editar link…",
+      "pin": "Fixar no topo",
+      "unpin": "Desafixar"
     },
     "actions": {
       "folder": "Pasta"
@@ -1013,7 +1015,9 @@
       "unarchive": "Desarquivar",
       "unfavorite": "Desfavoritar",
       "editLink": "Editar link…",
-      "removeFromFolder": "Remover desta pasta"
+      "removeFromFolder": "Remover desta pasta",
+      "pin": "Fixar no topo",
+      "unpin": "Desafixar"
     },
     "copyImageFailed": "Não foi possível copiar a imagem",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "Os cards na lixeira são excluídos permanentemente após {days, plural, one {# dia} other {# dias}}."
-    }
+    },
+    "pinnedMark": "Fixado"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "Favoritos",
         "archived": "Arquivados",
         "done": "Concluídos",
-        "todo": "A fazer"
+        "todo": "A fazer",
+        "pinned": "Fixados"
       },
       "hiddenTagCount": "Mostra cards ocultos · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "Cards de um tipo",
       "bySite": "Cards de um site",
       "byFolder": "Cards em uma pasta",
-      "byState": "Favoritos, arquivados, concluídos ou pendentes"
+      "byState": "Favoritos, arquivados, concluídos ou pendentes",
+      "pin": "Fixar ou desafixar",
+      "movePinned": "Mover um card fixado para a esquerda ou para a direita"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "Não foi possível criar o card",
       "cancelled": "Envio cancelado",
       "timedOut": "O envio parou de responder. Verifique sua conexão e tente novamente."
+    },
+    "pinnedCards": {
+      "limit": "Você pode fixar até {count} cards. Desafixe um primeiro.",
+      "failed": {
+        "pin": "Não foi possível fixar este card",
+        "unpin": "Não foi possível desafixar este card",
+        "reorder": "Não foi possível salvar a nova ordem"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "Notas",
     "favorite": "Favorito",
     "loading": "Carregando cards…",
-    "error": "O Teak não conseguiu mostrar estes cards."
+    "error": "O Teak não conseguiu mostrar estes cards.",
+    "pinnedTitle": "Fixados"
+  },
+  "pinned": {
+    "strip": {
+      "title": "Fixados",
+      "ariaLabel": "Cards fixados",
+      "instructions": "Arraste um card fixado para movê-lo, ou selecione-o e pressione Alt com a seta para a esquerda ou para a direita.",
+      "moved": "Movido para a posição {position} de {count}."
+    }
   }
 }

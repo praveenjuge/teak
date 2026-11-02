@@ -7,6 +7,7 @@ import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { usePaletteColors } from "../../hooks/usePaletteColors";
+import { usePinActions } from "../../hooks/usePinnedCards";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { useQuery } from "../../lib/convexQueryHooks";
@@ -121,6 +122,13 @@ export function ConnectedCardModal({
     );
   }, [card, runBulkAction]);
 
+  const { togglePin: togglePinAction } = usePinActions();
+  const togglePin = useCallback(() => {
+    if (card) {
+      togglePinAction(card, "dialog").catch(() => undefined);
+    }
+  }, [card, togglePinAction]);
+
   useEffect(() => {
     if (
       shouldReportInvalidHydratedCard({
@@ -199,6 +207,7 @@ export function ConnectedCardModal({
       toggleArchive={toggleArchive}
       toggleDone={toggleDone}
       toggleFavorite={toggleFavorite}
+      togglePin={card?.isArchived ? undefined : togglePin}
       updateContent={updateContent}
       updateNotes={updateNotes}
       updateTitle={updateTitle}

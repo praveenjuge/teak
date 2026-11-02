@@ -4,6 +4,11 @@ import { createCardForUserHandler } from "../card/createCard";
 import { getCardForUserHandler } from "../card/getCard";
 import { cardReturnValidator } from "../card/getCards";
 import {
+  readPinnedCards,
+  reorderPinnedCardsForUser as reorderPinned,
+  setCardPinnedForUser as setPinned,
+} from "../card/pins";
+import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
   updateCardFieldsForUserHandler,
@@ -250,6 +255,47 @@ export const setCardFavoriteForUser = internalMutation({
       value: args.isFavorited,
     });
     return getCardForUserHandler(ctx, userId, args.cardId);
+  },
+});
+
+export const setCardPinnedForUser = internalMutation({
+  args: {
+    userId: v.string(),
+    cardId: v.id("cards"),
+    isPinned: v.boolean(),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({ card: cardReturnValidator, changed: v.boolean() })
+  ),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const { changed } = await setPinned(ctx, {
+      userId,
+      cardId: args.cardId,
+      pinned: args.isPinned,
+    });
+    const card = await getCardForUserHandler(ctx, userId, args.cardId);
+    return card ? { card, changed } : null;
+  },
+});
+
+export const reorderPinnedCardsForUser = internalMutation({
+  args: { userId: v.string(), cardIds: v.array(v.string()) },
+  returns: v.array(cardReturnValidator),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    await reorderPinned(ctx, { userId, cardIds: args.cardIds });
+    const cards: NonNullable<
+      Awaited<ReturnType<typeof getCardForUserHandler>>
+    >[] = [];
+    for (const card of await readPinnedCards(ctx, userId)) {
+      const withUrls = await getCardForUserHandler(ctx, userId, card._id);
+      if (withUrls) {
+        cards.push(withUrls);
+      }
+    }
+    return cards;
   },
 });
 

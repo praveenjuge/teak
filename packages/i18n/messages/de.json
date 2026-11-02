@@ -775,7 +775,9 @@
       "shortcutsHint": "Drücken Sie <kbd>?</kbd> für alle Tastenkürzel",
       "unarchive": "Dearchivieren",
       "unfavorite": "Aus Favoriten entfernen",
-      "editLink": "Link bearbeiten…"
+      "editLink": "Link bearbeiten…",
+      "pin": "Oben anheften",
+      "unpin": "Lösen"
     },
     "actions": {
       "folder": "Ordner"
@@ -1013,7 +1015,9 @@
       "unarchive": "Dearchivieren",
       "unfavorite": "Aus Favoriten entfernen",
       "editLink": "Link bearbeiten…",
-      "removeFromFolder": "Aus diesem Ordner entfernen"
+      "removeFromFolder": "Aus diesem Ordner entfernen",
+      "pin": "Oben anheften",
+      "unpin": "Lösen"
     },
     "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "Karten im Papierkorb werden nach {days, plural, one {# Tag} other {# Tagen}} endgültig gelöscht."
-    }
+    },
+    "pinnedMark": "Angeheftet"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "Favoriten",
         "archived": "Archiviert",
         "done": "Erledigt",
-        "todo": "Offen"
+        "todo": "Offen",
+        "pinned": "Angeheftet"
       },
       "hiddenTagCount": "Zeigt ausgeblendete Karten · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "Karten eines Typs",
       "bySite": "Karten von einer Website",
       "byFolder": "Karten in einem Ordner",
-      "byState": "Favoriten, archiviert, erledigt oder offen"
+      "byState": "Favoriten, archiviert, erledigt oder offen",
+      "pin": "Anheften oder lösen",
+      "movePinned": "Angeheftete Karte nach links oder rechts verschieben"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "Die Karte konnte nicht erstellt werden",
       "cancelled": "Upload abgebrochen",
       "timedOut": "Der Upload reagiert nicht mehr. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "pinnedCards": {
+      "limit": "Du kannst bis zu {count} Karten anheften. Löse zuerst eine.",
+      "failed": {
+        "pin": "Karte konnte nicht angeheftet werden",
+        "unpin": "Karte konnte nicht gelöst werden",
+        "reorder": "Neue Reihenfolge konnte nicht gespeichert werden"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "Notizen",
     "favorite": "Favorit",
     "loading": "Karten werden geladen …",
-    "error": "Teak konnte diese Karten nicht anzeigen."
+    "error": "Teak konnte diese Karten nicht anzeigen.",
+    "pinnedTitle": "Angeheftet"
+  },
+  "pinned": {
+    "strip": {
+      "title": "Angeheftet",
+      "ariaLabel": "Angeheftete Karten",
+      "instructions": "Ziehe eine angeheftete Karte, um sie zu verschieben, oder fokussiere sie und drücke Alt mit dem Pfeil nach links oder rechts.",
+      "moved": "An Position {position} von {count} verschoben."
+    }
   }
 }

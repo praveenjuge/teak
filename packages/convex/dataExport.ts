@@ -96,6 +96,7 @@ type ExportCardRow = {
   | "isHidden"
   | "metadataTitle"
   | "notes"
+  | "pinPosition"
   | "savedAt"
   | "sourceTitle"
   | "sourceUrl"
@@ -502,6 +503,7 @@ const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   notes: card.notes,
   tags: card.tags,
   isFavorited: card.isFavorited,
+  pinPosition: card.pinPosition,
   fileKey: card.type === "text" ? undefined : card.fileKey,
   fileMetadata: card.type === "text" ? undefined : card.fileMetadata,
   colors: card.colors,

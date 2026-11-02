@@ -91,6 +91,7 @@ export const formatDetail = (card: Card) =>
     savedAgainLine(card),
     `updated: ${new Date(card.updatedAt).toISOString()}`,
     card.isFavorited ? "favorite: yes" : null,
+    card.isPinned ? "pinned: yes" : null,
     card.completedAt
       ? `done: ${new Date(card.completedAt).toISOString()}`
       : null,

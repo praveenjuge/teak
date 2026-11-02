@@ -61,6 +61,7 @@ import {
   preloadLibraryDialogs,
   TagManagementModal,
 } from "../components/lazyDialogs";
+import { PinnedStrip } from "../components/pinned";
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
 import { cardActionFailedMessage } from "../hooks/cardActions";
@@ -70,6 +71,7 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useNoResultsHelp } from "../hooks/useNoResultsHelp";
+import { usePinnedStrip } from "../hooks/usePinnedCards";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
 import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
@@ -296,6 +298,7 @@ export function CardsScreen({
   }, [onSearchUrlStateChange, urlState, urlSync]);
 
   const queryArgs = searchController.queryArgs;
+  const pinned = usePinnedStrip({ isFolderView, queryArgs, view });
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
   const reportedSearchKeyRef = useRef<string | null>(null);
   const relevance = useRelevanceRanking({
@@ -312,6 +315,7 @@ export function CardsScreen({
       ? "skip"
       : {
           ...queryArgs,
+          ...(pinned.shown ? { excludePinned: true } : {}),
           ...(relevance.useRelevanceScores ? { useRelevanceScores: true } : {}),
           ...(queryRetryKey ? { retryKey: queryRetryKey } : {}),
         },
@@ -705,6 +709,7 @@ export function CardsScreen({
       cardActions.handleRestoreCard(cardId as Id<"cards">),
     onToggleArchive: handleToggleArchive,
     onToggleFavorite: handleToggleFavorite,
+    onTogglePin: pinned.togglePin,
   });
 
   const addCardForm = useMemo(
@@ -987,6 +992,9 @@ export function CardsScreen({
           showRelated={showRelated}
         />
       ) : null}
+
+      {/* Empty, so hidden, while the vault is set up. */}
+      <PinnedStrip {...gridHandlers} {...pinned.strip} />
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid

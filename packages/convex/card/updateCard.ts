@@ -697,6 +697,7 @@ export const updateCardFieldForUserHandler = async (
       }
       updateData.isDeleted = true;
       updateData.deletedAt = now;
+      updateData.pinPosition = undefined;
       break;
 
     case "restore":
@@ -713,6 +714,7 @@ export const updateCardFieldForUserHandler = async (
       }
       updateData.isArchived = true;
       updateData.archivedAt = now;
+      updateData.pinPosition = undefined;
       break;
 
     case "unarchive":

@@ -169,4 +169,9 @@ export const SEARCH_IS_OPTIONS = [
     words: ["todo", "to-do"],
     messageKey: "search.suggestions.isOptions.todo",
   },
+  {
+    value: "pinned",
+    words: ["pinned", "pin", "pins"],
+    messageKey: "search.suggestions.isOptions.pinned",
+  },
 ] as const satisfies readonly SearchIsOption[];

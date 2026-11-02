@@ -86,6 +86,7 @@ export const parseCardsQueryOptions = (
   const createdAfter = parseTimestampQuery(searchParams.get("createdAfter"));
   const createdBefore = parseTimestampQuery(searchParams.get("createdBefore"));
   const favorited = parseBooleanQuery(searchParams.get("favorited"));
+  const pinned = parseBooleanQuery(searchParams.get("pinned"));
   const trashed = parseBooleanQuery(searchParams.get("trashed"));
   if (searchParams.has("trashed") && trashed === undefined) {
     return errorResponse(
@@ -214,6 +215,14 @@ export const parseCardsQueryOptions = (
     );
   }
 
+  if (searchParams.has("pinned") && pinned === undefined) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `pinned` must be `true` or `false`"
+    );
+  }
+
   const folder = parseOptionalString(searchParams.get("folder"));
   if (searchParams.has("folder") && !(folder && folder.length <= 64)) {
     return errorResponse(
@@ -257,6 +266,7 @@ export const parseCardsQueryOptions = (
     archived: resolvedArchived,
     folder,
     favoritesOnly: favorited === true || parsed.favorite,
+    pinnedOnly: pinned === true || parsed.pinned,
     ...(matchesNothing ? { matchesNothing } : {}),
     ...(hasSearchQualifiers(parsed) ||
     parsed.phrases.length > 0 ||
@@ -309,6 +319,7 @@ export const parseCardRoute = (
     | "favorite"
     | "get"
     | "patch"
+    | "pin"
     | "refresh"
     | "restore"
     | "save-pdf"
@@ -408,6 +419,10 @@ export const parseCardRoute = (
 
   if (segments.length === 4 && segments[3] === "favorite") {
     return { cardId, operation: "favorite" };
+  }
+
+  if (segments.length === 4 && segments[3] === "pin") {
+    return { cardId, operation: "pin" };
   }
 
   return null;

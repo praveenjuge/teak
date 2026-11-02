@@ -125,6 +125,7 @@ Special tokens work automatically:
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
 | **Type** | `type:link`, `type:images`, `type:notes`, `type:pdf` | Cards of that type. Everyday words work too: `note` (text), `pdf` or `doc` (document), `photo` or `picture` (image), `color` (palette), `voice` or `memo` (audio), `url` or `bookmark` (link), `movie` (video) |
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
+| **Pinned** | `is:pinned` | Only cards pinned to the top of your library |
 | **Done** | `is:done` | Links you marked read, watched, listened to, bought, cooked, played or done |
 | **To do** | `is:todo` | Articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done |
 | **Site** | `site:github.com` | Links from that website, and text saved from its pages |
@@ -261,13 +262,23 @@ Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯
 
 Click a card to open it. Everything about the card sits in the details beside it. At the top: where it's from and its type (click the type to see every card of that type), then its title, which wraps onto a few lines; for a link, click it to rename. Under the title are one main button, **Open** for a link or **Download** for a file, and a row of buttons: **Favorite**, the done button for a link (**Read**, **Watched**, **Bought** and so on), **Copy**, **Folder** and **More** (`⋯`). Scroll the details and those buttons stay pinned to the top in one line. Below them are the card's notes, tags and folders, summary, colors, and details, all editable in place: a note saves on its own as you type (**Saved** shows beside the type for a moment), and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**; open it to keep one as your own tag or remove it. **Details** shows when you added the card, when you saved it again if you did, and its size, with **More details** for the rest. To change a link's address, click the pencil beside its **URL** in **Details**.
 
-**More** holds the rest: Save PDF, More like this, Refresh details, Archive, and Move to Trash. Deleting a card shows **Undo**. A card in Trash says so at the top of its details, with **Restore** and **Delete forever** in place of its buttons.
+**More** holds the rest: Save PDF, More like this, Refresh details, Pin to top, Archive, and Move to Trash. Deleting a card shows **Undo**. A card in Trash says so at the top of its details, with **Restore** and **Delete forever** in place of its buttons.
 
 The arrows beside the card, or `←` and `→`, step through the cards in the grid's order. They stay in one place whatever the card's size, so you can click quickly and every click moves one card. Photos and videos fill the card, with nothing laid over them. On a phone the card opens as a sheet from the bottom, with its details under it and the arrows, favorite, **More**, and **Open** in a bar along the bottom; there **More** also holds favorite, mark as done, add to a folder and copy.
 
 In a note, ticked checklist items move to the bottom of their list, below the open ones, and unticking one moves it back up. On the web, `⌘Z` puts it back where it was. The iPhone, iPad, Mac and Android apps show the checkboxes too: tap one in an open note to tick it.
 
 To act on many cards at once, click the circle in a card's corner (or right-click it and choose **Select**), then click more cards. The bar across the top of the page archives them in one click, and **More** adds them to favorites or a folder, adds or removes tags, copies their links, or moves them to Trash. In Archive the main action is **Unarchive**, and in Trash it's **Restore**. Archive, Unarchive, and Move to Trash show **Undo** when they finish; if some cards couldn't be changed, they stay selected and **Retry** tries them again.
+
+#### Pinned cards
+
+Pin up to 12 cards to keep them at the top of **Everything**. Right-click a card, or open **More** (`⋯`) on it or in its details, and choose **Pin to top**, or press `P` with the card focused or open. Pinned cards sit in a **Pinned** row above the grid, newest pin first, and leave the grid below so nothing shows twice. Drag a pinned card to move it in the row (on a touch screen, hold it first); with the keyboard, focus it and press `Alt` with `←` or `→`. A pinned card can't be dragged onto a sidebar folder; add it to one from its menu. Pinning a 13th card says so and pins nothing; unpin one first.
+
+The row shows only on **Everything** with no search or filter and the **Newest** order. Anywhere else, including searches, Favorites and folders, a pinned card stays where it ranks and shows a pin in its corner. Search `is:pinned` to list just the pinned cards. Archiving a card or moving it to Trash unpins it, and bringing it back doesn't pin it again; marking a link done keeps its pin. Favorites and pins are separate: a card can be both.
+
+Pinning works on the web, and through the [API](/docs/api), MCP, SDK and CLI. The iPhone, iPad, Mac and Android apps show pinned cards in their normal place and can search `is:pinned`, but don't pin or show the row.
+
+![The Pinned row above the grid, with three pinned cards, each with a pin in its corner](./images/pinned-cards.webp)
 
 #### Tables in notes
 
@@ -291,6 +302,8 @@ The grid is a single stop when you Tab through the page. Once a card has focus:
 | `J` / `K` | Next or previous card, in the grid's order |
 | `Enter` | Open the card (`Esc` closes it and returns to the card) |
 | `F` | Add to or remove from favorites |
+| `P` | Pin to the top, or unpin |
+| `Alt` `←` / `Alt` `→` | Move a pinned card left or right in the Pinned row |
 | `T` | Add tags |
 | `E` | Archive or unarchive |
 | `Delete` (`⌫` on a Mac) | Move to Trash (in Trash, delete forever after you confirm) |
@@ -304,6 +317,7 @@ With a card open:
 | --- | --- |
 | `←` / `→` (or `K` / `J`) | Previous or next card |
 | `F` | Add to or remove from favorites |
+| `P` | Pin to the top, or unpin |
 | `T` | Add a tag |
 | `N` | Write a note |
 | `O`, or `⌘Enter` (`Ctrl+Enter` on Windows and Linux) | Open the link, or download the file |

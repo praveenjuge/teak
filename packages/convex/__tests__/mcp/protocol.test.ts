@@ -79,6 +79,7 @@ describe("MCP protocol messages", () => {
       "teak_v1_get_card",
       "teak_v1_list_cards",
       "teak_v1_list_favorite_cards",
+      "teak_v1_list_pinned_cards",
       "teak_v1_search_cards",
     ]);
     for (const tool of TEAK_V1_TOOLS) {

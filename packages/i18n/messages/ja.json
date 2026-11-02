@@ -775,7 +775,9 @@
       "shortcutsHint": "<kbd>?</kbd> ですべてのショートカットを表示",
       "unarchive": "アーカイブ解除",
       "unfavorite": "お気に入りから削除",
-      "editLink": "リンクを編集…"
+      "editLink": "リンクを編集…",
+      "pin": "上部にピン留め",
+      "unpin": "ピン留めを外す"
     },
     "actions": {
       "folder": "フォルダ"
@@ -1013,7 +1015,9 @@
       "unarchive": "アーカイブ解除",
       "unfavorite": "お気に入りから削除",
       "editLink": "リンクを編集…",
-      "removeFromFolder": "このフォルダから削除"
+      "removeFromFolder": "このフォルダから削除",
+      "pin": "上部にピン留め",
+      "unpin": "ピン留めを外す"
     },
     "copyImageFailed": "画像をコピーできませんでした",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "ゴミ箱のカードは{days, plural, other {#日}}後に完全に削除されます。"
-    }
+    },
+    "pinnedMark": "ピン留め済み"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "お気に入り",
         "archived": "アーカイブ済み",
         "done": "完了",
-        "todo": "未完了"
+        "todo": "未完了",
+        "pinned": "ピン留め"
       },
       "hiddenTagCount": "非表示のカードを表示 · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "種類で絞り込む",
       "bySite": "サイトで絞り込む",
       "byFolder": "フォルダ内のカード",
-      "byState": "お気に入り・アーカイブ済み・完了・未完了"
+      "byState": "お気に入り・アーカイブ済み・完了・未完了",
+      "pin": "ピン留めまたはピン留めを外す",
+      "movePinned": "ピン留めしたカードを左右に移動"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "カードを作成できませんでした",
       "cancelled": "アップロードをキャンセルしました",
       "timedOut": "アップロードが応答しなくなりました。接続を確認してからもう一度お試しください。"
+    },
+    "pinnedCards": {
+      "limit": "ピン留めできるカードは{count}件までです。先にどれかのピン留めを外してください。",
+      "failed": {
+        "pin": "このカードをピン留めできませんでした",
+        "unpin": "このカードのピン留めを外せませんでした",
+        "reorder": "新しい順序を保存できませんでした"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "メモ",
     "favorite": "お気に入り",
     "loading": "カードを読み込んでいます…",
-    "error": "Teak でこれらのカードを表示できませんでした。"
+    "error": "Teak でこれらのカードを表示できませんでした。",
+    "pinnedTitle": "ピン留め"
+  },
+  "pinned": {
+    "strip": {
+      "title": "ピン留め",
+      "ariaLabel": "ピン留めしたカード",
+      "instructions": "ピン留めしたカードをドラッグして移動します。カードを選択して Alt キーと左右の矢印キーを押しても移動できます。",
+      "moved": "{count}件中{position}番目に移動しました。"
+    }
   }
 }

@@ -183,6 +183,7 @@ val SEARCH_IS_OPTIONS: List<SearchIsOption> = listOf(
     SearchIsOption(value = "archived", words = listOf("archived", "archive"), messageKey = "search.suggestions.isOptions.archived"),
     SearchIsOption(value = "done", words = listOf("done", "completed", "finished"), messageKey = "search.suggestions.isOptions.done"),
     SearchIsOption(value = "todo", words = listOf("todo", "to-do"), messageKey = "search.suggestions.isOptions.todo"),
+    SearchIsOption(value = "pinned", words = listOf("pinned", "pin", "pins"), messageKey = "search.suggestions.isOptions.pinned"),
 )
 
 val SEARCH_SUGGESTION_GROUPS: Map<String, String> = mapOf(

@@ -401,6 +401,15 @@
           "to-do"
         ],
         "messageKey": "search.suggestions.isOptions.todo"
+      },
+      {
+        "value": "pinned",
+        "words": [
+          "pinned",
+          "pin",
+          "pins"
+        ],
+        "messageKey": "search.suggestions.isOptions.pinned"
       }
     ],
     "groups": {

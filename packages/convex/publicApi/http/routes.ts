@@ -21,6 +21,7 @@ import {
 } from "./highlights";
 import { withPublicApiGatewayHeaders } from "./meta";
 import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
+import { handlePinnedOrderRequest } from "./pins";
 import { errorResponse, type PublicApiOperation } from "./shared";
 import { handleTagOperationRequest, isTagOperationPath } from "./tags";
 
@@ -97,6 +98,11 @@ export const executePublicApiOperation = (
   }
   if (request.method === "GET" && pathname === "/v1/cards/changes") {
     return handleCardChangesRequest(ctx, request, resource);
+  }
+  // Before the `/v1/cards/{cardId}` routes, so `pinned` is never read as
+  // a card id.
+  if (request.method === "PUT" && pathname === PINNED_ORDER_PATH) {
+    return handlePinnedOrderRequest(ctx, request, resource);
   }
   if (request.method === "GET" && pathname === "/v1/tags") {
     return handleTagsRequest(ctx, request, resource);
@@ -222,6 +228,18 @@ export const bulkCardsV1 = withGatewayHeaders((ctx, request) => {
   }
 
   return handleBulkCardsRequest(ctx, request);
+});
+
+export const PINNED_ORDER_PATH = "/v1/cards/pinned/order";
+
+export const pinnedOrderV1 = withGatewayHeaders((ctx, request) => {
+  if (request.method !== "PUT") {
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
+  }
+
+  return handlePinnedOrderRequest(ctx, request);
 });
 
 export const changesCardsV1 = withGatewayHeaders((ctx, request) => {

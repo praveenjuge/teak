@@ -775,7 +775,9 @@
       "shortcutsHint": "Pulse <kbd>?</kbd> para ver todos los atajos",
       "unarchive": "Desarchivar",
       "unfavorite": "Quitar de favoritas",
-      "editLink": "Editar enlace…"
+      "editLink": "Editar enlace…",
+      "pin": "Fijar arriba",
+      "unpin": "Dejar de fijar"
     },
     "actions": {
       "folder": "Carpeta"
@@ -1013,7 +1015,9 @@
       "unarchive": "Desarchivar",
       "unfavorite": "Quitar de favoritas",
       "editLink": "Editar enlace…",
-      "removeFromFolder": "Quitar de esta carpeta"
+      "removeFromFolder": "Quitar de esta carpeta",
+      "pin": "Fijar arriba",
+      "unpin": "Dejar de fijar"
     },
     "copyImageFailed": "No se pudo copiar la imagen",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "Las tarjetas de la papelera se eliminan definitivamente después de {days, plural, one {# día} other {# días}}."
-    }
+    },
+    "pinnedMark": "Fijada"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "Favoritas",
         "archived": "Archivadas",
         "done": "Hechas",
-        "todo": "Pendientes"
+        "todo": "Pendientes",
+        "pinned": "Fijadas"
       },
       "hiddenTagCount": "Muestra tarjetas ocultas · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "Tarjetas de un tipo",
       "bySite": "Tarjetas de un sitio",
       "byFolder": "Tarjetas de una carpeta",
-      "byState": "Favoritas, archivadas, hechas o pendientes"
+      "byState": "Favoritas, archivadas, hechas o pendientes",
+      "pin": "Fijar o dejar de fijar",
+      "movePinned": "Mover una tarjeta fijada a la izquierda o la derecha"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "No se pudo crear la tarjeta",
       "cancelled": "Subida cancelada",
       "timedOut": "La subida dejó de responder. Compruebe su conexión y vuelva a intentarlo."
+    },
+    "pinnedCards": {
+      "limit": "Puedes fijar hasta {count} tarjetas. Deja de fijar una primero.",
+      "failed": {
+        "pin": "No se pudo fijar esta tarjeta",
+        "unpin": "No se pudo dejar de fijar esta tarjeta",
+        "reorder": "No se pudo guardar el nuevo orden"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "Notas",
     "favorite": "Favorita",
     "loading": "Cargando tarjetas…",
-    "error": "Teak no pudo mostrar estas tarjetas."
+    "error": "Teak no pudo mostrar estas tarjetas.",
+    "pinnedTitle": "Fijadas"
+  },
+  "pinned": {
+    "strip": {
+      "title": "Fijadas",
+      "ariaLabel": "Tarjetas fijadas",
+      "instructions": "Arrastra una tarjeta fijada para moverla, o selecciónala y pulsa Alt con la flecha izquierda o derecha.",
+      "moved": "Movida a la posición {position} de {count}."
+    }
   }
 }

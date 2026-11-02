@@ -103,6 +103,8 @@ export interface SearchOptions {
   limit?: number;
   ocrTexts?: string[];
   phrases?: string[];
+  /** Only cards pinned to the top of the library. */
+  pinned?: boolean;
   prices?: PriceBound[];
   /**
    * Hidden tags an OR branch asks for. A hidden card shows only when it has
@@ -246,6 +248,10 @@ export const matchesStructuredFilters = (
     options.favorited !== undefined &&
     Boolean(card.isFavorited) !== options.favorited
   ) {
+    return false;
+  }
+
+  if (options.pinned && card.pinPosition === undefined) {
     return false;
   }
 
@@ -600,6 +606,7 @@ export const normalizeCardsQueryOptions = (args: {
   createdBefore?: number;
   favorited?: boolean;
   limit?: number;
+  pinned?: boolean;
   searchQuery?: string;
   sort?: ApiCardSort;
   tag?: string;
@@ -639,6 +646,7 @@ export const normalizeCardsQueryOptions = (args: {
     createdBefore: normalizeCreatedTimestamp(args.createdBefore),
     favorited: args.favorited,
     limit: clampPublicApiLimit(args.limit),
+    pinned: args.pinned === true || undefined,
     searchQuery: normalizeSearchText(args.searchQuery),
     sort: normalizeSort(args.sort),
     tag: normalizeTag(args.tag),

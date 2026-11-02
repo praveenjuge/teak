@@ -21,6 +21,17 @@ const selecting: GridKeyContext = {
 };
 
 describe("gridKeyAction", () => {
+  test("p pins the focused card, and nothing else", () => {
+    expect(gridKeyAction("p", browsing)).toEqual({
+      type: "card",
+      action: "pin",
+    });
+    expect(gridKeyAction("p", selecting)).toBeNull();
+    expect(gridKeyAction("p", { ...browsing, view: "trash" })).toBeNull();
+    expect(gridKeyAction("p", { ...browsing, view: "archive" })).toBeNull();
+    expect(gridKeyAction("p", { ...browsing, addToFolder: true })).toBeNull();
+  });
+
   test.each([
     ["ArrowUp", "up"],
     ["ArrowDown", "down"],
@@ -162,6 +173,7 @@ describe("focusedCardShortcuts", () => {
       "copy",
       "delete",
       "favorite",
+      "pin",
       "select",
     ]);
   });

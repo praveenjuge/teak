@@ -1,6 +1,6 @@
 ---
 name: teak
-description: Use when an agent needs to save, search, retrieve, update, tag, favorite, archive, organize into folders, delete, restore, export, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
+description: Use when an agent needs to save, search, retrieve, update, tag, favorite, pin, archive, organize into folders, delete, restore, export, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
 ---
 
 # Teak Agent Skill
@@ -74,9 +74,9 @@ teak cards duplicate https://example.com   # the card that saves a URL
 teak download <card-id> -o ./original.png
 ```
 
-Search text takes qualifiers: `tag:design` (or `#design`), `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. Lists sort `newest` (default), `oldest`, or `shuffle`.
+Search text takes qualifiers: `tag:design` (or `#design`), `type:link`, `is:fav`, `is:pinned`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`. Lists sort `newest` (default), `oldest`, or `shuffle`.
 
-Update, tag, favorite, delete, and restore:
+Update, tag, favorite, pin, delete, and restore:
 
 ```bash
 teak cards update <card-id> --title "Homepage ideas"
@@ -84,6 +84,9 @@ teak cards update <palette-id> --add-color "#2A9D8F" --remove-color "#F1FAEE"
 teak tags add <card-id> approved
 teak tags rm <card-id> draft     # also removes tags Teak added
 teak fav <card-id>
+teak pin <card-id>               # keeps it at the top of the library (up to 12); --remove unpins
+teak cards pins                  # the pinned cards, first to last
+teak cards pins order <id> <id>  # every pinned card's id, in the new order
 teak archive <card-id>           # hides it from the library; unarchive brings it back
 teak refresh <card-id>           # redo the summary, tags and link preview
 teak rm <card-id>                # moves to Trash

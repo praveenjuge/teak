@@ -59,6 +59,13 @@ questions:
       - GET /v1/cards with favorited=true
     routes: /docs/api
 
+  - id: pin-cards
+    question: How many cards can I pin to the top of my Teak library, and how do I pin one with the API?
+    expected:
+      - Up to 12 cards
+      - PATCH /v1/cards/:cardId/pin with isPinned true
+    routes: /docs/features
+
   - id: permanent-delete-api
     question: How do I permanently delete a card with the API, and can I undo it?
     expected:

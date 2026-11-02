@@ -1,6 +1,6 @@
 ---
 title: WebMCP
-description: In-browser WebMCP tools that search, read, save, tag and favorite cards in the signed-in Teak web app
+description: In-browser WebMCP tools that search, read, save, tag, favorite and pin cards in the signed-in Teak web app
 sidebar:
   badge: "Preview"
 icon: globe
@@ -26,7 +26,7 @@ API key.
 
 ## Available tools
 
-The page registers seven tools: six imperative tools and one declarative search form.
+The page registers eight tools: seven imperative tools and one declarative search form.
 
 | Tool | Kind | What it does |
 | --- | --- | --- |
@@ -36,9 +36,10 @@ The page registers seven tools: six imperative tools and one declarative search 
 | `teak_create_card` | Write | Save a text, quote or link card |
 | `teak_update_tags` | Write | Add or remove tags on a card |
 | `teak_set_favorite` | Write | Favorite or unfavorite a card |
+| `teak_set_pinned` | Write | Pin a card to the top of the library, or unpin it |
 | `teak_search_form` | Declarative | Fill in and submit the search box |
 
-`limit` is 1 to 50 and defaults to 20 wherever a tool takes it, and `type` accepts `text`, `link`, `image`, `video`, `audio`, `document`, `palette`, or `quote`. A `CardSummary` is `{ id, type, title, url, excerpt, tags, isFavorited, createdAt, updatedAt }`.
+`limit` is 1 to 50 and defaults to 20 wherever a tool takes it, and `type` accepts `text`, `link`, `image`, `video`, `audio`, `document`, `palette`, or `quote`. A `CardSummary` is `{ id, type, title, url, excerpt, tags, isFavorited, isPinned, createdAt, updatedAt }`.
 
 ### Read tools
 
@@ -69,6 +70,10 @@ The page registers seven tools: six imperative tools and one declarative search 
 - `teak_set_favorite` <Badge variant="warning">Write</Badge>
   - Input: `{ cardId: string, favorited: boolean }`
   - Output: `{ id, isFavorited }`.
+- `teak_set_pinned` <Badge variant="warning">Write</Badge>
+  - Input: `{ cardId: string, pinned: boolean }`. Up to 12 cards can be
+    pinned, and archived cards can't be.
+  - Output: `{ id, isPinned }`.
 
 ### Declarative search
 

@@ -775,7 +775,9 @@
       "shortcutsHint": "<kbd>?</kbd>를 누르면 모든 단축키를 볼 수 있습니다",
       "unarchive": "보관 해제",
       "unfavorite": "즐겨찾기에서 제거",
-      "editLink": "링크 편집…"
+      "editLink": "링크 편집…",
+      "pin": "맨 위에 고정",
+      "unpin": "고정 해제"
     },
     "actions": {
       "folder": "폴더"
@@ -1013,7 +1015,9 @@
       "unarchive": "보관 해제",
       "unfavorite": "즐겨찾기에서 제거",
       "editLink": "링크 편집…",
-      "removeFromFolder": "이 폴더에서 제거"
+      "removeFromFolder": "이 폴더에서 제거",
+      "pin": "맨 위에 고정",
+      "unpin": "고정 해제"
     },
     "copyImageFailed": "이미지를 복사하지 못했습니다",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "휴지통의 카드는 {days, plural, other {#일}} 후 영구 삭제됩니다."
-    }
+    },
+    "pinnedMark": "고정됨"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "즐겨찾기",
         "archived": "보관됨",
         "done": "완료",
-        "todo": "할 일"
+        "todo": "할 일",
+        "pinned": "고정됨"
       },
       "hiddenTagCount": "숨긴 카드 표시 · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "유형별 카드",
       "bySite": "사이트별 카드",
       "byFolder": "폴더의 카드",
-      "byState": "즐겨찾기, 보관됨, 완료 또는 할 일"
+      "byState": "즐겨찾기, 보관됨, 완료 또는 할 일",
+      "pin": "고정 또는 고정 해제",
+      "movePinned": "고정한 카드를 왼쪽이나 오른쪽으로 이동"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "카드를 만들지 못했습니다",
       "cancelled": "업로드가 취소되었습니다",
       "timedOut": "업로드가 응답하지 않습니다. 연결을 확인하고 다시 시도해 주세요."
+    },
+    "pinnedCards": {
+      "limit": "카드는 {count}개까지 고정할 수 있습니다. 먼저 하나를 고정 해제하세요.",
+      "failed": {
+        "pin": "이 카드를 고정하지 못했습니다",
+        "unpin": "이 카드의 고정을 해제하지 못했습니다",
+        "reorder": "새 순서를 저장하지 못했습니다"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "메모",
     "favorite": "즐겨찾기",
     "loading": "카드를 불러오는 중…",
-    "error": "Teak에서 이 카드를 표시할 수 없습니다."
+    "error": "Teak에서 이 카드를 표시할 수 없습니다.",
+    "pinnedTitle": "고정됨"
+  },
+  "pinned": {
+    "strip": {
+      "title": "고정됨",
+      "ariaLabel": "고정한 카드",
+      "instructions": "고정한 카드를 끌어서 옮기거나, 카드를 선택하고 Alt 키와 왼쪽 또는 오른쪽 화살표 키를 누르세요.",
+      "moved": "{count}개 중 {position}번째로 옮겼습니다."
+    }
   }
 }

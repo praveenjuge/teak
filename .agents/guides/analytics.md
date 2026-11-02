@@ -39,6 +39,8 @@ Client events (`captureEvent`):
 - `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog
 - `card_backlink_opened`: a card opened from another card's "Linked from" list in the card dialog
 - `card_done_toggled` {done, category, source: `panel`}: a link marked read, watched, bought or done (or not) in the card dialog. `category` is its link category, or `none`
+- `card_pin_toggled` {pinned, source: `grid`, `shortcut` or `dialog`}: a card pinned to the top of the library or unpinned, from a card's menu (`grid`), the `P` key on a focused card (`shortcut`), or the card dialog's menu or `P` (`dialog`)
+- `card_pins_reordered` {count, source: `strip`}: the pinned row dragged into a new order; `count` is how many cards are pinned
 - `link_pdf_saved` {source: `panel`}: Save PDF made a document card from an arXiv link in the card dialog
 - `file_upload_completed` {bucket, size_bucket} and `file_upload_failed` {bucket, size_bucket, error_class}
 - `import_started`, `import_completed`, `import_failed` {error_class}
@@ -70,6 +72,7 @@ Server events (`captureBackendEvent`):
 - `mcp_tool_called` {tool, outcome, status, duration_ms}
 - `card_thumbnail_replaced` {source: `api`} and `card_thumbnail_reset`, when the public API (and so MCP, the SDK and the CLI) replaces or resets a link's image
 - `card_done_toggled` {done, category, source: `api`}, when the public API (and so MCP, the SDK and the CLI) marks a link done or not
+- `card_pin_toggled` {pinned, source: `api`} and `card_pins_reordered` {count, source: `api`}, when the public API (and so MCP, the SDK and the CLI) pins or unpins a card, or reorders the pins
 - `link_pdf_saved` {source: `api`}, when the public API (and so MCP, the SDK and the CLI) saves an arXiv link's PDF as a document card
 - `email_save_toggled` {enabled}: Save by email turned on or off in Settings
 - `email_received` {outcome}: one email from an account's owner reached Save by email. `outcome` is `saved`, `duplicate` (a redelivery), `empty`, `dropped_limit` (the free card limit), `dropped_rate` (over 60 an hour) or `deferred_rate` (the card creation limit; the sender retries). Mail Teak refuses at delivery never reaches Convex and has no event

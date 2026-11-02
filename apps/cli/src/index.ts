@@ -79,7 +79,7 @@ export {
   queryOptions,
 } from "./options";
 
-type ListMode = "list" | "search" | "favorites" | "similar";
+type ListMode = "list" | "search" | "favorites" | "pinned" | "similar";
 
 export const listingJson = <T extends object>(
   page: T,
@@ -119,6 +119,9 @@ const writeCards = async (
     const input = cursor ? { ...query, cursor } : query;
     if (mode === "favorites") {
       return api.cards.favorites(input);
+    }
+    if (mode === "pinned") {
+      return api.cards.pinned(input);
     }
     if (mode === "similar" && input.similarTo) {
       const { similarTo, ...rest } = input;
@@ -168,6 +171,16 @@ const favoriteCard = async (
 ) => {
   const card = await client(options).cards.setFavorite(id, !remove);
   write(options.json ? card : formatCardLine(card), options);
+};
+
+const pinCard = async (id: string, remove: boolean, options: GlobalOptions) => {
+  const card = await client(options).cards.setPinned(id, !remove);
+  write(options.json ? card : formatCardLine(card), options);
+};
+
+const reorderPins = async (ids: string[], options: GlobalOptions) => {
+  const cards = await client(options).cards.reorderPinned(ids);
+  write(options.json ? cards : cards.map(formatCardLine).join("\n"), options);
 };
 
 const markCardDone = async (
@@ -379,6 +392,20 @@ withListOptions(
 ).action(async (options) =>
   writeCards({ ...program.opts(), ...options }, "favorites")
 );
+const pins = withListOptions(
+  cards
+    .command("pins")
+    .description("List the cards pinned to the top, first to last")
+).action(async (options) =>
+  writeCards({ ...program.opts(), ...options }, "pinned")
+);
+pins
+  .command("order")
+  .argument("<ids...>", "every pinned card's id, first to last")
+  .description("Reorder the pinned cards")
+  .action(async (ids: string[], options) => {
+    await reorderPins(ids, { ...program.opts(), ...options });
+  });
 withListOptions(
   cards.command("trash").description("List cards in Trash")
 ).action(async (options) =>
@@ -521,6 +548,14 @@ cards
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+cards
+  .command("pin")
+  .argument("<id>")
+  .description("Pin a card to the top of the library (up to 12)")
+  .option("--remove", "unpin it")
+  .action(async (id, options) => {
+    await pinCard(id, options.remove, { ...program.opts(), ...options });
   });
 cards
   .command("done")
@@ -901,6 +936,14 @@ program
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+program
+  .command("pin")
+  .argument("<id>")
+  .description("Pin a card to the top of the library (up to 12)")
+  .option("--remove", "unpin it")
+  .action(async (id, options) => {
+    await pinCard(id, options.remove, { ...program.opts(), ...options });
   });
 program
   .command("done")

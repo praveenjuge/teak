@@ -346,6 +346,11 @@ export const cardValidator = v.object({
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
+  /**
+   * Set while the card is pinned to the top of the library. Lower values
+   * show first. Archiving or trashing the card clears it.
+   */
+  pinPosition: v.optional(v.number()),
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
   isArchived: v.optional(v.literal(true)),

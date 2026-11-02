@@ -60,6 +60,7 @@ import type * as card_onboarding_processed from "../card/onboarding/processed.js
 import type * as card_onboardingFiles from "../card/onboardingFiles.js";
 import type * as card_pageSnapshots from "../card/pageSnapshots.js";
 import type * as card_pasteLinks from "../card/pasteLinks.js";
+import type * as card_pins from "../card/pins.js";
 import type * as card_processingLifecycle from "../card/processingLifecycle.js";
 import type * as card_processingRpc from "../card/processingRpc.js";
 import type * as card_processingRuns from "../card/processingRuns.js";
@@ -208,6 +209,7 @@ import type * as publicApi_http_highlights from "../publicApi/http/highlights.js
 import type * as publicApi_http_meta from "../publicApi/http/meta.js";
 import type * as publicApi_http_pageSnapshots from "../publicApi/http/pageSnapshots.js";
 import type * as publicApi_http_payloads from "../publicApi/http/payloads.js";
+import type * as publicApi_http_pins from "../publicApi/http/pins.js";
 import type * as publicApi_http_routeParsing from "../publicApi/http/routeParsing.js";
 import type * as publicApi_http_routes from "../publicApi/http/routes.js";
 import type * as publicApi_http_serializers from "../publicApi/http/serializers.js";
@@ -265,6 +267,7 @@ import type * as shared_markdown from "../shared/markdown.js";
 import type * as shared_oauthSurfaces from "../shared/oauthSurfaces.js";
 import type * as shared_oauthUrl from "../shared/oauthUrl.js";
 import type * as shared_pageArchive from "../shared/pageArchive.js";
+import type * as shared_pins from "../shared/pins.js";
 import type * as shared_polarPlans from "../shared/polarPlans.js";
 import type * as shared_posthog from "../shared/posthog.js";
 import type * as shared_price from "../shared/price.js";
@@ -423,6 +426,7 @@ declare const fullApi: ApiFromModules<{
   "card/onboardingFiles": typeof card_onboardingFiles;
   "card/pageSnapshots": typeof card_pageSnapshots;
   "card/pasteLinks": typeof card_pasteLinks;
+  "card/pins": typeof card_pins;
   "card/processingLifecycle": typeof card_processingLifecycle;
   "card/processingRpc": typeof card_processingRpc;
   "card/processingRuns": typeof card_processingRuns;
@@ -571,6 +575,7 @@ declare const fullApi: ApiFromModules<{
   "publicApi/http/meta": typeof publicApi_http_meta;
   "publicApi/http/pageSnapshots": typeof publicApi_http_pageSnapshots;
   "publicApi/http/payloads": typeof publicApi_http_payloads;
+  "publicApi/http/pins": typeof publicApi_http_pins;
   "publicApi/http/routeParsing": typeof publicApi_http_routeParsing;
   "publicApi/http/routes": typeof publicApi_http_routes;
   "publicApi/http/serializers": typeof publicApi_http_serializers;
@@ -628,6 +633,7 @@ declare const fullApi: ApiFromModules<{
   "shared/oauthSurfaces": typeof shared_oauthSurfaces;
   "shared/oauthUrl": typeof shared_oauthUrl;
   "shared/pageArchive": typeof shared_pageArchive;
+  "shared/pins": typeof shared_pins;
   "shared/polarPlans": typeof shared_polarPlans;
   "shared/posthog": typeof shared_posthog;
   "shared/price": typeof shared_price;

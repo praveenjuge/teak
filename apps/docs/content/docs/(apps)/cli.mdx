@@ -9,7 +9,7 @@ related:
   - /docs/ai-agents
 ---
 
-The Teak CLI lets you save, search, tag, favorite, update, delete, restore, and export cards without leaving your terminal.
+The Teak CLI lets you save, search, tag, favorite, pin, update, delete, restore, and export cards without leaving your terminal.
 
 ![A terminal running teak add and teak search, listing matching cards with their types and tags](../images/cli.webp)
 
@@ -81,6 +81,9 @@ teak cards update <card-id> --title "Homepage ideas" --tags design,reference
 teak tags add <card-id> inspiration
 teak tags rm <card-id> inspiration
 teak fav <card-id>
+teak pin <card-id>               # pin to the top of the library (up to 12); --remove unpins
+teak cards pins                  # the pinned cards, first to last
+teak cards pins order <id> <id>  # every pinned card's id, in the new order
 teak done <card-id>
 teak done <card-id> --undo
 teak cards save-pdf <card-id>
@@ -179,13 +182,14 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 
 ### Filter and page through cards
 
-`teak ls`, `teak search`, `teak trash`, and `teak cards favorites` accept the same filters as search on the web:
+`teak ls`, `teak search`, `teak trash`, `teak cards favorites`, and `teak cards pins` accept the same filters as search on the web:
 
 | Option | Filter |
 | --- | --- |
 | `--type <type>` | Card type. Repeat to match any of several. |
 | `--tag <tag>` | Exact tag |
 | `--favorited` / `--trashed` / `--archived` | Favorites only / Trash only / Archive only |
+| `--pinned` | Pinned cards only, first to last |
 | `--folder <folder>` | Cards in one folder, by name or ID |
 | `--style <style>` | Visual style, such as `minimal` or `vintage`. Repeatable. |
 | `--hue <hue>` | Color family, such as `blue` or `neutral`. Repeatable. |

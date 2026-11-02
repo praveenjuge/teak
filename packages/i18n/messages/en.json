@@ -775,7 +775,9 @@
       "shortcutsHint": "Press <kbd>?</kbd> for all shortcuts",
       "unarchive": "Unarchive",
       "unfavorite": "Unfavorite",
-      "editLink": "Edit link…"
+      "editLink": "Edit link…",
+      "pin": "Pin to top",
+      "unpin": "Unpin"
     },
     "actions": {
       "folder": "Folder"
@@ -1013,7 +1015,9 @@
       "unarchive": "Unarchive",
       "unfavorite": "Unfavorite",
       "editLink": "Edit link…",
-      "removeFromFolder": "Remove from this folder"
+      "removeFromFolder": "Remove from this folder",
+      "pin": "Pin to top",
+      "unpin": "Unpin"
     },
     "copyImageFailed": "Failed to copy image",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "Cards in Trash are deleted forever after {days, plural, one {# day} other {# days}}."
-    }
+    },
+    "pinnedMark": "Pinned"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "Favorites",
         "archived": "Archived",
         "done": "Done",
-        "todo": "To do"
+        "todo": "To do",
+        "pinned": "Pinned"
       },
       "hiddenTagCount": "Shows hidden cards · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "Cards of a type",
       "bySite": "Cards from a site",
       "byFolder": "Cards in a folder",
-      "byState": "Favorites, archived, done or to-do"
+      "byState": "Favorites, archived, done or to-do",
+      "pin": "Pin or unpin",
+      "movePinned": "Move a pinned card left or right"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "Failed to create card",
       "cancelled": "Upload cancelled",
       "timedOut": "The upload stopped responding. Check your connection and try again."
+    },
+    "pinnedCards": {
+      "limit": "You can pin up to {count} cards. Unpin one first.",
+      "failed": {
+        "pin": "Couldn't pin this card",
+        "unpin": "Couldn't unpin this card",
+        "reorder": "Couldn't save the new order"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "Notes",
     "favorite": "Favorite",
     "loading": "Loading cards…",
-    "error": "Teak couldn't show these cards."
+    "error": "Teak couldn't show these cards.",
+    "pinnedTitle": "Pinned"
+  },
+  "pinned": {
+    "strip": {
+      "title": "Pinned",
+      "ariaLabel": "Pinned cards",
+      "instructions": "Drag a pinned card to move it, or focus it and press Alt with the left or right arrow.",
+      "moved": "Moved to position {position} of {count}."
+    }
   }
 }

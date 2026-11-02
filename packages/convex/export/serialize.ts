@@ -49,6 +49,7 @@ export interface ExportableCard {
   isHidden?: boolean;
   metadataTitle?: string;
   notes?: string;
+  pinPosition?: number;
   savedAt?: number;
   sourceTitle?: string;
   sourceUrl?: string;
@@ -107,9 +108,16 @@ export interface SerializedCard {
   isFavorited: boolean;
   /** A reserved tag (`secret`, `hidden`) hides it in Teak's lists. */
   isHidden: boolean;
+  /** Pinned to the top of the library. */
+  isPinned: boolean;
   /** The card's title, when it has one (schema v2). */
   metadataTitle?: string;
   notes?: string;
+  /**
+   * Where a pinned card sits among the pinned cards; lower comes first.
+   * Only pinned cards have it.
+   */
+  pinPosition?: number;
   /**
    * When the card was last saved: its `createdAt`, or later when the link was
    * saved again. Lists order by it. Archives before it was added leave it out.
@@ -209,6 +217,10 @@ export function serializeCard(
     isFavorited: card.isFavorited === true,
     isArchived: card.isArchived === true,
     isHidden: card.isHidden === true || isHiddenTagList(card.tags),
+    isPinned: card.pinPosition !== undefined,
+    ...(card.pinPosition === undefined
+      ? {}
+      : { pinPosition: card.pinPosition }),
     createdAt: toDualTimestamp(card.createdAt),
     savedAt: toDualTimestamp(card.savedAt ?? card.createdAt),
     updatedAt: toDualTimestamp(card.updatedAt),

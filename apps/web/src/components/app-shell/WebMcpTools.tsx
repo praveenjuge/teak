@@ -83,6 +83,8 @@ export function WebMcpTools() {
             field: "isFavorited",
             value: favorited,
           }),
+        setCardPinned: ({ cardId, pinned }) =>
+          convex.mutation(api.cards.setCardPinned, { cardId, pinned }),
       },
       { signal: controller.signal }
     ).then(debug.markRegistered, stop);

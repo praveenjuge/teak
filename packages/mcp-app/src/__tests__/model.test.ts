@@ -70,6 +70,7 @@ describe("viewFromToolResult", () => {
 
   test.each([
     ["teak_v1_list_favorite_cards", "favorites"],
+    ["teak_v1_list_pinned_cards", "pinned"],
     ["teak_v1_list_cards", "recent"],
     [undefined, "search"],
   ])("names the list for %s", (toolName, source) => {

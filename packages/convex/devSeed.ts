@@ -408,6 +408,17 @@ const fillScenarioCards = async (
   ];
 };
 
+const PINNED_SCENARIO_CARDS: DevScenarioCardDef[] = Array.from(
+  { length: 13 },
+  (_, index): DevScenarioCardDef => ({
+    type: "text",
+    content: `${index < 11 ? "Pinned" : "Unpinned"} note ${index + 1}`,
+    tags: ["scenario-pinned"],
+    ...(index === 2 ? { isFavorited: true } : {}),
+    ...(index < 11 ? { pinPosition: index } : {}),
+  })
+);
+
 const firstPageOnly = (cards: DevScenarioCardDef[]) => (page: number) =>
   page === 0 ? cards : [];
 
@@ -416,6 +427,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "Link bylines in every shape pages send them. Images with and without EXIF need stored files, so upload those through the API.",
     cards: () => CARD_DETAILS_SCENARIO_CARDS,
+  },
+  pinned: {
+    description:
+      "Eleven notes pinned in order (the third also a favorite) and two more unpinned, so the 12-card pin cap is one pin away. Search `#scenario-pinned`.",
+    cards: firstPageOnly(PINNED_SCENARIO_CARDS),
   },
   ordering: {
     description:

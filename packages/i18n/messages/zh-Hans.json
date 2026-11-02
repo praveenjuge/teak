@@ -775,7 +775,9 @@
       "shortcutsHint": "按 <kbd>?</kbd> 查看所有快捷键",
       "unarchive": "取消归档",
       "unfavorite": "取消收藏",
-      "editLink": "编辑链接…"
+      "editLink": "编辑链接…",
+      "pin": "置顶",
+      "unpin": "取消置顶"
     },
     "actions": {
       "folder": "文件夹"
@@ -1013,7 +1015,9 @@
       "unarchive": "取消归档",
       "unfavorite": "取消收藏",
       "editLink": "编辑链接…",
-      "removeFromFolder": "从此文件夹中移除"
+      "removeFromFolder": "从此文件夹中移除",
+      "pin": "置顶",
+      "unpin": "取消置顶"
     },
     "copyImageFailed": "无法复制图片",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "废纸篓中的卡片会在 {days, plural, other {# 天}}后永久删除。"
-    }
+    },
+    "pinnedMark": "已置顶"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "收藏",
         "archived": "已归档",
         "done": "已完成",
-        "todo": "待办"
+        "todo": "待办",
+        "pinned": "置顶"
       },
       "hiddenTagCount": "显示隐藏的卡片 · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "某种类型的卡片",
       "bySite": "来自某个网站的卡片",
       "byFolder": "某个文件夹中的卡片",
-      "byState": "收藏、已归档、已完成或待办"
+      "byState": "收藏、已归档、已完成或待办",
+      "pin": "置顶或取消置顶",
+      "movePinned": "向左或向右移动置顶卡片"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "无法创建卡片",
       "cancelled": "上传已取消",
       "timedOut": "上传已停止响应。请检查你的网络连接后重试。"
+    },
+    "pinnedCards": {
+      "limit": "最多可以置顶 {count} 张卡片。请先取消置顶一张。",
+      "failed": {
+        "pin": "无法置顶此卡片",
+        "unpin": "无法取消置顶此卡片",
+        "reorder": "无法保存新的顺序"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "笔记",
     "favorite": "收藏",
     "loading": "正在加载卡片…",
-    "error": "Teak 无法显示这些卡片。"
+    "error": "Teak 无法显示这些卡片。",
+    "pinnedTitle": "置顶"
+  },
+  "pinned": {
+    "strip": {
+      "title": "置顶",
+      "ariaLabel": "置顶的卡片",
+      "instructions": "拖动置顶卡片即可移动，或选中卡片后按 Alt 键加左右方向键。",
+      "moved": "已移到第 {position} 个，共 {count} 个。"
+    }
   }
 }

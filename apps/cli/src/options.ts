@@ -158,6 +158,7 @@ export const queryOptions = (options: Record<string, unknown>) => {
     hue: strings(options.hue),
     include: typeof options.include === "string" ? options.include : "content",
     limit: typeof options.limit === "number" ? options.limit : undefined,
+    pinned: options.pinned === true,
     mode:
       typeof options.mode === "string"
         ? (options.mode as SearchMode)
@@ -181,7 +182,7 @@ export const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, is:done, is:todo, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =), text:"…" (words read from images and scans) and "phrases"; -word or -tag:x leaves out, a OR b matches either, ( ) groups. Quote a search with a -: -q "design -tag:old"'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, is:done, is:todo, is:pinned, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =), text:"…" (words read from images and scans) and "phrases"; -word or -tag:x leaves out, a OR b matches either, ( ) groups. Quote a search with a -: -q "design -tag:old"'
     )
     .option("--similar-to <id>", "only the cards closest in meaning to a card")
     .option(
@@ -191,6 +192,7 @@ export const withListOptions = (command: Command) =>
     )
     .option("--tag <tag>", "exact tag")
     .option("--favorited", "favorites only")
+    .option("--pinned", "pinned cards only, in their pinned order")
     .option("--trashed", "cards in Trash only")
     .option("--archived", "archived cards only")
     .option("--folder <folder>", "cards in this folder, by name or id")

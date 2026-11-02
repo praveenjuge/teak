@@ -12,6 +12,7 @@ import {
   MAX_HIGHLIGHT_NOTE_CHARS,
   MAX_HIGHLIGHT_QUOTE_CHARS,
 } from "../shared/highlights/constants";
+import { MAX_PINNED_CARDS } from "../shared/pins";
 import {
   PUBLIC_API_MAX_BULK_ITEMS,
   PUBLIC_API_MAX_LIMIT,
@@ -83,6 +84,7 @@ const cardFiltersShape = {
   cursor: nonEmptyString.optional(),
   type: z.union([cardTypeSchema, z.array(cardTypeSchema).min(1)]).optional(),
   favorited: z.boolean().optional(),
+  pinned: z.boolean().optional(),
   trashed: z.boolean().optional(),
   archived: z.enum(["exclude", "only", "include"]).optional(),
   folder: nonEmptyString.optional(),
@@ -232,6 +234,13 @@ const deleteCardInputSchema = z.strictObject({
 const favoriteInputSchema = z.strictObject({
   cardId: idSchema,
   isFavorited: z.boolean(),
+});
+const pinnedInputSchema = z.strictObject({
+  cardId: idSchema,
+  isPinned: z.boolean(),
+});
+const pinOrderInputSchema = z.strictObject({
+  cardIds: z.array(idSchema).max(MAX_PINNED_CARDS),
 });
 const archivedInputSchema = z.strictObject({
   cardId: idSchema,
@@ -790,6 +799,10 @@ const toolConfigs: Record<string, ToolRun> = {
     { favorited: true },
     (payload) => `Fetched ${Number(payload.total) || 0} favorite cards`
   ),
+  teak_v1_list_pinned_cards: queryTool(
+    { pinned: true },
+    (payload) => `Fetched ${Number(payload.total) || 0} pinned cards`
+  ),
   teak_v1_update_card: defineTool({
     schema: updateCardInputSchema,
     operation: ({ cardId, ...body }) => ({
@@ -810,6 +823,27 @@ const toolConfigs: Record<string, ToolRun> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
+  }),
+  teak_v1_set_card_pinned: defineTool({
+    schema: pinnedInputSchema,
+    operation: (input) => ({
+      method: "PATCH",
+      path: `${cardPath(input.cardId)}/pin`,
+      body: { isPinned: input.isPinned },
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.isPinned ? "pinned" : "unpinned"}`,
+  }),
+  teak_v1_reorder_pinned_cards: defineTool({
+    schema: pinOrderInputSchema,
+    operation: (input) => ({
+      method: "PUT",
+      path: "/v1/cards/pinned/order",
+      body: { cardIds: input.cardIds },
+    }),
+    transform: pageToCardResults,
+    summary: (payload) =>
+      `Reordered ${Number(payload.total) || 0} pinned cards`,
   }),
   teak_v1_create_thumbnail_upload: defineTool({
     schema: thumbnailUploadInputSchema,

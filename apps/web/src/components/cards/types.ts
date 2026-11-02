@@ -99,6 +99,8 @@ export interface CardProps {
   isSelectionMode?: boolean;
   isTabStop?: boolean;
   isTrashMode?: boolean;
+  /** False where the card moves another way (the pinned row's drag). */
+  nativeDrag?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
@@ -111,6 +113,7 @@ export interface CardProps {
   onRestore?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
+  onTogglePin?: (cardId: string) => void;
   onToggleSelection?: (cardId: string) => void;
 }
 

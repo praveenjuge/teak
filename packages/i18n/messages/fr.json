@@ -775,7 +775,9 @@
       "shortcutsHint": "Appuyez sur <kbd>?</kbd> pour voir tous les raccourcis",
       "unarchive": "Désarchiver",
       "unfavorite": "Retirer des favoris",
-      "editLink": "Modifier le lien…"
+      "editLink": "Modifier le lien…",
+      "pin": "Épingler en haut",
+      "unpin": "Désépingler"
     },
     "actions": {
       "folder": "Dossier"
@@ -1013,7 +1015,9 @@
       "unarchive": "Désarchiver",
       "unfavorite": "Retirer des favoris",
       "editLink": "Modifier le lien…",
-      "removeFromFolder": "Retirer de ce dossier"
+      "removeFromFolder": "Retirer de ce dossier",
+      "pin": "Épingler en haut",
+      "unpin": "Désépingler"
     },
     "copyImageFailed": "Impossible de copier l’image",
     "deleteForeverDialog": {
@@ -1058,7 +1062,8 @@
     },
     "trash": {
       "retention": "Les fiches de la corbeille sont supprimées définitivement après {days, plural, one {# jour} other {# jours}}."
-    }
+    },
+    "pinnedMark": "Épinglée"
   },
   "grids": {
     "masonry": {
@@ -1340,7 +1345,8 @@
         "fav": "Favoris",
         "archived": "Archivées",
         "done": "Terminées",
-        "todo": "À faire"
+        "todo": "À faire",
+        "pinned": "Épinglées"
       },
       "hiddenTagCount": "Affiche les fiches masquées · {count}"
     },
@@ -1482,7 +1488,9 @@
       "byType": "Fiches d’un type",
       "bySite": "Fiches d’un site",
       "byFolder": "Fiches d’un dossier",
-      "byState": "Favoris, archivées, terminées ou à faire"
+      "byState": "Favoris, archivées, terminées ou à faire",
+      "pin": "Épingler ou désépingler",
+      "movePinned": "Déplacer une fiche épinglée à gauche ou à droite"
     }
   },
   "extension": {
@@ -1722,6 +1730,14 @@
       "createFailed": "Impossible de créer la fiche",
       "cancelled": "Importation annulée",
       "timedOut": "L’importation ne répond plus. Vérifiez votre connexion et réessayez."
+    },
+    "pinnedCards": {
+      "limit": "Vous pouvez épingler jusqu'à {count} fiches. Désépinglez-en une d'abord.",
+      "failed": {
+        "pin": "Impossible d'épingler cette fiche",
+        "unpin": "Impossible de désépingler cette fiche",
+        "reorder": "Impossible d'enregistrer le nouvel ordre"
+      }
     }
   },
   "lib": {
@@ -1880,6 +1896,15 @@
     "notes": "Notes",
     "favorite": "Favori",
     "loading": "Chargement des fiches…",
-    "error": "Teak n’a pas pu afficher ces fiches."
+    "error": "Teak n’a pas pu afficher ces fiches.",
+    "pinnedTitle": "Épinglées"
+  },
+  "pinned": {
+    "strip": {
+      "title": "Épinglées",
+      "ariaLabel": "Fiches épinglées",
+      "instructions": "Faites glisser une fiche épinglée pour la déplacer, ou sélectionnez-la et appuyez sur Alt avec la flèche gauche ou droite.",
+      "moved": "Déplacée en position {position} sur {count}."
+    }
   }
 }

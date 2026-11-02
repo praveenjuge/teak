@@ -25,7 +25,9 @@ import {
   foldersV1,
   highlightByIdV1,
   listCardsV1,
+  PINNED_ORDER_PATH,
   pageSnapshotUploadV1,
+  pinnedOrderV1,
   tagOperationsV1,
   tagsV1,
 } from "./publicApi/http/routes";
@@ -194,6 +196,13 @@ http.route({
   path: "/v1/cards/changes",
   method: "GET",
   handler: changesCardsV1,
+});
+
+// An exact path, so it wins over the `/v1/cards/` prefix below.
+http.route({
+  path: PINNED_ORDER_PATH,
+  method: "PUT",
+  handler: pinnedOrderV1,
 });
 
 http.route({

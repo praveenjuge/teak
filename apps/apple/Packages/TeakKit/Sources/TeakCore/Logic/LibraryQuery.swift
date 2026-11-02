@@ -128,6 +128,7 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
             case .archived: return "archivebox"
             case .done: return "checkmark.circle"
             case .todo: return "circle"
+            case .pinned: return "pin"
             default: return "heart"
             }
         case .like: return "sparkles"

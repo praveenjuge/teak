@@ -362,6 +362,28 @@ describe("devSeed.seedScenario", () => {
     expect(scenario.filter((card) => card.isDeleted)).toHaveLength(1);
   });
 
+  test("the pinned pack leaves the pin cap one pin away", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seedScenario, {
+      workosUserId: WORKOS_USER_ID,
+      scenario: "pinned",
+    });
+    const scenario = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-pinned")
+    );
+    expect(scenario).toHaveLength(13);
+    const pinned = scenario
+      .filter((card) => card.pinPosition !== undefined)
+      .sort((a, b) => (a.pinPosition ?? 0) - (b.pinPosition ?? 0))
+      .map((card) => card.content);
+    expect(pinned).toHaveLength(11);
+    expect(pinned[0]).toBe("Pinned note 1");
+    expect(scenario.find((card) => card.isFavorited)?.content).toBe(
+      "Pinned note 3"
+    );
+  });
+
   test("an unknown scenario lists every pack with what it seeds", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();

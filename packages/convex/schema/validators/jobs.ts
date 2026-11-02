@@ -188,6 +188,8 @@ export const importJobItemValidator = v.object({
   importedCreatedAt: v.optional(v.number()),
   importedSavedAt: v.optional(v.number()),
   importedCompletedAt: v.optional(v.number()),
+  /** A Teak archive's pinned card: its place among the pins. */
+  importedPinPosition: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),

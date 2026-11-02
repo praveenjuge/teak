@@ -15,6 +15,7 @@ import {
   WEBMCP_CREATE_INPUT_SCHEMA,
   WEBMCP_FAVORITE_INPUT_SCHEMA,
   WEBMCP_GET_INPUT_SCHEMA,
+  WEBMCP_PIN_INPUT_SCHEMA,
   WEBMCP_RECENT_INPUT_SCHEMA,
   WEBMCP_SEARCH_INPUT_SCHEMA,
   WEBMCP_TAGS_INPUT_SCHEMA,
@@ -222,6 +223,7 @@ describe("webmcp card shaping", () => {
       excerpt: "A note about mechanical keyboards.",
       tags: ["setup"],
       isFavorited: true,
+      isPinned: false,
       createdAt: 1_700_000_000_000,
       updatedAt: 1_700_000_100_000,
     });
@@ -263,6 +265,7 @@ describe("webmcp tool registration", () => {
       getCard: () => Promise.resolve(null),
       searchCards: () => Promise.resolve([]),
       setCardFavorite: () => Promise.reject(new Error("unexpected favorite")),
+      setCardPinned: () => Promise.reject(new Error("unexpected pin")),
     };
     return { modelContext, registered, signals, unusedDeps };
   };
@@ -284,6 +287,7 @@ describe("webmcp tool registration", () => {
       "teak_update_tags",
       "teak_set_favorite",
       "teak_recent_cards",
+      "teak_set_pinned",
     ]);
     expect(registered.map((tool) => tool.name)).toEqual([...names]);
     expect(registered[0].inputSchema).toBe(WEBMCP_SEARCH_INPUT_SCHEMA);
@@ -308,14 +312,9 @@ describe("webmcp tool registration", () => {
       readOnlyHint: true,
       untrustedContentHint: true,
     });
-    expect(signals).toEqual([
-      controller.signal,
-      controller.signal,
-      controller.signal,
-      controller.signal,
-      controller.signal,
-      controller.signal,
-    ]);
+    expect(registered[6].inputSchema).toBe(WEBMCP_PIN_INPUT_SCHEMA);
+    expect(registered[6].annotations).toEqual({ consequentialHint: true });
+    expect(signals).toEqual(registered.map(() => controller.signal));
     expect(messages.join("\n")).toContain("teak_search_cards");
   });
 
@@ -635,6 +634,42 @@ describe("webmcp tool registration", () => {
         { signal: fakeSignal }
       )
     ).rejects.toThrow(/not found/);
+  });
+
+  test("pin execute pins or unpins the card explicitly", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    const fakeSignal = new AbortController().signal;
+    const seen: unknown[] = [];
+
+    await registerTeakWebMcpTools(
+      modelContext,
+      {
+        ...unusedDeps,
+        getCard: (id) =>
+          Promise.resolve(
+            id === "exists" ? cardFixture({ _id: "exists" }) : null
+          ),
+        setCardPinned: (args) => {
+          seen.push(args);
+          return Promise.resolve(null);
+        },
+      },
+      { logger: () => undefined }
+    );
+
+    const pin = registered.find((tool) => tool.name === "teak_set_pinned");
+    const result = await pin?.execute(
+      { cardId: "exists", pinned: true },
+      { signal: fakeSignal }
+    );
+    expect(seen).toEqual([{ cardId: "exists", pinned: true }]);
+    expect(result).toEqual({ id: "exists", isPinned: true });
+    await expect(
+      pin?.execute({ cardId: "nope", pinned: true }, { signal: fakeSignal })
+    ).rejects.toThrow(/not found/);
+    await expect(
+      pin?.execute({ cardId: "exists" }, { signal: fakeSignal })
+    ).rejects.toThrow(/"pinned" must be a boolean/);
   });
 
   test("recent execute asks for the newest cards and keeps that order", async () => {

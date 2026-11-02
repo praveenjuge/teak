@@ -81,6 +81,7 @@ export const WEBMCP_GET_TOOL_NAME = "teak_get_card";
 export const WEBMCP_CREATE_TOOL_NAME = "teak_create_card";
 export const WEBMCP_TAGS_TOOL_NAME = "teak_update_tags";
 export const WEBMCP_FAVORITE_TOOL_NAME = "teak_set_favorite";
+export const WEBMCP_PIN_TOOL_NAME = "teak_set_pinned";
 export const WEBMCP_RECENT_TOOL_NAME = "teak_recent_cards";
 
 export const WEBMCP_TOOL_NAMES = [
@@ -90,6 +91,7 @@ export const WEBMCP_TOOL_NAMES = [
   WEBMCP_TAGS_TOOL_NAME,
   WEBMCP_FAVORITE_TOOL_NAME,
   WEBMCP_RECENT_TOOL_NAME,
+  WEBMCP_PIN_TOOL_NAME,
 ] as const;
 
 // Tool descriptions are a prompt-injection surface (spec section 6.3.1), so
@@ -104,6 +106,8 @@ const TAGS_TOOL_DESCRIPTION =
   "Add or remove tags on one Teak card for the signed-in user. Tags match ignoring case; tags not mentioned are kept. Returns the updated tag list.";
 const FAVORITE_TOOL_DESCRIPTION =
   "Set or clear the favorite flag on one Teak card for the signed-in user. Returns the updated flag.";
+const PIN_TOOL_DESCRIPTION =
+  "Pin one Teak card to the top of the signed-in user's library, or unpin it. Up to 12 cards can be pinned, and archived cards can't be. Returns the updated flag.";
 const RECENT_TOOL_DESCRIPTION =
   "List the signed-in user's most recently created Teak cards, newest first, with an optional card-type filter. Returns matching card summaries.";
 
@@ -483,6 +487,44 @@ export interface WebMcpFavoriteArgs {
   favorited: boolean;
 }
 
+export const WEBMCP_PIN_INPUT_SCHEMA: WebMcpToolInputSchema = {
+  type: "object",
+  properties: {
+    cardId: {
+      type: "string",
+      minLength: 1,
+      description: "The Teak card ID.",
+    },
+    pinned: {
+      type: "boolean",
+      description: "True to pin the card to the top, false to unpin it.",
+    },
+  },
+  required: ["cardId", "pinned"],
+  additionalProperties: false,
+};
+
+export interface WebMcpPinArgs {
+  cardId: string;
+  pinned: boolean;
+}
+
+export const normalizePinToolInput = (input: unknown): WebMcpPinArgs => {
+  if (!isRecord(input)) {
+    throw new Error(`${WEBMCP_PIN_TOOL_NAME}: input must be an object`);
+  }
+  const { cardId, pinned } = input;
+  if (typeof cardId !== "string" || !cardId.trim()) {
+    throw new Error(
+      `${WEBMCP_PIN_TOOL_NAME}: "cardId" must be a non-empty string`
+    );
+  }
+  if (typeof pinned !== "boolean") {
+    throw new Error(`${WEBMCP_PIN_TOOL_NAME}: "pinned" must be a boolean`);
+  }
+  return { cardId: cardId.trim(), pinned };
+};
+
 export const normalizeFavoriteToolInput = (
   input: unknown
 ): WebMcpFavoriteArgs => {
@@ -510,6 +552,7 @@ export interface WebMcpCardInput {
   isFavorited?: boolean;
   metadataTitle?: string;
   notes?: string | null;
+  pinPosition?: number;
   tags?: string[];
   type: string;
   updatedAt: number;
@@ -521,6 +564,7 @@ export interface WebMcpCardSummary {
   excerpt: string;
   id: string;
   isFavorited: boolean;
+  isPinned: boolean;
   tags: string[];
   title: string | null;
   type: string;
@@ -547,6 +591,7 @@ export const toWebMcpCardSummary = (
   excerpt: truncate(card.content, EXCERPT_LENGTH),
   tags: card.tags ?? [],
   isFavorited: card.isFavorited ?? false,
+  isPinned: card.pinPosition !== undefined,
   createdAt: card.createdAt,
   updatedAt: card.updatedAt,
 });
@@ -586,6 +631,10 @@ export interface WebMcpQueryDeps {
   setCardFavorite: (args: {
     cardId: Id<"cards">;
     favorited: boolean;
+  }) => Promise<null>;
+  setCardPinned: (args: {
+    cardId: Id<"cards">;
+    pinned: boolean;
   }) => Promise<null>;
 }
 
@@ -781,6 +830,23 @@ export const registerTeakWebMcpTools = async (
           })
         );
         return { items: cards.map(toWebMcpCardSummary), total: cards.length };
+      },
+    },
+    {
+      name: WEBMCP_PIN_TOOL_NAME,
+      title: "Pin Teak card",
+      description: PIN_TOOL_DESCRIPTION,
+      inputSchema: WEBMCP_PIN_INPUT_SCHEMA,
+      annotations: writeAnnotations,
+      execute: async (input, { signal }) => {
+        throwIfAborted(WEBMCP_PIN_TOOL_NAME, signal);
+        const args = normalizePinToolInput(input);
+        const card = await deps.getCard(args.cardId);
+        if (!card) {
+          throw new Error(`${WEBMCP_PIN_TOOL_NAME}: card not found`);
+        }
+        await deps.setCardPinned({ cardId: card._id, pinned: args.pinned });
+        return { id: args.cardId, isPinned: args.pinned };
       },
     },
   ];

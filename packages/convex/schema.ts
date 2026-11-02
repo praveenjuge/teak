@@ -146,6 +146,7 @@ export default defineSchema({
       "isFavorited",
       "shuffleKey",
     ])
+    .index("by_user_pin_position", ["userId", "pinPosition"])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     .index("by_user_deleted_saved", ["userId", "isDeleted", "savedAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])

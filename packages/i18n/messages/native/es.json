@@ -696,7 +696,8 @@
         "fav": "Favoritas",
         "archived": "Archivadas",
         "done": "Hechas",
-        "todo": "Pendientes"
+        "todo": "Pendientes",
+        "pinned": "Fijadas"
       },
       "chips": {
         "tag": "Etiqueta",

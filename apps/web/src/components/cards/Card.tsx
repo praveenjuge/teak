@@ -25,6 +25,8 @@ import {
   Heart,
   LoaderCircle,
   Pencil,
+  Pin,
+  PinOff,
   RefreshCw,
   RotateCcw,
   SquareCheckBig,
@@ -155,6 +157,7 @@ export const Card = memo(function Card({
   onRestore,
   onPermanentDelete,
   onToggleFavorite,
+  onTogglePin,
   onToggleArchive,
   onAddTags,
   onEditFolders,
@@ -164,6 +167,7 @@ export const Card = memo(function Card({
   isSelected,
   isPriority = false,
   isTabStop = true,
+  nativeDrag = true,
   onEnterSelectionMode,
   onRemoveFromFolder,
   onToggleSelection,
@@ -275,6 +279,13 @@ export const Card = memo(function Card({
     onToggleFavorite?.(card._id);
   };
 
+  const handleTogglePin = () => {
+    if (isOptimistic) {
+      return;
+    }
+    onTogglePin?.(card._id);
+  };
+
   const handleToggleArchive = () => {
     if (isOptimistic) {
       return;
@@ -350,9 +361,17 @@ export const Card = memo(function Card({
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  const textInsets = showFavoriteMark ? "pr-11" : "";
+  const pinned = card.pinPosition !== undefined;
+  const showPinMark = pinned && !isOptimistic;
+  let textInsets = "";
+  if (showFavoriteMark && showPinMark) {
+    textInsets = "pr-19";
+  } else if (showFavoriteMark || showPinMark) {
+    textInsets = "pr-11";
+  }
 
-  const canDrag = !(isOptimistic || isSelectionMode || card.isDeleted);
+  const canDrag =
+    nativeDrag && !(isOptimistic || isSelectionMode || card.isDeleted);
   const handleDragStart = (event: DragEvent<HTMLElement>) => {
     event.dataTransfer.clearData();
     event.dataTransfer.setData(CARD_DRAG_TYPE, card._id);
@@ -472,6 +491,17 @@ export const Card = memo(function Card({
             onSelect: handleToggleFavorite,
             shortcut: shortcuts.favorite,
           },
+          ...(onTogglePin && !card.isArchived
+            ? [
+                {
+                  icon: pinned ? PinOff : Pin,
+                  id: "pin",
+                  label: pinned ? t("menu.unpin") : t("menu.pin"),
+                  onSelect: handleTogglePin,
+                  shortcut: shortcuts.pin,
+                },
+              ]
+            : []),
           ...(onEditLink && card.type === "link" && card.url
             ? [
                 {
@@ -607,19 +637,43 @@ export const Card = memo(function Card({
             </ShortcutTooltip>
           ) : null}
 
-          {showFavoriteMark && (
+          {showFavoriteMark || showPinMark ? (
             <div
-              aria-hidden="true"
               className={cn(
-                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex size-7 items-center justify-center rounded-full transition-opacity duration-150",
-                isMediaCard &&
-                  "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10",
+                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
                 showQuickActions && "group-hover/card:opacity-0"
               )}
             >
-              <Heart className="size-3.5 fill-destructive text-destructive" />
+              {showPinMark ? (
+                <span
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full",
+                    isMediaCard &&
+                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                  )}
+                  data-pin-mark=""
+                >
+                  <Pin
+                    aria-label={t("pinnedMark")}
+                    className="size-3.5 fill-foreground text-foreground"
+                    role="img"
+                  />
+                </span>
+              ) : null}
+              {showFavoriteMark ? (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full",
+                    isMediaCard &&
+                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                  )}
+                >
+                  <Heart className="size-3.5 fill-destructive text-destructive" />
+                </span>
+              ) : null}
             </div>
-          )}
+          ) : null}
 
           {showQuickActions && (
             <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">

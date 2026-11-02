@@ -289,6 +289,8 @@ and replace your local copy.
 | `/v1/cards/:cardId/thumbnail/upload` | Start uploading a new image for a link card with POST |
 | `/v1/cards/:cardId/thumbnail` | Use an uploaded image as a link card's image with PUT, or reset it with DELETE |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
+| `/v1/cards/:cardId/pin` | Pin one card to the top of the library, or unpin it, with PATCH |
+| `/v1/cards/pinned/order` | Set the pinned cards' order with PUT |
 | `/v1/cards/:cardId/done` | Mark a link done with POST, or not done with DELETE |
 | `/v1/cards/:cardId/save-pdf` | Save an arXiv link's PDF as a document card with POST |
 | `/v1/cards/:cardId/highlights` | List a link's highlights, or highlight a passage by its text with POST |
@@ -301,6 +303,26 @@ and replace your local copy.
 See the OpenAPI document at `https://teakvault.com/api/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
 Every card, tag, folder, and account endpoint is also a tool in the [MCP server](/docs/mcp), a method in the TypeScript SDK, and a command in the [CLI](/docs/cli), with the same filters and error codes. Exports are the exception for MCP: an export is a ZIP of your whole library for you to download, so agents read cards a page at a time instead. Page snapshots are SDK-only (`pageSnapshots.createUpload`): they carry the page a browser shows, which only a browser extension has.
+
+## Pinned cards
+
+Pin up to 12 cards to keep them at the top of the library. Every card has
+`isPinned`.
+
+- `PATCH /v1/cards/:cardId/pin` with `{ "isPinned": true }` pins a card, or
+  `false` unpins it, and returns the card. A new pin goes first. Pinning a
+  13th card fails with `400 PIN_LIMIT_REACHED`, and an archived card can't be
+  pinned (`409 CONFLICT`). Pinning a pinned card, or unpinning one that isn't,
+  changes nothing.
+- `GET /v1/cards?pinned=true` (or `q=is:pinned`) lists the pinned cards. With
+  no search it returns them first to last, as one page.
+- `PUT /v1/cards/pinned/order` with `{ "cardIds": [...] }` sets the order. List
+  every pinned card's id exactly once, first to last; any other list fails with
+  `400 INVALID_INPUT` and changes nothing. It returns `{ items }`, the pinned
+  cards in their new order.
+
+Archiving a card or moving it to Trash unpins it, and restoring it doesn't
+pin it again.
 
 ## Search and favorites
 
@@ -355,6 +377,11 @@ these query parameters:
   Set to `true` to list favorites.
 </ParamField>
 
+<ParamField query="pinned" type="boolean">
+  Set to `true` to list the cards pinned to the top of the library. Without a
+  search, they come back first to last, as one page.
+</ParamField>
+
 <ParamField query="trashed" type="boolean">
   Set to `true` to list cards in Trash.
 </ParamField>
@@ -393,6 +420,7 @@ these query parameters:
   that catches up within about 15 seconds of a change and holds the 3,000
   most-used tags; `isComplete` is `false` when some tags were left out.
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
+- Pinned cards, in their order: `GET /v1/cards?pinned=true`
 - Multiple card types: `GET /v1/cards?type=image&type=link&include=content,metadata`
 
 The `include=content,metadata` pair returns full-card fields. The list
@@ -433,6 +461,7 @@ and a value with spaces goes in quotes (`folder:"Reading list"`).
 | `tag:design`, `#design` | Cards with that tag (user or AI), ignoring case |
 | `type:link` | Cards of that type; plurals such as `type:links` work too |
 | `is:fav` | Favorites only, like `favorited=true` |
+| `is:pinned` | Cards pinned to the top only, like `pinned=true` |
 | `is:archived` | Archived cards only, like `archived=only`; with `trashed=true`, the trashed cards that were archived |
 | `is:done` | Links marked done (`completedAt` set). The search narrows to links |
 | `is:todo` | Links not marked done whose `linkCategory` is `article`, `book`, `movie`, `tv`, `news`, `podcast`, `music`, `product`, `recipe`, `course`, `event`, `app` or `game`. The search narrows to links; `is:done is:todo` returns no cards |
@@ -544,7 +573,7 @@ characters with no `|`, `]` or line break, and Teak always shows the linked
 card's current title. Tokens inside code aren't links, and links to cards that
 aren't yours are never followed. `content` returns tokens exactly as written.
 
-`GET /v1/cards/:cardId`, and the card returned by create, `PATCH`, favorite,
+`GET /v1/cards/:cardId`, and the card returned by create, `PATCH`, favorite, pin,
 done and setting or resetting the thumbnail, include the card's links:
 
 ```json

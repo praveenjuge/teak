@@ -19,6 +19,7 @@ export type GridCardKeyAction =
   | "delete"
   | "deleteForever"
   | "favorite"
+  | "pin"
   | "select";
 
 export type GridKeyAction =
@@ -95,6 +96,14 @@ export function gridKeyAction(
   if (key === "x") {
     return { type: "card", action: "select" };
   }
+  // Pins are one card at a time: there's no pinning a selection, and
+  // nothing in Trash or Archive can be pinned.
+  if (
+    key === "p" &&
+    !(addToFolder || hasSelection || inTrash || view === "archive")
+  ) {
+    return { type: "card", action: "pin" };
+  }
   if (key === "Escape" && context.isSelectionMode) {
     return { type: "cancelSelection" };
   }
@@ -123,6 +132,7 @@ const SHORTCUT_KEYS: Record<KeyedShortcut, string> = {
   archive: "e",
   delete: "Delete",
   favorite: "f",
+  pin: "p",
   select: "x",
 };
 

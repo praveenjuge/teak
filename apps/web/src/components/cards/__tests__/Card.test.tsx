@@ -697,6 +697,39 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain('aria-label="Favorite"');
   });
 
+  test("offers Pin to top with its key, and Unpin on a pinned card with its mark", () => {
+    const unpinned = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+    );
+    expect(unpinned).toContain("Pin to top<kbd>P</kbd>");
+    expect(unpinned).toContain('aria-keyshortcuts="P"');
+    expect(unpinned).not.toContain("data-pin-mark");
+
+    const pinned = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ pinPosition: 0 }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(pinned).toContain("Unpin<kbd>P</kbd>");
+    expect(pinned).toContain("data-pin-mark");
+    expect(pinned).toContain('aria-label="Pinned"');
+  });
+
+  test("offers no pin on an archived card, or without a pin handler", () => {
+    const archived = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ isArchived: true }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(archived).not.toContain("Pin to top");
+    const noHandler = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} />
+    );
+    expect(noHandler).not.toContain("Pin to top");
+  });
+
   test("marks a favorite and offers to unfavorite it", () => {
     const markup = renderToStaticMarkup(
       <Card card={linkWithPreview({ isFavorited: true }) as any} />

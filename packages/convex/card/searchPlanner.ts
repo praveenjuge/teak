@@ -318,6 +318,9 @@ export const resolveSearch = async (
     if (!matchesDoneState(card, parsed)) {
       return false;
     }
+    if (parsed.pinned && card.pinPosition === undefined) {
+      return false;
+    }
     const text = searchableText ?? buildCardSearchText(card);
     if (!matchesSearchPhrases(text, phrases)) {
       return false;
@@ -349,7 +352,8 @@ export const resolveSearch = async (
     prices.length === 0 &&
     ocrTexts.length === 0 &&
     !parsed.done &&
-    !parsed.todo;
+    !parsed.todo &&
+    !parsed.pinned;
   const matchesDocument = (document: Doc<"cardSearchDocuments">) =>
     document.userId === userId &&
     (includeHidden || document.isHidden !== true) &&
@@ -385,7 +389,8 @@ export const resolveSearch = async (
       prices.length > 0 ||
       ocrTexts.length > 0 ||
       parsed.done ||
-      parsed.todo,
+      parsed.todo ||
+      parsed.pinned,
     includeHidden,
     matches,
     matchesDocument: readsOnlyDocumentFields ? matchesDocument : undefined,
