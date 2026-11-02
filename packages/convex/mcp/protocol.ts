@@ -2,6 +2,7 @@ import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
   FOLDER_COLORS,
+  MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDER_NAME_LENGTH,
   MAX_SMART_FOLDER_QUERY_LENGTH,
@@ -550,7 +551,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_get_folder",
     description:
-      "Get one folder by id: its name, color, kind, and card count (null for a smart folder, which has a `query`).",
+      "Get one folder by id: its name, color, kind, card count (null for a smart folder, which has a `query`), a manual folder's `rules`, and its latest `ruleRunId`.",
     annotations: { title: "Get folder", ...READ_ONLY },
     inputSchema: inputSchema({ folderId: { type: "string", minLength: 1 } }, [
       "folderId",
@@ -559,7 +560,8 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_create_folder",
     description:
-      'Create a folder. Names are unique per account, ignoring case. With kind "smart" and a `query` (the search grammar of teak_v1_search_cards, e.g. "tag:design type:link"), it saves a search: its cards are whatever matches, and cards cannot be added to it.',
+      'Create a folder. Names are unique per account, ignoring case. With kind "smart" and a `query` (the search grammar of teak_v1_search_cards, e.g. "tag:design type:link"), it saves a search: its cards are whatever matches, and cards cannot be added to it. A manual folder can have rules: `autoTags` are added to every card that joins it, and `autoFileQuery` (the same grammar, without like: or mood:) files matching cards into it once their AI tags are written. Saving a rule runs it over the existing cards; follow `ruleRunId` with teak_v1_get_folder_rule_run.',
+
     annotations: { title: "Create folder", ...WRITES },
     inputSchema: inputSchema(
       {
@@ -575,6 +577,17 @@ export const TEAK_V1_TOOLS = [
           minLength: 1,
           maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
         },
+        autoTags: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          maxItems: MAX_FOLDER_AUTO_TAGS,
+        },
+        autoFileQuery: {
+          type: ["string", "null"],
+          minLength: 1,
+          maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
+        },
+        autoFileEnabled: { type: "boolean" },
       },
       ["name"]
     ),
@@ -582,7 +595,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_update_folder",
     description:
-      "Rename a folder, change its color (null clears it) or change a smart folder's query.",
+      "Rename a folder, change its color (null clears it), change a smart folder's query, or change a manual folder's rules: `autoTags` ([] clears them), `autoFileQuery` (null clears it) and `autoFileEnabled` (false pauses it). New tags or a new or resumed search start a rule run over the existing cards; follow `ruleRunId` with teak_v1_get_folder_rule_run.",
     annotations: { title: "Update folder", ...IDEMPOTENT_WRITE },
     inputSchema: inputSchema(
       {
@@ -598,6 +611,17 @@ export const TEAK_V1_TOOLS = [
           minLength: 1,
           maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
         },
+        autoTags: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          maxItems: MAX_FOLDER_AUTO_TAGS,
+        },
+        autoFileQuery: {
+          type: ["string", "null"],
+          minLength: 1,
+          maxLength: MAX_SMART_FOLDER_QUERY_LENGTH,
+        },
+        autoFileEnabled: { type: "boolean" },
       },
       ["folderId"]
     ),
@@ -646,6 +670,32 @@ export const TEAK_V1_TOOLS = [
         },
       },
       ["folderId", "cardIds"]
+    ),
+  },
+  {
+    name: "teak_v1_get_folder_rule_run",
+    description:
+      "Get a folder rule run: its status (running, done, undoing, undone or superseded), how many cards it filed and tagged, and whether it can still be undone (for 24 hours).",
+    annotations: { title: "Get folder rule run", ...READ_ONLY },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        runId: { type: "string", minLength: 1 },
+      },
+      ["folderId", "runId"]
+    ),
+  },
+  {
+    name: "teak_v1_undo_folder_rule_run",
+    description:
+      "Undo a folder rule run: take the folder off the cards it filed and the tags off the cards it tagged, where they are still there. The rules stay and won't redo it.",
+    annotations: { title: "Undo folder rule run", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        folderId: { type: "string", minLength: 1 },
+        runId: { type: "string", minLength: 1 },
+      },
+      ["folderId", "runId"]
     ),
   },
   {

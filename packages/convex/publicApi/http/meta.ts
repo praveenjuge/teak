@@ -48,6 +48,8 @@ export const V1_ENDPOINTS = [
   "DELETE /v1/folders/:folderId",
   "POST /v1/folders/:folderId/cards",
   "DELETE /v1/folders/:folderId/cards",
+  "GET /v1/folders/:folderId/rule-runs/:runId",
+  "POST /v1/folders/:folderId/rule-runs/:runId/undo",
   "POST /v1/exports",
   "GET /v1/exports/latest",
   "POST /v1/oauth/disconnect",

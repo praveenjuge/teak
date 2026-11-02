@@ -702,6 +702,81 @@ describe("MCP tools", () => {
     expect(captured).toHaveLength(5);
   });
 
+  test("folder rule tools send rules and follow and undo rule runs", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = respondWith(
+      (operation: Parameters<PublicApiToolExecutor>[0]) => {
+        captured.push(operation);
+        return Promise.resolve(
+          Response.json({
+            id: "run_1",
+            name: "Fonts",
+            status: operation.method === "POST" ? "undoing" : "done",
+            filedCount: 3,
+            taggedCount: 1,
+          })
+        );
+      }
+    );
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 52, method: "tools/call" }),
+        executor
+      );
+
+    await call("teak_v1_update_folder", {
+      folderId: "folder_1",
+      autoTags: ["type"],
+      autoFileQuery: "tag:fonts",
+      autoFileEnabled: true,
+    });
+    expect(captured[0]).toMatchObject({
+      method: "PATCH",
+      path: "/v1/folders/folder_1",
+      body: {
+        autoTags: ["type"],
+        autoFileQuery: "tag:fonts",
+        autoFileEnabled: true,
+      },
+    });
+    await call("teak_v1_update_folder", {
+      folderId: "folder_1",
+      autoFileQuery: null,
+    });
+    expect(captured[1]).toMatchObject({ body: { autoFileQuery: null } });
+
+    const got = await call("teak_v1_get_folder_rule_run", {
+      folderId: "folder_1",
+      runId: "run_1",
+    });
+    expect(captured[2]).toMatchObject({
+      method: "GET",
+      path: "/v1/folders/folder_1/rule-runs/run_1",
+    });
+    expect(got.content[0]?.text).toBe(
+      "Rule run done: filed 3 cards, tagged 1 card"
+    );
+
+    const undone = await call("teak_v1_undo_folder_rule_run", {
+      folderId: "folder_1",
+      runId: "run_1",
+    });
+    expect(captured[3]).toMatchObject({
+      method: "POST",
+      path: "/v1/folders/folder_1/rule-runs/run_1/undo",
+    });
+    expect(undone.content[0]?.text).toBe("Undoing rule run run_1");
+
+    const tooManyTags = await call("teak_v1_update_folder", {
+      folderId: "folder_1",
+      autoTags: Array.from({ length: 11 }, (_, index) => `t${index}`),
+    });
+    expect(tooManyTags.isError).toBe(true);
+    expect(captured).toHaveLength(4);
+  });
+
   test("folder tools map onto the folder endpoints", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = respondWith(

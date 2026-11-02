@@ -4,7 +4,7 @@ import type { WorkosResource } from "../../workos/tokens";
 import { withAuthorizedUser } from "./auth";
 import { parseFolderCardsPayload, parseFolderPayload } from "./payloads";
 import { parseFolderRoute } from "./routeParsing";
-import { serializeFolder } from "./serializers";
+import { serializeFolder, serializeFolderRuleRun } from "./serializers";
 import {
   errorResponse,
   json,
@@ -67,6 +67,15 @@ export const handleFoldersRequest = async (
         ...(parsed.payload.query === undefined
           ? {}
           : { query: parsed.payload.query }),
+        ...(parsed.payload.autoTags === undefined
+          ? {}
+          : { autoTags: parsed.payload.autoTags }),
+        ...(parsed.payload.autoFileQuery === undefined
+          ? {}
+          : { autoFileQuery: parsed.payload.autoFileQuery }),
+        ...(parsed.payload.autoFileEnabled === undefined
+          ? {}
+          : { autoFileEnabled: parsed.payload.autoFileEnabled }),
       }
     );
     return json(201, serializeFolder(folder));
@@ -84,7 +93,12 @@ export const handleFolderByIdRequest = async (
   if (!route) {
     return errorResponse(404, "NOT_FOUND", "Folder route not found");
   }
-  const allowed = route.cards ? ["POST", "DELETE"] : ["GET", "PATCH", "DELETE"];
+  const allowed = {
+    folder: ["GET", "PATCH", "DELETE"],
+    cards: ["POST", "DELETE"],
+    ruleRun: ["GET"],
+    undoRuleRun: ["POST"],
+  }[route.kind];
   if (!allowed.includes(request.method)) {
     return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
   }
@@ -96,7 +110,22 @@ export const handleFolderByIdRequest = async (
   const { folderId } = route;
 
   try {
-    if (route.cards) {
+    if (route.kind === "ruleRun" || route.kind === "undoRuleRun") {
+      const args = { userId, folderId, runId: route.runId };
+      const run =
+        route.kind === "ruleRun"
+          ? await ctx.runQuery(
+              internal.publicApiFolders.getFolderRuleRunForApi,
+              args
+            )
+          : await ctx.runMutation(
+              internal.publicApiFolders.undoFolderRuleRunForApi,
+              args
+            );
+      return json(200, serializeFolderRuleRun(run));
+    }
+
+    if (route.kind === "cards") {
       const body = await readJson(request);
       if ("error" in body) {
         return body.error;

@@ -1672,6 +1672,93 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(removed.stdout)).toEqual({ deleted: ["folder_1"] });
   });
 
+  test("folders: rules set tags and an auto-file search, and rule runs show and undo", async () => {
+    const fonts = {
+      id: "folder_5",
+      name: "Fonts",
+      color: null,
+      kind: "manual",
+      query: null,
+      cardCount: 2,
+      rules: { autoTags: [], autoFile: null },
+      ruleRunId: null,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const withRules = {
+      ...fonts,
+      rules: {
+        autoTags: ["type", "fonts"],
+        autoFile: { query: "tag:typography", enabled: true },
+      },
+      ruleRunId: "run_1",
+    };
+    const ruleRun = {
+      id: "run_1",
+      folderId: "folder_5",
+      status: "done",
+      filedCount: 3,
+      taggedCount: 5,
+      canUndo: true,
+      createdAt: 2,
+      completedAt: 3,
+    };
+    routes.set("GET /v1/folders", () => json({ items: [fonts] }));
+    routes.set("PATCH /v1/folders/folder_5", () => json(withRules));
+    routes.set("GET /v1/folders/folder_5/rule-runs/run_1", () => json(ruleRun));
+
+    const set = await teak(
+      "folders",
+      "rules",
+      "fonts",
+      "--auto-tag",
+      "type",
+      "--auto-tag",
+      "fonts",
+      "--auto-file",
+      "tag:typography"
+    );
+    expect(set.code).toBe(0);
+    expect(JSON.parse(requests.at(-2)?.body ?? "{}")).toEqual({
+      autoTags: ["type", "fonts"],
+      autoFileQuery: "tag:typography",
+    });
+    expect(set.stdout).toContain(
+      "adds tags: type, fonts  files: tag:typography"
+    );
+    expect(set.stdout).toContain(
+      "Rule run run_1: done  filed 3 cards, tagged 5 cards  (can be undone)"
+    );
+
+    await teak("folders", "rules", "Fonts", "--no-auto-file", "--no-auto-tags");
+    expect(JSON.parse(requests.at(-2)?.body ?? "{}")).toEqual({
+      autoTags: [],
+      autoFileQuery: null,
+    });
+
+    const both = await teak("folders", "rules", "Fonts", "--pause", "--resume");
+    expect(both.code).not.toBe(0);
+
+    routes.set("GET /v1/folders", () => json({ items: [withRules] }));
+    const status = await teak("--json", "folders", "rule-run", "Fonts");
+    expect(JSON.parse(status.stdout)).toMatchObject({
+      id: "run_1",
+      status: "done",
+    });
+
+    routes.set("POST /v1/folders/folder_5/rule-runs/run_1/undo", () =>
+      json({ ...ruleRun, status: "undoing", canUndo: false })
+    );
+    const undone = await teak("folders", "undo-rule-run", "Fonts");
+    expect(undone.stdout.trim()).toBe(
+      "Rule run run_1: undoing  filed 3 cards, tagged 5 cards"
+    );
+
+    routes.set("GET /v1/folders", () => json({ items: [fonts] }));
+    const none = await teak("folders", "rule-run", "Fonts");
+    expect(none.code).not.toBe(0);
+  });
+
   test("folders: smart folders save a search and show it", async () => {
     const design = {
       id: "folder_3",

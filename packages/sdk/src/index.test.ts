@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildCardsSearchParams,
   createTeakClient,
+  ERROR_CODES,
   type Folder,
   parseTags,
   type TagOperation,
@@ -853,6 +854,73 @@ describe("teak-sdk", () => {
     expect(buildCardsSearchParams({ folder: " f1 " })).toBe(
       "folder=f1&limit=50"
     );
+  });
+
+  test("folder rules: rule fields on update, and rule runs to follow and undo", async () => {
+    const run = {
+      id: "run_1",
+      folderId: "f1",
+      status: "done" as const,
+      filedCount: 2,
+      taggedCount: 1,
+      canUndo: true,
+      createdAt: 1,
+      completedAt: 2,
+    };
+    const sent: Array<{ body: unknown; method: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        sent.push({
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          method: String(init?.method),
+          url: String(url),
+        });
+        return Promise.resolve(
+          Response.json(
+            String(url).includes("/rule-runs/")
+              ? run
+              : { id: "f1", name: "Fonts", ruleRunId: "run_1" }
+          )
+        );
+      }) as typeof fetch,
+    });
+
+    const folder = await client.folders.update("f1", {
+      autoTags: ["type"],
+      autoFileQuery: null,
+      autoFileEnabled: false,
+    });
+    expect(folder.ruleRunId).toBe("run_1");
+    expect(await client.folders.getRuleRun("f1", "run_1")).toEqual(run);
+    await client.folders.undoRuleRun("f1", "run 1");
+    expect(sent.map(({ method, url, body }) => [method, url, body])).toEqual([
+      [
+        "PATCH",
+        "https://api.example/v1/folders/f1",
+        { autoTags: ["type"], autoFileQuery: null, autoFileEnabled: false },
+      ],
+      ["GET", "https://api.example/v1/folders/f1/rule-runs/run_1", undefined],
+      [
+        "POST",
+        "https://api.example/v1/folders/f1/rule-runs/run%201/undo",
+        undefined,
+      ],
+    ]);
+    expect(ERROR_CODES).toContain("RULE_LIMIT");
+  });
+
+  test("a malformed rule run is a parse error", async () => {
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: (() =>
+        Promise.resolve(Response.json({ id: 1 }))) as unknown as typeof fetch,
+    });
+    await expect(
+      client.folders.getRuleRun("f1", "run_1")
+    ).rejects.toMatchObject({ code: "PARSE_ERROR" });
   });
 
   test("sends an idempotency key only when one is given", async () => {

@@ -253,16 +253,25 @@ type CardFilters = {
   - Output: `{ items: Folder[] }`, sorted by name, each with `id`, `name`, `color`, `kind` (`manual` or `smart`), `query`, and `cardCount` (`null` for a smart folder). List a folder's cards with `folder` in `CardFilters`; a smart folder lists the cards its query matches.
 - `teak_v1_get_folder`
   - Input: `{ folderId: string }`
-  - Output: the folder, with the same fields as in `teak_v1_list_folders`. Another account's folder, or one that doesn't exist, returns `NOT_FOUND`.
+  - Output: the folder, with the same fields as in `teak_v1_list_folders`, plus a manual folder's `rules` and its latest `ruleRunId`. Another account's folder, or one that doesn't exist, returns `NOT_FOUND`.
 - `teak_v1_create_folder`
-  - Input: `{ name: string, color?: FolderColor, kind?: "manual" | "smart", query?: string }`
+  - Input: `{ name: string, color?: FolderColor, kind?: "manual" | "smart", query?: string, autoTags?: string[], autoFileQuery?: string | null, autoFileEnabled?: boolean }`
   - Names are unique ignoring case; an account can have up to 500 folders.
   - With `kind: "smart"` and a `query` (the `q` grammar, up to 500 characters), it saves a search as a smart folder: its cards are whatever matches, and cards can't be added to it.
   - Output: the new folder
 - `teak_v1_update_folder`
-  - Input: `{ folderId: string, name?: string, color?: FolderColor | null, query?: string }`
+  - Input: `{ folderId: string, name?: string, color?: FolderColor | null, query?: string, autoTags?: string[], autoFileQuery?: string | null, autoFileEnabled?: boolean }`
   - Renames or recolors the folder (`color: null` clears it), or changes a smart folder's `query`.
+  - Changes a manual folder's [rules](/docs/api#folder-rules): `autoTags` (up to 10, `[]` clears them) go on every card that joins the folder; `autoFileQuery` (the `q` grammar without `like:` or `mood:`, `null` clears it) files matching cards into it; `autoFileEnabled: false` pauses that. Up to 50 folders can have rules (`RULE_LIMIT`).
+  - New tags, or a new or resumed search, start a rule run over the existing cards; the output's `ruleRunId` names it.
   - Output: updated folder
+- `teak_v1_get_folder_rule_run`
+  - Input: `{ folderId: string, runId: string }`
+  - Output: `{ id, folderId, status, filedCount, taggedCount, canUndo, createdAt, completedAt }`; `status` is `running`, `done`, `undoing`, `undone` or `superseded`. Read-only.
+- `teak_v1_undo_folder_rule_run`
+  - Input: `{ folderId: string, runId: string }`
+  - Takes back what the run did, where it is still there, within 24 hours. The rules stay and won't redo it.
+  - Output: the run, now `undoing`
 - `teak_v1_delete_folder`
   - Input: `{ folderId: string, confirm: true }`
   - Deletes the folder. Its cards are kept.
