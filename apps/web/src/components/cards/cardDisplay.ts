@@ -1,6 +1,7 @@
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { hexToRgb } from "@teak/convex/shared/utils/colorUtils";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
+import { formatClockTime } from "@/lib/clockTime";
 import { startsWithTable } from "@/lib/markdownToPlainText";
 
 export const CARD_SURFACE =
@@ -71,13 +72,7 @@ export function formatDuration(seconds?: number): string | undefined {
   ) {
     return;
   }
-  const whole = Math.round(seconds);
-  const hours = Math.floor(whole / 3600);
-  const mins = Math.floor((whole % 3600) / 60);
-  const secs = (whole % 60).toString().padStart(2, "0");
-  return hours > 0
-    ? `${hours}:${mins.toString().padStart(2, "0")}:${secs}`
-    : `${mins}:${secs}`;
+  return formatClockTime(seconds);
 }
 
 /**

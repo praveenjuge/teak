@@ -17,7 +17,7 @@ mock.module("convex/react", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { AudioPreview, formatAudioTime } = await import("../AudioPreview");
+const { AudioPreview } = await import("../AudioPreview");
 
 const createAudioCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_audio",
@@ -36,19 +36,6 @@ const createAudioCard = (overrides?: Record<string, unknown>) => ({
   updatedAt: Date.now(),
   userId: "user_123",
   ...overrides,
-});
-
-describe("formatAudioTime", () => {
-  test("formats seconds as minutes and padded seconds", () => {
-    expect(formatAudioTime(0)).toBe("0:00");
-    expect(formatAudioTime(84.7)).toBe("1:24");
-    expect(formatAudioTime(605)).toBe("10:05");
-  });
-
-  test("falls back to 0:00 for unknown durations", () => {
-    expect(formatAudioTime(Number.POSITIVE_INFINITY)).toBe("0:00");
-    expect(formatAudioTime(Number.NaN)).toBe("0:00");
-  });
 });
 
 describe("AudioPreview", () => {

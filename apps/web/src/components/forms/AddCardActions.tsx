@@ -41,6 +41,7 @@ import {
 } from "@/hooks/useFileUploadCore";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { formatClockTime } from "@/lib/clockTime";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   describeUploadFailures,
@@ -92,12 +93,6 @@ function NewMenuTrigger() {
       </DropdownMenuTrigger>
     </SidebarMenuItem>
   );
-}
-
-function formatTime(seconds: number) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 interface AudioRecordingFormat {
@@ -600,7 +595,7 @@ export function AddCardProvider({
           </DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
-              {formatTime(recordingTime)}
+              {formatClockTime(recordingTime)}
             </div>
             {unsaved ? (
               <div className="flex flex-wrap justify-center gap-2">
