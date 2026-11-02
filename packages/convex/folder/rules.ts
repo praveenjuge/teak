@@ -33,7 +33,14 @@ import {
 } from "../shared/tags";
 import { normalizeSmartFolderQuery, requireFolderForUser } from "./folders";
 
-export const FOLDER_RULE_BATCH_SIZE = 25;
+/**
+ * Each card a batch changes can read about 2 MiB: its own row, a transcript
+ * of up to 512 KB (read to match, then again to sync search) and its old
+ * search document, which holds another copy. Six of those, plus a page read
+ * capped at 2 MiB, stay under a mutation's 16 MiB read limit.
+ */
+export const FOLDER_RULE_BATCH_SIZE = 6;
+const FOLDER_RULE_PAGE_BYTES = 2 * 1024 * 1024;
 
 export interface FolderRuleInput {
   autoFileEnabled?: boolean;
@@ -626,6 +633,7 @@ export const runFolderRuleBatchHandler = async (
       .paginate({
         numItems: FOLDER_RULE_BATCH_SIZE,
         cursor: run.cursor ?? null,
+        maximumBytesRead: FOLDER_RULE_PAGE_BYTES,
       });
     for (const row of page.page) {
       if (row.isDeleted === true) {
@@ -683,6 +691,7 @@ export const runFolderRuleBatchHandler = async (
       .paginate({
         numItems: FOLDER_RULE_BATCH_SIZE,
         cursor: run.cursor ?? null,
+        maximumBytesRead: FOLDER_RULE_PAGE_BYTES,
       });
     for (const card of page.page) {
       const current = card.folderIds ?? [];
