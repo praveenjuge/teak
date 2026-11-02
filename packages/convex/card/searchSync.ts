@@ -123,7 +123,9 @@ const recordTagCasingChanges = async (
       await ctx.db.patch("cardSearchTags", row._id, { label });
       relabeled = true;
     }
-    if (row.isCounted) {
+    // Active rows pass the casing on, including ones written before
+    // counting (no isCounted): it only relabels a count row that exists.
+    if (isCountedTagRow(row)) {
       addTagLabel(labels, card.userId, tag, label);
     }
   }

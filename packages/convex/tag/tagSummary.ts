@@ -383,11 +383,13 @@ export const recomputeTagSummary = internalAction({
       }
       // The full recount of `cardSearchTags` stays as the repair path for
       // tag rows that are not counted yet.
-      const pageQuery =
+      const recounts = !(
         folded &&
         (await ctx.runQuery(internal.tag.tagSummary.tagCountsReady, {}))
-          ? internal.tag.tagSummary.countTagCountsPage
-          : internal.tag.tagSummary.countTagSummaryPage;
+      );
+      const pageQuery = recounts
+        ? internal.tag.tagSummary.countTagSummaryPage
+        : internal.tag.tagSummary.countTagCountsPage;
       const totals = new Map<string, number>();
       const labels = new Map<string, string>();
       let cursor: string | null = null;
@@ -407,6 +409,30 @@ export const recomputeTagSummary = internalAction({
         cursor = page.continueCursor;
         isDone = cursor === null;
         pages += 1;
+      }
+      // A recount reads casing off the tag rows in index order, not edit
+      // order. The count rows keep the latest casing in edit order, so they
+      // win where they have one.
+      if (recounts) {
+        let countCursor: string | null = null;
+        for (let page = 0; page < TAG_SUMMARY_MAX_PAGES; page += 1) {
+          const counted: {
+            counts: TagCount[];
+            continueCursor: string | null;
+          } = await ctx.runQuery(internal.tag.tagSummary.countTagCountsPage, {
+            userId,
+            cursor: countCursor,
+          });
+          for (const { name, label } of counted.counts) {
+            if (label !== undefined && totals.has(name)) {
+              labels.set(name, label);
+            }
+          }
+          countCursor = counted.continueCursor;
+          if (countCursor === null) {
+            break;
+          }
+        }
       }
       const items = sortTagCounts(
         Array.from(totals, ([name, count]) => {

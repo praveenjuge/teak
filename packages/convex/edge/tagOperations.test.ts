@@ -545,6 +545,23 @@ describe("tag summary snapshot", () => {
     expect(await label()).toBe("Design systems");
   });
 
+  test("a full recount names a tag by its latest casing, not by row order", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    // Counts aren't marked ready, so the summary recounts the tag rows.
+    const older = await insert({ tags: ["Design"], createdAt: 1000 });
+    await insert({ tags: ["design"], createdAt: 2000 });
+    await runScheduled();
+    await t.run((ctx) =>
+      patchCardWithSearchSync(ctx, older, { tags: ["DESIGN"], updatedAt: 3000 })
+    );
+    await runScheduled();
+    expect(
+      (await summary())?.items.find(
+        (entry: { name: string }) => entry.name === "design"
+      )?.label
+    ).toBe("DESIGN");
+  });
+
   test("a re-case refreshes Tags for a tag row written before counting", async () => {
     const { t, insert, summary, runScheduled } = await setup();
     const a = await insert({ tags: ["Design"] });
@@ -742,7 +759,9 @@ describe("tag summary snapshot", () => {
       await markTagSummaryDirty(ctx, "owner", 0);
     });
     await runScheduled();
-    expect((await summary())?.items).toEqual(expected);
+    // The recount gives the same counts, and the same casing ("IDEAS").
+    expect((await summary())?.items).toMatchObject(expected);
+    expect((await summary())?.items[0]?.label).toBe("IDEAS");
   });
 
   test("the backfill counts tag rows written before counting, then serves summaries", async () => {
