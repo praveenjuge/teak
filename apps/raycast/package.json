@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit"
   },
   "overrides": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "minimatch": "^11.0.1"
   },
   "dependencies": {
     "@raycast/api": "^1.104.24",
