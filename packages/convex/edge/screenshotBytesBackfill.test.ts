@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const SIZES: Record<string, number> = {
+const SIZES: Partial<Record<string, number>> = {
   "users/owner/cards/blank/screenshot/a.jpg": 6100,
   "users/owner/cards/rich/screenshot/b.jpg": 118_000,
 };
