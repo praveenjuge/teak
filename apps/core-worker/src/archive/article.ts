@@ -607,8 +607,12 @@ const truncateMarkdown = (
   };
 };
 
-/** A Markdown link or image's optional `"title"`. */
-const MARKDOWN_TITLE = `(?:\\s+"(?:[^"\\\\]|\\\\.)*")?`;
+/**
+ * A candidate image, `![alt](teak-candidate:N "title")`, either inside a link
+ * that only wraps it (`$1`) or on its own (`$2`).
+ */
+const CANDIDATE_IMAGE =
+  /\[!\[[^\]]*\]\(teak-candidate:(\d+)(?:\s+"(?:[^"\\]|\\.)*")?\)\]\((?:\\.|[^\\()\s])*(?:\s+"(?:[^"\\]|\\.)*")?\)|!\[[^\]]*\]\(teak-candidate:(\d+)(?:\s+"(?:[^"\\]|\\.)*")?\)/gu;
 
 const decodeDataUri = (
   uri: string
@@ -680,30 +684,18 @@ const settleImages = async (
       contentType: "image/webp",
     });
   }
-  let settled = markdown;
-  for (const index of order) {
-    if (!numbers.has(index)) {
-      const image = `!\\[[^\\]]*\\]\\(${CANDIDATE_SCHEME}${index}(?!\\d)${MARKDOWN_TITLE}\\)`;
-      // A link that only wrapped the dropped image goes with it, so it
-      // doesn't read as an empty "[](…)".
-      settled = settled
-        .replace(
-          new RegExp(
-            `\\[${image}\\]\\((?:\\\\.|[^\\\\()\\s])*${MARKDOWN_TITLE}\\)`,
-            "gu"
-          ),
-          ""
-        )
-        .replace(new RegExp(image, "gu"), "");
-    }
-  }
-  settled = settled.replace(
-    /teak-candidate:(\d+)/gu,
-    (_match, index: string) => {
+  // A dropped image goes, and so does a link that only wrapped it, so it
+  // doesn't read as an empty "[](…)".
+  const settled = markdown
+    .replace(
+      CANDIDATE_IMAGE,
+      (match, linked: string | undefined, bare: string | undefined) =>
+        numbers.has(Number(linked ?? bare)) ? match : ""
+    )
+    .replace(/teak-candidate:(\d+)/gu, (_match, index: string) => {
       const number = numbers.get(Number(index));
       return number === undefined ? "" : articleImageToken(number);
-    }
-  );
+    });
   return { images, markdown: settled.replace(/\n{3,}/gu, "\n\n").trim() };
 };
 
