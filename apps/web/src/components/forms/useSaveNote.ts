@@ -3,7 +3,7 @@ import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useServerErrors } from "@/hooks/useServerErrors";
@@ -178,4 +178,33 @@ export function useSaveNote({
   );
 
   return { saveNote };
+}
+
+/**
+ * "Save as a note" for a search that found nothing: `save` is undefined
+ * when there are no words to save. One save at a time, since offline or on
+ * a slow connection the empty state stays until the server answers and each
+ * click would save another copy.
+ */
+export function useSaveSearchAsNote({
+  noteText,
+  ...options
+}: SaveNoteOptions & { noteText: string | null }) {
+  const { saveNote } = useSaveNote(options);
+  const [saving, setSaving] = useState(false);
+  const inFlight = useRef<boolean>(false);
+  const save = noteText
+    ? () => {
+        if (inFlight.current) {
+          return;
+        }
+        inFlight.current = true;
+        setSaving(true);
+        void saveNote(noteText, { via: "empty_search" }).finally(() => {
+          inFlight.current = false;
+          setSaving(false);
+        });
+      }
+    : undefined;
+  return { save, saving };
 }

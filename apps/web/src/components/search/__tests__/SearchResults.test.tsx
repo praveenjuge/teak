@@ -115,6 +115,19 @@ describe("NoSearchResults", () => {
     expect(button("Save as a note")).toBeUndefined();
   });
 
+  test("can't save the note again while the first save is in flight", async () => {
+    await render(
+      <NoSearchResults
+        chips={[]}
+        onClearAll={() => undefined}
+        onSaveAsNote={() => undefined}
+        query="call the dentist"
+        savingNote
+      />
+    );
+    expect(button("Save as a note")?.disabled).toBe(true);
+  });
+
   test("keeps the filters message when nothing was typed", async () => {
     await render(
       <NoSearchResults

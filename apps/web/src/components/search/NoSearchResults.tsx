@@ -16,6 +16,8 @@ export interface NoSearchResultsProps {
   onUseSuggestion?: (search: string) => void;
   /** The words searched for, shown in the message when there are any. */
   query: string;
+  /** A save from "Save as a note" is in flight, so it can't start twice. */
+  savingNote?: boolean;
   /** A spelling the person's own cards use, offered as "Did you mean". */
   suggestion?: string | null;
   /** The search lists to-do links, so nothing left reads as done. */
@@ -32,6 +34,7 @@ export function NoSearchResults({
   onSaveAsNote,
   onUseSuggestion,
   query,
+  savingNote = false,
   suggestion,
   todo = false,
 }: NoSearchResultsProps) {
@@ -95,7 +98,7 @@ export function NoSearchResults({
       ) : null}
       <div className="flex flex-wrap justify-center gap-2">
         {onSaveAsNote ? (
-          <Button onClick={onSaveAsNote} type="button">
+          <Button disabled={savingNote} onClick={onSaveAsNote} type="button">
             {t("saveAsNote")}
           </Button>
         ) : null}

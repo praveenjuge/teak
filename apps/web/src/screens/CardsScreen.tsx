@@ -32,7 +32,7 @@ import { VaultSetupState } from "@/components/feedback/VaultSetupState";
 import type { AddCardFormProps } from "@/components/forms";
 import { AddCardEmptyState, AddCardForm } from "@/components/forms";
 import { AddCardButton } from "@/components/forms/AddCardActions";
-import { useSaveNote } from "@/components/forms/useSaveNote";
+import { useSaveSearchAsNote } from "@/components/forms/useSaveNote";
 import { MasonryGrid, type MasonryGridHandle } from "@/components/grids";
 import { CardsSearchHeader } from "@/components/search";
 import { NoSearchResults } from "@/components/search/NoSearchResults";
@@ -754,20 +754,15 @@ export function CardsScreen({
   // Words a search found nothing for can become a note, which the same
   // search then finds. Only where a new note shows: not Trash, Archive,
   // Favorites or a folder.
-  const { saveNote } = useSaveNote({
+  const searchNote = useSaveSearchAsNote({
+    noteText:
+      showTrashOnly || showArchivedOnly || view === "favorites" || isFolderView
+        ? null
+        : noResultsHelp.noteText,
     onOpenCard: composerHandlers.onOpenCard,
     onUpgrade,
     upgradeUrl,
   });
-  const noteText =
-    showTrashOnly || showArchivedOnly || view === "favorites" || isFolderView
-      ? null
-      : noResultsHelp.noteText;
-  const saveSearchAsNote = noteText
-    ? () => {
-        void saveNote(noteText, { via: "empty_search" });
-      }
-    : undefined;
 
   const renderEmptyState = () => {
     if (isFolderView && folder === null) {
@@ -902,9 +897,10 @@ export function CardsScreen({
         <NoSearchResults
           chips={noResultsHelp.chips}
           onClearAll={clearAllFilters}
-          onSaveAsNote={saveSearchAsNote}
+          onSaveAsNote={searchNote.save}
           onUseSuggestion={noResultsHelp.applySuggestion}
           query={searchTerms}
+          savingNote={searchNote.saving}
           suggestion={noResultsHelp.suggestion}
           todo={Boolean(listsTodo)}
         />
