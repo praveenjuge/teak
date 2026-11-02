@@ -478,6 +478,18 @@ describe("tag summary snapshot", () => {
     await runScheduled();
     expect((await item("design systems"))?.label).toBe("DESIGN systems");
 
+    // A re-case keeps the card's tag rows; a later edit that changes its tag
+    // set still passes on the casing the card now has.
+    await patch(a, { tags: ["design systems"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBeUndefined();
+    // The row still holds "Design Systems" from before the re-cases.
+    await patch(a, { tags: ["Design Systems", "new"] });
+    await runScheduled();
+    expect((await item("design systems"))?.label).toBe("Design Systems");
+    await patch(a, { tags: ["DESIGN systems"] });
+    await runScheduled();
+
     // Typed in lowercase, it reads as its key again.
     await insert({ tags: ["design systems"] });
     await runScheduled();

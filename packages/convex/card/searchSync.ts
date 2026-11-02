@@ -660,6 +660,10 @@ export const syncCardSearchTagsBatchHandler = async (
     for (const [tag, label] of labels) {
       writes += await writeCardSearchTag(ctx, cardId, card, tag, label, {
         countDeltas,
+        // A re-case alone leaves the rows' casing behind (it writes the
+        // counts directly), so a chain that may move the counts passes on
+        // every counted tag's casing rather than trusting the row.
+        passLabels: chainState.tagCountsChanged !== false,
         tagGeneration,
         tagLabels,
       });
@@ -732,10 +736,12 @@ const writeCardSearchTag = async (
   label: string | undefined,
   {
     countDeltas,
+    passLabels,
     tagGeneration,
     tagLabels,
   }: {
     countDeltas: TagCountDeltas;
+    passLabels: boolean;
     tagGeneration: number;
     tagLabels: TagLabels;
   }
@@ -763,11 +769,12 @@ const writeCardSearchTag = async (
   const isCounted = isCountedTagRow(tagValue) ? (true as const) : undefined;
   const relabels = label !== undefined && label !== existingTag?.label;
   // A counted row passes its casing on to the tag's count when the casing
-  // changed or the row starts counting (out of Trash or Archive).
+  // changed, the row starts counting (out of Trash or Archive), or the chain
+  // asks for it.
   if (
     label !== undefined &&
     isCounted &&
-    (relabels || !existingTag?.isCounted)
+    (relabels || passLabels || !existingTag?.isCounted)
   ) {
     addTagLabel(tagLabels, tagValue.userId, tag, label);
   }
