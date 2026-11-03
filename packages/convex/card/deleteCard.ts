@@ -5,6 +5,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { deleteCardFolderRuleRows } from "../folder/rules";
 import { recordCardTombstone } from "../publicApiTombstones";
 import {
   requireSessionUser,
@@ -64,6 +65,7 @@ export const permanentDeleteCardForUserHandler = async (
   }
 
   await ctx.db.delete("cards", cardId);
+  await deleteCardFolderRuleRows(ctx, cardId);
   await recordCardTombstone(ctx, { cardId, userId: card.userId });
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);

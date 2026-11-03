@@ -338,6 +338,10 @@ describe("auth", () => {
                 ...(table === "cardTextContents"
                   ? { take: async () => [{ _id: `text_${_cardId}` }] }
                   : {}),
+                ...(table === "folderRuleApplications" ||
+                table === "folderRuleRunChanges"
+                  ? { take: async () => [] }
+                  : {}),
                 ...(table === "folderCards"
                   ? { take: async () => [{ _id: `folder_row_${_cardId}` }] }
                   : {}),
@@ -397,6 +401,10 @@ describe("auth", () => {
                 ...(table === "cardTextContents"
                   ? { take: async () => [] }
                   : {}),
+                ...(table === "folderRuleApplications" ||
+                table === "folderRuleRunChanges"
+                  ? { take: async () => [] }
+                  : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => ({ _id: `tag_state_${_cardId}` }) }
@@ -439,6 +447,10 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardTextContents"
+                  ? { take: async () => [] }
+                  : {}),
+                ...(table === "folderRuleApplications" ||
+                table === "folderRuleRunChanges"
                   ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
@@ -487,6 +499,10 @@ describe("auth", () => {
                 ...(table === "cardTextContents"
                   ? { take: async () => [] }
                   : {}),
+                ...(table === "folderRuleApplications" ||
+                table === "folderRuleRunChanges"
+                  ? { take: async () => [] }
+                  : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }
@@ -525,6 +541,10 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardTextContents"
+                  ? { take: async () => [] }
+                  : {}),
+                ...(table === "folderRuleApplications" ||
+                table === "folderRuleRunChanges"
                   ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),

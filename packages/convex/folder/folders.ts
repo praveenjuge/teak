@@ -38,6 +38,18 @@ import {
   insertFolderCardCountBase,
   readFolderCardCount,
 } from "./folderRows";
+import {
+  type FolderRules,
+  folderRulesOf,
+  folderRulesValidator,
+} from "./ruleShape";
+import {
+  assertRuleFolderAvailable,
+  deleteFolderRuleRows,
+  type FolderRuleInput,
+  planFolderRuleChange,
+  startFolderRuleRun,
+} from "./rules";
 
 export const FOLDER_DELETE_BATCH_SIZE = 50;
 export const FOLDER_DELETE_UNDO_MS = 10_000;
@@ -48,6 +60,8 @@ export const folderReturnValidator = v.object({
   color: v.optional(folderColorValidator),
   kind: v.union(v.literal("manual"), v.literal("smart")),
   query: v.optional(v.string()),
+  rules: v.optional(folderRulesValidator),
+  ruleRunId: v.optional(v.id("folderRuleRuns")),
   activeCardCount: v.number(),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -61,6 +75,10 @@ export interface FolderSummary {
   kind: FolderKind;
   name: string;
   query?: string;
+  /** The folder's latest rule run, to follow or undo. */
+  ruleRunId?: Id<"folderRuleRuns">;
+  /** A manual folder's rules; missing on smart folders. */
+  rules?: FolderRules;
   updatedAt: number;
 }
 
@@ -72,7 +90,10 @@ export const toFolderSummary = (
   name: folder.name,
   ...(folder.color ? { color: folder.color } : {}),
   kind: folder.kind,
-  ...(folder.kind === "smart" ? { query: folder.query ?? "" } : {}),
+  ...(folder.kind === "smart"
+    ? { query: folder.query ?? "" }
+    : { rules: folderRulesOf(folder) }),
+  ...(folder.ruleRunId ? { ruleRunId: folder.ruleRunId } : {}),
   activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
@@ -343,7 +364,7 @@ export const normalizeSmartFolderQuery = async (
 export const createFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
-  args: {
+  args: FolderRuleInput & {
     color?: FolderColor;
     kind?: FolderKind;
     name: string;
@@ -363,6 +384,7 @@ export const createFolderForUser = async (
     kind === "smart"
       ? await normalizeSmartFolderQuery(ctx, userId, args.query ?? "")
       : undefined;
+  const rulePlan = await planFolderRuleChange(ctx, userId, { kind }, args);
   await assertNameAvailable(ctx, userId, name);
   await assertFolderLimit(ctx, userId);
   const folderId = await insertFolder(
@@ -373,6 +395,18 @@ export const createFolderForUser = async (
     Date.now(),
     query
   );
+  if (Object.keys(rulePlan.patch).length > 0) {
+    await ctx.db.patch("folders", folderId, rulePlan.patch);
+  }
+  const created = await ctx.db.get("folders", folderId);
+  if (!created) {
+    throw new Error("Failed to create folder");
+  }
+  // A new folder has no cards to tag yet; only its search can file some.
+  await startFolderRuleRun(ctx, created, {
+    runFile: rulePlan.runFile,
+    runTags: false,
+  });
   const folder = await ctx.db.get("folders", folderId);
   if (!folder) {
     throw new Error("Failed to create folder");
@@ -383,7 +417,7 @@ export const createFolderForUser = async (
 export const updateFolderForUser = async (
   ctx: MutationCtx,
   userId: TeakUserId,
-  args: {
+  args: FolderRuleInput & {
     color?: FolderColor | null;
     folderId: string;
     name?: string;
@@ -391,7 +425,8 @@ export const updateFolderForUser = async (
   }
 ): Promise<FolderSummary> => {
   const folder = await requireFolderForUser(ctx, userId, args.folderId);
-  const patch: Partial<Doc<"folders">> = {};
+  const rulePlan = await planFolderRuleChange(ctx, userId, folder, args);
+  const patch: Partial<Doc<"folders">> = { ...rulePlan.patch };
   if (args.query !== undefined) {
     if (folder.kind !== "smart") {
       throw new ConvexError({
@@ -428,16 +463,34 @@ export const updateFolderForUser = async (
     patch.name !== undefined
   ) {
     for (const other of await readLiveFolders(ctx, userId)) {
-      if (other.kind !== "smart" || other.query === undefined) {
-        continue;
+      const otherPatch: Partial<Doc<"folders">> = {};
+      // Read after this update's patch, so a folder's own new search counts.
+      const { autoFileQuery } = other;
+      if (other.kind === "smart" && other.query !== undefined) {
+        const query = renameFolderInSearchQuery(
+          other.query,
+          folder.nameKey,
+          patch.name
+        );
+        if (query !== other.query) {
+          otherPatch.query = query;
+        }
       }
-      const query = renameFolderInSearchQuery(
-        other.query,
-        folder.nameKey,
-        patch.name
-      );
-      if (query !== other.query) {
-        await ctx.db.patch("folders", other._id, { query, updatedAt: now });
+      if (autoFileQuery !== undefined) {
+        const renamed = renameFolderInSearchQuery(
+          autoFileQuery,
+          folder.nameKey,
+          patch.name
+        );
+        if (renamed !== autoFileQuery) {
+          otherPatch.autoFileQuery = renamed;
+        }
+      }
+      if (Object.keys(otherPatch).length > 0) {
+        await ctx.db.patch("folders", other._id, {
+          ...otherPatch,
+          updatedAt: now,
+        });
       }
     }
   }
@@ -445,7 +498,12 @@ export const updateFolderForUser = async (
   if (!updated) {
     throw folderNotFound();
   }
-  return await loadFolderSummary(ctx, updated);
+  await startFolderRuleRun(ctx, updated, rulePlan);
+  const latest = await ctx.db.get("folders", folder._id);
+  if (!latest) {
+    throw folderNotFound();
+  }
+  return await loadFolderSummary(ctx, latest);
 };
 
 export const deleteFolderForUser = async (
@@ -485,6 +543,9 @@ export const restoreFolderForUser = async (
   }
   await assertNameAvailable(ctx, userId, folder.name, folder._id);
   await assertFolderLimit(ctx, userId);
+  if (folder.hasRules === true) {
+    await assertRuleFolderAvailable(ctx, userId);
+  }
   await ctx.db.patch("folders", folder._id, { deletingAt: undefined });
   return await loadFolderSummary(ctx, { ...folder, deletingAt: undefined });
 };
@@ -522,6 +583,13 @@ export const deleteFolderBatchHandler = async (
     }
   }
   if (rows.length === FOLDER_DELETE_BATCH_SIZE) {
+    await ctx.scheduler.runAfter(0, internal.folder.folders.deleteFolderBatch, {
+      folderId,
+      deletingAt,
+    });
+    return { done: false };
+  }
+  if (!(await deleteFolderRuleRows(ctx, folderId))) {
     await ctx.scheduler.runAfter(0, internal.folder.folders.deleteFolderBatch, {
       folderId,
       deletingAt,
@@ -571,6 +639,9 @@ export const createFolder = mutation({
     color: v.optional(folderColorValidator),
     kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
     query: v.optional(v.string()),
+    autoTags: v.optional(v.array(v.string())),
+    autoFileQuery: v.optional(v.union(v.string(), v.null())),
+    autoFileEnabled: v.optional(v.boolean()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
@@ -583,6 +654,9 @@ export const updateFolder = mutation({
     name: v.optional(v.string()),
     color: v.optional(v.union(folderColorValidator, v.null())),
     query: v.optional(v.string()),
+    autoTags: v.optional(v.array(v.string())),
+    autoFileQuery: v.optional(v.union(v.string(), v.null())),
+    autoFileEnabled: v.optional(v.boolean()),
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>

@@ -80,6 +80,15 @@ export const cleanupFinishedLinkPastes = internalAction({
     ),
 });
 
+export const cleanupExpiredFolderRuleRuns = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRONS.cleanupExpiredFolderRuleRuns.name, () =>
+      ctx.runMutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {})
+    ),
+});
+
 // The Core Worker runs the snapshot now; this only catches a Convex cron
 // firing queued before that deploy (.agents/records/sunset.md).
 export const adminDailySnapshot = internalAction({
