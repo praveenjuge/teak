@@ -122,7 +122,7 @@ test("a smart folder's OR and a typed exclusion intersect", async ({
   await expect(card("Folder type specimen")).toBeVisible();
   await expect(card("Folder color study")).not.toBeVisible();
   await expect(
-    screen.getByRole("listitem", "tag:fonts OR tag:type", { exact: false })
+    screen.getByRole("list", "tag:fonts OR tag:type", { exact: false })
   ).toBeVisible();
 
   await screen.getByRole("combobox").fill("-tag:fonts");
