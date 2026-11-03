@@ -376,7 +376,7 @@ export function SidebarFolders({
                 >
                   <DropdownMenuItem onSelect={() => setDialog({ folder })}>
                     <Pencil />
-                    {t("renameItem")}
+                    {isSmart ? t("renameItem") : t("editItem")}
                   </DropdownMenuItem>
                   {isSmart && (
                     <DropdownMenuItem

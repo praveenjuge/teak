@@ -621,7 +621,7 @@
       "titleEdit": "폴더 편집",
       "titleEditSmart": "스마트 폴더 편집",
       "descriptionSmart": "나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다.",
-      "descriptionEdit": "폴더 이름이나 색상을 변경합니다.",
+      "descriptionEdit": "폴더 이름, 색상 또는 규칙을 변경합니다.",
       "descriptionNew": "폴더 이름을 정하고 색상을 고르세요.",
       "nameLabel": "이름",
       "namePlaceholder": "읽을거리",
@@ -657,6 +657,33 @@
       "label": "검색: {query}",
       "noFolderNamed": "{name} 폴더가 없습니다",
       "excluded": "제외"
+    },
+    "rules": {
+      "legend": "규칙",
+      "addRule": "규칙 추가",
+      "tagsLabel": "추가할 태그",
+      "tagsPlaceholder": "태그를 입력하고 Enter 키를 누르세요",
+      "removeTag": "{tag} 제거",
+      "tagsLimit": "최대 {max}개",
+      "hiddenWarning": "{tag} 태그 때문에 이 폴더의 카드는 라이브러리에서 숨겨집니다.",
+      "fileLabel": "일치하는 카드 자동 분류",
+      "enabledLabel": "일치하는 카드 분류",
+      "checking": "확인 중…",
+      "matches": "{count, plural, =0 {일치하는 카드가 없습니다} other {카드 #개가 일치합니다}}",
+      "matchesCapped": "{count, plural, =0 {최근 카드 중 일치하는 카드가 없습니다} other {최근 카드 중 #개가 일치합니다}}",
+      "lastRun": "지난 실행에서 카드 {count, plural, other {#개}}를 업데이트했습니다.",
+      "lastRunRunning": "아직 카드에 규칙을 적용하고 있습니다.",
+      "lastRunUndone": "지난 실행을 실행 취소했습니다.",
+      "undoLastRun": "지난 실행 취소",
+      "undoFailed": "실행을 취소하지 못했습니다"
+    },
+    "ruleRun": {
+      "running": "{name} 규칙을 적용하는 중…",
+      "done": "{name}에서 카드 {count, plural, other {#개}}를 업데이트했습니다",
+      "nothing": "{name}에서 바꿀 카드가 없었습니다",
+      "undoing": "{name} 규칙 실행을 취소하는 중…",
+      "undone": "{name} 규칙 실행을 취소했습니다",
+      "undoFailed": "실행을 취소하지 못했습니다"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "폴더를 불러오지 못했습니다.",
       "moreFor": "{name} 더 보기",
       "renameItem": "이름 변경…",
+      "editItem": "편집…",
       "editSearch": "검색 편집…",
       "color": "색상",
       "colorFailed": "색상을 변경하지 못했습니다",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "일치하는 모든 카드를 저장하는 대로 보여 줍니다.",
       "open": "열기",
       "unsavableFilters": "색상, 스타일, 날짜는 스마트 폴더에 저장되지 않습니다.",
-      "loadFailed": "카드를 불러오지 못했습니다."
+      "loadFailed": "카드를 불러오지 못했습니다.",
+      "editFolder": "폴더 편집"
     },
     "tags": {
       "sortMostUsed": "많이 사용한 순",

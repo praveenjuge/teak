@@ -30,7 +30,16 @@ export interface FolderSummary {
   kind: FolderKind;
   name: string;
   query?: string;
+  /** The folder's latest rule run, to follow or undo. */
+  ruleRunId?: Id<"folderRuleRuns">;
+  /** A manual folder's rules; missing on smart folders. */
+  rules?: FolderRules;
   updatedAt: number;
+}
+
+export interface FolderRules {
+  autoFile: { enabled: boolean; query: string } | null;
+  autoTags: string[];
 }
 
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(

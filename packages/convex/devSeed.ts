@@ -51,6 +51,7 @@ import {
   cardIn50FoldersPack,
   exportUglyPack,
   type FolderScenarioPack,
+  folderRulesPack,
   folders500Pack,
   foldersOnePack,
   foldersUglyPack,
@@ -98,6 +99,7 @@ import {
 } from "./devSeed/volumeScenarios";
 import { readIsDevDeployment } from "./env";
 import { insertFolder, readLiveFolders } from "./folder/folders";
+import { startFolderRuleRun } from "./folder/rules";
 import { writeAccountLocale } from "./settings/preferences";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
@@ -287,6 +289,7 @@ const seedFolderScenario = async (
   let created = 0;
   const now = Date.now();
   const folderIds: (Id<"folders"> | undefined)[] = [];
+  const rulesToRun: Id<"folders">[] = [];
   for (const [index, folder] of pack.folders.entries()) {
     const key = folderNameKey(folder.name);
     let folderId = byKey.get(key);
@@ -301,6 +304,23 @@ const seedFolderScenario = async (
           ? undefined
           : parseSearchQuery(folder.query).canonical
       );
+      const rules = {
+        ...(folder.autoTags ? { autoTags: folder.autoTags } : {}),
+        ...(folder.autoFileQuery === undefined
+          ? {}
+          : {
+              autoFileQuery: parseSearchQuery(folder.autoFileQuery).canonical,
+            }),
+        ...(folder.autoFilePaused ? { autoFilePaused: true as const } : {}),
+      };
+      if (Object.keys(rules).length > 0) {
+        await ctx.db.patch("folders", folderId, {
+          ...rules,
+          hasRules: true,
+        });
+        // Run the rules as saving them does, once the pack's cards exist.
+        rulesToRun.push(folderId);
+      }
       byKey.set(key, folderId);
       total += 1;
       created += 1;
@@ -331,6 +351,16 @@ const seedFolderScenario = async (
       }));
   if (cards.length > 0) {
     await insertCompletedCards(ctx, userId, cards, { ignoreCardLimit: true });
+  }
+  for (const folderId of rulesToRun) {
+    const folder = await ctx.db.get("folders", folderId);
+    if (folder) {
+      await startFolderRuleRun(ctx, folder, {
+        runTags: (folder.autoTags?.length ?? 0) > 0,
+        runFile:
+          folder.autoFileQuery !== undefined && folder.autoFilePaused !== true,
+      });
+    }
   }
   return {
     status:
@@ -482,6 +512,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "1,000 links, nine in ten on one host, so qualifiers page through more than one scan budget. 200 per page.",
     cards: searchQualifiersVolumePage,
+  },
+  "folder-rules": {
+    description:
+      "A folder for each rule shape, run as a save runs them: tags only with a card inside to tag, a search matching two typography cards, tags and a search with a sourdough card to file, a paused search, and a folder whose secret tag hides its cards.",
+    folders: folderRulesPack,
   },
   "smart-folders": {
     description:

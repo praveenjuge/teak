@@ -621,7 +621,7 @@
       "titleEdit": "Editar carpeta",
       "titleEditSmart": "Editar carpeta inteligente",
       "descriptionSmart": "Muestra todas las tarjetas que coinciden con la búsqueda, incluidas las que guarde más adelante.",
-      "descriptionEdit": "Cambie el nombre o el color de la carpeta.",
+      "descriptionEdit": "Cambie el nombre, el color o las reglas de la carpeta.",
       "descriptionNew": "Póngale un nombre a la carpeta y elija un color.",
       "nameLabel": "Nombre",
       "namePlaceholder": "Lista de lectura",
@@ -657,6 +657,33 @@
       "label": "Búsqueda: {query}",
       "noFolderNamed": "No hay ninguna carpeta llamada {name}",
       "excluded": "no"
+    },
+    "rules": {
+      "legend": "Reglas",
+      "addRule": "Añadir una regla",
+      "tagsLabel": "Añadir estas etiquetas",
+      "tagsPlaceholder": "Escriba una etiqueta y pulse Intro",
+      "removeTag": "Quitar {tag}",
+      "tagsLimit": "Hasta {max} etiquetas",
+      "hiddenWarning": "Las tarjetas de esta carpeta se ocultarán de su biblioteca por la etiqueta {tag}.",
+      "fileLabel": "Archivar automáticamente las tarjetas que coincidan",
+      "enabledLabel": "Archivar las tarjetas que coincidan",
+      "checking": "Comprobando…",
+      "matches": "{count, plural, =0 {Ninguna tarjeta coincide} one {# tarjeta coincide} other {# tarjetas coinciden}}",
+      "matchesCapped": "{count, plural, =0 {Ninguna de sus tarjetas más recientes coincide} one {# de sus tarjetas más recientes coincide} other {# de sus tarjetas más recientes coinciden}}",
+      "lastRun": "La última ejecución actualizó {count, plural, one {# tarjeta} other {# tarjetas}}.",
+      "lastRunRunning": "Las reglas todavía se están aplicando a sus tarjetas.",
+      "lastRunUndone": "Se deshizo la última ejecución.",
+      "undoLastRun": "Deshacer la última ejecución",
+      "undoFailed": "No se pudo deshacer la ejecución"
+    },
+    "ruleRun": {
+      "running": "Aplicando las reglas de {name}…",
+      "done": "Se actualizaron {count, plural, one {# tarjeta} other {# tarjetas}} en {name}",
+      "nothing": "Ninguna tarjeta necesitaba cambios para {name}",
+      "undoing": "Deshaciendo la ejecución de las reglas de {name}…",
+      "undone": "Se deshizo la ejecución de las reglas de {name}",
+      "undoFailed": "No se pudo deshacer la ejecución"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "No se pudieron cargar sus carpetas.",
       "moreFor": "Más opciones para {name}",
       "renameItem": "Cambiar nombre…",
+      "editItem": "Editar…",
       "editSearch": "Editar búsqueda…",
       "color": "Color",
       "colorFailed": "No se pudo cambiar el color",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "Muestra todas las tarjetas que coinciden, a medida que las guarda.",
       "open": "Abrir",
       "unsavableFilters": "Los colores, los estilos y las fechas no se guardan en una carpeta inteligente.",
-      "loadFailed": "No se pudieron cargar sus tarjetas."
+      "loadFailed": "No se pudieron cargar sus tarjetas.",
+      "editFolder": "Editar carpeta"
     },
     "tags": {
       "sortMostUsed": "Más usadas",

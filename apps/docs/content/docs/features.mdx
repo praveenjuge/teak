@@ -207,6 +207,15 @@ A smart folder saves a search. It shows every card that matches, including cards
 
 For example, `folder:"Reading list" is:fav` is a smart folder of your favorite cards in Reading list, and `site:github.com "design system"` collects every GitHub link that mentions a design system.
 
+#### Folder rules
+
+A folder can tag and collect cards for you. Right-click a folder in the sidebar and choose **Edit…**, or use the pencil beside its name, then **Add a rule**:
+
+- **Add these tags:** every card put in the folder gets these tags, however you add it. Type a tag and press Enter; up to 10.
+- **Auto-file cards that match:** a search, such as `tag:typography` or `site:figma.com type:link`. Cards that match are filed in the folder, with its tags, once Teak has read them. Teak shows how many of your cards match as you type. `like:` and `mood:` can't be used in a rule.
+
+Saving a rule also applies it to the cards you already have, archived ones included but not Trash, and tells you how many cards it updated, with **Undo**. **Undo last run** stays in the folder's Edit dialog for a day. Rules only ever add: a card you take out of the folder, or a tag you remove, stays out. A tag such as `secret` hides every card in the folder, so the dialog warns you. Smart folders don't have rules, and you can have rules on up to 50 folders. Rules are also in the [API](/docs/api#folder-rules), [CLI](/docs/cli) and [MCP](/docs/mcp).
+
 You can have up to 500 folders, smart folders included, and a card can be in up to 50. Folders are also available in the [API](/docs/api#folders), [CLI](/docs/cli), and [MCP](/docs/mcp).
 
 ### Tags and filters

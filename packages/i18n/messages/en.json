@@ -621,7 +621,7 @@
       "titleEdit": "Edit folder",
       "titleEditSmart": "Edit smart folder",
       "descriptionSmart": "Shows every card that matches the search, including cards you save later.",
-      "descriptionEdit": "Change the folder's name or color.",
+      "descriptionEdit": "Change the folder's name, color or rules.",
       "descriptionNew": "Name the folder and pick a color.",
       "nameLabel": "Name",
       "namePlaceholder": "Reading list",
@@ -657,6 +657,33 @@
       "label": "Search: {query}",
       "noFolderNamed": "No folder named {name}",
       "excluded": "not"
+    },
+    "rules": {
+      "legend": "Rules",
+      "addRule": "Add a rule",
+      "tagsLabel": "Add these tags",
+      "tagsPlaceholder": "Type a tag, then press Enter",
+      "removeTag": "Remove {tag}",
+      "tagsLimit": "Up to {max} tags",
+      "hiddenWarning": "Cards in this folder will be hidden from your library, because of the tag {tag}.",
+      "fileLabel": "Auto-file cards that match",
+      "enabledLabel": "File matching cards",
+      "checking": "Checking…",
+      "matches": "{count, plural, =0 {No cards match} one {# card matches} other {# cards match}}",
+      "matchesCapped": "{count, plural, =0 {None of your newest cards match} one {# of your newest cards matches} other {# of your newest cards match}}",
+      "lastRun": "Last run updated {count, plural, one {# card} other {# cards}}.",
+      "lastRunRunning": "The rules are still running on your cards.",
+      "lastRunUndone": "The last run was undone.",
+      "undoLastRun": "Undo last run",
+      "undoFailed": "Couldn't undo the run"
+    },
+    "ruleRun": {
+      "running": "Applying the rules for {name}…",
+      "done": "Updated {count, plural, one {# card} other {# cards}} in {name}",
+      "nothing": "No cards needed changing for {name}",
+      "undoing": "Undoing the rules run for {name}…",
+      "undone": "Undid the rules run for {name}",
+      "undoFailed": "Couldn't undo the run"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "Couldn't load your folders.",
       "moreFor": "More for {name}",
       "renameItem": "Rename…",
+      "editItem": "Edit…",
       "editSearch": "Edit search…",
       "color": "Color",
       "colorFailed": "Couldn't change the color",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "It shows every card that matches, as you save them.",
       "open": "Open",
       "unsavableFilters": "Colors, styles and dates aren't saved in a smart folder.",
-      "loadFailed": "Couldn't load your cards."
+      "loadFailed": "Couldn't load your cards.",
+      "editFolder": "Edit folder"
     },
     "tags": {
       "sortMostUsed": "Most used",

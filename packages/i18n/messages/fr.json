@@ -621,7 +621,7 @@
       "titleEdit": "Modifier le dossier",
       "titleEditSmart": "Modifier le dossier intelligent",
       "descriptionSmart": "Affiche toutes les fiches qui correspondent à la recherche, y compris celles que vous enregistrerez plus tard.",
-      "descriptionEdit": "Modifiez le nom ou la couleur du dossier.",
+      "descriptionEdit": "Modifiez le nom, la couleur ou les règles du dossier.",
       "descriptionNew": "Nommez le dossier et choisissez une couleur.",
       "nameLabel": "Nom",
       "namePlaceholder": "À lire",
@@ -657,6 +657,33 @@
       "label": "Recherche : {query}",
       "noFolderNamed": "Aucun dossier nommé {name}",
       "excluded": "sauf"
+    },
+    "rules": {
+      "legend": "Règles",
+      "addRule": "Ajouter une règle",
+      "tagsLabel": "Ajouter ces tags",
+      "tagsPlaceholder": "Saisissez un tag, puis appuyez sur Entrée",
+      "removeTag": "Retirer {tag}",
+      "tagsLimit": "Jusqu’à {max} tags",
+      "hiddenWarning": "Les fiches de ce dossier seront masquées de votre bibliothèque à cause du tag {tag}.",
+      "fileLabel": "Classer automatiquement les fiches correspondantes",
+      "enabledLabel": "Classer les fiches correspondantes",
+      "checking": "Vérification…",
+      "matches": "{count, plural, =0 {Aucune fiche ne correspond} one {# fiche correspond} other {# fiches correspondent}}",
+      "matchesCapped": "{count, plural, =0 {Aucune de vos fiches les plus récentes ne correspond} one {# de vos fiches les plus récentes correspond} other {# de vos fiches les plus récentes correspondent}}",
+      "lastRun": "La dernière exécution a mis à jour {count, plural, one {# fiche} other {# fiches}}.",
+      "lastRunRunning": "Les règles s’appliquent encore à vos fiches.",
+      "lastRunUndone": "La dernière exécution a été annulée.",
+      "undoLastRun": "Annuler la dernière exécution",
+      "undoFailed": "Impossible d’annuler l’exécution"
+    },
+    "ruleRun": {
+      "running": "Application des règles de {name}…",
+      "done": "{count, plural, one {# fiche mise à jour} other {# fiches mises à jour}} dans {name}",
+      "nothing": "Aucune fiche n’avait besoin de changer pour {name}",
+      "undoing": "Annulation de l’exécution des règles de {name}…",
+      "undone": "Exécution des règles de {name} annulée",
+      "undoFailed": "Impossible d’annuler l’exécution"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "Impossible de charger vos dossiers.",
       "moreFor": "Plus d’options pour {name}",
       "renameItem": "Renommer…",
+      "editItem": "Modifier…",
       "editSearch": "Modifier la recherche…",
       "color": "Couleur",
       "colorFailed": "Impossible de modifier la couleur",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "Il affiche toutes les fiches correspondantes, au fur et à mesure que vous les enregistrez.",
       "open": "Ouvrir",
       "unsavableFilters": "Les couleurs, styles et dates ne sont pas enregistrés dans un dossier intelligent.",
-      "loadFailed": "Impossible de charger vos fiches."
+      "loadFailed": "Impossible de charger vos fiches.",
+      "editFolder": "Modifier le dossier"
     },
     "tags": {
       "sortMostUsed": "Plus utilisés",

@@ -621,7 +621,7 @@
       "titleEdit": "Editar pasta",
       "titleEditSmart": "Editar pasta inteligente",
       "descriptionSmart": "Mostra todos os cards que correspondem à pesquisa, inclusive os que você salvar depois.",
-      "descriptionEdit": "Altere o nome ou a cor da pasta.",
+      "descriptionEdit": "Altere o nome, a cor ou as regras da pasta.",
       "descriptionNew": "Dê um nome à pasta e escolha uma cor.",
       "nameLabel": "Nome",
       "namePlaceholder": "Lista de leitura",
@@ -657,6 +657,33 @@
       "label": "Pesquisa: {query}",
       "noFolderNamed": "Nenhuma pasta chamada {name}",
       "excluded": "exceto"
+    },
+    "rules": {
+      "legend": "Regras",
+      "addRule": "Adicionar uma regra",
+      "tagsLabel": "Adicionar estas tags",
+      "tagsPlaceholder": "Digite uma tag e pressione Enter",
+      "removeTag": "Remover {tag}",
+      "tagsLimit": "Até {max} tags",
+      "hiddenWarning": "Os cards desta pasta ficarão ocultos na sua biblioteca por causa da tag {tag}.",
+      "fileLabel": "Arquivar automaticamente os cards que correspondem",
+      "enabledLabel": "Arquivar os cards que correspondem",
+      "checking": "Verificando…",
+      "matches": "{count, plural, =0 {Nenhum card corresponde} one {# card corresponde} other {# cards correspondem}}",
+      "matchesCapped": "{count, plural, =0 {Nenhum dos seus cards mais recentes corresponde} one {# dos seus cards mais recentes corresponde} other {# dos seus cards mais recentes correspondem}}",
+      "lastRun": "A última execução atualizou {count, plural, one {# card} other {# cards}}.",
+      "lastRunRunning": "As regras ainda estão sendo aplicadas aos seus cards.",
+      "lastRunUndone": "A última execução foi desfeita.",
+      "undoLastRun": "Desfazer a última execução",
+      "undoFailed": "Não foi possível desfazer a execução"
+    },
+    "ruleRun": {
+      "running": "Aplicando as regras de {name}…",
+      "done": "{count, plural, one {# card atualizado} other {# cards atualizados}} em {name}",
+      "nothing": "Nenhum card precisou de mudanças para {name}",
+      "undoing": "Desfazendo a execução das regras de {name}…",
+      "undone": "A execução das regras de {name} foi desfeita",
+      "undoFailed": "Não foi possível desfazer a execução"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "Não foi possível carregar suas pastas.",
       "moreFor": "Mais opções para {name}",
       "renameItem": "Renomear…",
+      "editItem": "Editar…",
       "editSearch": "Editar pesquisa…",
       "color": "Cor",
       "colorFailed": "Não foi possível alterar a cor",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "Ela mostra todos os cards correspondentes, à medida que você os salva.",
       "open": "Abrir",
       "unsavableFilters": "Cores, estilos e datas não são salvos em uma pasta inteligente.",
-      "loadFailed": "Não foi possível carregar seus cards."
+      "loadFailed": "Não foi possível carregar seus cards.",
+      "editFolder": "Editar pasta"
     },
     "tags": {
       "sortMostUsed": "Mais usadas",

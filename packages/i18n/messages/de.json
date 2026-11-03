@@ -621,7 +621,7 @@
       "titleEdit": "Ordner bearbeiten",
       "titleEditSmart": "Intelligenten Ordner bearbeiten",
       "descriptionSmart": "Zeigt jede Karte, die zur Suche passt, auch Karten, die Sie später speichern.",
-      "descriptionEdit": "Ändern Sie Name oder Farbe des Ordners.",
+      "descriptionEdit": "Ändern Sie Name, Farbe oder Regeln des Ordners.",
       "descriptionNew": "Geben Sie dem Ordner einen Namen und wählen Sie eine Farbe.",
       "nameLabel": "Name",
       "namePlaceholder": "Leseliste",
@@ -657,6 +657,33 @@
       "label": "Suche: {query}",
       "noFolderNamed": "Kein Ordner namens {name}",
       "excluded": "nicht"
+    },
+    "rules": {
+      "legend": "Regeln",
+      "addRule": "Regel hinzufügen",
+      "tagsLabel": "Diese Tags hinzufügen",
+      "tagsPlaceholder": "Tag eingeben und Eingabetaste drücken",
+      "removeTag": "{tag} entfernen",
+      "tagsLimit": "Bis zu {max} Tags",
+      "hiddenWarning": "Karten in diesem Ordner werden wegen des Tags {tag} in Ihrer Bibliothek ausgeblendet.",
+      "fileLabel": "Passende Karten automatisch einordnen",
+      "enabledLabel": "Passende Karten einordnen",
+      "checking": "Wird geprüft …",
+      "matches": "{count, plural, =0 {Keine Karte passt} one {# Karte passt} other {# Karten passen}}",
+      "matchesCapped": "{count, plural, =0 {Keine Ihrer neuesten Karten passt} one {# Ihrer neuesten Karten passt} other {# Ihrer neuesten Karten passen}}",
+      "lastRun": "Der letzte Durchlauf hat {count, plural, one {# Karte} other {# Karten}} aktualisiert.",
+      "lastRunRunning": "Die Regeln werden noch auf Ihre Karten angewendet.",
+      "lastRunUndone": "Der letzte Durchlauf wurde rückgängig gemacht.",
+      "undoLastRun": "Letzten Durchlauf rückgängig machen",
+      "undoFailed": "Der Durchlauf konnte nicht rückgängig gemacht werden"
+    },
+    "ruleRun": {
+      "running": "Regeln für {name} werden angewendet …",
+      "done": "{count, plural, one {# Karte} other {# Karten}} aktualisiert in {name}",
+      "nothing": "Für {name} mussten keine Karten geändert werden",
+      "undoing": "Regeldurchlauf für {name} wird rückgängig gemacht …",
+      "undone": "Regeldurchlauf für {name} rückgängig gemacht",
+      "undoFailed": "Der Durchlauf konnte nicht rückgängig gemacht werden"
     }
   },
   "sidebar": {
@@ -675,6 +702,7 @@
       "loadFailed": "Ihre Ordner konnten nicht geladen werden.",
       "moreFor": "Mehr für {name}",
       "renameItem": "Umbenennen…",
+      "editItem": "Bearbeiten…",
       "editSearch": "Suche bearbeiten…",
       "color": "Farbe",
       "colorFailed": "Die Farbe konnte nicht geändert werden",
@@ -1627,7 +1655,8 @@
       "savedSmartFolderDescription": "Er zeigt jede passende Karte, sobald Sie sie speichern.",
       "open": "Öffnen",
       "unsavableFilters": "Farben, Stile und Datumsangaben werden in einem intelligenten Ordner nicht gespeichert.",
-      "loadFailed": "Ihre Karten konnten nicht geladen werden."
+      "loadFailed": "Ihre Karten konnten nicht geladen werden.",
+      "editFolder": "Ordner bearbeiten"
     },
     "tags": {
       "sortMostUsed": "Meistverwendet",

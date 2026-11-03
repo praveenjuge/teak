@@ -433,6 +433,10 @@ export function CardsScreen({
     () => setFolderDialog({ mode: "edit", focusQuery: true }),
     []
   );
+  const editFolder = useCallback(
+    () => setFolderDialog({ mode: "edit", focusQuery: false }),
+    []
+  );
 
   const [fedResults, setFedResults] = useState<{
     cards: typeof cards;
@@ -921,7 +925,13 @@ export function CardsScreen({
     <PageTitle>{libraryViewLabel(view ?? "all", tv)}</PageTitle>
   );
   if (isFolderView) {
-    title = <FolderPageTitle folder={folder} onEditSearch={editSmartFolder} />;
+    title = (
+      <FolderPageTitle
+        folder={folder}
+        onEditFolder={editFolder}
+        onEditSearch={editSmartFolder}
+      />
+    );
   }
   let searchPlaceholder = libraryViewSearchPlaceholder(view ?? "all", tv);
   if (folder) {

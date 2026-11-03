@@ -93,6 +93,20 @@ questions:
       - The card's details keep Added as the first save date and show Saved again with the latest save
     routes: /docs/features
 
+  - id: folder-auto-tags
+    question: How do I make every card I put in a folder get the same tags?
+    expected:
+      - Open the folder's Edit… dialog, choose Add a rule, and add the tags under Add these tags
+      - The tags go on cards already in the folder and on every card added later, however it's added
+    routes: /docs/features
+
+  - id: folder-rule-removed-card
+    question: If a folder rule files a card and I take it out of the folder, will the rule put it back?
+    expected:
+      - No; folder rules only add, so a card you take out (or a tag you remove) stays out
+      - Undo last run in the folder's Edit dialog takes back a rule run for a day
+    routes: /docs/features
+
   - id: free-plan-limit
     question: How many cards can I save on the free plan, and what happens when I hit the limit in the Chrome extension?
     expected:

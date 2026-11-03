@@ -53,7 +53,7 @@ test("create a folder, fill it from a selection, rename and delete it", async ({
   await expect(onScreenText(screen, SECOND_CARD)).toBeVisible();
 
   await screen.getByRole("button", "More for Reading").click();
-  await screen.getByRole("menuitem", "Rename…").click();
+  await screen.getByRole("menuitem", "Edit…").click();
   const rename = screen.getByRole("dialog", "Edit folder");
   await rename.getByLabel("Name").fill("Reading list");
   await rename.getByRole("button", "Save").click();

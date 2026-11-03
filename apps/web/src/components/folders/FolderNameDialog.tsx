@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFolderRuleRunToast } from "@/hooks/useFolderRuleRunToast";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
@@ -42,6 +43,7 @@ import {
 } from "../../lib/folders";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
+import { FolderRulesFields, useFolderRulesForm } from "./FolderRulesFields";
 
 interface FolderNameDialogProps {
   focusQuery?: boolean;
@@ -77,6 +79,8 @@ export function FolderNameDialog({
   const [serverError, setServerError] = useState<string | null>(null);
   const isRename = Boolean(folder);
   const isSmart = folder ? folder.kind === "smart" : initialQuery !== undefined;
+  const rules = useFolderRulesForm(folder, open);
+  const followRuleRun = useFolderRuleRunToast();
 
   useEffect(() => {
     if (open) {
@@ -111,19 +115,22 @@ export function FolderNameDialog({
     serverError !== null &&
     (NAME_ERRORS as readonly string[]).includes(serverError);
   const error =
-    problem ?? (!isSmart || serverErrorIsAboutName ? serverError : null);
+    problem ??
+    (!(isSmart || rules.active) || serverErrorIsAboutName ? serverError : null);
   const queryError =
     queryProblem ?? (isSmart && !serverErrorIsAboutName ? serverError : null);
   const unchanged =
     isRename &&
     trimmed === folder?.name &&
     color === folder?.color &&
-    (!isSmart || canonicalQuery === folder?.query);
+    (!isSmart || canonicalQuery === folder?.query) &&
+    rules.unchanged;
   const canSubmit =
     Boolean(trimmed) &&
     !problem &&
     !queryProblem &&
     !queryIncomplete &&
+    !rules.problem &&
     !unchanged;
 
   const [submit, isSaving] = useSingleFlight(async () => {
@@ -138,6 +145,7 @@ export function FolderNameDialog({
             name: trimmed,
             color: color ?? null,
             ...(isSmart ? { query: canonicalQuery } : {}),
+            ...rules.patch(),
           })
         : await createFolder({
             name: trimmed,
@@ -148,6 +156,13 @@ export function FolderNameDialog({
           });
       onOpenChange(false);
       onSaved?.(saved);
+      if (folder && saved.ruleRunId && saved.ruleRunId !== folder.ruleRunId) {
+        followRuleRun({
+          folderId: folder._id,
+          name: saved.name,
+          runId: saved.ruleRunId,
+        });
+      }
     } catch (caught) {
       setServerError(
         folderErrorMessage(
@@ -160,7 +175,7 @@ export function FolderNameDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className={rules.active ? "sm:max-w-md" : "sm:max-w-sm"}>
         <DialogHeader>
           <DialogTitle>{dialogTitle(t, isRename, isSmart)}</DialogTitle>
           <DialogDescription className={isSmart ? undefined : "sr-only"}>
@@ -274,6 +289,27 @@ export function FolderNameDialog({
               ))}
             </div>
           </fieldset>
+          {rules.active ? (
+            <FolderRulesFields
+              form={rules}
+              onChange={() => setServerError(null)}
+              onUndone={(runId) => {
+                onOpenChange(false);
+                if (folder) {
+                  followRuleRun({
+                    folderId: folder._id,
+                    name: folder.name,
+                    runId,
+                  });
+                }
+              }}
+            />
+          ) : null}
+          {serverError && rules.active && !serverErrorIsAboutName ? (
+            <p className="text-destructive text-sm" role="alert">
+              {errors.byEnglishMessage(serverError)}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button
               onClick={() => onOpenChange(false)}
