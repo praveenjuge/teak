@@ -6326,7 +6326,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Añada una búsqueda para las tarjetas que se archivarán"
+            "value" : "Añada una búsqueda para las tarjetas que se añadirán a la carpeta"
           }
         },
         "fr" : {
@@ -6350,13 +6350,13 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adicione uma pesquisa para os cards a arquivar"
+            "value" : "Adicione uma pesquisa para os cards a adicionar à pasta"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请添加用于归档卡片的搜索条件"
+            "value" : "请添加用于将卡片分类到文件夹的搜索条件"
           }
         }
       }

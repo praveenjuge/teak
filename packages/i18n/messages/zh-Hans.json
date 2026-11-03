@@ -543,7 +543,7 @@
       "RULES_ON_SMART_FOLDER": "只有手动文件夹才能设置规则",
       "TOO_MANY_RULES": "最多可以为 {max} 个文件夹设置规则",
       "TOO_MANY_AUTO_TAGS": "一个文件夹最多可以添加 {max} 个标签",
-      "EMPTY_RULE_QUERY": "请添加用于归档卡片的搜索条件",
+      "EMPTY_RULE_QUERY": "请添加用于将卡片分类到文件夹的搜索条件",
       "RULE_QUERY_SIMILARITY": "文件夹规则不能使用 like: 或 mood:。请改用词语、标签、类型或网站搜索",
       "RULE_RUN_NOT_FOUND": "找不到规则运行",
       "RULE_RUN_EXPIRED": "此规则运行已无法撤销"

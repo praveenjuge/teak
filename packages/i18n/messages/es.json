@@ -543,7 +543,7 @@
       "RULES_ON_SMART_FOLDER": "Solo las carpetas manuales tienen reglas",
       "TOO_MANY_RULES": "Puede tener reglas en hasta {max} carpetas",
       "TOO_MANY_AUTO_TAGS": "Una carpeta puede añadir hasta {max} etiquetas",
-      "EMPTY_RULE_QUERY": "Añada una búsqueda para las tarjetas que se archivarán",
+      "EMPTY_RULE_QUERY": "Añada una búsqueda para las tarjetas que se añadirán a la carpeta",
       "RULE_QUERY_SIMILARITY": "Las reglas de carpeta no pueden usar like: ni mood:. Busque por palabras, etiquetas, tipo o sitio",
       "RULE_RUN_NOT_FOUND": "No se encontró la ejecución de la regla",
       "RULE_RUN_EXPIRED": "Esta ejecución de la regla ya no se puede deshacer"

@@ -543,7 +543,7 @@
       "RULES_ON_SMART_FOLDER": "Só as pastas manuais têm regras",
       "TOO_MANY_RULES": "Você pode ter regras em até {max} pastas",
       "TOO_MANY_AUTO_TAGS": "Uma pasta pode adicionar até {max} tags",
-      "EMPTY_RULE_QUERY": "Adicione uma pesquisa para os cards a arquivar",
+      "EMPTY_RULE_QUERY": "Adicione uma pesquisa para os cards a adicionar à pasta",
       "RULE_QUERY_SIMILARITY": "As regras de pasta não podem usar like: nem mood:. Pesquise por palavras, tags, tipo ou site",
       "RULE_RUN_NOT_FOUND": "Execução da regra não encontrada",
       "RULE_RUN_EXPIRED": "Não é mais possível desfazer esta execução da regra"

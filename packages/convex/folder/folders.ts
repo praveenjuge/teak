@@ -44,6 +44,7 @@ import {
   folderRulesValidator,
 } from "./ruleShape";
 import {
+  assertRuleFolderAvailable,
   deleteFolderRuleRows,
   type FolderRuleInput,
   planFolderRuleChange,
@@ -542,6 +543,9 @@ export const restoreFolderForUser = async (
   }
   await assertNameAvailable(ctx, userId, folder.name, folder._id);
   await assertFolderLimit(ctx, userId);
+  if (folder.hasRules === true) {
+    await assertRuleFolderAvailable(ctx, userId);
+  }
   await ctx.db.patch("folders", folder._id, { deletingAt: undefined });
   return await loadFolderSummary(ctx, { ...folder, deletingAt: undefined });
 };

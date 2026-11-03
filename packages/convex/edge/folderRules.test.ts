@@ -137,6 +137,24 @@ describe("auto-file rules", () => {
     expect(filed.folderIds).not.toContain(tagged._id);
   });
 
+  test("words only in a document's stored text file the card", async () => {
+    const { t, insert, createFolder, card, runScheduled } = await setup();
+    const id = await insert({ type: "document", content: "" });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("cardTextContents", {
+        cardId: id,
+        userId: "owner",
+        kind: "document",
+        text: "Field notes on the kestrel",
+        charCount: 26,
+        truncated: false,
+      });
+    });
+    const folder = await createFolder("Birds", { autoFileQuery: "kestrel" });
+    await runScheduled();
+    expect((await card(id)).folderIds).toEqual([folder._id]);
+  });
+
   test("an OCR-only write files nothing", async () => {
     const { t, insert, createFolder, card, runScheduled } = await setup();
     await createFolder("Receipts", { autoFileQuery: "receipt" });
@@ -634,6 +652,68 @@ describe("rule runs", () => {
     ).toEqual([]);
   });
 
+  test("cleanup leaves a run that is still going", async () => {
+    const { t, insert, createFolder, run } = await setup();
+    await insert({ aiTags: ["fonts"] });
+    const folder = await createFolder("Fonts", { autoFileQuery: "tag:fonts" });
+    const runId = folder.ruleRunId as Id<"folderRuleRuns">;
+    vi.setSystemTime(NOW + FOLDER_RULE_RUN_UNDO_MS + 1);
+    await t.run((ctx) =>
+      ctx.db.patch("folderRuleRuns", runId, { updatedAt: Date.now() })
+    );
+    await t.mutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {});
+    expect((await run(folder._id, runId))?.status).toBe("running");
+  });
+
+  test("cleanup goes on while an expired run still has changes", async () => {
+    const { t, runScheduled } = await setup();
+    await t.run(async (ctx) => {
+      const folderId = await ctx.db.insert("folders", {
+        userId: "owner",
+        name: "Big",
+        nameKey: "big",
+        kind: "manual",
+        activeCardCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const cardId = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "A card",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const runId = await ctx.db.insert("folderRuleRuns", {
+        userId: "owner",
+        folderId,
+        status: "done",
+        phase: "file",
+        filedCount: 0,
+        taggedCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+        expiresAt: 1,
+      });
+      for (let index = 0; index < 250; index += 1) {
+        await ctx.db.insert("folderRuleRunChanges", {
+          runId,
+          userId: "owner",
+          cardId,
+          addedTags: [],
+        });
+      }
+    });
+    await t.mutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {});
+    await runScheduled();
+    expect(
+      await t.run(async (ctx) => ({
+        runs: await ctx.db.query("folderRuleRuns").collect(),
+        changes: await ctx.db.query("folderRuleRunChanges").collect(),
+      }))
+    ).toEqual({ runs: [], changes: [] });
+  });
+
   test("expired runs are cleaned up with their changes", async () => {
     const { t, insert, createFolder, runScheduled } = await setup();
     await insert({ aiTags: ["fonts"] });
@@ -693,6 +773,30 @@ describe("rule validation", () => {
       createFolder("One too many", { autoTags: ["y"] })
     ).rejects.toThrow(FOLDER_ERROR_MESSAGES.TOO_MANY_RULES);
     await expect(createFolder("No rules")).resolves.toBeTruthy();
+  });
+
+  test("a deleted folder with rules can't come back past the limit", async () => {
+    const { t, owner, createFolder } = await setup();
+    const folder = await createFolder("Fonts", { autoTags: ["type"] });
+    await owner.mutation(api.folders.deleteFolder, { folderId: folder._id });
+    await t.run(async (ctx) => {
+      for (let index = 0; index < MAX_FOLDER_RULES; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Rule ${index}`,
+          nameKey: `rule ${index}`,
+          kind: "manual",
+          autoTags: ["x"],
+          hasRules: true,
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
+    });
+    await expect(
+      owner.mutation(api.folders.restoreFolder, { folderId: folder._id })
+    ).rejects.toThrow(FOLDER_ERROR_MESSAGES.TOO_MANY_RULES);
   });
 
   test("clearing every rule frees the folder's place", async () => {

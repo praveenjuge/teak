@@ -78,6 +78,17 @@ export const getArticleTextRow = async (
   (await cardTextRows(ctx, cardId)).find((row) => row.kind === "article") ??
   null;
 
+/** A document's and a link's article's stored search text, joined. */
+export const readCardExtractedText = async (
+  ctx: Pick<QueryCtx, "db">,
+  cardId: Id<"cards">
+): Promise<string | undefined> => {
+  const texts = (await cardTextRows(ctx, cardId))
+    .filter((row) => row.kind === "document" || row.kind === "article")
+    .map((row) => row.text);
+  return texts.length > 0 ? texts.join("\n") : undefined;
+};
+
 const transcriptRows = async (
   ctx: Pick<QueryCtx, "db">,
   cardId: Id<"cards">

@@ -55,7 +55,7 @@
     <string name="errors_folders_DUPLICATE_NAME">Ya existe una carpeta con este nombre</string>
     <string name="errors_folders_EMPTY_NAME">Póngale un nombre a la carpeta</string>
     <string name="errors_folders_EMPTY_QUERY">Añada una búsqueda para la carpeta inteligente</string>
-    <string name="errors_folders_EMPTY_RULE_QUERY">Añada una búsqueda para las tarjetas que se archivarán</string>
+    <string name="errors_folders_EMPTY_RULE_QUERY">Añada una búsqueda para las tarjetas que se añadirán a la carpeta</string>
     <string name="errors_folders_NAME_TOO_LONG">Los nombres de carpeta pueden tener como máximo %1$s caracteres</string>
     <string name="errors_folders_NOT_FOUND">Carpeta no encontrada</string>
     <string name="errors_folders_QUERY_ON_MANUAL_FOLDER">Solo las carpetas inteligentes tienen una búsqueda</string>

@@ -55,7 +55,7 @@
     <string name="errors_folders_DUPLICATE_NAME">已存在同名文件夹</string>
     <string name="errors_folders_EMPTY_NAME">请为文件夹命名</string>
     <string name="errors_folders_EMPTY_QUERY">请为智能文件夹添加搜索条件</string>
-    <string name="errors_folders_EMPTY_RULE_QUERY">请添加用于归档卡片的搜索条件</string>
+    <string name="errors_folders_EMPTY_RULE_QUERY">请添加用于将卡片分类到文件夹的搜索条件</string>
     <string name="errors_folders_NAME_TOO_LONG">文件夹名称最多 %1$s 个字符</string>
     <string name="errors_folders_NOT_FOUND">找不到文件夹</string>
     <string name="errors_folders_QUERY_ON_MANUAL_FOLDER">只有智能文件夹才有搜索条件</string>

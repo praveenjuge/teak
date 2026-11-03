@@ -55,7 +55,7 @@
     <string name="errors_folders_DUPLICATE_NAME">Já existe uma pasta com este nome</string>
     <string name="errors_folders_EMPTY_NAME">Dê um nome à pasta</string>
     <string name="errors_folders_EMPTY_QUERY">Adicione uma pesquisa à pasta inteligente</string>
-    <string name="errors_folders_EMPTY_RULE_QUERY">Adicione uma pesquisa para os cards a arquivar</string>
+    <string name="errors_folders_EMPTY_RULE_QUERY">Adicione uma pesquisa para os cards a adicionar à pasta</string>
     <string name="errors_folders_NAME_TOO_LONG">Os nomes de pastas podem ter no máximo %1$s caracteres</string>
     <string name="errors_folders_NOT_FOUND">Pasta não encontrada</string>
     <string name="errors_folders_QUERY_ON_MANUAL_FOLDER">Só as pastas inteligentes têm pesquisa</string>

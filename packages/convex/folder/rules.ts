@@ -15,7 +15,10 @@ import {
   buildCardSearchText,
   patchCardWithSearchSync,
 } from "../card/searchSync";
-import { readCardTranscript } from "../card/textContents";
+import {
+  readCardExtractedText,
+  readCardTranscript,
+} from "../card/textContents";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
@@ -109,6 +112,19 @@ const countRuleFolders = async (
   return count;
 };
 
+/** Refuses one more folder with rules once the account has the most. */
+export const assertRuleFolderAvailable = async (
+  ctx: QueryCtx,
+  userId: string
+): Promise<void> => {
+  if ((await countRuleFolders(ctx, userId)) >= MAX_FOLDER_RULES) {
+    throw new ConvexError({
+      code: "RULE_LIMIT",
+      message: FOLDER_ERROR_MESSAGES.TOO_MANY_RULES,
+    });
+  }
+};
+
 /**
  * The folder fields a rule change writes, and which parts of the rules a run
  * over the library has to apply. Rules only add, so a run applies new tags
@@ -181,15 +197,8 @@ export const planFolderRuleChange = async (
     return { patch, runFile: false, runTags: false };
   }
   const nextHasRules = hasRules(next);
-  if (
-    nextHasRules &&
-    folder.hasRules !== true &&
-    (await countRuleFolders(ctx, userId)) >= MAX_FOLDER_RULES
-  ) {
-    throw new ConvexError({
-      code: "RULE_LIMIT",
-      message: FOLDER_ERROR_MESSAGES.TOO_MANY_RULES,
-    });
+  if (nextHasRules && folder.hasRules !== true) {
+    await assertRuleFolderAvailable(ctx, userId);
   }
   if (nextHasRules !== (folder.hasRules === true)) {
     patch.hasRules = nextHasRules ? true : undefined;
@@ -325,7 +334,7 @@ const ruleTextFor = async (
 ): Promise<string> =>
   buildCardSearchText(
     card,
-    undefined,
+    await readCardExtractedText(ctx, card._id),
     transcript ?? card.aiTranscript ?? (await readCardTranscript(ctx, card))
   );
 
@@ -891,6 +900,7 @@ export const undoFolderRuleBatch = internalMutation({
 // Cleanup.
 
 export const FOLDER_RULE_CLEANUP_BATCH_SIZE = 100;
+const FOLDER_RULE_RUN_STALL_MS = 60 * 60 * 1000;
 
 /** Deletes a folder's rule records, a batch at a time. True when none are left. */
 export const deleteFolderRuleRows = async (
@@ -979,10 +989,20 @@ export const deleteExpiredFolderRuleRuns = internalMutation({
       .query("folderRuleRuns")
       .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
       .take(10);
-    // A run still running or undoing a day on is stuck; its batch, if one
-    // is still scheduled, stops once the run is gone. Every run here loses
-    // rows, so the loop always moves on.
+    let rowsLeft = false;
     for (const run of runs) {
+      // A run or undo that wrote a batch within the hour is still going, so
+      // it gets another hour; one that went quiet is stuck, and its batch,
+      // if one is still scheduled, stops once the run is gone.
+      if (
+        (run.status === "running" || run.status === "undoing") &&
+        now - run.updatedAt < FOLDER_RULE_RUN_STALL_MS
+      ) {
+        await ctx.db.patch("folderRuleRuns", run._id, {
+          expiresAt: now + FOLDER_RULE_RUN_STALL_MS,
+        });
+        continue;
+      }
       const changes = await ctx.db
         .query("folderRuleRunChanges")
         .withIndex("by_runId", (q) => q.eq("runId", run._id))
@@ -992,9 +1012,13 @@ export const deleteExpiredFolderRuleRuns = internalMutation({
       }
       if (changes.length < FOLDER_RULE_CLEANUP_BATCH_SIZE) {
         await ctx.db.delete("folderRuleRuns", run._id);
+      } else {
+        rowsLeft = true;
       }
     }
-    const more = runs.length === 10;
+    // Every run here was deleted, lost rows or moved out of the window, so
+    // the loop always moves on.
+    const more = runs.length === 10 || rowsLeft;
     if (more) {
       await ctx.scheduler.runAfter(
         0,
