@@ -78,15 +78,28 @@ export const getArticleTextRow = async (
   (await cardTextRows(ctx, cardId)).find((row) => row.kind === "article") ??
   null;
 
-/** A document's and a link's article's stored search text, joined. */
-export const readCardExtractedText = async (
+/**
+ * A card's stored search texts from one read of its text rows: a document's
+ * and a link's article's text, joined, and its transcript.
+ */
+export const readCardSearchTexts = async (
   ctx: Pick<QueryCtx, "db">,
-  cardId: Id<"cards">
-): Promise<string | undefined> => {
-  const texts = (await cardTextRows(ctx, cardId))
+  card: TranscriptCard
+): Promise<{ extracted?: string; transcript?: string }> => {
+  const rows = await cardTextRows(ctx, card._id);
+  const extracted = rows
     .filter((row) => row.kind === "document" || row.kind === "article")
     .map((row) => row.text);
-  return texts.length > 0 ? texts.join("\n") : undefined;
+  const parts = rows
+    .filter((row) => row.kind === "transcript")
+    .sort((left, right) => (left.part ?? 0) - (right.part ?? 0));
+  return {
+    extracted: extracted.length > 0 ? extracted.join("\n") : undefined,
+    transcript:
+      card.aiTranscriptCharCount !== undefined && parts.length > 0
+        ? parts.map((row) => row.text).join("")
+        : undefined,
+  };
 };
 
 const transcriptRows = async (

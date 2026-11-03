@@ -668,6 +668,24 @@ describe("rule runs", () => {
     expect((await run(folder._id, runId))?.status).toBe("running");
   });
 
+  test("cleanup leaves an undo that is still going", async () => {
+    const { t, owner, insert, createFolder, run, runScheduled } = await setup();
+    for (let index = 0; index < FOLDER_RULE_BATCH_SIZE + 1; index += 1) {
+      await insert({ aiTags: ["fonts"] });
+    }
+    const folder = await createFolder("Fonts", { autoFileQuery: "tag:fonts" });
+    const runId = folder.ruleRunId as Id<"folderRuleRuns">;
+    await runScheduled();
+    await owner.mutation(api.folders.undoFolderRuleRun, {
+      folderId: folder._id,
+      runId,
+    });
+    vi.setSystemTime(NOW + FOLDER_RULE_RUN_UNDO_MS + 2 * 60 * 60 * 1000);
+    await t.mutation(internal.folder.rules.undoFolderRuleBatch, { runId });
+    await t.mutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {});
+    expect((await run(folder._id, runId))?.status).toBe("undoing");
+  });
+
   test("cleanup goes on while an expired run still has changes", async () => {
     const { t, runScheduled } = await setup();
     await t.run(async (ctx) => {

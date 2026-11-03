@@ -15,10 +15,7 @@ import {
   buildCardSearchText,
   patchCardWithSearchSync,
 } from "../card/searchSync";
-import {
-  readCardExtractedText,
-  readCardTranscript,
-} from "../card/textContents";
+import { readCardSearchTexts } from "../card/textContents";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
@@ -37,8 +34,9 @@ import {
 import { normalizeSmartFolderQuery, requireFolderForUser } from "./folders";
 
 /**
- * Each card a batch changes can read about 2 MiB: its own row, a transcript
- * of up to 512 KB (read to match, then again to sync search) and its old
+ * Each card a batch changes can read about 2 MiB: its own row, its text rows
+ * (a transcript of up to 512 KB plus a document's or article's 32 KB, read
+ * once to match, then the transcript again to sync search) and its old
  * search document, which holds another copy. Six of those, plus a page read
  * capped at 2 MiB, stay under a mutation's 16 MiB read limit.
  */
@@ -331,12 +329,14 @@ const ruleTextFor = async (
   ctx: QueryCtx,
   card: Doc<"cards">,
   transcript?: string
-): Promise<string> =>
-  buildCardSearchText(
+): Promise<string> => {
+  const stored = await readCardSearchTexts(ctx, card);
+  return buildCardSearchText(
     card,
-    await readCardExtractedText(ctx, card._id),
-    transcript ?? card.aiTranscript ?? (await readCardTranscript(ctx, card))
+    stored.extracted,
+    transcript ?? card.aiTranscript ?? stored.transcript
   );
+};
 
 const buildRuleMatcher = async (
   ctx: QueryCtx,
@@ -885,6 +885,8 @@ export const undoFolderRuleBatchHandler = async (
     });
     return { done: true };
   }
+  // Cleanup keeps an undo that wrote within the hour.
+  await ctx.db.patch("folderRuleRuns", runId, { updatedAt: now });
   await ctx.scheduler.runAfter(0, internal.folder.rules.undoFolderRuleBatch, {
     runId,
   });
