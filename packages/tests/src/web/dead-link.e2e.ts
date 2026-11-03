@@ -88,7 +88,10 @@ describe("Opening a link whose page is gone", () => {
 
       await gotoApp(browser, `/?card=${cardId}`);
       await expect(
-        screen.getByRole("dialog").getByRole("main").getByText("Archived copy", { exact: true })
+        screen
+          .getByRole("dialog")
+          .getByRole("main")
+          .getByText("Archived copy", { exact: true })
       ).toBeVisible({ timeout: 15_000 });
     } finally {
       await site.stop();
