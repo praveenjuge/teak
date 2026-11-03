@@ -470,6 +470,7 @@ export const folderRuleRunValidator = v.object({
   ),
   filedCount: v.number(),
   taggedCount: v.number(),
+  changedCount: v.number(),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
   canUndo: v.boolean(),
@@ -478,6 +479,8 @@ export const folderRuleRunValidator = v.object({
 export interface FolderRuleRunSummary {
   _id: Id<"folderRuleRuns">;
   canUndo: boolean;
+  /** Cards the run filed, tagged or both, each counted once. */
+  changedCount: number;
   completedAt?: number;
   createdAt: number;
   filedCount: number;
@@ -500,6 +503,7 @@ export const toFolderRuleRunSummary = (
   status: run.status,
   filedCount: run.filedCount,
   taggedCount: run.taggedCount,
+  changedCount: run.changedCount ?? Math.max(run.filedCount, run.taggedCount),
   createdAt: run.createdAt,
   ...(run.completedAt === undefined ? {} : { completedAt: run.completedAt }),
   canUndo: canUndoRun(run, now),
@@ -549,6 +553,7 @@ export const startFolderRuleRun = async (
     phase: plan.runTags ? "tag" : "file",
     filedCount: 0,
     taggedCount: 0,
+    changedCount: 0,
     createdAt: now,
     updatedAt: now,
     expiresAt: now + FOLDER_RULE_RUN_UNDO_MS,
@@ -579,7 +584,7 @@ const recordRunChange = async (
 const finishRun = async (
   ctx: MutationCtx,
   run: Doc<"folderRuleRuns">,
-  counts: { filed: number; tagged: number },
+  counts: { changed: number; filed: number; tagged: number },
   status: "done" | "undone"
 ) => {
   const now = Date.now();
@@ -588,6 +593,7 @@ const finishRun = async (
     cursor: undefined,
     filedCount: run.filedCount + counts.filed,
     taggedCount: run.taggedCount + counts.tagged,
+    changedCount: (run.changedCount ?? 0) + counts.changed,
     updatedAt: now,
     completedAt: now,
   });
@@ -620,6 +626,7 @@ export const runFolderRuleBatchHandler = async (
   const now = Date.now();
   let filed = 0;
   let tagged = 0;
+  let changed = 0;
   let isDone: boolean;
   let continueCursor: string;
 
@@ -658,6 +665,7 @@ export const runFolderRuleBatchHandler = async (
         });
         await recordRunChange(ctx, run, card._id, { addedTags, filed: false });
         tagged += 1;
+        changed += 1;
       }
     }
     ({ isDone, continueCursor } = page);
@@ -667,6 +675,7 @@ export const runFolderRuleBatchHandler = async (
         cursor: undefined,
         filedCount: run.filedCount + filed,
         taggedCount: run.taggedCount + tagged,
+        changedCount: (run.changedCount ?? 0) + changed,
         updatedAt: now,
       });
       await ctx.scheduler.runAfter(
@@ -682,7 +691,7 @@ export const runFolderRuleBatchHandler = async (
         ? await buildRuleMatcher(ctx, run.userId, folder.autoFileQuery)
         : null;
     if (!matches) {
-      await finishRun(ctx, run, { filed, tagged }, "done");
+      await finishRun(ctx, run, { changed, filed, tagged }, "done");
       return { done: true };
     }
     const page: PaginationResult<Doc<"cards">> = await ctx.db
@@ -717,6 +726,7 @@ export const runFolderRuleBatchHandler = async (
       });
       await recordRunChange(ctx, run, card._id, { addedTags, filed: true });
       filed += 1;
+      changed += 1;
       if (addedTags.length > 0) {
         tagged += 1;
       }
@@ -725,13 +735,14 @@ export const runFolderRuleBatchHandler = async (
   }
 
   if (isDone) {
-    await finishRun(ctx, run, { filed, tagged }, "done");
+    await finishRun(ctx, run, { changed, filed, tagged }, "done");
     return { done: true };
   }
   await ctx.db.patch("folderRuleRuns", runId, {
     cursor: continueCursor,
     filedCount: run.filedCount + filed,
     taggedCount: run.taggedCount + tagged,
+    changedCount: (run.changedCount ?? 0) + changed,
     updatedAt: now,
   });
   await ctx.scheduler.runAfter(0, internal.folder.rules.runFolderRuleBatch, {

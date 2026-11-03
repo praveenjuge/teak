@@ -452,6 +452,7 @@ describe("rule runs", () => {
       status: "done",
       filedCount: 2,
       taggedCount: 3,
+      changedCount: 3,
       canUndo: true,
     });
     expect(await card(member)).toMatchObject({ tags: ["type"] });
@@ -468,6 +469,22 @@ describe("rule runs", () => {
       folderId: folder._id,
     });
     expect(listed?.ruleRunId).toBe(runId);
+  });
+
+  test("a run counts each card it changed once", async () => {
+    const { insert, createFolder, updateRules, run, runScheduled } =
+      await setup();
+    const folder = await createFolder("Fonts");
+    await insert({ folderIds: [folder._id] });
+    await insert({ aiTags: ["fonts"], tags: ["type"] });
+    const saved = await updateRules(folder._id, {
+      autoTags: ["type"],
+      autoFileQuery: "tag:fonts",
+    });
+    await runScheduled();
+    expect(
+      await run(folder._id, saved.ruleRunId as Id<"folderRuleRuns">)
+    ).toMatchObject({ filedCount: 1, taggedCount: 1, changedCount: 2 });
   });
 
   test("a run pages through a library bigger than one batch", async () => {

@@ -313,6 +313,8 @@ export default defineSchema({
     cursor: v.optional(v.string()),
     filedCount: v.number(),
     taggedCount: v.number(),
+    /** Cards filed, tagged or both, each counted once. */
+    changedCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
     completedAt: v.optional(v.number()),
