@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +17,21 @@ interface FollowedRun {
 }
 
 const toastId = (runId: string) => `folder-rule-run-${runId}`;
+
+/** What a run did, leaving out the half it didn't do. */
+const doneMessage = (
+  t: TeakTranslator<"folders.ruleRun">,
+  filed: number,
+  tagged: number,
+  name: string
+) => {
+  if (filed > 0 && tagged > 0) {
+    return t("done", { filed, tagged, name });
+  }
+  return filed > 0
+    ? t("doneFiled", { filed, name })
+    : t("doneTagged", { tagged, name });
+};
 
 /**
  * Follows a folder rule run once its rules are saved: a toast while it runs,
@@ -66,23 +82,20 @@ export function useFolderRuleRunToast() {
       toast.success(t("nothing", { name }), { id });
       return;
     }
-    toast.success(
-      t("done", { filed: run.filedCount, tagged: run.taggedCount, name }),
-      {
-        id,
-        duration: UNDO_TOAST_DURATION_MS,
-        action: run.canUndo
-          ? {
-              label: tc("undo"),
-              onClick: () => {
-                undoRun({ folderId: followed.folderId, runId: run._id }).catch(
-                  (error) => toast.error(errors.message(error, t("undoFailed")))
-                );
-              },
-            }
-          : undefined,
-      }
-    );
+    toast.success(doneMessage(t, run.filedCount, run.taggedCount, name), {
+      id,
+      duration: UNDO_TOAST_DURATION_MS,
+      action: run.canUndo
+        ? {
+            label: tc("undo"),
+            onClick: () => {
+              undoRun({ folderId: followed.folderId, runId: run._id }).catch(
+                (error) => toast.error(errors.message(error, t("undoFailed")))
+              );
+            },
+          }
+        : undefined,
+    });
   }, [errors, followed, run, t, tc, undoRun]);
 
   return follow;

@@ -42,9 +42,6 @@ export interface FolderRules {
   autoTags: string[];
 }
 
-export const hasFolderRules = (folder: Pick<FolderSummary, "rules">) =>
-  (folder.rules?.autoTags.length ?? 0) > 0 || Boolean(folder.rules?.autoFile);
-
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]
 ): T[] => folders.filter((folder) => folder.kind !== "smart");

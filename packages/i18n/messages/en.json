@@ -621,7 +621,7 @@
       "titleEdit": "Edit folder",
       "titleEditSmart": "Edit smart folder",
       "descriptionSmart": "Shows every card that matches the search, including cards you save later.",
-      "descriptionEdit": "Change the folder's name or color.",
+      "descriptionEdit": "Change the folder's name, color or rules.",
       "descriptionNew": "Name the folder and pick a color.",
       "nameLabel": "Name",
       "namePlaceholder": "Reading list",
@@ -658,25 +658,22 @@
       "noFolderNamed": "No folder named {name}",
       "excluded": "not"
     },
-    "rulesDialog": {
-      "title": "Rules for {name}",
+    "rules": {
+      "legend": "Rules",
       "description": "Rules apply to new cards and to the cards you already have.",
-      "tagsLegend": "Add these tags",
-      "tagsHelp": "Every card put in this folder gets these tags.",
-      "tagInputLabel": "Tag to add",
-      "addTag": "Add tag",
+      "tagsLabel": "Add these tags",
+      "tagsPlaceholder": "Type a tag, then press Enter",
       "removeTag": "Remove {tag}",
       "tagsLimit": "Up to {max} tags",
       "hiddenWarning": "Cards in this folder will be hidden from your library, because of the tag {tag}.",
-      "fileLegend": "Auto-file cards that match",
-      "fileHelp": "Cards that match this search are filed here once Teak has read them.",
-      "searchLabel": "Search",
+      "fileLabel": "Auto-file cards that match",
       "enabledLabel": "File matching cards",
       "checking": "Checking…",
       "matches": "{count, plural, =0 {No cards match} one {# card matches} other {# cards match}}",
       "matchesCapped": "{count, plural, =0 {None of your newest cards match} one {# of your newest cards matches} other {# of your newest cards match}}",
-      "saveFailed": "Couldn't save the rules",
       "lastRun": "Last run filed {filed, plural, one {# card} other {# cards}} and tagged {tagged, plural, one {# card} other {# cards}}.",
+      "lastRunFiled": "Last run filed {filed, plural, one {# card} other {# cards}}.",
+      "lastRunTagged": "Last run tagged {tagged, plural, one {# card} other {# cards}}.",
       "lastRunRunning": "The rules are still running on your cards.",
       "lastRunUndone": "The last run was undone.",
       "undoLastRun": "Undo last run",
@@ -685,6 +682,8 @@
     "ruleRun": {
       "running": "Applying the rules for {name}…",
       "done": "Filed {filed, plural, one {# card} other {# cards}} and tagged {tagged, plural, one {# card} other {# cards}} in {name}",
+      "doneFiled": "Filed {filed, plural, one {# card} other {# cards}} in {name}",
+      "doneTagged": "Tagged {tagged, plural, one {# card} other {# cards}} in {name}",
       "nothing": "No cards needed changing for {name}",
       "undoing": "Undoing the rules run for {name}…",
       "undone": "Undid the rules run for {name}",
@@ -707,15 +706,14 @@
       "loadFailed": "Couldn't load your folders.",
       "moreFor": "More for {name}",
       "renameItem": "Rename…",
+      "editItem": "Edit…",
       "editSearch": "Edit search…",
       "color": "Color",
       "colorFailed": "Couldn't change the color",
       "restoreFailed": "Couldn't restore the folder",
       "deleteFailed": "Couldn't delete the folder",
       "deleted": "Deleted “{name}”",
-      "deletedDescription": "Its cards are still in your library.",
-      "rulesItem": "Rules…",
-      "hasRules": "Has rules"
+      "deletedDescription": "Its cards are still in your library."
     },
     "newFolder": {
       "nameLabel": "New folder name",
@@ -1662,7 +1660,7 @@
       "open": "Open",
       "unsavableFilters": "Colors, styles and dates aren't saved in a smart folder.",
       "loadFailed": "Couldn't load your cards.",
-      "folderRules": "Folder rules"
+      "editFolder": "Edit folder"
     },
     "tags": {
       "sortMostUsed": "Most used",

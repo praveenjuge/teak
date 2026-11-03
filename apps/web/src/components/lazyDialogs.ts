@@ -18,12 +18,6 @@ export const FolderNameDialog = onDemand(() =>
   import("./folders/FolderNameDialog").then((module) => module.FolderNameDialog)
 );
 
-export const FolderRulesDialog = onDemand(() =>
-  import("./folders/FolderRulesDialog").then(
-    (module) => module.FolderRulesDialog
-  )
-);
-
 export const FolderPickerDialog = onDemand(() =>
   import("./folders/FolderPickerDialog").then(
     (module) => module.FolderPickerDialog

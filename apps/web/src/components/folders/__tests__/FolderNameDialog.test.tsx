@@ -16,7 +16,11 @@ mock.module("convex/react", () => ({
   useMutation:
     (fn: Parameters<typeof getFunctionName>[0]) => (args: unknown) => {
       writes.push({ name: getFunctionName(fn), args });
-      return Promise.resolve({ _id: "folder_1", ruleRunId: "run_2" });
+      return Promise.resolve({
+        _id: "folder_1",
+        name: "Fonts",
+        ruleRunId: "run_2",
+      });
     },
 }));
 
@@ -27,15 +31,27 @@ mock.module("@/lib/convexQueryHooks", () => ({
     if (args === "skip") {
       return;
     }
-    return getFunctionName(fn).endsWith("previewFolderRule")
-      ? preview
-      : lastRun;
+    const name = getFunctionName(fn);
+    if (name.endsWith("listFolders")) {
+      return [];
+    }
+    return name.endsWith("previewFolderRule") ? preview : lastRun;
   },
+}));
+
+const toasts: string[] = [];
+mock.module("sonner", () => ({
+  toast: Object.assign((message: string) => toasts.push(message), {
+    dismiss: () => undefined,
+    error: (message: string) => toasts.push(message),
+    loading: (message: string) => toasts.push(message),
+    success: (message: string) => toasts.push(message),
+  }),
 }));
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { FolderRulesDialog } = await import("../FolderRulesDialog");
+const { FolderNameDialog } = await import("../FolderNameDialog");
 
 let root: Root | undefined;
 
@@ -44,37 +60,34 @@ afterEach(async () => {
   root = undefined;
   document.body.innerHTML = "";
   writes.length = 0;
+  toasts.length = 0;
   preview = undefined;
   lastRun = null;
 });
 
-const folder = (rules?: {
+interface Rules {
   autoFile: { enabled: boolean; query: string } | null;
   autoTags: string[];
-}) => ({
+}
+
+const folder = (rules?: Rules, kind: "manual" | "smart" = "manual") => ({
   _id: "folder_1" as never,
   activeCardCount: 2,
   createdAt: 1,
-  kind: "manual" as const,
+  kind,
   name: "Fonts",
   updatedAt: 1,
+  ...(kind === "smart" ? { query: "tag:fonts" } : {}),
   ...(rules ? { rules, ruleRunId: "run_1" as never } : {}),
 });
 
-const onRunStarted = mock();
-
-async function render(target = folder()) {
+async function render(target: ReturnType<typeof folder> | null = folder()) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <FolderRulesDialog
-        folder={target}
-        onOpenChange={() => undefined}
-        onRunStarted={onRunStarted}
-        open
-      />
+      <FolderNameDialog folder={target} onOpenChange={() => undefined} open />
     )
   );
 }
@@ -86,26 +99,39 @@ const button = (name: string) =>
       element.textContent === name ||
       element.getAttribute("aria-label") === name
   ) as HTMLButtonElement | undefined;
+const labelled = (label: string) => {
+  const target = [...document.querySelectorAll("label")].find(
+    (element) => element.textContent === label
+  );
+  return document.getElementById(
+    target?.getAttribute("for") ?? ""
+  ) as HTMLInputElement;
+};
 
-async function typeInto(element: HTMLElement, value: string) {
-  const prototype =
-    element instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
-  const setValue = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+async function typeInto(element: HTMLInputElement, value: string) {
+  const setValue = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  )?.set;
   await act(() => {
     setValue?.call(element, value);
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 
-const tagInput = () =>
-  document.querySelector('input[placeholder="Tag to add"]') as HTMLInputElement;
-const searchBox = () =>
-  document.querySelector("textarea") as HTMLTextAreaElement;
+const press = (element: HTMLElement, key: string) =>
+  act(() => {
+    element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
 
-describe("FolderRulesDialog", () => {
-  test("opens with the folder's rules and the cards its search matches", async () => {
+const save = () =>
+  act(async () => {
+    button("Save")?.click();
+    await Promise.resolve();
+  });
+
+describe("FolderNameDialog rules", () => {
+  test("editing a folder shows its rules and the cards its search matches", async () => {
     preview = { matches: 3, capped: false };
     await render(
       folder({
@@ -113,53 +139,68 @@ describe("FolderRulesDialog", () => {
         autoFile: { query: "tag:fonts", enabled: true },
       })
     );
-    expect(text()).toContain("Rules for Fonts");
+    expect(text()).toContain("Edit folder");
     expect(button("Remove type")).toBeDefined();
-    expect(searchBox().value).toBe("tag:fonts");
+    expect(labelled("Auto-file cards that match").value).toBe("tag:fonts");
     expect(text()).toContain("3 cards match");
     expect(button("Save")?.disabled).toBe(true);
   });
 
-  test("says when the count covers only the newest cards", async () => {
-    preview = { matches: 1, capped: true };
-    await render(
-      folder({ autoTags: [], autoFile: { query: "x", enabled: true } })
-    );
-    expect(text()).toContain("1 of your newest cards matches");
+  test("a new folder and a smart folder have no rules", async () => {
+    await render(null);
+    expect(text()).toContain("New folder");
+    expect(text()).not.toContain("Add these tags");
+
+    await act(() => root?.unmount());
+    document.body.innerHTML = "";
+    await render(folder(undefined, "smart"));
+    expect(text()).not.toContain("Add these tags");
   });
 
-  test("adds tags with Enter, warns about a hidden tag, and saves the rules", async () => {
+  test("saves the name and the rules in one change, then follows the run", async () => {
     await render();
-    await typeInto(tagInput(), "secret");
-    await act(() => {
-      tagInput().dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
-      );
-    });
+    const tags = labelled("Add these tags");
+    await typeInto(tags, "secret");
+    await press(tags, "Enter");
     expect(button("Remove secret")).toBeDefined();
     expect(text()).toContain(
       "Cards in this folder will be hidden from your library, because of the tag secret."
     );
+    await typeInto(tags, "later");
+    await typeInto(labelled("Name"), "Type");
 
-    await act(async () => {
-      button("Save")?.click();
-      await Promise.resolve();
-    });
+    await save();
     expect(writes).toEqual([
       {
         name: "folders:updateFolder",
         args: {
           folderId: "folder_1",
-          autoTags: ["secret"],
+          name: "Type",
+          color: null,
+          autoTags: ["secret", "later"],
           autoFileQuery: null,
         },
       },
     ]);
-    expect(onRunStarted).toHaveBeenCalledWith({
-      folderId: "folder_1",
-      name: "Fonts",
-      runId: "run_2",
-    });
+  });
+
+  test("renaming alone leaves the rules out of the change", async () => {
+    await render(folder({ autoTags: ["type"], autoFile: null }));
+    await typeInto(labelled("Name"), "Type");
+    await save();
+    expect(writes).toEqual([
+      {
+        name: "folders:updateFolder",
+        args: { folderId: "folder_1", name: "Type", color: null },
+      },
+    ]);
+  });
+
+  test("Backspace in an empty tag field takes off the last tag", async () => {
+    await render(folder({ autoTags: ["type", "later"], autoFile: null }));
+    await press(labelled("Add these tags"), "Backspace");
+    expect(button("Remove later")).toBeUndefined();
+    expect(button("Remove type")).toBeDefined();
   });
 
   test("shows why a search can't be a rule and won't save it", async () => {
@@ -170,23 +211,24 @@ describe("FolderRulesDialog", () => {
     await render(
       folder({ autoTags: [], autoFile: { query: "mood:calm", enabled: true } })
     );
-    await typeInto(searchBox(), "mood:calm ");
+    await typeInto(labelled("Auto-file cards that match"), "mood:calm ");
     expect(text()).toContain("Folder rules can't use like: or mood:");
     expect(button("Save")?.disabled).toBe(true);
   });
 
-  test("offers to undo the last run while it can be undone", async () => {
+  test("says only what the last run did, and offers to undo it", async () => {
     lastRun = {
       _id: "run_1",
       folderId: "folder_1",
       status: "done",
-      filedCount: 4,
+      filedCount: 0,
       taggedCount: 2,
       canUndo: true,
       createdAt: 1,
     };
     await render(folder({ autoTags: ["type"], autoFile: null }));
-    expect(text()).toContain("Last run filed 4 cards and tagged 2 cards.");
+    expect(text()).toContain("Last run tagged 2 cards.");
+    expect(text()).not.toContain("filed");
     await act(async () => {
       button("Undo last run")?.click();
       await Promise.resolve();

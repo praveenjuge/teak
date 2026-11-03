@@ -621,7 +621,7 @@
       "titleEdit": "Editar pasta",
       "titleEditSmart": "Editar pasta inteligente",
       "descriptionSmart": "Mostra todos os cards que correspondem à pesquisa, inclusive os que você salvar depois.",
-      "descriptionEdit": "Altere o nome ou a cor da pasta.",
+      "descriptionEdit": "Altere o nome, a cor ou as regras da pasta.",
       "descriptionNew": "Dê um nome à pasta e escolha uma cor.",
       "nameLabel": "Nome",
       "namePlaceholder": "Lista de leitura",
@@ -658,25 +658,22 @@
       "noFolderNamed": "Nenhuma pasta chamada {name}",
       "excluded": "exceto"
     },
-    "rulesDialog": {
-      "title": "Regras de {name}",
+    "rules": {
+      "legend": "Regras",
       "description": "As regras valem para cards novos e para os que você já tem.",
-      "tagsLegend": "Adicionar estas tags",
-      "tagsHelp": "Todo card colocado nesta pasta recebe estas tags.",
-      "tagInputLabel": "Tag a adicionar",
-      "addTag": "Adicionar tag",
+      "tagsLabel": "Adicionar estas tags",
+      "tagsPlaceholder": "Digite uma tag e pressione Enter",
       "removeTag": "Remover {tag}",
       "tagsLimit": "Até {max} tags",
       "hiddenWarning": "Os cards desta pasta ficarão ocultos na sua biblioteca por causa da tag {tag}.",
-      "fileLegend": "Arquivar automaticamente os cards que correspondem",
-      "fileHelp": "Os cards que correspondem a esta pesquisa são arquivados aqui depois que o Teak os lê.",
-      "searchLabel": "Pesquisa",
+      "fileLabel": "Arquivar automaticamente os cards que correspondem",
       "enabledLabel": "Arquivar os cards que correspondem",
       "checking": "Verificando…",
       "matches": "{count, plural, =0 {Nenhum card corresponde} one {# card corresponde} other {# cards correspondem}}",
       "matchesCapped": "{count, plural, =0 {Nenhum dos seus cards mais recentes corresponde} one {# dos seus cards mais recentes corresponde} other {# dos seus cards mais recentes correspondem}}",
-      "saveFailed": "Não foi possível salvar as regras",
       "lastRun": "A última execução arquivou {filed, plural, one {# card} other {# cards}} e adicionou tags a {tagged, plural, one {# card} other {# cards}}.",
+      "lastRunFiled": "A última execução arquivou {filed, plural, one {# card} other {# cards}}.",
+      "lastRunTagged": "A última execução adicionou tags a {tagged, plural, one {# card} other {# cards}}.",
       "lastRunRunning": "As regras ainda estão sendo aplicadas aos seus cards.",
       "lastRunUndone": "A última execução foi desfeita.",
       "undoLastRun": "Desfazer a última execução",
@@ -685,6 +682,8 @@
     "ruleRun": {
       "running": "Aplicando as regras de {name}…",
       "done": "{filed, plural, one {# card arquivado} other {# cards arquivados}} e {tagged, plural, one {# card com tags} other {# cards com tags}} em {name}",
+      "doneFiled": "{filed, plural, one {# card arquivado} other {# cards arquivados}} em {name}",
+      "doneTagged": "{tagged, plural, one {# card com tags} other {# cards com tags}} em {name}",
       "nothing": "Nenhum card precisou de mudanças para {name}",
       "undoing": "Desfazendo a execução das regras de {name}…",
       "undone": "A execução das regras de {name} foi desfeita",
@@ -707,15 +706,14 @@
       "loadFailed": "Não foi possível carregar suas pastas.",
       "moreFor": "Mais opções para {name}",
       "renameItem": "Renomear…",
+      "editItem": "Editar…",
       "editSearch": "Editar pesquisa…",
       "color": "Cor",
       "colorFailed": "Não foi possível alterar a cor",
       "restoreFailed": "Não foi possível restaurar a pasta",
       "deleteFailed": "Não foi possível excluir a pasta",
       "deleted": "“{name}” excluída",
-      "deletedDescription": "Os cards dela continuam na sua biblioteca.",
-      "rulesItem": "Regras…",
-      "hasRules": "Tem regras"
+      "deletedDescription": "Os cards dela continuam na sua biblioteca."
     },
     "newFolder": {
       "nameLabel": "Nome da nova pasta",
@@ -1662,7 +1660,7 @@
       "open": "Abrir",
       "unsavableFilters": "Cores, estilos e datas não são salvos em uma pasta inteligente.",
       "loadFailed": "Não foi possível carregar seus cards.",
-      "folderRules": "Regras da pasta"
+      "editFolder": "Editar pasta"
     },
     "tags": {
       "sortMostUsed": "Mais usadas",

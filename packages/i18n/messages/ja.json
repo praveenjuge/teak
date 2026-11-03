@@ -621,7 +621,7 @@
       "titleEdit": "フォルダを編集",
       "titleEditSmart": "スマートフォルダを編集",
       "descriptionSmart": "検索条件に一致するすべてのカードを表示します。あとで保存したカードも含まれます。",
-      "descriptionEdit": "フォルダの名前や色を変更します。",
+      "descriptionEdit": "フォルダの名前、色、ルールを変更します。",
       "descriptionNew": "フォルダに名前を付けて、色を選びます。",
       "nameLabel": "名前",
       "namePlaceholder": "あとで読む",
@@ -658,25 +658,22 @@
       "noFolderNamed": "{name} という名前のフォルダはありません",
       "excluded": "除外"
     },
-    "rulesDialog": {
-      "title": "{name} のルール",
+    "rules": {
+      "legend": "ルール",
       "description": "ルールは新しいカードと、すでにあるカードに適用されます。",
-      "tagsLegend": "追加するタグ",
-      "tagsHelp": "このフォルダに入れたカードには、これらのタグが付きます。",
-      "tagInputLabel": "追加するタグ",
-      "addTag": "タグを追加",
+      "tagsLabel": "追加するタグ",
+      "tagsPlaceholder": "タグを入力して Enter キーを押します",
       "removeTag": "{tag} を削除",
       "tagsLimit": "{max} 個まで",
       "hiddenWarning": "タグ {tag} があるため、このフォルダのカードはライブラリに表示されなくなります。",
-      "fileLegend": "一致するカードを自動で振り分ける",
-      "fileHelp": "この検索条件に一致するカードは、Teak が読み取った後にこのフォルダに振り分けられます。",
-      "searchLabel": "検索条件",
+      "fileLabel": "一致するカードを自動で振り分ける",
       "enabledLabel": "一致するカードを振り分ける",
       "checking": "確認中…",
       "matches": "{count, plural, =0 {一致するカードはありません} other {# 枚のカードが一致}}",
       "matchesCapped": "{count, plural, =0 {最新のカードに一致するものはありません} other {最新のカードのうち # 枚が一致}}",
-      "saveFailed": "ルールを保存できませんでした",
       "lastRun": "前回の実行で {filed, plural, other {# 枚}}のカードを振り分け、{tagged, plural, other {# 枚}}のカードにタグを付けました。",
+      "lastRunFiled": "前回の実行で {filed, plural, other {# 枚}}のカードを振り分けました。",
+      "lastRunTagged": "前回の実行で {tagged, plural, other {# 枚}}のカードにタグを付けました。",
       "lastRunRunning": "ルールをカードに適用しています。",
       "lastRunUndone": "前回の実行は元に戻されました。",
       "undoLastRun": "前回の実行を元に戻す",
@@ -685,6 +682,8 @@
     "ruleRun": {
       "running": "{name} のルールを適用しています…",
       "done": "{name} で {filed, plural, other {# 枚}}のカードを振り分け、{tagged, plural, other {# 枚}}のカードにタグを付けました",
+      "doneFiled": "{name} で {filed, plural, other {# 枚}}のカードを振り分けました",
+      "doneTagged": "{name} で {tagged, plural, other {# 枚}}のカードにタグを付けました",
       "nothing": "{name} で変更が必要なカードはありませんでした",
       "undoing": "{name} のルールの実行を元に戻しています…",
       "undone": "{name} のルールの実行を元に戻しました",
@@ -707,15 +706,14 @@
       "loadFailed": "フォルダを読み込めませんでした。",
       "moreFor": "{name} のその他の操作",
       "renameItem": "名前を変更…",
+      "editItem": "編集…",
       "editSearch": "検索条件を編集…",
       "color": "色",
       "colorFailed": "色を変更できませんでした",
       "restoreFailed": "フォルダを復元できませんでした",
       "deleteFailed": "フォルダを削除できませんでした",
       "deleted": "「{name}」を削除しました",
-      "deletedDescription": "中のカードはライブラリに残っています。",
-      "rulesItem": "ルール…",
-      "hasRules": "ルールあり"
+      "deletedDescription": "中のカードはライブラリに残っています。"
     },
     "newFolder": {
       "nameLabel": "新規フォルダの名前",
@@ -1662,7 +1660,7 @@
       "open": "開く",
       "unsavableFilters": "色、スタイル、日付はスマートフォルダに保存されません。",
       "loadFailed": "カードを読み込めませんでした。",
-      "folderRules": "フォルダのルール"
+      "editFolder": "フォルダを編集"
     },
     "tags": {
       "sortMostUsed": "使用回数順",

@@ -621,7 +621,7 @@
       "titleEdit": "Ordner bearbeiten",
       "titleEditSmart": "Intelligenten Ordner bearbeiten",
       "descriptionSmart": "Zeigt jede Karte, die zur Suche passt, auch Karten, die Sie später speichern.",
-      "descriptionEdit": "Ändern Sie Name oder Farbe des Ordners.",
+      "descriptionEdit": "Ändern Sie Name, Farbe oder Regeln des Ordners.",
       "descriptionNew": "Geben Sie dem Ordner einen Namen und wählen Sie eine Farbe.",
       "nameLabel": "Name",
       "namePlaceholder": "Leseliste",
@@ -658,25 +658,22 @@
       "noFolderNamed": "Kein Ordner namens {name}",
       "excluded": "nicht"
     },
-    "rulesDialog": {
-      "title": "Regeln für {name}",
+    "rules": {
+      "legend": "Regeln",
       "description": "Regeln gelten für neue Karten und für die Karten, die Sie schon haben.",
-      "tagsLegend": "Diese Tags hinzufügen",
-      "tagsHelp": "Jede Karte, die in diesen Ordner kommt, erhält diese Tags.",
-      "tagInputLabel": "Hinzuzufügender Tag",
-      "addTag": "Tag hinzufügen",
+      "tagsLabel": "Diese Tags hinzufügen",
+      "tagsPlaceholder": "Tag eingeben und Eingabetaste drücken",
       "removeTag": "{tag} entfernen",
       "tagsLimit": "Bis zu {max} Tags",
       "hiddenWarning": "Karten in diesem Ordner werden wegen des Tags {tag} in Ihrer Bibliothek ausgeblendet.",
-      "fileLegend": "Passende Karten automatisch einordnen",
-      "fileHelp": "Karten, die zu dieser Suche passen, werden hier eingeordnet, sobald Teak sie gelesen hat.",
-      "searchLabel": "Suche",
+      "fileLabel": "Passende Karten automatisch einordnen",
       "enabledLabel": "Passende Karten einordnen",
       "checking": "Wird geprüft …",
       "matches": "{count, plural, =0 {Keine Karte passt} one {# Karte passt} other {# Karten passen}}",
       "matchesCapped": "{count, plural, =0 {Keine Ihrer neuesten Karten passt} one {# Ihrer neuesten Karten passt} other {# Ihrer neuesten Karten passen}}",
-      "saveFailed": "Die Regeln konnten nicht gespeichert werden",
       "lastRun": "Der letzte Durchlauf hat {filed, plural, one {# Karte} other {# Karten}} eingeordnet und {tagged, plural, one {# Karte} other {# Karten}} getaggt.",
+      "lastRunFiled": "Der letzte Durchlauf hat {filed, plural, one {# Karte} other {# Karten}} eingeordnet.",
+      "lastRunTagged": "Der letzte Durchlauf hat {tagged, plural, one {# Karte} other {# Karten}} getaggt.",
       "lastRunRunning": "Die Regeln werden noch auf Ihre Karten angewendet.",
       "lastRunUndone": "Der letzte Durchlauf wurde rückgängig gemacht.",
       "undoLastRun": "Letzten Durchlauf rückgängig machen",
@@ -685,6 +682,8 @@
     "ruleRun": {
       "running": "Regeln für {name} werden angewendet …",
       "done": "{filed, plural, one {# Karte} other {# Karten}} eingeordnet und {tagged, plural, one {# Karte} other {# Karten}} getaggt in {name}",
+      "doneFiled": "{filed, plural, one {# Karte} other {# Karten}} eingeordnet in {name}",
+      "doneTagged": "{tagged, plural, one {# Karte} other {# Karten}} getaggt in {name}",
       "nothing": "Für {name} mussten keine Karten geändert werden",
       "undoing": "Regeldurchlauf für {name} wird rückgängig gemacht …",
       "undone": "Regeldurchlauf für {name} rückgängig gemacht",
@@ -707,15 +706,14 @@
       "loadFailed": "Ihre Ordner konnten nicht geladen werden.",
       "moreFor": "Mehr für {name}",
       "renameItem": "Umbenennen…",
+      "editItem": "Bearbeiten…",
       "editSearch": "Suche bearbeiten…",
       "color": "Farbe",
       "colorFailed": "Die Farbe konnte nicht geändert werden",
       "restoreFailed": "Der Ordner konnte nicht wiederhergestellt werden",
       "deleteFailed": "Der Ordner konnte nicht gelöscht werden",
       "deleted": "„{name}“ gelöscht",
-      "deletedDescription": "Seine Karten sind weiterhin in Ihrer Bibliothek.",
-      "rulesItem": "Regeln …",
-      "hasRules": "Hat Regeln"
+      "deletedDescription": "Seine Karten sind weiterhin in Ihrer Bibliothek."
     },
     "newFolder": {
       "nameLabel": "Name des neuen Ordners",
@@ -1662,7 +1660,7 @@
       "open": "Öffnen",
       "unsavableFilters": "Farben, Stile und Datumsangaben werden in einem intelligenten Ordner nicht gespeichert.",
       "loadFailed": "Ihre Karten konnten nicht geladen werden.",
-      "folderRules": "Ordnerregeln"
+      "editFolder": "Ordner bearbeiten"
     },
     "tags": {
       "sortMostUsed": "Meistverwendet",
