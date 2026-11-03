@@ -157,8 +157,21 @@ describe("FolderNameDialog rules", () => {
     expect(text()).not.toContain("Add these tags");
   });
 
+  test("a folder without rules shows only Add a rule until it's clicked", async () => {
+    await render();
+    expect(text()).not.toContain("Add these tags");
+    await act(() => {
+      button("Add a rule")?.click();
+    });
+    expect(button("Add a rule")).toBeUndefined();
+    expect(document.activeElement).toBe(labelled("Add these tags"));
+  });
+
   test("saves the name and the rules in one change, then follows the run", async () => {
     await render();
+    await act(() => {
+      button("Add a rule")?.click();
+    });
     const tags = labelled("Add these tags");
     await typeInto(tags, "secret");
     await press(tags, "Enter");
@@ -216,19 +229,19 @@ describe("FolderNameDialog rules", () => {
     expect(button("Save")?.disabled).toBe(true);
   });
 
-  test("says only what the last run did, and offers to undo it", async () => {
+  test("sums up the last run in one sentence, and offers to undo it", async () => {
     lastRun = {
       _id: "run_1",
       folderId: "folder_1",
       status: "done",
-      filedCount: 0,
+      filedCount: 1,
       taggedCount: 2,
+      changedCount: 2,
       canUndo: true,
       createdAt: 1,
     };
     await render(folder({ autoTags: ["type"], autoFile: null }));
-    expect(text()).toContain("Last run tagged 2 cards.");
-    expect(text()).not.toContain("filed");
+    expect(text()).toContain("Last run updated 2 cards.");
     await act(async () => {
       button("Undo last run")?.click();
       await Promise.resolve();

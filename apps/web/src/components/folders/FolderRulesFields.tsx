@@ -15,7 +15,7 @@ import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useEffect, useId, useState } from "react";
-import { X } from "vadivam-react";
+import { Plus, X } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export function useFolderRulesForm(
   const [query, setQuery] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [previewQuery, setPreviewQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const active = open && folder?.kind === "manual";
 
   useEffect(() => {
@@ -69,6 +70,10 @@ export function useFolderRulesForm(
       setQuery(folder.rules?.autoFile?.query ?? "");
       setPreviewQuery(folder.rules?.autoFile?.query ?? "");
       setEnabled(folder.rules?.autoFile?.enabled ?? true);
+      setExpanded(
+        (folder.rules?.autoTags.length ?? 0) > 0 ||
+          Boolean(folder.rules?.autoFile)
+      );
     }
   }, [active, folder]);
 
@@ -120,6 +125,8 @@ export function useFolderRulesForm(
     atTagLimit,
     canonicalQuery,
     enabled,
+    expanded,
+    expand: () => setExpanded(true),
     folder,
     lastRun,
     patch: (): FolderRulesPatch | null =>
@@ -167,6 +174,7 @@ export function FolderRulesFields({
   const enabledId = useId();
   const undoRun = useMutation(api.folders.undoFolderRuleRun);
   const [undoError, setUndoError] = useState<string | null>(null);
+  const [focusTags, setFocusTags] = useState(false);
   const { folder, lastRun, preview } = form;
 
   const [undo, isUndoing] = useSingleFlight(async () => {
@@ -203,10 +211,29 @@ export function FolderRulesFields({
   const hiddenTag = hiddenTagIn(form.tags);
   const lastRunText = lastRun ? lastRunSummary(t, lastRun) : null;
 
+  if (!form.expanded) {
+    return (
+      <div className="border-t pt-4">
+        <Button
+          className="h-auto gap-1.5 px-0 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            setFocusTags(true);
+            form.expand();
+          }}
+          size="sm"
+          type="button"
+          variant="link"
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+          {t("addRule")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <fieldset className="space-y-4 border-t pt-5">
       <legend className="sr-only">{t("legend")}</legend>
-      <p className="text-muted-foreground text-sm">{t("description")}</p>
       <div className="space-y-2">
         <Label htmlFor={tagInputId}>{t("tagsLabel")}</Label>
         <div
@@ -240,6 +267,7 @@ export function FolderRulesFields({
             aria-describedby={tagHelp ? `${tagInputId}-help` : undefined}
             aria-invalid={form.tagProblem ? true : undefined}
             autoComplete="off"
+            autoFocus={focusTags}
             className="h-6 min-w-24 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             disabled={form.atTagLimit}
             id={tagInputId}
@@ -362,7 +390,7 @@ export function FolderRulesFields({
 
 type RulesTranslator = TeakTranslator<"folders.rules">;
 
-/** What the last run did, leaving out what it didn't. */
+/** What the last run did, in one sentence. */
 const lastRunSummary = (
   t: RulesTranslator,
   run: NonNullable<FolderRulesForm["lastRun"]>
@@ -373,15 +401,7 @@ const lastRunSummary = (
   if (run.status === "undone") {
     return t("lastRunUndone");
   }
-  if (!run.canUndo) {
-    return null;
-  }
-  const { filedCount: filed, taggedCount: tagged } = run;
-  if (filed > 0 && tagged > 0) {
-    return t("lastRun", { filed, tagged });
-  }
-  if (filed > 0) {
-    return t("lastRunFiled", { filed });
-  }
-  return tagged > 0 ? t("lastRunTagged", { tagged }) : null;
+  return run.canUndo && run.changedCount > 0
+    ? t("lastRun", { count: run.changedCount })
+    : null;
 };
