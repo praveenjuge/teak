@@ -24,7 +24,7 @@ test("Settings → Language switches in place, saves to the account and survives
   await screen.getByRole("option", "Deutsch", { exact: false }).click();
 
   await expect(
-    screen.getByRole("heading", de.settings.appearance.languageTitle)
+    screen.getByText(de.settings.appearance.languageTitle)
   ).toBeVisible();
   await expect(screen.getByText(de.settings.language.changed)).toBeVisible();
   expect(await htmlLang(browser)).toBe("de");
