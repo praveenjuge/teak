@@ -92,6 +92,12 @@ export const SHOTS: Shot[] = [
     alt: "The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder",
   },
   {
+    name: "pinned-cards",
+    kind: "web",
+    layout: "window",
+    alt: "The Pinned row above the grid, with three pinned cards, each with a pin in its corner",
+  },
+  {
     name: "folder",
     kind: "web",
     layout: "window",

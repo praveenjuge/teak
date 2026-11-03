@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.HeartBroken
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.ViewCarousel
@@ -446,6 +447,7 @@ private fun qualifierIcon(qualifier: SearchQualifier): ImageVector = when (quali
         SearchIsValue.Done -> Icons.Outlined.CheckCircle
         SearchIsValue.Todo -> Icons.Outlined.Circle
         SearchIsValue.Favorite -> Icons.Outlined.FavoriteBorder
+        SearchIsValue.Pinned -> Icons.Outlined.PushPin
     }
     is SearchQualifier.Site -> Icons.Outlined.Language
     is SearchQualifier.Folder -> Icons.Outlined.Folder

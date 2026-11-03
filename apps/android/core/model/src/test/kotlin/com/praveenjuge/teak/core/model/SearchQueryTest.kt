@@ -267,6 +267,12 @@ class SearchQueryTest {
     }
 
     @Test
+    fun `pinned writes the one canonical way`() {
+        assertEquals("is:pinned lamp", parse("IS:Pins lamp").canonical)
+        assertEquals(listOf(SearchQualifier.Is(SearchIsValue.Pinned)), parse("is:pin").qualifiers)
+    }
+
+    @Test
     fun `semantic text keeps free words and phrases, lowercased`() {
         fun text(query: String) = SearchQuery.semanticText(parse(query))
         assertEquals("cozy reading window seat", text("Cozy   Reading \"Window Seat\" tag:home"))

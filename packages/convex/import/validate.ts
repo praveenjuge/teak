@@ -63,6 +63,8 @@ export interface ImportCardInput {
   isFavorited?: boolean;
   metadataTitle?: string;
   notes?: string;
+  /** A pinned card's place among the pins; only pinned cards have it. */
+  pinPosition?: number;
   /** When the card was last saved; exports before re-saves have none. */
   savedAt?: number;
   tags?: string[];
@@ -327,6 +329,12 @@ export function validateImportCard(raw: unknown): ImportCardInput {
     notes,
     isFavorited: value.isFavorited === true,
     isArchived: value.isArchived === true ? true : undefined,
+    ...(value.isPinned === true &&
+    value.isArchived !== true &&
+    typeof value.pinPosition === "number" &&
+    Number.isFinite(value.pinPosition)
+      ? { pinPosition: value.pinPosition }
+      : {}),
     metadataTitle: importTitle(value.metadataTitle),
     folders: importFolderNames(value.folders),
     highlights:

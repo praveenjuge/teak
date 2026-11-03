@@ -40,6 +40,8 @@ describe("cardModalKeyAction", () => {
     ["j", "next"],
     ["f", "favorite"],
     ["F", "favorite"],
+    ["p", "pin"],
+    ["P", "pin"],
     ["e", "archive"],
     ["t", "focusTags"],
     ["n", "focusNotes"],

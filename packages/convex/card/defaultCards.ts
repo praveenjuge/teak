@@ -83,6 +83,8 @@ export interface DevScenarioCardDef extends DefaultCardDef {
   completedAt?: number;
   folderIds?: Id<"folders">[];
   pageArchive?: Doc<"cards">["pageArchive"];
+  /** Pinned at this place; ignored on an archived card. */
+  pinPosition?: number;
   savedAt?: number;
   shuffleKey?: number | null;
 }
@@ -448,6 +450,11 @@ export const insertCompletedCards = async (
         ? {}
         : { completedAt: cardDef.completedAt }),
       ...(cardDef.pageArchive ? { pageArchive: cardDef.pageArchive } : {}),
+      ...("pinPosition" in cardDef &&
+      cardDef.pinPosition !== undefined &&
+      !cardDef.isArchived
+        ? { pinPosition: cardDef.pinPosition }
+        : {}),
       ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
       ...(cardDef.runProcessing
         ? {

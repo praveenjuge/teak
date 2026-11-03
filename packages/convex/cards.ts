@@ -12,6 +12,11 @@ export * from "./card/getCard";
 export * from "./card/getCards";
 export * from "./card/getFileUrl";
 export * from "./card/mobileCardSummaries";
+export {
+  getPinnedCards,
+  reorderPinnedCards,
+  setCardPinned,
+} from "./card/pins";
 export * from "./card/processingStatus";
 export * from "./card/quoteFormatting";
 export { similarAnchorSummary } from "./card/similarSearch";

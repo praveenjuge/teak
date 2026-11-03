@@ -1,3 +1,4 @@
+import { MAX_PINNED_CARDS } from "../../shared/pins";
 import { PUBLIC_API_MAX_LIMIT } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
 import {
@@ -23,7 +24,7 @@ export const cardPaths = {
           in: "query",
           name: "q",
           description:
-            'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `is:done` (links marked done), `is:todo` (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and `"quoted phrases"`. A `-` before a word, phrase or qualifier leaves those cards out (`design -figma`, `-tag:old`, `-is:archived`; not `like:` or `mood:`), uppercase `OR` matches either side (`tag:fonts OR tag:type`), and parentheses group (`(site:github.com OR site:gitlab.com) -is:archived`). A `-` binds tightest, then a space, then `OR`; lowercase `or` and a `-` inside a word (`to-do`) are plain text. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret` (`-tag:hidden` never shows them, and `tag:hidden OR tag:x` shows them only through the `tag:hidden` side). The plain word `secret` does not show them.',
+            'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:pinned` (cards pinned to the top), `is:archived`, `is:done` (links marked done), `is:todo` (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and `"quoted phrases"`. A `-` before a word, phrase or qualifier leaves those cards out (`design -figma`, `-tag:old`, `-is:archived`; not `like:` or `mood:`), uppercase `OR` matches either side (`tag:fonts OR tag:type`), and parentheses group (`(site:github.com OR site:gitlab.com) -is:archived`). A `-` binds tightest, then a space, then `OR`; lowercase `or` and a `-` inside a word (`to-do`) are plain text. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret` (`-tag:hidden` never shows them, and `tag:hidden OR tag:x` shows them only through the `tag:hidden` side). The plain word `secret` does not show them.',
           schema: { type: "string" },
         },
         {
@@ -78,6 +79,13 @@ export const cardPaths = {
         },
         { in: "query", name: "tag", schema: { type: "string" } },
         { in: "query", name: "favorited", schema: { type: "boolean" } },
+        {
+          in: "query",
+          name: "pinned",
+          schema: { type: "boolean" },
+          description:
+            "Only cards pinned to the top of the library, like `q=is:pinned`. Without a search, the pinned cards come back in their pinned order as one page.",
+        },
         {
           in: "query",
           name: "trashed",
@@ -286,6 +294,37 @@ export const cardPaths = {
       security: apiKeySecurity,
       operationId: "listCardChanges",
       summary: "List card changes since a timestamp",
+    },
+  },
+  "/v1/cards/pinned/order": {
+    put: {
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PinOrderRequest" },
+          },
+        },
+      },
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PinnedCardsResponse" },
+            },
+          },
+          description: "The pinned cards in their new order",
+        },
+        400: {
+          content: apiErrorContent,
+          description:
+            "INVALID_INPUT: `cardIds` doesn't list every pinned card exactly once",
+        },
+      },
+      security: apiKeySecurity,
+      operationId: "reorderPinnedCards",
+      summary: "Reorder pinned cards",
+      description:
+        "Sets the order of the cards pinned to the top of the library. List every pinned card's id once, first to last; get them with `GET /v1/cards?pinned=true`.",
     },
   },
   "/v1/cards/duplicate": {
@@ -770,6 +809,43 @@ export const cardPaths = {
       security: apiKeySecurity,
       operationId: "setCardFavorite",
       summary: "Set favorite state",
+    },
+  },
+  "/v1/cards/{cardId}/pin": {
+    patch: {
+      parameters: [cardIdParameter],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PinRequest" },
+          },
+        },
+      },
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Card" },
+            },
+          },
+          description:
+            "The card with its new `isPinned`. Pinning a pinned card, or unpinning one that isn't, changes nothing",
+        },
+        400: {
+          content: apiErrorContent,
+          description: `PIN_LIMIT_REACHED: ${MAX_PINNED_CARDS} cards are already pinned; unpin one first`,
+        },
+        404: { content: apiErrorContent, description: "Card not found" },
+        409: {
+          content: apiErrorContent,
+          description:
+            "CONFLICT: the card is archived; archived cards can't be pinned",
+        },
+      },
+      security: apiKeySecurity,
+      operationId: "setCardPinned",
+      summary: "Pin or unpin a card",
+      description: `Pins a card to the top of the library, or unpins it. A new pin goes first. Up to ${MAX_PINNED_CARDS} cards can be pinned, and archiving or trashing a card unpins it.`,
     },
   },
 } as const;

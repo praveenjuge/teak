@@ -90,6 +90,7 @@ describe("buildSearchSuggestions", () => {
       "is:archived",
       "is:done",
       "is:todo",
+      "is:pinned",
     ]);
     expect(inserts("IS:arch")).toEqual(["is:archived"]);
     expect(inserts("is:fin")).toEqual(["is:done"]);

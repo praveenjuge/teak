@@ -5,6 +5,7 @@ export type CardModalKeyAction =
   | "previous"
   | "next"
   | "favorite"
+  | "pin"
   | "archive"
   | "delete"
   | "focusTags"
@@ -21,6 +22,7 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   k: "previous",
   j: "next",
   f: "favorite",
+  p: "pin",
   e: "archive",
   t: "focusTags",
   n: "focusNotes",

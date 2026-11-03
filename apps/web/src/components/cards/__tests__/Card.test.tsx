@@ -163,7 +163,11 @@ describe("Cards/Card", () => {
 
   test("its menu shows the key for each action a key also does", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+      <Card
+        card={createLinkCard() as any}
+        onEnterSelectionMode={() => undefined}
+        onToggleArchive={() => undefined}
+      />
     );
     for (const [label, key] of [
       ["Add tags…", "T"],
@@ -212,6 +216,7 @@ describe("Cards/Card", () => {
         isSelected
         isSelectionMode
         onToggleArchive={() => undefined}
+        onToggleSelection={() => undefined}
       />
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
@@ -782,6 +787,54 @@ describe("Cards/Card redesign", () => {
     );
     expect(markup).not.toContain('aria-label="More actions"');
     expect(markup).not.toContain('aria-label="Favorite"');
+  });
+
+  test("offers Pin to top with its key, and Unpin on a pinned card with its mark", () => {
+    const unpinned = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+    );
+    expect(unpinned).toContain("Pin to top<kbd>P</kbd>");
+    expect(unpinned).toContain('aria-keyshortcuts="P"');
+    expect(unpinned).not.toContain("data-pin-mark");
+
+    const pinned = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ pinPosition: 0 }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(pinned).toContain("Unpin<kbd>P</kbd>");
+    expect(pinned).toContain("data-pin-mark");
+    expect(pinned).toContain('aria-label="Pinned"');
+  });
+
+  test("offers no Select where cards can't be selected, like the Pinned row", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+    );
+    expect(markup).not.toContain("Select<kbd>X</kbd>");
+    expect(markup).toContain("Pin to top<kbd>P</kbd>");
+  });
+
+  test("offers no pin on an archived card, or without a pin handler", () => {
+    const archived = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ isArchived: true }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(archived).not.toContain("Pin to top");
+    const trashed = renderToStaticMarkup(
+      <Card
+        card={createLinkCard({ isDeleted: true }) as any}
+        onTogglePin={() => undefined}
+      />
+    );
+    expect(trashed).not.toContain("Pin to top");
+    const noHandler = renderToStaticMarkup(
+      <Card card={createLinkCard() as any} />
+    );
+    expect(noHandler).not.toContain("Pin to top");
   });
 
   test("marks a favorite and offers to unfavorite it", () => {

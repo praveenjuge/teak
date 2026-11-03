@@ -696,7 +696,8 @@
         "fav": "收藏",
         "archived": "已归档",
         "done": "已完成",
-        "todo": "待办"
+        "todo": "待办",
+        "pinned": "置顶"
       },
       "chips": {
         "tag": "标签",

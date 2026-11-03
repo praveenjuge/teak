@@ -1,3 +1,7 @@
+import type { PinTarget } from "../../lib/pinnedCards";
+
+export type { PinTarget } from "../../lib/pinnedCards";
+
 export interface LinkPreviewMetadata {
   description?: string;
   faviconUrl?: string;
@@ -98,6 +102,8 @@ export interface CardProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTabStop?: boolean;
+  /** False where the card moves another way (the pinned row's drag). */
+  nativeDrag?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
@@ -110,6 +116,7 @@ export interface CardProps {
   onRestore?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
+  onTogglePin?: (card: PinTarget) => void;
   onToggleSelection?: (cardId: string) => void;
 }
 
@@ -119,3 +126,7 @@ const UUID_REGEX =
 export function isOptimisticCard(cardId: string): boolean {
   return UUID_REGEX.test(cardId);
 }
+
+/** Whether there are cards and every one is a favorite. */
+export const allFavorited = (cards: readonly { isFavorited?: boolean }[]) =>
+  cards.length > 0 && cards.every((card) => card.isFavorited === true);

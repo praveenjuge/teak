@@ -182,6 +182,15 @@ describe("serializeCard", () => {
     ).not.toHaveProperty("sourceTitle");
   });
 
+  test("keeps a pinned card's place among the pins", () => {
+    const pinned = serializeCard({ ...baseCard, pinPosition: -2 });
+    expect(pinned.isPinned).toBe(true);
+    expect(pinned.pinPosition).toBe(-2);
+    const unpinned = serializeCard(baseCard);
+    expect(unpinned.isPinned).toBe(false);
+    expect(unpinned).not.toHaveProperty("pinPosition");
+  });
+
   test("includes only the allow-listed fields", () => {
     const out = serializeCard(baseCard, { includeFile: true, folderNames });
     expect(out).toEqual({
@@ -198,6 +207,7 @@ describe("serializeCard", () => {
       isFavorited: true,
       isArchived: true,
       isHidden: false,
+      isPinned: false,
       colors: [{ hex: "#ffffff", name: "White" }, { hex: "#000000" }],
       file: {
         path: "files/card_1-My-Photo-1-.PNG",

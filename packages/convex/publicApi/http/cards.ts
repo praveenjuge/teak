@@ -34,6 +34,7 @@ import {
   parseCreatePayload,
   parsePatchPayload,
   validateFavoritePayload,
+  validatePinPayload,
   validateThumbnailSetPayload,
   validateThumbnailUploadPayload,
   validateUploadPayload,
@@ -338,6 +339,7 @@ const handleCardsListRequest = async (
       createdBefore: options.createdBefore,
       cursor: options.cursor,
       favorited: options.favoritesOnly ? true : undefined,
+      pinned: options.pinnedOnly ? true : undefined,
       sort: options.sort === "relevance" ? undefined : options.sort,
       type: options.type,
       types: options.types,
@@ -357,7 +359,45 @@ const handleCardsListRequest = async (
     const bestMatch = Boolean(options.searchQuery && bestMatchText);
     let relevanceRanked: boolean | undefined;
 
-    if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
+    const pinnedInOrder =
+      options.pinnedOnly &&
+      !(
+        options.searchQuery ||
+        options.tag ||
+        options.qualifiers?.ocrTexts?.length ||
+        similarity ||
+        options.sort === "shuffle"
+      );
+    if (pinnedInOrder) {
+      cardsPage = await ctx.runQuery(
+        internal.publicApi.pinnedCardsPageForUser,
+        {
+          userId: queryArgs.userId,
+          showTrashOnly: queryArgs.showTrashOnly,
+          archived: queryArgs.archived,
+          folderId: queryArgs.folderId,
+          styleFilters: queryArgs.styleFilters,
+          hueFilters: queryArgs.hueFilters,
+          hexFilters: queryArgs.hexFilters,
+          type: queryArgs.type,
+          types: queryArgs.types,
+          favorited: queryArgs.favorited,
+          createdAfter: queryArgs.createdAfter,
+          createdBefore: queryArgs.createdBefore,
+          tags: queryArgs.tags,
+          sites: queryArgs.sites,
+          phrases: queryArgs.phrases,
+          prices: queryArgs.prices,
+          done: queryArgs.done,
+          todo: queryArgs.todo,
+          folderNames: queryArgs.folderNames,
+          expression: queryArgs.expression,
+        }
+      );
+    } else if (
+      options.sort === "shuffle" &&
+      options.shuffleSeed !== undefined
+    ) {
       const items: CardWithUrls[] = [];
       let cursor = options.cursor;
       let hasMore = true;
@@ -1048,6 +1088,47 @@ const handleCardsByIdV1Request = async (
       );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update card");
+    }
+  }
+
+  if (route.operation === "pin") {
+    const pinPayload = validatePinPayload(payload);
+    if (!pinPayload) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        "Body must include `isPinned` as a boolean"
+      );
+    }
+    try {
+      const result = await ctx.runMutation(
+        internal.publicApi.cardsForUser.setCardPinnedForUser,
+        {
+          cardId: normalizedCardId as Id<"cards">,
+          isPinned: pinPayload.isPinned,
+          userId: auth.validated.userId,
+        }
+      );
+      if (!result) {
+        return errorResponse(404, "NOT_FOUND", "Card not found");
+      }
+      if (result.changed) {
+        await captureBackendEvent("card_pin_toggled", auth.validated.userId, {
+          pinned: pinPayload.isPinned,
+          source: "api",
+        });
+      }
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          result.card,
+          request.url
+        )
+      );
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to update pin");
     }
   }
 

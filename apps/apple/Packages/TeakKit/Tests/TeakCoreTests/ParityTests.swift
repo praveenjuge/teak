@@ -255,6 +255,11 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         #expect(SearchQualifiers.parse("IS:Finished is:TO-DO lamp").canonical == "is:done is:todo lamp")
     }
 
+    @Test func pinnedWritesTheOneCanonicalWay() {
+        #expect(SearchQualifiers.parse("IS:Pins lamp").canonical == "is:pinned lamp")
+        #expect(SearchQualifiers.parse("is:pin").qualifiers == [SearchQualifier(.is, "pinned")])
+    }
+
     @Test(arguments: [
         ("design -figma", true), ("tag:fonts OR tag:type", true), ("(a b)", true), ("-\"a b\"", true), ("x OR", true),
         ("to-do 2024-06-05", false), ("a - b", false), ("tag:fonts or tag:type", false), ("\"a OR (b)\"", false),

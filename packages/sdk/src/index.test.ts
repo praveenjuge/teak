@@ -427,6 +427,63 @@ describe("teak-sdk", () => {
     });
   });
 
+  test("pinned, setPinned and reorderPinned reach the pin routes", async () => {
+    const seen: Array<{ body?: string; method?: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        seen.push({
+          body: typeof init?.body === "string" ? init.body : undefined,
+          method: init?.method,
+          url: String(url),
+        });
+        const { pathname } = new URL(String(url));
+        if (pathname === "/v1/cards") {
+          return Promise.resolve(
+            Response.json({
+              items: [{ id: "card_2" }, { id: "card_1" }],
+              pageInfo: { hasMore: false, nextCursor: null },
+            })
+          );
+        }
+        if (pathname === "/v1/cards/pinned/order") {
+          return Promise.resolve(
+            Response.json({ items: [{ id: "card_1" }, { id: "card_2" }] })
+          );
+        }
+        return Promise.resolve(
+          Response.json({ id: "card_1", content: "x", isPinned: true })
+        );
+      }) as typeof fetch,
+    });
+
+    const pinned = await client.cards.pinned();
+    const card = await client.cards.setPinned("card_1", true);
+    const reordered = await client.cards.reorderPinned(["card_1", "card_2"]);
+
+    expect(seen).toEqual([
+      {
+        body: undefined,
+        method: "GET",
+        url: "https://api.example/v1/cards?include=content%2Cmetadata&pinned=true&limit=50",
+      },
+      {
+        body: JSON.stringify({ isPinned: true }),
+        method: "PATCH",
+        url: "https://api.example/v1/cards/card_1/pin",
+      },
+      {
+        body: JSON.stringify({ cardIds: ["card_1", "card_2"] }),
+        method: "PUT",
+        url: "https://api.example/v1/cards/pinned/order",
+      },
+    ]);
+    expect(pinned.items.map((item) => item.id)).toEqual(["card_2", "card_1"]);
+    expect(card.isPinned).toBe(true);
+    expect(reordered.map((item) => item.id)).toEqual(["card_1", "card_2"]);
+  });
+
   test("sends explicit raw Markdown without changing bytes", async () => {
     let requestBody: any;
     const client = createTeakClient({

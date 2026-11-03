@@ -22,7 +22,7 @@ enum class PriceComparison(val symbol: String) {
 
 data class PriceBound(val op: PriceComparison, val amount: Double)
 
-enum class SearchIsValue(val wire: String) { Favorite("fav"), Archived("archived"), Done("done"), Todo("todo") }
+enum class SearchIsValue(val wire: String) { Favorite("fav"), Archived("archived"), Done("done"), Todo("todo"), Pinned("pinned") }
 
 sealed interface SearchQualifier {
     val key: String
@@ -87,6 +87,7 @@ object SearchQuery {
     private val ARCHIVED_WORDS = setOf("archived", "archive")
     private val DONE_WORDS = setOf("done", "completed", "finished")
     private val TODO_WORDS = setOf("todo", "to-do")
+    private val PINNED_WORDS = setOf("pinned", "pin", "pins")
     private val PRICE_BOUND = Regex("^(<=|>=|<|>|=)(\\d{1,12}(?:\\.\\d{1,6})?)$")
     private val WHITESPACE = Regex("\\s+")
 
@@ -305,6 +306,7 @@ object SearchQuery {
                     in FAVORITE_WORDS -> SearchQualifier.Is(SearchIsValue.Favorite)
                     in DONE_WORDS -> SearchQualifier.Is(SearchIsValue.Done)
                     in TODO_WORDS -> SearchQualifier.Is(SearchIsValue.Todo)
+                    in PINNED_WORDS -> SearchQualifier.Is(SearchIsValue.Pinned)
                     in ARCHIVED_WORDS -> SearchQualifier.Is(SearchIsValue.Archived)
                     else -> null
                 }
@@ -557,6 +559,7 @@ object QualifierChips {
         SearchIsValue.Archived -> UiText.of("native.filters.is.archived")
         SearchIsValue.Done -> UiText.of("native.filters.is.done")
         SearchIsValue.Todo -> UiText.of("native.filters.is.todo")
+        SearchIsValue.Pinned -> UiText.of("native.filters.is.pinned")
     }
 
     fun describe(qualifier: SearchQualifier, anchorTitle: String? = null): QualifierChip? = when (qualifier) {

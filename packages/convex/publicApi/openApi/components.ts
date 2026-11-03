@@ -16,6 +16,7 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../../shared/highlights/constants";
+import { MAX_PINNED_CARDS } from "../../shared/pins";
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
 import { TAG_OPERATION_COUNT_LIMIT } from "../../shared/tags";
@@ -236,6 +237,10 @@ const cardProperties = {
     type: "boolean",
   },
   isFavorited: { type: "boolean" },
+  isPinned: {
+    description: `True while the card is pinned to the top of the library, at most ${MAX_PINNED_CARDS} cards. Archiving or trashing a card unpins it.`,
+    type: "boolean",
+  },
   isHidden: {
     description:
       "True when one of the card's tags is `secret` or `hidden` (any case). Hidden cards are left out of every list and search unless the search names one of those tags, as `q=#secret`, `q=tag:hidden` or `tag=secret`. Getting the card by id, `/v1/cards/changes` and exports still include it. Read-only: change the tags to change it.",
@@ -403,6 +408,7 @@ export const components = {
         completedAt: cardProperties.completedAt,
         folderIds: cardProperties.folderIds,
         isFavorited: { type: "boolean" },
+        isPinned: cardProperties.isPinned,
         isHidden: cardProperties.isHidden,
         linkPreviewImageUrl: { type: ["string", "null"] },
         linkPreviewDescription: cardProperties.linkPreviewDescription,
@@ -1005,6 +1011,35 @@ export const components = {
         },
       },
       required: ["id", "status", "createdAt", "updatedAt", "downloadUrl"],
+      type: "object",
+    },
+    PinRequest: {
+      properties: {
+        isPinned: { type: "boolean" },
+      },
+      required: ["isPinned"],
+      type: "object",
+    },
+    PinOrderRequest: {
+      properties: {
+        cardIds: {
+          description: `Every pinned card's id exactly once, first to last. At most ${MAX_PINNED_CARDS}.`,
+          items: { type: "string" },
+          maxItems: MAX_PINNED_CARDS,
+          type: "array",
+        },
+      },
+      required: ["cardIds"],
+      type: "object",
+    },
+    PinnedCardsResponse: {
+      properties: {
+        items: {
+          items: { $ref: "#/components/schemas/CardListItem" },
+          type: "array",
+        },
+      },
+      required: ["items"],
       type: "object",
     },
     FavoriteRequest: {

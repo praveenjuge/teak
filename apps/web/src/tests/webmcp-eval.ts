@@ -140,6 +140,14 @@ const createStore = () => {
       card.isFavorited = favorited;
       return Promise.resolve(null);
     },
+    setCardPinned: ({ cardId, pinned }) => {
+      const card = cards.get(cardId);
+      if (!card) {
+        return Promise.reject(new Error("card not found"));
+      }
+      card.pinPosition = pinned ? 0 : undefined;
+      return Promise.resolve(null);
+    },
   };
   return { cards, deps };
 };

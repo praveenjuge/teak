@@ -696,7 +696,8 @@
         "fav": "Favorites",
         "archived": "Archived",
         "done": "Done",
-        "todo": "To do"
+        "todo": "To do",
+        "pinned": "Pinned"
       },
       "chips": {
         "tag": "Tag",

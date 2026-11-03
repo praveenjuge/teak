@@ -554,6 +554,7 @@
     <string name="native_filters_is_archived">Archivadas</string>
     <string name="native_filters_is_done">Hechas</string>
     <string name="native_filters_is_fav">Favoritas</string>
+    <string name="native_filters_is_pinned">Fijadas</string>
     <string name="native_filters_is_todo">Pendientes</string>
     <string name="native_filters_price_atLeast">%1$s o más</string>
     <string name="native_filters_price_atMost">%1$s o menos</string>
@@ -904,6 +905,7 @@
     <string name="search_suggestions_isOptions_archived">Archivadas</string>
     <string name="search_suggestions_isOptions_done">Hechas</string>
     <string name="search_suggestions_isOptions_fav">Favoritas</string>
+    <string name="search_suggestions_isOptions_pinned">Fijadas</string>
     <string name="search_suggestions_isOptions_todo">Pendientes</string>
     <string name="search_suggestions_orDetail">Coincide cualquiera de las dos partes</string>
     <string name="search_visualStyles_abstract">Abstracto</string>

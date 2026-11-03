@@ -14,6 +14,7 @@ const link = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   isFavorited: false,
   isArchived: false,
   isHidden: false,
+  isPinned: false,
   createdAt: toDualTimestamp(1_700_000_000_000),
   savedAt: toDualTimestamp(1_700_000_000_000),
   updatedAt: toDualTimestamp(1_700_000_500_000),

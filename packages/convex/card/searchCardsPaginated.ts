@@ -113,6 +113,12 @@ export const searchCardsPaginatedArgsValidator = v.object({
   mode: v.optional(searchModeValidator),
   useRelevanceScores: v.optional(v.boolean()),
   /**
+   * Leaves pinned cards out of the plain library list, because the web app
+   * shows them in their own strip above it. Searches, filters and other
+   * views ignore it.
+   */
+  excludePinned: v.optional(v.boolean()),
+  /**
    * Ignored. A client retrying a failed read sends a new one, so its cached
    * query hooks subscribe afresh instead of returning the cached error.
    */
@@ -933,7 +939,12 @@ export const searchCardsPaginatedHandler = async (
   })
     .order(order)
     .paginate(paginationOpts);
-  const cardsWithUrls = await attachListUrls(ctx, cards.page);
+  // The page was read and charged in full; a pinned card only drops out of
+  // what's returned, so a page can come back up to the pin cap short.
+  const listed = args.excludePinned
+    ? cards.page.filter((card) => card.pinPosition === undefined)
+    : cards.page;
+  const cardsWithUrls = await attachListUrls(ctx, listed);
   return {
     ...cards,
     page: applyQuoteFormattingToList(cardsWithUrls),

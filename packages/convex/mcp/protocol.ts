@@ -11,6 +11,7 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
+import { MAX_PINNED_CARDS } from "../shared/pins";
 import { SEARCH_MODES } from "../shared/search/semantic";
 import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import {
@@ -58,7 +59,7 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Qualifiers combine with the other filters.',
   },
   similarTo: {
     type: "string",
@@ -86,6 +87,11 @@ const cardFilterProperties = {
     ],
   },
   favorited: { type: "boolean", description: "true lists favorites only" },
+  pinned: {
+    type: "boolean",
+    description:
+      "true lists only cards pinned to the top of the library; without q they come back in their pinned order",
+  },
   trashed: { type: "boolean", description: "true lists cards in Trash only" },
   archived: {
     type: "string",
@@ -382,7 +388,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old, -is:archived), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Lowercase or is a plain word. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }, where total counts the items on this page; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old, -is:archived), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Lowercase or is a plain word. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }, where total counts the items on this page; pass pageInfo.nextCursor as cursor for more.',
     _meta: TEAK_APP_TOOL_META,
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
@@ -415,6 +421,13 @@ export const TEAK_V1_TOOLS = [
       "List favorited cards, optionally filtered by text and the list_cards filters. Hidden cards (tagged secret or hidden) are left out unless the search names one of those tags.",
     _meta: TEAK_APP_TOOL_META,
     annotations: { title: "List favorites", ...READ_ONLY },
+    inputSchema: inputSchema(cardFilterProperties),
+  },
+  {
+    name: "teak_v1_list_pinned_cards",
+    description: `List the cards pinned to the top of the library, first to last (at most ${MAX_PINNED_CARDS}). Takes the list_cards filters.`,
+    _meta: TEAK_APP_TOOL_META,
+    annotations: { title: "List pinned cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
   {
@@ -467,6 +480,34 @@ export const TEAK_V1_TOOLS = [
         isFavorited: { type: "boolean" },
       },
       ["cardId", "isFavorited"]
+    ),
+  },
+  {
+    name: "teak_v1_set_card_pinned",
+    description: `Pin a card to the top of the library, or unpin it. A new pin goes first. Up to ${MAX_PINNED_CARDS} cards can be pinned; pinning one more fails with PIN_LIMIT_REACHED. Archived cards can't be pinned, and archiving or trashing a card unpins it.`,
+    annotations: { title: "Pin card", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        isPinned: { type: "boolean" },
+      },
+      ["cardId", "isPinned"]
+    ),
+  },
+  {
+    name: "teak_v1_reorder_pinned_cards",
+    description:
+      "Set the order of the pinned cards. cardIds lists every pinned card's id exactly once, first to last; get them with teak_v1_list_pinned_cards.",
+    annotations: { title: "Reorder pinned cards", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        cardIds: {
+          type: "array",
+          maxItems: MAX_PINNED_CARDS,
+          items: { type: "string", minLength: 1 },
+        },
+      },
+      ["cardIds"]
     ),
   },
   {

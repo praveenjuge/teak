@@ -696,7 +696,8 @@
         "fav": "즐겨찾기",
         "archived": "보관됨",
         "done": "완료",
-        "todo": "할 일"
+        "todo": "할 일",
+        "pinned": "고정됨"
       },
       "chips": {
         "tag": "태그",

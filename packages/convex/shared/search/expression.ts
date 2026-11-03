@@ -20,6 +20,7 @@ export interface ExpressionCard {
   metadata?: {
     linkCategory?: { category?: string; price?: { amount?: number } };
   };
+  pinPosition?: number;
   type: CardType;
 }
 
@@ -67,6 +68,8 @@ export const cardMatchesQualifier = (
           return card.isFavorited === true;
         case "archived":
           return card.isArchived === true;
+        case "pinned":
+          return card.pinPosition !== undefined;
         case "done":
           return (
             card.type === "link" &&

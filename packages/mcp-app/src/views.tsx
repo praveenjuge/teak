@@ -192,6 +192,9 @@ const listTitle = (
   if (source === "favorites") {
     return t("favoritesTitle");
   }
+  if (source === "pinned") {
+    return t("pinnedTitle");
+  }
   if (source === "recent") {
     return t("recentTitle");
   }

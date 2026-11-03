@@ -37,6 +37,18 @@ interface CardDoneToggled {
   source: CardDoneSource;
 }
 
+export type CardPinSource = "grid" | "dialog" | "shortcut" | "api";
+
+interface CardPinToggled {
+  pinned: boolean;
+  source: CardPinSource;
+}
+
+interface CardPinsReordered {
+  count: number;
+  source: "strip" | "api";
+}
+
 export type LinkPdfSaveSource = "panel" | "api";
 
 export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
@@ -59,6 +71,8 @@ export interface ClientEventCatalog {
     via?: string;
   };
   card_done_toggled: CardDoneToggled;
+  card_pin_toggled: CardPinToggled;
+  card_pins_reordered: CardPinsReordered;
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };
   card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
@@ -126,6 +140,8 @@ export interface ServerEventCatalog {
   };
   card_created: { card_type: string; source: string };
   card_done_toggled: CardDoneToggled;
+  card_pin_toggled: CardPinToggled;
+  card_pins_reordered: CardPinsReordered;
   card_processing_completed: {
     ai_language?: string;
     card_type: string;

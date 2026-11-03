@@ -530,6 +530,7 @@
     <string name="native_filters_is_archived">보관됨</string>
     <string name="native_filters_is_done">완료</string>
     <string name="native_filters_is_fav">즐겨찾기</string>
+    <string name="native_filters_is_pinned">고정됨</string>
     <string name="native_filters_is_todo">할 일</string>
     <string name="native_filters_price_atLeast">%1$s 이상</string>
     <string name="native_filters_price_atMost">%1$s 이하</string>
@@ -864,6 +865,7 @@
     <string name="search_suggestions_isOptions_archived">보관됨</string>
     <string name="search_suggestions_isOptions_done">완료</string>
     <string name="search_suggestions_isOptions_fav">즐겨찾기</string>
+    <string name="search_suggestions_isOptions_pinned">고정됨</string>
     <string name="search_suggestions_isOptions_todo">할 일</string>
     <string name="search_suggestions_orDetail">어느 쪽이든 일치</string>
     <string name="search_visualStyles_abstract">추상적</string>

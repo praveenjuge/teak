@@ -75,6 +75,43 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
   await runCli(["--json", "cards", "delete", created.cardId], apiKey);
 });
 
+test("CLI pins cards, lists them in order, reorders and unpins", async () => {
+  const marker = `cli-pins-${Date.now()}`;
+  const make = async (suffix: string) =>
+    JSON.parse(
+      await runCli(["--json", "cards", "create", `${marker}-${suffix}`], apiKey)
+    ).cardId as string;
+  const first = await make("first");
+  const second = await make("second");
+
+  await runCli(["--json", "pin", first], apiKey);
+  await runCli(["--json", "cards", "pin", second], apiKey);
+  const listed = JSON.parse(await runCli(["--json", "cards", "pins"], apiKey));
+  expect(listed.items.map((card: { id: string }) => card.id)).toEqual([
+    second,
+    first,
+  ]);
+
+  const reordered = JSON.parse(
+    await runCli(["--json", "cards", "pins", "order", first, second], apiKey)
+  );
+  expect(reordered.map((card: { id: string }) => card.id)).toEqual([
+    first,
+    second,
+  ]);
+
+  const unpinned = JSON.parse(
+    await runCli(["--json", "pin", first, "--remove"], apiKey)
+  );
+  expect(unpinned.isPinned).toBe(false);
+  const searched = JSON.parse(
+    await runCli(["--json", "ls", "-q", `is:pinned ${marker}`], apiKey)
+  );
+  expect(searched.items.map((card: { id: string }) => card.id)).toEqual([
+    second,
+  ]);
+});
+
 test("CLI marks a link done, finds it with is:done, and undoes it", async () => {
   const url = `https://example.com/cli-done-${Date.now()}`;
   const created = JSON.parse(

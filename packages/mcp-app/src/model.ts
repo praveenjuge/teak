@@ -34,7 +34,7 @@ export interface TeakCard {
   url: string | null;
 }
 
-export type ListSource = "favorites" | "recent" | "search";
+export type ListSource = "favorites" | "pinned" | "recent" | "search";
 
 export type CardView =
   | { kind: "loading" }
@@ -183,6 +183,9 @@ const fileCardType = (mimeType: unknown): CardType => {
 const listSourceFor = (toolName: string | undefined): ListSource => {
   if (toolName === "teak_v1_list_favorite_cards") {
     return "favorites";
+  }
+  if (toolName === "teak_v1_list_pinned_cards") {
+    return "pinned";
   }
   if (toolName === "teak_v1_list_cards") {
     return "recent";

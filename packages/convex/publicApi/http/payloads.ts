@@ -12,6 +12,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../../shared/folders";
+import { MAX_PINNED_CARDS } from "../../shared/pins";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
 import { isSafeExternalUrl } from "../../shared/utils/safeUrl";
 import {
@@ -425,6 +426,35 @@ export const validateThumbnailSetPayload = (
   const source = payload as Record<string, unknown>;
   const fileKey = parseOptionalString(source.fileKey);
   return Object.keys(source).length === 1 && fileKey ? { fileKey } : null;
+};
+
+export const validatePinPayload = (
+  payload: unknown
+): { isPinned: boolean } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  return Object.keys(source).length === 1 &&
+    typeof source.isPinned === "boolean"
+    ? { isPinned: source.isPinned }
+    : null;
+};
+
+export const validatePinOrderPayload = (
+  payload: unknown
+): { cardIds: string[] } | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const source = payload as Record<string, unknown>;
+  const { cardIds } = source;
+  return Object.keys(source).length === 1 &&
+    Array.isArray(cardIds) &&
+    cardIds.length <= MAX_PINNED_CARDS &&
+    cardIds.every((id) => typeof id === "string" && id.length > 0)
+    ? { cardIds: cardIds as string[] }
+    : null;
 };
 
 export const validateFavoritePayload = (

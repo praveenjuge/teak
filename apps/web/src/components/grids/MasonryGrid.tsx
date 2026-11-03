@@ -27,7 +27,7 @@ import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
-import { isOptimisticCard } from "../cards/types";
+import { allFavorited, isOptimisticCard, type PinTarget } from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,
@@ -150,6 +150,7 @@ export interface MasonryGridProps {
   onRestoreCard?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
+  onTogglePin?: (card: PinTarget, source?: "grid" | "shortcut") => void;
   ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
@@ -177,6 +178,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   onPermanentDeleteCards,
   onToggleArchive,
   onToggleFavorite,
+  onTogglePin,
   onAddTags,
   onCopyImage,
   ref,
@@ -603,6 +605,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     () => filteredCards.filter((card) => selectedCardIds.has(card._id)),
     [filteredCards, selectedCardIds]
   );
+  const allSelectedFavorited = allFavorited(selectedCards);
 
   const selectionTags = useMemo(() => {
     const byName = new Map<string, string>();
@@ -836,6 +839,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onRestore={onRestoreCard}
           onToggleArchive={onToggleArchive}
           onToggleFavorite={onToggleFavorite}
+          onTogglePin={onTogglePin}
           onToggleSelection={toggleCardSelection}
         />
       );
@@ -850,6 +854,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       folder,
       onToggleArchive,
       onToggleFavorite,
+      onTogglePin,
       onAddTags,
       onCopyImage,
       isSelectionMode,
@@ -884,9 +889,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       event.key.length === 1 ? event.key.toLowerCase() : event.key,
       {
         addToFolder: Boolean(addToFolder),
-        allSelectedFavorited: selectedCards.every(
-          (selected) => selected.isFavorited
-        ),
+        allSelectedFavorited,
         hasSelection:
           isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction),
         isSelectionMode,
@@ -956,6 +959,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       },
       deleteForever: () => requestPermanentDelete?.(card._id),
       favorite: onToggleFavorite && (() => onToggleFavorite(card._id)),
+      pin: onTogglePin && (() => onTogglePin(card, "shortcut")),
       select: () => {
         if (isSelectionMode) {
           toggleCardSelection(card._id);
@@ -975,10 +979,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     showBulkActions && onBulkAction && isSelectionMode ? (
       <BulkActionBar
         addToFolder={addToFolder}
-        allFavorited={
-          selectedCards.length > 0 &&
-          selectedCards.every((selected) => selected.isFavorited)
-        }
+        allFavorited={allSelectedFavorited}
         folder={folder}
         isBusy={isBulkBusy}
         onAction={handleBulkAction}

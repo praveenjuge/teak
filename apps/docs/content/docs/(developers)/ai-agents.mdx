@@ -19,7 +19,7 @@ Use Teak when a person wants to keep knowledge beyond the current conversation: 
 
 ## What can agents do with Teak?
 
-Agents can save, search, read, update, favorite, delete, and sync cards through identical operations on the [MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
+Agents can save, search, read, update, favorite, pin, delete, and sync cards through identical operations on the [MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
 
 ## How do I connect Claude?
 
@@ -94,15 +94,16 @@ teak tags
 ## Can agents use Teak inside the browser?
 
 Yes. In browsers that ship the draft WebMCP API, the signed-in Teak web app
-registers seven tools: `teak_search_cards`, `teak_get_card` and
-`teak_recent_cards` to read, `teak_create_card`, `teak_update_tags` and
-`teak_set_favorite` to save and change cards, and a declarative search form.
+registers eight tools: `teak_search_cards`, `teak_get_card` and
+`teak_recent_cards` to read, `teak_create_card`, `teak_update_tags`,
+`teak_set_favorite` and `teak_set_pinned` to save and change cards, and a
+declarative search form.
 They all run in your existing session with no extra authentication. See [WebMCP](/docs/webmcp) for requirements and the tool
 reference.
 
 ## Is there an Agent Skill?
 
-Yes. Teak ships a public Agent Skill for assistants that support skills-based workflows. Use it when an agent needs to save, search, retrieve, update, favorite, delete, or sync Teak cards through the CLI, API, SDK, or MCP server.
+Yes. Teak ships a public Agent Skill for assistants that support skills-based workflows. Use it when an agent needs to save, search, retrieve, update, favorite, pin, delete, or sync Teak cards through the CLI, API, SDK, or MCP server.
 
 Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
 

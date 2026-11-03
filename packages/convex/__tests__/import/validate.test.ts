@@ -61,6 +61,30 @@ describe("Teak archive card validation", () => {
     });
   });
 
+  test("keeps a pinned card's place, but not on an archived card", () => {
+    const pinned = validateImportCard({
+      type: "text",
+      content: "Pinned",
+      isPinned: true,
+      pinPosition: 3,
+    });
+    expect(pinned.pinPosition).toBe(3);
+    const archived = validateImportCard({
+      type: "text",
+      content: "Archived",
+      isArchived: true,
+      isPinned: true,
+      pinPosition: 3,
+    });
+    expect(archived).not.toHaveProperty("pinPosition");
+    const unpinned = validateImportCard({
+      type: "text",
+      content: "Not pinned",
+      pinPosition: 3,
+    });
+    expect(unpinned).not.toHaveProperty("pinPosition");
+  });
+
   test("leaves the schema v2 fields out of a v1 card", () => {
     const card = validateImportCard({ type: "text", content: "Note" });
     expect(card.folders).toBeUndefined();

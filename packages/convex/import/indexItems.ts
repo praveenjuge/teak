@@ -70,6 +70,11 @@ export function normalizeIndexItem(
         ? { importedSavedAt: card.savedAt }
         : {}),
       importedCompletedAt: card.completedAt,
+      // Only a pinned card carries it, so imports of everything else pass
+      // while the Worker runs ahead of Convex.
+      ...(card.pinPosition === undefined
+        ? {}
+        : { importedPinPosition: card.pinPosition }),
       filePath: card.file?.path,
       fileName: card.file?.fileName,
       fileSize: card.file

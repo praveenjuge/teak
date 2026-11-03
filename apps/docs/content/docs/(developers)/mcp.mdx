@@ -154,6 +154,7 @@ type CardFilters = {
   type?: CardType | CardType[]; // several types match any of them
   tag?: string;                 // exact tag
   favorited?: boolean;
+  pinned?: boolean;             // true lists the cards pinned to the top, first to last without q
   trashed?: boolean;            // true lists Trash only
   archived?: "exclude" | "only" | "include";
   folder?: string;              // a folder id: only that folder's cards
@@ -183,6 +184,9 @@ type CardFilters = {
 - `teak_v1_list_favorite_cards`
   - Input: `CardFilters` (always limited to favorites)
   - Output: `{ items: Card[], total: number, pageInfo }`
+- `teak_v1_list_pinned_cards`
+  - Input: `CardFilters` (always limited to pinned cards)
+  - Output: `{ items: Card[], total: number, pageInfo }`, the pinned cards first to last (at most 12)
 - `teak_v1_get_card`
   - Input: `{ cardId: string }`
   - Output: full card object, including `processingStatus`
@@ -236,6 +240,13 @@ type CardFilters = {
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`
   - Output: updated card object
+- `teak_v1_set_card_pinned`
+  - Input: `{ cardId: string, isPinned: boolean }`
+  - Pins the card to the top of the library (a new pin goes first) or unpins it. Up to 12 cards can be pinned; one more fails with `PIN_LIMIT_REACHED`. Archived cards can't be pinned, and archiving or trashing a card unpins it.
+  - Output: updated card object, with `isPinned`
+- `teak_v1_reorder_pinned_cards`
+  - Input: `{ cardIds: string[] }`, every pinned card's id exactly once, first to last
+  - Output: `{ items: Card[], total: number }`, the pinned cards in their new order
 - `teak_v1_set_card_done`
   - Input: `{ cardId: string, done: boolean }`
   - Marks a link card read, watched, listened, bought, cooked, played or done (the word follows its `linkCategory`), or not done; `completedAt` says when. Only link cards can be marked; repeating a call changes nothing.

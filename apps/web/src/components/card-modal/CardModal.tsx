@@ -28,6 +28,8 @@ import {
   FileDown,
   FolderPlus,
   Heart,
+  Pin,
+  PinOff,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -355,6 +357,7 @@ interface CardModalProps {
   toggleArchive?: () => void;
   toggleDone?: () => void;
   toggleFavorite: () => void;
+  togglePin?: () => void;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
   updateTitle: (value: string | undefined) => void;
@@ -381,6 +384,7 @@ export function CardModal({
   toggleArchive,
   toggleDone,
   toggleFavorite,
+  togglePin,
   handleDelete,
   handleRestore,
   handlePermanentDelete,
@@ -715,6 +719,11 @@ export function CardModal({
           toggleFavorite();
         }
         break;
+      case "pin":
+        if (!isDeleted) {
+          togglePin?.();
+        }
+        break;
       case "archive":
         archive();
         break;
@@ -977,6 +986,19 @@ export function CardModal({
         ) : null,
       ]);
       menuGroups.push([
+        togglePin ? (
+          <DropdownMenuItem
+            aria-keyshortcuts={menuShortcuts.pin.keys}
+            key="pin"
+            onClick={togglePin}
+          >
+            {card.pinPosition === undefined ? <Pin /> : <PinOff />}
+            {card.pinPosition === undefined ? t("menu.pin") : t("menu.unpin")}
+            <DropdownMenuShortcut aria-hidden>
+              {menuShortcuts.pin.label}
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ) : null,
         toggleArchive ? (
           <DropdownMenuItem
             aria-keyshortcuts={menuShortcuts.archive.keys}

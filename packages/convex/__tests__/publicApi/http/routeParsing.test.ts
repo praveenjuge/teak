@@ -109,6 +109,7 @@ describe("parseCardsQueryOptions", () => {
       createdBefore: 20,
       cursor: "c1",
       favoritesOnly: true,
+      pinnedOnly: false,
       showTrashOnly: false,
       styleFilters: undefined,
       hueFilters: undefined,
@@ -123,6 +124,25 @@ describe("parseCardsQueryOptions", () => {
       tag: "ideas",
       type: "link",
       types: undefined,
+    });
+  });
+
+  test("pinned=true and is:pinned both ask for pinned cards only", () => {
+    const fromParam = parseCardsQueryOptions(get("pinned=true"));
+    const fromQuery = parseCardsQueryOptions(get("q=is:pinned"));
+    expect(fromParam).toMatchObject({ pinnedOnly: true });
+    expect(fromQuery).toMatchObject({ pinnedOnly: true });
+    expect(parseCardsQueryOptions(get(""))).toMatchObject({
+      pinnedOnly: false,
+    });
+  });
+
+  test("rejects a pinned value that isn't true or false", async () => {
+    const response = parseCardsQueryOptions(get("pinned=yes"));
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(400);
+    expect(await (response as Response).json()).toMatchObject({
+      code: "INVALID_INPUT",
     });
   });
 

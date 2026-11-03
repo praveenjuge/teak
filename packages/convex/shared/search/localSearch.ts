@@ -281,6 +281,9 @@ export const filterLocalCards = (
       if ((favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
         return false;
       }
+      if (parsed.pinned && card.pinPosition === undefined) {
+        return false;
+      }
 
       // Date words bound when the card was last saved.
       if (

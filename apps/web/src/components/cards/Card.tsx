@@ -24,6 +24,8 @@ import {
   Heart,
   LoaderCircle,
   Pencil,
+  Pin,
+  PinOff,
   RefreshCw,
   RotateCcw,
   SquareCheckBig,
@@ -157,6 +159,7 @@ export const Card = memo(function Card({
   onRestore,
   onPermanentDelete,
   onToggleFavorite,
+  onTogglePin,
   onToggleArchive,
   onAddTags,
   onEditFolders,
@@ -166,6 +169,7 @@ export const Card = memo(function Card({
   isSelected,
   isPriority = false,
   isTabStop = true,
+  nativeDrag = true,
   onEnterSelectionMode,
   onRemoveFromFolder,
   onToggleSelection,
@@ -279,6 +283,13 @@ export const Card = memo(function Card({
     onToggleFavorite?.(card._id);
   };
 
+  const handleTogglePin = () => {
+    if (isOptimistic) {
+      return;
+    }
+    onTogglePin?.(card);
+  };
+
   const handleToggleArchive = () => {
     if (isOptimistic) {
       return;
@@ -348,18 +359,24 @@ export const Card = memo(function Card({
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
+  const pinned = card.pinPosition !== undefined;
+  const showPinMark = pinned && !isOptimistic;
   const showQuickActions = !(isOptimistic || isSelectionMode);
-  // Touch screens keep the More button showing, so text makes room for it,
-  // and for the heart that moves beside it.
-  let textInsets = showFavoriteMark ? "pr-11" : "";
+  // Text makes room for the heart and pin marks, and on touch screens for
+  // the More button that keeps showing beside them.
+  const marks = Number(showFavoriteMark) + Number(showPinMark);
+  let textInsets = ["", "pr-11", "pr-19"][marks] ?? "";
   if (showQuickActions) {
     textInsets = cn(
       textInsets,
-      showFavoriteMark ? "pointer-coarse:pr-20" : "pointer-coarse:pr-11"
+      ["pointer-coarse:pr-11", "pointer-coarse:pr-20", "pointer-coarse:pr-28"][
+        marks
+      ]
     );
   }
 
-  const canDrag = !(isOptimistic || isSelectionMode || card.isDeleted);
+  const canDrag =
+    nativeDrag && !(isOptimistic || isSelectionMode || card.isDeleted);
   const handleDragStart = (event: DragEvent<HTMLElement>) => {
     event.dataTransfer.clearData();
     event.dataTransfer.setData(CARD_DRAG_TYPE, card._id);
@@ -388,7 +405,8 @@ export const Card = memo(function Card({
         shortcut: shortcuts.select,
       };
   // Trash selects cards too, for "Delete forever" and "Restore" in bulk.
-  const canSelectInTrash = Boolean(
+  // The Pinned row has no selection, so its cards offer no Select.
+  const canSelect = Boolean(
     isSelectionMode ? onToggleSelection : onEnterSelectionMode
   );
   const menuItems: CardMenuEntry[] = [
@@ -415,7 +433,7 @@ export const Card = memo(function Card({
       : []),
     ...(card.isDeleted
       ? [
-          ...(canSelectInTrash ? [selectItem] : []),
+          ...(canSelect ? [selectItem] : []),
           {
             icon: RotateCcw,
             id: "restore",
@@ -433,7 +451,7 @@ export const Card = memo(function Card({
           },
         ]
       : [
-          selectItem,
+          ...(canSelect ? [selectItem] : []),
           {
             icon: Tag,
             id: "addTags",
@@ -479,6 +497,17 @@ export const Card = memo(function Card({
             onSelect: handleToggleFavorite,
             shortcut: shortcuts.favorite,
           },
+          ...(onTogglePin && !card.isArchived
+            ? [
+                {
+                  icon: pinned ? PinOff : Pin,
+                  id: "pin",
+                  label: pinned ? t("menu.unpin") : t("menu.pin"),
+                  onSelect: handleTogglePin,
+                  shortcut: shortcuts.pin,
+                },
+              ]
+            : []),
           ...(onEditLink && card.type === "link" && card.url
             ? [
                 {
@@ -625,20 +654,44 @@ export const Card = memo(function Card({
             </ShortcutTooltip>
           ) : null}
 
-          {showFavoriteMark && (
+          {showFavoriteMark || showPinMark ? (
             <div
-              aria-hidden="true"
               className={cn(
-                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex size-7 items-center justify-center rounded-full transition-opacity duration-150",
-                isMediaCard &&
-                  "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10",
+                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
                 showQuickActions &&
                   "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
               )}
             >
-              <Heart className="size-3.5 fill-destructive text-destructive" />
+              {showPinMark ? (
+                <span
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full",
+                    isMediaCard &&
+                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                  )}
+                  data-pin-mark=""
+                >
+                  <Pin
+                    aria-label={t("pinnedMark")}
+                    className="size-3.5 fill-foreground text-foreground"
+                    role="img"
+                  />
+                </span>
+              ) : null}
+              {showFavoriteMark ? (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full",
+                    isMediaCard &&
+                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                  )}
+                >
+                  <Heart className="size-3.5 fill-destructive text-destructive" />
+                </span>
+              ) : null}
             </div>
-          )}
+          ) : null}
 
           {showQuickActions && (
             <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
