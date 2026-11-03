@@ -1,8 +1,8 @@
 ---
 title: "November 2026"
-description: Pin up to 12 cards to the top of your library, a card's actions move beside it, into its details, a list-style Settings, a calmer browser extension popup, quicker capture on the Mac, and a round of fixes to saving, search, Trash, imports and Settings.
+description: Pin up to 12 cards to the top of your library, folders that tag and file your cards, a card's actions move beside it, into its details, a list-style Settings, a calmer browser extension popup, quicker capture on the Mac, and a round of fixes to saving, search, Trash, imports and Settings.
 type: changelog
-date: "2026-11-01"
+date: "2026-11-03"
 changelog:
   category: Product updates
 ---
@@ -13,6 +13,12 @@ changelog:
 - Pinned cards leave the grid below, so nothing shows twice. Searches, filters, Favorites and folders show a pinned card where it ranks, with a pin in its corner, and `is:pinned` finds them all.
 - Archiving a card or moving it to Trash unpins it. Favorites stay as they are: a card can be both.
 - Agents and scripts pin, list and reorder pins through the [API](/docs/api#pinned-cards), MCP, SDK and CLI (`teak pin`, `teak cards pins`), and exports keep which cards were pinned.
+
+## Folders that tag and file cards for you
+
+- A folder can now have rules. Open its **Edit…** dialog and choose **Add a rule**: add tags that every card put in the folder gets, or a search such as `tag:typography`, and Teak files matching cards into the folder once it has read them. See [Folder rules](/docs/features#folder-rules).
+- Saving a rule applies it to the cards you already have and tells you how many it updated, with **Undo**. **Undo last run** stays in the dialog for a day, and a card or tag you take out by hand stays out.
+- **API, MCP, SDK and CLI:** folders include their `rules`, can set them when created or updated, and can follow or undo a rule run (`teak folders rules`). See [Folder rules](/docs/api#folder-rules).
 
 ## A card's actions sit beside it
 
