@@ -137,6 +137,7 @@ export function useFolderRulesForm(
             autoFileQuery: canonicalQuery || null,
             ...(canonicalQuery ? { autoFileEnabled: enabled } : {}),
           },
+    nextTags,
     preview: previewQuery === canonicalQuery ? preview : undefined,
     problem: tagProblem ?? queryProblem,
     query,
@@ -208,7 +209,8 @@ export function FolderRulesFields({
   } else if (form.atTagLimit) {
     tagHelp = t("tagsLimit", { max: MAX_FOLDER_AUTO_TAGS });
   }
-  const hiddenTag = hiddenTagIn(form.tags);
+  // Counts a tag still being typed, since Save adds it too.
+  const hiddenTag = hiddenTagIn(form.nextTags);
   const lastRunText = lastRun ? lastRunSummary(t, lastRun) : null;
 
   if (!form.expanded) {

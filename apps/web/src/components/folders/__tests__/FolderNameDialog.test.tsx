@@ -197,6 +197,17 @@ describe("FolderNameDialog rules", () => {
     ]);
   });
 
+  test("warns about a hidden tag still being typed, since Save adds it", async () => {
+    await render();
+    await act(() => {
+      button("Add a rule")?.click();
+    });
+    await typeInto(labelled("Add these tags"), "hidden");
+    expect(text()).toContain(
+      "Cards in this folder will be hidden from your library, because of the tag hidden."
+    );
+  });
+
   test("renaming alone leaves the rules out of the change", async () => {
     await render(folder({ autoTags: ["type"], autoFile: null }));
     await typeInto(labelled("Name"), "Type");

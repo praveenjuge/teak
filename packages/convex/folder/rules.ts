@@ -1073,7 +1073,7 @@ export const previewFolderRule = query({
     const page = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted_created", (q) =>
-        q.eq("userId", user.teakUserId)
+        q.eq("userId", user.teakUserId).eq("isDeleted", undefined)
       )
       .order("desc")
       .paginate({
@@ -1086,10 +1086,7 @@ export const previewFolderRule = query({
     // document's text can be missed here, though the rule itself finds it.
     for (const card of page.page) {
       if (
-        matches?.(
-          card,
-          buildCardSearchText(card, undefined, card.aiTranscript)
-        )
+        matches?.(card, buildCardSearchText(card, undefined, card.aiTranscript))
       ) {
         count += 1;
       }

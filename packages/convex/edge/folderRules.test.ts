@@ -8,7 +8,10 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
 import { syncCardSearchDocumentHandler } from "../card/searchSync";
-import { FOLDER_RULE_BATCH_SIZE } from "../folder/rules";
+import {
+  FOLDER_RULE_BATCH_SIZE,
+  FOLDER_RULE_PREVIEW_LIMIT,
+} from "../folder/rules";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import {
@@ -726,6 +729,28 @@ describe("rule runs", () => {
       changes: await ctx.db.query("folderRuleRunChanges").collect(),
     }));
     expect(left).toEqual({ runs: [], changes: [] });
+  });
+});
+
+describe("rule preview", () => {
+  test("counts the newest cards outside the Trash", async () => {
+    const { t, owner, insert } = await setup();
+    await insert({ aiTags: ["fonts"] });
+    await t.run(async (ctx) => {
+      for (let index = 0; index < FOLDER_RULE_PREVIEW_LIMIT; index += 1) {
+        await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `Trashed ${index}`,
+          isDeleted: true,
+          createdAt: 10_000 + index,
+          updatedAt: 10_000 + index,
+        });
+      }
+    });
+    expect(
+      await owner.query(api.folders.previewFolderRule, { query: "tag:fonts" })
+    ).toEqual({ matches: 1, capped: false });
   });
 });
 
