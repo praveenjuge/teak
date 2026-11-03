@@ -60,11 +60,176 @@ describe("public API folders", () => {
           kind: "manual",
           query: null,
           cardCount: 3,
+          rules: { autoTags: [], autoFile: null },
+          ruleRunId: null,
           createdAt: 1,
           updatedAt: 2,
         },
       ],
     });
+  });
+
+  test("sends rule fields and returns a manual folder's rules and latest run", async () => {
+    const mutation = mock().mockResolvedValue({
+      ...folder,
+      rules: {
+        autoTags: ["to-read"],
+        autoFile: { query: "tag:fonts", enabled: false },
+      },
+      ruleRunId: "run_1",
+    });
+    const patched = await run(
+      {
+        method: "PATCH",
+        path: "/v1/folders/folder_1",
+        body: {
+          autoTags: ["to-read"],
+          autoFileQuery: "tag:fonts",
+          autoFileEnabled: false,
+        },
+      },
+      { mutation }
+    ).response;
+    expect(patched.status).toBe(200);
+    expect(argsOf(mutation)).toMatchObject({
+      folderId: "folder_1",
+      autoTags: ["to-read"],
+      autoFileQuery: "tag:fonts",
+      autoFileEnabled: false,
+    });
+    expect(await patched.json()).toMatchObject({
+      rules: {
+        autoTags: ["to-read"],
+        autoFile: { query: "tag:fonts", enabled: false },
+      },
+      ruleRunId: "run_1",
+    });
+
+    const created = mock().mockResolvedValue(folder);
+    await run(
+      {
+        method: "POST",
+        path: "/v1/folders",
+        body: { name: "Fonts", autoFileQuery: null, autoTags: [] },
+      },
+      { mutation: created }
+    ).response;
+    expect(argsOf(created)).toMatchObject({
+      name: "Fonts",
+      autoFileQuery: null,
+      autoTags: [],
+    });
+  });
+
+  test("a smart folder has no rules", async () => {
+    const query = mock().mockResolvedValue({
+      ...folder,
+      kind: "smart",
+      query: "type:image",
+    });
+    const got = await run(
+      { method: "GET", path: "/v1/folders/folder_1" },
+      { query }
+    ).response;
+    expect(await got.json()).toMatchObject({
+      rules: null,
+      query: "type:image",
+    });
+  });
+
+  test("refuses malformed rule fields", async () => {
+    for (const body of [
+      { autoTags: "design" },
+      { autoTags: Array.from({ length: 11 }, (_, index) => `t${index}`) },
+      { autoFileQuery: 3 },
+      { autoFileEnabled: "yes" },
+    ]) {
+      const refused = await run({
+        method: "PATCH",
+        path: "/v1/folders/folder_1",
+        body,
+      }).response;
+      expect(refused.status, JSON.stringify(body)).toBe(400);
+    }
+  });
+
+  test("maps the rule cap to 409 RULE_LIMIT", async () => {
+    const mutation = mock().mockRejectedValue(
+      new ConvexError({ code: "RULE_LIMIT", message: "Too many rules" })
+    );
+    const response = await run(
+      {
+        method: "PATCH",
+        path: "/v1/folders/folder_1",
+        body: { autoTags: ["x"] },
+      },
+      { mutation }
+    ).response;
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "RULE_LIMIT",
+      error: "Too many rules",
+    });
+  });
+
+  test("reads and undoes a rule run", async () => {
+    const ruleRun = {
+      _id: "run_1",
+      folderId: "folder_1",
+      status: "done",
+      filedCount: 4,
+      taggedCount: 2,
+      canUndo: true,
+      createdAt: 5,
+      completedAt: 6,
+    };
+    const query = mock().mockResolvedValue(ruleRun);
+    const got = await run(
+      { method: "GET", path: "/v1/folders/folder_1/rule-runs/run_1" },
+      { query }
+    ).response;
+    expect(got.status).toBe(200);
+    expect(argsOf(query)).toMatchObject({
+      folderId: "folder_1",
+      runId: "run_1",
+    });
+    expect(await got.json()).toEqual({
+      id: "run_1",
+      folderId: "folder_1",
+      status: "done",
+      filedCount: 4,
+      taggedCount: 2,
+      canUndo: true,
+      createdAt: 5,
+      completedAt: 6,
+    });
+
+    const mutation = mock().mockResolvedValue({
+      ...ruleRun,
+      status: "undoing",
+      canUndo: false,
+      completedAt: undefined,
+    });
+    const undone = await run(
+      { method: "POST", path: "/v1/folders/folder_1/rule-runs/run_1/undo" },
+      { mutation }
+    ).response;
+    expect(undone.status).toBe(200);
+    expect(await undone.json()).toMatchObject({
+      status: "undoing",
+      completedAt: null,
+    });
+
+    const wrongMethod = await run({
+      method: "DELETE",
+      path: "/v1/folders/folder_1/rule-runs/run_1",
+    }).response;
+    expect(wrongMethod.status).toBe(405);
+    const unknown = await run({
+      method: "GET",
+      path: "/v1/folders/folder_1/rule-runs",
+    }).response;
+    expect(unknown.status).toBe(404);
   });
 
   test("creates a folder from a valid body only", async () => {

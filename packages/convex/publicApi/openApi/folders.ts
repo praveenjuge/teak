@@ -4,6 +4,16 @@ import {
 } from "../../shared/folders";
 import { apiKeySecurity, folderIdParameters } from "./components";
 
+const ruleRunParameters = [
+  ...folderIdParameters,
+  {
+    in: "path",
+    name: "runId",
+    required: true,
+    schema: { type: "string" },
+  },
+];
+
 export const folderPaths = {
   "/v1/folders": {
     get: {
@@ -56,7 +66,7 @@ export const folderPaths = {
         400: { description: "Invalid name or color" },
         409: {
           description:
-            "A folder with this name exists (`CONFLICT`) or the account has the most folders it can (`LIMIT_REACHED`)",
+            "A folder with this name exists (`CONFLICT`), the account has the most folders it can (`LIMIT_REACHED`), or the most folders with rules (`RULE_LIMIT`)",
         },
       },
     },
@@ -82,7 +92,9 @@ export const folderPaths = {
     patch: {
       operationId: "updateFolder",
       parameters: folderIdParameters,
-      summary: "Rename or recolor a folder",
+      summary: "Rename, recolor or change the rules of a folder",
+      description:
+        "Saving new auto-tags, or a new or resumed auto-file search, starts a rule run over the cards already in the library; the response's `ruleRunId` names it.",
       security: apiKeySecurity,
       requestBody: {
         required: true,
@@ -102,7 +114,10 @@ export const folderPaths = {
           },
         },
         404: { description: "Folder not found" },
-        409: { description: "A folder with this name exists" },
+        409: {
+          description:
+            "A folder with this name exists (`CONFLICT`) or the account has rules on the most folders it can (`RULE_LIMIT`)",
+        },
       },
     },
     delete: {
@@ -173,6 +188,49 @@ export const folderPaths = {
         },
         404: { description: "Folder not found" },
         409: { description: "SMART_FOLDER: the folder is a smart folder" },
+      },
+    },
+  },
+  "/v1/folders/{folderId}/rule-runs/{runId}": {
+    get: {
+      operationId: "getFolderRuleRun",
+      parameters: ruleRunParameters,
+      summary: "Get a folder rule run",
+      description:
+        "How far a pass of the folder's rules over the library has got, and whether it can still be undone.",
+      security: apiKeySecurity,
+      responses: {
+        200: {
+          description: "Rule run",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderRuleRun" },
+            },
+          },
+        },
+        404: { description: "Folder or rule run not found" },
+      },
+    },
+  },
+  "/v1/folders/{folderId}/rule-runs/{runId}/undo": {
+    post: {
+      operationId: "undoFolderRuleRun",
+      parameters: ruleRunParameters,
+      summary: "Undo a folder rule run",
+      description:
+        "Takes the folder off the cards the run filed and the tags off the cards it tagged, where they are still there. The rules stay, and never put those cards or tags back.",
+      security: apiKeySecurity,
+      responses: {
+        200: {
+          description: "The run, now undoing",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FolderRuleRun" },
+            },
+          },
+        },
+        404: { description: "Folder or rule run not found" },
+        409: { description: "The run is more than a day old" },
       },
     },
   },
