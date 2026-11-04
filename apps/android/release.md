@@ -8,7 +8,9 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 
 1. **Play Console**
    - A personal developer account with identity, Android device and phone verified.
-   - The app entry "Teak" with package `com.praveenjuge.teak`.
+   - The app entry "Teak: Save Inspirations" with package `com.praveenjuge.teak`, live in production since November 2026.
+   - **Production access** is granted, so this never repeats. New personal accounts must first run a closed test with 12 or more testers opted in for 14 days in a row, then apply under Dashboard, "Apply for production", and answer its questions about the test truthfully.
+   - **Trader status** is declared for the account (Trader) and for the app, with the Terms of Service link https://teakvault.com/docs/terms-of-service. The EU requires it. The developer name, address, email and phone show on the public developer profile.
 2. **Upload key**
    - The key lives at `~/.teak-android/teak-upload.jks`, alias `upload`.
    - Its password is in the macOS login Keychain under `teak-android-upload-key`.
@@ -72,21 +74,19 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 4. **Internal testing**
    - Play Console, Test and release, Internal testing, Create new release. The testers are the "Teak team" email list, and they install from https://play.google.com/apps/internaltest/4701620222568108073.
    - Upload the AAB and use the release note below.
-   - Roll out to internal testers.
+   - Roll out to internal testers. Internal releases go out at once, without review.
 
-5. **Closed testing**
-   - The first time only: promote the internal release to Closed testing, with the Google Group [teak-android-testers@googlegroups.com](https://groups.google.com/g/teak-android-testers) as its testers. Anyone can join the group.
-   - Testers join the group, then opt in at https://play.google.com/apps/testing/com.praveenjuge.teak and install Teak from Google Play.
-   - Google requires 12 or more testers opted in for 14 days in a row before you can apply for production. Updates during the test don't reset the clock.
+5. **Closed testing (optional beta)**
+   - Add the same bundle from the library to Closed testing - Alpha when you want early feedback. Its testers are the Google Group [teak-android-testers@googlegroups.com](https://groups.google.com/g/teak-android-testers), which anyone can join, and they opt in at https://play.google.com/apps/testing/com.praveenjuge.teak.
 
-6. **Production access**
-   - After 14 days, apply in Play Console, under Dashboard and then "Apply for production".
-   - Answer the questions about the closed test truthfully.
+6. **Production**
+   - Test and release, Production, Create new release. Choose **Add from library** and pick the same bundle, so the version Google reviews is the one you tested.
+   - Use the release note below, then set a staged rollout of 20 percent. Play allows staged rollouts only for updates, so the first release (1.0.92) went to everyone at once.
+   - Save, then open **Publishing overview** and choose **Submit N changes for review**. Managed publishing is off, so the release goes live as soon as Google approves it, usually within a few days.
+   - If Publishing overview says **Cannot send changes for review**, a declaration in App content is out of date (for example trader status or Data safety). Fix it there, then submit again.
+   - After a day with no new crashes in PostHog error tracking or Play's Android vitals, raise the rollout to 100 percent.
 
-7. **Production**
-   - Once approved, create a production release from the same AAB as a staged rollout: 20 percent, then 100 percent after a day with no new crashes in PostHog error tracking.
-
-8. Record the version code you shipped in the GitHub release notes for `v<version>`.
+7. Record the version code you shipped in the GitHub release notes for `v<version>`.
 
 The release note is:
 
