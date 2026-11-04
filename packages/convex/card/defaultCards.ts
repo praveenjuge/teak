@@ -354,7 +354,7 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
     ],
     metadataTitle: "Teak Apps",
     metadataDescription:
-      "Save ideas with Teak on Mac, iPhone, and iPad, web, browser extensions, and Raycast, with Android coming soon. Connect your library through the API, MCP, CLI, and agent skills.",
+      "Save ideas with Teak on Mac, iPhone, iPad, Android, web, browser extensions, and Raycast. Connect your library through the API, MCP, CLI, and agent skills.",
     metadata: {
       linkPreview: {
         source: "teak",
@@ -364,7 +364,7 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
         canonicalUrl: "https://teakvault.com/apps",
         title: "Teak Apps",
         description:
-          "Save ideas with Teak on Mac, iPhone, and iPad, web, browser extensions, and Raycast, with Android coming soon. Connect your library through the API, MCP, CLI, and agent skills.",
+          "Save ideas with Teak on Mac, iPhone, iPad, Android, web, browser extensions, and Raycast. Connect your library through the API, MCP, CLI, and agent skills.",
         siteName: "Teak",
         author: "Teak Team",
         publisher: "Teak",
