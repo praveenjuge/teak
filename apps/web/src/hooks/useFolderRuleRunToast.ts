@@ -40,13 +40,16 @@ export function useFolderRuleRunToast() {
       return;
     }
     const id = toastId(run._id);
+    // Sonner merges an update into the toast with the same id, so clear the
+    // done toast's Undo and duration instead of carrying them over.
+    const update = { id, action: undefined, duration: undefined };
     const name = clipFolderName(followed.name);
     if (run.status === "running") {
-      toast.loading(t("running", { name }), { id });
+      toast.loading(t("running", { name }), update);
       return;
     }
     if (run.status === "undoing") {
-      toast.loading(t("undoing", { name }), { id });
+      toast.loading(t("undoing", { name }), update);
       return;
     }
     const key = `${run._id}:${run.status}`;
@@ -55,7 +58,7 @@ export function useFolderRuleRunToast() {
     }
     settled.current.add(key);
     if (run.status === "undone") {
-      toast.success(t("undone", { name }), { id });
+      toast.success(t("undone", { name }), update);
       return;
     }
     if (run.status === "superseded") {
@@ -63,7 +66,7 @@ export function useFolderRuleRunToast() {
       return;
     }
     if (run.changedCount === 0) {
-      toast.success(t("nothing", { name }), { id });
+      toast.success(t("nothing", { name }), update);
       return;
     }
     toast.success(t("done", { count: run.changedCount, name }), {
