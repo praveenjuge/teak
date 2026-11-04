@@ -384,5 +384,6 @@ export const PAGES_WITHOUT_IMAGES = [
   "(legal)/terms-of-service.mdx",
   "(apps)/mac.mdx",
   "(apps)/mobile.mdx",
+  "(apps)/android.mdx",
   "(apps)/raycast.mdx",
 ];

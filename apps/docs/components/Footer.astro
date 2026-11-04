@@ -4,6 +4,7 @@ import {
   APP_STORE_URL,
   CHROME_STORE_URL,
   FIREFOX_ADDONS_URL,
+  PLAY_STORE_URL,
   RAYCAST_STORE_URL,
 } from "../lib/app-links";
 import { AUDIENCE_PAGE_LIST } from "../lib/audience-pages";
@@ -15,6 +16,11 @@ const stores = [
     href: APP_STORE_URL,
     icon: "/platform-icons/apple.svg",
     iconClass: "dark:invert",
+  },
+  {
+    name: "Google Play",
+    href: PLAY_STORE_URL,
+    icon: "/platform-icons/android.svg",
   },
   {
     name: "Chrome",
@@ -50,6 +56,7 @@ const columns = [
     links: [
       { name: "Mac", href: "/docs/mac" },
       { name: "iPhone & iPad", href: "/docs/mobile" },
+      { name: "Android", href: "/docs/android" },
       { name: "Browser extensions", href: "/docs/extension" },
       { name: "Raycast", href: "/docs/raycast" },
       { name: "Command line", href: "/docs/cli" },

@@ -441,6 +441,7 @@
         "chrome": "Chrome",
         "firefox": "Firefox",
         "apple": "iPhone et Mac",
+        "android": "Android",
         "raycast": "Raycast"
       },
       "allApps": "Toutes les applications",

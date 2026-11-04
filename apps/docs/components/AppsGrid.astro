@@ -5,6 +5,7 @@ import {
   CHROME_STORE_URL,
   FIREFOX_ADDONS_URL,
   MAC_APP_STORE_URL,
+  PLAY_STORE_URL,
   RAYCAST_STORE_URL,
 } from "../lib/app-links";
 
@@ -27,7 +28,6 @@ interface Badge {
 
 interface AppCard {
   badge?: Badge;
-  comingSoon?: boolean;
   copy: string;
   href?: string;
   iconAlt: string;
@@ -81,11 +81,17 @@ const deviceCards: AppCard[] = [
   },
   {
     platform: "android",
-    comingSoon: true,
     name: "Android",
-    copy: "Share into Teak from any app, or select text and choose Save to Teak. Coming soon to Google Play.",
+    copy: "Share into Teak from any app, or select text and choose Save to Teak. Uploads keep going in the background.",
     iconAlt: "Android icon",
     iconSrc: "/platform-icons/android.svg",
+    href: PLAY_STORE_URL,
+    badge: {
+      src: "/badges/google-play.svg",
+      alt: "Get it on Google Play",
+      width: 135,
+      height: 40,
+    },
   },
   {
     name: "Raycast",
@@ -241,7 +247,6 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
               </span>
               <span class="flex flex-wrap justify-end gap-1.5">
                 <span class="current-pill" data-current-pill hidden>For your device</span>
-                {card.comingSoon && <span class="soon-pill">Coming soon</span>}
               </span>
             </div>
             <h3 class="mt-4 text-lg leading-tight font-semibold tracking-[-0.01em]">
@@ -267,9 +272,6 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
                 <span class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-opacity group-hover:opacity-90">
                   {card.label}
                 </span>
-              )}
-              {card.comingSoon && (
-                <img alt="Google Play, coming soon" class="h-10 w-auto opacity-35 grayscale" height="40" src="/badges/google-play.svg" width="135" />
               )}
             </div>
           </li>
@@ -428,8 +430,7 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     .app-card:not(.app-card-static):hover { translate: 0 -3px; }
   }
 
-  .current-pill,
-  .soon-pill {
+  .current-pill {
     display: inline-flex;
     align-items: center;
     height: 1.5rem;
@@ -439,20 +440,8 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     font-weight: 600;
     letter-spacing: 0.02em;
     white-space: nowrap;
-  }
-
-  .current-pill {
     background: color-mix(in oklab, var(--primary) 14%, transparent);
     color: var(--primary);
-  }
-
-  .soon-pill {
-    background: color-mix(in oklab, #34a853 16%, transparent);
-    color: #1e7a3a;
-  }
-
-  :is(.dark, [data-theme="dark"]) .soon-pill {
-    color: #6fd08c;
   }
 
   .app-icon {
