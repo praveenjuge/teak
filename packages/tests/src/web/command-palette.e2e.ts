@@ -1,6 +1,5 @@
 import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
-import { retry } from "../helpers/test";
 import { expect, generateTestContent, test } from "./fixtures";
 
 const pathOf = async (url: Promise<string>) => new URL(await url).pathname;
@@ -103,18 +102,18 @@ test("Export in the palette opens Settings at its Export section", async ({
   await expect(screen.getByRole("button", "Sign out")).toBeEnabled({
     timeout: 30_000,
   });
+  // Settings paints its shell before hydration wires the palette's key
+  // listener; the usage meter only renders with live account data, so it
+  // proves the app is interactive before the key press.
+  await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible({
+    timeout: 30_000,
+  });
+  await browser.keyboard.press("ControlOrMeta+k");
   const input = screen.getByRole(
     "combobox",
     "Search commands, folders and cards"
   );
-  // Settings paints before it hydrates, so a first ⌘K can land before the
-  // palette's key listener attaches; press again until the palette opens.
-  await retry(async () => {
-    if (!(await input.isVisible())) {
-      await browser.keyboard.press("ControlOrMeta+k");
-    }
-    await expect(input).toBeVisible({ timeout: 2_000 });
-  });
+  await expect(input).toBeVisible({ timeout: 30_000 });
   await input.pressSequentially("export");
   await browser.keyboard.press("Enter");
   await expect(screen.getByRole("region", "Export")).toBeVisible();
