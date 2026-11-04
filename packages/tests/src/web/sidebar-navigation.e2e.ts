@@ -1,4 +1,5 @@
 import { expectVault, gotoApp } from "../helpers/app";
+import { retry } from "../helpers/test";
 import { expect, test } from "./fixtures";
 
 const VIEWS = [
@@ -121,8 +122,14 @@ test("on a phone the sidebar is a drawer that closes after navigating", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
   const drawer = browser.locator('[data-mobile="true"]');
-  await screen.getByRole("button", "Toggle sidebar").click();
-  await expect(drawer).toBeVisible();
+  // The page paints before it hydrates, so a first toggle click can land
+  // before its handler attaches; click again until the drawer opens.
+  await retry(async () => {
+    if (!(await drawer.isVisible())) {
+      await screen.getByRole("button", "Toggle sidebar").click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 2_000 });
+  });
   await browser.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
 
