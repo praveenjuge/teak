@@ -29,9 +29,11 @@ const { useFolderRuleRunToast } = await import("../useFolderRuleRunToast");
 let root: Root | undefined;
 let follow: ReturnType<typeof useFolderRuleRunToast> = () => undefined;
 
-afterEach(async () => {
+afterEach(() => {
   toast.dismiss();
-  await act(() => root?.unmount());
+  act(() => {
+    root?.unmount();
+  });
   root = undefined;
   run = undefined;
   undoRun.mockClear();
@@ -52,14 +54,14 @@ const nextTick = () =>
 // Re-renders with the run in a new status.
 async function showRun(status: string, extra: Record<string, unknown> = {}) {
   run = { _id: "run_1", canUndo: true, changedCount: 2, status, ...extra };
-  await act(() =>
+  act(() => {
     root?.render(
       <>
         <Toaster />
         <Harness status={status} />
       </>
-    )
-  );
+    );
+  });
   await nextTick();
 }
 
@@ -75,13 +77,13 @@ test("the run's Undo goes away once the run is undoing and undone", async () => 
   document.body.append(container);
   root = createRoot(container);
   await showRun("running");
-  await act(() =>
+  act(() => {
     follow({
       folderId: "folder_1" as never,
       name: "Fonts",
       runId: "run_1" as never,
-    })
-  );
+    });
+  });
   await nextTick();
 
   await showRun("done");
