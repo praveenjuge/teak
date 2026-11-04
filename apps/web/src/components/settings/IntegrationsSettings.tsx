@@ -18,7 +18,7 @@ import {
 
 const ALL_APPS_URL = "https://teakvault.com/apps";
 
-type AppLinkId = "chrome" | "firefox" | "apple" | "raycast";
+type AppLinkId = "chrome" | "firefox" | "apple" | "android" | "raycast";
 
 const APP_LINKS: readonly {
   href: string;
@@ -39,6 +39,11 @@ const APP_LINKS: readonly {
     id: "apple",
     logo: "/platform-icons/apple.svg",
     href: "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989",
+  },
+  {
+    id: "android",
+    logo: "/platform-icons/android.svg",
+    href: "https://play.google.com/store/apps/details?id=com.praveenjuge.teak",
   },
   {
     id: "raycast",

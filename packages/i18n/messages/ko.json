@@ -441,6 +441,7 @@
         "chrome": "Chrome",
         "firefox": "Firefox",
         "apple": "iPhone 및 Mac",
+        "android": "Android",
         "raycast": "Raycast"
       },
       "allApps": "모든 앱",

@@ -17,8 +17,8 @@ bare captures; the page draws its own meadow behind them.
 
 - `shots.ts`: every image, its alt text (the same text the page uses), and the
   pages that need none (`PAGES_WITHOUT_IMAGES`: the legal pages, Raycast, which
-  shows its store's install button, and the Mac and mobile pages until there
-  are fresh native captures).
+  shows its store's install button, and the Mac, mobile and Android pages
+  until there are fresh native captures).
 - `seed.ts` and `seed-names.ts`: the cards the Features shots add to the
   store showcase, and the names `capture.ts` opens them by.
 - `capture.ts`: signs in to the local stack and captures each web shot into
