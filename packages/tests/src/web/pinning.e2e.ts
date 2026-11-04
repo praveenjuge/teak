@@ -89,12 +89,15 @@ test("a 13th pin is refused with a message", async ({
       type: "text",
     });
     library.ids.push(id);
-    if (index < 12) {
-      await library.client.mutation(api.cards.setCardPinned, {
-        cardId: id,
-        pinned: true,
-      });
-    }
+  }
+  // Card processing writes each new card after creation; pinning before it
+  // settles loses the optimistic-concurrency retry.
+  await library.waitForProcessing(library.ids);
+  for (const id of library.ids.slice(0, 12)) {
+    await library.client.mutation(api.cards.setCardPinned, {
+      cardId: id,
+      pinned: true,
+    });
   }
   await gotoApp(browser, "/");
   const extra = screen.getByRole("button", `Text: Pin cap ${run} 12`, {
