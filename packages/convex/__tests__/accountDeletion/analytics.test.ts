@@ -4,6 +4,7 @@ import { deletionFailureReason } from "../../accountDeletion/stages";
 
 const DELETION_KEY = "phx_test_person_deletion_key";
 const ENV_KEYS = [
+  "POSTHOG_PROJECT_ID",
   "POSTHOG_PROJECT_TOKEN",
   "POSTHOG_PERSON_DELETION_API_KEY",
 ] as const;
@@ -54,6 +55,7 @@ const stubPostHog = (
 
 beforeEach(() => {
   requests = [];
+  delete process.env.POSTHOG_PROJECT_ID;
   process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
   process.env.POSTHOG_PERSON_DELETION_API_KEY = DELETION_KEY;
 });
@@ -96,6 +98,17 @@ describe("deletePostHogPerson", () => {
           delete_recordings: true,
         },
       },
+    ]);
+  });
+
+  test("a self-hosted deployment deletes from its own POSTHOG_PROJECT_ID", async () => {
+    process.env.POSTHOG_PROJECT_ID = " 12345 ";
+    stubPostHog(new Set(["teak_owner"]));
+
+    expect(await deletePostHogPerson("teak_owner")).toBe("deleted");
+
+    expect(requests.map((request) => request.url)).toEqual([
+      "https://us.posthog.com/api/projects/12345/persons/bulk_delete/",
     ]);
   });
 

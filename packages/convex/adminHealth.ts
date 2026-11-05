@@ -8,7 +8,7 @@ import {
 } from "./admin/stats";
 import { ensureAdmin, readInternalUserIds } from "./adminAccess";
 import { CRONS } from "./cronSchedules";
-import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
+import { POSTHOG_UI_HOST, posthogProjectId } from "./shared/posthog";
 import { readDispatchHealth } from "./workflowDispatch";
 
 const MAX_ERROR_LENGTH = 300;
@@ -158,7 +158,7 @@ export const getHealth = query({
 
 const runHogQl = async (apiKey: string, hogql: string) => {
   const response = await fetch(
-    `${POSTHOG_UI_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`,
+    `${POSTHOG_UI_HOST}/api/projects/${posthogProjectId(env.POSTHOG_PROJECT_ID)}/query/`,
     {
       method: "POST",
       headers: {

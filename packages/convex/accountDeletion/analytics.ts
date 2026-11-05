@@ -1,5 +1,5 @@
 import { env } from "../_generated/server";
-import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "../shared/posthog";
+import { POSTHOG_UI_HOST, posthogProjectId } from "../shared/posthog";
 import { POSTHOG_DELETION_ERROR_PREFIX } from "./stages";
 
 const POSTHOG_DELETION_TIMEOUT_MS = 30_000;
@@ -30,7 +30,7 @@ export const deletePostHogPerson = async (
   let response: Response;
   try {
     response = await fetch(
-      `${POSTHOG_UI_HOST}/api/projects/${POSTHOG_PROJECT_ID}/persons/bulk_delete/`,
+      `${POSTHOG_UI_HOST}/api/projects/${posthogProjectId(env.POSTHOG_PROJECT_ID)}/persons/bulk_delete/`,
       {
         method: "POST",
         headers: {

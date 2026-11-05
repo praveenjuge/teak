@@ -162,7 +162,17 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["vercel"],
     required: false,
-    note: "Public PostHog project token, set in Vercel Production only. next.config inlines it only when VERCEL_ENV is production, so local and preview builds send nothing.",
+    note: "Public PostHog project token, set in Vercel Production only. next.config inlines it only when VERCEL_ENV is production, or off Vercel when TEAK_ANALYTICS_ENABLED is true, so local and preview builds send nothing.",
+  }),
+  spec("TEAK_ANALYTICS_ENABLED", {
+    owners: ["@teak/web"],
+    targets: ["web"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["shell"],
+    required: false,
+    note: "Self-hosting only: set to true, at build time and at runtime, to let a web build that isn't on Vercel report to NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN's project. Ignored on Vercel, where only production reports.",
   }),
   spec("NEXT_PUBLIC_APP_VERSION", {
     derivedFrom: "package.json version",

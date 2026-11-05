@@ -37,6 +37,39 @@ describe("web PostHog configuration", () => {
     ).toBeUndefined();
   });
 
+  test("off Vercel, reports only when TEAK_ANALYTICS_ENABLED is true", () => {
+    expect(
+      resolvePostHogToken({ analyticsEnabled: "true", token: " phc_own " })
+    ).toBe("phc_own");
+    for (const analyticsEnabled of [undefined, "", "false", "1", "yes"]) {
+      expect(
+        resolvePostHogToken({ analyticsEnabled, token: "phc_own" })
+      ).toBeUndefined();
+    }
+    expect(
+      resolvePostHogToken({ analyticsEnabled: "true", token: " " })
+    ).toBeUndefined();
+  });
+
+  test("on Vercel, TEAK_ANALYTICS_ENABLED never makes a preview report", () => {
+    for (const vercelEnvironment of ["preview", "development"]) {
+      expect(
+        resolvePostHogToken({
+          analyticsEnabled: "true",
+          token: "phc_1",
+          vercelEnvironment,
+        })
+      ).toBeUndefined();
+    }
+    expect(
+      resolvePostHogToken({
+        analyticsEnabled: "false",
+        token: "phc_1",
+        vercelEnvironment: "production",
+      })
+    ).toBe("phc_1");
+  });
+
   test("keeps the SDK lean and replays private", () => {
     const options = buildPostHogOptions();
     expect(options).toMatchObject({
