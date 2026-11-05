@@ -1,0 +1,223 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // Self-hosted Core Worker. Deploy it with `bun run deploy:self-host` from
+  // apps/core-worker, which reads your values from self-host/.env (ignored)
+  // and deploys an ignored copy of this file with them, so the IDs Wrangler
+  // writes back never land here. Nothing in this file names Teak's own
+  // account, so you never edit it.
+  //
+  // A test (src/deployment.test.ts) keeps it equal to ../wrangler.jsonc apart
+  // from the name, routes, resource IDs, container app names and vars.
+  "name": "teak-core-worker",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Files the Worker reads through env.ASSETS: the getting-started files
+  // new accounts get (src/storage/onboardingFiles.ts). The Worker runs first for
+  // every request, so no path serves an asset directly.
+  "assets": {
+    "directory": "../assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  // On, so the Worker answers on <name>.<subdomain>.workers.dev before you
+  // add a custom domain. The deploy script adds your files domain and API
+  // routes from self-host/.env.
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  // Wrangler creates the bucket on the first deploy if it doesn't exist.
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "teak-files"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "API_REQUEST_LIMITER",
+      "namespace_id": "6941",
+      "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      "name": "UNKNOWN_CREDENTIAL_LIMITER",
+      "namespace_id": "6942",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+  // No IDs: Wrangler creates both namespaces on the first deploy and keeps
+  // them bound on later ones.
+  "kv_namespaces": [
+    {
+      "binding": "EDGE_IDENTITY"
+    },
+    {
+      "binding": "LINK_PAGE_CACHE"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" },
+      { "name": "LINK_FETCHER", "class_name": "LinkFetcher" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "object-deletion-gates-v1",
+      "new_sqlite_classes": ["ObjectDeletionGate"]
+    },
+    {
+      "tag": "media-renderer-v1",
+      "new_sqlite_classes": ["MediaRenderer"]
+    },
+    {
+      "tag": "link-fetcher-v1",
+      "new_sqlite_classes": ["LinkFetcher"]
+    }
+  ],
+  "containers": [
+    {
+      "class_name": "MediaRenderer",
+      "name": "teak-core-worker-mediarenderer",
+      "image": "../container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 4
+    },
+    {
+      "class_name": "LinkFetcher",
+      "name": "teak-core-worker-linkfetcher",
+      "image": "../fetcher/Dockerfile",
+      "image_build_context": "../../..",
+      "instance_type": "basic",
+      "max_instances": 4
+    }
+  ],
+  "ai": {
+    // AI bindings always access remote resources, even in local dev.
+    "binding": "AI",
+    "remote": true
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "browser": {
+    "binding": "BROWSER"
+  },
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-cards-0"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "teak-card-processing",
+      "binding": "CARD_PROCESSING",
+      "class_name": "CardProcessingWorkflow"
+    },
+    {
+      "name": "teak-export",
+      "binding": "EXPORTS",
+      "class_name": "ExportWorkflow"
+    },
+    {
+      "name": "teak-import",
+      "binding": "IMPORTS",
+      "class_name": "ImportWorkflow"
+    },
+    {
+      "name": "teak-account-deletion",
+      "binding": "ACCOUNT_DELETION",
+      "class_name": "AccountDeletionWorkflow"
+    },
+    {
+      "name": "teak-maintenance",
+      "binding": "MAINTENANCE",
+      "class_name": "MaintenanceWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions" },
+      { "binding": "AI_BACKFILL", "queue": "teak-ai-backfill" },
+      { "binding": "R2_EVENTS", "queue": "teak-r2-events" }
+    ],
+    "consumers": [
+      {
+        "queue": "teak-object-deletions",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "retry_delay": 30,
+        "dead_letter_queue": "teak-object-deletions-dlq"
+      },
+      {
+        "queue": "teak-object-deletions-dlq",
+        "max_batch_size": 10,
+        "max_retries": 2
+      },
+      {
+        "queue": "teak-ai-backfill",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_concurrency": 2,
+        "max_retries": 10,
+        "retry_delay": 60
+      },
+      {
+        "queue": "teak-r2-events",
+        "max_batch_size": 100,
+        "max_batch_timeout": 30,
+        "max_retries": 5
+      }
+    ]
+  },
+  "analytics_engine_datasets": [
+    { "binding": "AI_USAGE", "dataset": "teak_ai_usage" }
+  ],
+  "triggers": {
+    "crons": [
+      "0 2 * * *",
+      "0 3 * * *",
+      "0 */6 * * *",
+      "0 4 * * 1",
+      "15 * * * *",
+      "45 * * * *"
+    ]
+  },
+  "limits": {
+    "cpu_ms": 300000,
+    "subrequests": 20000
+  },
+  // Only values that are the same for every self-hosted deployment. The
+  // deploy script adds the rest (CONVEX_SITE_URLS, FILES_PUBLIC_ORIGIN and
+  // the optional ones) from self-host/.env as --var flags.
+  "vars": {
+    "MEDIA_RENDERER_INSTANCES": "4",
+    "LINK_FETCHER_INSTANCES": "4",
+    "AI_USAGE_DATASET": "teak_ai_usage",
+    // Each of the text and HTML bodies is cut to this many UTF-8 bytes.
+    "MAX_BODY_BYTES": "1048576"
+  },
+  // `bun run deploy:self-host -- --with-secrets` uploads them from
+  // self-host/.env.secrets; deploys without the flag keep what the Worker
+  // has. A deploy fails while any of them is missing.
+  "secrets": {
+    "required": [
+      "EMAIL_INBOUND_SIGNING_SECRET",
+      "FILES_SIGNING_SECRET",
+      "WORKFLOW_RPC_ROOT_SECRET"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    // Signed file links carry their signature in the query string, so logs
+    // keep only the path.
+    "redact_query_string": true,
+    // A deploy without this key turns Issues off, even if the dashboard
+    // turned it on.
+    "issues": { "enabled": true }
+  }
+}

@@ -14,6 +14,7 @@ const WORKER_DIR = join(import.meta.dir, "../../../apps/core-worker");
 const WRANGLER_CONFIGS = [
   join(WORKER_DIR, "wrangler.jsonc"),
   join(WORKER_DIR, "development/wrangler.jsonc"),
+  join(WORKER_DIR, "self-host/wrangler.jsonc"),
 ];
 
 const triggerCrons = (path: string): string[] =>

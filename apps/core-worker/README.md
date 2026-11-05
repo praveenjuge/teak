@@ -54,7 +54,17 @@ audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
 
 To run a Core Worker of your own, follow the public self-hosting guide
 (`apps/docs/content/docs/(open-source)/self-hosting.mdx`, "Core Worker"):
-the resources to create, the vars to change and the secrets to put. This file
+the resources to create, the values to set and the secrets to put. A
+self-hosted Worker deploys `self-host/wrangler.jsonc` with
+`bun run deploy:self-host`, which reads the deployment's values from the
+ignored `self-host/.env` (`self-host/example.env` lists them) and passes them
+to `wrangler deploy` (`scripts/cloudflare/self-host-deploy.ts`). It deploys an
+ignored copy, `self-host/wrangler.deploy.jsonc`, because Wrangler writes the
+IDs of the resources it provisions back into the config it deployed, and it
+uploads `self-host/.env.secrets` only with `--with-secrets`. That config
+names no account, routes or resource IDs, and `src/deployment.test.ts` keeps
+it equal to `wrangler.jsonc` in everything else, so a binding, queue, cron or
+limit added to production is added there in the same change. This file
 covers how Teak's own Workers behave and are operated.
 
 ## Source layout
