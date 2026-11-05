@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { unstable_readConfig } from "wrangler";
 import rootPackageJson from "../../../package.json";
 import packageJson from "../package.json";
+import { aiRunOptions } from "./ai/aiGateway";
 import { MAX_DELIVERIES } from "./queues/aiBackfill";
 
 const baseImages = async (dockerfile: string): Promise<string[]> =>
@@ -220,6 +221,7 @@ test("the self-host config names nothing of Teak's own deployment", async () => 
     undefined,
   ]);
   expect(Object.keys(config.vars).sort()).toEqual([
+    "AI_GATEWAY_ID",
     "AI_USAGE_DATASET",
     "LINK_FETCHER_INSTANCES",
     "MAX_BODY_BYTES",
@@ -237,4 +239,11 @@ test("deploy:self-host runs the self-host deploy script", () => {
   expect(packageJson.scripts["deploy:self-host"]).toBe(
     "bun --no-env-file run ../../scripts/cloudflare/self-host-deploy.ts"
   );
+});
+
+test("the self-host config sends Workers AI calls through the default gateway", () => {
+  const config = readWorkerConfig("../self-host/wrangler.jsonc");
+  expect(
+    aiRunOptions({ AI_GATEWAY_ID: String(config.vars.AI_GATEWAY_ID) })
+  ).toEqual({ gateway: { collectLog: false, id: "default", skipCache: true } });
 });
