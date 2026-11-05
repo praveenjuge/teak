@@ -144,7 +144,7 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
       "archive",
       "unarchive",
       "tags add",
-      "tags rm",
+      "tags remove",
     ],
   },
   {
@@ -219,7 +219,7 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     sdk: {
       none: "cards.setDone(id, false) calls it; one method sets both states",
     },
-    cli: ["cards done", "done"],
+    cli: ["cards todo", "todo"],
   },
   {
     operationId: "saveCardPdf",
@@ -233,14 +233,14 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     feature: "Favorite a card",
     mcp: ["teak_v1_set_card_favorite"],
     sdk: ["cards.setFavorite"],
-    cli: ["cards favorite", "fav"],
+    cli: ["cards favorite", "fav", "cards unfavorite", "unfav"],
   },
   {
     operationId: "setCardPinned",
     feature: "Pin a card to the top",
     mcp: ["teak_v1_set_card_pinned"],
     sdk: ["cards.setPinned"],
-    cli: ["cards pin", "pin"],
+    cli: ["cards pin", "pin", "cards unpin", "unpin"],
   },
   {
     operationId: "reorderPinnedCards",
@@ -317,7 +317,7 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     feature: "Delete a folder, keeping its cards",
     mcp: ["teak_v1_delete_folder"],
     sdk: ["folders.delete"],
-    cli: ["folders rm"],
+    cli: ["folders delete"],
   },
   {
     operationId: "addCardsToFolder",
@@ -373,7 +373,7 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     feature: "Remove a highlight",
     mcp: ["teak_v1_delete_highlight"],
     sdk: ["highlights.delete"],
-    cli: ["highlights rm"],
+    cli: ["highlights delete"],
   },
   {
     operationId: "startExport",
@@ -411,6 +411,7 @@ export const CLI_LOCAL_COMMANDS: Record<string, string> = {
   login: "signs in through the browser and stores the credential",
   auth: "groups `auth status`",
   cards: "groups the card commands",
+  completion: "prints a shell completion script; it makes no request",
   highlights: "groups the highlight commands",
 };
 

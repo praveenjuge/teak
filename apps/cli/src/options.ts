@@ -5,7 +5,7 @@ import {
 import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
 import { parsePaletteHex } from "@teak/convex/shared/utils/colorUtils";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
-import { type Command, InvalidArgumentError } from "commander";
+import { type Command, InvalidArgumentError, Option } from "commander";
 import {
   CARD_TYPES,
   type CardSort,
@@ -26,22 +26,74 @@ export const parseLimit = (value: string) => {
   return parsed;
 };
 
-export const parseSince = (value: string) => {
-  const parsed = wholeNumber(value);
-  if (!Number.isSafeInteger(parsed)) {
-    throw new InvalidArgumentError("since must be a millisecond timestamp");
-  }
-  return parsed;
+const RELATIVE_TIME_REGEX = /^(\d+)\s*(s|m|h|d|w)$/i;
+const ISO_DATE_REGEX =
+  /^\d{4}-\d{2}-\d{2}(?:[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/i;
+const UNIT_MS: Record<string, number> = {
+  d: 86_400_000,
+  h: 3_600_000,
+  m: 60_000,
+  s: 1000,
+  w: 604_800_000,
 };
 
-export const parseTimestamp = (value: string) => {
-  const parsed = wholeNumber(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new InvalidArgumentError(
-      "must be a millisecond timestamp, like 1767225600000"
+/**
+ * A point in time: an ISO date or date-time (a date alone is midnight UTC), a
+ * relative age such as 30m, 2h, 3d or 1w (that long ago), or a millisecond
+ * timestamp.
+ */
+export const parseTime = (value: string, now = Date.now()) => {
+  const text = value.trim();
+  const whole = wholeNumber(text);
+  if (Number.isSafeInteger(whole)) {
+    return whole;
+  }
+  const relative = RELATIVE_TIME_REGEX.exec(text);
+  if (relative) {
+    return (
+      now -
+      Number(relative[1]) * (UNIT_MS[(relative[2] ?? "").toLowerCase()] ?? 0)
     );
   }
-  return parsed;
+  const parsed = ISO_DATE_REGEX.test(text) ? Date.parse(text) : Number.NaN;
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+  throw new InvalidArgumentError(
+    "must be a time such as 2026-01-01, 2026-01-01T09:30:00Z, 3d (3 days ago) or a millisecond timestamp"
+  );
+};
+
+export const parseSince = (value: string) => parseTime(value);
+
+export const parseTimestamp = (value: string) => parseTime(value);
+
+const DURATION_REGEX = /^(\d+)\s*(s|m|h)?$/i;
+
+/** How long to wait: 90s, 10m, 1h, or a number of seconds. */
+export const parseDuration = (value: string) => {
+  const match = DURATION_REGEX.exec(value.trim());
+  const ms = match
+    ? Number(match[1]) * (UNIT_MS[(match[2] ?? "s").toLowerCase()] ?? 0)
+    : 0;
+  if (!(Number.isSafeInteger(ms) && ms > 0)) {
+    throw new InvalidArgumentError(
+      "timeout must be a duration such as 90s, 10m or 1h"
+    );
+  }
+  return ms;
+};
+
+export const DEFAULT_WAIT_TIMEOUT_MS = 10 * 60_000;
+
+export const formatDuration = (ms: number) => {
+  if (ms % 3_600_000 === 0) {
+    return `${ms / 3_600_000}h`;
+  }
+  if (ms % 60_000 === 0) {
+    return `${ms / 60_000}m`;
+  }
+  return `${Math.ceil(ms / 1000)}s`;
 };
 
 export const parseType = (value: string) => {
@@ -131,6 +183,26 @@ export const parseSeed = (value: string): number => {
   return seed;
 };
 
+/** `--all` stops here and says how to continue, so a listing can't run forever. */
+export const MAX_ALL_CARDS = 10_000;
+
+/** `--cursor` is the old name of `--next`; it still works, unlisted. */
+export const hiddenCursorOption = () =>
+  new Option("--cursor <CURSOR>", "old name of --next").hideHelp();
+
+export const cursorOption = (options: Record<string, unknown>) => {
+  if (typeof options.next === "string") {
+    return options.next;
+  }
+  if (typeof options.cursor !== "string") {
+    return;
+  }
+  if (options.json !== true) {
+    process.stderr.write("Warning: --cursor is now --next\n");
+  }
+  return options.cursor;
+};
+
 const strings = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.length > 0 ? value : undefined;
 
@@ -152,7 +224,7 @@ export const queryOptions = (options: Record<string, unknown>) => {
       typeof options.createdBefore === "number"
         ? options.createdBefore
         : range?.end,
-    cursor: typeof options.cursor === "string" ? options.cursor : undefined,
+    cursor: cursorOption(options),
     favorited: options.favorited === true,
     hex: strings(options.hex),
     hue: strings(options.hue),
@@ -217,27 +289,31 @@ export const withListOptions = (command: Command) =>
       "how --query finds cards: hybrid (words and meaning, the default), keyword or semantic",
       parseMode
     )
-    .option("--limit <n>", "result limit", parseLimit)
-    .option("--cursor <cursor>", "nextCursor from the previous page")
+    .option("-n, --limit <NUMBER>", "how many cards to list", parseLimit)
+    .option("--next <CURSOR>", "continue a listing from where it stopped")
+    .addOption(hiddenCursorOption())
     .option(
       "--sort <sort>",
       "newest, oldest, relevance (best match, with --query) or shuffle",
       parseSort
     )
     .option(
-      "--seed <n>",
+      "--seed <NUMBER>",
       "with --sort shuffle: the same seed gives the same order",
       parseSeed
     )
     .option(
-      "--created-after <ms>",
-      "created after a millisecond timestamp",
+      "--created-after <TIME>",
+      "created after a time: 2026-01-01, 3d (3 days ago) or a millisecond timestamp",
       parseTimestamp
     )
     .option(
-      "--created-before <ms>",
-      "created before a millisecond timestamp",
+      "--created-before <TIME>",
+      "created before a time: 2026-01-01, 3d (3 days ago) or a millisecond timestamp",
       parseTimestamp
     )
     .option("--include <groups>", "content, metadata, processing")
-    .option("--all", "follow every page");
+    .option(
+      "-a, --all",
+      `follow every page, up to ${MAX_ALL_CARDS.toLocaleString("en-US")} cards`
+    );

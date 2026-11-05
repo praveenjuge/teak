@@ -153,10 +153,12 @@ describe("teak cards", () => {
     expect(result.code).toBe(0);
     const lines = result.stdout.trim().split("\n");
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toStartWith("card_a");
-    expect(lines[0]).toContain("#design");
-    expect(lines[1]).toStartWith("card_b");
-    expect(result.stderr).toContain("nextCursor: cursor_2");
+    // Piped: every field in full, tab-separated, the time in ISO UTC.
+    expect(lines[0]).toBe(
+      "card_a\ttext\tContent of card_a\tdesign\t2026-01-02T03:04:05.000Z\t"
+    );
+    expect(lines[1]).toStartWith("card_b\t");
+    expect(result.stderr).toContain("Next page: --next cursor_2");
     expect(requests[0]?.auth).toBe(`Bearer ${API_KEY}`);
   });
 
@@ -179,7 +181,7 @@ describe("teak cards", () => {
       "deleted card_gone",
       "deleted card_trashed",
     ]);
-    expect(result.stderr).toContain("nextCursor: cursor_2");
+    expect(result.stderr).toContain("Next page: --next cursor_2");
     expect(requests[0]?.path).toContain("since=1767225600000");
   });
 
@@ -293,6 +295,7 @@ describe("teak cards", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       deletedIds: ["card_a", "card_b"],
       permanent: false,
+      summary: { failed: 0, succeeded: 2, total: 2 },
     });
     expect(requests.map((request) => request.method)).toEqual([
       "DELETE",
@@ -313,7 +316,7 @@ describe("teak cards", () => {
     const result = await teak("tags", "list");
 
     expect(result.code).toBe(0);
-    expect(result.stdout.trim().split("\n")).toEqual(["design  3", "cli  1"]);
+    expect(result.stdout.trim().split("\n")).toEqual(["design\t3", "cli\t1"]);
   });
 });
 
@@ -443,20 +446,47 @@ describe("teak parity commands", () => {
     expect(requests).toHaveLength(0);
   });
 
-  test.each(["2026-01-01", "", "-5"])(
+  test.each(["soon", "", "-5", "2026-13-45"])(
     "rejects --created-after %p before sending a request",
     async (value) => {
       const result = await teak("cards", "list", "--created-after", value);
       expect(result.code).toBe(EXIT.usage);
-      expect(result.stderr).toContain("millisecond timestamp");
+      expect(result.stderr).toContain("must be a time");
       expect(requests).toHaveLength(0);
     }
   );
 
-  test("rejects a date passed as --since", async () => {
-    const result = await teak("cards", "changes", "--since", "2026-01-01");
-    expect(result.code).toBe(EXIT.usage);
-    expect(requests).toHaveLength(0);
+  test("--created-after and --since take a date, a date-time, an age or milliseconds", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    routes.set("GET /v1/cards/changes", () =>
+      json({
+        deletedIds: [],
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
+    );
+    const before = Date.now();
+    for (const value of [
+      "2026-01-01",
+      "2026-01-01T09:30:00Z",
+      "1767225600000",
+    ]) {
+      expect((await teak("cards", "list", "--created-after", value)).code).toBe(
+        0
+      );
+    }
+    expect((await teak("cards", "changes", "--since", "3d")).code).toBe(0);
+    const sent = requests.map((request) => {
+      const query = new URLSearchParams(request.path.split("?")[1]);
+      return Number(query.get("createdAfter") ?? query.get("since"));
+    });
+    expect(sent.slice(0, 3)).toEqual([
+      Date.UTC(2026, 0, 1),
+      Date.UTC(2026, 0, 1, 9, 30),
+      1_767_225_600_000,
+    ]);
+    const threeDaysAgo = before - 3 * 86_400_000;
+    expect(Math.abs((sent[3] ?? 0) - threeDaysAgo)).toBeLessThan(60_000);
   });
 
   test("search sends operators in q, and an unquoted exclusion says how to pass it", async () => {
@@ -593,13 +623,13 @@ describe("teak parity commands", () => {
       listed.stdout
         .trim()
         .split("\n")
-        .map((line) => line.split(" ")[0])
+        .map((line) => line.split("\t")[0])
     ).toEqual(["card_b", "card_a"]);
     expect(
       reordered.stdout
         .trim()
         .split("\n")
-        .map((line) => line.split(" ")[0])
+        .map((line) => line.split("\t")[0])
     ).toEqual(["card_a", "card_b"]);
   });
 
@@ -1064,7 +1094,12 @@ describe("teak exit codes", () => {
     expect(result.code).toBe(EXIT.notFound);
     expect(result.stdout).toBe("");
     expect(JSON.parse(result.stderr)).toEqual({
-      error: { code: "NOT_FOUND", message: "Card not found" },
+      error: {
+        code: "NOT_FOUND",
+        message: "Card not found: missing",
+        next: 'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
+        status: 404,
+      },
     });
   });
 
@@ -1234,7 +1269,7 @@ describe("teak batch and fallback behavior", () => {
     );
     await teak("add", "first");
     await teak("add", "first");
-    await teakWithStdin("[]", false, "cards", "bulk", "create");
+    await teakWithStdin('[{"content":"x"}]', false, "cards", "bulk", "create");
     const keys = requests.map((r) => r.idempotencyKey);
     expect(keys).toHaveLength(3);
     expect(keys.every((key) => key?.startsWith("teak-cli-"))).toBe(true);
@@ -1317,6 +1352,7 @@ describe("teak batch and fallback behavior", () => {
       deletedIds: ["card_a"],
       failed: [{ code: "NOT_FOUND", id: "bogus", message: "Card not found" }],
       permanent: false,
+      summary: { failed: 1, succeeded: 1, total: 2 },
     });
   });
 
@@ -1333,6 +1369,7 @@ describe("teak batch and fallback behavior", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       failed: [{ code: "NOT_FOUND", id: "bogus", message: "Card not found" }],
       restoredIds: ["card_b"],
+      summary: { failed: 1, succeeded: 1, total: 2 },
     });
   });
 
@@ -1416,7 +1453,10 @@ describe("teak batch and fallback behavior", () => {
 
     const result = await teak("--json", "cards", "refresh", "card_a");
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ queuedIds: ["card_a"] });
+    expect(JSON.parse(result.stdout)).toEqual({
+      queuedIds: ["card_a"],
+      summary: { failed: 0, succeeded: 1, total: 1 },
+    });
   });
 
   test("cards duplicate prints the matching card's id, or exits not found", async () => {
@@ -1694,7 +1734,10 @@ describe("teak batch and fallback behavior", () => {
     requests.length = 0;
     const restored = await teak("--json", "cards", "unarchive", "card_a");
     expect(restored.code).toBe(0);
-    expect(JSON.parse(restored.stdout)).toEqual({ unarchivedIds: ["card_a"] });
+    expect(JSON.parse(restored.stdout)).toEqual({
+      summary: { failed: 0, succeeded: 1, total: 1 },
+      unarchivedIds: ["card_a"],
+    });
     expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
       isArchived: false,
     });
@@ -1791,8 +1834,11 @@ describe("teak batch and fallback behavior", () => {
     await teak("ls", "--folder", "Reading");
     expect(requests.at(-1)?.path).toContain("folder=folder_1");
 
-    const removed = await teak("--json", "folders", "rm", "folder_1");
-    expect(JSON.parse(removed.stdout)).toEqual({ deleted: ["folder_1"] });
+    const removed = await teak("--json", "folders", "delete", "folder_1");
+    expect(JSON.parse(removed.stdout)).toEqual({
+      deleted: ["folder_1"],
+      summary: { failed: 0, succeeded: 1, total: 1 },
+    });
   });
 
   test("folders: rules set tags and an auto-file search, and rule runs show and undo", async () => {
@@ -2009,20 +2055,19 @@ describe("teak batch and fallback behavior", () => {
     const input = join(workDirectory, "bulk-items.json");
     writeFileSync(input, JSON.stringify({ items: [{ content: "a" }, {}] }));
 
-    const result = await teak("cards", "bulk", "create", "--input", input);
+    const result = await teak("cards", "bulk", "create", "--file", input);
 
     expect(result.code).toBe(EXIT.api);
     expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
       items: [{ content: "a" }, {}],
       operation: "create",
     });
-    expect(result.stdout).toContain("1/2 succeeded");
-    expect(result.stdout).toContain("[0] card_new\n");
-    expect(result.stdout).toContain(
-      "[2] card_old (already in Teak, moved to the top)"
+    // What worked on stdout; what failed, and the count, on stderr.
+    expect(result.stdout).toBe(
+      "[0] card_new\n[2] card_old (already in Teak, moved to the top)\n"
     );
-    expect(result.stdout).toContain(
-      "[1] INVALID_INPUT: Each create item must include `content` or `url`"
+    expect(result.stderr).toBe(
+      "[1] INVALID_INPUT: Each create item must include `content` or `url`\n1 of 2 items done; 1 failed.\n"
     );
   });
 
@@ -2034,5 +2079,299 @@ describe("teak batch and fallback behavior", () => {
 
     expect(result.code).toBe(EXIT.usage);
     expect(requests).toHaveLength(0);
+  });
+});
+
+describe("teak design rules", () => {
+  const notFound = () =>
+    Response.json(
+      { code: "NOT_FOUND", error: "Card not found" },
+      { headers: { "x-request-id": "req_42" }, status: 404 }
+    );
+
+  test("an error names the card, gives the request id and what to do next", async () => {
+    routes.set("GET /v1/cards/card_x", notFound);
+    const result = await teak("cards", "get", "card_x");
+    expect(result.code).toBe(EXIT.notFound);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim().split("\n")).toEqual([
+      "Card not found: card_x",
+      "Request ID: req_42",
+      'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
+    ]);
+  });
+
+  test("an unknown option with --json is one JSON line on stderr, exit 2", async () => {
+    const result = await teak("--json", "ls", "--zzz", "red");
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      error: {
+        code: "USAGE",
+        message: "unknown option '--zzz'",
+        next: "Add --help to the command to see its options.",
+      },
+    });
+  });
+
+  test("--fields keeps only those keys, and needs --json", async () => {
+    routes.set("GET /v1/cards", () =>
+      json({
+        items: [card("card_a", { url: "https://example.com" })],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
+    );
+    const result = await teak("--json", "--fields", "id,url", "ls");
+    expect(JSON.parse(result.stdout)).toEqual({
+      items: [{ id: "card_a", url: "https://example.com" }],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    requests.length = 0;
+    const refused = await teak("--fields", "id", "ls");
+    expect(refused.code).toBe(EXIT.usage);
+    expect(refused.stderr).toContain("--fields works with --json");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("-n and --next page a listing; the old --cursor still works", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    await teak("ls", "-n", "5", "--next", "c_2");
+    const old = await teak("ls", "--cursor", "c_3");
+    expect(old.stderr).toContain("Warning: --cursor is now --next");
+    const sent = requests.map(
+      (request) => new URLSearchParams(request.path.split("?")[1])
+    );
+    expect(sent[0]?.get("limit")).toBe("5");
+    expect(sent[0]?.get("cursor")).toBe("c_2");
+    expect(sent[1]?.get("cursor")).toBe("c_3");
+  });
+
+  test("unfav, unpin and todo undo fav, pin and done; the old flags warn", async () => {
+    routes.set("PATCH /v1/cards/card_a/favorite", () => json(card("card_a")));
+    routes.set("PATCH /v1/cards/card_a/pin", () => json(card("card_a")));
+    routes.set("DELETE /v1/cards/card_a/done", () =>
+      json(card("card_a", { type: "link" }))
+    );
+    expect((await teak("unfav", "card_a")).code).toBe(0);
+    expect((await teak("cards", "unpin", "card_a")).code).toBe(0);
+    expect((await teak("todo", "card_a")).code).toBe(0);
+    const old = await teak("fav", "card_a", "--remove");
+    expect(old.code).toBe(0);
+    expect(old.stderr).toContain(
+      "Warning: --remove is now its own command: teak unfav card_a"
+    );
+    expect(
+      requests.map((request) => `${request.method} ${request.body}`)
+    ).toEqual([
+      'PATCH {"isFavorited":false}',
+      'PATCH {"isPinned":false}',
+      "DELETE ",
+      'PATCH {"isFavorited":false}',
+    ]);
+  });
+
+  test("tags remove edits one card; the old tags rm still works and warns", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(card("card_a", { tags: ["draft", "keep"] }))
+    );
+    routes.set("PATCH /v1/cards/card_a", () =>
+      json(card("card_a", { tags: ["keep"] }))
+    );
+    expect((await teak("tags", "remove", "card_a", "draft")).code).toBe(0);
+    const old = await teak("tags", "rm", "card_a", "draft");
+    expect(old.code).toBe(0);
+    expect(old.stderr).toContain("teak tags rm is now teak tags remove");
+  });
+
+  test("tags --dry-run counts the cards and changes nothing", async () => {
+    routes.set("GET /v1/tags", () =>
+      json({ items: [{ count: 12, name: "Design" }] })
+    );
+    const rename = await teak("tags", "rename", "design", "ux", "--dry-run");
+    expect(rename.stdout.trim()).toBe(
+      'Would rename "design" to "ux" on 12 cards in your library, and on any in Archive and Trash. Nothing changed.'
+    );
+    const remove = await teak(
+      "--json",
+      "tags",
+      "delete",
+      "design",
+      "--dry-run"
+    );
+    expect(JSON.parse(remove.stdout)).toEqual({
+      dryRun: true,
+      from: "design",
+      kind: "delete",
+      libraryCards: 12,
+    });
+    expect(requests.every((request) => request.method === "GET")).toBe(true);
+  });
+
+  test("an agent's shell is never asked: delete needs --yes", async () => {
+    const result = await teakWithEnv(
+      { CLAUDECODE: "1" },
+      "tags",
+      "delete",
+      "design"
+    );
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain("add --yes to confirm");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("bulk --dry-run checks the input and sends nothing", async () => {
+    const input = join(workDirectory, "bulk-dry.json");
+    writeFileSync(
+      input,
+      JSON.stringify([
+        { cardId: "a", isFavorited: true },
+        { cardId: "b", isFavorited: false },
+      ])
+    );
+    const result = await teak(
+      "cards",
+      "bulk",
+      "favorite",
+      "--file",
+      input,
+      "--dry-run"
+    );
+    expect(result.stdout.trim()).toBe(
+      "Would run favorite on 2 items; each has the fields it needs. Nothing changed."
+    );
+    expect(requests).toHaveLength(0);
+    const bad = join(workDirectory, "bulk-dry-bad.json");
+    writeFileSync(bad, JSON.stringify([{ cardId: "a" }, null]));
+    const refused = await teak(
+      "cards",
+      "bulk",
+      "favorite",
+      "--file",
+      bad,
+      "--dry-run"
+    );
+    expect(refused.code).toBe(EXIT.usage);
+    expect(refused.stdout).toBe("");
+    expect(refused.stderr).toBe(
+      "[0] INVALID_INPUT: Each favorite item must include `isFavorited` as a boolean\n[1] INVALID_INPUT: Each bulk item must be an object\n2 of 2 items would fail. Nothing changed.\n"
+    );
+    expect(requests).toHaveLength(0);
+    const old = await teak(
+      "cards",
+      "bulk",
+      "favorite",
+      "--input",
+      input,
+      "--dry-run"
+    );
+    expect(old.stderr).toContain("--input is now --file");
+  });
+
+  test("--wait gives up at --timeout and says how to check on it", async () => {
+    routes.set("GET /v1/tags/operations/op_1", () =>
+      json({
+        changed: 1,
+        from: "a",
+        id: "op_1",
+        kind: "delete",
+        status: "running",
+        to: null,
+        total: 9,
+        updatedAt: Date.now(),
+      })
+    );
+    const result = await teak(
+      "tags",
+      "status",
+      "op_1",
+      "--wait",
+      "--timeout",
+      "1s"
+    );
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stderr.trim().split("\n")).toEqual([
+      "Stopped waiting after 1s. The tag change keeps going.",
+      "Check on it with: teak tags status op_1",
+    ]);
+  });
+
+  test("--timeout also cuts off a status read that is still going", async () => {
+    let calls = 0;
+    routes.set("GET /v1/tags/operations/op_2", async () => {
+      calls += 1;
+      if (calls > 1) {
+        await Bun.sleep(5000);
+      }
+      return json({
+        changed: 1,
+        from: "a",
+        id: "op_2",
+        kind: "delete",
+        status: "running",
+        to: null,
+        total: 9,
+        updatedAt: Date.now(),
+      });
+    });
+    const started = Date.now();
+    const result = await teak(
+      "tags",
+      "status",
+      "op_2",
+      "--wait",
+      "--timeout",
+      "1s"
+    );
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stderr).toContain("Stopped waiting after 1s.");
+    expect(Date.now() - started).toBeLessThan(4000);
+  });
+
+  test("a partly failed batch counts the failures and prints the retry", async () => {
+    routes.set("POST /v1/cards/card_a/restore", noContent);
+    routes.set("POST /v1/cards/gone/restore", notFound);
+    const result = await teak("restore", "card_a", "gone");
+    expect(result.stdout.trim()).toBe("Restored card_a");
+    expect(result.stderr.trim().split("\n")).toEqual([
+      "gone: Card not found",
+      "1 of 2 cards done; 1 failed.",
+      "Retry the failed ones: teak restore gone",
+    ]);
+  });
+
+  test("a retry keeps an explicit --api-url and asks for the key again", async () => {
+    routes.set("POST /v1/cards/gone/restore", notFound);
+    const url = server.url.toString();
+    const result = await teakWithEnv(
+      { TEAK_API_URL: "" },
+      "--api-url",
+      url,
+      "--api-key",
+      API_KEY,
+      "restore",
+      "gone"
+    );
+    const retry = result.stderr.trim().split("\n").at(-1) ?? "";
+    expect(retry).toBe(
+      `Retry the failed ones: teak --api-url ${url} --api-key '<API_KEY>' restore gone`
+    );
+    expect(result.stderr).not.toContain(API_KEY);
+  });
+
+  test("completion prints a script, and __complete answers without a request", async () => {
+    const script = await teak("completion", "bash");
+    expect(script.stdout).toContain("complete -o default -F _teak teak");
+    const words = await teak("__complete", "cards", "unf");
+    expect(words.stdout).toBe("unfavorite\n");
+    expect((await teak("completion", "tcsh")).code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("help lists examples and the exit codes", async () => {
+    const root = await teak("--help");
+    expect(root.stdout).toContain("Exit codes:");
+    expect(root.stdout).toContain("130  stopped with Ctrl+C");
+    const list = await teak("cards", "list", "--help");
+    expect(list.stdout).toContain("Examples:\n  teak cards list --type link");
   });
 });

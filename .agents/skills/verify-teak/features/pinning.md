@@ -39,10 +39,10 @@ Steps:
 - **Search.** `is:pinned verify-<run-id>` lists the three; `verify-<run-id> -is:pinned` lists none of them; typing `is:` suggests "Pinned".
 - **Cap.** Pin the 13 bulk cards through the API (`PATCH /v1/cards/<id>/pin` `{"isPinned":true}`) until it answers `400 PIN_LIMIT_REACHED`, then `press` "p" on another grid card: the toast "You can pin up to 12 cards. Unpin one first." appears and the row is unchanged.
 - **Lifecycle.** Archive a pinned note (`e`): it leaves the row; unarchive it from Archive: it isn't pinned. Move one to Trash and restore it: not pinned.
-- **API, CLI, MCP.** `PUT $SITE/v1/cards/pinned/order` with every pinned id reversed: 200 with `items` in that order, and the web row follows without a reload. The same call with one id missing: `400 INVALID_INPUT`. `bun apps/cli/src/index.ts pin <id> --remove` prints the card with "pinned" gone. MCP `teak_v1_set_card_pinned`, `teak_v1_list_pinned_cards` and `teak_v1_reorder_pinned_cards` do the same.
+- **API, CLI, MCP.** `PUT $SITE/v1/cards/pinned/order` with every pinned id reversed: 200 with `items` in that order, and the web row follows without a reload. The same call with one id missing: `400 INVALID_INPUT`. `bun apps/cli/src/index.ts unpin <id>` prints the card with "pinned" gone. MCP `teak_v1_set_card_pinned`, `teak_v1_list_pinned_cards` and `teak_v1_reorder_pinned_cards` do the same.
 - **Export.** Export from Settings → Import & export; `cards.json` has `isPinned: true` and a `pinPosition` on each pinned card.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts src/journey/04-cli.e2e.ts src/journey/05-mcp.e2e.ts`.
-- **Clean up.** Unpin everything (`teak cards pins`, then `teak pin <id> --remove`), then delete the run's cards permanently.
+- **Clean up.** Unpin everything (`teak cards pins`, then `teak unpin <id>`), then delete the run's cards permanently.
 
 ## Gotchas
 

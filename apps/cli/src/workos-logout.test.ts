@@ -287,7 +287,7 @@ test.each([
       expect(readFileSync(file, "utf8")).toBe(clear ? "" : original);
       expect(disconnects - before).toBe(1);
       if (clear) {
-        expect(await new Response(child.stdout).text()).toContain(
+        expect(await new Response(child.stderr).text()).toContain(
           "other installations"
         );
       }

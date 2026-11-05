@@ -46,7 +46,13 @@ teak export -o teak-backup.zip
 teak whoami
 ```
 
-Use `--json` on any command for script-friendly output.
+Use `--json` on any command for script-friendly output, and `--fields id,url` to keep only some keys. Every command's `--help` has examples; `teak --help` lists the exit codes.
+
+Tab completion:
+
+```bash
+echo 'eval "$(teak completion bash)"' >> ~/.bashrc
+```
 
 ## Docs
 

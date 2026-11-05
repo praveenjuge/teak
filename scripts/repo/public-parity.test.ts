@@ -256,11 +256,16 @@ const sdkMembers = () => {
   );
 };
 
+// Listed commands only: a renamed command kept for old scripts is hidden.
 const cliCommands = (command: Command, prefix: string[] = []): string[] =>
-  command.commands.flatMap((child) => {
-    const path = [...prefix, child.name()];
-    return [path.join(" "), ...cliCommands(child, path)];
-  });
+  command
+    .createHelp()
+    .visibleCommands(command)
+    .filter((child) => child.name() !== "help")
+    .flatMap((child) => {
+      const path = [...prefix, child.name()];
+      return [path.join(" "), ...cliCommands(child, path)];
+    });
 
 describe("public surface parity", () => {
   test("the table lists every OpenAPI operation exactly once", () => {
@@ -391,10 +396,13 @@ describe("public surface parity", () => {
 
     const ls = program.commands.find((command) => command.name() === "ls");
     const flags = new Set(ls?.options.map((option) => option.long));
+    const renamed: Record<string, string> = {
+      cursor: "--next",
+      shuffleSeed: "--seed",
+    };
     const cliFlag = (parameter: string) =>
-      parameter === "shuffleSeed"
-        ? "--seed"
-        : `--${parameter.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+      renamed[parameter] ??
+      `--${parameter.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
     const missing = listCards
       .filter((parameter) => parameter !== "q")
       .filter((parameter) => !flags.has(cliFlag(parameter)));

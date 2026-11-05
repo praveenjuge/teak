@@ -67,7 +67,7 @@ const libraryUntilFound = async (
       "ls",
       "--limit",
       "100",
-      ...(cursor ? ["--cursor", cursor] : []),
+      ...(cursor ? ["--next", cursor] : []),
     ])) as {
       items: CardSummary[];
       pageInfo: { hasMore: boolean; nextCursor?: string };

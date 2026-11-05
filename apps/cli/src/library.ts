@@ -23,8 +23,15 @@ import {
   TeakApiError,
   type TeakClient,
 } from "teak-sdk";
+import { CliError } from "./errors";
 import { mimeFor } from "./files";
 import { formatCardLinks } from "./format";
+import { canPrompt, showsProgress } from "./mode";
+import {
+  DEFAULT_WAIT_TIMEOUT_MS,
+  formatDuration,
+  MAX_ALL_CARDS,
+} from "./options";
 import {
   type ClientOptions,
   client,
@@ -34,6 +41,7 @@ import {
   openBrowser,
   write,
   writeList,
+  writeTip,
 } from "./runtime";
 
 type PageFetcher = (cursor?: string) => Promise<CardsPage>;
@@ -45,7 +53,8 @@ const mergeSearchMode = (
 
 export const collectPages = async (
   fetchPage: PageFetcher,
-  all: boolean
+  all: boolean,
+  maxItems = MAX_ALL_CARDS
 ): Promise<CardsPage> => {
   const first = await fetchPage();
   if (!(all && first.pageInfo.nextCursor)) {
@@ -54,7 +63,7 @@ export const collectPages = async (
   const items = [...first.items];
   let cursor: string | null = first.pageInfo.nextCursor;
   let { searchMode } = first;
-  while (cursor) {
+  while (cursor && items.length < maxItems) {
     const page = await fetchPage(cursor);
     items.push(...page.items);
     cursor = page.pageInfo.nextCursor;
@@ -62,7 +71,8 @@ export const collectPages = async (
   }
   return {
     items,
-    pageInfo: { hasMore: false, nextCursor: null },
+    // Stopped at the cap: the listing says it isn't complete and where to go on.
+    pageInfo: { hasMore: cursor !== null, nextCursor: cursor },
     ...(searchMode ? { searchMode } : {}),
     ...(first.relevanceRanked === undefined
       ? {}
@@ -115,12 +125,37 @@ const failureJson = ({ error, id }: CardFailure) => ({
   message: failureMessage(error),
 });
 
+// Quotes an argument for a command people can paste back into a shell.
+export const shellArg = (value: string) =>
+  /^[\w.:/@%+=-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`;
+
+interface BatchReport {
+  /** What the items are, for the summary: "cards", "folders", "highlights". */
+  noun: string;
+  /** The command, after `teak`, that tries the failed items again. */
+  retry: (ids: string[]) => string;
+  total: number;
+}
+
+/**
+ * Every command that acts on several items reports the same way: what worked
+ * on stdout, each failure on stderr, then how many failed and the command that
+ * retries just those. JSON carries the same `summary` as `cards bulk`.
+ */
 const writeBatch = (
   output: unknown,
   failed: CardFailure[],
-  options: GlobalOptions
+  options: GlobalOptions,
+  report: BatchReport
 ) => {
-  if (options.json || output !== "") {
+  const summary = {
+    failed: failed.length,
+    succeeded: report.total - failed.length,
+    total: report.total,
+  };
+  if (options.json) {
+    write({ ...(output as object), summary }, options);
+  } else if (output !== "") {
     write(output, options);
   }
   if (failed.length === 0) {
@@ -128,20 +163,36 @@ const writeBatch = (
   }
   if (!options.json) {
     process.stderr.write(
-      `${failed
-        .map(({ error, id }) => `${id}: ${failureMessage(error)}`)
-        .join("\n")}\n`
+      `${[
+        ...failed.map(({ error, id }) => `${id}: ${failureMessage(error)}`),
+        `${summary.succeeded} of ${summary.total} ${report.noun} done; ${summary.failed} failed.`,
+        `Retry the failed ones: teak${targetFlags(options)} ${report.retry(failed.map(({ id }) => id))}`,
+      ].join("\n")}\n`
     );
   }
   process.exitCode = exitCodeFor(failed[0]?.error);
 };
+
+// A retry goes to the same deployment and account as the run it repeats. The
+// key itself never appears: a quoted placeholder (unquoted, a shell would
+// read <API_KEY> as a redirect) says to pass it again.
+const targetFlags = (options: GlobalOptions) => {
+  const url = options.apiUrl ? ` --api-url ${shellArg(options.apiUrl)}` : "";
+  const key = options.apiKey ? " --api-key '<API_KEY>'" : "";
+  return `${url}${key}`;
+};
+
+const retryWith =
+  (command: string, suffix = "") =>
+  (ids: string[]) =>
+    `${command} ${ids.map(shellArg).join(" ")}${suffix}`;
 
 export const deleteCards = async (
   ids: string[],
   options: GlobalOptions & { permanent?: boolean; yes?: boolean }
 ) => {
   if (options.permanent && !options.yes) {
-    if (!process.stdin.isTTY) {
+    if (!canPrompt()) {
       throw new InvalidArgumentError(
         "--permanent can't be undone; add --yes to confirm"
       );
@@ -179,7 +230,12 @@ export const deleteCards = async (
         }
       : succeeded.map(done).join("\n"),
     failed,
-    options
+    options,
+    {
+      noun: "cards",
+      retry: retryWith("rm", options.permanent ? " --permanent --yes" : ""),
+      total: ids.length,
+    }
   );
 };
 
@@ -196,7 +252,8 @@ export const restoreCards = async (ids: string[], options: GlobalOptions) => {
         }
       : succeeded.map((id) => `Restored ${id}`).join("\n"),
     failed,
-    options
+    options,
+    { noun: "cards", retry: retryWith("restore"), total: ids.length }
   );
 };
 
@@ -221,7 +278,12 @@ export const setCardsArchived = async (
           )
           .join("\n"),
     failed,
-    options
+    options,
+    {
+      noun: "cards",
+      retry: retryWith(isArchived ? "archive" : "unarchive"),
+      total: ids.length,
+    }
   );
 };
 
@@ -271,7 +333,8 @@ export const refreshCards = async (ids: string[], options: GlobalOptions) => {
           .map((id) => `Refreshing ${id}. Check it with: teak cards get ${id}`)
           .join("\n"),
     failed,
-    options
+    options,
+    { noun: "cards", retry: retryWith("refresh"), total: ids.length }
   );
 };
 
@@ -482,22 +545,96 @@ const sleep = (ms: number) =>
 const FIRST_POLL_MS = 250;
 const MAX_POLL_MS = 3000;
 
-const waitForExport = async (api: TeakClient, intervalMs?: number) => {
-  let latest = await api.exports.latest();
-  let delay = intervalMs ?? FIRST_POLL_MS;
-  while (isActive(latest.job)) {
-    if (process.stderr.isTTY && latest.job?.processedCount) {
-      process.stderr.write(`\r${latest.job.processedCount} cards processed…`);
-    }
-    await sleep(delay);
-    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
-    latest = await api.exports.latest();
+interface PollOptions<T> {
+  intervalMs?: number;
+  progress: (value: T) => string | null;
+  refresh: (value: T) => Promise<T>;
+  running: (value: T) => boolean;
+  start: T;
+  /** The error to raise when the wait runs out: what keeps going, and how to check. */
+  timedOut: (waited: string) => CliError;
+  timeoutMs?: number;
+}
+
+/**
+ * Polls until `running` is false, backing off from 250 ms to 3 s, and gives up
+ * after `timeoutMs` (10 minutes by default) so no wait runs forever.
+ */
+// A status read that is still going at the deadline ends the wait too, so a
+// slow request can't stretch --timeout.
+const beforeDeadline = async <T>(
+  work: Promise<T>,
+  deadline: number,
+  timedOut: () => Error
+): Promise<T> => {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw timedOut();
   }
-  if (process.stderr.isTTY) {
-    process.stderr.write("\r\x1b[K");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(timedOut()), remaining);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
-  return latest;
 };
+
+const poll = async <T>(input: PollOptions<T>): Promise<T> => {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
+  const deadline = Date.now() + timeoutMs;
+  const progress = showsProgress();
+  let value = input.start;
+  let delay = input.intervalMs ?? FIRST_POLL_MS;
+  try {
+    while (input.running(value)) {
+      if (Date.now() >= deadline) {
+        throw input.timedOut(formatDuration(timeoutMs));
+      }
+      const line = progress ? input.progress(value) : null;
+      if (line) {
+        process.stderr.write(`\r${line}`);
+      }
+      await sleep(Math.min(delay, Math.max(0, deadline - Date.now())));
+      delay = input.intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
+      value = await beforeDeadline(input.refresh(value), deadline, () =>
+        input.timedOut(formatDuration(timeoutMs))
+      );
+    }
+  } finally {
+    if (progress) {
+      process.stderr.write("\r\x1b[K");
+    }
+  }
+  return value;
+};
+
+const waitForExport = async (
+  api: TeakClient,
+  intervalMs?: number,
+  timeoutMs?: number
+) =>
+  poll({
+    intervalMs,
+    progress: (latest: LatestExport) =>
+      latest.job?.processedCount
+        ? `${latest.job.processedCount} cards processed…`
+        : null,
+    refresh: () => api.exports.latest(),
+    running: (latest) => isActive(latest.job),
+    start: await api.exports.latest(),
+    timedOut: (waited) =>
+      new CliError(
+        "TIMEOUT",
+        `Stopped waiting after ${waited}. The export keeps going.`,
+        { next: "Check on it with: teak export status" }
+      ),
+    timeoutMs,
+  });
 
 export const exportStatus = async (options: GlobalOptions) => {
   const latest = await client(options).exports.latest();
@@ -525,6 +662,7 @@ export const startExport = async (
     force?: boolean;
     intervalMs?: number;
     output?: string;
+    timeout?: number;
     wait?: boolean;
   }
 ) => {
@@ -549,7 +687,7 @@ export const startExport = async (
   }
   const latest =
     options.wait || options.output
-      ? await waitForExport(api, options.intervalMs)
+      ? await waitForExport(api, options.intervalMs, options.timeout)
       : await api.exports.latest();
   if (options.output && latest.job?.downloadUrl) {
     await downloadExport(options);
@@ -558,6 +696,11 @@ export const startExport = async (
   write(options.json ? latest : describeExport(latest), options);
   if (options.output || (options.wait && latest.job?.status !== "ready")) {
     process.exitCode = EXIT.api;
+  } else if (!options.wait && isActive(latest.job)) {
+    writeTip(
+      "Wait for it with: teak export --wait, or save it when ready with: teak export download",
+      options
+    );
   }
 };
 
@@ -607,27 +750,27 @@ export const formatRuleRun = (run: FolderRuleRun) =>
 
 const waitForRuleRun = async (
   api: TeakClient,
-  folderId: string,
+  folder: Pick<Folder, "id" | "name">,
   started: FolderRuleRun,
-  intervalMs?: number
-) => {
-  let run = started;
-  let delay = intervalMs ?? FIRST_POLL_MS;
-  while (run.status === "running" || run.status === "undoing") {
-    if (process.stderr.isTTY) {
-      process.stderr.write(
-        `\rFiled ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`
-      );
-    }
-    await sleep(delay);
-    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
-    run = await api.folders.getRuleRun(folderId, run.id);
-  }
-  if (process.stderr.isTTY) {
-    process.stderr.write("\r\x1b[K");
-  }
-  return run;
-};
+  options: { intervalMs?: number; timeout?: number }
+) =>
+  poll({
+    intervalMs: options.intervalMs,
+    progress: (run: FolderRuleRun) =>
+      `Filed ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`,
+    refresh: (run) => api.folders.getRuleRun(folder.id, run.id),
+    running: (run) => run.status === "running" || run.status === "undoing",
+    start: started,
+    timedOut: (waited) =>
+      new CliError(
+        "TIMEOUT",
+        `Stopped waiting after ${waited}. The rule run keeps going.`,
+        {
+          next: `Check on it with: teak folders rule-run ${shellArg(folder.name)} ${started.id}`,
+        }
+      ),
+    timeoutMs: options.timeout,
+  });
 
 export interface FolderRuleOptions {
   autoFile?: string | false;
@@ -650,7 +793,11 @@ const ruleInput = (options: FolderRuleOptions) => ({
 export const setFolderRules = async (
   ref: string,
   options: GlobalOptions &
-    FolderRuleOptions & { intervalMs?: number; wait?: boolean }
+    FolderRuleOptions & {
+      intervalMs?: number;
+      timeout?: number;
+      wait?: boolean;
+    }
 ) => {
   if (options.pause && options.resume) {
     throw new InvalidArgumentError("choose --pause or --resume, not both");
@@ -669,7 +816,7 @@ export const setFolderRules = async (
       : null;
   const run =
     startedRun && options.wait
-      ? await waitForRuleRun(api, updated.id, startedRun, options.intervalMs)
+      ? await waitForRuleRun(api, updated, startedRun, options)
       : startedRun;
   write(
     options.json
@@ -679,6 +826,12 @@ export const setFolderRules = async (
         ),
     options
   );
+  if (run && !options.wait && run.status === "running") {
+    writeTip(
+      `Check on it with: teak folders rule-run ${shellArg(updated.name)}`,
+      options
+    );
+  }
 };
 
 const latestRunId = (folder: Folder, runId?: string) => {
@@ -692,13 +845,17 @@ const latestRunId = (folder: Folder, runId?: string) => {
 export const folderRuleRunStatus = async (
   ref: string,
   runId: string | undefined,
-  options: GlobalOptions & { intervalMs?: number; wait?: boolean }
+  options: GlobalOptions & {
+    intervalMs?: number;
+    timeout?: number;
+    wait?: boolean;
+  }
 ) => {
   const api = client(options);
   const folder = await resolveFolder(api, ref);
   let run = await api.folders.getRuleRun(folder.id, latestRunId(folder, runId));
   if (options.wait) {
-    run = await waitForRuleRun(api, folder.id, run, options.intervalMs);
+    run = await waitForRuleRun(api, folder, run, options);
   }
   write(options.json ? run : formatRuleRun(run), options);
 };
@@ -706,7 +863,11 @@ export const folderRuleRunStatus = async (
 export const undoFolderRuleRun = async (
   ref: string,
   runId: string | undefined,
-  options: GlobalOptions & { intervalMs?: number; wait?: boolean }
+  options: GlobalOptions & {
+    intervalMs?: number;
+    timeout?: number;
+    wait?: boolean;
+  }
 ) => {
   const api = client(options);
   const folder = await resolveFolder(api, ref);
@@ -715,7 +876,7 @@ export const undoFolderRuleRun = async (
     latestRunId(folder, runId)
   );
   if (options.wait) {
-    run = await waitForRuleRun(api, folder.id, run, options.intervalMs);
+    run = await waitForRuleRun(api, folder, run, options);
   }
   write(options.json ? run : formatRuleRun(run), options);
 };
@@ -797,7 +958,8 @@ export const deleteFolders = async (refs: string[], options: GlobalOptions) => {
           .map((ref) => `Deleted folder ${ref}; its cards are kept`)
           .join("\n"),
     failed,
-    options
+    options,
+    { noun: "folders", retry: retryWith("folders delete"), total: refs.length }
   );
 };
 
@@ -881,31 +1043,32 @@ export const describeTagOperation = (operation: TagOperation) => {
   return `${doing}: ${operation.changed} of ${cardsLabel(operation.total)} changed so far. Check with: teak tags status ${operation.id}`;
 };
 
+const stalled = (operation: TagOperation) =>
+  Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS;
+
 const waitForTagOperation = async (
   api: TeakClient,
   started: TagOperation,
-  intervalMs?: number
+  options: { intervalMs?: number; timeout?: number }
 ) => {
-  let operation = started;
-  let delay = intervalMs ?? FIRST_POLL_MS;
-  while (operation.status === "running") {
-    if (Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS) {
-      operation = { ...operation, status: "failed" };
-      break;
-    }
-    if (process.stderr.isTTY) {
-      process.stderr.write(
-        `\r${operation.changed} of ${cardsLabel(operation.total)} changed…`
-      );
-    }
-    await sleep(delay);
-    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
-    operation = await api.tags.operation(operation.id);
-  }
-  if (process.stderr.isTTY) {
-    process.stderr.write("\r\x1b[K");
-  }
-  return operation;
+  const operation = await poll({
+    intervalMs: options.intervalMs,
+    progress: (current: TagOperation) =>
+      `${current.changed} of ${cardsLabel(current.total)} changed…`,
+    refresh: (current) => api.tags.operation(current.id),
+    running: (current) => current.status === "running" && !stalled(current),
+    start: started,
+    timedOut: (waited) =>
+      new CliError(
+        "TIMEOUT",
+        `Stopped waiting after ${waited}. The tag change keeps going.`,
+        { next: `Check on it with: teak tags status ${started.id}` }
+      ),
+    timeoutMs: options.timeout,
+  });
+  return operation.status === "running"
+    ? { ...operation, status: "failed" as const }
+    : operation;
 };
 
 const reportTagOperation = (
@@ -918,32 +1081,75 @@ const reportTagOperation = (
   }
 };
 
+// How many cards in the library carry a tag, matched ignoring case. The tag
+// list counts neither Archive nor Trash, while a tag change covers both, so
+// every message that shows this count says so.
+const tagCardCount = async (api: TeakClient, name: string) => {
+  const { items } = await api.tags.list();
+  const wanted = name.trim().toLowerCase();
+  return items.find((tag) => tag.name.toLowerCase() === wanted)?.count ?? 0;
+};
+
+const describeDryRun = (
+  kind: TagOperation["kind"],
+  from: string,
+  to: string | undefined,
+  count: number
+) => {
+  const what = {
+    delete: `remove "${from}" from`,
+    merge: `merge "${from}" into "${to ?? ""}" on`,
+    rename: `rename "${from}" to "${to ?? ""}" on`,
+  }[kind];
+  return `Would ${what} ${cardsLabel(count)} in your library, and on any in Archive and Trash. Nothing changed.`;
+};
+
 export const startTagOperation = async (
   kind: TagOperation["kind"],
   from: string,
   to: string | undefined,
   options: ClientOptions & {
+    dryRun?: boolean;
     intervalMs?: number;
+    timeout?: number;
     wait?: boolean;
     yes?: boolean;
   }
 ) => {
+  const api = client(options);
+  if (options.dryRun) {
+    const count = await tagCardCount(api, from);
+    write(
+      options.json
+        ? {
+            dryRun: true,
+            from,
+            kind,
+            // Archive and Trash change too but aren't in this count.
+            libraryCards: count,
+            ...(to === undefined ? {} : { to }),
+          }
+        : describeDryRun(kind, from, to, count),
+      options
+    );
+    return;
+  }
   if (kind === "delete" && !options.yes) {
-    if (!process.stdin.isTTY) {
+    if (!canPrompt()) {
       throw new InvalidArgumentError(
         "Deleting a tag changes every card that has it; add --yes to confirm"
       );
     }
+    const count = await tagCardCount(api, from);
     if (
       !(await confirm(
-        `Remove "${from}" from every card? This can't be undone.`
+        `Remove "${from}" from ${cardsLabel(count)} in your library, and from any in Archive and Trash? This can't be undone.`
       ))
     ) {
       write(options.json ? { deleted: false } : "Nothing changed.", options);
       return;
     }
   }
-  const api = client(options);
   let operation: TagOperation;
   if (kind === "rename") {
     operation = await api.tags.rename(from, to ?? "");
@@ -953,19 +1159,23 @@ export const startTagOperation = async (
     operation = await api.tags.delete(from);
   }
   if (options.wait) {
-    operation = await waitForTagOperation(api, operation, options.intervalMs);
+    operation = await waitForTagOperation(api, operation, options);
   }
   reportTagOperation(operation, options);
 };
 
 export const tagOperationStatus = async (
   id: string,
-  options: ClientOptions & { intervalMs?: number; wait?: boolean }
+  options: ClientOptions & {
+    intervalMs?: number;
+    timeout?: number;
+    wait?: boolean;
+  }
 ) => {
   const api = client(options);
   let operation = await api.tags.operation(id);
   if (options.wait) {
-    operation = await waitForTagOperation(api, operation, options.intervalMs);
+    operation = await waitForTagOperation(api, operation, options);
   }
   reportTagOperation(operation, options);
 };
@@ -1046,6 +1256,11 @@ export const removeHighlights = async (
         }
       : succeeded.map((id) => `Removed highlight ${id}`).join("\n"),
     failed,
-    options
+    options,
+    {
+      noun: "highlights",
+      retry: retryWith("highlights delete"),
+      total: ids.length,
+    }
   );
 };
