@@ -8,6 +8,7 @@
     "check": "bun run ../../scripts/cloudflare/check-cloudflare.ts",
     "deploy": "wrangler deploy",
     "deploy:development": "wrangler deploy --config development/wrangler.jsonc",
+    "deploy:self-host": "bun --no-env-file run ../../scripts/cloudflare/self-host-deploy.ts",
     "dev": "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts",
     "dev:local": "wrangler dev --var POSTHOG_PROJECT_TOKEN:",
     "fetcher:live-check": "bun fetcher/scripts/live-check.ts",

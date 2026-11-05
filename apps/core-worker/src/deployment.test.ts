@@ -160,3 +160,81 @@ test("dev runs the development Worker config", () => {
     "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts"
   );
 });
+
+const readWorkerConfig = (path: string) =>
+  unstable_readConfig({ config: resolve(import.meta.dir, path) });
+
+// What a self-hosted deployment may change: its name, where it answers,
+// resource IDs Wrangler provisions, container app names and per-deployment
+// vars. Everything else must match production, so a binding, queue, cron or
+// limit added to one config is added to both.
+const deploymentNeutral = (path: string) => {
+  const {
+    name: _name,
+    account_id: _accountId,
+    routes: _routes,
+    workers_dev: _workersDev,
+    vars: _vars,
+    r2_buckets,
+    kv_namespaces,
+    containers,
+    assets,
+    configPath,
+    userConfigPath: _userConfigPath,
+    topLevelName: _topLevelName,
+    ...rest
+  } = readWorkerConfig(path) as ReturnType<typeof readWorkerConfig> &
+    Record<string, unknown>;
+  return {
+    ...rest,
+    assets: assets && {
+      ...assets,
+      directory:
+        assets.directory && resolve(String(configPath), "..", assets.directory),
+    },
+    r2Bindings: r2_buckets.map((bucket) => bucket.binding),
+    kvBindings: kv_namespaces.map((namespace) => namespace.binding),
+    containers: containers?.map(
+      ({ name: _containerName, ...container }) => container
+    ),
+  };
+};
+
+test("the self-host config matches production apart from deployment values", () => {
+  expect(deploymentNeutral("../self-host/wrangler.jsonc")).toEqual(
+    deploymentNeutral("../wrangler.jsonc")
+  );
+});
+
+test("the self-host config names nothing of Teak's own deployment", async () => {
+  const source = await Bun.file(
+    resolve(import.meta.dir, "../self-host/wrangler.jsonc")
+  ).text();
+  expect(source).not.toMatch(/teakvault|convex\.site|authkit\.app|phc_/);
+  const config = readWorkerConfig("../self-host/wrangler.jsonc");
+  expect(config.account_id).toBeUndefined();
+  expect(config.routes).toEqual([]);
+  expect(config.workers_dev).toBe(true);
+  expect(config.kv_namespaces.map((namespace) => namespace.id)).toEqual([
+    undefined,
+    undefined,
+  ]);
+  expect(Object.keys(config.vars).sort()).toEqual([
+    "AI_USAGE_DATASET",
+    "LINK_FETCHER_INSTANCES",
+    "MAX_BODY_BYTES",
+    "MEDIA_RENDERER_INSTANCES",
+  ]);
+  expect(
+    config.containers?.map((container) => container.max_instances)
+  ).toEqual([
+    Number(config.vars.MEDIA_RENDERER_INSTANCES),
+    Number(config.vars.LINK_FETCHER_INSTANCES),
+  ]);
+});
+
+test("deploy:self-host runs the self-host deploy script", () => {
+  expect(packageJson.scripts["deploy:self-host"]).toBe(
+    "bun --no-env-file run ../../scripts/cloudflare/self-host-deploy.ts"
+  );
+});

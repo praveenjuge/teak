@@ -13,6 +13,7 @@ Before changing anything, read the sections of `apps/core-worker/README.md` the 
 - Every card-processing write carries the run's processing revision (`guardOf(job)`); a stale write ends the run as skipped and never overwrites newer work. Keep `processingStatus` consistent and every run reporting back through `workflowDispatch.complete`.
 - A `NonRetryableError` thrown inside a step reaches the workflow as a plain `Error` whose message starts with `NonRetryableError: `. Code that matches on a step error's message must allow for that prefix.
 - Development binds only development resources (`apps/core-worker/development/wrangler.jsonc`); never point it at production buckets, indexes, routes or secrets.
+- Self-hosted deployments use `apps/core-worker/self-host/wrangler.jsonc`. A binding, queue, cron, limit or container added to `wrangler.jsonc` goes there too in the same change (`src/deployment.test.ts` fails otherwise); never put an account, route, resource ID or Teak value in it.
 - After changing a Wrangler config, run `bun run cf-typegen` in `apps/core-worker`; never hand-edit `worker-configuration.d.ts`.
 
 ## Prove the change, cheapest first

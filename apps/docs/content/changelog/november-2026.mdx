@@ -2,7 +2,7 @@
 title: "November 2026"
 description: Teak for Android on Google Play, pin up to 12 cards to the top of your library, folders that tag and file your cards, a card's actions move beside it, into its details, a list-style Settings, a calmer browser extension popup, quicker capture on the Mac, and a round of fixes to saving, search, Trash, imports and Settings.
 type: changelog
-date: "2026-11-04"
+date: "2026-11-05"
 changelog:
   category: Product updates
 ---
@@ -84,6 +84,11 @@ changelog:
 - Teak no longer writes a summary or tags for a link whose page couldn't be reached.
 - API keys can have names. **Security** lists this device first with when each device was last active, in your language, and **Sign out other devices** signs out everything but this one.
 - Keyboard focus is easy to see on every button, a **Skip to content** link comes first, and each Settings page reads its own name aloud.
+
+## Self-hosting: deploy the Core Worker without editing its config
+
+- A self-hosted Core Worker now deploys from its own config with `bun run deploy:self-host`, which reads your values from `apps/core-worker/self-host/.env`. You no longer edit `wrangler.jsonc`, so updates pull cleanly, and the first deploy creates the R2 bucket and KV namespaces for you. See [Core Worker](/docs/self-hosting#core-worker).
+- A Core Worker you already deploy from an edited `wrangler.jsonc` keeps working. The new config deploys a separate Worker named `teak-core-worker` with its own bucket, so use it for a new install.
 
 ## Fixes
 
