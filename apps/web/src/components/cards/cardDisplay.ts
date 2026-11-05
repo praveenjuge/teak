@@ -7,16 +7,24 @@ import { startsWithTable } from "@/lib/markdownToPlainText";
 const HOVER_LIFT =
   "transition-[border-color,box-shadow] duration-200 group-hover/card:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.3)]";
 
-export const CARD_SURFACE = `rounded-2xl border border-border/80 bg-card ${HOVER_LIFT} group-hover/card:border-foreground/15`;
+/**
+ * Keyboard focus and selection ring the tile, not the whole card, so a
+ * link's name line under its tile stays outside the ring. Selection wins
+ * while the card also has focus.
+ */
+const CARD_RINGS =
+  "group-has-[[data-slot=card]:focus-visible]/card:ring-2 group-has-[[data-slot=card]:focus-visible]/card:ring-ring group-has-[[data-slot=card]:focus-visible]/card:ring-offset-2 group-has-[[data-slot=card]:focus-visible]/card:ring-offset-background group-data-[selected]/card:ring-2 group-data-[selected]/card:ring-primary! group-data-[selected]/card:ring-offset-2 group-data-[selected]/card:ring-offset-background";
+
+export const CARD_SURFACE = `rounded-2xl border border-border/80 bg-card ${HOVER_LIFT} ${CARD_RINGS} group-hover/card:border-foreground/15`;
 
 /**
  * Every card that isn't an image or a video is a tile of this one shape, so
  * the grid reads as rows of equal cards with media between them.
  */
-export const CARD_TILE = `relative aspect-[6/5] w-full overflow-hidden ${CARD_SURFACE}`;
+export const CARD_TILE = `relative aspect-[4/3] w-full overflow-hidden ${CARD_SURFACE}`;
 
 /** Images and videos have no frame: the picture is the card. */
-export const MEDIA_SURFACE = `relative w-full overflow-hidden rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT}`;
+export const MEDIA_SURFACE = `relative w-full overflow-hidden rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT} ${CARD_RINGS}`;
 
 /** Price, duration and file type all sit in this pill, bottom left. */
 export const CARD_BADGE =

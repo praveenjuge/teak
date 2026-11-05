@@ -400,7 +400,7 @@ describe("Cards/Card", () => {
 
     expect(markup).toContain('src="https://example.com/screenshot.jpg"');
     expect(markup).not.toContain("unsized.jpg");
-    expect(markup).toContain("aspect-[6/5]");
+    expect(markup).toContain("aspect-[4/3]");
   });
 
   test("falls back to an unsized screenshot when the link has no other image", () => {
@@ -663,6 +663,8 @@ describe("Cards/Card redesign", () => {
     );
     expect(markup).not.toContain("og.jpg");
     expect(markup).toContain(">Desk lamp</p>");
+    // The cover keeps room under the site name, so the badge never covers it.
+    expect(markup).toMatch(/class="[^"]*aspect-\[4\/3\][^"]*pb-11/);
     expect(markup).toMatch(
       /<span class="[^"]*bottom-2\.5 left-2\.5[^"]*">\$24\.99<\/span>/
     );

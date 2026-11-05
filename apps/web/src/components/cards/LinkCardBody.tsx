@@ -73,7 +73,14 @@ export function LinkCardBody({
           {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
         </div>
       ) : (
-        <div className={cn(CARD_TILE, "flex flex-col p-4", textInsets)}>
+        <div
+          className={cn(
+            CARD_TILE,
+            "flex flex-col p-4",
+            priceLabel && "pb-11",
+            textInsets
+          )}
+        >
           {hostname ? (
             <SiteFavicon
               className="size-[22px] rounded-md"
@@ -82,7 +89,10 @@ export function LinkCardBody({
           ) : null}
           <div className="mt-auto min-w-0">
             <p
-              className="line-clamp-3 text-balance break-words font-serif text-[21px] leading-[1.12] tracking-[-0.015em]"
+              className={cn(
+                "text-balance break-words font-serif text-[21px] leading-[1.12] tracking-[-0.015em]",
+                priceLabel ? "line-clamp-2" : "line-clamp-3"
+              )}
               dir="auto"
             >
               {displayTitle}

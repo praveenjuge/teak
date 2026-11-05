@@ -43,6 +43,31 @@ export function scrubFrameIndex(
   return Math.min(count - 1, Math.max(0, Math.floor((x / width) * count)));
 }
 
+/**
+ * Places the scrub sprite so the current frame covers the tile the way the
+ * still does: a frame of another shape than the tile (a 9:16 recording in a
+ * 3:4 tile) is cropped around its center, never stretched.
+ */
+export function scrubSpriteStyle(
+  frame: number,
+  scrub: ScrubMetadata,
+  tileRatio: number
+): { height: string; left: string; top: string; width: string } {
+  const frameRatio =
+    scrub.frameWidth > 0 && scrub.frameHeight > 0
+      ? scrub.frameWidth / scrub.frameHeight
+      : tileRatio;
+  const frameWidth = Math.max(frameRatio / tileRatio, 1) * 100;
+  const frameHeight = Math.max(tileRatio / frameRatio, 1) * 100;
+  const round = (value: number) => `${Number(value.toFixed(4))}%`;
+  return {
+    height: round(frameHeight),
+    left: round(-(frame * frameWidth + (frameWidth - 100) / 2)),
+    top: round(-(frameHeight - 100) / 2),
+    width: round(scrub.frames * frameWidth),
+  };
+}
+
 function isValidScrub(scrub?: ScrubMetadata): scrub is ScrubMetadata {
   return !!scrub && Number.isFinite(scrub.frames) && scrub.frames >= 1;
 }
@@ -125,16 +150,13 @@ function ScrubPreview({
         <ResilientMediaImage
           alt=""
           cardId={cardId}
-          className={`pointer-events-none absolute top-0 left-0 h-full max-w-none ${showSprite ? "" : "opacity-0"}`}
+          className={`pointer-events-none absolute max-w-none ${showSprite ? "" : "opacity-0"}`}
           decoding="async"
           draggable={false}
           onLoad={() => setIsSpriteLoaded(true)}
           src={scrubUrl}
           storageKey={scrubKey}
-          style={{
-            transform: `translateX(-${(frame / scrub.frames) * 100}%)`,
-            width: `${scrub.frames * 100}%`,
-          }}
+          style={scrubSpriteStyle(frame, scrub, aspectRatio)}
         />
       ) : null}
 

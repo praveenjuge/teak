@@ -33,9 +33,9 @@ export function GridDocumentPreview({
   ) : null;
   if (thumbnailUrl) {
     return (
-      <div className={cn(CARD_TILE, "flex items-end justify-center pt-7")}>
+      <div className={cn(CARD_TILE, "flex items-end justify-center pt-5")}>
         <div
-          className="relative w-[56%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]"
+          className="relative w-[50%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]"
           style={{
             aspectRatio:
               width && height ? width / height : FALLBACK_ASPECT_RATIO,

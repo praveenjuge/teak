@@ -61,7 +61,7 @@ const sidebarFolders = [
 
 // The web app's card tiles (apps/web/src/components/cards/cardDisplay.ts).
 const tileClass =
-  "relative block aspect-[6/5] w-full overflow-hidden rounded-2xl border bg-card";
+  "relative block aspect-[4/3] w-full overflow-hidden rounded-2xl border bg-card";
 const badgeClass =
   "pointer-events-none absolute bottom-2.5 left-2.5 flex h-[22px] items-center gap-1.5 rounded-full bg-gray-950/60 px-2 text-[11.5px] font-semibold whitespace-nowrap text-white tabular-nums backdrop-blur-md";
 const quoteSize = (text: string) => {
@@ -253,8 +253,8 @@ const chipClass =
                     )}
 
                     {card.type === "document" && card.image && (
-                      <span class={`${tileClass} flex items-end justify-center pt-7`}>
-                        <span class="relative block w-[56%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
+                      <span class={`${tileClass} flex items-end justify-center pt-5`}>
+                        <span class="relative block w-[50%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
                           <img alt={`Preview of ${card.title}`} class="h-full w-full object-cover object-top" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                         </span>
                         <span class={badgeClass}>PDF</span>

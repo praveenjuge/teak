@@ -10,7 +10,7 @@ import {
 
 export function CardSkeleton() {
   return (
-    <Card className="flex aspect-[6/5] flex-col justify-between rounded-2xl p-4 shadow-none">
+    <Card className="flex aspect-[4/3] flex-col justify-between rounded-2xl p-4 shadow-none">
       <div className="space-y-3">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
