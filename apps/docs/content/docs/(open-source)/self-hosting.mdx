@@ -335,7 +335,7 @@ A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, 
 
 | Part | Set | Where |
 | --- | --- | --- |
-| Convex backend | `POSTHOG_PROJECT_TOKEN`, plus `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write`) so deleting an account also deletes its analytics | Convex env |
+| Convex backend | `POSTHOG_PROJECT_TOKEN`, `POSTHOG_PROJECT_ID` (the project's numeric ID, from its settings), and `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write` on that project) so deleting an account also deletes its analytics. Without the deletion key, account deletions stop at their last stage and retry until it's set | Convex env |
 | Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
 | Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, and `TEAK_ANALYTICS_ENABLED=true` unless it runs on Vercel | The web app's environment, at build time and at runtime |
 

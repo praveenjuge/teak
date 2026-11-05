@@ -204,6 +204,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Public project token (PostHog project 660923). Set only for production: Backend Deploy stamps it into Convex, release workflows bake it into the Apple app and the extension, and the production core worker carries it as a plain var. Unset means nothing is sent.",
   }),
+  spec("POSTHOG_PROJECT_ID", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Self-hosting only: the numeric ID of the PostHog project POSTHOG_PROJECT_TOKEN belongs to, which account deletion and the admin console's queries act on. Unset means Teak's own project, 660923.",
+  }),
   spec("POSTHOG_QUERY_API_KEY", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -212,7 +222,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["convex-dashboard"],
     required: false,
-    note: "Personal API key with query:read on PostHog project 660923. Lets the superadmin console read the zero-result search rate and card saves per surface. Those panels stay empty when unset.",
+    note: "Personal API key with query:read on the deployment's PostHog project (POSTHOG_PROJECT_ID, default 660923). Lets the superadmin console read the zero-result search rate and card saves per surface. Those panels stay empty when unset.",
   }),
   spec("POSTHOG_PERSON_DELETION_API_KEY", {
     owners: ["@teak/convex"],
@@ -222,7 +232,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["convex-dashboard"],
     required: false,
-    note: "Personal API key with person:write on PostHog project 660923. Account deletion uses it to delete the owner's PostHog person, events and recordings. Required wherever POSTHOG_PROJECT_TOKEN is set: without it, deletions stop at the last stage and retry until it is set.",
+    note: "Personal API key with person:write on the deployment's PostHog project (POSTHOG_PROJECT_ID, default 660923). Account deletion uses it to delete the owner's PostHog person, events and recordings. Required wherever POSTHOG_PROJECT_TOKEN is set: without it, deletions stop at the last stage and retry until it is set.",
   }),
   spec("POSTHOG_CLI_API_KEY", {
     owners: ["teak-release", "@teak/web"],

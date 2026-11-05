@@ -25,6 +25,7 @@ const app = defineApp({
     POLAR_SERVER: v.optional(v.string()),
     // nosemgrep: codacy.yaml.security.hard-coded-tokens
     POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
+    POSTHOG_PROJECT_ID: v.optional(v.string()),
     POSTHOG_QUERY_API_KEY: v.optional(v.string()),
     POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
