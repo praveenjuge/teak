@@ -2,8 +2,9 @@
   "$schema": "../node_modules/wrangler/config-schema.json",
   // Self-hosted Core Worker. Deploy it with `bun run deploy:self-host` from
   // apps/core-worker, which reads your values from self-host/.env (ignored)
-  // and passes them to `wrangler deploy` (README, "Self-hosting"). Nothing in
-  // this file names Teak's own account, so you never edit it.
+  // and deploys an ignored copy of this file with them, so the IDs Wrangler
+  // writes back never land here. Nothing in this file names Teak's own
+  // account, so you never edit it.
   //
   // A test (src/deployment.test.ts) keeps it equal to ../wrangler.jsonc apart
   // from the name, routes, resource IDs, container app names and vars.
@@ -199,8 +200,9 @@
     // Each of the text and HTML bodies is cut to this many UTF-8 bytes.
     "MAX_BODY_BYTES": "1048576"
   },
-  // The first deploy uploads them from self-host/.env.secrets; later ones
-  // keep them. A deploy fails while any of them is missing.
+  // `bun run deploy:self-host -- --with-secrets` uploads them from
+  // self-host/.env.secrets; deploys without the flag keep what the Worker
+  // has. A deploy fails while any of them is missing.
   "secrets": {
     "required": [
       "EMAIL_INBOUND_SIGNING_SECRET",

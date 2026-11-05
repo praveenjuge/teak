@@ -164,7 +164,7 @@ test("selfHostDeployArgs deploys the self-host config with vars, domains, routes
   ).toEqual([
     "deploy",
     "--config",
-    "self-host/wrangler.jsonc",
+    "self-host/wrangler.deploy.jsonc",
     "--var",
     "CONVEX_SITE_URLS:https://happy-otter-123.convex.site",
     "--var",

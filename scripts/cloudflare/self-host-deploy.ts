@@ -4,15 +4,20 @@
 // with the deployment's own values from self-host/.env, so a self-hoster
 // never edits a committed config. Run it as `bun run deploy:self-host` from
 // apps/core-worker; arguments after `--` go to `wrangler deploy` (for
-// example `-- --dry-run --outdir /tmp/out`).
+// example `-- --dry-run --outdir /tmp/out`), except `--with-secrets`, which
+// uploads self-host/.env.secrets with the deploy.
 
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { normalizeConvexSiteUrl } from "@teak/files-protocol";
 
 const WORKER_DIR = join(import.meta.dir, "../../apps/core-worker");
 export const SELF_HOST_DIR = join(WORKER_DIR, "self-host");
 export const SELF_HOST_CONFIG = "self-host/wrangler.jsonc";
+// Wrangler writes the IDs of resources it provisions back into the config it
+// deployed, so it deploys an ignored copy and the committed file never changes.
+export const SELF_HOST_DEPLOY_CONFIG = "self-host/wrangler.deploy.jsonc";
+export const WITH_SECRETS_FLAG = "--with-secrets";
 const VARS_FILE = join(SELF_HOST_DIR, ".env");
 const SECRETS_FILE = join(SELF_HOST_DIR, ".env.secrets");
 
@@ -193,7 +198,7 @@ export const selfHostDeployArgs = (
 ): string[] => [
   "deploy",
   "--config",
-  SELF_HOST_CONFIG,
+  SELF_HOST_DEPLOY_CONFIG,
   ...Object.entries(plan.vars).flatMap(([key, value]) => [
     "--var",
     `${key}:${value}`,
@@ -218,11 +223,28 @@ if (import.meta.main) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
+  const passthrough = process.argv.slice(2).filter((arg) => arg !== "--");
+  // Every upload overwrites the Worker's values, so the file goes up only
+  // when asked: a secret rotated later with `wrangler secret put` stays put.
+  const withSecrets = passthrough.includes(WITH_SECRETS_FLAG);
+  if (withSecrets && !existsSync(SECRETS_FILE)) {
+    console.error(
+      `${WITH_SECRETS_FLAG} needs apps/core-worker/self-host/.env.secrets.`
+    );
+    process.exit(1);
+  }
+  if (!withSecrets && existsSync(SECRETS_FILE)) {
+    console.log(
+      `Not uploading self-host/.env.secrets; pass ${WITH_SECRETS_FLAG} to upload it.`
+    );
+  }
+  copyFileSync(
+    join(WORKER_DIR, SELF_HOST_CONFIG),
+    join(WORKER_DIR, SELF_HOST_DEPLOY_CONFIG)
+  );
   const args = selfHostDeployArgs(plan, {
-    passthrough: process.argv.slice(2).filter((arg) => arg !== "--"),
-    secretsFile: existsSync(SECRETS_FILE)
-      ? "self-host/.env.secrets"
-      : undefined,
+    passthrough: passthrough.filter((arg) => arg !== WITH_SECRETS_FLAG),
+    secretsFile: withSecrets ? "self-host/.env.secrets" : undefined,
   });
   console.log(`wrangler ${args.join(" ")}`);
   const child = Bun.spawn(["bunx", "wrangler", ...args], {

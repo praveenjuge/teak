@@ -149,10 +149,10 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     Uploads, downloads, thumbnails, and exports all go through the Core Worker. Create its queues and vector index, write your values to `apps/core-worker/self-host/.env` and its secrets to `self-host/.env.secrets`, then deploy from `apps/core-worker`, as described in [Core Worker](#core-worker):
 
     ```bash
-    bun run deploy:self-host
+    bun run deploy:self-host -- --with-secrets
     ```
 
-    Use the same `FILES_SIGNING_SECRET` on the Convex deployment, set `FILES_BASE` there to the worker's origin, and set `NEXT_PUBLIC_FILES_BASE` to the same origin when you build the web app.
+    Later deploys are `bun run deploy:self-host`. Use the same `FILES_SIGNING_SECRET` on the Convex deployment, set `FILES_BASE` there to the worker's origin, and set `NEXT_PUBLIC_FILES_BASE` to the same origin when you build the web app.
   </Step>
   <Step title="Host the web app">
     Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
@@ -201,7 +201,7 @@ POLAR_WEBHOOK_SECRET=secret
 
 The Core Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (link screenshots), and a media renderer Container. Self-hosted deployments use `apps/core-worker/self-host/wrangler.jsonc`, which names nothing of Teak's own account, so you never edit it and updates pull cleanly. `apps/core-worker/wrangler.jsonc` is Teak's own production Worker; don't deploy it.
 
-`bun run deploy:self-host`, from `apps/core-worker`, reads your values from `self-host/.env` and runs `wrangler deploy` with that config. Arguments after `--` go to Wrangler, so `bun run deploy:self-host -- --dry-run` checks your values and the bundle without deploying. Both `.env` files are ignored by git.
+`bun run deploy:self-host`, from `apps/core-worker`, reads your values from `self-host/.env` and runs `wrangler deploy` with a copy of that config, `self-host/wrangler.deploy.jsonc`, so the resource IDs Wrangler writes back stay out of the committed file. Arguments after `--` go to Wrangler, so `bun run deploy:self-host -- --dry-run` checks your values and the bundle without deploying. The `.env` files and the copy are ignored by git.
 
 Deploy it on Workers Paid. Exports stream every file into one ZIP in a single request, which needs the raised `cpu_ms` and `subrequests` limits in the config (Workers Free allows 10 ms of CPU per request). Paid also includes 10 browser hours a month of Browser Run, and Cloudflare Containers, which Workers Free does not offer.
 
@@ -254,7 +254,7 @@ The Cron Trigger schedules in `triggers.crons` must equal the Cloudflare schedul
 
 #### Secrets
 
-A Worker that doesn't exist yet can't take `wrangler secret put`, so the first deploy uploads its secrets from `self-host/.env.secrets` when that file exists. The deploy fails while any of the three required ones is missing:
+A Worker that doesn't exist yet can't take `wrangler secret put`, so put its secrets in `self-host/.env.secrets` and run the first deploy with `bun run deploy:self-host -- --with-secrets`, which uploads them with it. The deploy fails while any of the three required ones is missing:
 
 ```bash
 FILES_SIGNING_SECRET=shared-secret           # Required. Must match the Convex value
@@ -263,7 +263,7 @@ EMAIL_INBOUND_SIGNING_SECRET=secret          # Required. Must match the Convex v
 ANALYTICS_API_TOKEN=token                    # Optional. Account Analytics: Read, for the AI usage rollup
 ```
 
-Generate each with `openssl rand -hex 32`. Later deploys keep them, so you can delete the file after the first one. To change one later, run `bunx wrangler secret put <NAME> --config self-host/wrangler.jsonc` from `apps/core-worker`.
+Generate each with `openssl rand -hex 32`. Deploys without `--with-secrets` keep what the Worker has, and each deploy with it sets every secret in the file again, so delete the file after the first deploy. To change one later, run `bunx wrangler secret put <NAME> --config self-host/wrangler.jsonc` from `apps/core-worker`.
 
 Each Convex deployment the Worker serves holds its own `WORKFLOW_RPC_SECRET`, derived from the root secret and the deployment's origin. Derive it and set it on the deployment:
 

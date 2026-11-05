@@ -58,7 +58,10 @@ the resources to create, the values to set and the secrets to put. A
 self-hosted Worker deploys `self-host/wrangler.jsonc` with
 `bun run deploy:self-host`, which reads the deployment's values from the
 ignored `self-host/.env` (`self-host/example.env` lists them) and passes them
-to `wrangler deploy` (`scripts/cloudflare/self-host-deploy.ts`). That config
+to `wrangler deploy` (`scripts/cloudflare/self-host-deploy.ts`). It deploys an
+ignored copy, `self-host/wrangler.deploy.jsonc`, because Wrangler writes the
+IDs of the resources it provisions back into the config it deployed, and it
+uploads `self-host/.env.secrets` only with `--with-secrets`. That config
 names no account, routes or resource IDs, and `src/deployment.test.ts` keeps
 it equal to `wrangler.jsonc` in everything else, so a binding, queue, cron or
 limit added to production is added there in the same change. This file
