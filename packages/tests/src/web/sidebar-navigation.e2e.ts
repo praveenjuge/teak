@@ -123,9 +123,10 @@ test("on a phone the sidebar is a drawer that closes after navigating", async ({
   const drawer = browser.locator('[data-mobile="true"]');
   const toggle = screen.getByRole("button", "Toggle sidebar");
   // Cards arrive server-rendered, so they cannot prove hydration. The
-  // toggle's aria-expanded mirrors the desktop sidebar until the isMobile
-  // effect flips it to the closed mobile drawer; that flip means the
-  // toggle's handler is wired to openMobile.
+  // toggle's aria-expanded mirrors the desktop sidebar (default open)
+  // until the isMobile effect flips it to the closed mobile drawer; the
+  // flip proves the provider state the click reads, not that the whole
+  // page finished hydrating.
   await expect(toggle).toHaveAttribute("aria-expanded", "false", {
     timeout: 30_000,
   });
