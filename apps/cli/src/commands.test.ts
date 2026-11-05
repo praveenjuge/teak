@@ -2272,6 +2272,38 @@ describe("teak design rules", () => {
     ]);
   });
 
+  test("--timeout also cuts off a status read that is still going", async () => {
+    let calls = 0;
+    routes.set("GET /v1/tags/operations/op_2", async () => {
+      calls += 1;
+      if (calls > 1) {
+        await Bun.sleep(5000);
+      }
+      return json({
+        changed: 1,
+        from: "a",
+        id: "op_2",
+        kind: "delete",
+        status: "running",
+        to: null,
+        total: 9,
+        updatedAt: Date.now(),
+      });
+    });
+    const started = Date.now();
+    const result = await teak(
+      "tags",
+      "status",
+      "op_2",
+      "--wait",
+      "--timeout",
+      "1s"
+    );
+    expect(result.code).toBe(EXIT.api);
+    expect(result.stderr).toContain("Stopped waiting after 1s.");
+    expect(Date.now() - started).toBeLessThan(4000);
+  });
+
   test("a partly failed batch counts the failures and prints the retry", async () => {
     routes.set("POST /v1/cards/card_a/restore", noContent);
     routes.set("POST /v1/cards/gone/restore", notFound);

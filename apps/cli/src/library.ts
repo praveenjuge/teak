@@ -559,6 +559,30 @@ interface PollOptions<T> {
  * Polls until `running` is false, backing off from 250 ms to 3 s, and gives up
  * after `timeoutMs` (10 minutes by default) so no wait runs forever.
  */
+// A status read that is still going at the deadline ends the wait too, so a
+// slow request can't stretch --timeout.
+const beforeDeadline = async <T>(
+  work: Promise<T>,
+  deadline: number,
+  timedOut: () => Error
+): Promise<T> => {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw timedOut();
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(timedOut()), remaining);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const poll = async <T>(input: PollOptions<T>): Promise<T> => {
   const timeoutMs = input.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
   const deadline = Date.now() + timeoutMs;
@@ -576,7 +600,9 @@ const poll = async <T>(input: PollOptions<T>): Promise<T> => {
       }
       await sleep(Math.min(delay, Math.max(0, deadline - Date.now())));
       delay = input.intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
-      value = await input.refresh(value);
+      value = await beforeDeadline(input.refresh(value), deadline, () =>
+        input.timedOut(formatDuration(timeoutMs))
+      );
     }
   } finally {
     if (progress) {
