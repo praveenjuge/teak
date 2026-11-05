@@ -27,7 +27,7 @@ Split any insight by `$lib`.
 
 ## Event catalog
 
-The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events there first. Keep properties low-cardinality and never include card content, URLs, file names, prompts or outputs. The web search lives in `?q=`; `posthog-config.ts` masks it in `$current_url`, referrers and replays, so keep search text out of any other URL parameter.
+The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events there first. Keep properties low-cardinality and never include card content, URLs, file names, prompts or outputs. The web search lives in `?q=`, and text from the system share sheet in `?title=`, `?text=` and `?url=` until the composer takes it; `posthog-config.ts` masks these (`MASKED_URL_PARAMS`) in `$current_url`, referrers and replays, so keep search and shared text out of any other URL parameter, or add the parameter to that list.
 
 Client events (`captureEvent`):
 
