@@ -1,6 +1,7 @@
 import { useTranslations } from "@teak/i18n/react";
 import { File } from "vadivam-react";
-import { CARD_SURFACE } from "../cardDisplay";
+import { cn } from "../../../lib/utils";
+import { CARD_BADGE, CARD_TILE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridDocumentPreviewProps {
@@ -16,29 +17,6 @@ interface GridDocumentPreviewProps {
 
 const FALLBACK_ASPECT_RATIO = 3 / 4;
 
-function FileLabel({
-  fileName,
-  formatBadge,
-}: {
-  fileName?: string;
-  formatBadge?: string;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      {formatBadge ? (
-        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-semibold text-[10px] text-foreground tracking-wide">
-          {formatBadge}
-        </span>
-      ) : (
-        <File className="size-4 shrink-0 text-muted-foreground" />
-      )}
-      <span className="truncate font-medium text-sm" dir="auto">
-        {fileName}
-      </span>
-    </div>
-  );
-}
-
 export function GridDocumentPreview({
   cardId,
   thumbnailUrl,
@@ -50,11 +28,14 @@ export function GridDocumentPreview({
   thumbnailKey,
 }: GridDocumentPreviewProps) {
   const t = useTranslations("cards.previews");
+  const badge = formatBadge ? (
+    <span className={CARD_BADGE}>{formatBadge}</span>
+  ) : null;
   if (thumbnailUrl) {
     return (
-      <div className={`overflow-hidden ${CARD_SURFACE}`}>
+      <div className={cn(CARD_TILE, "flex items-end justify-center pt-7")}>
         <div
-          className="relative w-full overflow-hidden bg-muted/60"
+          className="relative w-[56%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]"
           style={{
             aspectRatio:
               width && height ? width / height : FALLBACK_ASPECT_RATIO,
@@ -67,25 +48,29 @@ export function GridDocumentPreview({
                 : t("documentPreview")
             }
             cardId={cardId}
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover object-top"
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
             loading={isPriority ? "eager" : "lazy"}
             src={thumbnailUrl}
             storageKey={thumbnailKey}
-            style={{ objectFit: "contain" }}
           />
         </div>
-        <div className="border-t px-4 py-3">
-          <FileLabel fileName={fileName} formatBadge={formatBadge} />
-        </div>
+        {badge}
       </div>
     );
   }
 
   return (
-    <div className={`p-4 ${CARD_SURFACE}`}>
-      <FileLabel fileName={fileName} formatBadge={formatBadge} />
+    <div className={cn(CARD_TILE, "flex flex-col p-4 pb-11")}>
+      <File aria-hidden="true" className="size-5 text-muted-foreground" />
+      <p
+        className="mt-auto line-clamp-3 break-words font-semibold text-sm leading-snug"
+        dir="auto"
+      >
+        {fileName}
+      </p>
+      {badge}
     </div>
   );
 }

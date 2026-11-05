@@ -59,6 +59,22 @@ const sidebarFolders = [
   { color: "oklch(0.62 0.14 250)", label: "Reading list" },
 ];
 
+// The web app's card tiles (apps/web/src/components/cards/cardDisplay.ts).
+const tileClass =
+  "relative block aspect-[6/5] w-full overflow-hidden rounded-2xl border bg-card";
+const badgeClass =
+  "pointer-events-none absolute bottom-2.5 left-2.5 flex h-[22px] items-center gap-1.5 rounded-full bg-gray-950/60 px-2 text-[11.5px] font-semibold whitespace-nowrap text-white tabular-nums backdrop-blur-md";
+const quoteSize = (text: string) => {
+  if (text.length < 40) {
+    return "text-[23px]";
+  }
+  return text.length < 95 ? "text-[19px]" : "text-[15px]";
+};
+const mediaRatio = ({ width, height }: { width: number; height: number }) =>
+  Math.min(Math.max(width / height, 3 / 4), 16 / 9);
+const hostOf = (url?: string) =>
+  url ? new URL(url).hostname.replace(/^www\./, "") : "";
+
 const chipClass =
   "demo-chip inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border bg-background px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:size-3.5";
 ---
@@ -172,76 +188,83 @@ const chipClass =
                     </span>
 
                     {card.type === "text" && (
-                      <span class="block rounded-2xl border bg-card p-4">
-                        <span class="line-clamp-2 font-medium">{card.content}</span>
+                      <span class={`${tileClass} flex flex-col p-4`}>
+                        <span class="min-h-0 flex-1 overflow-hidden text-[13.5px] leading-relaxed font-medium [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]">{card.content}</span>
                       </span>
                     )}
 
                     {card.type === "quote" && (
-                      <span class="block rounded-2xl border bg-card px-6 py-4">
-                        <span class="relative block">
-                          <span class="line-clamp-2 text-center leading-relaxed font-medium text-balance italic">{card.content}</span>
-                          <span class="pointer-events-none absolute -top-3.5 -left-4 font-serif text-4xl leading-none text-muted-foreground/20 select-none">&ldquo;</span>
-                          <span class="pointer-events-none absolute -right-4 -bottom-7 font-serif text-4xl leading-none text-muted-foreground/20 select-none">&rdquo;</span>
-                        </span>
+                      <span class={`${tileClass} flex flex-col justify-center px-4 pt-4 pb-3`}>
+                        <span aria-hidden="true" class="h-5 font-serif text-[42px] leading-[0.6] text-primary select-none">&ldquo;</span>
+                        <span class={`line-clamp-6 font-serif leading-[1.22] tracking-[-0.01em] text-pretty ${quoteSize(card.content ?? "")}`}>{card.content}</span>
                       </span>
                     )}
 
-                    {card.type === "link" && card.image && (
-                      <span class="block divide-y overflow-hidden rounded-2xl border bg-card">
-                        <span class="block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
-                          <img alt="" class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
-                        </span>
-                        <span class="block px-4 py-3">
-                          <span class="block max-w-full truncate font-medium">{card.title}</span>
+                    {card.type === "link" && (
+                      <span class="block">
+                        {card.image ? (
+                          <span class={tileClass}>
+                            <img alt="" class="h-full w-full object-cover object-top-left" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                          </span>
+                        ) : (
+                          <span class={`${tileClass} flex flex-col p-4`}>
+                            {card.favicon && <img alt="" class="size-[22px] rounded-md" height="22" src={card.favicon} width="22" />}
+                            <span class="mt-auto line-clamp-3 font-serif text-[21px] leading-[1.12] tracking-[-0.015em] text-balance">{card.title}</span>
+                            <span class="mt-2 truncate text-xs text-muted-foreground">{hostOf(card.url)}</span>
+                          </span>
+                        )}
+                        <span class="mt-2.5 flex min-w-0 items-center gap-2 px-0.5">
+                          {card.favicon && <img alt="" class="size-4 shrink-0 rounded" height="16" src={card.favicon} width="16" />}
+                          <span class="min-w-0 flex-1 truncate text-[13px] font-medium">{card.title}</span>
                         </span>
                       </span>
-                    )}
-
-                    {card.type === "link" && !card.image && (
-                      <span class="block w-full min-w-0 truncate rounded-2xl border bg-card p-4 font-medium">{card.title}</span>
                     )}
 
                     {(card.type === "image" || card.type === "video") && card.image && (
                       <span
-                        class="demo-media relative block h-full w-full overflow-hidden rounded-2xl border bg-card"
-                        style={`aspect-ratio: ${card.image.width} / ${card.image.height}; background-color: ${card.colors?.[0] ?? "transparent"}`}
+                        class="demo-media relative block h-full w-full overflow-hidden rounded-2xl bg-muted outline-1 -outline-offset-1 outline-black/5 dark:outline-white/10"
+                        style={`aspect-ratio: ${mediaRatio(card.image)}; background-color: ${card.colors?.[0] ?? "transparent"}`}
                       >
                         <img alt={card.content ?? card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                         {card.type === "video" && (
-                          <span class="demo-play absolute inset-0 flex items-center justify-center bg-black/20">
-                            <span class="rounded-full bg-black/50 p-2">
-                              <Icon class="text-white" name="play" size={24} />
-                            </span>
+                          <span class={`demo-play ${badgeClass}`}>
+                            <Icon class="demo-filled" name="play" size={10} />
+                            {card.duration}
                           </span>
                         )}
                       </span>
                     )}
 
                     {card.type === "audio" && (
-                      <span class="flex h-14 items-center justify-between space-x-0.5 rounded-2xl border bg-card px-4 py-2">
-                        {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
-                          <span class="block rounded-full bg-muted-foreground" style={`width: 2px; height: ${getAudioWaveHeight(card.id, index)}`}></span>
-                        ))}
+                      <span class={`${tileClass} flex flex-col p-4 pb-11`}>
+                        <span class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</span>
+                        <span class="mt-auto flex items-center gap-3">
+                          <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                            <Icon class="demo-filled" name="play" size={14} />
+                          </span>
+                          <span class="flex h-12 min-w-0 flex-1 items-center justify-between gap-px overflow-hidden">
+                            {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
+                              <span class="block shrink-0 rounded-full bg-foreground/40" style={`width: 2px; height: ${getAudioWaveHeight(card.id, index)}`}></span>
+                            ))}
+                          </span>
+                        </span>
+                        <span class={badgeClass}>M4A <span aria-hidden="true">·</span> {card.duration}</span>
                       </span>
                     )}
 
                     {card.type === "document" && card.image && (
-                      <span class="block overflow-hidden rounded-2xl border bg-card">
-                        <span class="relative block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
-                          <img alt={`Preview of ${card.title}`} class="h-full w-full bg-muted object-contain" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                      <span class={`${tileClass} flex items-end justify-center pt-7`}>
+                        <span class="relative block w-[56%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
+                          <img alt={`Preview of ${card.title}`} class="h-full w-full object-cover object-top" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                         </span>
-                        <span class="flex items-center gap-2 border-t px-4 py-3">
-                          <Icon class="shrink-0 text-muted-foreground" name="file" size={16} />
-                          <span class="truncate text-sm font-medium">{card.title}</span>
-                        </span>
+                        <span class={badgeClass}>PDF</span>
                       </span>
                     )}
 
                     {card.type === "palette" && (
-                      <span class="flex overflow-hidden rounded-2xl border bg-card">
+                      <span class={`${tileClass} flex border-black/5 bg-transparent dark:border-white/10`}>
                         {card.colors?.map((hex) => (
-                          <span class="block h-14 min-w-0 flex-1" style={`background-color: ${hex}`} title={hex}></span>
+                          <span class="block min-w-0 flex-1" style={`background-color: ${hex}`} title={hex}></span>
                         ))}
                       </span>
                     )}

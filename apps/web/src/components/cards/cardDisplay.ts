@@ -4,8 +4,54 @@ import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 import { formatClockTime } from "@/lib/clockTime";
 import { startsWithTable } from "@/lib/markdownToPlainText";
 
-export const CARD_SURFACE =
-  "rounded-2xl border border-border/80 bg-card transition-[border-color,box-shadow] duration-200 group-hover/card:border-foreground/15 group-hover/card:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.3)]";
+const HOVER_LIFT =
+  "transition-[border-color,box-shadow] duration-200 group-hover/card:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.3)]";
+
+export const CARD_SURFACE = `rounded-2xl border border-border/80 bg-card ${HOVER_LIFT} group-hover/card:border-foreground/15`;
+
+/**
+ * Every card that isn't an image or a video is a tile of this one shape, so
+ * the grid reads as rows of equal cards with media between them.
+ */
+export const CARD_TILE = `relative aspect-[6/5] w-full overflow-hidden ${CARD_SURFACE}`;
+
+/** Images and videos have no frame: the picture is the card. */
+export const MEDIA_SURFACE = `relative w-full overflow-hidden rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT}`;
+
+/** Price, duration and file type all sit in this pill, bottom left. */
+export const CARD_BADGE =
+  "pointer-events-none absolute bottom-2.5 left-2.5 flex h-[22px] max-w-[calc(100%-1.25rem)] items-center gap-1.5 truncate whitespace-nowrap rounded-full bg-gray-950/60 px-2 font-semibold text-[11.5px] text-white tabular-nums tracking-[0.01em] backdrop-blur-md";
+
+const MIN_MEDIA_RATIO = 3 / 4;
+const MAX_MEDIA_RATIO = 16 / 9;
+
+/**
+ * An image or video keeps its own shape in the grid, between portrait 3:4
+ * and widescreen 16:9, so a very tall or very wide one can't take over.
+ */
+export function mediaAspectRatio(
+  width: number | undefined,
+  height: number | undefined,
+  fallback: number
+): number {
+  const ratio =
+    width && height && width > 0 && height > 0 ? width / height : fallback;
+  return Math.min(Math.max(ratio, MIN_MEDIA_RATIO), MAX_MEDIA_RATIO);
+}
+
+const SHORT_QUOTE = 40;
+const MEDIUM_QUOTE = 95;
+
+/** A quote's type shrinks as it grows, so every quote fills the same tile. */
+export function quoteSizeClass(text: string): string {
+  if (text.length < SHORT_QUOTE) {
+    return "text-[23px]";
+  }
+  if (text.length < MEDIUM_QUOTE) {
+    return "text-[19px]";
+  }
+  return "text-[15px]";
+}
 
 export function getDisplayHostname(url?: string): string | undefined {
   return getSafeUrlHostname(url)?.replace(/^www\./, "") || undefined;

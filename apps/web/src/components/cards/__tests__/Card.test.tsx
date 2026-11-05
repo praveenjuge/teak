@@ -400,7 +400,7 @@ describe("Cards/Card", () => {
 
     expect(markup).toContain('src="https://example.com/screenshot.jpg"');
     expect(markup).not.toContain("unsized.jpg");
-    expect(markup).toContain("aspect-ratio:1.3333333333333333");
+    expect(markup).toContain("aspect-[6/5]");
   });
 
   test("falls back to an unsized screenshot when the link has no other image", () => {
@@ -489,7 +489,7 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("&amp;lt;");
   });
 
-  test("shows the words saved with a link, without the URL", () => {
+  test("keeps a link to its name in the grid, leaving the words saved with it for the card", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -503,10 +503,11 @@ describe("Cards/Card", () => {
         }
       />
     );
-    expect(markup).toContain(">Read this later</p>");
+    expect(markup).toContain(">Example</p>");
+    expect(markup).not.toContain("Read this");
   });
 
-  test("shows nothing extra for a link saved on its own", () => {
+  test("shows a link's name, not its description or URL", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -525,7 +526,8 @@ describe("Cards/Card", () => {
       />
     );
     expect(markup).not.toContain("https://example.com/a</p>");
-    expect(markup).toContain(">A site</p>");
+    expect(markup).not.toContain("A site");
+    expect(markup).toContain(">Example</p>");
   });
 
   test("offers Delete forever only for a card in Trash", () => {
@@ -653,14 +655,17 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain("Free");
   });
 
-  test("puts the price beside the title when the tile has no image", () => {
+  test("keeps the price badge on a link's cover when it has no image", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={pricedLink({ amount: 24.99, currency: "USD" }, false) as any}
       />
     );
     expect(markup).not.toContain("og.jpg");
-    expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
+    expect(markup).toContain(">Desk lamp</p>");
+    expect(markup).toMatch(
+      /<span class="[^"]*bottom-2\.5 left-2\.5[^"]*">\$24\.99<\/span>/
+    );
   });
 
   test.each([
@@ -894,7 +899,7 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain("1:24");
   });
 
-  test("shows a text-only social post with its author", () => {
+  test("shows a text-only social post's words on its cover", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -916,6 +921,6 @@ describe("Cards/Card redesign", () => {
       />
     );
     expect(markup).toContain(">It was the butler and the cook.<");
-    expect(markup).toContain("Eugen Rochko (@Gargron@mastodon.social)");
+    expect(markup).toContain(">mastodon.social<");
   });
 });

@@ -3,7 +3,8 @@ import {
   getAudioWaveHeight,
 } from "@teak/convex/shared/audioWave";
 import { Play } from "vadivam-react";
-import { CARD_SURFACE } from "../cardDisplay";
+import { cn } from "../../../lib/utils";
+import { CARD_BADGE, CARD_TILE } from "../cardDisplay";
 
 const AUDIO_WAVE_BAR_WIDTH_PX = 2;
 
@@ -40,6 +41,8 @@ function getWaveformBarHeights(
 interface AudioWavePreviewProps {
   cardId: string;
   durationLabel?: string;
+  formatBadge?: string;
+  textInsets?: string;
   title?: string;
   waveformGrid?: number[];
 }
@@ -47,40 +50,51 @@ interface AudioWavePreviewProps {
 export function AudioWavePreview({
   cardId,
   durationLabel,
+  formatBadge,
+  textInsets,
   title,
   waveformGrid,
 }: AudioWavePreviewProps) {
   const heights = getWaveformBarHeights(cardId, waveformGrid);
   return (
-    <div className={`px-4 pt-3 pb-3 ${CARD_SURFACE}`}>
-      <div className="flex h-10 items-center justify-between gap-0.5">
-        {heights.map((height, i) => (
-          <div
-            className="rounded-full bg-foreground/45"
-            // biome-ignore lint/suspicious/noArrayIndexKey: decorative bars use cardId + index for stable keys
-            key={`${cardId}-bar-${i}`}
-            style={{
-              width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
-              height,
-            }}
+    <div className={cn(CARD_TILE, "flex flex-col p-4 pb-11", textInsets)}>
+      {title ? (
+        <p
+          className="line-clamp-2 break-words font-semibold text-sm leading-snug"
+          dir="auto"
+        >
+          {title}
+        </p>
+      ) : null}
+      <div className="mt-auto flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+          <Play
+            aria-hidden="true"
+            className="size-3.5 translate-x-px fill-current"
           />
-        ))}
-      </div>
-      {title || durationLabel ? (
-        <div className="mt-2 flex items-center gap-2 text-muted-foreground text-xs">
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-            <Play
-              aria-hidden="true"
-              className="size-2.5 translate-x-px fill-current"
+        </span>
+        <div className="flex h-12 min-w-0 flex-1 items-center justify-between gap-px overflow-hidden">
+          {heights.map((height, i) => (
+            <div
+              className="shrink-0 rounded-full bg-foreground/40"
+              // biome-ignore lint/suspicious/noArrayIndexKey: decorative bars use cardId + index for stable keys
+              key={`${cardId}-bar-${i}`}
+              style={{
+                width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
+                height,
+              }}
             />
-          </span>
-          <span className="min-w-0 flex-1 truncate" dir="auto">
-            {title}
-          </span>
-          {durationLabel ? (
-            <span className="shrink-0 tabular-nums">{durationLabel}</span>
-          ) : null}
+          ))}
         </div>
+      </div>
+      {formatBadge || durationLabel ? (
+        <span className={CARD_BADGE}>
+          {formatBadge}
+          {formatBadge && durationLabel ? (
+            <span aria-hidden="true">·</span>
+          ) : null}
+          {durationLabel}
+        </span>
       ) : null}
     </div>
   );
