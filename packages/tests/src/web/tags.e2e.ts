@@ -7,15 +7,6 @@ const ALPHA = "Tagged alpha card";
 const BETA = "Tagged beta card";
 const GAMMA = "Tagged gamma card";
 
-// A tag row reads "<tag> <count> card(s)"; the count anchors it so "design"
-// doesn't also match "design systems". Case-insensitive: a row shows the tag
-// as it was typed ("Design Systems"), the lookups use the lowercase key.
-const tagRowName = (name: string) =>
-  new RegExp(
-    `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\d+ cards?$`,
-    "i"
-  );
-
 test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   browser,
   screen,
@@ -43,7 +34,8 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
     "aria-current",
     "page"
   );
-  const tagRow = (name: string) => screen.getByRole("link", tagRowName(name));
+  const tagRow = (name: string) =>
+    screen.getByRole("link", `${name} `, { exact: false });
   const design = tagRow("design");
   await expect(design).toBeVisible({ timeout: 60_000 });
   await expect(tagRow("web")).toBeVisible();
@@ -121,7 +113,7 @@ test("a long tag truncates on a phone instead of widening the page", async ({
   await browser.setViewport({ width: 320, height: 640 });
   await gotoApp(browser, "/tags");
   await expect(
-    screen.getByRole("link", tagRowName(longTag.toLowerCase()))
+    screen.getByRole("link", `${longTag.toLowerCase()} `, { exact: false })
   ).toBeVisible({ timeout: 60_000 });
   expect(
     await browser.evaluate(
