@@ -1665,7 +1665,7 @@
       "sortLabel": "排序：{sort}",
       "sortBy": "标签排序方式",
       "moreFor": "“{tag}”的更多操作",
-      "rowLabel": "{tag}，{count, plural, other {# 张卡片}}",
+      "rowLabel": "{tag} {count, plural, other {# 张卡片}}",
       "rename": "重命名…",
       "mergeInto": "合并到…",
       "delete": "删除…",

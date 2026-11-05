@@ -748,7 +748,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {terminalFailure ? (
-        <div className="min-w-0 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+        <div className="min-w-0 bg-destructive/2 px-4 py-3 text-destructive text-sm">
           <div className="font-medium">{t("importStopped")}</div>
           <p className="mt-1 break-words">{terminalFailure}</p>
         </div>

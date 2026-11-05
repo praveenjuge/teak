@@ -1665,7 +1665,7 @@
       "sortLabel": "並べ替え：{sort}",
       "sortBy": "タグの並べ替え",
       "moreFor": "{tag} のその他の操作",
-      "rowLabel": "{tag}、{count, plural, other {# 件のカード}}",
+      "rowLabel": "{tag} {count, plural, other {# 件のカード}}",
       "rename": "名前を変更…",
       "mergeInto": "統合…",
       "delete": "削除…",

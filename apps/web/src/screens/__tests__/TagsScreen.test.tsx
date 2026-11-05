@@ -103,9 +103,9 @@ test("lists tags most-used first, each opening the library narrowed to it", asyn
   expect(document.body.textContent).toContain("3 tags");
   expect(document.title).toBe("Tags · Teak");
   expect(rows()).toEqual([
-    ["design systems, 12 cards", "/?tag=design+systems"],
-    ["web, 3 cards", "/?tag=web"],
-    ["art, 1 card", "/?tag=art"],
+    ["design systems 12 cards", "/?tag=design+systems"],
+    ["web 3 cards", "/?tag=web"],
+    ["art 1 card", "/?tag=art"],
   ]);
 });
 
@@ -120,8 +120,8 @@ test("a tag reads as it was typed, while its link narrows by the tag itself", as
   await render();
 
   expect(rows()).toEqual([
-    ["Design Systems, 2 cards", "/?tag=design+systems"],
-    ["web, 1 card", "/?tag=web"],
+    ["Design Systems 2 cards", "/?tag=design+systems"],
+    ["web 1 card", "/?tag=web"],
   ]);
   expect(
     document.querySelector('button[aria-label="More for Design Systems"]')
@@ -157,8 +157,8 @@ test("finds a tag ignoring case and says when nothing matches", async () => {
 
   await typeInto(find, " DESIGN ");
   expect(rows().map(([text]) => text)).toEqual([
-    "design, 4 cards",
-    "webdesign, 2 cards",
+    "design 4 cards",
+    "webdesign 2 cards",
   ]);
   expect(document.body.textContent).toContain("2 of 3 tags");
 
@@ -271,9 +271,9 @@ test("starts from the URL's filter and reports each change to keep it", async ()
     throw new Error("No find box");
   }
   expect(find.value).toBe("des");
-  expect(rows().map(([text]) => text)).toEqual(["design, 4 cards"]);
+  expect(rows().map(([text]) => text)).toEqual(["design 4 cards"]);
 
   await typeInto(find, "ar");
   expect(changes).toEqual(["ar"]);
-  expect(rows().map(([text]) => text)).toEqual(["art, 1 card"]);
+  expect(rows().map(([text]) => text)).toEqual(["art 1 card"]);
 });

@@ -1665,7 +1665,7 @@
       "sortLabel": "Tri : {sort}",
       "sortBy": "Trier les tags par",
       "moreFor": "Plus d’options pour {tag}",
-      "rowLabel": "{tag}, {count, plural, one {# fiche} other {# fiches}}",
+      "rowLabel": "{tag} {count, plural, one {# fiche} other {# fiches}}",
       "rename": "Renommer…",
       "mergeInto": "Fusionner avec…",
       "delete": "Supprimer…",
