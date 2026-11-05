@@ -2188,7 +2188,7 @@ describe("teak design rules", () => {
     );
     const rename = await teak("tags", "rename", "design", "ux", "--dry-run");
     expect(rename.stdout.trim()).toBe(
-      'Would rename "design" to "ux" on 12 cards. Nothing changed.'
+      'Would rename "design" to "ux" on 12 cards in your library, and on any in Archive and Trash. Nothing changed.'
     );
     const remove = await teak(
       "--json",
@@ -2198,10 +2198,10 @@ describe("teak design rules", () => {
       "--dry-run"
     );
     expect(JSON.parse(remove.stdout)).toEqual({
-      cards: 12,
       dryRun: true,
       from: "design",
       kind: "delete",
+      libraryCards: 12,
     });
     expect(requests.every((request) => request.method === "GET")).toBe(true);
   });

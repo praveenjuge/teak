@@ -1046,7 +1046,9 @@ const reportTagOperation = (
   }
 };
 
-// How many cards the tag list says carry a tag, matched ignoring case.
+// How many cards in the library carry a tag, matched ignoring case. The tag
+// list counts neither Archive nor Trash, while a tag change covers both, so
+// every message that shows this count says so.
 const tagCardCount = async (api: TeakClient, name: string) => {
   const { items } = await api.tags.list();
   const wanted = name.trim().toLowerCase();
@@ -1064,7 +1066,7 @@ const describeDryRun = (
     merge: `merge "${from}" into "${to ?? ""}" on`,
     rename: `rename "${from}" to "${to ?? ""}" on`,
   }[kind];
-  return `Would ${what} ${cardsLabel(count)}. Nothing changed.`;
+  return `Would ${what} ${cardsLabel(count)} in your library, and on any in Archive and Trash. Nothing changed.`;
 };
 
 export const startTagOperation = async (
@@ -1085,10 +1087,11 @@ export const startTagOperation = async (
     write(
       options.json
         ? {
-            cards: count,
             dryRun: true,
             from,
             kind,
+            // Archive and Trash change too but aren't in this count.
+            libraryCards: count,
             ...(to === undefined ? {} : { to }),
           }
         : describeDryRun(kind, from, to, count),
@@ -1105,7 +1108,7 @@ export const startTagOperation = async (
     const count = await tagCardCount(api, from);
     if (
       !(await confirm(
-        `Remove "${from}" from ${count > 0 ? cardsLabel(count) : "every card"}? This can't be undone.`
+        `Remove "${from}" from ${cardsLabel(count)} in your library, and from any in Archive and Trash? This can't be undone.`
       ))
     ) {
       write(options.json ? { deleted: false } : "Nothing changed.", options);

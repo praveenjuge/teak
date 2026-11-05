@@ -105,7 +105,7 @@ teak folders add "Reading list" <card-id> <card-id>
 teak folders get "Reading list"
 teak tags rename inspo inspiration --wait   # every card, including Trash and Archive
 teak tags merge ux design
-teak tags delete draft --dry-run # how many cards have it; nothing changes
+teak tags delete draft --dry-run # how many library cards have it; nothing changes
 teak tags delete draft --yes     # cards are kept
 ```
 

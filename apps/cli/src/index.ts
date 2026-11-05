@@ -1034,7 +1034,10 @@ withWaitOptions(
     .argument("<from>", "the tag to rename, in any capitalization")
     .argument("<to>", "the new name, as written")
     .description("Rename a tag on every card, including Trash and Archive")
-    .option("--dry-run", "say how many cards have the tag; change nothing"),
+    .option(
+      "--dry-run",
+      "say how many cards in your library have the tag; change nothing"
+    ),
   "wait until every card has changed"
 ).action(async (from, to, options) =>
   startTagOperation("rename", from, to, globals(options))
@@ -1045,7 +1048,10 @@ withWaitOptions(
     .argument("<from>", "the tag to merge away")
     .argument("<into>", "the tag to keep")
     .description("Replace a tag with another on every card")
-    .option("--dry-run", "say how many cards have the tag; change nothing"),
+    .option(
+      "--dry-run",
+      "say how many cards in your library have the tag; change nothing"
+    ),
   "wait until every card has changed"
 ).action(async (from, into, options) =>
   startTagOperation("merge", from, into, globals(options))
@@ -1055,7 +1061,10 @@ withWaitOptions(
     .command("delete")
     .argument("<tag>")
     .description("Remove a tag from every card; the cards are kept")
-    .option("--dry-run", "say how many cards have the tag; change nothing")
+    .option(
+      "--dry-run",
+      "say how many cards in your library have the tag; change nothing"
+    )
     .option("-y, --yes", "don't ask for confirmation"),
   "wait until every card has changed"
 ).action(async (tag, options) =>

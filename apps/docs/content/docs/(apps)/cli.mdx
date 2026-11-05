@@ -132,7 +132,7 @@ Saving a link that's already in Teak [re-saves that card](/docs/api#saving-a-lin
 
 `teak refresh` [refreshes](/docs/api#refresh-a-cards-details) one or more cards and returns right away; check the result later with `teak cards get`. `teak cards thumbnail <card-id> <file>` [replaces a link's image](/docs/api#replace-a-links-image), and `--reset` goes back to the one Teak found. `teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID.
 
-`teak tags rename <from> <to>`, `teak tags merge <from> <into>`, and `teak tags delete <tag>` [change a tag on every card](/docs/api#rename-merge-and-delete-tags). Each prints the change's ID and returns right away; add `--wait` to wait for it, or check later with `teak tags status <id>`. `--dry-run` says how many cards have the tag and changes nothing. `teak tags delete` asks first, naming how many cards have the tag, or takes `--yes` in scripts.
+`teak tags rename <from> <to>`, `teak tags merge <from> <into>`, and `teak tags delete <tag>` [change a tag on every card](/docs/api#rename-merge-and-delete-tags). Each prints the change's ID and returns right away; add `--wait` to wait for it, or check later with `teak tags status <id>`. `--dry-run` says how many cards in your library have the tag (cards in Archive and Trash change too, but aren't counted) and changes nothing. `teak tags delete` asks first, naming that count, or takes `--yes` in scripts.
 
 ### Trash
 
