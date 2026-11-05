@@ -50,16 +50,24 @@ describe("telemetry privacy and bounds", () => {
 
   test("scrubs credentials recognisable by shape and credential header lines", () => {
     const teakKey = `teakapi_secret_prod_ab12cd34_${"0f".repeat(32)}`;
+    // Fake credentials, built from parts so secret scanners don't flag the
+    // fixtures themselves.
+    const fakeJwt = [
+      "eyJhbGciOiJIUzI1NiJ9",
+      "eyJzdWIiOiJmYWtlIn0",
+      "c2lnbmF0dXJl",
+    ].join(".");
+    const fakeSecretKey = ["sk", "test", "a1b2c3d4e5f6g7h8i9j0"].join("_");
     const cases = {
       apiKeyUrl: "GET https://api.example/v1?plan=pro&key=AIzaFake1234567890",
       basic: "Authorization: Basic dXNlcjpwYXNzd29yZA==",
       cookie: "Cookie: wos-session=cookie-secret-value; theme=dark",
-      jwt: "rejected eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJl",
+      jwt: `rejected ${fakeJwt}`,
       oauthCode: "fetch https://app.example/callback?code=oauth-code-value",
       sealed: "session Fe26.2**sealed-session-value*expires",
       setCookie: "set-cookie: session=cookie-secret-value; Path=/",
       teakKey: `Invalid key ${teakKey} for request`,
-      workos: "WorkOS key sk_test_a1b2c3d4e5f6g7h8i9j0 was rejected",
+      workos: `WorkOS key ${fakeSecretKey} was rejected`,
     };
     const scrubbed = Object.fromEntries(
       Object.entries(cases).map(([name, value]) => [
