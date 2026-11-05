@@ -107,10 +107,12 @@ export const isNoiseException = (entries: ExceptionEntry[]): boolean =>
       isExternalDomMutation(entry)
   );
 
-// The library search lives in `?q=`. Analytics see that a search ran, never
-// what it was: the SDK masks it in `$current_url` and replays, and
+// The library search lives in `?q=`, and text from the system share sheet
+// rides in `?title=`, `?text=` and `?url=` (`SHARE_TEXT_FIELDS`) until the
+// composer takes it. Analytics see that a search or share happened, never
+// what it was: the SDK masks these in `$current_url` and replays, and
 // `maskSearchText` covers the referrer properties the SDK leaves alone.
-const SEARCH_URL_PARAMS = ["q"];
+export const MASKED_URL_PARAMS = ["q", "title", "text", "url"];
 const MASKED_SEARCH = "<MASKED>";
 const URL_PROPERTIES = [
   "$current_url",
@@ -130,7 +132,7 @@ const maskSearchParams = (value: unknown): unknown => {
   } catch {
     return value;
   }
-  const masked = SEARCH_URL_PARAMS.filter((param) =>
+  const masked = MASKED_URL_PARAMS.filter((param) =>
     url.searchParams.has(param)
   );
   if (masked.length === 0) {
@@ -230,7 +232,7 @@ export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
   capture_heatmaps: false,
   capture_pageview: "history_change",
   capture_performance: { network_timing: false, web_vitals: true },
-  custom_personal_data_properties: SEARCH_URL_PARAMS,
+  custom_personal_data_properties: MASKED_URL_PARAMS,
   defaults: "2026-08-30",
   mask_personal_data_properties: true,
   person_profiles: "identified_only",
