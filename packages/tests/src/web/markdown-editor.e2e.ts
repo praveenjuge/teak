@@ -533,6 +533,9 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await expect(editor).toHaveText(`${original} edited`);
     await editor.press("ControlOrMeta+Enter");
     await expect.poll(() => library.read(id)).toBe(`${original} edited`);
+    // The leave warning stays armed until the dialog's own save state
+    // settles; reopening sooner aborts the navigation.
+    await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();
     await expect(await getBlockEditor(await library.open(id))).toHaveText(
       `${original} edited`
     );

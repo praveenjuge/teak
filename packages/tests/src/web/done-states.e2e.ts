@@ -22,7 +22,7 @@ test("a link is marked done from its card, Undo clears it, and is:done finds it"
   const dialog = screen.getByRole("dialog");
   await dialog.getByRole("button", "Mark as done").click();
   await expect(screen.getByText("Marked as done")).toBeVisible();
-  await expect(dialog.getByRole("button", "Done")).toBeVisible();
+  await expect(dialog.getByRole("button", "Marked as done")).toBeVisible();
 
   await browser.keyboard.press("Escape");
   await expect(dialog).toBeHidden();

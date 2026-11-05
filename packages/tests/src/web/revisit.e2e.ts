@@ -49,7 +49,7 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
       () =>
         document
           .querySelector(
-            '[data-revisit-deck] main button[aria-label^="Open details"]'
+            '[data-revisit-deck] button[aria-label^="Open details"]'
           )
           ?.textContent?.trim() ?? ""
     );

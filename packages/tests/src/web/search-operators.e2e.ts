@@ -54,7 +54,7 @@ test("-, OR and parentheses narrow the grid, suggest, and survive a reload", asy
     screen.getByRole("button", "Remove excluding figma")
   ).toBeVisible({ timeout: 30_000 });
   await shows([PLAIN], [FIGMA]);
-  await expect(search).toHaveValue("design");
+  await expect(screen.getByRole("button", "Remove design")).toBeVisible();
   await screen.getByRole("button", "Remove excluding figma").click();
   await shows([PLAIN, FIGMA], [FONTS]);
   await search.fill("");
@@ -122,7 +122,9 @@ test("a smart folder's OR and a typed exclusion intersect", async ({
   await expect(card("Folder type specimen")).toBeVisible();
   await expect(card("Folder color study")).not.toBeVisible();
   await expect(
-    screen.getByText("tag:fonts OR tag:type", { exact: false })
+    screen.getByRole("list", `Search: tag:${tag} (tag:fonts OR tag:type)`, {
+      exact: true,
+    })
   ).toBeVisible();
 
   await screen.getByRole("combobox").fill("-tag:fonts");

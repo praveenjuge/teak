@@ -151,7 +151,7 @@ test("save a search as a smart folder; a card saved later shows up live", async 
 
   await gotoApp(browser, "/?q=tag%3Asmartfolder");
   await expect(
-    screen.getByText("Smart folder first match", { exact: false })
+    screen.getByRole("button", ": Smart folder first match", { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
   await screen.getByRole("button", /^View/).click();

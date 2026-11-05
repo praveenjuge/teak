@@ -273,14 +273,14 @@ https://example.com/editor
       .getByRole("button", `${marker}-tag`)
       .click();
     await expect(
-      screen.getByRole("button", `Remove ${marker}-tag`)
+      screen.getByRole("button", `Remove tag ${marker}-tag`)
     ).toBeVisible();
     await expect(
       screen.getByText(`${marker} restore-me`, { exact: false })
     ).toBeVisible();
     await enterSearch(screen, "zzzz-no-match-tag-empty");
     await expect(
-      screen.getByRole("button", `Remove ${marker}-tag`)
+      screen.getByRole("button", `Remove tag ${marker}-tag`)
     ).toBeVisible();
     await expect(cardText(screen, `${marker} restore-me`)).not.toBeVisible();
     await expect(
