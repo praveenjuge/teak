@@ -222,7 +222,7 @@ teak cards bulk update --file updates.json
 
 `teak cards changes` lists cards [changed](/docs/api#sync-changes) since a time (`--since` takes the same forms as `--created-after`, such as `2026-01-01` or `1d`), one per line, then a `deleted <card-id>` line for each card moved to Trash or permanently deleted. When there are more, it prints `Next page: --next <cursor>` to stderr; pass it back with `--next`.
 
-`teak cards bulk` runs one of the [API's bulk operations](/docs/api#bulk-actions) on up to 100 items, read from `--file` (`-` or no `--file` reads standard input) as a JSON array or an `{"items": [...]}` object. `--dry-run` checks the input and says what would run without sending it. Each item that worked prints its card ID on stdout; each one that failed prints its error on stderr, followed by how many failed. The command exits with a non-zero code if any item failed.
+`teak cards bulk` runs one of the [API's bulk operations](/docs/api#bulk-actions) on up to 100 items, read from `--file` (`-` or no `--file` reads standard input) as a JSON array or an `{"items": [...]}` object. `--dry-run` checks that each item has the fields its operation needs (a `cardId`, `isFavorited` for `favorite`, `tags` for `addTags`…) without sending anything, and exits 2 naming each item that would fail; Teak still checks the rest, such as whether the card exists. Each item that worked prints its card ID on stdout; each one that failed prints its error on stderr, followed by how many failed. The command exits with a non-zero code if any item failed.
 
 ### Waiting
 

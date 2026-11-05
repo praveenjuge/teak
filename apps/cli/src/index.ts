@@ -15,6 +15,7 @@ import {
   parseTags,
   TeakApiError,
 } from "teak-sdk";
+import { bulkItemProblem } from "./bulk";
 import { addCard, readStdin } from "./files";
 import { formatCardLines, formatCreated, formatDetail } from "./format";
 import {
@@ -899,7 +900,10 @@ cards
   .description("Run one operation on up to 100 cards from a JSON file")
   .option("--file <PATH>", "JSON items; - or no --file reads stdin")
   .addOption(new Option("--input <PATH>", "old name of --file").hideHelp())
-  .option("--dry-run", "check the input and say what would run; change nothing")
+  .option(
+    "--dry-run",
+    "check each item has the fields its operation needs; change nothing"
+  )
   .action(async (operation, options) => {
     if (!BULK_OPERATIONS.includes(operation)) {
       throw new InvalidArgumentError(
@@ -922,12 +926,32 @@ cards
       throw new InvalidArgumentError("bulk input must have 1 to 100 items");
     }
     if (options.dryRun) {
-      write(
-        opts.json
-          ? { dryRun: true, items: items.length, operation }
-          : `Would run ${operation} on ${items.length} ${items.length === 1 ? "item" : "items"}. Nothing changed.`,
-        opts
-      );
+      const problems = items.flatMap((item, index) => {
+        const message = bulkItemProblem(operation as BulkCardsOperation, item);
+        return message ? [{ code: "INVALID_INPUT", index, message }] : [];
+      });
+      const noun = items.length === 1 ? "item" : "items";
+      if (opts.json) {
+        write({ dryRun: true, items: items.length, operation, problems }, opts);
+      } else if (problems.length === 0) {
+        write(
+          `Would run ${operation} on ${items.length} ${noun}; each has the fields it needs. Nothing changed.`,
+          opts
+        );
+      } else {
+        process.stderr.write(
+          `${[
+            ...problems.map(
+              (problem) =>
+                `[${problem.index}] ${problem.code}: ${problem.message}`
+            ),
+            `${problems.length} of ${items.length} ${noun} would fail. Nothing changed.`,
+          ].join("\n")}\n`
+        );
+      }
+      if (problems.length > 0) {
+        process.exitCode = EXIT.usage;
+      }
       return;
     }
     const result = await client(opts).cards.bulk(

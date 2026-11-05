@@ -2220,7 +2220,13 @@ describe("teak design rules", () => {
 
   test("bulk --dry-run checks the input and sends nothing", async () => {
     const input = join(workDirectory, "bulk-dry.json");
-    writeFileSync(input, JSON.stringify([{ cardId: "a" }, { cardId: "b" }]));
+    writeFileSync(
+      input,
+      JSON.stringify([
+        { cardId: "a", isFavorited: true },
+        { cardId: "b", isFavorited: false },
+      ])
+    );
     const result = await teak(
       "cards",
       "bulk",
@@ -2230,7 +2236,23 @@ describe("teak design rules", () => {
       "--dry-run"
     );
     expect(result.stdout.trim()).toBe(
-      "Would run favorite on 2 items. Nothing changed."
+      "Would run favorite on 2 items; each has the fields it needs. Nothing changed."
+    );
+    expect(requests).toHaveLength(0);
+    const bad = join(workDirectory, "bulk-dry-bad.json");
+    writeFileSync(bad, JSON.stringify([{ cardId: "a" }, null]));
+    const refused = await teak(
+      "cards",
+      "bulk",
+      "favorite",
+      "--file",
+      bad,
+      "--dry-run"
+    );
+    expect(refused.code).toBe(EXIT.usage);
+    expect(refused.stdout).toBe("");
+    expect(refused.stderr).toBe(
+      "[0] INVALID_INPUT: Each favorite item must include `isFavorited` as a boolean\n[1] INVALID_INPUT: Each bulk item must be an object\n2 of 2 items would fail. Nothing changed.\n"
     );
     expect(requests).toHaveLength(0);
     const old = await teak(

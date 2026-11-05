@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { type Command, InvalidArgumentError } from "commander";
 import { TeakApiError } from "teak-sdk";
+import { bulkItemProblem } from "./bulk";
 import { CliError, describeError, formatErrorText } from "./errors";
 import { formatCardLine } from "./format";
 import {
@@ -364,4 +365,32 @@ describe("completion", () => {
       expect(completionScript(shell)).toContain("teak __complete");
     }
   );
+});
+
+describe("bulk dry run", () => {
+  test.each([
+    ["create", { content: "a note" }, null],
+    ["create", { url: "https://example.com" }, null],
+    [
+      "create",
+      { tags: ["x"] },
+      "Each create item must include `content` or `url`",
+    ],
+    ["update", { cardId: "c1", notes: null }, null],
+    [
+      "update",
+      { cardId: "c1" },
+      "Each update item must include content, url, notes or tags",
+    ],
+    ["addTags", { cardId: "c1", tags: ["a"] }, null],
+    [
+      "removeTags",
+      { cardId: "c1", tags: [] },
+      "Each removeTags item must include `tags` as a list of names",
+    ],
+    ["archive", { cardId: "" }, "Each bulk item must include a valid `cardId`"],
+    ["delete", [], "Each bulk item must be an object"],
+  ] as const)("%s %j", (operation, item, problem) => {
+    expect(bulkItemProblem(operation, item)).toBe(problem);
+  });
 });
