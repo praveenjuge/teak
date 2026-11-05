@@ -9,13 +9,9 @@ related:
   - /docs/delete-account
 ---
 
-Teak can prepare a portable ZIP archive of your cards and the original files attached to them, with a bookmarks file your browser can import and a spreadsheet of every card. Exports are available from Settings in the web app.
+Download a portable ZIP of your cards and their original files, with a bookmarks file your browser can import and a spreadsheet of every card. Exporting doesn't change anything in your library. Exports run from Settings in the web app.
 
-:::note[Exports are read-only]
-Starting an export does not change, delete, or move anything in your Teak library.
-:::
-
-## Start an Export
+## Start an export
 
 ![Settings → Import & export, with the Start export button in the Export section](../images/export.webp)
 
@@ -31,29 +27,23 @@ Starting an export does not change, delete, or move anything in your Teak librar
   </Step>
 </Steps>
 
-You can cancel an export while it is still preparing. Canceled and failed exports do not count toward your weekly export limit.
+You can cancel an export while it's preparing. Canceled and failed exports don't count toward the weekly limit.
 
-## What the Archive Includes
+## What the archive includes
 
 Each export is a ZIP with every card outside Trash, archived cards included:
 
 | File | What it holds |
 |---|---|
-| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folder names, favorite, pinned and archive state (a pinned card's `pinPosition` keeps its place among the pins), when a link was marked done (`completedAt`), a link's `highlights` (each `quote`, `note`, `createdAt` and whether it was found in the saved article, `anchored`), and dates: `createdAt` (first saved) and `savedAt` (last saved, later when a link was saved again). Teak imports this file back, keeping both, so the library comes back in the same order. |
+| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folders, favorite, pinned (`pinPosition`) and archive state, when a link was marked done (`completedAt`), its `highlights`, and when it was first saved (`createdAt`) and last saved (`savedAt`). This is the file Teak imports back. |
 | `files/` | The original file attached to each image, video, audio, and document card. |
-| `bookmarks.html` | Your link cards in the bookmark format Chrome, Firefox, and Safari import. Links in no folder come first; each folder is its own bookmarks folder, and a link in several folders appears in each. Your tags are kept where the browser supports them. |
-| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `isPinned`, `createdAt`, for text saved from a page `sourceUrl` and `sourceTitle`, and `highlights`. Tags and folders are separated by commas, and highlights' quotes by a blank line. |
-| `manifest.json` | When the archive was made, its card and file counts, and its format version (`schemaVersion` 2). |
+| `bookmarks.html` | Your links in the bookmark format Chrome, Firefox and Safari import, with each folder as a bookmarks folder and tags where the browser supports them. |
+| `cards.csv` | One row per card for Excel, Numbers or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `isPinned`, `createdAt`, `sourceUrl`, `sourceTitle` and `highlights`. Cells that start with `=`, `+`, `-` or `@` begin with an apostrophe, so they never run as formulas. |
+| `manifest.json` | When the archive was made, its card and file counts, and its format version. |
 
-`cards.csv` is safe to open in a spreadsheet: a cell that starts with `=`, `+`, `-`, or `@` begins with an apostrophe so it shows as text instead of running as a formula.
+Trash, transcripts, generated previews and account data aren't included. You can [import the archive](/docs/import) back into Teak; a card whose file was missing or over 20 MiB fails to import.
 
-[Importing the archive](/docs/import) adds the exported cards and included files that satisfy import limits, back in their folders and with their archive state and titles; cards with missing or oversized (>20 MiB) files fail to import.
-
-## What Is Not Included
-
-Exports focus on portable library content: Trash, transcripts, generated previews, and account data are not included. If an original file cannot be read, its card is still included in the archive, but the card cannot be restored on re-import.
-
-## Limits and Availability
+## Limits
 
 | Limit | Details |
 |---|---|
@@ -62,21 +52,21 @@ Exports focus on portable library content: Trash, transcripts, generated preview
 | Download window | Ready archives stay available for 7 days. |
 | Library size | Exports support up to 10,000 cards outside Trash or an estimated 5 GB archive. |
 
-If your latest export is still available, download it from **Settings → Import & export**. After it expires, you can start a new export when your weekly quota allows it.
+Download your latest export from **Settings → Import & export** while it's available.
 
 ## Troubleshooting
 
 <Accordion>
   <AccordionItem title='I see "Available in..."'>
-    You recently completed an export. Wait for the shown time, then start another one.
+    You made an export in the last 7 days. Wait for the time shown, then start another.
   </AccordionItem>
   <AccordionItem title="My export failed">
-    Open **Settings → Import & export** and try again. Failed exports do not count toward the weekly limit.
+    Try again from **Settings → Import & export**. Failed exports don't count toward the weekly limit.
   </AccordionItem>
   <AccordionItem title="Some files are unavailable">
-    The archive still includes those cards in `cards.json`, but their original files were unavailable when the export was built.
+    Those cards are still in `cards.json`, but their original files couldn't be read when the export was built.
   </AccordionItem>
   <AccordionItem title="The archive is too large">
-    If your library is over the export limit, delete unneeded cards or permanently remove old trash items, then try again.
+    Delete cards you don't need, then try again.
   </AccordionItem>
 </Accordion>

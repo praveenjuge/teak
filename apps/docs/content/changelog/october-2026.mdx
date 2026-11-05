@@ -1,567 +1,154 @@
 ---
 title: "October 2026"
-description: Teak cards inside Claude, a redesigned Settings, a simpler sidebar, a reader with highlights, a saved copy of every page, imports from any CSV, Teak in seven more languages, and search that understands what you mean.
+description: One native app for iPhone, iPad and Mac, a reader with highlights, a saved copy of every page, folders and smart folders, search by meaning, Teak in seven more languages, and Teak cards in Claude.
 type: changelog
 date: "2026-10-30"
 changelog:
   category: Product updates
 ---
 
-## Teak cards right inside Claude
+## Sign in again after the sign-in update
 
-- When Claude searches, lists or saves your cards through Teak's MCP server, it now shows them as Teak cards in the conversation: a grid with images, palettes and titles, one card with its summary, notes and tags, or the card you just saved. Each has **Open in Teak**, and links have **Visit source**. The cards follow Claude's light or dark theme and your language. ChatGPT and other clients that show MCP Apps get the same view. See [Card views](/docs/mcp#card-views).
-- In Claude Code, install Teak's plugin with `/plugin marketplace add praveenjuge/teak` and `/plugin install teak@teak`. It connects Teak and adds `/teak:save`, `/teak:search` and `/teak:recent`. See [Connect your client](/docs/mcp#connect-your-client).
+Teak moved to a new sign-in system on October 7. Your library, cards and plan are unchanged.
 
-## A redesigned Settings
+- **Everyone:** sign in again on the web, iPhone, iPad, Mac, the browser extension, Raycast and the CLI.
+- **If you signed in with a password:** reset it from the sign-in page first.
+- **If you use Google or Apple:** continue with the same option.
+- **Raycast:** update the extension from the Raycast Store, then sign in.
+- **MCP clients that signed in with the browser:** remove Teak from the client, add it again, and sign in. API keys keep working. See [MCP](/docs/mcp).
 
-- Settings on the web now has a page for each area: **Account**, **Plan**, **Appearance**, **Integrations**, **Security** and **Import & export**, listed beside the page on wide screens. Each page has its own address you can bookmark, and the command palette can open any of them (type "Settings").
-- **Account** shows who you're signed in as, how many cards you've used (with **Upgrade to Pro** on the free plan), the apps and browser extensions, and a button for the keyboard shortcuts. On a phone it also lists every page with a summary, such as whether Save by email is on, how many devices are signed in and your last export.
-- **Plan** shows how many of the free plan's 200 cards you've used, and you choose monthly or yearly Pro right on the page. On Pro, **Manage subscription** opens your billing portal.
-- **Appearance** shows a preview of each theme next to the language.
-- **Integrations** brings together Save by email, the browser extensions and apps, and API keys. **Security** lists signed-in devices and connected apps, and is where you delete your account.
-- **Import & export**: pick a source and choose a file, or drop it on the import area.
-- Press `G` then `S` from anywhere to open Settings.
+## A new Teak for iPhone, iPad and Mac
 
-## A simpler sidebar and header
+- Teak on iPhone, iPad and Mac is now one native app from the [App Store](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989) and [Mac App Store](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989?platform=mac&mt=12). It needs iOS, iPadOS or macOS 26. See [iPhone and iPad](/docs/mobile) and [Mac](/docs/mac).
+- Save from any app with the share sheet, from Safari with the Teak Safari extension, or on the Mac with **Quick Capture**, the Services menu and the menu bar icon.
+- Search by meaning, archive, tag, add to folders and smart folders, mark links done, use **Revisit** and **More like this**, and act on several cards at once.
+- Shortcuts and Siri can save, search, open cards and add them to folders; Spotlight finds your cards; and Control Center, the Lock Screen and the Action button can start a note or voice memo.
+- Photos open full screen with zoom, notes show their tables and checklists, and `[[` links one card from another.
 
-- The sidebar now leads with **New**, then **Everything**, **Favorites** and **Tags**, then your folders, with **Archive**, **Trash** and **Settings** at the bottom.
-- Folders show a folder icon in their color, and the collapse button stays at the top of the sidebar, also when it's collapsed to icons.
-- The search box sits in the same place on every page, with the page's buttons, such as **View**, **Sort** and **Empty Trash**, labelled on its right. Tags fill the width, three to a row on wide screens.
+## Android
 
-## Highlight what you read
+- PDFs open in the app, tablets have a side rail, and **Wallpaper colors** matches your phone.
+- Edits and new notes made offline show at once and sync when you're back, and **Keep offline** saves a card for the road.
 
-- In a link's **Read** view on the web, select a passage and choose **Highlight**, or press `H`. Click a highlight to add a note or remove it. See [Highlights](/docs/features#highlights).
-- The card's details list its highlights after Notes; click one to jump to it in the article.
-- Highlights from Instapaper, Omnivore and Raindrop.io imports now arrive as highlights instead of note text, and Teak archives keep them.
-- A highlighted link keeps its saved copy: **Refresh details** and saving it again no longer replace the page your highlights were made in.
-- **API, MCP, SDK and CLI:** list, add by quote, note and remove highlights (`teak highlights`), and cards include `highlightCount`. See [Highlights](/docs/api#highlights).
+## Read and highlight saved articles
 
-## Read saved articles in Teak
+- A saved article opens in a clean **Read** view on the web, with its text and images in one calm layout. Press `R` to switch between **Read** and **Preview**. See [Read](/docs/features#read).
+- Select a passage and choose **Highlight**, or press `H`, then add a note to it. The card lists its highlights, and clicking one jumps to it. See [Highlights](/docs/features#highlights).
+- Highlights from Instapaper, Omnivore and Raindrop.io imports arrive as highlights.
 
-- A saved article now has a **Read** view in its card on the web: the article's text and images in one calm layout, in light and dark, with the site, author and reading time above it and **Open original ↗** below. Articles, news and research open on **Read**; press `R` to switch to **Preview** and back. See [Read](/docs/features#read).
-- Search finds links by words in their article, and a long article's AI summary is written from the article itself.
-- **API, MCP, SDK and CLI:** cards include `article` (`wordCount`, `readingMinutes`), and `GET /v1/cards/:cardId/content?kind=article` (or `teak content <card-id> --kind article`) returns the article as Markdown. See [A link's article](/docs/api#a-links-article).
+## A saved copy of every page
 
-## Teak keeps a copy of every page you save, and opens it when the original is gone
+- Teak keeps a private copy of every link you save, on every plan, and shows it when the original page is gone. See [Saved copies of pages](/docs/features#saved-copies-of-pages).
+- Saving from the Chrome or Firefox extension keeps the page as you saw it, including pages you're signed in to, without passwords or payment details.
 
-- Every link you save now gets a private copy of its page, on every plan: its text, styles and images in one file, up to 20 MB, without video, audio or scripts. A page too large to keep whole is kept as text only. Links you saved before get one too. See [Saved copies of pages](/docs/features#saved-copies-of-pages).
-- Saving from the Chrome or Firefox extension keeps the page as you saw it, including pages you're signed in to. Passwords, payment card numbers and one-time codes are left out.
-- A link's **Details** show **Archived copy** with its size, or why a copy couldn't be saved.
-- **API, SDK and CLI:** cards include `archive` (`kind`, `bytes`, `capturedAt`). See [Saved copies of pages](/docs/api#saved-copies-of-pages).
+## Search that understands you
 
-## Import links from any CSV
+- Search finds cards by meaning as well as words: `cozy reading nook` finds a photo of an armchair by a window, typos still match, and a search in another language finds cards saved in English. See [Smart search](/docs/features#smart-search).
+- Search finds words inside PDFs, Office and code files, and what's said in audio, video, Vimeo videos and podcast episodes.
+- Teak reads the words in images, screenshots and scanned PDFs, so search finds a receipt by its invoice number. `text:` searches only those words.
+- Leave things out with `-`, combine with `OR`, and group with parentheses: `(site:github.com OR site:gitlab.com) -is:archived`.
+- Narrow a search with `tag:`, `type:`, `is:fav`, `site:`, `folder:`, `price:`, `mood:` and quoted phrases. The search box suggests filters, tags, folders and sites as you type.
+- Searches start in **Best match**, and **More like this** on any card finds the cards closest to it in meaning.
 
-- **Settings → Import** has two new sources. **CSV file** reads any comma-separated CSV with a header row: Teak finds the link, title, tags, folder, note and date columns by name, including common names such as `link`, `labels`, `collection`, `description` and `date added`. See [CSV columns](/docs/import#csv-columns).
-- **Text file of links** imports a `.txt` file with one link per line, optionally followed by ` | Title`. OneTab's **Export URLs** text works as it is, so OneTab is no longer listed on its own.
-- Rows without a usable link are listed in the import report with their row number, and a CSV without a link column stops with a message saying which column to add. Links you already have, and repeats in the file, are skipped.
+## Organize your library
 
-## Saving a link again moves it to the top
+- A new sidebar holds **New**, **Everything**, **Favorites**, **Tags**, your folders, **Archive**, **Trash** and **Settings**. Every page has the same header, with search in the middle and a **View** menu for card types, order and saving a smart folder. See [Sidebar](/docs/features#sidebar).
+- **Folders:** group cards in colored folders. A card can be in several, and removing it from one never deletes it. See [Folders](/docs/features#folders).
+- **Smart folders:** save a search, and it fills itself with every card that matches, including ones you save later. See [Smart folders](/docs/features#smart-folders).
+- **Tags:** see every tag with its count, and rename, merge or delete one across your whole library. See [Tags and filters](/docs/features#tags-and-filters).
+- **Archive:** keep a card out of your library without deleting it.
+- **Select many cards** to archive, favorite, tag, add to a folder or move to Trash at once, with **Undo**.
+- **Empty Trash** deletes everything in Trash for good, after asking.
+- **Hidden cards:** tag a card `secret` or `hidden` to keep it out of sight until you search for that tag. See [Hidden cards](/docs/features#hidden-cards).
 
-- Save a link you already have, from anywhere you save, and Teak moves that card to the top of your library instead of making a second one. An archived card comes back from Archive. See [Saving something again](/docs/features#saving-something-again).
-- Lists, folders, tags and search sorted by date now follow when you last saved a card, and date words such as `last week` find a card you saved again then. The card's **Details** keep **Added**, the day you first saved it, and show **Saved again** with the last time.
-- The browser extension and Raycast say **Already in Teak** or **Already saved**, and the card moves. Tags and a note sent with a link you already have aren't added to it.
-- **API, MCP, SDK and CLI:** saving a link you already have answers with that card and `resaved: true`, and every card has `savedAt`. See [Create behavior](/docs/api#create-behavior).
+## Rediscover what you saved
 
-## Paste a list of links to save them all
+- **Shuffle** shows your cards in a random order, and **Revisit** walks you through 20 random cards so you can keep or archive each. See [Sort and share a search](/docs/features#sort-and-share-a-search).
+- **Oldest first** starts from the beginning. Imported bookmarks keep their original dates.
+- **Mark a link done** as read, watched, listened, bought, cooked or played, then search `is:todo` for what's left. See [Read, watch and buy](/docs/features#read-watch-and-buy).
 
-- On the web, paste a list of links, one per line, and Teak saves each as its own card, up to 100 at a time. Links already in Teak move to the top. See [Saving links](/docs/features#saving-links).
+## Saving
 
-## AI summaries and tags in your content's language
+- **Save again, move to top:** saving a link you already have, from anywhere, moves that card to the top instead of making a second one, even when the address has tracking parameters. See [Saving something again](/docs/features#saving-something-again).
+- **Paste a list of links** to save each as its own card.
+- **Save by email:** forward anything to `save@in.teakvault.com`. See [Save by email](/docs/features#save-by-email).
+- **Install Teak** from Chrome, Edge or Safari to use it in its own window, and share to it on Android and ChromeOS. See [Install the web app](/docs/features#install-the-web-app).
+- New accounts start with a **Start here** folder of example cards, one of each type, with tips to try.
 
-- Teak now writes a card's summary and AI tags in the language of what you saved, on every app: a Japanese article gets a Japanese summary and tags like `デザイン`, a Spanish note gets Spanish ones. Items with no text, like a photo without words, still get English tags. See [AI enrichment](/docs/features#ai-enrichment).
-- Your own tags are never changed, and search by meaning finds cards across languages. Tags in different languages are different tags (`design` and `diseño`); merge them on the **Tags** page if you like.
-- Cards you saved before keep their English summary and tags; use **Refresh details** on a card to redo them in its language.
+## Richer cards
 
-## Teak in seven more languages
+- Summaries and AI tags are written in the language of what you save. See [AI enrichment](/docs/features#ai-enrichment).
+- Wikipedia, arXiv, YouTube, Spotify, Apple Music and book links show richer details, and **Save PDF** saves an arXiv paper's PDF as its own card. See [Card details](/docs/features#card-details).
+- Teak recognizes places, typefaces, apps, games and code repositories, and shows their facts, like a restaurant's address or a repository's stars.
+- Product links show their price, and `price:<100` finds them by it.
+- Posts from Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn and Substack Notes keep their text, author and photos.
+- Photos show their camera details, never their location, and links show who wrote them and when.
+- Videos and GIFs get colors, video cards preview as you move across them, and audio shows its real waveform.
+- **Refresh details** gets a fresh summary, tags and preview, and you can choose your own image for any link.
 
-- The web app, the Chrome and Firefox extension, and the iPhone, iPad, Mac and Android apps are now available in Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文, as well as English. Choose one in **Settings → Language**; it switches right away and is saved to your account. Teak stays in English until you choose. See [Language](/docs/features#language).
-- Dates, numbers and counts follow the language too. Search words such as `is:fav` and `type:image` stay in English in every language, and so do some details Teak adds to cards, like link facts and bylines.
-- **iPhone, iPad, Mac and Android:** the apps speak the same eight languages and follow the language saved to your account, so changing it on the web changes it in the apps too. Choose one in the app's **Settings → Language**, or in your device's settings for Teak (iOS, macOS, and Android 13 and newer); either way it's saved to your account. Signed out, the apps use your device's language.
-- One word for each action everywhere: **Move to Trash**, **Delete forever**, **More like this**, **Favorite** and **Unfavorite**, and **Sign out** on every app.
-- **API, SDK, and CLI:** `/v1/me` and `me()` include `locale`, and `teak whoami` shows your language.
+## Notes
 
-## Install Teak from your browser
-
-- Choose **Install Teak** in Chrome or Edge to open Teak in its own window, or add it to your Dock or Home Screen from Safari. See [Install the web app](/docs/features#install-the-web-app).
-- Installed in Chrome on Android or ChromeOS, Teak shows up in the share sheet: shared pages and text open the composer filled in, and shared photos and files upload. Sharing while signed out picks up again after you sign in.
-
-## Teak in Shortcuts, Spotlight and Control Center
-
-- **iPhone, iPad and Mac:** the Shortcuts app has new Teak actions: **Search Teak**, **Open Card**, **Add to Folder**, **New Note** and **Record Voice Memo**, beside **Save to Teak**. Siri runs them by name, and Search Teak's results can go straight into a folder. See [Shortcuts and Siri](/docs/mobile#shortcuts-and-siri).
-- Spotlight finds your cards by title and opens them in Teak. Trashed, archived and hidden cards stay out, and signing out removes them all.
-- **New Note** and **Voice Memo** controls for Control Center, the Lock Screen and the iPhone Action button open Teak on that screen.
-- The share sheet has **Add to folders**, so what you save lands in the right folders right away.
-
-## Empty Trash, and more ways to fix up a card
-
-- **Empty Trash** on the web, iPhone, iPad, Mac and Android deletes everything in Trash for good, after a confirmation that says how many cards it removes. See [Trash](/docs/features#trash).
-- **Edit link…** in a link card's menu changes its address, and the preview refreshes. On iPhone, iPad, Mac and Android you can rename a link's title from the card view too.
-- In the card view, **Suggested by Teak** lists the tags Teak picked: keep one to add it to your tags, or remove it. Now on iPhone, iPad, Mac and Android as well as the web.
-- On iPhone, iPad and Mac, Move to Trash no longer asks first and offers **Undo** instead, and a smart folder has **Edit search…**.
-- Photos open full screen with pinch and double-tap zoom on iPhone and iPad, and in a zoomable window on Mac. Voice memos have a seek bar on iPhone, iPad, Mac and Android.
-- **Android:** PDFs open in the app, Android tablets list Favorites, Archive and Trash in the side rail, and Settings → Appearance has **Wallpaper colors**. See the [mobile guide](/docs/mobile).
-- **Android works offline:** edits and new notes made without a connection show right away and sync when you're back, images you've seen stay available, and **Keep offline** saves a card and its file for reading on the go. See [Android](/docs/mobile#android).
-
-## Notes and search on iPhone, iPad, Mac and Android
-
-- Notes show their tables as tables, scrolling sideways when they're wide, and their checklists with checkboxes you can tick. A ticked item moves below the open ones, as on the web. Edit a table's cells on the web.
-- Type `[[` while editing a note to link another card: a list of your cards appears under the field and narrows as you type. See [Links between notes](/docs/mobile#links-between-notes).
-- Search takes `-`, `OR`, parentheses and `site:` as typed, and typing `-` or a word suggests what to leave out or combine, as on the web.
-
-## Exclude words and filters with -, and combine them with OR
-
-- Put `-` before a word or a filter to leave those cards out: `design -figma`, `#inspo -type:image`, `-is:archived`. Uppercase `OR` finds cards that match either side, such as `tag:fonts OR tag:type`, and parentheses group them: `(site:github.com OR site:gitlab.com) -is:archived`. See [Smart search](/docs/features#smart-search).
-- Typing `-` in the search box suggests what to leave out, and `OR` is suggested after a word. An excluded filter shows as a pill with a minus before its name, and the **?** shortcuts sheet has a new **Search** section.
-- Smart folders take operators too, and a search typed inside one narrows it without mixing the two.
-- **API, MCP, SDK, and CLI:** `q` takes the same operators. In the CLI, quote the search, or put a search that starts with `-` after `--`. See [Search qualifiers](/docs/api#search-qualifiers).
-
-## Your library's new tools on iPhone, iPad, Mac and Raycast
-
-- **Organize:** archive cards and open **Archive**, put cards in folders or save a search as a smart folder, and rename, merge or delete a tag everywhere from **Tags**.
-- **Find:** sort Newest First, Oldest First or Shuffle, and open **More like this** (Find Similar in Raycast) on any card. `is:done`, `is:todo`, `is:archived`, `text:`, `price:` and `mood:` work in search, and searching `#secret` or `#hidden` shows hidden cards.
-- **Revisit:** go through 20 random cards one at a time and keep or archive each, with Undo. On iPhone, iPad and Mac it's in the **More** menu; in Raycast it's **Random Cards**.
-- **Card details:** mark a link as read, watched or bought, see `[[` links as their titles and the notes that link to a card under **Linked from**, and see prices, publish dates and the page a saved text came from. **Refresh Details** fetches a card's details again.
-- **iPhone, iPad and Mac:** search finds cards by meaning as well as words, photos show their camera details, and selecting several cards lets you archive, tag, favorite or add them to a folder together. The library's **More** menu holds Select, Revisit, filters and sorting, iPhone has a **Folders** tab for your folders and smart folders, and on Mac **Settings** sits in the sidebar under **Trash**. After saving from the share sheet, add tags and a note. See the [mobile guide](/docs/mobile) and the [Mac app guide](/docs/mac).
-- **Raycast:** new **Browse Folders**, **Random Cards** and **Find Similar Cards** commands, archive, done, folder and refresh actions on every card, tag management in **Browse Tags**, tags and a note in **Quick Save** and **Save to Teak**, and AI tools that understand folders, done states and similar cards. See the [Raycast guide](/docs/raycast).
-- **Raycast, tidied up:** a type menu beside the search bar, image thumbnails and palette colors in the list, every tag behind a **+N**, and the date a card was last saved. Card actions are grouped the same way everywhere, empty lists keep **Clear Filters**, **Leave Archive** and **Sign Out** within reach, and a signed-out command opens **Sign in with Teak** right away.
-
-## Link cards together with [[
-
-- In a note on the web, type `[[` to link another card: pick one of your cards from the list, and it shows as a pill with that card's current title, so renaming the card updates every link to it. Click a pill to open the card. A link to a card in Trash or deleted shows **Missing card** until you restore it. See [Link cards](/docs/features#link-cards).
-- Open a card to see which notes link to it under **Linked from**, and click one to open it.
-- Card tiles show a link as its title, and search finds a note by a linked card's title.
-- **API, MCP, SDK, and CLI:** links are written `[[Title|teak:<card-id>]]` in a note's content. A single card's response includes `links` and `backlinks`, and `teak_v1_get_card_links`, `cards.links` and `teak links <card-id>` list both. See [Links between cards](/docs/api#links-between-cards).
-
-## Save to Teak by email
-
-- Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email you sign in with. A link becomes a link card, anything else a note, and every card is tagged `email`. See [Save by email](/docs/features#save-by-email).
-- Attachments are saved as their own cards, with the same formats as uploads.
-- Only mail from your sign-in email that passes its domain's sender checks is saved; anything else is refused.
-
-## Search what's said in Vimeo videos and podcast episodes
-
-- A Vimeo link's captions become the card's transcript, so search finds the video by a line someone says in it, and its summary and tags describe what's said.
-- A podcast episode whose page links to its audio, or that Apple Podcasts or the show's feed lists, is transcribed after it's saved, up to 100 MB of audio. The transcript arrives a few minutes later, and the episode's summary and tags are rewritten from it. Spotify episodes and longer episodes get no transcript. See [Smart search](/docs/features#smart-search).
-- YouTube links show their channel, length and upload date when the video's page has them. YouTube doesn't let Teak read its captions, so YouTube videos get no transcript.
-- The transcript is in `aiTranscript` in the API, and in `teak content <card-id>` and the MCP `teak_v1_get_card_content` tool. Links you saved before get transcripts when you use **Refresh details**.
-
-## Richer details for Wikipedia, arXiv, music and books
-
-- Wikipedia articles show their short description and when they were last edited, and a disambiguation page says so. arXiv papers show their authors, publish date, subject and DOI. Spotify and Apple Music links show the artist and whether it's a track, album or playlist. Book links that name an ISBN get their author, page count, publisher and publish date from Open Library, and a cover when the page has none. See [Card details](/docs/features#card-details).
-- Teak's summary of a Wikipedia article or an arXiv paper now reads its opening paragraph or abstract, not just the title.
-- **Save PDF** on an arXiv paper's card saves its PDF as its own document card, so its text is searchable in Teak. Saving it again opens the one you have.
-- **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/save-pdf`, `teak_v1_save_card_pdf`, `cards.savePdf`, and `teak cards save-pdf <card-id>`. See [Save a paper's PDF](/docs/api#save-a-papers-pdf).
-- Links you saved before get these details when you use **Refresh details**.
-
-## Mark links as read, watched or bought
-
-- Open a link and click **Mark as read** at the top of its details, or press `D`, to mark it done. It says **Mark as read** for an article, **Mark as watched** for a film, **Mark as bought** for a product, **Mark as played** for a game, and so on, and a check appears on the link's tile. A toast lets you undo it.
-- Search `is:todo` for what's left to read, watch, listen to or buy, and `is:done` for what you've finished. Both work in smart folders, such as `is:todo folder:"Reading list"`. See [Read, watch and buy](/docs/features#read-watch-and-buy).
-- **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/done` and `DELETE` to undo, `teak_v1_set_card_done`, `cards.setDone`, and `teak done <card-id>` (`--undo` to clear it). Cards include `completedAt` and `linkCategory`. See [Mark a link done](/docs/api#mark-a-link-done).
-
-## Find screenshots and scanned PDFs by the words in them
-
-- Teak now reads the words in the images and videos you save: receipts, screenshots, signs, slides and code. Search finds an image by any word in it, and `text:` searches only those words, so `text:4411` finds the receipt and not the note that mentions it. See [Smart search](/docs/features#smart-search).
-- Scanned PDFs are searchable too. Teak reads the first 3 pages of a PDF that has no text of its own, so search finds a scanned lease by a phrase on page 2, and its summary and tags describe what the scan says instead of only its file name.
-- Links count as well: Teak reads the words in a link's preview image and in its screenshot, such as a talk's slide title.
-- **API, MCP, SDK, and CLI:** `q` takes `text:"…"` too. See [Search qualifiers](/docs/api#search-qualifiers).
-
-## Teak recognises a link you've already saved, even with tracking parameters
-
-- The browser extension, Raycast, the API, MCP and the CLI now know a link is already in Teak when the address differs only by `http` or `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` tracking parameters. See [Check for a saved URL](/docs/api#check-for-a-saved-url).
-- Imports skip those variants too, both against your library and within the file. See [Duplicate handling](/docs/import#duplicate-handling).
-
-## Save a page with ⌥⇧S, and see when it's already in Teak
-
-- In the Chrome and Firefox extensions, press **Alt+Shift+S** (**⌥⇧S** on Mac) to save the current page without opening the popup. The Teak icon shows **…** while it saves, then **✓**, or **!** with the reason when it can't. Change the shortcut in your browser's extension shortcut settings. See [Save with a shortcut](/docs/extension#save-with-a-shortcut).
-- The Teak icon also shows **✓** whenever the page in your current tab is already in your library. Private and incognito windows are never checked. See [Already in Teak](/docs/extension#already-in-teak).
-
-## Teak for Firefox
-
-- The browser extension is now on [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/teak/), with everything the Chrome extension does: save the page when you open the popup, add tags and a note, the context menu, file upload, inline save buttons, pending saves, and address bar search. It needs Firefox 140 or later. See [Install for Firefox](/docs/extension#install-for-firefox).
-- In private windows, Teak runs once you allow it. If Firefox always uses private browsing, Teak forgets your sign-in when Firefox closes, and the popup tells you.
-
-## Search Teak from your browser's address bar
-
-- With the Chrome or Firefox extension, type `teak`, then Space or Tab, in the address bar to search your library. Your top five matching cards appear as you type; choose one to open it, or press Enter to open the full search in Teak. Search qualifiers such as `#design` and `type:image` work too. See [Address bar search](/docs/extension#address-bar-search).
-
-## Tags and a note right after saving, and text that remembers its page
-
-- In the Chrome and Firefox extensions, once the popup saves a page, add tags and a note right there. Your most used tags and the ones you used last are suggested, and changes save when you press Enter, leave the field, or close the popup. For a page you'd already saved, the popup shows its tags and note so you can change them. See [Add tags and a note after saving](/docs/extension#add-tags-and-a-note-after-saving).
-- **Save Text to Teak** now keeps the page the text came from. The card shows **From** and the site in its details, the site appears under the text in your library, and `site:` searches find it.
-- **API, MCP, SDK, and CLI:** send `sourceUrl` and `sourceTitle` when creating a card, or use `teak add --source-url <url> --source-title <title>`. Cards and exports include them. See the [API guide](/docs/api#create-behavior).
-
-## Revisit: 20 random cards, keep or archive
-
-- On the web, choose **Revisit** from the **View** menu to go through 20 random cards from what's on screen, one at a time: your library, Favorites, a folder, a smart folder, a tag, or a search. Press `←` to archive a card (with **Undo**) or `→` to keep it, or swipe on a touch screen.
-- `Space` opens the card's details and `Z` takes back the last archive. At the end, **Revisit 20 more** continues with cards you haven't seen. See [Sort and share a search](/docs/features#sort-and-share-a-search).
-
-## Jump anywhere with ⌘K
-
-- On the web, press `⌘K` (`Ctrl+K` on Windows and Linux) to open the command palette. Go to any view, folder, or smart folder by name, find a card as you type (search qualifiers work too), or run an action such as New note, Upload files, Import, Export, Toggle theme, Shuffle, or Sign out.
-- While you write a note, `⌘K` still adds a link. See [Command palette](/docs/features#command-palette).
-
-## Focus mode for every note, new or existing
-
-- On the web, press `⌘E` (`Ctrl+E` on Windows and Linux), or click the expand button, to write any note with nothing else on screen, not only a new one. Focus replaces the full-screen note.
-- The **Close** and **Save** bar fades away while you type, and a word count appears when you pause, counting Chinese and Japanese words correctly. `Esc` returns to the card with your edits, after first closing the slash menu or link editor if one is open. See [Focus mode](/docs/features#focus-mode).
-
-## Done items sink to the bottom of checklists
-
-- On the web, ticking an item in a note's checklist slides it below the open items in its list, so what's left to do stays at the top. Checkboxes are redrawn too, with a check that pops in. Unticking it moves it back up, and `⌘Z` (`Ctrl+Z` on Windows and Linux) undoes both. Items in a nested list move only within their own list.
-
-## Tables in notes
-
-- On the web, type `/table` in a note to add a table. `Tab` moves between cells and adds a row at the end, and the **⋯** menu at the table's corner adds or deletes rows and columns. Tables are saved as Markdown, so the API, exports and the apps keep the same text, and card tiles show the cells separated by `·`. Markdown tables you already have open as tables too, unless their columns are aligned. See [Tables in notes](/docs/features#tables-in-notes).
-
-## Hide cards with a secret or hidden tag
-
-- Tag a card `secret` or `hidden` to keep it out of your library, Favorites, Archive, Trash, folders, search, and Shuffle, on the web, iPhone, iPad, Mac, Raycast, and the API. Cards you had already tagged this way are now hidden too.
-- To see them, search for the tag: `#secret`, `tag:hidden`, or the tag from the **Tags** page. Searching the word `secret` doesn't show them, and tags Teak adds never hide a card. Remove the tag and the card is back.
-- On the web, adding the tag shows **Undo**, and the card's tags show **Hidden**. Hidden cards still count toward your card limit. See [Hidden cards](/docs/features#hidden-cards).
-- **API, MCP, SDK, and CLI:** lists and searches leave hidden cards out unless the search names one of those tags. Cards include `isHidden`, and `teak ls` marks them `hidden`. See the [API guide](/docs/api#hidden-cards).
-
-## Find similar cards
-
-- Open a card and choose **More like this** from its **⋯** menu to see the cards closest to it in meaning, from notes and links to images about the same thing. Narrow the list with any filter and save it as a smart folder. See [Find similar](/docs/features#find-similar).
-- `mood:"moody brutalist"` finds images by their look and feel.
-- **API, CLI, and MCP:** `GET /v1/cards?similarTo=<id>`, `teak similar <id>`, and the `teak_v1_find_similar_cards` tool return the same cards.
-
-## Choose your own image for any link
-
-- On the web, give a link the image you want: drop an image on its preview, paste one while the card is open, or choose **Replace image** from its **⋯** menu. A link without an image shows **Add an image**.
-- Your image shows in the grid on the web and in the iPhone, iPad, and Mac apps, and stays when you refresh the card's details. **Undo** puts back the previous image, and **Reset to original image** goes back to the one Teak found. See [Replace a link's image](/docs/features#replace-a-links-image).
-- **API, MCP, SDK, and CLI:** upload with `POST /v1/cards/:cardId/thumbnail/upload`, apply with `PUT /v1/cards/:cardId/thumbnail`, and reset with `DELETE`; `teak cards thumbnail <card-id> <file>` (or `--reset`) does it from the command line. See [Replace a link's image](/docs/api#replace-a-links-image).
-
-## Search understands what you mean
-
-- Search now finds cards by meaning as well as by their words. `cozy reading nook` also finds a photo of an armchair by a window with books, a typo such as `typograhpy` still finds your type notes, and a search in another language finds cards saved in English.
-- Cards that match your words appear as fast as before, and related cards join them a moment later. Filters, qualifiers, folders, Archive, Trash, and your chosen order all still apply. See [Smart search](/docs/features#smart-search).
-- **API, CLI, and MCP:** searches blend by default. `mode=keyword` (`--mode keyword` in the CLI) gives word matches only and `mode=semantic` meaning matches only, and every search response says which ran in `searchMode`. See the [API guide](/docs/api#search-and-favorites).
-
-## Prices on product cards and `price:` search
-
-- Product links, such as an Amazon page or a shop that describes its products, now show their price as a tag on the card in the grid, like **$24.99**, **€1,299.00**, or **Free**. Links without an image show it beside the title. Teak reads it when you save the link, and again from the page when you choose **Refresh details**.
-- Search by price with `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, or `price:=0`. Two bounds make a range, so `lamp price:>20 price:<100` finds lamps between 20 and 100, and you can save it as a smart folder. The amount is compared in any currency, and links without a price don't match.
-- Product links you saved earlier get their price as Teak catches up on them.
-- **API, CLI, and MCP:** `q` and `teak search` read `price:` too, and cards include `linkPrice` with `amount` and `currency`. `teak cards get` shows the price. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
-
-## Save posts from Bluesky, Mastodon, Reddit, TikTok and more
-
-- Saving a post from Bluesky, Mastodon, or Reddit keeps its text, author, and date, and up to 10 of its photos, the way X posts already were. Videos come along when the site offers them as a file, and their cover image otherwise.
-- A TikTok keeps its caption, author, and cover image. Threads, LinkedIn, and Substack Notes posts keep the text and image their page shares.
-- Mastodon posts work from any server, not just the big ones.
-- A private, deleted, or login-only post is saved like any other page, so saving never fails because of it. For a post saved earlier, use **Refresh details** to fetch it again. See [Card details](/docs/features#card-details).
-
-## Teak now recognizes places, fonts, apps, games, code repositories and social posts
-
-- Links to Google Maps, Apple Maps, Yelp, Tripadvisor, OpenTable, Resy, Airbnb, Booking.com, Zillow, Redfin, Rightmove, and Realtor.com are places; Google Fonts, Adobe Fonts, MyFonts, Fontshare, and Future Fonts are typefaces; the App Store, Google Play, the Chrome Web Store, and the Microsoft Store are apps; Steam, itch.io, the Epic Games Store, GOG, and BoardGameGeek are games; and GitHub, GitLab, Bitbucket, Codeberg, and sourcehut projects are code repositories.
-- Places, apps, and games show more in an open card's **Details** when the page lists it: a restaurant's address, cuisine, price range, and rating, an app's platform and rating, or a game's platform, genre, and release date. Repositories keep their GitHub stars and forks. See [Card details](/docs/features#card-details).
-
-## Best match, and cards that know what they are
-
-- A search now starts in **Best match**: the cards that best match what you typed come first. Results never move while you look at them; choose **Newest first** from the **View** menu to see your matches by date. See [Sort and share a search](/docs/features#sort-and-share-a-search).
-- **API, CLI, and MCP:** `sort=relevance` (`--sort relevance` in the CLI) gives the same order, and `relevanceRanked` says whether the results were scored. See [Best match](/docs/api#best-match).
-- Six new visual styles: typographic, 3D, flat, geometric, hand-drawn, and futuristic. Teak now judges styles from the picture itself, and videos get styles from their thumbnail, so `style:` filters find them too.
-- Links on sites Teak has no rule for get the right kind more often, such as a recipe, a course, or a product, read from the page itself.
-- A quotation you paste without quote marks becomes a quote card, and code or dialogue that only looks like a palette or a quote stays a note.
-
-## The API, MCP, SDK, and CLI in step
-
-- Every card, tag, folder, and account feature in the API is also in MCP, the SDK, and the CLI. New this time: `teak folders get`, `teak cards duplicate <url>`, and the `teak_v1_get_folder` MCP tool.
-- The SDK and CLI now report every API error by its own code, such as `CARD_LIMIT_REACHED` when a free account reaches its 200 cards, where they used to say `REQUEST_FAILED`.
-
-## Search inside documents and videos
-
-- Search now finds a card by the words inside its file: a sentence in a PDF, a line in a Word or PowerPoint file, a function in a code file, or something someone said in a video. For a long document, search covers its first 32 KB of text (roughly 5,000 words). Quoted phrases match inside documents too.
-- Video cards get a transcript of their speech, like audio already did. For a video saved earlier, use **Refresh details** to get one. Documents saved earlier become searchable as Teak catches up on them.
-- An open document card's details show how much text Teak read from it.
-- **API, CLI, and MCP:** `GET /v1/cards/:cardId/content`, `teak content <card-id>`, and the `teak_v1_get_card_content` tool return a card's full text. See [Read a card's text](/docs/api#read-a-cards-text).
+- Write notes with headings, lists, tasks, quotes, code and links; type `/` for formatting. Notes stay in Markdown.
+- Type `[[` to link another card, and see which notes link to a card under **Linked from**. See [Link cards](/docs/features#link-cards).
+- Type `/table` to add a table, and ticked checklist items move to the bottom.
+- **Focus** (`⌘E`) shows only your note, for any note.
 
 ## A calmer card grid and card view
 
-- On the web, cards in the grid are easier to scan: links show their site's icon beside the title, notes show their first line as a heading and more of what follows, quotes and palettes read more cleanly, documents show their file type, and audio shows its length.
-- Rest the pointer on a card to open its link, favorite it, select it, or open **More** for every other action, without right-clicking.
-- An open card keeps its top bar to the title, favorite, **More**, and one main action, **Open** or **Download**; everything else is in **More**, and a note or quote has no title bar at all. Notes, tags, folders, summary, colors, and details sit beside it and edit in place; notes, a note's text, and a link's renamed title save on their own as you type. Tags Teak added fold under **suggested tags**, where you can keep or remove each, and **Details** shows the essentials with **More details** for the rest.
-- Photos and videos fill the card, with the title bar appearing when you point at them. Press `I` to hide the details and read full width; the card remembers it. Deleting from an open card offers **Undo**, and a card in Trash says so above it with **Restore** and **Delete Forever**.
-- Step through cards without closing them, with the arrows beside the card or `←` and `→`. The arrows stay put whatever the card's size, so quick clicks each move one card. `F` favorites, `T` adds a tag, `N` writes a note, `O` opens the link, `C` copies it, `D` marks it done, `E` archives, `Delete` moves the card to Trash, and `?` lists every shortcut. On a phone the card opens as a sheet from the bottom, with its actions in a bar along the bottom. See [Grid](/docs/features#grid).
-- Selecting cards no longer moves them around the grid, an open card closes the moment you dismiss it, and messages such as **Copied** appear as a small centered pill instead of a bar along the bottom, so they read fully even over an open card.
+- Cards are easier to scan, with site icons, note headings and audio length. Rest the pointer on a card for its main actions.
+- An open card keeps its notes, tags, folders, summary and details beside it, all editable in place. Step to the next card with the arrows or `←` and `→`.
+- Deleting a card offers **Undo**.
 
-## Shuffle your library
+## Keyboard and command palette
 
-- On the web, choose **Shuffle** from the **View** menu beside the search bar to see your cards in a random order and rediscover what you saved long ago. The order holds while you scroll, so no card repeats or goes missing.
-- **Reshuffle** (the dice beside the **View** menu) picks a new order, and Back returns to the previous one. The order is part of the address, so a reload or a shared link shows the same one.
-- Shuffle works in search, tags, folders, Favorites, Archive, and Trash too. See [Sort and share a search](/docs/features#sort-and-share-a-search).
-- **API, CLI, and MCP:** `GET /v1/cards?sort=shuffle&shuffleSeed=42` returns the same order for the same seed, `teak ls --sort shuffle --seed 42` does the same, and the MCP list and search tools take `sort: "shuffle"` with `shuffleSeed`. See the [API guide](/docs/api).
+- Use your library without a mouse: move between cards with the arrow keys, open with `Enter`, and press `?` to see every shortcut. See [Keyboard shortcuts](/docs/features#keyboard-shortcuts).
+- `⌘K` opens the command palette to go anywhere, find a card, or run an action.
 
-## Import from more apps
+## A redesigned Settings
 
-- Settings → Import/Export Data now brings in your saves from Pocket, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, and OneTab, as well as browser bookmarks, Raindrop.io, and Teak archives. Pick the source and Teak tells you which file to upload.
-- Titles, tags, notes, highlights, favorites, archived items, and saved dates come along wherever the source has them.
-- **Changed:** folders in bookmark files and Raindrop exports now become Teak folders instead of tags. A nested folder becomes one folder named after its path, like **Work / Design**.
-- A file that isn't from the source you picked now says so, instead of showing an error code. See [Import Your Data](/docs/import).
+- Settings has a page for each area: **Account**, **Plan**, **Appearance**, **Integrations**, **Security** and **Import & export**.
+- Choose monthly or yearly Pro right on the **Plan** page; checkout opens in a new tab.
 
-## Richer exports
+## Teak in seven more languages
 
-- An export now includes `bookmarks.html`, which Chrome, Firefox, and Safari import with your folders, and `cards.csv`, a spreadsheet of every card that opens safely in Excel, Numbers, and Google Sheets.
-- `cards.json` adds each card's title, AI tags and summary, folder names, and whether it's archived.
-- Importing a new Teak archive brings back your folders, archived cards, and titles. Older archives import as before. See [Export Your Data](/docs/export).
+- The web app, browser extension, and iPhone, iPad, Mac and Android apps are now in Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文. Your choice follows you to every device. See [Language](/docs/features#language).
 
-## Keyboard shortcuts on the web
+## Imports and exports
 
-- Move through your library without a mouse: the arrow keys go to the nearest card, `Enter` opens it, `F` favorites, `E` archives, `Delete` moves it to Trash, and `X` selects it; with cards selected (outside Trash), the same keys act on all of them. Closing a card brings you back to it.
-- `/` jumps to search, `N` starts a new note, `U` uploads files, and `G` then `F`, `A`, `T`, or `E` opens Favorites, Archive, Trash, or Everything.
-- `T` adds tags to the focused card (or to every selected card), and `⌘C` (`Ctrl+C`) copies its text, link, or image. On a Mac, `⌫` moves a card to Trash, in the grid and with the card open.
-- Wherever an action has a key, the app shows it on the right so you can learn them as you go: in right-click and **More** menus, in the tooltips of buttons like **Favorite**, **Select**, **Archive**, and **Collapse sidebar** (`⌘B`), beside **Everything**, **Favorites**, **Archive**, and **Trash** in the sidebar when you point at them, on **Save** (`⌘↩`) when you write a note, and in the empty note, tag, and search fields (`N`, `T`, `/`).
-- Press `?` to see them all. Shortcuts never fire while you type. See [Keyboard shortcuts](/docs/features#keyboard-shortcuts).
-- **Delete** on a card now offers **Undo**, like moving several cards to Trash.
+- Import from Pocket, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, any CSV, or a text file of links, as well as browser bookmarks, Raindrop.io and Teak archives. See [Import](/docs/import).
+- **Changed:** folders in bookmark files and Raindrop exports now become Teak folders instead of tags.
+- Exports include a bookmarks file your browser can import and a spreadsheet of every card. See [Export](/docs/export).
 
-## Smart folders
+## Browser extension
 
-- On the web, save any search as a smart folder: search, open the **View** menu at the end of the search box, and choose **Save as smart folder…**. It shows every card that matches, including cards you save later, so a `tag:design type:link` folder fills itself.
-- Smart folders sit with your folders and have a search icon. The search shows at the top of the folder with **Edit search**, and typing narrows it further. A smart folder can look inside a regular folder with `folder:`, and follows it if you rename it.
-- **API, CLI, and MCP:** create one with `POST /v1/folders` and `{ "kind": "smart", "query": "..." }`, change its search with `PATCH`, and `GET /v1/cards?folder=` lists what it matches. The CLI adds `teak folders create --query`, and the MCP folder tools take `kind` and `query`. See [Smart folders](/docs/features#smart-folders) and the [API guide](/docs/api#folders).
+- **Firefox:** Teak is on [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/teak/), with everything the Chrome extension does. See [Browser extension](/docs/extension).
+- Press **⌥⇧S** (**Alt+Shift+S**) to save the page, and the Teak icon shows a check when the page is already in your library.
+- Type `teak` in the address bar to search your library.
+- Add tags and a note right after saving, and saved text remembers the page it came from.
 
-## Search with qualifiers
+## Teak in Claude and Raycast
 
-- On the web, narrow a search with `tag:design` (or `#design`), `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, and `"quoted phrases"`, and mix them with words, colors, and dates.
-- As you type, the search box suggests filters, your tags and folders, and the sites you save most. Each one you pick becomes a removable pill, and the address bar keeps the whole search for reloads and shared links.
-- `site:` treats `www.github.com` and `GitHub.com` as the same site, and international addresses work in either form.
-- **API, CLI, and MCP:** `GET /v1/cards?q=`, `teak search`, and the MCP search tool read the same qualifiers, together with their other filters. See [Smart search](/docs/features#smart-search) and the [API guide](/docs/api#search-qualifiers).
+- Claude shows your cards as Teak cards right in the conversation when it searches or saves. See [MCP](/docs/mcp#card-views).
+- In Claude Code, install the Teak plugin for `/teak:save`, `/teak:search` and `/teak:recent`. See [Connect your client](/docs/mcp#connect-your-client).
+- Raycast can browse folders, find similar cards, show random cards, archive, mark done and manage tags. See [Raycast](/docs/raycast).
 
-## Manage tags across your library
+## Fixes
 
-- On the web, **Tags** in the sidebar opens a page with every tag and how many cards carry each. Find one, sort by name, and click a tag to see only its cards; it shows as a pill under the search bar.
-- Rename, merge, or delete a tag from its menu on the Tags page, and Teak changes it on every card at once: your tags and AI tags, in your library, Archive, and Trash. A message at the bottom of the page shows the progress.
-- **API, CLI, and MCP:** `POST /v1/tags/rename`, `/v1/tags/merge`, and `/v1/tags/delete` start a change and `GET /v1/tags/operations/:id` reports its progress. The CLI adds `teak tags rename`, `merge`, and `delete` (with `--wait`), and MCP adds four tag tools. See [Tags and filters](/docs/features#tags-and-filters) and the [API guide](/docs/api#rename-merge-and-delete-tags).
-- `GET /v1/tags` no longer fails for a library with thousands of distinct tags: past 500, it lists the 3,000 most-used from a summary that catches up within seconds.
+- Deleting your account also deletes its usage and crash data. See [Delete your account](/docs/delete-account).
+- Editing a card again right after saving it no longer fails.
+- Searching for a color or style finds your images and palettes.
+- A dropped connection no longer signs you out.
+- A link pasted on its own saves as a link card, and a pasted screenshot as an image.
+- Downloads keep the file's original name, and imported bookmarks keep their names.
+- Leaving a card right after typing keeps what you typed.
+- Recordings with no speech no longer get made-up transcripts or tags, and PDF summaries are written from the document's text.
 
-## Organize cards into folders
+## For developers
 
-- On the web, create folders from the sidebar, give them a color, and add cards from a card's **Folders…** menu or by selecting many at once. A card can be in several folders, and removing it from one never deletes it.
-- Open a folder to search, filter, and sort just its cards. Rename, recolor, or delete folders from the sidebar; deleting keeps the cards, and **Undo** brings the folder back.
-- Up to 500 folders, with a card in up to 50 of them. Archived cards and cards in Trash stay out of a folder until you bring them back.
-- **API, CLI, and MCP:** `/v1/folders` creates, renames, and deletes folders, `POST` and `DELETE /v1/folders/:id/cards` add and remove cards, `GET /v1/cards?folder=` lists a folder's cards, and cards include `folderIds`. The CLI adds `teak folders` and `teak ls --folder`, and MCP adds six folder tools. See [Folders](/docs/features#folders) and the [API guide](/docs/api#folders).
+- Everything above that works with cards, tags, folders, highlights and search is also in the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli).
+- The SDK and CLI report each API error by its own code, and retry safely when Teak is briefly busy.
+- **Breaking:** deleting a card forever through the API needs it to be in Trash first.
 
-## A sidebar for your library
+## For self-hosters
 
-- On the web, a compact sidebar holds **Everything**, **Favorites**, **Tags**, **Archive**, **Trash**, and **Settings**, each its own page you can bookmark, share, and reach with Back and Forward, with your folders below them.
-- A slim header on every page shows the page's name, a compact search box with your filters as pills inside it, and one **View** menu for card types, order, and saving a smart folder. It stays at the top as you scroll, and the address bar keeps your filters for reloads and shared links.
-- **+** beside the Teak logo starts a note or link, uploads files, or records audio. Drag a card onto a folder to add it, or name a new folder right in the list.
-- Drag the sidebar's edge to resize it. Collapse it to icons and rest the pointer on them to see it in full; Teak remembers the width and your choice. On a phone it opens as a drawer.
-- Typing `fav`, `archive`, or `trash` in search now opens that page. See [Sidebar](/docs/features#sidebar).
-
-## Archive cards and act on many at once
-
-- **Archive:** right-click a card or open it and choose **Archive** to keep it out of your library without deleting it. Open **Archive** in the sidebar to find it again, and **Unarchive** to bring it back. Archived cards still count toward your card limit.
-- **Bulk actions:** select cards and use the bar across the top to archive them, add them to favorites, add or remove tags, copy their links, or move them to Trash, hundreds at a time. Archive and Move to Trash offer **Undo**, and cards that couldn't be changed stay selected so you can retry.
-- **API, CLI, and MCP:** `PATCH /v1/cards/:id` takes `isArchived`, `GET /v1/cards?archived=only` lists archived cards, and `POST /v1/cards/bulk` adds `archive`, `unarchive`, `addTags`, `removeTags`, and `restore` and returns `failedIds`. The CLI adds `teak archive`, `teak unarchive`, and `teak ls --archived`; MCP adds `teak_v1_set_card_archived`. See the [API guide](/docs/api#archive-cards).
-
-## Sort your library oldest first
-
-- On the web, the **View** menu beside the search bar switches between **Newest first** and **Oldest first**.
-- Cards are now ordered by the date you saved them everywhere, so imported bookmarks appear where they were first saved instead of at the top. This also applies to the API, CLI, MCP, Raycast, and the iPhone and Android apps.
-- Your search and sort stay in the address bar, so reloading, Back and Forward, and shared links keep the same view.
-- **API:** `GET /v1/cards?sort=` orders by `createdAt` on every listing. A `cursor` from before this update returns `400 INVALID_INPUT`; start again from the first page. See the [API guide](/docs/api).
-
-## Refresh a card, and richer card details
-
-- **Refresh details:** open a card and choose **Refresh details**, or right-click it in the grid, to get a fresh summary, tags, transcript, and link preview. Your own tags and notes stay. It's also available as `POST /v1/cards/:id/refresh` in the [API](/docs/api#refresh-a-cards-details), `teak refresh` in the [CLI](/docs/cli), and `teak_v1_refresh_card` in [MCP](/docs/mcp).
-- **Who wrote it, and when:** link cards on the web show the author and publish date next to the site name when the page includes them.
-- **Photo details:** **Info** on a photo lists its camera, exposure, aperture, focal length, ISO, and when it was taken. Teak never shows where a photo was taken.
-
-## A hands-on start for new accounts
-
-- New accounts start with a **Start here** folder of eight cards, one of each type: a welcome checklist, a photo, a palette, a short video tour, a voice memo, a search cheat sheet PDF, a quote, and a link to the Teak apps. Each card's note suggests something to try, such as searching for a color or for a word spoken in the memo.
-- A **Moodboard** smart folder shows how a saved search fills itself, collecting your images and palettes as you save them.
-- The cards are ordinary cards tagged `getting-started`. Select them in **Start here** and move them to Trash when you're done.
-
-## Sign in again after the sign-in update
-
-Teak moved to a new sign-in system on October 7. Your library, cards, Pro plan, and account ownership stay exactly as they were.
-
-- **Everyone:** sign in again on the web, iPhone, iPad, Mac (including Safari saving), Chrome, Raycast, and the CLI.
-- **If you signed in with a password:** reset your password from the sign-in page before you sign in. Sign-in emails come from Teak.
-- **If you use Google or Apple:** continue with the same option as before.
-- **Raycast:** update the extension to the latest version from the Raycast Store, then sign in again. See the [Raycast guide](/docs/raycast).
-- **MCP clients connected with browser sign-in:** remove Teak from the client, add it again, and sign in. API keys keep working without changes. See the [MCP guide](/docs/mcp).
-
-New accounts can sign up again on the new sign-in system. On the web, signing in, creating an account, and resetting your password now open the sign-in page directly, with no extra step. The mobile app works the same way: **Login with Email** and **Register with Email** go straight to the sign-in page, and logging out takes you back to the app's welcome screen without opening a browser. **Continue with Apple** on iPhone and iPad works again, and new accounts open their library right away instead of sometimes showing a sign-in error.
-
-Getting into Teak from teakvault.com is quicker too. If you're already signed in, the site's header shows **Open Teak** and its sign-up buttons take you straight to your library, and opening a sign-in link while signed in skips the sign-in page. A new account's library opens right after you finish signing up, without a "Your account isn't ready yet" message.
-
-## Upgrade to Pro in a new tab
-
-On the web, **Continue to checkout** in Settings now opens checkout in a new tab instead of a window over Teak, and Settings stays open behind it.
-
-## Write notes on the web
-
-- Notes support headings, lists, tasks, quotes, code, and links while you write. Type `/` for formatting commands or select text for quick formatting.
-- Your notes stay in Markdown. Existing tables, image references, and other unsupported formatting remain editable as text, with no changes until you edit.
-
-## A new Teak for iPhone, iPad, and Mac
-
-Teak on iPhone, iPad, and Mac is now one native app from the same App Store listing. It needs iOS, iPadOS, or macOS 26. Install it from the [App Store](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989) or the [Mac App Store](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989?platform=mac&mt=12) and sign in; your library is waiting.
-
-- A faster grid with more columns and a details panel on iPad.
-- Save from any app with the share sheet, or from Safari with the new **Teak** Safari extension.
-- Edit a card's text, notes, and tags in one place, and swipe a card to favorite or delete it on iOS 27.
-- Type words like "image", "favorites", or "last week" in search to turn them into filters.
-- **Save to Teak** in Siri and Shortcuts now saves without opening the app.
-
-See the [mobile guide](/docs/mobile).
-
-## Capture and organize on Mac
-
-- Your whole library in a native Mac window, with a sidebar for Favorites, Trash, and each card type, search by words, dates, colors, and `#tag`, and familiar Mac keyboard shortcuts.
-- Save notes, links, voice memos, and files from the toolbar or the **File** menu, drag them onto the window, or press ⌘V to save the clipboard.
-- Save from anywhere with **Quick Capture** (⌃⌥⌘T), **Save to Teak** in the Services menu, or by dropping onto the menu bar icon.
-- Right-click a card to tag, favorite, share, or delete it, or **Copy Link** and **Open on Web**. Select several cards to favorite them or move them to Trash together, and restore or delete them forever from Trash.
-- Save the page you're reading with the **Teak** Safari extension. **Settings › General** shows whether it's on and opens Safari Settings to turn it on.
-- Settings opens in its own window and shows your plan, with **Upgrade…** or **Manage…** on the web.
-
-See the [Mac app guide](/docs/mac) to get started.
-
-## More of your library on iPhone
-
-- Edit a card's notes and tags, rewrite notes and quotes, and remove tags Teak added.
-- Filter Home by favorites, type, or color, and open **Trash** to restore cards or delete them forever.
-- Select several cards to delete or restore them together, and pick up to 20 photos or files at once.
-- Save text or links from any shortcut or Siri with the **Save to Teak** action.
-- Notes show their formatting, links show their details and post photos, and documents open in a viewer. Tap a tag to search for it.
-- Settings shows your plan and how many cards you've used.
-
-See the [mobile guide](/docs/mobile).
-
-## Video, audio, and PDF previews
-
-- **Video hover previews:** on the web, move your mouse across a video card to skim through the video.
-- **Real audio waveforms:** audio cards on the web show the shape of the recording, and the player shows your progress through it.
-- **More thumbnails:** HEVC, MKV, and AVI videos now get thumbnails, and WebM videos and large PDFs get them more reliably.
-- **More transcripts:** recordings the transcriber can't read directly, like some Ogg and Opus files, are converted first, so more of them get transcripts.
-- **Instagram posts:** saving an Instagram post keeps its photos and videos when Instagram shows them, and its cover image otherwise.
-- **Colors for videos and GIFs:** Teak reads a video's or GIF's colors from frames across it, so searching for a color like `orange` or `#E8792B` finds them alongside your images and palettes. Image colors are sharper too: near-identical shades count as one color, and a small bright accent is kept instead of being crowded out by the background.
-
-These apply to videos, recordings, images, and links you save from now on.
-
-## Raycast, CLI, API, and MCP
-
-- **Raycast:** save files from Finder or the clipboard, see palette colors and transcripts, scroll through all results, filter by color, date, and Trash, restore cards, and remove tags Teak added. Saving a page you already have says so. See the [Raycast guide](/docs/raycast).
-- **CLI:** `teak trash`, `teak restore`, `teak open`, `teak download`, `teak export`, `teak whoami`, and `teak tags add` / `rm`, plus color, style, and plain-English date filters. Text you add becomes a quote or palette when it is one, like on the web. See the [CLI guide](/docs/cli).
-- **API:** `GET /v1/me` includes your plan and card usage, `PATCH /v1/cards/:id` can remove tags Teak added, and the new export endpoints start a ZIP export and return its download link. Cards include `audioWaveform` and `videoScrub` for building your own previews. See the [API guide](/docs/api#export-your-cards).
-- **MCP:** the list and search tools take the same filters as the API, and new tools restore cards from Trash, check whether a URL is saved, and show your plan. See the [MCP guide](/docs/mcp).
-
-## Fixes across the web, API, CLI, and MCP
-
-**Everywhere**
-
-- Deleting your account now also deletes the app usage events, crash reports and session recordings linked to it, so you no longer need to email us to have them removed. See [Delete Your Account](/docs/delete-account).
-- Editing a card again right after saving it no longer fails with "This card is already queued for reprocessing", on any app or the API. Every edit saves right away, and Teak refreshes the card's summary and tags within a minute.
-- Editing a dozen or more notes in a minute no longer fails with "Too many cards created". Every edit saves; past a minute's worth of summary and tag refreshes, Teak keeps a card's current ones instead.
-
-**Web**
-
-- Searching for a color, like `orange` or `#FFA050`, or a style, like `vintage`, now finds your matching images and palettes instead of showing nothing.
-- A dropped connection, like when your laptop wakes up or switches Wi-Fi, no longer asks you to sign in again. Teak reconnects on its own once you're back online.
-- A link pasted on its own into **Write a note…** saves as a link card with its preview, instead of as a text note.
-- Notes with underscores or asterisks, like `file_name_v2` or `2*3`, show correctly in the grid instead of with stray backslashes.
-- A card deleted on another device or through the API now disappears from search results right away.
-- **Delete Forever** and deleting several cards at once ask you to confirm first. The delete message no longer covers the bar for selected cards.
-- Downloading a file starts right away and saves it under its original name.
-- Imported bookmarks and Raindrop links keep the names you gave them.
-- Adding or removing tags quickly no longer drops one of the changes, and the save shortcut (⌘↩ or Ctrl+Enter) saves a new note even while the previous one is still saving.
-- Scrolling a search or a filtered view keeps loading older matches, instead of stopping when a page brought only cards already on screen.
-- Opening and closing cards no longer fills your browser history: one Back after closing a card leaves the page.
-- A search sorted by **Newest first** stays that way when you reload the page or share its link.
-- In **Revisit**, pressing Space on a focused button presses that button instead of opening the card's details.
-- Copying an SVG image copies the image, not its link.
-- "Added yesterday" is right on the days the clocks change.
-- Removing a tag from a card while you're viewing that tag, or adding `secret`, no longer makes the next tag you add replace all the card's others.
-- Favoriting or tagging a card in search results no longer hides, for a moment, the results Teak found by a file's text or by meaning.
-- A new note shows at the top of your library right away, and the "Drop files to upload" outline stays up after you drag files across a text box.
-- Closing the recording window while your browser asks for the microphone no longer leaves a recording running in the background.
-- Typing a search and scrolling a big library are faster: cards that didn't change no longer redraw, and link images below the fold wait until you scroll to them.
-- Pasting a screenshot into **Write a note…** saves it as an image card, as pasting it anywhere else on the page does.
-- An upload that stops responding is retried and then reported, instead of showing "Uploading…" forever. Once you reach the free plan's card limit, the rest of the files you dropped are skipped rather than uploaded first, and errors on large files say what went wrong.
-- Leaving a card right after typing in it, by clicking a tag or its type, or with Back, keeps what you typed. Closing or reloading the tab while a change is still saving asks first.
-- In **Favorites** or a tag's view, the previous and next card arrows keep working after you unfavorite or untag the open card.
-- Pressing Esc while recording audio throws the recording away instead of saving it, and **Discard** does the same; a click outside the recording window no longer stops and saves it.
-- Changing a link's image on a connection that stops responding gives up with an error instead of spinning until you reload.
-- The **Add tags…** window starts empty for each card, and adding a tag the card already has says so.
-- Error messages show in your language instead of as technical text when a note can't be saved, a card change fails or deleting your account fails.
-- Copying an image whose file can't be loaded copies its link, instead of reporting "Image copied" with nothing usable on the clipboard.
-- Pressing Enter to confirm Japanese, Chinese or Korean input in a card's title, the folder search or a smart folder's query no longer saves or submits the half-typed text.
-- Files shared to Teak open in your library with **Save the shared file to Teak?** when they arrive in a browser tab rather than the installed app, so another website can't add files to your library.
-- A sign-in link opened while you are already signed in can no longer send you on to another website.
-
-**Summaries and tags**
-
-- Recordings with no speech no longer get made-up transcripts, summaries, or tags.
-- A card no longer shows the same AI tag twice.
-- PDF summaries are written from the document's text instead of only its file name.
-- Links that no longer exist fail quickly instead of retrying.
-- A link saved while its site's address briefly couldn't be looked up is tried again, instead of being marked as a blocked address.
-- A photo whose time zone is stored wrongly shows the time the camera recorded, instead of a shifted time or none.
-- A podcast episode whose transcript has to be retried uses one of your hourly transcripts, not one per try.
-- A link saved while Teak was briefly unreachable is tried again instead of showing a failed preview, and pages served as XHTML get their preview too.
-- A large export that has to retry picks up where it stopped instead of starting over, and an import retries a file it briefly couldn't unpack instead of marking it failed.
-
-**API**
-
-- `PATCH /v1/cards/:id` can change a card's text and URL in one request.
-- `GET /v1/cards/changes` now includes cards deleted forever, so synced apps remove them too.
-- Paging through cards and search results no longer repeats or skips cards when new ones are saved in between.
-- `GET /v1/tags` lists every tag you can filter by, including tags Teak added, in lowercase, with an `isComplete` flag for very large libraries.
-- Deleting a card forever needs it to be in Trash first; otherwise the API answers `409 NOT_IN_TRASH`. Busy moments return `503` with `Retry-After` instead of an error, and `RateLimit-Reset` is now in seconds. See the [API guide](/docs/api).
-- Bulk requests to `/v1/cards/bulk` follow the same rules as single-card requests: an empty `url` or empty content no longer wipes a card, cards in Trash can't be edited until they're restored, and an image, video, audio or document card still needs an uploaded file when it has a `url`.
-- Renaming, merging or deleting a tag works for older tags longer than 64 characters, through the API and MCP.
-- A request body over 20 MB is refused with `413` even when it's sent without a `Content-Length`.
-- `removeAiTags` matches tags ignoring case, as `GET /v1/tags` lists them, and changes nothing when no tag matches.
-- Bulk `create` trims notes and drops a blank one, as `POST /v1/cards` does. Bulk `create` and `update` items with a field they don't take, or an `update` item with nothing to change, fail with `INVALID_INPUT` instead of succeeding without it.
-- Adding cards to a folder, or moving or removing them, skips cards in Trash as not found, and a folder you just deleted no longer counts toward the 500-folder limit.
-- An expired OAuth access token always gets `401`, so apps signed in with Teak refresh it, instead of sometimes getting `429` when many bad requests arrived at once.
-- Content over 512 KiB on any card type, and notes over 256 KiB, return `400 CONTENT_TOO_LARGE` instead of a server error. `PATCH /v1/cards/:id` names the field it refused and why.
-- A wrong method or path under `/v1/` returns a JSON `405` (with `Allow`) or `404` that browsers can read, and `GET /v1` lists every endpoint.
-- Repeating an `Idempotency-Key` while its first request is still running returns `409 IN_PROGRESS` with `Retry-After`, so you know to try again rather than fix the request.
-- On a self-hosted Teak, the card links (`appUrl`) and `settingsUrl` the API and MCP return open your own web app, from `SITE_URL`, instead of teakvault.com.
-
-**CLI**
-
-- `teak add "text" --url …` keeps your text alongside the link.
-- `teak rm` and `teak restore` with several cards keep going past a card that fails, and say which ones did. `teak rm --permanent` works on cards that aren't in Trash yet.
-- `teak export download -o` saves where you asked, and `teak open` prints the link instead of crashing on machines without a browser. See the [CLI guide](/docs/cli).
-- `teak cards changes` lists the cards deleted since then and prints the next page's cursor, without needing `--json`.
-- The CLI and SDK give up with a timeout error when a response stops partway, instead of waiting forever.
-- `teak export -o` and `teak export --wait` exit with an error when the export fails, so a backup script notices.
-- `teak add --url` no longer reads standard input, so it works inside a `while read` loop, and piped text that happens to name a file is saved as text instead of uploading that file. A link followed by words is saved as a note.
-- The CLI and SDK retry a read when Teak is briefly busy or the network drops, and `teak add` and `teak cards bulk` can be retried without saving twice. An HTML error page from a proxy is reported by its status instead of as "malformed JSON".
-- `teak export -o` checks the file before starting an export, so a rerun doesn't use up the week's export. `--created-after` and `--created-before` refuse anything that isn't a millisecond timestamp, and `teak --json login` keeps standard output to JSON.
-- `teak login` on Windows opens the whole sign-in link.
-
-**MCP**
-
-- Unknown tools and out-of-range limits return clear errors, and a bulk action that only partly succeeds is reported as an error with the cards that failed. See the [MCP guide](/docs/mcp).
-- A batch of only notifications gets `202 Accepted` with no body, as the protocol expects.
-- A tool argument the tool doesn't take, such as `query` on `teak_v1_search_cards`, is refused with the arguments it does take, instead of being ignored and listing your whole library. Validation errors name the argument.
-- One tool call that fails, or hits a card's own limit, no longer fails the rest of a batch. Messages without an `id` get no answer, and a revoked API key stops working when the next session starts.
-
-**Raycast**
-
-- Text that starts with a link saves the link, not the whole text as one broken address, and a "quoted phrase" in search stays a phrase.
-
-**Chrome extension**
-
-- Browser pages Teak can't save, such as other browsers' settings pages and extension stores, show a clear message instead of an error.
-- **Save Text to Teak** keeps a selection's line breaks, and a selection that starts with a link saves as text instead of as a broken link.
-- **Save Asset to Teak** on an ordinary link saves the link, and still saves the file when the link points to one.
-
-## A cleaner Chrome extension popup
-
-- The popup now matches the Teak web app and shows what it saved, with the site name.
-- Opening it on a page you already saved says **Already in your Teak** and stays open, instead of briefly showing that the page was saved.
-- The pending saves notice only appears for saves that didn't finish, not while a save is still in progress.
-- Inline save buttons no longer appear on Web Designer News, which changed its layout. Right-click **Save Page to Teak** or the popup still saves any of its pages.
-
-## Self-hosting: pausing sign-ups
-
-- If you run your own Teak and set `SIGNUPS_DISABLED=true` to close registration, that setting no longer works, and sign-ups reopen when you update. Right after you deploy the update, pause them again with `bunx convex run --prod admin:setSignupsPaused '{"paused":true}'` from `packages/convex`, then remove the old variable. Sign-ups are open for the moments in between. See [Production basics](/docs/self-hosting#production-basics).
+- **Breaking:** the old setting for closing sign-ups no longer works. After you update, pause sign-ups again as described in [Production basics](/docs/self-hosting#production-basics).

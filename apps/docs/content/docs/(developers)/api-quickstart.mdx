@@ -11,15 +11,11 @@ Make your first two Teak API calls without leaving this page. Each request below
 
 ![Settings → Integrations with Save by email, apps and extensions, and an API key](../images/api-keys.webp)
 
-In Teak, open **Settings → Integrations → API keys** and create a key. Keys start with `teakapi_`. Paste it into the **Authorization** field of a Try it panel below, or export it for the code samples:
+In Teak, open **Settings → Integrations → API keys** and create a key. Keys start with `teakapi_`; treat one like a password. Paste it into the **Authorization** field of a Try it panel below, or export it for the code samples:
 
 ```bash
 export TEAK_API_KEY=teakapi_...
 ```
-
-:::warning[Keep secrets out of logs]
-Never commit `teakapi_` keys or paste them into public issue trackers. Rotate a key immediately if it leaks.
-:::
 
 ## 2. Check your key
 
