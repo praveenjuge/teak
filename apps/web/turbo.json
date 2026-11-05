@@ -19,6 +19,9 @@
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "passThroughEnv": ["POSTHOG_CLI_API_KEY", "POSTHOG_CLI_PROJECT_ID"]
     },
+    "start": {
+      "passThroughEnv": ["TEAK_ANALYTICS_ENABLED"]
+    },
     "typecheck": {
       "outputs": ["tsconfig.tsbuildinfo"]
     },

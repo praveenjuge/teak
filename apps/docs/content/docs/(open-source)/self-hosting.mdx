@@ -339,7 +339,7 @@ A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, 
 | Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
 | Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, and `TEAK_ANALYTICS_ENABLED=true` unless it runs on Vercel | The web app's environment, at build time and at runtime |
 
-On Vercel the web app reports only from Production, so previews send nothing; elsewhere it reports only while `TEAK_ANALYTICS_ENABLED` is `true`. Leave a part's token unset and that part sends nothing.
+On Vercel the web app reports only from Production, so previews send nothing; elsewhere it reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The browser's reporting is fixed when you build, so changing either value means building and deploying again; the server's error reports read `TEAK_ANALYTICS_ENABLED` when the app starts. Leave a part's token unset and that part sends nothing.
 
 ## Where to get the values
 
