@@ -200,6 +200,15 @@ const SECRET_ASSIGNMENT_PATTERN =
 const JSON_SECRET_PATTERN =
   /(["'](?:authorization|cookie|session|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)["']\s*:\s*["'])[^"']+(["'])/giu;
 const BEARER_PATTERN = /\bbearer\s+[a-z0-9._~+/=-]+/giu;
+// A whole credential header line, whatever its scheme (Basic, cookies).
+const CREDENTIAL_HEADER_PATTERN =
+  /\b((?:proxy-)?authorization|set-cookie|cookie)[^\S\r\n]*:[^\S\r\n]*\S[^\r\n]*/giu;
+// Credentials recognisable by their shape alone: Teak API keys
+// (`apiKeyFormat.ts`), JWTs, WorkOS secret keys and sealed session cookies.
+const TEAK_API_KEY_PATTERN = /\bteakapi_[a-z0-9_]+/giu;
+const JWT_PATTERN = /\beyJ[a-z0-9_-]{5,}\.[a-z0-9_-]{5,}\.[a-z0-9_-]+/giu;
+const SECRET_KEY_PATTERN = /\bsk_(?:test|live)_[a-z0-9]{16,}/giu;
+const SEALED_SESSION_PATTERN = /\bFe26\.2\*[^\s;,"']+/gu;
 const EMAIL_PATTERN =
   /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b/giu;
 const DATA_URL_PATTERN =
@@ -215,6 +224,9 @@ const SIGNED_QUERY_KEYS = new Set([
   "x-amz-expires",
   "x-amz-security-token",
   "x-amz-signature",
+  "code",
+  "key",
+  "session",
   "sig",
   "signature",
   "signed",
@@ -313,6 +325,11 @@ export const scrubTelemetryString = (value: string): string =>
   scrubPrivateKeys(value)
     .replace(DATA_URL_PATTERN, "[REDACTED_BINARY_DATA]")
     .replace(BEARER_PATTERN, "Bearer [REDACTED]")
+    .replace(CREDENTIAL_HEADER_PATTERN, "$1: [REDACTED]")
+    .replace(TEAK_API_KEY_PATTERN, "[REDACTED_API_KEY]")
+    .replace(JWT_PATTERN, "[REDACTED_JWT]")
+    .replace(SECRET_KEY_PATTERN, "[REDACTED_API_KEY]")
+    .replace(SEALED_SESSION_PATTERN, "[REDACTED_SESSION]")
     .replace(JSON_SECRET_PATTERN, "$1[REDACTED]$2")
     .replace(SECRET_ASSIGNMENT_PATTERN, "$1=[REDACTED]")
     .replace(URL_PATTERN, scrubUrl)

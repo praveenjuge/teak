@@ -48,6 +48,50 @@ describe("telemetry privacy and bounds", () => {
     expect(scrubbed).toContain("[REDACTED_SIGNED_URL]");
   });
 
+  test("scrubs credentials recognisable by shape and credential header lines", () => {
+    const teakKey = `teakapi_secret_prod_ab12cd34_${"0f".repeat(32)}`;
+    const cases = {
+      apiKeyUrl: "GET https://api.example/v1?plan=pro&key=AIzaFake1234567890",
+      basic: "Authorization: Basic dXNlcjpwYXNzd29yZA==",
+      cookie: "Cookie: wos-session=cookie-secret-value; theme=dark",
+      jwt: "rejected eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJl",
+      oauthCode: "fetch https://app.example/callback?code=oauth-code-value",
+      sealed: "session Fe26.2**sealed-session-value*expires",
+      setCookie: "set-cookie: session=cookie-secret-value; Path=/",
+      teakKey: `Invalid key ${teakKey} for request`,
+      workos: "WorkOS key sk_test_a1b2c3d4e5f6g7h8i9j0 was rejected",
+    };
+    const scrubbed = Object.fromEntries(
+      Object.entries(cases).map(([name, value]) => [
+        name,
+        scrubTelemetryString(value),
+      ])
+    );
+    const leaks = [
+      "AIzaFake",
+      "dXNlcjpwYXNzd29yZA",
+      "cookie-secret-value",
+      "eyJhbGciOiJIUzI1NiJ9",
+      "oauth-code-value",
+      "sealed-session-value",
+      teakKey.slice(-16),
+      "a1b2c3d4e5f6g7h8i9j0",
+    ];
+    const joined = Object.values(scrubbed).join("\n");
+    for (const leak of leaks) {
+      expect(joined).not.toContain(leak);
+    }
+    expect(scrubbed.basic).toBe("Authorization: [REDACTED]");
+    expect(scrubbed.teakKey).toBe("Invalid key [REDACTED_API_KEY] for request");
+    expect(scrubbed.jwt).toBe("rejected [REDACTED_JWT]");
+  });
+
+  test("keeps ordinary text, URLs and token counts readable", () => {
+    const plain =
+      "Card processing failed at https://example.com/post?id=7 after 42 tokens";
+    expect(scrubTelemetryString(plain)).toBe(plain);
+  });
+
   test("scrubs private keys without backtracking on repeated headers", () => {
     const privateKey = [
       "-----BEGIN PRIVATE KEY-----",
