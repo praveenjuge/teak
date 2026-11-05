@@ -8,9 +8,13 @@ const BETA = "Tagged beta card";
 const GAMMA = "Tagged gamma card";
 
 // A tag row reads "<tag> <count> card(s)"; the count anchors it so "design"
-// doesn't also match "design systems".
+// doesn't also match "design systems". Case-insensitive: a row shows the tag
+// as it was typed ("Design Systems"), the lookups use the lowercase key.
 const tagRowName = (name: string) =>
-  new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\d+ cards?$`);
+  new RegExp(
+    `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\d+ cards?$`,
+    "i"
+  );
 
 test("open a tag's cards, then rename, merge and delete it everywhere", async ({
   browser,
