@@ -37,7 +37,8 @@ After installing globally, the `teak` command is available on your PATH. To try 
 
     `teak login --no-browser` prints the sign-in URL instead of opening it.
     Open it in a browser on the same computer, because sign-in finishes on a
-    local callback.
+    local callback. In CI or a coding agent's shell, `teak login` never opens
+    a browser: it prints the link for you to open.
   </Tab>
   <Tab title="API key">
     Set `TEAK_API_KEY` to skip interactive sign-in in scripts and CI:
@@ -77,13 +78,15 @@ teak open <card-id>
 teak download <card-id> -o ./poster.png
 teak cards update <card-id> --title "Homepage ideas" --tags design,reference
 teak tags add <card-id> inspiration
-teak tags rm <card-id> inspiration
+teak tags remove <card-id> inspiration
 teak fav <card-id>
-teak pin <card-id>               # pin to the top of the library (up to 12); --remove unpins
+teak unfav <card-id>
+teak pin <card-id>               # pin to the top of the library (up to 12)
+teak unpin <card-id>
 teak cards pins                  # the pinned cards, first to last
 teak cards pins order <id> <id>  # every pinned card's id, in the new order
 teak done <card-id>
-teak done <card-id> --undo
+teak todo <card-id>              # not done yet
 teak cards save-pdf <card-id>
 teak rm <card-id>
 teak trash
@@ -101,8 +104,11 @@ teak highlights list <card-id>
 teak highlights add <card-id> "a passage of the article" --note "why it matters"
 teak links <card-id>
 teak tags
+teak tags rename Design design-systems --dry-run
 teak tags rename Design design-systems --wait
 ```
+
+Every card command is under `teak cards`, and the common ones have a top-level shortcut that takes the same arguments and options: `ls`, `search`, `similar`, `trash`, `add`, `rm`, `restore`, `refresh`, `archive`, `unarchive`, `content`, `links`, `open`, `download`, `fav`, `unfav`, `pin`, `unpin`, `done` and `todo`. `teak ls` is `teak cards list`, `teak add` is `teak cards create`, `teak rm` is `teak cards delete` and `teak fav` is `teak cards favorite`. In every group, `rm` is short for `delete`, and `remove` takes something out of a card or a folder without deleting it.
 
 ### Save
 
@@ -122,17 +128,17 @@ Saving a link that's already in Teak [re-saves that card](/docs/api#saving-a-lin
 
 `teak links` (also `teak cards links`) lists the cards a card [links to](/docs/api#links-between-cards) under **Links**, then the cards that link to it under **Linked from**, one per line as `<id>  <type>  <title>`; a missing card shows `(missing)`. To link cards, write `[[Title|teak:<card-id>]]` in a note, for example with `teak cards update <card-id> --content -`.
 
-`teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input. `teak tags add` and `teak tags rm` change one card's tags without retyping the rest; `teak tags rm` also removes tags Teak added. `teak cards update <card-id> --add-color "#2A9D8F" --remove-color f50` changes a palette's colors (repeat either flag; removes apply first).
+`teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input. `teak tags add` and `teak tags remove` change one card's tags without retyping the rest; `teak tags remove` also removes tags Teak added. `teak cards update <card-id> --add-color "#2A9D8F" --remove-color f50` changes a palette's colors (repeat either flag; removes apply first).
 
 `teak refresh` [refreshes](/docs/api#refresh-a-cards-details) one or more cards and returns right away; check the result later with `teak cards get`. `teak cards thumbnail <card-id> <file>` [replaces a link's image](/docs/api#replace-a-links-image), and `--reset` goes back to the one Teak found. `teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID.
 
-`teak tags rename <from> <to>`, `teak tags merge <from> <into>`, and `teak tags delete <tag>` [change a tag on every card](/docs/api#rename-merge-and-delete-tags). Each prints the change's ID and returns right away; add `--wait` to wait for it, or check later with `teak tags status <id>`. `teak tags delete` asks first, or takes `--yes` in scripts.
+`teak tags rename <from> <to>`, `teak tags merge <from> <into>`, and `teak tags delete <tag>` [change a tag on every card](/docs/api#rename-merge-and-delete-tags). Each prints the change's ID and returns right away; add `--wait` to wait for it, or check later with `teak tags status <id>`. `--dry-run` says how many cards have the tag and changes nothing. `teak tags delete` asks first, naming how many cards have the tag, or takes `--yes` in scripts.
 
 ### Trash
 
 `teak rm` moves cards to Trash, and `teak restore` brings them back. `teak trash` lists what's there. `teak rm --permanent` deletes cards in Trash for good: it asks first in a terminal, and needs `--yes` in scripts.
 
-Both accept several card IDs and try every one. They list the IDs that failed and why (a `failed` array with `--json`) and exit with a non-zero code if any did.
+Both accept several card IDs and try every one. They print what worked, then on stderr each ID that failed and why, how many failed, and the command that retries just those. With `--json` the output has a `failed` array and a `summary` of the counts. The command exits with a non-zero code if any ID failed.
 
 ### Archive
 
@@ -144,7 +150,7 @@ Both accept several card IDs and try every one. They list the IDs that failed an
 
 ### Folders
 
-`teak folders` lists your folders with how many cards each holds, and `teak folders get <folder>` shows one. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
+`teak folders` lists your folders with how many cards each holds, and `teak folders get <folder>` shows one. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders delete` (or `rm`) deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
 
 A manual folder can have [rules](/docs/features#folder-rules): `teak folders rules Fonts --auto-tag type --auto-file 'tag:typography'` gives every card put in Fonts the tag `type` and files cards that match the search into it. `--auto-tag` repeats and replaces the folder's tags, `--no-auto-tags` and `--no-auto-file` clear them, and `--pause` and `--resume` stop and restart the search. `teak folders create` takes `--auto-tag` and `--auto-file` too. Saving rules runs them over your cards: add `--wait` to wait for it, `teak folders rule-run Fonts` shows how far it got, and `teak folders undo-rule-run Fonts` takes it back within a day. `teak folders` shows each folder's rules after its name.
 
@@ -152,7 +158,7 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 
 ### Highlights
 
-`teak highlights list <card-id>` lists a link's [highlights](/docs/api#highlights) in article order, one per line as `<id>  <quote>`, with the note indented below. `teak highlights add <card-id> "<quote>"` highlights a passage found by its text; `--note` adds a note, and `--prefix` or `--suffix` picks a later repeat. `teak highlights note <id> "<text>"` changes a note, `--clear` removes it, and `teak highlights rm <ids...>` removes highlights. A card without a saved article exits with `NO_ARTICLE`, and a quote the article doesn't have with `QUOTE_NOT_FOUND`.
+`teak highlights list <card-id>` lists a link's [highlights](/docs/api#highlights) in article order, one per line as `<id>  <quote>`, with the note indented below. `teak highlights add <card-id> "<quote>"` highlights a passage found by its text; `--note` adds a note, and `--prefix` or `--suffix` picks a later repeat. `teak highlights note <id> "<text>"` changes a note, `--clear` removes it, and `teak highlights delete <ids...>` (or `rm`) deletes highlights. A card without a saved article exits with `NO_ARTICLE`, and a quote the article doesn't have with `QUOTE_NOT_FOUND`.
 
 ### Filter and page through cards
 
@@ -169,12 +175,13 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 | `--hue <hue>` | Color family, such as `blue` or `neutral`. Repeatable. |
 | `--hex <color>` | Exact color, such as `#112233`. Repeatable. |
 | `--date <phrase>` | When it was saved: `today`, `last week`, `march 2026`, `2026-01-01 to 2026-02-01` |
-| `--created-after` / `--created-before` | Millisecond timestamps, such as `1767225600000`. Anything else is a usage error (exit code 2). For dates, use `--date`. |
+| `--created-after` / `--created-before` | A time: a date such as `2026-01-01` (midnight UTC), a date and time such as `2026-01-01T09:30:00Z`, an age such as `30m`, `2h`, `3d` or `1w` (that long ago), or a millisecond timestamp. Anything else is a usage error (exit code 2). |
 | `--mode hybrid\|keyword\|semantic` | How the search text finds cards: words and meaning (the default), words only, or meaning only. When meaning search is unavailable, the CLI prints `mode: keyword` to stderr (`searchMode` with `--json`). |
-| `--sort newest\|oldest\|relevance\|shuffle`, `--limit`, `--cursor` | Order and paging. `relevance` (Best match, with `--query`) puts the best matches first; the CLI prints `relevance: unranked` when it couldn't score them. |
-| `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). To get the next page of a shuffle, pass `--sort shuffle`, its seed, and the cursor together, for example `--sort shuffle --seed <n> --cursor <cursor>`: a cursor works only with the seed that issued it. |
+| `--sort newest\|oldest\|relevance\|shuffle` | Order. `relevance` (Best match, with `--query`) puts the best matches first; the CLI prints `relevance: unranked` when it couldn't score them. |
+| `-n, --limit <number>`, `--next <cursor>` | Paging. While a listing goes on, the CLI prints `Next page: --next <cursor>` to stderr (`pageInfo.nextCursor` with `--json`); pass it back to continue. |
+| `--seed <number>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). To get the next page of a shuffle, pass `--sort shuffle`, its seed, and the cursor together, for example `--sort shuffle --seed <number> --next <cursor>`: a cursor works only with the seed that issued it. |
 | `--include content,metadata,processing` | Extra fields (`content` by default) |
-| `--all` | Fetch every page |
+| `-a, --all` | Fetch every page, up to 10,000 cards. A longer listing stops there, says so, and prints `Next page: --next <cursor>` to go on. |
 
 ```bash
 teak ls --type image --type link --hue blue --date "last month"
@@ -203,30 +210,36 @@ teak similar <card-id> --type link
 teak export -o teak-backup.zip
 ```
 
-`teak export` starts a ZIP [export](/docs/export) of every card and original file. Add `--wait` to wait for it, or `-o` to wait and save the ZIP; when that file already exists, the CLI stops before starting unless you add `--force`. `teak export status` shows progress, and `teak export download` saves the latest ready export. You can start one export every 7 days.
+`teak export` starts a ZIP [export](/docs/export) of every card and original file. Add `--wait` to wait for it (`--timeout 30m` changes how long; the default is 10 minutes), or `-o` to wait and save the ZIP; when that file already exists, the CLI stops before starting unless you add `--force`. `teak export status` shows progress, and `teak export download` saves the latest ready export. You can start one export every 7 days.
 
 ### Sync and bulk edits
 
 ```bash
-teak cards changes --since 1767225600000 --json
-teak cards bulk update --input updates.json
+teak cards changes --since 1d --json
+teak cards bulk update --file updates.json --dry-run
+teak cards bulk update --file updates.json
 ```
 
-`teak cards changes` lists cards [changed](/docs/api#sync-changes) since a millisecond timestamp, one per line, then a `deleted <card-id>` line for each card moved to Trash or permanently deleted. When there are more, it prints `nextCursor: <cursor>` to stderr; pass it back with `--cursor`.
+`teak cards changes` lists cards [changed](/docs/api#sync-changes) since a time (`--since` takes the same forms as `--created-after`, such as `2026-01-01` or `1d`), one per line, then a `deleted <card-id>` line for each card moved to Trash or permanently deleted. When there are more, it prints `Next page: --next <cursor>` to stderr; pass it back with `--next`.
 
-`teak cards bulk` runs one of the [API's bulk operations](/docs/api#bulk-actions) on up to 100 items, read from `--input` or standard input as a JSON array or an `{"items": [...]}` object. The output lists each item's card ID or error, and the command exits with a non-zero code if any item failed.
+`teak cards bulk` runs one of the [API's bulk operations](/docs/api#bulk-actions) on up to 100 items, read from `--file` (`-` or no `--file` reads standard input) as a JSON array or an `{"items": [...]}` object. `--dry-run` checks the input and says what would run without sending it. Each item that worked prints its card ID on stdout; each one that failed prints its error on stderr, followed by how many failed. The command exits with a non-zero code if any item failed.
+
+### Waiting
+
+`--wait` on `teak export`, `teak tags rename`, `merge`, `delete` and `status`, and `teak folders rules`, `rule-run` and `undo-rule-run` waits until the work finishes. It stops waiting after 10 minutes, or after `--timeout` (such as `90s`, `30m` or `1h`), exits with code 1 and prints the command that checks on it: the work itself keeps going.
 
 ### Global options
 
 | Option | Purpose |
 | --- | --- |
 | `--json` | Machine-readable output |
+| `--fields <names>` | With `--json`, keep only these keys, such as `--fields id,url,tags`. In a listing it applies to each card and keeps the paging. |
 | `--api-key <key>` | Use an API key for this command. Prefer `TEAK_API_KEY`: a key passed as a flag stays in your shell history and other processes can see it |
 | `--api-url <url>` | Point at another API, such as a self-hosted or development deployment (same as `TEAK_API_URL`) |
 
 ### Getting help
 
-Run any command with `--help` to see available options:
+Run any command with `--help` to see its options and a few examples. `teak --help` also lists the exit codes and the environment variables the CLI reads.
 
 ```bash
 teak --help
@@ -234,15 +247,50 @@ teak add --help
 teak search --help
 ```
 
+### Shell completion
+
+`teak completion bash`, `zsh` or `fish` prints a script that completes commands and options as you type:
+
+```bash
+echo 'eval "$(teak completion bash)"' >> ~/.bashrc
+teak completion zsh > "${fpath[1]}/_teak"
+teak completion fish > ~/.config/fish/completions/teak.fish
+```
+
 ## Output Format
 
-By default, commands print human-readable output. Add `--json` to any command for JSON, for piping into `jq` or other tools. With `--json`, standard output holds only JSON: `teak --json login` prints its sign-in link to standard error.
+Standard output holds only the answer: the cards, the ID or the JSON. Status, warnings, the next page and errors go to standard error, and `teak login` prints its sign-in link there too.
 
-A listing with nothing in it prints a short message such as `No cards match that search.` to stderr and nothing to stdout, so a pipe stays empty; `--json` still prints the empty list.
+In a terminal, card lines are aligned and shortened to fit: ID, type, the start of the text, up to four tags and the card's age. Piped into another command or a file, each line holds the same fields in full, separated by tabs: ID, type, text, tags (comma-separated), creation time in ISO UTC, and `hidden` for a hidden card. `teak tags` prints `<name><tab><count>` when piped.
+
+```bash
+teak ls --tag design | cut -f1
+```
+
+Add `--json` to any command for JSON, for piping into `jq` or other tools. A listing with nothing in it prints a short message such as `No cards match that search.` to stderr and nothing to stdout, so a pipe stays empty; `--json` still prints the empty list.
 
 ```bash
 teak search "buttons" --json | jq '.items[].url'
+teak ls --json --fields id,url
 ```
+
+An error is a headline, the request ID to quote to [Support](/docs/support) when Teak returned one, and what to do next, such as `Card not found: <card-id>` followed by how to find a card's ID. With `--json` it's one line on stderr: `{"error":{"code","message","next","requestId","status"}}`, with `retryAt` when Teak says when to try again. A mistyped option or command is a `USAGE` error.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success |
+| `1` | The request failed, a `--wait` timed out, or some items in a batch failed |
+| `2` | Usage: an unknown command or option, a bad value, or a missing `--yes` |
+| `3` | Not signed in, or the API key was refused |
+| `4` | Not found |
+| `5` | Rate limited |
+| `130` | Stopped with Ctrl+C |
+
+### Scripts, CI and agents
+
+The CLI asks a question only when someone can answer it. With `CI` set, or in a coding agent's shell (`CLAUDECODE`, `CURSOR_AGENT`, `GEMINI_CLI`, `CODEX_SANDBOX` or `AI_AGENT`), it never prompts, never opens a browser and never shows tips: a command that would ask, such as `teak rm --permanent`, needs `--yes` instead. In a terminal, a few commands print a next step after they succeed, such as `Open it with: teak open <card-id>` after `teak add`.
 
 When Teak is briefly busy (`429`, `502`, `503` or `504`) or the network drops, the CLI reads again up to twice, waiting as long as Teak asks (up to 5 seconds), before it reports the error.
 

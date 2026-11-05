@@ -60,7 +60,7 @@ const library = async () => {
       "ls",
       "--limit",
       "100",
-      ...(cursor ? ["--cursor", cursor] : []),
+      ...(cursor ? ["--next", cursor] : []),
     ])) as {
       items: Card[];
       pageInfo: { hasMore: boolean; nextCursor?: string };

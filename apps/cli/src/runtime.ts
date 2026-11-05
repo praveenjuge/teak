@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
-import { InvalidArgumentError } from "commander";
+import { CommanderError, InvalidArgumentError } from "commander";
 import {
   type AuthDiscovery,
   createConnectAuthorizeUrl,
@@ -32,6 +32,8 @@ import {
   type TokenProvider,
 } from "teak-sdk";
 import { credentialLockPath, withCredentialLock } from "./credentialLock";
+import { describeError, type ErrorContext, formatErrorText } from "./errors";
+import { isInteractive } from "./mode";
 
 const readPackageVersion = () => {
   try {
@@ -66,6 +68,7 @@ interface StoredCredentials {
 export interface GlobalOptions {
   apiKey?: string;
   apiUrl?: string;
+  fields?: string[];
   json?: boolean;
 }
 
@@ -251,7 +254,7 @@ const withoutTrailingSlashes = (value: string) => {
   return value.slice(0, end);
 };
 
-const apiBaseUrl = (options: ClientOptions) =>
+export const apiBaseUrl = (options: ClientOptions) =>
   withoutTrailingSlashes(
     options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL
   );
@@ -516,12 +519,64 @@ export const client = (options: ClientOptions): TeakClient =>
     userAgent: `teak-cli/${VERSION}`,
   });
 
+const pickFields = (value: unknown, fields: string[]) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(
+    fields
+      .filter((field) => field in record)
+      .map((field) => [field, record[field]])
+  );
+};
+
+/**
+ * `--fields id,url` keeps those keys: of each item in a listing (its paging
+ * stays), of each element of an array, or of a single result.
+ */
+export const selectFields = (value: unknown, fields?: string[]): unknown => {
+  if (!fields?.length) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => pickFields(item, fields));
+  }
+  const record = value as Record<string, unknown> | null;
+  if (record && typeof record === "object" && Array.isArray(record.items)) {
+    return {
+      ...record,
+      items: record.items.map((item) => pickFields(item, fields)),
+    };
+  }
+  return pickFields(value, fields);
+};
+
 export const write = (value: unknown, options: GlobalOptions) => {
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(selectFields(value, options.fields), null, 2)}\n`
+    );
     return;
   }
   process.stdout.write(`${String(value)}\n`);
+};
+
+/** Status for a person, never the answer: it goes to stderr. */
+export const writeStatus = (text: string, options: GlobalOptions) => {
+  if (!options.json) {
+    process.stderr.write(`${text}\n`);
+  }
+};
+
+/**
+ * A next step after a success, for a person at a terminal only: never in JSON,
+ * a pipe, CI or an agent's shell.
+ */
+export const writeTip = (text: string, options: GlobalOptions) => {
+  if (!options.json && isInteractive()) {
+    process.stderr.write(`${text}\n`);
+  }
 };
 
 // A human listing with nothing in it says so on stderr and leaves stdout
@@ -538,20 +593,29 @@ export const writeList = (
   write(lines.join("\n"), options);
 };
 
-export const writeError = (error: unknown, options: GlobalOptions) => {
-  if (options.json) {
-    const code = error instanceof TeakApiError ? error.code : "REQUEST_FAILED";
-    const message = error instanceof Error ? error.message : "Request failed";
-    process.stderr.write(`${JSON.stringify({ error: { code, message } })}\n`);
-    return;
-  }
+/**
+ * One error on stderr: with --json a single JSON line, otherwise the
+ * headline, the request id and what to do next.
+ */
+export const writeError = (
+  error: unknown,
+  options: GlobalOptions,
+  context: Omit<ErrorContext, "apiUrl"> = {}
+) => {
+  const report = describeError(error, {
+    ...context,
+    apiUrl: apiBaseUrl(options),
+  });
   process.stderr.write(
-    `${error instanceof Error ? error.message : String(error)}\n`
+    `${options.json ? JSON.stringify({ error: report }) : formatErrorText(report)}\n`
   );
 };
 
 export const exitCodeFor = (error: unknown) => {
-  if (error instanceof InvalidArgumentError) {
+  if (
+    error instanceof InvalidArgumentError ||
+    (error instanceof CommanderError && error.exitCode !== 0)
+  ) {
     return EXIT.usage;
   }
   if (!(error instanceof TeakApiError)) {
@@ -709,10 +773,10 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               redirectUri,
               state,
             });
-            (options.json ? process.stderr : process.stdout).write(
-              `${authUrl.toString()}\n`
-            );
-            if (options.browser !== false) {
+            process.stderr.write(`${authUrl.toString()}\n`);
+            if (options.browser === false || !isInteractive()) {
+              process.stderr.write("Open the link above to sign in.\n");
+            } else {
               void openBrowser(authUrl.toString()).then((opened) => {
                 if (!opened) {
                   process.stderr.write(

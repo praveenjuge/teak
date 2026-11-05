@@ -68,10 +68,7 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
     )
   ).toBe(true);
 
-  await runCli(
-    ["--json", "cards", "favorite", created.cardId, "--remove"],
-    apiKey
-  );
+  await runCli(["--json", "cards", "unfavorite", created.cardId], apiKey);
   await runCli(["--json", "cards", "delete", created.cardId], apiKey);
 });
 
@@ -100,9 +97,7 @@ test("CLI pins cards, lists them in order, reorders and unpins", async () => {
     second,
   ]);
 
-  const unpinned = JSON.parse(
-    await runCli(["--json", "pin", first, "--remove"], apiKey)
-  );
+  const unpinned = JSON.parse(await runCli(["--json", "unpin", first], apiKey));
   expect(unpinned.isPinned).toBe(false);
   const searched = JSON.parse(
     await runCli(["--json", "ls", "-q", `is:pinned ${marker}`], apiKey)
@@ -130,7 +125,7 @@ test("CLI marks a link done, finds it with is:done, and undoes it", async () => 
   expect(await listsDone()).toBe(true);
 
   const undone = JSON.parse(
-    await runCli(["--json", "cards", "done", created.cardId, "--undo"], apiKey)
+    await runCli(["--json", "cards", "todo", created.cardId], apiKey)
   );
   expect(undone.completedAt).toBeNull();
   expect(await listsDone()).toBe(false);

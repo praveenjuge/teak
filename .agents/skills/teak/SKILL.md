@@ -82,9 +82,10 @@ Update, tag, favorite, pin, delete, and restore:
 teak cards update <card-id> --title "Homepage ideas"
 teak cards update <palette-id> --add-color "#2A9D8F" --remove-color "#F1FAEE"
 teak tags add <card-id> approved
-teak tags rm <card-id> draft     # also removes tags Teak added
-teak fav <card-id>
-teak pin <card-id>               # keeps it at the top of the library (up to 12); --remove unpins
+teak tags remove <card-id> draft # also removes tags Teak added
+teak fav <card-id>               # unfav removes it from favorites
+teak pin <card-id>               # keeps it at the top of the library (up to 12); unpin undoes it
+teak done <card-id>              # todo marks it not done
 teak cards pins                  # the pinned cards, first to last
 teak cards pins order <id> <id>  # every pinned card's id, in the new order
 teak archive <card-id>           # hides it from the library; unarchive brings it back
@@ -104,7 +105,8 @@ teak folders add "Reading list" <card-id> <card-id>
 teak folders get "Reading list"
 teak tags rename inspo inspiration --wait   # every card, including Trash and Archive
 teak tags merge ux design
-teak tags delete draft           # cards are kept
+teak tags delete draft --dry-run # how many cards have it; nothing changes
+teak tags delete draft --yes     # cards are kept
 ```
 
 Smart folders show the cards matching their search and refuse cards added by hand. Tag renames, merges, and deletes run in the background; `--wait` waits, and `teak tags status <operationId>` reports progress.
@@ -115,10 +117,10 @@ Highlights are passages marked in a link's saved article, each with an optional 
 teak highlights list <card-id>   # in article order, notes indented
 teak highlights add <card-id> "a passage from the article" --note "why"   # found by its text
 teak highlights note <highlight-id> "new note"   # --clear removes it
-teak highlights rm <highlight-id>
+teak highlights delete <highlight-id>
 ```
 
-Change up to 100 cards at once from a JSON file: `teak cards bulk archive --input items.json` (`create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, `removeTags`).
+Change up to 100 cards at once from a JSON file: `teak cards bulk archive --file items.json` (add `--dry-run` to check it first) (`create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, `removeTags`).
 
 Export everything as a ZIP (one export every 7 days):
 
@@ -130,9 +132,12 @@ Use `--json` for reliable parsing:
 
 ```bash
 teak --json cards list --type link --limit 20
-teak --json cards changes --since 0 --limit 50
+teak --json --fields id,url cards list --tag design   # only those keys of each card
+teak --json cards changes --since 1d --limit 50       # --since takes 2026-01-01, 1d or milliseconds
 teak --json tags
 ```
+
+Errors go to stderr as one JSON line with `code`, `message` and `next` (what to run instead). Exit codes: 0 ok, 1 failed (or a `--wait` timed out), 2 usage, 3 not signed in, 4 not found, 5 rate limited. In an agent's shell the CLI never prompts, so a delete that would ask needs `--yes`. Page with `--next <cursor>` from `pageInfo.nextCursor`.
 
 For destructive operations, confirm intent before deleting cards unless the user explicitly asked for cleanup. `teak rm` moves cards to Trash, where `teak restore` brings them back. Only use `teak rm --permanent --yes` when the user asked for a permanent delete.
 
