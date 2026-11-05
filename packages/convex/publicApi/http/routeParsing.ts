@@ -223,6 +223,11 @@ export const parseCardsQueryOptions = (
     );
   }
 
+  const limit = parseLimit(searchParams.get("limit"));
+  if (limit instanceof Response) {
+    return limit;
+  }
+
   const folder = parseOptionalString(searchParams.get("folder"));
   if (searchParams.has("folder") && !(folder && folder.length <= 64)) {
     return errorResponse(
@@ -294,7 +299,7 @@ export const parseCardsQueryOptions = (
     styleFilters: visualFilters.styleFilters,
     hueFilters: visualFilters.hueFilters,
     hexFilters: visualFilters.hexFilters,
-    limit: parseLimit(searchParams.get("limit")),
+    limit,
     hasQuery: Boolean(query),
     mode,
     searchQuery: parsed.text || undefined,

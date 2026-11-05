@@ -1246,13 +1246,17 @@ const handleCardChangesRequest = async (
       "Query parameter `since` must be a number"
     );
   }
+  const limit = parseLimit(searchParams.get("limit"));
+  if (limit instanceof Response) {
+    return limit;
+  }
 
   try {
     const changes = await ctx.runQuery(
       internal.publicApi.listCardChangesForUser,
       {
         cursor: parseOptionalString(searchParams.get("cursor")),
-        limit: parseLimit(searchParams.get("limit")),
+        limit,
         since,
         userId: auth.validated.userId,
       }

@@ -16,6 +16,8 @@ import {
   thumbnailErrorResponses,
 } from "./components";
 
+const LIMIT_DESCRIPTION = `Page size, default 50. A number above ${PUBLIC_API_MAX_LIMIT} returns ${PUBLIC_API_MAX_LIMIT}; anything that isn't a whole number from 1 up is \`400 INVALID_INPUT\`.`;
+
 export const cardPaths = {
   "/v1/cards": {
     get: {
@@ -44,6 +46,7 @@ export const cardPaths = {
         {
           in: "query",
           name: "limit",
+          description: LIMIT_DESCRIPTION,
           schema: {
             maximum: PUBLIC_API_MAX_LIMIT,
             minimum: 1,
@@ -274,6 +277,7 @@ export const cardPaths = {
         {
           in: "query",
           name: "limit",
+          description: LIMIT_DESCRIPTION,
           schema: {
             maximum: PUBLIC_API_MAX_LIMIT,
             minimum: 1,

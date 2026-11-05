@@ -6,8 +6,8 @@ import {
   markdownContentByteLength,
 } from "../../shared/markdown";
 import {
-  clampPublicApiLimit,
   PUBLIC_API_DEFAULT_LIMIT,
+  PUBLIC_API_MAX_LIMIT,
 } from "../../shared/publicApiLimits";
 import { extractPaletteColors } from "../../shared/utils/colorUtils";
 import { json } from "./meta";
@@ -202,17 +202,25 @@ const parseStrictNumber = (raw: string): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const parseLimit = (raw: string | null): number => {
-  if (!raw || raw.trim().length === 0) {
+// A missing `limit` takes the default and one above the maximum is clamped,
+// but a value that isn't a whole number from 1 up is refused, so a client
+// learns its limit was wrong instead of getting a page size it didn't ask for.
+const parseLimit = (raw: string | null): number | Response => {
+  if (raw === null) {
     return PUBLIC_API_DEFAULT_LIMIT;
   }
 
-  const parsed = parseStrictNumber(raw);
-  if (parsed === undefined || !Number.isInteger(parsed)) {
-    return PUBLIC_API_DEFAULT_LIMIT;
+  const trimmed = raw.trim();
+  const parsed = /^\d+$/.test(trimmed) ? Number(trimmed) : 0;
+  if (parsed < 1) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      `Query parameter \`limit\` must be a whole number from 1 to ${PUBLIC_API_MAX_LIMIT}`
+    );
   }
 
-  return clampPublicApiLimit(parsed);
+  return Math.min(parsed, PUBLIC_API_MAX_LIMIT);
 };
 
 const parseJsonBody = async (request: Request): Promise<unknown> => {

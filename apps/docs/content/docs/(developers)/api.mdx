@@ -231,7 +231,8 @@ Files can be up to 100 MB. Uploaded `.md` and `.markdown` files become editable 
 
 `GET /v1/cards/changes?since=<timestamp>` returns cards updated at or after
 `since` in `items`, and the IDs of cards moved to Trash or permanently deleted
-in `deletedIds`. Page with `pageInfo.nextCursor` until `hasMore` is `false`,
+in `deletedIds`, up to `limit` at a time (the same rule as [`limit`](#search-and-favorites) on
+`/v1/cards`). Page with `pageInfo.nextCursor` until `hasMore` is `false`,
 then use the time you started as the next `since`. Permanent deletions are kept
 for 90 days: if your last sync is older than that, start again from `since=0`
 and replace your local copy.
@@ -335,7 +336,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="limit" type="number">
-  Page size.
+  Page size: a whole number from 1 to 100, default 50. A larger number returns 100; anything else is `400 INVALID_INPUT`.
 </ParamField>
 
 <ParamField query="cursor" type="string">
