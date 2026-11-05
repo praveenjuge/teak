@@ -9,6 +9,13 @@ import {
 export const readIsDevDeployment = (): boolean =>
   env.TEAK_DEV_DEPLOYMENT === "true";
 
+// A self-hosted deployment without Polar sets BILLING_DISABLED=true: every
+// account gets Pro (no card limit), and checkout and the billing portal are
+// refused. Subscriptions themselves stay as they are, so admin revenue and
+// subscriber counts keep reading real ones.
+export const readBillingDisabled = (): boolean =>
+  env.BILLING_DISABLED?.trim().toLowerCase() === "true";
+
 export const readWorkosConnectIssuer = (): string => {
   const value = env.WORKOS_AUTHKIT_DOMAIN;
   if (!value) {

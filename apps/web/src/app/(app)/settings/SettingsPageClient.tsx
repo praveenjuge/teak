@@ -11,6 +11,7 @@ import {
   SecuritySettings,
   SettingsOverview,
 } from "@/components/settings";
+import { useBillingEnabled } from "@/hooks/useBillingEnabled";
 import {
   parseSettingsDialogParam,
   settingsDataHref,
@@ -37,10 +38,12 @@ function useLegacyDialogRedirect() {
 export function SettingsPageClient() {
   useLegacyDialogRedirect();
   const { inboundEmail, language, settings } = useSettings();
+  const billingEnabled = useBillingEnabled();
   return (
     <SettingsOverview
       accountLoading={settings.accountLoading}
       apiKeyCount={settings.keys?.length}
+      billingEnabled={billingEnabled}
       cardCount={settings.cardCount}
       deviceCount={settings.sessions?.length}
       devicesHaveMore={settings.sessionsHasMore}
@@ -62,6 +65,16 @@ export function SettingsPageClient() {
 
 export function PlanPageClient() {
   const { checkout, settings } = useSettings();
+  const billingEnabled = useBillingEnabled();
+  const router = useRouter();
+  useEffect(() => {
+    if (!billingEnabled) {
+      router.replace("/settings");
+    }
+  }, [billingEnabled, router]);
+  if (!billingEnabled) {
+    return null;
+  }
   return (
     <PlanSettings
       accountLoading={settings.accountLoading}

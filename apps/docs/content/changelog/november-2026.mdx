@@ -91,6 +91,7 @@ changelog:
 - AI calls from a self-hosted Core Worker go through your account's `default` AI Gateway, which Cloudflare creates on the first call, so there's no gateway to create before you deploy. Set `AI_GATEWAY_ID` in `self-host/.env` to use another one.
 - A Core Worker you already deploy from an edited `wrangler.jsonc` keeps working. The new config deploys a separate Worker named `teak-core-worker` with its own bucket, so use it for a new install.
 - A self-hosted Teak sends no analytics or error reports until you give it your own PostHog token. A web app that isn't on Vercel can now report to your project too: set `TEAK_ANALYTICS_ENABLED=true` alongside `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`. See [Telemetry](/docs/self-hosting#telemetry-optional).
+- A self-hosted Teak no longer needs Polar. Set `BILLING_DISABLED=true` on Convex and every account gets Pro with no card limit, and **Plan** leaves Settings. See [Billing](/docs/self-hosting#billing-optional).
 
 ## Fixes
 

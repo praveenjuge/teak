@@ -174,6 +174,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
+  spec("BILLING_DISABLED", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Self-hosting only: true gives every account Pro (no card limit), refuses checkout and the billing portal, and hides Plan in the web app. Teak's own deployments never set it.",
+  }),
   spec("POLAR_ACCESS_TOKEN", {
     owners: ["@teak/convex"],
     targets: ["convex"],

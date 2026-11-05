@@ -3,6 +3,7 @@ import { type QueryCtx, query } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { polar } from "./billing";
 import { getActiveCardCount } from "./card/cardUsage";
+import { readBillingDisabled } from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
@@ -55,6 +56,14 @@ export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   }
 };
 
+// What the account may do: Pro with an active subscription, or for everyone
+// while billing is off. readHasPremium stays the real subscription.
+export const readCardEntitlement = async (
+  ctx: QueryCtx,
+  userId: string
+): Promise<boolean> =>
+  readBillingDisabled() || (await readHasPremium(ctx, userId));
+
 export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
   if (!profile) {
@@ -62,7 +71,7 @@ export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   }
   const { user, teakUserId: userId } = profile;
 
-  const hasPremium = await readHasPremium(ctx, userId);
+  const hasPremium = await readCardEntitlement(ctx, userId);
 
   const cardCount = await getActiveCardCount(ctx, userId);
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
@@ -87,7 +96,7 @@ export const getCardCreationStatusHandler = async (ctx: QueryCtx) => {
   }
   const { teakUserId: userId } = profile;
 
-  const hasPremium = await readHasPremium(ctx, userId);
+  const hasPremium = await readCardEntitlement(ctx, userId);
 
   if (hasPremium) {
     return {

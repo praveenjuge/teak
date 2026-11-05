@@ -15,7 +15,7 @@ related:
 
 - Git, Bun, and Node.js at the versions pinned in `package.json` (see the [Development guide](/docs/development))
 - A [WorkOS](https://workos.com/) account. Teak signs in with WorkOS AuthKit only.
-- Access to secrets for the features you want: Cloudflare R2 and Workers on Workers Paid (file storage, AI, thumbnails, screenshots and media processing), Polar (billing)
+- Access to secrets for the features you want: Cloudflare R2 and Workers on Workers Paid (file storage, AI, thumbnails, screenshots and media processing), and Polar if you want to sell plans (see [Billing](#billing-optional))
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -158,7 +158,7 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
   </Step>
   <Step title="Add optional services">
-    Add billing (Polar) keys to Convex env if needed. AI, thumbnails, screenshots, and audio and video processing run in the Core Worker.
+    Turn billing off, or add Polar keys to sell plans, as described in [Billing](#billing-optional). AI, thumbnails, screenshots, and audio and video processing run in the Core Worker.
   </Step>
   <Step title="Build and start">
     ```bash
@@ -189,6 +189,7 @@ FILES_SIGNING_SECRET=shared-secret
 WORKFLOW_RPC_SECRET=derived-secret           # Derived from the Core Worker's WORKFLOW_RPC_ROOT_SECRET
 EMAIL_INBOUND_SIGNING_SECRET=secret          # Optional: Save by email
 INBOUND_EMAIL_DOMAIN=in.yourdomain.com       # Optional: Save by email (default in.teakvault.com)
+BILLING_DISABLED=true                        # Optional: no plans; every account gets Pro (see Billing)
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -329,6 +330,18 @@ TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, the Core Worker's edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them. To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
 
+### Billing (optional)
+
+Teak's free plan stops at 200 cards, and Pro is sold through [Polar](https://polar.sh/). A self-hosted Teak usually sells nothing, so turn billing off on the Convex deployment, from `packages/convex`:
+
+```bash
+bunx convex env set --prod BILLING_DISABLED true
+```
+
+With billing off, every account has Pro: no card limit in the web app, the apps, the browser extension, the API, the CLI or MCP (`GET /v1/me` reports `plan: "pro"` and no `cardLimit`). The web app hides **Plan** from Settings, and checkout and the billing portal are refused. No Polar keys are needed. Remove the variable to turn billing back on.
+
+To sell plans instead, leave `BILLING_DISABLED` unset and set the `POLAR_*` variables from [Polar](https://polar.sh/).
+
 ### Telemetry (optional)
 
 A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, until you give it your own PostHog project token. Each part reports separately, and the project must be on PostHog's US Cloud:
@@ -350,4 +363,4 @@ On Vercel the web app reports only from Production, so previews send nothing; el
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`. Card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open this origin.
 - **Optional Features**:
   - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Core Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
-  - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.
+  - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to sell plans. Otherwise set `BILLING_DISABLED=true` (see [Billing](#billing-optional)).

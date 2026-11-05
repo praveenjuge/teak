@@ -1,6 +1,6 @@
 # Self-hosting
 
-A self-hoster deploys their own Core Worker from `apps/core-worker/self-host/wrangler.jsonc` with `bun run deploy:self-host`, filling in their values from the ignored `self-host/.env` instead of editing a committed config. The first deploy, with `--with-secrets`, creates the R2 bucket and KV namespaces and uploads the secrets; later deploys keep both. Workers AI calls go through the account's `default` AI Gateway, which Cloudflare creates on the first call, unless `.env` names another gateway. Nothing reports to Teak's PostHog: each part sends analytics and error reports only to the self-hoster's own token, and a web app off Vercel only with `TEAK_ANALYTICS_ENABLED=true`.
+A self-hoster deploys their own Core Worker from `apps/core-worker/self-host/wrangler.jsonc` with `bun run deploy:self-host`, filling in their values from the ignored `self-host/.env` instead of editing a committed config. The first deploy, with `--with-secrets`, creates the R2 bucket and KV namespaces and uploads the secrets; later deploys keep both. Workers AI calls go through the account's `default` AI Gateway, which Cloudflare creates on the first call, unless `.env` names another gateway. Nothing reports to Teak's PostHog: each part sends analytics and error reports only to the self-hoster's own token, and a web app off Vercel only with `TEAK_ANALYTICS_ENABLED=true`. With `BILLING_DISABLED=true` on Convex, every account has Pro with no card limit and the web app hides Plan.
 
 ## Sub-features
 
@@ -9,11 +9,13 @@ A self-hoster deploys their own Core Worker from `apps/core-worker/self-host/wra
 - `self-host-copy` deploys the ignored `self-host/wrangler.deploy.jsonc`, so the IDs Wrangler writes back never touch the committed config.
 - `self-host-boot` serves `/__health` and answers a signed `capabilities` request with every binding and cron present.
 - `self-host-ai-gateway` sends Workers AI calls through `default` (or `AI_GATEWAY_ID` from `.env`) with request logging off.
+- `self-host-billing-off` gives every account Pro (no card limit, `GET /v1/me` reports `plan: "pro"` and no `cardLimit`), hides Plan from Settings and the command palette, sends `/settings/plan` to `/settings`, and refuses checkout and the billing portal.
 - `self-host-telemetry` keeps every part silent without its own PostHog token, and lets a web app off Vercel report only with `TEAK_ANALYTICS_ENABLED=true`.
 
 ## How to get to it (user POV)
 
 - The self-hosting guide, "Core Worker" (`/docs/self-hosting#core-worker`), then from `apps/core-worker`: copy `self-host/example.env` to `self-host/.env`, fill it in, and run `bun run deploy:self-host -- --with-secrets` (first deploy) or `bun run deploy:self-host`.
+- The self-hosting guide, "Billing (optional)" (`/docs/self-hosting#billing-optional`): `bunx convex env set --prod BILLING_DISABLED true`.
 - The self-hosting guide, "Telemetry (optional)" (`/docs/self-hosting#telemetry-optional`): the web app's `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `TEAK_ANALYTICS_ENABLED`.
 - In the Cloudflare dashboard after a real deploy: Workers → `teak-core-worker`; AI → AI Gateway → `default`.
 
@@ -36,6 +38,7 @@ Steps:
 - **Web telemetry, client.** From `apps/web`, build with `env -u VERCEL_ENV NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_selfhosted_example TEAK_ANALYTICS_ENABLED=true bunx next build`: `grep -rl phc_selfhosted_example .next/static` finds a client chunk. Build again without `TEAK_ANALYTICS_ENABLED`: it finds none.
 - **Own project for deletions.** `bun test packages/convex/__tests__/accountDeletion/analytics.test.ts packages/convex/__tests__/shared/posthog.test.ts`: with `POSTHOG_PROJECT_ID=12345`, account deletion posts to `/api/projects/12345/persons/bulk_delete/`; unset, it posts to Teak's `660923`.
 - **No Teak token.** `bun test scripts/repo/teak-posthog-token.test.ts` passes: Teak's token appears only in the production `wrangler.jsonc`, its generated types and `.agents/guides/analytics.md`.
+- **Billing off (local stack).** Needs `bun run dev --local --detach`; run the `convex` commands from `packages/convex` with `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous`, and check each reports `anonymous deployment` (never the shared dev deployment). Signed in as the seeded account, `navigate` to `/settings`: nav "Settings pages" lists "Plan", the Plan row has link "Upgrade to Pro", and "Cards used" reads "<n> of 200 cards". Create an API key on Integrations ([settings](./settings.md)) and `GET <apiOrigin>/v1/me`: `plan` is `"free"` and `cardLimit` 200. Run `bunx convex env set BILLING_DISABLED true` and reload `/settings`: the nav has no "Plan", the Plan row shows the badge "Pro" with no link, "Cards used" reads "<n> cards saved, with no limit.", and no link goes to `/settings/plan`. `navigate` to `/settings/plan`: the app lands on `/settings`. Press Control+K and type "plan": there's no "Settings: Plan". `GET /v1/me`: `plan` is `"pro"` and `cardLimit` is `null`. Then `bunx convex env remove BILLING_DISABLED` and revoke the key.
 - **(account) First deploy.** `bun run deploy:self-host -- --with-secrets` after creating the queues and the Vectorize index from the guide: Wrangler reports the bucket and both KV namespaces provisioned, and `git diff self-host/wrangler.jsonc` stays empty. A second `bun run deploy:self-host` provisions nothing new.
 - **(account) Gateway.** Save a link card on a Convex deployment pointed at this Worker. AI → AI Gateway now lists `default`, with requests for the card's tags and summary. Opening a request shows no prompt or reply body.
 

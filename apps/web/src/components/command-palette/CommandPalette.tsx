@@ -21,6 +21,7 @@ import {
   Upload,
   type VadivamIcon,
 } from "vadivam-react";
+import { useBillingEnabled } from "../../hooks/useBillingEnabled";
 import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController";
 import { useFolders } from "../../hooks/useFolders";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
@@ -52,6 +53,8 @@ import {
 import {
   SETTINGS_SECTION_KEYWORDS,
   SETTINGS_SECTIONS,
+  type SettingsSection,
+  visibleSettingsSections,
 } from "../../lib/settingsSections";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
@@ -121,6 +124,8 @@ interface CommandPaletteResultsProps {
   onSelect: (command: CommandPaletteCommand) => void;
   pathname?: string | null;
   query: string;
+  /** The Settings pages to offer; Plan is left out where billing is off. */
+  settingsSections?: readonly SettingsSection[];
 }
 
 export function CommandPaletteResults({
@@ -129,6 +134,7 @@ export function CommandPaletteResults({
   onSelect,
   pathname,
   query,
+  settingsSections = SETTINGS_SECTIONS,
 }: CommandPaletteResultsProps) {
   const t = useTranslations("commandPalette");
   const tViews = useTranslations("lib.libraryViews");
@@ -233,8 +239,9 @@ export function CommandPaletteResults({
         })}
       </CommandGroup>
       <CommandGroup heading={t("groups.settings")}>
-        {SETTINGS_SECTIONS.filter(({ id }) => id !== "account").map(
-          ({ href, icon: Icon, id }) => {
+        {settingsSections
+          .filter(({ id }) => id !== "account")
+          .map(({ href, icon: Icon, id }) => {
             const section = tSettingsNav(id);
             const label = t("settingsSection", { section });
             return (
@@ -253,8 +260,7 @@ export function CommandPaletteResults({
                 <span className="truncate">{label}</span>
               </CommandItem>
             );
-          }
-        )}
+          })}
       </CommandGroup>
       {folders && folders.length > 0 && (
         <CommandGroup heading={t("groups.folders")}>
@@ -433,6 +439,7 @@ export function CommandPalette({
   const [selected, setSelected] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const folders = useFolders();
+  const settingsSections = visibleSettingsSections(useBillingEnabled());
   const cards = usePaletteCards(open ? query : "", pathname);
   const cardsKey =
     cards.status === "ready"
@@ -495,6 +502,7 @@ export function CommandPalette({
           onSelect={onSelect}
           pathname={pathname}
           query={query}
+          settingsSections={settingsSections}
         />
       </CommandList>
     </CommandDialog>

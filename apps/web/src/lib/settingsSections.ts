@@ -34,6 +34,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 
 export const SETTINGS_PLAN_HREF = "/settings/plan";
 
+/** The Settings pages this deployment shows: Plan only where it sells plans. */
+export const visibleSettingsSections = (
+  billingEnabled: boolean
+): readonly SettingsSection[] =>
+  billingEnabled
+    ? SETTINGS_SECTIONS
+    : SETTINGS_SECTIONS.filter(({ id }) => id !== "plan");
+
 /** Extra English words the command palette matches for each page. */
 export const SETTINGS_SECTION_KEYWORDS: Record<
   SettingsSectionId,

@@ -20,6 +20,7 @@ const app = defineApp({
     WORKFLOW_RPC_SECRET: v.optional(v.string()),
     EMAIL_INBOUND_SIGNING_SECRET: v.optional(v.string()),
     INBOUND_EMAIL_DOMAIN: v.optional(v.string()),
+    BILLING_DISABLED: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),

@@ -139,6 +139,18 @@ describe("SettingsOverview", () => {
     expect(markup).not.toContain("Upgrade to Pro");
   });
 
+  test("with billing off, shows Pro and unlimited cards without linking Plan", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsOverview {...overviewProps} billingEnabled={false} hasPremium />
+    );
+
+    expect(markup).toContain("Pro");
+    expect(markup).toContain("3 cards saved, with no limit.");
+    expect(links(markup)).not.toContain("/settings/plan");
+    expect(markup).not.toContain("Upgrade to Pro");
+    expect(links(markup)).toContain("/settings/appearance");
+  });
+
   test("shows cards used, the way to upgrade and the shortcuts", () => {
     const markup = renderToStaticMarkup(
       <SettingsOverview {...overviewProps} />
