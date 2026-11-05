@@ -5,6 +5,8 @@ import {
   getFaviconUrl,
   getFileFormatBadge,
   isCardProcessing,
+  mediaAspectRatio,
+  quoteSizeClass,
   readableTextOn,
   splitNotePreview,
 } from "../cardDisplay";
@@ -146,5 +148,33 @@ describe("isCardProcessing", () => {
         },
       })
     ).toBe(false);
+  });
+});
+
+describe("mediaAspectRatio", () => {
+  test("keeps an image's own shape inside 3:4 to 16:9", () => {
+    expect(mediaAspectRatio(800, 600, 1)).toBeCloseTo(4 / 3);
+    expect(mediaAspectRatio(440, 720, 1)).toBeCloseTo(3 / 4);
+    expect(mediaAspectRatio(4000, 500, 1)).toBeCloseTo(16 / 9);
+  });
+
+  test("uses the fallback when the size is missing or broken", () => {
+    expect(mediaAspectRatio(undefined, 600, 4 / 3)).toBeCloseTo(4 / 3);
+    expect(mediaAspectRatio(800, 0, 4 / 3)).toBeCloseTo(4 / 3);
+    expect(mediaAspectRatio(-1, 600, 0.2)).toBeCloseTo(3 / 4);
+  });
+});
+
+describe("quoteSizeClass", () => {
+  test("sets short quotes large and long quotes small", () => {
+    expect(quoteSizeClass("Design is thinking made visual.")).toBe(
+      "text-[23px]"
+    );
+    expect(
+      quoteSizeClass(
+        "Styles come and go. Good design is a language, not a style."
+      )
+    ).toBe("text-[19px]");
+    expect(quoteSizeClass("x".repeat(200))).toBe("text-[15px]");
   });
 });

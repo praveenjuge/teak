@@ -36,6 +36,7 @@ export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
   return (
     <GridVideoPreview
       cardId={card._id}
+      durationLabel={formatDuration(card.fileMetadata?.duration)}
       height={card.fileMetadata?.height}
       isGif={isGif}
       isPriority={isPriority}
@@ -51,12 +52,20 @@ export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
   );
 }
 
-export function AudioCardBody({ card }: Pick<FileCardBodyProps, "card">) {
+export function AudioCardBody({
+  card,
+  textInsets,
+}: Pick<FileCardBodyProps, "card"> & { textInsets?: string }) {
   const t = useTranslations("cards.body");
   return (
     <AudioWavePreview
       cardId={card._id}
       durationLabel={formatDuration(card.fileMetadata?.duration)}
+      formatBadge={getFileFormatBadge(
+        card.fileMetadata?.fileName,
+        card.fileMetadata?.mimeType
+      )}
+      textInsets={textInsets}
       title={
         card.metadataTitle || card.fileMetadata?.fileName || t("recording")
       }

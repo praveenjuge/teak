@@ -11,6 +11,9 @@ export interface DemoCard {
   aiTags?: string[];
   colors?: string[];
   content?: string;
+  /** A video's or a recording's length, shown in its badge. */
+  duration?: string;
+  favicon?: string;
   favorite?: boolean;
   id: string;
   image?: DemoImage;
@@ -63,6 +66,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       type: "link",
       title: "Inter font family",
       url: "https://rsms.me/inter/",
+      favicon: "/home-demo/favicon-inter.webp",
       image: img("link-inter", 251, 128),
       colors: ["#00CF43", "#FBFCFC", "#313B33"],
       tags: ["fonts"],
@@ -83,6 +87,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       type: "link",
       title: "shadcn/ui - The Foundation for your Design System",
       url: "https://ui.shadcn.com",
+      favicon: "/home-demo/favicon-shadcn.webp",
       image: img("link-shadcn", 251, 128),
       colors: ["#000000", "#4B4B4B", "#FFFFFF"],
       tags: ["components"],
@@ -96,6 +101,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "hangers",
       type: "video",
       title: "hanger-color-sort.mp4",
+      duration: "0:18",
       image: photo("hangers", 480, 607),
       colors: ["#232A29", "#69715C", "#D6C8B1", "#9EB2AA"],
       tags: ["motion"],
@@ -117,6 +123,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       type: "link",
       title: "Refactoring UI",
       url: "https://www.refactoringui.com",
+      favicon: "/home-demo/favicon-refactoring.webp",
       image: img("link-refactoring", 251, 122),
       colors: ["#111829", "#343F4D", "#E8E8E8"],
       favorite: true,
@@ -171,6 +178,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "kickoff-memo",
       type: "audio",
       title: "Kickoff voice memo",
+      duration: "2:14",
       tags: ["client"],
       summary:
         "Notes from the client kickoff: warmer colors, a bolder wordmark, and a launch in early spring.",
@@ -214,6 +222,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       type: "link",
       title: "10 Usability Heuristics for User Interface Design",
       url: "https://www.nngroup.com/articles/ten-usability-heuristics/",
+      favicon: "/home-demo/favicon-nng.webp",
       image: img("link-nng", 252, 128),
       colors: ["#27225C", "#545179", "#F5C518"],
       tags: ["ux"],
@@ -275,6 +284,7 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       type: "link",
       title: "Laws of UX",
       url: "https://lawsofux.com",
+      favicon: "/home-demo/favicon-lawsofux.webp",
       tags: ["ux"],
       summary:
         "A collection of psychology principles designers can use when building interfaces.",

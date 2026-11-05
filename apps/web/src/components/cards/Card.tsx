@@ -565,7 +565,11 @@ export const Card = memo(function Card({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
-        <div className="group/card relative" data-card-shell="">
+        <div
+          className="group/card relative"
+          data-card-shell=""
+          data-selected={isSelected || undefined}
+        >
           <UICard
             aria-disabled={isOptimistic || undefined}
             aria-keyshortcuts={
@@ -581,11 +585,11 @@ export const Card = memo(function Card({
             aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
-              "relative scroll-my-20 overflow-hidden rounded-2xl border-0 bg-transparent p-0 outline-none contain-content focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              // The focus and selection rings sit on the tile itself (see
+              // CARD_SURFACE), so a link's name line stays outside them.
+              "relative scroll-my-20 rounded-2xl border-0 bg-transparent p-0 outline-none contain-layout contain-style",
               isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
-              card.isDeleted && "opacity-60",
-              isSelected &&
-                "ring-2 ring-primary ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-primary"
+              card.isDeleted && "opacity-60"
             )}
             data-card-id={
               isOptimistic || isFirstPaintCopy ? undefined : card._id

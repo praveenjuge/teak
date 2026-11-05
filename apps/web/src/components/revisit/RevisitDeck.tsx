@@ -30,6 +30,7 @@ import { resolveLinkTitle } from "../../lib/linkTitle";
 import { cn } from "../../lib/utils";
 import { getCardAccessibleLabel } from "../cards/Card";
 import { CardBody } from "../cards/CardBody";
+import { mediaAspectRatio } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import {
   successfulLinkPreview,
@@ -94,15 +95,26 @@ export function focusRevisitDeck(): boolean {
   return deck !== null;
 }
 
-const mediaWidth = (card: CardWithUrls): string | undefined => {
-  const isMedia =
-    card.type === "image" || card.type === "video" || card.type === "document";
-  const width = card.fileMetadata?.width;
-  const height = card.fileMetadata?.height;
-  if (!(isMedia && width && height)) {
-    return undefined;
+/**
+ * A deck card is as wide as its tile can be without passing the deck's
+ * height: an image or video at its own shape, any other card at the grid's
+ * 4:3 tile, leaving a link room for its name line under the tile.
+ */
+const DECK_TILE_RATIO = 4 / 3;
+const deckCardWidth = (card: CardWithUrls): string => {
+  if (card.type === "image" || card.type === "video") {
+    const ratio = mediaAspectRatio(
+      card.fileMetadata?.width,
+      card.fileMetadata?.height,
+      card.type === "video" ? 16 / 9 : 4 / 3
+    );
+    return `min(100%, calc(var(--revisit-card-height) * ${ratio}))`;
   }
-  return `min(100%, calc(var(--revisit-card-height) * ${width / height}))`;
+  const height =
+    card.type === "link"
+      ? "(var(--revisit-card-height) - 2.25rem)"
+      : "var(--revisit-card-height)";
+  return `min(100%, calc(${height} * ${DECK_TILE_RATIO}))`;
 };
 
 const deckCardTitle = (
@@ -125,8 +137,8 @@ function DeckCard({ card }: { card: CardWithUrls }) {
   const title = deckCardTitle(card, tLinkTitle);
   return (
     <div
-      className="max-h-(--revisit-card-height) overflow-hidden rounded-2xl bg-card shadow-lg ring-1 ring-border"
-      style={{ width: mediaWidth(card) ?? "100%" }}
+      className="max-h-(--revisit-card-height)"
+      style={{ width: deckCardWidth(card) }}
     >
       <CardBody
         card={card}
