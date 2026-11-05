@@ -1665,7 +1665,7 @@
       "sortLabel": "Sortierung: {sort}",
       "sortBy": "Tags sortieren nach",
       "moreFor": "Mehr für {tag}",
-      "rowLabel": "{tag}, {count, plural, one {# Karte} other {# Karten}}",
+      "rowLabel": "{tag} {count, plural, one {# Karte} other {# Karten}}",
       "rename": "Umbenennen…",
       "mergeInto": "Zusammenführen mit…",
       "delete": "Löschen…",

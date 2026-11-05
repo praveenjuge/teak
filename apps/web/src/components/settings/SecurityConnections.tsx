@@ -277,7 +277,7 @@ function ReadError({
   const tc = useTranslations("common");
   return (
     <div
-      className="flex items-center justify-between gap-3 bg-destructive/5 px-4 py-3 text-sm"
+      className="flex items-center justify-between gap-3 bg-destructive/2 px-4 py-3 text-sm"
       role="alert"
     >
       <p className="text-destructive">{message}</p>

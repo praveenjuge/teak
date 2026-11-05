@@ -130,7 +130,7 @@ const TagRow = memo(function TagRow({
         />
         <span className="truncate font-medium text-sm" dir="auto">
           {tagDisplayName(item)}
-        </span>
+        </span>{" "}
         <span className="ml-auto shrink-0 pl-3 text-muted-foreground text-sm tabular-nums">
           {item.count.toLocaleString(intlLocale)}
         </span>

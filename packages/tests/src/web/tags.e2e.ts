@@ -35,7 +35,7 @@ test("open a tag's cards, then rename, merge and delete it everywhere", async ({
     "page"
   );
   const tagRow = (name: string) =>
-    screen.getByRole("link", `${name}, `, { exact: false });
+    screen.getByRole("link", `${name} `, { exact: false });
   const design = tagRow("design");
   await expect(design).toBeVisible({ timeout: 60_000 });
   await expect(tagRow("web")).toBeVisible();
@@ -113,7 +113,7 @@ test("a long tag truncates on a phone instead of widening the page", async ({
   await browser.setViewport({ width: 320, height: 640 });
   await gotoApp(browser, "/tags");
   await expect(
-    screen.getByRole("link", `${longTag.toLowerCase()}, `, { exact: false })
+    screen.getByRole("link", `${longTag.toLowerCase()} `, { exact: false })
   ).toBeVisible({ timeout: 60_000 });
   expect(
     await browser.evaluate(

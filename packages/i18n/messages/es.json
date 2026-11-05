@@ -1665,7 +1665,7 @@
       "sortLabel": "Ordenar: {sort}",
       "sortBy": "Ordenar etiquetas por",
       "moreFor": "Más opciones para {tag}",
-      "rowLabel": "{tag}, {count, plural, one {# tarjeta} other {# tarjetas}}",
+      "rowLabel": "{tag} {count, plural, one {# tarjeta} other {# tarjetas}}",
       "rename": "Cambiar nombre…",
       "mergeInto": "Fusionar con…",
       "delete": "Eliminar…",

@@ -1665,7 +1665,7 @@
       "sortLabel": "정렬: {sort}",
       "sortBy": "태그 정렬 기준",
       "moreFor": "{tag} 더 보기",
-      "rowLabel": "{tag}, {count, plural, other {카드 #개}}",
+      "rowLabel": "{tag} {count, plural, other {#개의 카드}}",
       "rename": "이름 변경…",
       "mergeInto": "병합…",
       "delete": "삭제…",
