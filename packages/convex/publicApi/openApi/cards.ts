@@ -16,7 +16,7 @@ import {
   thumbnailErrorResponses,
 } from "./components";
 
-const LIMIT_DESCRIPTION = `Page size, default 50. A number above ${PUBLIC_API_MAX_LIMIT} returns ${PUBLIC_API_MAX_LIMIT}; anything that isn't a whole number from 1 up is \`400 INVALID_INPUT\`.`;
+const LIMIT_DESCRIPTION = `Page size, default 50. A whole number above ${PUBLIC_API_MAX_LIMIT} returns ${PUBLIC_API_MAX_LIMIT}; anything that isn't a whole number from 1 up is \`400 INVALID_INPUT\`.`;
 
 export const cardPaths = {
   "/v1/cards": {
@@ -293,6 +293,11 @@ export const cardPaths = {
             },
           },
           description: "Incremental card changes",
+        },
+        400: {
+          content: apiErrorContent,
+          description:
+            "INVALID_INPUT: `since` isn't a number, or `limit` isn't a whole number from 1 up",
         },
       },
       security: apiKeySecurity,
