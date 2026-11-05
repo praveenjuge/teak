@@ -20,9 +20,14 @@ export const bulkItemProblem = (
   }
   const payload = item as Record<string, unknown>;
   if (operation === "create") {
-    return nonEmptyString(payload.content) || nonEmptyString(payload.url)
-      ? null
-      : "Each create item must include `content` or `url`";
+    // As the API: empty content is fine on an explicit text card.
+    const content =
+      typeof payload.content === "string" ? payload.content : undefined;
+    const hasUrl = nonEmptyString(payload.url);
+    const missing =
+      (content === undefined && !hasUrl) ||
+      (payload.cardType !== "text" && !hasUrl && !content?.trim());
+    return missing ? "Each create item must include `content` or `url`" : null;
   }
   if (!nonEmptyString(payload.cardId)) {
     return "Each bulk item must include a valid `cardId`";

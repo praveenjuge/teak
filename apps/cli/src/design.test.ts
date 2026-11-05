@@ -371,6 +371,12 @@ describe("bulk dry run", () => {
   test.each([
     ["create", { content: "a note" }, null],
     ["create", { url: "https://example.com" }, null],
+    ["create", { cardType: "text", content: "" }, null],
+    [
+      "create",
+      { content: "  " },
+      "Each create item must include `content` or `url`",
+    ],
     [
       "create",
       { tags: ["x"] },
