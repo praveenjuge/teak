@@ -8,6 +8,13 @@ export const POSTHOG_INGEST_HOST = "https://us.i.posthog.com";
 export const POSTHOG_ASSETS_HOST = "https://us-assets.i.posthog.com";
 export const POSTHOG_UI_HOST = "https://us.posthog.com";
 export const POSTHOG_PROJECT_ID = "660923";
+
+// The PostHog project the deployment's personal API keys act on: the
+// deployment's POSTHOG_PROJECT_ID, or Teak's own project when it's unset.
+// A self-hosted deployment reporting to its own project sets it, so account
+// deletion and the admin console's queries reach that project.
+export const posthogProjectId = (configured: string | undefined): string =>
+  configured?.trim() || POSTHOG_PROJECT_ID;
 export const BACKEND_POSTHOG_LIB = "teak-backend";
 
 const DEFAULT_TIMEOUT_MS = 2000;

@@ -4,6 +4,7 @@ import {
   createPostHogBatch,
   POSTHOG_INGEST_HOST,
   parseStackFrames,
+  posthogProjectId,
 } from "../../shared/posthog";
 import { asFetch } from "../helpers/convex.test-utils";
 
@@ -188,5 +189,13 @@ describe("PostHog exception events", () => {
         value: "plain failure",
       },
     ]);
+  });
+});
+
+describe("posthogProjectId", () => {
+  test("uses the deployment's own project and falls back to Teak's", () => {
+    expect(posthogProjectId(" 12345 ")).toBe("12345");
+    expect(posthogProjectId(undefined)).toBe("660923");
+    expect(posthogProjectId("  ")).toBe("660923");
   });
 });

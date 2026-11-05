@@ -7,7 +7,7 @@ Teak sends product analytics, error reports, web session replays, feedback and A
 ## Project
 
 - PostHog project **Teak** (id `660923`) in the **Teak** organization, US Cloud: <https://us.posthog.com/project/660923>
-- Public project token: `phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn`. It is public (it ships in client bundles), but only production builds use it, so development, preview, CI and test builds send nothing.
+- Public project token: `phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn`. It is public (it ships in client bundles), but only production builds use it, so development, preview, CI and test builds send nothing. Self-hosted deployments never use it: `scripts/repo/teak-posthog-token.test.ts` fails if it appears outside the production `wrangler.jsonc`, its generated types and this guide.
 - People are identified by the canonical Teak user id (`teak_…`): `getAuthUser._id` on web, the WorkOS `external_id` on Apple and Android, `userId` on the backend. Person properties: `email`, `plan` (`free` or `pro`), `signed_up_at`, and `locale` (the account's UI language, set by the web app).
 - Test accounts (cohort "Internal / Test users", and email containing `e2e-`) are excluded by default in every insight.
 
@@ -94,12 +94,14 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 
 | Name | Where | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | Vercel Production | Inlined only when `VERCEL_ENV=production` |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | Vercel Production | Inlined only when `VERCEL_ENV=production`, or off Vercel when `TEAK_ANALYTICS_ENABLED=true` |
+| `TEAK_ANALYTICS_ENABLED` | Self-hosted web builds only | `true` lets a web build that isn't on Vercel report to its own token's project (`resolvePostHogToken`). Ignored on Vercel. Teak never sets it |
 | `POSTHOG_PROJECT_TOKEN` | GitHub secret, Convex prod (set by Backend Deploy), worker `wrangler.jsonc` var | Also feeds the Apple archive and the extension release build |
 | `WXT_POSTHOG_PROJECT_TOKEN` | Extension Release workflow | From `POSTHOG_PROJECT_TOKEN` |
 | `POSTHOG_ANDROID_TOKEN` | Local Android release env or Gradle property | Release builds only |
 | `POSTHOG_CLI_API_KEY`, `POSTHOG_CLI_PROJECT_ID` | Vercel Production, GitHub secrets, local Android env | Personal API key with error-tracking write; uploads web source maps, Apple dSYMs, Android R8 mappings. Uploads are skipped when unset |
 | `POSTHOG_CLI_HOST` | Workflows | `https://us.posthog.com` |
+| `POSTHOG_PROJECT_ID` | Self-hosted Convex only | The project the deletion and query keys act on (`posthogProjectId` in `packages/convex/shared/posthog.ts`). Unset is Teak's `660923`, so Teak's own deployments never set it |
 | `POSTHOG_PERSON_DELETION_API_KEY` | Convex prod (dashboard) | Personal API key with `person:write`. Account deletion's last stage (`packages/convex/accountDeletion/analytics.ts`) deletes the owner's person, events and recordings with it. Required wherever `POSTHOG_PROJECT_TOKEN` is set; without it, deletions retry until it is |
 
 ## Dashboards, alerts and survey

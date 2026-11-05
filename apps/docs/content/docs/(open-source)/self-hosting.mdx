@@ -307,3 +307,15 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 Set `PUBLIC_ORIGIN` on the Convex deployment to your public origin (`https://yourdomain.com`) to serve `/api` and `/mcp` yourself; unset, Teak's production URLs are advertised.
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. Teak's own edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them ([Architecture](/docs/architecture#public-api-and-mcp)). To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
+
+### Telemetry (optional)
+
+A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, until you give it your own PostHog project token. Each part reports separately, and the project must be on PostHog's US Cloud:
+
+| Part | Set | Where |
+| --- | --- | --- |
+| Convex backend | `POSTHOG_PROJECT_TOKEN`, `POSTHOG_PROJECT_ID` (the project's numeric ID, from its settings), and `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write` on that project) so deleting an account also deletes its analytics. Without the deletion key, account deletions stop at their last stage and retry until it's set | Convex env |
+| Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
+| Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, and `TEAK_ANALYTICS_ENABLED=true` unless it runs on Vercel | The web app's environment, at build time and at runtime |
+
+On Vercel the web app reports only from Production, so previews send nothing; elsewhere it reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The browser's reporting is fixed when you build, so changing either value means building and deploying again; the server's error reports read `TEAK_ANALYTICS_ENABLED` when the app starts. Leave a part's token unset and that part sends nothing.

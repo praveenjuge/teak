@@ -12,11 +12,15 @@
         "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
         "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
         "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+        "TEAK_ANALYTICS_ENABLED",
         "VERCEL_ENV",
         "VERCEL_GIT_COMMIT_SHA"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "passThroughEnv": ["POSTHOG_CLI_API_KEY", "POSTHOG_CLI_PROJECT_ID"]
+    },
+    "start": {
+      "passThroughEnv": ["TEAK_ANALYTICS_ENABLED"]
     },
     "typecheck": {
       "outputs": ["tsconfig.tsbuildinfo"]
