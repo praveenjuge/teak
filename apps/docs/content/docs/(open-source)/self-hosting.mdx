@@ -329,6 +329,18 @@ TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, the Core Worker's edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them. To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
 
+### Telemetry (optional)
+
+A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, until you give it your own PostHog project token. Each part reports separately, and the project must be on PostHog's US Cloud:
+
+| Part | Set | Where |
+| --- | --- | --- |
+| Convex backend | `POSTHOG_PROJECT_TOKEN`, plus `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write`) so deleting an account also deletes its analytics | Convex env |
+| Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
+| Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, and `TEAK_ANALYTICS_ENABLED=true` unless it runs on Vercel | The web app's environment, at build time and at runtime |
+
+On Vercel the web app reports only from Production, so previews send nothing; elsewhere it reports only while `TEAK_ANALYTICS_ENABLED` is `true`. Leave a part's token unset and that part sends nothing.
+
 ## Where to get the values
 
 - **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".

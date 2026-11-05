@@ -11,6 +11,7 @@ const releaseSha =
   process.env.GITHUB_SHA ??
   process.env.GIT_SHA;
 const posthogToken = resolvePostHogToken({
+  analyticsEnabled: process.env.TEAK_ANALYTICS_ENABLED,
   token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   vercelEnvironment: process.env.VERCEL_ENV,
 });

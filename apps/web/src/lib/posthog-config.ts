@@ -27,13 +27,19 @@ export const resolveAnalyticsProxyTarget = (url: URL): URL | null => {
   return target.origin === new URL(host).origin ? target : null;
 };
 
+// On Vercel only production reports, so previews never do. Anywhere else
+// (a self-hosted build, or a local one with a token in its env file) reports
+// only when TEAK_ANALYTICS_ENABLED is "true", to the token's own project.
 export const resolvePostHogToken = (env: {
+  analyticsEnabled?: string;
   token?: string;
   vercelEnvironment?: string;
-}): string | undefined =>
-  env.vercelEnvironment === "production"
-    ? env.token?.trim() || undefined
-    : undefined;
+}): string | undefined => {
+  const reports = env.vercelEnvironment
+    ? env.vercelEnvironment === "production"
+    : env.analyticsEnabled?.trim() === "true";
+  return reports ? env.token?.trim() || undefined : undefined;
+};
 
 interface ExceptionFrame {
   filename?: string;
