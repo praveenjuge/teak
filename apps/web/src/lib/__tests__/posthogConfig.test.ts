@@ -7,6 +7,7 @@ import {
   filterPostHogEvent,
   resolvePostHogToken,
 } from "@/lib/posthog-config";
+import { SHARE_TEXT_FIELDS, shareLibraryPath } from "@/lib/share/sharedContent";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -79,6 +80,7 @@ describe("web PostHog configuration", () => {
       capture_heatmaps: false,
       capture_pageview: "history_change",
       capture_performance: { network_timing: false, web_vitals: true },
+      enable_recording_console_log: false,
       person_profiles: "identified_only",
       session_recording: {
         maskAllInputs: true,
@@ -186,11 +188,39 @@ describe("web PostHog configuration", () => {
     );
   });
 
-  test("asks the SDK to mask the search in page URLs and replays", () => {
+  test("asks the SDK to mask the search and shared text in page URLs and replays", () => {
     expect(buildPostHogOptions()).toMatchObject({
-      custom_personal_data_properties: ["q"],
+      custom_personal_data_properties: ["q", ...SHARE_TEXT_FIELDS],
       mask_personal_data_properties: true,
     });
+  });
+
+  test("masks text from the share sheet in page URLs", () => {
+    const pageview: CaptureResult = {
+      event: "$pageview",
+      properties: {
+        $current_url: `https://app.teakvault.com${shareLibraryPath({
+          text: "reset link for jane",
+          title: "Private note",
+          url: "https://example.com/reset?token=fake-token-123",
+        })}`,
+      },
+      $set_once: {
+        $initial_current_url:
+          "https://app.teakvault.com/?compose=1&text=private+note",
+      },
+      uuid: "event-4",
+    };
+    const sent = filterPostHogEvent(pageview);
+    const urls = [
+      sent?.properties.$current_url,
+      sent?.$set_once?.$initial_current_url,
+    ].map(String);
+    for (const field of SHARE_TEXT_FIELDS) {
+      expect(new URL(urls[0] ?? "").searchParams.get(field)).toBe("<MASKED>");
+    }
+    expect(urls.join(" ")).not.toMatch(/jane|Private|private|fake-token/u);
+    expect(new URL(urls[0] ?? "").pathname).toBe("/");
   });
 
   test("masks search text in page and referrer URLs", () => {
