@@ -175,11 +175,11 @@ const writeBatch = (
 
 // A retry goes to the same deployment and account as the run it repeats. The
 // key itself never appears: a placeholder says to pass it again.
-const targetFlags = (options: GlobalOptions) =>
-  [
-    ...(options.apiUrl ? [` --api-url ${shellArg(options.apiUrl)}`] : []),
-    ...(options.apiKey ? [" --api-key <API_KEY>"] : []),
-  ].join("");
+const targetFlags = (options: GlobalOptions) => {
+  const url = options.apiUrl ? ` --api-url ${shellArg(options.apiUrl)}` : "";
+  const key = options.apiKey ? " --api-key <API_KEY>" : "";
+  return `${url}${key}`;
+};
 
 const retryWith =
   (command: string, suffix = "") =>
