@@ -7,14 +7,12 @@ changelog:
   category: Product updates
 ---
 
-- Image and video cards now load noticeably faster, with your library reusing what it has already downloaded instead of fetching everything again.
-- New image cards finish preparing their previews and colors noticeably sooner, and large exports build quicker and more reliably.
-- Uploaded PDFs show their first page as the card preview in the grid again.
-- The iPhone and iPad apps no longer close immediately on launch, and search, refresh, and image-heavy libraries load more quickly.
-- Signing in from the CLI, Raycast, or a browser extension now asks you to approve access before Teak connects the device.
-- API keys are limited to 10 active keys per account, with a revoke-all control in Settings if you need to clear every key.
-- Image uploads are now verified before saving, so broken files are rejected with a clear error instead of creating a card that never shows a preview.
-- Large uploads can continue from their completed parts after a temporary interruption instead of restarting from zero.
-- Audio recordings made in Chrome and Safari now save as audio cards with the waveform player instead of video cards.
-- Image cards now use private, device-sized previews in modern formats for the grid and full-card view, while downloads keep the unchanged original.
-- File uploads now finish reliably across the web app, browser extension, API, CLI, and MCP.
+- Image and video cards load noticeably faster, and new images get their previews and colors sooner.
+- Uploaded PDFs show their first page in the grid again.
+- The iPhone and iPad apps no longer close on launch, and load faster.
+- Signing in from the CLI, Raycast or a browser extension asks you to approve the device first.
+- Broken image files are refused with a clear message instead of becoming a card without a preview.
+- Large uploads pick up where they stopped after a dropped connection.
+- Audio recorded in Chrome and Safari saves as an audio card with a waveform player.
+- Exports of large libraries finish faster and more reliably.
+- You can have up to 10 API keys, and revoke them all at once in Settings.

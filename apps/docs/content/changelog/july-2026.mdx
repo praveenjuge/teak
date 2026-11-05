@@ -7,12 +7,14 @@ changelog:
   category: Product updates
 ---
 
-- Teak now has a command-line app to save, search, edit, favorite, delete, sync, and list tags from your terminal, with one-step browser sign-in and an Agent Skill for AI assistants.
-- Raycast, MCP, and API clients now sign in with your browser in one step, so copying an API key is optional and existing keys keep working.
-- The API and MCP server moved to simpler addresses at teakvault.com/api and teakvault.com/mcp. Existing api.teakvault.com links and API keys keep working, so no action is needed.
-- The API can now create file cards through direct uploads, and MCP clients can browse cards, sync changes, run bulk edits, and create file-upload links.
-- Teak now works as a ChatGPT connector with search and fetch, plus new AI-agent docs pages for easier setup.
-- Import and Export now share one place in Settings. Imports show step-by-step progress, and exports show live progress with a countdown to your next weekly export.
-- File uploads now support source code, Markdown and MDX, design tokens, ZIP, Office documents, SVG, HEIC, animated GIF, Figma files, and more in the web app, mobile app, Chrome extension, API, CLI, and MCP, with a 100 MB limit for ordinary uploads (files inside an imported Teak archive are limited to 20 MiB each).
-- The API docs now include a searchable, operation-by-operation reference with schemas and code samples.
-- Docs pages can be saved as a PDF or EPUB from the page actions menu.
+- **Teak CLI:** save, search, edit and organize cards from your terminal, with browser sign-in. See [CLI](/docs/cli).
+- **Sign in with your browser** in Raycast, the CLI and MCP clients, so you no longer need to copy an API key. Existing keys keep working.
+- **More file types:** upload source code, Markdown, Office documents, ZIP files, SVG, HEIC, animated GIF, Figma files and more, from every app.
+- **ChatGPT:** add Teak as a connector to search and read your cards. See [AI agents](/docs/ai-agents).
+- Import and export share one place in Settings, with live progress for both.
+- Save any docs page as a PDF or EPUB from its page menu.
+
+## For developers
+
+- The API and MCP server moved to `teakvault.com/api` and `teakvault.com/mcp`. Old addresses and keys keep working.
+- The API can upload files, MCP clients can browse, sync and bulk-edit cards, and the [API reference](/docs/api) is searchable, with code samples.
