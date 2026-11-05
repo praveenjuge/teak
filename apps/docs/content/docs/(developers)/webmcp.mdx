@@ -19,8 +19,8 @@ API key.
 
 ## Requirements
 
-- A browser with the draft WebMCP API. As of September 2026 this is
-  Chrome's WebMCP preview behind its experimental flag.
+- A browser with the draft WebMCP API, such as Chrome's WebMCP preview behind
+  its experimental flag.
 - A signed-in Teak web app session. The tools query your cards with your
   session and are registered only while you are signed in.
 
@@ -77,12 +77,10 @@ The page registers eight tools: seven imperative tools and one declarative searc
 
 ### Declarative search
 
-The search box on the home page is annotated as the declarative `teak_search_form`
-tool. Its name stays distinct from the imperative tools above because WebMCP
-rejects duplicate tool names. The form carries `toolautosubmit`, so agents can
-fill in the `q` field and submit through the same search path as typing without
-needing a submit button. Unlike the imperative search tool, the declarative
-form drives the page UI rather than returning structured data.
+The home page's search box is the declarative `teak_search_form` tool (WebMCP
+rejects duplicate names, so it isn't `teak_search_cards`). It carries
+`toolautosubmit`, so an agent fills in `q` and submits it as if typing. Unlike
+`teak_search_cards`, it drives the page instead of returning data.
 
 ## Try it
 
@@ -102,16 +100,10 @@ tools.map((tool) => tool.name);
 - Read tools are annotated `readOnlyHint` and `untrustedContentHint`, because
   card content and notes are user-generated. Write tools are annotated
   `consequentialHint`.
-- Writes are limited to creating a card, changing its tags and setting its
-  favorite. Deleting, archiving, folders and the rest stay on the
+- Writes are limited to creating a card, changing its tags, and favoriting or
+  pinning it. Deleting, archiving, folders and the rest stay on the
   [remote MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
 - Tool descriptions are static strings. They never interpolate card content,
   following the spec's tool-poisoning guidance.
 - The `tools` permission keeps its default allowlist, `self`, and the web app
   can't be framed, so only Teak's own pages can register and call these tools.
-
-## Related
-
-- [MCP](/docs/mcp) for external clients such as Claude Code and ChatGPT.
-- [Teak for AI Agents](/docs/ai-agents) for choosing between MCP, REST, CLI,
-  and in-browser tools.

@@ -7,13 +7,13 @@ related:
   - /docs/raycast
 ---
 
-The extension for Chrome and Firefox saves pages, images, links, selected text, and supported social media posts. The Safari toolbar saves the current page and comes with the [Teak app](/docs/mac).
+The extension for Chrome and Firefox saves pages, images, links, selected text and social media posts. The Safari extension saves the current page and comes with the Teak app for [Mac](/docs/mac) and [iPhone and iPad](/docs/mobile).
 
 ![The Teak browser extension's popup over a web page, saying Saved to Teak, with tags and a note](../images/extension.webp)
 
 ## Install for Chrome and Chromium
 
-The extension works in Chrome, Edge, Brave, Arc, and other Chromium browsers.
+The extension works in Chrome, Edge, Brave, Arc and other Chromium browsers.
 
 <Steps>
   <Step title="Edge users: allow other stores">
@@ -23,13 +23,13 @@ The extension works in Chrome, Edge, Brave, Arc, and other Chromium browsers.
     Open [Teak in the Chrome Web Store](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob), click **Add to Chrome** (or your browser's equivalent), and confirm.
   </Step>
   <Step title="Sign in">
-    Click the Teak icon in your browser toolbar and choose **Sign in**.
+    Click the Teak icon in your toolbar and choose **Sign in**.
   </Step>
 </Steps>
 
 ## Install for Firefox
 
-The Firefox extension has the same features as the Chrome one. It needs Firefox 140 or later.
+The Firefox extension has the same features as the Chrome one and needs Firefox 140 or later.
 
 <Steps>
   <Step title="Add Teak">
@@ -40,97 +40,94 @@ The Firefox extension has the same features as the Chrome one. It needs Firefox 
   </Step>
 </Steps>
 
-In private windows, Teak runs only if you allow it: open `about:addons`, choose Teak, and set **Run in Private Windows** to **Allow**. If Firefox is set to always use private browsing, Teak forgets your sign-in and any unsent saves when Firefox closes, and the popup says so.
+In private windows, Teak runs only if you allow it: open `about:addons`, choose Teak, and set **Run in Private Windows** to **Allow**. If Firefox always uses private browsing, Teak forgets your sign-in and any unsent saves when Firefox closes, and the popup says so.
 
-## Safari toolbar
+## Safari
 
-Install and enable Safari saving with the [Mac app guide](/docs/mac). Click the Teak toolbar icon to sign in when needed and save the current page. The context menu, inline save buttons, file upload, and address bar search below are Chrome and Firefox features.
+The Safari extension comes with the Teak app and uses its sign-in. It saves the page you're on; the other features on this page are Chrome and Firefox only.
 
-## Auto-Save on Open
+- **Mac:** in Teak, open **Settings › General**, choose **Open Safari Settings…**, and turn on **Teak** under **Extensions**. Then click **Teak** in Safari's toolbar.
+- **iPhone and iPad:** in Safari, tap the extensions button in the address bar, choose **Manage Extensions**, and turn on **Teak**. Then open the extensions menu and tap **Teak**.
 
-When you open either extension popup, Teak automatically saves the current page. In Chrome and Firefox, the popup shows the page's icon and title with its site, and says whether it was saved, was already in your library, or cannot be saved.
+If it asks you to sign in, choose **Sign In**, finish in the Teak app, and try again.
 
-In Chrome and Firefox, saving a page that's already in your library says **Already in your Teak** and moves that card to the top of your library, bringing it back from Archive if it was there. Teak doesn't make a second card. The Safari extension says **Saved to Teak** either way, and moves the card the same way.
+## Auto-save on open
 
-In Chrome and Firefox, choose **Upload file** from the **⋯** menu at the top of the popup to save a supported local file up to 100 MB; the popup then shows the file's name and size. Firefox closes the toolbar popup when a file picker opens, so in Firefox **Upload file** opens a small Teak window to choose the file in.
+Opening the popup saves the current page. The popup shows the page's icon, title and site, and says whether it was saved, was already in your library, or can't be saved.
+
+A page that's already in your library says **Already in your Teak** and moves that card to the top, bringing it back from Archive if needed (see [Saving something again](/docs/features#saving-something-again)). Safari says **Saved to Teak** either way.
+
+To save a local file up to 100 MB, choose **Upload file** from the popup's **⋯** menu. In Firefox, this opens a small Teak window to pick the file in, because Firefox closes the popup when a file picker opens.
 
 ### Add tags and a note after saving
 
-In Chrome and Firefox, once the page is saved, the popup shows **Add tags** and **Add a note** in the same card. If the page was already in your library, they show its current tags and note so you can change them.
+Once the page is saved, the popup shows **Add tags** and **Add a note**, filled in with the card's current tags and note if it was already in your library.
 
-- Type a tag and press Enter or comma. Your most used tags, and the ones you used last in the extension, are suggested as you type.
-- Tags and the note save when you press Enter, leave the field, or close the popup. The popup stays open once you click into either field.
-- Tags can be up to 64 characters. If a change can't be saved, the popup keeps what you typed and offers **Retry**.
+- Type a tag and press Enter or comma. Your most used and most recent tags are suggested as you type. Tags can be up to 64 characters.
+- Tags and the note save when you press Enter, leave the field, or close the popup. If a change can't be saved, the popup keeps what you typed and offers **Retry**.
 
-## Chrome and Firefox Features
+## Chrome and Firefox features
 
 ### Save with a shortcut
 
-Press **Alt+Shift+S** (**⌥⇧S** on Mac) to save the page in the current tab without opening the popup. The Teak icon in your toolbar shows how it went:
+Press **Alt+Shift+S** (**⌥⇧S** on Mac) to save the current tab without opening the popup. The Teak icon shows how it went:
 
 | Icon | Means |
 | ---- | ----- |
 | **…** | Saving |
-| **✓** | Saved, or the page was already in Teak and moved to the top |
-| **!** | Teak couldn't save the page. Hover the icon to see why. It clears after a few seconds |
+| **✓** | Saved, or already in Teak and moved to the top |
+| **!** | Couldn't save; hover the icon to see why. It clears after a few seconds |
 
-If you're signed out or have reached your free plan limit, the popup opens instead so you can sign in or upgrade. Pages Teak can't save, such as `chrome://` pages and add-on stores, show **!**.
+If you're signed out or at your free plan limit, the popup opens instead. Pages Teak can't save, such as `chrome://` pages and add-on stores, show **!**.
 
-To use a different shortcut, open `chrome://extensions/shortcuts` in Chrome (or your browser's equivalent), or in Firefox open `about:addons`, click the gear, and choose **Manage Extension Shortcuts**. Change **Save this page to Teak**.
+To change the shortcut, open `chrome://extensions/shortcuts` (or your browser's equivalent), or in Firefox open `about:addons`, click the gear, and choose **Manage Extension Shortcuts**. Change **Save this page to Teak**.
 
 ### Already in Teak
 
-While you're signed in, the Teak icon shows **✓** when the page in your current tab is already in your library, and its tooltip reads **Already in Teak**. To show it, the extension asks Teak about the page's address when you switch tabs, a page finishes loading, or you come back to the window. It remembers each answer for five minutes, so a card you delete in Teak can keep its **✓** for up to five minutes. Cards in Trash don't count; archived cards do. Saving a page marked **✓** moves its card to the top of your library.
+While you're signed in, the Teak icon shows **✓**, with the tooltip **Already in Teak**, when the current page is in your library. Archived cards count; cards in Trash don't. Each answer is remembered for five minutes, so a card you just deleted can keep its **✓** that long. Pages in private windows and browser pages such as `chrome://` and `about:` are never checked.
 
-Pages in private and incognito windows are never checked, and neither are browser pages such as `chrome://` and `about:` pages.
+### Context menu
 
-### Context Menu
+Right-click on a page:
 
-Right-click anywhere on a page to access quick-save actions:
+| Menu item | What it saves |
+| --- | --- |
+| **Save Page to Teak** | The current page |
+| **Save Text to Teak** | The selected text, as a text card that links back to its page (a selection that's only a URL is saved as a link) |
+| **Save Asset to Teak** | An image, video, audio file or other file; on a link to a web page, the link |
 
-| Menu item              | What it saves                                      |
-| ---------------------- | -------------------------------------------------- |
-| **Save Page to Teak**  | The current URL                                    |
-| **Save Text to Teak**  | The selected text, as a text card that links back to its page |
-| **Save Asset to Teak** | A safely downloadable image, video, audio, or file; on a link to a web page, the link |
-
-Text saved this way keeps the page it came from. The card shows **From** and the site in its details, the site shows under the text in your library, and `site:` searches find it. Selected text that is only a URL is saved as a link instead.
-
-Context menu saves are available on standard web pages. Teak does not attempt to download local, private-network, `file:`, or `blob:` URLs; use **Upload file** when you own a local file.
+The context menu works on standard web pages. Teak doesn't download local, private-network, `file:` or `blob:` addresses; use **Upload file** for a file on your computer.
 
 ### Address bar search
 
-Search Teak without opening it: type `teak` in the address bar, then press Space or Tab, and type what you're looking for.
+Type `teak` in the address bar, press Space or Tab, and type your search.
 
-- After two characters, your top five matching cards appear as suggestions, each with its title, type, and site. Choose one to open it in Teak.
-- Press Enter on what you typed to open the full search in Teak. Press Alt+Enter (⌘+Enter on Mac) to open a card or the search in a new tab.
-- Search qualifiers work here too, such as `#design`, `type:image`, or `site:example.com`. Hidden cards never appear.
-- If you're signed out, the suggestion reads **Sign in to Teak to search**; press Enter to sign in.
-- In Firefox, the first row reads **Search Teak**, and a row under it says when nothing matches or Teak can't be reached.
+- After two characters, your top five matches appear, with their title, type and site. Choose one to open it in Teak.
+- Press Enter to open the full search in Teak, or Alt+Enter (⌘+Enter on Mac) to open it in a new tab.
+- Search filters such as `#design`, `type:image` or `site:example.com` work. Hidden cards never appear.
+- Signed out, the suggestion reads **Sign in to Teak to search**.
 
 Teak doesn't keep what you type in the address bar.
 
-### Social Media Inline Save Buttons
+### Save buttons on social sites
 
-On supported sites (Instagram, Pinterest, X, Hacker News, Sidebar, and HeyDesigner), Teak injects a save button directly into each post or story, so you can save individual items without leaving the feed. Buttons appear automatically once you are signed in, and each saved post is deduplicated.
-
-The buttons need Teak's access to websites. In Firefox you can turn that access off in `about:addons` under Teak's **Permissions and data**; saving from the toolbar button still works without it.
+On Instagram, Pinterest, X, Hacker News, Sidebar and HeyDesigner, Teak adds a save button to each post once you're signed in. The buttons need Teak's access to websites; in Firefox you can turn that off in `about:addons` under Teak's **Permissions and data**, and the toolbar button still works.
 
 ### Language
 
-In Chrome and Firefox, the popup, the right-click menu, address bar suggestions and the inline save buttons use the language you chose in Teak **Settings → Appearance → Language**, once you're signed in. Signed out, they use the last language Teak saw, or English. The extension's name and description in your browser follow your browser's language. See [Language](/docs/features#language).
+The popup, menus, suggestions and save buttons follow your [Teak language](/docs/features#language) once you're signed in.
 
-### Free Tier Limit
+### Free tier limit
 
 :::info[Free plan: 200 cards]
 When you reach your free plan card limit, the extension popup shows an upgrade prompt instead of saving. Click **Upgrade to Pro** to open **Settings → Plan** in Teak. Pro has [unlimited cards](/pricing).
 :::
 
-## Sign In
+## Sign in
 
-In Chrome and Firefox, choose **Sign in** in the extension popup and approve Teak in your browser. In Safari, the toolbar button uses your Teak app sign-in; if you're signed out, choose **Sign In** and finish in the Teak app. Your connection stays signed in across restarts.
+In Chrome and Firefox, choose **Sign in** in the popup and approve Teak in your browser. You stay signed in across restarts. **Sign out** is in the popup's **⋯** menu, under your email.
 
-Manage access in Teak **Settings → Security → Connected apps**. In Chrome and Firefox, **Sign out** is in the popup's **⋯** menu, under your email. Signing out disconnects the extension across all its installations; reconnecting can take about 15 minutes. If the saved connection has already expired, sign-out clears only this device and says so. If the network fails, credentials stay saved so you can retry. In Chrome and Firefox, interrupted saves stay pending so you can retry them after reconnecting, or discard them from the popup.
+Signing out disconnects the extension on every browser it's installed in; reconnecting can take about 15 minutes. If the network fails, your sign-in and any interrupted saves are kept so you can retry, or discard the saves from the popup. Manage connected browsers in Teak **Settings → Security → Connected apps**.
 
 ## Build from source
 
@@ -162,15 +159,15 @@ The extension is open source, and the store packages are built from the reposito
 ## Troubleshooting
 
 <Accordion>
-  <AccordionItem title="The extension popup shows an error">
-    - Check that you are signed in at [app.teakvault.com](https://app.teakvault.com).
-    - Reload the tab you are trying to save and try again.
+  <AccordionItem title="The popup shows an error">
+    - Check that you're signed in at [app.teakvault.com](https://app.teakvault.com).
+    - Reload the tab and try again.
   </AccordionItem>
-  <AccordionItem title="Inline buttons do not appear">
-    - Make sure you are signed in to the extension.
+  <AccordionItem title="Save buttons don't appear on a social site">
+    - Make sure you're signed in to the extension.
     - Reload the page after it fully loads.
-    - Verify the extension is enabled in `chrome://extensions`, or in `about:addons` in Firefox, with access to websites.
-    - Inline buttons appear only on the supported sites listed above.
+    - Check that the extension is on, with access to websites, in `chrome://extensions` or Firefox's `about:addons`.
+    - The buttons only appear on the sites listed above.
   </AccordionItem>
   <AccordionItem title="Still stuck?">
     Reach out via [Support](/docs/support).

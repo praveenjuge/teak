@@ -9,8 +9,7 @@ related:
   - /docs/extension
 ---
 
-Use Teak in Raycast to save ideas and find cards without leaving your keyboard flow.
-
+Save ideas and find cards from Raycast without leaving the keyboard.
 
 ## Quick setup
 
@@ -34,30 +33,28 @@ Use Teak in Raycast to save ideas and find cards without leaving your keyboard f
 
 ### Using an API key
 
-Prefer an API key? Paste one from **Teak Settings → Integrations → API keys** into the extension preferences. A configured key takes precedence over browser sign-in. See the [API guide](/docs/api) for key limits and rotation.
+Prefer an API key? Paste one from **Settings → Integrations → API keys** into the extension preferences; it takes precedence over browser sign-in. See [Authentication](/docs/api#authentication) for key limits and rotation.
 
 ## Commands
 
-- **Quick Save**: Open an input form to type or paste text and URLs to save. Add tags and a note if you like.
-- **Save to Teak**: Save any text or URL in one step. Accepts optional content, tags and note arguments, and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
-- **Save Clipboard**: Save the current clipboard contents to Teak with no prompt. A copied file or image is uploaded as a file card.
-- **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
-- **Save Current Browser Tab**: Save the active browser tab directly from Raycast. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
-- **Save Finder Selection**: Upload the files selected in Finder, up to 100 MB each, the same as dropping them on the web app.
-- **Search Cards**: Find and open cards instantly. Pick a type from the menu beside the search bar, and results keep loading as you scroll.
-- **Favorites**: Jump to your starred cards.
-- **Browse Folders**: See your folders and smart folders, then open one to browse its cards.
-- **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it. Rename, merge or delete a tag from its actions.
-- **Random Cards**: See 20 shuffled cards from your vault. **Keep** moves to the next one; **Archive Card** puts it away. **Shuffle Again** (⌘R) deals a new set.
-- **Find Similar Cards**: Paste a card ID or a Teak link to see the cards closest to it in meaning.
+- **Quick Save**: a form to type or paste text and links, with optional tags and a note.
+- **Save to Teak**: save text or a link in one step, with optional tags and note arguments. It also works as a [fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results saves that query.
+- **Save Clipboard**: save the clipboard with no prompt; a copied file or image is uploaded.
+- **Save Selected Text**: save the text selected in any app. Pairs well with a hotkey.
+- **Save Current Browser Tab**: needs the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
+- **Save Finder Selection**: upload the files selected in Finder, up to 100 MB each.
+- **Search Cards**: find and open cards, with a type menu beside the search bar.
+- **Favorites**: your favorite cards.
+- **Browse Folders**: your folders and smart folders, and their cards.
+- **Browse Tags**: every tag with its card count. Open one to search within it, or rename, merge or delete it from its actions.
+- **Random Cards**: 20 shuffled cards. **Keep** moves on, **Archive Card** puts one away, and **Shuffle Again** (⌘R) deals a new set.
+- **Find Similar Cards**: paste a card ID or Teak link to see the cards closest to it in meaning.
 
-Like the web, Teak works out the card type from what you save: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Structured Markdown stays a text card exactly as entered.
-
-Saving a link that's already in Teak doesn't make a second card. Raycast says **Already saved** with **Moved to the top** (or **Moved back from Archive**), and that card moves to the top of your library; **Open Card** opens it. Tags and a note sent with it aren't added to the card. See [Saving something again](/docs/features#saving-something-again).
+Saving a link you already have says **Already saved** and moves that card to the top instead of making a second one (see [Saving something again](/docs/features#saving-something-again)).
 
 ### Search filters
 
-Type these into **Search Cards** or **Favorites**, or pick them from the **Filters** actions. The type menu beside the search bar and `type:` stay in step:
+Type these into **Search Cards** or **Favorites**, or pick them from the **Filters** actions. Most work as on the web ([Smart search](/docs/features#smart-search)); `hue:`, `style:`, `after:`, `before:` and `sort:` are Raycast's own.
 
 | Filter | Example |
 | --- | --- |
@@ -79,26 +76,28 @@ Type these into **Search Cards** or **Favorites**, or pick them from the **Filte
 | Saved on or after / before | `after:2026-09`, `before:2026-10-15` |
 | Oldest first, or shuffled | `sort:oldest`, `sort:shuffle` |
 
-**Filters** also has **Show Archive**, **Filter by Progress** (Done or To Do) and **Shuffle** under **Sort Results**. With a search typed, **Save Search as Smart Folder…** saves it as a smart folder; Trash, color, style and date filters can't be saved.
-
-Cards tagged `secret` or `hidden` stay out of search and favorites unless you search that tag, such as `tag:secret` or `#secret`. When a list is empty and you have hidden cards, Raycast says so, and after you add one of those tags in **Edit Card** it tells you how to find the card again. See [Hidden cards](/docs/features#hidden-cards).
+**Filters** also has **Show Archive**, **Filter by Progress** (Done or To Do) and **Shuffle** under **Sort Results**. With a search typed, **Save Search as Smart Folder…** saves it; Trash, color, style and date filters can't be saved. [Hidden cards](/docs/features#hidden-cards) show only when you search their tag.
 
 ### Card details and actions
 
-A card shows its image, text, notes, Teak's summary and tags, file name and size, link facts, palette colors, and transcript. A link also shows its category, price, byline and published date, and when you marked it done. Text with `[[` links shows each linked card by its current title, with a **Linked from** section for the cards that link back. Text saved from a web page shows **From** and the page's site. Raycast can't play video or audio or preview documents, so use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
+A card shows its image or text, notes, summary, tags, file details, link facts, palette colors, transcript and linked cards. Raycast can't play video or audio or preview documents; use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
 
-- **Mark as Read** (⌘⇧D): on a link, marks it read, watched, listened, bought, cooked, played or done, depending on what the link is, and marks it again to take the mark off. A check shows beside done links.
-- **More Like This** (⌘⇧S): opens a **Like:** list of the cards closest in meaning to this one.
-- **Add to Folder…** (⌘⇧F): puts the card in one of your folders. A smart folder shows the cards its search finds, so it isn't offered.
-- **Archive** (⌘⇧A): takes the card out of your library without deleting it, with an **Undo** option. **Unarchive** brings it back.
-- **Refresh Details** (⌘R): asks Teak to read the page and card again; the summary, tags and preview update in a moment.
-- **Edit Card** (⌘E): change notes and tags, rewrite text and quote cards, remove tags Teak added, and, on a palette, remove colors under **Colors** or add hex codes under **Add Colors**.
-- **Copy URL** (⌘⇧C, or the text for a card without one), **Copy Content** and **Copy Teak Link** (⌘⇧L).
-- **Copy Color**: copy any color from a palette or image.
-- **Move to Trash** (⌃X): moves the card to Trash with an **Undo** option.
-- In Trash, **Restore** (⌘⇧R) brings a card back, and **Delete Forever** (⌃X) removes it and its files after you confirm. Teak empties Trash after 30 days.
+| Action | Shortcut |
+| --- | --- |
+| **Mark as Read** (or watched, bought and so on; again to undo) | ⌘⇧D |
+| **More Like This** | ⌘⇧S |
+| **Add to Folder…** | ⌘⇧F |
+| **Archive** / **Unarchive** | ⌘⇧A |
+| **Refresh Details** | ⌘R |
+| **Edit Card**: notes, tags, text, quotes and palette colors | ⌘E |
+| **Copy URL** (or the text, for a card without one) | ⌘⇧C |
+| **Copy Teak Link** | ⌘⇧L |
+| **Move to Trash** | ⌃X |
+| In Trash: **Restore** / **Delete Forever** | ⌘⇧R / ⌃X |
 
-## AI Tools
+**Copy Content** and **Copy Color** (any color from a palette or image) are in the actions too.
+
+## AI tools
 
 Teak exposes the following tools for [Raycast AI](https://www.raycast.com/ai):
 
@@ -113,12 +112,11 @@ Teak exposes the following tools for [Raycast AI](https://www.raycast.com/ai):
 | **Toggle Favorite**       | Favorite or unfavorite a card. Requires confirmation.             |
 | **Update Teak Card**      | Add or remove tags, including Teak's, change notes, add or remove a palette's colors, mark a link done, archive a card, or add it to a folder. Requires confirmation. |
 
-AI tools use the same sign-in as the extension — no extra setup required.
+AI tools use the extension's sign-in; there's nothing else to set up.
 
-## Security
+## Sign out
 
-- Use **Sign Out** (⌘⇧X) from the actions of any list, even an empty one. Signing out disconnects Raycast across all its installations; reconnecting can take about 15 minutes. If the saved sign-in has already expired, Raycast signs out only this Mac and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, your credentials stay saved so you can retry.
-- API keys are managed under **Settings → Integrations → API keys** — see the [API guide](/docs/api) for key limits and rotation.
+Choose **Sign Out** (⌘⇧X) from the actions of any list. Signing out disconnects Raycast on every Mac it's installed on; reconnecting can take about 15 minutes. Manage connected apps in **Settings → Security → Connected apps**.
 
 ## Troubleshooting
 

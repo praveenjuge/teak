@@ -9,13 +9,13 @@ related:
   - /docs/features
 ---
 
-Teak can import your saved links and notes from a browser bookmarks file, a CSV file or a text file of links, Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, or a Teak data archive. Imports are available from Settings in the web app.
+Bring your saved links and notes into Teak from a browser, a CSV or text file, another read-later or bookmark app, or a Teak archive. Imports run from Settings in the web app.
 
 :::note[Imports only add, never remove]
 Importing does not delete or modify any of your existing cards. Links that match a card you already have are skipped, not duplicated.
 :::
 
-## Start an Import
+## Start an import
 
 ![Settings → Import & export with the import source menu open: browser bookmarks, CSV, a text file of links, Pocket, Raindrop and more](../images/import.webp)
 
@@ -27,11 +27,11 @@ Importing does not delete or modify any of your existing cards. Links that match
     Pick where your file comes from under **Import from**. Teak says which file to upload for that source. Choose **Choose file** and pick it.
   </Step>
   <Step title="Start import">
-    Choose **Start import** to begin. Progress updates live as Teak parses the file and creates cards.
+    Choose **Start import**. Progress updates live as Teak reads the file and creates cards.
   </Step>
 </Steps>
 
-You can cancel an import while it is uploading or in progress. If your browser closes or reloads mid-upload, reopen **Settings → Import & export** and choose **Resume upload** to continue from where it left off.
+You can cancel an import while it uploads or runs. If your browser closes mid-upload, reopen **Settings → Import & export** and choose **Resume upload** with the same file.
 
 ## Sources
 
@@ -49,11 +49,9 @@ Every source keeps a link's original save date when the file has one. Folders be
 | **Omnivore** | The ZIP from Omnivore's export, as downloaded (`.zip`, up to 5 GiB), or one of its `metadata_*.json` files (up to 20 MiB) | Links with titles, labels as tags, and highlights with their notes as [highlights](/docs/features#highlights). A highlights file with no quotes in it stays the card's note. Archived items go to Archive. |
 | **Linkwarden** | The JSON backup from **Settings → Data → Export** (`.json`) | Links with names, tags, and descriptions as notes. Collections become folders, and pinned links become Favorites. |
 | **mymind** | The CSV from **Settings → Export** (`.csv`) | Links with titles, tags, and notes. Cards with only text become notes. |
-| **Teak archive** | A ZIP previously downloaded from [Export Your Data](/docs/export) (`.zip`) | Cards are recreated with their original type, content, tags, notes, favorite status, palette colors, and attached files. Archives with `schemaVersion` 2 in `manifest.json` also bring back titles, archived cards (into Archive), folders, which links you marked done, links' highlights with their notes, and pinned cards in their order, up to 12 pinned cards in all (counting cards you already pinned); the rest come in unpinned. AI tags and summaries are written fresh. Older archive document cards backed by `.md` or `.markdown` files become editable text cards with their raw Markdown and original source attachment. |
+| **Teak archive** | A ZIP downloaded from [Export](/docs/export) (`.zip`) | Cards come back with their type, title, content, tags, notes, palette colors, files, folders, favorites, archive and done state, highlights, and pins in order (up to 12 pinned cards in all, counting ones you already have). AI tags and summaries are written fresh. |
 
-Imported highlights wait for Teak to prepare each link's article, then appear in its text. One whose words aren't in the saved article is kept, marked **Not found in the saved article**. Highlights brought in by imports before October 2026 stay in the card's note.
-
-OneTab is no longer listed on its own: choose **Text file of links** for its **Export URLs** text.
+Imported highlights appear once Teak has prepared each link's article. One whose words aren't in the article is kept, marked **Not found in the saved article**.
 
 ### CSV columns
 
@@ -73,17 +71,13 @@ url,title,tags,folder,note,created
 https://example.com,Example,"design, type",Work/Design,A note,2024-05-01
 ```
 
-Quote a cell that holds a comma or a line break. If two columns share a name, Teak reads the first. Rows without a link, with a link that isn't `http` or `https`, or with a link that has spaces or no real host, are listed in the import report with their row number as a spreadsheet shows it (the header is row 1, and blank lines count). So is a row with a quote that never closes, or with text after a closing quote; the rows after it still import. Teak reads the separator from the header row: commas, or semicolons or tabs when the header has no comma, as many European spreadsheet apps export.
+Quote a cell that holds a comma or a line break. If two columns share a name, Teak reads the first. The separator is read from the header row: commas, or semicolons or tabs when the header has no comma.
 
-:::note[Folders are no longer tags]
-Before October 2026, folders in bookmark and Raindrop files were added to each card as tags. They now become Teak folders instead, and keep their nesting in the folder name.
-:::
+Rows without a valid `http` or `https` link, or with a quote that never closes, are listed in the import report with their spreadsheet row number (the header is row 1); the other rows still import.
 
-## Duplicate Handling
+## Duplicate handling
 
-Before creating a card, Teak checks whether a card outside Trash already saves the same link. Matching items are skipped and counted separately from created and failed items — they do not create a duplicate card.
-
-Links you already have, or that appear twice in the file, are skipped, even when one has `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route) or tracking parameters (`utm_*`, `fbclid`, `gclid`). Only the first occurrence of a link in a file is imported.
+A link you already have outside Trash, or that appears twice in the file, is skipped and counted as skipped, not created again. Links count as the same by the rules in [Saving something again](/docs/features#saving-something-again); a `#/` or `#!` route still makes a link different.
 
 ## Limits
 
@@ -96,9 +90,9 @@ Links you already have, or that appear twice in the file, are skipped, even when
 | Folders | A card goes into up to 50 folders, and an account holds up to 500; folders past either limit are skipped and the card still imports. |
 | Concurrent imports | One import can run at a time. |
 
-## After an Import Finishes
+## After an import finishes
 
-Teak shows how many items were created, skipped, and failed. If any items failed, you can copy or download a text report listing each one and the reason it could not be imported.
+Teak shows how many items were created, skipped and failed. If any failed, copy or download the report, which lists each one and why.
 
 ## Troubleshooting
 
@@ -110,7 +104,7 @@ Teak shows how many items were created, skipped, and failed. If any items failed
     The first row of the file must name the columns, and one of them must be the link: `url`, `link`, `href`, `address` or `website`. Add that header row and import the file again.
   </AccordionItem>
   <AccordionItem title="Some items were skipped">
-    Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.
+    Skipped items are links already in your library. That's expected, not an error.
   </AccordionItem>
   <AccordionItem title="Some items failed">
     Open the import error report to see whether each item had an unsafe URL, exceeded a limit, or was missing from the archive.
