@@ -2284,6 +2284,25 @@ describe("teak design rules", () => {
     ]);
   });
 
+  test("a retry keeps an explicit --api-url and asks for the key again", async () => {
+    routes.set("POST /v1/cards/gone/restore", notFound);
+    const url = server.url.toString();
+    const result = await teakWithEnv(
+      { TEAK_API_URL: "" },
+      "--api-url",
+      url,
+      "--api-key",
+      API_KEY,
+      "restore",
+      "gone"
+    );
+    const retry = result.stderr.trim().split("\n").at(-1) ?? "";
+    expect(retry).toBe(
+      `Retry the failed ones: teak --api-url ${url} --api-key <API_KEY> restore gone`
+    );
+    expect(result.stderr).not.toContain(API_KEY);
+  });
+
   test("completion prints a script, and __complete answers without a request", async () => {
     const script = await teak("completion", "bash");
     expect(script.stdout).toContain("complete -o default -F _teak teak");

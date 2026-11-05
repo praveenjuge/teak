@@ -132,7 +132,7 @@ export const shellArg = (value: string) =>
 interface BatchReport {
   /** What the items are, for the summary: "cards", "folders", "highlights". */
   noun: string;
-  /** The command that tries the failed items again. */
+  /** The command, after `teak`, that tries the failed items again. */
   retry: (ids: string[]) => string;
   total: number;
 }
@@ -166,17 +166,25 @@ const writeBatch = (
       `${[
         ...failed.map(({ error, id }) => `${id}: ${failureMessage(error)}`),
         `${summary.succeeded} of ${summary.total} ${report.noun} done; ${summary.failed} failed.`,
-        `Retry the failed ones: ${report.retry(failed.map(({ id }) => id))}`,
+        `Retry the failed ones: teak${targetFlags(options)} ${report.retry(failed.map(({ id }) => id))}`,
       ].join("\n")}\n`
     );
   }
   process.exitCode = exitCodeFor(failed[0]?.error);
 };
 
+// A retry goes to the same deployment and account as the run it repeats. The
+// key itself never appears: a placeholder says to pass it again.
+const targetFlags = (options: GlobalOptions) =>
+  [
+    ...(options.apiUrl ? [` --api-url ${shellArg(options.apiUrl)}`] : []),
+    ...(options.apiKey ? [" --api-key <API_KEY>"] : []),
+  ].join("");
+
 const retryWith =
   (command: string, suffix = "") =>
   (ids: string[]) =>
-    `teak ${command} ${ids.map(shellArg).join(" ")}${suffix}`;
+    `${command} ${ids.map(shellArg).join(" ")}${suffix}`;
 
 export const deleteCards = async (
   ids: string[],

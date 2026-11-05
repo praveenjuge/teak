@@ -420,7 +420,9 @@ export const program = new Command()
     "--api-key <key>",
     "Teak API key (prefer TEAK_API_KEY: a flag is visible to other processes)"
   )
-  .option("--api-url <URL>", "Teak API base URL", process.env.TEAK_API_URL)
+  // No default here: TEAK_API_URL is read where the URL is used, so
+  // options.apiUrl is set only when someone passed --api-url.
+  .option("--api-url <URL>", "Teak API base URL (same as TEAK_API_URL)")
   .option("--json", "print one JSON document on stdout")
   .option(
     "--fields <names>",
