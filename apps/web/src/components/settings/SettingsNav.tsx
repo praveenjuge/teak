@@ -3,10 +3,12 @@
 import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useBillingEnabled } from "@/hooks/useBillingEnabled";
 import {
   SETTINGS_SECTIONS,
   type SettingsSectionId,
   settingsSectionForPath,
+  visibleSettingsSections,
 } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { SettingsTile, type SettingsTileTone } from "./SettingsSection";
@@ -46,10 +48,11 @@ export function SettingsNav() {
   const t = useTranslations("settings.nav");
   const pathname = usePathname();
   const active = settingsSectionForPath(pathname);
+  const sections = visibleSettingsSections(useBillingEnabled());
   return (
     <nav aria-label={t("label")}>
       <ul className="space-y-0.5">
-        {SETTINGS_SECTIONS.map(({ href, id }) => {
+        {sections.map(({ href, id }) => {
           const current = active?.id === id;
           return (
             <li key={id}>

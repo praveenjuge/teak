@@ -44,6 +44,8 @@ const LANGUAGE_NAMES = new Map(
 export interface SettingsOverviewProps {
   accountLoading: boolean;
   apiKeyCount?: number;
+  /** False where this deployment sells no plans: Plan isn't linked. */
+  billingEnabled?: boolean;
   cardCount: number;
   deviceCount?: number;
   devicesHaveMore?: boolean;
@@ -234,9 +236,13 @@ function useSummaries({
 
 function PlanSection({
   accountLoading,
+  billingEnabled = true,
   cardCount,
   hasPremium,
-}: Pick<SettingsOverviewProps, "accountLoading" | "cardCount" | "hasPremium">) {
+}: Pick<
+  SettingsOverviewProps,
+  "accountLoading" | "billingEnabled" | "cardCount" | "hasPremium"
+>) {
   const t = useTranslations("settings.plan");
   const tNav = useTranslations("settings.nav");
   const tContent = useTranslations("settings.content");
@@ -254,12 +260,15 @@ function PlanSection({
     </span>
   );
   if (!accountLoading && hasPremium) {
-    plan = (
+    const badge = <Badge className={LOADED}>{tContent("pro")}</Badge>;
+    plan = billingEnabled ? (
       <SettingsLinkRow
         href={SETTINGS_PLAN_HREF}
         label={tNav("plan")}
-        value={<Badge className={LOADED}>{tContent("pro")}</Badge>}
+        value={badge}
       />
+    ) : (
+      <SettingsRow action={badge} label={tNav("plan")} />
     );
     usage = (
       <span className={`${LOADED} text-muted-foreground text-sm`}>
@@ -346,7 +355,9 @@ export function SettingsOverview(props: SettingsOverviewProps) {
         {/* Wide screens list the sections beside the page (SettingsNav). */}
         <nav aria-label={t("sectionsLabel")} className="md:hidden">
           <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-            <SectionRow id="plan" summary={summaries.plan} />
+            {props.billingEnabled === false ? null : (
+              <SectionRow id="plan" summary={summaries.plan} />
+            )}
             <SectionRow id="appearance" summary={summaries.appearance} />
             <SectionRow id="integrations" summary={summaries.integrations} />
             <SectionRow id="security" summary={summaries.security} />

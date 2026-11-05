@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import { polar } from "../billing";
+import { readBillingDisabled } from "../env";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
@@ -87,6 +88,9 @@ export const getCardQuotaEntitlement = async (
   deps: CardQuotaDeps = defaultQuotaDeps
 ) => {
   await assertAccountNotDeleting(ctx, userId);
+  if (readBillingDisabled()) {
+    return true;
+  }
   let hasPremium = false;
   try {
     hasPremium = isApprovedActiveSubscription(

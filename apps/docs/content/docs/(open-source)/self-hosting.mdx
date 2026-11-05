@@ -17,7 +17,7 @@ related:
 - A [Convex](https://convex.dev/) account
 - A [WorkOS](https://workos.com/) account, for sign-in
 - A Cloudflare account on Workers Paid, for files, AI, thumbnails, screenshots and media processing
-- Optionally, [Polar](https://polar.sh/) for billing
+- Optionally, [Polar](https://polar.sh/) to sell plans; otherwise turn billing off ([Billing](#billing-optional))
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -158,8 +158,8 @@ Teak's `bun run setup`, `bun run dev` and `bun run doctor` work only against Tea
     bun run --cwd apps/web start
     ```
   </Step>
-  <Step title="Add billing (optional)">
-    Set the `POLAR_*` values on the Convex deployment to use Teak's billing with your [Polar](https://polar.sh/) account.
+  <Step title="Turn billing off, or add it">
+    Set `BILLING_DISABLED=true` on the Convex deployment to give every account Pro with no card limit, or set the `POLAR_*` values to sell plans with your [Polar](https://polar.sh/) account. See [Billing](#billing-optional).
   </Step>
 </Steps>
 
@@ -184,6 +184,7 @@ FILES_SIGNING_SECRET=shared-secret
 WORKFLOW_RPC_SECRET=derived-secret           # Derived from the Core Worker's WORKFLOW_RPC_ROOT_SECRET
 EMAIL_INBOUND_SIGNING_SECRET=secret          # Optional: Save by email
 INBOUND_EMAIL_DOMAIN=in.yourdomain.com       # Optional: Save by email (default in.teakvault.com)
+BILLING_DISABLED=true                        # Optional: no plans; every account gets Pro (see Billing)
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -307,6 +308,18 @@ VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 Set `PUBLIC_ORIGIN` on the Convex deployment to your public origin (`https://yourdomain.com`) to serve `/api` and `/mcp` yourself; unset, Teak's production URLs are advertised.
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. Teak's own edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them ([Architecture](/docs/architecture#public-api-and-mcp)). To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
+
+### Billing (optional)
+
+Teak's free plan stops at 200 cards, and Pro is sold through [Polar](https://polar.sh/). A self-hosted Teak usually sells nothing, so turn billing off on the Convex deployment, from `packages/convex`:
+
+```bash
+bunx convex env set --prod BILLING_DISABLED true
+```
+
+With billing off, every account has Pro: no card limit in the web app, the apps, the browser extension, the API, the CLI or MCP (`GET /v1/me` reports `plan: "pro"` and no `cardLimit`). The web app hides **Plan** from Settings, and checkout and the billing portal are refused. No Polar keys are needed. Remove the variable to turn billing back on.
+
+To sell plans instead, leave `BILLING_DISABLED` unset and set the `POLAR_*` variables from [Polar](https://polar.sh/).
 
 ### Telemetry (optional)
 

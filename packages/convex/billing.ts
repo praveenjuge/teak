@@ -9,7 +9,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { readIsDevDeployment } from "./env";
+import { readBillingDisabled, readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
@@ -17,6 +17,25 @@ import {
   captureBackendEvent,
   captureBackendException,
 } from "./telemetry/posthog";
+
+export const BILLING_DISABLED_ERROR = {
+  code: "BILLING_DISABLED",
+  message: "Billing is off on this deployment.",
+} as const;
+
+const assertBillingEnabled = () => {
+  if (readBillingDisabled()) {
+    throw new ConvexError(BILLING_DISABLED_ERROR);
+  }
+};
+
+// Whether this deployment sells plans. The web app hides Plan and its
+// Billing buttons when it doesn't; everyone then has Pro (auth.ts).
+export const getBillingStatus = query({
+  args: {},
+  returns: v.object({ enabled: v.boolean() }),
+  handler: () => ({ enabled: !readBillingDisabled() }),
+});
 
 export const getUserInfoHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);
@@ -135,6 +154,7 @@ export const createCheckoutLinkHandler = async (
   ctx: ActionCtx,
   args: { productId: string }
 ) => {
+  assertBillingEnabled();
   let userId: string | undefined;
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);
@@ -167,6 +187,7 @@ export const createCheckoutLink = action({
 });
 
 export const createCustomerPortalHandler = async (ctx: ActionCtx) => {
+  assertBillingEnabled();
   let userId: string | undefined;
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);

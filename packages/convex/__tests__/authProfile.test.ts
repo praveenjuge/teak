@@ -355,6 +355,26 @@ describe("auth profile", () => {
       });
     });
 
+    it("with billing off, reports Pro and lets an account at the limit create cards", async () => {
+      const user = { subject: "u1" };
+      mockGetAuthUser.mockResolvedValue(user);
+      mockGetCurrentSubscription.mockResolvedValue(null);
+      process.env.BILLING_DISABLED = "true";
+      try {
+        const ctx = addUsageRecord(
+          { db: { query: () => ({}) } },
+          FREE_TIER_LIMIT
+        );
+        const result = await getCardCreationStatusHandler(
+          withProfileSession(ctx, mockGetAuthUser)
+        );
+        expect(result).toEqual({ hasPremium: true, canCreateCard: true });
+        expect(mockGetCurrentSubscription).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.BILLING_DISABLED;
+      }
+    });
+
     it("ignores partial usage while gating free-tier card creation", async () => {
       const user = { subject: "u1" };
       mockGetAuthUser.mockResolvedValue(user);

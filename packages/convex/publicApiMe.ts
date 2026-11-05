@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { type ActionCtx, httpAction, internalQuery } from "./_generated/server";
-import { readHasPremium } from "./auth";
+import { readCardEntitlement } from "./auth";
 import { getActiveCardCount } from "./card/cardUsage";
 import { withAuthorizedUser } from "./publicApi/http/auth";
 import { withPublicApiGatewayHeaders } from "./publicApi/http/meta";
@@ -33,7 +33,8 @@ export const profileForOwner = internalQuery({
     if (mirror?.deletedAt !== undefined) {
       return null;
     }
-    const hasPremium = includeUsage && (await readHasPremium(ctx, teakUserId));
+    const hasPremium =
+      includeUsage && (await readCardEntitlement(ctx, teakUserId));
     const usage = includeUsage
       ? {
           cardCount: await getActiveCardCount(ctx, teakUserId),

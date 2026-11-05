@@ -151,6 +151,31 @@ describe("card/cardUsage.ts premium sharding", () => {
     expect(db.store.userCardUsageShards).toHaveLength(0);
   });
 
+  test("with billing off, an account at the free limit creates cards like Pro", async () => {
+    const db = makeDb();
+    db.store.userCardUsage.push(saturatedUsage());
+    const ctx = mockMutationCtx({ db });
+    const getSubscription = () =>
+      Promise.reject(new Error("Polar is not configured"));
+    process.env.BILLING_DISABLED = "true";
+    try {
+      const { hasPremium } = await authorizeCardCreation(
+        ctx,
+        "self-host-user",
+        {
+          ...freeDeps(),
+          getSubscription,
+        } as CardCreationDeps
+      );
+      expect(hasPremium).toBe(true);
+      expect(db.store.userCardUsageShards).toHaveLength(
+        CARD_USAGE_TOTAL_SHARDS
+      );
+    } finally {
+      delete process.env.BILLING_DISABLED;
+    }
+  });
+
   test("free users with an inexact count below the limit are still gated", async () => {
     const db = makeDb();
     db.store.userCardUsage.push({

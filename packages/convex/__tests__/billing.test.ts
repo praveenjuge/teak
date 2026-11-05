@@ -79,6 +79,33 @@ describe("billing.ts", () => {
     expect(url).toBe("https://portal.example");
   });
 
+  test("with billing off, checkout and the portal are refused before Polar is called", async () => {
+    mockCheckoutsCreate.mockClear();
+    mockCustomerSessionsCreate.mockClear();
+    const module = await import("../billing");
+    const ctx = { runQuery: mock(), runMutation: mock() } as any;
+    process.env.BILLING_DISABLED = "true";
+    try {
+      for (const run of [
+        () =>
+          module.createCheckoutLinkHandler(ctx, {
+            productId: POLAR_PLAN_IDS.production.monthly,
+          }),
+        () => module.createCustomerPortalHandler(ctx),
+      ]) {
+        const error = await run().catch((caught: unknown) => caught);
+        expect((error as { data?: unknown }).data).toEqual(
+          module.BILLING_DISABLED_ERROR
+        );
+      }
+      expect(ctx.runQuery).not.toHaveBeenCalled();
+      expect(mockCheckoutsCreate).not.toHaveBeenCalled();
+      expect(mockCustomerSessionsCreate).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.BILLING_DISABLED;
+    }
+  });
+
   test("uses sandbox server by default", () => {
     const originalProd = process.env.POLAR_SERVER;
     delete process.env.POLAR_SERVER;
