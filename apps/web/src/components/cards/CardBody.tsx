@@ -159,7 +159,7 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
       </span>
       <blockquote
         className={cn(
-          "line-clamp-6 text-pretty break-words font-serif leading-[1.22] tracking-[-0.01em]",
+          "line-clamp-5 text-pretty break-words font-serif leading-[1.22] tracking-[-0.01em]",
           quoteSizeClass(quote)
         )}
         dir="auto"

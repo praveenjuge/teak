@@ -5,7 +5,7 @@ Every card in the web grid that isn't an image or a video is a white tile of one
 ## Sub-features
 
 - `tile-note` shows a note's first line as a heading and fades the rest out at the tile's bottom; a short note with no heading (80 characters or fewer) is set large. A note clipped from a page names its site at the bottom of the tile. An empty note reads "Empty note".
-- `tile-quote` sets a quote in serif type after a red opening quote mark, smaller as it grows (short, medium, long), so each fills the same tile. A quote with a source names its site at the bottom.
+- `tile-quote` sets a quote in serif type after a red opening quote mark, smaller as it grows (short, medium, long, up to five lines), so each fills the same tile. A quote with a source names its site at the bottom.
 - `tile-link` fills a link's tile with its preview image or screenshot. A screenshot or banner much wider than the tile keeps its top left. A link without an image gets a cover: its favicon at the top left, its title in serif (up to three lines; the address when it has no title yet) and its site name. The line under the tile shows the favicon (a globe when the site has none), the name and the done mark ("Marked as read", "Marked as bought"…). A link's notes and description aren't on the tile; they're in the card.
 - `tile-badge` puts the price ("$79.00"), a video's length (play icon plus "0:42"), an audio's format and length ("M4A · 0:17") and a document's file type ("PDF") in the same pill at the bottom left. A video's pill hides while the video plays on hover.
 - `tile-media` shows images and videos without a border, cropped to their own shape between 3:4 and 16:9, with a faint edge so a white image doesn't melt into the page.
