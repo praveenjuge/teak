@@ -121,8 +121,13 @@ test("on a phone the sidebar is a drawer that closes after navigating", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
   const drawer = browser.locator('[data-mobile="true"]');
+  // The page paints before hydration wires the toggle's handler; live
+  // cards carry data-card-id and only render after the app is live.
+  await expect(browser.locator("[data-card-id]").first()).toBeVisible({
+    timeout: 30_000,
+  });
   await screen.getByRole("button", "Toggle sidebar").click();
-  await expect(drawer).toBeVisible();
+  await expect(drawer).toBeVisible({ timeout: 30_000 });
   await browser.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
 
