@@ -194,6 +194,10 @@
   // deploy script adds the rest (CONVEX_SITE_URLS, FILES_PUBLIC_ORIGIN and
   // the optional ones) from self-host/.env as --var flags.
   "vars": {
+    // Workers AI calls go through the account's `default` AI Gateway, which
+    // AI Gateway creates on the first call, so there's nothing to set up.
+    // Set AI_GATEWAY_ID in self-host/.env to use another gateway.
+    "AI_GATEWAY_ID": "default",
     "MEDIA_RENDERER_INSTANCES": "4",
     "LINK_FETCHER_INSTANCES": "4",
     "AI_USAGE_DATASET": "teak_ai_usage",

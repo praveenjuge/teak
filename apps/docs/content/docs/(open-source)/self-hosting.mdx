@@ -248,7 +248,7 @@ Copy `apps/core-worker/self-host/example.env` to `self-host/.env` and fill it in
 | `INBOUND_EMAIL_DOMAIN` | Optional. The [Save by email](#save-by-email-optional) subdomain |
 | `ANALYTICS_ACCOUNT_ID` | Optional. Your Cloudflare account ID, for the hourly AI usage rollup |
 | `POSTHOG_PROJECT_TOKEN` | Optional. Your own PostHog project token; unset sends nothing |
-| `AI_GATEWAY_ID` | Optional. An [AI Gateway](https://developers.cloudflare.com/ai-gateway/) for Workers AI calls; unset calls Workers AI directly |
+| `AI_GATEWAY_ID` | Optional. The [AI Gateway](https://developers.cloudflare.com/ai-gateway/) Workers AI calls go through. Unset uses your account's `default` gateway, which AI Gateway creates on the first call; a gateway with any other name must exist before you deploy |
 
 The Cron Trigger schedules in `triggers.crons` must equal the Cloudflare schedules in `packages/convex/cronSchedules.ts`; a Convex test checks them.
 

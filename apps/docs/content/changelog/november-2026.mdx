@@ -88,6 +88,7 @@ changelog:
 ## Self-hosting: deploy the Core Worker without editing its config
 
 - A self-hosted Core Worker now deploys from its own config with `bun run deploy:self-host`, which reads your values from `apps/core-worker/self-host/.env`. You no longer edit `wrangler.jsonc`, so updates pull cleanly, and the first deploy creates the R2 bucket and KV namespaces for you. See [Core Worker](/docs/self-hosting#core-worker).
+- AI calls from a self-hosted Core Worker go through your account's `default` AI Gateway, which Cloudflare creates on the first call, so there's no gateway to create before you deploy. Set `AI_GATEWAY_ID` in `self-host/.env` to use another one.
 - A Core Worker you already deploy from an edited `wrangler.jsonc` keeps working. The new config deploys a separate Worker named `teak-core-worker` with its own bucket, so use it for a new install.
 
 ## Fixes
