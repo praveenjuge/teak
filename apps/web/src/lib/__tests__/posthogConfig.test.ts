@@ -80,6 +80,7 @@ describe("web PostHog configuration", () => {
       capture_heatmaps: false,
       capture_pageview: "history_change",
       capture_performance: { network_timing: false, web_vitals: true },
+      enable_recording_console_log: false,
       person_profiles: "identified_only",
       session_recording: {
         maskAllInputs: true,

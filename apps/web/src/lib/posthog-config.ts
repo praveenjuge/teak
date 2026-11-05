@@ -234,6 +234,9 @@ export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
   capture_performance: { network_timing: false, web_vitals: true },
   custom_personal_data_properties: MASKED_URL_PARAMS,
   defaults: "2026-08-30",
+  // Unset, the project's remote setting decides; pinned off like
+  // `recordHeaders` so a settings toggle can't put console output in replays.
+  enable_recording_console_log: false,
   mask_personal_data_properties: true,
   person_profiles: "identified_only",
   persistence: "localStorage+cookie",
