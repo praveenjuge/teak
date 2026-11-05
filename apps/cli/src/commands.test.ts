@@ -2136,7 +2136,8 @@ describe("teak design rules", () => {
   test("-n and --next page a listing; the old --cursor still works", async () => {
     routes.set("GET /v1/cards", emptyPage);
     await teak("ls", "-n", "5", "--next", "c_2");
-    await teak("ls", "--cursor", "c_3");
+    const old = await teak("ls", "--cursor", "c_3");
+    expect(old.stderr).toContain("Warning: --cursor is now --next");
     const sent = requests.map(
       (request) => new URLSearchParams(request.path.split("?")[1])
     );
@@ -2352,7 +2353,7 @@ describe("teak design rules", () => {
     );
     const retry = result.stderr.trim().split("\n").at(-1) ?? "";
     expect(retry).toBe(
-      `Retry the failed ones: teak --api-url ${url} --api-key <API_KEY> restore gone`
+      `Retry the failed ones: teak --api-url ${url} --api-key '<API_KEY>' restore gone`
     );
     expect(result.stderr).not.toContain(API_KEY);
   });

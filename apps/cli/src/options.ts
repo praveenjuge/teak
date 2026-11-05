@@ -194,7 +194,13 @@ export const cursorOption = (options: Record<string, unknown>) => {
   if (typeof options.next === "string") {
     return options.next;
   }
-  return typeof options.cursor === "string" ? options.cursor : undefined;
+  if (typeof options.cursor !== "string") {
+    return;
+  }
+  if (options.json !== true) {
+    process.stderr.write("Warning: --cursor is now --next\n");
+  }
+  return options.cursor;
 };
 
 const strings = (value: unknown): string[] | undefined =>

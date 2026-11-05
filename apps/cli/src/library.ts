@@ -174,10 +174,11 @@ const writeBatch = (
 };
 
 // A retry goes to the same deployment and account as the run it repeats. The
-// key itself never appears: a placeholder says to pass it again.
+// key itself never appears: a quoted placeholder (unquoted, a shell would
+// read <API_KEY> as a redirect) says to pass it again.
 const targetFlags = (options: GlobalOptions) => {
   const url = options.apiUrl ? ` --api-url ${shellArg(options.apiUrl)}` : "";
-  const key = options.apiKey ? " --api-key <API_KEY>" : "";
+  const key = options.apiKey ? " --api-key '<API_KEY>'" : "";
   return `${url}${key}`;
 };
 
