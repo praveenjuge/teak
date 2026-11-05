@@ -7,7 +7,7 @@ related:
   - /docs/testing
 ---
 
-The web app (`apps/web`), the browser extension (`apps/extension`), the card view MCP clients show (`packages/mcp-app`) and the Apple and Android apps (`apps/apple`, `apps/android`) are translated into Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Simplified Chinese. Every word people read comes from the catalogs in `packages/i18n` (`@teak/i18n`). Raycast, these docs and emails are in English. To choose a language in the app, see [Language](/docs/features#language).
+The web app (`apps/web`), the browser extension (`apps/extension`), the card view MCP clients show (`packages/mcp-app`) and the Apple and Android apps (`apps/apple`, `apps/android`) are translated into Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Simplified Chinese. Every word people read comes from the catalogs in `packages/i18n` (`@teak/i18n`). Raycast, these docs and emails are in English ([What stays English](#what-stays-english)). People choose a language as in [Language](/docs/features#language).
 
 ![Settings → Appearance with the language menu open, listing Teak's eight languages](../images/language.webp)
 
@@ -48,7 +48,7 @@ The Apple and Android apps read the same catalogs, converted to each platform's 
   ```
 
   `apps/apple/tests/i18n.test.ts` and `apps/android/tests/i18n.test.ts` fail when the generated files drift, and when a `tr` or `UiText.of` call names a missing key or passes the wrong values.
-- **Language.** The apps follow the account's language, like the web. Settings → Language changes it, and so does the system's per-app language list (iOS, macOS, Android 13 and later), which the app saves to the account on its next launch. Signed out, they follow the device. Dates and numbers format in the app's language: `AppLanguage.locale` on Apple, the configuration's locale on Android.
+- **Language.** The apps follow the account's language, and save the system's per-app language to the account on their next launch. Dates and numbers format in the app's language: `AppLanguage.locale` on Apple, the configuration's locale on Android.
 
 ## Writing messages
 
@@ -62,14 +62,16 @@ The Apple and Android apps read the same catalogs, converted to each platform's 
 
 ## What stays English
 
-- "Teak", plan names where the glossary says so, and search syntax: qualifiers (`is:fav`, `type:image`, `tag:`) and date words, which people type.
+- **Teak** and **Pro**.
+- Search syntax people type: qualifiers (`is:fav`, `type:image`, `tag:`, `folder:`), `OR`, and date words (`today`, `last week`).
+- Key names in shortcuts (⌘, Shift, Esc, Enter).
+- Phrases people type to confirm, such as "delete account".
 - Text the server stores on cards: link facts, bylines, price labels, import errors.
 - Developer surfaces: the public API, MCP tool descriptions and CLI output.
-- Phrases people type to confirm, such as "delete account".
 
 ## Dates and numbers
 
-Format with `Intl`, passing `useIntlLocale()` as the locale (or `intlLocale(locale, …)` outside React). In English it returns the locale the code used before translation: `useIntlLocale()` gives `undefined` (the browser's locale) and `useIntlLocale("en-US")` gives `"en-US"`, so English output doesn't change. Never write a fixed `"en-US"`; lint flags it.
+Format with `Intl`, passing `useIntlLocale()` as the locale (or `intlLocale(locale, …)` outside React). In English, `useIntlLocale()` gives `undefined` (the browser's locale) and `useIntlLocale("en-US")` gives `"en-US"`. Never write a fixed `"en-US"`; lint flags it.
 
 ## Lint
 
@@ -79,16 +81,7 @@ Format with `Intl`, passing `useIntlLocale()` as the locale (or `intlLocale(loca
 
 ## Glossary
 
-Use these terms in every catalog, so a word means the same thing on every screen.
-
-Never translate:
-
-- **Teak**, the product name.
-- **Pro**, the paid plan's name.
-- Search syntax people type: qualifiers (`is:fav`, `type:image`, `tag:`, `folder:`), `OR`, and date words (`today`, `last week`).
-- Key names in shortcuts (⌘, Shift, Esc, Enter).
-
-Translate meaning, not words: short UI labels stay short. Keep ICU placeholders, tag names and plural categories exactly. Use sentence case where the language has case, and the language's own punctuation.
+Use these terms in every catalog, so a word means the same thing on every screen, and never translate [what stays English](#what-stays-english). Translate meaning, not words: short UI labels stay short. Keep ICU placeholders, tag names and plural categories exactly. Use sentence case where the language has case, and the language's own punctuation.
 
 | Language | Register |
 |---|---|

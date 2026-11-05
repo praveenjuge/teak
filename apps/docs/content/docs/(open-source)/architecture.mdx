@@ -7,7 +7,7 @@ related:
   - /docs/development
 ---
 
-Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudflare Worker handles files, background work and email. This page is the map: where each piece lives, how a saved card moves through them, and the rules that hold everywhere.
+Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudflare Worker handles files, background work and email. This page maps where each piece lives, how a saved card moves through them, and the rules that hold everywhere.
 
 ![Teak's apps talk to one Convex backend; the Core Worker processes cards, serves files from R2 and handles save by email](../images/architecture.webp)
 
@@ -49,15 +49,15 @@ Every write a processing run makes carries the run's processing revision. Editin
 ## Files, AI and search
 
 - **Files** live in a private R2 bucket. Convex mints signed URLs, and the Core Worker checks them, streams the object, and handles range requests and caching. Convex holds no R2 or Workers AI credentials: every byte and AI call goes through the Worker.
-- **Media** work runs in two Containers: a media renderer (ffmpeg and poppler, for video, audio and PDF) and a link fetcher that downloads remote images and media under the same SSRF rules Convex used. Link screenshots run on Browser Run.
+- **Media** work runs in two Containers: a media renderer (ffmpeg and poppler, for video, audio and PDF) and a link fetcher that downloads remote images and media under the same SSRF rules as Convex. Link screenshots run on Browser Run.
 - **Search by meaning** uses Workers AI embeddings stored in Vectorize, one namespace per user, alongside Convex's keyword search.
-- **Background tasks** that used to be Convex crons run as the Worker's Cron Triggers; Convex keeps the table logic in internal functions the Worker calls.
+- **Scheduled work** runs mostly as the Worker's Cron Triggers, which call internal Convex functions for the table logic; `packages/convex/cronSchedules.ts` lists every schedule and where it runs.
 
 <Visibility for="agents">
 
 **Search by meaning in detail**
 
-**Model.** `@cf/google/embeddinggemma-300m` on Workers AI (a Beta model): 768 dimensions, cosine, up to 512 input tokens, so `truncateForEmbedding` cuts text to an estimated 480. The code adds the model's retrieval prompts itself (`task: search result | query: …` for queries, `title: none | text: …` for cards). The constants live in `packages/files-protocol/src/embeddings.ts`. It was chosen over bge-base-en-v1.5, bge-m3 and qwen3-embedding-0.6b on a 38-card, 33-query set with five non-English queries (Recall@5 0.977, MRR 0.965); the set is small, so treat small differences as noise. Changing the model changes the dimensions, which needs a new index and a re-embed of every card. Bump `CARD_EMBEDDING_VERSION` for any change to the model, the prompts or the text a card is embedded from.
+**Model.** `@cf/google/embeddinggemma-300m` on Workers AI (a Beta model): 768 dimensions, cosine, up to 512 input tokens, so `truncateForEmbedding` cuts text to an estimated 480. The code adds the model's retrieval prompts itself (`task: search result | query: …` for queries, `title: none | text: …` for cards). The constants live in `packages/files-protocol/src/embeddings.ts`. It beat bge-base-en-v1.5, bge-m3 and qwen3-embedding-0.6b on a small 38-card, 33-query set that included non-English queries (Recall@5 0.977, MRR 0.965). Changing the model changes the dimensions, which needs a new index and a re-embed of every card. Bump `CARD_EMBEDDING_VERSION` for any change to the model, the prompts or the text a card is embedded from.
 
 **Index.** Each shard is one Vectorize index, `teak-cards-<shard>` (768 dimensions, cosine, one string metadata index `type`), bound in the Core Worker as `CARD_VECTORS_<shard>`. A new shard needs the metadata index before its first vector: `npx wrangler vectorize create-metadata-index teak-cards-<shard> --property-name=type --type=string`. Each user is one namespace named by their Teak user ID (prefixed with the deployment's R2 key prefix, so dev uses `dev/<userId>`); one index holds 50,000 namespaces and 20 million vectors. `vectorShards` (`packages/convex/vectorShards.ts`) keeps each user on the shard they were first placed on; new users go to `CURRENT_VECTOR_SHARD`.
 
@@ -83,7 +83,7 @@ The Monday `sweep-orphaned-objects` cron first runs `embedding/sweep:sweepVector
 
 - Only free words of 2 or more characters make a vector call (`semanticQueryText`, at most 500 characters).
 - `semanticSearchResults` caches each ranking (up to 100 cards) for 10 minutes, keyed by a hash of the version and text, so search text is never stored.
-- Queries can't call the Worker: the web grid calls `search/semanticActions:requestSemanticResults` beside `searchCardsPaginated`, and the query merges the ranking when it lands. `GET /v1/cards` fetches the ranking first (1.5 s timeout). The native apps read the cache but nothing fills it for them yet.
+- Queries can't call the Worker: the web, Apple and Android apps call `search/semanticActions:requestSemanticResults` beside their card query, which merges the ranking when it lands. `GET /v1/cards` fetches the ranking first (1.5 s timeout).
 - Fusion is reciprocal rank (`1 / (60 + rank)` per side); meaning-only matches below `SEMANTIC_MIN_SCORE` (0.35) are dropped.
 - No Core Worker, an error or timeout, or more than 60 uncached searches a minute per user leaves the search keyword-only, logged as `[search/semantic]`.
 
@@ -101,14 +101,14 @@ Mail to `save@in.teakvault.com` arrives through Cloudflare Email Routing at the 
 
 ## Card types
 
-Teak has eight card types: text, link, image, video, audio, document, palette and quote. Every surface handles all eight, and tolerates values it doesn't know yet, because the native apps update on their own schedule.
+Teak has eight card types: text, link, image, video, audio, document, palette and quote. Every surface handles all eight and tolerates values it doesn't know ([Adding a Feature](/docs/adding-a-feature#convex-data)).
 
 ## Rules every change keeps
 
 - Client reads use the cached Convex query hooks; writes use Convex mutations or actions.
 - Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
 - The web app owns its UI in `apps/web/src`. The browser extension keeps its own small copies of the button, wordmark and theme tokens. Pure helpers that several surfaces share (web, docs, extension, native ports) go in `packages/convex/shared`.
-- The Apple and Android apps port the same pure logic (filters, card edits, Markdown blocks, date search) with the same test cases, so a behavior change on one is ported to the other.
+- The Apple and Android apps port the same pure logic (Apple's `TeakCore`, Android's `core:model`: filters, card edits, Markdown blocks, save links, date search, grid rules) with the same test cases. A behavior change on one is ported to the other.
 - Card processing keeps its workflow retries, the processing-revision guard on every write, and a consistent `processingStatus`.
 - Workflow step names are durable history: a step is never renamed, and new steps go after the existing ones.
 - Every package moves in lockstep: one version across every manifest for each release.
@@ -134,11 +134,11 @@ The web app owns all of its UI; nothing under `src` is shared with another works
 | `lib/` | Modules without UI: search state, optimistic query updates, shortcuts, the cached Convex query hooks, uploads, auth and security headers. |
 | `constants/`, `styles/` | Static values; the theme tokens, prose styles and fonts. |
 
-Import with the `@/` alias when you leave a feature folder. Tests live in a `__tests__` folder beside the code; `bun run test` runs them with `bun test --parallel`, which gives each file a fresh global, because tests register happy-dom and module mocks globally.
+Import with the `@/` alias when you leave a feature folder. Tests go in a `__tests__` folder beside the code ([Testing](/docs/testing#where-files-go)).
 
 ### Convex backend (`packages/convex`)
 
-Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex rules override general guidance. Any migration or backfill needs the owner's explicit approval. Tables and indexes live in `schema.ts` (validators in `schema/validators/`), scheduled jobs in `crons.ts`. Bun unit tests go in `__tests__/` mirroring the source path (colocated `*.test.ts` files don't run); database, auth and component behavior uses `convex-test` in `edge/*.test.ts`.
+Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex rules override general guidance. Tables and indexes live in `schema.ts` (validators in `schema/validators/`), schedules in `cronSchedules.ts`. Schema changes, indexes and backfills follow [Adding a Feature](/docs/adding-a-feature); tests follow [Testing](/docs/testing#where-files-go).
 
 ### Apple app (`apps/apple`)
 
@@ -159,8 +159,6 @@ Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex ru
 - Modules follow Now in Android: `app`, `core:model`, `core:data`, `core:designsystem`, `core:testing`, one `feature:*` per area, shared setup in `build-logic`, versions in `gradle/libs.versions.toml`. Each ViewModel exposes one `StateFlow` UI state; build ViewModels inside a test, not in a field initializer, so `MainDispatcherRule` applies.
 - Convex calls go through `ConvexApi` with an entry from `ConvexFunctions`; `LiveConvexApi` sends every number as a `Double`. Shared constants live in the generated `SharedConstants.kt`; regenerate with `bun --no-env-file run apps/android/scripts/shared-constants.ts --write`.
 - Sign-in builds the PKCE URL with the WorkOS SDK, but posts the code exchange and refresh itself without `client_secret` (SDK 0.4.0 always sends one). Sessions are encrypted with an Android Keystore key in no-backup storage. JNA stays pinned to 5.17 or newer for 16 KB-page devices.
-
-Pure logic in Apple's `TeakCore` and Android's `core:model` (filters, card edits, Markdown blocks, save links, date search, grid rules) shares test cases: port a change in both directions.
 
 ### Raycast extension (`apps/raycast`)
 

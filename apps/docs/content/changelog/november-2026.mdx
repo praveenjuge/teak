@@ -1,100 +1,67 @@
 ---
 title: "November 2026"
-description: Teak for Android on Google Play, pin up to 12 cards to the top of your library, folders that tag and file your cards, a card's actions move beside it, into its details, a list-style Settings, a calmer browser extension popup, quicker capture on the Mac, and a round of fixes to saving, search, Trash, imports and Settings.
+description: Teak for Android on Google Play, pinned cards, folders that tag and file cards for you, a calmer card view, Settings and extension popup, and quicker capture on the Mac.
 type: changelog
 date: "2026-11-05"
 changelog:
   category: Product updates
 ---
 
-## Teak for Android is on Google Play
+## Teak for Android
 
-- Get Teak on [Google Play](https://play.google.com/store/apps/details?id=com.praveenjuge.teak) for phones and tablets running Android 12 or newer, and sign in with Google, Apple or email. See [Android](/docs/android).
-- Share links, text, photos, videos and files into Teak from any app, or select text and choose **Save to Teak**. Uploads keep going in the background with a progress notification.
-- It's the same library as on the web, iPhone and Mac: search, folders, tags, Revisit, Archive and Trash, with Material You colors on request and changes that sync when you're back online.
+- Get Teak on [Google Play](https://play.google.com/store/apps/details?id=com.praveenjuge.teak) for Android phones and tablets, and sign in with Google, Apple or email. See [Android](/docs/android).
+- Share links, text, photos, videos and files into Teak from any app, or select text and choose **Save to Teak**.
+- It's the same library as on the web, iPhone and Mac, and it keeps working offline.
 
-## Keep up to 12 cards at the top of your library
+## Pin cards to the top
 
-- On the web, pin a card to keep it in a **Pinned** row above **Everything**: right-click it, or open **More** on it or in its details, and choose **Pin to top**, or press `P`. Drag a pinned card to put the row in the order you want, or move it with `Alt` and an arrow key. See [Pinned cards](/docs/features#pinned-cards).
-- Pinned cards leave the grid below, so nothing shows twice. Searches, filters, Favorites and folders show a pinned card where it ranks, with a pin in its corner, and `is:pinned` finds them all.
-- Archiving a card or moving it to Trash unpins it. Favorites stay as they are: a card can be both.
-- Agents and scripts pin, list and reorder pins through the [API](/docs/api#pinned-cards), MCP, SDK and CLI (`teak pin`, `teak cards pins`), and exports keep which cards were pinned.
+- On the web, pin up to 12 cards to keep them in a **Pinned** row above **Everything**: choose **Pin to top** from a card's menu, or press `P`. Drag pinned cards to reorder them. See [Pinned cards](/docs/features#pinned-cards).
+- Search `is:pinned` to find them all. Favorites and pins are separate, so a card can be both.
 
 ## Folders that tag and file cards for you
 
-- A folder can now have rules. Open its **Edit…** dialog and choose **Add a rule**: add tags that every card put in the folder gets, or a search such as `tag:typography`, and Teak files matching cards into the folder once it has read them. See [Folder rules](/docs/features#folder-rules).
-- Saving a rule applies it to the cards you already have and tells you how many it updated, with **Undo**. **Undo last run** stays in the dialog for a day, and a card or tag you take out by hand stays out.
-- **API, MCP, SDK and CLI:** folders include their `rules`, can set them when created or updated, and can follow or undo a rule run (`teak folders rules`). See [Folder rules](/docs/api#folder-rules).
+- Give a folder rules: tags that every card put in it gets, or a search whose matching cards Teak files into it automatically. See [Folder rules](/docs/features#folder-rules).
+- Saving a rule applies it to the cards you already have, with **Undo**.
 
-## A card's actions sit beside it
+## A calmer card view
 
-- On the web, an open card no longer has a bar across its top. Its details beside it now start with where the card is from, its type and its title, which wraps onto a few lines instead of being cut off. Under the title are **Open** (or **Download**) and a row of labelled buttons: **Favorite**, **Done** for a link (it marks the link read, watched, bought and so on), **Copy**, **Folder** and **More**. Scroll the details and the buttons stay pinned to the top in one line. See [Cards](/docs/features#grid).
-- Photos and videos fill the card, with nothing over them when you point at them.
-- To change a link's address, click the pencil beside its URL in **Details**. **Replace** and **Reset** for a link's image sit beside **Image** there too.
-- A card in Trash shows **Restore** and **Delete forever** at the top of its details.
-- The details now stay beside the card on wide screens, so `I` no longer hides them.
+- On the web, an open card's actions now sit in its details, under its title: **Open** or **Download**, then **Favorite**, **Done**, **Copy**, **Folder** and **More**. They stay in view as you scroll. See [Grid](/docs/features#grid).
+- Photos and videos fill the card with nothing laid over them.
+- Change a link's address or image from its **Details**.
 
-## A calmer Settings
+## A calmer Settings and extension popup
 
-- Every Settings page on the web is now a short list: each setting's name on the left and its control on the right, grouped into rounded cards, with less explanatory text. The pages in the Settings menu have colored icons, and **Integrations** and **Security** show apps and devices with their own icons.
-- **Appearance** picks **System**, **Light** or **Dark** from one control, next to the language, and **Save by email** turns on and off with a switch.
-- **Account** shows your plan and cards used, the keyboard shortcuts, and Docs, Changelog, Help and the version in one list. The apps and browser extensions now live on **Integrations** only.
-- **Plan** puts Yearly first. On Pro it opens with a short thank-you card, and **Billing** opens your subscription.
-
-## A calmer extension popup
-
-- In Chrome and Firefox, the popup now shows what you're saving: the page's icon and title with its site, or the file's name and size. Its tags and note sit in the same card, and the line above it says whether it's saving, saved or already in your Teak. See [Browser extension](/docs/extension#auto-save-on-open).
-- **Open Teak**, **Upload file** and **Sign out** moved into the **⋯** menu at the top, and your email shows at the top of that menu.
+- Every Settings page on the web is a short, scannable list, and **Appearance** picks System, Light or Dark in one place.
+- In Chrome and Firefox, the extension popup shows what you're saving, with its tags and note, and whether it's saved or already in Teak. **Open Teak**, **Upload file** and **Sign out** moved into its **⋯** menu. See [Browser extension](/docs/extension).
 
 ## Quicker capture on the Mac
 
-- **New Note** (⌘N) now opens the small Quick Capture window, which follows your Light or Dark setting. Its placeholder lines up with where you type. See [Saving](/docs/mac#saving).
-- **Voice Memo** (⇧⌘R) records in its own small window that stays above other apps, and it's in the menu bar item's menu too.
-- Drop something on the menu bar icon and it shows an arrow while it saves, then a check. Dropping a file there no longer crashes Teak.
-- **New folder** is now the last row of **Folders** in the sidebar, and the note, notes and tag fields in **Edit card** keep your text on the left.
+- **New Note** (⌘N) opens the small Quick Capture window, and **Voice Memo** (⇧⌘R) records in a small window that stays on top. See [Mac](/docs/mac#saving).
+- Dropping something on the menu bar icon shows when it's saved.
 
-## Saving is harder to lose
+## Saving and search
 
-- A note you're typing in the box at the top of your cards stays there through a reload until you save it or clear it. Press **Esc** to leave the box, so single-key shortcuts work again.
-- Pasting a list of links with repeats saves each link once, and the count says so before you save.
-- Saving a link that's in Trash offers **Restore** instead of quietly making a second copy.
-- When some uploads fail, the message names every file and says why in plain words, and the file picker only offers files Teak can save.
-- Press **R** to record audio. In a note, a table's **⋯** button no longer covers the header, and `[[` lists the closest title match first without covering **Save**.
-
-## Cards, selection and Trash
-
-- Right-clicking a card always opens its menu; releasing the button no longer picks the item under the pointer.
-- Clicking a tag on an open card shows every card with that tag.
-- Card previews read cleanly, with no stray Markdown symbols, and headings and lists read as sentences.
-- With cards selected, ⌘A (Ctrl+A) selects every card shown. In Trash you can select cards and **Delete forever** them together, and Trash says cards are deleted after 30 days.
-- Inside a folder, **Remove from this folder** is in each card's menu, with Undo.
-- Highlights snap to whole words, and the reader leaves out pages' own **[edit]** and **Read more** buttons.
-
-## Search finds what you asked for
-
-- A smart folder lists exactly the cards its search listed.
-- `type:` understands everyday words like `note`, `pdf`, `photo` and `bookmark`, and an unknown type shows a chip saying so. A date beside other words, like `kestrel last week`, becomes a date filter plus the word.
-- Searches show how many cards match and how many are related by meaning, with **Hide related**. When nothing matches, Teak suggests a close tag or title and lets you remove one filter at a time.
-- The command palette always offers to search everything for what you typed.
-- **View** has a **Compact** density. `G` then `L` opens Tags, and the shortcuts sheet lists the search filters.
-
-## Imports, Settings and devices
-
-- A CSV with a broken quote now imports every other row and lists the broken one. Semicolon-separated files import, lines in a text file that aren't links are listed instead of dropped, and **Last import** shows the file's name. See [Import](/docs/import).
-- Teak no longer writes a summary or tags for a link whose page couldn't be reached.
-- API keys can have names. **Security** lists this device first with when each device was last active, in your language, and **Sign out other devices** signs out everything but this one.
-- Keyboard focus is easy to see on every button, a **Skip to content** link comes first, and each Settings page reads its own name aloud.
-
-## Self-hosting: deploy the Core Worker without editing its config
-
-- A self-hosted Core Worker now deploys from its own config with `bun run deploy:self-host`, which reads your values from `apps/core-worker/self-host/.env`. You no longer edit `wrangler.jsonc`, so updates pull cleanly, and the first deploy creates the R2 bucket and KV namespaces for you. See [Core Worker](/docs/self-hosting#core-worker).
-- AI calls from a self-hosted Core Worker go through your account's `default` AI Gateway, which Cloudflare creates on the first call, so there's no gateway to create before you deploy. Set `AI_GATEWAY_ID` in `self-host/.env` to use another one.
-- A Core Worker you already deploy from an edited `wrangler.jsonc` keeps working. The new config deploys a separate Worker named `teak-core-worker` with its own bucket, so use it for a new install.
-- A self-hosted Teak sends no analytics or error reports until you give it your own PostHog token. A web app that isn't on Vercel can now report to your project too: set `TEAK_ANALYTICS_ENABLED=true` alongside `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`. See [Telemetry](/docs/self-hosting#telemetry-optional).
-- A self-hosted Teak no longer needs Polar. Set `BILLING_DISABLED=true` on Convex and every account gets Pro with no card limit, and **Plan** leaves Settings. See [Billing](/docs/self-hosting#billing-optional).
+- A note you're typing at the top of your library survives a reload until you save or clear it.
+- Pasting a list of links with repeats saves each link once, and saving a link that's in Trash offers to restore it.
+- When uploads fail, Teak names each file and says why.
+- Search understands everyday words like `note`, `pdf` and `photo`, and a date beside other words, like `kestrel last week`, filters by date.
+- Searches show how many cards match and how many are related by meaning, and when nothing matches, Teak suggests a close tag or title.
+- **View** has a **Compact** card size.
+- Imports handle more messy files and tell you which lines they skipped. See [Import](/docs/import).
 
 ## Fixes
 
-- On the Mac, **Upgrade…** and **Manage…** open your **Plan** page on the web instead of Settings.
-- At the card limit, the browser extension's toolbar icon explains the limit in your language.
-- **Settings → Security** now lists every signed-in device when you have more than 25, with **Show more devices** for the rest, instead of "Could not load devices." Signing out a device works on accounts with more than 100 sign-ins too.
+- Right-clicking a card always opens its menu, and clicking a tag on an open card shows every card with that tag.
+- Select every card shown with ⌘A, and delete several cards in Trash together.
+- Highlights snap to whole words.
+- Teak no longer writes a summary or tags for a link whose page couldn't be reached.
+- **Security** lists every signed-in device, this one first, and **Sign out other devices** signs out the rest.
+- Keyboard focus is easier to see, and a **Skip to content** link comes first.
+
+## For developers and self-hosters
+
+- Pins and folder rules are in the API, MCP, SDK and CLI.
+- API keys can have names.
+- A self-hosted Core Worker now deploys without editing its config, so updates pull cleanly. Existing installs keep working. See [Self-hosting](/docs/self-hosting#core-worker).
+- A self-hosted Teak sends no analytics until you add your own PostHog token, and a web app off Vercel can report to it too. See [Telemetry](/docs/self-hosting#telemetry-optional).
+- A self-hosted Teak no longer needs Polar: turn billing off and every account gets Pro with no card limit. See [Billing](/docs/self-hosting#billing-optional).

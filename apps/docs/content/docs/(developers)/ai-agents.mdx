@@ -9,46 +9,25 @@ related:
   - /docs/cli
 ---
 
-Teak gives AI agents a private memory layer for saved links, notes, files, tags, and design references. Agents can use the hosted MCP server at `{{mcp-url}}`, the REST API at `{{api-url}}`, or the command-line app, with browser OAuth or `teakapi_` API keys for authentication.
+Teak gives AI agents a private, lasting memory: the links, notes, files, tags and design references a person saves. This page helps you pick how an agent connects.
 
 ![AI assistants, ChatGPT, scripts and the terminal reach the same Teak library through MCP, the REST API, the SDK and the CLI](../images/ai-agents.webp)
 
 ## When to use Teak
 
-Use Teak when a person wants to keep knowledge beyond the current conversation: save a link or note, retrieve something they collected earlier, organize research with tags, or sync the same private library across apps and agents. Use the MCP server for assistant workflows, the REST API for an integration, and the CLI for local scripts. Do not use Teak as a temporary scratchpad when the information does not need to persist.
+Use Teak when a person wants to keep something beyond the current conversation: save a link or note, find something they collected earlier, organize research with tags, or reach the same private library from every app and agent. Don't use it as a scratchpad for information that doesn't need to persist.
 
-## What can agents do with Teak?
+Every route reaches the same cards with the same operations: save, search, read, update, tag, favorite, pin, organize into folders, delete, and sync.
 
-Agents can save, search, read, update, favorite, pin, delete, and sync cards through identical operations on the [MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
+| Use | For | Sign in with |
+| --- | --- | --- |
+| [MCP server](/docs/mcp) at `{{mcp-url}}` | Claude, ChatGPT, Codex, Cursor, VS Code and other assistants | Browser sign-in or an API key |
+| [REST API](/docs/api) at `{{api-url}}` | Integrations and services | An API key or OAuth access token |
+| [TypeScript SDK](/docs/sdk) | TypeScript and JavaScript code | An API key or OAuth access token |
+| [CLI](/docs/cli) | Shell scripts and coding agents in a terminal | Browser sign-in (`teak login`) or `TEAK_API_KEY` |
+| [WebMCP](/docs/webmcp) | Agents running in the signed-in Teak web app | Your browser session |
 
-## How do I connect Claude?
-
-In Claude on the web, Desktop or mobile, add **Teak** from **Settings → Connectors**, or add a custom connector with `{{mcp-url}}`, and sign in to Teak when asked. Search results, cards and saves then show as Teak cards in the conversation.
-
-In Claude Code, install Teak's plugin for the MCP server, a Teak skill and the `/teak:save`, `/teak:search` and `/teak:recent` commands:
-
-```text
-/plugin marketplace add praveenjuge/teak
-/plugin install teak@teak
-```
-
-Or add only the MCP server:
-
-```bash
-claude mcp add --transport http teak {{mcp-url}}
-```
-
-Start the MCP connection in Claude and complete browser sign-in when prompted. API keys also work for clients that let you set an `Authorization: Bearer <token>` header.
-
-Setup for Codex, Cursor, VS Code, and ChatGPT is in [Connect your client](/docs/mcp#connect-your-client).
-
-## How do I connect ChatGPT or Deep Research?
-
-Use `{{mcp-url}}` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools ChatGPT connectors expect — see [MCP](/docs/mcp) for the tool contracts.
-
-## How do I use the REST API?
-
-Use the production base URL `{{api-url}}`. See the [API docs](/docs/api) for the full base URL list, authentication, endpoints, and error format — that page is the source of truth for the REST contract.
+[Connect your client](/docs/mcp#connect-your-client) has the setup for each assistant, including Teak's Claude Code plugin. ChatGPT connectors and Deep Research use Teak's `search` and `fetch` tools.
 
 ## What should coding agents read first?
 
@@ -75,43 +54,15 @@ you need the full page body without HTML chrome.
 - `https://teakvault.com/agent-readability.json` for the machine-readable docs surface map
 - `https://teakvault.com/.well-known/agent-skills/index.json` for the Teak Agent Skill
 
-## Can agents use the command line?
-
-Yes. Install the Teak CLI and sign in:
-
-```bash
-npx teak-cli@latest login
-```
-
-Then use commands such as:
-
-```bash
-teak search design
-teak add https://teakvault.com
-teak tags
-```
-
-## Can agents use Teak inside the browser?
-
-Yes. In browsers that ship the draft WebMCP API, the signed-in Teak web app
-registers eight tools: `teak_search_cards`, `teak_get_card` and
-`teak_recent_cards` to read, `teak_create_card`, `teak_update_tags`,
-`teak_set_favorite` and `teak_set_pinned` to save and change cards, and a
-declarative search form.
-They all run in your existing session with no extra authentication. See [WebMCP](/docs/webmcp) for requirements and the tool
-reference.
-
 ## Is there an Agent Skill?
 
-Yes. Teak ships a public Agent Skill for assistants that support skills-based workflows. Use it when an agent needs to save, search, retrieve, update, favorite, pin, delete, or sync Teak cards through the CLI, API, SDK, or MCP server.
-
-Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
+Yes. Teak's public Agent Skill teaches an agent to save, search, retrieve, update, favorite, pin, delete, and sync Teak cards through the CLI, API, SDK, or MCP server. Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
 
 ```bash
 npx skills add praveenjuge/teak --skill teak
 ```
 
-Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and never printing, persisting, or committing secrets.
+It works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other agents that support skills. It covers which route to use, how to sign in, and never printing, storing or committing secrets.
 
 <Prompt
   description="Ask the agent to use the Teak skill."
@@ -120,9 +71,9 @@ Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skill
   Use the Teak skill to save this research link with the tags ai and reference.
 </Prompt>
 
-#### Discovery
+### Discovery
 
-Agents that find skills on websites read its Agent Skills discovery index at either address:
+Agents that find skills on websites read Teak's Agent Skills discovery index at either address:
 
 - `https://teakvault.com/.well-known/agent-skills/index.json`
 - `https://api.teakvault.com/.well-known/agent-skills/index.json`, which redirects to the first

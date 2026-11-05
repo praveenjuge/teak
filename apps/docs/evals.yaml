@@ -70,7 +70,7 @@ questions:
     question: How do I permanently delete a card with the API, and can I undo it?
     expected:
       - DELETE /v1/cards/:cardId?permanent=true
-      - It skips Trash and cannot be restored
+      - The card must already be in Trash, and a permanent delete cannot be restored
     routes: /docs/api
 
   - id: upload-size-limit

@@ -9,7 +9,7 @@ related:
   - /docs/cli
 ---
 
-`teak-sdk` is the typed client for the [Teak API](/docs/api). It is one bundle with no runtime dependencies, published to npm with the same version as the other Teak apps. The [CLI](/docs/cli), the browser extension and Raycast use it too.
+`teak-sdk` is the typed client for the [Teak API](/docs/api): one bundle with no runtime dependencies, versioned with the other Teak apps. The [CLI](/docs/cli), the browser extension and Raycast use it too.
 
 ![A TypeScript file using teak-sdk to create a card and search the library](../images/sdk.webp)
 
@@ -37,14 +37,21 @@ const page = await client.cards.search({ query: "typography" });
 
 ## What the client covers
 
-The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `archived`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`, and `addColors` and `removeColors` for a palette's colors), `setFavorite`, `pinned` (the pinned cards, first to last; `list` also takes `pinned: true`), `setPinned`, `reorderPinned` (every pinned card's id, in the new order), `setArchived`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `refresh`, `content` (pass `{ kind: "article" }` for a link's article as Markdown), `duplicate`, `bulk`, `changes`, `setThumbnail` (bytes and a MIME type, or `{ fileKey }` from `createThumbnailUpload`), and `resetThumbnail` (with a `folder` filter on the listings, and `folderIds` on `update`), plus `folders.list`, `get`, `create`, `update` (including a manual folder's rules: `autoTags`, `autoFileQuery` and `autoFileEnabled`), `delete`, `addCards`, `removeCards`, `getRuleRun(id, runId)`, and `undoRuleRun(id, runId)`, `tags.list`, `rename`, `merge`, `delete`, and `operation`, `highlights.list(cardId)`, `create(cardId, { quote, note?, prefix?, suffix? })`, `update(id, { note })` (`null` clears it), and `delete(id)`, `uploads`, `pageSnapshots.createUpload`, `me`, and `exports.start` / `exports.latest`.
+Each method calls one [API](/docs/api) operation and follows its rules, limits and errors:
 
-- Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe.
-- Teak keeps a private copy of each link's page; cards carry `archive` (`{ kind, bytes, capturedAt }`, or `null`). A browser extension can send the page it shows instead: gzip the HTML, `PUT` it to the URL from `pageSnapshots.createUpload({ bytes })` with `Content-Type: application/gzip`, and pass its `fileKey` to `cards.create` as `pageSnapshotKey`.
-- Saving a link that's already in Teak makes no second card: `cards.create` returns `status: "created"` with `resaved: true` (and `wasArchived: true` when it was archived) and the existing card, moved to the top. Tags and notes sent with it are ignored; `cards.update` adds them. Cards carry `savedAt`, when they were last saved.
-- Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`. `ERROR_CODES` lists every code. An answer that isn't JSON, such as a proxy's HTML error page, is named by its status (`UNAUTHORIZED`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`...), and `retryAt` comes from `Retry-After` when the body has none.
-- Reads, and writes sent with an `idempotencyKey`, are retried up to twice when Teak is busy (`429`, `502`, `503`, `504`, or a `409 IN_PROGRESS` replay) or the network drops, waiting as long as `Retry-After` asks, up to 5 seconds; a longer wait is returned as the error. Pass `retries: 0` to `createTeakClient` to turn this off. Writes without a key are never sent twice.
-- `formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB` or `50 MB`.
+- **Cards:** `cards.list`, `search`, `favorites`, `pinned`, `similar`, `get`, `links`, `content` (`{ kind: "article" }` for a link's article), `create`, `update`, `duplicate`, `setFavorite`, `setPinned`, `reorderPinned`, `setArchived`, `setDone`, `savePdf`, `refresh`, `setThumbnail` (bytes and a MIME type, or `{ fileKey }` from `createThumbnailUpload`), `resetThumbnail`, `delete` (`{ permanent: true }` deletes a card in Trash for good), `restore`, `bulk`, and `changes`. Listings take the same filters as [`GET /v1/cards`](/docs/api#search-and-favorites).
+- **Folders:** `folders.list`, `get`, `create`, `update` (including a manual folder's rules), `delete`, `addCards`, `removeCards`, `getRuleRun`, and `undoRuleRun`.
+- **Tags:** `tags.list`, `rename`, `merge`, `delete`, and `operation`.
+- **Highlights:** `highlights.list(cardId)`, `create(cardId, { quote, note?, prefix?, suffix? })`, `update(id, { note })`, and `delete(id)`.
+- **Everything else:** `me`, `uploads.create` and `uploads.putFile`, `exports.start` and `exports.latest`, and `pageSnapshots.createUpload`, which lets a browser extension send the page it shows as a link's [saved copy](/docs/api#saved-copies-of-pages).
+
+Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. `formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB`.
+
+## Errors and retries
+
+Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`; `ERROR_CODES` lists every code. An answer that isn't JSON, such as a proxy's HTML error page, is named by its status (`UNAUTHORIZED`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`…), and `retryAt` comes from `Retry-After` when the body has none.
+
+Reads, and writes sent with an `idempotencyKey`, are retried up to twice when Teak is busy (`429`, `502`, `503`, `504`, or a `409 IN_PROGRESS` replay) or the network drops, waiting as long as `Retry-After` asks, up to 5 seconds; a longer wait is returned as the error. Pass `retries: 0` to `createTeakClient` to turn this off. Writes without a key are never sent twice.
 
 ## Token providers
 
@@ -54,8 +61,8 @@ A `TokenProvider` has `getAccessToken()`, which returns the token for each reque
 
 The SDK includes the WorkOS Connect sign-in steps that the CLI, Raycast, and the browser extension use:
 
-- `discoverAuthServer("https://teakvault.com/api")` returns the deployment's sign-in endpoints and the client ID for your surface, in one request. You don't need it while a saved access token is still fresh: send that token to the deployment it was issued for, and discover when you refresh it, after a 401, and at sign-in and sign-out. Discover again after a sign-in or refresh failure.
-- `randomBase64Url` and `createPkceChallenge` for PKCE, and `createConnectAuthorizeUrl` for the browser step.
+- `discoverAuthServer("https://teakvault.com/api")` returns the deployment's sign-in endpoints and the client ID for your surface, in one request, and caches the result for up to 60 seconds. You don't need it while a saved access token is still fresh: send that token to the deployment it was issued for, and discover when you refresh it, after a 401, and at sign-in and sign-out. Pass `{ forceRefresh: true }` after a sign-in or refresh failure. For a cloud development backend with a local sign-in server, pass that server's loopback origin as `localIssuer`; remote metadata can't enable loopback by itself.
+- `randomBase64Url` and `createPkceChallenge` for PKCE, and `createConnectAuthorizeUrl` for the browser step. It requests the right [OAuth resource](/docs/api#authentication) for the deployment.
 - `requestConnectTokens` for code and refresh grants. It returns `refresh_token_rejected` only when WorkOS says the refresh token is no longer valid; treat other failures as temporary and keep the saved sign-in.
 - `fetchConnectOwnerId` binds the tokens to an account, and `disconnectConnectGrant` signs the surface out.
 

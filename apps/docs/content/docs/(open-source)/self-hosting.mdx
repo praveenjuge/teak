@@ -13,9 +13,11 @@ related:
 
 ## What you'll need
 
-- Git, Bun, and Node.js at the versions pinned in `package.json` (see the [Development guide](/docs/development))
-- A [WorkOS](https://workos.com/) account. Teak signs in with WorkOS AuthKit only.
-- Access to secrets for the features you want: Cloudflare R2 and Workers on Workers Paid (file storage, AI, thumbnails, screenshots and media processing), and Polar if you want to sell plans (see [Billing](#billing-optional))
+- Git, Bun, and Node.js at the versions pinned in `package.json`
+- A [Convex](https://convex.dev/) account
+- A [WorkOS](https://workos.com/) account, for sign-in
+- A Cloudflare account on Workers Paid, for files, AI, thumbnails, screenshots and media processing
+- Optionally, [Polar](https://polar.sh/) to sell plans; otherwise turn billing off ([Billing](#billing-optional))
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -25,9 +27,9 @@ public domain at it.
 
 ## Set up WorkOS
 
-Create one WorkOS environment per deployment: a staging environment for local development and a separate production environment. Replace `<origin>` with the web app's origin (`http://localhost:3000` locally) and `<convex-site>` with the deployment's `CONVEX_SITE_URL`.
+Create one WorkOS environment per deployment: a staging environment for local development and a separate production environment. Replace `<origin>` with the web app's origin (`http://localhost:3000` locally).
 
-1. In AuthKit, enable email and password sign-in. Add Google or Apple there too if you want them; Teak needs no extra settings for social sign-in.
+1. In AuthKit, enable email and password sign-in. Social sign-in, such as Google or Apple, is set up in WorkOS alone; Teak needs no settings for it. WorkOS sends the sign-in, verification and password reset emails.
 2. Under Redirects, add `<origin>/callback` as a redirect URI, set the sign-in endpoint (initiate login URL) to `<origin>/sign-in`, and set the sign-out redirect to `<origin>/sign-in`. Add `<origin>` as an allowed CORS origin.
 3. Add a JWT template so session tokens carry the claims Teak reads: the address, its verification and the name. The backend requires `email_verified: true`:
 
@@ -56,10 +58,10 @@ workos authkit logout-uris set --uri <origin>/sign-in --default <origin>/sign-in
 
 ### Connect: CLI, browser extensions, Raycast, and MCP
 
-The CLI, browser extensions, Raycast, and MCP clients sign in through WorkOS Connect. They need a few more settings.
+The CLI, browser extensions, Raycast, and MCP clients sign in through WorkOS Connect, which needs a few more settings.
 
 1. Turn on Client ID Metadata Document (CIMD) support, and dynamic client registration for MCP clients that don't support CIMD yet.
-2. Add the resource indicators `<origin>/api` and `<origin>/mcp`. These are the deployment's token audiences, and Teak rejects any other audience. `<origin>` is `WORKOS_RESOURCE_ORIGIN`, an HTTPS origin with no path or trailing slash. Unset, it is `https://teakvault.com`. Set it to your public origin, normally the same as `PUBLIC_ORIGIN`, so that the MCP resource matches the URL that MCP clients connect to. Clients that require the resource to match the server URL reject any other value.
+2. Add the resource indicators `<origin>/api` and `<origin>/mcp`. These are the deployment's token audiences, and Teak rejects any other. `<origin>` is `WORKOS_RESOURCE_ORIGIN`, an HTTPS origin with no path or trailing slash (default `https://teakvault.com`). Set it to your public origin, normally the same as `PUBLIC_ORIGIN`, so the MCP resource matches the URL MCP clients connect to.
 3. Create one public OAuth application for each first-party surface, and set its client ID on the Convex deployment:
 
    | Surface | Convex variable | Redirect URIs |
@@ -67,7 +69,7 @@ The CLI, browser extensions, Raycast, and MCP clients sign in through WorkOS Con
    | CLI | `WORKOS_CONNECT_CLI_CLIENT_ID` | `http://127.0.0.1:14210/oauth/callback`, `http://127.0.0.1:24210/oauth/callback` |
    | Raycast | `WORKOS_CONNECT_RAYCAST_CLIENT_ID` | `https://raycast.com/redirect?packageName=Extension` |
    | Chrome extension | `WORKOS_CONNECT_CHROME_CLIENT_ID` | `https://<extension-id>.chromiumapp.org/oauth/callback` |
-   | Firefox extension | `WORKOS_CONNECT_FIREFOX_CLIENT_ID` | `https://<hash>.extensions.allizom.org/oauth/callback`, from `browser.identity.getRedirectURL()` for the add-on ID. Teak doesn't publish a Firefox build, but discovery still needs this ID. |
+   | Firefox extension | `WORKOS_CONNECT_FIREFOX_CLIENT_ID` | `https://<hash>.extensions.allizom.org/oauth/callback`, from `browser.identity.getRedirectURL()` for the add-on ID |
 
 4. Set `WORKOS_AUTHKIT_DOMAIN` to the environment's AuthKit domain, an HTTPS origin such as `https://your-domain.authkit.app` with no path or port.
 
@@ -75,7 +77,7 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all four client IDs. If any 
 
 ## Quickstart (local)
 
-Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against Teak's shared development deployment and refuse any other (see the [Development guide](/docs/development)). On your own deployment, run Convex and the web app directly.
+Teak's `bun run setup`, `bun run dev` and `bun run doctor` work only against Teak's own development deployment. On your own deployment, run Convex and the web app directly.
 
 <Steps>
   <Step title="Clone and install">
@@ -94,7 +96,7 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     bunx convex dev
     ```
 
-    Choose to create a new project. `convex dev` pushes the backend, keeps watching for changes, and records the deployment in `packages/convex/.env.local`. It prints the deployment's `CONVEX_URL` and `CONVEX_SITE_URL`.
+    Choose to create a new project. `convex dev` pushes the backend, keeps watching for changes, records the deployment in `packages/convex/.env.local`, and prints its `CONVEX_URL` and `CONVEX_SITE_URL` (also under Settings → Deployment in the Convex dashboard).
   </Step>
   <Step title="Configure the backend">
     Set `SITE_URL` (`http://localhost:3000` locally), your WorkOS staging values from [Set up WorkOS](#set-up-workos), and any features you want. Run these from `packages/convex`:
@@ -112,10 +114,10 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     bunx convex env set WORKFLOW_RPC_SECRET
     ```
 
-    Leaving the value off makes `convex env set` prompt for it, which keeps secrets out of your shell history. See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
+    Leaving the value off makes `convex env set` prompt for it, which keeps secrets out of your shell history. [Detailed Environment Reference](#detailed-environment-reference) lists every variable.
   </Step>
   <Step title="Start the web app">
-    Write `apps/web/.env.local` with the web values in [Detailed Environment Reference](#detailed-environment-reference), including a `WORKOS_COOKIE_PASSWORD` of at least 32 random characters, then:
+    Write `apps/web/.env.local` with the [web values](#web-appswebenvlocal), then:
 
     ```bash
     bun run --cwd apps/web dev
@@ -134,37 +136,30 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     bunx convex run --prod admin:seedAdmin '{"email":"owner@example.com"}'
     ```
 
-    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. While sign-ups are paused, a new person can still create a WorkOS account, but Teak shows them a "sign-ups are paused" screen and creates no Teak account until sign-ups reopen.
-  </Step>
-  <Step title="Update SITE_URL">
-    Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
+    Use your account's email; the command refuses unless exactly one active account has it. The admin role stays with the account through email changes. While sign-ups are paused, a new person can still create a WorkOS account, but Teak shows them a "sign-ups are paused" screen and creates no Teak account. To reopen sign-ups, run `admin:setSignupsPaused` with `'{"paused":false}'`.
   </Step>
   <Step title="Connect the production WorkOS environment">
-    Set up a separate production environment as in [Set up WorkOS](#set-up-workos), using your public origin. Set its `WORKOS_*` values on the production Convex deployment, and give the web host the same `WORKOS_CLIENT_ID` plus its own `WORKOS_COOKIE_PASSWORD` and `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (`https://app.yourdomain.com/callback`).
-  </Step>
-  <Step title="Point clients at production">
-    Update `CONVEX_SITE_URL` and `CONVEX_URL` in your client env files to point to your production deployment.
+    Set up a separate production environment as in [Set up WorkOS](#set-up-workos), using your public origin. Set its `WORKOS_*` values on the production Convex deployment, and set `SITE_URL` there to your web app's public origin, such as `https://app.yourdomain.com`.
   </Step>
   <Step title="Deploy the Core Worker">
-    Uploads, downloads, thumbnails, and exports all go through the Core Worker. Create its queues and vector index, write your values to `apps/core-worker/self-host/.env` and its secrets to `self-host/.env.secrets`, then deploy from `apps/core-worker`, as described in [Core Worker](#core-worker):
+    Create its queues and vector index, write your values to `apps/core-worker/self-host/.env` and its secrets to `self-host/.env.secrets`, then deploy from `apps/core-worker`, as described in [Core Worker](#core-worker):
 
     ```bash
     bun run deploy:self-host -- --with-secrets
     ```
 
-    Later deploys are `bun run deploy:self-host`. Use the same `FILES_SIGNING_SECRET` on the Convex deployment, set `FILES_BASE` there to the worker's origin, and set `NEXT_PUBLIC_FILES_BASE` to the same origin when you build the web app.
+    Later deploys are `bun run deploy:self-host`. On the Convex deployment, set `FILES_BASE` to the Worker's public origin, the same `FILES_SIGNING_SECRET`, and the derived `WORKFLOW_RPC_SECRET`.
   </Step>
-  <Step title="Host the web app">
-    Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
-  </Step>
-  <Step title="Add optional services">
-    Turn billing off, or add Polar keys to sell plans, as described in [Billing](#billing-optional). AI, thumbnails, screenshots, and audio and video processing run in the Core Worker.
-  </Step>
-  <Step title="Build and start">
+  <Step title="Build and host the web app">
+    Build `apps/web` with the [web values](#web-appswebenvlocal) for production: your production `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL`, the same `WORKOS_CLIENT_ID`, its own `WORKOS_COOKIE_PASSWORD`, `NEXT_PUBLIC_WORKOS_REDIRECT_URI` set to `https://app.yourdomain.com/callback`, and `NEXT_PUBLIC_FILES_BASE`. Host it on any Next.js host, or run it yourself:
+
     ```bash
-    bun run build
-    bun run start
+    bun run --cwd apps/web build
+    bun run --cwd apps/web start
     ```
+  </Step>
+  <Step title="Turn billing off, or add it">
+    Set `BILLING_DISABLED=true` on the Convex deployment to give every account Pro with no card limit, or set the `POLAR_*` values to sell plans with your [Polar](https://polar.sh/) account. See [Billing](#billing-optional).
   </Step>
 </Steps>
 
@@ -196,11 +191,11 @@ POLAR_SERVER=sandbox
 POLAR_WEBHOOK_SECRET=secret
 ```
 
-`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
+`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; add the rest for the features you want. `SITE_URL` is your web app's origin: card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open it. The `WORKOS_*` values come from [Set up WorkOS](#set-up-workos), and `FILES_BASE`, `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_SECRET` from the [Core Worker](#core-worker).
 
 ### Core Worker
 
-The Core Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (link screenshots), and a media renderer Container. Self-hosted deployments use `apps/core-worker/self-host/wrangler.jsonc`, which names nothing of Teak's own account, so you never edit it and updates pull cleanly. `apps/core-worker/wrangler.jsonc` is Teak's own production Worker; don't deploy it.
+The Core Worker handles every file byte, AI call and background job ([Architecture](/docs/architecture#files-ai-and-search)); Convex holds no R2 or Workers AI credentials. It binds your R2 bucket, Cloudflare Images, Workers AI, Browser Run (link screenshots) and two Containers. Self-hosted deployments use `apps/core-worker/self-host/wrangler.jsonc`, which names nothing of Teak's own account, so you never edit it and updates pull cleanly. `apps/core-worker/wrangler.jsonc` is Teak's own production Worker; don't deploy it.
 
 `bun run deploy:self-host`, from `apps/core-worker`, reads your values from `self-host/.env` and runs `wrangler deploy` with a copy of that config, `self-host/wrangler.deploy.jsonc`, so the resource IDs Wrangler writes back stay out of the committed file. Arguments after `--` go to Wrangler, so `bun run deploy:self-host -- --dry-run` checks your values and the bundle without deploying. The `.env` files and the copy are ignored by git.
 
@@ -208,7 +203,7 @@ Deploy it on Workers Paid. Exports stream every file into one ZIP in a single re
 
 The media renderer runs ffmpeg and poppler in a Container built from `apps/core-worker/container/Dockerfile`. It makes video thumbnails and hover previews, audio waveforms, PDF thumbnails and PDF text, and converts audio for transcription. `wrangler deploy` builds the image, so the machine or CI runner that deploys needs Docker. The Container uses the `basic` instance type (1/4 vCPU, 1 GiB memory) with up to 4 instances (`max_instances`; keep `MEDIA_RENDERER_INSTANCES` in `vars` equal to it). Workers Paid includes 375 vCPU-minutes and 25 GiB-hours of Containers a month, enough for tens of thousands of media jobs. Each instance takes one job at a time, has no internet access, and reads only the file the Worker sends it, up to 100 MB. When the renderer is busy, Teak retries with backoff.
 
-The link fetcher, a second Container built from `apps/core-worker/fetcher/Dockerfile`, downloads remote preview images and media straight into R2 under the same SSRF rules Convex uses. The Worker also runs Teak's background work: card processing, imports, exports and account deletion as Cloudflare Workflows, plus Queues and Cron Triggers.
+The link fetcher, a second Container built from `apps/core-worker/fetcher/Dockerfile`, downloads remote preview images and media straight into R2 under the same SSRF rules Convex uses.
 
 #### Resources to create
 
@@ -275,41 +270,29 @@ bunx convex env set WORKFLOW_RPC_SECRET <output>   # from packages/convex
 
 Until a deployment has it, its background work stays queued.
 
-Deploy it as described in [Production basics](#production-basics), then point `FILES_BASE` in the backend env at the worker's public origin.
-
 ### Save by email (optional)
 
 Save by email runs in the Core Worker (`apps/core-worker/src/email`) and needs Cloudflare Email Routing on a subdomain of a domain on Cloudflare, such as `in.yourdomain.com`.
 
-1. Generate a signing secret (`openssl rand -hex 32`). Set it on the Convex deployment as `EMAIL_INBOUND_SIGNING_SECRET`, and set `INBOUND_EMAIL_DOMAIN` there to your subdomain.
-2. In `apps/core-worker/self-host/.env`, set `INBOUND_EMAIL_DOMAIN` to the same subdomain; mail is posted to the first deployment in `CONVEX_SITE_URLS`. Then, from `apps/core-worker`, put the same secret and deploy:
-
-   ```bash
-   bunx wrangler secret put EMAIL_INBOUND_SIGNING_SECRET --config self-host/wrangler.jsonc
-   bun run deploy:self-host
-   ```
+1. On the Convex deployment, set `EMAIL_INBOUND_SIGNING_SECRET` to the Worker's [secret](#secrets) of the same name, and `INBOUND_EMAIL_DOMAIN` to your subdomain.
+2. In `apps/core-worker/self-host/.env`, set `INBOUND_EMAIL_DOMAIN` to the same subdomain, then run `bun run deploy:self-host` from `apps/core-worker`. Mail is posted to the first deployment in `CONVEX_SITE_URLS`.
 
 3. In the Cloudflare dashboard, open Email Routing for your domain and add the subdomain under **Settings → Subdomains**; Cloudflare adds its MX and SPF records. Catch-all rules work only on the apex domain, so add a literal routing rule for `save@<subdomain>` with the action **Send to a Worker** and your Core Worker. Turn on **Subaddressing**, so `save+anything@` reaches the same rule.
 
-Mail is accepted only from an account's sign-in address and only when it passes DMARC; see [Save by email](/docs/features#save-by-email) for what becomes a card.
+[Save by email](/docs/features#save-by-email) covers what mail is accepted and what becomes a card.
 
 ### Web (`apps/web/.env.local`)
 
 ```bash
-CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 WORKOS_CLIENT_ID=client_...                  # Same as the Convex deployment
-WORKOS_COOKIE_PASSWORD=at-least-32-random-characters
+WORKOS_COOKIE_PASSWORD=...                   # At least 32 random characters: openssl rand -base64 32
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
-NEXT_PUBLIC_FILES_BASE=https://files.yourdomain.com            # Mirror of FILES_BASE for the CSP
-TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
+NEXT_PUBLIC_FILES_BASE=https://files.yourdomain.com # Same as FILES_BASE, for the Content-Security-Policy
 ```
 
-The web Content-Security-Policy always allows the canonical file origins
-(`https://files.teakvault.com` and the R2 storage origin). If you serve files
-from custom origins, mirror the backend `FILES_BASE` into
-`NEXT_PUBLIC_FILES_BASE` at web build time.
+The Content-Security-Policy always allows Teak's own file origins; `NEXT_PUBLIC_FILES_BASE` adds yours at build time.
 
 ### Browser Extension (`apps/extension`)
 
@@ -318,17 +301,13 @@ The extension reads the deployment URLs with the `VITE_PUBLIC_` prefix:
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
 ```
 
 ### Public API and MCP
 
-```bash
-PUBLIC_ORIGIN=https://yourdomain.com            # Required to expose self-hosted /api and /mcp (else production URLs are advertised)
-TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
-```
+Set `PUBLIC_ORIGIN` on the Convex deployment to your public origin (`https://yourdomain.com`) to serve `/api` and `/mcp` yourself; unset, Teak's production URLs are advertised.
 
-Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, the Core Worker's edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them. To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. Teak's own edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them ([Architecture](/docs/architecture#public-api-and-mcp)). To do the same, set `API_PUBLIC_HOST` and `API_WORKOS_ISSUER` in your Core Worker's `self-host/.env`; `bun run deploy:self-host` adds zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on that host. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
 
 ### Billing (optional)
 
@@ -353,14 +332,3 @@ A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, 
 | Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, and `TEAK_ANALYTICS_ENABLED=true` unless it runs on Vercel | The web app's environment, at build time and at runtime |
 
 On Vercel the web app reports only from Production, so previews send nothing; elsewhere it reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The browser's reporting is fixed when you build, so changing either value means building and deploying again; the server's error reports read `TEAK_ANALYTICS_ENABLED` when the app starts. Leave a part's token unset and that part sends nothing.
-
-## Where to get the values
-
-- **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
-- **Sign-in**:
-  - `WORKOS_*`: From your WorkOS environment, as described in [Set up WorkOS](#set-up-workos). `WORKOS_AUTHKIT_DOMAIN` is the AuthKit domain shown in the WorkOS dashboard. Sign-in, verification, and password reset emails come from WorkOS.
-  - `WORKOS_COOKIE_PASSWORD`: Generate at least 32 random characters (e.g., via `openssl rand -base64 32`). Setup generates one locally.
-  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`. Card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open this origin.
-- **Optional Features**:
-  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Core Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
-  - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to sell plans. Otherwise set `BILLING_DISABLED=true` (see [Billing](#billing-optional)).
