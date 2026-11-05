@@ -148,9 +148,38 @@ describe("parseCardsQueryOptions", () => {
 
   test("collects several types and falls back to the default limit", () => {
     expect(
-      parseCardsQueryOptions(get("type=link&type=image&type=link&limit=10junk"))
+      parseCardsQueryOptions(get("type=link&type=image&type=link"))
     ).toMatchObject({ limit: 50, type: undefined, types: ["link", "image"] });
   });
+
+  test.each([
+    ["1", 1],
+    [" 25 ", 25],
+    ["100", 100],
+    ["101", 100],
+    ["9".repeat(400), 100],
+  ])("accepts limit=%s as %d", (limit: string, expected: number) => {
+    expect(
+      parseCardsQueryOptions(get(`limit=${encodeURIComponent(limit)}`))
+    ).toMatchObject({ limit: expected });
+  });
+
+  test.each(["", "0", "-1", "abc", "10junk", "2.5", "1e2", "0x10", "+5"])(
+    "returns a 400 for limit=%p",
+    async (limit: string) => {
+      expect(
+        await errorOf(
+          parseCardsQueryOptions(get(`limit=${encodeURIComponent(limit)}`))
+        )
+      ).toEqual({
+        body: {
+          code: "INVALID_INPUT",
+          error: "Query parameter `limit` must be a whole number from 1 to 100",
+        },
+        status: 400,
+      });
+    }
+  );
 
   test.each([
     [

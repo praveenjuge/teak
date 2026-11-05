@@ -655,6 +655,34 @@ describe("publicApiHttp card endpoints", () => {
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
+  test.each(["0", "abc"])(
+    "changesCardsV1 rejects limit=%s before reading",
+    async (limit: string) => {
+      const runQuery = mock();
+      const response = await runHandler(
+        changesCardsV1,
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        new Request(
+          `https://example.com/v1/cards/changes?since=1&limit=${limit}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            },
+          }
+        )
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        code: "INVALID_INPUT",
+        error: "Query parameter `limit` must be a whole number from 1 to 100",
+      });
+      expect(runQuery).not.toHaveBeenCalled();
+    }
+  );
+
   test("changesCardsV1 returns items and deleted ids", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValueOnce({
