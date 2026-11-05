@@ -212,7 +212,7 @@ describe("--all", () => {
 
 // Splits an example the way a shell would: spaces, and '…' or "…" quoting.
 const words = (line: string) =>
-  [...line.matchAll(/"((?:\\.|[^"])*)"|'([^']*)'|(\S+)/g)].map(
+  [...line.matchAll(/"((?:\\.|[^"\\])*)"|'([^']*)'|(\S+)/g)].map(
     (match) => match[1] ?? match[2] ?? match[3] ?? ""
   );
 
