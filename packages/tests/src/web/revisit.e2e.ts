@@ -96,9 +96,10 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
     seen.push(await current());
     await press("ArrowRight");
   }
-  // The sr-only status announces completion; the visible copy is a second
-  // node with the same text, so assert the announcement itself.
+  // Completion is announced by the sr-only status (the visible copy is a
+  // second node with the same text); the summary proves it renders.
   await expect(deck.getByRole("status", "All caught up")).toHaveCount(1);
+  await expect(deck.getByText("0 archived · 20 kept")).toBeVisible();
   await deck.getByRole("button", "Revisit 20 more").click();
   await expect(progress("1 of 1")).toBeVisible({ timeout: 30_000 });
   seen.push(await current());
