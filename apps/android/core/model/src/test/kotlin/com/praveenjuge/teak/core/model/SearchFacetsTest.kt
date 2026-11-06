@@ -38,6 +38,16 @@ class SearchFacetsTest {
     }
 
     @Test
+    fun `keeps the spacing inside quotes and of the words left`() {
+        assertEquals(SearchFacets("tag:\"design  system\""), SearchFacets.split("tag:\"design  system\""))
+        assertEquals(SearchFacets("\"blue  whale\""), SearchFacets.split("\"blue  whale\""))
+        assertEquals(
+            SearchFacets("\"deep\tsea\" posters", hues = listOf("blue")),
+            SearchFacets.split("blue \"deep\tsea\" posters"),
+        )
+    }
+
+    @Test
     fun `an escaped quote inside a phrase doesn't end it`() {
         assertEquals(
             SearchFacets("\"say \\\" blue whale\"", hues = listOf("blue")),

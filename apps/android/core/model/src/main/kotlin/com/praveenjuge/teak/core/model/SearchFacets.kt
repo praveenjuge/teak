@@ -20,7 +20,7 @@ data class SearchFacets(
         private val DASHES = Regex("-+")
         private val HEX_DIGITS = Regex("^[0-9a-fA-F]+$")
         private val BARE_HEX = Regex("^[0-9a-fA-F]{6}$")
-        private val WHITESPACE = Regex("\\s+")
+        private val WORD = Regex("\\S+")
         private val QUOTES = setOf('"', '“', '”')
 
         /** A word less the punctuation around it, as `normalizeSearchToken` trims it. */
@@ -78,18 +78,19 @@ data class SearchFacets(
 
         /**
          * Lifts the plain words that [classify] reads as a style, color or hex out of [search]. Words in
-         * quotes, qualifiers and searches with operators stay as typed.
+         * quotes, qualifiers and searches with operators stay as typed, and so does the spacing of what's left.
          */
         fun split(search: String): SearchFacets {
             val trimmed = search.trim()
             if (trimmed.isEmpty() || SearchQuery.hasOperators(trimmed)) return SearchFacets(trimmed)
             val terms = SearchQuery.parse(trimmed).terms.toSet()
-            val kept = mutableListOf<String>()
+            val lifted = mutableListOf<IntRange>()
             val hues = mutableListOf<String>()
             val styles = mutableListOf<String>()
             val hexes = mutableListOf<String>()
             var inQuotes = false
-            for (word in trimmed.split(WHITESPACE)) {
+            for (match in WORD.findAll(trimmed)) {
+                val word = match.value
                 val quoted = inQuotes || word.any { it in QUOTES }
                 inQuotes = quotesOpenAfter(word, inQuotes)
                 val token = if (!quoted && word in terms) classify(word) else null
@@ -98,14 +99,25 @@ data class SearchFacets(
                     Kind.Hue -> hues
                     Kind.Hex -> hexes
                     else -> null
-                }
-                if (bucket == null || token == null) {
-                    kept += word
-                } else if (token.value !in bucket) {
-                    bucket += token.value
-                }
+                } ?: continue
+                lifted += match.range
+                if (token!!.value !in bucket) bucket += token.value
             }
-            return SearchFacets(kept.joinToString(" "), hues, styles, hexes)
+            return SearchFacets(withoutRanges(trimmed, lifted), hues, styles, hexes)
+        }
+
+        /** [text] less each range and the spaces after it, so what's left keeps its own spacing. */
+        private fun withoutRanges(text: String, ranges: List<IntRange>): String {
+            if (ranges.isEmpty()) return text
+            val kept = StringBuilder()
+            var cursor = 0
+            for (range in ranges) {
+                kept.append(text, cursor, range.first)
+                cursor = range.last + 1
+                while (cursor < text.length && text[cursor].isWhitespace()) cursor += 1
+            }
+            kept.append(text, cursor, text.length)
+            return kept.toString().trimEnd()
         }
     }
 }
