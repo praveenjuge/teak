@@ -2,6 +2,8 @@
  * The public API's operations and the values its inputs take, in one place.
  * The Convex router, the OpenAPI document, the MCP server, the SDK, the CLI
  * and the Core Worker read them from here, so an operation is declared once.
+ * The JSON bodies operations read are declared beside them, as Zod schemas,
+ * in `publicApiBodies.ts` (kept apart so the SDK doesn't bundle Zod).
  */
 import {
   COLOR_HUE_BUCKETS,

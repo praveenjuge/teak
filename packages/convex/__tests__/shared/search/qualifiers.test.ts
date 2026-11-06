@@ -352,7 +352,9 @@ describe("is:done and is:todo", () => {
   const link = (category: string | undefined, completedAt?: number) => ({
     completedAt,
     metadata: category ? { linkCategory: { category } } : undefined,
+    type: "link",
   });
+  const note = (completedAt?: number) => ({ completedAt, type: "text" });
 
   test.each([
     ["a done film", link("movie", 1), { done: true }, true],
@@ -363,6 +365,9 @@ describe("is:done and is:todo", () => {
     ["a done repository", link("repo", 1), { done: true }, true],
     ["a link with no category yet", link(undefined), { todo: true }, false],
     ["anything", link("movie"), {}, true],
+    ["a note brought in done", note(1), { done: true }, false],
+    ["a note brought in done", note(1), {}, true],
+    ["a note never done", note(), { todo: true }, false],
   ])("%s with %j", (_name, card, query, matches) => {
     expect(matchesDoneState(card, { done: false, todo: false, ...query })).toBe(
       matches

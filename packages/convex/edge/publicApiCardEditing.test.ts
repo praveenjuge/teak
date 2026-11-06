@@ -1555,7 +1555,7 @@ describe("Tag listing", () => {
       });
       await syncCardSearchTagsBatchHandler(ctx, foreign);
     });
-    const tags = await t.query(internal.publicApi.listTagsForUser, {
+    const tags = await t.query(internal.tag.tagListing.listTagsForUser, {
       userId: "owner",
     });
     expect(tags).toEqual({
@@ -1565,6 +1565,7 @@ describe("Tag listing", () => {
         { name: "original", count: 1 },
       ],
       isComplete: true,
+      requestSummary: false,
     });
   });
 });

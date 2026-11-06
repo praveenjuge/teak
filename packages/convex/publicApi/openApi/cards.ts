@@ -6,18 +6,14 @@ import {
 import { PUBLIC_API_MAX_LIMIT } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
 import {
-  THUMBNAIL_MAX_BYTES,
-  THUMBNAIL_MIME_TYPES,
-} from "../../shared/thumbnails";
-import {
   apiErrorContent,
   apiKeySecurity,
   cardIdParameter,
   doneErrorResponses,
-  THUMBNAIL_TYPES_DESCRIPTION,
   thumbnailErrorResponses,
 } from "./components";
 import type { OpenApiOperations } from "./operations";
+import { requestBodySchema } from "./requestBodies";
 
 const LIMIT_DESCRIPTION = `Page size, default 50. A whole number above ${PUBLIC_API_MAX_LIMIT} returns ${PUBLIC_API_MAX_LIMIT}; anything that isn't a whole number from 1 up is \`400 INVALID_INPUT\`.`;
 
@@ -557,22 +553,7 @@ export const cardOperations = {
     requestBody: {
       content: {
         "application/json": {
-          schema: {
-            additionalProperties: false,
-            properties: {
-              fileSize: {
-                description: `Bytes; at most ${THUMBNAIL_MAX_BYTES} (20 MB).`,
-                type: "number",
-              },
-              mimeType: {
-                description: THUMBNAIL_TYPES_DESCRIPTION,
-                enum: [...THUMBNAIL_MIME_TYPES],
-                type: "string",
-              },
-            },
-            required: ["mimeType", "fileSize"],
-            type: "object",
-          },
+          schema: requestBodySchema("createThumbnailUpload"),
         },
       },
     },
@@ -598,18 +579,7 @@ export const cardOperations = {
     requestBody: {
       content: {
         "application/json": {
-          schema: {
-            additionalProperties: false,
-            properties: {
-              fileKey: {
-                description:
-                  "From POST /v1/cards/{cardId}/thumbnail/upload, for this card",
-                type: "string",
-              },
-            },
-            required: ["fileKey"],
-            type: "object",
-          },
+          schema: requestBodySchema("setCardThumbnail"),
         },
       },
     },

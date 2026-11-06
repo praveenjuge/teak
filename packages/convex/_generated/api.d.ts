@@ -203,6 +203,7 @@ import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
+import type * as ownerOperation from "../ownerOperation.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApi_cardsForUser from "../publicApi/cardsForUser.js";
 import type * as publicApi_cursors from "../publicApi/cursors.js";
@@ -230,6 +231,7 @@ import type * as publicApi_openApi_folders from "../publicApi/openApi/folders.js
 import type * as publicApi_openApi_highlights from "../publicApi/openApi/highlights.js";
 import type * as publicApi_openApi_meta from "../publicApi/openApi/meta.js";
 import type * as publicApi_openApi_operations from "../publicApi/openApi/operations.js";
+import type * as publicApi_openApi_requestBodies from "../publicApi/openApi/requestBodies.js";
 import type * as publicApi_openApi_spec from "../publicApi/openApi/spec.js";
 import type * as publicApi_openApi_tags from "../publicApi/openApi/tags.js";
 import type * as publicApi_search from "../publicApi/search.js";
@@ -301,6 +303,7 @@ import type * as shared_pins from "../shared/pins.js";
 import type * as shared_polarPlans from "../shared/polarPlans.js";
 import type * as shared_posthog from "../shared/posthog.js";
 import type * as shared_price from "../shared/price.js";
+import type * as shared_publicApiBodies from "../shared/publicApiBodies.js";
 import type * as shared_publicApiContract from "../shared/publicApiContract.js";
 import type * as shared_publicApiHeaders from "../shared/publicApiHeaders.js";
 import type * as shared_publicApiLimits from "../shared/publicApiLimits.js";
@@ -350,6 +353,7 @@ import type * as storage_r2Keys from "../storage/r2Keys.js";
 import type * as storage_rawMetadata from "../storage/rawMetadata.js";
 import type * as storage_rawMetadataJson from "../storage/rawMetadataJson.js";
 import type * as storage_rawMetadataMaintenance from "../storage/rawMetadataMaintenance.js";
+import type * as tag_tagListing from "../tag/tagListing.js";
 import type * as tag_tagOperations from "../tag/tagOperations.js";
 import type * as tag_tagSummary from "../tag/tagSummary.js";
 import type * as tags from "../tags.js";
@@ -581,6 +585,7 @@ declare const fullApi: ApiFromModules<{
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
+  ownerOperation: typeof ownerOperation;
   publicApi: typeof publicApi;
   "publicApi/cardsForUser": typeof publicApi_cardsForUser;
   "publicApi/cursors": typeof publicApi_cursors;
@@ -608,6 +613,7 @@ declare const fullApi: ApiFromModules<{
   "publicApi/openApi/highlights": typeof publicApi_openApi_highlights;
   "publicApi/openApi/meta": typeof publicApi_openApi_meta;
   "publicApi/openApi/operations": typeof publicApi_openApi_operations;
+  "publicApi/openApi/requestBodies": typeof publicApi_openApi_requestBodies;
   "publicApi/openApi/spec": typeof publicApi_openApi_spec;
   "publicApi/openApi/tags": typeof publicApi_openApi_tags;
   "publicApi/search": typeof publicApi_search;
@@ -679,6 +685,7 @@ declare const fullApi: ApiFromModules<{
   "shared/polarPlans": typeof shared_polarPlans;
   "shared/posthog": typeof shared_posthog;
   "shared/price": typeof shared_price;
+  "shared/publicApiBodies": typeof shared_publicApiBodies;
   "shared/publicApiContract": typeof shared_publicApiContract;
   "shared/publicApiHeaders": typeof shared_publicApiHeaders;
   "shared/publicApiLimits": typeof shared_publicApiLimits;
@@ -728,6 +735,7 @@ declare const fullApi: ApiFromModules<{
   "storage/rawMetadata": typeof storage_rawMetadata;
   "storage/rawMetadataJson": typeof storage_rawMetadataJson;
   "storage/rawMetadataMaintenance": typeof storage_rawMetadataMaintenance;
+  "tag/tagListing": typeof tag_tagListing;
   "tag/tagOperations": typeof tag_tagOperations;
   "tag/tagSummary": typeof tag_tagSummary;
   tags: typeof tags;

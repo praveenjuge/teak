@@ -9,8 +9,6 @@ import {
   toObjectPayload,
 } from "./catalog";
 
-export { TEAK_V1_TOOLS } from "./catalog";
-
 /** Runs one public API operation for a tool, as the signed-in caller. */
 export type PublicApiToolExecutor = (
   call: PublicApiOperationCall

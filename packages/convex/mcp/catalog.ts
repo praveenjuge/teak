@@ -25,23 +25,20 @@ import {
 import { formatBytes } from "../shared/utils/formatBytes";
 import { TEAK_APP_TOOL_META } from "./appResource";
 import {
+  bodyOf,
+  bodyToolSchema,
   bulkCardsSchema,
   cardFiltersSchema,
   cardFiltersShape,
   cardIdSchema,
   confirmSchema,
   createCardSchema,
-  createFolderSchema,
-  folderCardsSchema,
   folderRuleRunSchema,
   idSchema,
   limitSchema,
   noArguments,
   nonEmptyString,
-  tagNameSchema,
-  tagSourceSchema,
   updateCardSchema,
-  updateFolderSchema,
 } from "./toolInputs";
 
 export type JsonObject = Record<string, unknown>;
@@ -113,7 +110,6 @@ const definedOnly = (
   );
 
 const FULL_CARD_INCLUDE = "content,metadata";
-const APP_URL = "https://app.teakvault.com";
 
 // Content always comes back: a note or quote card is its content, and the
 // card view has nothing else to show for it.
@@ -177,8 +173,10 @@ const textFromCard = (card: JsonObject): string =>
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n\n");
 
+// The API gives every card its `appUrl` on the deployment's own web app
+// (a self-hosted one's `SITE_URL`), so the tools never name Teak's.
 const appUrlOf = (card: JsonObject): string =>
-  typeof card.appUrl === "string" ? card.appUrl : APP_URL;
+  typeof card.appUrl === "string" ? card.appUrl : "";
 
 const cardParams = (input: { cardId: string }) => ({ cardId: input.cardId });
 
@@ -333,10 +331,10 @@ export const TEAK_TOOLS = [
     description:
       "Rename a tag on every card (user and AI tags, including Trash and Archive), matching it ignoring case. Runs in the background: poll teak_v1_get_tag_operation. Renaming onto an existing tag fails; merge instead.",
     annotations: WRITES,
-    schema: z.strictObject({ from: tagSourceSchema, to: tagNameSchema }),
+    schema: bodyToolSchema("renameTag"),
     call: (input) => ({
       operationId: "renameTag",
-      body: { from: input.from, to: input.to },
+      body: bodyOf("renameTag", input),
     }),
     summary: (_payload, input) => `Renaming tag ${input.from} to ${input.to}`,
   }),
@@ -346,10 +344,10 @@ export const TEAK_TOOLS = [
     description:
       "Replace one tag with another on every card; a card with both keeps one. Runs in the background: poll teak_v1_get_tag_operation.",
     annotations: WRITES,
-    schema: z.strictObject({ from: tagSourceSchema, into: tagNameSchema }),
+    schema: bodyToolSchema("mergeTags"),
     call: (input) => ({
       operationId: "mergeTags",
-      body: { from: input.from, into: input.into },
+      body: bodyOf("mergeTags", input),
     }),
     summary: (_payload, input) =>
       `Merging tag ${input.from} into ${input.into}`,
@@ -360,8 +358,11 @@ export const TEAK_TOOLS = [
     description:
       "Remove a tag from every card. The cards are kept. Runs in the background: poll teak_v1_get_tag_operation. `confirm` must be true.",
     annotations: DESTRUCTIVE,
-    schema: z.strictObject({ tag: tagSourceSchema, confirm: confirmSchema }),
-    call: (input) => ({ operationId: "deleteTag", body: { tag: input.tag } }),
+    schema: bodyToolSchema("deleteTag", { confirm: confirmSchema }),
+    call: (input) => ({
+      operationId: "deleteTag",
+      body: bodyOf("deleteTag", input),
+    }),
     summary: (_payload, input) => `Deleting tag ${input.tag}`,
   }),
   tool({
@@ -433,12 +434,11 @@ export const TEAK_TOOLS = [
     description:
       "Create a direct upload URL. PUT bytes to uploadUrl, then create a card with the returned fileKey.",
     annotations: WRITES,
-    schema: z.strictObject({
-      fileName: nonEmptyString,
-      mimeType: nonEmptyString,
-      fileSize: z.number().positive(),
+    schema: bodyToolSchema("createUpload"),
+    call: (input) => ({
+      operationId: "createUpload",
+      body: bodyOf("createUpload", input),
     }),
-    call: (input) => ({ operationId: "createUpload", body: input }),
     summary: () =>
       "Upload URL created. PUT bytes to uploadUrl, then create a card with fileKey.",
   }),
@@ -554,7 +554,7 @@ export const TEAK_TOOLS = [
     title: "Set favorite",
     description: "Set a card's favorite state.",
     annotations: IDEMPOTENT_WRITE,
-    schema: z.strictObject({ cardId: idSchema, isFavorited: z.boolean() }),
+    schema: bodyToolSchema("setCardFavorite", { cardId: idSchema }),
     call: (input) => ({
       operationId: "setCardFavorite",
       params: cardParams(input),
@@ -568,7 +568,7 @@ export const TEAK_TOOLS = [
     title: "Pin card",
     description: `Pin a card to the top of the library, or unpin it. A new pin goes first. Up to ${MAX_PINNED_CARDS} cards can be pinned; pinning one more fails with PIN_LIMIT_REACHED. Archived cards can't be pinned, and archiving or trashing a card unpins it.`,
     annotations: IDEMPOTENT_WRITE,
-    schema: z.strictObject({ cardId: idSchema, isPinned: z.boolean() }),
+    schema: bodyToolSchema("setCardPinned", { cardId: idSchema }),
     call: (input) => ({
       operationId: "setCardPinned",
       params: cardParams(input),
@@ -583,9 +583,7 @@ export const TEAK_TOOLS = [
     description:
       "Set the order of the pinned cards. cardIds lists every pinned card's id exactly once, first to last; get them with teak_v1_list_pinned_cards.",
     annotations: IDEMPOTENT_WRITE,
-    schema: z.strictObject({
-      cardIds: z.array(idSchema).max(MAX_PINNED_CARDS),
-    }),
+    schema: bodyToolSchema("reorderPinnedCards"),
     call: (input) => ({
       operationId: "reorderPinnedCards",
       body: { cardIds: input.cardIds },
@@ -599,15 +597,17 @@ export const TEAK_TOOLS = [
     title: "Upload a link's image",
     description: `Start replacing a link card's image: returns uploadUrl and fileKey. PUT the image bytes to uploadUrl with the same Content-Type, then call teak_v1_set_card_thumbnail. JPEG, PNG, WebP, GIF or AVIF, under ${formatBytes(THUMBNAIL_MAX_BYTES)}.`,
     annotations: WRITES,
-    schema: z.strictObject({
+    // The API answers an unsupported type or an image too large itself;
+    // the tool refuses them before calling it.
+    schema: bodyToolSchema("createThumbnailUpload", {
       cardId: idSchema,
       mimeType: z.enum(THUMBNAIL_MIME_TYPES),
       fileSize: z.number().int().min(1).max(THUMBNAIL_MAX_BYTES),
     }),
-    call: ({ cardId, ...body }) => ({
+    call: (input) => ({
       operationId: "createThumbnailUpload",
-      params: { cardId },
-      body,
+      params: cardParams(input),
+      body: bodyOf("createThumbnailUpload", input),
     }),
     summary: () =>
       "Upload URL created. PUT the image to uploadUrl, then call teak_v1_set_card_thumbnail with fileKey.",
@@ -618,7 +618,7 @@ export const TEAK_TOOLS = [
     description:
       "Use an uploaded image (fileKey from teak_v1_create_thumbnail_upload) as a link card's image. It stays through Refresh details until teak_v1_reset_card_thumbnail.",
     annotations: WRITES,
-    schema: z.strictObject({ cardId: idSchema, fileKey: nonEmptyString }),
+    schema: bodyToolSchema("setCardThumbnail", { cardId: idSchema }),
     call: (input) => ({
       operationId: "setCardThumbnail",
       params: cardParams(input),
@@ -715,8 +715,11 @@ export const TEAK_TOOLS = [
     description:
       'Create a folder. Names are unique per account, ignoring case. With kind "smart" and a `query` (the search grammar of teak_v1_search_cards, e.g. "tag:design type:link"), it saves a search: its cards are whatever matches, and cards cannot be added to it. A manual folder can have rules: `autoTags` are added to every card that joins it, and `autoFileQuery` (the same grammar, without like: or mood:) files matching cards into it once their AI tags are written. Saving a rule runs it over the existing cards; follow `ruleRunId` with teak_v1_get_folder_rule_run.',
     annotations: WRITES,
-    schema: createFolderSchema,
-    call: (input) => ({ operationId: "createFolder", body: input }),
+    schema: bodyToolSchema("createFolder"),
+    call: (input) => ({
+      operationId: "createFolder",
+      body: bodyOf("createFolder", input),
+    }),
     summary: (payload) => `Created folder ${String(payload.name ?? "")}`,
   }),
   tool({
@@ -725,11 +728,11 @@ export const TEAK_TOOLS = [
     description:
       "Rename a folder, change its color (null clears it), change a smart folder's query, or change a manual folder's rules: `autoTags` ([] clears them), `autoFileQuery` (null clears it) and `autoFileEnabled` (false pauses it). New tags or a new or resumed search start a rule run over the existing cards; follow `ruleRunId` with teak_v1_get_folder_rule_run.",
     annotations: IDEMPOTENT_WRITE,
-    schema: updateFolderSchema,
-    call: ({ folderId, ...body }) => ({
+    schema: bodyToolSchema("updateFolder", { folderId: idSchema }),
+    call: (input) => ({
       operationId: "updateFolder",
-      params: { folderId },
-      body,
+      params: { folderId: input.folderId },
+      body: bodyOf("updateFolder", input),
     }),
     summary: (payload) => `Updated folder ${String(payload.name ?? "")}`,
   }),
@@ -754,7 +757,7 @@ export const TEAK_TOOLS = [
     title: "Add cards to folder",
     description: `Add up to ${MAX_FOLDER_CARD_IDS} cards to a manual folder. Cards already in it are left as they are. Smart folders refuse cards.`,
     annotations: IDEMPOTENT_WRITE,
-    schema: folderCardsSchema,
+    schema: bodyToolSchema("addCardsToFolder", { folderId: idSchema }),
     call: (input) => ({
       operationId: "addCardsToFolder",
       params: { folderId: input.folderId },
@@ -769,7 +772,7 @@ export const TEAK_TOOLS = [
     title: "Remove cards from folder",
     description: `Remove up to ${MAX_FOLDER_CARD_IDS} cards from a folder. The cards are kept.`,
     annotations: IDEMPOTENT_WRITE,
-    schema: folderCardsSchema,
+    schema: bodyToolSchema("removeCardsFromFolder", { folderId: idSchema }),
     call: (input) => ({
       operationId: "removeCardsFromFolder",
       params: { folderId: input.folderId },

@@ -13,6 +13,7 @@ import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
+import { parsePublicApiBody } from "../../shared/publicApiBodies";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -24,15 +25,7 @@ import { relevanceCursorRanked } from "../cursors";
 import { parseOptionalString } from "../validation";
 import { respondIdempotently } from "./auth";
 import { noContent, type PublicApiCall, queryOf } from "./operation";
-import {
-  parseCreatePayload,
-  parsePatchPayload,
-  validateFavoritePayload,
-  validatePinPayload,
-  validateThumbnailSetPayload,
-  validateThumbnailUploadPayload,
-  validateUploadPayload,
-} from "./payloads";
+import { parseCreatePayload, parsePatchPayload } from "./payloads";
 import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
 import {
   buildCreateCardResponse,
@@ -146,27 +139,20 @@ const handleCreateUploadRequest = async (
   const { ctx, userId } = call;
 
   const payload = call.body;
-  const uploadPayload = validateUploadPayload(payload);
-  if (!uploadPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include only valid fields: fileName, mimeType, fileSize"
-    );
+  const parsedUploadPayload = parsePublicApiBody("createUpload", payload);
+  if ("error" in parsedUploadPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUploadPayload.error);
   }
+  const uploadPayload = parsedUploadPayload.body;
 
-  try {
-    const result = await ctx.runMutation(
-      internal.publicApiUploads.generateUploadUrlForUser,
-      {
-        ...uploadPayload,
-        userId,
-      }
-    );
-    return json(200, result);
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to prepare upload");
-  }
+  const result = await ctx.runMutation(
+    internal.publicApiUploads.generateUploadUrlForUser,
+    {
+      ...uploadPayload,
+      userId,
+    }
+  );
+  return json(200, result);
 };
 
 const handleCardsListRequest = async (
@@ -190,287 +176,274 @@ const handleCardsListRequest = async (
     );
   }
 
-  try {
-    let folderId: string | undefined;
-    if (options.folder) {
-      const folder = await ctx.runQuery(
-        internal.publicApiFolders.getFolderForApi,
-        { userId, folderId: options.folder }
+  let folderId: string | undefined;
+  if (options.folder) {
+    const folder = await ctx.runQuery(
+      internal.publicApiFolders.getFolderForUser,
+      { userId, folderId: options.folder }
+    );
+    if (!folder) {
+      return errorResponse(404, "NOT_FOUND", "Folder not found");
+    }
+    if (folder.kind === "smart") {
+      const url = new URL(request.url);
+      const combined = combineSearchQueries(
+        folder.query ?? "",
+        url.searchParams.get("q") ?? ""
       );
-      if (!folder) {
-        return errorResponse(404, "NOT_FOUND", "Folder not found");
+      if (combined === null) {
+        return json(200, {
+          items: [],
+          pageInfo: { hasMore: false, nextCursor: null },
+        });
       }
-      if (folder.kind === "smart") {
-        const url = new URL(request.url);
-        const combined = combineSearchQueries(
-          folder.query ?? "",
-          url.searchParams.get("q") ?? ""
-        );
-        if (combined === null) {
-          return json(200, {
-            items: [],
-            pageInfo: { hasMore: false, nextCursor: null },
-          });
-        }
-        url.searchParams.set("q", combined);
-        url.searchParams.delete("folder");
-        const smartOptions = parseCardsQueryOptions(new Request(url));
-        if (smartOptions instanceof Response) {
-          return smartOptions;
-        }
-        options = smartOptions;
-      } else {
-        folderId = folder._id;
+      url.searchParams.set("q", combined);
+      url.searchParams.delete("folder");
+      const smartOptions = parseCardsQueryOptions(new Request(url));
+      if (smartOptions instanceof Response) {
+        return smartOptions;
       }
+      options = smartOptions;
+    } else {
+      folderId = folder._id;
     }
-    if (options.matchesNothing) {
-      return json(200, {
-        items: [],
-        pageInfo: { hasMore: false, nextCursor: null },
-      });
-    }
-    const { similarity } = options;
-    const semantic =
-      similarity || (options.searchQuery && options.mode !== "keyword")
-        ? await fetchSemanticRanking(ctx, userId, options.semantic)
-        : null;
-    if (similarity && semantic?.outcome === "rate_limited") {
-      return errorResponse(
-        429,
-        "RATE_LIMITED",
-        "Too many searches. Try again in a minute."
-      );
-    }
-    if (similarity && semantic?.outcome === "unavailable") {
-      return errorResponse(
-        503,
-        "SERVICE_UNAVAILABLE",
-        "Similar search is unavailable right now. Try again later."
-      );
-    }
-    if (similarity && !semantic?.ranking) {
-      return json(200, {
-        items: [],
-        pageInfo: { hasMore: false, nextCursor: null },
-        searchMode: "semantic",
-        similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
-      });
-    }
-    const semanticRanking = semantic?.ranking ?? undefined;
-    const queryArgs = {
-      archived: options.archived,
-      folderId,
-      showTrashOnly: options.showTrashOnly,
-      styleFilters: options.styleFilters,
-      hueFilters: options.hueFilters,
-      hexFilters: options.hexFilters,
-      createdAfter: options.createdAfter,
-      createdBefore: options.createdBefore,
-      cursor: options.cursor,
-      favorited: options.favoritesOnly ? true : undefined,
-      pinned: options.pinnedOnly ? true : undefined,
-      sort: options.sort === "relevance" ? undefined : options.sort,
-      type: options.type,
-      types: options.types,
-      userId,
-      ...options.qualifiers,
-      ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
-      ...(similarity ? { similarity } : {}),
-    };
-    let cardsPage: {
-      items: CardWithUrls[];
-      pageInfo: { hasMore: boolean; nextCursor: string | null };
-    };
-    const bestMatchText =
-      options.sort === "relevance" && options.semantic?.kind === "text"
-        ? options.semantic.text
-        : "";
-    const bestMatch = Boolean(options.searchQuery && bestMatchText);
-    let relevanceRanked: boolean | undefined;
+  }
+  if (options.matchesNothing) {
+    return json(200, {
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+  }
+  const { similarity } = options;
+  const semantic =
+    similarity || (options.searchQuery && options.mode !== "keyword")
+      ? await fetchSemanticRanking(ctx, userId, options.semantic)
+      : null;
+  if (similarity && semantic?.outcome === "rate_limited") {
+    return errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Too many searches. Try again in a minute."
+    );
+  }
+  if (similarity && semantic?.outcome === "unavailable") {
+    return errorResponse(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Similar search is unavailable right now. Try again later."
+    );
+  }
+  if (similarity && !semantic?.ranking) {
+    return json(200, {
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+      searchMode: "semantic",
+      similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
+    });
+  }
+  const semanticRanking = semantic?.ranking ?? undefined;
+  const queryArgs = {
+    archived: options.archived,
+    folderId,
+    showTrashOnly: options.showTrashOnly,
+    styleFilters: options.styleFilters,
+    hueFilters: options.hueFilters,
+    hexFilters: options.hexFilters,
+    createdAfter: options.createdAfter,
+    createdBefore: options.createdBefore,
+    cursor: options.cursor,
+    favorited: options.favoritesOnly ? true : undefined,
+    pinned: options.pinnedOnly ? true : undefined,
+    sort: options.sort === "relevance" ? undefined : options.sort,
+    type: options.type,
+    types: options.types,
+    userId,
+    ...options.qualifiers,
+    ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
+    ...(similarity ? { similarity } : {}),
+  };
+  let cardsPage: {
+    items: CardWithUrls[];
+    pageInfo: { hasMore: boolean; nextCursor: string | null };
+  };
+  const bestMatchText =
+    options.sort === "relevance" && options.semantic?.kind === "text"
+      ? options.semantic.text
+      : "";
+  const bestMatch = Boolean(options.searchQuery && bestMatchText);
+  let relevanceRanked: boolean | undefined;
 
-    const pinnedInOrder =
-      options.pinnedOnly &&
-      !(
-        options.searchQuery ||
-        options.tag ||
-        options.qualifiers?.ocrTexts?.length ||
-        similarity ||
-        options.sort === "shuffle"
-      );
-    if (pinnedInOrder) {
-      cardsPage = await ctx.runQuery(
-        internal.publicApi.pinnedCardsPageForUser,
-        {
-          userId: queryArgs.userId,
-          showTrashOnly: queryArgs.showTrashOnly,
-          archived: queryArgs.archived,
-          folderId: queryArgs.folderId,
-          styleFilters: queryArgs.styleFilters,
-          hueFilters: queryArgs.hueFilters,
-          hexFilters: queryArgs.hexFilters,
-          type: queryArgs.type,
-          types: queryArgs.types,
-          favorited: queryArgs.favorited,
-          createdAfter: queryArgs.createdAfter,
-          createdBefore: queryArgs.createdBefore,
-          tags: queryArgs.tags,
-          sites: queryArgs.sites,
-          phrases: queryArgs.phrases,
-          prices: queryArgs.prices,
-          done: queryArgs.done,
-          todo: queryArgs.todo,
-          folderNames: queryArgs.folderNames,
-          expression: queryArgs.expression,
-        }
-      );
-    } else if (
-      options.sort === "shuffle" &&
-      options.shuffleSeed !== undefined
-    ) {
-      const items: CardWithUrls[] = [];
-      let cursor = options.cursor;
-      let hasMore = true;
-      for (
-        let read = 0;
-        read < MAX_SHUFFLE_READS && items.length < options.limit && hasMore;
-        read++
-      ) {
-        const page = await ctx.runQuery(
-          internal.publicApi.shuffleCardsPageForUser,
-          {
-            ...queryArgs,
-            sort: undefined,
-            cursor,
-            limit: options.limit - items.length,
-            searchQuery: options.searchQuery,
-            shuffleSeed: options.shuffleSeed,
-            tag: options.tag,
-          }
-        );
-        items.push(...page.items);
-        cursor = page.pageInfo.nextCursor ?? undefined;
-        hasMore = page.pageInfo.hasMore;
-      }
-      cardsPage = {
-        items,
-        pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
-      };
-    } else if (
+  const pinnedInOrder =
+    options.pinnedOnly &&
+    !(
       options.searchQuery ||
       options.tag ||
       options.qualifiers?.ocrTexts?.length ||
-      similarity
+      similarity ||
+      options.sort === "shuffle"
+    );
+  if (pinnedInOrder) {
+    cardsPage = await ctx.runQuery(internal.publicApi.pinnedCardsPageForUser, {
+      userId: queryArgs.userId,
+      showTrashOnly: queryArgs.showTrashOnly,
+      archived: queryArgs.archived,
+      folderId: queryArgs.folderId,
+      styleFilters: queryArgs.styleFilters,
+      hueFilters: queryArgs.hueFilters,
+      hexFilters: queryArgs.hexFilters,
+      type: queryArgs.type,
+      types: queryArgs.types,
+      favorited: queryArgs.favorited,
+      createdAfter: queryArgs.createdAfter,
+      createdBefore: queryArgs.createdBefore,
+      tags: queryArgs.tags,
+      sites: queryArgs.sites,
+      phrases: queryArgs.phrases,
+      prices: queryArgs.prices,
+      done: queryArgs.done,
+      todo: queryArgs.todo,
+      folderNames: queryArgs.folderNames,
+      expression: queryArgs.expression,
+    });
+  } else if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
+    const items: CardWithUrls[] = [];
+    let cursor = options.cursor;
+    let hasMore = true;
+    for (
+      let read = 0;
+      read < MAX_SHUFFLE_READS && items.length < options.limit && hasMore;
+      read++
     ) {
-      const relevance = bestMatch
-        ? await relevanceForPage(ctx, {
-            cursor: options.cursor,
-            spentToken: semantic?.spentToken === true,
-            text: bestMatchText,
-            userId,
-            candidateArgs: {
-              ...queryArgs,
-              cursor: undefined,
-              limit: RELEVANCE_CANDIDATE_LIMIT,
-              searchQuery: options.searchQuery,
-              tag: options.tag,
-              relevance: {},
-            },
-          })
-        : undefined;
-      relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
-      cardsPage = await ctx.runQuery(
-        internal.publicApi.searchCardsPageForUser,
+      const page = await ctx.runQuery(
+        internal.publicApi.shuffleCardsPageForUser,
         {
           ...queryArgs,
-          limit: options.limit,
+          sort: undefined,
+          cursor,
+          limit: options.limit - items.length,
           searchQuery: options.searchQuery,
+          shuffleSeed: options.shuffleSeed,
           tag: options.tag,
-          ...(relevance ? { relevance } : {}),
         }
       );
-    } else {
-      const items: CardWithUrls[] = [];
-      let cursor = options.cursor;
-      let nextCursor: string | null = null;
-      let scannedRows = 0;
-      let hasMore = false;
-
-      while (scannedRows < MAX_QUERY_SCAN) {
-        const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
-        const scanPage = await ctx.runQuery(
-          internal.publicApi.scanCardsPageForUser,
-          {
+      items.push(...page.items);
+      cursor = page.pageInfo.nextCursor ?? undefined;
+      hasMore = page.pageInfo.hasMore;
+    }
+    cardsPage = {
+      items,
+      pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
+    };
+  } else if (
+    options.searchQuery ||
+    options.tag ||
+    options.qualifiers?.ocrTexts?.length ||
+    similarity
+  ) {
+    const relevance = bestMatch
+      ? await relevanceForPage(ctx, {
+          cursor: options.cursor,
+          spentToken: semantic?.spentToken === true,
+          text: bestMatchText,
+          userId,
+          candidateArgs: {
             ...queryArgs,
-            cursor,
-            scanLimit,
-          }
-        );
-        const rowsRead = Math.max(
-          0,
-          Math.min(scanLimit, Number(scanPage.scannedRows) || 0)
-        );
-        scannedRows += rowsRead;
+            cursor: undefined,
+            limit: RELEVANCE_CANDIDATE_LIMIT,
+            searchQuery: options.searchQuery,
+            tag: options.tag,
+            relevance: {},
+          },
+        })
+      : undefined;
+    relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
+    cardsPage = await ctx.runQuery(internal.publicApi.searchCardsPageForUser, {
+      ...queryArgs,
+      limit: options.limit,
+      searchQuery: options.searchQuery,
+      tag: options.tag,
+      ...(relevance ? { relevance } : {}),
+    });
+  } else {
+    const items: CardWithUrls[] = [];
+    let cursor = options.cursor;
+    let nextCursor: string | null = null;
+    let scannedRows = 0;
+    let hasMore = false;
 
-        for (const [index, card] of scanPage.items.entries()) {
-          if (items.length === options.limit) {
-            hasMore = true;
-            break;
-          }
-
-          items.push(card);
-          nextCursor = scanPage.itemCursors[index] ?? null;
+    while (scannedRows < MAX_QUERY_SCAN) {
+      const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
+      const scanPage = await ctx.runQuery(
+        internal.publicApi.scanCardsPageForUser,
+        {
+          ...queryArgs,
+          cursor,
+          scanLimit,
         }
+      );
+      const rowsRead = Math.max(
+        0,
+        Math.min(scanLimit, Number(scanPage.scannedRows) || 0)
+      );
+      scannedRows += rowsRead;
 
-        if (hasMore) {
-          break;
-        }
-
-        cursor = scanPage.nextCursor ?? undefined;
-        if (!cursor) {
-          nextCursor = null;
-          break;
-        }
-
+      for (const [index, card] of scanPage.items.entries()) {
         if (items.length === options.limit) {
-          nextCursor = cursor;
-        }
-
-        if (rowsRead === 0) {
           hasMore = true;
-          nextCursor = cursor;
           break;
         }
+
+        items.push(card);
+        nextCursor = scanPage.itemCursors[index] ?? null;
       }
 
-      if (!hasMore && scannedRows >= MAX_QUERY_SCAN && cursor) {
-        hasMore = true;
+      if (hasMore) {
+        break;
+      }
+
+      cursor = scanPage.nextCursor ?? undefined;
+      if (!cursor) {
+        nextCursor = null;
+        break;
+      }
+
+      if (items.length === options.limit) {
         nextCursor = cursor;
       }
 
-      cardsPage = {
-        items,
-        pageInfo: {
-          hasMore,
-          nextCursor: hasMore ? nextCursor : null,
-        },
-      };
+      if (rowsRead === 0) {
+        hasMore = true;
+        nextCursor = cursor;
+        break;
+      }
     }
 
-    const items = include.has("processing")
-      ? await withTranscripts(ctx, userId, cardsPage.items)
-      : cardsPage.items;
-    return json(200, {
-      items: items.map((card) => serializeListCard(card, request.url, include)),
-      pageInfo: cardsPage.pageInfo,
-      ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
-      ...(options.hasQuery && !similarity
-        ? { searchMode: semanticRanking ? options.mode : "keyword" }
-        : {}),
-      ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
-    });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch cards");
+    if (!hasMore && scannedRows >= MAX_QUERY_SCAN && cursor) {
+      hasMore = true;
+      nextCursor = cursor;
+    }
+
+    cardsPage = {
+      items,
+      pageInfo: {
+        hasMore,
+        nextCursor: hasMore ? nextCursor : null,
+      },
+    };
   }
+
+  const items = include.has("processing")
+    ? await withTranscripts(ctx, userId, cardsPage.items)
+    : cardsPage.items;
+  return json(200, {
+    items: items.map((card) => serializeListCard(card, request.url, include)),
+    pageInfo: cardsPage.pageInfo,
+    ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
+    ...(options.hasQuery && !similarity
+      ? { searchMode: semanticRanking ? options.mode : "keyword" }
+      : {}),
+    ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
+  });
 };
 
 export const relevanceForPage = async (
@@ -796,14 +769,11 @@ const handleThumbnailUploadRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const upload = validateThumbnailUploadPayload(call.body);
-  if (!upload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include only mimeType and fileSize"
-    );
+  const parsedUpload = parsePublicApiBody("createThumbnailUpload", call.body);
+  if ("error" in parsedUpload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUpload.error);
   }
+  const upload = parsedUpload.body;
   try {
     return json(
       200,
@@ -822,10 +792,11 @@ const handleSetThumbnailRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const thumbnail = validateThumbnailSetPayload(call.body);
-  if (!thumbnail) {
-    return errorResponse(400, "INVALID_INPUT", "Body must include fileKey");
+  const parsedThumbnail = parsePublicApiBody("setCardThumbnail", call.body);
+  if ("error" in parsedThumbnail) {
+    return errorResponse(400, "INVALID_INPUT", parsedThumbnail.error);
   }
+  const thumbnail = parsedThumbnail.body;
   try {
     await call.ctx.runAction(
       internal.card.thumbnailOverride.setLinkThumbnailForUser,
@@ -845,19 +816,15 @@ const handleRefreshCardRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  try {
-    const result = await call.ctx.runMutation(
-      internal["card/updateCard"].reprocessCardForUser,
-      { cardId: loaded.cardId, userId: call.userId }
-    );
-    return json(202, {
-      cardId: result.cardId,
-      requestedAt: result.requestedAt,
-      status: "queued",
-    });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to refresh card");
-  }
+  const result = await call.ctx.runMutation(
+    internal["card/updateCard"].reprocessCardForUser,
+    { cardId: loaded.cardId, userId: call.userId }
+  );
+  return json(202, {
+    cardId: result.cardId,
+    requestedAt: result.requestedAt,
+    status: "queued",
+  });
 };
 
 const setDone =
@@ -867,25 +834,21 @@ const setDone =
     if (loaded instanceof Response) {
       return loaded;
     }
-    try {
-      const result = await call.ctx.runMutation(
-        internal.publicApi.cardsForUser.setCardDoneForUser,
-        { cardId: loaded.cardId, done, userId: call.userId }
-      );
-      if (!result) {
-        return errorResponse(404, "NOT_FOUND", "Card not found");
-      }
-      if (result.changed) {
-        await captureBackendEvent("card_done_toggled", call.userId, {
-          category: result.card.metadata?.linkCategory?.category ?? "none",
-          done,
-          source: "api",
-        });
-      }
-      return await cardResponse(call, result.card);
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to update done state");
+    const result = await call.ctx.runMutation(
+      internal.publicApi.cardsForUser.setCardDoneForUser,
+      { cardId: loaded.cardId, done, userId: call.userId }
+    );
+    if (!result) {
+      return errorResponse(404, "NOT_FOUND", "Card not found");
     }
+    if (result.changed) {
+      await captureBackendEvent("card_done_toggled", call.userId, {
+        category: result.card.metadata?.linkCategory?.category ?? "none",
+        done,
+        source: "api",
+      });
+    }
+    return await cardResponse(call, result.card);
   };
 
 const handleSaveCardPdfRequest = async (call: PublicApiCall) => {
@@ -900,15 +863,11 @@ const handleRestoreCardRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  try {
-    await call.ctx.runMutation(internal["card/deleteCard"].restoreCardForUser, {
-      cardId: loaded.cardId,
-      userId: call.userId,
-    });
-    return noContent();
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to restore card");
-  }
+  await call.ctx.runMutation(internal["card/deleteCard"].restoreCardForUser, {
+    cardId: loaded.cardId,
+    userId: call.userId,
+  });
+  return noContent();
 };
 
 const handleDeleteCardRequest = async (call: PublicApiCall) => {
@@ -935,17 +894,13 @@ const handleDeleteCardRequest = async (call: PublicApiCall) => {
       "Move the card to Trash before deleting it permanently"
     );
   }
-  try {
-    await call.ctx.runMutation(
-      permanent
-        ? internal["card/deleteCard"].permanentDeleteCardForUser
-        : internal.publicApi.cardsForUser.softDeleteCardForUser,
-      { cardId: loaded.cardId, userId: call.userId }
-    );
-    return noContent();
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to delete card");
-  }
+  await call.ctx.runMutation(
+    permanent
+      ? internal["card/deleteCard"].permanentDeleteCardForUser
+      : internal.publicApi.cardsForUser.softDeleteCardForUser,
+    { cardId: loaded.cardId, userId: call.userId }
+  );
+  return noContent();
 };
 
 const handleUpdateCardRequest = async (call: PublicApiCall) => {
@@ -973,17 +928,13 @@ const handleUpdateCardRequest = async (call: PublicApiCall) => {
       "Text content cannot be empty for this card type"
     );
   }
-  try {
-    const updated = await call.ctx.runMutation(
-      internal.publicApi.cardsForUser.patchCardForUser,
-      { ...patchPayload, cardId: loaded.cardId, userId: call.userId }
-    );
-    return updated
-      ? await cardResponse(call, updated)
-      : errorResponse(404, "NOT_FOUND", "Card not found");
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update card");
-  }
+  const updated = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.patchCardForUser,
+    { ...patchPayload, cardId: loaded.cardId, userId: call.userId }
+  );
+  return updated
+    ? await cardResponse(call, updated)
+    : errorResponse(404, "NOT_FOUND", "Card not found");
 };
 
 const handleSetPinnedRequest = async (call: PublicApiCall) => {
@@ -991,36 +942,29 @@ const handleSetPinnedRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const pinPayload = validatePinPayload(call.body);
-  if (!pinPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include `isPinned` as a boolean"
-    );
+  const parsedPinPayload = parsePublicApiBody("setCardPinned", call.body);
+  if ("error" in parsedPinPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedPinPayload.error);
   }
-  try {
-    const result = await call.ctx.runMutation(
-      internal.publicApi.cardsForUser.setCardPinnedForUser,
-      {
-        cardId: loaded.cardId,
-        isPinned: pinPayload.isPinned,
-        userId: call.userId,
-      }
-    );
-    if (!result) {
-      return errorResponse(404, "NOT_FOUND", "Card not found");
+  const pinPayload = parsedPinPayload.body;
+  const result = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.setCardPinnedForUser,
+    {
+      cardId: loaded.cardId,
+      isPinned: pinPayload.isPinned,
+      userId: call.userId,
     }
-    if (result.changed) {
-      await captureBackendEvent("card_pin_toggled", call.userId, {
-        pinned: pinPayload.isPinned,
-        source: "api",
-      });
-    }
-    return await cardResponse(call, result.card);
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update pin");
+  );
+  if (!result) {
+    return errorResponse(404, "NOT_FOUND", "Card not found");
   }
+  if (result.changed) {
+    await captureBackendEvent("card_pin_toggled", call.userId, {
+      pinned: pinPayload.isPinned,
+      source: "api",
+    });
+  }
+  return await cardResponse(call, result.card);
 };
 
 const handleSetFavoriteRequest = async (call: PublicApiCall) => {
@@ -1028,72 +972,25 @@ const handleSetFavoriteRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const favoritePayload = validateFavoritePayload(call.body);
-  if (!favoritePayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include `isFavorited` as a boolean"
-    );
+  const parsedFavoritePayload = parsePublicApiBody(
+    "setCardFavorite",
+    call.body
+  );
+  if ("error" in parsedFavoritePayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedFavoritePayload.error);
   }
-  try {
-    const updated = await call.ctx.runMutation(
-      internal.publicApi.cardsForUser.setCardFavoriteForUser,
-      {
-        cardId: loaded.cardId,
-        isFavorited: favoritePayload.isFavorited,
-        userId: call.userId,
-      }
-    );
-    return updated
-      ? await cardResponse(call, updated)
-      : errorResponse(404, "NOT_FOUND", "Card not found");
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update favorite status");
-  }
-};
-
-const handleTagsRequest = async (call: PublicApiCall): Promise<Response> => {
-  const { ctx, userId } = call;
-
-  try {
-    const fresh = await ctx.runQuery(
-      internal.publicApi.getFreshTagSummaryForUser,
-      { userId }
-    );
-    if (fresh) {
-      return json(200, { items: fresh.items, isComplete: true });
+  const favoritePayload = parsedFavoritePayload.body;
+  const updated = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.setCardFavoriteForUser,
+    {
+      cardId: loaded.cardId,
+      isFavorited: favoritePayload.isFavorited,
+      userId: call.userId,
     }
-    const tags = await ctx.runQuery(internal.publicApi.listTagsForUser, {
-      userId,
-    });
-    if (tags.isComplete) {
-      return json(200, { items: tags.items, isComplete: true });
-    }
-    const summary = await ctx.runQuery(
-      internal.tag.tagSummary.getTagSummaryForUser,
-      { userId }
-    );
-    if (summary) {
-      return json(200, {
-        // The API lists tags by key; the casing a tag was typed in isn't
-        // part of its contract.
-        items: summary.items.map(
-          ({ name, count }: { name: string; count: number }) => ({
-            name,
-            count,
-          })
-        ),
-        isComplete: summary.isComplete,
-      });
-    }
-    await ctx.runMutation(internal.tag.tagSummary.requestTagSummaryForUser, {
-      userId,
-    });
-    return json(200, { items: tags.items, isComplete: false });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch tags");
-  }
+  );
+  return updated
+    ? await cardResponse(call, updated)
+    : errorResponse(404, "NOT_FOUND", "Card not found");
 };
 
 const handleCardChangesRequest = async (
@@ -1115,30 +1012,22 @@ const handleCardChangesRequest = async (
     return limit;
   }
 
-  try {
-    const changes = await ctx.runQuery(
-      internal.publicApi.listCardChangesForUser,
-      {
-        cursor: parseOptionalString(searchParams.get("cursor")),
-        limit,
-        since,
-        userId,
-      }
-    );
-
-    const items = await withTranscripts<CardWithUrls>(
-      ctx,
+  const changes = await ctx.runQuery(
+    internal.publicApi.listCardChangesForUser,
+    {
+      cursor: parseOptionalString(searchParams.get("cursor")),
+      limit,
+      since,
       userId,
-      changes.items
-    );
-    return json(200, {
-      deletedIds: changes.deletedIds,
-      items: items.map((card) => serializeCard(card, request.url)),
-      pageInfo: changes.pageInfo,
-    });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch card changes");
-  }
+    }
+  );
+
+  const items = await withTranscripts<CardWithUrls>(ctx, userId, changes.items);
+  return json(200, {
+    deletedIds: changes.deletedIds,
+    items: items.map((card) => serializeCard(card, request.url)),
+    pageInfo: changes.pageInfo,
+  });
 };
 
 const BULK_OPERATIONS = new Set([
@@ -1244,7 +1133,6 @@ export {
   handleSetFavoriteRequest,
   handleSetPinnedRequest,
   handleSetThumbnailRequest,
-  handleTagsRequest,
   handleThumbnailUploadRequest,
   handleUpdateCardRequest,
   setDone,

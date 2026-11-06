@@ -324,6 +324,29 @@ describe("public API folders", () => {
     expect(unknownRoute.status).toBe(404);
   });
 
+  test("an unexpected failure reading or deleting never claims an update failed", async () => {
+    const broken = mock().mockRejectedValue(new Error("database unavailable"));
+    const cases = [
+      [{ method: "GET", path: "/v1/folders/folder_1" }, { query: broken }],
+      [
+        { method: "DELETE", path: "/v1/folders/folder_1" },
+        { mutation: broken },
+      ],
+      [
+        { method: "GET", path: "/v1/folders/folder_1/rule-runs/run_1" },
+        { query: broken },
+      ],
+    ] as const;
+    for (const [operation, fns] of cases) {
+      const response = await run(operation, fns).response;
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        code: "INTERNAL_ERROR",
+        error: "The request failed",
+      });
+    }
+  });
+
   test("adds and removes up to 100 cards per call", async () => {
     const result = {
       updatedIds: ["card_1"],

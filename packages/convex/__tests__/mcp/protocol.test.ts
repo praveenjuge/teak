@@ -4,6 +4,7 @@ import {
   TEAK_APP_RESOURCE,
   TEAK_APP_RESOURCE_URI,
 } from "../../mcp/appResource";
+import { TEAK_V1_TOOLS } from "../../mcp/catalog";
 import { handleMcpV1Request } from "../../mcp/httpServer";
 import {
   answerProtocolMessage,
@@ -11,7 +12,6 @@ import {
   jsonRpcResponse,
   MCP_CORS_HEADERS,
 } from "../../mcp/protocol";
-import { TEAK_V1_TOOLS } from "../../mcp/tools";
 import { mockActionCtx } from "../helpers/convex.test-utils";
 import { mcpRequest, setUpMcpEnv } from "../helpers/mcp.test-utils";
 import { withMappedOwner } from "../helpers/session.test-utils";

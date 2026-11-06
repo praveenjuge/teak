@@ -9,7 +9,7 @@ export const handleMeRequest = async ({
   userId,
 }: PublicApiCall): Promise<Response> => {
   try {
-    const profile = await ctx.runQuery(internal.publicApiMe.profileForOwner, {
+    const profile = await ctx.runQuery(internal.publicApiMe.profileForUser, {
       teakUserId: userId,
       includeUsage: true,
     });

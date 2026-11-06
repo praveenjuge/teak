@@ -6,7 +6,6 @@ import { serializeCard } from "../../../publicApi/http/serializers";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
-  buildAuthorizedMutationMockWithIdempotencySkip,
   callPublicApi,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
@@ -502,12 +501,11 @@ describe("publicApiHttp card endpoints", () => {
   });
 
   test("bulkCardsV1 executes bulk operations", async () => {
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        operation: "favorite",
-        results: [{ index: 0, status: "success", cardId: "card_1" }],
-        summary: { total: 1, succeeded: 1, failed: 0 },
-      });
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      operation: "favorite",
+      results: [{ index: 0, status: "success", cardId: "card_1" }],
+      summary: { total: 1, succeeded: 1, failed: 0 },
+    });
 
     const response = await runHandler(
       publicApiV1,
@@ -550,9 +548,7 @@ describe("publicApiHttp card endpoints", () => {
       summary: { total: 2, succeeded: 1, failed: 1 },
     };
     const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
-        result
-      );
+      buildAuthorizedMutationMock().mockResolvedValueOnce(result);
 
     const response = await runHandler(
       publicApiV1,
@@ -576,7 +572,7 @@ describe("publicApiHttp card endpoints", () => {
   });
 
   test("bulkCardsV1 rejects an unknown operation", async () => {
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
       publicApiV1,
       { runMutation, runQuery: mock() },
@@ -2408,9 +2404,9 @@ describe("page snapshots", () => {
   });
 
   test.each([
-    [{}, "`bytes` must be a positive whole number"],
+    [{}, "Body must include `bytes`"],
     [{ bytes: 1.5 }, "`bytes` must be a positive whole number"],
-    [{ bytes: 10, fileName: "page.html" }, "Unknown field `fileName`"],
+    [{ bytes: 10, fileName: "page.html" }, "Body may include only `bytes`"],
   ])("refuses %j", async (body, error) => {
     const response = await post(body);
     expect(response.status).toBe(400);

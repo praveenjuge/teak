@@ -10,12 +10,9 @@ import {
 } from "../card/listQuery";
 import { scanInBatches } from "../card/scanInBatches";
 import { readCardTranscript } from "../card/textContents";
-import {
-  buildCardSearchText,
-  normalizeCardSearchTag,
-} from "../shared/search/searchText";
+import { buildCardSearchText } from "../shared/search/searchText";
 import { savedAtOf } from "../shared/search/sort";
-import { isCardHidden, isHiddenTagList } from "../shared/tags";
+import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 
 interface SavedAtRange {
@@ -44,7 +41,7 @@ export const searchCardsByExactTag = async (
     includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
-  const tag = normalizeCardSearchTag(args.tag);
+  const tag = tagKey(args.tag);
   if (!tag) {
     return [];
   }
