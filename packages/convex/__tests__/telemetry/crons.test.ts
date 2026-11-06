@@ -1,10 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
+import { internal } from "../../_generated/api";
 import { CRONS } from "../../cronSchedules";
 import { monitored } from "../../telemetry/crons";
 import { mockActionCtx } from "../helpers/convex.test-utils";
 
-const HEARTBEAT = "adminHealth:recordCronRun";
+const HEARTBEAT = getFunctionName(internal.adminHealth.recordCronRun);
 const JOB = CRONS.workflowDispatchWatchdog.name;
 
 const recordMutations = (

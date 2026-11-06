@@ -1,6 +1,7 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
+import { internal } from "../../../_generated/api";
 import { publicApiV1 } from "../../../publicApi/http/router";
 import { serializeCard } from "../../../publicApi/http/serializers";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
@@ -781,7 +782,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ id: "card_1", ...links });
     expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
-      "card/cardLinks:getCardLinksForUser"
+      getFunctionName(internal.card.cardLinks.getCardLinksForUser)
     );
   });
 
@@ -822,7 +823,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ id: "card_1", ...links });
     expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
-      "card/cardLinks:getCardLinksForUser"
+      getFunctionName(internal.card.cardLinks.getCardLinksForUser)
     );
   });
 
@@ -2212,7 +2213,9 @@ describe("link image routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(upload);
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "card/thumbnailOverride:createThumbnailUploadUrlForUser"
+      getFunctionName(
+        internal.card.thumbnailOverride.createThumbnailUploadUrlForUser
+      )
     );
     expect(runMutation.mock.calls[1][1]).toEqual({
       cardId: "card_1",
@@ -2261,7 +2264,7 @@ describe("link image routes", () => {
       thumbnailOverridden: true,
     });
     expect(getFunctionName(runAction.mock.calls[0][0])).toBe(
-      "card/thumbnailOverride:setLinkThumbnailForUser"
+      getFunctionName(internal.card.thumbnailOverride.setLinkThumbnailForUser)
     );
     expect(runAction.mock.calls[0][1]).toEqual({
       cardId: "card_1",
@@ -2317,7 +2320,7 @@ describe("link image routes", () => {
       thumbnailOverridden: false,
     });
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "card/thumbnailOverride:resetLinkThumbnailForUser"
+      getFunctionName(internal.card.thumbnailOverride.resetLinkThumbnailForUser)
     );
   });
 
@@ -2381,7 +2384,9 @@ describe("page snapshots", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(upload);
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "publicApiPageSnapshots:createPageSnapshotUploadForUser"
+      getFunctionName(
+        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser
+      )
     );
     expect(runMutation.mock.calls[1][1]).toEqual({
       bytes: 4096,
@@ -2400,7 +2405,11 @@ describe("page snapshots", () => {
       runMutation.mock.calls.map((call: unknown[]) =>
         getFunctionName(call[0] as never)
       )
-    ).not.toContain("publicApiPageSnapshots:createPageSnapshotUploadForUser");
+    ).not.toContain(
+      getFunctionName(
+        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser
+      )
+    );
   });
 
   test.each([
@@ -2456,7 +2465,7 @@ describe("page snapshots", () => {
     const save = runMutation.mock.calls.find(
       (call: unknown[]) =>
         getFunctionName(call[0] as never) ===
-        "publicApi/cardsForUser:quickSaveForUser"
+        getFunctionName(internal.publicApi.cardsForUser.quickSaveForUser)
     );
     expect(save?.[1]).toMatchObject({
       pageSnapshotKey: upload.fileKey,

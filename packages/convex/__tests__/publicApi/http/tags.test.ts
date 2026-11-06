@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
+import { internal } from "../../../_generated/api";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import type { ApiRequest as PublicApiOperation } from "../../helpers/publicApiHttp.test-utils";
 import {
@@ -215,7 +216,7 @@ describe("public API tag changes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(listing);
     expect(getFunctionName(query.mock.calls[0]?.[0])).toBe(
-      "tag/tagListing:listTagsForUser"
+      getFunctionName(internal.tag.tagListing.listTagsForUser)
     );
     expect(mutation).not.toHaveBeenCalled();
   });
@@ -233,7 +234,7 @@ describe("public API tag changes", () => {
     );
     expect(await response.json()).toEqual(partial);
     expect(getFunctionName(mutation.mock.calls[0]?.[0])).toBe(
-      "tag/tagSummary:requestTagSummaryForUser"
+      getFunctionName(internal.tag.tagSummary.requestTagSummaryForUser)
     );
   });
 

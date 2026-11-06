@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
+import { internal } from "../../../_generated/api";
 import {
   executePublicApiOperation,
   publicApiV1,
@@ -106,7 +107,9 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
       updatedAt: 11,
     });
     const [ref, args] = runMutation.mock.calls[1] ?? [];
-    expect(nameOf(ref)).toBe("publicApiHighlights:createHighlightForUser");
+    expect(nameOf(ref)).toBe(
+      getFunctionName(internal.publicApiHighlights.createHighlightForUser)
+    );
     const text =
       "Plant marigolds around the tomatoes. Water in the morning. In summer, water in the morning again.";
     const start = text.lastIndexOf("water in the morning");
@@ -225,7 +228,7 @@ describe("the other highlight operations", () => {
       body.items.map((item: { anchored: boolean }) => item.anchored)
     ).toEqual([true, false]);
     expect(nameOf(runQuery.mock.calls[0]?.[0])).toBe(
-      "publicApiHighlights:listHighlightsForUser"
+      getFunctionName(internal.publicApiHighlights.listHighlightsForUser)
     );
   });
 
@@ -318,7 +321,9 @@ describe("the other highlight operations", () => {
       items: [{ id: "highlight_1", cardId: "card_1" }],
     });
     const call = runQuery.mock.calls.find(
-      ([ref]) => nameOf(ref) === "publicApiHighlights:listHighlightsForUser"
+      ([ref]) =>
+        nameOf(ref) ===
+        getFunctionName(internal.publicApiHighlights.listHighlightsForUser)
     );
     expect(call?.[1]).toMatchObject({ cardId: "card_1" });
   });
