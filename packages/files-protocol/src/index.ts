@@ -85,6 +85,7 @@ export * from "./inspect";
 export * from "./linkCheck";
 export * from "./linkedPdf";
 export * from "./linkPage";
+export * from "./mediaTypes";
 export * from "./metadata";
 export * from "./onboarding";
 export * from "./opTable";
