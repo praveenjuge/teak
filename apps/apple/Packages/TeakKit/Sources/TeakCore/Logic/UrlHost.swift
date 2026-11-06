@@ -155,9 +155,10 @@ public enum UrlHost {
             }
             let points = output.count + 1
             bias = adapt(i - oldI, points: points, first: oldI == 0)
-            n += i / points
+            let (nextN, nOverflow) = n.addingReportingOverflow(i / points)
+            guard !nOverflow, nextN <= 0x10FFFF else { return nil }
+            n = nextN
             i %= points
-            guard n <= 0x10FFFF else { return nil }
             output.insert(n, at: i)
             i += 1
         }

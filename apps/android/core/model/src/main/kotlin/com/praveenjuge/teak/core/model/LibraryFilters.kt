@@ -44,14 +44,15 @@ data class LibraryFilters(
 
     /**
      * The search a smart folder saves, matching Apple: types, favorites and archive as qualifiers,
-     * then the typed [search]. Colors aren't saved, and Trash can't be a smart folder.
+     * then the typed [search] less its style, color and hex words, which search as filters a smart folder
+     * can't hold. Colors aren't saved, and Trash can't be a smart folder.
      */
     fun smartFolderQuery(search: String): String? {
         if (trashOnly) return null
         val parts = types.map { SearchQuery.format(SearchQualifier.Type(it)) }.toMutableList()
         if (favoritesOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Favorite))
         if (archivedOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Archived))
-        search.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
+        SearchFacets.split(search).text.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
         // An OR in the search is grouped, so the filters apply to both sides.
         return SearchQuery.join(parts).takeIf { it.isNotEmpty() }
     }

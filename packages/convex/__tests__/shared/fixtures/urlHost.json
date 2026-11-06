@@ -94,6 +94,18 @@
     {
       "host": "xn--!!.com",
       "display": "xn--!!.com"
+    },
+    {
+      "host": "xn--mw767205604493046e.com",
+      "display": "xn--mw767205604493046e.com"
+    },
+    {
+      "host": "xn--99999999999999999999999.com",
+      "display": "xn--99999999999999999999999.com"
+    },
+    {
+      "host": "xn--zzzzzzzzzzzzzzzzzzzzzzzzzzzzz.com",
+      "display": "xn--zzzzzzzzzzzzzzzzzzzzzzzzzzzzz.com"
     }
   ]
 }

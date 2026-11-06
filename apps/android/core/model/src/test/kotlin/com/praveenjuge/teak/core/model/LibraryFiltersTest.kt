@@ -38,6 +38,13 @@ class LibraryFiltersTest {
     }
 
     @Test
+    fun `a smart folder leaves out the color, style and hex words it can't filter by, like Apple`() {
+        assertEquals("kerning", LibraryFilters.Empty.smartFolderQuery("blue kerning #3b82f6"))
+        assertEquals(null, LibraryFilters.Empty.smartFolderQuery("blue"))
+        assertEquals("type:image", LibraryFilters(types = listOf(CardType.Image)).smartFolderQuery("minimal"))
+    }
+
+    @Test
     fun `archive and trash are separate views`() {
         val archive = LibraryFilters(trashOnly = true).toggleArchive()
         assertEquals(LibraryFilters(archivedOnly = true), archive)
