@@ -33,10 +33,10 @@ import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
+  recordActiveCardCreated,
   recordActiveCardRemoved,
-  restoreCountedCard,
 } from "./cardUsage";
-import { withHiddenFlag } from "./hiddenCards";
+import { patchCard } from "./cardWrites";
 import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
 import {
@@ -47,7 +47,6 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch, withUrlFields } from "./searchSync";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -94,7 +93,6 @@ interface UpdateCardFieldForUserArgs {
 
 interface UpdateCardFieldForUserOptions {
   deferPipelineSchedule?: boolean;
-  deferSearchSync?: boolean;
 }
 
 interface UpdateCardFieldForUserResult {
@@ -621,22 +619,13 @@ export const updateCardFieldsForUserHandler = async (
   }
   const pipelineDelayMs = reservation === "skipped" ? null : reservation;
 
-  await ctx.db.patch(
-    "cards",
-    cardId,
-    withHiddenFlag(
-      withUrlFields({
-        ...state.updateData,
-        ...(state.processingStatus
-          ? { processingStatus: state.processingStatus }
-          : {}),
-        updatedAt: now,
-      })
-    )
-  );
-  if (!options.deferSearchSync) {
-    await syncCardSearch(ctx, cardId, userId, card);
-  }
+  await patchCard(ctx, cardId, {
+    ...state.updateData,
+    ...(state.processingStatus
+      ? { processingStatus: state.processingStatus }
+      : {}),
+    updatedAt: now,
+  });
   if ("url" in state.updateData) {
     await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
@@ -741,29 +730,24 @@ export const updateCardFieldForUserHandler = async (
   if (field === "restore") {
     const hasPremium = await getCardQuotaEntitlement(ctx, userId);
     await ensureCardUsageShards(ctx, userId, hasPremium);
-    await restoreCountedCard(ctx, card, updateData, { hasPremium });
-  } else {
-    if (field === "delete") {
-      await ensureCardUsageShardsForRemoval(ctx, userId);
-    }
-    await ctx.db.patch("cards", cardId, updateData);
-    if (field === "delete" && !card.isDeleted) {
-      try {
-        await recordActiveCardRemoved(ctx, userId, cardId);
-      } catch (error) {
-        // Bulk deletes catch each card's error and commit the rest, and Convex
-        // has no savepoints, so the card is put back before the error leaves.
-        await ctx.db.patch("cards", cardId, {
-          isDeleted: card.isDeleted,
-          deletedAt: card.deletedAt,
-          updatedAt: card.updatedAt,
-        });
-        throw error;
-      }
-    }
+    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
+  } else if (field === "delete") {
+    await ensureCardUsageShardsForRemoval(ctx, userId);
   }
-  if (!options.deferSearchSync) {
-    await syncCardSearch(ctx, cardId, userId, card);
+  await patchCard(ctx, cardId, updateData);
+  if (field === "delete") {
+    try {
+      await recordActiveCardRemoved(ctx, userId, cardId);
+    } catch (error) {
+      // Bulk deletes catch each card's error and commit the rest, and Convex
+      // has no savepoints, so the card is put back before the error leaves.
+      await patchCard(ctx, cardId, {
+        isDeleted: card.isDeleted,
+        deletedAt: card.deletedAt,
+        updatedAt: card.updatedAt,
+      });
+      throw error;
+    }
   }
 
   return { pipelineDelayMs: null };

@@ -1,7 +1,7 @@
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import {
   createHighlightForUser,
   insertImportedHighlights,
@@ -122,7 +122,7 @@ const insertAnchored = async (
     });
   }
   const count = existing.length + spans.length;
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     hasHighlights: true,
     highlightCount: count,
     updatedAt: Date.now(),

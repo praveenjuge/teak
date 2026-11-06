@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { accountDeletionOwnsRows } from "../../accountDeletion";
+import { patchCard } from "../../card/cardWrites";
 import { mergeProcessingStages } from "../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../card/searchSync";
 import { storeCardTranscript } from "../../card/textContents";
 import { autoFileCard } from "../../folder/rules";
 import { colorValidator, processingStatusValidator } from "../../schema";
@@ -63,7 +63,7 @@ export const updateCardAI = internalMutation({
           aiTranscript || undefined
         )
       : undefined;
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       ...updates,
       ...(filed?.folderIds ? { folderIds: filed.folderIds } : {}),
       ...(filed?.tags ? { tags: filed.tags } : {}),
@@ -91,7 +91,7 @@ export const updateCardColors = internalMutation({
       return null;
     }
     const { colorHexes, colorHues } = buildColorFacets(colors);
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       colors,
       colorHexes,
       colorHues,

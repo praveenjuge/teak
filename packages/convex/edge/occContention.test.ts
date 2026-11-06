@@ -26,21 +26,18 @@ import {
   recordActiveCardRemoved,
   removeCardUsage,
 } from "../card/cardUsage";
+import { patchCard } from "../card/cardWrites";
 import { getSearchResultLimit } from "../card/getCards";
+import {
+  onCardChanged,
+  restartCardSearchTagSync,
+  syncCardSearchTagsBatchHandler,
+} from "../card/onCardChanged";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "../card/quota";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "../card/searchReads";
-import {
-  buildCardSearchTags,
-  buildCardSearchText,
-  patchCardWithSearchSync,
-  restartCardSearchTagSync,
-  syncCardSearch,
-  syncCardSearchDocumentHandler,
-  syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
 import { readFolderCardCount } from "../folder/folderRows";
 import { applyFolderMembership } from "../folder/membership";
 import {
@@ -51,6 +48,10 @@ import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import {
+  buildCardSearchTags,
+  buildCardSearchText,
+} from "../shared/search/searchText";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -463,8 +464,8 @@ describe("OCC contention behavior", () => {
         tags: ["other"],
         updatedAt: 10,
       });
-      await syncCardSearchDocumentHandler(ctx, exactId);
-      await syncCardSearchDocumentHandler(ctx, textOnlyId);
+      await onCardChanged(ctx, exactId);
+      await onCardChanged(ctx, textOnlyId);
       await drainCardSearchTagSync(ctx, exactId);
       await drainCardSearchTagSync(ctx, textOnlyId);
 
@@ -488,7 +489,7 @@ describe("OCC contention behavior", () => {
         tags: ["Updated"],
         updatedAt: 20,
       });
-      await syncCardSearchDocumentHandler(ctx, exactId);
+      await onCardChanged(ctx, exactId);
       await drainCardSearchTagSync(ctx, exactId);
       expect(
         (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
@@ -596,14 +597,14 @@ describe("OCC contention behavior", () => {
         tags: ["keep", "old"],
         updatedAt: 1,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
 
       await ctx.db.patch("cards", cardId, {
         tags: ["keep", ...added],
         updatedAt: 2,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await syncCardSearchTagsBatchHandler(ctx, cardId);
       const midway = (await ctx.db.query("cardSearchTags").collect()).map(
         ({ tag }) => tag
@@ -627,13 +628,13 @@ describe("OCC contention behavior", () => {
         tags: ["keep", "old"],
         updatedAt: 1,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       await ctx.db.patch("cards", cardId, {
         tags: ["keep", "new"],
         updatedAt: 2,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       expect(await syncCardSearchTagsBatchHandler(ctx, cardId)).toMatchObject({
         complete: true,
       });
@@ -650,7 +651,7 @@ describe("OCC contention behavior", () => {
         tags: ["alpha", "beta"],
         updatedAt: 1,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       const before = await ctx.db.query("cardSearchTags").collect();
 
@@ -659,7 +660,7 @@ describe("OCC contention behavior", () => {
         { isArchived: true as const },
         { isDeleted: true, deletedAt: 3 },
       ]) {
-        await patchCardWithSearchSync(ctx, cardId, { ...change, updatedAt: 3 });
+        await patchCard(ctx, cardId, { ...change, updatedAt: 3 });
         await drainCardSearchTagSync(ctx, cardId);
       }
       const after = await ctx.db.query("cardSearchTags").collect();
@@ -674,7 +675,7 @@ describe("OCC contention behavior", () => {
         expect(row.isCounted).toBeUndefined();
       }
 
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         tags: ["alpha"],
         updatedAt: 4,
       });
@@ -695,7 +696,7 @@ describe("OCC contention behavior", () => {
           content: `overlap Card ${index}`,
           updatedAt: index,
         });
-        await syncCardSearchDocumentHandler(ctx, cardId);
+        await onCardChanged(ctx, cardId);
         await drainCardSearchTagSync(ctx, cardId);
       }
 
@@ -719,9 +720,9 @@ describe("OCC contention behavior", () => {
         content: "old",
         updatedAt: 10,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await ctx.db.patch("cards", cardId, { content: "latest", updatedAt: 20 });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       const document = await ctx.db
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -739,7 +740,7 @@ describe("OCC contention behavior", () => {
         tags: ["alpha"],
         updatedAt: 10,
       });
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         content: "after",
         updatedAt: 20,
       });
@@ -770,13 +771,13 @@ describe("OCC contention behavior", () => {
         tags: ["alpha"],
         updatedAt: 10,
       });
-      await syncCardSearch(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       const stateBefore = await ctx.db
         .query("cardSearchTagSyncStates")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
         .unique();
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         url: "https://example.com/unchanged-search",
       });
       const document = await ctx.db
@@ -801,10 +802,10 @@ describe("OCC contention behavior", () => {
         tags: ["alpha"],
         updatedAt: 10,
       });
-      await syncCardSearch(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       await ctx.db.delete("cards", cardId);
-      await syncCardSearch(ctx, cardId, "user-inline-delete");
+      await onCardChanged(ctx, cardId, "user-inline-delete");
       expect(
         await ctx.db
           .query("cardSearchDocuments")
@@ -826,7 +827,7 @@ describe("OCC contention behavior", () => {
     const t = convexTest(schema, modules);
     const { cardId, a, b } = await t.run(async (ctx) => {
       const id = await insertCard(ctx, "user-folders");
-      await syncCardSearch(ctx, id);
+      await onCardChanged(ctx, id);
       const folder = (name: string) =>
         ctx.db.insert("folders", {
           userId: "user-folders",
@@ -894,9 +895,9 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-folder-text", {
         folderIds: [folderId],
       });
-      await syncCardSearch(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       const [row] = await ctx.db.query("folderCards").collect();
-      await patchCardWithSearchSync(ctx, cardId, { content: "edited" });
+      await patchCard(ctx, cardId, { content: "edited" });
       const [after] = await ctx.db.query("folderCards").collect();
       expect(after).toEqual(row);
       expect(await folderCount(ctx, folderId)).toBe(1);
@@ -911,7 +912,7 @@ describe("OCC contention behavior", () => {
           content: `Card ${index}`,
           tags: ["cleanup"],
         });
-        await syncCardSearchDocumentHandler(ctx, cardId);
+        await onCardChanged(ctx, cardId);
         await drainCardSearchTagSync(ctx, cardId);
       }
       const firstBatch = await takeOwnedCards(ctx, "user-delete", 20);
@@ -951,7 +952,7 @@ describe("OCC contention behavior", () => {
         fileKey: "object-key",
         tags,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
 
       expect(
@@ -985,7 +986,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-race-delete", {
         content: "gone",
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       await ctx.db.delete("cards", cardId);
 
@@ -1007,10 +1008,10 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-fence-patch", {
         content: "before",
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
 
       await beginAccountDeletion(ctx, "user-fence-patch");
-      const fenced = await patchCardWithSearchSync(ctx, cardId, {
+      const fenced = await patchCard(ctx, cardId, {
         content: "after",
         updatedAt: 999,
       });
@@ -1026,13 +1027,13 @@ describe("OCC contention behavior", () => {
       expect(document?.sourceUpdatedAt).not.toBe(999);
 
       await endAccountDeletion(ctx, "user-fence-patch");
-      const resumed = await patchCardWithSearchSync(ctx, cardId, {
+      const resumed = await patchCard(ctx, cardId, {
         content: "after",
         updatedAt: 999,
       });
       expect(resumed).toBe(true);
       expect((await ctx.db.get("cards", cardId))?.content).toBe("after");
-      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      expect(await onCardChanged(ctx, cardId)).toBeNull();
       const synced = await ctx.db
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -1048,7 +1049,7 @@ describe("OCC contention behavior", () => {
         content: "before",
         tags: ["alpha"],
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       await restartCardSearchTagSync(ctx, cardId);
 
@@ -1060,7 +1061,7 @@ describe("OCC contention behavior", () => {
 
       const tagResult = await syncCardSearchTagsBatchHandler(ctx, cardId);
       expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
-      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      expect(await onCardChanged(ctx, cardId)).toBeNull();
 
       const state = await ctx.db
         .query("cardSearchTagSyncStates")
@@ -1075,7 +1076,7 @@ describe("OCC contention behavior", () => {
       expect(document?.sourceUpdatedAt).not.toBe(999);
 
       await endAccountDeletion(ctx, "user-deleting");
-      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      expect(await onCardChanged(ctx, cardId)).toBeNull();
       const synced = await ctx.db
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -1090,7 +1091,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-queued", {
         tags: ["alpha"],
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
 
       await beginAccountDeletion(ctx, "user-queued");
@@ -1104,9 +1105,7 @@ describe("OCC contention behavior", () => {
         "user-queued"
       );
       expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
-      expect(
-        await syncCardSearchDocumentHandler(ctx, cardId, "user-queued")
-      ).toBeNull();
+      expect(await onCardChanged(ctx, cardId, "user-queued")).toBeNull();
 
       expect(
         await ctx.db.query("cardSearchTagSyncStates").collect()
@@ -1127,7 +1126,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-fencing", {
         tags: manyTags,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
 
       const first = await syncCardSearchTagsBatchHandler(
         ctx,
@@ -1194,7 +1193,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-pruned-state", {
         tags: ["one", "two"],
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
 
       const state = await ctx.db
         .query("cardSearchTagSyncStates")
@@ -1224,7 +1223,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-snapshot", {
         tags: ["alpha", "beta"],
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
 
       await ctx.db.patch("cards", cardId, {
         tags: ["gamma"],
@@ -1247,7 +1246,7 @@ describe("OCC contention behavior", () => {
       );
       expect(snapshotTags.sort()).toEqual(["alpha", "beta"]);
 
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       for (let attempt = 0; attempt < 10; attempt += 1) {
         const step = await syncCardSearchTagsBatchHandler(
           ctx,
@@ -1299,7 +1298,7 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-deleted", {
         tags: ["omega"],
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       await drainCardSearchTagSync(ctx, cardId);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
 

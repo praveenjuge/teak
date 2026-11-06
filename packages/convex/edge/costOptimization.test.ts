@@ -2,12 +2,12 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { searchCardsByExactTag } from "../card/searchReads";
+import { patchCard } from "../card/cardWrites";
 import {
-  patchCardWithSearchSync,
-  syncCardSearchDocumentHandler,
+  onCardChanged,
   syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
+} from "../card/onCardChanged";
+import { searchCardsByExactTag } from "../card/searchReads";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
@@ -32,7 +32,7 @@ async function seed(ctx: MutationCtx) {
     createdAt: 10,
     updatedAt: 10,
   });
-  await syncCardSearchDocumentHandler(ctx, cardId);
+  await onCardChanged(ctx, cardId);
   await drainTags(ctx, cardId);
   return cardId;
 }
@@ -59,7 +59,7 @@ test("operational card updates preserve search rows and customer content", async
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     const before = await searchState(ctx, id);
-    await patchCardWithSearchSync(ctx, id, {
+    await patchCard(ctx, id, {
       updatedAt: 20,
       metadataStatus: "completed",
       thumbnailKey: "thumbnail",
@@ -70,7 +70,7 @@ test("operational card updates preserve search rows and customer content", async
       tags: ["alpha"],
       updatedAt: 20,
     });
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     expect(await searchState(ctx, id)).toEqual(before);
   });
 });
@@ -80,7 +80,7 @@ test("content edits update full text without restarting unchanged exact tags", a
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     const before = await searchState(ctx, id);
-    await patchCardWithSearchSync(ctx, id, {
+    await patchCard(ctx, id, {
       content: "new words",
       updatedAt: 20,
     });
@@ -96,7 +96,7 @@ test("tag edits and favorite changes remain searchable with the right filters", 
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
     const id = await seed(ctx);
-    await patchCardWithSearchSync(ctx, id, {
+    await patchCard(ctx, id, {
       tags: ["beta"],
       isFavorited: true,
       updatedAt: 20,
@@ -126,10 +126,10 @@ test("reordered normalized tags preserve exact-tag rows and generations", async 
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
     const id = await seed(ctx);
-    await patchCardWithSearchSync(ctx, id, { tags: ["alpha", "beta"] });
+    await patchCard(ctx, id, { tags: ["alpha", "beta"] });
     await drainTags(ctx, id);
     const before = await searchState(ctx, id);
-    await patchCardWithSearchSync(ctx, id, {
+    await patchCard(ctx, id, {
       tags: [" Beta ", "ALPHA"],
       updatedAt: 30,
     });
@@ -167,7 +167,7 @@ test("text-only patches do not read tag-chain state while a batch is pending", a
       createdAt: 10,
       updatedAt: 10,
     });
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     const originalQuery = ctx.db.query.bind(ctx.db);
     const guarded = {
       ...ctx,
@@ -186,11 +186,11 @@ test("text-only patches do not read tag-chain state while a batch is pending", a
         },
       }),
     } as MutationCtx;
-    await patchCardWithSearchSync(guarded, id, {
+    await patchCard(guarded, id, {
       content: "new words",
       updatedAt: 20,
     });
-    await patchCardWithSearchSync(guarded, id, {
+    await patchCard(guarded, id, {
       aiSummary: "new summary",
       updatedAt: 30,
     });
@@ -217,7 +217,7 @@ test("missing search documents and direct sync still repair tag state", async ()
     const before = await searchState(ctx, id);
     await ctx.db.delete("cardSearchDocuments", before.document!._id);
     await ctx.db.delete("cardSearchTagSyncStates", before.sync!._id);
-    await patchCardWithSearchSync(ctx, id, {
+    await patchCard(ctx, id, {
       content: "repair missing document",
       updatedAt: 20,
     });
@@ -225,7 +225,7 @@ test("missing search documents and direct sync still repair tag state", async ()
     await drainTags(ctx, id);
     const repaired = await searchState(ctx, id);
     await ctx.db.delete("cardSearchTagSyncStates", repaired.sync!._id);
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     expect((await searchState(ctx, id)).sync?.pending).toBe(true);
   });
 });
@@ -241,7 +241,7 @@ test("field updates avoid tag progress reads and still repair a missing state on
       createdAt: 10,
       updatedAt: 10,
     });
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     const originalQuery = ctx.db.query.bind(ctx.db);
     const guarded = {
       ...ctx,
@@ -270,7 +270,7 @@ test("field updates avoid tag progress reads and still repair a missing state on
     expect((await searchState(ctx, id)).sync?.generation).toBe(1);
     const state = await searchState(ctx, id);
     await ctx.db.delete("cardSearchTagSyncStates", state.sync!._id);
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     expect((await searchState(ctx, id)).sync?.pending).toBe(true);
   });
 });

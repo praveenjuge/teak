@@ -25,7 +25,6 @@ import {
   searchCardsByExactTag,
   searchCardsByOcrText,
 } from "../card/searchReads";
-import { buildCardSearchText } from "../card/searchSync";
 import {
   isSimilarAnchorAvailable,
   loadSimilarCards,
@@ -60,6 +59,7 @@ import {
   orderByRelevance,
   type RelevanceScore,
 } from "../shared/search/relevance";
+import { buildCardSearchText } from "../shared/search/searchText";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,

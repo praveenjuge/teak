@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -44,7 +44,7 @@ const setup = async (seed: Partial<Doc<"cards">> = {}) => {
       updatedAt: 1000,
       ...seed,
     });
-    await syncCardSearchDocumentHandler(ctx, id);
+    await onCardChanged(ctx, id);
     return id;
   });
   const edit = (field: "addColor" | "removeColor", value: unknown) =>

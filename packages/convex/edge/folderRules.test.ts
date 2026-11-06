@@ -7,7 +7,7 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import {
   FOLDER_RULE_BATCH_SIZE,
   FOLDER_RULE_PREVIEW_LIMIT,
@@ -63,7 +63,7 @@ const setup = async () => {
         updatedAt: order,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
 

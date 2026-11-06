@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { patchCard } from "../card/cardWrites";
 import {
   mergeProcessingStages,
   type ProcessingStatus,
 } from "../card/processingStatus";
-import { patchCardWithSearchSync } from "../card/searchSync";
 import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
 
 export const updateCardProcessing = internalMutation({
@@ -37,7 +37,7 @@ export const updateCardProcessing = internalMutation({
     if (onlyIfInProgress && Object.keys(processingStatus).length === 0) {
       return false;
     }
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       ...(type ? { type } : {}),
       processingStatus: mergeProcessingStages(
         card.processingStatus,

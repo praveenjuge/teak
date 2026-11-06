@@ -11,11 +11,11 @@ import {
 } from "../accountDeletion";
 import { captureDeletionBatch } from "../accountDeletion/batch";
 import { documentTextKey } from "../card/documentText";
+import { onCardChanged } from "../card/onCardChanged";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
 } from "../card/searchReads";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 
@@ -71,7 +71,7 @@ const setup = async () => {
         updatedAt: at,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
   };

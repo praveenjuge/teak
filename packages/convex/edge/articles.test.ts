@@ -5,12 +5,12 @@ import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
 } from "../card/searchReads";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
@@ -85,7 +85,7 @@ const setup = async () => {
         updatedAt: at,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
   };

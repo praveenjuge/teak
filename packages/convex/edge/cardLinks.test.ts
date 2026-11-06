@@ -5,7 +5,7 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { TITLE_LOOKUP_LIMIT } from "../card/cardLinks";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
@@ -59,7 +59,7 @@ const setup = async () => {
         userId: "owner",
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       return cardId;
     });
     await runScheduled();
@@ -472,7 +472,7 @@ describe("backlinks", () => {
           updatedAt: index,
           userId: "owner",
         });
-        await syncCardSearchDocumentHandler(ctx, source);
+        await onCardChanged(ctx, source);
       }
     });
     await runScheduled();
@@ -507,7 +507,7 @@ describe("backlinks", () => {
           updatedAt: index,
           userId: "owner",
         });
-        await syncCardSearchDocumentHandler(ctx, source);
+        await onCardChanged(ctx, source);
       }
       return ids;
     });

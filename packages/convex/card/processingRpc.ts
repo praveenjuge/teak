@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { getR2KeyPrefix } from "../storage/r2Keys";
+import { patchCard } from "./cardWrites";
 import {
   mergeProcessingStages,
   type ProcessingStatus,
   stageInProgress,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 
 export const getCardForProcessing = internalQuery({
   args: { cardId: v.id("cards") },
@@ -38,7 +38,7 @@ export const markStagesInProgress = internalMutation({
     for (const stage of stages) {
       updates[stage] = stageInProgress(now, current?.[stage]);
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       processingStatus: mergeProcessingStages(current, updates),
     });
   },

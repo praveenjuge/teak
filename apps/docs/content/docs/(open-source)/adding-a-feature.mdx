@@ -30,7 +30,7 @@ Update the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/
 
 ## Convex data
 
-- Writes that change what search sees go through `patchCardWithSearchSync` or `scheduleCardSearchSync` (`card/searchSync.ts`).
+- Every card write goes through `insertCard` or `patchCard` (`card/cardWrites.ts`). They set the fields derived from the rest of the card (`urlHost`, `urlKey`, `isHidden`, `aiPending`, in `card/derivedFields.ts`), `savedAt` and `shuffleKey`, keep the free plan's count, and run the change hook (`card/onCardChanged.ts`) that keeps search, tag, folder, link and embedding rows in step. A new field the hook reads goes in its `CARD_CHANGE_FIELDS`.
 - A new boolean flag is `v.optional(v.literal(true))`, never `true | false`, so `false` and missing can't disagree in an index.
 - Stay backward compatible: new arguments are optional, and every client tolerates enum values it doesn't know, because the native apps update on their own schedule. Code kept only for old clients or old data gets an entry in `.agents/records/sunset.md` saying when it can go.
 - A new user table, per-card row or R2 key is removed by account deletion (`accountDeletionData.ts` `ancillaryPage`, per-card rows in `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the "complete stages" test in `edge/accountDeletionWorkflow.test.ts`, which runs the Core Worker's account deletion workflow against the test database.

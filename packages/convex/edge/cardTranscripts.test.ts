@@ -1,6 +1,7 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -11,7 +12,6 @@ import {
 } from "../accountDeletion";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import type { CardWithUrls } from "../card/queryUtils";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import { withTranscripts } from "../card/textContents";
 import schema from "../schema";
 import { semanticSearchKey } from "../search/semanticCache";
@@ -42,18 +42,17 @@ const setup = async () => {
   });
 
   const save = (seed: CardSeed = {}) =>
-    t.run(async (ctx) => {
-      const id = await ctx.db.insert("cards", {
-        userId: "owner",
-        type: "audio",
-        content: "",
-        createdAt: 1000,
-        updatedAt: 1000,
-        ...seed,
-      });
-      await syncCardSearchDocumentHandler(ctx, id);
-      return id;
-    });
+    t.run(
+      async (ctx) =>
+        await insertTestCard(ctx, {
+          userId: "owner",
+          type: "audio",
+          content: "",
+          createdAt: 1000,
+          updatedAt: 1000,
+          ...seed,
+        })
+    );
   const card = (cardId: Id<"cards">) =>
     t.run((ctx) => ctx.db.get("cards", cardId));
   const transcriptRows = (cardId: Id<"cards">) =>

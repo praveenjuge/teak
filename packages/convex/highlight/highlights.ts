@@ -15,8 +15,8 @@ import {
   query,
 } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
+import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
-import { patchCardWithSearchSync } from "../card/searchSync";
 import { highlightValidator } from "../schema";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
@@ -138,7 +138,7 @@ const recordCount = async (
   if (dropSnapshot) {
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
   }
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     hasHighlights: count > 0 ? true : undefined,
     highlightCount: count > 0 ? count : undefined,
     ...(dropSnapshot
@@ -363,7 +363,7 @@ export const createHighlightForUser = async (
     }
     const now = Date.now();
     await ctx.db.patch("highlights", same._id, { note, updatedAt: now });
-    await patchCardWithSearchSync(ctx, card._id, { updatedAt: now });
+    await patchCard(ctx, card._id, { updatedAt: now });
     await queueBackendEvent(ctx, "highlight_note_saved", userId, {
       cleared: false,
       source,
@@ -438,7 +438,7 @@ export const updateHighlightNoteForUser = async (
   await ctx.db.patch("highlights", row._id, { note, updatedAt: now });
   const card = await ctx.db.get("cards", row.cardId);
   if (card) {
-    await patchCardWithSearchSync(ctx, card._id, { updatedAt: now });
+    await patchCard(ctx, card._id, { updatedAt: now });
   }
   await queueBackendEvent(ctx, "highlight_note_saved", userId, {
     cleared: note === undefined,

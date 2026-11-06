@@ -5,11 +5,8 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { createCardForUserHandler } from "../card/createCard";
-import {
-  type DevScenarioCardDef,
-  insertCompletedCards,
-} from "../card/defaultCards";
 import { createUploadedCardForUser } from "../card/uploadCard";
+import { insertSeedCards, type SeedCardDef } from "../devSeed/helpers";
 import { insertFolder } from "../folder/folders";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
@@ -168,7 +165,7 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
     });
   });
 
-  const defs: [string, DevScenarioCardDef][] = [
+  const defs: [string, SeedCardDef][] = [
     [
       "completed link",
       {
@@ -216,7 +213,7 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
       {
         type: "text",
         content: "No shuffle",
-        shuffleKey: null,
+        legacy: { noShuffleKey: true },
         createdAt: NOW - 6000,
       },
     ],
@@ -226,7 +223,7 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
         type: "link",
         content: "https://old.example.com/a",
         url: "https://old.example.com/a",
-        beforeUrlKey: true,
+        legacy: { noUrlKey: true },
         createdAt: NOW - 5000,
       },
     ],
@@ -252,11 +249,10 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
     ],
   ];
   const ids = await t.run((ctx) =>
-    insertCompletedCards(
+    insertSeedCards(
       ctx,
       OWNER,
-      defs.map(([, def]) => def),
-      { ignoreCardLimit: true }
+      defs.map(([, def]) => def)
     )
   );
   for (const [index, [name]] of defs.entries()) {

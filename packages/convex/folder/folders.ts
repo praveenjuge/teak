@@ -9,7 +9,7 @@ import {
   query,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import { folderColorValidator } from "../schema";
 import {
   getSessionUser,
@@ -574,7 +574,7 @@ export const deleteFolderBatchHandler = async (
     const card = await ctx.db.get("cards", row.cardId);
     const remaining = (card?.folderIds ?? []).filter((id) => id !== folderId);
     if (card && remaining.length !== (card.folderIds ?? []).length) {
-      await patchCardWithSearchSync(ctx, card._id, {
+      await patchCard(ctx, card._id, {
         folderIds: remaining.length > 0 ? remaining : undefined,
         updatedAt: now,
       });

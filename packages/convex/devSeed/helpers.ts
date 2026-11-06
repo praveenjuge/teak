@@ -1,4 +1,37 @@
-import type { DevScenarioCardDef } from "../card/defaultCards";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import {
+  type DevScenarioCardDef,
+  insertCompletedCards,
+} from "../card/defaultCards";
+
+/**
+ * A seed card, optionally made to look like one saved before a field existed:
+ * `noUrlKey` before link keys, `noShuffleKey` before Shuffle.
+ */
+export interface SeedCardDef extends DevScenarioCardDef {
+  legacy?: { noShuffleKey?: true; noUrlKey?: true };
+}
+
+/** Inserts a pack's cards, counted as on Pro so packs can pass the free cap. */
+export const insertSeedCards = async (
+  ctx: MutationCtx,
+  userId: string,
+  cards: readonly SeedCardDef[]
+): Promise<Id<"cards">[]> => {
+  const ids = await insertCompletedCards(ctx, userId, cards, {
+    hasPremium: true,
+  });
+  for (const [index, { legacy }] of cards.entries()) {
+    if (legacy) {
+      await ctx.db.patch("cards", ids[index], {
+        ...(legacy.noUrlKey ? { urlKey: undefined } : {}),
+        ...(legacy.noShuffleKey ? { shuffleKey: undefined } : {}),
+      });
+    }
+  }
+  return ids;
+};
 
 export const link = (
   url: string,

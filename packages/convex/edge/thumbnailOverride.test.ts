@@ -7,7 +7,7 @@ import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { THUMBNAIL_UNDO_WINDOW_MS } from "../shared/thumbnails";
@@ -154,7 +154,7 @@ const setup = async () => {
         updatedAt: 1000,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
 

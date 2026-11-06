@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -38,7 +38,7 @@ const setup = async () => {
         ...seed,
         savedAt: seed.savedAt ?? seed.createdAt ?? 1000,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
 

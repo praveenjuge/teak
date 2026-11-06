@@ -2,7 +2,6 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { cardNeedsAiMetadata } from "../ai/queries";
 import {
   markCardForEmbedding,
   tombstoneCardEmbedding,
@@ -13,10 +12,12 @@ import {
   syncCardFolderRows,
 } from "../folder/folderRows";
 import { deleteCardHighlightRows } from "../highlight/highlightRows";
-import { cardLinkTokensToText } from "../shared/cardLinks";
-import { isHiddenTagList } from "../shared/tags";
-import { cardSiteHost } from "../shared/utils/urlHost";
-import { urlKey } from "../shared/utils/urlKey";
+import {
+  buildCardSearchTags,
+  buildCardSearchText,
+  CARD_SEARCH_TEXT_FIELDS,
+  normalizeCardSearchTag,
+} from "../shared/search/searchText";
 import {
   addTagCountDelta,
   addTagLabel,
@@ -31,7 +32,7 @@ import {
   scheduleCardLinkSync,
   scheduleDeletedCardLinkCleanup,
 } from "./cardLinks";
-import { withHiddenFlag } from "./hiddenCards";
+import { deriveCardFields } from "./derivedFields";
 import { deleteLinkCheckRows } from "./linkCheckRows";
 import {
   deleteLinkedPdfRowsAsDocument,
@@ -41,40 +42,32 @@ import { deleteCardTextRows, readCardTranscript } from "./textContents";
 
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
 
-const SEARCH_FIELDS = [
-  "content",
-  "notes",
-  "aiSummary",
-  "aiTranscript",
-  "aiOcrText",
-  "metadataTitle",
-  "metadataDescription",
-] as const;
+/** The card fields a card's tag rows and tag-sync snapshot copy. */
+const TAG_ROW_CARD_FIELDS = [
+  "userId",
+  "tags",
+  "aiTags",
+  "isDeleted",
+  "type",
+  "isFavorited",
+  "isArchived",
+  "createdAt",
+  "savedAt",
+] as const satisfies readonly (keyof Doc<"cards">)[];
 
-export const buildCardSearchText = (
-  card: Doc<"cards">,
-  extractedText?: string,
-  transcript?: string
-): string =>
-  [
-    ...SEARCH_FIELDS.map((field) => {
-      if (field === "content" && card.content) {
-        return cardLinkTokensToText(card.content);
-      }
-      return field === "aiTranscript" ? transcript : card[field];
-    }),
-    ...(card.tags ?? []),
-    ...(card.aiTags ?? []),
-    extractedText,
-  ]
-    .filter(
-      (value): value is string =>
-        typeof value === "string" && value.trim().length > 0
-    )
-    .join("\n");
-
-export const normalizeCardSearchTag = (tag: string): string =>
-  tag.trim().toLowerCase();
+/**
+ * The card fields `onCardChanged` reads: a write that changes none of them
+ * leaves the search document, tag rows, folder rows, card links and embedding
+ * as they are, so it skips the hook.
+ */
+export const CARD_CHANGE_FIELDS: ReadonlySet<string> = new Set([
+  ...CARD_SEARCH_TEXT_FIELDS,
+  ...TAG_ROW_CARD_FIELDS,
+  "folderIds",
+  "url",
+  "sourceUrl",
+  "aiTranscriptCharCount",
+]);
 
 /** Each tag key of a card's own tags, with the casing it was first typed in. */
 const typedTagLabels = (tags: string[] | undefined) => {
@@ -151,26 +144,6 @@ const recordTagCasingChanges = async (
   if (labels.size > 0 || relabeled) {
     await markTagSummaryDirty(ctx, card.userId);
   }
-};
-
-export const buildCardSearchTags = (
-  card: Pick<Doc<"cards">, "tags" | "aiTags">
-): string[] =>
-  Array.from(
-    new Set(
-      [...(card.tags ?? []), ...(card.aiTags ?? [])]
-        .map(normalizeCardSearchTag)
-        .filter(Boolean)
-    )
-  ).sort();
-
-export const syncCardSearch = async (
-  ctx: MutationCtx,
-  cardId: Id<"cards">,
-  userId?: string,
-  previousCard?: Doc<"cards">
-) => {
-  await syncCardSearchDocumentHandler(ctx, cardId, userId, previousCard);
 };
 
 export const scheduleCardSearchTagSync = async (
@@ -304,63 +277,12 @@ export const restartCardSearchTagSync = async (
 };
 
 /**
- * A card write with `urlHost` kept beside a changed `url` or `sourceUrl`, and
- * `urlKey` beside a changed `url`, so both land in the same write. A write
- * that clears `url` without naming `sourceUrl` drops the host; the search
- * sync then restores it from the card's `sourceUrl`.
+ * The hook every card write runs once the card has changed (or is gone):
+ * keeps the card's search document, tag rows, folder rows, card links and
+ * embedding in step with it. `previousCard` is the card before the write; with
+ * it the hook skips the work the write couldn't have changed.
  */
-export const withUrlFields = <T extends object>(value: T): T => {
-  if (!("url" in value || "sourceUrl" in value)) {
-    return value;
-  }
-  const { sourceUrl, url } = value as { sourceUrl?: unknown; url?: unknown };
-  return {
-    ...value,
-    urlHost:
-      cardSiteHost({
-        sourceUrl: typeof sourceUrl === "string" ? sourceUrl : undefined,
-        url: typeof url === "string" ? url : undefined,
-      }) ?? undefined,
-    ...("url" in value
-      ? { urlKey: typeof url === "string" ? urlKey(url) : undefined }
-      : {}),
-  };
-};
-
-/** False when account deletion owns the card's rows and nothing was written. */
-export const patchCardWithSearchSync = async (
-  ctx: MutationCtx,
-  cardId: Id<"cards">,
-  value: Partial<Omit<Doc<"cards">, "_creationTime" | "_id">>
-) => {
-  const card = await ctx.db.get("cards", cardId);
-  if (await accountDeletionOwnsRows(ctx, card?.userId)) {
-    return false;
-  }
-  await ctx.db.patch("cards", cardId, withHiddenFlag(withUrlFields(value)));
-  const searchableFields = [
-    ...SEARCH_FIELDS,
-    "tags",
-    "aiTags",
-    "userId",
-    "type",
-    "isDeleted",
-    "isFavorited",
-    "isArchived",
-    "createdAt",
-    "savedAt",
-    "folderIds",
-    "url",
-    "sourceUrl",
-    "aiTranscriptCharCount",
-  ];
-  if (searchableFields.some((field) => Object.keys(value).includes(field))) {
-    await syncCardSearch(ctx, cardId, undefined, card ?? undefined);
-  }
-  return true;
-};
-
-export const syncCardSearchDocumentHandler = async (
+export const onCardChanged = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   userId?: string,
@@ -418,23 +340,7 @@ export const syncCardSearchDocumentHandler = async (
     await scheduleCardLinkSync(ctx, cardId);
   }
 
-  const urlHost = cardSiteHost(card) ?? undefined;
-  const cardUrlKey = card.url ? urlKey(card.url) : undefined;
-  const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
-  const aiPending = cardNeedsAiMetadata(card) ? (true as const) : undefined;
-  if (
-    card.urlHost !== urlHost ||
-    card.urlKey !== cardUrlKey ||
-    card.isHidden !== isHidden ||
-    card.aiPending !== aiPending
-  ) {
-    await ctx.db.patch("cards", cardId, {
-      urlHost,
-      urlKey: cardUrlKey,
-      isHidden,
-      aiPending,
-    });
-  }
+  const { isHidden, urlHost } = deriveCardFields(card);
   const cardSavedAt = card.savedAt ?? card.createdAt;
 
   const value = {

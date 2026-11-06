@@ -155,7 +155,7 @@ export const seedPageArchiveMix = async (
     ctx,
     userId,
     PAGE_ARCHIVE_MIX.map(({ card }) => card),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const stubs: Array<{ key: string; kind: "full" | "text_only"; url: string }> =
     [];

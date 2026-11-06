@@ -4,6 +4,7 @@ import { type QueryCtx, query } from "../_generated/server";
 import type { SemanticRanking } from "../search/semanticCache";
 import { getSessionUser } from "../securitySessions";
 import type { SearchSimilarity } from "../shared/search/qualifiers";
+import { buildCardSearchText } from "../shared/search/searchText";
 import {
   SEMANTIC_MIN_SCORE,
   SIMILAR_CARDS_LIMIT,
@@ -11,7 +12,6 @@ import {
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { scanInBatches } from "./scanInBatches";
 import { movedTranscriptSearchText } from "./searchReads";
-import { buildCardSearchText } from "./searchSync";
 
 export const isSimilarAnchorAvailable = async (
   ctx: QueryCtx,

@@ -26,14 +26,12 @@ import {
 } from "../storage/r2";
 import { queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
-import { insertCountedCard } from "./cardUsage";
+import { insertCard } from "./cardWrites";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
-import { syncCardSearch } from "./searchSync";
-import { newShuffleKey } from "./shuffle";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
   new ConvexError({
@@ -289,11 +287,10 @@ export const createUploadedCardForUser = async (
     ...fileFacts,
   };
 
-  const cardId = await insertCountedCard(
+  const cardId = await insertCard(
     ctx,
     {
       userId: args.userId,
-      shuffleKey: newShuffleKey(),
       content: args.content || "",
       type: cardType,
       fileKey: args.fileKey,
@@ -314,7 +311,6 @@ export const createUploadedCardForUser = async (
     },
     { hasPremium }
   );
-  await syncCardSearch(ctx, cardId, args.userId);
 
   await queueCardProcessing(ctx, cardId, { reset: true });
 

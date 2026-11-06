@@ -15,6 +15,7 @@ import {
   currentRelevanceScores,
   orderByRelevance,
 } from "../shared/search/relevance";
+import { buildCardSearchText } from "../shared/search/searchText";
 import {
   fuseRankings,
   SEMANTIC_MIN_SCORE,
@@ -57,7 +58,6 @@ import {
   searchCardsByDocument,
   searchCardsByOcrText,
 } from "./searchReads";
-import { buildCardSearchText } from "./searchSync";
 import {
   decodeShuffleWalkCursor,
   encodeShuffleWalkCursor,

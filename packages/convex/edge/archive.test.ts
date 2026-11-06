@@ -10,9 +10,9 @@ import {
 } from "../card/cardUsage";
 import { insertCompletedCards } from "../card/defaultCards";
 import {
-  syncCardSearchDocumentHandler,
+  onCardChanged,
   syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
+} from "../card/onCardChanged";
 import schema from "../schema";
 import { MAX_CARD_TAGS } from "../shared/tags";
 
@@ -63,7 +63,7 @@ const setup = async () => {
         ...seed,
         savedAt: seed.savedAt ?? seed.createdAt ?? 1000,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
     await syncTags(cardId);

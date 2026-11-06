@@ -2,6 +2,7 @@ export * from "./constants";
 export * from "./expression";
 export * from "./localSearch";
 export * from "./qualifiers";
+export * from "./searchText";
 export * from "./semantic";
 export * from "./shuffle";
 export * from "./sort";

@@ -59,7 +59,12 @@ import {
   searchQualifiersPack,
   smartFoldersPack,
 } from "./devSeed/folderPacks";
-import { link, palette } from "./devSeed/helpers";
+import {
+  insertSeedCards,
+  link,
+  palette,
+  type SeedCardDef,
+} from "./devSeed/helpers";
 import { seedHighlightsMix } from "./devSeed/highlights";
 import {
   CARD_LINK_SCENARIO_DESCRIPTIONS,
@@ -350,7 +355,7 @@ const seedFolderScenario = async (
         ),
       }));
   if (cards.length > 0) {
-    await insertCompletedCards(ctx, userId, cards, { ignoreCardLimit: true });
+    await insertCompletedCards(ctx, userId, cards, { hasPremium: true });
   }
   for (const folderId of rulesToRun) {
     const folder = await ctx.db.get("folders", folderId);
@@ -373,7 +378,7 @@ const seedFolderScenario = async (
 };
 
 type ScenarioPack = { description: string } & (
-  | { cards: (page: number) => DevScenarioCardDef[] }
+  | { cards: (page: number) => SeedCardDef[] }
   | { deadLinks: true }
   | {
       seed: (
@@ -807,9 +812,7 @@ export const seedScenario = internalMutation({
       if (filler.length === 0) {
         return { status: "already_seeded" as const, cards: 0 };
       }
-      await insertCompletedCards(ctx, owner.teakUserId, filler, {
-        ignoreCardLimit: true,
-      });
+      await insertSeedCards(ctx, owner.teakUserId, filler);
       return { status: "seeded" as const, cards: filler.length };
     }
     const cards = pack.cards(page);
@@ -828,9 +831,7 @@ export const seedScenario = internalMutation({
     if (existing) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    await insertCompletedCards(ctx, owner.teakUserId, cards, {
-      ignoreCardLimit: true,
-    });
+    await insertSeedCards(ctx, owner.teakUserId, cards);
     return { status: "seeded" as const, cards: cards.length };
   },
 });

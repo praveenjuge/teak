@@ -49,7 +49,7 @@ const setup = async () => {
   });
   const seed = (cards: DevScenarioCardDef[]) =>
     t.run((ctx) =>
-      insertCompletedCards(ctx, "owner", cards, { ignoreCardLimit: true })
+      insertCompletedCards(ctx, "owner", cards, { hasPremium: true })
     );
   const seedLink = async (fields: Partial<DevScenarioCardDef> = {}) => {
     const [id] = await seed([

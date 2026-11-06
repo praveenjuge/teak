@@ -16,14 +16,12 @@ import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { urlKey } from "../shared/utils/urlKey";
 import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
-import { insertCountedCard } from "./cardUsage";
+import { insertCard, patchCard } from "./cardWrites";
 import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
-import { withHiddenFlag } from "./hiddenCards";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight } from "./processingRuns";
@@ -35,8 +33,6 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { patchCardWithSearchSync, syncCardSearch } from "./searchSync";
-import { newShuffleKey } from "./shuffle";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
 
@@ -366,7 +362,6 @@ export const createCardForUserHandler = async (
     type: cardType,
     url: finalUrl,
     ...cardSource,
-    urlHost: normalizeUrlHost(finalUrl ?? cardSource.sourceUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
     tags,
@@ -395,7 +390,6 @@ export const createCardForUserHandler = async (
           ),
         }),
     updatedAt: now,
-    shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
     ...(cardType === "link" &&
       options.importedVisibleFields?.completedAt !== undefined && {
@@ -410,21 +404,25 @@ export const createCardForUserHandler = async (
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };
 
-  const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
-  const folderIds = await options.resolveFolderIds?.();
-  if (folderIds?.length) {
-    const inserted = await ctx.db.get("cards", cardId);
-    const { tags } = inserted
-      ? await autoTagsForJoinedFolders(ctx, inserted, folderIds, [])
-      : { tags: undefined };
-    await ctx.db.patch(
-      "cards",
-      cardId,
-      withHiddenFlag({ folderIds, ...(tags ? { tags } : {}) })
-    );
-  }
-  await syncCardSearch(ctx, cardId, userId);
-
+  const { resolveFolderIds } = options;
+  const cardId = await insertCard(ctx, cardData, {
+    hasPremium,
+    finish: resolveFolderIds
+      ? async (inserted) => {
+          const folderIds = await resolveFolderIds();
+          if (!folderIds.length) {
+            return;
+          }
+          const { tags } = await autoTagsForJoinedFolders(
+            ctx,
+            inserted,
+            folderIds,
+            []
+          );
+          return { folderIds, ...(tags ? { tags } : {}) };
+        }
+      : undefined,
+  });
   await queueCardProcessing(ctx, cardId);
 
   await queueCardOutcome(ctx, {
@@ -440,7 +438,7 @@ export const createCardForUserHandler = async (
 
 /**
  * Moves a saved card to the top of "Newest first" and back from Archive. The
- * search sync carries the new `savedAt` to its folder and tag rows. Nothing
+ * change hook carries the new `savedAt` to its folder and tag rows. Nothing
  * else changes, and the card isn't processed again, except that a page the
  * extension sent replaces the saved copy (unless the card has highlights):
  * at once, unless a run is in flight, which picks the page up when it ends. Stages a run left pending, like AI
@@ -476,7 +474,7 @@ const resaveCard = async (
     snapshot !== null &&
     pageArchiveSkipReason({ ...card, ...snapshot }) === null &&
     !(await isCardRunInFlight(ctx, card));
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     savedAt: now,
     updatedAt: now,
     ...(wasArchived ? { isArchived: undefined, archivedAt: undefined } : {}),

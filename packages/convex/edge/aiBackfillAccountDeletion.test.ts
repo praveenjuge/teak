@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { claimAiBackfillCard, MAX_AI_BACKFILL_ATTEMPTS } from "../ai/backfill";
 import { AI_BACKFILL_SCAN_LIMIT } from "../ai/queries";
-import { syncCardSearch } from "../card/searchSync";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -23,7 +23,7 @@ afterEach(() => {
 
 type T = ReturnType<typeof convexTest>;
 
-// Cards saved through the app: search sync sets `aiPending`. Older cards
+// Cards saved through the app have `aiPending` set. Older cards
 // come first in the backfill's index, so `offset` orders them.
 const saveCards = (
   t: T,
@@ -34,14 +34,13 @@ const saveCards = (
   t.run(async (ctx) => {
     const ids: Id<"cards">[] = [];
     for (let index = 0; index < count; index += 1) {
-      const cardId = await ctx.db.insert("cards", {
+      const cardId = await insertTestCard(ctx, {
         content: `Card ${index}`,
         createdAt: NOW - 2 * HOUR_MS + offset + index,
         type: "text",
         updatedAt: NOW - 2 * HOUR_MS,
         ...fields,
       });
-      await syncCardSearch(ctx, cardId);
       ids.push(cardId);
     }
     return ids;

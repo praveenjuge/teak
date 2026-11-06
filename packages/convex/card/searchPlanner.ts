@@ -18,13 +18,16 @@ import {
   type PriceBound,
   type SearchExpression,
 } from "../shared/search/qualifiers";
+import {
+  buildCardSearchText,
+  normalizeCardSearchTag,
+} from "../shared/search/searchText";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
-import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
 
 export interface SearchViewFilters {
   archived: ArchivedFilter;

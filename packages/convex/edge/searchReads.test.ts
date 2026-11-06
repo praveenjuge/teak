@@ -5,7 +5,7 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { CARD_LIST_PAGE_ROW_LIMIT } from "../card/listQuery";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -68,7 +68,7 @@ const setup = async (documentsRead?: number) => {
           for (const card of cards) {
             const id = await ctx.db.insert("cards", card);
             if (options.sync !== false) {
-              await syncCardSearchDocumentHandler(ctx, id);
+              await onCardChanged(ctx, id);
             }
             inserted.push(id);
           }
