@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { publicApiV1 } from "../../../publicApi/http/router";
 import { mapConvexErrorToResponse } from "../../../publicApi/http/shared";
@@ -10,6 +10,59 @@ import {
 } from "../../helpers/publicApiHttp.test-utils";
 
 describe("publicApiHttp create endpoints", () => {
+  test.each([
+    [new Error("lookup failed"), 500, "INTERNAL_ERROR"],
+    [
+      new ConvexError({ code: "NOT_FOUND", message: "Card not found" }),
+      404,
+      "NOT_FOUND",
+    ],
+  ])(
+    "a card lookup that throws %p answers the API's JSON error",
+    async (failure, status, code) => {
+      const errorSpy = spyOn(console, "error").mockImplementation(
+        () => undefined
+      );
+      try {
+        const response = await runHandler(
+          publicApiV1,
+          {
+            runMutation: buildAuthorizedMutationMock(),
+            runQuery: mock().mockRejectedValue(failure),
+          },
+          new Request("https://example.com/v1/cards/card_1", {
+            headers: {
+              Authorization:
+                "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            },
+          })
+        );
+        expect(response.status).toBe(status);
+        expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+        expect(await response.json()).toMatchObject({ code });
+      } finally {
+        errorSpy.mockRestore();
+      }
+    }
+  );
+
+  test("PATCH /v1/cards/changes is 405 for that path, not a card update", async () => {
+    const runMutation = mock();
+    const response = await runHandler(
+      publicApiV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/changes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{not json",
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET, OPTIONS");
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
   test("a method /v1/cards doesn't serve is 405 with Allow, before any auth", async () => {
     const runMutation = mock();
     const response = await runHandler(

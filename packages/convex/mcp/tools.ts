@@ -235,6 +235,9 @@ export const callTeakV1Tool = async (
       outcome = status === 401 ? "unauthorized" : "error";
     }
     return result;
+  } catch (error) {
+    outcome = "error";
+    throw error;
   } finally {
     await captureBackendEvent("mcp_tool_called", undefined, {
       duration_ms: Date.now() - start,

@@ -101,6 +101,14 @@ test("publicApiMethodsFor lists the methods served on a path", () => {
   expect(publicApiMethodsFor("/v1/highlights/h1/extra")).toEqual([]);
 });
 
+test("a written-out path is never read as a template, whatever the method", () => {
+  expect(matchPublicApiOperation("PATCH", "/v1/cards/changes")).toBeNull();
+  expect(matchPublicApiOperation("DELETE", "/v1/cards/bulk")).toBeNull();
+  expect(publicApiMethodsFor("/v1/cards/changes")).toEqual(["GET"]);
+  expect(publicApiMethodsFor("/v1/cards/bulk")).toEqual(["POST"]);
+  expect(publicApiMethodsFor("/v1/cards/pinned/order")).toEqual(["PUT"]);
+});
+
 test("publicApiEndpointLabel writes path parameters the way GET /v1 lists them", () => {
   expect(publicApiEndpointLabel("getFolderRuleRun")).toBe(
     "GET /v1/folders/:folderId/rule-runs/:runId"

@@ -18,7 +18,10 @@ export type ConvexFailureKind =
 const WRITE_CONFLICT_TEXT =
   "changed while this mutation was being run and on every subsequent retry";
 const RATE_LIMIT_TABLE_TEXT = '"rateLimits" table';
-const INVALID_CURSOR_TEXT = "InvalidCursor";
+// Convex names a cursor it can't read either way, depending on where it
+// failed: "InvalidCursor" from pagination, "Failed to parse cursor" when the
+// cursor string itself is malformed.
+const INVALID_CURSOR_TEXTS = ["InvalidCursor", "Failed to parse cursor"];
 
 const messageOf = (error: unknown): string | undefined => {
   if (error instanceof Error) {
@@ -46,9 +49,12 @@ const isPaginationCursorError = (error: unknown): boolean => {
     return true;
   }
   // A cursor that isn't JSON fails to parse before Convex can name it.
-  return (
-    error instanceof SyntaxError ||
-    (messageOf(error)?.includes(INVALID_CURSOR_TEXT) ?? false)
+  if (error instanceof SyntaxError) {
+    return true;
+  }
+  const message = messageOf(error);
+  return Boolean(
+    message && INVALID_CURSOR_TEXTS.some((text) => message.includes(text))
   );
 };
 

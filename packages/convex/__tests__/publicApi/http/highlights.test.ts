@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { publicApiV1 } from "../../../publicApi/http/router";
+import {
+  executePublicApiOperation,
+  publicApiV1,
+} from "../../../publicApi/http/router";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
@@ -275,7 +278,7 @@ describe("the other highlight operations", () => {
     expect(missing.status).toBe(404);
   });
 
-  test("MCP, SDK and CLI reach the routes through executePublicApiOperation", async () => {
+  test("REST reaches the highlight routes through the router", async () => {
     const runQuery = mock().mockResolvedValueOnce([]);
     const response = await callPublicApi(
       mockActionCtx(
@@ -292,5 +295,31 @@ describe("the other highlight operations", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ items: [] });
+  });
+
+  test("MCP's executor runs listHighlights by id and forwards the card id", async () => {
+    const runQuery = mock().mockResolvedValueOnce([row()]);
+    const response = await executePublicApiOperation(
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: buildAuthorizedMutationMock(),
+          runQuery,
+        } as never)
+      ),
+      {
+        operationId: "listHighlights",
+        params: { cardId: "card_1" },
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      },
+      { origin: "https://example.com", resource: "mcp" }
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      items: [{ id: "highlight_1", cardId: "card_1" }],
+    });
+    const call = runQuery.mock.calls.find(
+      ([ref]) => nameOf(ref) === "publicApiHighlights:listHighlightsForApi"
+    );
+    expect(call?.[1]).toMatchObject({ cardId: "card_1" });
   });
 });

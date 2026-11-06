@@ -1,9 +1,10 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import {
   callTeakV1Tool,
   type PublicApiToolExecutor,
   TEAK_V1_TOOLS,
 } from "../../mcp/tools";
+import * as posthog from "../../telemetry/posthog";
 
 import {
   type HttpCall,
@@ -1190,24 +1191,6 @@ describe("MCP tools", () => {
     expect(result.content[0]?.text).toContain("cardId:");
   });
 
-  test("an id that is also a route word still names the card", async () => {
-    const executor = mock(async (_call: unknown) =>
-      Response.json({ id: "changes" })
-    );
-    const result = await callTeakV1Tool(
-      "teak_v1_get_card",
-      { cardId: "changes" },
-      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
-      executor as PublicApiToolExecutor
-    );
-
-    expect(result.isError).toBeUndefined();
-    expect(executor.mock.calls[0]?.[0]).toMatchObject({
-      operationId: "getCard",
-      params: { cardId: "changes" },
-    });
-  });
-
   test.each([
     ["teak_v1_get_card", { cardId: ".." }],
     ["teak_v1_add_cards_to_folder", { folderId: "..", cardIds: ["card_1"] }],
@@ -1450,5 +1433,29 @@ describe("link image tools", () => {
       (entry) => entry.name === "teak_v1_create_card"
     );
     expect(tool?.description).toContain("resaved: true");
+  });
+
+  test("records an error outcome when a tool call throws", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      const failure = new Error("executor exploded");
+      await expect(
+        callTeakV1Tool(
+          "teak_v1_get_card",
+          { cardId: "card_1" },
+          mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call" }),
+          mock(() => Promise.reject(failure))
+        )
+      ).rejects.toBe(failure);
+      expect(capture).toHaveBeenCalledWith(
+        "mcp_tool_called",
+        undefined,
+        expect.objectContaining({ outcome: "error", tool: "teak_v1_get_card" })
+      );
+    } finally {
+      capture.mockRestore();
+    }
   });
 });

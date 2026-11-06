@@ -205,36 +205,48 @@ export const publicApiEndpointLabel = (id: PublicApiOperationId): string => {
   return `${method} ${path.replace(/\{(\w+)\}/g, ":$1")}`;
 };
 
-interface CompiledOperation {
-  id: PublicApiOperationId;
-  method: PublicApiMethod;
+interface CompiledPath {
+  operations: Map<PublicApiMethod, PublicApiOperationId>;
   segments: string[];
   staticSegments: number;
 }
 
-const COMPILED: CompiledOperation[] = PUBLIC_API_OPERATION_IDS.map((id) => {
-  const segments = operationSpec(id).path.split("/");
-  return {
-    id,
-    method: operationSpec(id).method,
-    segments,
-    staticSegments: segments.filter((segment) => !segment.startsWith("{"))
-      .length,
-  };
-})
+const compilePaths = (): CompiledPath[] => {
+  const byPath = new Map<string, CompiledPath>();
+  for (const id of PUBLIC_API_OPERATION_IDS) {
+    const { method, path } = operationSpec(id);
+    let compiled = byPath.get(path);
+    if (!compiled) {
+      const segments = path.split("/");
+      compiled = {
+        operations: new Map(),
+        segments,
+        staticSegments: segments.filter((segment) => !segment.startsWith("{"))
+          .length,
+      };
+      byPath.set(path, compiled);
+    }
+    compiled.operations.set(method, id);
+  }
   // A path written out wins over a template it also fits, so
-  // `/v1/cards/changes` is never read as the card `changes`.
-  .sort((left, right) => right.staticSegments - left.staticSegments);
+  // `/v1/cards/changes` is never read as the card `changes`, whatever the
+  // method.
+  return [...byPath.values()].sort(
+    (left, right) => right.staticSegments - left.staticSegments
+  );
+};
+
+const COMPILED_PATHS = compilePaths();
 
 const matchSegments = (
-  operation: CompiledOperation,
+  path: CompiledPath,
   parts: readonly string[]
 ): Record<string, string> | null => {
-  if (operation.segments.length !== parts.length) {
+  if (path.segments.length !== parts.length) {
     return null;
   }
   const params: Record<string, string> = {};
-  for (const [index, segment] of operation.segments.entries()) {
+  for (const [index, segment] of path.segments.entries()) {
     const part = parts[index] ?? "";
     if (!segment.startsWith("{")) {
       if (segment !== part) {
@@ -254,6 +266,20 @@ const matchSegments = (
   return params;
 };
 
+/** The most specific API path a request path is, with its parameters. */
+const resolvePath = (
+  pathname: string
+): { params: Record<string, string>; path: CompiledPath } | null => {
+  const parts = pathname.split("/");
+  for (const path of COMPILED_PATHS) {
+    const params = matchSegments(path, parts);
+    if (params) {
+      return { params, path };
+    }
+  }
+  return null;
+};
+
 export interface PublicApiMatch {
   operationId: PublicApiOperationId;
   params: Record<string, string>;
@@ -264,17 +290,11 @@ export const matchPublicApiOperation = (
   method: string,
   pathname: string
 ): PublicApiMatch | null => {
-  const parts = pathname.split("/");
-  for (const operation of COMPILED) {
-    if (operation.method !== method) {
-      continue;
-    }
-    const params = matchSegments(operation, parts);
-    if (params) {
-      return { operationId: operation.id, params };
-    }
-  }
-  return null;
+  const resolved = resolvePath(pathname);
+  const operationId = resolved?.path.operations.get(method as PublicApiMethod);
+  return resolved && operationId
+    ? { operationId, params: resolved.params }
+    : null;
 };
 
 const METHOD_ORDER: readonly PublicApiMethod[] = [
@@ -286,17 +306,15 @@ const METHOD_ORDER: readonly PublicApiMethod[] = [
 ];
 
 /**
- * The methods the API serves on a path, or none when it isn't one of its
- * endpoints: 405 against 404 for a request no operation takes.
+ * The methods the API serves on the path a request names, or none when it
+ * isn't one of its endpoints: 405 against 404 for a request no operation
+ * takes.
  */
 export const publicApiMethodsFor = (pathname: string): PublicApiMethod[] => {
-  const parts = pathname.split("/");
-  const methods = new Set(
-    COMPILED.filter((operation) => matchSegments(operation, parts)).map(
-      (operation) => operation.method
-    )
-  );
-  return METHOD_ORDER.filter((method) => methods.has(method));
+  const operations = resolvePath(pathname)?.path.operations;
+  return operations
+    ? METHOD_ORDER.filter((method) => operations.has(method))
+    : [];
 };
 
 export const PUBLIC_API_CARD_TYPES = cardTypes;

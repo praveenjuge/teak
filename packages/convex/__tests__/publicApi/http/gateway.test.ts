@@ -184,13 +184,16 @@ describe("Convex public API metadata", () => {
     ]);
   });
 
-  test("the API page documents every /v1 endpoint", () => {
+  test("the API page documents every /v1 method and path", () => {
     const docs = readFileSync(docsPath, "utf8");
-    const paths = new Set([
-      "/openapi.json",
-      ...V1_ENDPOINTS.map((endpoint) => endpoint.split(" ")[1] ?? ""),
-    ]);
-    expect([...paths].filter((path) => !docs.includes(path))).toEqual([]);
+    const tableRow = (path: string) =>
+      docs.split("\n").find((line) => line.startsWith(`| \`${path}\` |`)) ?? "";
+    const undocumented = V1_ENDPOINTS.filter((endpoint) => {
+      const [method = "", path = ""] = endpoint.split(" ");
+      return !(docs.includes(endpoint) || tableRow(path).includes(method));
+    });
+    expect(docs).toContain("/openapi.json");
+    expect(undocumented).toEqual([]);
   });
 
   test("documents revocation-only Connect authentication without a request body", () => {

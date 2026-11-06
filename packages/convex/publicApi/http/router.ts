@@ -55,7 +55,7 @@ import { unroutedV1Response, withPublicApiGatewayHeaders } from "./meta";
 import type { PublicApiHandler } from "./operation";
 import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
 import { handlePinnedOrderRequest } from "./pins";
-import { errorResponse } from "./shared";
+import { errorResponse, mapConvexErrorToResponse } from "./shared";
 import { handleGetTagOperationRequest, startTagOperation } from "./tags";
 
 /** Operations with an HTTP action of their own, outside the bearer gate. */
@@ -156,14 +156,24 @@ const runOperation = async (
   if (!handler) {
     return errorResponse(404, "NOT_FOUND", "Not found");
   }
-  return await handler({
-    body,
-    ctx,
-    params: run.params,
-    request: run.request,
-    resource: run.resource,
-    userId: auth.validated.userId,
-  });
+  try {
+    return await handler({
+      body,
+      ctx,
+      params: run.params,
+      request: run.request,
+      resource: run.resource,
+      userId: auth.validated.userId,
+    });
+  } catch (error) {
+    // A handler maps the errors it expects; anything else still answers
+    // with the API's JSON error and its headers, not the runtime's 500.
+    console.error("[publicApi] operation failed", {
+      error: error instanceof Error ? error.message : String(error),
+      operationId: run.operationId,
+    });
+    return mapConvexErrorToResponse(error, "The request failed");
+  }
 };
 
 /** Answers a REST request under `/v1/`, or its JSON 404 or 405. */

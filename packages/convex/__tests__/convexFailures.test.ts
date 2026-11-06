@@ -44,6 +44,16 @@ describe("convexFailureKind", () => {
       new SyntaxError("Unexpected token"),
       "invalidCursor",
     ],
+    [
+      "a malformed inner cursor",
+      new Error("Failed to parse cursor"),
+      "invalidCursor",
+    ],
+    [
+      "a malformed inner cursor, with Convex's detail",
+      new Error("Uncaught Error: Failed to parse cursor: invalid base64"),
+      "invalidCursor",
+    ],
     ["anything else", new Error("Too many documents read"), null],
     ["an app error", new ConvexError({ code: "NOT_FOUND" }), null],
     ["nothing", undefined, null],
