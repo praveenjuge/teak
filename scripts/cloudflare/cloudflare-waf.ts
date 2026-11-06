@@ -20,8 +20,8 @@ import {
   WAF_ZONE_NAME,
   type WafRule,
 } from "../../apps/core-worker/waf/rules";
+import { cloudflareClient } from "./cloudflare-client";
 
-const API = "https://api.cloudflare.com/client/v4";
 const PHASE = "http_request_firewall_custom";
 
 export interface LiveRule extends Partial<WafRule> {
@@ -67,40 +67,6 @@ export const planWafChanges = (
 
 export const hasChanges = (plan: WafPlan): boolean =>
   plan.create.length + plan.update.length + plan.remove.length > 0;
-
-interface CloudflareResponse<T> {
-  errors?: { message: string }[];
-  result: T;
-  success: boolean;
-}
-
-export const cloudflareClient = (token: string, fetcher: typeof fetch) => {
-  const call = async <T>(
-    method: string,
-    path: string,
-    body?: unknown,
-    options: { allowMissing?: boolean } = {}
-  ): Promise<{ status: number; result: T | null }> => {
-    const response = await fetcher(`${API}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (response.status === 404 && options.allowMissing) {
-      return { status: 404, result: null };
-    }
-    const payload = (await response.json()) as CloudflareResponse<T>;
-    if (!payload.success) {
-      const reason = payload.errors?.map((error) => error.message).join("; ");
-      throw new Error(`${method} ${path} failed: ${reason ?? response.status}`);
-    }
-    return { status: response.status, result: payload.result };
-  };
-  return { call };
-};
 
 const ruleBody = ({
   action,

@@ -170,7 +170,7 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.refresh": (c) => c.cards.refresh("card_1"),
     "cards.resetThumbnail": (c) => c.cards.resetThumbnail("card_1"),
     "cards.restore": (c) => c.cards.restore("card_1"),
-    "cards.search": (c) => c.cards.search({ q: "x" }),
+    "cards.search": (c) => c.cards.search({ query: "x" }),
     "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
     "cards.savePdf": (c) => c.cards.savePdf("card_1"),
     "cards.setDone": (c) => c.cards.setDone("card_1", true),
@@ -285,7 +285,7 @@ describe("public surface parity", () => {
       );
       expect({ tool, reached: await mcpOperations(tool) }).toEqual({
         tool,
-        reached: [row?.operationId],
+        reached: [row?.operationId ?? "(no parity row)"],
       });
     }
   });
@@ -378,7 +378,7 @@ describe("public surface parity", () => {
 
   test("the card list filters match on the API, MCP and CLI", () => {
     const listCards = (
-      openApiSpec.paths["/v1/cards"] as {
+      openApiSpec.paths["/v1/cards"] as unknown as {
         get: { parameters: { name: string }[] };
       }
     ).get.parameters.map((parameter) => parameter.name);

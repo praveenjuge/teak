@@ -132,9 +132,9 @@ void client; void surface;
     ],
     consumer
   );
-  const server = serve({
+  const server: ReturnType<typeof serve> = serve({
     port: 0,
-    fetch(request) {
+    fetch(request): Response {
       const path = new URL(request.url).pathname;
       const issuer = `${server.url.origin}/workos`;
       if (path === "/.well-known/teak-oauth-clients.json") {

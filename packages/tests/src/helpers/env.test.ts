@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { slotPorts } from "../../../../scripts/dev/worktree-env.ts";
-import type { StackState } from "../../../../scripts/lib/stack-state.ts";
+import { slotPorts } from "@teak/scripts/dev/worktree-env";
+import type { StackState } from "@teak/scripts/lib/stack-state";
 import { stackUrls } from "../stack/config";
 import { FIXTURE_URLS, resolveStackUrls } from "./env";
 

@@ -232,7 +232,7 @@ describe("describeStatus", () => {
       ready: true,
       logPath: "/tmp/stack.log",
       pid: 42,
-      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      ports: mainWorktreePorts(),
       startedAt: "2026-10-09T00:00:00.000Z",
       urls: {
         appOrigin: "http://localhost:3000",
@@ -253,7 +253,7 @@ describe("describeStatus", () => {
       ready: true,
       logPath: "/tmp/stack.log",
       pid: 42,
-      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      ports: mainWorktreePorts(),
       startedAt: "2026-10-25T00:00:00.000Z",
       urls: {
         appOrigin: "http://localhost:3000",

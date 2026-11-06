@@ -13,7 +13,71 @@ import { assertPatchBump, parseVersion } from "./release-version.ts";
 
 const registry = "https://registry.npmjs.org";
 const maxTarballBytes = 10 * 1024 * 1024;
-export function publicationMode({ refType, refName }) {
+
+type Environment = Record<string, string | undefined>;
+
+export interface PackedArtifact {
+  filename: string;
+  integrity: string;
+  name: string;
+  version: string;
+}
+
+interface WaitWindow {
+  attempts?: number;
+  intervalMs?: number;
+  now?: () => number;
+  timeoutMs?: number;
+  wait?: (ms: number) => Promise<unknown>;
+}
+
+interface AttestationBundle {
+  bundle: { dsseEnvelope: { payload: string } };
+  predicateType?: string;
+}
+
+interface SignaturesReport {
+  invalid?: unknown[];
+  missing?: unknown[];
+  verified?: {
+    attestationBundles?: AttestationBundle[];
+    name?: string;
+    registry?: string;
+    version?: string;
+  }[];
+}
+
+interface ProvenanceStatement {
+  _type?: string;
+  predicate?: {
+    buildDefinition?: {
+      buildType?: string;
+      externalParameters?: {
+        workflow?: { path?: string; ref?: string; repository?: string };
+      };
+      resolvedDependencies?: {
+        digest?: { gitCommit?: string };
+        uri?: string;
+      }[];
+    };
+    runDetails?: { builder?: { id?: string } };
+  };
+  predicateType?: string;
+  subject?: { digest?: { sha512?: string }; name?: string }[];
+}
+
+const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+const stderrOf = (error: unknown): string =>
+  String((error as { stderr?: unknown } | null)?.stderr ?? "");
+
+export function publicationMode({
+  refType,
+  refName,
+}: {
+  refName?: string;
+  refType?: string;
+}) {
   if (refType !== "tag" || !refName?.startsWith("v")) {
     throw new Error("SDK publication requires an immutable version tag.");
   }
@@ -21,7 +85,7 @@ export function publicationMode({ refType, refName }) {
   return "oidc";
 }
 
-export function publisherEnvironment(source) {
+export function publisherEnvironment(source: Environment): Environment {
   for (const [name, value] of Object.entries(source)) {
     if (/^npm_config_/i.test(name) && value) {
       throw new Error(
@@ -40,7 +104,7 @@ export function publisherEnvironment(source) {
   return { ...source };
 }
 
-export function publicationInvocation(environment) {
+export function publicationInvocation(environment: Environment) {
   const directory = mkdtempSync(
     join(environment.RUNNER_TEMP ?? tmpdir(), "sdk-publisher-config-")
   );
@@ -59,13 +123,17 @@ export function publicationInvocation(environment) {
   };
 }
 
-export function validateRelease(repoRoot, refType, refName) {
+export function validateRelease(
+  repoRoot: string,
+  refType: string | undefined,
+  refName: string | undefined
+) {
   if (refType !== "tag" || !refName?.startsWith("v")) {
     throw new Error("SDK publication requires an immutable version tag.");
   }
   const version = refName.slice(1);
   parseVersion(version);
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, {
       cwd: repoRoot,
       encoding: "utf8",
@@ -76,9 +144,11 @@ export function validateRelease(repoRoot, refType, refName) {
     throw new Error("Release tag does not point to the checked-out commit.");
   }
   git("merge-base", "--is-ancestor", head, "origin/main");
-  const manifest = JSON.parse(readFileSync(resolve(repoRoot, "package.json")));
+  const manifest = JSON.parse(
+    readFileSync(resolve(repoRoot, "package.json"), "utf8")
+  );
   const sdk = JSON.parse(
-    readFileSync(resolve(repoRoot, "packages/sdk/package.json"))
+    readFileSync(resolve(repoRoot, "packages/sdk/package.json"), "utf8")
   );
   if (
     manifest.version !== version ||
@@ -94,7 +164,7 @@ export function validateRelease(repoRoot, refType, refName) {
   return version;
 }
 
-export function readArtifact(metadataPath) {
+export function readArtifact(metadataPath: string): PackedArtifact {
   const packed = JSON.parse(readFileSync(metadataPath, "utf8"));
   // npm 12 keys pack output by package name; npm 11 returns an array.
   let entries: unknown[] = [];
@@ -111,14 +181,16 @@ export function readArtifact(metadataPath) {
   if (entries.length !== 1) {
     throw new Error("Expected exactly one packed SDK artifact.");
   }
-  const artifact = entries[0];
-  if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) {
+  const entry = entries[0];
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     throw new Error("Invalid packed SDK metadata.");
   }
-  parseVersion(artifact.version);
+  const artifact = entry as Partial<Record<keyof PackedArtifact, unknown>>;
+  parseVersion(String(artifact.version));
   if (
     artifact.name !== "teak-sdk" ||
     artifact.filename !== `teak-sdk-${artifact.version}.tgz` ||
+    typeof artifact.integrity !== "string" ||
     !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(artifact.integrity)
   ) {
     throw new Error("Invalid packed SDK metadata.");
@@ -130,14 +202,14 @@ export function readArtifact(metadataPath) {
   ) {
     throw new Error("Packed SDK bytes do not match their recorded integrity.");
   }
-  return artifact;
+  return artifact as PackedArtifact;
 }
 
-function integrity(bytes) {
+function integrity(bytes: Buffer) {
   return `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
 }
 
-async function request(url, signal) {
+async function request(url: string | URL, signal: AbortSignal) {
   return await fetch(url, {
     redirect: "error",
     signal,
@@ -147,7 +219,7 @@ async function request(url, signal) {
 class PendingRegistryTarball extends Error {}
 
 export async function inspectPublished(
-  artifact,
+  artifact: PackedArtifact,
   registryUrl = registry,
   timeoutMs = 30_000
 ) {
@@ -157,14 +229,14 @@ export async function inspectPublished(
     signal
   );
   if (response.status === 404) {
-    const missing = await response.json();
+    const missing: unknown = await response.json();
     if (
       missing !== `version not found: ${artifact.version}` &&
       !(
         missing !== null &&
         typeof missing === "object" &&
         !Array.isArray(missing) &&
-        typeof missing.error === "string"
+        typeof (missing as { error?: unknown }).error === "string"
       )
     ) {
       throw new Error("Registry returned an invalid missing-version response.");
@@ -174,7 +246,11 @@ export async function inspectPublished(
   if (!response.ok) {
     throw new Error(`Registry version lookup failed: HTTP ${response.status}.`);
   }
-  const published = await response.json();
+  const published = (await response.json()) as {
+    dist?: { integrity?: string; tarball?: string };
+    name?: string;
+    version?: string;
+  };
   if (
     published.name !== artifact.name ||
     published.version !== artifact.version ||
@@ -184,7 +260,7 @@ export async function inspectPublished(
       "Published SDK metadata differs from the release artifact."
     );
   }
-  const url = new URL(published.dist.tarball);
+  const url = new URL(String(published.dist?.tarball));
   if (
     url.origin !== new URL(registryUrl).origin ||
     url.username ||
@@ -223,7 +299,11 @@ export async function inspectPublished(
   return true;
 }
 
-export function provenanceReceipt(report, artifact, commit) {
+export function provenanceReceipt(
+  report: SignaturesReport,
+  artifact: PackedArtifact,
+  commit: string
+) {
   if (
     !Array.isArray(report.invalid) ||
     report.invalid.length ||
@@ -248,7 +328,7 @@ export function provenanceReceipt(report, artifact, commit) {
   if (bundles?.length !== 1) {
     throw new Error("Missing unique verified SDK provenance.");
   }
-  const statement = JSON.parse(
+  const statement: ProvenanceStatement = JSON.parse(
     Buffer.from(bundles[0].bundle.dsseEnvelope.payload, "base64").toString(
       "utf8"
     )
@@ -298,16 +378,16 @@ export function provenanceReceipt(report, artifact, commit) {
 // The per-version endpoint that waitForPublished reads can show a new version
 // before the CDN-cached package document that `npm install` resolves from.
 // Only that ETARGET gap is retried; every other install failure stops at once.
-export async function installWhenResolvable(
-  install,
+export async function installWhenResolvable<T>(
+  install: () => T,
   {
     attempts = 24,
     intervalMs = 5000,
     timeoutMs = 120_000,
     now = Date.now,
-    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
-  } = {}
-) {
+    wait = sleep,
+  }: WaitWindow = {}
+): Promise<T> {
   if (
     !Number.isInteger(attempts) ||
     attempts < 1 ||
@@ -326,9 +406,7 @@ export async function installWhenResolvable(
     try {
       return install();
     } catch (error) {
-      const unresolved = /npm error code ETARGET\b/.test(
-        String(error.stderr ?? "")
-      );
+      const unresolved = /npm error code ETARGET\b/.test(stderrOf(error));
       if (!unresolved || now() >= deadline) {
         throw error;
       }
@@ -342,16 +420,16 @@ export async function installWhenResolvable(
 // itself, and until then `npm audit signatures` fails with a 404 for them
 // (v1.0.92's first verify did). Only that 404 is retried; every other audit
 // failure stops at once.
-export async function auditWhenAttested(
-  audit,
+export async function auditWhenAttested<T>(
+  audit: () => T,
   {
     attempts = 30,
     intervalMs = 10_000,
     timeoutMs = 300_000,
     now = Date.now,
-    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
-  } = {}
-) {
+    wait = sleep,
+  }: WaitWindow = {}
+): Promise<T> {
   if (
     !Number.isInteger(attempts) ||
     attempts < 1 ||
@@ -370,7 +448,7 @@ export async function auditWhenAttested(
     try {
       return audit();
     } catch (error) {
-      const stderr = String(error.stderr ?? "");
+      const stderr = stderrOf(error);
       const notYetAttested =
         /npm error code E404\b/.test(stderr) &&
         stderr.includes("/-/npm/v1/attestations/");
@@ -383,7 +461,10 @@ export async function auditWhenAttested(
   return audit();
 }
 
-export async function verifyProvenance(artifact, metadataPath) {
+export async function verifyProvenance(
+  artifact: PackedArtifact,
+  metadataPath: string
+) {
   const directory = mkdtempSync(
     join(process.env.RUNNER_TEMP ?? tmpdir(), "sdk-provenance-")
   );
@@ -474,7 +555,7 @@ async function main() {
     );
   }
   const artifact = readArtifact(metadataPath);
-  if (artifact.version !== process.env.GITHUB_REF_NAME.slice(1)) {
+  if (artifact.version !== String(process.env.GITHUB_REF_NAME).slice(1)) {
     throw new Error("Packed artifact version does not match the release tag.");
   }
   if (command === "check") {
@@ -537,15 +618,15 @@ async function main() {
 }
 
 export async function waitForPublished(
-  artifact,
+  artifact: PackedArtifact,
   {
     registryUrl = registry,
     attempts = 60,
     intervalMs = 5000,
     timeoutMs = 300_000,
     now = Date.now,
-    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
-  } = {}
+    wait = sleep,
+  }: WaitWindow & { registryUrl?: string } = {}
 ) {
   if (
     !Number.isInteger(attempts) ||

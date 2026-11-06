@@ -1,7 +1,16 @@
 # scripts
 
 Repository scripts, grouped by what they're for. Each test sits beside the
-script it covers; `bun run test` runs them all (`bun test scripts/`).
+script it covers. The folder is the `@teak/scripts` workspace, so Turbo runs
+its `typecheck`, `lint` and `test` tasks with the rest (`bun run verify`,
+`bun run test`). Its tests also run the TypeScript checks in `apps/apple/tests`
+and `apps/android/tests`, which have no workspace of their own. Because the
+repository checks in `repo/` read the whole tree, the `test` task's inputs
+(`turbo.json`) are every file in the repository outside build output, so any
+change reruns them.
+
+Other workspaces import these modules as `@teak/scripts/<path>` (for example
+`@teak/scripts/dev/worktree-env`), so Turbo sees the dependency.
 
 | Folder | What's there |
 | --- | --- |
@@ -19,4 +28,6 @@ script it covers; `bun run test` runs them all (`bun test scripts/`).
 | `fixtures/` | Test fixtures |
 
 Scripts in `release/` must run on the pinned Node without Bun: no
-dependencies, only erasable TypeScript, and `.ts` extensions on imports.
+dependencies, only erasable TypeScript (`erasableSyntaxOnly` in
+`tsconfig.json`), and `.ts` extensions on imports. Their shared argument and
+JSON helpers are in `release/release-cli.ts`.

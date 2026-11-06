@@ -142,7 +142,7 @@ Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex ru
 
 ### Apple app (`apps/apple`)
 
-- Xcode 27 (Swift 6.4). The project is generated: edit `project.yml`, run `apps/apple/scripts/generate-project.sh`, and commit `Teak.xcodeproj` with it; CI fails when they differ. The workspace has no `package.json`, so Turbo, `bun run dev` and doctor don't see it. CI and releases run on GitHub's `xcode-27` image with Xcode pinned by `apps/apple/scripts/select-xcode.sh`.
+- Xcode 27 (Swift 6.4). The project is generated: edit `project.yml`, run `apps/apple/scripts/generate-project.sh`, and commit `Teak.xcodeproj` with it; CI fails when they differ. The workspace has no `package.json`, so Turbo, `bun run dev` and doctor don't see it; the `@teak/scripts` workspace typechecks and tests its TypeScript in `scripts/` and `tests/`. CI and releases run on GitHub's `xcode-27` image with Xcode pinned by `apps/apple/scripts/select-xcode.sh`.
 - Debug talks to the development deployment and WorkOS staging; Release talks to production. The Convex Rust core is Apple silicon only, so Mac and Simulator builds are arm64.
 - Layout: `Packages/TeakKit` (`TeakCore`: models, ported logic, session, Convex over HTTPS, uploads; `TeakSync`: the live Convex client; `TeakUI`), `Teak/` (the app), `ShareExtension/` and `SafariExtension/`.
 - Convex calls go through `ConvexFunctions`, which binds each function to its result type; every number argument is a `Double` (`v.number()` rejects int64). Shared constants come from `SharedConstants.json`, generated from the manifest both native apps share, `scripts/repo/native-constants.ts`; regenerate it with `bun --no-env-file run apps/apple/scripts/shared-constants.ts --write`.
@@ -155,7 +155,7 @@ Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex ru
 ### Android app (`apps/android`)
 
 - One Gradle project; use `./gradlew` from `apps/android` with JDK 17+ and `local.properties` holding `sdk.dir`. `./gradlew :app:installDebug` installs "Teak Dev", which talks to the development deployment and WorkOS staging. The version comes from the root `package.json`.
-- Checks: `./gradlew lint testDebugUnitTest :app:assembleRelease` and `bun --no-env-file test apps/android/tests/`.
+- Checks: `./gradlew lint testDebugUnitTest :app:assembleRelease` and `bun --no-env-file test apps/android/tests/` (the `@teak/scripts` workspace typechecks and tests the TypeScript in `scripts/` and `tests/`).
 - Modules follow Now in Android: `app`, `core:model`, `core:data`, `core:designsystem`, `core:testing`, one `feature:*` per area, shared setup in `build-logic`, versions in `gradle/libs.versions.toml`. Each ViewModel exposes one `StateFlow` UI state; build ViewModels inside a test, not in a field initializer, so `MainDispatcherRule` applies.
 - Convex calls go through `ConvexApi` with an entry from `ConvexFunctions`; `LiveConvexApi` sends every number as a `Double`. Shared constants live in the generated `SharedConstants.kt`, from the same `scripts/repo/native-constants.ts` manifest as Apple's; regenerate with `bun --no-env-file run apps/android/scripts/shared-constants.ts --write`. `testDebugUnitTest` also runs `core:model`'s JVM tests.
 - Sign-in builds the PKCE URL with the WorkOS SDK, but posts the code exchange and refresh itself without `client_secret` (SDK 0.4.0 always sends one). Sessions are encrypted with an Android Keystore key in no-backup storage. JNA stays pinned to 5.17 or newer for 16 KB-page devices.
@@ -170,5 +170,11 @@ Read `packages/convex/_generated/ai/guidelines.md` before editing; its Convex ru
 
 - `bun run dev cli` watch-builds `apps/cli/dist`; run it with `bun dist/index.js <args>`. `bun run build` is the executable build.
 - `packages/sdk/src/index.ts` is the SDK's only entry; tests sit beside the code (`bun run --cwd packages/sdk test`). Import shared values from `@teak/convex/shared/*`, never from Convex functions. `package.json` points `exports` at `src/` for the monorepo; `build.ts` writes the published manifest into `dist/`, and `scripts/repo/sdk-package.test.ts` installs that outside the monorepo and type-checks it. Run it after changing `build.ts` or the public types.
+
+### Repository scripts (`scripts`)
+
+- `scripts/` is the `@teak/scripts` workspace: dev, setup, env, release and Cloudflare tooling, and the repo checks that compare workspaces with each other (`scripts/repo`). Turbo runs its `typecheck`, `lint` and `test` with the rest; `scripts/README.md` maps the folders.
+- Other workspaces import it as `@teak/scripts/<path>` and list it as a dependency, so Turbo reruns their tasks when it changes.
+- Release scripts run on plain Node before Bun is installed: only erasable TypeScript, `.ts` import extensions, no dependencies.
 
 [Adding a Feature](/docs/adding-a-feature) has the rules for fields, tables, indexes, API operations and backfills.

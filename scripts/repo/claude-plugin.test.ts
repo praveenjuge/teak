@@ -20,7 +20,7 @@ const pluginTexts = () => {
 
 describe("Claude plugin (plugins/teak)", () => {
   test("names only tools the MCP server has", () => {
-    const tools = new Set(TEAK_V1_TOOLS.map((tool) => tool.name));
+    const tools = new Set<string>(TEAK_V1_TOOLS.map((tool) => tool.name));
     for (const { file, text } of pluginTexts()) {
       for (const [name] of text.matchAll(/teak_v1_[a-z_]+/gu)) {
         expect({ file, name, known: tools.has(name) }).toEqual({

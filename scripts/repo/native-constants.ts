@@ -153,7 +153,10 @@ export const buildNativeConstants = () => ({
     mimeTypes: [...format.mimeTypes],
     preview: format.preview,
     suffixes: [...format.suffixes],
-    fileNames: "fileNames" in format ? [...format.fileNames] : undefined,
+    fileNames:
+      "fileNames" in format && format.fileNames
+        ? [...format.fileNames]
+        : undefined,
   })),
 });
 

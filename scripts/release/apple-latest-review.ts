@@ -3,7 +3,28 @@ import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import type { AscResource } from "./apple-release-proof.ts";
 import { parseVersion } from "./release-version.ts";
+
+/** What `asc ... --output json` prints for the commands this script runs. */
+export interface AscReply {
+  data?: AscResource | AscResource[];
+  state?: string;
+}
+
+export type AscCommand = (args: string[]) => AscReply;
+
+interface ReviewVersion {
+  id: string;
+  state: string;
+  version: string;
+}
+
+const rows = (reply: AscReply): AscResource[] | undefined =>
+  Array.isArray(reply.data) ? reply.data : undefined;
+
+const row = (reply: AscReply): AscResource | undefined =>
+  Array.isArray(reply.data) ? undefined : reply.data;
 
 const cancellableStates = new Set([
   "IN_REVIEW",
@@ -45,7 +66,7 @@ const mutableStates = new Set([
   "READY_FOR_REVIEW",
 ]);
 
-function compareVersions(left, right) {
+function compareVersions(left: string, right: string) {
   const a = parseVersion(left);
   const b = parseVersion(right);
   for (let index = 0; index < a.length; index += 1) {
@@ -56,7 +77,7 @@ function compareVersions(left, right) {
   return 0;
 }
 
-function normalizeVersion(resource) {
+function normalizeVersion(resource: AscResource | undefined): ReviewVersion {
   const attributes = resource?.attributes ?? {};
   const version = attributes.versionString;
   if (typeof resource?.id !== "string" || typeof version !== "string") {
@@ -72,20 +93,24 @@ function normalizeVersion(resource) {
   };
 }
 
-function newest(versions) {
+function newest(versions: ReviewVersion[]): ReviewVersion | undefined {
   return versions.toSorted((left, right) =>
     compareVersions(right.version, left.version)
   )[0];
 }
 
-export function planLatestReviewVersion(response, targetVersion) {
+export function planLatestReviewVersion(
+  response: AscReply | undefined,
+  targetVersion: string
+) {
   parseVersion(targetVersion);
-  if (!Array.isArray(response?.data)) {
+  const listed = response && rows(response);
+  if (!listed) {
     throw new Error(
       "Expected an App Store versions response with a data array."
     );
   }
-  const versions = response.data.map(normalizeVersion);
+  const versions = listed.map(normalizeVersion);
   const newer = versions.find(
     (candidate) => compareVersions(candidate.version, targetVersion) > 0
   );
@@ -158,7 +183,7 @@ export function planLatestReviewVersion(response, targetVersion) {
   };
 }
 
-function runAsc(args) {
+function runAsc(args: string[]): AscReply {
   const result = spawnSync("asc", [...args, "--output", "json"], {
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
@@ -174,14 +199,18 @@ function runAsc(args) {
   return result.stdout.trim() ? JSON.parse(result.stdout) : {};
 }
 
-const wait = (milliseconds) =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
+const wait = (milliseconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
-async function waitForCancellation(versionId, runCommand, waitCommand) {
+async function waitForCancellation(
+  versionId: string,
+  runCommand: AscCommand,
+  waitCommand: (milliseconds: number) => Promise<void>
+) {
   const deadline = Date.now() + 10 * 60 * 1000;
   while (Date.now() < deadline) {
     const version = runCommand(["versions", "view", "--version-id", versionId]);
-    if (cancellationReadyStates.has(version.state)) {
+    if (cancellationReadyStates.has(version.state ?? "")) {
       return version;
     }
     await waitCommand(15_000);
@@ -191,15 +220,20 @@ async function waitForCancellation(versionId, runCommand, waitCommand) {
   );
 }
 
-function reviewSubmissionState(response) {
-  return response?.data?.attributes?.state ?? response?.state ?? "";
+function reviewSubmissionState(response: AscReply) {
+  return row(response)?.attributes?.state ?? response.state ?? "";
+}
+
+interface AscRun {
+  runCommand: AscCommand;
+  waitCommand: (milliseconds: number) => Promise<void>;
 }
 
 async function waitForReviewSubmissionCompletion({
   runCommand,
   submissionId,
   waitCommand,
-}) {
+}: AscRun & { submissionId: string }) {
   const deadline = Date.now() + 10 * 60 * 1000;
   while (Date.now() < deadline) {
     const submission = runCommand([
@@ -224,21 +258,23 @@ async function removeRejectedVersionFromReview({
   runCommand,
   versionId,
   waitCommand,
-}) {
-  const submissions = runCommand([
-    "review",
-    "submissions-list",
-    "--app",
-    appId,
-    "--platform",
-    platform,
-    "--state",
-    "UNRESOLVED_ISSUES",
-    "--include",
-    "appStoreVersionForReview",
-    "--paginate",
-  ]).data;
-  if (!Array.isArray(submissions)) {
+}: AscRun & { appId: string; platform: string; versionId: string }) {
+  const submissions = rows(
+    runCommand([
+      "review",
+      "submissions-list",
+      "--app",
+      appId,
+      "--platform",
+      platform,
+      "--state",
+      "UNRESOLVED_ISSUES",
+      "--include",
+      "appStoreVersionForReview",
+      "--paginate",
+    ])
+  );
+  if (!submissions) {
     throw new Error("Expected unresolved App Review submissions data.");
   }
   if (submissions.length === 0) {
@@ -259,24 +295,26 @@ async function removeRejectedVersionFromReview({
     ) {
       matchingSubmissions.push(submission.id);
     }
-    const items = runCommand([
-      "review",
-      "items",
-      "list",
-      "--submission",
-      submission.id,
-      "--fields",
-      "state,appStoreVersion",
-      "--include",
-      "appStoreVersion",
-      "--paginate",
-    ]).data;
-    if (!Array.isArray(items)) {
+    const items = rows(
+      runCommand([
+        "review",
+        "items",
+        "list",
+        "--submission",
+        submission.id,
+        "--fields",
+        "state,appStoreVersion",
+        "--include",
+        "appStoreVersion",
+        "--paginate",
+      ])
+    );
+    if (!items) {
       throw new Error("Expected App Review submission items data.");
     }
     for (const item of items) {
       if (item?.relationships?.appStoreVersion?.data?.id === versionId) {
-        matches.push({ itemId: item.id, submissionId: submission.id });
+        matches.push({ itemId: item.id ?? "", submissionId: submission.id });
       }
     }
   }
@@ -286,7 +324,7 @@ async function removeRejectedVersionFromReview({
   ) {
     await waitForReviewSubmissionCompletion({
       runCommand,
-      submissionId: matchingSubmissions[0] ?? submissions[0].id,
+      submissionId: matchingSubmissions[0] ?? submissions[0].id ?? "",
       waitCommand,
     });
     return;
@@ -320,7 +358,10 @@ async function removeRejectedVersionFromReview({
   });
 }
 
-function mutationForState(state, allowCancelledDeveloperRejection) {
+function mutationForState(
+  state: string,
+  allowCancelledDeveloperRejection: boolean
+) {
   if (mutableStates.has(state)) {
     return true;
   }
@@ -341,6 +382,12 @@ export async function applyLatestReviewVersion({
   runCommand = runAsc,
   targetVersion,
   waitCommand = wait,
+}: Partial<AscRun> & {
+  appId: string;
+  dryRun: boolean;
+  platform: string;
+  response: AscReply;
+  targetVersion: string;
 }) {
   const plan = planLatestReviewVersion(response, targetVersion);
   if (plan.targetId) {
@@ -377,7 +424,7 @@ export async function applyLatestReviewVersion({
   if (targetId && plan.removeSuperseded) {
     const target = runCommand(["versions", "view", "--version-id", targetId]);
     targetState =
-      target.state ?? target?.data?.attributes?.appVersionState ?? targetState;
+      target.state ?? row(target)?.attributes?.appVersionState ?? targetState;
   }
   if (plan.promoteSuperseded) {
     runCommand([
@@ -390,18 +437,20 @@ export async function applyLatestReviewVersion({
       "--release-type",
       "AFTER_APPROVAL",
     ]);
-    const exact = runCommand([
-      "versions",
-      "list",
-      "--app",
-      appId,
-      "--platform",
-      platform,
-      "--version",
-      targetVersion,
-      "--limit",
-      "2",
-    ]).data;
+    const exact = rows(
+      runCommand([
+        "versions",
+        "list",
+        "--app",
+        appId,
+        "--platform",
+        platform,
+        "--version",
+        targetVersion,
+        "--limit",
+        "2",
+      ])
+    );
     if (exact?.length !== 1 || exact[0].id !== plan.supersededId) {
       throw new Error(
         `App Store did not promote exactly one version to ${targetVersion}.`
@@ -437,7 +486,7 @@ async function main() {
   if (!(inputPath && targetVersion)) {
     usage();
   }
-  const response = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+  const response: AscReply = JSON.parse(fs.readFileSync(inputPath, "utf8"));
   if (command === "plan" && !appId) {
     process.stdout.write(
       `${JSON.stringify(planLatestReviewVersion(response, targetVersion))}\n`

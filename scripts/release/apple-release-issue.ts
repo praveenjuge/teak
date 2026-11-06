@@ -2,28 +2,44 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { githubWorkflowUrl, parseArguments, required } from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
+
+/** A GitHub issue as `gh issue list --json number,title,state,url,body` prints it. */
+export interface ReleaseIssue {
+  body?: string;
+  number?: number;
+  state?: string;
+  title: string;
+  url?: string;
+}
+
+type Flags = Record<string, string | undefined>;
 
 const liveStates = new Set(["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"]);
 
 const dashboardStart = "<!-- apple-release-dashboard:start -->";
 const dashboardEnd = "<!-- apple-release-dashboard:end -->";
 
-export function issueTitle(version) {
+export function issueTitle(version: string) {
   parseVersion(version);
   return `Apple release v${version}`;
 }
 
-export function exactIssue(issues, version) {
+export function exactIssue(issues: ReleaseIssue[], version: string) {
   const title = issueTitle(version);
   return issues.find((issue) => issue.title === title);
 }
 
-export function isLiveState(state) {
+export function isLiveState(state: unknown) {
   return liveStates.has(String(state).trim().toUpperCase());
 }
 
-export function isStorefrontLive(state, storefrontVersion, targetVersion) {
+export function isStorefrontLive(
+  state: unknown,
+  storefrontVersion: unknown,
+  targetVersion: unknown
+) {
   return (
     isLiveState(state) &&
     String(storefrontVersion).trim() === String(targetVersion).trim()
@@ -35,24 +51,24 @@ export function isStorefrontLive(state, storefrontVersion, targetVersion) {
  * iOS is in review `asc validate` stops on "app infos match". A Mac version
  * that already exists was started by a run, which reports its own failures.
  */
-export function isMacReleaseDue(iosState, macState) {
+export function isMacReleaseDue(iosState: unknown, macState: unknown) {
   return (
     isLiveState(iosState) &&
     String(macState).trim().toUpperCase() === "NOT_CREATED"
   );
 }
 
-export function openReleaseVersions(issues) {
+export function openReleaseVersions(issues: ReleaseIssue[]): string[] {
   return issues
     .filter((issue) => issue.state === "OPEN")
     .map((issue) => /^Apple release v(\d+\.\d+\.\d+)$/.exec(issue.title)?.[1])
-    .filter(Boolean)
+    .filter((version): version is string => Boolean(version))
     .sort((left, right) =>
       left.localeCompare(right, undefined, { numeric: true })
     );
 }
 
-export function releaseDashboard(body, values) {
+export function releaseDashboard(body: string | undefined, values: Flags) {
   const stateKey = [
     values["ios-state"],
     values["ios-store-version"],
@@ -88,7 +104,7 @@ ${dashboardEnd}`;
   return { body: nextBody, changed: current !== stateKey, stateKey };
 }
 
-export function sanitizeAscOutput(value) {
+export function sanitizeAscOutput(value: unknown) {
   return String(value || "Unavailable.")
     .replace(
       /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/gi,
@@ -102,28 +118,7 @@ export function sanitizeAscOutput(value) {
     .trim();
 }
 
-function parseArguments(args) {
-  const values = {};
-  for (let index = 0; index < args.length; index += 2) {
-    const flag = args[index];
-    const value = args[index + 1];
-    if (!(flag?.startsWith("--") && value !== undefined)) {
-      throw new Error(`Invalid argument near ${flag ?? "end of command"}.`);
-    }
-    values[flag.slice(2)] = value;
-  }
-  return values;
-}
-
-function validateWorkflowUrl(value) {
-  const url = new URL(value);
-  if (url.protocol !== "https:" || url.hostname !== "github.com") {
-    throw new Error("Workflow URL must be an https://github.com URL.");
-  }
-  return url.toString();
-}
-
-function gh(args, { allowFailure = false } = {}) {
+function gh(args: string[], { allowFailure = false } = {}) {
   const result = spawnSync("gh", args, {
     encoding: "utf8",
     env: process.env,
@@ -134,7 +129,7 @@ function gh(args, { allowFailure = false } = {}) {
   return result;
 }
 
-function listIssues(version) {
+function listIssues(version: string): ReleaseIssue[] {
   const result = gh([
     "issue",
     "list",
@@ -150,7 +145,7 @@ function listIssues(version) {
   return JSON.parse(result.stdout || "[]");
 }
 
-function readOptional(filePath) {
+function readOptional(filePath: string | undefined) {
   if (!(filePath && fs.existsSync(filePath))) {
     return "Unavailable.";
   }
@@ -160,12 +155,12 @@ function readOptional(filePath) {
 const releaseWorkflows = new Set(["apple-release.yml"]);
 const applePlatforms = new Set(["ios", "macos", "both"]);
 
-export function failureBody(values) {
-  const platform = values.platform;
+export function failureBody(values: Flags) {
+  const platform = values.platform ?? "";
   if (!new Set(["IOS", "MAC_OS"]).has(platform)) {
     throw new Error(`Unsupported platform: ${platform}`);
   }
-  const workflowUrl = validateWorkflowUrl(values["workflow-url"]);
+  const workflowUrl = githubWorkflowUrl(values["workflow-url"]);
   const workflowFile = values["workflow-file"] ?? "apple-release.yml";
   if (!releaseWorkflows.has(workflowFile)) {
     throw new Error(`Unsupported release workflow: ${workflowFile}`);
@@ -203,16 +198,17 @@ gh workflow run ${workflowFile} --ref main -f version=${values.version}${platfor
 \`\`\``;
 }
 
-function reportFailure(values) {
-  parseVersion(values.version);
+function reportFailure(values: Flags) {
+  const version = required(values.version, "version");
+  parseVersion(version);
   const body = failureBody(values);
-  const issue = exactIssue(listIssues(values.version), values.version);
+  const issue = exactIssue(listIssues(version), version);
   if (!issue) {
     const created = gh([
       "issue",
       "create",
       "--title",
-      issueTitle(values.version),
+      issueTitle(version),
       "--body",
       body,
     ]);
@@ -226,23 +222,24 @@ function reportFailure(values) {
   console.log(issue.url);
 }
 
-function reportStatus(values) {
-  parseVersion(values.version);
-  const workflowUrl = validateWorkflowUrl(values["workflow-url"]);
-  const issue = exactIssue(listIssues(values.version), values.version);
+function reportStatus(values: Flags) {
+  const version = required(values.version, "version");
+  parseVersion(version);
+  const workflowUrl = githubWorkflowUrl(values["workflow-url"]);
+  const issue = exactIssue(listIssues(version), version);
   if (!issue) {
-    console.log(`No Apple release issue exists for v${values.version}.`);
+    console.log(`No Apple release issue exists for v${version}.`);
     return;
   }
 
-  const iosState = values["ios-state"].trim().toUpperCase();
-  const safariState = values["safari-state"].trim().toUpperCase();
+  const iosState = (values["ios-state"] ?? "").trim().toUpperCase();
+  const safariState = (values["safari-state"] ?? "").trim().toUpperCase();
   const iosStoreVersion = values["ios-store-version"]?.trim() || "NOT_LIVE";
   const safariStoreVersion =
     values["safari-store-version"]?.trim() || "NOT_LIVE";
   const bothLive =
-    isStorefrontLive(iosState, iosStoreVersion, values.version) &&
-    isStorefrontLive(safariState, safariStoreVersion, values.version);
+    isStorefrontLive(iosState, iosStoreVersion, version) &&
+    isStorefrontLive(safariState, safariStoreVersion, version);
   const dashboard = releaseDashboard(issue.body, {
     ...values,
     "ios-state": iosState,

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "esModuleInterop": true,
+    "lib": ["ES2024", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2024",
+    "types": ["bun-types", "node"]
+  },
+  "include": [
+    "**/*.ts",
+    "../apps/apple/scripts/*.ts",
+    "../apps/apple/tests/*.ts",
+    "../apps/android/scripts/*.ts",
+    "../apps/android/tests/*.ts"
+  ],
+  // These import Core Worker modules typed against the Workers runtime, whose
+  // globals clash with Bun's; apps/core-worker's typecheck covers those modules.
+  "exclude": [
+    "node_modules",
+    "clef-eval/run.ts",
+    "cloudflare/cloudflare-waf.ts",
+    "cloudflare/cloudflare-waf.test.ts"
+  ]
+}

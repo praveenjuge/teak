@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import biome from "../../biome.jsonc";
+import { workspaceDirectories } from "./workspaces";
 
 const ROOT = join(import.meta.dir, "../..");
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"] as const;
@@ -36,16 +37,7 @@ const biomePaths = (config: BiomeConfig): string[] => {
     .filter((path): path is string => path !== null);
 };
 
-const workspaces = (): string[] =>
-  ["apps", "packages"].flatMap((area) =>
-    readdirSync(join(ROOT, area), { withFileTypes: true })
-      .filter(
-        (entry) =>
-          entry.isDirectory() &&
-          existsSync(join(ROOT, area, entry.name, "package.json"))
-      )
-      .map((entry) => `${area}/${entry.name}`)
-  );
+const workspaces = (): string[] => workspaceDirectories(ROOT);
 
 const rootCatalog = (): Record<string, string> =>
   (

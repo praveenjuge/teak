@@ -12,7 +12,79 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { sanitizeAscOutput } from "./apple-release-issue.ts";
+import { errorMessage, parseArguments, required } from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
+
+interface StoreListing {
+  fullDescription: string;
+  shortDescription: string;
+  title: string;
+}
+
+/** apps/android/store/store.config.json */
+interface StoreConfig {
+  graphics?: { featureGraphic?: string; icon?: string };
+  listing?: Partial<StoreListing>;
+  locale: string;
+  packageName: string;
+  screenshots?: { phone?: string[] };
+  whatsNew: string;
+}
+
+export interface ImageSet {
+  files: string[];
+  type: string;
+}
+
+export type PlayConfig = StoreConfig & {
+  imageSets: ImageSet[];
+  listing: StoreListing;
+};
+
+interface PlayRelease {
+  name?: string;
+  releaseNotes?: { language?: string; text?: string }[];
+  status?: string;
+  versionCodes?: (number | string)[];
+}
+
+/** The fields of Play Developer API replies this script reads. */
+export interface PlayReply {
+  bundles?: { sha256?: string; versionCode?: number | string }[];
+  id?: string;
+  images?: { sha256?: string }[];
+  releases?: PlayRelease[];
+  sha256?: string;
+  versionCode?: number | string;
+  [listingField: string]: unknown;
+}
+
+export interface PlayClient {
+  call: (
+    method: string,
+    route: string,
+    options?: { body?: unknown; query?: Record<string, string> }
+  ) => Promise<PlayReply>;
+  upload: (
+    route: string,
+    bytes: Uint8Array<ArrayBuffer>,
+    contentType: string,
+    options?: { resumable?: boolean }
+  ) => Promise<PlayReply>;
+}
+
+interface ServiceAccount {
+  client_email?: string;
+  private_key?: string;
+  token_uri?: string;
+}
+
+type Log = (line: string) => void;
+
+type Fetch = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
 
 export const configPath = "apps/android/store/store.config.json";
 export const genericReleaseNotes =
@@ -33,13 +105,13 @@ const scope = "https://www.googleapis.com/auth/androidpublisher";
 // A rerun after a newer release must never move a track backwards.
 const servingStatuses = new Set(["completed", "inProgress", "halted"]);
 
-export function versionCodeFor(version) {
+export function versionCodeFor(version: string) {
   const [major, minor, patch] = parseVersion(version);
   return major * 1_000_000 + minor * 1000 + patch;
 }
 
-export function loadConfig(repoRoot) {
-  const config = JSON.parse(
+export function loadConfig(repoRoot: string): PlayConfig {
+  const config: StoreConfig = JSON.parse(
     fs.readFileSync(path.join(repoRoot, configPath), "utf8")
   );
   if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(config.packageName)) {
@@ -51,7 +123,11 @@ export function loadConfig(repoRoot) {
   if (typeof config.whatsNew !== "string") {
     throw new Error(`${configPath}: whatsNew must be a string.`);
   }
-  for (const field of ["title", "shortDescription", "fullDescription"]) {
+  for (const field of [
+    "title",
+    "shortDescription",
+    "fullDescription",
+  ] as const) {
     const value = config.listing?.[field];
     if (typeof value !== "string" || value.trim() === "") {
       throw new Error(`${configPath}: listing.${field} is required.`);
@@ -75,7 +151,7 @@ export function loadConfig(repoRoot) {
       `${configPath}: Play takes 2 to 8 phone screenshots, not ${phone.length}.`
     );
   }
-  const imageSets = [
+  const imageSets: ImageSet[] = [
     { type: "icon", files: [config.graphics?.icon] },
     { type: "featureGraphic", files: [config.graphics?.featureGraphic] },
     { type: "phoneScreenshots", files: phone },
@@ -83,7 +159,7 @@ export function loadConfig(repoRoot) {
     .map(({ type, files }) => ({
       type,
       files: files
-        .filter(Boolean)
+        .filter((name): name is string => Boolean(name))
         .map((name) =>
           path.join(
             graphics,
@@ -100,10 +176,13 @@ export function loadConfig(repoRoot) {
       }
     }
   }
-  return { ...config, imageSets };
+  return { ...config, imageSets, listing: config.listing as StoreListing };
 }
 
-export function releaseNotesFor(override, config) {
+export function releaseNotesFor(
+  override: string | undefined,
+  config: { whatsNew?: string }
+) {
   const notes =
     String(override ?? "").trim() ||
     String(config.whatsNew ?? "").trim() ||
@@ -116,11 +195,14 @@ export function releaseNotesFor(override, config) {
   return notes;
 }
 
-function base64Url(value) {
+function base64Url(value: string) {
   return Buffer.from(value).toString("base64url");
 }
 
-export function signedAssertion(serviceAccount, nowSeconds) {
+export function signedAssertion(
+  serviceAccount: ServiceAccount | undefined,
+  nowSeconds: number
+) {
   if (!(serviceAccount?.client_email && serviceAccount?.private_key)) {
     throw new Error("PLAY_SERVICE_ACCOUNT_JSON isn't a service account key.");
   }
@@ -146,9 +228,12 @@ export function signedAssertion(serviceAccount, nowSeconds) {
 }
 
 export async function accessToken(
-  serviceAccount,
-  { fetch = globalThis.fetch, now = Date.now } = {}
-) {
+  serviceAccount: ServiceAccount,
+  {
+    fetch = globalThis.fetch,
+    now = Date.now,
+  }: { fetch?: Fetch; now?: () => number } = {}
+): Promise<string> {
   const response = await fetch(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -157,7 +242,11 @@ export async function accessToken(
       assertion: signedAssertion(serviceAccount, Math.floor(now() / 1000)),
     }),
   });
-  const body = await response.json().catch(() => ({}));
+  const body: {
+    access_token?: string;
+    error?: string;
+    error_description?: string;
+  } = await response.json().catch(() => ({}));
   if (!(response.ok && body.access_token)) {
     throw new Error(
       `Google sign-in for the service account failed (${response.status}): ${body.error_description ?? body.error ?? "no detail"}`
@@ -166,7 +255,7 @@ export async function accessToken(
   return body.access_token;
 }
 
-async function playError(response, what) {
+async function playError(response: Response, what: string) {
   const text = await response.text().catch(() => "");
   let detail = text;
   try {
@@ -174,17 +263,18 @@ async function playError(response, what) {
   } catch {
     // Not JSON; keep the text.
   }
-  const error = new Error(
-    `Play API ${what} failed (${response.status}): ${detail || response.statusText}`
+  return Object.assign(
+    new Error(
+      `Play API ${what} failed (${response.status}): ${detail || response.statusText}`
+    ),
+    { status: response.status }
   );
-  error.status = response.status;
-  return error;
 }
 
 // The bearer token only ever goes to Google's own upload hosts.
-export function uploadSession(location) {
+export function uploadSession(location: string | null) {
   try {
-    const url = new URL(location);
+    const url = new URL(String(location));
     const googleHost =
       url.hostname === "googleapis.com" ||
       url.hostname.endsWith(".googleapis.com");
@@ -194,11 +284,23 @@ export function uploadSession(location) {
   }
 }
 
-export function playClient({ token, packageName, fetch = globalThis.fetch }) {
+export function playClient({
+  token,
+  packageName,
+  fetch = globalThis.fetch,
+}: {
+  fetch?: Fetch;
+  packageName: string;
+  token: string;
+}): PlayClient {
   const app = `applications/${encodeURIComponent(packageName)}`;
   const auth = { Authorization: `Bearer ${token}` };
 
-  async function call(method, route, { body, query } = {}) {
+  async function call(
+    method: string,
+    route: string,
+    { body, query }: { body?: unknown; query?: Record<string, string> } = {}
+  ): Promise<PlayReply> {
     const url = new URL(`${apiRoot}/${app}/${route}`);
     for (const [key, value] of Object.entries(query ?? {})) {
       url.searchParams.set(key, value);
@@ -215,7 +317,12 @@ export function playClient({ token, packageName, fetch = globalThis.fetch }) {
     return text ? JSON.parse(text) : {};
   }
 
-  async function upload(route, bytes, contentType, { resumable = false } = {}) {
+  async function upload(
+    route: string,
+    bytes: Uint8Array<ArrayBuffer>,
+    contentType: string,
+    { resumable = false } = {}
+  ): Promise<PlayReply> {
     const url = new URL(`${uploadRoot}/${app}/${route}`);
     if (!resumable) {
       url.searchParams.set("uploadType", "media");
@@ -269,14 +376,14 @@ export function playClient({ token, packageName, fetch = globalThis.fetch }) {
   return { call, upload };
 }
 
-export function sha256(bytes) {
+export function sha256(bytes: Uint8Array) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
-function highestServingCode(track) {
+function highestServingCode(track: PlayReply) {
   let highest = 0;
   for (const release of track.releases ?? []) {
-    if (!servingStatuses.has(release.status)) {
+    if (!servingStatuses.has(release.status ?? "")) {
       continue;
     }
     for (const code of release.versionCodes ?? []) {
@@ -286,7 +393,13 @@ function highestServingCode(track) {
   return highest;
 }
 
-async function syncImages(client, edit, locale, imageSet, log) {
+async function syncImages(
+  client: PlayClient,
+  edit: string | undefined,
+  locale: string,
+  imageSet: ImageSet,
+  log: Log
+) {
   const route = `edits/${edit}/listings/${locale}/${imageSet.type}`;
   const current = (await client.call("GET", route)).images ?? [];
   const files = imageSet.files.map((file) => fs.readFileSync(file));
@@ -306,18 +419,24 @@ async function syncImages(client, edit, locale, imageSet, log) {
   return "replaced";
 }
 
-async function syncListing(client, edit, config, log) {
+async function syncListing(
+  client: PlayClient,
+  edit: string | undefined,
+  config: PlayConfig,
+  log: Log
+) {
   const route = `edits/${edit}/listings/${config.locale}`;
-  let current = {};
+  let current: PlayReply = {};
   try {
     current = await client.call("GET", route);
   } catch (error) {
-    if (error.status !== 404) {
+    if ((error as { status?: number }).status !== 404) {
       throw error;
     }
   }
-  const changed = Object.keys(config.listing).filter(
-    (field) => (current[field] ?? "") !== config.listing[field]
+  const listing: Record<string, string> = { ...config.listing };
+  const changed = Object.keys(listing).filter(
+    (field) => (current[field] ?? "") !== listing[field]
   );
   if (changed.length === 0) {
     log(`- Listing (${config.locale}): unchanged`);
@@ -328,13 +447,13 @@ async function syncListing(client, edit, config, log) {
   });
   for (const field of changed) {
     log(
-      `- Listing ${field}: changed\n\n  Play now:\n\n${quote(current[field])}\n\n  From the repo:\n\n${quote(config.listing[field])}\n`
+      `- Listing ${field}: changed\n\n  Play now:\n\n${quote(current[field])}\n\n  From the repo:\n\n${quote(listing[field])}\n`
     );
   }
   return changed;
 }
 
-function quote(value) {
+function quote(value: unknown) {
   return String(value ?? "(empty)")
     .split("\n")
     .map((line) => `    > ${line}`)
@@ -356,6 +475,15 @@ export async function publish({
   releaseNotes,
   dryRun,
   log = console.log,
+}: {
+  bundle: Uint8Array<ArrayBuffer>;
+  client: PlayClient;
+  config: PlayConfig;
+  dryRun: boolean;
+  log?: Log;
+  mapping: Uint8Array<ArrayBuffer>;
+  releaseNotes: string;
+  version: string;
 }) {
   const versionCode = versionCodeFor(version);
   const edit = (await client.call("POST", "edits", { body: {} })).id;
@@ -419,7 +547,7 @@ export async function publish({
     log("- R8 mapping: uploaded");
 
     const listingChanges = await syncListing(client, edit, config, log);
-    const images = {};
+    const images: Record<string, string> = {};
     for (const imageSet of config.imageSets) {
       images[imageSet.type] = await syncImages(
         client,
@@ -489,11 +617,19 @@ export async function readProof({
   version,
   releaseNotes,
   now = () => new Date(),
+}: {
+  client: PlayClient;
+  now?: () => Date;
+  releaseNotes: string;
+  version: string;
 }) {
   const versionCode = String(versionCodeFor(version));
   const edit = (await client.call("POST", "edits", { body: {} })).id;
   try {
-    const tracks = {};
+    const tracks: Record<
+      string,
+      Pick<PlayRelease, "status" | "versionCodes">
+    > = {};
     for (const track of releaseTracks) {
       const result = await client.call("GET", `edits/${edit}/tracks/${track}`);
       const release = (result.releases ?? []).find((item) =>
@@ -524,19 +660,6 @@ export async function readProof({
   }
 }
 
-function parseArguments(args) {
-  const values = {};
-  for (let index = 0; index < args.length; index += 2) {
-    const flag = args[index];
-    const value = args[index + 1];
-    if (!(flag?.startsWith("--") && value !== undefined)) {
-      throw new Error(`Invalid argument near ${flag ?? "end of command"}.`);
-    }
-    values[flag.slice(2)] = value;
-  }
-  return values;
-}
-
 // Play has the release by now, so a failed read-back is a warning, not a
 // failed release: the run stays green and no proof is attached.
 async function writeProof({
@@ -545,6 +668,12 @@ async function writeProof({
   releaseNotes,
   path: proofPath,
   log,
+}: {
+  client: PlayClient;
+  log: Log;
+  path: string;
+  releaseNotes: string;
+  version: string;
 }) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -555,7 +684,7 @@ async function writeProof({
     } catch (error) {
       if (attempt === 3) {
         log(
-          `- Proof: not attached, the read-back failed: ${sanitizeAscOutput(error.message)}`
+          `- Proof: not attached, the read-back failed: ${sanitizeAscOutput(errorMessage(error))}`
         );
         console.log(
           `::warning::Play has ${version}, but reading the tracks back failed. Rerun to attach the proof.`
@@ -565,7 +694,7 @@ async function writeProof({
   }
 }
 
-function parseServiceAccount(keyJson) {
+function parseServiceAccount(keyJson: string): ServiceAccount {
   try {
     return JSON.parse(keyJson);
   } catch {
@@ -580,7 +709,7 @@ async function main() {
   }
   const values = parseArguments(args);
   try {
-    if (!["true", "false"].includes(values["dry-run"])) {
+    if (!["true", "false"].includes(values["dry-run"] ?? "")) {
       throw new Error("--dry-run must be true or false.");
     }
     const dryRun = values["dry-run"] === "true";
@@ -596,19 +725,20 @@ async function main() {
     const token = await accessToken(serviceAccount);
     const client = playClient({ token, packageName: config.packageName });
     const summary = values.summary ?? process.env.GITHUB_STEP_SUMMARY;
-    const log = (line) => {
+    const log = (line: string) => {
       console.log(line);
       if (summary) {
         fs.appendFileSync(summary, `${line}\n`);
       }
     };
-    log(`### Google Play ${values.version}${dryRun ? " (dry run)" : ""}\n`);
+    const version = required(values.version, "--version");
+    log(`### Google Play ${version}${dryRun ? " (dry run)" : ""}\n`);
     const result = await publish({
       client,
       config,
-      version: values.version,
-      bundle: fs.readFileSync(values.bundle),
-      mapping: fs.readFileSync(values.mapping),
+      version,
+      bundle: fs.readFileSync(required(values.bundle, "--bundle")),
+      mapping: fs.readFileSync(required(values.mapping, "--mapping")),
       releaseNotes,
       dryRun,
       log,
@@ -619,7 +749,7 @@ async function main() {
     if (!dryRun && submitted && values.proof) {
       await writeProof({
         client,
-        version: values.version,
+        version,
         releaseNotes,
         path: values.proof,
         log,
@@ -627,7 +757,10 @@ async function main() {
     }
   } catch (error) {
     if (values["error-file"]) {
-      fs.writeFileSync(values["error-file"], sanitizeAscOutput(error.message));
+      fs.writeFileSync(
+        values["error-file"],
+        sanitizeAscOutput(errorMessage(error))
+      );
     }
     throw error;
   }

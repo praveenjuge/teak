@@ -1,0 +1,37 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/**",
+        "!$TURBO_ROOT$/.git/**",
+        "!$TURBO_ROOT$/.agents/.state/**",
+        "!$TURBO_ROOT$/.claude/worktrees/**",
+        "!$TURBO_ROOT$/**/node_modules/**",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/**/.next/**",
+        "!$TURBO_ROOT$/**/.wrangler/**",
+        "!$TURBO_ROOT$/**/.wxt/**",
+        "!$TURBO_ROOT$/**/.output/**",
+        "!$TURBO_ROOT$/**/.e2e/**",
+        "!$TURBO_ROOT$/**/.blume/**",
+        "!$TURBO_ROOT$/**/.gradle/**",
+        "!$TURBO_ROOT$/**/build/**",
+        "!$TURBO_ROOT$/**/dist/**",
+        "!$TURBO_ROOT$/**/coverage/**"
+      ]
+    },
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/apple/scripts/*.ts",
+        "$TURBO_ROOT$/apps/apple/tests/*.ts",
+        "$TURBO_ROOT$/apps/android/scripts/*.ts",
+        "$TURBO_ROOT$/apps/android/tests/*.ts",
+        "$TURBO_ROOT$/apps/core-worker/development/wrangler.jsonc",
+        "$TURBO_ROOT$/biome.jsonc"
+      ]
+    }
+  }
+}

@@ -1,37 +1,49 @@
 import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { ReleaseProof } from "./apple-release-proof.ts";
+import { parseArguments, readJson, required } from "./release-cli.ts";
 
-function required(value, label) {
-  const normalized = String(value ?? "").trim();
-  if (!normalized) {
-    throw new Error(`Missing ${label}.`);
-  }
-  return normalized;
+interface ReleaseContext {
+  appId?: string;
+  artifactName?: string;
+  artifactSha?: string;
+  ascVersion?: string;
+  generatedAt?: string;
+  publishExit?: string;
+  sourceSha?: string;
+  stageExit?: string;
+  tag?: string;
+  workflow?: string;
 }
 
-function parseArguments(args) {
-  const values = {};
-  for (let index = 0; index < args.length; index += 2) {
-    const flag = args[index];
-    const value = args[index + 1];
-    if (!(flag?.startsWith("--") && value !== undefined)) {
-      throw new Error(`Invalid argument near ${flag ?? "end of command"}.`);
-    }
-    values[flag.slice(2)] = value;
-  }
-  return values;
+export interface ReleaseManifest
+  extends Omit<
+    ReleaseProof,
+    "buildId" | "buildNumber" | "submissionId" | "submissionState"
+  > {
+  appId: string;
+  artifact: { name: string; sha256: string };
+  ascVersion: string;
+  build: { id: string; number: string };
+  generatedAt: string;
+  highLevelEvaluation: {
+    publishAppStoreDryRunExit: string;
+    releaseStageDryRunExit: string;
+  };
+  sourceSha: string;
+  sourceWorkflow: string;
+  submission: { id: string; state: string };
+  tag: string;
+  verifiedAt: string;
+  workflow: string;
 }
 
-function readJson(path, label) {
-  try {
-    return JSON.parse(fs.readFileSync(path, "utf8"));
-  } catch (error) {
-    throw new Error(`Could not read ${label}: ${error.message}`);
-  }
-}
-
-function verifyPrior(prior, proof, context) {
+function verifyPrior(
+  prior: Partial<ReleaseManifest>,
+  proof: ReleaseProof,
+  context: { appId: string; tag: string }
+) {
   const pairs = [
     [prior.version, proof.version, "version"],
     [prior.platform, proof.platform, "platform"],
@@ -51,7 +63,15 @@ function verifyPrior(prior, proof, context) {
   }
 }
 
-export function createReleaseManifest({ proof, prior, context }) {
+export function createReleaseManifest({
+  proof,
+  prior,
+  context,
+}: {
+  context: ReleaseContext;
+  prior?: Partial<ReleaseManifest>;
+  proof: ReleaseProof;
+}): ReleaseManifest {
   const now = required(context.generatedAt, "verification time");
   const tag = required(context.tag, "tag");
   const appId = required(context.appId, "app ID");
@@ -83,7 +103,7 @@ export function createReleaseManifest({ proof, prior, context }) {
     submissionState,
     ...proofFields
   } = proof;
-  const manifest = {
+  const manifest: ReleaseManifest = {
     ...proofFields,
     tag,
     sourceSha: prior?.sourceSha ?? required(context.sourceSha, "source SHA"),
@@ -112,8 +132,10 @@ function main() {
   }
   const values = parseArguments(args);
   const manifest = createReleaseManifest({
-    proof: readJson(values.proof, "release proof"),
-    prior: values.prior ? readJson(values.prior, "prior manifest") : undefined,
+    proof: readJson<ReleaseProof>(values.proof, "release proof"),
+    prior: values.prior
+      ? readJson<Partial<ReleaseManifest>>(values.prior, "prior manifest")
+      : undefined,
     context: {
       tag: values.tag,
       sourceSha: values["source-sha"],
@@ -127,9 +149,11 @@ function main() {
       generatedAt: values["generated-at"],
     },
   });
-  fs.writeFileSync(values.output, `${JSON.stringify(manifest, null, 2)}\n`, {
-    mode: 0o600,
-  });
+  fs.writeFileSync(
+    required(values.output, "output path"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { mode: 0o600 }
+  );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
