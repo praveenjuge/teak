@@ -13,7 +13,7 @@
         "$TURBO_ROOT$/apps/core-worker/wrangler.jsonc",
         "$TURBO_ROOT$/apps/core-worker/development/wrangler.jsonc",
         "$TURBO_ROOT$/apps/core-worker/self-host/wrangler.jsonc",
-        "$TURBO_ROOT$/apps/docs/content/docs/(developers)/api.mdx"
+        "$TURBO_ROOT$/apps/docs/content/docs/*/api.mdx"
       ]
     }
   }
