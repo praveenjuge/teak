@@ -2,14 +2,6 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let screenProps: Record<string, any> = {};
-const realScreens = await import("@/screens");
-mock.module("@/screens", () => ({
-  ...realScreens,
-  CardsScreenAdapter: (props: Record<string, any>) => {
-    screenProps = props;
-    return null;
-  },
-}));
 
 let currentSearch = "";
 const router = { back: mock(), push: mock(), replace: mock() };
@@ -23,7 +15,12 @@ mock.module("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(currentSearch),
 }));
 
-const { HomePageClient } = await import("../app/HomePageClient");
+const { useLibraryUrl } = await import("../hooks/useLibraryUrl");
+
+function Harness() {
+  screenProps = useLibraryUrl();
+  return null;
+}
 
 const originalWindow = globalThis.window;
 const installWindow = (search: string) => {
@@ -47,12 +44,9 @@ afterEach(() => {
   router.replace.mockReset();
 });
 
-const render = (
-  search: string,
-  view?: "all" | "favorites" | "archive" | "trash"
-) => {
+const render = (search: string) => {
   currentSearch = search;
-  renderToStaticMarkup(<HomePageClient view={view} />);
+  renderToStaticMarkup(<Harness />);
 };
 
 describe("library URL", () => {
@@ -129,7 +123,7 @@ describe("library URL", () => {
   });
 
   test("removing a card type adds a history entry so Back restores it", () => {
-    render("type=link,image", "favorites");
+    render("type=link,image");
     const history = installWindow("?type=link,image");
     screenProps.onSearchUrlStateChange(
       { q: "", sort: "newest", types: ["link"] },
@@ -152,9 +146,11 @@ describe("library URL", () => {
     );
   });
 
-  test("hands the routed view to the library", () => {
-    render("", "archive");
-    expect(screenProps.view).toBe("archive");
+  test("keeps the same search while a card opens and closes", () => {
+    render("q=design&card=card_1");
+    const withCard = screenProps.searchUrlState;
+    render("q=design");
+    expect(screenProps.searchUrlState).toEqual(withCard);
   });
 
   test("a quick command in search opens that view", () => {

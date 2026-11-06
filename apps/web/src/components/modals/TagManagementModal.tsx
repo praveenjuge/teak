@@ -17,6 +17,8 @@ const TAG_CHIP_CLASS =
 
 interface TagManagementModalProps {
   aiTags: string[];
+  /** Why the tag typed wasn't added. */
+  error?: string | null;
   onAddTag: () => void;
   onOpenChange: (open: boolean) => void;
   onRemoveAiTag: (tag: string) => void;
@@ -28,6 +30,7 @@ interface TagManagementModalProps {
 }
 
 export function TagManagementModal({
+  error,
   open,
   onOpenChange,
   userTags,
@@ -89,6 +92,11 @@ export function TagManagementModal({
                 <Plus />
               </Button>
             </div>
+            {error ? (
+              <p className="mt-2 text-destructive text-sm" role="alert">
+                {error}
+              </p>
+            ) : null}
           </div>
 
           {userTags.length > 0 && (

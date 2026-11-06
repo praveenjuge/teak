@@ -27,7 +27,7 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { useCardModal } = await import("../useCardModal");
+const { useCardTagEditor } = await import("../useCardTagEditor");
 
 let root: Root | undefined;
 
@@ -39,25 +39,23 @@ afterEach(async () => {
 });
 
 async function addTagTo(tags: string[], input: string) {
-  let hook = {} as ReturnType<typeof useCardModal>;
+  let hook = {} as ReturnType<typeof useCardTagEditor>;
   function Harness() {
-    hook = useCardModal("card_a", {
-      card: {
-        _creationTime: 1,
-        _id: "card_a",
-        content: "card_a",
-        createdAt: 1,
-        tags,
-        type: "text",
-        updatedAt: 1,
-        userId: "user_a",
-      } as never,
-    });
+    hook = useCardTagEditor({
+      _creationTime: 1,
+      _id: "card_a",
+      content: "card_a",
+      createdAt: 1,
+      tags,
+      type: "text",
+      updatedAt: 1,
+      userId: "user_a",
+    } as never);
     return null;
   }
   root = createRoot(document.createElement("div"));
   await act(() => root?.render(<Harness />));
-  await act(() => hook.setTagInput(input));
+  await act(() => hook.setInput(input));
   await act(() => {
     hook.addTag();
   });
@@ -67,35 +65,35 @@ async function addTagTo(tags: string[], input: string) {
 test("a tag longer than 64 characters says why beside the field and keeps what was typed", async () => {
   const hook = await addTagTo(["work"], "a".repeat(65));
   expect(write).not.toHaveBeenCalled();
-  expect(hook().tagError).toBe("Each tag must be at most 64 characters");
+  expect(hook().error).toBe("Each tag must be at most 64 characters");
   expect(errors).toEqual([]);
-  expect(hook().tagInput).toBe("a".repeat(65));
+  expect(hook().input).toBe("a".repeat(65));
 });
 
 test("editing the tag clears its error", async () => {
   const hook = await addTagTo(["work"], "a".repeat(65));
-  await act(() => hook().setTagInput("a".repeat(64)));
-  expect(hook().tagError).toBeNull();
+  await act(() => hook().setInput("a".repeat(64)));
+  expect(hook().error).toBeNull();
 });
 
 test("a card with 100 tags says it is full", async () => {
   const tags = Array.from({ length: 100 }, (_, index) => `tag${index}`);
   const hook = await addTagTo(tags, "one more");
   expect(write).not.toHaveBeenCalled();
-  expect(hook().tagError).toBe("A card can have at most 100 tags");
+  expect(hook().error).toBe("A card can have at most 100 tags");
 });
 
 test("removing a tag from a full card clears its error", async () => {
   const tags = Array.from({ length: 100 }, (_, index) => `tag${index}`);
   const hook = await addTagTo(tags, "one more");
-  expect(hook().tagError).toBe("A card can have at most 100 tags");
+  expect(hook().error).toBe("A card can have at most 100 tags");
   await act(() => hook().removeTag("tag0"));
-  expect(hook().tagError).toBeNull();
-  expect(hook().tagInput).toBe("one more");
+  expect(hook().error).toBeNull();
+  expect(hook().input).toBe("one more");
 });
 
 test("a 64-character tag is saved", async () => {
   const hook = await addTagTo(["work"], "a".repeat(64));
-  expect(hook().tagError).toBeNull();
+  expect(hook().error).toBeNull();
   expect(write).toHaveBeenCalledTimes(1);
 });

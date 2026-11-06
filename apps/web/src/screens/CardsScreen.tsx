@@ -38,14 +38,10 @@ import { CardsSearchHeader } from "@/components/search";
 import { NoSearchResults } from "@/components/search/NoSearchResults";
 import { SearchResultsSummary } from "@/components/search/SearchResultsSummary";
 import { Button } from "@/components/ui/button";
-import {
-  useBulkCardActions,
-  useCardActions,
-  useCardClipboard,
-  useCardModalFilterActions,
-  useCardsSearchController,
-  useVaultSetup,
-} from "@/hooks";
+import { useCardClipboard } from "@/hooks/useCardClipboard";
+import { useCardModalFilterActions } from "@/hooks/useCardModalFilterActions";
+import { useCardsSearchController } from "@/hooks/useCardsSearchController";
+import { useVaultSetup } from "@/hooks/useVaultSetup";
 import type { CardsVisualFilters } from "@/lib/cardsSearchState";
 import { clipFolderName } from "@/lib/clipFolderName";
 import { usePaginatedQuery, useQuery } from "@/lib/convexQueryHooks";
@@ -55,7 +51,10 @@ import {
 } from "../components/card-modal/LazyCardModal";
 import { EmptyTrashButton } from "../components/cards/EmptyTrashButton";
 import { TrashRetentionNote } from "../components/cards/TrashRetentionNote";
-import { isOptimisticCard } from "../components/cards/types";
+import {
+  type CardOpenOrigin,
+  isOptimisticCard,
+} from "../components/cards/types";
 import { FolderPageTitle } from "../components/folders/FolderPageTitle";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
 import {
@@ -66,9 +65,10 @@ import {
 import { PinnedStrip } from "../components/pinned";
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
-import { cardActionFailedMessage } from "../hooks/cardActions";
+import { type GridCardAction, useCardActions } from "../hooks/useCardActions";
 import { useCardDensity } from "../hooks/useCardDensity";
 import type { CloseCardOptions } from "../hooks/useCardQueryParamState";
+import { useCardTagEditor } from "../hooks/useCardTagEditor";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
@@ -79,6 +79,7 @@ import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
 import { useStableHandlers } from "../hooks/useStableHandlers";
 import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
+import type { CardView } from "../lib/cardActions";
 import { getAdjacentCardIdsKeepingPlace } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
@@ -100,7 +101,6 @@ import {
   type SearchFromUrl,
   type SearchUrlChange,
 } from "../lib/searchUrlSync";
-import { tagsAfterAdding, tagsAfterRemoving } from "../lib/tagManagement";
 import { PageHeader, PageTitle } from "./PageHeader";
 
 type CardsScreenMessage = keyof Messages["screens"]["cards"];
@@ -119,8 +119,6 @@ const EMPTY_VIEW_COPY: Record<
   },
   trash: { icon: Trash, text: "emptyTrash" },
 };
-
-export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
   addToFolderId?: string;
@@ -146,7 +144,6 @@ interface CardsScreenProps {
   queryRetryKey?: string;
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
-  toastIdPrefix?: string;
   upgradeUrl: string;
   view?: LibraryView;
 }
@@ -170,7 +167,6 @@ export function CardsScreen({
   onNavigateView,
   view,
   upgradeUrl,
-  toastIdPrefix,
   searchUrlState,
   onSearchUrlStateChange,
   onSwitchCard,
@@ -179,12 +175,10 @@ export function CardsScreen({
   const t = useTranslations("screens.cards");
   const tc = useTranslations("common");
   const tv = useTranslations("lib.libraryViews");
-  const tActions = useTranslations("hooks.cardActions");
   const density = useCardDensity();
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
-  const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef(composerDraft ?? "");
   const [composerFocus, setComposerFocus] = useState(() => ({
     pending: focusComposer,
@@ -370,7 +364,6 @@ export function CardsScreen({
     styleFilters,
     tagFilter,
     timeFilter,
-    updateCachedCard,
   } = searchController;
   useEffect(() => {
     onVisualFiltersChange?.({
@@ -536,25 +529,7 @@ export function CardsScreen({
     [neighborIds, placeIds, selectedCardId]
   );
 
-  const cardActions = useCardActions({
-    onRestoreSuccess: (message?: string) => message && toast(message),
-    onPermanentDeleteSuccess: (message?: string) => message && toast(message),
-    onError: (_error: Error, operation: string) => {
-      toast.error(cardActionFailedMessage(operation, tActions));
-    },
-    onCardUpdate: updateCachedCard,
-  });
-
-  const runBulkAction = useBulkCardActions(toastIdPrefix);
-  const handleToggleArchive = useCallback(
-    (cardId: string, archive: boolean) => {
-      runBulkAction(archive ? "archive" : "unarchive", [cardId]).catch(
-        () => undefined
-      );
-    },
-    [runBulkAction]
-  );
-
+  const actions = useCardActions();
   const revisit = useRevisitMode({
     archiveOrTrash: showArchivedOnly || showTrashOnly,
     cardOpen: selectedCardId !== null,
@@ -562,23 +537,10 @@ export function CardsScreen({
     librarySort: searchController.librarySort,
     replaceNextSortChange: urlSync.replaceNextSortChange,
     reshuffle: searchController.reshuffle,
-    runBulkAction,
+    runBulkAction: actions.runBulk,
     setSort: searchController.setSort,
     urlDriven,
   });
-
-  const handleToggleFavorite = useCallback(
-    (cardId: string) => {
-      // Cards in the Pinned row aren't in the grid's list.
-      const card = [...displayCards, ...pinned.strip.cards].find(
-        (candidate: Doc<"cards">) => candidate._id === cardId
-      );
-      runBulkAction(card?.isFavorited ? "unfavorite" : "favorite", [cardId], {
-        silent: true,
-      }).catch(() => undefined);
-    },
-    [displayCards, pinned.strip.cards, runBulkAction]
-  );
 
   // Adding or removing a tag can take the card out of this list (a hidden
   // tag, a tag filter); read it by id so the dialog never edits a stale list.
@@ -598,65 +560,19 @@ export function CardsScreen({
     [displayCards, liveTagManagementCard, tagManagementCardId]
   );
 
-  const handleAddTags = useCallback((cardId: string) => {
-    setTagManagementCardId(cardId);
-  }, []);
+  const tagEditor = useCardTagEditor(tagManagementCard);
 
   const { handleCopyImage } = useCardClipboard();
 
-  // Both write the whole list, so neither writes for a card this screen
-  // can't see yet (see tagsAfterAdding).
-  const handleAddTag = useCallback(() => {
-    const tags = tagsAfterAdding(tagManagementCard, tagInput);
-    if (tags && tagManagementCardId) {
-      void cardActions.updateField(
-        tagManagementCardId as Id<"cards">,
-        "tags",
-        tags
-      );
-      setTagInput("");
-    } else {
-      // Already on the card: clear the field and say so, as the card
-      // dialog's tag field does.
-      const value = tagInput.trim().toLowerCase();
-      const existing = tagManagementCard?.tags?.find((tag) => tag === value);
-      if (existing) {
-        setTagInput("");
-        toast(tActions("alreadyTagged", { tag: existing }));
-      }
-    }
-  }, [cardActions, tActions, tagInput, tagManagementCard, tagManagementCardId]);
-
-  const handleRemoveTag = useCallback(
-    (tagToRemove: string) => {
-      const next = tagsAfterRemoving(tagManagementCard, tagToRemove);
-      if (next && tagManagementCardId) {
-        void cardActions.updateField(
-          tagManagementCardId as Id<"cards">,
-          "tags",
-          next.tags
-        );
-      }
-    },
-    [cardActions, tagManagementCard, tagManagementCardId]
-  );
-
-  const handleRemoveAiTag = useCallback(
-    (tagToRemove: string) => {
-      if (tagManagementCardId) {
-        void cardActions.updateField(
-          tagManagementCardId as Id<"cards">,
-          "removeAiTag",
-          undefined,
-          tagToRemove
-        );
-      }
-    },
-    [cardActions, tagManagementCardId]
-  );
-
+  // Where the card opened from, so the dialog grows out of it. Only a click
+  // on a card has one; a card opened any other way grows from the middle.
+  const [openOrigin, setOpenOrigin] = useState<{
+    cardId: string;
+    origin: CardOpenOrigin;
+  } | null>(null);
   const handleCardClick = useCallback(
-    (card: CardWithUrls & Record<string, unknown>) => {
+    (card: CardWithUrls & Record<string, unknown>, origin?: CardOpenOrigin) => {
+      setOpenOrigin(origin ? { cardId: card._id, origin } : null);
       onOpenCard(card._id);
     },
     [onOpenCard]
@@ -690,29 +606,27 @@ export function CardsScreen({
 
   const composerHandlers = useStableHandlers({ onOpenCard });
   const gridHandlers = useStableHandlers({
-    onAddTags: handleAddTags,
     onAddToFolderDone: (added: boolean) => {
       if (addToFolder) {
         onAddToFolderDone?.(addToFolder._id, added);
       }
     },
-    onBulkAction: runBulkAction,
+    onBulkAction: actions.runBulk,
+    onCardAction: (
+      action: GridCardAction,
+      card: Doc<"cards">,
+      source: "grid" | "shortcut"
+    ) => {
+      if (action === "addTags") {
+        setTagManagementCardId(card._id);
+      } else {
+        void actions.run(action, card, source);
+      }
+    },
     onCardClick: handleCardClick,
     onCopyImage: handleCopyImage,
-    onDeleteCard: async (cardId: string) => {
-      const { failedIds } = await runBulkAction("delete", [cardId]);
-      return failedIds.length === 0;
-    },
+    onDeleteForever: actions.deleteForever,
     onLoadMore: requestMoreCards,
-    onPermanentDeleteCard: (cardId: string) =>
-      cardActions.handlePermanentDeleteCard(cardId as Id<"cards">),
-    onPermanentDeleteCards: (cardIds: string[]) =>
-      cardActions.handleBulkPermanentDeleteCards(cardIds as Id<"cards">[]),
-    onRestoreCard: (cardId: string) =>
-      cardActions.handleRestoreCard(cardId as Id<"cards">),
-    onToggleArchive: handleToggleArchive,
-    onToggleFavorite: handleToggleFavorite,
-    onTogglePin: pinned.togglePin,
   });
 
   const addCardForm = useMemo(
@@ -943,6 +857,12 @@ export function CardsScreen({
   }
 
   const folderMissing = isFolderView && folder === null;
+  let gridView: CardView = "library";
+  if (showTrashOnly) {
+    gridView = "trash";
+  } else if (showArchivedOnly) {
+    gridView = "archive";
+  }
   const isTrashView = view === "trash" && !isFolderView;
   const showsResultCount =
     !showVaultSetup &&
@@ -1042,10 +962,8 @@ export function CardsScreen({
               isFolderView
             )
           }
-          showArchivedOnly={showArchivedOnly}
           showBulkActions={true}
-          showTrashOnly={showTrashOnly}
-          toastIdPrefix={toastIdPrefix}
+          view={gridView}
         />
       )}
 
@@ -1074,7 +992,6 @@ export function CardsScreen({
         cardId={selectedCardId}
         onCancel={onCloseCard}
         onCardTypeClick={handleCardTypeClick}
-        onCardUpdate={updateCachedCard}
         onInvalidCard={handleInvalidSelectedCard}
         onMoreLikeThis={handleMoreLikeThis}
         onNext={
@@ -1090,6 +1007,9 @@ export function CardsScreen({
         }
         onTagClick={handleTagClick}
         open={!!selectedCardId}
+        openOrigin={
+          openOrigin?.cardId === selectedCardId ? openOrigin.origin : undefined
+        }
         returnFocus={revisit.revisiting ? focusRevisitDeck : returnFocusToGrid}
       />
 
@@ -1131,18 +1051,18 @@ export function CardsScreen({
 
       <TagManagementModal
         aiTags={tagManagementCard?.aiTags || []}
-        onAddTag={handleAddTag}
+        error={tagEditor.error}
+        onAddTag={tagEditor.addTag}
         onOpenChange={(open) => {
           if (!open) {
             setTagManagementCardId(null);
-            setTagInput("");
           }
         }}
-        onRemoveAiTag={handleRemoveAiTag}
-        onRemoveTag={handleRemoveTag}
+        onRemoveAiTag={tagEditor.removeAiTag}
+        onRemoveTag={tagEditor.removeTag}
         open={!!tagManagementCardId}
-        setTagInput={setTagInput}
-        tagInput={tagInput}
+        setTagInput={tagEditor.setInput}
+        tagInput={tagEditor.input}
         userTags={tagManagementCard?.tags || []}
       />
     </>

@@ -1,8 +1,6 @@
 import type { ComponentProps, ComponentType, ReactNode } from "react";
-import {
-  ariaKeyShortcut,
-  type MenuShortcut,
-} from "../../lib/keyboardShortcuts";
+import type { MenuShortcut } from "../../lib/cardActions";
+import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 

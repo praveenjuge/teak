@@ -71,14 +71,12 @@ async function renderModal({
         cardId={card._id}
         downloadFile={() => undefined}
         getCurrentValue={() => undefined}
-        handleDelete={async () => undefined}
-        handlePermanentDelete={async () => undefined}
-        handleRestore={async () => undefined}
         hasUnsavedChanges={hasUnsavedChanges}
         onCancel={() => undefined}
         onOpenCard={onOpenCard}
         open
         openLink={() => undefined}
+        runAction={async () => true}
         saveChanges={saveChanges}
         saveState="idle"
         tags={{
@@ -88,7 +86,6 @@ async function renderModal({
           setTagInput: () => undefined,
           tagInput: "",
         }}
-        toggleFavorite={() => undefined}
         updateContent={() => undefined}
         updateNotes={() => undefined}
         updateTitle={() => undefined}

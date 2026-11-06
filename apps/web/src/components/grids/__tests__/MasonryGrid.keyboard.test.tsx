@@ -47,18 +47,21 @@ const CARDS = [card("card_a", "First card"), card("card_b", "Second card")];
 async function renderGrid(props: Record<string, unknown>) {
   const handlers = {
     onBulkAction: mock(async () => ({ failedIds: [] as string[] })),
+    onCardAction: mock(),
     onCardClick: mock(),
-    onDeleteCard: mock(async () => true),
-    onPermanentDeleteCard: mock(),
-    onToggleArchive: mock(),
-    onToggleFavorite: mock(),
+    onDeleteForever: mock(async () => ({ failedIds: [] as string[] })),
   };
+  // Trash lists the cards that were deleted.
+  const cards =
+    props.view === "trash"
+      ? CARDS.map((item) => ({ ...item, isDeleted: true }))
+      : CARDS;
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <MasonryGrid columns={1} filteredCards={CARDS} {...handlers} {...props} />
+      <MasonryGrid columns={1} filteredCards={cards} {...handlers} {...props} />
     )
   );
   const cardElement = (id: string) => {
@@ -68,7 +71,17 @@ async function renderGrid(props: Record<string, unknown>) {
     expect(element).not.toBeNull();
     return element as HTMLElement;
   };
-  return { cardElement, handlers };
+  // What the grid handed up for each card action: [action, card id, source].
+  const actionsRun = () =>
+    handlers.onCardAction.mock.calls.map((call) => {
+      const [action, target, source] = call as unknown as [
+        string,
+        { _id: string },
+        string,
+      ];
+      return [action, target._id, source];
+    });
+  return { actionsRun, cardElement, handlers };
 }
 
 const waitFor = async (done: () => boolean) => {
@@ -95,30 +108,30 @@ describe("MasonryGrid keyboard actions", () => {
   });
 
   test("F, E and Delete act on the focused card", async () => {
-    const { cardElement, handlers } = await renderGrid({});
+    const { actionsRun, cardElement } = await renderGrid({});
     const first = cardElement("card_a");
     await press(first, "f");
     await press(first, "e");
     await press(first, "Delete");
-    expect(handlers.onToggleFavorite).toHaveBeenCalledWith("card_a");
-    expect(handlers.onToggleArchive).toHaveBeenCalledWith("card_a", true);
-    expect(handlers.onDeleteCard).toHaveBeenCalledWith("card_a");
+    expect(actionsRun()).toEqual([
+      ["favorite", "card_a", "shortcut"],
+      ["archive", "card_a", "shortcut"],
+      ["moveToTrash", "card_a", "shortcut"],
+    ]);
   });
 
   test("T adds tags to the focused card", async () => {
-    const onAddTags = mock();
-    const { cardElement } = await renderGrid({ onAddTags });
+    const { actionsRun, cardElement } = await renderGrid({});
     await press(cardElement("card_b"), "t");
-    expect(onAddTags).toHaveBeenCalledWith("card_b");
+    expect(actionsRun()).toEqual([["addTags", "card_b", "shortcut"]]);
   });
 
   test("with cards selected, T adds tags to all of them", async () => {
-    const onAddTags = mock();
-    const { cardElement } = await renderGrid({ onAddTags });
+    const { actionsRun, cardElement } = await renderGrid({});
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
     await press(cardElement("card_b"), "t");
-    expect(onAddTags).not.toHaveBeenCalled();
+    expect(actionsRun()).toEqual([]);
     await waitFor(
       () => document.body.textContent?.includes("Add tags to 2 cards") ?? false
     );
@@ -126,13 +139,9 @@ describe("MasonryGrid keyboard actions", () => {
   });
 
   test("in Trash, T does not add tags", async () => {
-    const onAddTags = mock();
-    const { cardElement } = await renderGrid({
-      onAddTags,
-      showTrashOnly: true,
-    });
+    const { actionsRun, cardElement } = await renderGrid({ view: "trash" });
     await press(cardElement("card_a"), "t");
-    expect(onAddTags).not.toHaveBeenCalled();
+    expect(actionsRun()).toEqual([]);
   });
 
   test("with cards selected, Delete moves the selection to Trash", async () => {
@@ -147,7 +156,7 @@ describe("MasonryGrid keyboard actions", () => {
       expect(checkbox.tabIndex).toBe(-1);
     }
     await press(cardElement("card_b"), "Delete");
-    expect(handlers.onDeleteCard).not.toHaveBeenCalled();
+    expect(handlers.onCardAction).not.toHaveBeenCalled();
     expect(handlers.onBulkAction).toHaveBeenCalledTimes(1);
     const [action, cardIds] = handlers.onBulkAction.mock
       .calls[0] as unknown as [string, string[]];
@@ -156,19 +165,14 @@ describe("MasonryGrid keyboard actions", () => {
   });
 
   test("choosing cards for a folder ignores F, T, E and Delete", async () => {
-    const onAddTags = mock();
-    const { cardElement, handlers } = await renderGrid({
+    const { actionsRun, cardElement, handlers } = await renderGrid({
       addToFolder: { id: "folder_1", name: "Reading" },
-      onAddTags,
     });
     const first = cardElement("card_a");
-    for (const key of ["f", "t", "e", "Delete", "Backspace"]) {
+    for (const key of ["f", "t", "e", "p", "Delete", "Backspace"]) {
       await press(first, key);
     }
-    expect(handlers.onToggleFavorite).not.toHaveBeenCalled();
-    expect(onAddTags).not.toHaveBeenCalled();
-    expect(handlers.onToggleArchive).not.toHaveBeenCalled();
-    expect(handlers.onDeleteCard).not.toHaveBeenCalled();
+    expect(actionsRun()).toEqual([]);
     expect(handlers.onBulkAction).not.toHaveBeenCalled();
     await press(first, "x");
     expect(first.getAttribute("aria-pressed")).toBe("true");
@@ -178,16 +182,16 @@ describe("MasonryGrid keyboard actions", () => {
     document.body.textContent?.includes("Delete this card forever?") ?? false;
 
   test("in Trash, Delete asks to delete the focused card forever", async () => {
-    const { cardElement } = await renderGrid({ showTrashOnly: true });
+    const { cardElement } = await renderGrid({ view: "trash" });
     await press(cardElement("card_a"), "Delete");
     expect(asksToDeleteForever()).toBe(true);
   });
 
   test("in Trash, Delete with cards selected asks to delete them all forever", async () => {
-    const onPermanentDeleteCards = mock(async () => ({ failedIds: [] }));
+    const onDeleteForever = mock(async () => ({ failedIds: [] }));
     const { cardElement, handlers } = await renderGrid({
-      onPermanentDeleteCards,
-      showTrashOnly: true,
+      onDeleteForever,
+      view: "trash",
     });
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
@@ -208,21 +212,18 @@ describe("MasonryGrid keyboard actions", () => {
     ].find((button) => button.textContent?.trim() === "Delete forever");
     expect(confirm).toBeDefined();
     await act(() => confirm?.click());
-    expect(onPermanentDeleteCards).toHaveBeenCalledTimes(1);
-    const [cardIds] = onPermanentDeleteCards.mock.calls[0] as unknown as [
-      string[],
-    ];
+    expect(onDeleteForever).toHaveBeenCalledTimes(1);
+    const [cardIds] = onDeleteForever.mock.calls[0] as unknown as [string[]];
     expect(new Set(cardIds)).toEqual(new Set(["card_a", "card_b"]));
-    expect(handlers.onPermanentDeleteCard).not.toHaveBeenCalled();
   });
 
   test("cards that couldn't be deleted forever stay selected to try again", async () => {
-    const onPermanentDeleteCards = mock(async () => ({
+    const onDeleteForever = mock(async () => ({
       failedIds: ["card_b"],
     }));
     const { cardElement } = await renderGrid({
-      onPermanentDeleteCards,
-      showTrashOnly: true,
+      onDeleteForever,
+      view: "trash",
     });
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");
@@ -248,12 +249,10 @@ describe("MasonryGrid keyboard actions", () => {
   });
 
   test("a Delete forever that fails outright keeps every card selected", async () => {
-    const onPermanentDeleteCards = mock(() =>
-      Promise.reject(new Error("network"))
-    );
+    const onDeleteForever = mock(() => Promise.reject(new Error("network")));
     const { cardElement } = await renderGrid({
-      onPermanentDeleteCards,
-      showTrashOnly: true,
+      onDeleteForever,
+      view: "trash",
     });
     await press(cardElement("card_a"), "x");
     await press(cardElement("card_b"), "x");

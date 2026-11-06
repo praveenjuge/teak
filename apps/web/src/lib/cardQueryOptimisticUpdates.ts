@@ -1,11 +1,14 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
-import { isHiddenTagList } from "@teak/convex/shared/tags";
+import { isHiddenTagList, normalizeTagList } from "@teak/convex/shared/tags";
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
 import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import type { OptimisticLocalStore } from "convex/browser";
 import type { FunctionArgs } from "convex/server";
+import { findTag, tagsWithAdded, tagsWithout } from "./cardTags";
+import { editPaletteColors } from "./paletteColors";
 
 type SearchCardsPaginatedArgs = FunctionArgs<
   typeof api.cards.searchCardsPaginated
@@ -111,8 +114,9 @@ export function updateCardsInSearchQueries(
 }
 
 /**
- * The open card dialog reads its card on its own, so a quick second edit
- * there (a tag, a favorite) builds on the first instead of the stale card.
+ * The open card dialog and the tag dialog read their card on their own, so a
+ * quick second edit there (a tag, a favorite) builds on the first instead of
+ * the stale card.
  * A card the update removes stays as it was: the dialog decides when it
  * closes, not a list.
  */
@@ -135,33 +139,35 @@ function updateCardsInDetailQueries(
       });
     }
   }
+  for (const { args, value } of localStore.getAllQueries(api.cards.getCard)) {
+    if (!(value && cardIds.has(value._id))) {
+      continue;
+    }
+    const nextCard = updater(value);
+    if (nextCard) {
+      localStore.setQuery(api.cards.getCard, args, nextCard);
+    }
+  }
 }
 
 type UpdateCardFieldArgs = FunctionArgs<typeof api.cards.updateCardField>;
+type BulkUpdateCardsArgs = FunctionArgs<typeof api.cards.bulkUpdateCards>;
+export type CardField = UpdateCardFieldArgs["field"];
+export type { BulkCardAction } from "@teak/convex/card/bulkActions";
 
-/** A card before and after an optimistic edit. */
-export interface CardFieldChange {
-  after: Doc<"cards">;
-  before: Doc<"cards">;
+type FolderAction = Extract<
+  BulkCardAction,
+  "addToFolder" | "removeFromFolder" | "moveToFolder"
+>;
+
+/** One `updateCardField` edit, as a bulk action makes it on the server. */
+export interface CardFieldEdit {
+  field: CardField;
+  tagToRemove?: string;
+  value?: UpdateCardFieldArgs["value"];
 }
 
-/** The fields whose result the client predicts; the rest wait for the server. */
-const PREDICTED_FIELDS = new Set<UpdateCardFieldArgs["field"]>([
-  "aiSummary",
-  "content",
-  "delete",
-  "done",
-  "isFavorited",
-  "metadataTitle",
-  "notes",
-  "removeAiTag",
-  "restore",
-  "tags",
-  "undone",
-  "url",
-]);
-
-const TEXT_FIELDS = new Set<UpdateCardFieldArgs["field"]>([
+const TEXT_FIELDS = new Set<CardField>([
   "aiSummary",
   "content",
   "metadataTitle",
@@ -171,25 +177,59 @@ const TEXT_FIELDS = new Set<UpdateCardFieldArgs["field"]>([
 
 /**
  * The card as `updateCardField` will leave it, or `null` for a field the
- * client doesn't predict (colors, archiving) and leaves to the server.
+ * client leaves to the server. A change the server skips (deleting a card
+ * already in Trash) keeps the card as it is.
  */
 export function cardAfterFieldUpdate(
   card: Doc<"cards">,
-  { field, value, tagToRemove }: UpdateCardFieldArgs,
+  { field, value, tagToRemove }: CardFieldEdit,
   now: number
 ): Doc<"cards"> | null {
   switch (field) {
     case "isFavorited":
-      return { ...card, isFavorited: !card.isFavorited, updatedAt: now };
-    case "delete":
-      return { ...card, isDeleted: true, deletedAt: now, updatedAt: now };
-    case "restore":
       return {
         ...card,
-        isDeleted: undefined,
-        deletedAt: undefined,
+        isFavorited: typeof value === "boolean" ? value : !card.isFavorited,
         updatedAt: now,
       };
+    case "delete":
+      return card.isDeleted
+        ? card
+        : {
+            ...card,
+            isDeleted: true,
+            deletedAt: now,
+            pinPosition: undefined,
+            updatedAt: now,
+          };
+    case "restore":
+      return card.isDeleted
+        ? {
+            ...card,
+            isDeleted: undefined,
+            deletedAt: undefined,
+            updatedAt: now,
+          }
+        : card;
+    case "archive":
+      return card.isArchived
+        ? card
+        : {
+            ...card,
+            isArchived: true,
+            archivedAt: now,
+            pinPosition: undefined,
+            updatedAt: now,
+          };
+    case "unarchive":
+      return card.isArchived
+        ? {
+            ...card,
+            isArchived: undefined,
+            archivedAt: undefined,
+            updatedAt: now,
+          }
+        : card;
     case "done":
     case "undone":
       return card.type === "link"
@@ -201,7 +241,10 @@ export function cardAfterFieldUpdate(
           }
         : card;
     case "tags": {
-      const tags = Array.isArray(value) && value.length > 0 ? value : undefined;
+      const normalized = Array.isArray(value)
+        ? normalizeTagList(value as string[])
+        : [];
+      const tags = normalized.length > 0 ? normalized : undefined;
       return {
         ...card,
         tags,
@@ -220,6 +263,15 @@ export function cardAfterFieldUpdate(
         updatedAt: now,
       };
     }
+    case "addColor":
+    case "removeColor":
+      return typeof value === "string"
+        ? {
+            ...card,
+            colors: editPaletteColors(card.colors, field, value),
+            updatedAt: now,
+          }
+        : null;
     default:
       if (!TEXT_FIELDS.has(field)) {
         return null;
@@ -234,31 +286,148 @@ export function cardAfterFieldUpdate(
 }
 
 /**
- * Applies an `updateCardField` edit to every cached copy of the card: the
- * lists, the open dialog and the single-card query. It only writes to the
- * local store, so Convex can replay it, and returns the first copy before
- * and after for a caller that keeps its own cache.
+ * The edits `bulkUpdateCards` makes to one card, as the server's
+ * `applyCardAction` makes them, for any action but a folder one.
+ */
+export function bulkActionEdits(
+  card: Doc<"cards">,
+  action: Exclude<BulkCardAction, FolderAction>,
+  tags: readonly string[] = []
+): CardFieldEdit[] {
+  switch (action) {
+    case "favorite":
+    case "unfavorite": {
+      const isFavorited = action === "favorite";
+      return Boolean(card.isFavorited) === isFavorited
+        ? []
+        : [{ field: "isFavorited", value: isFavorited }];
+    }
+    case "archive":
+    case "unarchive":
+    case "delete":
+    case "restore":
+      return [{ field: action }];
+    case "addTags": {
+      const next = tagsWithAdded(card.tags, tags);
+      return next.length === (card.tags ?? []).length
+        ? []
+        : [{ field: "tags", value: next }];
+    }
+    case "removeTags": {
+      const kept = tagsWithout(card.tags, tags);
+      const edits: CardFieldEdit[] =
+        kept.length === (card.tags ?? []).length
+          ? []
+          : [{ field: "tags", value: kept }];
+      for (const aiTag of card.aiTags ?? []) {
+        if (findTag(tags, aiTag)) {
+          edits.push({ field: "removeAiTag", tagToRemove: aiTag });
+        }
+      }
+      return edits;
+    }
+    default:
+      return [];
+  }
+}
+
+/** The card in exactly these folders. */
+export function cardWithFolderIds(
+  card: Doc<"cards">,
+  folderIds: readonly string[],
+  now: number
+): Doc<"cards"> {
+  const current = (card.folderIds ?? []) as string[];
+  if (
+    folderIds.length === current.length &&
+    folderIds.every((id, index) => id === current[index])
+  ) {
+    return card;
+  }
+  return {
+    ...card,
+    folderIds: (folderIds.length > 0
+      ? [...folderIds]
+      : undefined) as Doc<"cards">["folderIds"],
+    updatedAt: now,
+  };
+}
+
+const folderIdsAfter = (
+  current: readonly string[],
+  action: FolderAction,
+  folder: { folderId: string; fromFolderId?: string }
+): string[] => {
+  if (action === "removeFromFolder") {
+    return current.filter((id) => id !== folder.folderId);
+  }
+  let kept = [...current];
+  if (action === "moveToFolder") {
+    kept = folder.fromFolderId
+      ? current.filter((id) => id !== folder.fromFolderId)
+      : [];
+  }
+  return kept.includes(folder.folderId) ? kept : [...kept, folder.folderId];
+};
+
+/** The card as `bulkUpdateCards` will leave it. */
+export function applyBulkActionToCard(
+  card: Doc<"cards">,
+  action: BulkCardAction,
+  tags: readonly string[] = [],
+  now = Date.now(),
+  folder?: { folderId: string; fromFolderId?: string }
+): Doc<"cards"> {
+  if (
+    action === "addToFolder" ||
+    action === "removeFromFolder" ||
+    action === "moveToFolder"
+  ) {
+    return folder
+      ? cardWithFolderIds(
+          card,
+          folderIdsAfter((card.folderIds ?? []) as string[], action, folder),
+          now
+        )
+      : card;
+  }
+  return bulkActionEdits(card, action, tags).reduce(
+    (current, edit) => cardAfterFieldUpdate(current, edit, now) ?? current,
+    card
+  );
+}
+
+/**
+ * Applies an `updateCardField` edit to every cached copy of the card. It only
+ * writes to the local store, so Convex can replay it.
  */
 export function applyCardFieldUpdate(
   localStore: OptimisticLocalStore,
   args: UpdateCardFieldArgs,
   now = Date.now()
-): CardFieldChange | null {
-  if (!PREDICTED_FIELDS.has(args.field)) {
-    return null;
-  }
-  let change: CardFieldChange | null = null;
-  const update = (card: Doc<"cards">): Doc<"cards"> => {
-    const after = cardAfterFieldUpdate(card, args, now) ?? card;
-    change ??= { after, before: card };
-    return after;
-  };
-  updateCardInSearchQueries(localStore, args.cardId, update);
-  const single = localStore.getQuery(api.cards.getCard, { id: args.cardId });
-  if (single) {
-    localStore.setQuery(api.cards.getCard, { id: args.cardId }, update(single));
-  }
-  return change;
+) {
+  updateCardsInSearchQueries(
+    localStore,
+    new Set([args.cardId]),
+    (card) => cardAfterFieldUpdate(card, args, now) ?? card
+  );
+}
+
+/** Applies a `bulkUpdateCards` call to every cached copy of its cards. */
+export function applyBulkUpdate(
+  localStore: OptimisticLocalStore,
+  { action, cardIds, folderId, fromFolderId, tags }: BulkUpdateCardsArgs,
+  now = Date.now()
+) {
+  updateCardsInSearchQueries(localStore, new Set(cardIds), (card) =>
+    applyBulkActionToCard(
+      card,
+      action,
+      tags,
+      now,
+      folderId ? { folderId, fromFolderId } : undefined
+    )
+  );
 }
 
 const listsNewestFirst = (sort: SearchFilterArgs["sort"]) =>

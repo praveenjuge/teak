@@ -8,6 +8,7 @@ import type { NodeViewProps } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { createContext, useContext } from "react";
 import { Unlink } from "vadivam-react";
+import { cardHref } from "@/lib/libraryUrl";
 import { cn } from "../../lib/utils";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { CardLinkNode } from "./CardLinkNode";
@@ -81,7 +82,7 @@ function CardLinkPill({ node, selected }: NodeViewProps) {
         <a
           className={cn(pillClass, OPEN_PILL_CLASS)}
           contentEditable={false}
-          href={`?card=${encodeURIComponent(cardId)}`}
+          href={cardHref(cardId)}
           onClick={(event) => {
             event.preventDefault();
             onOpenCard?.(cardId);

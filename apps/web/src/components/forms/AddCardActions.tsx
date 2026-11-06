@@ -4,7 +4,6 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { useAction, useMutation } from "convex/react";
 import {
   createContext,
   type ReactNode,
@@ -17,6 +16,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Download, Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
+import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,15 +33,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import { useGlobalFileDrop } from "@/hooks";
-import {
-  type FinalizeUploadedCardArgs,
-  type UploadAndCreateCardArgs,
-  useFileUploadCore,
-} from "@/hooks/useFileUploadCore";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { formatClockTime } from "@/lib/clockTime";
+import { runMenuItemShortcut } from "@/lib/menuShortcuts";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   describeUploadFailures,
@@ -50,10 +46,8 @@ import {
 } from "@/lib/upload/fileDrop";
 import { cn } from "@/lib/utils";
 import { useQuery } from "../../lib/convexQueryHooks";
-import {
-  registerRecordAudio,
-  registerUploadFiles,
-} from "../../lib/keyboardShortcuts";
+import { APP_KEYS, keyName } from "../../lib/keyboardShortcuts";
+import { useLibraryCommand } from "../providers/LibraryCommandsProvider";
 
 interface AddCardProviderProps {
   children: ReactNode;
@@ -146,14 +140,8 @@ export function AddCardProvider({
   const tLimits = useTranslations("forms.limits");
   const tc = useTranslations("common");
   const errors = useServerErrors();
-  const tUpload = useTranslations("hooks.upload");
-  const tErrors = useTranslations("errors");
   const tUploadMessages = useTranslations("lib.upload");
   const intlLocale = useIntlLocale();
-  const uploadTranslators = useMemo(
-    () => ({ errors: tErrors, upload: tUpload }),
-    [tErrors, tUpload]
-  );
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -177,35 +165,7 @@ export function AddCardProvider({
   // is open moves it on, so the start that was waiting is dropped.
   const startAttemptRef = useRef(0);
 
-  const uploadAndCreateCardMutation = useMutation(
-    api.cards.uploadAndCreateCard
-  );
-  const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
-  const prepareMultipartUpload = useAction(
-    api.fileUploads.prepareMultipartUpload
-  );
-  const completeMultipartUpload = useAction(
-    api.fileUploads.completeMultipartUpload
-  );
-  const recordMultipartPart = useMutation(api.fileUploads.recordMultipartPart);
-
-  const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
-    uploadAndCreateCardMutation(args);
-
-  const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardAction({ ...args, source: "web" });
-
-  const { uploadFile } = useFileUploadCore(
-    {
-      completeMultipartUpload,
-      uploadAndCreateCard,
-      finalizeUploadedCard,
-      prepareMultipartUpload,
-      recordMultipartPart,
-    },
-    {},
-    uploadTranslators
-  );
+  const { uploadFile } = useFileUpload();
 
   const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
 
@@ -524,17 +484,13 @@ export function AddCardProvider({
   const uploadRef = useRef(handleFileUpload);
   uploadRef.current = handleFileUpload;
   const isUploading = globalFileDrop?.isUploading ?? false;
-  useEffect(
-    () =>
-      registerUploadFiles(() => {
-        if (isUploading) {
-          return false;
-        }
-        uploadRef.current();
-        return true;
-      }),
-    [isUploading]
-  );
+  useLibraryCommand("uploadFiles", () => {
+    if (isUploading) {
+      return false;
+    }
+    uploadRef.current();
+    return true;
+  });
   const recordRef = useRef(startRecording);
   recordRef.current = startRecording;
   const unsavedRef = useRef(unsaved);
@@ -549,17 +505,13 @@ export function AddCardProvider({
     }
     recordRef.current().catch(() => undefined);
   }, []);
-  useEffect(
-    () =>
-      registerRecordAudio(() => {
-        if (!canStartRecording) {
-          return false;
-        }
-        recordAudio();
-        return true;
-      }),
-    [canStartRecording, recordAudio]
-  );
+  useLibraryCommand("recordAudio", () => {
+    if (!canStartRecording) {
+      return false;
+    }
+    recordAudio();
+    return true;
+  });
   const uploadFiles = useCallback(() => uploadRef.current(), []);
   const controls = useMemo<AddCardControls>(
     () => ({
@@ -653,11 +605,12 @@ export function AddCardProvider({
 }
 
 function NewMenuItems({
+  afterCloseRef,
   controls,
-  keepFocusRef,
 }: {
+  /** What to do once the menu has closed, instead of focusing its trigger. */
+  afterCloseRef: { current: (() => void) | null };
   controls: AddCardControls;
-  keepFocusRef: { current: boolean };
 }) {
   const t = useTranslations("forms.addCardActions");
   // Key hints mean nothing without a keyboard.
@@ -667,44 +620,48 @@ function NewMenuItems({
     </DropdownMenuShortcut>
   );
   const { newNote } = controls;
+  const keepFocus = () => {
+    afterCloseRef.current = () => undefined;
+  };
   return (
     <>
       {newNote ? (
         <DropdownMenuItem
-          aria-keyshortcuts="N"
+          aria-keyshortcuts={keyName(APP_KEYS.newNote)}
           onSelect={() => {
-            keepFocusRef.current = true;
-            setTimeout(newNote, 0);
+            // The composer takes focus once the menu has let go of it.
+            afterCloseRef.current = newNote;
           }}
         >
           <PenLine />
           {t("noteOrLink")}
-          {hint("N")}
+          {hint(keyName(APP_KEYS.newNote))}
         </DropdownMenuItem>
       ) : null}
       <DropdownMenuItem
-        aria-keyshortcuts="U"
+        aria-keyshortcuts={keyName(APP_KEYS.uploadFiles)}
         disabled={controls.isUploading}
         onSelect={() => {
-          keepFocusRef.current = true;
+          keepFocus();
+          // The file picker opens only straight from the person's press.
           controls.uploadFiles();
         }}
       >
         <Upload />
         {t("uploadFiles")}
-        {hint("U")}
+        {hint(keyName(APP_KEYS.uploadFiles))}
       </DropdownMenuItem>
       <DropdownMenuItem
-        aria-keyshortcuts="R"
+        aria-keyshortcuts={keyName(APP_KEYS.recordAudio)}
         disabled={!controls.canStartRecording}
         onSelect={() => {
-          keepFocusRef.current = true;
+          keepFocus();
           controls.recordAudio();
         }}
       >
         <Mic />
         {t("recordAudio")}
-        {hint("R")}
+        {hint(keyName(APP_KEYS.recordAudio))}
       </DropdownMenuItem>
     </>
   );
@@ -719,7 +676,7 @@ function NewMenu({
   controls: AddCardControls;
   trigger: ReactNode;
 }) {
-  const keepFocusRef = useRef<boolean>(false);
+  const afterCloseRef = useRef<(() => void) | null>(null);
   return (
     <DropdownMenu>
       {trigger}
@@ -727,14 +684,17 @@ function NewMenu({
         align={align}
         className="w-52"
         onCloseAutoFocus={(event) => {
-          if (keepFocusRef.current) {
-            keepFocusRef.current = false;
+          const afterClose = afterCloseRef.current;
+          if (afterClose) {
+            afterCloseRef.current = null;
             event.preventDefault();
+            afterClose();
           }
         }}
+        onKeyDown={runMenuItemShortcut}
         side="bottom"
       >
-        <NewMenuItems controls={controls} keepFocusRef={keepFocusRef} />
+        <NewMenuItems afterCloseRef={afterCloseRef} controls={controls} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

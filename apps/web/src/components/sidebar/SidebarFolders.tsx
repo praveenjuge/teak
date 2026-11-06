@@ -41,6 +41,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
+import { useAddCardsToFolder } from "@/hooks/useCardMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { bulkActionCopy } from "@/lib/bulkCardActions";
 import { clipFolderName } from "@/lib/clipFolderName";
@@ -137,7 +138,7 @@ export function SidebarFolders({
     }
   });
   const restoreFolder = useMutation(api.folders.restoreFolder);
-  const addCardsToFolder = useMutation(api.folders.addCardsToFolder);
+  const addCardsToFolder = useAddCardsToFolder();
 
   const dropCard = async (folder: FolderSummary, cardId: string) => {
     try {
@@ -202,7 +203,7 @@ export function SidebarFolders({
     const leftFolder = leftFolderRef.current;
     if (leftFolder && leftFolder._id !== activeFolderId) {
       leftFolderRef.current = null;
-      deleteNow(leftFolder).catch(() => undefined);
+      void deleteNow(leftFolder);
     }
   });
 
@@ -298,7 +299,7 @@ export function SidebarFolders({
                   return;
                 }
                 event.preventDefault();
-                dropCard(folder, cardId).catch(() => undefined);
+                void dropCard(folder, cardId);
               }}
             >
               <SidebarMenuButton

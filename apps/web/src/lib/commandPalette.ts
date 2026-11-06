@@ -5,12 +5,18 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
-import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
+import { cardTitle } from "./cardTypes";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
-import { type LibraryView, libraryViewForPath } from "./libraryViews";
-import { type LinkTitleTranslator, resolveLinkTitle } from "./linkTitle";
-import { markdownToPlainText } from "./markdownToPlainText";
+import { APP_KEYS, isOverlayOpen, keyName } from "./keyboardShortcuts";
+import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
+import {
+  LIBRARY_VIEW_PATHS,
+  type LibraryView,
+  libraryViewFlags,
+  libraryViewForPath,
+} from "./libraryViews";
+import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform } from "./platform";
 
 const englishPalette = createTeakTranslator(
@@ -38,7 +44,11 @@ export function isCommandPaletteKey(
   event: PaletteKeyEvent,
   apple = isApplePlatform()
 ): boolean {
-  if (event.key.toLowerCase() !== "k" || event.altKey || event.shiftKey) {
+  if (
+    event.key.toLowerCase() !== APP_KEYS.commandPalette ||
+    event.altKey ||
+    event.shiftKey
+  ) {
     return false;
   }
   return apple
@@ -89,13 +99,13 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   {
     id: "new-note",
     keywords: ["write", "text", "add"],
-    keys: ["N"],
+    keys: [keyName(APP_KEYS.newNote)],
     labelKey: "newNote",
   },
   {
     id: "upload",
     keywords: ["file", "image", "add"],
-    keys: ["U"],
+    keys: [keyName(APP_KEYS.uploadFiles)],
     labelKey: "upload",
   },
   {
@@ -117,7 +127,7 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   {
     id: "shortcuts",
     keywords: ["keys", "help", "hotkeys"],
-    keys: ["?"],
+    keys: [keyName(APP_KEYS.keyboardShortcuts)],
     labelKey: "shortcuts",
   },
   {
@@ -136,59 +146,44 @@ export const paletteActions = (pathname: string | null | undefined) => {
   );
 };
 
-let emptyTrashHandler: (() => void) | null = null;
-
-export function registerEmptyTrash(handler: () => void): () => void {
-  emptyTrashHandler = handler;
-  return () => {
-    if (emptyTrashHandler === handler) {
-      emptyTrashHandler = null;
-    }
-  };
-}
-
-export function requestEmptyTrash(): boolean {
-  if (!emptyTrashHandler) {
-    return false;
-  }
-  emptyTrashHandler();
-  return true;
-}
-
 export function isLibraryRoute(pathname: string | null | undefined): boolean {
   return (
     libraryViewForPath(pathname) !== null || folderIdForPath(pathname) !== null
   );
 }
 
-export function paletteCardHref(
+/** A card opens over the library page it was found from, or over Everything. */
+export const paletteCardHref = (
   cardId: string,
   pathname: string | null | undefined,
   search = ""
-): string {
-  if (!(pathname && isLibraryRoute(pathname))) {
-    return `/?card=${encodeURIComponent(cardId)}`;
-  }
-  const params = new URLSearchParams(search);
-  params.set("card", cardId);
-  return `${pathname}?${params.toString().replace(/%2C/g, ",")}`;
-}
+): string =>
+  pathname && isLibraryRoute(pathname)
+    ? cardHref(cardId, pathname, search)
+    : cardHref(cardId);
+
+/** Searching everything searches the Archive from the Archive. */
+const paletteSearchView = (pathname: string | null | undefined) =>
+  libraryViewFlags(libraryViewForPath(pathname) ?? "all").showArchivedOnly
+    ? "archive"
+    : "all";
 
 export const paletteSearchAllHref = (query: string, pathname?: string | null) =>
-  `${libraryViewForPath(pathname) === "archive" ? "/archive" : "/"}?q=${encodeURIComponent(query.trim())}`;
+  libraryHref(
+    LIBRARY_VIEW_PATHS[paletteSearchView(pathname)],
+    new URLSearchParams({ q: query.trim() })
+  );
 
 export function paletteShuffleHref(
   pathname: string | null | undefined,
   search = ""
 ): string {
-  if (!(pathname && isLibraryRoute(pathname))) {
-    return "/?sort=shuffle";
-  }
-  const params = new URLSearchParams(search);
-  params.delete("card");
-  params.delete("seed");
+  const onLibrary = Boolean(pathname && isLibraryRoute(pathname));
+  const params = onLibrary
+    ? searchWithout(search, CARD_PARAM, "seed")
+    : new URLSearchParams();
   params.set("sort", "shuffle");
-  return `${pathname}?${params.toString().replace(/%2C/g, ",")}`;
+  return libraryHref(onLibrary && pathname ? pathname : "/", params);
 }
 
 export type SettingsDialogTab = "import" | "export";
@@ -207,10 +202,11 @@ export function paletteCardSearchArgs(
   query: string,
   pathname: string | null | undefined
 ) {
-  const view = libraryViewForPath(pathname);
   return {
     searchQuery: query.trim(),
-    ...(view === "archive" ? { showArchivedOnly: true } : {}),
+    ...(paletteSearchView(pathname) === "archive"
+      ? { showArchivedOnly: true }
+      : {}),
   };
 }
 
@@ -235,33 +231,10 @@ export function paletteCardTitle(
   t: TeakTranslator<"commandPalette"> = englishPalette,
   linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
 ): string {
-  const isFileCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "audio" ||
-    card.type === "document";
-  const linkPreview =
-    card.metadata?.linkPreview?.status === "success"
-      ? card.metadata.linkPreview
-      : undefined;
-  const title =
-    (card.type === "link"
-      ? resolveLinkTitle(
-          {
-            metadataTitle: card.metadataTitle,
-            metadataTitleEdited: card.metadataTitleEdited,
-            previewTitle: linkPreview?.title,
-            url: card.url,
-          },
-          linkTitle
-        )
-      : "") ||
-    (isFileCard ? card.fileMetadata?.fileName : "") ||
-    card.metadataTitle ||
-    markdownToPlainText(card.content?.trim().split("\n", 1)[0]).trim() ||
-    card.fileMetadata?.fileName ||
-    t("cards.untitled");
-  return title.slice(0, MAX_PALETTE_TITLE_LENGTH);
+  return (cardTitle(card, linkTitle) || t("cards.untitled")).slice(
+    0,
+    MAX_PALETTE_TITLE_LENGTH
+  );
 }
 
 export function paletteCardHost(card: PaletteCard): string | undefined {

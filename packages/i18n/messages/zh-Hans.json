@@ -797,25 +797,18 @@
     },
     "menu": {
       "addToFolder": "添加到文件夹…",
-      "archive": "归档",
       "copyLink": "复制链接",
       "copyText": "复制文本",
       "download": "下载",
-      "favorite": "收藏",
       "moreActions": "更多操作",
       "moreLikeThis": "更多类似内容",
-      "moveToTrash": "移到废纸篓",
       "refreshDetails": "刷新详情",
       "replaceImage": "替换图片",
       "resetImage": "恢复为原始图片",
       "savePdf": "保存 PDF",
       "savingPdf": "正在保存 PDF…",
       "shortcutsHint": "按 <kbd>?</kbd> 查看所有快捷键",
-      "unarchive": "取消归档",
-      "unfavorite": "取消收藏",
-      "editLink": "编辑链接…",
-      "pin": "置顶",
-      "unpin": "取消置顶"
+      "editLink": "编辑链接…"
     },
     "actions": {
       "folder": "文件夹"
@@ -1704,11 +1697,6 @@
   },
   "hooks": {
     "cardActions": {
-      "cardDeleted": "卡片已删除",
-      "cardRestored": "卡片已恢复",
-      "cardPermanentlyDeleted": "卡片已永久删除",
-      "deleteFailed": "无法删除卡片",
-      "restoreFailed": "无法恢复卡片",
       "permanentDeleteFailed": "无法永久删除卡片",
       "changesSaved": "更改已保存",
       "markedDone": "已标为{verb, select, read {已读} watched {已看} listened {已听} bought {已买} cooked {已做} played {已玩} other {已完成}}",
@@ -1718,15 +1706,10 @@
       "hiddenByTag": "已隐藏。搜索 #{tag} 即可查看。",
       "unsafeLink": "无法打开此链接，因为它使用了不安全的地址",
       "failed": {
-        "delete": "删除失败",
-        "restore": "恢复失败",
-        "permanentDelete": "永久删除失败",
-        "toggleFavorite": "无法更改收藏状态",
         "saveChanges": "无法保存更改",
         "downloadFile": "无法下载文件",
         "removeTag": "无法移除标签",
-        "tags": "无法更新标签",
-        "other": "操作失败：{operation}"
+        "tags": "无法更新标签"
       },
       "cardsPermanentlyDeleted": "{count, plural, other {已永久删除 # 张卡片}}"
     },

@@ -18,14 +18,16 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useRef, useState } from "react";
-import {
-  type GridCardKeyAction,
-  type GridKeyContext,
-  gridKeyAction,
-} from "../../lib/gridKeys";
-import { movedIds, type PinTarget } from "../../lib/pinnedCards";
+import type {
+  CardGridSource,
+  GridCardAction,
+} from "../../hooks/useCardActions";
+import type { CardActionId } from "../../lib/cardActions";
+import { type GridKeyContext, gridKeyAction } from "../../lib/gridKeys";
+import { movedIds } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
 import { Card, type CardWithUrls } from "../cards/Card";
+import type { CardOpenOrigin } from "../cards/types";
 import { CardFoldersDialog, EditLinkDialog } from "../lazyDialogs";
 
 type StripCard = Doc<"cards">;
@@ -38,6 +40,15 @@ const STRIP_KEY_CONTEXT: GridKeyContext = {
   view: "library",
 };
 
+/** The row has no selection, and nothing in it is in Trash. */
+const STRIP_CARD_ACTIONS: ReadonlySet<CardActionId> = new Set([
+  "favorite",
+  "pin",
+  "addTags",
+  "archive",
+  "moveToTrash",
+]);
+
 // Drags announce through the row's own status line, after the drop.
 const SILENT: Announcements = {
   onDragStart: () => undefined,
@@ -48,14 +59,17 @@ const SILENT: Announcements = {
 
 export interface PinnedStripProps {
   cards: StripCard[];
-  onAddTags?: (cardId: string) => void;
-  onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
+  onCardAction?: (
+    action: GridCardAction,
+    card: StripCard,
+    source: CardGridSource
+  ) => void;
+  onCardClick: (
+    card: CardWithUrls & Record<string, unknown>,
+    origin?: CardOpenOrigin
+  ) => void;
   onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
-  onDeleteCard?: (cardId: string) => unknown;
   onReorder: (cardIds: Id<"cards">[]) => void;
-  onToggleArchive?: (cardId: string, archive: boolean) => void;
-  onToggleFavorite?: (cardId: string) => void;
-  onTogglePin: (card: PinTarget, source?: "grid" | "shortcut") => void;
 }
 
 /**
@@ -64,14 +78,10 @@ export interface PinnedStripProps {
  */
 export function PinnedStrip({
   cards,
-  onAddTags,
+  onCardAction,
   onCardClick,
   onCopyImage,
-  onDeleteCard,
   onReorder,
-  onToggleArchive,
-  onTogglePin,
-  onToggleFavorite,
 }: PinnedStripProps) {
   const t = useTranslations("pinned.strip");
   const ids = useMemo(() => cards.map((card) => card._id as string), [cards]);
@@ -123,9 +133,13 @@ export function PinnedStrip({
       const from = ids.indexOf(cardId);
       if (move(from, from + step)) {
         event.preventDefault();
+        // Reordering moves the card's element in the page, and the browser
+        // drops focus from an element it moves: give it back once moved.
         requestAnimationFrame(() =>
           listRef.current
-            ?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)
+            ?.querySelector<HTMLElement>(
+              `[data-card-id="${globalThis.CSS.escape(cardId)}"]`
+            )
             ?.focus()
         );
       }
@@ -134,29 +148,34 @@ export function PinnedStrip({
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
       return;
     }
-    const action = gridKeyAction(
-      event.key.length === 1 ? event.key.toLowerCase() : event.key,
-      STRIP_KEY_CONTEXT
-    );
-    if (action?.type !== "card") {
-      return;
-    }
-    const run: Partial<Record<GridCardKeyAction, () => void>> = {
-      addTags: onAddTags && (() => onAddTags(cardId)),
-      archive: onToggleArchive && (() => onToggleArchive(cardId, true)),
-      delete: onDeleteCard && (() => onDeleteCard(cardId)),
-      favorite: onToggleFavorite && (() => onToggleFavorite(cardId)),
-      pin: () => {
-        const card = cards.find((candidate) => candidate._id === cardId);
-        if (card) {
-          onTogglePin(card, "shortcut");
-        }
-      },
-    };
-    const handler = run[action.action];
-    if (handler) {
+    const card = cards.find((candidate) => candidate._id === cardId);
+    const action =
+      card &&
+      gridKeyAction(
+        event.key.length === 1 ? event.key.toLowerCase() : event.key,
+        STRIP_KEY_CONTEXT,
+        card
+      );
+    if (
+      card &&
+      action?.type === "card" &&
+      STRIP_CARD_ACTIONS.has(action.action)
+    ) {
       event.preventDefault();
-      handler();
+      onCardAction?.(action.action as GridCardAction, card, "shortcut");
+    }
+  };
+
+  const handleMenuAction = (
+    action: CardActionId,
+    card: CardWithUrls & Record<string, unknown>
+  ) => {
+    if (STRIP_CARD_ACTIONS.has(action)) {
+      onCardAction?.(
+        action as GridCardAction,
+        card as unknown as StripCard,
+        "grid"
+      );
     }
   };
 
@@ -194,15 +213,11 @@ export function PinnedStrip({
               <PinnedStripItem
                 card={card}
                 key={card._id}
-                onAddTags={onAddTags}
+                onAction={handleMenuAction}
                 onCardClick={onCardClick}
                 onCopyImage={onCopyImage}
-                onDeleteCard={onDeleteCard}
                 onEditFolders={setFoldersCardId}
                 onEditLink={setEditLinkCardId}
-                onToggleArchive={onToggleArchive}
-                onToggleFavorite={onToggleFavorite}
-                onTogglePin={onTogglePin}
               />
             ))}
           </ul>
@@ -243,17 +258,17 @@ export function PinnedStrip({
 
 function PinnedStripItem({
   card,
-  onAddTags,
+  onAction,
   onCardClick,
   onCopyImage,
-  onDeleteCard,
   onEditFolders,
   onEditLink,
-  onToggleArchive,
-  onToggleFavorite,
-  onTogglePin,
-}: Omit<PinnedStripProps, "cards" | "onReorder"> & {
+}: Pick<PinnedStripProps, "onCardClick" | "onCopyImage"> & {
   card: StripCard;
+  onAction: (
+    action: CardActionId,
+    card: CardWithUrls & Record<string, unknown>
+  ) => void;
   onEditFolders: (cardId: string) => void;
   onEditLink: (cardId: string) => void;
 }) {
@@ -271,17 +286,14 @@ function PinnedStripItem({
       {...listeners}
     >
       <Card
+        actions={STRIP_CARD_ACTIONS}
         card={card as CardWithUrls & Record<string, unknown>}
         nativeDrag={false}
-        onAddTags={onAddTags}
+        onAction={onAction}
         onClick={onCardClick}
         onCopyImage={onCopyImage}
-        onDelete={onDeleteCard}
         onEditFolders={onEditFolders}
         onEditLink={onEditLink}
-        onToggleArchive={onToggleArchive}
-        onToggleFavorite={onToggleFavorite}
-        onTogglePin={onTogglePin}
       />
     </li>
   );

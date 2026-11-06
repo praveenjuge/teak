@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchSuggestionSources } from "../../hooks/useSearchSuggestionSources";
 import { SearchBar, type SearchBarProps } from "./SearchBar";
 
-export type CardsSearchHeaderProps = SearchBarProps;
+export type CardsSearchHeaderProps = Omit<SearchBarProps, "suggestionSources">;
 
 export function CardsSearchHeader(props: CardsSearchHeaderProps) {
   const [active, setActive] = useState(
@@ -16,7 +16,7 @@ export function CardsSearchHeader(props: CardsSearchHeaderProps) {
         setActive(true);
         props.onActivate?.();
       }}
-      suggestionSources={props.suggestionSources ?? sources}
+      suggestionSources={sources}
     />
   );
 }

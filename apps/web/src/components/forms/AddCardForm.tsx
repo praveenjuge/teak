@@ -11,12 +11,13 @@ import { useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
+import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import { useGlobalFileDrop } from "@/hooks";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { NEW_NOTE_COMPOSER_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
@@ -362,7 +363,7 @@ export function AddCardForm({
       />
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-        data-new-note-composer=""
+        {...{ [NEW_NOTE_COMPOSER_ATTRIBUTE]: "" }}
         onFocus={onFocus}
       >
         {!hasContent && (

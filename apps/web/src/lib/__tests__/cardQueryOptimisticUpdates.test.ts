@@ -7,6 +7,7 @@ import {
   addCaptureToSearchQueries,
   addCardToSearchQueries,
   applyCardFieldUpdate,
+  cardAfterFieldUpdate,
   cardMatchesSearchQuery,
   updateCardInSearchQueries,
 } from "../cardQueryOptimisticUpdates";
@@ -286,9 +287,13 @@ const storeWith = (cards: Doc<"cards">[]) => {
   let single: Doc<"cards"> | undefined = cards[0];
   const writes: string[] = [];
   const localStore = {
-    getAllQueries: (query: unknown) =>
-      queries.get(getFunctionName(query as typeof api.cards.searchCards)) ?? [],
-    getQuery: () => single,
+    getAllQueries: (query: unknown) => {
+      const name = getFunctionName(query as typeof api.cards.searchCards);
+      if (name === getFunctionName(api.cards.getCard)) {
+        return single ? [{ args: { id: single._id }, value: single }] : [];
+      }
+      return queries.get(name) ?? [];
+    },
     setQuery: (query: unknown, args: unknown, value: unknown) => {
       const name = getFunctionName(query as typeof api.cards.searchCards);
       writes.push(name);
@@ -317,27 +322,24 @@ describe("an edit to one card's field", () => {
 
   it("hides a card at once when it gets a hidden tag", () => {
     const store = storeWith([card()]);
-    const change = applyCardFieldUpdate(
+    applyCardFieldUpdate(
       store.localStore,
-      { cardId, field: "tags", value: ["Secret"] },
+      { cardId, field: "tags", value: [" Secret ", "secret"] },
       5
     );
     expect(store.grid()).toEqual([]);
-    expect(change?.after).toMatchObject({ isHidden: true, tags: ["Secret"] });
-    expect(store.single()).toMatchObject({ isHidden: true, updatedAt: 5 });
+    expect(store.single()).toMatchObject({
+      isHidden: true,
+      tags: ["Secret"],
+      updatedAt: 5,
+    });
   });
 
   it("takes a deleted card out of the grid and marks its own query deleted", () => {
     const store = storeWith([card()]);
-    const change = applyCardFieldUpdate(
-      store.localStore,
-      { cardId, field: "delete" },
-      5
-    );
+    applyCardFieldUpdate(store.localStore, { cardId, field: "delete" }, 5);
     expect(store.grid()).toEqual([]);
-    expect(change?.before.isDeleted).toBeUndefined();
-    expect(change?.after).toMatchObject({ deletedAt: 5, isDeleted: true });
-    expect(store.single()?.isDeleted).toBe(true);
+    expect(store.single()).toMatchObject({ deletedAt: 5, isDeleted: true });
   });
 
   it("marks a link done, and an edited title as the person's own", () => {
@@ -356,16 +358,46 @@ describe("an edit to one card's field", () => {
     });
   });
 
-  it("leaves fields it can't predict to the server", () => {
-    const store = storeWith([card()]);
+  it("sets a favorite to the value asked for, as the server does", () => {
+    const favorited = card({ isFavorited: true });
     expect(
-      applyCardFieldUpdate(store.localStore, {
-        cardId,
-        field: "addColor",
-        value: "#ff0000",
-      })
+      cardAfterFieldUpdate(
+        favorited,
+        { cardId, field: "isFavorited", value: true },
+        5
+      )?.isFavorited
+    ).toBe(true);
+    expect(
+      cardAfterFieldUpdate(
+        favorited,
+        { cardId, field: "isFavorited", value: false },
+        5
+      )?.isFavorited
+    ).toBe(false);
+    expect(
+      cardAfterFieldUpdate(favorited, { cardId, field: "isFavorited" }, 5)
+        ?.isFavorited
+    ).toBe(false);
+  });
+
+  it("adds a palette color the way the server saves it", () => {
+    const palette = card({ colors: [{ hex: "#000000" }], type: "palette" });
+    const store = storeWith([palette]);
+    applyCardFieldUpdate(
+      store.localStore,
+      { cardId, field: "addColor", value: "#FF0000" },
+      5
+    );
+    expect(store.single()?.colors).toEqual([
+      { hex: "#000000" },
+      { hex: "#FF0000" },
+    ]);
+  });
+
+  it("predicts nothing for an AI tag removal that names no tag", () => {
+    expect(
+      cardAfterFieldUpdate(card(), { cardId, field: "removeAiTag" }, 5)
     ).toBeNull();
-    expect(store.writes).toEqual([]);
   });
 });
 

@@ -1,7 +1,6 @@
 import { opensOnRead } from "@teak/convex/shared/article";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import type { CardType } from "@teak/convex/shared/constants";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
@@ -15,8 +14,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
-  Archive,
-  ArchiveRestore,
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
@@ -28,8 +25,6 @@ import {
   FileDown,
   FolderPlus,
   Heart,
-  Pin,
-  PinOff,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -64,21 +59,29 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
+import type { RunnableCardActionId } from "../../hooks/useCardActions";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { CARD_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
-import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
+import {
+  type CardActionId,
+  cardActionAvailable,
+  cardActionKeyName,
+  cardActionLabel,
+  cardActionShortcut,
+} from "../../lib/cardActions";
+import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
-import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
+import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
   imageFromClipboard,
   isTextEntryTarget,
   LINK_THUMBNAIL_ACCEPT,
 } from "../../lib/linkThumbnail";
+import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { cn } from "../../lib/utils";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
@@ -87,6 +90,7 @@ import { LinkPreview } from "../card-previews/LinkPreview";
 import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
+import { CardActionIcon } from "../cards/CardActionIcon";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { EditLinkDialog } from "../cards/EditLinkDialog";
@@ -116,6 +120,7 @@ import {
   CARD_MODAL_SURFACE_CLASS,
   GUTTER_CLOSE_STYLE,
   gutterNavStyle,
+  openOriginStyle,
   useCardModalFrameClass,
 } from "./cardModalFrame";
 import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
@@ -210,13 +215,7 @@ function stageContentClass(card: CardModalCard): string {
     case "video":
       return "flex items-center justify-center bg-black max-md:aspect-video md:h-full";
     case "document": {
-      const format = card.fileMetadata?.fileName
-        ? inferFileFormat({
-            fileName: card.fileMetadata.fileName,
-            mimeType: card.fileMetadata.mimeType,
-          })
-        : null;
-      return format?.preview === "pdf" && card.fileUrl
+      return cardFileFormat(card)?.preview === "pdf" && card.fileUrl
         ? "h-[70dvh] p-2 md:h-full md:p-3"
         : "p-5 md:p-8";
     }
@@ -306,11 +305,8 @@ const useStageView = (
   };
 };
 
-const DIALOG_KEYS = {
-  copy: { keys: "C" },
-  done: { keys: "D" },
-  favorite: { keys: "F" },
-} as const;
+/** The dialog's own copy key; card actions take theirs from the registry. */
+const COPY_KEY = "C";
 
 interface SidebarAction {
   caption: string;
@@ -330,9 +326,6 @@ interface CardModalProps {
   cardLinks?: CardLinkOptions;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
-  handleDelete: (onClose?: () => void) => Promise<void>;
-  handlePermanentDelete: (onClose?: () => void) => Promise<void>;
-  handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
   highlights?: CardHighlightsControl;
   isDownloading?: boolean;
@@ -348,16 +341,16 @@ interface CardModalProps {
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
+  /** Where the card was on screen when a click opened it. */
+  openOrigin?: { x: number; y: number };
   paletteColors?: PaletteColorsControl;
   returnFocus?: (cardId: string) => boolean;
+  /** Runs a card action; true once it has happened. */
+  runAction: (action: RunnableCardActionId) => Promise<boolean>;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   savePdf?: SavePdfControl;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
-  toggleArchive?: () => void;
-  toggleDone?: () => void;
-  toggleFavorite: () => void;
-  togglePin?: () => void;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
   updateTitle: (value: string | undefined) => void;
@@ -369,6 +362,7 @@ export function CardModal({
   cardId,
   cardLinks,
   open,
+  openOrigin: openOriginPoint,
   onCancel,
   onCardTypeClick,
   onNext,
@@ -381,13 +375,7 @@ export function CardModal({
   updateContent,
   updateNotes,
   updateTitle,
-  toggleArchive,
-  toggleDone,
-  toggleFavorite,
-  togglePin,
-  handleDelete,
-  handleRestore,
-  handlePermanentDelete,
+  runAction,
   highlights,
   openLink,
   paletteColors,
@@ -409,6 +397,7 @@ export function CardModal({
   const tLinkTitle = useTranslations("lib.linkTitle");
   const tDialog = useTranslations("cards.deleteForeverDialog");
   const tDetails = useTranslations("cardModal.details");
+  const tMenu = useTranslations("cards.menu");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
@@ -453,7 +442,7 @@ export function CardModal({
       open,
       value:
         open && cardId && typeof window !== "undefined"
-          ? readCardOpenOrigin(cardId, {
+          ? openOriginStyle(openOriginPoint, {
               height: window.innerHeight,
               width: window.innerWidth,
             })
@@ -617,29 +606,50 @@ export function CardModal({
   );
 
   const isDeleted = Boolean(card?.isDeleted);
-  const canDownload = Boolean(
-    card?.fileKey && ["document", "audio", "video", "image"].includes(card.type)
-  );
+  const can = (action: CardActionId) =>
+    Boolean(card && cardActionAvailable(action, card));
+  const openCardRef = useRef(cardId);
+  useEffect(() => {
+    openCardRef.current = cardId;
+  });
+  // Archive closes at once: the card stays in the library. Trash, Restore and
+  // Delete forever close once they have happened, if the card is still open.
+  const act = (action: RunnableCardActionId) => {
+    if (!can(action)) {
+      return;
+    }
+    const actedOn = cardId;
+    const done = runAction(action);
+    if (action === "archive") {
+      void closeAfterAction({ keepsCard: true });
+      return;
+    }
+    if (
+      action === "moveToTrash" ||
+      action === "restore" ||
+      action === "deleteForever"
+    ) {
+      void done.then((happened) => {
+        if (happened && openCardRef.current === actedOn) {
+          void closeAfterAction();
+        }
+      });
+    }
+  };
+  const canDownload = Boolean(card?.fileKey && isFileCardType(card.type));
   const copyableText =
     card?.type === "text" || card?.type === "quote"
       ? cardLinkTokensToText(getCurrentValue("content") ?? "")
       : "";
-  const canToggleDone = Boolean(
-    toggleDone && card?.type === "link" && !isDeleted
-  );
+  const canToggleDone = can("done");
   const isDone = card?.completedAt !== undefined;
   const doneVerb = doneActionLabel(card?.metadata?.linkCategory?.category);
   const doneMenuLabel = isDone
     ? t("done.markAsNot", { verb: doneVerb })
     : t("done.markAs", { verb: doneVerb });
 
-  const archive = () => {
-    if (toggleArchive && !isDeleted) {
-      toggleArchive();
-      void closeAfterAction({ keepsCard: true });
-    }
-  };
-
+  const toggleFavorite = () => act("favorite");
+  const toggleDone = () => act("done");
   const primaryAction = () => {
     if (card?.url && !isDeleted) {
       openLink();
@@ -714,37 +724,25 @@ export function CardModal({
       case "next":
         step(1, { repeat: event.repeat });
         break;
-      case "favorite":
-        if (!isDeleted) {
-          toggleFavorite();
-        }
-        break;
-      case "pin":
-        if (!isDeleted) {
-          togglePin?.();
-        }
-        break;
-      case "archive":
-        archive();
-        break;
-      case "delete":
-        if (!isDeleted) {
-          void handleDelete(closeAfterAction);
-        }
-        break;
-      case "focusTags":
-        if (!isDeleted) {
+      case "addTags":
+        if (can("addTags")) {
           focusPanelField("tags");
         }
+        break;
+      case "select":
+        break;
+      case "favorite":
+      case "pin":
+      case "archive":
+      case "moveToTrash":
+      case "restore":
+      case "deleteForever":
+      case "done":
+        act(action);
         break;
       case "focusNotes":
         if (!isDeleted) {
           focusPanelField("notes");
-        }
-        break;
-      case "done":
-        if (canToggleDone) {
-          toggleDone?.();
         }
         break;
       case "open":
@@ -768,7 +766,11 @@ export function CardModal({
     }
   };
 
-  const menuShortcuts = cardMenuShortcuts();
+  const shortcut = (action: CardActionId) => cardActionShortcut(action);
+  const actionLabel = (action: CardActionId) => {
+    const label = card ? cardActionLabel(action, card) : undefined;
+    return label ? tMenu(label) : "";
+  };
   const heading = card
     ? getCardHeading(card, { link: tLinkTitle, t: tHeading, types })
     : null;
@@ -796,9 +798,7 @@ export function CardModal({
     ? saveStateLabel(saveStatus, t, tc)
     : undefined;
 
-  const favoriteLabel = card?.isFavorited
-    ? t("menu.unfavorite")
-    : t("menu.favorite");
+  const favoriteLabel = actionLabel("favorite");
   const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
   const moreLabel = t("menu.moreActions");
 
@@ -850,7 +850,7 @@ export function CardModal({
   const sidebarActions: SidebarAction[] = [];
   if (card && !isDeleted) {
     sidebarActions.push({
-      caption: t("menu.favorite"),
+      caption: tMenu("favorite"),
       icon: (
         <Heart
           className={cn(
@@ -862,9 +862,9 @@ export function CardModal({
       label: favoriteLabel,
       onClick: toggleFavorite,
       pressed: Boolean(card.isFavorited),
-      shortcut: ["F"],
+      shortcut: [cardActionKeyName("favorite") ?? ""],
     });
-    if (canToggleDone && toggleDone) {
+    if (canToggleDone) {
       sidebarActions.push({
         // "Done", never "Read": the reader's own toggle is called Read.
         caption: t("done.caption"),
@@ -875,7 +875,7 @@ export function CardModal({
           : t("done.markAs", { verb: doneVerb }),
         onClick: toggleDone,
         pressed: isDone,
-        shortcut: ["D"],
+        shortcut: [cardActionKeyName("done") ?? ""],
         tone: "primary",
       });
     }
@@ -886,7 +886,7 @@ export function CardModal({
         id: "copy",
         label: copyLabel,
         onClick: copyCard,
-        shortcut: ["C"],
+        shortcut: [COPY_KEY],
       });
     }
     sidebarActions.push({
@@ -905,7 +905,7 @@ export function CardModal({
     if (isMobile && !isDeleted) {
       menuGroups.push([
         <DropdownMenuItem
-          aria-keyshortcuts={DIALOG_KEYS.favorite.keys}
+          aria-keyshortcuts={shortcut("favorite")?.keys}
           key="favorite"
           onClick={toggleFavorite}
         >
@@ -914,7 +914,7 @@ export function CardModal({
         </DropdownMenuItem>,
         canToggleDone ? (
           <DropdownMenuItem
-            aria-keyshortcuts={DIALOG_KEYS.done.keys}
+            aria-keyshortcuts={shortcut("done")?.keys}
             key="done"
             onClick={toggleDone}
           >
@@ -931,7 +931,7 @@ export function CardModal({
     if (isMobile && (card.url || copyableText)) {
       menuGroups.push([
         <DropdownMenuItem
-          aria-keyshortcuts={DIALOG_KEYS.copy.keys}
+          aria-keyshortcuts={COPY_KEY}
           key="copy"
           onClick={copyCard}
         >
@@ -986,44 +986,22 @@ export function CardModal({
         ) : null,
       ]);
       menuGroups.push([
-        togglePin ? (
-          <DropdownMenuItem
-            aria-keyshortcuts={menuShortcuts.pin.keys}
-            key="pin"
-            onClick={togglePin}
-          >
-            {card.pinPosition === undefined ? <Pin /> : <PinOff />}
-            {card.pinPosition === undefined ? t("menu.pin") : t("menu.unpin")}
-            <DropdownMenuShortcut aria-hidden>
-              {menuShortcuts.pin.label}
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
-        ) : null,
-        toggleArchive ? (
-          <DropdownMenuItem
-            aria-keyshortcuts={menuShortcuts.archive.keys}
-            key="archive"
-            onClick={archive}
-          >
-            {card.isArchived ? <ArchiveRestore /> : <Archive />}
-            {card.isArchived ? t("menu.unarchive") : t("menu.archive")}
-            <DropdownMenuShortcut aria-hidden>
-              {menuShortcuts.archive.label}
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
-        ) : null,
-        <DropdownMenuItem
-          aria-keyshortcuts={menuShortcuts.delete.keys}
-          key="trash"
-          onClick={() => void handleDelete(closeAfterAction)}
-          variant="destructive"
-        >
-          <Trash />
-          {t("menu.moveToTrash")}
-          <DropdownMenuShortcut aria-hidden>
-            {menuShortcuts.delete.label}
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>,
+        ...(["pin", "archive", "moveToTrash"] as const).map((action) =>
+          can(action) ? (
+            <DropdownMenuItem
+              aria-keyshortcuts={shortcut(action)?.keys}
+              key={action}
+              onClick={() => act(action)}
+              variant={action === "moveToTrash" ? "destructive" : undefined}
+            >
+              <CardActionIcon action={action} card={card} />
+              {actionLabel(action)}
+              <DropdownMenuShortcut aria-hidden>
+                {shortcut(action)?.label}
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+          ) : null
+        ),
       ]);
     }
   }
@@ -1039,6 +1017,7 @@ export function CardModal({
           align="end"
           className="w-60"
           onCloseAutoFocus={onMenuCloseAutoFocus}
+          onKeyDown={runMenuItemShortcut}
         >
           {shownMenuGroups.map((group, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: groups keep their order.
@@ -1112,7 +1091,7 @@ export function CardModal({
       </p>
       <Button
         className={SIDEBAR_PRIMARY_CLASS}
-        onClick={() => void handleRestore(closeAfterAction)}
+        onClick={() => act("restore")}
         size="sm"
       >
         <RotateCcw />
@@ -1536,9 +1515,7 @@ export function CardModal({
       <ConfirmDialog
         confirmLabel={tDialog("confirm")}
         description={tDialog("description")}
-        onConfirm={() => {
-          void handlePermanentDelete(closeAfterAction);
-        }}
+        onConfirm={() => act("deleteForever")}
         onOpenChange={setIsPermanentDeleteConfirmOpen}
         open={isPermanentDeleteConfirmOpen}
         title={tDialog("title")}

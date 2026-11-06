@@ -1,4 +1,4 @@
-import type { PinTarget } from "../../lib/pinnedCards";
+import type { CardActionId } from "../../lib/cardActions";
 
 export type { PinTarget } from "../../lib/pinnedCards";
 
@@ -96,7 +96,18 @@ export interface CardWithUrls {
   url?: string;
 }
 
+/** Where a card was on screen when it was opened, in viewport pixels. */
+export interface CardOpenOrigin {
+  x: number;
+  y: number;
+}
+
 export interface CardProps {
+  /**
+   * The card actions this surface offers, every grid action unless it says
+   * otherwise. Each shows in the card's menu when the card can take it.
+   */
+  actions?: ReadonlySet<CardActionId>;
   card: CardWithUrls & Record<string, unknown>;
   isPriority?: boolean;
   isSelected?: boolean;
@@ -104,20 +115,18 @@ export interface CardProps {
   isTabStop?: boolean;
   /** False where the card moves another way (the pinned row's drag). */
   nativeDrag?: boolean;
-  onAddTags?: (cardId: string) => void;
-  onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
+  onAction?: (
+    action: CardActionId,
+    card: CardWithUrls & Record<string, unknown>
+  ) => void;
+  onClick?: (
+    card: CardWithUrls & Record<string, unknown>,
+    origin?: CardOpenOrigin
+  ) => void;
   onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
-  onDelete?: (cardId: string) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;
-  onEnterSelectionMode?: (cardId: string) => void;
-  onPermanentDelete?: (cardId: string) => void;
   onRemoveFromFolder?: (cardId: string) => void;
-  onRestore?: (cardId: string) => void;
-  onToggleArchive?: (cardId: string, archive: boolean) => void;
-  onToggleFavorite?: (cardId: string) => void;
-  onTogglePin?: (card: PinTarget) => void;
-  onToggleSelection?: (cardId: string) => void;
 }
 
 const UUID_REGEX =

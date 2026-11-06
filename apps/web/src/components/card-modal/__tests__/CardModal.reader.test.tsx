@@ -72,12 +72,10 @@ const dialog = (shown: CardModalCard, toggleDone?: () => void) => (
     cardId={shown._id}
     downloadFile={() => undefined}
     getCurrentValue={() => undefined}
-    handleDelete={async () => undefined}
-    handlePermanentDelete={async () => undefined}
-    handleRestore={async () => undefined}
     hasUnsavedChanges={false}
     open
     openLink={() => undefined}
+    runAction={async () => true}
     saveChanges={async () => true}
     saveState="idle"
     tags={{
@@ -88,7 +86,6 @@ const dialog = (shown: CardModalCard, toggleDone?: () => void) => (
       tagInput: "",
     }}
     toggleDone={toggleDone}
-    toggleFavorite={() => undefined}
     updateContent={() => undefined}
     updateNotes={() => undefined}
     updateTitle={() => undefined}

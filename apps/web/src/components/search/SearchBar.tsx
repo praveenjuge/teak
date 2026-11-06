@@ -10,6 +10,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -56,7 +57,10 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { CardDensity } from "@/lib/cardDensity";
-import { isImeComposing } from "@/lib/keyboardShortcuts";
+import {
+  isImeComposing,
+  LIBRARY_SEARCH_ATTRIBUTE,
+} from "@/lib/keyboardShortcuts";
 import { timeFilterLabel } from "@/lib/timeFilterLabel";
 import { cn } from "@/lib/utils";
 import {
@@ -330,6 +334,12 @@ export function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // The phone's search field shows once it opens, and takes focus then.
+  useEffect(() => {
+    if (mobileOpen) {
+      inputRef.current?.focus();
+    }
+  }, [mobileOpen]);
   const isPhone = useIsMobile();
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ index: number; query: string }>({
@@ -607,7 +617,6 @@ export function SearchBar({
             )}
             onClick={() => {
               setMobileOpen(true);
-              requestAnimationFrame(() => inputRef.current?.focus());
             }}
             size="icon"
             type="button"
@@ -766,7 +775,7 @@ export function SearchBar({
               "h-full min-w-20 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden",
               hasChips && "max-sm:min-w-10 max-sm:placeholder:text-transparent"
             )}
-            data-library-search=""
+            {...{ [LIBRARY_SEARCH_ATTRIBUTE]: "" }}
             id={inputId}
             maxLength={MAX_URL_SEARCH_LENGTH}
             name="q"

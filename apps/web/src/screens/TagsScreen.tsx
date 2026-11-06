@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@/lib/convexQueryHooks";
+import { LIBRARY_SEARCH_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
 import {
   TagManagerDialog,
@@ -349,7 +350,7 @@ export function TagsScreen({
               autoCapitalize="off"
               autoCorrect="off"
               className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
-              data-library-search=""
+              {...{ [LIBRARY_SEARCH_ATTRIBUTE]: "" }}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setLimit(TAG_PAGE_SIZE);

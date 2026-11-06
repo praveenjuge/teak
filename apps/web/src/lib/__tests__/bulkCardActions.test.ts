@@ -1,12 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import {
-  applyBulkActionToCard,
   bulkActionCopy,
   collectCardLinks,
   folderUndoSteps,
   runBulkInChunks,
 } from "../bulkCardActions";
+import { applyBulkActionToCard } from "../cardQueryOptimisticUpdates";
 
 const card = (overrides: Partial<Doc<"cards">> = {}) =>
   ({
@@ -28,7 +28,7 @@ describe("runBulkInChunks", () => {
     );
     const progress = mock();
 
-    const result = await runBulkInChunks(ids, send, progress);
+    const result = await runBulkInChunks(ids, send, { onProgress: progress });
 
     expect(send.mock.calls.map(([chunk]) => chunk.length)).toEqual([
       100, 100, 50,
@@ -44,16 +44,22 @@ describe("runBulkInChunks", () => {
   test("a chunk that fails outright counts its cards as failed and the rest still run", async () => {
     const ids = Array.from({ length: 150 }, (_, index) => `c${index}`);
     let call = 0;
-    const result = await runBulkInChunks(ids, (chunk) => {
-      call += 1;
-      return call === 1
-        ? Promise.reject(new Error("offline"))
-        : Promise.resolve({
-            updatedIds: chunk.slice(1),
-            failedIds: [chunk[0] as string],
-          });
-    });
+    const onError = mock((_error: unknown) => undefined);
+    const result = await runBulkInChunks(
+      ids,
+      (chunk) => {
+        call += 1;
+        return call === 1
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve({
+              updatedIds: chunk.slice(1),
+              failedIds: [chunk[0] as string],
+            });
+      },
+      { onError }
+    );
 
+    expect(onError).toHaveBeenCalledTimes(1);
     expect(result.failedIds).toEqual([...ids.slice(0, 100), "c100"]);
     expect(result.updatedIds).toEqual(ids.slice(101));
   });
@@ -103,6 +109,21 @@ describe("applyBulkActionToCard", () => {
     );
     expect(next.tags).toEqual(["Keep"]);
     expect(next.aiTags).toBeUndefined();
+  });
+
+  test("adding a hidden tag in bulk hides the card at once, as one edit does", () => {
+    const next = applyBulkActionToCard(card(), "addTags", ["Secret"], 5);
+    expect(next).toMatchObject({ isHidden: true, tags: ["Secret"] });
+  });
+
+  test("moving a pinned card to Trash or Archive unpins it, as the server does", () => {
+    const pinned = card({ pinPosition: 1 });
+    expect(
+      applyBulkActionToCard(pinned, "delete", [], 5).pinPosition
+    ).toBeUndefined();
+    expect(
+      applyBulkActionToCard(pinned, "archive", [], 5).pinPosition
+    ).toBeUndefined();
   });
 
   test("archiving twice keeps the first archived date", () => {

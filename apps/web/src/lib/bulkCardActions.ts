@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import type { TeakTranslator } from "@teak/i18n";
 import { clipFolderName } from "./clipFolderName";
 import { englishTranslator } from "./englishTranslators";
@@ -8,19 +9,6 @@ export type BulkCopyTranslator = TeakTranslator<"lib.bulkCardActions">;
 const englishBulkCopy: BulkCopyTranslator = englishTranslator(
   "lib.bulkCardActions"
 );
-
-export type BulkCardAction =
-  | "favorite"
-  | "unfavorite"
-  | "archive"
-  | "unarchive"
-  | "addTags"
-  | "removeTags"
-  | "delete"
-  | "restore"
-  | "addToFolder"
-  | "removeFromFolder"
-  | "moveToFolder";
 
 export interface BulkFolderTarget {
   folderId: string;
@@ -149,105 +137,6 @@ export const bulkActionCopy = {
     t(`failed.${action}`),
 };
 
-const hasTag = (list: readonly string[], tag: string) =>
-  list.some((item) => item.toLowerCase() === tag.toLowerCase());
-
-export const applyBulkActionToCard = (
-  card: Doc<"cards">,
-  action: BulkCardAction,
-  tags: readonly string[] = [],
-  now = Date.now(),
-  folder?: { folderId: string; fromFolderId?: string }
-): Doc<"cards"> => {
-  switch (action) {
-    case "addToFolder":
-    case "removeFromFolder":
-    case "moveToFolder": {
-      if (!folder) {
-        return card;
-      }
-      const current = (card.folderIds ?? []) as string[];
-      let next: string[];
-      if (action === "addToFolder") {
-        next = current.includes(folder.folderId)
-          ? current
-          : [...current, folder.folderId];
-      } else if (action === "removeFromFolder") {
-        next = current.filter((id) => id !== folder.folderId);
-      } else {
-        const kept = folder.fromFolderId
-          ? current.filter((id) => id !== folder.fromFolderId)
-          : [];
-        next = kept.includes(folder.folderId)
-          ? kept
-          : [...kept, folder.folderId];
-      }
-      return next.length === current.length &&
-        next.every((id, index) => id === current[index])
-        ? card
-        : {
-            ...card,
-            folderIds: (next.length > 0
-              ? next
-              : undefined) as Doc<"cards">["folderIds"],
-            updatedAt: now,
-          };
-    }
-    case "favorite":
-    case "unfavorite":
-      return {
-        ...card,
-        isFavorited: action === "favorite",
-        updatedAt: now,
-      };
-    case "archive":
-      return card.isArchived
-        ? card
-        : { ...card, isArchived: true, archivedAt: now, updatedAt: now };
-    case "unarchive":
-      return card.isArchived
-        ? {
-            ...card,
-            isArchived: undefined,
-            archivedAt: undefined,
-            updatedAt: now,
-          }
-        : card;
-    case "delete":
-      return card.isDeleted
-        ? card
-        : { ...card, isDeleted: true, deletedAt: now, updatedAt: now };
-    case "restore":
-      return card.isDeleted
-        ? {
-            ...card,
-            isDeleted: undefined,
-            deletedAt: undefined,
-            updatedAt: now,
-          }
-        : card;
-    case "addTags": {
-      const current = card.tags ?? [];
-      const added = tags.filter((tag) => !hasTag(current, tag));
-      return added.length > 0
-        ? { ...card, tags: [...current, ...added], updatedAt: now }
-        : card;
-    }
-    case "removeTags": {
-      const kept = (card.tags ?? []).filter((tag) => !hasTag(tags, tag));
-      const keptAi = (card.aiTags ?? []).filter((tag) => !hasTag(tags, tag));
-      return {
-        ...card,
-        tags: kept.length > 0 ? kept : undefined,
-        aiTags: keptAi.length > 0 ? keptAi : undefined,
-        updatedAt: now,
-      };
-    }
-    default:
-      return card;
-  }
-};
-
 export interface BulkRunResult {
   failedIds: string[];
   updatedIds: string[];
@@ -256,8 +145,15 @@ export interface BulkRunResult {
 export const runBulkInChunks = async (
   cardIds: readonly string[],
   send: (chunk: string[]) => Promise<BulkRunResult>,
-  onProgress?: (done: number, total: number) => void,
-  chunkSize = BULK_CHUNK_SIZE
+  {
+    chunkSize = BULK_CHUNK_SIZE,
+    onError,
+    onProgress,
+  }: {
+    chunkSize?: number;
+    onError?: (error: unknown) => void;
+    onProgress?: (done: number, total: number) => void;
+  } = {}
 ): Promise<BulkRunResult> => {
   const ids = Array.from(new Set(cardIds));
   const updatedIds: string[] = [];
@@ -269,7 +165,8 @@ export const runBulkInChunks = async (
       const result = await send(chunk);
       updatedIds.push(...result.updatedIds);
       failedIds.push(...result.failedIds);
-    } catch {
+    } catch (error) {
+      onError?.(error);
       failedIds.push(...chunk);
     }
     onProgress?.(Math.min(start + chunk.length, ids.length), ids.length);

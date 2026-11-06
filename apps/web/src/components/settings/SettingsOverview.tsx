@@ -7,9 +7,9 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
 import { LogOut } from "vadivam-react";
+import { useRunLibraryCommand } from "@/components/providers/LibraryCommandsProvider";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useLocalDateFormat } from "@/hooks/useLocalDateFormat";
-import { openKeyboardShortcuts } from "@/lib/keyboardShortcuts";
 import {
   SETTINGS_PLAN_HREF,
   SETTINGS_SECTIONS,
@@ -317,6 +317,7 @@ function PlanSection({
 
 function ShortcutsSection() {
   const t = useTranslations("modals.shortcuts");
+  const runCommand = useRunLibraryCommand();
   return (
     <div className="max-md:hidden">
       <SettingsSection
@@ -327,7 +328,7 @@ function ShortcutsSection() {
               // Safari doesn't focus a clicked button; the sheet hands focus
               // back to whatever had it when it opened.
               event.currentTarget.focus();
-              openKeyboardShortcuts();
+              runCommand("openShortcuts");
             }}
             size="sm"
             variant="ghost"

@@ -234,21 +234,23 @@ describe("Card menu shortcuts", () => {
   };
 
   test.each([
-    ["f", "onToggleFavorite", ["card_123"]],
-    ["t", "onAddTags", ["card_123"]],
-    ["e", "onToggleArchive", ["card_123", true]],
-    ["x", "onEnterSelectionMode", ["card_123"]],
-    ["Delete", "onDelete", ["card_123"]],
-    ["Backspace", "onDelete", ["card_123"]],
+    ["f", "favorite"],
+    ["p", "pin"],
+    ["t", "addTags"],
+    ["e", "archive"],
+    ["x", "select"],
+    ["Delete", "moveToTrash"],
+    ["Backspace", "moveToTrash"],
   ] as const)(
     "pressing %p in the right-click menu runs %s and closes it",
-    async (key, handler, args) => {
-      const spy = mock();
-      const card = await renderCard({ [handler]: spy });
+    async (key, action) => {
+      const onAction = mock();
+      const card = await renderCard({ onAction });
       const menu = await openContextMenu(card);
       await pressInMenu(menu, { key });
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy.mock.calls[0]).toEqual([...args]);
+      expect(onAction).toHaveBeenCalledTimes(1);
+      expect(onAction.mock.calls[0]?.[0]).toBe(action);
+      expect(onAction.mock.calls[0]?.[1]?._id).toBe("card_123");
       expect(document.querySelector('[role="menu"]')).toBeNull();
     }
   );
@@ -270,12 +272,12 @@ describe("Card menu shortcuts", () => {
   });
 
   test("leaves keys with no shortcut to the menu", async () => {
-    const onToggleFavorite = mock();
-    const card = await renderCard({ onToggleFavorite });
+    const onAction = mock();
+    const card = await renderCard({ onAction });
     const menu = await openContextMenu(card);
     await pressInMenu(menu, { key: "f", metaKey: true });
     await pressInMenu(menu, { key: "z" });
-    expect(onToggleFavorite).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
     expect(document.querySelector('[role="menu"]')).not.toBeNull();
   });
 });
@@ -283,28 +285,27 @@ describe("Card menu shortcuts", () => {
 describe("getCardAccessibleLabel", () => {
   test.each([
     [
-      { type: "link", content: "", url: "https://example.com" },
-      "Example",
+      {
+        type: "link",
+        content: "",
+        metadata: { linkPreview: { status: "success", title: "Example" } },
+        url: "https://example.com",
+      },
       "Link: Example",
     ],
     [
       { type: "link", content: "", url: "https://example.com" },
-      undefined,
       "Link: https://example.com",
     ],
     [
       { type: "image", content: "", fileMetadata: { fileName: "cat.png" } },
-      undefined,
       "Image: cat.png",
     ],
-    [
-      { type: "quote", content: "**Stay** curious" },
-      undefined,
-      "Quote: Stay curious",
-    ],
-    [{ type: "audio", content: "" }, undefined, "Audio card"],
-  ] as const)("names %p", (card, linkTitle, expected) => {
-    expect(getCardAccessibleLabel(card as any, linkTitle)).toBe(expected);
+    [{ type: "quote", content: "**Stay** curious" }, "Quote: Stay curious"],
+    [{ type: "text", content: "Groceries\n- eggs" }, "Text: Groceries"],
+    [{ type: "audio", content: "" }, "Audio card"],
+  ] as const)("names %p", (card, expected) => {
+    expect(getCardAccessibleLabel(card as any)).toBe(expected);
   });
 
   test("clips very long text", () => {

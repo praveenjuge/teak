@@ -1,3 +1,4 @@
+import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import { useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import {
@@ -25,14 +26,14 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { BulkCardAction } from "../../lib/bulkCardActions";
-import { selectionShortcut } from "../../lib/gridKeys";
-import type { MenuShortcut } from "../../lib/keyboardShortcuts";
+import {
+  type CardView,
+  type MenuShortcut,
+  type SelectionAction,
+  selectionShortcut,
+} from "../../lib/cardActions";
+import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
-
-export type BulkBarView = "library" | "archive" | "trash";
-
-export type BulkBarAction = BulkCardAction | "copyLinks" | "deleteForever";
 
 export interface BulkBarFolder {
   id: string;
@@ -44,14 +45,14 @@ interface BulkActionBarProps {
   allFavorited?: boolean;
   folder?: BulkBarFolder;
   isBusy?: boolean;
-  onAction: (action: BulkBarAction) => void;
+  onAction: (action: SelectionAction) => void;
   onCancel: () => void;
   selectedCount: number;
-  view?: BulkBarView;
+  view?: CardView;
 }
 
 const PRIMARY: Record<
-  BulkBarView,
+  CardView,
   {
     action: BulkCardAction;
     icon: typeof Archive;
@@ -88,12 +89,10 @@ export function BulkActionBar({
     : { ...PRIMARY[view], label: t(PRIMARY[view].labelKey) };
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
-  const shortcutFor = (action: BulkBarAction) =>
-    selectionShortcut(action, {
-      addToFolder: Boolean(addToFolder),
-      allSelectedFavorited: allFavorited,
-      view,
-    });
+  const shortcutFor = (action: SelectionAction) =>
+    addToFolder
+      ? undefined
+      : selectionShortcut(action, { allSelectedFavorited: allFavorited, view });
   const primaryShortcut = shortcutFor(primary.action);
   const primaryKeys = primaryShortcut ? [primaryShortcut.label] : undefined;
   // Archive and Restore are everyday actions, so they stay neutral; the
@@ -169,7 +168,11 @@ export function BulkActionBar({
                 <span className="max-sm:sr-only">{tc("more")}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent
+              align="end"
+              className="w-52"
+              onKeyDown={runMenuItemShortcut}
+            >
               <BarMenuItem
                 action="favorite"
                 onAction={onAction}
@@ -257,9 +260,9 @@ function BarMenuItem({
   shortcut,
   variant,
 }: {
-  action: BulkBarAction;
+  action: SelectionAction;
   children: ReactNode;
-  onAction: (action: BulkBarAction) => void;
+  onAction: (action: SelectionAction) => void;
   shortcut?: MenuShortcut;
   variant?: "destructive";
 }) {
