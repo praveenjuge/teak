@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 import { IMPORT_PART_BYTES, IMPORT_UPLOAD_TTL_MS } from "./import/constants";
-import { importModeValidator } from "./schema";
+import { importModeValidator } from "./schema/validators/jobs";
 import { requireSessionUserId } from "./securitySessions";
 import {
   IMPORT_SOURCES,

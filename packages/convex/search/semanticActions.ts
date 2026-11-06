@@ -5,8 +5,6 @@ import type {
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, action, internalQuery } from "../_generated/server";
-import { expandFolderSearch } from "../card/searchPlanner";
-import { isSimilarAnchorAvailable } from "../card/similarSearch";
 import {
   readUserVectorShard,
   userVectorNamespace,
@@ -23,14 +21,14 @@ import {
   callCoreWorkerOp,
   isCoreWorkerConfigured,
 } from "../storage/coreWorkerClient";
+import { expandFolderSearch } from "./searchPlanner";
 import {
   type SemanticEntry,
   type SemanticRanking,
   semanticSearchKey,
 } from "./semanticCache";
-
-export const API_SEMANTIC_TIMEOUT_MS = 1500;
-const GRID_SEMANTIC_TIMEOUT_MS = 5000;
+import { isSimilarAnchorAvailable } from "./similarSearch";
+import { API_SEARCH_TIMEOUT_MS, GRID_SEMANTIC_TIMEOUT_MS } from "./timeouts";
 
 export type SemanticOutcome =
   | "ok"
@@ -92,7 +90,7 @@ export const fetchSemanticRanking = async (
   ctx: ActionCtx,
   userId: string,
   request: SemanticRequest | null,
-  { timeoutMs = API_SEMANTIC_TIMEOUT_MS }: { timeoutMs?: number } = {}
+  { timeoutMs = API_SEARCH_TIMEOUT_MS }: { timeoutMs?: number } = {}
 ): Promise<{
   outcome: SemanticOutcome;
   ranking: SemanticRanking | null;

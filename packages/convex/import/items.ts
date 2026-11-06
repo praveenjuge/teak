@@ -9,7 +9,7 @@ import {
   type ImportFolderCache,
 } from "../folder/folders";
 import { insertImportedHighlights } from "../highlight/highlights";
-import { cardTypeValidator, colorValidator } from "../schema";
+import { cardTypeValidator, colorValidator } from "../schema/validators/cards";
 import type { TeakUserId } from "../securitySessions";
 import { MAX_PINNED_CARDS } from "../shared/pins";
 

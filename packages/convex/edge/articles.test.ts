@@ -7,12 +7,12 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
+import { updateCardFieldForUserHandler } from "../card/updateCard";
+import schema from "../schema";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
-} from "../card/searchReads";
-import { updateCardFieldForUserHandler } from "../card/updateCard";
-import schema from "../schema";
+} from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
 import { articleImageObjectKey, articleTextObjectKey } from "../shared/article";
 import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";

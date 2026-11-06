@@ -8,7 +8,7 @@ import {
   stagePending,
 } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import type { CardType } from "../../schema";
+import type { CardType } from "../../shared/constants";
 
 export const recordClassification = internalMutation({
   args: {

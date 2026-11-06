@@ -40,7 +40,7 @@ import { patchCard } from "./card/cardWrites";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
 import { clearCardTranscript } from "./card/textContents";
-import { adminOverviewFields } from "./schema";
+import { adminOverviewFields } from "./schema/validators/admin";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/r2";

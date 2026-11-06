@@ -9,7 +9,7 @@ import {
 } from "./_generated/server";
 import { ensureCardQuotaAvailable } from "./card/quota";
 import { validateDirectUploadRequest } from "./card/uploadCard";
-import { fileUploadSessionValidator } from "./schema";
+import { fileUploadSessionValidator } from "./schema/validators/jobs";
 import { requireSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {

@@ -1,7 +1,7 @@
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { CardType } from "../schema";
 import type { CreatedAtRange } from "../shared";
+import type { CardType } from "../shared/constants";
 import {
   COLOR_CARD_TYPES,
   type ColorHueBucket,

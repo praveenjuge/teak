@@ -7,7 +7,10 @@ import {
   stageFailed,
   stageInProgress,
 } from "../../../card/processingStatus";
-import { pageArchiveValidator, r2KeyValidator } from "../../../schema";
+import {
+  pageArchiveValidator,
+  r2KeyValidator,
+} from "../../../schema/validators/cards";
 import { resolveSizeBucket } from "../../../shared/analytics";
 import {
   PAGE_ARCHIVE_FAILURE_REASONS,

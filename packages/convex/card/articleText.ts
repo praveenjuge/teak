@@ -4,7 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import { markCardForEmbedding } from "../embedding/state";
-import { r2KeyValidator } from "../schema";
+import { r2KeyValidator } from "../schema/validators/cards";
 import {
   ARTICLE_FAILURE_REASONS,
   ARTICLE_IMAGE_ROLE,

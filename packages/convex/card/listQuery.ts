@@ -7,7 +7,8 @@ import {
 } from "convex-helpers/server/stream";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import schema, { type CardType } from "../schema";
+import schema from "../schema";
+import type { CardType } from "../shared/constants";
 import { excludeHiddenRows } from "./hiddenCards";
 
 export {

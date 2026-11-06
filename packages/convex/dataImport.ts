@@ -16,7 +16,10 @@ import {
   IMPORT_PART_BYTES,
 } from "./import/constants";
 import { createImportedCard, importItemFields } from "./import/items";
-import { importModeValidator, stagedItemsValidator } from "./schema";
+import {
+  importModeValidator,
+  stagedItemsValidator,
+} from "./schema/validators/jobs";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { urlKey } from "./shared/utils/urlKey";
 import { buildR2UserPrefix, queueObjectDeletion } from "./storage/r2";

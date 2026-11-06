@@ -21,12 +21,6 @@ import {
   importJobValidator,
 } from "./schema/validators/jobs";
 
-export * from "./schema/validators/admin";
-export * from "./schema/validators/apiIdempotency";
-export * from "./schema/validators/cards";
-export * from "./schema/validators/jobs";
-export type { CardType } from "./shared/constants";
-
 export default defineSchema({
   users: defineTable({
     teakUserId: v.string(),

@@ -9,7 +9,6 @@ import {
   type OwnedCardIds,
 } from "../accountDeletion";
 import { onCardChanged } from "../card/onCardChanged";
-import { searchCardsByDocument } from "../card/searchReads";
 import { readFolderCardCount } from "../folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,
@@ -17,6 +16,7 @@ import {
   readLiveFolders,
 } from "../folder/folders";
 import schema from "../schema";
+import { searchCardsByDocument } from "../search/searchReads";
 import {
   FOLDER_ERROR_MESSAGES,
   MAX_FOLDERS_PER_CARD,

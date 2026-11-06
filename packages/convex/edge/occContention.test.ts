@@ -27,17 +27,12 @@ import {
   removeCardUsage,
 } from "../card/cardUsage";
 import { patchCard } from "../card/cardWrites";
-import { getSearchResultLimit } from "../card/getCards";
 import {
   onCardChanged,
   restartCardSearchTagSync,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "../card/quota";
-import {
-  searchCardsByDocument,
-  searchCardsByExactTag,
-} from "../card/searchReads";
 import { readFolderCardCount } from "../folder/folderRows";
 import { applyFolderMembership } from "../folder/membership";
 import {
@@ -45,6 +40,11 @@ import {
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "../idempotencyAnalytics";
 import schema from "../schema";
+import { getSearchResultLimit } from "../search/searchCards";
+import {
+  searchCardsByDocument,
+  searchCardsByExactTag,
+} from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";

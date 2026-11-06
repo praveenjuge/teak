@@ -121,6 +121,13 @@ export const cardSiteHost = (card: {
   url?: string | null;
 }): string | null => normalizeUrlHost(card.url ?? card.sourceUrl);
 
+/** A card's site, or the host stored on a card whose URL no longer parses. */
+export const cardUrlHost = (card: {
+  sourceUrl?: string | null;
+  url?: string | null;
+  urlHost?: string;
+}): string | null => cardSiteHost(card) ?? card.urlHost ?? null;
+
 export const hostForDisplay = (host: string): string =>
   host
     .split(".")

@@ -407,7 +407,7 @@ describe("hybrid search in the grid", () => {
     const env = await setup();
     const cards = await seedLibrary(env);
     const page = await env.owner.query(
-      api.card.mobileCardSummaries.searchMobileCardSummariesPaginated,
+      api.cards.searchMobileCardSummariesPaginated,
       {
         searchQuery: "reading nook",
         paginationOpts: { numItems: 10, cursor: null },

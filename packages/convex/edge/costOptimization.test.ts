@@ -7,9 +7,9 @@ import {
   onCardChanged,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
-import { searchCardsByExactTag } from "../card/searchReads";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
+import { searchCardsByExactTag } from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
 
 const modules = import.meta.glob("../**/*.ts");

@@ -2,6 +2,14 @@ import type { IndexRange, SearchFilterFinalizer } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { SEARCH_PREFIX_MAX_BYTES } from "../card/documentTextFormat";
+import {
+  type ArchivedFilter,
+  cardListScope,
+  scopeArchivedMatch,
+} from "../card/listQuery";
+import { scanInBatches } from "../card/scanInBatches";
+import { readCardTranscript } from "../card/textContents";
 import {
   buildCardSearchText,
   normalizeCardSearchTag,
@@ -9,14 +17,6 @@ import {
 import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
-import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
-import {
-  type ArchivedFilter,
-  cardListScope,
-  scopeArchivedMatch,
-} from "./listQuery";
-import { scanInBatches } from "./scanInBatches";
-import { readCardTranscript } from "./textContents";
 
 interface SavedAtRange {
   gte: (

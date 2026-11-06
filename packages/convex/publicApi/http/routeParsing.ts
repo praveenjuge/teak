@@ -1,6 +1,6 @@
-import { narrowTypesForQuery } from "../../card/searchPlanner";
 import { normalizeVisualFilterArgs } from "../../card/visualFilters";
-import type { CardType } from "../../schema";
+import { narrowTypesForQuery } from "../../search/searchPlanner";
+import type { CardType } from "../../shared/constants";
 import {
   normalizeColorHueBucket,
   normalizeVisualStyle,

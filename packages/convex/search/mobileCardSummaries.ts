@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { cardTypeValidator } from "../schema";
-import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
-import { type CardWithUrls, linkPreviewImageFields } from "./queryUtils";
+import { cardDisplayTitle, cardPreviewText } from "../card/displayTitle";
+import { type CardWithUrls, linkPreviewImageFields } from "../card/queryUtils";
+import { cardTypeValidator } from "../schema/validators/cards";
 import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,

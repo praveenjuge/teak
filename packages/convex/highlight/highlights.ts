@@ -17,7 +17,7 @@ import {
 import { assertAccountNotDeleting } from "../accountDeletion";
 import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
-import { highlightValidator } from "../schema";
+import { highlightValidator } from "../schema/validators/cards";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   type HighlightSpan,

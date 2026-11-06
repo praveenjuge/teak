@@ -11,8 +11,8 @@ import {
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCard } from "../card/cardWrites";
-import { resolveSearch } from "../card/searchPlanner";
 import { readCardSearchTexts } from "../card/textContents";
+import { resolveSearch } from "../search/searchPlanner";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,

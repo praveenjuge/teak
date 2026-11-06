@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { type CardType, cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
+import type { CardType } from "../shared/constants";
 import {
   type FileFormat,
   FileFormatValidationError,

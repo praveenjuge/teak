@@ -1,6 +1,9 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { CardType } from "../schema";
+import { SEARCH_PREFIX_MAX_BYTES } from "../card/documentTextFormat";
+import { revealsHidden } from "../card/hiddenCards";
+import type { ArchivedFilter } from "../card/listQuery";
+import type { CardType } from "../shared/constants";
 import {
   expressionFolderNames,
   expressionHasWords,
@@ -24,10 +27,7 @@ import {
 } from "../shared/search/searchText";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { isCardHidden } from "../shared/tags";
-import { cardSiteHost } from "../shared/utils/urlHost";
-import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
-import { revealsHidden } from "./hiddenCards";
-import type { ArchivedFilter } from "./listQuery";
+import { cardUrlHost } from "../shared/utils/urlHost";
 
 export interface SearchViewFilters {
   archived: ArchivedFilter;
@@ -107,10 +107,6 @@ export const cardHasTag = (card: Doc<"cards">, tag: string) =>
   [...(card.tags ?? []), ...(card.aiTags ?? [])].some(
     (cardTag) => normalizeCardSearchTag(cardTag) === tag
   );
-
-export const cardUrlHost = (
-  card: Pick<Doc<"cards">, "sourceUrl" | "url" | "urlHost">
-) => cardSiteHost(card) ?? card.urlHost ?? null;
 
 export const resolveFolderNames = async (
   ctx: QueryCtx,

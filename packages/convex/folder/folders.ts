@@ -10,7 +10,7 @@ import {
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCard } from "../card/cardWrites";
-import { folderColorValidator } from "../schema";
+import { folderColorValidator } from "../schema/validators/cards";
 import {
   getSessionUser,
   requireSessionUserId,

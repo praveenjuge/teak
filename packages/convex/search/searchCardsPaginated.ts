@@ -2,9 +2,44 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { cardTypeValidator, searchModeValidator } from "../schema";
-import { readRelevanceScores } from "../search/relevanceCache";
-import { readSemanticRanking } from "../search/semanticCache";
+import { keepVisible } from "../card/hiddenCards";
+import {
+  buildCardListQuery,
+  buildFolderCardListQuery,
+  buildHostCardListQuery,
+  buildTagCardListQuery,
+  CARD_LIST_PAGE_ROW_LIMIT,
+  type CardListSort,
+  cardListScope,
+  cardListSortWithShuffleValidator,
+  compareCardsBySavedAt,
+  normalizeCardListSort,
+  savedAtOf,
+} from "../card/listQuery";
+import {
+  attachCardSummaryUrls,
+  attachFileUrls,
+  attachGridFileUrls,
+  ensureValidRange,
+  isSavedAtInRange,
+} from "../card/queryUtils";
+import { applyQuoteFormattingToList } from "../card/quoteFormatting";
+import {
+  decodeShuffleWalkCursor,
+  encodeShuffleWalkCursor,
+  pageShuffleWalk,
+  type ShuffleWalkOptions,
+} from "../card/shuffle";
+import {
+  applyCardLevelFilters,
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+  visualFilterTypes,
+} from "../card/visualFilters";
+import {
+  cardTypeValidator,
+  searchModeValidator,
+} from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import { clampPageSize, clampSearchOffset } from "../shared/search/constants";
 import {
@@ -23,28 +58,7 @@ import {
   similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
-import { keepVisible } from "./hiddenCards";
-import {
-  buildCardListQuery,
-  buildFolderCardListQuery,
-  buildHostCardListQuery,
-  buildTagCardListQuery,
-  CARD_LIST_PAGE_ROW_LIMIT,
-  type CardListSort,
-  cardListScope,
-  cardListSortWithShuffleValidator,
-  compareCardsBySavedAt,
-  normalizeCardListSort,
-  savedAtOf,
-} from "./listQuery";
-import {
-  attachCardSummaryUrls,
-  attachFileUrls,
-  attachGridFileUrls,
-  ensureValidRange,
-  isSavedAtInRange,
-} from "./queryUtils";
-import { applyQuoteFormattingToList } from "./quoteFormatting";
+import { readRelevanceScores } from "./relevanceCache";
 import {
   expandFolderSearch,
   expressionTextReader,
@@ -58,19 +72,8 @@ import {
   searchCardsByDocument,
   searchCardsByOcrText,
 } from "./searchReads";
-import {
-  decodeShuffleWalkCursor,
-  encodeShuffleWalkCursor,
-  pageShuffleWalk,
-  type ShuffleWalkOptions,
-} from "./shuffle";
+import { readSemanticRanking } from "./semanticCache";
 import { isSimilarAnchorAvailable, loadSimilarCards } from "./similarSearch";
-import {
-  applyCardLevelFilters,
-  doesCardMatchVisualFilters,
-  normalizeVisualFilterArgs,
-  visualFilterTypes,
-} from "./visualFilters";
 
 export const createdAtRangeValidator = v.object({
   start: v.number(),

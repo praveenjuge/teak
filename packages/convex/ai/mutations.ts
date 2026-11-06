@@ -5,7 +5,10 @@ import {
   mergeProcessingStages,
   type ProcessingStatus,
 } from "../card/processingStatus";
-import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
+import {
+  cardTypeValidator,
+  processingStatusObjectValidator,
+} from "../schema/validators/cards";
 
 export const updateCardProcessing = internalMutation({
   args: {
