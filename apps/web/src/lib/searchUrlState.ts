@@ -18,6 +18,7 @@ import {
   isVisualStyle,
   type VisualStyle,
 } from "@teak/convex/shared/constants";
+import { libraryQuery } from "./libraryUrl";
 
 export type LibrarySort = CardListSort | "revisit";
 
@@ -168,6 +169,18 @@ export function parseDateParam(value: string | null): string {
 export const parseLibrarySort = (value: string | null): LibrarySort =>
   value === "revisit" ? value : normalizeCardListSort(value);
 
+/** The URL params a search is read from and written to. */
+export const SEARCH_URL_PARAMS = [
+  "q",
+  "sort",
+  "seed",
+  "type",
+  "tag",
+  "style",
+  "color",
+  "date",
+] as const;
+
 export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
   const sort = parseLibrarySort(params.get("sort"));
   const seed = isSeededSort(sort)
@@ -249,7 +262,7 @@ export function serializeSearchUrlState(
   } else {
     next.delete("date");
   }
-  return next.toString().replace(/%2C/g, ",");
+  return libraryQuery(next);
 }
 
 function setList(params: URLSearchParams, name: string, values: string[]) {

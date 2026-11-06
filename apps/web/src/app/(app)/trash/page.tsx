@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { HomePageClient } from "../../HomePageClient";
+import { LibraryScreen } from "@/screens/LibraryScreen";
 
 export const metadata: Metadata = { title: "Trash" };
 
 export const instant = false;
 
 export default function TrashPage() {
-  return <HomePageClient view="trash" />;
+  return <LibraryScreen view="trash" />;
 }

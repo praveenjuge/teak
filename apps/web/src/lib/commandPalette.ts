@@ -9,7 +9,13 @@ import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
 import { cardTitle } from "./cardTypes";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
-import { type LibraryView, libraryViewForPath } from "./libraryViews";
+import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
+import {
+  LIBRARY_VIEW_PATHS,
+  type LibraryView,
+  libraryViewFlags,
+  libraryViewForPath,
+} from "./libraryViews";
 import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform } from "./platform";
 
@@ -161,34 +167,38 @@ export function isLibraryRoute(pathname: string | null | undefined): boolean {
   );
 }
 
-export function paletteCardHref(
+/** A card opens over the library page it was found from, or over Everything. */
+export const paletteCardHref = (
   cardId: string,
   pathname: string | null | undefined,
   search = ""
-): string {
-  if (!(pathname && isLibraryRoute(pathname))) {
-    return `/?card=${encodeURIComponent(cardId)}`;
-  }
-  const params = new URLSearchParams(search);
-  params.set("card", cardId);
-  return `${pathname}?${params.toString().replace(/%2C/g, ",")}`;
-}
+): string =>
+  pathname && isLibraryRoute(pathname)
+    ? cardHref(cardId, pathname, search)
+    : cardHref(cardId);
+
+/** Searching everything searches the Archive from the Archive. */
+const paletteSearchView = (pathname: string | null | undefined) =>
+  libraryViewFlags(libraryViewForPath(pathname) ?? "all").showArchivedOnly
+    ? "archive"
+    : "all";
 
 export const paletteSearchAllHref = (query: string, pathname?: string | null) =>
-  `${libraryViewForPath(pathname) === "archive" ? "/archive" : "/"}?q=${encodeURIComponent(query.trim())}`;
+  libraryHref(
+    LIBRARY_VIEW_PATHS[paletteSearchView(pathname)],
+    new URLSearchParams({ q: query.trim() })
+  );
 
 export function paletteShuffleHref(
   pathname: string | null | undefined,
   search = ""
 ): string {
-  if (!(pathname && isLibraryRoute(pathname))) {
-    return "/?sort=shuffle";
-  }
-  const params = new URLSearchParams(search);
-  params.delete("card");
-  params.delete("seed");
+  const onLibrary = Boolean(pathname && isLibraryRoute(pathname));
+  const params = onLibrary
+    ? searchWithout(search, CARD_PARAM, "seed")
+    : new URLSearchParams();
   params.set("sort", "shuffle");
-  return `${pathname}?${params.toString().replace(/%2C/g, ",")}`;
+  return libraryHref(onLibrary && pathname ? pathname : "/", params);
 }
 
 export type SettingsDialogTab = "import" | "export";
@@ -207,10 +217,11 @@ export function paletteCardSearchArgs(
   query: string,
   pathname: string | null | undefined
 ) {
-  const view = libraryViewForPath(pathname);
   return {
     searchQuery: query.trim(),
-    ...(view === "archive" ? { showArchivedOnly: true } : {}),
+    ...(paletteSearchView(pathname) === "archive"
+      ? { showArchivedOnly: true }
+      : {}),
   };
 }
 

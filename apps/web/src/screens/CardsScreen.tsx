@@ -120,8 +120,6 @@ const EMPTY_VIEW_COPY: Record<
   trash: { icon: Trash, text: "emptyTrash" },
 };
 
-export type { SearchUrlChange } from "../lib/searchUrlSync";
-
 interface CardsScreenProps {
   addToFolderId?: string;
   composerDraft?: string;

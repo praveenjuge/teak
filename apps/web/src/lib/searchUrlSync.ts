@@ -1,3 +1,4 @@
+import { CARD_PARAM, searchWithout } from "./libraryUrl";
 import {
   comparableSearch,
   isSameSearchUrlState,
@@ -19,11 +20,12 @@ export function searchUrlQuery(
   currentSearch: string,
   openCardId: string | null
 ): string {
-  const params = new URLSearchParams(currentSearch);
-  if (openCardId === null) {
-    params.delete("card");
-  }
-  return serializeSearchUrlState(state, params);
+  return serializeSearchUrlState(
+    state,
+    openCardId === null
+      ? searchWithout(currentSearch, CARD_PARAM)
+      : new URLSearchParams(currentSearch)
+  );
 }
 
 export interface SearchUrlChange {

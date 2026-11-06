@@ -200,11 +200,11 @@ describe("paletteShuffleHref", () => {
 });
 
 test.each([
-  ["/", "/?q=%23design%20site%3Aa.com"],
-  ["/favorites", "/?q=%23design%20site%3Aa.com"],
-  ["/settings", "/?q=%23design%20site%3Aa.com"],
-  [null, "/?q=%23design%20site%3Aa.com"],
-  ["/archive", "/archive?q=%23design%20site%3Aa.com"],
+  ["/", "/?q=%23design+site%3Aa.com"],
+  ["/favorites", "/?q=%23design+site%3Aa.com"],
+  ["/settings", "/?q=%23design+site%3Aa.com"],
+  [null, "/?q=%23design+site%3Aa.com"],
+  ["/archive", "/archive?q=%23design+site%3Aa.com"],
 ] as const)("Search all from %p opens %p", (pathname, expected) => {
   expect(paletteSearchAllHref("  #design site:a.com ", pathname)).toBe(
     expected

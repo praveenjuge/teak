@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cardHref } from "@/lib/libraryUrl";
 
 /**
  * The archived page never runs in Teak's origin: it loads from the files host
@@ -28,8 +29,6 @@ export interface ArchivedCopy {
   host: string;
   url: string;
 }
-
-const cardHref = (cardId: string) => `/?card=${encodeURIComponent(cardId)}`;
 
 export function ArchivedCopyBar({
   capturedAt,
