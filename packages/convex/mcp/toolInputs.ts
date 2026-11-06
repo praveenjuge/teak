@@ -18,6 +18,7 @@ import {
   PUBLIC_API_MAX_BULK_ITEMS,
   PUBLIC_API_MAX_LIMIT,
   SEARCH_MODES,
+  SEARCH_QUERY_HELP,
 } from "../shared/publicApiContract";
 import { MAX_PALETTE_COLORS } from "../shared/utils/colorUtils";
 
@@ -32,12 +33,7 @@ export const cardTypeSchema = z.enum(PUBLIC_API_CARD_TYPES);
 export const confirmSchema = z.literal(true);
 
 export const cardFiltersShape = {
-  q: z
-    .string()
-    .describe(
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Qualifiers combine with the other filters.'
-    )
-    .optional(),
+  q: z.string().describe(SEARCH_QUERY_HELP).optional(),
   similarTo: nonEmptyString
     .describe(
       "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)"

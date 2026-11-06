@@ -12,7 +12,7 @@ The Chrome and Firefox extension saves the current page when its popup opens, sa
 ## How to get to it (user POV)
 
 - Toolbar icon → popup → **Sign in**.
-- Any web page → Alt+Shift+S (⌥⇧S on Mac). Change it at `chrome://extensions/shortcuts` (**Save this page to Teak**) or Firefox's **Manage Extension Shortcuts**.
+- Any web page → Alt+Shift+S (⌥⇧S on Mac). Change it at `chrome://extensions/shortcuts` (**Save this page to Teak**) or Firefox's **Manage Extension Shortcuts**. The shortcut's name follows the browser's language (it comes from `packages/i18n`, `extension.manifest.saveCommand`).
 - Switch tabs, load a page or return to the window, then hover the Teak icon for its tooltip.
 
 ## Driving it with Playwright, Xvfb and xdotool

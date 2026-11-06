@@ -11,13 +11,13 @@ import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
+import { isBareLinkContent } from "../shared/utils/bareLink";
 import {
   buildColorFacets,
   extractPaletteColors,
   MAX_PALETTE_COLORS,
 } from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
-import { urlKey } from "../shared/utils/urlKey";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
@@ -179,21 +179,6 @@ export const trashedDuplicateValidator = v.optional(
   v.union(v.literal("report"), v.literal("restore"))
 );
 export type TrashedDuplicate = Infer<typeof trashedDuplicateValidator>;
-
-export const isBareLinkContent = (content: string, url: string): boolean => {
-  const trimmed = content.trim();
-  if (!trimmed || trimmed === url) {
-    return true;
-  }
-  const extracted = extractUrlFromContent(trimmed);
-  if (!extracted.url || extracted.cleanedContent !== extracted.url) {
-    return false;
-  }
-  return (
-    extracted.url === url ||
-    (urlKey(extracted.url) ?? extracted.url) === (urlKey(url) ?? url)
-  );
-};
 
 export const resolveCreatedCardType = ({
   providedType,

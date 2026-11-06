@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
 import { readIsDevDeployment, readWorkosApiBase } from "../env";
-import { normalizeCardSearchTag } from "../shared/search/searchText";
+import { tagKey } from "../shared/tags";
 import { isWorkosProductionApi } from "../shared/workosApi";
 import { link, SCENARIO_MARKER } from "./helpers";
 
@@ -183,7 +183,7 @@ export const report = internalQuery({
       .withIndex("by_user_tag_deleted_saved", (q) =>
         q
           .eq("userId", owner.teakUserId)
-          .eq("tag", normalizeCardSearchTag(AI_LANGUAGES_TAG))
+          .eq("tag", tagKey(AI_LANGUAGES_TAG))
           .eq("isDeleted", undefined)
       )
       .take(MAX_REPORT_CARDS);

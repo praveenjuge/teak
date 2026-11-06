@@ -79,21 +79,6 @@ export const listCardTombstonesSince = async (
   return { hasMore, rows };
 };
 
-export const deleteCardTombstonesForUserPage = async (
-  ctx: MutationCtx,
-  userId: string,
-  limit = PRUNE_BATCH_SIZE
-): Promise<boolean> => {
-  const rows = await ctx.db
-    .query("cardTombstones")
-    .withIndex("by_userId_and_deletedAt", (q) => q.eq("userId", userId))
-    .take(limit);
-  for (const row of rows) {
-    await ctx.db.delete("cardTombstones", row._id);
-  }
-  return rows.length === limit;
-};
-
 export const pruneExpiredCardTombstones = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

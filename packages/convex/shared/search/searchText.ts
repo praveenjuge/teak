@@ -45,12 +45,6 @@ export const buildCardSearchText = (
     .join("\n");
 };
 
-/**
- * A tag's search key. The same as `tagKey`, kept for the change hook and
- * dev seeds; new code calls `tagKey`.
- */
-export const normalizeCardSearchTag = tagKey;
-
 export const buildCardSearchTags = (
   card: Pick<Doc<"cards">, "tags" | "aiTags">
 ): string[] =>

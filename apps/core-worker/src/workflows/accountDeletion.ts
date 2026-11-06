@@ -11,10 +11,10 @@ import {
 import { VECTOR_DELETE_MAX_IDS } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import {
-  type FilesOpCaller,
-  resolveDeps,
+  type OpCaller,
+  type OpDeps,
+  resolveOpDeps,
   settleConvexErrors,
-  type WorkflowDeps,
   withinBudget,
 } from "./deps";
 import { isMissingInstance, workflowBinding } from "./dispatch";
@@ -58,7 +58,7 @@ interface DeletionBinding {
 }
 
 export const drainStorageBatch = async (
-  { convex, ops }: { convex: ConvexRpc; ops: FilesOpCaller },
+  { convex, ops }: { convex: ConvexRpc; ops: OpCaller },
   binding: DeletionBinding,
   kind: DeletionBatchKind
 ): Promise<boolean> => {
@@ -75,13 +75,13 @@ export const drainStorageBatch = async (
       throw new Error("deletion_upload_abort_failed");
     }
   }
-  const keys = [...new Set(page.keys)];
+  const keys = [...new Set(page.keys as string[])];
   if (keys.length > 0) {
     // Freeze every key before giving up on one, so each pending write's
     // lease starts expiring in the same attempt.
     let pending = false;
     for (const key of keys) {
-      const frozen = await ops<{ frozen: boolean }>({
+      const frozen = await ops({
         op: "freeze-object",
         params: { key },
       });
@@ -109,9 +109,9 @@ export const drainStorageBatch = async (
 
 export const runAccountDeletion = (
   run: WorkflowRun<AccountDeletionParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<null> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { env, step } = run;
   const binding: DeletionBinding = {
     generation: run.params.generation,
