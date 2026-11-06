@@ -176,6 +176,28 @@ describe("card/cardUsage.ts premium sharding", () => {
     }
   });
 
+  test("a billing lookup that fails doesn't refuse a save at the free limit", async () => {
+    const db = makeDb();
+    db.store.userCardUsage.push(saturatedUsage());
+    const ctx = mockMutationCtx({ db });
+    const errors: unknown[][] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      const { hasPremium } = await authorizeCardCreation(ctx, "premium-user", {
+        ...freeDeps(),
+        getSubscription: () => Promise.reject(new Error("Polar is down")),
+      } as CardCreationDeps);
+      expect(hasPremium).toBe(true);
+    } finally {
+      console.error = originalError;
+    }
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0]?.[0])).toContain("[billing]");
+  });
+
   test("free users with an inexact count below the limit are still gated", async () => {
     const db = makeDb();
     db.store.userCardUsage.push({

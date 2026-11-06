@@ -25,7 +25,7 @@ export const initializeCardProcessingState = async (
     return false;
   }
   const now = Date.now();
-  const cardType = (card.type ?? "text") as CardType;
+  const cardType = card.type;
   const awaitingLinkMetadata =
     cardType === "link" &&
     (options.refresh === true ||

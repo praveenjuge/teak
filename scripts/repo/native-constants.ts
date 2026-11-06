@@ -8,7 +8,6 @@
 import {
   bulkCardActionValidator,
   MAX_BULK_CARD_IDS,
-  MAX_BULK_TAGS,
 } from "../../packages/convex/card/bulkActions";
 import {
   CARD_LINK_PATTERN,
@@ -57,6 +56,7 @@ import {
 } from "../../packages/convex/shared/search/suggestionHints";
 import {
   HIDDEN_TAG_KEYS,
+  MAX_BULK_TAGS,
   MAX_TAG_KEY_LENGTH,
   MAX_TAG_NAME_LENGTH,
   TAG_ERROR_MESSAGES,

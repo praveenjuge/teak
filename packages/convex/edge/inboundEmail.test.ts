@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import {
   buildInboundEmailSigningPayload,
@@ -127,6 +128,8 @@ const setup = async (
   beforeOwner?: (t: ReturnType<typeof convexTest>) => Promise<unknown>
 ) => {
   const t = convexTest(schema, modules);
+  // A free account: billing answers that it has no subscription.
+  polarTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   await beforeOwner?.(t);
   const ownerWorkosId = await seedWorkosOwner(t, "owner");

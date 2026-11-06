@@ -1,3 +1,4 @@
+import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -29,6 +30,8 @@ type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
 
 const setup = async () => {
   const t = convexTest(schema, modules);
+  // A free account: billing answers that it has no subscription.
+  polarTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   const workosUserId = await seedWorkosOwner(t, "owner");
   await seedWorkosOwner(t, "stranger");
@@ -335,7 +338,11 @@ describe("bulk actions", () => {
       cardIds: [mine, theirs],
       action: "archive",
     });
-    expect(result).toEqual({ updatedIds: [mine], failedIds: [theirs] });
+    expect(result).toEqual({
+      updatedIds: [mine],
+      failedIds: [theirs],
+      failures: [{ cardId: theirs, code: "NOT_FOUND" }],
+    });
     const card = await t.run((ctx) => ctx.db.get("cards", theirs));
     expect(card?.isArchived).toBeUndefined();
   });
@@ -358,7 +365,11 @@ describe("bulk actions", () => {
       action: "addTags",
       tags: ["later"],
     });
-    expect(result).toEqual({ updatedIds: [roomy], failedIds: [crowded] });
+    expect(result).toEqual({
+      updatedIds: [roomy],
+      failedIds: [crowded],
+      failures: [{ cardId: crowded, code: "INVALID_INPUT" }],
+    });
     const [roomyCard, crowdedCard] = await t.run((ctx) =>
       Promise.all([ctx.db.get("cards", roomy), ctx.db.get("cards", crowded)])
     );
@@ -400,7 +411,11 @@ describe("bulk actions", () => {
       cardIds: [cardId],
       action: "delete",
     });
-    expect(result).toEqual({ updatedIds: [], failedIds: [cardId] });
+    expect(result).toEqual({
+      updatedIds: [],
+      failedIds: [cardId],
+      failures: [{ cardId, code: "INTERNAL" }],
+    });
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.isDeleted).toBeUndefined();
     expect(card?.deletedAt).toBeUndefined();
@@ -497,7 +512,11 @@ describe("bulk actions", () => {
       cardIds: [trashed],
       action: "restore",
     });
-    expect(result).toEqual({ updatedIds: [], failedIds: [trashed] });
+    expect(result).toEqual({
+      updatedIds: [],
+      failedIds: [trashed],
+      failures: [{ cardId: trashed, code: "CARD_LIMIT_REACHED" }],
+    });
     const card = await t.run((ctx) => ctx.db.get("cards", trashed));
     expect(card?.isDeleted).toBe(true);
     expect(await t.run((ctx) => getActiveCardCount(ctx, "owner"))).toBe(200);

@@ -91,15 +91,18 @@ export const getCardQuotaEntitlement = async (
   if (readBillingDisabled()) {
     return true;
   }
-  let hasPremium = false;
   try {
-    hasPremium = isApprovedActiveSubscription(
+    return isApprovedActiveSubscription(
       await deps.getSubscription(ctx, { userId })
     );
-  } catch {
-    hasPremium = false;
+  } catch (error) {
+    // A billing outage must not refuse a paying user's save, so a failed
+    // lookup counts as Pro until it answers again.
+    console.error("[billing] subscription lookup failed; allowing the save", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return true;
   }
-  return hasPremium;
 };
 
 export const authorizeCardCreation = async (
