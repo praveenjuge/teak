@@ -194,11 +194,15 @@ export const buildDevCommand = (
   ];
 };
 
-const runningStack = (): StackState | null => currentStack(ROOT).state;
+const runningStack = (): StackState | null => {
+  const { phase, state } = currentStack(ROOT);
+  return phase === "gone" ? null : state;
+};
 
 const stopOrphans = async () => {
   if (await stopOrphanedStack(ROOT)) {
-    console.log("Cleaned up a stack left behind by a process that exited.");
+    // stderr, so `--status --json` keeps stdout to the JSON report.
+    console.error("Cleaned up a stack left behind by a process that exited.");
   }
 };
 
@@ -242,18 +246,24 @@ const describeRunning = (running: StackState): string[] => {
 
 /**
  * What `bun run dev --status --json` prints: this checkout's ports and, while
- * one runs, its stack as recorded in .agents/.state/stack.json. Scripts and
- * workflows read this instead of parsing the file.
+ * one runs, its stack as recorded in .agents/.state/stack.json, without the
+ * account's password (CI logs this output; the password stays in the file).
+ * Scripts and workflows read this instead of parsing the file.
  */
 export const statusReport = (
   ports: WorktreePorts,
   current: { phase: StackPhase; state: StackState | null }
-) => ({
-  checkout: ports.namespace,
-  phase: current.phase,
-  ports,
-  stack: current.phase === "gone" ? null : current.state,
-});
+) => {
+  const stack = current.phase === "gone" ? null : current.state;
+  return {
+    checkout: ports.namespace,
+    phase: current.phase,
+    ports,
+    stack: stack?.account
+      ? { ...stack, account: { email: stack.account.email } }
+      : stack,
+  };
+};
 
 // The E2E workflow waited this long for a cold stack before --wait existed.
 const STATUS_WAIT_MS = 360_000;

@@ -120,11 +120,13 @@ describe("repo hygiene", () => {
 
   test("a package both pinned in overrides and in the catalog has one version", () => {
     const { catalog = {}, overrides = {} } = rootManifest();
-    const differing = Object.entries(overrides)
-      .filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === "string" && entry[0] in catalog
-      )
+    // A nested override (`"miniflare": { "undici": "…" }`) pins its package too.
+    const pins = (tree: object): [string, string][] =>
+      Object.entries(tree).flatMap(([name, value]): [string, string][] =>
+        typeof value === "string" ? [[name, value]] : pins(value)
+      );
+    const differing = pins(overrides)
+      .filter(([name]) => name in catalog)
       .filter(([name, version]) => catalog[name] !== version)
       .map(([name, version]) => `${name}: ${catalog[name]} vs ${version}`);
     expect(differing).toEqual([]);

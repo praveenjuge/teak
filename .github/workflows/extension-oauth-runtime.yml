@@ -26,6 +26,8 @@ on:
       - apps/web/src/components/settings/SecurityConnections.tsx
       - packages/tests/package.json
       - bun.lock
+      - package.json
+      - .github/actions/setup-bun/action.yml
       - .github/workflows/extension-oauth-runtime.yml
   push:
     branches: [main]

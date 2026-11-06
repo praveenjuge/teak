@@ -90,6 +90,19 @@ describe("Extension OAuth Runtime paths", () => {
     expect(uncovered(files, paths)).toEqual([]);
   });
 
+  test("cover the local actions the workflow runs", () => {
+    const text = readFileSync(
+      join(ROOT, ".github/workflows/extension-oauth-runtime.yml"),
+      "utf8"
+    );
+    const actions = [...text.matchAll(/uses: \.\/(\S+)/g)].map(
+      (match) => `${match[1]}/action.yml`
+    );
+    expect(actions.length).toBeGreaterThan(0);
+    // setup-bun reads the pinned Bun and Node versions from the root manifest.
+    expect(uncovered([...actions, "package.json"], paths)).toEqual([]);
+  });
+
   test("an uncovered import is reported", () => {
     expect(
       uncovered(["apps/extension/lib/a.ts", "scripts/lib/b.ts"], paths)

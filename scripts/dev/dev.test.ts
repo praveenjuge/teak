@@ -455,6 +455,15 @@ describe("statusReport", () => {
     });
   });
 
+  test("names the account but leaves its password in the state file", () => {
+    const report = statusReport(ports, {
+      phase: "ready",
+      state: { ...recorded, account: { email: "a@b.test", password: "pw" } },
+    });
+    expect(report.stack?.account).toEqual({ email: "a@b.test" });
+    expect(JSON.stringify(report)).not.toContain("pw");
+  });
+
   test("leaves out a stack whose owner is gone", () => {
     expect(
       statusReport(ports, { phase: "gone", state: recorded }).stack
