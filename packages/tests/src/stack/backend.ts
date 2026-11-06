@@ -1,20 +1,20 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readConvexSelection } from "../../../../scripts/dev/capabilities.ts";
+import { readConvexSelection } from "@teak/scripts/dev/capabilities";
 import {
   DEV_DEPLOYMENT,
   isLocalSelection,
   writeConvexSelection,
-} from "../../../../scripts/dev/dev-deployment.ts";
-import { runCommand } from "../../../../scripts/dev/proc.ts";
+} from "@teak/scripts/dev/dev-deployment";
+import { runCommand } from "@teak/scripts/dev/proc";
 import {
   isPortInUse,
   type WorktreePorts,
-} from "../../../../scripts/dev/worktree-env.ts";
-import { readDotenvFile } from "../../../../scripts/env/env-loader.ts";
-import { listDeploymentVars } from "../../../../scripts/setup/setup-convex.ts";
-import { isMachineLocalValue } from "../../../../scripts/setup/setup-derived-env.ts";
+} from "@teak/scripts/dev/worktree-env";
+import { readDotenvFile } from "@teak/scripts/env/env-loader";
+import { listDeploymentVars } from "@teak/scripts/setup/setup-convex";
+import { isMachineLocalValue } from "@teak/scripts/setup/setup-derived-env";
 import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
 import { emulatorDeploymentVars } from "./config";
 import { coreWorkerDeploymentVars } from "./coreWorker";

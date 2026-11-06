@@ -6,26 +6,27 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { sanitizeAscOutput } from "./apple-release-issue.ts";
+import { type ReleaseIssue, sanitizeAscOutput } from "./apple-release-issue.ts";
+import { githubWorkflowUrl, parseArguments, required } from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
 
-export function issueTitle(version) {
+export function issueTitle(version: string) {
   parseVersion(version);
   return `Android release v${version}`;
 }
 
-function workflowUrl(value) {
-  const url = new URL(value);
-  if (url.protocol !== "https:" || url.hostname !== "github.com") {
-    throw new Error("Workflow URL must be an https://github.com URL.");
-  }
-  return url.toString();
-}
-
-export function failureBody({ version, url, error }) {
+export function failureBody({
+  version,
+  url,
+  error,
+}: {
+  error: string;
+  url: string | undefined;
+  version: string;
+}) {
   return `The Google Play release for v${version} failed.
 
-- Workflow: ${workflowUrl(url)}
+- Workflow: ${githubWorkflowUrl(url)}
 
 What Play or the workflow said (redacted):
 
@@ -40,7 +41,7 @@ gh workflow run android-release.yml --ref main -f version=${version} -f dry_run=
 \`\`\``;
 }
 
-function gh(args) {
+function gh(args: string[]) {
   const result = spawnSync("gh", args, { encoding: "utf8", env: process.env });
   if (result.status !== 0) {
     throw new Error(result.stderr.trim() || `gh ${args[0]} failed.`);
@@ -48,9 +49,9 @@ function gh(args) {
   return result.stdout;
 }
 
-function findIssue(version) {
+function findIssue(version: string): ReleaseIssue | undefined {
   const title = issueTitle(version);
-  const issues = JSON.parse(
+  const issues: ReleaseIssue[] = JSON.parse(
     gh([
       "issue",
       "list",
@@ -67,16 +68,9 @@ function findIssue(version) {
 
 function main() {
   const [command, ...args] = process.argv.slice(2);
-  const values = {};
-  for (let index = 0; index < args.length; index += 2) {
-    if (!(args[index]?.startsWith("--") && args[index + 1] !== undefined)) {
-      throw new Error(
-        `Invalid argument near ${args[index] ?? "end of command"}.`
-      );
-    }
-    values[args[index].slice(2)] = args[index + 1];
-  }
-  const issue = findIssue(values.version);
+  const values = parseArguments(args);
+  const version = required(values.version, "version");
+  const issue = findIssue(version);
   if (command === "failure") {
     const errorFile = values["error-file"];
     const error =
@@ -84,20 +78,13 @@ function main() {
         ? fs.readFileSync(errorFile, "utf8")
         : "";
     const body = failureBody({
-      version: values.version,
+      version,
       url: values["workflow-url"],
       error,
     });
     if (!issue) {
       process.stdout.write(
-        gh([
-          "issue",
-          "create",
-          "--title",
-          issueTitle(values.version),
-          "--body",
-          body,
-        ])
+        gh(["issue", "create", "--title", issueTitle(version), "--body", body])
       );
       return;
     }
@@ -115,7 +102,7 @@ function main() {
         "close",
         String(issue.number),
         "--comment",
-        `Submitted to Google Play by ${workflowUrl(values["workflow-url"])}.`,
+        `Submitted to Google Play by ${githubWorkflowUrl(values["workflow-url"])}.`,
       ]);
     }
     return;

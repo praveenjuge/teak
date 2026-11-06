@@ -23,6 +23,14 @@ const writeManifest = (path: string, version: string): void => {
   writeFileSync(path, `${JSON.stringify({ name: "x", version })}\n`);
 };
 
+const writeRootManifest = (root: string, version: string): void => {
+  mkdirSync(root, { recursive: true });
+  writeFileSync(
+    join(root, "package.json"),
+    `${JSON.stringify({ name: "teak", version, workspaces: ["apps/*", "packages/*"] })}\n`
+  );
+};
+
 const appleSafariManifest =
   "apps/apple/SafariExtension/Resources/manifest.json";
 const appleProjectYml = (version: string) =>
@@ -109,7 +117,7 @@ describe("resolveBump", () => {
 describe("updateManifestVersions", () => {
   test("updates every tracked manifest to the target version", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-release-"));
-    writeManifest(join(root, "package.json"), "1.0.65");
+    writeRootManifest(root, "1.0.65");
     writeManifest(join(root, "apps/web/package.json"), "1.0.65");
     writeManifest(join(root, "packages/sdk/package.json"), "1.0.64");
     writeAppleSources(root, "1.0.65");
@@ -131,7 +139,7 @@ describe("updateManifestVersions", () => {
 
   test("skips manifests already at the target version", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-release-"));
-    writeManifest(join(root, "package.json"), "1.0.66");
+    writeRootManifest(root, "1.0.66");
     mkdirSync(join(root, "apps"), { recursive: true });
     mkdirSync(join(root, "packages"), { recursive: true });
     writeAppleSources(root, "1.0.66");

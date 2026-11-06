@@ -82,8 +82,9 @@ bun run build:extension  # Package Chrome extension
 bun run build:raycast    # Build Raycast extension
 
 bun run lint && bun run typecheck
-bun run test             # Unit tests (turbo; test:unit / test:edge for Convex splits)
-bun run verify           # typecheck + lint + test (affected)
+bun run test             # Every workspace's unit tests and the repo checks in scripts/ (turbo)
+bun run verify           # typecheck + lint + test for what this branch changed (turbo --affected)
+bun run verify:all       # typecheck + lint + test in every workspace
 bun run --cwd packages/tests e2e # The end-to-end suite, on its own local stack
 
 bun run check            # Quality report (Ultracite)

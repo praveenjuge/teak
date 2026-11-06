@@ -2,13 +2,13 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveWorktree } from "../../../../scripts/dev/worktree-env.ts";
+import { resolveWorktree } from "@teak/scripts/dev/worktree-env";
 import {
   isStackRunning,
   readStackState,
   type StackUrls,
-} from "../../../../scripts/lib/stack-state.ts";
-import { prepareCheckout } from "../../../../scripts/setup/setup.ts";
+} from "@teak/scripts/lib/stack-state";
+import { prepareCheckout } from "@teak/scripts/setup/setup";
 import { localBackendEnv, setupBackend } from "../stack/backend";
 import { seedLocalDevAccount } from "../stack/devAccount";
 import { type RunningStack, STACK_LOG_PATH, startStack } from "../stack/stack";

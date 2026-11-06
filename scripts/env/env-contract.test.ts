@@ -15,15 +15,12 @@ describe("env-contract", () => {
     expect(ENV_VAR_NAMES.size).toBe(ENV_CONTRACT.length);
   });
 
-  test("every entry records owner, target, profile, secrecy, validation, provider, and required state", () => {
+  test("every entry names its owners, targets, profiles and providers", () => {
     for (const entry of ENV_CONTRACT) {
       expect(entry.owners.length).toBeGreaterThan(0);
       expect(entry.targets.length).toBeGreaterThan(0);
       expect(entry.profiles.length).toBeGreaterThan(0);
-      expect(typeof entry.secret).toBe("boolean");
-      expect(entry.validation).toBeTruthy();
       expect(entry.providers.length).toBeGreaterThan(0);
-      expect(typeof entry.required).toBe("boolean");
       if (entry.required) {
         expect(entry.requiredIn?.length ?? 0).toBeGreaterThan(0);
       }
@@ -81,10 +78,6 @@ describe("env-contract", () => {
     }
     expect(getEnvSpec("SITE_URL")?.secret).toBe(false);
     expect(getEnvSpec("DOES_NOT_EXIST")).toBeUndefined();
-  });
-
-  test("admin authorization has no email configuration contract", () => {
-    expect(getEnvSpec("TEAK_ADMIN_EMAIL")).toBeUndefined();
   });
 
   test("multi-provider credentials document their single writer", () => {

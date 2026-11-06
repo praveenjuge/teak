@@ -101,7 +101,7 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.refresh": (c) => c.cards.refresh("card_1"),
     "cards.resetThumbnail": (c) => c.cards.resetThumbnail("card_1"),
     "cards.restore": (c) => c.cards.restore("card_1"),
-    "cards.search": (c) => c.cards.search({ q: "x" }),
+    "cards.search": (c) => c.cards.search({ query: "x" }),
     "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
     "cards.savePdf": (c) => c.cards.savePdf("card_1"),
     "cards.setDone": (c) => c.cards.setDone("card_1", true),
@@ -226,7 +226,7 @@ describe("public surface parity", () => {
       )?.[0];
       expect({ tool: tool.name, reached: await mcpOperations(tool) }).toEqual({
         tool: tool.name,
-        reached: [operationId],
+        reached: [operationId ?? "(no catalog operation)"],
       });
     }
   });

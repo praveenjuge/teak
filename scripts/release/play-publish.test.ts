@@ -7,6 +7,7 @@ import {
   genericReleaseNotes,
   limits,
   loadConfig,
+  type PlayClient,
   playClient,
   publish,
   readProof,
@@ -17,9 +18,23 @@ import {
   versionCodeFor,
 } from "./play-publish.ts";
 
+interface FakeRelease {
+  name?: string;
+  releaseNotes?: { language: string; text: string }[];
+  status: string;
+  versionCodes: string[];
+}
+
+interface FakeBundle {
+  sha256: string;
+  versionCode: number;
+}
+
+type ImageHashes = Record<string, { id?: string; sha256: string }[]>;
+
 const repoRoot = path.resolve(import.meta.dir, "../..");
 const config = loadConfig(repoRoot);
-const imageHashes = Object.fromEntries(
+const imageHashes: ImageHashes = Object.fromEntries(
   config.imageSets.map(({ type, files }) => [
     type,
     files.map((file) => ({ id: file, sha256: sha256(fs.readFileSync(file)) })),
@@ -32,23 +47,28 @@ function fakePlay({
   bundles = [],
   listing = config.listing,
   images = imageHashes,
+}: {
+  bundles?: FakeBundle[];
+  images?: ImageHashes;
+  listing?: typeof config.listing;
+  production?: FakeRelease[];
 } = {}) {
   const state = {
-    tracks: { production, internal: [] },
+    tracks: { production, internal: [] } as Record<string, FakeRelease[]>,
     bundles: [...bundles],
     listing: { ...listing },
     images: structuredClone(images),
-    calls: [],
-    committed: [],
-    deleted: [],
+    calls: [] as string[],
+    committed: [] as { behavior: string | null; edit: string }[],
+    deleted: [] as string[],
   };
   let edits = 0;
-  const json = (body, status = 200, headers = {}) =>
+  const json = (body: unknown, status = 200, headers = {}) =>
     new Response(JSON.stringify(body), {
       status,
       headers: { "Content-Type": "application/json", ...headers },
     });
-  const respond = (input, init = {}) => {
+  const respond = (input: string | URL | Request, init: RequestInit = {}) => {
     const url = new URL(String(input));
     const method = init.method ?? "GET";
     const route = url.pathname.replace(
@@ -100,13 +120,13 @@ function fakePlay({
     const track = /^\/tracks\/(\w+)$/.exec(rest)?.[1];
     if (track) {
       if (method === "PUT") {
-        state.tracks[track] = JSON.parse(init.body).releases;
+        state.tracks[track] = JSON.parse(String(init.body)).releases;
       }
       return json({ track, releases: state.tracks[track] });
     }
     if (rest === "/listings/en-US") {
       if (method === "PATCH") {
-        state.listing = JSON.parse(init.body);
+        state.listing = JSON.parse(String(init.body));
       }
       return json(state.listing);
     }
@@ -127,14 +147,18 @@ function fakePlay({
       404
     );
   };
-  const fetch = (input, init) => Promise.resolve(respond(input, init));
+  const fetch = (input: string | URL | Request, init?: RequestInit) =>
+    Promise.resolve(respond(input, init));
   return {
     state,
     client: playClient({ token: "t", packageName: config.packageName, fetch }),
   };
 }
 
-const run = (client, overrides = {}) =>
+const run = (
+  client: PlayClient,
+  overrides: Partial<Parameters<typeof publish>[0]> = {}
+) =>
   publish({
     client,
     config,
@@ -150,7 +174,11 @@ const run = (client, overrides = {}) =>
 describe("Play store config", () => {
   test("the committed config fits Play's limits and every image exists", () => {
     expect(config.packageName).toBe("com.praveenjuge.teak");
-    for (const field of ["title", "shortDescription", "fullDescription"]) {
+    for (const field of [
+      "title",
+      "shortDescription",
+      "fullDescription",
+    ] as const) {
       expect(config.listing[field].length).toBeLessThanOrEqual(limits[field]);
     }
     expect(config.imageSets.map(({ type }) => type)).toEqual([
@@ -266,7 +294,7 @@ describe("Play publish", () => {
     const play = fakePlay();
     const result = await run(play.client);
     expect(result.listingChanges).toEqual([]);
-    expect(Object.values(result.images)).toEqual([
+    expect(Object.values(result.images as Record<string, string>)).toEqual([
       "unchanged",
       "unchanged",
       "unchanged",
@@ -289,7 +317,9 @@ describe("Play publish", () => {
     const result = await run(play.client);
     expect(result.listingChanges).toEqual(["title"]);
     expect(play.state.listing.title).toBe(config.listing.title);
-    expect(result.images.phoneScreenshots).toBe("replaced");
+    expect((result.images as Record<string, string>).phoneScreenshots).toBe(
+      "replaced"
+    );
     expect(play.state.images.phoneScreenshots).toHaveLength(5);
   });
 
@@ -338,7 +368,7 @@ describe("Play sign-in", () => {
   });
   const serviceAccount = {
     client_email: "teak-play-publisher@example.iam.gserviceaccount.com",
-    private_key: privateKey.export({ type: "pkcs8", format: "pem" }),
+    private_key: String(privateKey.export({ type: "pkcs8", format: "pem" })),
     token_uri: "https://oauth2.googleapis.com/token",
   };
 

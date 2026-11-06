@@ -30,8 +30,6 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Format and lint (Biome)
         run: bun run check
-      - name: Lint backend identity boundary
-        run: bun run --cwd packages/convex lint
       - name: Audit env contract
         run: bun run audit:env
       - name: Check generated Worker types

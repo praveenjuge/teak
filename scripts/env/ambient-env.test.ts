@@ -34,7 +34,11 @@ const runBun = (
   // Start clean: the probe name must not leak in from the parent shell.
   // Pin NODE_ENV=development because `bun test` sets NODE_ENV=test, under
   // which Bun skips `.env.local` (the file our commands must ignore).
-  const env = { ...process.env, NODE_ENV: "development", ...extraEnv };
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    NODE_ENV: "development",
+    ...extraEnv,
+  };
   if (!extraEnv[POISON_NAME]) {
     delete env[POISON_NAME];
   }

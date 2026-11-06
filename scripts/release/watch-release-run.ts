@@ -1,13 +1,23 @@
-import { spawnSync } from "node:child_process";
+import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+type Execute = (
+  command: string,
+  args: string[],
+  options: {
+    encoding: "utf8";
+    maxBuffer: number;
+    stdio: ["ignore", "inherit", "pipe"];
+  }
+) => Pick<SpawnSyncReturns<string>, "error" | "status" | "stderr" | "stdout">;
+
 export async function watchReleaseRun(
-  repository,
-  runId,
+  repository: string,
+  runId: string,
   {
-    execute = spawnSync,
-    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
-  } = {}
+    execute = spawnSync as Execute,
+    wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
+  }: { execute?: Execute; wait?: (ms: number) => Promise<void> } = {}
 ) {
   if (
     !(

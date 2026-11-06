@@ -2,7 +2,19 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "env": ["SITE_URL"]
+      "env": ["SITE_URL"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/backend-deploy.yml",
+        "$TURBO_ROOT$/apps/android/core/model/src/main/kotlin/com/praveenjuge/teak/core/model/SharedConstants.kt",
+        "$TURBO_ROOT$/apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json",
+        "$TURBO_ROOT$/apps/core-worker/assets/onboarding/**",
+        "$TURBO_ROOT$/apps/core-worker/src/**",
+        "$TURBO_ROOT$/apps/core-worker/wrangler.jsonc",
+        "$TURBO_ROOT$/apps/core-worker/development/wrangler.jsonc",
+        "$TURBO_ROOT$/apps/core-worker/self-host/wrangler.jsonc",
+        "$TURBO_ROOT$/apps/docs/content/docs/*/api.mdx"
+      ]
     }
   }
 }

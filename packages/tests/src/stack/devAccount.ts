@@ -2,11 +2,8 @@ import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { api } from "@teak/convex";
-import type {
-  StackState,
-  StackUrls,
-} from "../../../../scripts/lib/stack-state.ts";
-import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
+import type { StackState, StackUrls } from "@teak/scripts/lib/stack-state";
+import { waitForTeakAccount } from "@teak/scripts/lib/teak-account";
 import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "./config";
 
 // The account `bun run dev --local` signs in with: made on the WorkOS

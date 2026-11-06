@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { slotPorts } from "@teak/scripts/dev/worktree-env";
 import deployed from "../../../../apps/core-worker/wrangler.jsonc";
-import { slotPorts } from "../../../../scripts/dev/worktree-env.ts";
 import { coreWorkerOrigin } from "./config";
 import { coreWorkerConfigs } from "./coreWorker";
 

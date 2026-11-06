@@ -1,6 +1,6 @@
 # Shared release preparation
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-06
 
 Every Teak product release starts from one next-patch version change. The
 preferred path is one command from the repository root:
@@ -9,7 +9,9 @@ preferred path is one command from the repository root:
 bun run release:prepare <version>
 ```
 
-It validates the next patch, updates every tracked `package.json`, the Safari
+It validates the next patch, updates the root `package.json` and every
+workspace's (each one the root `workspaces` lists, private ones included,
+since every package moves in lockstep), the Safari
 WebExtension manifest, the MCP registry's `server.json`, the Claude plugin's
 `plugins/teak/.claude-plugin/plugin.json`, and the Apple app's
 marketing version, synchronizes
@@ -32,7 +34,7 @@ The preparation is complete when the working tree contains the intended version-
 
 Keep published version tags immutable. The `Version Tag` workflow creates the tag after the version change reaches `main`; do not create or move it manually during the normal release path.
 
-Release scripts that workflows run with plain `node`, often before Bun is installed (`scripts/release/release-version.ts`, `apple-*`, `sdk-release`, `watch-release-run`), are dependency-free TypeScript that Node runs directly (type stripping, so only erasable syntax and `.ts` import extensions). Every job that runs one sets up the pinned Node from `package.json` first; `scripts/release/package.json` marks the folder as ES modules. Every other script in `scripts/` runs with Bun.
+Release scripts that workflows run with plain `node`, often before Bun is installed (`scripts/release/release-version.ts`, `apple-*`, `sdk-release`, `watch-release-run`), are dependency-free TypeScript that Node runs directly (type stripping, so only erasable syntax and `.ts` import extensions). Every job that runs one sets up the pinned Node from `package.json` first; `scripts/package.json` (the `@teak/scripts` workspace, typechecked by its `typecheck` task) marks the folder as ES modules. Every other script in `scripts/` runs with Bun.
 
 ## CLI
 
