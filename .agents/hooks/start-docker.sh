@@ -23,5 +23,6 @@ for _ in $(seq 1 30); do
   fi
   sleep 1
 done
-printf 'Docker did not start; Containers stay unavailable to wrangler dev. See %s.\n' "$log" >&2
+# Stdout reaches the agent (the SessionStart hook's context).
+printf 'Warning: Docker did not start, so Containers stay unavailable to wrangler dev. See %s.\n' "$log"
 exit 0

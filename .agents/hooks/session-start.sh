@@ -21,8 +21,13 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
     [[ "${CONVEX_DEPLOY_KEY:-}" == dev:* && ! -f apps/web/.env.local ]]; then
     # The cached snapshot predates this checkout's bun.lock, or the setup
     # script ran without the environment's secrets (it always does) and so
-    # never wired the checkout to the dev deployment. About 15 seconds.
-    .agents/setup --session >&2 || true
+    # never wired the checkout to the dev deployment. About 15 seconds. A
+    # failure doesn't stop the session, but the agent hears about it.
+    mkdir -p .agents/.state
+    setup_log=.agents/.state/session-setup.log
+    if ! .agents/setup --session 2>&1 | tee "$setup_log" >&2; then
+      printf 'Warning: .agents/setup --session failed, so packages or the dev deployment wiring may be stale; see %s and run it again before bun run dev.\n' "$setup_log"
+    fi
   fi
   # A cold typecheck takes about three minutes, so fill the Turbo cache in the
   # background, once per VM, rather than make setup wait for it.
@@ -40,6 +45,8 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   # Playwright prune the image's own.
   if [[ -d "$browsers" && -d /opt/pw-browsers && -w /opt/pw-browsers ]]; then
     for build in "$browsers"/*/; do
+      # An empty directory leaves the pattern itself; never link that.
+      [[ -d "$build" ]] || continue
       build="${build%/}"
       [[ -e "/opt/pw-browsers/${build##*/}" ]] || ln -s "$build" "/opt/pw-browsers/${build##*/}"
     done
@@ -63,8 +70,10 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   fi
   # The image ships Docker without running it; the Core Worker's Containers
   # need it (development.mdx, "Cloud sessions in detail"). Processes aren't cached with the
-  # setup script's snapshot, so start it each session.
-  .agents/hooks/start-docker.sh || true
+  # setup script's snapshot, so start it each session. It never fails the
+  # session and says on stdout when Docker didn't start.
+  .agents/hooks/start-docker.sh ||
+    printf 'Warning: .agents/hooks/start-docker.sh failed; Containers are unavailable to wrangler dev.\n'
   # Image builds that download fail on the proxy's certificate; wrangler dev
   # builds the Containers through a docker that adds its CA to local images.
   if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
