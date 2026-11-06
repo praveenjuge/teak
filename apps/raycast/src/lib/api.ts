@@ -153,14 +153,19 @@ const fetchWithLoopbackFallback = (async (
   }
 }) as typeof fetch;
 
-const tokenProviderFor = (auth: AuthMode): TokenProvider => {
-  let source: "apiKey" | "oauth" | undefined;
+type CredentialSource = "apiKey" | "oauth";
+
+const tokenProviderFor = (
+  auth: AuthMode,
+): TokenProvider & { source: () => CredentialSource | undefined } => {
+  let source: CredentialSource | undefined;
   const throwDiscoveryAsNetwork = (error: unknown): never => {
     throw error instanceof TeakDiscoveryError
       ? new RaycastApiError("NETWORK_ERROR")
       : error;
   };
   return {
+    source: () => source,
     getAccessToken: async () => {
       const apiKey = grandfatheredApiKey();
       if (apiKey) {
@@ -172,7 +177,7 @@ const tokenProviderFor = (auth: AuthMode): TokenProvider => {
         auth === "silent" ? getStoredTeakAccessToken() : authorizeTeak()
       ).catch(throwDiscoveryAsNetwork);
       if (!accessToken) {
-        throw new RaycastApiError("INVALID_API_KEY", 401);
+        throw new RaycastApiError("SIGN_IN_REQUIRED", 401);
       }
       return accessToken;
     },
@@ -183,11 +188,15 @@ const tokenProviderFor = (auth: AuthMode): TokenProvider => {
   };
 };
 
-const raycastCodeFor = (error: TeakApiError): RaycastApiErrorCode => {
+const raycastCodeFor = (
+  error: TeakApiError,
+  source: CredentialSource | undefined,
+): RaycastApiErrorCode => {
   switch (error.status) {
     case 401:
-      // A missing, expired or revoked credential: the user signs in again.
-      return "INVALID_API_KEY";
+      // A missing, expired or revoked credential: an API key is replaced in
+      // preferences, a browser sign-in is done again.
+      return source === "oauth" ? "SIGN_IN_REQUIRED" : "INVALID_API_KEY";
     case 404:
       return toErrorCode(error.code, "NOT_FOUND");
     case 429:
@@ -197,7 +206,10 @@ const raycastCodeFor = (error: TeakApiError): RaycastApiErrorCode => {
   }
 };
 
-const toRaycastError = (error: unknown): unknown => {
+const toRaycastError = (
+  error: unknown,
+  source: CredentialSource | undefined,
+): unknown => {
   if (!(error instanceof TeakApiError)) {
     return error;
   }
@@ -207,7 +219,7 @@ const toRaycastError = (error: unknown): unknown => {
   if (error.code === "PARSE_ERROR" && (error.status ?? 0) < 400) {
     return new RaycastApiError("REQUEST_FAILED", error.status);
   }
-  const code = raycastCodeFor(error);
+  const code = raycastCodeFor(error, source);
   logApiRequestFailure({
     code,
     message: error.message,
@@ -221,18 +233,18 @@ const withClient = async <T>(
   auth: AuthMode,
   call: (client: TeakClient) => Promise<T>,
 ): Promise<T> => {
+  const tokenProvider = tokenProviderFor(auth);
   const client = createTeakClient({
-    // The SDK adds the `/v1` prefix itself.
-    baseUrl: getApiBaseUrl().replace(/\/v1$/, ""),
+    baseUrl: getApiBaseUrl(),
     fetch: fetchWithLoopbackFallback,
     timeoutMs: getRequestTimeoutMs(),
-    tokenProvider: tokenProviderFor(auth),
+    tokenProvider,
     userAgent: "teak-raycast",
   });
   try {
     return await call(client);
   } catch (error) {
-    throw toRaycastError(error);
+    throw toRaycastError(error, tokenProvider.source());
   }
 };
 

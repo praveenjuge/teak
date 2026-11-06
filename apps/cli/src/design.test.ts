@@ -127,7 +127,7 @@ describe("errors", () => {
   test("the sign-in step isn't said twice", () => {
     const report = describeError(new TeakApiError("AUTH_REQUIRED"), context);
     expect(report.next).toContain("teak login");
-    expect(formatErrorText(report)).toBe(report.message);
+    expect(formatErrorText(report).split("teak login")).toHaveLength(2);
   });
 
   test("a usage error is USAGE and points at the command's help", () => {

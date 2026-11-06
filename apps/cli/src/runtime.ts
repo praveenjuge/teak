@@ -12,7 +12,6 @@ import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
-import { CommanderError, InvalidArgumentError } from "commander";
 import {
   type AuthDiscovery,
   createConnectAuthorizeUrl,
@@ -32,7 +31,12 @@ import {
   type TokenProvider,
 } from "teak-sdk";
 import { credentialLockPath, withCredentialLock } from "./credentialLock";
-import { describeError, type ErrorContext, formatErrorText } from "./errors";
+import {
+  describeError,
+  type ErrorContext,
+  formatErrorText,
+  isUsage,
+} from "./errors";
 import { isInteractive } from "./mode";
 
 const readPackageVersion = () => {
@@ -612,29 +616,19 @@ export const writeError = (
 };
 
 export const exitCodeFor = (error: unknown) => {
-  if (
-    error instanceof InvalidArgumentError ||
-    (error instanceof CommanderError && error.exitCode !== 0)
-  ) {
+  if (isUsage(error)) {
     return EXIT.usage;
   }
-  if (!(error instanceof TeakApiError)) {
-    return EXIT.api;
+  switch (error instanceof TeakApiError ? error.kind : undefined) {
+    case "auth":
+      return EXIT.auth;
+    case "not_found":
+      return EXIT.notFound;
+    case "rate_limited":
+      return EXIT.rateLimited;
+    default:
+      return EXIT.api;
   }
-  if (
-    error.code === "AUTH_REQUIRED" ||
-    error.code === "UNAUTHORIZED" ||
-    error.code === "INVALID_API_KEY"
-  ) {
-    return EXIT.auth;
-  }
-  if (error.code === "NOT_FOUND" || error.code === "NO_CONTENT") {
-    return EXIT.notFound;
-  }
-  if (error.code === "RATE_LIMITED") {
-    return EXIT.rateLimited;
-  }
-  return EXIT.api;
 };
 
 // Not `cmd /c start` on Windows: cmd reads the `&` between query parameters

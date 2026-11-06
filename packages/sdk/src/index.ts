@@ -42,13 +42,13 @@ import {
   type SearchMode as ContractSearchMode,
   PUBLIC_API_CARD_SORTS,
   PUBLIC_API_DEFAULT_LIMIT,
-  PUBLIC_API_ERROR_CODES,
   PUBLIC_API_MAX_LIMIT,
   type PublicApiOperationId,
   publicApiOperationSpec,
   publicApiPath,
   publicApiPathParams,
 } from "@teak/convex/shared/publicApiContract";
+import { errorFromResponse, isObject, TeakApiError } from "./errors";
 
 export type { CardType } from "@teak/convex/shared/constants";
 export {
@@ -57,27 +57,24 @@ export {
   type CardListParamSpec,
   SEARCH_QUERY_HELP,
 } from "@teak/convex/shared/publicApiContract";
+export {
+  AUTH_ERROR_CODES,
+  ERROR_CODES,
+  errorKindFor,
+  TeakApiError,
+  type TeakApiErrorCode,
+  type TeakErrorKind,
+  teakErrorKind,
+} from "./errors";
 
 export const CARD_TYPES = cardTypes;
 export const CARD_SORTS = PUBLIC_API_CARD_SORTS;
-/** Every `code` a TeakApiError carries: the API's, then the client's own. */
-export const ERROR_CODES = [
-  ...PUBLIC_API_ERROR_CODES,
-  "AUTH_REQUIRED",
-  "CONFIG_ERROR",
-  "NETWORK_ERROR",
-  "PARSE_ERROR",
-  "REQUEST_FAILED",
-  "TIMEOUT",
-] as const;
-
 export type CardSort = (typeof CARD_SORTS)[number];
 /**
  * How a search finds cards: `hybrid` (the API's default) matches words and
  * meaning, `keyword` words only, `semantic` meaning only.
  */
 export type SearchMode = ContractSearchMode;
-export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
   getAccessToken: () => Promise<string | null> | string | null;
@@ -581,64 +578,12 @@ export interface BulkCardsResponse {
 /** Archived cards outside Trash: left out by default. */
 export type ArchivedFilter = ContractArchivedFilter;
 
-export class TeakApiError extends Error {
-  code: TeakApiErrorCode;
-  requestId?: string;
-  retryAt?: number;
-  status?: number;
-
-  constructor(
-    code: TeakApiErrorCode,
-    message?: string,
-    init?: { requestId?: string; retryAt?: number; status?: number }
-  ) {
-    super(message || defaultErrorMessage(code));
-    this.name = "TeakApiError";
-    this.code = code;
-    this.requestId = init?.requestId;
-    this.retryAt = init?.retryAt;
-    this.status = init?.status;
-  }
-}
-
 export const staticTokenProvider = (token: string): TokenProvider => ({
   getAccessToken: () => token,
 });
 
-const defaultErrorMessage = (code: TeakApiErrorCode) => {
-  switch (code) {
-    case "AUTH_REQUIRED":
-    case "INVALID_API_KEY":
-    case "UNAUTHORIZED":
-      return "Authentication is required. Run `teak login` or set TEAK_API_KEY.";
-    case "RATE_LIMITED":
-      return "Too many requests. Wait a moment and try again.";
-    case "NETWORK_ERROR":
-      return "Unable to reach Teak.";
-    case "SERVICE_UNAVAILABLE":
-      return "Teak is busy. Try again in a moment.";
-    case "TIMEOUT":
-      return "The Teak request timed out.";
-    case "NOT_FOUND":
-      return "Teak could not find that resource.";
-    default:
-      return "The Teak request failed.";
-  }
-};
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value && typeof value === "object" && !Array.isArray(value));
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
-const codeFrom = (
-  value: unknown,
-  fallback: TeakApiErrorCode
-): TeakApiErrorCode =>
-  typeof value === "string" &&
-  (ERROR_CODES as readonly string[]).includes(value)
-    ? (value as TeakApiErrorCode)
-    : fallback;
-
 /** A page size the API takes: a whole number from 1 to its maximum. */
 export const normalizeLimit = (limit?: number): number => {
   if (!Number.isFinite(limit)) {
@@ -1019,60 +964,6 @@ const MAX_RETRY_WAIT_MS = 5000;
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const codeForStatus = (status: number): TeakApiErrorCode => {
-  switch (status) {
-    case 401:
-      return "UNAUTHORIZED";
-    case 403:
-      return "FORBIDDEN";
-    case 404:
-      return "NOT_FOUND";
-    case 429:
-      return "RATE_LIMITED";
-    case 503:
-      return "SERVICE_UNAVAILABLE";
-    default:
-      return status >= 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED";
-  }
-};
-
-const retryAtFromHeader = (value: string | null): number | undefined => {
-  if (!value?.trim()) {
-    return;
-  }
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Date.now() + seconds * 1000;
-  }
-  const date = Date.parse(value);
-  return Number.isNaN(date) ? undefined : date;
-};
-
-const errorFromResponse = (response: Response, text: string) => {
-  let payload: unknown = null;
-  try {
-    payload = text.trim() ? JSON.parse(text) : null;
-  } catch {
-    payload = null;
-  }
-  const object = isObject(payload) ? payload : {};
-  const message =
-    typeof object.error === "string" && object.error ? object.error : undefined;
-  const code = codeFrom(object.code, codeForStatus(response.status));
-  const generic = code === "INTERNAL_ERROR" || code === "REQUEST_FAILED";
-  const fallback = generic
-    ? `The Teak request failed with HTTP ${response.status}.`
-    : undefined;
-  return new TeakApiError(code, message === undefined ? fallback : message, {
-    requestId: response.headers.get("x-request-id") ?? undefined,
-    retryAt:
-      typeof object.retryAt === "number"
-        ? object.retryAt
-        : retryAtFromHeader(response.headers.get("retry-after")),
-    status: response.status,
-  });
-};
-
 /**
  * Reads are always safe to send again, and so is a write that carries an
  * Idempotency-Key: the API answers its replay with the first result.
@@ -1128,7 +1019,7 @@ export const createTeakClient = (options: {
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    headers.set("User-Agent", options.userAgent || "teak-cli");
+    headers.set("User-Agent", options.userAgent || "teak-sdk");
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
