@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { runOp } from "./test/opsHarness";
 import { FakeBucket } from "./test/testsupport";
+import { callFilesOp } from "./workflows/filesOps";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -141,4 +142,17 @@ describe("object keys", () => {
     expect(body.data).toEqual({ deleted: true });
     expect(bucket.objects.size).toBe(0);
   });
+});
+
+test("a Worker without its public origin runs no op, rather than sign for another", async () => {
+  const bucket = new FakeBucket();
+  await expect(
+    callFilesOp(
+      {
+        BUCKET: bucket as unknown as R2Bucket,
+        FILES_SIGNING_SECRET: "secret",
+      },
+      { op: "head-object", params: { key: "users/u1/a.png" } }
+    )
+  ).rejects.toThrow("files_public_origin_not_configured");
 });

@@ -19,6 +19,7 @@ const setup = () => {
   }
   const env = {
     BUCKET: bucket as unknown as R2Bucket,
+    FILES_PUBLIC_ORIGIN: "https://files.example.com",
     FILES_SIGNING_SECRET: "secret",
   } as BackgroundEnv;
   return { bucket, env };

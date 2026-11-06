@@ -23,23 +23,26 @@ export type OpCaller = <Op extends FilesOp>(
   spec: FilesOpCall<Op>
 ) => Promise<FilesOpOutcome<FilesOpResult<Op>>>;
 
-const DEFAULT_PUBLIC_ORIGIN = "https://files.teakvault.com";
-
 /**
  * Runs an op in process, as the network route would, and reads its answer
  * the way Convex does (`readFilesOpOutcome`). The env is the one its entry
  * point gated (`gatedEnv`), so the op's writes go through the deletion
- * gate.
+ * gate. A Worker without FILES_PUBLIC_ORIGIN fails the op.
  */
 export const callFilesOp = async <Op extends FilesOp>(
   env: FilesOpsEnv,
   spec: FilesOpCall<Op>
 ): Promise<FilesOpOutcome<FilesOpResult<Op>>> => {
+  const origin = env.FILES_PUBLIC_ORIGIN;
+  if (!origin) {
+    // Image ops sign URLs to this Worker's own origin; no other deployment's.
+    throw new Error("files_public_origin_not_configured");
+  }
   const { envelope, status } = await runFilesOp(
     env,
     `wf-${crypto.randomUUID()}`,
     { op: spec.op, params: spec.params, version: FILES_PROTOCOL_VERSION },
-    env.FILES_PUBLIC_ORIGIN ?? DEFAULT_PUBLIC_ORIGIN
+    origin
   );
   return readFilesOpOutcome(
     envelope as FilesEnvelope<never>,

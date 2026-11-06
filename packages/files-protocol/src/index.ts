@@ -80,6 +80,7 @@ export * from "./cardProcessing";
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
+export * from "./inboundEmail";
 export * from "./inspect";
 export * from "./linkCheck";
 export * from "./linkedPdf";
