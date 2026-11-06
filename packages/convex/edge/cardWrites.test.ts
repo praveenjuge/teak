@@ -259,8 +259,9 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
       defs.map(([, def]) => def)
     )
   );
-  for (const [index, [name]] of defs.entries()) {
-    created.set(name, ids[index]);
+  const names = defs.map(([name]) => name);
+  for (const id of ids) {
+    created.set(names.shift() ?? "unnamed seed card", id);
   }
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   return created;
