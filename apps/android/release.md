@@ -1,36 +1,67 @@
 # Teak Android release process
 
-Each version tag builds the signed bundle in `.github/workflows/android-release.yml` and uploads its R8 mapping to PostHog, so crashes show readable stack traces. Uploading the bundle to Play is still done by hand.
+A lockstep version change merged to `main` is the only release step. `Version Tag` creates `v<version>`, and `.github/workflows/android-release.yml` builds the signed bundle, uploads its R8 mapping to PostHog, and submits it to Google Play: the internal track and production, both at full rollout. Production goes live as soon as Google approves it.
 
-The app ID is `com.praveenjuge.teak`. The version name is the root `package.json` version. The version code defaults to `major × 1,000,000 + minor × 1,000 + patch`, so 1.0.85 becomes 1000085. Pass `-Pteak.versionCode=N` only when Play needs a higher number for the same version.
+The app ID is `com.praveenjuge.teak`. The version name is the root `package.json` version. The version code is `major × 1,000,000 + minor × 1,000 + patch`, so 1.0.93 becomes 1000093.
+
+## Each release
+
+1. Complete the shared preparation in `../../.agents/runbooks/releases.md`. If you want release notes, edit `whatsNew` in `apps/android/store/store.config.json` in the same PR (500 characters at most). An empty `whatsNew` sends the generic note: "Small fixes and polish to keep saving and organizing your ideas smooth and reliable." Whatever `whatsNew` holds goes out on every release until you change it.
+2. Merge to `main`. Nothing else is needed. The run:
+   - **`build`** runs lint, the unit tests and the signed release bundle from the tag, uploads the R8 mapping to PostHog, checks the upload certificate and the version code, and attaches `teak-android-<version>.aab` and its mapping to the GitHub Release. Each tag builds once; a rerun reuses the attached bundle.
+   - **`publish`** downloads that exact bundle (PostHog matches crashes by the map ID inside it), then does everything in one Play edit:
+     - uploads the bundle and the mapping (for readable stack traces in Play vitals)
+     - syncs the listing text and images from `store.config.json`
+     - points the internal and production tracks at this version code with the release notes
+     - validates, then commits
+   - Play reviews the change, and it goes live when approved. `teak-android-<version>-play.json` on the GitHub Release proves both tracks serve the version.
+3. If a run fails, it opens an `Android release v<version>` issue with Play's error and the rerun command. A later successful run closes it.
+
+**Only the newest version ships.** Committing cancels any review still in progress and submits the new version instead (`changesInReviewBehavior=CANCEL_IN_REVIEW_AND_SUBMIT`), so back-to-back releases end with only the latest in review. A rerun of an older tag does nothing when production already serves that version code or a higher one.
+
+### Store listing
+
+`apps/android/store/store.config.json` is the Play listing for `en-US`: title (30 characters), short description (80), full description (4,000), and `whatsNew`. The images it names live in `listing/en-US/graphics/`: the icon, the feature graphic, and the phone screenshots in order, which come from `scripts/store-assets`. Each release replaces an image set only when its files changed, so unchanged images don't send the listing for review. Listing edits made by hand in Play Console are overwritten by the next release, so make them in the file.
+
+### Dry run and rerun
+
+A dry run does the whole edit, including the upload and Play's validation, then discards it. It can start from any branch, and its summary shows what would change against what Play has now:
+
+```bash
+gh workflow run android-release.yml --ref <branch> -f version=<version> -f dry_run=true
+```
+
+To publish an existing tag again (after a failure, or with different notes), run from `main`, which must contain the tag:
+
+```bash
+gh workflow run android-release.yml --ref main -f version=<version> -f dry_run=false
+```
+
+Add `-f release_notes="…"` to override `whatsNew` for that run.
 
 ## One-time setup
 
-1. **Play Console**
-   - A personal developer account with identity, Android device and phone verified.
-   - The app entry "Teak: Save Inspirations" with package `com.praveenjuge.teak`, live in production since November 2026.
-   - **Production access** is granted, so this never repeats. New personal accounts must first run a closed test with 12 or more testers opted in for 14 days in a row, then apply under Dashboard, "Apply for production", and answer its questions about the test truthfully.
-   - **Trader status** is declared for the account (Trader) and for the app, with the Terms of Service link https://teakvault.com/docs/terms-of-service. The EU requires it. The developer name, address, email and phone show on the public developer profile.
-2. **Upload key**
-   - The key lives at `~/.teak-android/teak-upload.jks`, alias `upload`.
-   - Its password is in the macOS login Keychain under `teak-android-upload-key`.
-   - Keep a backup of both in a password manager. Losing the key means asking Google for an upload-key reset.
-   - Upload certificate SHA-256: `5C:3E:DD:C4:BE:80:5D:6F:F6:CC:7E:38:A2:92:6A:AD:9E:55:86:10:A3:5E:18:ED:F6:A3:B8:47:93:1D:1C:11`.
-3. **Play App Signing**
-   - It's on, and Google manages the app signing key. Google re-signs every install. The upload key only proves the upload came from us.
-   - App signing certificate SHA-256: `1D:91:49:74:38:43:74:CB:6D:AA:EF:53:FA:84:77:78:6F:F1:95:06:42:80:6F:2B:0E:25:A8:DF:81:A3:8C:BE`.
-4. **`apps/android/keystore.properties`**
-   - It's gitignored and points at the key:
+Done once. A run that's missing one of these fails and points here.
 
-     ```properties
-     storeFile=/Users/<you>/.teak-android/teak-upload.jks
-     keyAlias=upload
+1. **Play Console**
+   - A personal developer account (`5908919908827380132`) with identity, Android device and phone verified, and production access granted (November 2026).
+   - The app "Teak: Save Inspirations" (`com.praveenjuge.teak`, app `4976359198684653280`). It's live in production, with trader status declared for the account and the app, and the Terms of Service link https://teakvault.com/docs/terms-of-service.
+   - Managed publishing is off, so approved changes go live at once.
+2. **Upload key**
+   - It lives at `~/.teak-android/teak-upload.jks`, alias `upload`. Its password is in the macOS login Keychain under `teak-android-upload-key`, and both are backed up in the password manager. Losing the key means asking Google for an upload-key reset.
+   - Upload certificate SHA-256: `5C:3E:DD:C4:BE:80:5D:6F:F6:CC:7E:38:A2:92:6A:AD:9E:55:86:10:A3:5E:18:ED:F6:A3:B8:47:93:1D:1C:11`.
+   - The gitignored `apps/android/keystore.properties` points a local build at the key (`storeFile=/Users/<you>/.teak-android/teak-upload.jks`, `keyAlias=upload`).
+3. **Play App Signing** is on, and Google holds the app signing key. App signing certificate SHA-256: `1D:91:49:74:38:43:74:CB:6D:AA:EF:53:FA:84:77:78:6F:F1:95:06:42:80:6F:2B:0E:25:A8:DF:81:A3:8C:BE`.
+4. **Play Developer API service account**
+   - In Google Cloud, enable the Google Play Android Developer API (`androidpublisher.googleapis.com`) on a project, and create a service account `teak-play-publisher` with no Cloud roles.
+   - In Play Console, Users and permissions, invite the service account's email with access to Teak only, and these permissions: release to production, exclude devices, and use Play App Signing; release apps to testing tracks; manage store presence.
+   - Create a JSON key for the service account, store it, and delete the download:
+
+     ```bash
+     gh secret set PLAY_SERVICE_ACCOUNT_JSON -R praveenjuge/teak < ~/Downloads/<key>.json && trash ~/Downloads/<key>.json
      ```
 
-5. **PostHog**
-   - Set `POSTHOG_ANDROID_TOKEN` (the PostHog project token) for release builds. Without it, PostHog stays off. Debug builds never send anything.
-   - Install `posthog-cli` (`npm i -g @posthog/cli@0.18.10`) and set `POSTHOG_CLI_API_KEY` (a PostHog personal API key) and `POSTHOG_CLI_PROJECT_ID`. The PostHog Gradle plugin then uploads the R8 mapping file after each release build, so crashes show readable stack traces. Without both variables, the upload is skipped.
-6. **GitHub secrets for the automated build**
+5. **GitHub secrets for the build**
    - `POSTHOG_PROJECT_TOKEN`, `POSTHOG_CLI_API_KEY` and `POSTHOG_CLI_PROJECT_ID` are shared with the Apple release.
    - `ANDROID_UPLOAD_KEYSTORE_BASE64` and `ANDROID_UPLOAD_KEYSTORE_PASSWORD` hold the upload key:
 
@@ -39,61 +70,11 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
      security find-generic-password -s teak-android-upload-key -w | gh secret set ANDROID_UPLOAD_KEYSTORE_PASSWORD -R praveenjuge/teak
      ```
 
-   - A run with any of them missing fails and points here.
-
-## Each release
-
-1. Complete the shared preparation in `../../.agents/runbooks/releases.md`, and merge the version change to `main`.
-
-2. `Version Tag` starts `Android Release`, which runs lint, the unit tests and the signed release bundle, uploads the R8 mapping to PostHog, checks the bundle carries the upload certificate and the version code, and attaches `teak-android-<version>.aab` and its mapping to the GitHub Release. Download the bundle:
-
-   ```bash
-   gh release download v<version> -p 'teak-android-*.aab' -R praveenjuge/teak
-   ```
-
-   Upload that exact bundle to Play: PostHog matches crashes to the mapping by the map ID inside it, so a bundle built anywhere else has no mapping. A rerun skips a tag whose release already has the bundle.
-
-   To build by hand instead (when GitHub Actions is down), from `apps/android`:
-
-   ```bash
-   export TEAK_UPLOAD_KEYSTORE_PASSWORD="$(security find-generic-password -s teak-android-upload-key -w)"
-   export POSTHOG_ANDROID_TOKEN="<project token from PostHog project settings>"
-   export POSTHOG_CLI_API_KEY="<PostHog personal API key>"
-   export POSTHOG_CLI_PROJECT_ID="<PostHog project ID>"
-   export POSTHOG_CLI_HOST="https://us.posthog.com"
-   ./gradlew clean lint testDebugUnitTest :app:bundleRelease
-   ```
-
-   The bundle is `app/build/outputs/bundle/release/app-release.aab`.
-
-3. Check it:
-   - For a bundle built by hand, `jarsigner -verify app/build/outputs/bundle/release/app-release.aab` shows the upload certificate above (the workflow checks its own).
-   - Install it on a real phone through Play's internal track, sign in, save a note, upload a photo and share a link into Teak.
-   - Check a 16 KB-page emulator (`system-images;android-37.0;google_apis_playstore_ps16k;arm64-v8a`) as well.
-
-4. **Internal testing**
-   - Play Console, Test and release, Internal testing, Create new release. The testers are the "Teak team" email list, and they install from https://play.google.com/apps/internaltest/4701620222568108073.
-   - Upload the AAB and use the release note below.
-   - Roll out to internal testers. Internal releases go out at once, without review.
-
-5. **Closed testing (optional beta)**
-   - Add the same bundle from the library to Closed testing - Alpha when you want early feedback. Its testers are the Google Group [teak-android-testers@googlegroups.com](https://groups.google.com/g/teak-android-testers), which anyone can join, and they opt in at https://play.google.com/apps/testing/com.praveenjuge.teak.
-
-6. **Production**
-   - Test and release, Production, Create new release. Choose **Add from library** and pick the same bundle, so the version Google reviews is the one you tested.
-   - Use the release note below, then set a staged rollout of 20 percent. Play allows staged rollouts only for updates, so the first release (1.0.92) went to everyone at once.
-   - Save, then open **Publishing overview** and choose **Submit N changes for review**. Managed publishing is off, so the release goes live as soon as Google approves it, usually within a few days.
-   - If Publishing overview says **Cannot send changes for review**, a declaration in App content is out of date (for example trader status or Data safety). Fix it there, then submit again.
-   - After a day with no new crashes in PostHog error tracking or Play's Android vitals, raise the rollout to 100 percent.
-
-7. Record the version code you shipped in the GitHub release notes for `v<version>`.
-
-The release note is:
-
-> Small fixes and polish to keep saving and organizing your ideas smooth and reliable.
-
 ## If something goes wrong
 
-- **Play rejects the version code:** rebuild with `-Pteak.versionCode=<higher number>`.
-- **"You uploaded an APK or Android App Bundle that is signed with the wrong key":** the bundle wasn't signed with the upload key. Check `keystore.properties` and the password export.
-- **Crashes without readable stack traces:** upload the mapping file for that build in Play Console (App bundle explorer, Downloads), or rebuild with `POSTHOG_CLI_API_KEY` and `POSTHOG_CLI_PROJECT_ID` set.
+- **"The caller does not have permission"** or a 403: the service account lacks a Play Console permission above, or its invitation isn't accepted yet.
+- **Google sign-in failed (`invalid_grant`):** the key in `PLAY_SERVICE_ACCOUNT_JSON` was deleted or rotated. Create a new key and set the secret again.
+- **Changes can't be sent for review:** a declaration in Play Console's App content is out of date (Data safety, trader status, target audience). Fix it there, then rerun.
+- **"Version code … has already been used":** a bundle with that version code is already in Play's library from another release. Ship the next patch version instead.
+- **"The bundle is signed with …, not the upload key":** the build used the wrong key. Check `ANDROID_UPLOAD_KEYSTORE_BASE64` and its password.
+- **Google rejects the update:** fix what the email names, then release the next patch version. A new release cancels the rejected review and submits the newer one.
