@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import { cardSiteHost } from "../shared/utils/urlHost";
 
 const DEFAULT_BATCH_SIZE = 100;

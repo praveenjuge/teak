@@ -14,7 +14,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
 import { highlightValidator } from "../schema/validators/cards";
@@ -34,7 +34,7 @@ import {
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { queueBackendEvent } from "../telemetry/schedule";
 
 /** The server's messages; the web app shows its own words for each code. */

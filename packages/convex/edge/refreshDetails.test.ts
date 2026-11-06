@@ -3,8 +3,8 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
+import { queueCardProcessing } from "../card/processingRuns";
 import schema from "../schema";
-import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
 

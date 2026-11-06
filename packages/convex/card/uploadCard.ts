@@ -26,8 +26,8 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { queueCardOutcome } from "../telemetry/schedule";
-import { queueCardProcessing } from "../workflowDispatch";
 import { insertCard } from "./cardWrites";
+import { queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   stageCompleted,

@@ -1,11 +1,11 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { cardNeedsAiMetadata } from "../card/derivedFields";
+import { queueCardProcessing } from "../card/processingRuns";
 import { stageFailed } from "../card/processingStatus";
-import { queueCardProcessing } from "../workflowDispatch";
 import { findCardsMissingAiCandidates } from "./queries";
 
 export const AI_BACKFILL_INTERVAL_HOURS = 6;

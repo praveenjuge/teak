@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import {
   addTagCountDelta,
   applyTagCounts,

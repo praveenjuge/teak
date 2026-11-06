@@ -11,11 +11,11 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
+import { queueCardProcessing } from "../card/processingRuns";
 import { inferFileFormat } from "../shared/fileFormats";
 import { callCoreWorkerOp } from "../storage/coreWorkerClient";
-import { queueCardProcessing } from "../workflowDispatch";
 import {
   ocrBackfillArgs,
   ocrBackfillReturns,

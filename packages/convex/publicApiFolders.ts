@@ -5,12 +5,11 @@ import {
   createFolderForUser,
   deleteFolderForUser,
   folderReturnValidator,
-  getFolderForUser,
   listFoldersForUser,
   loadFolderSummary,
-  requireFolderForUser,
   updateFolderForUser,
 } from "./folder/folders";
+import { getFolderForUser, requireFolderForUser } from "./folder/lookup";
 import {
   applyFolderMembershipToCards,
   smartFolderMembership,

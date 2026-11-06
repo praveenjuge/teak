@@ -57,12 +57,44 @@ export const analyticsEventParamsValidator = v.object({
   uuid: v.string(),
 });
 
-/** `workflowDispatches.params`: one shape per kind; `deleteObjects` has none. */
+/**
+ * Every kind of `workflowDispatches` row and the params it carries. The
+ * table's `kind` and `params` validators come from this list, and the
+ * dispatcher keeps one handler per entry (`DispatchKindSpec`), so adding a
+ * kind is one line here plus its handler. `deleteObjects` rows carry keys,
+ * not params.
+ */
+export const DISPATCH_PARAMS = {
+  cardProcessing: cardProcessingParamsValidator,
+  export: exportRunParamsValidator,
+  import: importRunParamsValidator,
+  accountDeletion: accountDeletionRunParamsValidator,
+  maintenance: maintenanceRunParamsValidator,
+  deleteObjects: null,
+  analyticsEvent: analyticsEventParamsValidator,
+} as const;
+
+export type DispatchKind = keyof typeof DISPATCH_PARAMS;
+
+export const DISPATCH_KINDS = Object.keys(DISPATCH_PARAMS) as DispatchKind[];
+
+/** What a row of `kind` carries in `params`. */
+export type DispatchParams<Kind extends DispatchKind> =
+  Kind extends DispatchKind
+    ? (typeof DISPATCH_PARAMS)[Kind] extends { type: infer Params }
+      ? Params
+      : undefined
+    : never;
+
+export const workflowDispatchKindValidator = v.union(
+  ...DISPATCH_KINDS.map((kind) => v.literal(kind))
+);
+
+type ParamsValidator = NonNullable<(typeof DISPATCH_PARAMS)[DispatchKind]>;
+
+/** `workflowDispatches.params`: one shape per kind. */
 export const workflowDispatchParamsValidator = v.union(
-  cardProcessingParamsValidator,
-  exportRunParamsValidator,
-  importRunParamsValidator,
-  accountDeletionRunParamsValidator,
-  maintenanceRunParamsValidator,
-  analyticsEventParamsValidator
+  ...Object.values(DISPATCH_PARAMS).filter(
+    (validator): validator is ParamsValidator => validator !== null
+  )
 );

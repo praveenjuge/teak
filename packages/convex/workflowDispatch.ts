@@ -1,18 +1,10 @@
 import {
-  type AnalyticsEventItem,
-  accountDeletionInstanceId,
-  cardProcessingInstanceId,
   type DispatchItem,
   type DispatchResult,
-  exportInstanceId,
-  importInstanceId,
-  MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
-  type MaintenanceParams,
   normalizeConvexSiteUrl,
   signDispatchProof,
   WORKFLOW_INSTANCE_MISSING,
-  type WorkflowName,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -25,66 +17,60 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { retryAccountDeletionRun } from "./accountDeletion/workflowRun";
-import { initializeCardProcessingState } from "./card/processingLifecycle";
-import {
-  cardRunParams,
-  failCardRun,
-  fileCardWithoutAiTags,
-  pendingRunToTakeOver,
-  takeSnapshotWaitingAfterRun,
-} from "./card/processingRuns";
-import { failExportRun } from "./export/workflowRun";
-import { failImportRun } from "./import/workflowRun";
+import { accountDeletionDispatch } from "./accountDeletion/workflowRun";
+import { cardProcessingDispatch } from "./card/processingRuns";
+import { exportDispatch } from "./export/workflowRun";
+import { importDispatch } from "./import/workflowRun";
 import {
   callCoreWorkerOp,
   isCoreWorkerConfigured,
 } from "./storage/coreWorkerClient";
-import { isR2KeyInNamespace } from "./storage/r2Keys";
+import { objectDeletionDispatch } from "./storage/objectDeletion";
 import { reportFromMutation } from "./telemetry/alerts";
 import { captureBackendException } from "./telemetry/posthog";
+import {
+  analyticsEventDispatch,
+  asDispatchRow,
+  type DispatchKind,
+  type DispatchKindSpec,
+  type DispatchKindSpecs,
+  maintenanceDispatch,
+  scheduleFlush,
+} from "./workflowDispatch/outbox";
 
-type DispatchKind = Doc<"workflowDispatches">["kind"];
-// Analytics rows are removed when claimed, so they are never sent or stale.
-type TrackedKind = Exclude<DispatchKind, "analyticsEvent">;
-
-const WORKFLOW_BY_KIND: Record<
-  Exclude<TrackedKind, "deleteObjects">,
-  WorkflowName
-> = {
-  accountDeletion: "account-deletion",
-  cardProcessing: "card-processing",
-  export: "export",
-  import: "import",
-  maintenance: "maintenance",
+/**
+ * How each kind of row is sent and settled, declared beside its domain.
+ * The type requires one entry per kind in `DISPATCH_PARAMS`, the list the
+ * table's `kind` and `params` validators come from.
+ */
+const KINDS: DispatchKindSpecs = {
+  accountDeletion: accountDeletionDispatch,
+  analyticsEvent: analyticsEventDispatch,
+  cardProcessing: cardProcessingDispatch,
+  deleteObjects: objectDeletionDispatch,
+  export: exportDispatch,
+  import: importDispatch,
+  maintenance: maintenanceDispatch,
 };
 
-export const STALE_AFTER_MS: Record<TrackedKind, number> = {
-  accountDeletion: 6 * 60 * 60 * 1000,
-  cardProcessing: 60 * 60 * 1000,
-  deleteObjects: 60 * 60 * 1000,
-  export: 2 * 60 * 60 * 1000,
-  import: 6 * 60 * 60 * 1000,
-  maintenance: 6 * 60 * 60 * 1000,
-};
+/**
+ * The spec of a row's kind. `KINDS` pairs every kind with a spec of the
+ * same kind, so the row always fits the handlers it is given to.
+ */
+const specFor = (row: { kind: DispatchKind }) =>
+  KINDS[row.kind] as unknown as DispatchKindSpec<DispatchKind>;
 
 export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_DISPATCH_ATTEMPTS = 20;
-// Keys a deletion gave up on are queued again this much later, so a Worker
-// outage longer than the retries delays a deletion instead of leaking it.
-export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
-// Every save schedules its own flush, so under parallel saves many flushes
-// call claim at the same moment and conflict with each other on the due
-// range. Convex retries those conflicts internally; the guards below keep
-// that cheap: a small jitter spreads claim starts out, claim reads only a
-// small page per mutation so conflicting transactions stay short, and a
-// flush whose claim still exhausts Convex's retries reschedules itself with
-// backoff instead of dying. Rows that somehow stay pending past
-// PENDING_STALL_MS are re-armed by the hourly workflowDispatchWatchdog cron,
-// so a failed flush never strands work silently.
-export const FLUSH_JITTER_MS = 1500;
+// Parallel flushes conflict with each other in claim (see FLUSH_JITTER_MS
+// in workflowDispatch/outbox). Claim reads only a small page per mutation
+// so conflicting transactions stay short, and a flush whose claim still
+// exhausts Convex's retries reschedules itself with backoff instead of
+// dying. Rows that somehow stay pending past PENDING_STALL_MS are re-armed
+// by the hourly workflowDispatchWatchdog cron, so a failed flush never
+// strands work silently.
 export const CLAIM_PAGE = 16;
 const MAX_CLAIM_RETRY_ATTEMPTS = 8;
 
@@ -93,262 +79,63 @@ export const claimRetryDelayMs = (attempt: number): number | null =>
     ? null
     : Math.min(60_000, 1000 * 2 ** Math.max(0, attempt));
 
-/**
- * Transactions that already scheduled an immediate flush. Convex gives each
- * mutation run its own `ctx.db`, so an entry covers only the transaction in
- * hand: its later rows (analytics events, more deletion batches) ride on
- * the one flush, and the entry goes with the transaction.
- */
-const flushScheduled = new WeakSet<object>();
-
-// crypto.getRandomValues instead of Math.random: static analysis flags
-// Math.random as a weak RNG even for scheduling jitter.
-const randomBelow = (bound: number): number => {
-  const buffer = new Uint32Array(1);
-  crypto.getRandomValues(buffer);
-  return (buffer[0] ?? 0) % bound;
-};
-
-const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
-  if (delayMs === 0 && flushScheduled.has(ctx.db)) {
-    return;
-  }
-  if (delayMs === 0) {
-    flushScheduled.add(ctx.db);
-  }
-  const jitter = delayMs === 0 ? randomBelow(FLUSH_JITTER_MS) : 0;
-  await ctx.scheduler.runAfter(
-    delayMs + jitter,
-    internal.workflowDispatch.flush,
-    {}
-  );
-};
-
-const insertDispatch = async (
-  ctx: MutationCtx,
-  row: Omit<
-    Doc<"workflowDispatches">,
-    "_creationTime" | "_id" | "createdAt" | "notBefore" | "state"
-  > & { delayMs?: number }
-): Promise<Id<"workflowDispatches">> => {
-  const { delayMs = 0, ...fields } = row;
-  const now = Date.now();
-  const id = await ctx.db.insert("workflowDispatches", {
-    ...fields,
-    createdAt: now,
-    notBefore: now + delayMs,
-    state: "pending",
-  });
-  // Every row schedules its own flush rather than checking whether one is
-  // already coming: that check read the due range every concurrent save
-  // writes into, so parallel saves conflicted on it until one exhausted its
-  // OCC retries and the request failed. Duplicate flushes instead conflict
-  // with each other in claim, and the jitter in scheduleFlush, claim's small
-  // page and the flush's own claim retry keep those conflicts cheap next to
-  // a failed save.
-  await scheduleFlush(ctx, delayMs);
-  return id;
-};
-
-export const queueCardProcessing = async (
-  ctx: MutationCtx,
-  cardId: Id<"cards">,
-  options: {
-    /**
-     * Only "load card", "archive page" and the article steps run: a link's
-     * saved copy and the article in it.
-     */
-    archiveOnly?: boolean;
-    /** Only "load card" and the article steps run: a link's article. */
-    articleOnly?: boolean;
-    delayMs?: number;
-    metadataOnly?: boolean;
-    refresh?: boolean;
-    reset?: boolean;
-  } = {}
-): Promise<{ instanceId: string; rev: number } | null> => {
-  const card = await ctx.db.get("cards", cardId);
-  if (!card) {
-    return null;
-  }
-  const replacedRow = await pendingRunToTakeOver(ctx, card);
-  const replaced = replacedRow ? cardRunParams(replacedRow) : null;
-  const reset = options.reset === true || replacedRow?.reset === true;
-  const refresh = options.refresh === true || replaced?.refresh === true;
-  const metadataOnly =
-    !refresh &&
-    options.metadataOnly === true &&
-    (!replaced || replaced.metadataOnly === true);
-  // A run that takes over a whole pending run keeps its work: it narrows to
-  // the archive or the article only when the run it replaces did too, and
-  // to the article alone only when neither asks for the archive.
-  const narrowed = (params?: {
-    archiveOnly?: boolean;
-    articleOnly?: boolean;
-  }) => params?.archiveOnly === true || params?.articleOnly === true;
-  const narrow =
-    !(reset || metadataOnly) &&
-    narrowed(options) &&
-    (!replaced || narrowed(replaced));
-  const archiveOnly =
-    narrow && (options.archiveOnly === true || replaced?.archiveOnly === true);
-  const articleOnly = narrow && !archiveOnly;
-  const rev = (card.processingRev ?? 0) + 1;
-  await ctx.db.patch("cards", cardId, { processingRev: rev });
-  const instanceId = cardProcessingInstanceId(cardId, rev);
-  await insertDispatch(ctx, {
-    cardId,
-    delayMs: options.delayMs,
-    instanceId,
-    key: `card:${cardId}`,
-    kind: "cardProcessing",
-    params: {
-      cardId,
-      rev,
-      ...(archiveOnly ? { archiveOnly: true as const } : {}),
-      ...(articleOnly ? { articleOnly: true as const } : {}),
-      ...(metadataOnly ? { metadataOnly: true as const } : {}),
-      ...(refresh ? { refresh: true as const } : {}),
-    },
-    rev,
-    ...(reset ? { reset: true as const } : {}),
-  });
-  return { instanceId, rev };
-};
-
-export const queueExportWorkflow = async (
-  ctx: MutationCtx,
-  jobId: Id<"exportJobs">,
-  userId: string
-): Promise<string> => {
-  const instanceId = exportInstanceId(jobId);
-  await insertDispatch(ctx, {
-    instanceId,
-    key: `export:${jobId}`,
-    kind: "export",
-    params: { jobId, userId },
-  });
-  return instanceId;
-};
-
-export const queueImportWorkflow = async (
-  ctx: MutationCtx,
-  jobId: Id<"importJobs">
-): Promise<string> => {
-  const instanceId = importInstanceId(jobId);
-  await insertDispatch(ctx, {
-    instanceId,
-    key: `import:${jobId}`,
-    kind: "import",
-    params: { jobId },
-  });
-  return instanceId;
-};
-
-export const queueMaintenanceWorkflow = async (
-  ctx: MutationCtx,
-  instanceId: string,
-  params: Omit<MaintenanceParams, "dispatched">
-): Promise<string> => {
-  await insertDispatch(ctx, {
-    instanceId,
-    key: `maintenance:${params.task}`,
-    kind: "maintenance",
-    params: { ...params, dispatched: true },
-  });
-  return instanceId;
-};
-
-/**
- * Each failed run is started again as a new attempt. Attempts are numbered
- * by when they were queued, not by counting earlier rows: those are pruned
- * after a week while Cloudflare keeps instances longer, and a reused ID
- * would never start.
- */
-export const queueAccountDeletionWorkflow = async (
-  ctx: MutationCtx,
-  binding: { generation: number; stateId: Id<"accountDeletionStates"> },
-  options: { delayMs?: number } = {}
-): Promise<string> => {
-  const key = `accountDeletion:${binding.stateId}:${binding.generation}`;
-  const latest = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
-    .order("desc")
-    .first();
-  const instanceId = accountDeletionInstanceId(
-    binding.stateId,
-    binding.generation,
-    Math.max(Date.now(), (latest?.createdAt ?? 0) + 1)
-  );
-  await insertDispatch(ctx, {
-    delayMs: options.delayMs,
-    instanceId,
-    key,
-    kind: "accountDeletion",
-    params: binding,
-  });
-  return instanceId;
-};
-
-export const enqueueObjectDeletion = async (
-  ctx: MutationCtx,
-  keys: readonly string[]
-): Promise<number> => {
-  const usable = [
-    ...new Set(keys.filter((key) => key && isR2KeyInNamespace(key))),
-  ];
-  for (let i = 0; i < usable.length; i += MAX_DISPATCH_DELETE_KEYS) {
-    await insertDispatch(ctx, {
-      key: "deleteObjects",
-      keys: usable.slice(i, i + MAX_DISPATCH_DELETE_KEYS),
-      kind: "deleteObjects",
-    });
-  }
-  return usable.length;
-};
-
-/**
- * Queues one backend analytics event for the Core Worker to send to
- * PostHog. Its flush is the one this transaction already scheduled, if any,
- * so an event costs no function call of its own.
- */
-export const queueAnalyticsEvent = async (
-  ctx: MutationCtx,
-  event: Omit<AnalyticsEventItem, "type">
-): Promise<void> => {
-  await insertDispatch(ctx, {
-    key: "analytics",
-    kind: "analyticsEvent",
-    params: event,
-  });
-};
-
-const previousSentInstances = async (
-  ctx: MutationCtx,
-  row: Doc<"workflowDispatches">
-): Promise<string[]> => {
-  const earlier = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_key_and_createdAt", (q) =>
-      q.eq("key", row.key).lt("createdAt", row.createdAt + 1)
-    )
-    .order("desc")
-    .take(20);
-  return earlier
-    .filter(
-      (other) =>
-        other._id !== row._id &&
-        other.state === "sent" &&
-        other.instanceId !== undefined
-    )
-    .map((other) => other.instanceId as string);
-};
-
 interface ClaimedItem {
   id: Id<"workflowDispatches">;
   item: DispatchItem;
 }
+
+/**
+ * Settles a due row and returns what the Worker receives for it, or null
+ * when the row no longer needs sending.
+ */
+const claimRow = async (
+  ctx: MutationCtx,
+  row: Doc<"workflowDispatches">,
+  now: number
+): Promise<DispatchItem | null> => {
+  const run = asDispatchRow(row);
+  const spec = specFor(row);
+  if (spec.delivery === "analytics-event") {
+    // Best effort, like an event an action sends itself: the row goes when
+    // it is handed over, so delivery needs no second write.
+    await ctx.db.delete("workflowDispatches", row._id);
+    return run?.kind === "analyticsEvent"
+      ? { ...run.params, type: "analytics-event" }
+      : null;
+  }
+  if (spec.delivery === "delete-objects") {
+    await ctx.db.patch("workflowDispatches", row._id, {
+      attempts: (row.attempts ?? 0) + 1,
+      sentAt: now,
+      state: "sent",
+    });
+    return { keys: row.keys ?? [], type: "delete-objects" };
+  }
+  const prepared =
+    run && spec.prepare ? await spec.prepare(ctx, run) : { terminate: [] };
+  if ("skip" in prepared) {
+    await ctx.db.patch("workflowDispatches", row._id, {
+      error: prepared.skip,
+      finishedAt: now,
+      state: "done",
+    });
+    return null;
+  }
+  await ctx.db.patch("workflowDispatches", row._id, {
+    attempts: (row.attempts ?? 0) + 1,
+    lastReconciledAt: undefined,
+    ...(row.reset ? { reset: undefined } : {}),
+    sentAt: now,
+    state: "sent",
+  });
+  return {
+    id: row.instanceId as string,
+    params: row.params ?? {},
+    ...(prepared.terminate.length > 0 ? { terminate: prepared.terminate } : {}),
+    type: "workflow",
+    workflow: spec.workflow,
+  };
+};
 
 export const claim = internalMutation({
   args: { limit: v.optional(v.number()) },
@@ -364,68 +151,10 @@ export const claim = internalMutation({
       .take(pageSize);
     const claimed: ClaimedItem[] = [];
     for (const row of rows) {
-      if (row.kind === "analyticsEvent") {
-        // Best effort, like an event an action sends itself: the row goes
-        // when it is handed over, so delivery needs no second write.
-        await ctx.db.delete("workflowDispatches", row._id);
-        claimed.push({
-          id: row._id,
-          item: {
-            ...(row.params as Omit<AnalyticsEventItem, "type">),
-            type: "analytics-event",
-          },
-        });
-        continue;
+      const item = await claimRow(ctx, row, now);
+      if (item) {
+        claimed.push({ id: row._id, item });
       }
-      if (row.kind === "deleteObjects") {
-        await ctx.db.patch("workflowDispatches", row._id, {
-          attempts: (row.attempts ?? 0) + 1,
-          sentAt: now,
-          state: "sent",
-        });
-        claimed.push({
-          id: row._id,
-          item: { keys: row.keys ?? [], type: "delete-objects" },
-        });
-        continue;
-      }
-      if (row.kind === "cardProcessing" && row.cardId) {
-        const card = await ctx.db.get("cards", row.cardId);
-        if (!card || (card.processingRev ?? 0) !== row.rev) {
-          await ctx.db.patch("workflowDispatches", row._id, {
-            error: card ? "superseded" : "card_missing",
-            finishedAt: now,
-            state: "done",
-          });
-          continue;
-        }
-        if (row.reset) {
-          await initializeCardProcessingState(ctx, row.cardId, {
-            refresh: cardRunParams(row)?.refresh === true,
-          });
-        }
-      }
-      const terminate =
-        row.kind === "cardProcessing"
-          ? await previousSentInstances(ctx, row)
-          : [];
-      await ctx.db.patch("workflowDispatches", row._id, {
-        attempts: (row.attempts ?? 0) + 1,
-        lastReconciledAt: undefined,
-        ...(row.reset ? { reset: undefined } : {}),
-        sentAt: now,
-        state: "sent",
-      });
-      claimed.push({
-        id: row._id,
-        item: {
-          id: row.instanceId as string,
-          params: row.params ?? {},
-          ...(terminate.length > 0 ? { terminate } : {}),
-          type: "workflow",
-          workflow: WORKFLOW_BY_KIND[row.kind],
-        },
-      });
     }
     // A full page of superseded runs hands nothing over, which ends the
     // flush, so the rows behind it need one of their own.
@@ -626,42 +355,9 @@ const handleRunFailure = async (
   row: Doc<"workflowDispatches">,
   error: string
 ): Promise<void> => {
-  const { params } = row;
-  switch (row.kind) {
-    case "cardProcessing": {
-      const card = cardRunParams(row);
-      if (card) {
-        await failCardRun(ctx, row, card, error);
-      }
-      return;
-    }
-    case "export":
-      if (params && "userId" in params) {
-        await failExportRun(ctx, params);
-      }
-      return;
-    case "import":
-      if (params && "jobId" in params && !("userId" in params)) {
-        await failImportRun(ctx, params);
-      }
-      return;
-    case "accountDeletion":
-      if (params && "stateId" in params) {
-        await retryAccountDeletionRun(ctx, row, params);
-      }
-      return;
-    case "deleteObjects":
-      await insertDispatch(ctx, {
-        delayMs: DEAD_LETTER_RETRY_MS,
-        key: "deleteObjects",
-        keys: row.keys ?? [],
-        kind: "deleteObjects",
-      });
-      return;
-    default:
-      // Analytics rows are gone once claimed, and a maintenance run reports
-      // through its cron's heartbeat.
-      return;
+  const run = asDispatchRow(row);
+  if (run) {
+    await specFor(run).onFailure?.(ctx, run, error);
   }
 };
 
@@ -704,15 +400,11 @@ export const complete = internalMutation({
     });
     if (status === "errored") {
       await handleRunFailure(ctx, row, "workflow_failed");
-    } else {
-      const waiting = await takeSnapshotWaitingAfterRun(ctx, row);
-      if (waiting) {
-        await queueCardProcessing(ctx, waiting, { archiveOnly: true });
-      }
     }
-    const card = cardRunParams(row);
-    if (card) {
-      await fileCardWithoutAiTags(ctx, row, card);
+    const run = asDispatchRow(row);
+    const spec = specFor(row);
+    if (run && spec.delivery === "workflow") {
+      await spec.onRunEnded?.(ctx, run, status);
     }
     return null;
   },
@@ -738,11 +430,31 @@ export const markDelivered = internalMutation({
 
 const STALE_SCAN_BUDGET = 1000;
 
-const isStale = (row: Doc<"workflowDispatches">, now: number) =>
-  row.kind !== "deleteObjects" &&
-  row.kind !== "analyticsEvent" &&
-  row.instanceId !== undefined &&
-  (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind];
+/** The Worker workflow a row starts, if its kind starts one. */
+const workflowOf = (row: Doc<"workflowDispatches">) => {
+  const spec = specFor(row);
+  return spec.delivery === "workflow" && row.instanceId !== undefined
+    ? { instanceId: row.instanceId, workflow: spec.workflow }
+    : null;
+};
+
+const isStale = (row: Doc<"workflowDispatches">, now: number) => {
+  const staleAfterMs = specFor(row).staleAfterMs;
+  return (
+    workflowOf(row) !== null &&
+    staleAfterMs !== undefined &&
+    (row.sentAt ?? now) < now - staleAfterMs
+  );
+};
+
+/** The shortest silence after which any kind's sent run counts as stale. */
+const SHORTEST_STALE_MS = Math.min(
+  ...Object.values(KINDS).flatMap((spec) =>
+    spec.delivery === "workflow" && spec.staleAfterMs !== undefined
+      ? [spec.staleAfterMs]
+      : []
+  )
+);
 
 /**
  * Sent runs past their kind's silence limit, for the Core Worker's reconcile
@@ -761,7 +473,6 @@ export const listStale = internalQuery({
   ),
   handler: async (ctx, { limit }) => {
     const now = Date.now();
-    const shortest = Math.min(...Object.values(STALE_AFTER_MS));
     const pageSize = Math.min(limit ?? 100, 200);
     const stale: Doc<"workflowDispatches">[] = [];
     let scanned = 0;
@@ -785,7 +496,7 @@ export const listStale = internalQuery({
           q
             .eq("state", "sent")
             .eq("lastReconciledAt", undefined)
-            .lt("sentAt", now - shortest)
+            .lt("sentAt", now - SHORTEST_STALE_MS)
         )
     );
     await collect(
@@ -795,19 +506,10 @@ export const listStale = internalQuery({
           q.eq("state", "sent").gte("lastReconciledAt", 0)
         )
     );
-    return stale.flatMap((row) =>
-      row.kind !== "deleteObjects" &&
-      row.kind !== "analyticsEvent" &&
-      row.instanceId
-        ? [
-            {
-              instanceId: row.instanceId,
-              kind: row.kind,
-              workflow: WORKFLOW_BY_KIND[row.kind],
-            },
-          ]
-        : []
-    );
+    return stale.flatMap((row) => {
+      const started = workflowOf(row);
+      return started ? [{ ...started, kind: row.kind }] : [];
+    });
   },
 });
 
@@ -931,7 +633,9 @@ export const pruneFinished = internalMutation({
     const sentDeletes = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_state_and_sentAt", (q) =>
-        q.eq("state", "sent").lt("sentAt", now - STALE_AFTER_MS.deleteObjects)
+        q
+          .eq("state", "sent")
+          .lt("sentAt", now - (KINDS.deleteObjects.staleAfterMs ?? 0))
       )
       .take(200);
     for (const row of sentDeletes) {

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
-import { accountDeletionOwnsRows } from "../../accountDeletion";
+import { accountDeletionOwnsRows } from "../../accountDeletion/gate";
 import { patchCard } from "../../card/cardWrites";
 import { mergeProcessingStages } from "../../card/processingStatus";
 import { storeCardTranscript } from "../../card/textContents";

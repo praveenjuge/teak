@@ -8,6 +8,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
+import { queueCardProcessing } from "../card/processingRuns";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
@@ -16,7 +17,6 @@ import {
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
-import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
 const NOW = Date.UTC(2026, 9, 20, 10);

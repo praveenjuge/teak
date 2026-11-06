@@ -10,7 +10,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { getAccountDeletionState } from "../accountDeletion/gate";
 import { isOptimisticConcurrencyError } from "../convexFailures";
 import { getSessionUser, requireTeakUserId } from "../securitySessions";
 import { captureBackendException } from "../telemetry/posthog";

@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { testId } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+  r2Mocks,
+} from "./helpers/r2Mock.test-utils";
 import { withSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 const {
   getFullCardForMetadataHandler,
@@ -181,7 +186,9 @@ describe("linkMetadata", () => {
       expect(patch.metadata.linkPreview.screenshotBytes).toBe(9000);
     });
 
-    test("handles delete error gracefully", async () => {
+    // A key Teak can't delete is a bug: the write fails, so Convex rolls it
+    // back, instead of leaving an object nothing points at.
+    test("fails the write when an old object can't be queued for deletion", async () => {
       const ctx = createMockCtx();
       const card = {
         _id: "card_123",
@@ -191,17 +198,18 @@ describe("linkMetadata", () => {
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      r2Mocks.queueObjectDeletion.mockRejectedValue(new Error("Storage error"));
+      r2Mocks.queueObjectDeletion.mockRejectedValue(
+        new Error("invalid_storage_key_namespace")
+      );
 
       const linkPreview = { screenshotStorageKey: "new_id" };
-      await updateCardMetadataHandler(ctx, {
-        cardId: testId("cards", "card_123"),
-        linkPreview,
-        status: "completed",
-      });
-
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalled();
-      expect(ctx.db.patch).toHaveBeenCalled();
+      await expect(
+        updateCardMetadataHandler(ctx, {
+          cardId: testId("cards", "card_123"),
+          linkPreview,
+          status: "completed",
+        })
+      ).rejects.toThrow("invalid_storage_key_namespace");
     });
 
     test("handles non-link card", async () => {
@@ -452,7 +460,7 @@ describe("linkMetadata", () => {
       );
     });
 
-    test("handles delete error gracefully", async () => {
+    test("fails the write when the old screenshot can't be queued for deletion", async () => {
       const ctx = createMockCtx();
       const card = {
         _id: "c1",
@@ -462,16 +470,17 @@ describe("linkMetadata", () => {
         },
       };
       ctx.db.get.mockResolvedValue(card);
-      r2Mocks.queueObjectDeletion.mockRejectedValue(new Error("fail"));
+      r2Mocks.queueObjectDeletion.mockRejectedValue(
+        new Error("invalid_storage_key_namespace")
+      );
 
-      await updateCardScreenshotHandler(ctx, {
-        cardId: testId("cards", "c1"),
-        screenshotStorageKey: "new",
-        screenshotUpdatedAt: 2,
-      });
-
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalled();
-      expect(ctx.db.patch).toHaveBeenCalled();
+      await expect(
+        updateCardScreenshotHandler(ctx, {
+          cardId: testId("cards", "c1"),
+          screenshotStorageKey: "new",
+          screenshotUpdatedAt: 2,
+        })
+      ).rejects.toThrow("invalid_storage_key_namespace");
     });
 
     test("handles missing metadata/linkPreview", async () => {
@@ -1082,7 +1091,7 @@ describe("linkMetadata storage cleanup", () => {
       );
     });
 
-    test("handles image delete error gracefully", async () => {
+    test("fails the write when the old image can't be queued for deletion", async () => {
       const existingCard = {
         _id: "c1",
         type: "link",
@@ -1092,7 +1101,7 @@ describe("linkMetadata storage cleanup", () => {
       };
       const newLinkPreview = { imageStorageKey: "new_image" };
       r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
-        new Error("Storage error")
+        new Error("invalid_storage_key_namespace")
       );
       const ctx = {
         db: withSearchSyncDb({
@@ -1101,13 +1110,13 @@ describe("linkMetadata storage cleanup", () => {
         }),
       } as any;
 
-      await updateMetadata(ctx, {
-        cardId: "c1",
-        linkPreview: newLinkPreview,
-        status: "completed",
-      });
-
-      expect(ctx.db.patch).toHaveBeenCalled();
+      await expect(
+        updateMetadata(ctx, {
+          cardId: "c1",
+          linkPreview: newLinkPreview,
+          status: "completed",
+        })
+      ).rejects.toThrow("invalid_storage_key_namespace");
     });
   });
 

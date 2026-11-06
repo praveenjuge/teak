@@ -6,10 +6,12 @@ import {
   mutation,
   type QueryCtx,
 } from "./_generated/server";
+import { getAccountDeletionState } from "./accountDeletion/gate";
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   accountDeletionStage,
 } from "./accountDeletion/stages";
+import { queueAccountDeletionWorkflow } from "./accountDeletion/workflowRun";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextRows } from "./card/textContents";
 import { deleteCardFolderRuleRows } from "./folder/rules";
@@ -19,56 +21,8 @@ import {
   UNAUTHENTICATED_ERROR,
 } from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
-import { queueAccountDeletionWorkflow } from "./workflowDispatch";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
-
-type DatabaseReaderCtx = Pick<MutationCtx | QueryCtx, "db">;
-
-export const getAccountDeletionState = (
-  ctx: DatabaseReaderCtx,
-  userId: string
-) =>
-  ctx.db
-    .query("accountDeletionStates")
-    .withIndex("by_userId", (query) => query.eq("userId", userId))
-    .unique();
-
-/**
- * While an account deletion runs, its batches own every row the user has.
- * Background writers stand down instead of writing: Convex conflicts on rows
- * read or written, so a racing write makes the deletion batches retry until
- * the whole deletion fails.
- */
-export const accountDeletionOwnsRows = async (
-  ctx: DatabaseReaderCtx,
-  userId: string | undefined
-): Promise<boolean> =>
-  userId !== undefined && Boolean(await getAccountDeletionState(ctx, userId));
-
-export const createAccountDeletionGate = (ctx: DatabaseReaderCtx) => {
-  const owned = new Map<string, Promise<boolean>>();
-  return (userId: string): Promise<boolean> => {
-    let result = owned.get(userId);
-    if (!result) {
-      result = accountDeletionOwnsRows(ctx, userId);
-      owned.set(userId, result);
-    }
-    return result;
-  };
-};
-
-export const assertAccountNotDeleting = async (
-  ctx: DatabaseReaderCtx,
-  userId: string
-) => {
-  if (await getAccountDeletionState(ctx, userId)) {
-    throw new ConvexError({
-      code: "ACCOUNT_DELETION_IN_PROGRESS",
-      message: "Account deletion is already in progress",
-    });
-  }
-};
 
 // Sign-in reads only the owner's mapping row, so deletion marks it too.
 const markOwnerDeleting = async (

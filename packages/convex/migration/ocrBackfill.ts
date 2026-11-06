@@ -2,7 +2,7 @@ import type { FunctionReference } from "convex/server";
 import { type ObjectType, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import { readUserFlags } from "../adminAccess";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 

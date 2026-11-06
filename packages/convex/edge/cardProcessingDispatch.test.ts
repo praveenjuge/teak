@@ -5,8 +5,8 @@ import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "../ai/backfill";
+import { queueCardProcessing } from "../card/processingRuns";
 import schema from "../schema";
-import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();

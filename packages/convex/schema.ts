@@ -12,7 +12,10 @@ import {
   highlightValidator,
   r2KeyValidator,
 } from "./schema/validators/cards";
-import { workflowDispatchParamsValidator } from "./schema/validators/dispatch";
+import {
+  workflowDispatchKindValidator,
+  workflowDispatchParamsValidator,
+} from "./schema/validators/dispatch";
 import {
   exportJobItemValidator,
   exportJobValidator,
@@ -158,15 +161,7 @@ export default defineSchema({
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
     .index("by_user_urlkey_deleted", ["userId", "urlKey", "isDeleted"]),
   workflowDispatches: defineTable({
-    kind: v.union(
-      v.literal("cardProcessing"),
-      v.literal("export"),
-      v.literal("import"),
-      v.literal("accountDeletion"),
-      v.literal("maintenance"),
-      v.literal("deleteObjects"),
-      v.literal("analyticsEvent")
-    ),
+    kind: workflowDispatchKindValidator,
     key: v.string(),
     instanceId: v.optional(v.string()),
     params: v.optional(workflowDispatchParamsValidator),

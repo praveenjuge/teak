@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { handlerOf } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+  r2Mocks,
+} from "./helpers/r2Mock.test-utils";
 import {
   withSearchSyncDb,
   withTestSession,
 } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 const overviewTables =
   (cards: any[], internalIds: string[] = []) =>
@@ -417,10 +422,10 @@ describe("admin.ts", () => {
       expect(result.clearedThumbnail).toBe(false);
     });
 
-    test("handles storage delete error gracefully", async () => {
+    test("fails the reset when the thumbnail can't be queued for deletion", async () => {
       r2Mocks.queueObjectDeletion.mockReset();
       r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
-        new Error("Storage error")
+        new Error("invalid_storage_key_namespace")
       );
       const card = {
         _id: "c1",
@@ -435,9 +440,9 @@ describe("admin.ts", () => {
       } as any;
       const handler =
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
-      const result = await handler(ctx, { cardId: "c1" });
-
-      expect(result.clearedThumbnail).toBe(true);
+      await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
+        "invalid_storage_key_namespace"
+      );
       r2Mocks.queueObjectDeletion.mockResolvedValue(null);
     });
   });

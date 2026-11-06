@@ -1,7 +1,7 @@
 import { type Infer, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import { HIDDEN_TAG_KEYS, isHiddenTagList, tagKey } from "../shared/tags";
 
 const DEFAULT_BATCH_SIZE = 100;

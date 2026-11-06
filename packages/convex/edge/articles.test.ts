@@ -7,6 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
+import { queueCardProcessing } from "../card/processingRuns";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import {
@@ -16,7 +17,6 @@ import {
 import type { TeakUserId } from "../securitySessions";
 import { articleImageObjectKey, articleTextObjectKey } from "../shared/article";
 import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
-import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
 const articleText = (internal as any)["card/articleText"];

@@ -18,14 +18,14 @@ import {
 } from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { urlKey } from "../shared/utils/urlKey";
-import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
-import { queueCardProcessing } from "../workflowDispatch";
 import { insertCard, patchCard } from "./cardWrites";
 import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
-import { isCardRunInFlight } from "./processingRuns";
+import { isCardRunInFlight, queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   mergeProcessingStages,

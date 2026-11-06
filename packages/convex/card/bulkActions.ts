@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { folderNotFound, requireFolderForUser } from "../folder/folders";
+import { folderNotFound, requireFolderForUser } from "../folder/lookup";
 import {
   applyFolderMembership,
   type FolderMembershipAction,

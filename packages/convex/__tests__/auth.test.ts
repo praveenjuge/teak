@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { noop } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+} from "./helpers/r2Mock.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 let ensureCardCreationAllowed: any;
 let deleteAccountDataHandler: any;

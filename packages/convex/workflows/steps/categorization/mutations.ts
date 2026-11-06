@@ -8,7 +8,7 @@ import {
 } from "../../../card/processingStatus";
 import { r2KeyValidator } from "../../../schema/validators/cards";
 import { rateLimiter } from "../../../shared/rateLimits";
-import { queueObjectDeletion } from "../../../storage/r2";
+import { queueObjectDeletion } from "../../../storage/objectDeletion";
 import {
   assertArchivedRawReference,
   serializeArchivableRaw,

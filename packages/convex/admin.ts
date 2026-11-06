@@ -38,13 +38,13 @@ import { readHasPremium } from "./auth";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { patchCard } from "./card/cardWrites";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
+import { queueCardProcessing } from "./card/processingRuns";
 import { stagePending } from "./card/processingStatus";
 import { clearCardTranscript } from "./card/textContents";
 import { adminOverviewFields } from "./schema/validators/admin";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
-import { queueObjectDeletion } from "./storage/r2";
-import { queueCardProcessing } from "./workflowDispatch";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 
 // Before the Core Worker has stored an overview, `getOverview` counts at
 // most this many cards itself.
@@ -597,28 +597,10 @@ export const resetCardProcessingState = internalMutation({
       throw new Error(`Card ${cardId} not found`);
     }
 
-    let clearedThumbnail = false;
-    if (card.thumbnailKey) {
-      try {
-        await queueObjectDeletion(ctx, card.thumbnailKey);
-      } catch (error) {
-        console.error("[admin] Failed to delete thumbnail during refresh", {
-          cardId,
-          thumbnailKey: card.thumbnailKey,
-          error,
-        });
-      }
-      clearedThumbnail = true;
-    }
-    if (card.scrubKey) {
-      try {
-        await queueObjectDeletion(ctx, card.scrubKey);
-      } catch (error) {
-        console.error("[admin] Failed to delete scrub sprite during refresh", {
-          cardId,
-          scrubKey: card.scrubKey,
-          error,
-        });
+    const clearedThumbnail = Boolean(card.thumbnailKey);
+    for (const key of [card.thumbnailKey, card.scrubKey]) {
+      if (key) {
+        await queueObjectDeletion(ctx, key);
       }
     }
     const { scrub: _scrub, ...fileMetadata } = card.fileMetadata ?? {};

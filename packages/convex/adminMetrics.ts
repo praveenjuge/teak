@@ -31,7 +31,7 @@ import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
 import { createPolarClient, readCustomerSubscriptions } from "./adminBilling";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
-import { queueMaintenanceWorkflow } from "./workflowDispatch";
+import { queueMaintenanceWorkflow } from "./workflowDispatch/outbox";
 
 const USER_PAGE = 1000;
 const CARD_PAGE = 500;

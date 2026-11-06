@@ -8,9 +8,10 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { queueObjectDeletion } from "./objectDeletion";
 import { ensureObjectOwnership } from "./ownership";
-import { cardStorageObjectKeys, queueObjectDeletion } from "./r2";
+import { cardStorageObjectKeys } from "./r2";
 import {
   archivedRawSummary,
   copyAndVerifyRaw,

@@ -12,7 +12,7 @@ import {
 import {
   accountDeletionOwnsRows,
   getAccountDeletionState,
-} from "../accountDeletion";
+} from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {

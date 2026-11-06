@@ -1,9 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
-import {
-  getAccountDeletionState,
-  initiateAccountDeletion,
-} from "./accountDeletion";
+import { initiateAccountDeletion } from "./accountDeletion";
+import { getAccountDeletionState } from "./accountDeletion/gate";
 import {
   type DevScenarioCardDef,
   insertCompletedCards,

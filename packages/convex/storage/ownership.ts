@@ -7,7 +7,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { isCoreWorkerConfigured } from "./coreWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 

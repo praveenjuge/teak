@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { polar } from "../billing";
 import { readBillingDisabled } from "../env";
 import {

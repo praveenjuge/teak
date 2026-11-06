@@ -28,6 +28,7 @@ import {
   isCoreWorkerConfigured,
   signedUploadUrl,
 } from "../storage/coreWorkerClient";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import {
   ensureObjectOwnership,
   registerOwnedObject,
@@ -36,7 +37,6 @@ import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
-  queueObjectDeletion,
 } from "../storage/r2";
 import { patchCard } from "./cardWrites";
 

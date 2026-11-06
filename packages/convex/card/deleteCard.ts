@@ -12,7 +12,8 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { cardStorageObjectKeys } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,

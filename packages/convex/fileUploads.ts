@@ -17,12 +17,9 @@ import {
   isCoreWorkerConfigured,
   signedMultipartPartUrl,
 } from "./storage/coreWorkerClient";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 import { ensureObjectOwnership } from "./storage/ownership";
-import {
-  buildR2ObjectKey,
-  PENDING_UPLOAD_CARD_ID,
-  queueObjectDeletion,
-} from "./storage/r2";
+import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
 export const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;

@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import type { ValidatedRateLimitKey } from "../publicApi";
 import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+} from "./helpers/r2Mock.test-utils";
 import {
   withMappedOwner,
   withSearchSyncDb,
 } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   _creationTime: 1,

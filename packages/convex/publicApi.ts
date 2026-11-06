@@ -20,6 +20,7 @@ import {
   cardListScope,
 } from "./card/listQuery";
 import { readPinnedCards } from "./card/pins";
+import { queueCardProcessing } from "./card/processingRuns";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
@@ -91,7 +92,6 @@ import {
   shuffleRank,
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
-import { queueCardProcessing } from "./workflowDispatch";
 
 const pageInfoValidator = v.object({
   nextCursor: v.union(v.string(), v.null()),

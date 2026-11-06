@@ -8,7 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { cardTypeValidator } from "../schema/validators/cards";
 import {
   getSessionUser,

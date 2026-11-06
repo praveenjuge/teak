@@ -1,10 +1,10 @@
 import { type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { newImportFolderCache } from "../folder/folders";
 import { resolveStoredUserId } from "../securitySessions";
-import { enqueueObjectDeletion } from "../workflowDispatch";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { createImportedCard, importItemFields } from "./items";
 
 // The import Workflow keeps the items it reads in R2 under the job's key
@@ -169,7 +169,7 @@ export const createBatch = internalMutation({
         ...(phase ? { phase } : {}),
         updatedAt: Date.now(),
       });
-      await enqueueObjectDeletion(ctx, unclaimed);
+      await queueObjectDeletion(ctx, unclaimed);
     };
     const folderCache = newImportFolderCache();
     for (const { extractedFileKey, ...item } of items) {
