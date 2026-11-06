@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { internal } from "../../_generated/api";
 import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 test("the sweep's card page holds every object the card keeps", async () => {
   const t = newBackend();

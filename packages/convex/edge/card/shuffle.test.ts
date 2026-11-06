@@ -4,7 +4,7 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import { deriveCardFields } from "../../card/derivedFields";
 import { onCardChanged } from "../../card/onCardChanged";
 import { MAX_SHUFFLE_SEED } from "../../shared/search/shuffle";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

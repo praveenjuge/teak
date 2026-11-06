@@ -7,7 +7,7 @@ import { patchCard } from "../../card/cardWrites";
 import { onCardChanged } from "../../card/onCardChanged";
 import { expressionTextReader } from "../../search/searchPlanner";
 import { parseSearchQuery } from "../../shared/search/qualifiers";
-import { newBackend, workosIdentity } from "../helpers.test-utils";
+import { newBackend, workosIdentity } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

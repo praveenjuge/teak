@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 // The SDK depends on this package, so the test reads its source directly to
 // prove the SDK can read what these endpoints serve.
 import { discoverAuthServer } from "../../sdk/src/authDiscovery";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const workosIssuer = "https://discovery-dev.authkit.app";
 const clientIds = {

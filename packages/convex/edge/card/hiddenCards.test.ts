@@ -4,7 +4,7 @@ import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils"
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { MAX_TRACKED_USERS } from "../../migration/backfillHiddenCards";
-import { newBackend, workosIdentity } from "../helpers.test-utils";
+import { newBackend, workosIdentity } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

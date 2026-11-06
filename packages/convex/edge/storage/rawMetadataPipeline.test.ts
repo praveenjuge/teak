@@ -5,7 +5,7 @@ import {
   hydrateArchivedMetadata,
   rawMetadataKey,
 } from "../../storage/rawMetadata";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 afterEach(() => {
   vi.unstubAllGlobals();

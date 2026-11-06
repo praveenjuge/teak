@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { RETENTION_SCAN_LEASE_MS } from "../operationalRetention";
-import { type Backend, newBackend } from "./helpers.test-utils";
+import { type Backend, newBackend } from "./helpers.testUtils";
 
 const now = Date.parse("2026-09-30T10:00:00Z");
 beforeEach(() => {

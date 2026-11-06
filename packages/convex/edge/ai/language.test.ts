@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { queueCardProcessing } from "../../card/processingRuns";
-import { type Backend, newBackend } from "../helpers.test-utils";
+import { type Backend, newBackend } from "../helpers.testUtils";
 
 const NOW = new Date("2026-10-24T10:00:00Z").getTime();
 

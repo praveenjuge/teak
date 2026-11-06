@@ -8,7 +8,7 @@ import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "../../accountDeletion/batch";
 import { ensureObjectOwnership } from "../../storage/ownership";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();

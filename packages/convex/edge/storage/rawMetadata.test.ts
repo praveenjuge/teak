@@ -12,7 +12,7 @@ import {
   serializeRawMetadata,
 } from "../../storage/rawMetadata";
 import { archiveCardHandler } from "../../storage/rawMetadataMaintenance";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });

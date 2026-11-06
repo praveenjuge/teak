@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { IDEMPOTENCY_PENDING_LEASE_MS } from "../idempotency";
-import { type Backend, newBackend } from "./helpers.test-utils";
+import { type Backend, newBackend } from "./helpers.testUtils";
 
 const TTL_MS = 60_000;
 const request = {

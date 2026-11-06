@@ -3,7 +3,7 @@ import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { onCardChanged } from "../../card/onCardChanged";
 import { cardRunParams } from "../../card/processingRuns";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

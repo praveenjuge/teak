@@ -4,7 +4,7 @@ import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const setup = () => {
   const t = newBackend();

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const ensure = api.workosBootstrap.ensureUser;
 const clientId = "client_BOOTSTRAP";

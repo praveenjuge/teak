@@ -21,7 +21,7 @@ import {
   newBackend,
   workosClaims,
   workosIdentity,
-} from "../helpers.test-utils";
+} from "../helpers.testUtils";
 
 const SECRET = "inbound-test-secret";
 const OWNER_EMAIL = "owner@example.test";

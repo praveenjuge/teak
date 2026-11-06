@@ -22,7 +22,7 @@ import {
   DEAD_LETTER_RETRY_MS,
   FLUSH_JITTER_MS,
 } from "../workflowDispatch/outbox";
-import { type Backend, newBackend } from "./helpers.test-utils";
+import { type Backend, newBackend } from "./helpers.testUtils";
 
 const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();

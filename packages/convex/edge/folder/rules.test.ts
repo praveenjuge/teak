@@ -17,7 +17,7 @@ import {
   MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_RULES,
 } from "../../shared/folders";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 const NOW = Date.UTC(2026, 10, 1);
 

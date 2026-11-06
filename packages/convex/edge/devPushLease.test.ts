@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { LEASE_TTL_MS } from "../devPushLease";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const main = { id: "mac:/teak", label: "main on mac" };
 const worktree = { id: "mac:/teak/wt", label: "feature on mac" };

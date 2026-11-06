@@ -9,7 +9,7 @@ import {
 } from "../../card/emptyTrash";
 import { onCardChanged } from "../../card/onCardChanged";
 import { cardStorageObjectKeys } from "../../storage/r2";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => {
   vi.useFakeTimers();

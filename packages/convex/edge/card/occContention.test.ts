@@ -53,7 +53,7 @@ import {
   buildCardSearchTags,
   buildCardSearchText,
 } from "../../shared/search/searchText";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const insertCard = async (
   ctx: MutationCtx,

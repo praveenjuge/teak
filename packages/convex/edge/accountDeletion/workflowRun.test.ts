@@ -8,7 +8,7 @@ import {
 import { api, components, internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { buildR2UserPrefix } from "../../storage/r2";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();

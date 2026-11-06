@@ -10,7 +10,7 @@ import {
 } from "../../card/defaultCards";
 import { LINK_PASTE_RETENTION_MS } from "../../card/pasteLinks";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 const NOW = Date.UTC(2026, 9, 20);
 const FIRST_SAVED = Date.UTC(2026, 0, 1);

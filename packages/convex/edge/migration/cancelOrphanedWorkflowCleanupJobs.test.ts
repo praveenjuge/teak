@@ -2,7 +2,7 @@ import { makeFunctionReference } from "convex/server";
 import { describe, expect, test } from "vitest";
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const ORPHAN_NAME = "workflows/manager:cleanupCompletedWorkflow";
 const LIVE_NAME =

@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { api } from "../_generated/api";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 afterEach(() => {
   vi.unstubAllEnvs();

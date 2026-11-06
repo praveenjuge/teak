@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../../_generated/api";
 import { verifyWorkosConnectTokenSignature } from "../../workos/tokens";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const issuer = "https://logout-tests.authkit.app";
 const user = "user_LOGOUT",

@@ -6,7 +6,7 @@ import {
 } from "../__tests__/helpers/coreWorker.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { type Backend, newBackend, workosIdentity } from "./helpers.test-utils";
+import { type Backend, newBackend, workosIdentity } from "./helpers.testUtils";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();

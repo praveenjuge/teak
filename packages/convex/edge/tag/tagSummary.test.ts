@@ -6,7 +6,7 @@ import {
   TAG_SUMMARY_RETRY_MAX_ATTEMPTS,
   tagSummaryRetryDelayMs,
 } from "../../tag/tagSummary";
-import { type Backend, newBackend } from "../helpers.test-utils";
+import { type Backend, newBackend } from "../helpers.testUtils";
 
 // foldTagCountDeltas reads the deletion state first, so failing that read
 // once makes the fold fail the way a real write conflict does.

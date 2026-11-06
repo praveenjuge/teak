@@ -8,7 +8,7 @@ import { insertSeedCards, type SeedCardDef } from "../../devSeed/helpers";
 import { insertFolder } from "../../folder/folders";
 import type { TeakUserId } from "../../securitySessions";
 import { buildR2UserPrefix } from "../../storage/r2";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const NOW = Date.UTC(2026, 9, 20);
 const OWNER = "owner" as TeakUserId;

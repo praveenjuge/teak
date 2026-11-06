@@ -3,7 +3,7 @@ import { insertTestCard } from "../../__tests__/helpers/cards.test-utils";
 import { api } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { type NewCard, patchCard } from "../../card/cardWrites";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

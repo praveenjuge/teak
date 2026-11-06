@@ -9,7 +9,7 @@ import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { api } from "../_generated/api";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { newBackend, signIn } from "./helpers.test-utils";
+import { newBackend, signIn } from "./helpers.testUtils";
 
 const SECRET = "edge-rate-limit-test-secret";
 

@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { internal } from "../../../../_generated/api";
 import { cardStorageObjectKeys } from "../../../../storage/cardObjectKeys";
 import { buildR2UserPrefix } from "../../../../storage/r2";
-import { newBackend } from "../../../helpers.test-utils";
+import { newBackend } from "../../../helpers.testUtils";
 
 afterEach(() => {
   vi.useRealTimers();

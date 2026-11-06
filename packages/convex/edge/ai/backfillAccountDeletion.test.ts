@@ -7,7 +7,7 @@ import {
   MAX_AI_BACKFILL_ATTEMPTS,
 } from "../../ai/backfill";
 import { AI_BACKFILL_SCAN_LIMIT } from "../../ai/queries";
-import { type Backend, newBackend } from "../helpers.test-utils";
+import { type Backend, newBackend } from "../helpers.testUtils";
 
 const NOW = new Date("2026-10-28T10:00:00Z").getTime();
 const HOUR_MS = 60 * 60 * 1000;

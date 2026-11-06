@@ -78,7 +78,7 @@ import { buildRawSelectorMap } from "../shared/linkCategory/enrichment";
 import { getRawAttribute } from "../shared/linkCategory/providers/common";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
 import { filterLocalCards } from "../shared/search/localSearch";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 

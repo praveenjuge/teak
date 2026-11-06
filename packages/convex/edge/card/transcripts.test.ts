@@ -11,7 +11,7 @@ import { initializeCardProcessingState } from "../../card/processingLifecycle";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
 import { semanticSearchKey } from "../../search/semanticCache";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

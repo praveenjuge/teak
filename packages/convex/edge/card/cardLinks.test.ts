@@ -12,7 +12,7 @@ import {
 } from "../../card/updateCard";
 import type { TeakUserId } from "../../securitySessions";
 import { formatCardLinkToken } from "../../shared/cardLinks";
-import { newBackend, workosIdentity } from "../helpers.test-utils";
+import { newBackend, workosIdentity } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

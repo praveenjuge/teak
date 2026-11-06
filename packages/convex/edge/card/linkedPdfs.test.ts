@@ -5,7 +5,7 @@ import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils"
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 const PAPER = "https://arxiv.org/abs/1706.03762";
 const PDF = "https://arxiv.org/pdf/1706.03762";

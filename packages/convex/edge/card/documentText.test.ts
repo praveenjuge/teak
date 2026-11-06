@@ -15,7 +15,7 @@ import {
   searchCardsByDocument,
 } from "../../search/searchReads";
 import { cardStorageObjectKeys } from "../../storage/r2";
-import { newBackend, workosIdentity } from "../helpers.test-utils";
+import { newBackend, workosIdentity } from "../helpers.testUtils";
 
 const documentText = (internal as any)["card/documentText"];
 

@@ -3,7 +3,7 @@ import { api, internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { onCardChanged } from "../../card/onCardChanged";
 import { relevanceSearchKey } from "../../shared/search/relevance";
-import { newBackend, signIn } from "../helpers.test-utils";
+import { newBackend, signIn } from "../helpers.testUtils";
 
 const setup = async () => {
   const t = newBackend();

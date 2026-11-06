@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
-import { newBackend, workosIdentity } from "./helpers.test-utils";
+import { newBackend, workosIdentity } from "./helpers.testUtils";
 
 const polarSdk = vi.hoisted(() => {
   const undeliverable = /(^|\.)(example\.(com|net|org)|test)$/;

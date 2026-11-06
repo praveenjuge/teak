@@ -2,7 +2,7 @@ import { sha256Hex } from "@teak/files-protocol";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 const NOW = Date.UTC(2026, 9, 20, 12);

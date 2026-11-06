@@ -9,7 +9,7 @@ import {
 import { updateCardFieldForUserHandler } from "../../card/updateCard";
 import { searchCardsByExactTag } from "../../search/searchReads";
 import type { TeakUserId } from "../../securitySessions";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 async function drainTags(ctx: MutationCtx, cardId: Id<"cards">) {
   for (let i = 0; i < 10; i++) {

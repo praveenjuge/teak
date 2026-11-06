@@ -16,7 +16,7 @@ import {
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../../storage/r2";
-import { newBackend } from "../helpers.test-utils";
+import { newBackend } from "../helpers.testUtils";
 
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;

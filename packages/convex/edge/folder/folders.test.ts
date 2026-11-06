@@ -19,7 +19,7 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
 } from "../../shared/folders";
-import { newBackend, workosIdentity } from "../helpers.test-utils";
+import { newBackend, workosIdentity } from "../helpers.testUtils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

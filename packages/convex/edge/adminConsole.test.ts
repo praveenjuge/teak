@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import { ensureCardUsageShards } from "../card/cardUsage";
 import { insertCard } from "../card/cardWrites";
-import { newBackend } from "./helpers.test-utils";
+import { newBackend } from "./helpers.testUtils";
 
 const clientId = "client_ADMIN";
 const adminClaims = {
