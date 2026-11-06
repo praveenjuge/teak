@@ -9,22 +9,21 @@ preferred path is one command from the repository root:
 bun run release:prepare <version>
 ```
 
-It validates the next patch, updates the root `package.json` and every
-workspace's (each one the root `workspaces` lists, private ones included,
-since every package moves in lockstep), the Safari
-WebExtension manifest, the MCP registry's `server.json`, the Claude plugin's
-`plugins/teak/.claude-plugin/plugin.json`, and the Apple app's
-marketing version, synchronizes
-`bun.lock` (and `apps/raycast/package-lock.json` when present),
-then verifies with a frozen install and the lockstep validator. Review the
+It validates the next patch, updates every versioned file, synchronizes
+`bun.lock` (and `apps/raycast/package-lock.json` when present), then
+verifies with a frozen install and the lockstep validator. The versioned
+files are listed once, in `scripts/release/release-version.ts`:
+`releaseManifestFiles` (every workspace's `package.json`, private ones
+included, since every package moves in lockstep, plus the other release
+manifests) and `appleVersionSources` (the Apple app's marketing version). Review the
 diff and commit every package manifest and lockfile together as one scoped
 version change. The command is resume-safe: if a run fails partway, re-run
 it with the same version plus `--resume` to continue from the install step.
 
 Manual fallback (same steps the script performs):
 
-1. Update the `version` field in every tracked `package.json` to the same next patch version.
-2. Update `apps/apple/SafariExtension/Resources/manifest.json`, `server.json`, `plugins/teak/.claude-plugin/plugin.json`, `MARKETING_VERSION` in `apps/apple/project.yml`, and every `MARKETING_VERSION` in the generated `apps/apple/Teak.xcodeproj/project.pbxproj` to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
+1. Update the `version` field in every file `releaseManifestFiles` lists to the same next patch version.
+2. Update every `MARKETING_VERSION` in the files `appleVersionSources` lists to the same version. Leave `CURRENT_PROJECT_VERSION` alone: the Apple release workflow sets the build number from App Store Connect.
 3. Run `bun install` from the repository root to synchronize `bun.lock`.
 4. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts --workspaces=false` to synchronize both version fields in `package-lock.json` without traversing the Bun workspace packages.
 5. From the repository root, run `bun install --frozen-lockfile` and `node scripts/release/release-version.ts lockstep <version>`. Both commands must exit successfully without changing files.
@@ -34,7 +33,11 @@ The preparation is complete when the working tree contains the intended version-
 
 Keep published version tags immutable. The `Version Tag` workflow creates the tag after the version change reaches `main`; do not create or move it manually during the normal release path.
 
-Release scripts that workflows run with plain `node`, often before Bun is installed (`scripts/release/release-version.ts`, `apple-*`, `sdk-release`, `watch-release-run`), are dependency-free TypeScript that Node runs directly (type stripping, so only erasable syntax and `.ts` import extensions). Every job that runs one sets up the pinned Node from `package.json` first; `scripts/package.json` (the `@teak/scripts` workspace, typechecked by its `typecheck` task) marks the folder as ES modules. Every other script in `scripts/` runs with Bun.
+`Version Tag` also creates the version's GitHub Release, titled with the tag and with generated notes (`node scripts/release/github-release.ts create`). It is the only workflow that creates one: the Android, extension and Apple release workflows wait for it (`github-release.ts wait`, up to 10 minutes) and only upload their assets. A workflow dispatched for an older tag whose release doesn't exist fails with the command that creates it.
+
+Release waits (npm visibility and attestations, a dispatched workflow run, the Play proof read-back, the Core Worker readiness check before a backend deploy, the GitHub Release) share `pollUntil` in `scripts/release/release-cli.ts`, which bounds each by attempts and a deadline and retries only the failures it names.
+
+Release scripts that workflows run with plain `node`, often before Bun is installed (`scripts/release/release-version.ts`, `apple-*`, `sdk-release`, `watch-release-run`, `github-release`), are dependency-free TypeScript that Node runs directly (type stripping, so only erasable syntax and `.ts` import extensions). Every job that runs one sets up the pinned Node from `package.json` first; `scripts/package.json` (the `@teak/scripts` workspace, typechecked by its `typecheck` task) marks the folder as ES modules. Every other script in `scripts/` runs with Bun.
 
 ## CLI
 
