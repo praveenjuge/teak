@@ -268,7 +268,7 @@ describe("waiting for background work", () => {
       waitFor(0, {
         intervalMs: 1,
         refresh: () => {
-          controller.abort(new Error("cancelled"));
+          setTimeout(() => controller.abort(new Error("cancelled")), 5);
           return new Promise<number>(() => {
             // A read that never answers.
           });
