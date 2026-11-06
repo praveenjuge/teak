@@ -24,13 +24,14 @@ export const buildCardSearchText = (
   card: SearchTextCard,
   extractedText?: string,
   transcript?: string
-): string =>
-  [
+): string => {
+  const fieldValues = new Map<string, unknown>(Object.entries(card));
+  return [
     ...CARD_SEARCH_TEXT_FIELDS.map((field) => {
       if (field === "content" && card.content) {
         return cardLinkTokensToText(card.content);
       }
-      return field === "aiTranscript" ? transcript : card[field];
+      return field === "aiTranscript" ? transcript : fieldValues.get(field);
     }),
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
@@ -41,6 +42,7 @@ export const buildCardSearchText = (
         typeof value === "string" && value.trim().length > 0
     )
     .join("\n");
+};
 
 export const normalizeCardSearchTag = (tag: string): string =>
   tag.trim().toLowerCase();

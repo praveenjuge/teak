@@ -90,16 +90,17 @@ const derivedFields = async (ctx: MutationCtx, cardId: Id<"cards">) => {
 };
 
 const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
-  const created: Record<string, Id<"cards">> = {};
+  const created = new Map<string, Id<"cards">>();
   await t.run(async (ctx) => {
     const create = async (
       name: string,
       args: Parameters<typeof createCardForUserHandler>[2],
       options: Parameters<typeof createCardForUserHandler>[3] = {}
     ) => {
-      created[name] = (
-        await createCardForUserHandler(ctx, OWNER, args, options)
-      ).cardId;
+      created.set(
+        name,
+        (await createCardForUserHandler(ctx, OWNER, args, options)).cardId
+      );
     };
     await create("text with a hidden tag", {
       content: "A private note",
@@ -147,16 +148,19 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
       { content: "https://folder.example.com/item" },
       { resolveFolderIds: async () => [folderId] }
     );
-    created["uploaded image"] = await createUploadedCardForUser(ctx, {
-      userId: OWNER,
-      fileKey: `${buildR2UserPrefix(OWNER)}/uploads/photo.png`,
-      fileName: "photo.png",
-      fileSize: 2048,
-      fileType: "image/png",
-      storedFileSize: 2048,
-      storedFileType: "image/png",
-      tags: ["hidden"],
-    });
+    created.set(
+      "uploaded image",
+      await createUploadedCardForUser(ctx, {
+        userId: OWNER,
+        fileKey: `${buildR2UserPrefix(OWNER)}/uploads/photo.png`,
+        fileName: "photo.png",
+        fileSize: 2048,
+        fileType: "image/png",
+        storedFileSize: 2048,
+        storedFileType: "image/png",
+        tags: ["hidden"],
+      })
+    );
   });
   vi.advanceTimersByTime(60_000);
   await t.run(async (ctx) => {
@@ -256,7 +260,7 @@ const createCards = async (t: Awaited<ReturnType<typeof setup>>) => {
     )
   );
   for (const [index, [name]] of defs.entries()) {
-    created[name] = ids[index];
+    created.set(name, ids[index]);
   }
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   return created;
@@ -266,12 +270,12 @@ describe("every way a card is written derives the same fields", () => {
   test("cards from each creation path and a re-save", async () => {
     const t = await setup();
     const created = await createCards(t);
-    const derived: Record<string, unknown> = {};
+    const derived = new Map<string, unknown>();
     await t.run(async (ctx) => {
-      for (const [name, cardId] of Object.entries(created)) {
-        derived[name] = await derivedFields(ctx, cardId);
+      for (const [name, cardId] of created) {
+        derived.set(name, await derivedFields(ctx, cardId));
       }
     });
-    expect(derived).toMatchSnapshot();
+    expect(Object.fromEntries(derived)).toMatchSnapshot();
   });
 });

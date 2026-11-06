@@ -36,13 +36,13 @@ const changedDerivedFields = (
   card: Partial<Doc<"cards">>,
   next: DerivedCardFields
 ): Partial<DerivedCardFields> => {
-  const changed: Partial<DerivedCardFields> = {};
-  for (const field of DERIVED_CARD_FIELDS) {
-    if (card[field] !== next[field]) {
-      Object.assign(changed, { [field]: next[field] });
-    }
-  }
-  return changed;
+  const before = new Map<string, unknown>(Object.entries(card));
+  const after = new Map<string, unknown>(Object.entries(next));
+  return Object.fromEntries(
+    DERIVED_CARD_FIELDS.filter(
+      (field) => before.get(field) !== after.get(field)
+    ).map((field) => [field, after.get(field)])
+  ) as Partial<DerivedCardFields>;
 };
 
 /**
