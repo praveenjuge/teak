@@ -1,6 +1,6 @@
 import { internal } from "../../_generated/api";
+import { parsePublicApiBody } from "../../shared/publicApiBodies";
 import { noContent, type PublicApiCall } from "./operation";
-import { parseFolderCardsPayload, parseFolderPayload } from "./payloads";
 import { serializeFolder, serializeFolderRuleRun } from "./serializers";
 import { errorResponse, json } from "./shared";
 
@@ -22,24 +22,13 @@ export const handleCreateFolderRequest = async ({
   ctx,
   userId,
 }: PublicApiCall): Promise<Response> => {
-  const parsed = parseFolderPayload(body, "create");
+  const parsed = parsePublicApiBody("createFolder", body);
   if ("error" in parsed) {
     return errorResponse(400, "INVALID_INPUT", parsed.error);
   }
-  const { autoFileEnabled, autoFileQuery, autoTags, color, kind, name, query } =
-    parsed.payload;
   const folder = await ctx.runMutation(
     internal.publicApiFolders.createFolderForUser,
-    {
-      userId,
-      name: name ?? "",
-      ...(color ? { color } : {}),
-      ...(kind ? { kind } : {}),
-      ...(query === undefined ? {} : { query }),
-      ...(autoTags === undefined ? {} : { autoTags }),
-      ...(autoFileQuery === undefined ? {} : { autoFileQuery }),
-      ...(autoFileEnabled === undefined ? {} : { autoFileEnabled }),
-    }
+    { userId, ...parsed.body }
   );
   return json(201, serializeFolder(folder));
 };
@@ -59,13 +48,13 @@ export const handleGetFolderRequest = async (
 export const handleUpdateFolderRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
-  const parsed = parseFolderPayload(call.body, "update");
+  const parsed = parsePublicApiBody("updateFolder", call.body);
   if ("error" in parsed) {
     return errorResponse(400, "INVALID_INPUT", parsed.error);
   }
   const folder = await call.ctx.runMutation(
     internal.publicApiFolders.updateFolderForUser,
-    { userId: call.userId, folderId: folderIdOf(call), ...parsed.payload }
+    { userId: call.userId, folderId: folderIdOf(call), ...parsed.body }
   );
   return json(200, serializeFolder(folder));
 };
@@ -83,7 +72,10 @@ export const handleDeleteFolderRequest = async (
 const changeFolderCards =
   (action: "add" | "remove") =>
   async (call: PublicApiCall): Promise<Response> => {
-    const parsed = parseFolderCardsPayload(call.body);
+    const parsed = parsePublicApiBody(
+      action === "add" ? "addCardsToFolder" : "removeCardsFromFolder",
+      call.body
+    );
     if ("error" in parsed) {
       return errorResponse(400, "INVALID_INPUT", parsed.error);
     }
@@ -93,7 +85,7 @@ const changeFolderCards =
         userId: call.userId,
         folderId: folderIdOf(call),
         action,
-        cardIds: parsed.cardIds,
+        cardIds: parsed.body.cardIds,
       }
     );
     return json(200, result);

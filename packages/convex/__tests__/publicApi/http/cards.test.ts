@@ -2404,9 +2404,9 @@ describe("page snapshots", () => {
   });
 
   test.each([
-    [{}, "`bytes` must be a positive whole number"],
+    [{}, "Body must include `bytes`"],
     [{ bytes: 1.5 }, "`bytes` must be a positive whole number"],
-    [{ bytes: 10, fileName: "page.html" }, "Unknown field `fileName`"],
+    [{ bytes: 10, fileName: "page.html" }, "Body may include only `bytes`"],
   ])("refuses %j", async (body, error) => {
     const response = await post(body);
     expect(response.status).toBe(400);

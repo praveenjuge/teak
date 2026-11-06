@@ -1409,6 +1409,8 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "properties": {
           "bytes": {
             "description": "The gzipped page's exact size in bytes; at most 20971520 (20 MiB).",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
             "type": "integer",
           },
         },
@@ -1418,14 +1420,17 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "CreateUploadRequest": {
+        "additionalProperties": false,
         "properties": {
           "fileName": {
+            "minLength": 1,
             "type": "string",
           },
           "fileSize": {
             "type": "number",
           },
           "mimeType": {
+            "minLength": 1,
             "type": "string",
           },
         },
@@ -1608,6 +1613,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "FavoriteRequest": {
+        "additionalProperties": false,
         "properties": {
           "isFavorited": {
             "type": "boolean",
@@ -1706,6 +1712,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "FolderCardsRequest": {
+        "additionalProperties": false,
         "properties": {
           "cardIds": {
             "items": {
@@ -1752,6 +1759,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "FolderCreateRequest": {
+        "additionalProperties": false,
         "properties": {
           "autoFileEnabled": {
             "description": "False pauses the auto-file search without clearing it.",
@@ -1759,6 +1767,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
           },
           "autoFileQuery": {
             "description": "A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most 500 characters, or null to clear it.",
+            "maxLength": 500,
             "type": [
               "string",
               "null",
@@ -1797,10 +1806,13 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
           },
           "name": {
             "description": "1 to 300 characters, unique per account ignoring case.",
+            "maxLength": 300,
+            "minLength": 1,
             "type": "string",
           },
           "query": {
             "description": "A smart folder's search, with the qualifiers \`q\` accepts; at most 500 characters. A \`folder:\` must name one of your manual folders.",
+            "maxLength": 500,
             "type": "string",
           },
         },
@@ -1901,6 +1913,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "FolderUpdateRequest": {
+        "additionalProperties": false,
         "minProperties": 1,
         "properties": {
           "autoFileEnabled": {
@@ -1909,6 +1922,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
           },
           "autoFileQuery": {
             "description": "A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most 500 characters, or null to clear it.",
+            "maxLength": 500,
             "type": [
               "string",
               "null",
@@ -1943,10 +1957,13 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
           },
           "name": {
             "description": "1 to 300 characters, unique per account ignoring case.",
+            "maxLength": 300,
+            "minLength": 1,
             "type": "string",
           },
           "query": {
             "description": "A smart folder's new search (at most 500 characters). Manual folders have none.",
+            "maxLength": 500,
             "type": "string",
           },
         },
@@ -2062,10 +2079,12 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "PinOrderRequest": {
+        "additionalProperties": false,
         "properties": {
           "cardIds": {
             "description": "Every pinned card's id exactly once, first to last. At most 12.",
             "items": {
+              "minLength": 1,
               "type": "string",
             },
             "maxItems": 12,
@@ -2078,6 +2097,7 @@ exports[`published API contract the OpenAPI document stays as published 1`] = `
         "type": "object",
       },
       "PinRequest": {
+        "additionalProperties": false,
         "properties": {
           "isPinned": {
             "type": "boolean",
@@ -3790,6 +3810,7 @@ title: Notes
                 "properties": {
                   "fileKey": {
                     "description": "From POST /v1/cards/{cardId}/thumbnail/upload, for this card",
+                    "minLength": 1,
                     "type": "string",
                   },
                 },
@@ -3904,12 +3925,13 @@ title: Notes
                       "image/gif",
                       "image/avif",
                     ],
+                    "minLength": 1,
                     "type": "string",
                   },
                 },
                 "required": [
-                  "mimeType",
                   "fileSize",
+                  "mimeType",
                 ],
                 "type": "object",
               },
@@ -4769,10 +4791,12 @@ title: Notes
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": false,
                 "properties": {
                   "tag": {
                     "description": "The tag to delete, matched ignoring case.",
                     "maxLength": 256,
+                    "minLength": 1,
                     "type": "string",
                   },
                 },
@@ -4822,15 +4846,18 @@ title: Notes
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": false,
                 "properties": {
                   "from": {
                     "description": "The tag to merge away, matched ignoring case.",
                     "maxLength": 256,
+                    "minLength": 1,
                     "type": "string",
                   },
                   "into": {
                     "description": "The tag to keep.",
                     "maxLength": 64,
+                    "minLength": 1,
                     "type": "string",
                   },
                 },
@@ -4917,15 +4944,18 @@ title: Notes
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": false,
                 "properties": {
                   "from": {
                     "description": "The tag to rename, matched ignoring case.",
                     "maxLength": 256,
+                    "minLength": 1,
                     "type": "string",
                   },
                   "to": {
                     "description": "The new name, written exactly as given.",
                     "maxLength": 64,
+                    "minLength": 1,
                     "type": "string",
                   },
                 },
@@ -5531,11 +5561,13 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "additionalProperties": false,
       "properties": {
         "from": {
+          "description": "The tag to rename, matched ignoring case.",
           "maxLength": 256,
           "minLength": 1,
           "type": "string",
         },
         "to": {
+          "description": "The new name, written exactly as given.",
           "maxLength": 64,
           "minLength": 1,
           "type": "string",
@@ -5562,11 +5594,13 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "additionalProperties": false,
       "properties": {
         "from": {
+          "description": "The tag to merge away, matched ignoring case.",
           "maxLength": 256,
           "minLength": 1,
           "type": "string",
         },
         "into": {
+          "description": "The tag to keep.",
           "maxLength": 64,
           "minLength": 1,
           "type": "string",
@@ -5597,6 +5631,7 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "boolean",
         },
         "tag": {
+          "description": "The tag to delete, matched ignoring case.",
           "maxLength": 256,
           "minLength": 1,
           "type": "string",
@@ -5739,7 +5774,6 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "string",
         },
         "fileSize": {
-          "exclusiveMinimum": 0,
           "type": "number",
         },
         "mimeType": {
@@ -5749,8 +5783,8 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       },
       "required": [
         "fileName",
-        "mimeType",
         "fileSize",
+        "mimeType",
       ],
       "type": "object",
     },
@@ -6638,8 +6672,8 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
         },
       },
       "required": [
-        "cardId",
         "isFavorited",
+        "cardId",
       ],
       "type": "object",
     },
@@ -6667,8 +6701,8 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
         },
       },
       "required": [
-        "cardId",
         "isPinned",
+        "cardId",
       ],
       "type": "object",
     },
@@ -6687,9 +6721,9 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "additionalProperties": false,
       "properties": {
         "cardIds": {
+          "description": "Every pinned card's id exactly once, first to last. At most 12.",
           "items": {
             "minLength": 1,
-            "pattern": "^[A-Za-z0-9_-]+$",
             "type": "string",
           },
           "maxItems": 12,
@@ -6737,9 +6771,9 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
         },
       },
       "required": [
-        "cardId",
-        "mimeType",
         "fileSize",
+        "mimeType",
+        "cardId",
       ],
       "type": "object",
     },
@@ -6763,13 +6797,14 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "string",
         },
         "fileKey": {
+          "description": "From POST /v1/cards/{cardId}/thumbnail/upload, for this card",
           "minLength": 1,
           "type": "string",
         },
       },
       "required": [
-        "cardId",
         "fileKey",
+        "cardId",
       ],
       "type": "object",
     },
@@ -6938,29 +6973,31 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "additionalProperties": false,
       "properties": {
         "autoFileEnabled": {
+          "description": "False pauses the auto-file search without clearing it.",
           "type": "boolean",
         },
         "autoFileQuery": {
           "anyOf": [
             {
               "maxLength": 500,
-              "minLength": 1,
               "type": "string",
             },
             {
               "type": "null",
             },
           ],
+          "description": "A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most 500 characters, or null to clear it.",
         },
         "autoTags": {
+          "description": "Tags every card that joins this manual folder gets, at most 10. An empty array clears them. Up to 50 folders per account can have rules.",
           "items": {
-            "minLength": 1,
             "type": "string",
           },
           "maxItems": 10,
           "type": "array",
         },
         "color": {
+          "description": "A palette color.",
           "enum": [
             "gray",
             "red",
@@ -6975,6 +7012,7 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "string",
         },
         "kind": {
+          "description": "\`smart\` saves a search as a folder and needs \`query\`. Defaults to \`manual\`.",
           "enum": [
             "manual",
             "smart",
@@ -6982,13 +7020,14 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "string",
         },
         "name": {
+          "description": "1 to 300 characters, unique per account ignoring case.",
           "maxLength": 300,
           "minLength": 1,
           "type": "string",
         },
         "query": {
+          "description": "A smart folder's search, with the qualifiers \`q\` accepts; at most 500 characters. A \`folder:\` must name one of your manual folders.",
           "maxLength": 500,
-          "minLength": 1,
           "type": "string",
         },
       },
@@ -7012,23 +7051,24 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "additionalProperties": false,
       "properties": {
         "autoFileEnabled": {
+          "description": "False pauses the auto-file search without clearing it.",
           "type": "boolean",
         },
         "autoFileQuery": {
           "anyOf": [
             {
               "maxLength": 500,
-              "minLength": 1,
               "type": "string",
             },
             {
               "type": "null",
             },
           ],
+          "description": "A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most 500 characters, or null to clear it.",
         },
         "autoTags": {
+          "description": "Tags every card that joins this manual folder gets, at most 10. An empty array clears them. Up to 50 folders per account can have rules.",
           "items": {
-            "minLength": 1,
             "type": "string",
           },
           "maxItems": 10,
@@ -7054,6 +7094,7 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
               "type": "null",
             },
           ],
+          "description": "A palette color, or null to clear it.",
         },
         "folderId": {
           "minLength": 1,
@@ -7061,13 +7102,14 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
           "type": "string",
         },
         "name": {
+          "description": "1 to 300 characters, unique per account ignoring case.",
           "maxLength": 300,
           "minLength": 1,
           "type": "string",
         },
         "query": {
+          "description": "A smart folder's new search (at most 500 characters). Manual folders have none.",
           "maxLength": 500,
-          "minLength": 1,
           "type": "string",
         },
       },
@@ -7122,7 +7164,6 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "properties": {
         "cardIds": {
           "items": {
-            "minLength": 1,
             "type": "string",
           },
           "maxItems": 100,
@@ -7136,8 +7177,8 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
         },
       },
       "required": [
-        "folderId",
         "cardIds",
+        "folderId",
       ],
       "type": "object",
     },
@@ -7157,7 +7198,6 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
       "properties": {
         "cardIds": {
           "items": {
-            "minLength": 1,
             "type": "string",
           },
           "maxItems": 100,
@@ -7171,8 +7211,8 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
         },
       },
       "required": [
-        "folderId",
         "cardIds",
+        "folderId",
       ],
       "type": "object",
     },

@@ -1,6 +1,6 @@
-import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../../shared/tags";
 import { apiKeySecurity } from "./components";
 import type { OpenApiOperations } from "./operations";
+import { requestBodySchema } from "./requestBodies";
 
 export const tagOperations = {
   listTags: {
@@ -26,22 +26,7 @@ export const tagOperations = {
       required: true,
       content: {
         "application/json": {
-          schema: {
-            properties: {
-              from: {
-                description: "The tag to rename, matched ignoring case.",
-                maxLength: MAX_TAG_KEY_LENGTH,
-                type: "string",
-              },
-              to: {
-                description: "The new name, written exactly as given.",
-                maxLength: MAX_TAG_NAME_LENGTH,
-                type: "string",
-              },
-            },
-            required: ["from", "to"],
-            type: "object",
-          },
+          schema: requestBodySchema("renameTag"),
         },
       },
     },
@@ -71,22 +56,7 @@ export const tagOperations = {
       required: true,
       content: {
         "application/json": {
-          schema: {
-            properties: {
-              from: {
-                description: "The tag to merge away, matched ignoring case.",
-                maxLength: MAX_TAG_KEY_LENGTH,
-                type: "string",
-              },
-              into: {
-                description: "The tag to keep.",
-                maxLength: MAX_TAG_NAME_LENGTH,
-                type: "string",
-              },
-            },
-            required: ["from", "into"],
-            type: "object",
-          },
+          schema: requestBodySchema("mergeTags"),
         },
       },
     },
@@ -116,17 +86,7 @@ export const tagOperations = {
       required: true,
       content: {
         "application/json": {
-          schema: {
-            properties: {
-              tag: {
-                description: "The tag to delete, matched ignoring case.",
-                maxLength: MAX_TAG_KEY_LENGTH,
-                type: "string",
-              },
-            },
-            required: ["tag"],
-            type: "object",
-          },
+          schema: requestBodySchema("deleteTag"),
         },
       },
     },

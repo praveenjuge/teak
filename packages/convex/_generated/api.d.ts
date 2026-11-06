@@ -231,6 +231,7 @@ import type * as publicApi_openApi_folders from "../publicApi/openApi/folders.js
 import type * as publicApi_openApi_highlights from "../publicApi/openApi/highlights.js";
 import type * as publicApi_openApi_meta from "../publicApi/openApi/meta.js";
 import type * as publicApi_openApi_operations from "../publicApi/openApi/operations.js";
+import type * as publicApi_openApi_requestBodies from "../publicApi/openApi/requestBodies.js";
 import type * as publicApi_openApi_spec from "../publicApi/openApi/spec.js";
 import type * as publicApi_openApi_tags from "../publicApi/openApi/tags.js";
 import type * as publicApi_search from "../publicApi/search.js";
@@ -302,6 +303,7 @@ import type * as shared_pins from "../shared/pins.js";
 import type * as shared_polarPlans from "../shared/polarPlans.js";
 import type * as shared_posthog from "../shared/posthog.js";
 import type * as shared_price from "../shared/price.js";
+import type * as shared_publicApiBodies from "../shared/publicApiBodies.js";
 import type * as shared_publicApiContract from "../shared/publicApiContract.js";
 import type * as shared_publicApiHeaders from "../shared/publicApiHeaders.js";
 import type * as shared_publicApiLimits from "../shared/publicApiLimits.js";
@@ -611,6 +613,7 @@ declare const fullApi: ApiFromModules<{
   "publicApi/openApi/highlights": typeof publicApi_openApi_highlights;
   "publicApi/openApi/meta": typeof publicApi_openApi_meta;
   "publicApi/openApi/operations": typeof publicApi_openApi_operations;
+  "publicApi/openApi/requestBodies": typeof publicApi_openApi_requestBodies;
   "publicApi/openApi/spec": typeof publicApi_openApi_spec;
   "publicApi/openApi/tags": typeof publicApi_openApi_tags;
   "publicApi/search": typeof publicApi_search;
@@ -682,6 +685,7 @@ declare const fullApi: ApiFromModules<{
   "shared/polarPlans": typeof shared_polarPlans;
   "shared/posthog": typeof shared_posthog;
   "shared/price": typeof shared_price;
+  "shared/publicApiBodies": typeof shared_publicApiBodies;
   "shared/publicApiContract": typeof shared_publicApiContract;
   "shared/publicApiHeaders": typeof shared_publicApiHeaders;
   "shared/publicApiLimits": typeof shared_publicApiLimits;

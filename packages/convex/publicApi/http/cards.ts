@@ -13,6 +13,7 @@ import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
+import { parsePublicApiBody } from "../../shared/publicApiBodies";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -24,15 +25,7 @@ import { relevanceCursorRanked } from "../cursors";
 import { parseOptionalString } from "../validation";
 import { respondIdempotently } from "./auth";
 import { noContent, type PublicApiCall, queryOf } from "./operation";
-import {
-  parseCreatePayload,
-  parsePatchPayload,
-  validateFavoritePayload,
-  validatePinPayload,
-  validateThumbnailSetPayload,
-  validateThumbnailUploadPayload,
-  validateUploadPayload,
-} from "./payloads";
+import { parseCreatePayload, parsePatchPayload } from "./payloads";
 import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
 import {
   buildCreateCardResponse,
@@ -146,14 +139,11 @@ const handleCreateUploadRequest = async (
   const { ctx, userId } = call;
 
   const payload = call.body;
-  const uploadPayload = validateUploadPayload(payload);
-  if (!uploadPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include only valid fields: fileName, mimeType, fileSize"
-    );
+  const parsedUploadPayload = parsePublicApiBody("createUpload", payload);
+  if ("error" in parsedUploadPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUploadPayload.error);
   }
+  const uploadPayload = parsedUploadPayload.body;
 
   const result = await ctx.runMutation(
     internal.publicApiUploads.generateUploadUrlForUser,
@@ -779,14 +769,11 @@ const handleThumbnailUploadRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const upload = validateThumbnailUploadPayload(call.body);
-  if (!upload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include only mimeType and fileSize"
-    );
+  const parsedUpload = parsePublicApiBody("createThumbnailUpload", call.body);
+  if ("error" in parsedUpload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUpload.error);
   }
+  const upload = parsedUpload.body;
   try {
     return json(
       200,
@@ -805,10 +792,11 @@ const handleSetThumbnailRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const thumbnail = validateThumbnailSetPayload(call.body);
-  if (!thumbnail) {
-    return errorResponse(400, "INVALID_INPUT", "Body must include fileKey");
+  const parsedThumbnail = parsePublicApiBody("setCardThumbnail", call.body);
+  if ("error" in parsedThumbnail) {
+    return errorResponse(400, "INVALID_INPUT", parsedThumbnail.error);
   }
+  const thumbnail = parsedThumbnail.body;
   try {
     await call.ctx.runAction(
       internal.card.thumbnailOverride.setLinkThumbnailForUser,
@@ -954,14 +942,11 @@ const handleSetPinnedRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const pinPayload = validatePinPayload(call.body);
-  if (!pinPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include `isPinned` as a boolean"
-    );
+  const parsedPinPayload = parsePublicApiBody("setCardPinned", call.body);
+  if ("error" in parsedPinPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedPinPayload.error);
   }
+  const pinPayload = parsedPinPayload.body;
   const result = await call.ctx.runMutation(
     internal.publicApi.cardsForUser.setCardPinnedForUser,
     {
@@ -987,14 +972,14 @@ const handleSetFavoriteRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  const favoritePayload = validateFavoritePayload(call.body);
-  if (!favoritePayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include `isFavorited` as a boolean"
-    );
+  const parsedFavoritePayload = parsePublicApiBody(
+    "setCardFavorite",
+    call.body
+  );
+  if ("error" in parsedFavoritePayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedFavoritePayload.error);
   }
+  const favoritePayload = parsedFavoritePayload.body;
   const updated = await call.ctx.runMutation(
     internal.publicApi.cardsForUser.setCardFavoriteForUser,
     {
