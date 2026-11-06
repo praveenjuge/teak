@@ -1,25 +1,15 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend, workosIdentity } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const OWNER = "legacy-update-owner";
 
 async function setup(seed: Partial<Doc<"cards">> = {}) {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_legacyupdate",
-    email_verified: true,
-    external_id: OWNER,
-  });
+  const owner = t.withIdentity(workosIdentity(workosUserId, OWNER));
   const now = Date.now();
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {

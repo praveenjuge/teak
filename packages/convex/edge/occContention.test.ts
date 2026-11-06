@@ -1,7 +1,5 @@
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { ConvexError } from "convex/values";
-import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
 import { components, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -40,7 +38,6 @@ import {
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "../idempotencyAnalytics";
 import { rateLimiter } from "../rateLimiter";
-import schema from "../schema";
 import { getSearchResultLimit } from "../search/searchCards";
 import {
   searchCardsByDocument,
@@ -53,8 +50,7 @@ import {
   buildCardSearchTags,
   buildCardSearchText,
 } from "../shared/search/searchText";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 const insertCard = async (
   ctx: MutationCtx,
@@ -119,7 +115,7 @@ const insertExactUsage = async (
 
 describe("OCC contention behavior", () => {
   test("initializes usage with a bounded saturated scan", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       for (let index = 0; index < FREE_TIER_LIMIT + 5; index += 1) {
         await insertCard(ctx, "user-1", { content: `Card ${index}` });
@@ -133,7 +129,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("reports the capped active count from an inexact usage count", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const seed = async (userId: string, cards: number, counted: number) => {
         for (let index = 0; index < cards; index += 1) {
@@ -157,7 +153,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("tracks create, delete, restore, and saturated recount transitions", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const initialUsage = await getOrInitializeCardUsage(ctx, "user-2");
       await initializeCardUsageShards(ctx, initialUsage);
@@ -188,7 +184,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("rejects restore at the free-tier quota", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await ctx.db.insert("userCardUsage", {
         userId: "user-3",
@@ -205,7 +201,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("enforces the exact free-tier limit across bounded usage shards", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-sharded-limit";
       const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT - 1);
@@ -233,7 +229,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("initializes shards before the first canonical card insert", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-first-canonical-create";
       const authorization = await authorizeCardCreation(ctx, userId, {
@@ -255,7 +251,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("preserves premium overflow and drains it before base usage", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-sharded-premium";
       const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT);
@@ -283,7 +279,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("allows downgraded users below the limit despite residual overflow", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-sharded-downgraded";
       const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT + 1);
@@ -312,7 +308,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("initializes saturated accounts without losing overflow usage", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-sharded-saturated";
       const saturatedCount = FREE_TIER_LIMIT + 17;
@@ -332,7 +328,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("initializes, repairs, and removes usage shards", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-shard-migration";
       const usage = await insertExactUsage(ctx, userId, 37);
@@ -365,7 +361,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("rejects a versioned but incomplete shard set", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const userId = "user-incomplete-shards";
       const usage = await insertExactUsage(ctx, userId, 4);
@@ -389,7 +385,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("blocks canonical writes once account deletion begins", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await beginAccountDeletion(ctx, "user-deleting");
       await expect(
@@ -412,7 +408,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("composes all general fields for canonical search documents", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const firstId = await insertCard(ctx, "user-4", {
         aiSummary: "summary",
@@ -450,7 +446,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("synchronizes and queries canonical exact tags", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const exactId = await insertCard(ctx, "user-tags", {
         content: "design systems",
@@ -505,7 +501,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("synchronizes very large tag sets in bounded resumable batches", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const tags = Array.from(
         { length: 1000 },
@@ -532,7 +528,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("orders and bounds exact-tag candidates before limiting", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardIds: Id<"cards">[] = [];
       for (const createdAt of [10, 20, 30]) {
@@ -563,7 +559,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("normalizes false and missing favorite values for exact tags", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const explicitFalseId = await insertCard(ctx, "user-tag-favorite", {
         isDeleted: false,
@@ -591,7 +587,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("keeps the previous tag generation visible until pruning", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const added = Array.from({ length: 40 }, (_, i) => `new-${i}`);
       const cardId = await insertCard(ctx, "user-tag-generation", {
@@ -623,7 +619,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("a card with few tags syncs and prunes in one batch", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-one-batch", {
         tags: ["keep", "old"],
@@ -646,7 +642,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("flag changes patch tag rows in place without a new tag generation", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-flag-patch", {
         tags: ["alpha", "beta"],
@@ -690,7 +686,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("returns a full page from canonical search documents", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       for (let index = 0; index < 50; index += 1) {
         const cardId = await insertCard(ctx, "user-overlap", {
@@ -715,7 +711,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("stale search work converges on the latest card state", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-5", {
         content: "old",
@@ -734,7 +730,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("syncs the search document inline with the card patch", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-inline", {
         content: "before",
@@ -765,7 +761,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("inline sync leaves the search rows untouched when nothing searchable changed", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-inline-noop", {
         content: "stable",
@@ -796,7 +792,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("inline sync removes search data atomically with the card delete", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-inline-delete", {
         content: "doomed",
@@ -825,7 +821,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("concurrent folder edits on one card converge on consistent rows", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const { cardId, a, b } = await t.run(async (ctx) => {
       const id = await insertCard(ctx, "user-folders");
       await onCardChanged(ctx, id);
@@ -882,7 +878,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("a text edit never reads or writes folder rows", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const folderId = await ctx.db.insert("folders", {
         userId: "user-folder-text",
@@ -906,7 +902,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("deletes account cards and search documents in bounded batches", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       for (let index = 0; index < 21; index += 1) {
         const cardId = await insertCard(ctx, "user-delete", {
@@ -943,7 +939,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("resumes account deletion for cards with large tag sets", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const tags = Array.from(
         { length: 45 },
@@ -982,7 +978,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("deletion batch tolerates a card deleted by a concurrent batch", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-race-delete", {
         content: "gone",
@@ -1004,7 +1000,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("stands down card patch writers while account deletion is in progress", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-fence-patch", {
         content: "before",
@@ -1044,7 +1040,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("stands down search sync writers while account deletion is in progress", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-deleting", {
         content: "before",
@@ -1087,7 +1083,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("stands down queued search sync after deletion cleanup via the owner hint", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-queued", {
         tags: ["alpha"],
@@ -1121,7 +1117,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("fences out stale-generation tag sync invocations without writing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const manyTags = Array.from({ length: 40 }, (_, i) => `tag-${i}`);
       const cardId = await insertCard(ctx, "user-fencing", {
@@ -1189,7 +1185,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("skips generation-tagged invocations whose state row was pruned", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-pruned-state", {
         tags: ["one", "two"],
@@ -1219,7 +1215,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("syncs tags from the state-row snapshot without reading the card", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-snapshot", {
         tags: ["alpha", "beta"],
@@ -1267,7 +1263,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("legacy state rows without a snapshot still read the card", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-legacy", {
         tags: ["delta"],
@@ -1294,7 +1290,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("clears the snapshot on card deletion and prunes the tag rows", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const cardId = await insertCard(ctx, "user-deleted", {
         tags: ["omega"],
@@ -1317,8 +1313,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("enforces the configured card-creation threshold", async () => {
-    const t = convexTest(schema, modules);
-    rateLimiterTest.register(t, "rateLimiterV2");
+    const t = newBackend();
     await t.run(async (ctx) => {
       let accepted = 0;
       let rejected = 0;
@@ -1377,8 +1372,7 @@ describe("OCC contention behavior", () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2026-08-31T00:00:00.000Z"));
-      const t = convexTest(schema, modules);
-      rateLimiterTest.register(t, "rateLimiterV2");
+      const t = newBackend();
       const previousLimiter = new RateLimiter(components.rateLimiterV2, {
         cardCreation: {
           capacity: 30,
@@ -1418,7 +1412,7 @@ describe("OCC contention behavior", () => {
   });
 
   test("aggregates legacy and sharded idempotency analytics", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const date = new Date().toISOString().slice(0, 10);
     await t.run(async (ctx) => {
       const base = {

@@ -1,12 +1,10 @@
-import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import { verifyWorkosConnectTokenSignature } from "../workos/tokens";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const issuer = "https://logout-tests.authkit.app";
 const user = "user_LOGOUT",
   owner = "legacy-owner",
@@ -62,7 +60,7 @@ function token(overrides: JWTPayload = {}) {
     .sign(keys.privateKey);
 }
 async function setup(existing = true) {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: owner,

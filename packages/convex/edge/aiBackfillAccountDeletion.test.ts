@@ -1,13 +1,11 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { claimAiBackfillCard, MAX_AI_BACKFILL_ATTEMPTS } from "../ai/backfill";
 import { AI_BACKFILL_SCAN_LIMIT } from "../ai/queries";
-import schema from "../schema";
+import { type Backend, newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const NOW = new Date("2026-10-28T10:00:00Z").getTime();
 const HOUR_MS = 60 * 60 * 1000;
 const DELETING_USER = "deleting-user";
@@ -21,7 +19,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type T = ReturnType<typeof convexTest>;
+type T = Backend;
 
 // Cards saved through the app have `aiPending` set. Older cards
 // come first in the backfill's index, so `offset` orders them.
@@ -62,7 +60,7 @@ const card = (t: T, cardId: Id<"cards">) =>
 
 describe("AI backfill while an account deletion is stalled", () => {
   test("pages past the deleting account's oldest cards to claim everyone else's", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stalled = await saveCards(t, 60, { userId: DELETING_USER });
     const [ownerCard] = await saveCards(t, 1, { userId: OWNER }, 1000);
     await stallAccountDeletion(t, DELETING_USER);
@@ -83,7 +81,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("exhausted cards of a deleting account no longer block the batch", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stalled = await saveCards(t, 50, {
       aiBackfillAttempts: MAX_AI_BACKFILL_ATTEMPTS,
       userId: DELETING_USER,
@@ -108,7 +106,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("the admin pending sample leaves out the deleting account's cards", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await saveCards(t, 60, { userId: DELETING_USER });
     const owners = await saveCards(t, 2, { userId: OWNER }, 1000);
     await stallAccountDeletion(t, DELETING_USER);
@@ -119,7 +117,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("a stalled deletion's cards at the oldest end don't hide newer ones", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await saveCards(t, AI_BACKFILL_SCAN_LIMIT, { userId: DELETING_USER });
     const owners = await saveCards(t, 1, { userId: OWNER }, 10_000);
     await stallAccountDeletion(t, DELETING_USER);
@@ -130,7 +128,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("stops after its read budget instead of scanning every pending card", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await saveCards(t, AI_BACKFILL_SCAN_LIMIT, { userId: DELETING_USER });
     await saveCards(t, 1, { userId: OWNER }, 10_000);
     await saveCards(
@@ -147,7 +145,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("a claim leaves a deleting account's card untouched", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const [cardId] = await saveCards(t, 1, {
       aiBackfillAttempts: 1,
       userId: DELETING_USER,
@@ -161,7 +159,7 @@ describe("AI backfill while an account deletion is stalled", () => {
   });
 
   test("releasing a claim leaves a deleting account's card untouched", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const [cardId] = await saveCards(t, 1, {
       aiBackfillAttempts: 2,
       userId: DELETING_USER,

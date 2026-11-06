@@ -1,15 +1,12 @@
 /// <reference types="vite/client" />
 import { SUPPORTED_LOCALES } from "@teak/i18n/locales";
 import { ConvexError } from "convex/values";
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
-import schema from "../schema";
 import { readAccountLocale } from "../settings/preferences";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 const codeOf = async (promise: Promise<unknown>) => {
   try {
@@ -23,16 +20,10 @@ const codeOf = async (promise: Promise<unknown>) => {
 };
 
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const signIn = async (teakUserId: string) => {
     const workosUserId = await seedWorkosOwner(t, teakUserId);
-    return t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: workosUserId,
-      sid: `session_${teakUserId}`,
-      email_verified: true,
-      external_id: teakUserId,
-    });
+    return t.withIdentity(workosIdentity(workosUserId, teakUserId));
   };
   const rows = (userId: string) =>
     t.run((ctx) =>

@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import {
   afterEach,
   beforeAll,
@@ -17,14 +15,12 @@ import {
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
 import { mapConvexErrorToResponse } from "../publicApi/http/shared";
-import schema from "../schema";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "../search/searchReads";
 import { MAX_CARD_TAGS } from "../shared/tags";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -39,8 +35,7 @@ beforeAll(async () => {
 });
 
 async function setup() {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   await seedWorkosOwner(t, "owner");
   await seedWorkosOwner(t, "stranger");
   const cardId = await t.run((ctx) =>
@@ -901,13 +896,11 @@ describe("Bulk items follow the single-card rules", () => {
 describe("Editing many cards in a minute", () => {
   test("keeps saving edits after the account's AI refresh budget runs out", async () => {
     const { t } = await setup();
-    const owner = t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: `user_${Buffer.from("owner").toString("hex")}`,
-      sid: "session_edits",
-      email_verified: true,
-      external_id: "owner",
-    });
+    const owner = t.withIdentity(
+      workosIdentity(`user_${Buffer.from("owner").toString("hex")}`, "owner", {
+        sid: "session_edits",
+      })
+    );
     const cardIds: Id<"cards">[] = [];
     for (let index = 0; index < 13; index += 1) {
       cardIds.push(
@@ -982,13 +975,11 @@ describe("Editing many cards in a minute", () => {
     expect(card?.metadata?.linkPreview).toBeDefined();
 
     // Clearing the URL resets the preview just the same.
-    const owner = t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: `user_${Buffer.from("owner").toString("hex")}`,
-      sid: "session_edits",
-      email_verified: true,
-      external_id: "owner",
-    });
+    const owner = t.withIdentity(
+      workosIdentity(`user_${Buffer.from("owner").toString("hex")}`, "owner", {
+        sid: "session_edits",
+      })
+    );
     const clearError = await owner
       .mutation(api.cards.updateCardField, { cardId, field: "url" })
       .catch((caught: unknown) => caught);
@@ -1085,13 +1076,11 @@ describe("Refresh details", () => {
 
   test("the app's mutation returns a refusal instead of throwing", async () => {
     const { t, cardId } = await setup();
-    const owner = t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: `user_${Buffer.from("owner").toString("hex")}`,
-      sid: "session_rerun",
-      email_verified: true,
-      external_id: "owner",
-    });
+    const owner = t.withIdentity(
+      workosIdentity(`user_${Buffer.from("owner").toString("hex")}`, "owner", {
+        sid: "session_rerun",
+      })
+    );
     expect(
       await owner.mutation(api.cards.reprocessCard, { cardId })
     ).toMatchObject({ status: "queued", cardId });
@@ -1131,13 +1120,11 @@ describe("Refresh details", () => {
       });
     }
     const last = cardIds[6] as Id<"cards">;
-    const owner = t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: `user_${Buffer.from("owner").toString("hex")}`,
-      sid: "session_rerun",
-      email_verified: true,
-      external_id: "owner",
-    });
+    const owner = t.withIdentity(
+      workosIdentity(`user_${Buffer.from("owner").toString("hex")}`, "owner", {
+        sid: "session_rerun",
+      })
+    );
     expect(
       await owner.mutation(api.cards.reprocessCard, { cardId: last })
     ).toMatchObject({ status: "refused", code: "RATE_LIMITED" });
@@ -1490,13 +1477,9 @@ describe("Web search pagination", () => {
       }
       return [50, 40, 30, 20, 10].map((createdAt) => byCreatedAt[createdAt]);
     });
-    const owner = t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: `user_${Buffer.from("owner").toString("hex")}`,
-      sid: "session_web",
-      email_verified: true,
-      external_id: "owner",
-    });
+    const owner = t.withIdentity(
+      workosIdentity(`user_${Buffer.from("owner").toString("hex")}`, "owner")
+    );
     const seen: string[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < 5; page += 1) {

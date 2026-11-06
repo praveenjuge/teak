@@ -1,21 +1,18 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import { TITLE_LOOKUP_LIMIT } from "../card/cardLinks";
-import { onCardChanged } from "../card/onCardChanged";
+import type { NewCard } from "../card/cardWrites";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
   updateCardFieldsForUserHandler,
 } from "../card/updateCard";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import { formatCardLinkToken } from "../shared/cardLinks";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -23,23 +20,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime">>;
+type CardSeed = Partial<NewCard>;
 
 const link = (title: string, id: string) => formatCardLinkToken(title, id);
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   const strangerWorkosId = await seedWorkosOwner(t, "stranger");
   const identity = (subject: string, externalId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject,
-      sid: `session_${externalId}`,
-      email_verified: true,
-      external_id: externalId,
-    });
+    t.withIdentity(workosIdentity(subject, externalId));
   const owner = identity(ownerWorkosId, "owner");
   const stranger = identity(strangerWorkosId, "stranger");
   let createdAt = 1000;
@@ -49,19 +39,18 @@ const setup = async () => {
   const insert = async (seed: CardSeed = {}) => {
     createdAt += 1;
     const at = createdAt;
-    const id = await t.run(async (ctx) => {
-      const cardId = await ctx.db.insert("cards", {
-        content: "",
-        createdAt: at,
-        shuffleKey: 0.5,
-        type: "text",
-        updatedAt: at,
-        userId: "owner",
-        ...seed,
-      });
-      await onCardChanged(ctx, cardId);
-      return cardId;
-    });
+    const id = await t.run(
+      async (ctx) =>
+        await insertTestCard(ctx, {
+          content: "",
+          createdAt: at,
+          shuffleKey: 0.5,
+          type: "text",
+          updatedAt: at,
+          userId: "owner",
+          ...seed,
+        })
+    );
     await runScheduled();
     return id;
   };
@@ -185,6 +174,7 @@ describe("link rows", () => {
   test("indexes at most 500 targets", async () => {
     const { insert, rows, setContent, t } = await setup();
     const note = await insert();
+    // Bare rows: the test needs only 501 card ids to link to.
     const targets = await t.run(async (ctx) => {
       const ids: Id<"cards">[] = [];
       for (let index = 0; index < 501; index++) {
@@ -280,6 +270,7 @@ describe("link targets", () => {
 describe("live titles inside titles", () => {
   test("one query reads at most 100 linked cards; past that, links keep their saved titles", async () => {
     const { owner, t } = await setup();
+    // Bare rows: the test needs only many linked cards and their content.
     const targets = await t.run(async (ctx) => {
       const ids: Id<"cards">[] = [];
       for (let index = 0; index <= TITLE_LOOKUP_LIMIT; index++) {
@@ -374,7 +365,6 @@ describe("suggestions", () => {
     const { insert, owner } = await setup();
     const hidden = await insert({
       content: "Diary entry",
-      isHidden: true,
       tags: ["secret"],
     });
     expect(
@@ -398,7 +388,6 @@ describe("suggestions", () => {
     const { insert, owner } = await setup();
     const hidden = await insert({
       content: "Diary entry",
-      isHidden: true,
       tags: ["secret"],
     });
     expect(
@@ -437,7 +426,7 @@ describe("backlinks", () => {
     const { insert, owner, setContent, t } = await setup();
     const hub = await insert({ content: "Hub" });
     const visible = await insert();
-    const diary = await insert({ isHidden: true, tags: ["secret"] });
+    const diary = await insert({ tags: ["secret"] });
     await setContent(visible, `Plan ${link("Hub", hub)}`);
     await setContent(diary, `Diary ${link("Hub", hub)}`);
 
@@ -464,7 +453,7 @@ describe("backlinks", () => {
     const hub = await insert({ content: "Hub" });
     await t.run(async (ctx) => {
       for (let index = 0; index < 51; index++) {
-        const source = await ctx.db.insert("cards", {
+        await insertTestCard(ctx, {
           content: link("Hub", hub),
           createdAt: index,
           shuffleKey: 0.5,
@@ -472,7 +461,6 @@ describe("backlinks", () => {
           updatedAt: index,
           userId: "owner",
         });
-        await onCardChanged(ctx, source);
       }
     });
     await runScheduled();
@@ -489,6 +477,7 @@ describe("backlinks", () => {
     const targets = await t.run(async (ctx) => {
       const ids: Id<"cards">[] = [];
       for (let index = 0; index < 101; index++) {
+        // A bare row: the test needs only a card id to link to.
         ids.push(
           await ctx.db.insert("cards", {
             content: `T${index}`,
@@ -499,7 +488,7 @@ describe("backlinks", () => {
             userId: "owner",
           })
         );
-        const source = await ctx.db.insert("cards", {
+        await insertTestCard(ctx, {
           content: link("Hub", hub),
           createdAt: index,
           shuffleKey: 0.5,
@@ -507,7 +496,6 @@ describe("backlinks", () => {
           updatedAt: index,
           userId: "owner",
         });
-        await onCardChanged(ctx, source);
       }
       return ids;
     });

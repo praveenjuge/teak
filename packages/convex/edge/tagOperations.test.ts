@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
@@ -10,7 +8,6 @@ import {
   onCardChanged,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
-import schema from "../schema";
 import { TAG_OPERATION_STALL_MS } from "../shared/tags";
 import { countTagsLive, readSettledTagSummary } from "../tag/tagListing";
 import {
@@ -19,8 +16,7 @@ import {
   TAG_OPERATION_PASS_DELAY_MS,
 } from "../tag/tagOperations";
 import { markTagSummaryDirty, TAG_SUMMARY_PAGE_ROWS } from "../tag/tagSummary";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -31,18 +27,11 @@ afterEach(() => {
 type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const workosUserId = await seedWorkosOwner(t, "owner");
   const strangerWorkosId = await seedWorkosOwner(t, "stranger");
   const identity = (subject: string, externalId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject,
-      sid: `session_${externalId}`,
-      email_verified: true,
-      external_id: externalId,
-    });
+    t.withIdentity(workosIdentity(subject, externalId));
   const owner = identity(workosUserId, "owner");
   const stranger = identity(strangerWorkosId, "stranger");
 

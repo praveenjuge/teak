@@ -1,12 +1,10 @@
 import type { UserIdentity } from "convex/server";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const ensure = api.workosBootstrap.ensureUser;
 const clientId = "client_BOOTSTRAP";
 const claims = {
@@ -17,7 +15,7 @@ const claims = {
   email: "new@example.com",
 };
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;

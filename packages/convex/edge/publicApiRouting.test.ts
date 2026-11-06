@@ -1,17 +1,14 @@
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { V1_ENDPOINTS } from "../publicApi/http/meta";
 import { openApiSpec } from "../publicApi/openApi/spec";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 test.each([
   ["DELETE", "/v1/cards", "GET, POST, OPTIONS"],
   ["GET", "/v1/highlights/h1", "PATCH, DELETE, OPTIONS"],
   ["POST", "/v1/me", "GET, OPTIONS"],
 ])("%s %s answers a JSON 405 with Allow", async (method, path, allow) => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const response = await t.fetch(path, { method });
   expect(response.status).toBe(405);
   expect(response.headers.get("Allow")).toBe(allow);
@@ -25,7 +22,7 @@ test.each([
 ])(
   "%s %s, an extra segment under a route, is a JSON 404",
   async (method, path) => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const response = await t.fetch(path, { method });
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
@@ -33,7 +30,7 @@ test.each([
 );
 
 test("an unknown /v1 path answers a JSON 404 with CORS headers", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const response = await t.fetch("/v1/nothing-here", { method: "GET" });
   expect(response.status).toBe(404);
   expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
@@ -45,7 +42,7 @@ test("an unknown /v1 path answers a JSON 404 with CORS headers", async () => {
 });
 
 test("routed endpoints still reach their handlers", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   expect((await t.fetch("/v1/cards", { method: "GET" })).status).toBe(401);
   expect((await t.fetch("/v1/cards/c1", { method: "GET" })).status).toBe(401);
 });
@@ -69,7 +66,7 @@ test.each([
 ])(
   "%s %s, a card or folder path served for other methods, is 405",
   async (method, path, allow) => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const response = await t.fetch(path, { method });
     expect(response.status).toBe(405);
     expect(response.headers.get("Allow")).toBe(allow);
@@ -83,7 +80,7 @@ test.each([
   "/v1/oauth/disconnect",
   "/v1/tags/operations/op1",
 ])("OPTIONS %s answers the CORS preflight", async (path) => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const response = await t.fetch(path, { method: "OPTIONS" });
   expect(response.status).toBe(204);
   expect(response.headers.get("Access-Control-Allow-Methods")).toContain(

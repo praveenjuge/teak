@@ -1,15 +1,12 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
+import { newBackend, signIn } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const PAPER = "https://arxiv.org/abs/1706.03762";
 const PDF = "https://arxiv.org/pdf/1706.03762";
 
@@ -67,19 +64,11 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const ownerWorkosId = await seedWorkosOwner(t, "owner");
+  const owner = await signIn(t, "owner");
   await seedWorkosOwner(t, "stranger");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: ownerWorkosId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
 
   const paper = (
     fields: Partial<Doc<"cards">> = {},

@@ -1,14 +1,10 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { deriveCardFields } from "../card/derivedFields";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import { MAX_SHUFFLE_SEED } from "../shared/search/shuffle";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -28,34 +24,31 @@ type CardSeed = Partial<
     | "tags"
     | "type"
     | "url"
-    | "urlHost"
   >
 >;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_shuffle",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   let nextCreatedAt = 1000;
   const insert = (seed: CardSeed) => {
     nextCreatedAt += 1;
     const createdAt = nextCreatedAt;
+    // Straight to the table, not through the write path: Shuffle must also
+    // reach cards saved before `shuffleKey` existed, which that path keys.
+    const card = {
+      userId: "owner",
+      type: "text" as const,
+      content: `Card ${createdAt}`,
+      createdAt,
+      updatedAt: createdAt,
+      ...(seed.isDeleted ? { deletedAt: createdAt } : {}),
+      ...seed,
+    };
     return t.run(async (ctx) => {
       const id = await ctx.db.insert("cards", {
-        userId: "owner",
-        type: "text",
-        content: `Card ${createdAt}`,
-        createdAt,
-        updatedAt: createdAt,
-        ...(seed.isDeleted ? { deletedAt: createdAt } : {}),
-        ...seed,
+        ...card,
+        ...deriveCardFields(card),
       });
       await onCardChanged(ctx, id);
       return id;
@@ -285,7 +278,6 @@ describe("Shuffle of one site", () => {
         await insert({
           type: "link",
           url: `https://github.com/teak/${index}`,
-          urlHost: "github.com",
           shuffleKey: ((index * 7919) % 1000) / 1000,
         })
       );
@@ -293,7 +285,6 @@ describe("Shuffle of one site", () => {
     await insert({
       type: "link",
       url: "https://example.com/other",
-      urlHost: "example.com",
       shuffleKey: 0.5,
     });
     const args = {

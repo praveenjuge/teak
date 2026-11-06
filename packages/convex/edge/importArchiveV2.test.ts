@@ -1,6 +1,4 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
@@ -8,9 +6,7 @@ import type { Id } from "../_generated/dataModel";
 import { insertCompletedCards } from "../card/defaultCards";
 import { readFolderCardCount } from "../folder/folderRows";
 import { insertFolder } from "../folder/folders";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -29,10 +25,9 @@ interface ItemSeed {
 }
 
 const setup = async (mode: "archive" | "bookmarks" | "pocket" = "archive") => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   await seedWorkosOwner(t, "owner");
   const newJob = () =>
     t.run((ctx) =>

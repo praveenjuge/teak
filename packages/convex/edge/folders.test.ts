@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
@@ -15,15 +13,13 @@ import {
   FOLDER_DELETE_UNDO_MS,
   readLiveFolders,
 } from "../folder/folders";
-import schema from "../schema";
 import { searchCardsByDocument } from "../search/searchReads";
 import {
   FOLDER_ERROR_MESSAGES,
   MAX_FOLDERS_PER_CARD,
   MAX_FOLDERS_PER_USER,
 } from "../shared/folders";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -35,18 +31,11 @@ type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
   Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const workosUserId = await seedWorkosOwner(t, "owner");
   const strangerWorkosId = await seedWorkosOwner(t, "stranger");
   const identity = (subject: string, externalId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject,
-      sid: `session_${externalId}`,
-      email_verified: true,
-      external_id: externalId,
-    });
+    t.withIdentity(workosIdentity(subject, externalId));
   const owner = identity(workosUserId, "owner");
   const stranger = identity(strangerWorkosId, "stranger");
 

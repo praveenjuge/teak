@@ -1,16 +1,14 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import { DAY_MS } from "../admin/stats";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
 // The admin overview and the metrics cohorts count activated users the same
 // way: five of their own cards (onboarding cards don't count) in a first
 // week that has ended.
 
-const modules = import.meta.glob("../**/*.ts");
 const NOW = Date.UTC(2026, 10, 6);
 const SIGNED_UP = NOW - 10 * DAY_MS;
 
@@ -37,7 +35,7 @@ const seed = async (
   return { createdAt, teakUserId: userId };
 };
 
-const backend = () => convexTest(schema, modules);
+const backend = () => newBackend();
 
 describe("activated users", () => {
   test("both admin views count five own cards in an ended first week", async () => {

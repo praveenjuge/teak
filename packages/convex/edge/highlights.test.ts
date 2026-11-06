@@ -1,11 +1,10 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { accountDeletionStage } from "../accountDeletion/stages";
+import type { NewCard } from "../card/cardWrites";
 import { createCardForUserHandler } from "../card/createCard";
 import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
@@ -13,7 +12,6 @@ import { updateCardFieldForUserHandler } from "../card/updateCard";
 import { newImportFolderCache } from "../folder/folders";
 import { insertImportedHighlights } from "../highlight/highlights";
 import { createImportedCard } from "../import/items";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import { articleTextObjectKey } from "../shared/article";
 import { anchorContext } from "../shared/highlights/anchor";
@@ -23,8 +21,8 @@ import {
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
+import { newBackend, signIn } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const articleText = (internal as any)["card/articleText"];
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;
@@ -82,16 +80,8 @@ const span = (quote: string, nth = 0) => {
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const identity = async (userId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: await seedWorkosOwner(t, userId),
-      sid: `session_${userId}`,
-      email_verified: true,
-      external_id: userId,
-    });
+  const t = newBackend();
+  const identity = (userId: string) => signIn(t, userId);
   const owner = await identity("owner");
   const other = await identity("other");
   const textKey = async (cardId: Id<"cards">, markdown = ARTICLE, rev = 1) =>
@@ -102,14 +92,13 @@ const setup = async () => {
       await sha256(markdown)
     );
 
-  const link = async (seed: Partial<Doc<"cards">> = {}) => {
+  const link = async (seed: Partial<NewCard> = {}) => {
     const id = await t.run((ctx) =>
-      ctx.db.insert("cards", {
+      insertTestCard(ctx, {
         userId: "owner",
         type: "link",
         content: LINK,
         url: LINK,
-        urlKey: "example.com/gardens",
         metadataStatus: "completed",
         metadataTitle: "Gardens",
         pageArchive: archiveOf(),
@@ -499,7 +488,7 @@ describe("notes and removal", () => {
 
 describe("imported highlights", () => {
   test("a card's 200 waiting highlights anchor within one transaction's limits", async () => {
-    const t = convexTest({ schema, modules, transactionLimits: true });
+    const t = newBackend({ transactionLimits: true });
     const sentence = (index: number) =>
       `Sentence ${index} ${"leaf ".repeat(80)}ends here.`;
     const sentences = Array.from({ length: 200 }, (_, index) =>

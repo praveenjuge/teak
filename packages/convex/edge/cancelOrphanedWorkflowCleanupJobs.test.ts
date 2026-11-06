@@ -1,17 +1,14 @@
 import { makeFunctionReference } from "convex/server";
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 const ORPHAN_NAME = "workflows/manager:cleanupCompletedWorkflow";
 const LIVE_NAME =
   "migration/cancelOrphanedWorkflowCleanupJobs:cancelOrphanedWorkflowCleanupJobs";
 
-const setup = () => convexTest(schema, modules);
+const setup = () => newBackend();
 type Backend = ReturnType<typeof setup>;
 
 const scheduleJob = (t: Backend, name: string) =>

@@ -1,14 +1,11 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
+import type { NewCard } from "../card/cardWrites";
+import { deriveCardFields } from "../card/derivedFields";
 import { CARD_LIST_PAGE_ROW_LIMIT } from "../card/listQuery";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -21,30 +18,22 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime">>;
+type CardSeed = Partial<NewCard>;
 
 const SEED_BATCH = 10;
 
 const setup = async (documentsRead?: number) => {
-  const t = convexTest({
-    schema,
-    modules,
-    ...(documentsRead ? { transactionLimits: { documentsRead } } : {}),
-  });
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_searchreads",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend(
+    documentsRead ? { transactionLimits: { documentsRead } } : {}
+  );
+  const owner = await signIn(t, "owner");
 
   let nextCreatedAt = 1000;
+  // Rows go straight to the table, with the fields the write path derives,
+  // so `sync: false` can store hundreds of cards without their search rows.
   const cardOf = (seed: CardSeed) => {
     nextCreatedAt += 1;
-    return {
+    const card = {
       userId: "owner",
       type: "text" as const,
       content: `Card ${nextCreatedAt}`,
@@ -53,6 +42,7 @@ const setup = async (documentsRead?: number) => {
       shuffleKey: ((nextCreatedAt * 7919) % 1009) / 1009,
       ...seed,
     };
+    return { ...card, ...deriveCardFields(card) };
   };
   const insertAll = async (
     seeds: readonly CardSeed[],
@@ -276,7 +266,6 @@ describe("card lists", () => {
     await insertAll(
       Array.from({ length: CARD_LIST_PAGE_ROW_LIMIT + 200 }, () => ({
         tags: ["hidden"],
-        isHidden: true as const,
       })),
       { sync: false }
     );

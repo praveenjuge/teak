@@ -1,24 +1,23 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest as baseConvexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import type { NewCard } from "../card/cardWrites";
 import { createCardForUserHandler } from "../card/createCard";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import { queueCardProcessing } from "../card/processingRuns";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;
 const OWNER = "owner" as TeakUserId;
@@ -34,15 +33,14 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const newBackend = () => {
-  const t = baseConvexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+const newPageBackend = () => {
+  const t = newBackend();
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   return t;
 };
 
-type T = ReturnType<typeof newBackend>;
+type T = ReturnType<typeof newPageBackend>;
 
 const snapshotKey = (userId: string, id = "s1") =>
   buildR2ObjectKey({
@@ -71,9 +69,9 @@ const IDLE_STAGES = {
   renderables: { status: "completed" as const },
 };
 
-const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
+const insertCard = (t: T, fields: Partial<NewCard> = {}) =>
   t.run((ctx) =>
-    ctx.db.insert("cards", {
+    insertTestCard(ctx, {
       content: LINK,
       createdAt: NOW - HOUR,
       metadataStatus: "completed",
@@ -81,7 +79,6 @@ const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
       type: "link",
       updatedAt: NOW - HOUR,
       url: LINK,
-      urlKey: "example.com/article",
       userId: OWNER,
       ...fields,
     })
@@ -126,7 +123,7 @@ const archiveOf = (cardId: string, rev = 1) => ({
 
 describe("pageSnapshotKey on a new link", () => {
   test("keeps the caller's own pending snapshot, with when it was taken", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const key = snapshotKey(OWNER);
     await registerKey(t, OWNER, key);
 
@@ -173,7 +170,7 @@ describe("pageSnapshotKey on a new link", () => {
       owner: OWNER,
     },
   ])("ignores $name and still saves", async ({ key, owner }) => {
-    const t = newBackend();
+    const t = newPageBackend();
     const value = key();
     if (owner) {
       await registerKey(t, owner, value);
@@ -191,7 +188,7 @@ describe("pageSnapshotKey on a new link", () => {
   });
 
   test("a note gets no archive stage and no snapshot", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const key = snapshotKey(OWNER);
     await registerKey(t, OWNER, key);
 
@@ -209,7 +206,7 @@ describe("pageSnapshotKey on a new link", () => {
 
 describe("pageSnapshotKey on a re-save", () => {
   test("an idle link archives the new snapshot in a run of its own", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const existing = await insertCard(t, {
       pageArchive: archiveOf("k0"),
       processingStatus: { ...IDLE_STAGES, archive: { status: "completed" } },
@@ -230,7 +227,7 @@ describe("pageSnapshotKey on a re-save", () => {
   });
 
   test("a link whose run is in flight keeps it, and gets an archive run when it ends", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const existing = await insertCard(t, {
       pageArchive: archiveOf("k0"),
       processingStatus: {
@@ -268,7 +265,7 @@ describe("pageSnapshotKey on a re-save", () => {
   });
 
   test("AI metadata waiting for its backfill doesn't hold the snapshot back", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const existing = await insertCard(t, {
       pageArchive: archiveOf("k0"),
       processingRev: 1,
@@ -289,7 +286,7 @@ describe("pageSnapshotKey on a re-save", () => {
   });
 
   test("a page re-saved while an archive-only run finishes gets a run of its own", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const existing = await insertCard(t, {
       pageArchive: archiveOf("k0"),
       processingStatus: { ...IDLE_STAGES, archive: { status: "pending" } },
@@ -316,14 +313,13 @@ describe("pageSnapshotKey on a re-save", () => {
   });
 
   test("a run that ends with no new snapshot, or an archive-only run, queues nothing", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const plain = await insertCard(t, { pageArchive: archiveOf("k0") });
     const pending = snapshotKey(OWNER);
     const archiving = await insertCard(t, {
       pendingPageSnapshotAt: NOW,
       pendingPageSnapshotKey: pending,
       url: "https://example.com/other",
-      urlKey: "example.com/other",
     });
     const first = await t.run((ctx) => queueCardProcessing(ctx, plain));
     const second = await t.run((ctx) =>
@@ -343,7 +339,7 @@ describe("pageSnapshotKey on a re-save", () => {
   });
 
   test("a second snapshot replaces the first, which is deleted", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const first = snapshotKey(OWNER, "first");
     const second = snapshotKey(OWNER, "second");
     const existing = await insertCard(t, {
@@ -361,7 +357,7 @@ describe("pageSnapshotKey on a re-save", () => {
 
 describe("editing a link's URL", () => {
   test("drops the old page's copy, snapshot and link check, and archives the new page", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     await seedWorkosOwner(t, OWNER);
     const pending = snapshotKey(OWNER);
     const cardId = await insertCard(t, {
@@ -404,7 +400,7 @@ describe("editing a link's URL", () => {
   });
 
   test("other edits keep the copy and the link check", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     await seedWorkosOwner(t, OWNER);
     const cardId = await insertCard(t);
     const old = archiveOf(cardId);
@@ -452,7 +448,7 @@ describe("recordPageArchive", () => {
     });
 
   test("replaces the copy and deletes the old object, never the same one", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const cardId = await insertCard(t, { processingRev: 2 });
     const old = archiveOf(cardId, 1);
     await t.run((ctx) => ctx.db.patch("cards", cardId, { pageArchive: old }));
@@ -467,7 +463,7 @@ describe("recordPageArchive", () => {
   });
 
   test("lets go of the snapshot it was made from", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const key = snapshotKey(OWNER);
     const cardId = await insertCard(t, {
       pendingPageSnapshotAt: NOW,
@@ -484,7 +480,7 @@ describe("recordPageArchive", () => {
   });
 
   test("a snapshot sent after the run began stays, and gets a run of its own", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const newer = snapshotKey(OWNER, "newer");
     const cardId = await insertCard(t, {
       pendingPageSnapshotAt: NOW,
@@ -500,7 +496,7 @@ describe("recordPageArchive", () => {
   });
 
   test("refuses a copy outside the owner's storage", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const cardId = await insertCard(t);
     await expect(
       record(t, cardId, {
@@ -517,7 +513,7 @@ describe("recordPageArchive", () => {
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "secret");
     vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
-    const t = newBackend();
+    const t = newPageBackend();
     const archived = await insertCard(t);
     const failed = await insertCard(t);
 
@@ -570,7 +566,7 @@ describe("recordPageArchive", () => {
 
 describe("runs", () => {
   test("an archive-only run that replaces a pending full run runs in full, and the other way round", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const first = await insertCard(t);
     const second = await insertCard(t);
     await t.run(async (ctx) => {
@@ -593,7 +589,7 @@ describe("runs", () => {
   });
 
   test("a link whose run fails keeps its archive stage and gets an archive-only run", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const cardId = await insertCard(t, {
       processingStatus: {
         ...IDLE_STAGES,
@@ -632,7 +628,7 @@ describe("runs", () => {
   });
 
   test("a failed run of a link that already has a copy queues no archive run", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const cardId = await insertCard(t, {
       pageArchive: archiveOf("k0"),
       // Its article is current too, so nothing is left to run.
@@ -655,7 +651,7 @@ describe("runs", () => {
   });
 
   test("Refresh details starts the archive over; other resets keep it", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     const done = {
       archive: { completedAt: NOW, status: "completed" as const },
     };
@@ -681,7 +677,7 @@ describe("createPageSnapshotUploadForUser", () => {
   const signUp = async () => {
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "secret");
-    const t = newBackend();
+    const t = newPageBackend();
     await seedWorkosOwner(t, OWNER);
     const mint = (bytes: number) =>
       t.mutation(
@@ -740,7 +736,7 @@ describe("createPageSnapshotUploadForUser", () => {
 
 describe("pageSnapshotKey through the public API", () => {
   test("POST /v1/cards and a bulk create keep the caller's snapshot", async () => {
-    const t = newBackend();
+    const t = newPageBackend();
     await seedWorkosOwner(t, OWNER);
     const single = snapshotKey(OWNER, "single");
     const bulk = snapshotKey(OWNER, "bulk");

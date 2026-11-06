@@ -1,15 +1,11 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import { queueCardProcessing } from "../card/processingRuns";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
-import schema from "../schema";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
@@ -17,8 +13,8 @@ import {
 import type { TeakUserId } from "../securitySessions";
 import { articleImageObjectKey, articleTextObjectKey } from "../shared/article";
 import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
+import { newBackend, signIn } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const articleText = (internal as any)["card/articleText"];
 const documentText = (internal as any)["card/documentText"];
 const NOW = Date.UTC(2026, 9, 20, 10);
@@ -54,16 +50,8 @@ const archiveOf = (capturedAt = NOW - HOUR) => ({
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const ownerWorkosId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: ownerWorkosId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
 
   let createdAt = NOW - 10 * HOUR;
   const insert = (seed: Partial<Doc<"cards">> = {}) => {

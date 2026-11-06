@@ -1,9 +1,7 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const principal = {
   workosUserId: "user_ONE",
   clientId: "client_ONE",
@@ -21,7 +19,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: "owner",

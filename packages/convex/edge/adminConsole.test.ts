@@ -1,12 +1,10 @@
 import polarTest from "@convex-dev/polar/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import { ensureCardUsageShards } from "../card/cardUsage";
 import { insertCard } from "../card/cardWrites";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const clientId = "client_ADMIN";
 const adminClaims = {
   issuer: `https://api.workos.com/user_management/${clientId}`,
@@ -21,7 +19,7 @@ const adminClaims = {
 };
 
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
   return t;
 };

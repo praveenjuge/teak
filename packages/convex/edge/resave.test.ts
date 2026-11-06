@@ -1,10 +1,7 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
@@ -14,11 +11,9 @@ import {
 } from "../card/defaultCards";
 import { serializeCard } from "../export/serialize";
 import { normalizeIndexItem } from "../import/indexItems";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import { FREE_TIER_LIMIT } from "../shared/constants";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 const SAVED = "https://www.example.com/post/";
 const VARIANT = "http://example.com/post?utm_source=newsletter#top";
@@ -36,20 +31,12 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const owner = await signIn(t, "owner");
   const seed = (cards: DevScenarioCardDef[]) =>
     t.run((ctx) =>
       insertCompletedCards(ctx, "owner", cards, { hasPremium: true })

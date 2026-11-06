@@ -1,11 +1,9 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const USER = "teak_embed_owner";
 
 interface WorkerCall {
@@ -70,7 +68,7 @@ const stubWorker = ({
 };
 
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 

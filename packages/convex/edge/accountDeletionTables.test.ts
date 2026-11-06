@@ -1,13 +1,11 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
-const backend = () => convexTest(schema, modules);
+const backend = () => newBackend();
 type Backend = ReturnType<typeof backend>;
 
 const seedUser = async (t: Backend, teakUserId: string) => {

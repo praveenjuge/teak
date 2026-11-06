@@ -1,6 +1,5 @@
 import polarTest from "@convex-dev/polar/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   convexForWorker,
@@ -8,12 +7,11 @@ import {
 } from "../__tests__/helpers/coreWorker.test-utils";
 import { api, components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
 import { buildR2UserPrefix } from "../storage/r2";
+import { newBackend } from "./helpers";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();
-const modules = import.meta.glob("../**/*.ts");
 const claims = {
   issuer: "https://api.workos.com/user_management/client_DELETE",
   subject: "user_DELETE",
@@ -22,7 +20,7 @@ const claims = {
   external_id: "permanent-owner",
 };
 const fixture = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
   apiKeysTest.register(t);
   const ownerId = "permanent-owner";

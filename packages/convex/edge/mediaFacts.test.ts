@@ -1,13 +1,10 @@
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
-
-const modules = import.meta.glob("../**/*.ts");
+import { type Backend, newBackend } from "./helpers";
 
 const insertCard = (
-  t: ReturnType<typeof convexTest>,
+  t: Backend,
   type: "audio" | "image" | "video",
   fileMetadata: Record<string, unknown>
 ) =>
@@ -24,7 +21,7 @@ const insertCard = (
   );
 
 test("media facts fill a video's missing duration and size without overwriting known values", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "video", {
     fileName: "clip.mp4",
     width: 1920,
@@ -45,7 +42,7 @@ test("media facts fill a video's missing duration and size without overwriting k
 });
 
 test("media facts leave a card untouched when nothing is missing", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "audio", { duration: 3 });
 
   await t.mutation(
@@ -59,7 +56,7 @@ test("media facts leave a card untouched when nothing is missing", async () => {
 });
 
 test("image analysis stores EXIF camera facts beside the dimensions", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "image", { fileName: "photo.jpg" });
 
   await t.mutation(
@@ -99,7 +96,7 @@ const waveform = {
 };
 
 test("audio facts store the duration and waveform together", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "audio", { fileName: "memo.ogg" });
 
   await t.mutation(
@@ -121,7 +118,7 @@ test.each([
   ["a bar over 100", { ...waveform, grid: [...waveform.grid.slice(1), 101] }],
   ["a fractional bar", { ...waveform, grid: [...waveform.grid.slice(1), 0.5] }],
 ])("audio facts refuse a waveform with %s", async (_name, invalid) => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "audio", {});
 
   await expect(
@@ -133,7 +130,7 @@ test.each([
 });
 
 test("a video thumbnail records its scrub sprite and duration in one patch", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "video", { fileName: "clip.webm" });
   const scrub = { frameHeight: 180, frameWidth: 320, frames: 10 };
 
@@ -165,7 +162,7 @@ test("a video thumbnail records its scrub sprite and duration in one patch", asy
 });
 
 test("a video thumbnail refuses a scrub key without its size", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await insertCard(t, "video", {});
 
   await expect(
@@ -181,7 +178,7 @@ test("a video thumbnail refuses a scrub key without its size", async () => {
 });
 
 test("the orphan sweep keeps a card's scrub sprite", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const scrubKey = "users/media-facts/cards/c/scrub/strip.jpg";
   const cardId = await insertCard(t, "video", {});
   await t.run((ctx) => ctx.db.patch(cardId, { scrubKey }));

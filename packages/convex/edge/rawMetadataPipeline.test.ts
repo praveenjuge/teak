@@ -1,14 +1,12 @@
-import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 import {
   hydrateArchivedMetadata,
   rawMetadataKey,
 } from "../storage/rawMetadata";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -16,7 +14,7 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: "archive-test-user",

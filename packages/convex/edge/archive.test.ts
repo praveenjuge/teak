@@ -1,6 +1,4 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
@@ -14,10 +12,8 @@ import {
   onCardChanged,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
-import schema from "../schema";
 import { MAX_CARD_TAGS } from "../shared/tags";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -29,19 +25,11 @@ type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
   Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
+  const owner = await signIn(t, "owner");
   await seedWorkosOwner(t, "stranger");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_archive",
-    email_verified: true,
-    external_id: "owner",
-  });
 
   const syncTags = (cardId: Id<"cards">) =>
     t.run(async (ctx) => {

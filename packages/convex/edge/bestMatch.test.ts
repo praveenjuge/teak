@@ -1,26 +1,13 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import { relevanceSearchKey } from "../shared/search/relevance";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_bestmatch",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   let nextCreatedAt = 1000;
   const insert = (content: string) => {
     nextCreatedAt += 1;

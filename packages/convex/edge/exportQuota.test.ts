@@ -1,15 +1,13 @@
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const OWNER = "export-quota-owner";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 test("an export within 7 days stays refused however many exports were canceled since", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const now = Date.now();
   await t.run(async (ctx) => {
     await ctx.db.insert("exportJobs", {

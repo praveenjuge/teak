@@ -1,14 +1,9 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import { semanticSearchKey } from "../search/semanticCache";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 interface WorkerCall {
   op: string;
@@ -50,16 +45,8 @@ type CardSeed = Partial<
 >;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_similar",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   await t.run((ctx) =>
     ctx.db.insert("vectorShards", { userId: "owner", shard: 0 })
   );

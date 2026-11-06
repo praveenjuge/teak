@@ -1,6 +1,4 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { getFunctionName } from "convex/server";
-import { convexTest } from "convex-test";
 import { strToU8, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
@@ -11,15 +9,14 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { insertCompletedCards } from "../card/defaultCards";
-import schema from "../schema";
 import { buildR2UserPrefix } from "../storage/r2";
+import { newBackend, workosIdentity } from "./helpers";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();
-const modules = import.meta.glob("../**/*.ts");
 const sourceKey = "users/import-test/imports/job/source.zip";
 const setup = async (mode: "archive" | "bookmarks" = "archive") => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const jobId = await t.run((ctx) =>
     ctx.db.insert("importJobs", {
       userId: "import-test",
@@ -471,8 +468,7 @@ const stagingArchive = () =>
 describe("imports staged in R2", () => {
   const stagingSetup = () => {
     vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false");
-    const t = convexTest(schema, modules);
-    rateLimiterTest.register(t, "rateLimiterV2");
+    const t = newBackend();
     const bucket = new coreWorker.FakeBucket();
     const deleted: string[] = [];
     const env = coreWorker.withObjectGates({
@@ -523,13 +519,11 @@ describe("imports staged in R2", () => {
       );
       return {
         jobId,
-        signed: t.withIdentity({
-          issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-          subject: workosUserId,
-          sid: `session_${Buffer.from(userId).toString("hex")}`,
-          email_verified: true,
-          external_id: userId,
-        }),
+        signed: t.withIdentity(
+          workosIdentity(workosUserId, userId, {
+            sid: `session_${Buffer.from(userId).toString("hex")}`,
+          })
+        ),
       };
     };
     const runJob = (jobId: string, convex = convexForWorker(t)) =>

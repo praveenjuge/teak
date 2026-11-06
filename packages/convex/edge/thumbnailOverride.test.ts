@@ -1,19 +1,14 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { FILES_OP_PATH } from "@teak/files-protocol";
 import { ConvexError } from "convex/values";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { THUMBNAIL_UNDO_WINDOW_MS } from "../shared/thumbnails";
 import { buildR2ObjectKey } from "../storage/r2";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 interface WorkerCall {
   op: string;
@@ -120,16 +115,8 @@ const codeOf = async (promise: Promise<unknown>) => {
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const asUser = async (teakUserId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: await seedWorkosOwner(t, teakUserId),
-      sid: `session_${teakUserId}`,
-      email_verified: true,
-      external_id: teakUserId,
-    });
+  const t = newBackend();
+  const asUser = (teakUserId: string) => signIn(t, teakUserId);
   const owner = await asUser("owner");
   const stranger = await asUser("stranger");
   const worker = stubWorker();

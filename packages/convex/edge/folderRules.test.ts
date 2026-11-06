@@ -1,9 +1,6 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
@@ -13,7 +10,6 @@ import {
   FOLDER_RULE_BATCH_SIZE,
   FOLDER_RULE_PREVIEW_LIMIT,
 } from "../folder/rules";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
@@ -21,8 +17,7 @@ import {
   MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_RULES,
 } from "../shared/folders";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 const NOW = Date.UTC(2026, 10, 1);
 
@@ -38,18 +33,10 @@ afterEach(() => {
 type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const owner = await signIn(t, "owner");
 
   let order = 0;
   const insert = (seed: CardSeed = {}) =>

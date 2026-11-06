@@ -1,12 +1,10 @@
 /// <reference types="vite/client" />
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import {
   buildInboundEmailSigningPayload,
   hmacSha256Hex,
   sha256Hex,
 } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -14,10 +12,14 @@ import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import { INBOUND_ATTACHMENT_PATH, INBOUND_EMAIL_PATH } from "../inbound/http";
 import { rateLimiter } from "../rateLimiter";
-import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
+import {
+  type Backend,
+  newBackend,
+  workosClaims,
+  workosIdentity,
+} from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const SECRET = "inbound-test-secret";
 const OWNER_EMAIL = "owner@example.test";
 
@@ -91,7 +93,7 @@ const signedPost = async (
 });
 
 /** Empties the owner's card creation bucket (30 a minute, sharded). */
-const drainCardBucket = (t: { run: ReturnType<typeof convexTest>["run"] }) =>
+const drainCardBucket = (t: { run: Backend["run"] }) =>
   t.run(async (ctx) => {
     for (let i = 0; i < 200; i++) {
       await rateLimiter.limit(ctx, "cardCreation", {
@@ -102,7 +104,7 @@ const drainCardBucket = (t: { run: ReturnType<typeof convexTest>["run"] }) =>
   });
 
 /** Spends the owner's card bucket past what the next minute refills. */
-const overdrawCardBucket = (t: { run: ReturnType<typeof convexTest>["run"] }) =>
+const overdrawCardBucket = (t: { run: Backend["run"] }) =>
   t.run(async (ctx) => {
     for (let i = 0; i < 30; i++) {
       await rateLimiter.limit(ctx, "cardCreation", {
@@ -124,22 +126,13 @@ const email = (fields: Record<string, unknown> = {}) => ({
   ...fields,
 });
 
-const setup = async (
-  beforeOwner?: (t: ReturnType<typeof convexTest>) => Promise<unknown>
-) => {
-  const t = convexTest(schema, modules);
+const setup = async (beforeOwner?: (t: Backend) => Promise<unknown>) => {
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   await beforeOwner?.(t);
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: ownerWorkosId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const owner = t.withIdentity(workosIdentity(ownerWorkosId, "owner"));
   const send = async (
     body: Record<string, unknown>,
     options?: Parameters<typeof signedPost>[2]
@@ -253,13 +246,12 @@ describe("Settings", () => {
     }
 
     await t
-      .withIdentity({
-        issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-        subject: ownerWorkosId,
-        sid: "session_owner",
-        email: OWNER_EMAIL,
-        email_verified: true,
-      })
+      .withIdentity(
+        workosClaims(ownerWorkosId, {
+          sid: "session_owner",
+          email: OWNER_EMAIL,
+        })
+      )
       .mutation(api.workosBootstrap.ensureUser, {});
     expect(await owner.query(api.inbound.settings.getMine, {})).toMatchObject({
       enabled: true,

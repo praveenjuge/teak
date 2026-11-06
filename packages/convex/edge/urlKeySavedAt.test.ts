@@ -1,13 +1,9 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { patchCard } from "../card/cardWrites";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { type NewCard, patchCard } from "../card/cardWrites";
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -18,16 +14,8 @@ afterEach(() => {
 const SAVED = "https://www.example.com/post/";
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   // A card written straight to the table, as cards from before `urlKey` and
   // `savedAt` existed were.
   let createdAt = 1000;
@@ -44,12 +32,24 @@ const setup = async () => {
         ...fields,
       });
     });
+  // A card saved through the write path, which keys it.
+  const insert = (fields: Partial<NewCard> & Pick<NewCard, "type">) =>
+    t.run((ctx) => {
+      createdAt += 1000;
+      return insertTestCard(ctx, {
+        userId: "owner",
+        content: fields.url ?? "note",
+        createdAt,
+        updatedAt: createdAt,
+        ...fields,
+      });
+    });
   const get = (id: Id<"cards">) =>
     t.run((ctx) => ctx.db.get("cards", id)) as Promise<Doc<"cards">>;
   const duplicateOf = async (url: string) =>
     (await owner.query(api.card.findDuplicateCard.findDuplicateCard, { url }))
       ?._id ?? null;
-  return { t, owner, insertOld, get, duplicateOf };
+  return { t, owner, insert, insertOld, get, duplicateOf };
 };
 
 describe("the URL key", () => {
@@ -72,26 +72,20 @@ describe("the URL key", () => {
   });
 
   test("a card in Trash is never the duplicate; an archived one is", async () => {
-    const { insertOld, duplicateOf } = await setup();
-    await insertOld({
-      type: "link",
-      url: SAVED,
-      urlKey: "example.com/post",
-      isDeleted: true,
-    });
+    const { insert, duplicateOf } = await setup();
+    await insert({ type: "link", url: SAVED, isDeleted: true });
     expect(await duplicateOf("http://example.com/post")).toBeNull();
-    const archived = await insertOld({
+    const archived = await insert({
       type: "link",
       url: SAVED,
-      urlKey: "example.com/post",
       isArchived: true,
     });
     expect(await duplicateOf("http://example.com/post")).toBe(archived);
   });
 
   test("the newest of two cards for one link wins, keyed or not", async () => {
-    const { insertOld, duplicateOf } = await setup();
-    await insertOld({ type: "link", url: SAVED, urlKey: "example.com/post" });
+    const { insert, insertOld, duplicateOf } = await setup();
+    await insert({ type: "link", url: SAVED });
     const newer = await insertOld({ type: "link", url: SAVED });
     expect(await duplicateOf(SAVED)).toBe(newer);
   });

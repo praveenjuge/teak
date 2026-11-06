@@ -1,14 +1,12 @@
 import type { DispatchItem } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "../ai/backfill";
 import { queueCardProcessing } from "../card/processingRuns";
-import schema from "../schema";
+import { type Backend, newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -20,7 +18,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type T = ReturnType<typeof convexTest>;
+type T = Backend;
 
 const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
   t.run((ctx) =>
@@ -64,7 +62,7 @@ const claimItems = async (t: T) =>
 
 describe("queueCardProcessing", () => {
   test("each start bumps the card's revision and queues a run for it", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
 
     const first = await t.run((ctx) => queueCardProcessing(ctx, cardId));
@@ -86,7 +84,7 @@ describe("queueCardProcessing", () => {
   });
 
   test("a run that replaces a pending reset keeps the reset", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, { aiTags: ["old"] });
     await t.run(async (ctx) => {
       await queueCardProcessing(ctx, cardId, { delayMs: 60_000, reset: true });
@@ -98,7 +96,7 @@ describe("queueCardProcessing", () => {
   });
 
   test("a metadata-only run that replaces a pending full run runs in full", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     await t.run(async (ctx) => {
       await queueCardProcessing(ctx, cardId);
@@ -116,7 +114,7 @@ describe("queueCardProcessing", () => {
   });
 
   test("a deleted card queues nothing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     await t.run((ctx) => ctx.db.delete("cards", cardId));
     expect(await t.run((ctx) => queueCardProcessing(ctx, cardId))).toBeNull();
@@ -126,7 +124,7 @@ describe("queueCardProcessing", () => {
 
 describe("claiming card runs", () => {
   test("drops a run an edit replaced before it was sent", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     await t.run(async (ctx) => {
       await queueCardProcessing(ctx, cardId);
@@ -156,7 +154,7 @@ describe("claiming card runs", () => {
   });
 
   test("terminates the run a newer one replaces once both were sent", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     await t.run((ctx) => queueCardProcessing(ctx, cardId));
     await claimItems(t);
@@ -172,7 +170,7 @@ describe("claiming card runs", () => {
   });
 
   test("a reset clears the card's AI output when the run is sent, not before", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       aiSummary: "Old summary",
       aiTags: ["old"],
@@ -203,7 +201,7 @@ describe("claiming card runs", () => {
 
 describe("sending a card run again", () => {
   test("a reset applies once: a resend after a lost reply keeps the run's work", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, { aiTags: ["old"] });
     await t.run((ctx) => queueCardProcessing(ctx, cardId, { reset: true }));
     const [claimed] = await t.mutation(internal.workflowDispatch.claim, {});
@@ -233,7 +231,7 @@ describe("a card run that errors", () => {
   };
 
   test("fails the stages it left unfinished, the screenshot included", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, stuckCard);
     const queued = await t.run((ctx) => queueCardProcessing(ctx, cardId));
     await claimItems(t);
@@ -255,7 +253,7 @@ describe("a card run that errors", () => {
   });
 
   test("leaves the stages alone when a newer revision owns them", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, stuckCard);
     const queued = await t.run((ctx) => queueCardProcessing(ctx, cardId));
     await claimItems(t);
@@ -285,7 +283,7 @@ describe("guarded writes", () => {
   });
 
   test("a run's write lands while it owns the card's revision", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, { processingRev: 3 });
     await t.mutation(internal.workflowGateway.runGuarded, write(cardId, 3));
     expect((await card(t, cardId))?.processingStatus?.metadata?.status).toBe(
@@ -294,7 +292,7 @@ describe("guarded writes", () => {
   });
 
   test("a write from a replaced run is refused and changes nothing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, { processingRev: 3 });
     await expect(
       t.mutation(internal.workflowGateway.runGuarded, write(cardId, 2))
@@ -305,7 +303,7 @@ describe("guarded writes", () => {
 
 describe("updateCardProcessing", () => {
   test("restores a stage only while it is in progress, when asked to", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       processingStatus: {
         metadata: { completedAt: 5, status: "completed" },
@@ -329,7 +327,7 @@ describe("updateCardProcessing", () => {
 
 describe("markStagesInProgress", () => {
   test("marks each stage in progress, keeping when it first started", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       processingStatus: {
         classify: { status: "completed", completedAt: 1 },
@@ -349,7 +347,7 @@ describe("markStagesInProgress", () => {
   });
 
   test("hands the Worker the card with its deployment's key prefix", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     const loaded = await t.query(
       internal.card.processingRpc.getCardForProcessing,
@@ -361,7 +359,7 @@ describe("markStagesInProgress", () => {
 
 describe("AI backfill claims", () => {
   test("claims cards missing AI with their revision and counts the attempt", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await saveCard(t, {
       aiBackfillAttempts: 1,
       processingRev: 7,
@@ -379,7 +377,7 @@ describe("AI backfill claims", () => {
   });
 
   test("gives up on a card after its last attempt", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await saveCard(t, {
       aiBackfillAttempts: MAX_AI_BACKFILL_ATTEMPTS,
     });
@@ -399,7 +397,7 @@ describe("AI backfill claims", () => {
   });
 
   test("the admin retry claims the batch and queues a metadata-only run for each card", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await saveCard(t);
 
     expect(
@@ -412,7 +410,7 @@ describe("AI backfill claims", () => {
   });
 
   test("releasing a claim the Worker could not queue gives the attempt back", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await saveCard(t, { aiBackfillAttempts: 1 });
     await t.mutation(internal.ai.backfill.claimAiBackfillCards, {});
 

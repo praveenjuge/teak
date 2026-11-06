@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -12,14 +10,13 @@ import {
 import { captureDeletionBatch } from "../accountDeletion/batch";
 import { documentTextKey } from "../card/documentText";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
 } from "../search/searchReads";
 import { cardStorageObjectKeys } from "../storage/r2";
+import { newBackend, workosIdentity } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const documentText = (internal as any)["card/documentText"];
 
 beforeEach(() => {
@@ -42,18 +39,11 @@ const PDF_TEXT = [
 const digest = (fill: string) => fill.repeat(64);
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   const strangerWorkosId = await seedWorkosOwner(t, "stranger");
   const identity = (subject: string, externalId: string) =>
-    t.withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject,
-      sid: `session_${externalId}`,
-      email_verified: true,
-      external_id: externalId,
-    });
+    t.withIdentity(workosIdentity(subject, externalId));
   const owner = identity(ownerWorkosId, "owner");
 
   let createdAt = 1000;

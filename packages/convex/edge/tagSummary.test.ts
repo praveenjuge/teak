@@ -1,13 +1,12 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import {
   markTagSummaryDirty,
   TAG_SUMMARY_DEBOUNCE_MS,
   TAG_SUMMARY_RETRY_MAX_ATTEMPTS,
   tagSummaryRetryDelayMs,
 } from "../tag/tagSummary";
+import { type Backend, newBackend } from "./helpers";
 
 // foldTagCountDeltas reads the deletion state first, so failing that read
 // once makes the fold fail the way a real write conflict does.
@@ -30,8 +29,6 @@ vi.mock("../accountDeletion/gate", async (importOriginal) => {
   };
 });
 
-const modules = import.meta.glob("../**/*.ts");
-
 const writeConflict = () =>
   new Error(
     'Documents read from or written to the "tagCountDeltas" table changed while this mutation was being run and on every subsequent retry.'
@@ -44,7 +41,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const scheduledJobs = async (t: ReturnType<typeof convexTest>) =>
+const scheduledJobs = async (t: Backend) =>
   (
     (await t.run((ctx) =>
       ctx.db.system.query("_scheduled_functions").collect()
@@ -55,15 +52,15 @@ const scheduledJobs = async (t: ReturnType<typeof convexTest>) =>
     scheduledTime: job.scheduledTime,
   }));
 
-const recomputes = async (t: ReturnType<typeof convexTest>) =>
+const recomputes = async (t: Backend) =>
   (await scheduledJobs(t)).filter((job) =>
     job.name.includes("recomputeTagSummary")
   );
 
-const summaries = (t: ReturnType<typeof convexTest>) =>
+const summaries = (t: Backend) =>
   t.run((ctx) => ctx.db.query("userTagSummaries").collect());
 
-const insertDeletedUser = (t: ReturnType<typeof convexTest>, userId: string) =>
+const insertDeletedUser = (t: Backend, userId: string) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: userId,
@@ -73,7 +70,7 @@ const insertDeletedUser = (t: ReturnType<typeof convexTest>, userId: string) =>
     })
   );
 
-const refreshes = (t: ReturnType<typeof convexTest>) =>
+const refreshes = (t: Backend) =>
   t.run((ctx) => ctx.db.query("tagSummaryRefreshes").collect());
 
 describe("tag summary retry policy", () => {
@@ -94,7 +91,7 @@ describe("tag summary retry policy", () => {
 
 describe("recomputeTagSummary", () => {
   test("a fresh recompute claims and clears the pending refresh", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) => markTagSummaryDirty(ctx, "user-1", 0));
     expect(await refreshes(t)).toHaveLength(1);
 
@@ -113,7 +110,7 @@ describe("recomputeTagSummary", () => {
     // Regression for the stranded refresh: a failed first attempt consumes the
     // pending row, so the retry must reuse the original claimedAt instead of
     // claiming (and deleting) whatever refresh arrived since.
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) => markTagSummaryDirty(ctx, "user-1", 0));
     const NOW = Date.now();
 
@@ -132,7 +129,7 @@ describe("recomputeTagSummary", () => {
   });
 
   test("rearmTagSummaryRefresh re-marks the summary dirty and reschedules", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await t.mutation(internal.tag.tagSummary.rearmTagSummaryRefresh, {
       userId: "user-1",
@@ -151,7 +148,7 @@ describe("recomputeTagSummary", () => {
 
 describe("recomputeTagSummary failures", () => {
   test("a write conflict retries later with the original claim", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const NOW = Date.now();
     deletionState.failNext = writeConflict();
 
@@ -172,7 +169,7 @@ describe("recomputeTagSummary failures", () => {
   });
 
   test("a conflict on the last attempt re-arms the refresh", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const NOW = Date.now();
     deletionState.failNext = writeConflict();
 
@@ -195,7 +192,7 @@ describe("recomputeTagSummary failures", () => {
   test("any other error fails once instead of retrying forever", async () => {
     // Only write conflicts are transient. A deterministic error would fail
     // the same way on every retry, and re-arming it would loop for good.
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     deletionState.failNext = new Error("deterministic failure");
 
     await expect(
@@ -213,7 +210,7 @@ describe("recomputeTagSummary failures", () => {
   test("a retry after the account is deleted writes nothing back", async () => {
     // Deletion removes its accountDeletionStates row when it finishes, so a
     // retry that lands afterwards must check the user's deletedAt instead.
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await insertDeletedUser(t, "user-1");
 
     await t.action(internal.tag.tagSummary.recomputeTagSummary, {

@@ -1,13 +1,8 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -19,16 +14,8 @@ type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
   Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_colorsearch",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   const insert = (seed: CardSeed) =>
     t.run(async (ctx) => {
       const id = await ctx.db.insert("cards", {

@@ -1,8 +1,5 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
@@ -13,10 +10,8 @@ import {
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import type { CardWithUrls } from "../card/queryUtils";
 import { withTranscripts } from "../card/textContents";
-import schema from "../schema";
 import { semanticSearchKey } from "../search/semanticCache";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -30,16 +25,8 @@ const LONG_TRANSCRIPT = `The hermit crab moved house at dawn. ${"Waves rolled ov
 type CardSeed = Partial<Omit<Doc<"cards">, "_id" | "_creationTime">>;
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_transcripts",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
 
   const save = (seed: CardSeed = {}) =>
     t.run(

@@ -1,16 +1,13 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend, workosIdentity } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const OWNER = "parity-owner";
 
 beforeEach(() => {
@@ -21,19 +18,12 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_parity",
-    email_verified: true,
-    external_id: OWNER,
-  });
+  const owner = t.withIdentity(workosIdentity(workosUserId, OWNER));
   const key = await owner.mutation(api.apiKeys.createUserApiKey, {
     name: "Search parity",
   });

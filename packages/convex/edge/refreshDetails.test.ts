@@ -1,12 +1,8 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import { queueCardProcessing } from "../card/processingRuns";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 const PRODUCT_URL = "https://shop.example/products/mug";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -19,8 +15,7 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   await seedWorkosOwner(t, "owner");
   const fetchedAt = NOW - DAY_MS;
   const cardId = await t.run((ctx) =>

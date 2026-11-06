@@ -1,13 +1,10 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { deriveCardFields } from "../card/derivedFields";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, workosIdentity } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -19,7 +16,7 @@ type CardSeed = Pick<Doc<"cards">, "content" | "createdAt" | "type"> &
   Partial<
     Pick<
       Doc<"cards">,
-      "isArchived" | "isDeleted" | "isFavorited" | "tags" | "url" | "urlHost"
+      "isArchived" | "isDeleted" | "isFavorited" | "tags" | "url"
     >
   > & {
     /** Defaults to `createdAt`; `null` for a row from before `savedAt`. */
@@ -34,8 +31,7 @@ const LIBRARY: CardSeed[] = [
 ];
 
 const setup = async (cards: CardSeed[] = LIBRARY) => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const workosUserId = await seedWorkosOwner(t, "owner");
   const folderId = await t.run((ctx) =>
     ctx.db.insert("folders", {
@@ -50,10 +46,13 @@ const setup = async (cards: CardSeed[] = LIBRARY) => {
   );
   const ids = new Map<string, Id<"cards">>();
   for (const { savedAt, inFolder, ...card } of cards) {
+    // Straight to the table, not through the write path, so a card can be
+    // stored without `savedAt`, as cards from before it were.
     const id = await t.run(async (ctx) => {
       const cardId = await ctx.db.insert("cards", {
         userId: "owner",
         ...card,
+        ...deriveCardFields(card),
         ...(savedAt === null ? {} : { savedAt: savedAt ?? card.createdAt }),
         ...(inFolder ? { folderIds: [folderId] } : {}),
         updatedAt: Math.max(card.createdAt, savedAt ?? 0),
@@ -65,13 +64,7 @@ const setup = async (cards: CardSeed[] = LIBRARY) => {
   }
   // Tag rows are written by a scheduled sync.
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_ordering",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const owner = t.withIdentity(workosIdentity(workosUserId, "owner"));
   return { t, owner, ids, folderId };
 };
 
@@ -301,7 +294,6 @@ const resavedLibrary = (extra: Partial<CardSeed> = {}): CardSeed[] =>
     (card, index): CardSeed => ({
       type: "link",
       url: `https://example.com/${index}`,
-      urlHost: "example.com",
       tags: ["reading"],
       isFavorited: true,
       inFolder: true,

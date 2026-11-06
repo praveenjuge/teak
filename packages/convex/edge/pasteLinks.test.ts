@@ -1,10 +1,7 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -12,10 +9,8 @@ import {
   insertCompletedCards,
 } from "../card/defaultCards";
 import { LINK_PASTE_RETENTION_MS } from "../card/pasteLinks";
-import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 const NOW = Date.UTC(2026, 9, 20);
 const FIRST_SAVED = Date.UTC(2026, 0, 1);
@@ -35,24 +30,13 @@ const links = (count: number, prefix = "new") =>
     (_, index) => `https://example.com/${prefix}/${index + 1}`
   );
 
-const identityFor = (workosUserId: string, externalId: string) => ({
-  issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-  subject: workosUserId,
-  sid: `session_${externalId}`,
-  email_verified: true,
-  external_id: externalId,
-});
-
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   // A free account: billing answers that it has no subscription.
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
-  const owner = t.withIdentity(
-    identityFor(await seedWorkosOwner(t, "owner"), "owner")
-  );
+  const owner = await signIn(t, "owner");
   const seed = (cards: DevScenarioCardDef[]) =>
     t.run((ctx) =>
       insertCompletedCards(ctx, "owner", cards, { hasPremium: true })
@@ -320,9 +304,7 @@ describe("pasting a list of links", () => {
   test("shows a job only to the account that pasted it", async () => {
     const { t, paste } = await setup();
     const { jobId } = await paste(links(2));
-    const other = t.withIdentity(
-      identityFor(await seedWorkosOwner(t, "other"), "other")
-    );
+    const other = await signIn(t, "other");
 
     expect(
       await other.query(api.card.pasteLinks.getLinkPaste, { jobId })

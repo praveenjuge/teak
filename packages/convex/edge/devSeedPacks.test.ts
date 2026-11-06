@@ -1,11 +1,9 @@
 import { sha256Hex } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 const NOW = Date.UTC(2026, 9, 20, 12);
 
@@ -21,7 +19,7 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "teak_dev",

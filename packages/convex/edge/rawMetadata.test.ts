@@ -1,10 +1,8 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 import {
   copyAndVerifyRaw,
@@ -14,8 +12,8 @@ import {
   serializeRawMetadata,
 } from "../storage/rawMetadata";
 import { archiveCardHandler } from "../storage/rawMetadataMaintenance";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 });
@@ -26,7 +24,7 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "archive-test-user",

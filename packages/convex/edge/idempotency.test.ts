@@ -1,10 +1,7 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { IDEMPOTENCY_PENDING_LEASE_MS } from "../idempotency";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { type Backend, newBackend } from "./helpers";
 
 const TTL_MS = 60_000;
 const request = {
@@ -20,7 +17,7 @@ const request = {
 // public API does; the helpers default to the latest one begin handed out.
 const leases = new WeakMap<object, string>();
 
-const begin = async (t: ReturnType<typeof convexTest>, overrides = {}) => {
+const begin = async (t: Backend, overrides = {}) => {
   const reservation = await t.mutation(
     internal.idempotency.beginIdempotencyRequestForUser,
     { ...request, ...overrides }
@@ -31,7 +28,7 @@ const begin = async (t: ReturnType<typeof convexTest>, overrides = {}) => {
   return reservation;
 };
 
-const complete = (t: ReturnType<typeof convexTest>, overrides = {}) =>
+const complete = (t: Backend, overrides = {}) =>
   t.mutation(internal.idempotency.completeIdempotencyRequestForUser, {
     keyHash: request.keyHash,
     leaseToken: leases.get(t),
@@ -43,7 +40,7 @@ const complete = (t: ReturnType<typeof convexTest>, overrides = {}) =>
     ...overrides,
   });
 
-const release = (t: ReturnType<typeof convexTest>, overrides = {}) =>
+const release = (t: Backend, overrides = {}) =>
   t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
     keyHash: request.keyHash,
     leaseToken: leases.get(t),
@@ -63,7 +60,7 @@ describe("idempotency keys", () => {
   });
 
   test("a retry after completion replays the stored response", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     expect((await begin(t)).status).toBe("started");
     await complete(t);
@@ -78,7 +75,7 @@ describe("idempotency keys", () => {
   });
 
   test("a concurrent retry sees the request as in progress", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
 
@@ -90,7 +87,7 @@ describe("idempotency keys", () => {
     ["a different path", { path: "/v1/cards/bulk" }],
     ["a different method", { method: "PATCH" }],
   ])("reusing a key with %s is a conflict", async (_label, overrides) => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
     await complete(t);
@@ -99,7 +96,7 @@ describe("idempotency keys", () => {
   });
 
   test("keys are scoped per user", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
     await complete(t);
@@ -108,7 +105,7 @@ describe("idempotency keys", () => {
   });
 
   test("an expired key starts a fresh request instead of replaying", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
     await complete(t);
@@ -125,7 +122,7 @@ describe("idempotency keys", () => {
   });
 
   test("a retry takes over a request whose handler died once its lease lapses", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t, { ttlMs: undefined });
     vi.advanceTimersByTime(IDEMPOTENCY_PENDING_LEASE_MS - 1);
@@ -140,7 +137,7 @@ describe("idempotency keys", () => {
   });
 
   test("a handler whose lease was taken over can't complete or release the new reservation", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stale = await begin(t);
     vi.advanceTimersByTime(IDEMPOTENCY_PENDING_LEASE_MS + 1);
     const current = await begin(t);
@@ -163,7 +160,7 @@ describe("idempotency keys", () => {
   });
 
   test("a call without the lease token can't complete or release the reservation", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await begin(t);
 
     await complete(t, { leaseToken: undefined, responseBody: { cardId: "x" } });
@@ -172,7 +169,7 @@ describe("idempotency keys", () => {
   });
 
   test("releasing a pending request lets the client retry from scratch", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
     await release(t);
@@ -181,7 +178,7 @@ describe("idempotency keys", () => {
   });
 
   test("releasing never discards a completed response", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await begin(t);
     await complete(t);
@@ -191,7 +188,7 @@ describe("idempotency keys", () => {
   });
 
   test("completing a request that was never reserved fails", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
 
     await expect(complete(t)).rejects.toThrow(
       "Idempotency reservation not found"

@@ -1,4 +1,3 @@
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -8,11 +7,9 @@ import {
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
-import schema from "../schema";
 import { searchCardsByExactTag } from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 async function drainTags(ctx: MutationCtx, cardId: Id<"cards">) {
   for (let i = 0; i < 10; i++) {
@@ -55,7 +52,7 @@ async function searchState(ctx: MutationCtx, cardId: Id<"cards">) {
 }
 
 test("operational card updates preserve search rows and customer content", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     const before = await searchState(ctx, id);
@@ -76,7 +73,7 @@ test("operational card updates preserve search rows and customer content", async
 });
 
 test("content edits update full text without restarting unchanged exact tags", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     const before = await searchState(ctx, id);
@@ -93,7 +90,7 @@ test("content edits update full text without restarting unchanged exact tags", a
 });
 
 test("tag edits and favorite changes remain searchable with the right filters", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     await patchCard(ctx, id, {
@@ -123,7 +120,7 @@ test("tag edits and favorite changes remain searchable with the right filters", 
 });
 
 test("reordered normalized tags preserve exact-tag rows and generations", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     await patchCard(ctx, id, { tags: ["alpha", "beta"] });
@@ -157,7 +154,7 @@ test("reordered normalized tags preserve exact-tag rows and generations", async 
 });
 
 test("text-only patches do not read tag-chain state while a batch is pending", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await ctx.db.insert("cards", {
       userId: "text-occ",
@@ -211,7 +208,7 @@ test("text-only patches do not read tag-chain state while a batch is pending", a
 });
 
 test("missing search documents and direct sync still repair tag state", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await seed(ctx);
     const before = await searchState(ctx, id);
@@ -231,7 +228,7 @@ test("missing search documents and direct sync still repair tag state", async ()
 });
 
 test("field updates avoid tag progress reads and still repair a missing state on direct sync", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     const id = await ctx.db.insert("cards", {
       userId: "field-occ",

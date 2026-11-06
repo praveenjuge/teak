@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
@@ -10,10 +8,8 @@ import {
   EMPTY_TRASH_RATE_LIMITED_MESSAGE,
 } from "../card/emptyTrash";
 import { onCardChanged } from "../card/onCardChanged";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -27,17 +23,9 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const ownerWorkosId = await seedWorkosOwner(t, "owner");
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   await seedWorkosOwner(t, "stranger");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: ownerWorkosId,
-    sid: "session_emptytrash",
-    email_verified: true,
-    external_id: "owner",
-  });
 
   let createdAt = 1000;
   const insert = (seed: Partial<Doc<"cards">> = {}, userId = "owner") => {

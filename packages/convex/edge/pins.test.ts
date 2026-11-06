@@ -1,18 +1,13 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { ConvexError } from "convex/values";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
-import type { Doc, Id } from "../_generated/dataModel";
-import {
-  onCardChanged,
-  syncCardSearchTagsBatchHandler,
-} from "../card/onCardChanged";
-import schema from "../schema";
+import type { Id } from "../_generated/dataModel";
+import type { NewCard } from "../card/cardWrites";
+import { syncCardSearchTagsBatchHandler } from "../card/onCardChanged";
 import { MAX_PINNED_CARDS } from "../shared/pins";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend, signIn } from "./helpers";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -20,8 +15,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type CardSeed = Pick<Doc<"cards">, "content" | "type"> &
-  Partial<Omit<Doc<"cards">, "_id" | "_creationTime" | "userId">>;
+type CardSeed = Omit<NewCard, "userId">;
 
 const errorCode = async (promise: Promise<unknown>) => {
   try {
@@ -35,24 +29,16 @@ const errorCode = async (promise: Promise<unknown>) => {
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
-  const workosUserId = await seedWorkosOwner(t, "owner");
+  const t = newBackend();
+  const owner = await signIn(t, "owner");
   await seedWorkosOwner(t, "stranger");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_pins",
-    email_verified: true,
-    external_id: "owner",
-  });
 
   let clock = 1000;
   const insert = async (content: string, seed: Partial<CardSeed> = {}) => {
     clock += 1;
     const createdAt = clock;
     const cardId = await t.run(async (ctx) => {
-      const id = await ctx.db.insert("cards", {
+      const id = await insertTestCard(ctx, {
         userId: "owner",
         type: "text",
         content,
@@ -61,7 +47,6 @@ const setup = async () => {
         savedAt: createdAt,
         ...seed,
       });
-      await onCardChanged(ctx, id);
       for (let step = 0; step < 10; step += 1) {
         await syncCardSearchTagsBatchHandler(ctx, id);
       }
@@ -159,7 +144,7 @@ describe("pinning cards to the top of the library", () => {
     const { insert, owner, pin, pinned } = await setup();
     const a = await insert("Alpha");
     const b = await insert("Bravo");
-    const secret = await insert("Secret", { tags: ["secret"], isHidden: true });
+    const secret = await insert("Secret", { tags: ["secret"] });
     for (const id of [a, secret, b]) {
       await pin(id);
     }
@@ -304,7 +289,7 @@ describe("pinning cards to the top of the library", () => {
   test("the API reorder answers with hidden pins only when it names them", async () => {
     const { t, insert, pin } = await setup();
     const a = await insert("Alpha");
-    const secret = await insert("Secret", { tags: ["secret"], isHidden: true });
+    const secret = await insert("Secret", { tags: ["secret"] });
     await pin(a);
     await pin(secret);
     const contents = (cards: { content: string }[]) =>

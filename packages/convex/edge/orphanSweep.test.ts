@@ -1,13 +1,10 @@
-import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 test("the sweep's card page holds every object the card keeps", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const prefix = "users/abc/cards/card_1";
   const keys = {
     fileKey: `${prefix}/file/doc.pdf`,

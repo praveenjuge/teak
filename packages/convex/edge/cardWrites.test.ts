@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -8,11 +6,9 @@ import { createCardForUserHandler } from "../card/createCard";
 import { createUploadedCardForUser } from "../card/uploadCard";
 import { insertSeedCards, type SeedCardDef } from "../devSeed/helpers";
 import { insertFolder } from "../folder/folders";
-import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import { buildR2UserPrefix } from "../storage/r2";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 const NOW = Date.UTC(2026, 9, 20);
 const OWNER = "owner" as TeakUserId;
@@ -27,8 +23,7 @@ afterEach(() => {
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   await seedWorkosOwner(t, OWNER);
   return t;
 };

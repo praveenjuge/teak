@@ -1,4 +1,3 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
@@ -11,15 +10,14 @@ import {
   startVaultSetup,
 } from "../card/defaultCards";
 import { readCardTranscript } from "../card/textContents";
-import schema from "../schema";
 import { buildR2ObjectKey } from "../storage/r2";
+import { newBackend, workosIdentity } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const USER_ID = "teak_onboarding";
 const UPLOAD_CARDS = ONBOARDING_CARDS.filter((card) => card.uploads);
 
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;
@@ -367,13 +365,7 @@ describe("getting-started cards", () => {
     const signedIn = async () => {
       const t = setup();
       const workosUserId = await seedWorkosOwner(t, USER_ID);
-      const owner = t.withIdentity({
-        issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-        subject: workosUserId,
-        sid: "session_vaultsetup",
-        email_verified: true,
-        external_id: USER_ID,
-      });
+      const owner = t.withIdentity(workosIdentity(workosUserId, USER_ID));
       const setupState = () =>
         owner.query(api.card.vaultSetup.getVaultSetup, {});
       return { t, setupState };

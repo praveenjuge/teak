@@ -1,4 +1,3 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { mockActionCtx } from "../__tests__/helpers/convex.test-utils";
 import {
@@ -8,13 +7,11 @@ import {
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "../accountDeletion/batch";
-import schema from "../schema";
 import { ensureObjectOwnership } from "../storage/ownership";
+import { newBackend } from "./helpers";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();
-const modules = import.meta.glob("../**/*.ts");
-
 type Kind = "cards" | "exports" | "imports" | "objects" | "uploads";
 interface OpSpec {
   op: string;
@@ -22,7 +19,7 @@ interface OpSpec {
 }
 
 const setup = async (keyCount = 2 * PAGE + 1) => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const keys = Array.from(
     { length: keyCount },
     (_, index) => `users/owner/object-${index}`
@@ -422,7 +419,7 @@ test("progress a deploy left under the older fingerprint restarts its batch", as
 test("a deployment without the Core Worker never registers phantom objects", async () => {
   vi.stubEnv("FILES_BASE", "");
   vi.stubEnv("FILES_SIGNING_SECRET", "");
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: "owner",

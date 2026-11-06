@@ -1,11 +1,9 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { queueCardProcessing } from "../card/processingRuns";
-import schema from "../schema";
+import { type Backend, newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const NOW = new Date("2026-10-24T10:00:00Z").getTime();
 
 beforeEach(() => {
@@ -16,7 +14,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type T = ReturnType<typeof convexTest>;
+type T = Backend;
 
 const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
   t.run((ctx) =>
@@ -49,7 +47,7 @@ const saveAi = (
 
 describe("cards.aiLanguage", () => {
   test("is stored with the AI tags and summary", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t);
     await saveAi(t, cardId, {
       aiLanguage: "ja",
@@ -64,7 +62,7 @@ describe("cards.aiLanguage", () => {
   });
 
   test("new AI output overwrites it, and clears it when it has none", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       aiLanguage: "en",
       aiSummary: "A note about a design show in Tokyo.",
@@ -83,7 +81,7 @@ describe("cards.aiLanguage", () => {
   });
 
   test("a write without new tags or a summary leaves it alone", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       aiLanguage: "ja",
       aiSummary: "東京のメモ。",
@@ -95,7 +93,7 @@ describe("cards.aiLanguage", () => {
   });
 
   test("a write from a replaced run changes nothing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       aiLanguage: "ja",
       aiSummary: "東京のメモ。",
@@ -111,7 +109,7 @@ describe("cards.aiLanguage", () => {
   });
 
   test("Refresh details clears it with the old AI output", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cardId = await insertCard(t, {
       aiLanguage: "en",
       aiSummary: "A note about a design show in Tokyo.",

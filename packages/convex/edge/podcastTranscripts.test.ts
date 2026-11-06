@@ -1,21 +1,16 @@
 /// <reference types="vite/client" />
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
 import { buildR2UserPrefix } from "../storage/r2";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 const setup = () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   return t;
 };
 

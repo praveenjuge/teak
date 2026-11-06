@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
@@ -9,10 +7,9 @@ import {
   LINK_CHECK_ALIVE_TTL_MS,
   LINK_CHECK_DEAD_TTL_MS,
 } from "../card/linkCheck";
-import schema from "../schema";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { newBackend, workosIdentity } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const URL_GONE = "https://example.com/gone";
 const ARCHIVE_KEY = "users/owner/cards/c1/page-archive/abc123-archive.html";
 const CAPTURED_AT = Date.UTC(2026, 9, 19, 12);
@@ -91,17 +88,10 @@ const pageArchive = (fields: Partial<Doc<"cards">["pageArchive"]> = {}) => ({
 });
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   await seedWorkosOwner(t, "stranger");
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: ownerWorkosId,
-    sid: "session_owner",
-    email_verified: true,
-    external_id: "owner",
-  });
+  const owner = t.withIdentity(workosIdentity(ownerWorkosId, "owner"));
 
   const link = (
     fields: Partial<Doc<"cards">> = {},
