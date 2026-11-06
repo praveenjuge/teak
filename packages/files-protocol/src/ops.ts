@@ -1,4 +1,5 @@
 import type { FilesAiGenerationFacts } from "./metadata";
+import type { FilesOp } from "./opTable";
 
 export const FILES_PROTOCOL_VERSION = 1 as const;
 export const FILES_PROCESSOR_VERSION = "2026-08-26.1" as const;
@@ -28,71 +29,6 @@ export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;
 export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
 /** Validity Convex gives each signed op request it mints. */
 export const FILES_OP_TTL_SECONDS = 10 * 60;
-
-/** Ops Convex sends to the Worker over HTTPS, at `FILES_OP_PATH`. */
-export const FILES_NETWORK_OPS = [
-  "capabilities",
-  "abort-multipart",
-  "check-link",
-  "complete-multipart",
-  "create-multipart",
-  "delete-object",
-  "delete-objects",
-  "dispatch",
-  "embed-upsert",
-  "extract-image-text",
-  "finalize-image-upload",
-  "finalize-upload",
-  "inspect",
-  "score-relevance",
-  "store-linked-pdf",
-  "store-onboarding-files",
-  "vector-delete",
-  "vector-query",
-  "vector-similar",
-] as const;
-
-/**
- * Ops only the Worker's own workflows, queues and crons run, in process.
- * The network route refuses them.
- */
-export const FILES_WORKER_OPS = [
-  "analyze-image",
-  "archive-page",
-  "build-export",
-  "capture-screenshot",
-  "cleanup-stale-pending-uploads",
-  "decide-card-type",
-  "decide-link-category",
-  "decide-visual-styles",
-  "extract-animation-palette",
-  "extract-article",
-  "extract-import-files",
-  "extract-video-frame",
-  "fetch-link-page",
-  "freeze-object",
-  "generate-image-metadata",
-  "generate-link-metadata",
-  "generate-text-metadata",
-  "head-object",
-  "index-import-source",
-  "list-objects",
-  "ocr-pdf-pages",
-  "probe-media",
-  "process-audio",
-  "read-import-markdown",
-  "render-pdf-thumbnail",
-  "store-remote-asset",
-] as const;
-
-export const FILES_OPS = [...FILES_NETWORK_OPS, ...FILES_WORKER_OPS] as const;
-
-export type FilesNetworkOp = (typeof FILES_NETWORK_OPS)[number];
-export type FilesOp = (typeof FILES_OPS)[number];
-
-export const isFilesNetworkOp = (value: unknown): value is FilesNetworkOp =>
-  typeof value === "string" &&
-  (FILES_NETWORK_OPS as readonly string[]).includes(value);
 
 /** What the `capabilities` op reports; the deploy readiness check reads it. */
 export interface FilesCapabilities {
@@ -180,9 +116,6 @@ export interface FilesOpRequest<T = unknown> {
   params: T;
   version: typeof FILES_PROTOCOL_VERSION;
 }
-
-export const isFilesOp = (value: unknown): value is FilesOp =>
-  typeof value === "string" && (FILES_OPS as readonly string[]).includes(value);
 
 export const buildFilesOpSigningPayload = ({
   bodySha256,

@@ -3,6 +3,7 @@ import {
   type WorkflowEvent,
   type WorkflowStep,
 } from "cloudflare:workers";
+import { gatedEnv } from "../deletionGate";
 import { runAccountDeletion } from "./accountDeletion";
 import { runCardProcessing } from "./cardProcessing/run";
 import { runExport } from "./export";
@@ -10,12 +11,16 @@ import { runImport } from "./import";
 import { runMaintenance } from "./maintenance";
 import type { BackgroundEnv, Steps, WorkflowRun } from "./runtime";
 
+/**
+ * A workflow run's env has its bucket gated once, here: every write a run
+ * makes goes through the deletion gate, whichever code makes it.
+ */
 const toRun = <Params>(
   env: BackgroundEnv,
   event: Readonly<WorkflowEvent<Params>>,
   step: WorkflowStep
 ): WorkflowRun<Params> => ({
-  env,
+  env: gatedEnv(env),
   instanceId: event.instanceId,
   params: event.payload as WorkflowRun<Params>["params"],
   step: step as unknown as Steps,

@@ -1,8 +1,4 @@
-import {
-  FILES_UPLOAD_MAX_BYTES,
-  type FilesInspectResult,
-  isScannedPdf,
-} from "@teak/files-protocol";
+import { FILES_UPLOAD_MAX_BYTES, isScannedPdf } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -134,7 +130,7 @@ export const backfillPdfOcrCard = internalAction({
     }
     let scanned: boolean;
     try {
-      const outcome = await callCoreWorkerOp<FilesInspectResult>({
+      const outcome = await callCoreWorkerOp({
         op: "inspect",
         params: {
           formatId: "pdf",

@@ -21,7 +21,7 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import {
   fetchLinkMetadata,
@@ -36,13 +36,7 @@ const URL_ = "https://example.com/article";
 
 const socialFixture = (name: string): unknown =>
   JSON.parse(
-    readFileSync(
-      new URL(
-        `../../../../../packages/convex/__tests__/linkMetadata/fixtures/social/${name}`,
-        import.meta.url
-      ),
-      "utf8"
-    )
+    readFileSync(new URL(`./social/fixtures/${name}`, import.meta.url), "utf8")
   );
 
 const gzipBase64 = async (text: string) => {
@@ -832,7 +826,7 @@ describe("link page cache on refresh", () => {
       } as unknown as KVNamespace,
     });
     const fakes = createFakeOps({});
-    const ops: FilesOpCaller = (spec) =>
+    const ops: OpCaller = (spec) =>
       spec.op === ("fetch-link-page" satisfies FilesOp)
         ? callFilesOp(env, spec)
         : fakes.ops(spec);

@@ -21,14 +21,11 @@ const decodeZipName = (bytes: Uint8Array, flags: number) => {
   ).join("");
 };
 
-export class InspectSourceMissing extends Error {
+export class ArchiveEntryTooLargeError extends OpFailure {
   constructor() {
-    super("source_not_found");
-  }
-}
-export class ArchiveEntryTooLargeError extends Error {
-  constructor() {
-    super("Expanded ZIP entry exceeds its limit");
+    super("entry_too_large", {
+      message: "Expanded ZIP entry exceeds its limit",
+    });
   }
 }
 export interface ZipCentralEntry {
@@ -83,7 +80,7 @@ export async function rangeRead(
   }
   const object = await bucket.get(key, { range: { offset, length } });
   if (!object) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (etag && etag !== object.httpEtag) {
     await object.body.cancel();
@@ -218,7 +215,7 @@ export async function readZipDirectory(
 ): Promise<ZipDirectory> {
   const meta = await bucket.head(key);
   if (!meta) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (expectedEtag && meta.httpEtag !== expectedEtag) {
     throw new OpFailure("source_changed");
@@ -394,7 +391,7 @@ export async function consumeZipEntry(
       })
     : null;
   if (entry.compressedSize && !object) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (object && object.httpEtag !== directory.sourceEtag) {
     await object.body.cancel();

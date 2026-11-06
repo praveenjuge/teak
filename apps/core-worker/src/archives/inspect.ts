@@ -2,17 +2,12 @@ import {
   FILES_EXTRACTED_TEXT_MAX_BYTES,
   FILES_PDF_TEXT_MAX_PAGES,
 } from "@teak/files-protocol";
-import {
-  InspectSourceMissing,
-  rangeRead,
-  readZipDirectory,
-  readZipEntry,
-} from "./zip";
+import { OpFailure } from "../opFailure";
+import { rangeRead, readZipDirectory, readZipEntry } from "./zip";
 
 export {
   extractZipEntries,
   findEocd,
-  InspectSourceMissing,
   parseCentralDirectory,
   rangeRead,
 } from "./zip";
@@ -184,7 +179,7 @@ export const runInspect = async (
   }
   const bytes = await boundedRead(bucket, key, request.maxBytes);
   if (!bytes) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (request.mode === "css") {
     const text = new TextDecoder().decode(bytes);

@@ -9,6 +9,10 @@ import type { EdgeIdentity } from "./edgeIdentity";
 
 export const MCP_EDGE_MAX_BODY_BYTES = 64 * 1024;
 
+/** The MCP server's path, `/mcp`, and anything under it. */
+export const isMcpPathname = (pathname: string): boolean =>
+  pathname === "/mcp" || pathname.startsWith("/mcp/");
+
 type JsonObject = Record<string, unknown>;
 
 const mcpResponse = (status: number, body: unknown): Response => {

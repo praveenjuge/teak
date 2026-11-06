@@ -11,25 +11,6 @@ import {
   serializeArchivableRaw,
 } from "./storage/rawMetadata";
 
-export * from "./linkMetadata/instagram";
-export { extractInstagramMediaFromHtml } from "./linkMetadata/instagramHtml";
-export {
-  buildDebugRaw,
-  buildErrorPreview,
-  buildSuccessPreview,
-  findAttributeValue,
-  firstFromSources,
-  getSelectorValue,
-  parseLinkPreview,
-  sanitizeImageUrl,
-  sanitizeText,
-  sanitizeUrl,
-  toSelectorMap,
-} from "./linkMetadata/parsing";
-export * from "./linkMetadata/selectors";
-export * from "./linkMetadata/types";
-export { normalizeUrl } from "./linkMetadata/url";
-
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,

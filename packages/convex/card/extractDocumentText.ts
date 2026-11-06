@@ -1,9 +1,6 @@
 "use node";
 
-import {
-  extractDocumentFileText,
-  type FilesInspectResult,
-} from "@teak/files-protocol";
+import { extractDocumentFileText } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
@@ -40,7 +37,7 @@ export const extractDocumentText = internalAction({
     try {
       const extracted = await extractDocumentFileText(
         (params) =>
-          callCoreWorkerOp<FilesInspectResult>({
+          callCoreWorkerOp({
             op: "inspect",
             params: { ...params },
           }),

@@ -337,7 +337,7 @@ type CheckAnswer = Omit<FilesLinkCheckResult, "reason"> & { reason: string };
 
 const askWorker = async (url: string): Promise<CheckAnswer> => {
   try {
-    const answer = await callCoreWorkerOp<FilesLinkCheckResult>({
+    const answer = await callCoreWorkerOp({
       op: "check-link",
       params: { url },
       timeoutMs: LINK_CHECK_WORKER_TIMEOUT_MS,

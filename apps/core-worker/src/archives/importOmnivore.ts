@@ -1,17 +1,17 @@
 import {
-  OMNIVORE_METADATA_PATTERN,
-  type OmnivoreItem,
-  omnivoreHighlightsPath,
-  omnivoreItem,
-  readOmnivoreMetadata,
-} from "@teak/convex/import/omnivore";
-import { MAX_NOTES_LENGTH } from "@teak/convex/import/sourceItems";
-import {
   FILES_IMPORT_PAGE_BYTES,
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexResult,
 } from "@teak/files-protocol";
 import { InvalidOpInput } from "../opFailure";
+import {
+  OMNIVORE_METADATA_PATTERN,
+  type OmnivoreItem,
+  omnivoreHighlightsPath,
+  omnivoreItem,
+  readOmnivoreMetadata,
+} from "./sources/omnivore";
+import { MAX_NOTES_LENGTH } from "./sources/sourceItems";
 import {
   rangeRead,
   readZipDirectory,

@@ -1,17 +1,25 @@
 import { sanitizeText } from "@teak/convex/linkMetadata/parsing";
-import type { SocialFetchDeps } from "@teak/convex/linkMetadata/socialPostHelpers";
-import { readBodyWithLimit, safeFetch } from "@teak/convex/linkMetadata/ssrf";
+import {
+  type DnsResolver,
+  type PinnedFetch,
+  readBodyWithLimit,
+  safeFetch,
+} from "@teak/convex/linkMetadata/ssrf";
 import type { LinkCategoryDetail } from "@teak/convex/shared";
+import { TEAKBOT_USER_AGENT } from "../../../userAgent";
 
-export interface RemoteFetchDeps extends SocialFetchDeps {
+/** How the Worker reaches another site: pinned to a checked address. */
+export interface RemoteFetchDeps {
+  pinnedFetch?: PinnedFetch;
+  resolveDns: DnsResolver;
   takeArxivSlot?: () => Promise<boolean>;
+  timeoutMs?: number;
 }
 
 export const REMOTE_FETCH_TIMEOUT_MS = 10_000;
 export const REMOTE_MAX_BYTES = 256 * 1024;
 export const REMOTE_SUMMARY_MAX_LENGTH = 4000;
 const FACT_VALUE_MAX_LENGTH = 200;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export interface RemoteResponse {
   status: number;
@@ -32,7 +40,7 @@ export const fetchRemoteText = async (
       url,
       deps.resolveDns,
       {
-        headers: { ...headers, accept, "user-agent": USER_AGENT },
+        headers: { ...headers, accept, "user-agent": TEAKBOT_USER_AGENT },
         signal: AbortSignal.timeout(deps.timeoutMs ?? REMOTE_FETCH_TIMEOUT_MS),
       },
       deps.pinnedFetch
@@ -48,19 +56,22 @@ export const fetchRemoteText = async (
       text: new TextDecoder().decode(body),
     };
   } catch (error) {
-    console.warn("[categorization] Site lookup failed", {
+    console.warn("[remote] Site lookup failed", {
       message: error instanceof Error ? error.message : String(error),
     });
     return { status: 0, text: null };
   }
 };
 
+/** JSON from another site: site details, social posts, oEmbed answers. */
 export const fetchRemoteJson = async <T>(
   url: string,
-  deps: RemoteFetchDeps
+  deps: RemoteFetchDeps,
+  { maxBytes }: { maxBytes?: number } = {}
 ): Promise<{ data: T | null; status: number }> => {
   const { status, text } = await fetchRemoteText(url, deps, {
     accept: "application/json",
+    maxBytes,
   });
   if (text === null) {
     return { data: null, status };

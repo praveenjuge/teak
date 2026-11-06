@@ -328,7 +328,7 @@ export const setThumbnailForUser = async (
     role: THUMBNAIL_ROLE,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callCoreWorkerOp<FilesFinalizeImageResult>({
+  const outcome = await callCoreWorkerOp({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
     declineCodes: ["CONFLICT"],

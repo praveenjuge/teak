@@ -48,21 +48,25 @@ export const CONVEX_STEP: StepConfig = {
 };
 
 /**
- * Convex `{maxAttempts, initialBackoffMs, base}` retry settings as a step
- * config. Cloudflare's exponential backoff doubles; the attempt counts match.
+ * A step Workflows tries `attempts` times in all, waiting `delayMs` before
+ * the second try and doubling the wait after each one.
  */
-export const retryConfig = (
-  maxAttempts: number,
-  initialBackoffMs: number,
+export const exponentialStep = (
+  attempts: number,
+  delayMs: number,
   timeout: StepConfig["timeout"] = "10 minutes"
 ): StepConfig => ({
   retries: {
     backoff: "exponential",
-    delay: initialBackoffMs,
-    limit: Math.max(0, maxAttempts - 1),
+    delay: delayMs,
+    limit: Math.max(0, attempts - 1),
   },
   timeout,
 });
+
+/** How many times Workflows tries a step with this config, in all. */
+export const stepAttempts = (config: StepConfig): number =>
+  (config.retries?.limit ?? 0) + 1;
 
 export const NO_RETRY = (
   timeout: StepConfig["timeout"] = "10 minutes"

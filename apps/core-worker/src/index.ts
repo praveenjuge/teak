@@ -584,7 +584,7 @@ export default {
   },
   async queue(batch, env, ctx): Promise<void> {
     try {
-      await handleQueueBatch(batch, env, ctx);
+      await handleQueueBatch(batch, gatedEnv(env), ctx);
     } catch (error) {
       await reportUnhandledError(env, ctx, error);
       throw error;
@@ -592,7 +592,7 @@ export default {
   },
   async scheduled(controller, env, ctx): Promise<void> {
     try {
-      await handleScheduled(controller, env, ctx);
+      await handleScheduled(controller, gatedEnv(env), ctx);
     } catch (error) {
       await reportUnhandledError(env, ctx, error);
       throw error;

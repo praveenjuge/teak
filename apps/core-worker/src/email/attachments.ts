@@ -1,3 +1,7 @@
+import {
+  extensionForMimeType,
+  normalizeMimeType,
+} from "@teak/convex/shared/fileFormats";
 import type { Attachment, Email } from "postal-mime";
 
 export const MAX_ATTACHMENTS = 50;
@@ -12,36 +16,6 @@ const SKIPPED_TYPES = new Set([
 ]);
 
 const SKIPPED_NAMES = new Set(["smime.p7s", "winmail.dat"]);
-
-const EXTENSIONS: Record<string, string> = {
-  "application/msword": "doc",
-  "application/pdf": "pdf",
-  "application/vnd.ms-excel": "xls",
-  "application/vnd.ms-powerpoint": "ppt",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-    "pptx",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-    "docx",
-  "application/zip": "zip",
-  "audio/m4a": "m4a",
-  "audio/mp4": "m4a",
-  "audio/mpeg": "mp3",
-  "audio/wav": "wav",
-  "audio/x-wav": "wav",
-  "image/gif": "gif",
-  "image/heic": "heic",
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/svg+xml": "svg",
-  "image/webp": "webp",
-  "text/csv": "csv",
-  "text/markdown": "md",
-  "text/plain": "txt",
-  "video/mp4": "mp4",
-  "video/quicktime": "mov",
-  "video/webm": "webm",
-};
 
 export interface SelectedAttachment {
   content: Uint8Array<ArrayBuffer>;
@@ -69,9 +43,6 @@ const referencedContentIds = (html: string | undefined): Set<string> => {
   return ids;
 };
 
-const baseMimeType = (value: string | undefined): string =>
-  (value ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-
 const contentBytes = (attachment: Attachment): Uint8Array<ArrayBuffer> => {
   const { content } = attachment;
   if (typeof content === "string") {
@@ -85,7 +56,7 @@ const contentBytes = (attachment: Attachment): Uint8Array<ArrayBuffer> => {
 };
 
 const isKnownFileType = (mimeType: string): boolean =>
-  mimeType in EXTENSIONS ||
+  extensionForMimeType(mimeType) !== undefined ||
   mimeType.startsWith("image/") ||
   mimeType.startsWith("audio/") ||
   mimeType.startsWith("video/");
@@ -99,7 +70,7 @@ export const selectAttachments = (
     if (selected.length >= MAX_ATTACHMENTS) {
       break;
     }
-    const mimeType = baseMimeType(attachment.mimeType);
+    const mimeType = normalizeMimeType(attachment.mimeType);
     const name = attachment.filename?.trim() || null;
     if (
       SKIPPED_TYPES.has(mimeType) ||
@@ -131,7 +102,7 @@ export const selectAttachments = (
       content,
       fileName:
         name ??
-        `attachment-${index + 1}.${EXTENSIONS[mimeType] ?? mimeType.split("/")[1] ?? "bin"}`,
+        `attachment-${index + 1}.${extensionForMimeType(mimeType) ?? mimeType.split("/")[1] ?? "bin"}`,
       index,
       mimeType: mimeType || "application/octet-stream",
       size: content.byteLength,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { socialFetch } from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
 import { richSiteFixture, xmlResponse } from "../../../test/richSites";
+import { socialFetch } from "../../../test/socialFetch";
 import { arxivApiUrl, fetchArxivDetails, parseArxivAtom } from "./arxiv";
 
 const answer = (id: string, fixture: string) =>

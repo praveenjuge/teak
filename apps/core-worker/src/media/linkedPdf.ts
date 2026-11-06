@@ -1,5 +1,6 @@
 import {
   arxivPdfUrl,
+  isArxivHost,
   isArxivPdfUrl,
   parseArxivId,
 } from "@teak/convex/shared/utils/arxiv";
@@ -10,11 +11,10 @@ import {
   isValidObjectKey,
 } from "@teak/files-protocol";
 import { InvalidOpInput } from "../opFailure";
+import { TEAKBOT_USER_AGENT } from "../userAgent";
 
-const ARXIV_HOSTS = new Set(["arxiv.org", "export.arxiv.org"]);
 const MAX_REDIRECTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export const parseLinkedPdfParams = (
   params: Record<string, unknown>
@@ -32,7 +32,7 @@ export const parseLinkedPdfParams = (
 };
 
 const isAllowedHop = (url: URL) =>
-  url.protocol === "https:" && ARXIV_HOSTS.has(url.hostname.toLowerCase());
+  url.protocol === "https:" && isArxivHost(url.hostname);
 
 const fetchPdf = async (
   url: string,
@@ -42,7 +42,7 @@ const fetchPdf = async (
   let current = new URL(url);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     const response = await fetcher(current.toString(), {
-      headers: { accept: "application/pdf", "user-agent": USER_AGENT },
+      headers: { accept: "application/pdf", "user-agent": TEAKBOT_USER_AGENT },
       redirect: "manual",
       signal,
     });

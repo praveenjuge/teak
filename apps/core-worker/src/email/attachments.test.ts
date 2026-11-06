@@ -106,6 +106,25 @@ describe("selectAttachments", () => {
     ]);
   });
 
+  test("an unnamed part is named with the file registry's extension for its type", () => {
+    const selected = selectAttachments({
+      attachments: [
+        part({ filename: null, mimeType: "audio/x-wav" }),
+        part({ filename: null, mimeType: "text/plain; charset=utf-8" }),
+        part({ filename: null, mimeType: "Application/PDF" }),
+        part({ filename: null, mimeType: "video/quicktime" }),
+      ],
+    });
+    expect(
+      selected.map(({ fileName, mimeType }) => [fileName, mimeType])
+    ).toEqual([
+      ["attachment-1.wav", "audio/x-wav"],
+      ["attachment-2.txt", "text/plain"],
+      ["attachment-3.pdf", "application/pdf"],
+      ["attachment-4.mov", "video/quicktime"],
+    ]);
+  });
+
   test("an empty part is skipped", () => {
     expect(
       selectAttachments({

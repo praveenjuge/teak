@@ -10,18 +10,25 @@ export interface RendererEnv {
   MEDIA_RENDERER_INSTANCES?: string;
 }
 
-export class RendererDeclined extends Error {
+/** The renderer can't make this file: the op answers UNSUPPORTED. */
+export class RendererDeclined extends OpFailure {
   readonly reason: string;
   constructor(reason: string) {
-    super(`renderer_declined:${reason}`);
+    super("renderer_declined", { message: `renderer_declined:${reason}` });
     this.reason = reason;
   }
 }
 
-export class RendererUnavailable extends Error {
+/**
+ * The renderer, link fetcher or browser didn't answer: the op answers
+ * RENDERER_UNAVAILABLE, as `browser_unavailable` does.
+ */
+export class RendererUnavailable extends OpFailure {
   readonly reason: string;
   constructor(reason: string) {
-    super(`renderer_unavailable:${reason}`);
+    super("browser_unavailable", {
+      message: `renderer_unavailable:${reason}`,
+    });
     this.reason = reason;
   }
 }

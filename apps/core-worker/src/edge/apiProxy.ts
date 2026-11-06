@@ -2,7 +2,7 @@ import { WELL_KNOWN_PATHS } from "@teak/convex/shared/publicApiContract";
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
-import { answerMcpAtEdge } from "./mcpEdge";
+import { answerMcpAtEdge, isMcpPathname } from "./mcpEdge";
 
 export interface ApiProxyEnv {
   API_PUBLIC_HOST?: string;
@@ -53,7 +53,7 @@ export const upstreamPathFor = (pathname: string): string | null => {
   if (pathname.startsWith("/api/")) {
     return pathname.slice("/api".length);
   }
-  if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
+  if (isMcpPathname(pathname)) {
     return pathname;
   }
   if (WELL_KNOWN.has(pathname)) {

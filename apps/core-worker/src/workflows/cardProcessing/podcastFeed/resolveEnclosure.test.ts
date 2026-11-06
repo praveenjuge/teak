@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import {
-  jsonResponse,
-  socialFetch,
-} from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
+import { jsonResponse, socialFetch } from "../../../test/socialFetch";
 import { parseFeed } from "./feed";
 import {
   findFeedUrl,

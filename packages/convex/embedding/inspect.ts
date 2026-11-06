@@ -1,4 +1,3 @@
-import type { FilesVectorQueryResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction, internalQuery } from "../_generated/server";
@@ -53,7 +52,7 @@ export const searchByMeaning = internalAction({
     if (vectorShard.kind === "never_embedded" || !namespace) {
       return [];
     }
-    const outcome = await callCoreWorkerOp<FilesVectorQueryResult>({
+    const outcome = await callCoreWorkerOp({
       op: "vector-query",
       params: {
         namespace,

@@ -6,7 +6,6 @@ import {
   type PageArchiveSkip,
   pageArchiveSkipReason,
 } from "@teak/convex/shared/pageArchive";
-import type { FilesArchivePageResult } from "@teak/files-protocol";
 import type { StepConfig } from "../runtime";
 import {
   type CardJob,
@@ -98,7 +97,7 @@ export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
     role: PAGE_ARCHIVE_ROLE,
   });
   await ensureObjectOwnership(job, card.userId, destinationKey);
-  const outcome = await job.deps.filesOp<FilesArchivePageResult>({
+  const outcome = await job.deps.filesOp({
     op: "archive-page",
     params: {
       capturedAt: startedAt,

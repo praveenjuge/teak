@@ -9,7 +9,7 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import type { WorkflowTelemetry } from "../telemetry";
 import { runDecision } from "./decisions";
 
@@ -25,7 +25,7 @@ const recordingTelemetry = () => {
 };
 
 const decide = async (
-  answer: OpAnswer | FilesOpCaller,
+  answer: OpAnswer | OpCaller,
   options: { timeoutMs?: number; userId?: string } = {}
 ) => {
   const convex = createCardConvex(makeCard());

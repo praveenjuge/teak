@@ -5,9 +5,30 @@ import type {
   FilesOpOutcome,
 } from "@teak/files-protocol";
 import { type ConvexRpc, ConvexRpcError } from "../convexRpc";
-import { callFilesOp } from "./filesOps";
+import { callFilesOp, type OpCaller } from "./filesOps";
 import { convexFor, type WorkflowRun } from "./runtime";
 
+export type { OpCaller } from "./filesOps";
+
+/** A workflow's Convex and op callers; tests pass their own. */
+export interface OpDeps {
+  convex?: ConvexRpc;
+  ops?: OpCaller;
+}
+
+export const resolveOpDeps = (
+  run: WorkflowRun<unknown>,
+  deps: OpDeps = {}
+): { convex: ConvexRpc; ops: OpCaller } => ({
+  convex: deps.convex ?? convexFor(run.env, run.params),
+  ops: deps.ops ?? ((spec) => callFilesOp(run.env, spec)),
+});
+
+/**
+ * The untyped op caller, its deps and resolver: an op named by string with
+ * any params, its result named by the caller. Only the account deletion
+ * workflow still calls ops this way; every other caller uses `OpCaller`.
+ */
 export type FilesOpCaller = <T>(spec: {
   declineCodes?: readonly FilesErrorCode[];
   op: FilesOp;
@@ -24,7 +45,10 @@ export const resolveDeps = (
   deps: WorkflowDeps = {}
 ): { convex: ConvexRpc; ops: FilesOpCaller } => ({
   convex: deps.convex ?? convexFor(run.env, run.params),
-  ops: deps.ops ?? ((spec) => callFilesOp(run.env, spec)),
+  ops:
+    deps.ops ??
+    (<T>(spec: Parameters<FilesOpCaller>[0]) =>
+      callFilesOp(run.env, spec as never) as Promise<FilesOpOutcome<T>>),
 });
 
 export const STEP_BUDGET_MS = 60_000;

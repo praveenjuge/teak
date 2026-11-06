@@ -12,6 +12,7 @@ import {
   type EdgeIdentityEnv,
   resolveEdgeIdentity,
 } from "./edgeIdentity";
+import { isMcpPathname } from "./mcpEdge";
 
 export interface RateLimiter {
   limit: (options: { key: string }) => Promise<{ success: boolean }>;
@@ -43,10 +44,8 @@ export type EdgeRateLimitOutcome =
       identity?: Extract<EdgeIdentity, { key: `user:${string}` }>;
     };
 
-const isMcpPath = (request: Request): boolean => {
-  const { pathname } = new URL(request.url);
-  return pathname === "/mcp" || pathname.startsWith("/mcp/");
-};
+const isMcpPath = (request: Request): boolean =>
+  isMcpPathname(new URL(request.url).pathname);
 
 const peekBody = async <T>(
   request: Request,

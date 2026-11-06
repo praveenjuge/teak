@@ -1,6 +1,5 @@
 import {
   type DispatchItem,
-  type DispatchResult,
   MAX_DISPATCH_ITEMS,
   normalizeConvexSiteUrl,
   signDispatchProof,
@@ -287,7 +286,7 @@ export const flush = internalAction({
       let error = "dispatch_rejected";
       try {
         const items = claimed.map(({ item }) => item);
-        const outcome = await callCoreWorkerOp<DispatchResult>({
+        const outcome = await callCoreWorkerOp({
           op: "dispatch",
           params: {
             convexSiteUrl,
