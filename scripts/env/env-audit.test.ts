@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -358,5 +359,13 @@ describe("env-audit file walk", () => {
       "apps/android/scripts/e2e-session.ts",
       "apps/web/src/a.ts",
     ]);
+  });
+
+  test("a directory link that points back up is walked once", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-env-audit-"));
+    mkdirSync(join(root, "apps/web/src"), { recursive: true });
+    writeFileSync(join(root, "apps/web/src/a.ts"), "");
+    symlinkSync(root, join(root, "apps/web/src/loop"));
+    expect(listScannedFiles(root)).toEqual(["apps/web/src/a.ts"]);
   });
 });

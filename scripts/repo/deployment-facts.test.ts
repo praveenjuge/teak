@@ -8,26 +8,28 @@ const ROOT = join(import.meta.dir, "../..");
 // copy because their formats can't import it: workflow and XcodeGen YAML,
 // Gradle, Wrangler and Vercel config, the generated Xcode project and Worker
 // types, docs, and tests that pin production's behavior.
-const COPIES = [
-  ".github/workflows/apple-release.yml",
-  ".github/workflows/extension-release.yml",
-  ".github/workflows/unit-tests.yml",
-  "apps/android/app/build.gradle.kts",
-  "apps/apple/Packages/TeakKit/Tests/TeakCoreTests/UploadTests.swift",
-  "apps/apple/Teak.xcodeproj/project.pbxproj",
-  "apps/apple/project.yml",
-  "apps/core-worker/src/edge/apiProxy.test.ts",
-  "apps/core-worker/worker-configuration.d.ts",
-  "apps/core-worker/wrangler.jsonc",
-  "apps/docs/content/docs/(apps)/extension.mdx",
-  "apps/extension/release.md",
-  "apps/web/src/lib/__tests__/securityHeaders.test.ts",
-  "packages/convex/__tests__/mcp/httpServer.test.ts",
-  "packages/convex/__tests__/publicApi/http/gateway.test.ts",
-  "packages/convex/vercel.json",
-  "scripts/dev/core-worker-dev-boundary.test.ts",
-  "scripts/deployments.json",
-].sort();
+// Each copy and how many times it names the deployment, so one URL in a file
+// switched to another deployment fails even when the file still names it.
+const COPIES: Record<string, number> = {
+  ".github/workflows/apple-release.yml": 1,
+  ".github/workflows/extension-release.yml": 4,
+  ".github/workflows/unit-tests.yml": 2,
+  "apps/android/app/build.gradle.kts": 1,
+  "apps/apple/Packages/TeakKit/Tests/TeakCoreTests/UploadTests.swift": 1,
+  "apps/apple/Teak.xcodeproj/project.pbxproj": 1,
+  "apps/apple/project.yml": 1,
+  "apps/core-worker/src/edge/apiProxy.test.ts": 1,
+  "apps/core-worker/worker-configuration.d.ts": 2,
+  "apps/core-worker/wrangler.jsonc": 2,
+  "apps/docs/content/docs/(apps)/extension.mdx": 2,
+  "apps/extension/release.md": 4,
+  "apps/web/src/lib/__tests__/securityHeaders.test.ts": 1,
+  "packages/convex/__tests__/mcp/httpServer.test.ts": 1,
+  "packages/convex/__tests__/publicApi/http/gateway.test.ts": 1,
+  "packages/convex/vercel.json": 1,
+  "scripts/deployments.json": 3,
+  "scripts/dev/core-worker-dev-boundary.test.ts": 5,
+};
 
 interface Deployments {
   production: { convexUrl: string; name: string; siteUrl: string };
@@ -36,6 +38,14 @@ interface Deployments {
 const deployments = JSON.parse(
   readFileSync(join(ROOT, "scripts/deployments.json"), "utf8")
 ) as Deployments;
+
+const timesNamed = (text: string): Record<string, number> =>
+  Object.fromEntries(
+    filesNaming(text).map((file) => [
+      file,
+      readFileSync(join(ROOT, file), "utf8").split(text).length - 1,
+    ])
+  );
 
 const filesNaming = (text: string): string[] =>
   new TextDecoder()
@@ -56,7 +66,7 @@ test("the production deployment's URLs follow from its name", () => {
 });
 
 test("every copy of the production deployment names the canonical one", () => {
-  // A copy changed to another deployment drops out of this list; a new copy
-  // shows up in it.
-  expect(filesNaming(deployments.production.name)).toEqual(COPIES);
+  // A copy changed to another deployment lowers its count or drops out; a new
+  // copy shows up.
+  expect(timesNamed(deployments.production.name)).toEqual(COPIES);
 });
