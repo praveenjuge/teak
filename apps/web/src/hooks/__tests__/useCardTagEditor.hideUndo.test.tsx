@@ -29,7 +29,7 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { useCardModal } = await import("../useCardModal");
+const { useCardTagEditor } = await import("../useCardTagEditor");
 
 let root: Root | undefined;
 
@@ -52,11 +52,9 @@ const cardOf = (id: string, tags: string[]) =>
   }) as never;
 
 async function renderHook(id: string | null, tags: string[]) {
-  let hook = {} as ReturnType<typeof useCardModal>;
+  let hook = {} as ReturnType<typeof useCardTagEditor>;
   function Harness(props: { id: string | null; tags: string[] }) {
-    hook = useCardModal(props.id, {
-      card: props.id ? cardOf(props.id, props.tags) : null,
-    });
+    hook = useCardTagEditor(props.id ? cardOf(props.id, props.tags) : null);
     return null;
   }
   root = createRoot(document.createElement("div"));
@@ -71,7 +69,7 @@ async function renderHook(id: string | null, tags: string[]) {
 const hideCardA = async () => {
   write = mock(async () => null);
   const view = await renderHook("card_a", ["work"]);
-  await act(() => view.hook().setTagInput("secret"));
+  await act(() => view.hook().setInput("secret"));
   await act(() => {
     view.hook().addTag();
   });

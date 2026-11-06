@@ -93,7 +93,7 @@ export function EmptyTrashButton() {
       count={trash?.count}
       more={trash?.more}
       onEmpty={() => {
-        empty().catch(() => undefined);
+        void empty();
       }}
     />
   );

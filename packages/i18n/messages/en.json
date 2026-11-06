@@ -797,25 +797,18 @@
     },
     "menu": {
       "addToFolder": "Add to folder…",
-      "archive": "Archive",
       "copyLink": "Copy link",
       "copyText": "Copy text",
       "download": "Download",
-      "favorite": "Favorite",
       "moreActions": "More actions",
       "moreLikeThis": "More like this",
-      "moveToTrash": "Move to Trash",
       "refreshDetails": "Refresh details",
       "replaceImage": "Replace image",
       "resetImage": "Reset to original image",
       "savePdf": "Save PDF",
       "savingPdf": "Saving PDF…",
       "shortcutsHint": "Press <kbd>?</kbd> for all shortcuts",
-      "unarchive": "Unarchive",
-      "unfavorite": "Unfavorite",
-      "editLink": "Edit link…",
-      "pin": "Pin to top",
-      "unpin": "Unpin"
+      "editLink": "Edit link…"
     },
     "actions": {
       "folder": "Folder"
@@ -1704,11 +1697,6 @@
   },
   "hooks": {
     "cardActions": {
-      "cardDeleted": "Card deleted",
-      "cardRestored": "Card restored",
-      "cardPermanentlyDeleted": "Card permanently deleted",
-      "deleteFailed": "Failed to delete card",
-      "restoreFailed": "Failed to restore card",
       "permanentDeleteFailed": "Failed to permanently delete card",
       "changesSaved": "Changes saved",
       "markedDone": "Marked as {verb, select, read {read} watched {watched} listened {listened} bought {bought} cooked {cooked} played {played} other {done}}",
@@ -1718,15 +1706,10 @@
       "hiddenByTag": "Hidden. Search #{tag} to see it.",
       "unsafeLink": "This link can't be opened because it uses an unsafe address",
       "failed": {
-        "delete": "Failed to delete",
-        "restore": "Failed to restore",
-        "permanentDelete": "Failed to permanent delete",
-        "toggleFavorite": "Failed to toggle favorite",
         "saveChanges": "Failed to save changes",
         "downloadFile": "Failed to download file",
         "removeTag": "Failed to remove tag",
-        "tags": "Failed to update tags",
-        "other": "Failed to {operation}"
+        "tags": "Failed to update tags"
       },
       "cardsPermanentlyDeleted": "{count, plural, one {# card permanently deleted} other {# cards permanently deleted}}"
     },

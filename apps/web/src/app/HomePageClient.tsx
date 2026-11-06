@@ -231,7 +231,6 @@ export function HomePageClient({
         setCardUrlParam(cardId, true);
       }}
       searchUrlState={searchUrlState}
-      toastIdPrefix="web-masonry"
       upgradeUrl={SETTINGS_PLAN_HREF}
       view={view}
     />

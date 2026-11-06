@@ -103,6 +103,15 @@ mock.module("../previews/GridVideoPreview", () => ({
 
 const { Card, resolveImageCopyUrl } = await import("../Card");
 
+// What the Pinned row offers: no selection.
+const STRIP_ACTIONS = new Set([
+  "favorite",
+  "pin",
+  "addTags",
+  "archive",
+  "moveToTrash",
+] as const);
+
 const createLinkCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_123",
   _creationTime: Date.now(),
@@ -147,27 +156,20 @@ describe("Cards/Card", () => {
 
   test("a card tells screen readers the keys it answers", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+      <Card card={createLinkCard() as any} />
     );
     expect(markup).toContain(
-      'aria-keyshortcuts="Enter F T E X Delete Control+C"'
+      'aria-keyshortcuts="Enter F P T E Delete X Control+C"'
     );
     const trashed = renderToStaticMarkup(
-      <Card
-        card={createLinkCard({ isDeleted: true }) as any}
-        onToggleArchive={() => undefined}
-      />
+      <Card card={createLinkCard({ isDeleted: true }) as any} />
     );
-    expect(trashed).toContain('aria-keyshortcuts="Enter X Delete"');
+    expect(trashed).toContain('aria-keyshortcuts="Enter Delete X"');
   });
 
   test("its menu shows the key for each action a key also does", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={createLinkCard() as any}
-        onEnterSelectionMode={() => undefined}
-        onToggleArchive={() => undefined}
-      />
+      <Card card={createLinkCard() as any} />
     );
     for (const [label, key] of [
       ["Add tags…", "T"],
@@ -211,13 +213,7 @@ describe("Cards/Card", () => {
 
   test("in selection mode, its menu shows only keys that act on this card", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={createLinkCard() as any}
-        isSelected
-        isSelectionMode
-        onToggleArchive={() => undefined}
-        onToggleSelection={() => undefined}
-      />
+      <Card card={createLinkCard() as any} isSelected isSelectionMode />
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
     expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
@@ -459,7 +455,7 @@ describe("Cards/Card", () => {
     const items = [
       ...trashed.matchAll(/role="menuitem">(?:<svg.*?<\/svg>)?([^<]*)/g),
     ].map((match) => match[1]);
-    expect(items).toEqual(["Restore", "Delete forever"]);
+    expect(items).toEqual(["Select", "Restore", "Delete forever"]);
   });
 
   test("shows an empty note as Empty note", () => {
@@ -703,10 +699,7 @@ describe("Cards/Card redesign", () => {
 
   test("offers open, favorite and more actions on an active card", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview() as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview() as any} />
     );
     expect(markup).toContain('aria-label="Open link"');
     expect(markup).toContain('aria-label="Favorite"');
@@ -716,10 +709,7 @@ describe("Cards/Card redesign", () => {
 
   test("leaves only More actions and Select on a card in Trash", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview({ isDeleted: true }) as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview({ isDeleted: true }) as any} />
     );
     expect(markup).toContain('aria-label="More actions"');
     expect(markup).not.toContain('aria-label="Favorite"');
@@ -748,10 +738,7 @@ describe("Cards/Card redesign", () => {
 
   test("keeps More on screen for touch, which can't hover, and leaves the rest to it", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview() as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview() as any} />
     );
     const button = (label: string) =>
       markup.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0];
@@ -817,13 +804,13 @@ describe("Cards/Card redesign", () => {
 
   test("offers no Select where cards can't be selected, like the Pinned row", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+      <Card actions={STRIP_ACTIONS} card={createLinkCard() as any} />
     );
     expect(markup).not.toContain("Select<kbd>X</kbd>");
     expect(markup).toContain("Pin to top<kbd>P</kbd>");
   });
 
-  test("offers no pin on an archived card, or without a pin handler", () => {
+  test("offers no pin on an archived card, or where pins aren't offered", () => {
     const archived = renderToStaticMarkup(
       <Card
         card={createLinkCard({ isArchived: true }) as any}
@@ -839,7 +826,7 @@ describe("Cards/Card redesign", () => {
     );
     expect(trashed).not.toContain("Pin to top");
     const noHandler = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} />
+      <Card actions={new Set(["favorite"])} card={createLinkCard() as any} />
     );
     expect(noHandler).not.toContain("Pin to top");
   });

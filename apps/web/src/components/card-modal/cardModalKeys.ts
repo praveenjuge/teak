@@ -1,37 +1,29 @@
 import { isTypingTarget } from "../../hooks/useKeyboardShortcuts";
+import { type CardActionId, cardActionsForKey } from "../../lib/cardActions";
 import { isApplePlatform } from "../../lib/platform";
 
-export type CardModalKeyAction =
+/** Keys only the open card has; the rest are card actions. */
+type DialogKeyAction =
   | "previous"
   | "next"
-  | "favorite"
-  | "pin"
-  | "archive"
-  | "delete"
-  | "focusTags"
   | "focusNotes"
-  | "done"
   | "open"
   | "copy"
   | "toggleReader"
   | "highlight";
 
-const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
+export type CardModalKeyAction = DialogKeyAction | CardActionId;
+
+const DIALOG_KEYS: Record<string, DialogKeyAction> = {
   ArrowLeft: "previous",
   ArrowRight: "next",
   k: "previous",
   j: "next",
-  f: "favorite",
-  p: "pin",
-  e: "archive",
-  t: "focusTags",
   n: "focusNotes",
-  d: "done",
   o: "open",
   c: "copy",
   r: "toggleReader",
   h: "highlight",
-  Delete: "delete",
 };
 
 /**
@@ -72,12 +64,9 @@ export function cardModalKeyAction(
   ) {
     return null;
   }
-  const action =
-    apple && event.key === "Backspace"
-      ? "delete"
-      : KEY_ACTIONS[
-          event.key.length === 1 ? event.key.toLowerCase() : event.key
-        ];
+  const action: CardModalKeyAction | undefined =
+    cardActionsForKey(event.key, "dialog", apple).at(0) ??
+    DIALOG_KEYS[event.key.length === 1 ? event.key.toLowerCase() : event.key];
   if (!action) {
     return null;
   }

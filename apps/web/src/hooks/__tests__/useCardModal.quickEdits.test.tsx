@@ -75,53 +75,6 @@ const settleAll = () =>
     await Promise.resolve();
   });
 
-test("removing two tags before the card catches up removes both", async () => {
-  const hook = await renderHook({ ...baseCard, tags: ["a", "b", "c"] });
-  await act(() => hook().removeTag("c"));
-  await act(() => hook().removeTag("b"));
-  expect(writes.map((entry) => entry.value)).toEqual([["a", "b"], ["a"]]);
-});
-
-test("adding two tags before the card catches up keeps both", async () => {
-  const hook = await renderHook({ ...baseCard, tags: [] });
-  await act(() => hook().setTagInput("first"));
-  await act(() => hook().addTag());
-  await act(() => hook().setTagInput("second"));
-  await act(() => hook().addTag());
-  expect(writes.map((entry) => entry.value)).toEqual([
-    ["first"],
-    ["first", "second"],
-  ]);
-});
-
-test("a tag the card already has, in any case, clears the field and says so", async () => {
-  const hook = await renderHook({ ...baseCard, tags: ["Design"] });
-  await act(() => hook().setTagInput("  design "));
-  await act(() => hook().addTag());
-  expect(writes).toEqual([]);
-  expect(hook().tagInput).toBe("");
-  expect(notices).toEqual(["Already tagged #Design"]);
-});
-
-test("pressing favorite twice quickly shows the second press until both land", async () => {
-  const hook = await renderHook({ ...baseCard, isFavorited: false });
-  await act(() => hook().toggleFavorite());
-  expect(hook().card?.isFavorited).toBe(true);
-  await act(() => hook().toggleFavorite());
-  expect(hook().card?.isFavorited).toBe(false);
-
-  await act(async () => {
-    settles.shift()?.();
-    await Promise.resolve();
-  });
-  expect(hook().card?.isFavorited).toBe(false);
-  expect(writes.map((entry) => entry.field)).toEqual([
-    "isFavorited",
-    "isFavorited",
-  ]);
-  await settleAll();
-});
-
 test("an emptied note isn't saved, and the card keeps its text", async () => {
   const hook = await renderHook({ ...baseCard, tags: [] });
   await act(() => hook().updateContent(" \n "));

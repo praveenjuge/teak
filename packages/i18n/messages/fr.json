@@ -797,25 +797,18 @@
     },
     "menu": {
       "addToFolder": "Ajouter à un dossier…",
-      "archive": "Archiver",
       "copyLink": "Copier le lien",
       "copyText": "Copier le texte",
       "download": "Télécharger",
-      "favorite": "Ajouter aux favoris",
       "moreActions": "Plus d’actions",
       "moreLikeThis": "Plus de ce genre",
-      "moveToTrash": "Placer dans la corbeille",
       "refreshDetails": "Actualiser les détails",
       "replaceImage": "Remplacer l’image",
       "resetImage": "Revenir à l’image d’origine",
       "savePdf": "Enregistrer le PDF",
       "savingPdf": "Enregistrement du PDF…",
       "shortcutsHint": "Appuyez sur <kbd>?</kbd> pour voir tous les raccourcis",
-      "unarchive": "Désarchiver",
-      "unfavorite": "Retirer des favoris",
-      "editLink": "Modifier le lien…",
-      "pin": "Épingler en haut",
-      "unpin": "Désépingler"
+      "editLink": "Modifier le lien…"
     },
     "actions": {
       "folder": "Dossier"
@@ -1704,11 +1697,6 @@
   },
   "hooks": {
     "cardActions": {
-      "cardDeleted": "Fiche supprimée",
-      "cardRestored": "Fiche restaurée",
-      "cardPermanentlyDeleted": "Fiche supprimée définitivement",
-      "deleteFailed": "Impossible de supprimer la fiche",
-      "restoreFailed": "Impossible de restaurer la fiche",
       "permanentDeleteFailed": "Impossible de supprimer définitivement la fiche",
       "changesSaved": "Modifications enregistrées",
       "markedDone": "Marquée comme {verb, select, read {lue} watched {vue} listened {écoutée} bought {achetée} cooked {cuisinée} played {jouée} other {terminée}}",
@@ -1718,15 +1706,10 @@
       "hiddenByTag": "Masquée. Recherchez #{tag} pour la voir.",
       "unsafeLink": "Impossible d’ouvrir ce lien, car il utilise une adresse non sécurisée",
       "failed": {
-        "delete": "Échec de la suppression",
-        "restore": "Échec de la restauration",
-        "permanentDelete": "Échec de la suppression définitive",
-        "toggleFavorite": "Impossible de modifier les favoris",
         "saveChanges": "Impossible d’enregistrer les modifications",
         "downloadFile": "Impossible de télécharger le fichier",
         "removeTag": "Impossible de retirer le tag",
-        "tags": "Impossible de mettre à jour les tags",
-        "other": "Échec de l’opération : {operation}"
+        "tags": "Impossible de mettre à jour les tags"
       },
       "cardsPermanentlyDeleted": "{count, plural, one {# fiche supprimée définitivement} other {# fiches supprimées définitivement}}"
     },

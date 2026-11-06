@@ -66,7 +66,10 @@ const inCategory = (category: string | undefined, extra = {}) =>
     ...extra,
   });
 
-async function render(shown: CardModalCard, toggleDone?: () => void) {
+async function render(
+  shown: CardModalCard,
+  runAction: (action: string) => Promise<boolean> = async () => true
+) {
   const container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
   await act(() =>
@@ -76,12 +79,10 @@ async function render(shown: CardModalCard, toggleDone?: () => void) {
         cardId={shown._id}
         downloadFile={() => undefined}
         getCurrentValue={() => undefined}
-        handleDelete={async () => undefined}
-        handlePermanentDelete={async () => undefined}
-        handleRestore={async () => undefined}
         hasUnsavedChanges={false}
         open
         openLink={() => undefined}
+        runAction={runAction}
         saveChanges={async () => true}
         saveState="idle"
         tags={{
@@ -91,8 +92,6 @@ async function render(shown: CardModalCard, toggleDone?: () => void) {
           setTagInput: () => undefined,
           tagInput: "",
         }}
-        toggleDone={toggleDone}
-        toggleFavorite={() => undefined}
         updateContent={() => undefined}
         updateNotes={() => undefined}
         updateTitle={() => undefined}
@@ -121,23 +120,23 @@ test.each([
   ["a-category-from-the-future", "Mark as done", "Marked as done"],
   [undefined, "Mark as done", "Marked as done"],
 ])("a %p link reads %p, then %p once done", async (category, notDone, done) => {
-  await render(inCategory(category), () => undefined);
+  await render(inCategory(category));
   expect(doneButton()?.getAttribute("aria-label")).toBe(notDone);
   expect(doneButton()?.getAttribute("aria-pressed")).toBe("false");
 
   await act(() => root?.unmount());
   document.body.innerHTML = "";
-  await render(inCategory(category, { completedAt: 1 }), () => undefined);
+  await render(inCategory(category, { completedAt: 1 }));
   expect(doneButton()?.getAttribute("aria-label")).toBe(done);
   expect(doneButton()?.getAttribute("aria-pressed")).toBe("true");
 });
 
 test("its caption reads Done, so it can't be taken for the reader's Read", async () => {
-  await render(inCategory("article"), () => undefined);
+  await render(inCategory("article"));
   expect(doneButton()?.textContent).toBe("Done");
   await act(() => root?.unmount());
   document.body.innerHTML = "";
-  await render(inCategory("article", { completedAt: 1 }), () => undefined);
+  await render(inCategory("article", { completedAt: 1 }));
   expect(doneButton()?.textContent).toBe("Done");
   const captions = Array.from(
     document.querySelectorAll("button span[aria-hidden='true']")
@@ -145,17 +144,17 @@ test("its caption reads Done, so it can't be taken for the reader's Read", async
   expect(captions).not.toContain("Read");
 });
 
-test("clicking it toggles the card", async () => {
-  const toggleDone = mock();
-  await render(inCategory("movie"), toggleDone);
+test("clicking it runs the card's done action", async () => {
+  const runAction = mock(async (_action: string) => true);
+  await render(inCategory("movie"), runAction);
   await act(() => doneButton()?.click());
-  expect(toggleDone).toHaveBeenCalledTimes(1);
+  expect(runAction.mock.calls).toEqual([["done"]]);
 });
 
 test.each([
   ["a note", card({ type: "text", url: undefined })],
   ["a link in Trash", inCategory("movie", { isDeleted: true })],
 ])("%s has no done button", async (_name, shown) => {
-  await render(shown, () => undefined);
+  await render(shown);
   expect(doneButton()).toBeUndefined();
 });

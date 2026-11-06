@@ -3,6 +3,7 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import { type CardActionId, cardActionKeyName } from "./cardActions";
 import type { LibraryView } from "./libraryViews";
 import { isApplePlatform } from "./platform";
 
@@ -48,6 +49,38 @@ export const GO_TO_SETTINGS_KEY = "s";
 /** `G T` is Trash, so Tags takes `G L`, as Gmail's go to label does. */
 export const GO_TO_TAGS_KEY = "l";
 
+export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
+export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
+
+/**
+ * The keys that work anywhere in the library, as `KeyboardEvent.key`. The
+ * shortcut handlers, the shortcuts list, the command palette's hints and
+ * the composer's buttons read them from here.
+ */
+export const APP_KEYS = {
+  commandPalette: "k",
+  keyboardShortcuts: "?",
+  newNote: "n",
+  recordAudio: "r",
+  search: "/",
+  uploadFiles: "u",
+} as const;
+
+export type AppKey = keyof typeof APP_KEYS;
+
+/** How a list shows a key: letters in capitals. */
+export const keyName = (key: string): string =>
+  key.length === 1 ? key.toUpperCase() : key;
+
+const goTo = (key: string) => ["G", keyName(key)];
+
+const appKey = (id: AppKey) => [keyName(APP_KEYS[id])];
+
+const cardKey = (id: CardActionId) => {
+  const name = cardActionKeyName(id);
+  return name ? [name] : [];
+};
+
 // Keys and search syntax stay as typed; titles and labels are translated.
 const SHORTCUT_GROUPS: {
   id: ShortcutGroupId;
@@ -59,13 +92,13 @@ const SHORTCUT_GROUPS: {
       { id: "moveBetweenCards", keys: ["←", "↑", "→", "↓"] },
       { id: "nextOrPreviousCard", keys: ["J", "K"] },
       { id: "openCard", keys: ["Enter"] },
-      { id: "favorite", keys: ["F"] },
-      { id: "pin", keys: ["P"] },
+      { id: "favorite", keys: cardKey("favorite") },
+      { id: "pin", keys: cardKey("pin") },
       { id: "movePinned", keys: ["Alt ←", "Alt →"] },
-      { id: "addTags", keys: ["T"] },
-      { id: "archive", keys: ["E"] },
-      { id: "moveToTrash", keys: ["Delete"] },
-      { id: "select", keys: ["X"] },
+      { id: "addTags", keys: cardKey("addTags") },
+      { id: "archive", keys: cardKey("archive") },
+      { id: "moveToTrash", keys: cardKey("moveToTrash") },
+      { id: "select", keys: cardKey("select") },
       { id: "copy", keys: ["Mod", "C"], combo: true },
       { id: "clearSelection", keys: ["Esc"] },
     ],
@@ -74,30 +107,38 @@ const SHORTCUT_GROUPS: {
     id: "openCard",
     rows: [
       { id: "previousOrNextCard", keys: ["←", "→"] },
-      { id: "favorite", keys: ["F"] },
-      { id: "pin", keys: ["P"] },
-      { id: "addTag", keys: ["T"] },
+      { id: "favorite", keys: cardKey("favorite") },
+      { id: "pin", keys: cardKey("pin") },
+      { id: "addTag", keys: cardKey("addTags") },
       { id: "writeNote", keys: ["N"] },
-      { id: "focusNote", keys: ["Mod", "E"], combo: true },
+      { id: "focusNote", keys: [...FOCUS_NOTE_KEYS], combo: true },
       { id: "openOrDownload", keys: ["O"] },
       { id: "openLink", keys: ["Mod", "Enter"], combo: true },
-      { id: "markLinkDone", keys: ["D"] },
+      { id: "markLinkDone", keys: cardKey("done") },
       { id: "copyLinkOrText", keys: ["C"] },
       { id: "readOrPreview", keys: ["R"] },
       { id: "highlightSelection", keys: ["H"] },
-      { id: "archive", keys: ["E"] },
-      { id: "moveToTrash", keys: ["Delete"] },
+      { id: "archive", keys: cardKey("archive") },
+      { id: "moveToTrash", keys: cardKey("moveToTrash") },
     ],
   },
   {
     id: "goTo",
     rows: [
-      { id: "goToEverything", keys: ["G", "E"], sequence: true },
-      { id: "goToFavorites", keys: ["G", "F"], sequence: true },
-      { id: "goToArchive", keys: ["G", "A"], sequence: true },
-      { id: "goToTrash", keys: ["G", "T"], sequence: true },
-      { id: "goToTags", keys: ["G", "L"], sequence: true },
-      { id: "goToSettings", keys: ["G", "S"], sequence: true },
+      { id: "goToEverything", keys: goTo(GO_TO_VIEW_KEYS.all), sequence: true },
+      {
+        id: "goToFavorites",
+        keys: goTo(GO_TO_VIEW_KEYS.favorites),
+        sequence: true,
+      },
+      {
+        id: "goToArchive",
+        keys: goTo(GO_TO_VIEW_KEYS.archive),
+        sequence: true,
+      },
+      { id: "goToTrash", keys: goTo(GO_TO_VIEW_KEYS.trash), sequence: true },
+      { id: "goToTags", keys: goTo(GO_TO_TAGS_KEY), sequence: true },
+      { id: "goToSettings", keys: goTo(GO_TO_SETTINGS_KEY), sequence: true },
     ],
   },
   {
@@ -118,13 +159,17 @@ const SHORTCUT_GROUPS: {
   {
     id: "anywhere",
     rows: [
-      { id: "commandPalette", keys: ["Mod", "K"], combo: true },
-      { id: "search", keys: ["/"] },
-      { id: "newNote", keys: ["N"] },
-      { id: "uploadFiles", keys: ["U"] },
-      { id: "recordAudio", keys: ["R"] },
+      {
+        id: "commandPalette",
+        keys: ["Mod", keyName(APP_KEYS.commandPalette)],
+        combo: true,
+      },
+      { id: "search", keys: appKey("search") },
+      { id: "newNote", keys: appKey("newNote") },
+      { id: "uploadFiles", keys: appKey("uploadFiles") },
+      { id: "recordAudio", keys: appKey("recordAudio") },
       { id: "notifications", keys: ["Alt", "T"], combo: true },
-      { id: "keyboardShortcuts", keys: ["?"] },
+      { id: "keyboardShortcuts", keys: appKey("keyboardShortcuts") },
     ],
   },
 ];
@@ -180,9 +225,6 @@ export function ariaKeyShortcut(
     .join("+");
 }
 
-export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
-export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
-
 export function isFocusNoteKey(
   event: Pick<
     KeyboardEvent,
@@ -196,71 +238,6 @@ export function isFocusNoteKey(
   return apple
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey;
-}
-
-export interface MenuShortcut {
-  keys: string;
-  label: string;
-}
-
-/** The browser calls the Mac's Delete key (⌫) Backspace. */
-export function cardMenuShortcuts(apple = isApplePlatform()) {
-  const letter = (key: string): MenuShortcut => ({ keys: key, label: key });
-  return {
-    addTags: letter("T"),
-    archive: letter("E"),
-    copy: apple
-      ? { keys: "Meta+C", label: "⌘C" }
-      : { keys: "Control+C", label: "Ctrl+C" },
-    delete: apple
-      ? { keys: "Backspace", label: "⌫" }
-      : { keys: "Delete", label: "Del" },
-    favorite: letter("F"),
-    pin: letter("P"),
-    select: letter("X"),
-  } satisfies Record<string, MenuShortcut>;
-}
-
-/**
- * What a focused card in the grid answers, for its `aria-keyshortcuts`: the
- * card's menu items are hidden until hover, so this is how a screen reader
- * learns them, copy included when the card can be copied. A card in Trash
- * only selects and deletes forever.
- */
-export function cardAriaKeyShortcuts(
-  inTrash: boolean,
-  apple = isApplePlatform(),
-  canCopy = false,
-  selecting = false
-): string {
-  const {
-    addTags,
-    archive,
-    copy,
-    delete: remove,
-    favorite,
-    select,
-  } = cardMenuShortcuts(apple);
-  // While cards are selected, F, T, E and Delete act on the selection (the
-  // bar's buttons), so the focused card only toggles itself.
-  if (selecting) {
-    return ["Enter", select.keys].join(" ");
-  }
-  const keys = inTrash
-    ? ["Enter", select.keys, remove.keys]
-    : [
-        "Enter",
-        favorite.keys,
-        addTags.keys,
-        archive.keys,
-        select.keys,
-        remove.keys,
-      ];
-  // Text, links and images copy with ⌘C (Ctrl+C), as their menu shows.
-  if (canCopy && !inTrash) {
-    keys.push(copy.keys);
-  }
-  return keys.join(" ");
 }
 
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";

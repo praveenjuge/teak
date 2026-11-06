@@ -1,11 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import type { ActionCard } from "../cardActions";
 import {
-  focusedCardShortcuts,
   type GridKeyContext,
-  gridKeyAction,
   isSelectAllKey,
-  selectionShortcut,
+  gridKeyAction as keyActionOn,
 } from "../gridKeys";
+
+// A grid lists the cards of its view: Trash holds deleted cards, Archive
+// archived ones.
+const cardIn = (context: GridKeyContext): ActionCard => ({
+  isArchived: context.view === "archive" || undefined,
+  isDeleted: context.view === "trash" || undefined,
+});
+const gridKeyAction = (key: string, context: GridKeyContext) =>
+  keyActionOn(key, context, cardIn(context), false);
 
 const browsing: GridKeyContext = {
   addToFolder: false,
@@ -48,8 +56,8 @@ describe("gridKeyAction", () => {
     ["f", "favorite"],
     ["t", "addTags"],
     ["e", "archive"],
-    ["Delete", "delete"],
-    ["Backspace", "delete"],
+    ["Delete", "moveToTrash"],
+    ["Backspace", "moveToTrash"],
     ["x", "select"],
   ] as const)("%p acts on the focused card: %p", (key, action) => {
     expect(gridKeyAction(key, browsing)).toEqual({ type: "card", action });
@@ -162,68 +170,5 @@ describe("gridKeyAction", () => {
   test("leaves other keys to the card and the page", () => {
     expect(gridKeyAction("Enter", browsing)).toBeNull();
     expect(gridKeyAction("a", selecting)).toBeNull();
-  });
-});
-
-describe("focusedCardShortcuts", () => {
-  test("shows every card key outside selection mode", () => {
-    expect(Object.keys(focusedCardShortcuts(false, true)).sort()).toEqual([
-      "addTags",
-      "archive",
-      "copy",
-      "delete",
-      "favorite",
-      "pin",
-      "select",
-    ]);
-  });
-
-  test("shows only the keys that still act on the card in selection mode", () => {
-    expect(Object.keys(focusedCardShortcuts(true, true)).sort()).toEqual([
-      "copy",
-      "select",
-    ]);
-  });
-});
-
-describe("selectionShortcut", () => {
-  const library = {
-    addToFolder: false,
-    allSelectedFavorited: false,
-    view: "library" as const,
-  };
-
-  test.each([
-    ["favorite", "F"],
-    ["addTags", "T"],
-    ["archive", "E"],
-    ["delete", "⌫"],
-  ] as const)("names the key for %p", (action, label) => {
-    expect(selectionShortcut(action, library, true)?.label).toBe(label);
-  });
-
-  test("puts F on the action it does now", () => {
-    expect(selectionShortcut("unfavorite", library, true)).toBeUndefined();
-    const favorites = { ...library, allSelectedFavorited: true };
-    expect(selectionShortcut("unfavorite", favorites, true)?.label).toBe("F");
-    expect(selectionShortcut("favorite", favorites, true)).toBeUndefined();
-  });
-
-  test("gives E to Unarchive in the Archive", () => {
-    const archive = { ...library, view: "archive" as const };
-    expect(selectionShortcut("unarchive", archive, true)?.label).toBe("E");
-  });
-
-  test("gives Delete to Delete forever in Trash", () => {
-    const trash = { ...library, view: "trash" as const };
-    expect(selectionShortcut("deleteForever", trash, true)?.label).toBe("⌫");
-  });
-
-  test.each([
-    ["restore", { ...library, view: "trash" as const }],
-    ["addToFolder", { ...library, addToFolder: true }],
-    ["removeTags", library],
-  ] as const)("gives %p no key", (action, context) => {
-    expect(selectionShortcut(action, context, true)).toBeUndefined();
   });
 });

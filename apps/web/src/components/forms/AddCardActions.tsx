@@ -17,6 +17,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Download, Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
+import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,7 +34,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import { useGlobalFileDrop } from "@/hooks";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,

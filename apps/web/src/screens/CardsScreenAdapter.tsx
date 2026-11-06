@@ -30,7 +30,6 @@ interface CardsScreenAdapterProps {
   pushCardId: (cardId: string | null) => void;
   replaceCardId: (cardId: string | null) => void;
   searchUrlState?: SearchUrlState;
-  toastIdPrefix?: string;
   upgradeUrl: string;
   view?: LibraryView;
 }
@@ -53,7 +52,6 @@ export function CardsScreenAdapter({
   onOpenFolder,
   searchUrlState,
   onSearchUrlStateChange,
-  toastIdPrefix,
   upgradeUrl,
   view,
 }: CardsScreenAdapterProps) {
@@ -96,7 +94,6 @@ export function CardsScreenAdapter({
           queryRetryKey={retryKey}
           searchUrlState={searchUrlState}
           selectedCardId={selectedCardId}
-          toastIdPrefix={toastIdPrefix}
           upgradeUrl={upgradeUrl}
           view={view}
         />

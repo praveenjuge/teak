@@ -18,10 +18,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useSetCardFolders } from "@/hooks/useCardMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
-import { updateCardsInSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,
@@ -66,15 +66,7 @@ function CardFoldersChecklist({
   const errors = useServerErrors();
   const folders = useFolders();
   const createFolder = useMutation(api.folders.createFolder);
-  const setCardFolders = useMutation(
-    api.folders.setCardFolders
-  ).withOptimisticUpdate((localStore, args) => {
-    updateCardsInSearchQueries(localStore, new Set([args.cardId]), (card) => ({
-      ...card,
-      folderIds: args.folderIds.length > 0 ? args.folderIds : undefined,
-      updatedAt: Date.now(),
-    }));
-  });
+  const setCardFolders = useSetCardFolders();
   const [query, setQuery] = useState("");
   const [checked, setCheckedState] = useState(() => [...initialFolderIds]);
   const checkedRef = useRef(checked);
@@ -116,14 +108,14 @@ function CardFoldersChecklist({
   const toggle = (folderId: string) => {
     const current = checkedRef.current;
     if (current.includes(folderId)) {
-      save(current.filter((id) => id !== folderId)).catch(() => undefined);
+      void save(current.filter((id) => id !== folderId));
       return;
     }
     if (current.length >= MAX_FOLDERS_PER_CARD) {
       setError(errors.byKey("folders.TOO_MANY_FOLDERS_ON_CARD"));
       return;
     }
-    save([...current, folderId]).catch(() => undefined);
+    void save([...current, folderId]);
   };
 
   const [create] = useSingleFlight(async () => {
@@ -175,7 +167,7 @@ function CardFoldersChecklist({
             if (visible.length === 1) {
               toggle(visible[0]._id);
             } else if (canCreate) {
-              create().catch(() => undefined);
+              void create();
             }
           }}
           placeholder={tList("searchPlaceholder")}
@@ -229,7 +221,7 @@ function CardFoldersChecklist({
           <li>
             <button
               className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
-              onClick={() => create().catch(() => undefined)}
+              onClick={() => void create()}
               type="button"
             >
               <Plus

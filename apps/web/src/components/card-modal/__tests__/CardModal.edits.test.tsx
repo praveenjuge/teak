@@ -80,12 +80,10 @@ async function render(
         getCurrentValue={(field) =>
           shown[field as keyof CardModalCard] as string | undefined
         }
-        handleDelete={async () => undefined}
-        handlePermanentDelete={async () => undefined}
-        handleRestore={async () => undefined}
         hasUnsavedChanges={false}
         open
         openLink={() => undefined}
+        runAction={async () => true}
         saveChanges={async () => true}
         saveState="idle"
         tags={{
@@ -95,7 +93,6 @@ async function render(
           setTagInput: () => undefined,
           tagInput: "",
         }}
-        toggleFavorite={() => undefined}
         updateContent={updateContent}
         updateNotes={() => undefined}
         updateTitle={() => undefined}
@@ -205,11 +202,11 @@ test("on a phone, Add to folder from the menu opens once the menu has closed, wi
 test("archiving an emptied note says it keeps its last text", async () => {
   toasts.length = 0;
   const onCancel = mock();
-  const toggleArchive = mock();
+  const runAction = mock(async (_action: string) => true);
   await render(card(), () => undefined, {
     getCurrentValue: (field) => (field === "content" ? "" : undefined),
     onCancel,
-    toggleArchive,
+    runAction,
   });
   const trigger = document.querySelector<HTMLButtonElement>(
     "button[aria-label='More actions']"
@@ -226,7 +223,7 @@ test("archiving an emptied note says it keeps its last text", async () => {
     item?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  expect(toggleArchive).toHaveBeenCalledTimes(1);
+  expect(runAction.mock.calls).toEqual([["archive"]]);
   expect(onCancel).toHaveBeenCalledTimes(1);
   expect(toasts).toContain(
     "Empty notes aren't saved. The note keeps its last text."

@@ -797,25 +797,18 @@
     },
     "menu": {
       "addToFolder": "フォルダに追加…",
-      "archive": "アーカイブ",
       "copyLink": "リンクをコピー",
       "copyText": "テキストをコピー",
       "download": "ダウンロード",
-      "favorite": "お気に入りに追加",
       "moreActions": "その他の操作",
       "moreLikeThis": "似たカード",
-      "moveToTrash": "ゴミ箱に移動",
       "refreshDetails": "詳細を更新",
       "replaceImage": "画像を置き換え",
       "resetImage": "元の画像に戻す",
       "savePdf": "PDF を保存",
       "savingPdf": "PDF を保存中…",
       "shortcutsHint": "<kbd>?</kbd> ですべてのショートカットを表示",
-      "unarchive": "アーカイブ解除",
-      "unfavorite": "お気に入りから削除",
-      "editLink": "リンクを編集…",
-      "pin": "上部にピン留め",
-      "unpin": "ピン留めを外す"
+      "editLink": "リンクを編集…"
     },
     "actions": {
       "folder": "フォルダ"
@@ -1704,11 +1697,6 @@
   },
   "hooks": {
     "cardActions": {
-      "cardDeleted": "カードを削除しました",
-      "cardRestored": "カードを復元しました",
-      "cardPermanentlyDeleted": "カードを完全に削除しました",
-      "deleteFailed": "カードを削除できませんでした",
-      "restoreFailed": "カードを復元できませんでした",
       "permanentDeleteFailed": "カードを完全に削除できませんでした",
       "changesSaved": "変更を保存しました",
       "markedDone": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}にしました",
@@ -1718,15 +1706,10 @@
       "hiddenByTag": "非表示にしました。表示するには #{tag} で検索してください。",
       "unsafeLink": "このリンクは安全でないアドレスを使っているため、開けません",
       "failed": {
-        "delete": "削除できませんでした",
-        "restore": "復元できませんでした",
-        "permanentDelete": "完全に削除できませんでした",
-        "toggleFavorite": "お気に入りを切り替えられませんでした",
         "saveChanges": "変更を保存できませんでした",
         "downloadFile": "ファイルをダウンロードできませんでした",
         "removeTag": "タグを削除できませんでした",
-        "tags": "タグを更新できませんでした",
-        "other": "{operation} に失敗しました"
+        "tags": "タグを更新できませんでした"
       },
       "cardsPermanentlyDeleted": "{count, plural, other {#件のカードを完全に削除しました}}"
     },

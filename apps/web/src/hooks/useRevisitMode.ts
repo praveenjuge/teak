@@ -1,7 +1,8 @@
+import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import { useCallback, useEffect, useRef } from "react";
-import type { BulkCardAction, BulkRunResult } from "../lib/bulkCardActions";
+import type { BulkRunResult } from "../lib/bulkCardActions";
 import type { LibrarySort } from "../lib/searchUrlState";
-import type { BulkActionOptions } from "./useBulkCardActions";
+import type { BulkActionOptions } from "./useCardActions";
 
 export interface UseRevisitModeOptions {
   archiveOrTrash: boolean;

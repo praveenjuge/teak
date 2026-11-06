@@ -797,25 +797,18 @@
     },
     "menu": {
       "addToFolder": "Adicionar à pasta…",
-      "archive": "Arquivar",
       "copyLink": "Copiar link",
       "copyText": "Copiar texto",
       "download": "Baixar",
-      "favorite": "Favoritar",
       "moreActions": "Mais ações",
       "moreLikeThis": "Mais como este",
-      "moveToTrash": "Mover para a Lixeira",
       "refreshDetails": "Atualizar detalhes",
       "replaceImage": "Substituir imagem",
       "resetImage": "Voltar à imagem original",
       "savePdf": "Salvar PDF",
       "savingPdf": "Salvando PDF…",
       "shortcutsHint": "Pressione <kbd>?</kbd> para ver todos os atalhos",
-      "unarchive": "Desarquivar",
-      "unfavorite": "Desfavoritar",
-      "editLink": "Editar link…",
-      "pin": "Fixar no topo",
-      "unpin": "Desafixar"
+      "editLink": "Editar link…"
     },
     "actions": {
       "folder": "Pasta"
@@ -1704,11 +1697,6 @@
   },
   "hooks": {
     "cardActions": {
-      "cardDeleted": "Card excluído",
-      "cardRestored": "Card restaurado",
-      "cardPermanentlyDeleted": "Card excluído permanentemente",
-      "deleteFailed": "Não foi possível excluir o card",
-      "restoreFailed": "Não foi possível restaurar o card",
       "permanentDeleteFailed": "Não foi possível excluir o card permanentemente",
       "changesSaved": "Alterações salvas",
       "markedDone": "Marcado como {verb, select, read {lido} watched {assistido} listened {ouvido} bought {comprado} cooked {preparado} played {jogado} other {concluído}}",
@@ -1718,15 +1706,10 @@
       "hiddenByTag": "Oculto. Pesquise #{tag} para vê-lo.",
       "unsafeLink": "Este link não pode ser aberto porque usa um endereço inseguro",
       "failed": {
-        "delete": "Não foi possível excluir",
-        "restore": "Não foi possível restaurar",
-        "permanentDelete": "Não foi possível excluir permanentemente",
-        "toggleFavorite": "Não foi possível alterar o favorito",
         "saveChanges": "Não foi possível salvar as alterações",
         "downloadFile": "Não foi possível baixar o arquivo",
         "removeTag": "Não foi possível remover a tag",
-        "tags": "Não foi possível atualizar as tags",
-        "other": "Falha na operação: {operation}"
+        "tags": "Não foi possível atualizar as tags"
       },
       "cardsPermanentlyDeleted": "{count, plural, one {# card excluído permanentemente} other {# cards excluídos permanentemente}}"
     },
