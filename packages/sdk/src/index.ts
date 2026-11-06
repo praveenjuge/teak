@@ -33,6 +33,10 @@ import type {
 import type { FOLDER_COLORS } from "@teak/convex/shared/folders";
 import {
   type CARD_CONTENT_KINDS,
+  CARD_LIST_PARAM_NAMES,
+  CARD_LIST_PARAMS,
+  type CardListParam,
+  type CardListParamSpec,
   type ArchivedFilter as ContractArchivedFilter,
   type BulkCardOperation as ContractBulkCardOperation,
   type SearchMode as ContractSearchMode,
@@ -47,6 +51,12 @@ import {
 } from "@teak/convex/shared/publicApiContract";
 
 export type { CardType } from "@teak/convex/shared/constants";
+export {
+  CARD_LIST_PARAMS,
+  type CardListParam,
+  type CardListParamSpec,
+  SEARCH_QUERY_HELP,
+} from "@teak/convex/shared/publicApiContract";
 
 export const CARD_TYPES = cardTypes;
 export const CARD_SORTS = PUBLIC_API_CARD_SORTS;
@@ -666,16 +676,22 @@ const asList = (value?: string | readonly string[]): readonly string[] => {
   return typeof value === "string" ? [value] : [];
 };
 
-export const buildCardsSearchParams = (input: {
+/**
+ * The filters `cards.list` and its siblings take: the API's card list
+ * parameters (`CARD_LIST_PARAMS` in the public contract), with `q` named
+ * `query`.
+ */
+export interface CardListInput {
   archived?: ArchivedFilter;
-  /** Only cards in this folder id. */
-  folder?: string;
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favorited?: boolean;
+  /** Only cards in this folder id. */
+  folder?: string;
   hex?: string | readonly string[];
   hue?: string | readonly string[];
+  /** Comma-separated: `content`, `metadata`, `processing`. */
   include?: string;
   limit?: number;
   /** How `query` finds cards; the API defaults to `hybrid`. */
@@ -686,13 +702,9 @@ export const buildCardsSearchParams = (input: {
    */
   pinned?: boolean;
   /**
-   * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
-   * `is:fav`, `is:archived`, `is:pinned`, `site:github.com`, `folder:"Reading list"`,
-   * `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"total due"` (only
-   * the words Teak read in images, video thumbnails, link previews and scanned
-   * PDFs) and `"quoted phrases"`. A `-` leaves cards out (`design -figma`,
-   * `-tag:old`), uppercase `OR` matches either side and parentheses group:
-   * `(site:github.com OR site:gitlab.com) -is:archived`.
+   * Search text with qualifiers such as `tag:design`, `type:link`,
+   * `is:done`, `site:github.com`, `-tag:old` and `a OR b`;
+   * `SEARCH_QUERY_HELP` lists every one.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
@@ -704,61 +716,45 @@ export const buildCardsSearchParams = (input: {
   tag?: string;
   trashed?: boolean;
   type?: CardType | string | readonly (CardType | string)[];
-}) => {
-  const search = new URLSearchParams();
-  if (input.query?.trim()) {
-    search.set("q", input.query.trim());
+}
+
+/** One parameter's values as the query string writes them. */
+const paramValues = (
+  input: CardListInput,
+  param: CardListParam
+): readonly string[] => {
+  const spec: CardListParamSpec = CARD_LIST_PARAMS[param];
+  if (param === "limit") {
+    return [String(normalizeLimit(input.limit))];
   }
-  for (const name of ["type", "style", "hue", "hex"] as const) {
-    for (const value of asList(input[name])) {
-      if (value.trim()) {
-        search.append(name, value.trim());
-      }
+  // A seed means nothing without the order it seeds.
+  if (param === "shuffleSeed" && input.sort !== "shuffle") {
+    return [];
+  }
+  const value: unknown = param === "q" ? input.query : input[param];
+  switch (spec.kind) {
+    case "boolean":
+      return value === true ? ["true"] : [];
+    case "integer":
+    case "timestamp":
+      return typeof value === "number" ? [String(value)] : [];
+    default:
+      // Text and enums: trimmed, blank ones and the API's default left out.
+      return asList(value as string | readonly string[] | undefined)
+        .filter((entry) => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== "" && entry !== spec.default)
+        .slice(0, spec.repeatable ? undefined : 1);
+  }
+};
+
+export const buildCardsSearchParams = (input: CardListInput) => {
+  const search = new URLSearchParams();
+  for (const param of CARD_LIST_PARAM_NAMES) {
+    for (const value of paramValues(input, param)) {
+      search.append(param, value);
     }
   }
-  if (input.tag?.trim()) {
-    search.set("tag", input.tag.trim());
-  }
-  if (input.folder?.trim()) {
-    search.set("folder", input.folder.trim());
-  }
-  if (input.cursor?.trim()) {
-    search.set("cursor", input.cursor.trim());
-  }
-  if (input.include?.trim()) {
-    search.set("include", input.include.trim());
-  }
-  if (input.favorited) {
-    search.set("favorited", "true");
-  }
-  if (input.pinned) {
-    search.set("pinned", "true");
-  }
-  if (input.trashed) {
-    search.set("trashed", "true");
-  }
-  if (input.archived === "only" || input.archived === "include") {
-    search.set("archived", input.archived);
-  }
-  if (input.similarTo?.trim()) {
-    search.set("similarTo", input.similarTo.trim());
-  }
-  if (input.mode === "keyword" || input.mode === "semantic") {
-    search.set("mode", input.mode);
-  }
-  if (input.sort && input.sort !== "newest") {
-    search.set("sort", input.sort);
-  }
-  if (input.sort === "shuffle" && typeof input.shuffleSeed === "number") {
-    search.set("shuffleSeed", String(input.shuffleSeed));
-  }
-  if (typeof input.createdAfter === "number") {
-    search.set("createdAfter", String(input.createdAfter));
-  }
-  if (typeof input.createdBefore === "number") {
-    search.set("createdBefore", String(input.createdBefore));
-  }
-  search.set("limit", String(normalizeLimit(input.limit)));
   return search.toString();
 };
 
@@ -1210,8 +1206,7 @@ export const createTeakClient = (options: {
       await sleep(delay);
     }
   };
-  const qs = (params: Parameters<typeof buildCardsSearchParams>[0]) =>
-    buildCardsSearchParams(params);
+  const qs = (params: CardListInput) => buildCardsSearchParams(params);
   /** Calls an operation by id with its path parameters, query and body. */
   const call = <T>(
     operationId: PublicApiOperationId,

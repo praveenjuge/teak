@@ -62,26 +62,17 @@ export type {
   TagsResponse,
 } from "./apiParsers";
 
-export interface CardSearchInput {
-  archived?: "exclude" | "include" | "only";
-  createdAfter?: number;
-  createdBefore?: number;
-  cursor?: string;
-  favorited?: boolean;
-  folder?: string;
-  hex?: string[];
-  hue?: string[];
-  limit?: number;
-  query?: string;
-  /** Required with `sort: "shuffle"`: the same seed gives the same order. */
-  shuffleSeed?: number;
-  similarTo?: string;
+/**
+ * The SDK's card list filters as Raycast's views set them: one type, the
+ * sorts Raycast offers, and the detail fields it always asks for.
+ */
+export type CardSearchInput = Omit<
+  NonNullable<Parameters<TeakClient["cards"]["list"]>[0]>,
+  "include" | "sort" | "type"
+> & {
   sort?: RaycastSort;
-  style?: string[];
-  tag?: string;
-  trashed?: boolean;
   type?: RaycastCardType;
-}
+};
 
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 

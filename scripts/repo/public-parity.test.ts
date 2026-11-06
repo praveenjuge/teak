@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import type { Command } from "commander";
 import { program } from "../../apps/cli/src/index";
+import { listFlagFor } from "../../apps/cli/src/options";
 import {
   TEAK_TOOLS,
   TEAK_V1_TOOLS,
@@ -13,7 +14,6 @@ import {
   APP_ONLY_CARD_ERROR_CODES,
   CARD_LIST_PARAMS,
   type CardListParam,
-  cliFlagFor,
   matchPublicApiOperation,
   PUBLIC_API_ERROR_CODES,
   PUBLIC_API_OPERATION_IDS,
@@ -378,7 +378,7 @@ describe("public surface parity", () => {
 
     const ls = program.commands.find((command) => command.name() === "ls");
     const flags = new Set(ls?.options.map((option) => option.long));
-    expect(params.map(cliFlagFor).filter((flag) => !flags.has(flag))).toEqual(
+    expect(params.map(listFlagFor).filter((flag) => !flags.has(flag))).toEqual(
       []
     );
   });
