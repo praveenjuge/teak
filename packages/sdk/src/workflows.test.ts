@@ -18,6 +18,9 @@ const clientFor = (routes: Record<string, Route>, seen: string[] = []) =>
       const request = new Request(input, init);
       const url = new URL(request.url);
       const key = `${request.method} ${url.origin === "https://api.example" ? url.pathname : url.href}`;
+      if (init?.signal?.aborted) {
+        return Promise.reject(new DOMException("aborted", "AbortError"));
+      }
       seen.push(`${key}${url.search}`);
       const route = routes[key];
       return route
@@ -102,6 +105,41 @@ describe("cards.createFromFile", () => {
       uploaded: { fileKey: "uploads/0" },
     });
     expect(seen).toEqual(["POST /v1/cards"]);
+  });
+
+  test("a cancelled save stops before the next step and makes no card", async () => {
+    const seen: string[] = [];
+    const controller = new AbortController();
+    const routes = uploadRoutes([]);
+    const put = routes["PUT https://files.example/put/1"];
+    routes["PUT https://files.example/put/1"] = (request) => {
+      controller.abort();
+      return put(request);
+    };
+    const error = await rejection(
+      clientFor(routes, seen).cards.createFromFile(
+        { bytes: new Uint8Array([1, 2, 3]), fileName: "photo.png" },
+        { signal: controller.signal }
+      )
+    );
+    expect(error).toBeDefined();
+    expect(seen).toEqual([
+      "POST /v1/uploads",
+      "PUT https://files.example/put/1",
+    ]);
+  });
+
+  test("an already-cancelled save sends nothing", async () => {
+    const seen: string[] = [];
+    const controller = new AbortController();
+    controller.abort();
+    await rejection(
+      clientFor(uploadRoutes([]), seen).cards.createFromFile(
+        { bytes: new Uint8Array([1, 2, 3]), fileName: "photo.png" },
+        { signal: controller.signal }
+      )
+    );
+    expect(seen).toEqual([]);
   });
 
   test.each([

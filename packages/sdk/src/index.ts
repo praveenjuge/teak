@@ -1277,11 +1277,22 @@ export const createTeakClient = (options: {
   ) =>
     call(
       "createCard",
-      { body: input, headers: idempotency(requestOptions) },
+      {
+        body: input,
+        headers: idempotency(requestOptions),
+        signal: requestOptions?.signal,
+      },
       asCreate
     );
-  const createUpload = (input: CreateUploadInput) =>
-    call("createUpload", { body: input }, asUpload);
+  const createUpload = (
+    input: CreateUploadInput,
+    requestOptions?: RequestOptions
+  ) =>
+    call(
+      "createUpload",
+      { body: input, signal: requestOptions?.signal },
+      asUpload
+    );
   const listCards = (input: CardListInput, requestOptions?: RequestOptions) =>
     call(
       "listCards",
@@ -1338,11 +1349,16 @@ export const createTeakClient = (options: {
     const mimeType = isGenericMimeType(typed) ? format.mimeType : typed;
     let uploaded = earlier;
     if (!uploaded) {
-      const upload = await createUpload({ fileName, fileSize, mimeType });
+      const signal = requestOptions?.signal;
+      const upload = await createUpload(
+        { fileName, fileSize, mimeType },
+        { signal }
+      );
       const { fileEtag } = await putFile(
         upload.uploadUrl,
         bytes as BodyInit,
-        mimeType
+        mimeType,
+        { signal }
       );
       uploaded = { fileKey: upload.fileKey, ...(fileEtag ? { fileEtag } : {}) };
       await onUploaded?.(uploaded);
