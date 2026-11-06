@@ -18,6 +18,7 @@ import {
 } from "commander";
 import {
   type BulkCardsOperation,
+  type CardListInput,
   type CardsPage,
   parseTags,
   TeakApiError,
@@ -196,8 +197,7 @@ const writeCards = async (
       ? { folder: (await resolveFolder(api, options.folder)).id }
       : {}),
   };
-  const fetchPage = (cursor?: string) => {
-    const input = cursor ? { ...query, cursor } : query;
+  const fetchPage = (input: CardListInput) => {
     if (mode === "favorites") {
       return api.cards.favorites(input);
     }
@@ -210,7 +210,10 @@ const writeCards = async (
     }
     return mode === "search" ? api.cards.search(input) : api.cards.list(input);
   };
-  const page = await collectPages(fetchPage, options.all === true);
+  const page = await collectPages(
+    api.cards.pages(query, fetchPage),
+    options.all === true
+  );
   const stoppedEarly =
     options.all === true && page.pageInfo.nextCursor !== null;
   if (options.json) {

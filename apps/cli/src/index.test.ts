@@ -195,7 +195,9 @@ describe("teak cli formatting", () => {
       },
     ];
     const page = await collectPages(
-      async (cursor) => (cursor ? pages[1] : pages[0]) as never,
+      (function* () {
+        yield* pages as never[];
+      })(),
       true
     );
     expect(page).toMatchObject({

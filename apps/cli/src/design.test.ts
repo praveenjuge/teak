@@ -195,13 +195,15 @@ describe("--all", () => {
   test("stops at the cap and keeps the cursor, so the listing isn't called complete", async () => {
     let calls = 0;
     const page = await collectPages(
-      () => {
-        calls += 1;
-        return Promise.resolve({
-          items: [{ id: `c${calls}` }],
-          pageInfo: { hasMore: true, nextCursor: `n${calls}` },
-        } as never);
-      },
+      (function* () {
+        for (;;) {
+          calls += 1;
+          yield {
+            items: [{ id: `c${calls}` }],
+            pageInfo: { hasMore: true, nextCursor: `n${calls}` },
+          } as never;
+        }
+      })(),
       true,
       3
     );

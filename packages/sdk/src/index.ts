@@ -35,9 +35,14 @@ export {
 } from "./workosConnect";
 
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
-import type {
-  FileKind,
-  FilePreviewFacts,
+import {
+  type FileKind,
+  type FilePreviewFacts,
+  inferFileFormat,
+  isGenericMimeType,
+  MAX_FILE_SIZE,
+  mimeTypeForFileName,
+  validateFileName,
 } from "@teak/convex/shared/fileFormats";
 
 import type { FOLDER_COLORS } from "@teak/convex/shared/folders";
@@ -58,7 +63,9 @@ import {
   publicApiPath,
   publicApiPathParams,
 } from "@teak/convex/shared/publicApiContract";
+import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
 import { errorFromResponse, isObject, TeakApiError } from "./errors";
+import { type WaitOptions, waitFor } from "./waitFor";
 
 export type { CardType } from "@teak/convex/shared/constants";
 export {
@@ -76,6 +83,11 @@ export {
   type TeakErrorKind,
   teakErrorKind,
 } from "./errors";
+export {
+  DEFAULT_WAIT_TIMEOUT_MS,
+  type WaitOptions,
+  waitFor,
+} from "./waitFor";
 
 export const CARD_TYPES = cardTypes;
 export const CARD_SORTS = PUBLIC_API_CARD_SORTS;
@@ -509,6 +521,34 @@ export interface LatestExport {
 export interface RequestOptions {
   /** Makes a retried create or bulk request safe to repeat. */
   idempotencyKey?: string;
+  /** Cancels the request; it rejects with a TIMEOUT `TeakApiError`. */
+  signal?: AbortSignal;
+}
+/** A file upload that finished, kept to create its card again without re-uploading. */
+export interface UploadedFile {
+  fileEtag?: string;
+  fileKey: string;
+}
+/** A file to save as a card with `cards.createFromFile`. */
+export interface CreateCardFromFileInput
+  extends Omit<
+    CreateCardInput,
+    | "fileEtag"
+    | "fileKey"
+    | "fileName"
+    | "fileSize"
+    | "mimeType"
+    | "pageSnapshotKey"
+    | "url"
+  > {
+  bytes: Blob | ArrayBuffer | ArrayBufferView;
+  fileName: string;
+  /** Its MIME type; read from a Blob or the file name when left out. */
+  mimeType?: string;
+  /** Called once the bytes are uploaded, before the card is created. */
+  onUploaded?: (uploaded: UploadedFile) => unknown;
+  /** An earlier attempt's finished upload: the card is created from it. */
+  uploaded?: UploadedFile;
 }
 export interface CreateUploadInput {
   fileName: string;
@@ -578,11 +618,22 @@ export interface CardContent {
   truncated: boolean;
 }
 export type BulkCardsOperation = ContractBulkCardOperation;
+/** One bulk item's outcome; `index` is its place in the items sent. */
+export type BulkCardResult =
+  | {
+      cardId: string;
+      index: number;
+      /** A create that found the link already saved. */
+      resaved?: true;
+      status: "success";
+      wasArchived?: true;
+    }
+  | { code: string; error: string; index: number; status: "error" };
 export interface BulkCardsResponse {
   /** The `cardId` of every item that failed, to retry just those. */
   failedIds: string[];
   operation: BulkCardsOperation;
-  results: unknown[];
+  results: BulkCardResult[];
   summary: { failed: number; succeeded: number; total: number };
 }
 /** Archived cards outside Trash: left out by default. */
@@ -1027,6 +1078,12 @@ export const createTeakClient = (options: {
   ): Promise<{ response: Response; text: string }> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const caller = init.signal;
+    const cancel = () => controller.abort();
+    if (caller?.aborted) {
+      cancel();
+    }
+    caller?.addEventListener("abort", cancel, { once: true });
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("User-Agent", options.userAgent || "teak-sdk");
@@ -1036,6 +1093,9 @@ export const createTeakClient = (options: {
     try {
       let response: Response;
       try {
+        if (controller.signal.aborted) {
+          throw new DOMException("The request was cancelled.", "AbortError");
+        }
         response = await fetchImpl(`${baseUrl}${path}`, {
           ...init,
           headers,
@@ -1055,6 +1115,7 @@ export const createTeakClient = (options: {
       return { response, text };
     } finally {
       clearTimeout(timeout);
+      caller?.removeEventListener("abort", cancel);
     }
   };
   const request = async <T>(
@@ -1116,6 +1177,7 @@ export const createTeakClient = (options: {
       headers?: HeadersInit;
       params?: Record<string, string>;
       query?: string;
+      signal?: AbortSignal;
     },
     parser: (payload: unknown) => T
   ): Promise<T> => {
@@ -1135,6 +1197,7 @@ export const createTeakClient = (options: {
           : { body: JSON.stringify(input.body) }),
         ...(input.headers ? { headers: input.headers } : {}),
         method: publicApiOperationSpec(operationId).method,
+        ...(input.signal ? { signal: input.signal } : {}),
       },
       parser
     );
@@ -1158,6 +1221,8 @@ export const createTeakClient = (options: {
       body: bytes,
       headers,
       method: "PUT",
+    }).catch(() => {
+      throw new TeakApiError("NETWORK_ERROR");
     });
     if (!response.ok) {
       throw new TeakApiError(
@@ -1174,6 +1239,114 @@ export const createTeakClient = (options: {
   ) => call("createThumbnailUpload", { ...card(id), body: input }, asUpload);
   const applyThumbnail = (id: string, fileKey: string) =>
     call("setCardThumbnail", { ...card(id), body: { fileKey } }, asCard);
+  const createCard = (
+    input: CreateCardInput,
+    requestOptions?: RequestOptions
+  ) =>
+    call(
+      "createCard",
+      { body: input, headers: idempotency(requestOptions) },
+      asCreate
+    );
+  const createUpload = (input: CreateUploadInput) =>
+    call("createUpload", { body: input }, asUpload);
+  const listCards = (input: CardListInput, requestOptions?: RequestOptions) =>
+    call(
+      "listCards",
+      { query: qs(input), signal: requestOptions?.signal },
+      asPage
+    );
+  const tagOperation = (id: string) =>
+    call("getTagOperation", { params: { operationId: id } }, asTagOperation);
+  const getRuleRun = (id: string, runId: string) =>
+    call(
+      "getFolderRuleRun",
+      { params: { folderId: id, runId } },
+      asFolderRuleRun
+    );
+  const latestExport = () => call("getLatestExport", {}, asLatestExport);
+  const createFromFile = async (
+    input: CreateCardFromFileInput,
+    requestOptions?: RequestOptions
+  ) => {
+    const {
+      bytes,
+      fileName: rawName,
+      mimeType: declared,
+      onUploaded,
+      uploaded: earlier,
+      ...fields
+    } = input;
+    let fileName: string;
+    try {
+      fileName = validateFileName(rawName);
+    } catch (error) {
+      throw new TeakApiError(
+        "INVALID_INPUT",
+        error instanceof Error ? error.message : "Invalid file name."
+      );
+    }
+    const fileSize = byteLengthForBody(bytes as BodyInit) ?? 0;
+    if (fileSize < 1 || fileSize > MAX_FILE_SIZE) {
+      throw new TeakApiError(
+        "FILE_TOO_LARGE",
+        `File must be between 1 byte and ${MAX_FILE_SIZE} bytes`
+      );
+    }
+    const typed =
+      declared ||
+      (typeof Blob !== "undefined" && bytes instanceof Blob
+        ? bytes.type
+        : "") ||
+      mimeTypeForFileName(fileName);
+    const format = inferFileFormat({ fileName, mimeType: typed });
+    if (!format) {
+      throw new TeakApiError("UNSUPPORTED_TYPE", "Unsupported file type");
+    }
+    const mimeType = isGenericMimeType(typed) ? format.mimeType : typed;
+    let uploaded = earlier;
+    if (!uploaded) {
+      const upload = await createUpload({ fileName, fileSize, mimeType });
+      const { fileEtag } = await putFile(
+        upload.uploadUrl,
+        bytes as BodyInit,
+        mimeType
+      );
+      uploaded = { fileKey: upload.fileKey, ...(fileEtag ? { fileEtag } : {}) };
+      await onUploaded?.(uploaded);
+    }
+    return createCard(
+      {
+        ...fields,
+        cardType: fields.cardType ?? format.cardType,
+        fileKey: uploaded.fileKey,
+        ...(uploaded.fileEtag ? { fileEtag: uploaded.fileEtag } : {}),
+        fileName,
+        fileSize,
+        mimeType,
+      },
+      requestOptions
+    );
+  };
+  /**
+   * Every page of a listing, first to last, following `nextCursor`. Stop
+   * iterating to stop fetching. `list` picks the listing (`cards.search`,
+   * `cards.favorites`...); `cards.list` by default.
+   */
+  async function* pages(
+    input: CardListInput = {},
+    list: (page: CardListInput) => Promise<CardsPage> = listCards
+  ): AsyncGenerator<CardsPage> {
+    let cursor = input.cursor;
+    for (;;) {
+      const page = await list(cursor ? { ...input, cursor } : input);
+      yield page;
+      if (!page.pageInfo.nextCursor) {
+        return;
+      }
+      cursor = page.pageInfo.nextCursor;
+    }
+  }
   return {
     cards: {
       bulk: (
@@ -1198,12 +1371,13 @@ export const createTeakClient = (options: {
           (v) => v as CardChangesResponse
         );
       },
-      create: (input: CreateCardInput, requestOptions?: RequestOptions) =>
-        call(
-          "createCard",
-          { body: input, headers: idempotency(requestOptions) },
-          asCreate
-        ),
+      create: createCard,
+      /**
+       * Saves a file as a card: checks it is a type and size Teak takes,
+       * uploads it, then creates the card. Pass `uploaded` (from
+       * `onUploaded`) to retry only the create.
+       */
+      createFromFile,
       /**
        * The card's full stored text: document text, transcript, or a text
        * card's content. `{ kind: "article" }` reads a link's article as
@@ -1280,8 +1454,9 @@ export const createTeakClient = (options: {
             linksTruncated: card.linksTruncated === true,
           };
         }),
-      list: (input: Parameters<typeof qs>[0] = {}) =>
-        call("listCards", { query: qs(input) }, asPage),
+      list: (input: CardListInput = {}, requestOptions?: RequestOptions) =>
+        listCards(input, requestOptions),
+      pages,
       /**
        * A signed URL for a link card's new image; `setThumbnail` with bytes
        * does this for you.
@@ -1365,7 +1540,16 @@ export const createTeakClient = (options: {
         call("updateCard", { ...card(id), body: input }, asCard),
     },
     exports: {
-      latest: () => call("getLatestExport", {}, asLatestExport),
+      latest: latestExport,
+      /** Waits for a running export to finish; returns the latest export. */
+      waitFor: async (options: WaitOptions<LatestExport> = {}) =>
+        waitFor(await latestExport(), {
+          ...options,
+          refresh: latestExport,
+          running: (latest) =>
+            latest.job?.status === "pending" ||
+            latest.job?.status === "running",
+        }),
       start: () =>
         call("startExport", {}, (v) => (v as { job: ExportJob }).job),
     },
@@ -1399,12 +1583,19 @@ export const createTeakClient = (options: {
       get: (id: string) =>
         call("getFolder", { params: { folderId: id } }, asFolder),
       /** How far a rule run has got, and whether it can still be undone. */
-      getRuleRun: (id: string, runId: string) =>
-        call(
-          "getFolderRuleRun",
-          { params: { folderId: id, runId } },
-          asFolderRuleRun
-        ),
+      getRuleRun,
+      /** Waits for a rule run (or its undo) to finish; returns it. */
+      waitForRuleRun: (
+        id: string,
+        run: FolderRuleRun,
+        options: WaitOptions<FolderRuleRun> = {}
+      ) =>
+        waitFor(run, {
+          ...options,
+          refresh: (current) => getRuleRun(id, current.id),
+          running: (current) =>
+            current.status === "running" || current.status === "undoing",
+        }),
       /** Every folder, sorted by name. */
       list: () => call("listFolders", {}, asFolders),
       removeCards: (id: string, cardIds: string[]) =>
@@ -1479,12 +1670,27 @@ export const createTeakClient = (options: {
       merge: (from: string, into: string) =>
         call("mergeTags", { body: { from, into } }, asTagOperation),
       /** A tag change's progress. */
-      operation: (id: string) =>
-        call(
-          "getTagOperation",
-          { params: { operationId: id } },
-          asTagOperation
-        ),
+      operation: tagOperation,
+      /**
+       * Waits for a tag change to finish. One that made no progress for
+       * as long as Teak allows comes back `failed`, as Teak gives up on it.
+       */
+      waitFor: async (
+        operation: TagOperation,
+        options: WaitOptions<TagOperation> = {}
+      ) => {
+        const stalled = (current: TagOperation) =>
+          Date.now() - current.updatedAt > TAG_OPERATION_STALL_MS;
+        const last = await waitFor(operation, {
+          ...options,
+          refresh: (current) => tagOperation(current.id),
+          running: (current) =>
+            current.status === "running" && !stalled(current),
+        });
+        return last.status === "running"
+          ? { ...last, status: "failed" as const }
+          : last;
+      },
       /** Renames a tag on every card; it finishes in the background. */
       rename: (from: string, to: string) =>
         call("renameTag", { body: { from, to } }, asTagOperation),
@@ -1499,8 +1705,7 @@ export const createTeakClient = (options: {
         call("createPageSnapshotUpload", { body: input }, asUpload),
     },
     uploads: {
-      create: (input: CreateUploadInput) =>
-        call("createUpload", { body: input }, asUpload),
+      create: createUpload,
       putFile,
     },
   };
