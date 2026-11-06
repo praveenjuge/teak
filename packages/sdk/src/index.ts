@@ -67,6 +67,11 @@ import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
 import { errorFromResponse, isObject, TeakApiError } from "./errors";
 import { type WaitOptions, waitFor } from "./waitFor";
 
+export {
+  cardLinkTokensToText,
+  formatCardLinkToken,
+  parseCardLinkIds,
+} from "@teak/convex/shared/cardLinks";
 export type { CardType } from "@teak/convex/shared/constants";
 export {
   CARD_LIST_PARAMS,
@@ -74,6 +79,12 @@ export {
   type CardListParamSpec,
   SEARCH_QUERY_HELP,
 } from "@teak/convex/shared/publicApiContract";
+export {
+  /** Tags that keep a card out of lists until a search names one. */
+  HIDDEN_TAG_KEYS,
+  /** How long a tag change may go without progress before Teak gives up on it. */
+  TAG_OPERATION_STALL_MS,
+} from "@teak/convex/shared/tags";
 export {
   AUTH_ERROR_CODES,
   ERROR_CODES,
@@ -90,6 +101,7 @@ export {
 } from "./waitFor";
 
 export const CARD_TYPES = cardTypes;
+/** @deprecated Read `CARD_LIST_PARAMS.sort.values`; this stays for older callers. */
 export const CARD_SORTS = PUBLIC_API_CARD_SORTS;
 export type CardSort = (typeof CARD_SORTS)[number];
 /**
@@ -149,12 +161,19 @@ export interface Card {
   createdAt: number;
   detailUrl: string | null;
   fileExtension: string | null;
+  /**
+   * An image or video file's height in pixels, or null. Servers that
+   * predate it leave it out.
+   */
+  fileHeight?: number | null;
   fileKind: FileKind | null;
   fileLanguage: string | null;
   fileName: string | null;
   filePreview: FilePreviewFacts | null;
   fileSize: number | null;
   fileUrl: string | null;
+  /** An image or video file's width in pixels, or null. */
+  fileWidth?: number | null;
   /** Ids of the folders the card is in. */
   folderIds: string[];
   /**
@@ -185,6 +204,10 @@ export interface Card {
    */
   linkCategory?: string | null;
   linkFacts: Array<{ label: string; value: string }>;
+  /** The link's favicon, or null. Servers that predate it leave it out. */
+  linkFaviconUrl?: string | null;
+  /** The page's own description, or null. */
+  linkPreviewDescription?: string | null;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
     type: "image" | "video";
@@ -197,6 +220,8 @@ export interface Card {
     posterWidth?: number;
     posterHeight?: number;
   }>;
+  /** The page's own title, or null. */
+  linkPreviewTitle?: string | null;
   /**
    * A product link's price: `amount` in the page's currency, `currency` an
    * ISO 4217 code or null. Null for cards without a price.
@@ -645,7 +670,11 @@ export const staticTokenProvider = (token: string): TokenProvider => ({
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
-/** A page size the API takes: a whole number from 1 to its maximum. */
+/**
+ * A page size the API takes: a whole number from 1 to its maximum.
+ * @deprecated `buildCardsSearchParams` and the client clamp `limit`
+ * themselves; this stays for older callers.
+ */
 export const normalizeLimit = (limit?: number): number => {
   if (!Number.isFinite(limit)) {
     return PUBLIC_API_DEFAULT_LIMIT;
@@ -1736,4 +1765,5 @@ export const parseTags = (value: string | undefined): string[] | undefined =>
       );
 export const isCardType = (value: string): value is CardType =>
   (CARD_TYPES as readonly string[]).includes(value);
+/** @deprecated Nothing in the SDK needs it any more; it stays for older callers. */
 export const isStringList = isStringArray;

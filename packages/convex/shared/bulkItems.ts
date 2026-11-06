@@ -1,18 +1,18 @@
-import type { BulkCardsOperation } from "teak-sdk";
+/**
+ * What a bulk card item lacks for its operation, in the API's words. The
+ * CLI checks items with this before sending them (`cards bulk --dry-run`),
+ * and the API's bulk handler gives the same answers; the API still has the
+ * last word on what only it can check (a card that doesn't exist, a URL it
+ * won't fetch, tag rules).
+ */
+import type { BulkCardOperation } from "./publicApiContract";
 
 const nonEmptyString = (value: unknown) =>
   typeof value === "string" && value.trim() !== "";
 
-const stringArray = (value: unknown) =>
-  Array.isArray(value) && value.every((entry) => typeof entry === "string");
-
-/**
- * What a bulk item lacks for its operation, in the API's words, or null.
- * This checks the fields each operation needs; the API still has the last
- * word (a card that doesn't exist, a URL it won't fetch).
- */
+/** The problem with one bulk item, or null when its shape is right. */
 export const bulkItemProblem = (
-  operation: BulkCardsOperation,
+  operation: BulkCardOperation,
   item: unknown
 ): string | null => {
   if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -20,7 +20,7 @@ export const bulkItemProblem = (
   }
   const payload = item as Record<string, unknown>;
   if (operation === "create") {
-    // As the API: empty content is fine on an explicit text card.
+    // Empty content is fine on an explicit text card.
     const content =
       typeof payload.content === "string" ? payload.content : undefined;
     const hasUrl = nonEmptyString(payload.url);
@@ -49,9 +49,9 @@ export const bulkItemProblem = (
   }
   if (
     (operation === "addTags" || operation === "removeTags") &&
-    !(stringArray(payload.tags) && (payload.tags as string[]).length > 0)
+    !(Array.isArray(payload.tags) && payload.tags.some(nonEmptyString))
   ) {
-    return `Each ${operation} item must include \`tags\` as a list of names`;
+    return "Name at least one tag";
   }
   return null;
 };

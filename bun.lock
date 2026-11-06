@@ -271,6 +271,7 @@
         "@types/react-dom": "catalog:",
         "react": "catalog:",
         "react-dom": "catalog:",
+        "teak-sdk": "workspace:*",
         "typescript": "catalog:",
         "vite": "8.2.4",
         "vite-plugin-singlefile": "2.3.4",

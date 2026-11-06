@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { bulkItemProblem } from "@teak/convex/shared/bulkItems";
 import { type Command, InvalidArgumentError } from "commander";
 import { TeakApiError } from "teak-sdk";
-import { bulkItemProblem } from "./bulk";
 import { CliError, describeError, formatErrorText } from "./errors";
 import { formatCardLine } from "./format";
 import {
@@ -391,11 +391,7 @@ describe("bulk dry run", () => {
       "Each update item must include content, url, notes or tags",
     ],
     ["addTags", { cardId: "c1", tags: ["a"] }, null],
-    [
-      "removeTags",
-      { cardId: "c1", tags: [] },
-      "Each removeTags item must include `tags` as a list of names",
-    ],
+    ["removeTags", { cardId: "c1", tags: [] }, "Name at least one tag"],
     ["archive", { cardId: "" }, "Each bulk item must include a valid `cardId`"],
     ["delete", [], "Each bulk item must be an object"],
   ] as const)("%s %j", (operation, item, problem) => {

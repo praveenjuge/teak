@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { bulkItemProblem } from "@teak/convex/shared/bulkItems";
 import { FOLDER_COLORS } from "@teak/convex/shared/folders";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 import {
@@ -23,7 +24,6 @@ import {
   parseTags,
   TeakApiError,
 } from "teak-sdk";
-import { bulkItemProblem } from "./bulk";
 import { addCard, readStdin } from "./files";
 import { formatCardLines, formatCreated, formatDetail } from "./format";
 import {
