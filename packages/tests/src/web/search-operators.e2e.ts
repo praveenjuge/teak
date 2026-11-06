@@ -57,6 +57,9 @@ test("-, OR and parentheses narrow the grid, suggest, and survive a reload", asy
   await expect(screen.getByRole("button", "Remove design")).toBeVisible();
   await screen.getByRole("button", "Remove excluding figma").click();
   await shows([PLAIN, FIGMA], [FONTS]);
+  // Clearing the input keeps the chips already added, so drop "design" too.
+  await screen.getByRole("button", "Remove design").click();
+  await shows([PLAIN, FIGMA, FONTS], []);
   await search.fill("");
 
   await search.fill("-");

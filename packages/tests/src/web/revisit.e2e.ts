@@ -96,7 +96,9 @@ test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", a
     seen.push(await current());
     await press("ArrowRight");
   }
-  await expect(deck.getByText("All caught up")).toBeVisible();
+  // "All caught up" is also announced by the deck's live status, so the
+  // finished screen is recognised by the button only it offers.
+  await expect(deck.getByRole("button", "Revisit 20 more")).toBeVisible();
   await deck.getByRole("button", "Revisit 20 more").click();
   await expect(progress("1 of 1")).toBeVisible({ timeout: 30_000 });
   seen.push(await current());
