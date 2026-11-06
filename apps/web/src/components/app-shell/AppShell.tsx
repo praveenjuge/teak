@@ -10,7 +10,7 @@ import { SidebarFoldersBoundary } from "@/components/sidebar/SidebarFoldersBound
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useSignOut } from "@/hooks/useSignOut";
 import { folderIdForPath } from "@/lib/folders";
-import { focusNewNoteComposer } from "@/lib/keyboardShortcuts";
+import { startNewNote } from "@/lib/keyboardShortcuts";
 import {
   type GoToViewOptions,
   type LibraryView,
@@ -42,11 +42,10 @@ export function AppShell({
     [router]
   );
 
-  const handleNewNote = useCallback(() => {
-    if (!focusNewNoteComposer()) {
-      handleGoToView("all", { focusComposer: true });
-    }
-  }, [handleGoToView]);
+  const handleNewNote = useCallback(
+    () => startNewNote(handleGoToView),
+    [handleGoToView]
+  );
 
   const handleNavigate = useCallback(
     (href: string) => {

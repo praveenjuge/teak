@@ -6,6 +6,9 @@ if (!GlobalRegistrator.isRegistered) {
 }
 
 const { revisitKeyAction } = await import("../RevisitDeck");
+const { keyboardShortcutGroups } = await import(
+  "../../../lib/keyboardShortcuts"
+);
 
 const press = (
   key: string,
@@ -45,6 +48,39 @@ describe("revisitKeyAction", () => {
     expect(press("ArrowLeft", { altKey: true })).toBeNull();
     expect(press("Enter")).toBeNull();
     expect(press("Escape")).toBeNull();
+  });
+});
+
+describe("the shortcuts list's Revisit group", () => {
+  // The rows' names for what the deck's keys do.
+  const ROW_ACTIONS: Record<string, string> = {
+    revisitArchive: "archive",
+    revisitKeep: "keep",
+    revisitDetails: "details",
+    revisitUndo: "undo",
+  };
+  const LIST_KEYS: Record<string, string> = {
+    "←": "ArrowLeft",
+    "→": "ArrowRight",
+    Space: " ",
+  };
+
+  test("lists every key the deck answers, each doing what its row says", () => {
+    const revisit = keyboardShortcutGroups().find(
+      (group) => group.id === "revisit"
+    );
+    const listed = revisit?.rows.flatMap((row) =>
+      row.id && ROW_ACTIONS[row.id]
+        ? row.keys.map((key) => [
+            LIST_KEYS[key] ?? key,
+            ROW_ACTIONS[row.id ?? ""],
+          ])
+        : []
+    );
+    expect(listed?.length).toBe(6);
+    for (const [key, action] of listed ?? []) {
+      expect(press(key)).toBe(action);
+    }
   });
 });
 

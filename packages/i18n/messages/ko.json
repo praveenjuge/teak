@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "다시 보기",
-      "description": "카드를 한 장씩 봅니다. 왼쪽 화살표는 보관, 오른쪽 화살표는 유지, Space는 세부 정보 열기, Z는 마지막 보관 취소, Escape는 나가기입니다.",
+      "description": "카드를 한 장씩 봅니다. 왼쪽 화살표는 보관, 오른쪽 화살표는 유지, Space는 세부 정보 열기, {undoKey}는 마지막 보관 취소, Escape는 나가기입니다.",
       "close": "다시 보기 닫기",
       "progress": "{position}/{total}",
       "loadingCards": "카드를 불러오는 중",
@@ -599,7 +599,7 @@
       "summary": "{archived}개 보관 · {kept}개 유지",
       "startOver": "처음부터 다시",
       "revisitMore": "{count}개 더 다시 보기",
-      "undoHint": "<kbd>Z</kbd>를 누르면 마지막 보관을 취소합니다",
+      "undoHint": "<kbd>{undoKey}</kbd>를 누르면 마지막 보관을 취소합니다",
       "openDetails": "세부 정보 열기: {type}",
       "added": "{date}에 추가됨",
       "inTrash": "휴지통에 있음",
@@ -608,7 +608,7 @@
       "releaseToKeep": "놓으면 유지",
       "archive": "보관",
       "keep": "유지",
-      "keyHints": "<kbd>Space</kbd> 세부 정보 · <kbd>Z</kbd> 실행 취소 · <kbd>Esc</kbd> 나가기",
+      "keyHints": "<kbd>Space</kbd> 세부 정보 · <kbd>{undoKey}</kbd> 실행 취소 · <kbd>Esc</kbd> 나가기",
       "swipeHint": "왼쪽으로 밀면 보관, 오른쪽으로 밀면 유지"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "카드",
       "openCard": "열린 카드",
+      "revisit": "다시 보기",
       "goTo": "이동",
       "search": "검색",
       "anywhere": "어디서나"
@@ -1514,7 +1515,12 @@
       "byFolder": "폴더의 카드",
       "byState": "즐겨찾기, 보관됨, 완료 또는 할 일",
       "pin": "고정 또는 고정 해제",
-      "movePinned": "고정한 카드를 왼쪽이나 오른쪽으로 이동"
+      "movePinned": "고정한 카드를 왼쪽이나 오른쪽으로 이동",
+      "revisitArchive": "보관",
+      "revisitKeep": "유지",
+      "revisitDetails": "세부 정보 열기",
+      "revisitUndo": "마지막 보관 취소",
+      "revisitLeave": "다시 보기 나가기"
     }
   },
   "extension": {

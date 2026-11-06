@@ -36,7 +36,8 @@ import { formatClockTime } from "@/lib/clockTime";
 import { runMenuItemShortcut } from "@/lib/menuShortcuts";
 import { uploadAcceptAttribute } from "@/lib/upload/fileDrop";
 import { cn } from "@/lib/utils";
-import { APP_KEYS, keyName } from "../../lib/keyboardShortcuts";
+import { useRunAfterClose } from "../../hooks/useRunAfterClose";
+import { appActionKeys } from "../../lib/appCommands";
 import { useLibraryCommand } from "../providers/LibraryCommandsProvider";
 
 interface AddCardProviderProps {
@@ -531,13 +532,18 @@ export function AddCardProvider({
   );
 }
 
+// The New menu's items, each with its app action's key.
+const NEW_NOTE_KEY = appActionKeys("newNote")[0];
+const UPLOAD_KEY = appActionKeys("uploadFiles")[0];
+const RECORD_KEY = appActionKeys("recordAudio")[0];
+
 function NewMenuItems({
-  afterCloseRef,
   controls,
+  runAfterClose,
 }: {
-  /** What to do once the menu has closed, instead of focusing its trigger. */
-  afterCloseRef: { current: (() => void) | null };
   controls: AddCardControls;
+  /** What to do once the menu has closed, instead of focusing its trigger. */
+  runAfterClose: (action: () => void) => void;
 }) {
   const t = useTranslations("forms.addCardActions");
   // Key hints mean nothing without a keyboard.
@@ -547,26 +553,26 @@ function NewMenuItems({
     </DropdownMenuShortcut>
   );
   const { newNote } = controls;
-  const keepFocus = () => {
-    afterCloseRef.current = () => undefined;
-  };
+  // The file picker or the recording dialog has focus now: the closing
+  // menu mustn't take it back for its trigger.
+  const keepFocus = () => runAfterClose(() => undefined);
   return (
     <>
       {newNote ? (
         <DropdownMenuItem
-          aria-keyshortcuts={keyName(APP_KEYS.newNote)}
+          aria-keyshortcuts={NEW_NOTE_KEY}
           onSelect={() => {
             // The composer takes focus once the menu has let go of it.
-            afterCloseRef.current = newNote;
+            runAfterClose(newNote);
           }}
         >
           <PenLine />
           {t("noteOrLink")}
-          {hint(keyName(APP_KEYS.newNote))}
+          {hint(NEW_NOTE_KEY)}
         </DropdownMenuItem>
       ) : null}
       <DropdownMenuItem
-        aria-keyshortcuts={keyName(APP_KEYS.uploadFiles)}
+        aria-keyshortcuts={UPLOAD_KEY}
         disabled={controls.isUploading}
         onSelect={() => {
           keepFocus();
@@ -576,10 +582,10 @@ function NewMenuItems({
       >
         <Upload />
         {t("uploadFiles")}
-        {hint(keyName(APP_KEYS.uploadFiles))}
+        {hint(UPLOAD_KEY)}
       </DropdownMenuItem>
       <DropdownMenuItem
-        aria-keyshortcuts={keyName(APP_KEYS.recordAudio)}
+        aria-keyshortcuts={RECORD_KEY}
         disabled={!controls.canStartRecording}
         onSelect={() => {
           keepFocus();
@@ -588,7 +594,7 @@ function NewMenuItems({
       >
         <Mic />
         {t("recordAudio")}
-        {hint(keyName(APP_KEYS.recordAudio))}
+        {hint(RECORD_KEY)}
       </DropdownMenuItem>
     </>
   );
@@ -603,25 +609,18 @@ function NewMenu({
   controls: AddCardControls;
   trigger: ReactNode;
 }) {
-  const afterCloseRef = useRef<(() => void) | null>(null);
+  const { onCloseAutoFocus, runAfterClose } = useRunAfterClose();
   return (
     <DropdownMenu>
       {trigger}
       <DropdownMenuContent
         align={align}
         className="w-52"
-        onCloseAutoFocus={(event) => {
-          const afterClose = afterCloseRef.current;
-          if (afterClose) {
-            afterCloseRef.current = null;
-            event.preventDefault();
-            afterClose();
-          }
-        }}
+        onCloseAutoFocus={onCloseAutoFocus}
         onKeyDown={runMenuItemShortcut}
         side="bottom"
       >
-        <NewMenuItems afterCloseRef={afterCloseRef} controls={controls} />
+        <NewMenuItems controls={controls} runAfterClose={runAfterClose} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

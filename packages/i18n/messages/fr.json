@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Revoir",
-      "description": "Une fiche à la fois. La flèche gauche l’archive, la flèche droite la conserve, Espace ouvre ses détails, Z annule le dernier archivage et Échap permet de quitter.",
+      "description": "Une fiche à la fois. La flèche gauche l’archive, la flèche droite la conserve, Espace ouvre ses détails, {undoKey} annule le dernier archivage et Échap permet de quitter.",
       "close": "Fermer Revoir",
       "progress": "{position} sur {total}",
       "loadingCards": "Chargement des fiches",
@@ -599,7 +599,7 @@
       "summary": "{archived} archivées · {kept} conservées",
       "startOver": "Recommencer",
       "revisitMore": "En revoir {count} de plus",
-      "undoHint": "<kbd>Z</kbd> annule le dernier archivage",
+      "undoHint": "<kbd>{undoKey}</kbd> annule le dernier archivage",
       "openDetails": "Ouvrir les détails : {type}",
       "added": "Ajoutée le {date}",
       "inTrash": "Dans la corbeille",
@@ -608,7 +608,7 @@
       "releaseToKeep": "Relâchez pour conserver",
       "archive": "Archiver",
       "keep": "Conserver",
-      "keyHints": "<kbd>Espace</kbd> détails · <kbd>Z</kbd> annuler · <kbd>Esc</kbd> quitter",
+      "keyHints": "<kbd>Espace</kbd> détails · <kbd>{undoKey}</kbd> annuler · <kbd>Esc</kbd> quitter",
       "swipeHint": "Balayez vers la gauche pour archiver, vers la droite pour conserver"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "Fiches",
       "openCard": "Fiche ouverte",
+      "revisit": "Revoir",
       "goTo": "Aller à",
       "search": "Recherche",
       "anywhere": "Partout"
@@ -1514,7 +1515,12 @@
       "byFolder": "Fiches d’un dossier",
       "byState": "Favoris, archivées, terminées ou à faire",
       "pin": "Épingler ou désépingler",
-      "movePinned": "Déplacer une fiche épinglée à gauche ou à droite"
+      "movePinned": "Déplacer une fiche épinglée à gauche ou à droite",
+      "revisitArchive": "Archiver",
+      "revisitKeep": "Conserver",
+      "revisitDetails": "Ouvrir les détails",
+      "revisitUndo": "Annuler le dernier archivage",
+      "revisitLeave": "Quitter Revoir"
     }
   },
   "extension": {

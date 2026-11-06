@@ -63,6 +63,7 @@ import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
+import { useRunAfterClose } from "../../hooks/useRunAfterClose";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
 import {
   type CardActionId,
@@ -686,20 +687,14 @@ export function CardModal({
   // Add to folder opens once the menu has closed. Opened at once, the
   // closing menu took focus back from it and then unmounted, leaving focus
   // on the page, so every card key went dead after the dialog closed.
-  const foldersAfterMenu = useRef<boolean>(false);
-  const openFoldersFromMenu = () => {
-    foldersAfterMenu.current = true;
-  };
-  const onMenuCloseAutoFocus = (event: Event) => {
-    if (!foldersAfterMenu.current) {
-      return;
-    }
-    foldersAfterMenu.current = false;
-    event.preventDefault();
-    // The dialog gives focus back to what had it when it opened: the card.
-    contentRef.current?.focus();
-    setIsFoldersOpen(true);
-  };
+  const { onCloseAutoFocus: onMenuCloseAutoFocus, runAfterClose } =
+    useRunAfterClose();
+  const openFoldersFromMenu = () =>
+    runAfterClose(() => {
+      // The dialog gives focus back to what had it when it opened: the card.
+      contentRef.current?.focus();
+      setIsFoldersOpen(true);
+    });
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (

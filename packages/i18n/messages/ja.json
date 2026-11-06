@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "振り返り",
-      "description": "カードを 1 枚ずつ表示します。左矢印キーでアーカイブ、右矢印キーで残す、Space で詳細を開く、Z で直前のアーカイブを取り消し、Escape で終了します。",
+      "description": "カードを 1 枚ずつ表示します。左矢印キーでアーカイブ、右矢印キーで残す、Space で詳細を開く、{undoKey} で直前のアーカイブを取り消し、Escape で終了します。",
       "close": "振り返りを閉じる",
       "progress": "{position} / {total}",
       "loadingCards": "カードを読み込み中",
@@ -599,7 +599,7 @@
       "summary": "アーカイブ {archived} 件 · 残す {kept} 件",
       "startOver": "最初からやり直す",
       "revisitMore": "さらに {count} 件を振り返る",
-      "undoHint": "<kbd>Z</kbd> で直前のアーカイブを取り消します",
+      "undoHint": "<kbd>{undoKey}</kbd> で直前のアーカイブを取り消します",
       "openDetails": "詳細を開く：{type}",
       "added": "{date} に追加",
       "inTrash": "ゴミ箱内",
@@ -608,7 +608,7 @@
       "releaseToKeep": "指を離して残す",
       "archive": "アーカイブ",
       "keep": "残す",
-      "keyHints": "<kbd>Space</kbd> 詳細 · <kbd>Z</kbd> 元に戻す · <kbd>Esc</kbd> 終了",
+      "keyHints": "<kbd>Space</kbd> 詳細 · <kbd>{undoKey}</kbd> 元に戻す · <kbd>Esc</kbd> 終了",
       "swipeHint": "左にスワイプでアーカイブ、右にスワイプで残す"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "カード",
       "openCard": "開いているカード",
+      "revisit": "振り返り",
       "goTo": "移動",
       "search": "検索",
       "anywhere": "どこでも"
@@ -1514,7 +1515,12 @@
       "byFolder": "フォルダ内のカード",
       "byState": "お気に入り・アーカイブ済み・完了・未完了",
       "pin": "ピン留めまたはピン留めを外す",
-      "movePinned": "ピン留めしたカードを左右に移動"
+      "movePinned": "ピン留めしたカードを左右に移動",
+      "revisitArchive": "アーカイブ",
+      "revisitKeep": "残す",
+      "revisitDetails": "詳細を開く",
+      "revisitUndo": "直前のアーカイブを取り消す",
+      "revisitLeave": "振り返りを終了"
     }
   },
   "extension": {

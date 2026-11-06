@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "回顾",
-      "description": "一次一张卡片。按左箭头归档，按右箭头保留，按空格键打开详情，按 Z 撤销上次归档，按 Escape 退出。",
+      "description": "一次一张卡片。按左箭头归档，按右箭头保留，按空格键打开详情，按 {undoKey} 撤销上次归档，按 Escape 退出。",
       "close": "关闭回顾",
       "progress": "{position} / {total}",
       "loadingCards": "正在加载卡片",
@@ -599,7 +599,7 @@
       "summary": "已归档 {archived} · 已保留 {kept}",
       "startOver": "重新开始",
       "revisitMore": "再回顾 {count} 张",
-      "undoHint": "按 <kbd>Z</kbd> 撤销上次归档",
+      "undoHint": "按 <kbd>{undoKey}</kbd> 撤销上次归档",
       "openDetails": "打开详情：{type}",
       "added": "添加于 {date}",
       "inTrash": "在废纸篓中",
@@ -608,7 +608,7 @@
       "releaseToKeep": "松开以保留",
       "archive": "归档",
       "keep": "保留",
-      "keyHints": "<kbd>Space</kbd> 详情 · <kbd>Z</kbd> 撤销 · <kbd>Esc</kbd> 退出",
+      "keyHints": "<kbd>Space</kbd> 详情 · <kbd>{undoKey}</kbd> 撤销 · <kbd>Esc</kbd> 退出",
       "swipeHint": "向左轻扫以归档，向右轻扫以保留"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "卡片",
       "openCard": "卡片打开时",
+      "revisit": "回顾",
       "goTo": "前往",
       "search": "搜索",
       "anywhere": "任意位置"
@@ -1514,7 +1515,12 @@
       "byFolder": "某个文件夹中的卡片",
       "byState": "收藏、已归档、已完成或待办",
       "pin": "置顶或取消置顶",
-      "movePinned": "向左或向右移动置顶卡片"
+      "movePinned": "向左或向右移动置顶卡片",
+      "revisitArchive": "归档",
+      "revisitKeep": "保留",
+      "revisitDetails": "打开详情",
+      "revisitUndo": "撤销上次归档",
+      "revisitLeave": "退出回顾"
     }
   },
   "extension": {

@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Revisit",
-      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, Z undoes the last archive and Escape leaves.",
+      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, {undoKey} undoes the last archive and Escape leaves.",
       "close": "Close Revisit",
       "progress": "{position} of {total}",
       "loadingCards": "Loading cards",
@@ -599,7 +599,7 @@
       "summary": "{archived} archived · {kept} kept",
       "startOver": "Start over",
       "revisitMore": "Revisit {count} more",
-      "undoHint": "<kbd>Z</kbd> undoes the last archive",
+      "undoHint": "<kbd>{undoKey}</kbd> undoes the last archive",
       "openDetails": "Open details: {type}",
       "added": "Added {date}",
       "inTrash": "In Trash",
@@ -608,7 +608,7 @@
       "releaseToKeep": "Release to keep",
       "archive": "Archive",
       "keep": "Keep",
-      "keyHints": "<kbd>Space</kbd> details · <kbd>Z</kbd> undo · <kbd>Esc</kbd> exit",
+      "keyHints": "<kbd>Space</kbd> details · <kbd>{undoKey}</kbd> undo · <kbd>Esc</kbd> exit",
       "swipeHint": "Swipe left to archive, right to keep"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "Cards",
       "openCard": "Open card",
+      "revisit": "Revisit",
       "goTo": "Go to",
       "search": "Search",
       "anywhere": "Anywhere"
@@ -1514,7 +1515,12 @@
       "byFolder": "Cards in a folder",
       "byState": "Favorites, archived, done or to-do",
       "pin": "Pin or unpin",
-      "movePinned": "Move a pinned card left or right"
+      "movePinned": "Move a pinned card left or right",
+      "revisitArchive": "Archive",
+      "revisitKeep": "Keep",
+      "revisitDetails": "Open details",
+      "revisitUndo": "Undo the last archive",
+      "revisitLeave": "Leave Revisit"
     }
   },
   "extension": {

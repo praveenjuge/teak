@@ -589,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Repasar",
-      "description": "Una tarjeta cada vez. La flecha izquierda la archiva, la flecha derecha la conserva, Espacio abre sus detalles, Z deshace el último archivado y Escape sale.",
+      "description": "Una tarjeta cada vez. La flecha izquierda la archiva, la flecha derecha la conserva, Espacio abre sus detalles, {undoKey} deshace el último archivado y Escape sale.",
       "close": "Salir de Repasar",
       "progress": "{position} de {total}",
       "loadingCards": "Cargando tarjetas",
@@ -599,7 +599,7 @@
       "summary": "Archivadas: {archived} · Conservadas: {kept}",
       "startOver": "Empezar de nuevo",
       "revisitMore": "Repasar {count} más",
-      "undoHint": "<kbd>Z</kbd> deshace el último archivado",
+      "undoHint": "<kbd>{undoKey}</kbd> deshace el último archivado",
       "openDetails": "Abrir detalles: {type}",
       "added": "Añadida el {date}",
       "inTrash": "En la papelera",
@@ -608,7 +608,7 @@
       "releaseToKeep": "Suelte para conservar",
       "archive": "Archivar",
       "keep": "Conservar",
-      "keyHints": "<kbd>Espacio</kbd> detalles · <kbd>Z</kbd> deshacer · <kbd>Esc</kbd> salir",
+      "keyHints": "<kbd>Espacio</kbd> detalles · <kbd>{undoKey}</kbd> deshacer · <kbd>Esc</kbd> salir",
       "swipeHint": "Deslice a la izquierda para archivar y a la derecha para conservar"
     }
   },
@@ -1466,6 +1466,7 @@
     "groups": {
       "cards": "Tarjetas",
       "openCard": "Tarjeta abierta",
+      "revisit": "Repasar",
       "goTo": "Ir a",
       "search": "Búsqueda",
       "anywhere": "En cualquier lugar"
@@ -1514,7 +1515,12 @@
       "byFolder": "Tarjetas de una carpeta",
       "byState": "Favoritas, archivadas, hechas o pendientes",
       "pin": "Fijar o dejar de fijar",
-      "movePinned": "Mover una tarjeta fijada a la izquierda o la derecha"
+      "movePinned": "Mover una tarjeta fijada a la izquierda o la derecha",
+      "revisitArchive": "Archivar",
+      "revisitKeep": "Conservar",
+      "revisitDetails": "Abrir detalles",
+      "revisitUndo": "Deshacer el último archivado",
+      "revisitLeave": "Salir de Repasar"
     }
   },
   "extension": {
