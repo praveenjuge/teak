@@ -1104,18 +1104,19 @@ jobs:
           while [ "$SECONDS" -lt "$deadline" ]; do
             asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json > "$RUNNER_TEMP/apple-$SLUG-final-version.json"
             final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/apple-$SLUG-final-version.json")"
-            case "$final_state" in
-              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+            final_phase="$(node scripts/release/apple-release-proof.ts phase "$final_state")"
+            case "$final_phase" in
+              review)
                 break
                 ;;
-              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+              rejected)
                 echo "$LABEL $VERSION entered terminal state $final_state." >&2
                 exit 1
                 ;;
             esac
             sleep 30
           done
-          if ! [[ "$final_state" =~ ^(WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)$ ]]; then
+          if [ "${final_phase:-}" != "review" ]; then
             echo "Timed out waiting for $LABEL $VERSION to reach WAITING_FOR_REVIEW." >&2
             exit 1
           fi

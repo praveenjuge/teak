@@ -34,20 +34,6 @@
       "includes": ["**/apps/web/src/**"]
     },
     {
-      "path": "./scripts/lint/no-ui-string.grit",
-      "includes": [
-        "**/apps/web/src/**/*.ts",
-        "**/apps/web/src/**/*.tsx",
-        "**/apps/extension/entrypoints/**/*.ts",
-        "**/apps/extension/entrypoints/**/*.tsx",
-        "**/apps/extension/components/**/*.tsx",
-        "**/packages/mcp-app/src/**/*.tsx",
-        "!**/__tests__/**",
-        "!**/*.test.*",
-        "!**/apps/web/src/components/ui/**"
-      ]
-    },
-    {
       "path": "./scripts/lint/no-translucent-icon-color.grit",
       "includes": ["**/*.tsx"]
     }
@@ -84,9 +70,12 @@
     },
     {
       // Every word people read comes from the @teak/i18n catalog
-      // (apps/docs/content/docs/(open-source)/translating.mdx). Props are checked by no-ui-string.grit.
+      // (apps/docs/content/docs/(open-source)/translating.mdx): JSX text by
+      // noJsxLiterals, props and strings by no-ui-string.grit.
       "includes": [
+        "apps/web/src/**/*.ts",
         "apps/web/src/**/*.tsx",
+        "apps/extension/entrypoints/**/*.ts",
         "apps/extension/entrypoints/**/*.tsx",
         "apps/extension/components/**/*.tsx",
         "packages/mcp-app/src/**/*.tsx",
@@ -94,6 +83,7 @@
         "!**/*.test.*",
         "!apps/web/src/components/ui/**"
       ],
+      "plugins": ["./scripts/lint/no-ui-string.grit"],
       "linter": {
         "rules": {
           "style": {
