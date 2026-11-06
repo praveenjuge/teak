@@ -26,6 +26,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
+import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {
   ariaKeyShortcut,
   GO_TO_SETTINGS_KEY,
@@ -103,7 +104,10 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const t = useTranslations("sidebar.nav");
   const tViews = useTranslations("lib.libraryViews");
-  const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } =
+    useSidebar();
+  // Closing the phone's sheet gives focus back to whatever had it.
+  const returnFocus = useReturnFocus(isMobile && openMobile);
   const apple = useIsApplePlatform();
 
   const handleNavigate = () => {
@@ -140,7 +144,11 @@ export function AppSidebar({
   };
 
   return (
-    <Sidebar className="group/sidebar-panel" collapsible="icon">
+    <Sidebar
+      className="group/sidebar-panel"
+      collapsible="icon"
+      onMobileCloseAutoFocus={(event) => returnFocus(event)}
+    >
       <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-0">
         <SidebarMenu className="w-auto">
           <SidebarMenuItem>

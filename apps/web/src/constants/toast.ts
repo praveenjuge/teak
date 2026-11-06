@@ -22,9 +22,6 @@ export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
 
 export const UNDO_TOAST_DURATION_MS = 10_000;
 
-export const AUTH_STICKY_TOAST_OPTIONS: ExternalToast =
-  MANUAL_CLOSE_TOAST_OPTIONS;
-
 export const UPLOAD_QUEUE_LOADING_TOAST_OPTIONS: ExternalToast = {
   duration: Number.POSITIVE_INFINITY,
   closeButton: false,

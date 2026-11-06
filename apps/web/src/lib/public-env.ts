@@ -13,11 +13,3 @@ export const getConvexUrl = (): string => {
   }
   return url;
 };
-
-export const getConvexSiteUrl = (): string => {
-  const url = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
-  if (!url) {
-    throw missing("NEXT_PUBLIC_CONVEX_SITE_URL", "http://127.0.0.1:3211");
-  }
-  return url;
-};

@@ -9,7 +9,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { matchesMenuShortcut } = await import("../menuShortcuts");
+const { matchesMenuShortcut, runMenuItemShortcut } = await import(
+  "../menuShortcuts"
+);
 const {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,7 +86,7 @@ describe("menus run the shortcuts their items list", () => {
       root?.render(
         <DropdownMenu>
           <DropdownMenuTrigger>Open</DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent onKeyDown={runMenuItemShortcut}>
             <DropdownMenuItem
               aria-keyshortcuts={spies.note.keys}
               onSelect={spies.note.onSelect}
@@ -146,7 +148,7 @@ describe("menus run the shortcuts their items list", () => {
       root?.render(
         <ContextMenu>
           <ContextMenuTrigger>Area</ContextMenuTrigger>
-          <ContextMenuContent>
+          <ContextMenuContent onKeyDown={runMenuItemShortcut}>
             <ContextMenuItem aria-keyshortcuts="Delete" onSelect={onSelect}>
               Delete
             </ContextMenuItem>

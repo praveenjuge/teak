@@ -4,7 +4,6 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { useAction, useMutation } from "convex/react";
 import {
   createContext,
   type ReactNode,
@@ -34,11 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import {
-  type FinalizeUploadedCardArgs,
-  type UploadAndCreateCardArgs,
-  useFileUploadCore,
-} from "@/hooks/useFileUploadCore";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { formatClockTime } from "@/lib/clockTime";
@@ -145,14 +140,8 @@ export function AddCardProvider({
   const tLimits = useTranslations("forms.limits");
   const tc = useTranslations("common");
   const errors = useServerErrors();
-  const tUpload = useTranslations("hooks.upload");
-  const tErrors = useTranslations("errors");
   const tUploadMessages = useTranslations("lib.upload");
   const intlLocale = useIntlLocale();
-  const uploadTranslators = useMemo(
-    () => ({ errors: tErrors, upload: tUpload }),
-    [tErrors, tUpload]
-  );
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -176,35 +165,7 @@ export function AddCardProvider({
   // is open moves it on, so the start that was waiting is dropped.
   const startAttemptRef = useRef(0);
 
-  const uploadAndCreateCardMutation = useMutation(
-    api.cards.uploadAndCreateCard
-  );
-  const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
-  const prepareMultipartUpload = useAction(
-    api.fileUploads.prepareMultipartUpload
-  );
-  const completeMultipartUpload = useAction(
-    api.fileUploads.completeMultipartUpload
-  );
-  const recordMultipartPart = useMutation(api.fileUploads.recordMultipartPart);
-
-  const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
-    uploadAndCreateCardMutation(args);
-
-  const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardAction({ ...args, source: "web" });
-
-  const { uploadFile } = useFileUploadCore(
-    {
-      completeMultipartUpload,
-      uploadAndCreateCard,
-      finalizeUploadedCard,
-      prepareMultipartUpload,
-      recordMultipartPart,
-    },
-    {},
-    uploadTranslators
-  );
+  const { uploadFile } = useFileUpload();
 
   const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
 
