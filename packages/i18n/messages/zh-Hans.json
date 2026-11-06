@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, other {已上传 # 个文件}}",
       "uploadedSentence": "{count, plural, other {已上传 # 个文件。}}",
-      "cardLimitReached": "已达到免费卡片上限",
-      "upgrade": "升级",
-      "rateLimited": "创建的卡片过多，请稍候。",
       "uploadFailed": "上传失败",
       "uploadFailedMany": "{count, plural, other {# 个文件}}上传失败。{reason}",
       "uploading": "正在上传…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "麦克风权限被拒绝。请允许后重试。",
       "microphoneMissing": "未检测到麦克风。请连接麦克风后重试。",
       "recordingStartFailed": "无法开始录音。请检查你的麦克风设置。",
-      "uploading": "正在上传 {name}…",
-      "uploaded": "{name} 已上传",
-      "uploadFailed": "无法上传 {name}：{error}",
-      "uploadFailedReason": "上传失败",
       "startingMicrophone": "正在启动麦克风…",
       "savingRecordingStatus": "正在保存录音…",
       "recordingHint": "自然地说话即可。Teak 会将其保存为音频卡片。",
@@ -1735,7 +1728,6 @@
       "saved": "PDF 已保存",
       "alreadySaved": "已保存过",
       "open": "打开",
-      "cardLimitReached": "已达到免费卡片上限",
       "tooLarge": "此 PDF 过大。Teak 可保存最大 100 MB 的文件。",
       "notPdf": "arXiv 没有为这篇论文提供 PDF。",
       "failed": "无法保存 PDF，请重试。"

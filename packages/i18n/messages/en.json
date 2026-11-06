@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {File uploaded} other {Uploaded # files}}",
       "uploadedSentence": "{count, plural, one {File uploaded.} other {Uploaded # files.}}",
-      "cardLimitReached": "Free card limit reached",
-      "upgrade": "Upgrade",
-      "rateLimited": "Too many cards created. Please wait a moment.",
       "uploadFailed": "Upload failed",
       "uploadFailedMany": "Failed to upload {count, plural, other {# files}}. {reason}",
       "uploading": "Uploading…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
       "microphoneMissing": "No microphone was detected. Connect one and retry.",
       "recordingStartFailed": "Failed to start recording. Check your microphone setup.",
-      "uploading": "Uploading {name}...",
-      "uploaded": "{name} uploaded",
-      "uploadFailed": "Failed to upload {name}: {error}",
-      "uploadFailedReason": "Upload failed",
       "startingMicrophone": "Starting microphone...",
       "savingRecordingStatus": "Saving recording...",
       "recordingHint": "Speak naturally. Teak will save this as an audio card.",
@@ -1735,7 +1728,6 @@
       "saved": "PDF saved",
       "alreadySaved": "Already saved",
       "open": "Open",
-      "cardLimitReached": "Free card limit reached",
       "tooLarge": "This PDF is too large. Teak keeps files up to 100 MB.",
       "notPdf": "arXiv didn't send a PDF for this paper.",
       "failed": "Couldn't save the PDF. Try again."

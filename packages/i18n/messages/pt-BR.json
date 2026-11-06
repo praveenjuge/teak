@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Arquivo enviado} other {# arquivos enviados}}",
       "uploadedSentence": "{count, plural, one {Arquivo enviado.} other {# arquivos enviados.}}",
-      "cardLimitReached": "Limite de cards grátis atingido",
-      "upgrade": "Fazer upgrade",
-      "rateLimited": "Muitos cards criados. Aguarde um momento.",
       "uploadFailed": "Falha no envio",
       "uploadFailedMany": "Falha ao enviar {count, plural, one {# arquivo} other {# arquivos}}. {reason}",
       "uploading": "Enviando…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "A permissão do microfone foi negada. Permita o acesso e tente de novo.",
       "microphoneMissing": "Nenhum microfone foi detectado. Conecte um e tente de novo.",
       "recordingStartFailed": "Não foi possível iniciar a gravação. Verifique a configuração do microfone.",
-      "uploading": "Enviando {name}...",
-      "uploaded": "{name} enviado",
-      "uploadFailed": "Não foi possível enviar {name}: {error}",
-      "uploadFailedReason": "Falha no envio",
       "startingMicrophone": "Iniciando o microfone...",
       "savingRecordingStatus": "Salvando a gravação...",
       "recordingHint": "Fale naturalmente. O Teak vai salvar isto como um card de áudio.",
@@ -1735,7 +1728,6 @@
       "saved": "PDF salvo",
       "alreadySaved": "Já salvo",
       "open": "Abrir",
-      "cardLimitReached": "Limite de cards grátis atingido",
       "tooLarge": "Este PDF é grande demais. O Teak guarda arquivos de até 100 MB.",
       "notPdf": "O arXiv não enviou um PDF para este artigo.",
       "failed": "Não foi possível salvar o PDF. Tente novamente."

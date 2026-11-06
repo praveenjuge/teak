@@ -17,7 +17,6 @@ import {
   libraryViewForPath,
   libraryViewHref,
 } from "@/lib/libraryViews";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { IntentLink } from "./IntentLink";
 import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
@@ -62,18 +61,10 @@ export function AppShell({
     signOut().catch(() => undefined);
   }, [signOut]);
 
-  const handleUpgrade = useCallback(() => {
-    router.push(SETTINGS_PLAN_HREF);
-  }, [router]);
-
   return (
     <LibraryCommandsProvider>
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-        <AddCardProvider
-          onNewNote={handleNewNote}
-          onUpgrade={handleUpgrade}
-          upgradeUrl={SETTINGS_PLAN_HREF}
-        >
+        <AddCardProvider onNewNote={handleNewNote}>
           <SkipToContent />
           <OfflineNotice />
           <LibraryShortcuts

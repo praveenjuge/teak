@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Archivo subido} other {# archivos subidos}}",
       "uploadedSentence": "{count, plural, one {Archivo subido.} other {Se subieron # archivos.}}",
-      "cardLimitReached": "Se alcanzó el límite de tarjetas gratis",
-      "upgrade": "Mejorar plan",
-      "rateLimited": "Se han creado demasiadas tarjetas. Espere un momento.",
       "uploadFailed": "La subida falló",
       "uploadFailedMany": "No se {count, plural, one {pudo subir # archivo} other {pudieron subir # archivos}}. {reason}",
       "uploading": "Subiendo…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "Se denegó el permiso del micrófono. Permítalo y vuelva a intentarlo.",
       "microphoneMissing": "No se detectó ningún micrófono. Conecte uno y vuelva a intentarlo.",
       "recordingStartFailed": "No se pudo iniciar la grabación. Compruebe la configuración del micrófono.",
-      "uploading": "Subiendo {name}…",
-      "uploaded": "Se subió {name}",
-      "uploadFailed": "No se pudo subir {name}: {error}",
-      "uploadFailedReason": "La subida falló",
       "startingMicrophone": "Iniciando el micrófono…",
       "savingRecordingStatus": "Guardando la grabación…",
       "recordingHint": "Hable con naturalidad. Teak lo guardará como una tarjeta de audio.",
@@ -1735,7 +1728,6 @@
       "saved": "PDF guardado",
       "alreadySaved": "Ya está guardado",
       "open": "Abrir",
-      "cardLimitReached": "Se alcanzó el límite de tarjetas gratis",
       "tooLarge": "Este PDF es demasiado grande. Teak guarda archivos de hasta 100 MB.",
       "notPdf": "arXiv no envió ningún PDF para este artículo.",
       "failed": "No se pudo guardar el PDF. Vuelva a intentarlo."

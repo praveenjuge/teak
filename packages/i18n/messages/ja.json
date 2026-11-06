@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, other {# 件のファイルをアップロードしました}}",
       "uploadedSentence": "{count, plural, other {# 件のファイルをアップロードしました。}}",
-      "cardLimitReached": "無料プランのカードの上限に達しました",
-      "upgrade": "アップグレード",
-      "rateLimited": "カードの作成数が多すぎます。しばらくお待ちください。",
       "uploadFailed": "アップロードに失敗しました",
       "uploadFailedMany": "{count, plural, other {# 件のファイル}}をアップロードできませんでした。{reason}",
       "uploading": "アップロード中…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "マイクへのアクセスが拒否されました。許可してからもう一度お試しください。",
       "microphoneMissing": "マイクが検出されませんでした。マイクを接続してからもう一度お試しください。",
       "recordingStartFailed": "録音を開始できませんでした。マイクの設定を確認してください。",
-      "uploading": "{name} をアップロード中…",
-      "uploaded": "{name} をアップロードしました",
-      "uploadFailed": "{name} をアップロードできませんでした：{error}",
-      "uploadFailedReason": "アップロードに失敗しました",
       "startingMicrophone": "マイクを起動しています…",
       "savingRecordingStatus": "録音を保存しています…",
       "recordingHint": "いつもどおりに話してください。Teak が音声カードとして保存します。",
@@ -1735,7 +1728,6 @@
       "saved": "PDF を保存しました",
       "alreadySaved": "保存済みです",
       "open": "開く",
-      "cardLimitReached": "無料プランのカードの上限に達しました",
       "tooLarge": "この PDF は大きすぎます。Teak に保存できるファイルは 100 MB までです。",
       "notPdf": "arXiv からこの論文の PDF が返されませんでした。",
       "failed": "PDF を保存できませんでした。もう一度お試しください。"

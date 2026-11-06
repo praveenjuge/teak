@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, jest, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import { routerPush } from "@/__tests__/helpers/nextRouter";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -37,6 +38,9 @@ mock.module("sonner", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { MAX_FILES_PER_UPLOAD } = await import("@teak/convex/shared");
+const { configureAnalytics, resetAnalytics } = await import(
+  "@teak/convex/shared/analytics"
+);
 const { GlobalFileDropProvider, useGlobalFileDrop } = await import(
   "../GlobalFileDropProvider"
 );
@@ -136,6 +140,49 @@ test("a rate-limited upload still says which files were skipped", async () => {
   expect(toastError.mock.calls[0][0]).toBe(
     `Too many cards created. Please wait a moment. 3 files were skipped. You can upload up to ${MAX_FILES_PER_UPLOAD} at a time.`
   );
+});
+
+test("each queued file counts as a submitted card, as picked uploads always meant to", async () => {
+  const captured: [string, Record<string, unknown>][] = [];
+  configureAnalytics({
+    capture: (event, properties) => captured.push([event, properties]),
+  });
+  try {
+    await act(async () =>
+      drop?.enqueueFiles([
+        new File(["note"], "note.txt", { type: "text/plain" }),
+        new File(["png"], "photo.png", { type: "image/png" }),
+      ])
+    );
+  } finally {
+    resetAnalytics();
+  }
+
+  expect(
+    captured
+      .filter(([event]) => event === "card_create_submitted")
+      .map(([, properties]) => properties)
+  ).toEqual([
+    { card_type: "document", source: "web", via: "file_upload" },
+    { card_type: "image", source: "web", via: "file_upload" },
+  ]);
+});
+
+test("an upload over the card limit offers Upgrade, which opens the plan page in the app", async () => {
+  routerPush.mockClear();
+  finalizeResult = {
+    success: false,
+    error: "Card limit reached",
+    errorCode: "CARD_LIMIT_REACHED",
+  };
+  await enqueueAndWaitForResult(1);
+
+  expect(toastError).toHaveBeenCalledTimes(1);
+  const [message, options] = toastError.mock.calls[0];
+  expect(message).toBe("Free card limit reached");
+  expect(options.action.label).toBe("Upgrade");
+  options.action.onClick();
+  expect(routerPush.mock.calls).toEqual([["/settings/plan"]]);
 });
 
 function pasteFile() {

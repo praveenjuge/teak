@@ -4,6 +4,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
 import { getFunctionName } from "convex/server";
 import type { Root } from "react-dom/client";
+import { routerPush } from "@/__tests__/helpers/nextRouter";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -322,8 +323,8 @@ describe("pasting a list of links", () => {
     );
   });
 
-  test("ends at the card limit with the Upgrade action", async () => {
-    const onUpgrade = mock(() => undefined);
+  test("ends at the card limit with Upgrade, which opens the plan page in the app", async () => {
+    routerPush.mockClear();
     pasteProgress = {
       status: "stopped_at_limit",
       total: 12,
@@ -334,7 +335,7 @@ describe("pasting a list of links", () => {
       omittedOverLimit: 0,
       omittedRepeats: 0,
     };
-    await render({ onUpgrade });
+    await render();
     await type(links(12).join("\n"));
     await pressSaveShortcut();
 
@@ -345,7 +346,7 @@ describe("pasting a list of links", () => {
     expect(message).toBe("Saved 4 of 12 links · You've reached 200 cards");
     expect(options.action.label).toBe("Upgrade");
     options.action.onClick();
-    expect(onUpgrade).toHaveBeenCalledTimes(1);
+    expect(routerPush.mock.calls).toEqual([["/settings/plan"]]);
   });
 
   test("keeps the draft when the last paste is still saving", async () => {

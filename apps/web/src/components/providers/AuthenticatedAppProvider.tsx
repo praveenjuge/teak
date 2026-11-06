@@ -12,7 +12,6 @@ import { isDocumentRequest } from "@/lib/documentRequest";
 import type { QuerySeed } from "@/lib/firstLoadQueries";
 import { fetchFirstLoadSeeds } from "@/lib/firstLoadSeeds";
 import { localeFromCookie } from "@/lib/locale";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
 import { AppShellSkeleton } from "../app-shell/AppShellSkeleton";
 import { WebMcpTools } from "../app-shell/WebMcpTools";
@@ -62,9 +61,7 @@ export default async function AuthenticatedAppProvider({
         >
           <AccountLocaleSync />
           <WebMcpTools />
-          <GlobalFileDropProvider upgradeUrl={SETTINGS_PLAN_HREF}>
-            {children}
-          </GlobalFileDropProvider>
+          <GlobalFileDropProvider>{children}</GlobalFileDropProvider>
         </WorkosAuthBoundary>
       </ConvexClientProvider>
     </LocaleProvider>

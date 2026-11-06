@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Datei hochgeladen} other {# Dateien hochgeladen}}",
       "uploadedSentence": "{count, plural, one {Datei hochgeladen.} other {# Dateien hochgeladen.}}",
-      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
-      "upgrade": "Upgraden",
-      "rateLimited": "Zu viele Karten erstellt. Bitte warten Sie einen Moment.",
       "uploadFailed": "Upload fehlgeschlagen",
       "uploadFailedMany": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht hochgeladen werden. {reason}",
       "uploading": "Wird hochgeladen…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "Der Mikrofonzugriff wurde verweigert. Erlauben Sie ihn und versuchen Sie es erneut.",
       "microphoneMissing": "Kein Mikrofon erkannt. Schließen Sie eines an und versuchen Sie es erneut.",
       "recordingStartFailed": "Die Aufnahme konnte nicht gestartet werden. Prüfen Sie Ihre Mikrofoneinstellungen.",
-      "uploading": "{name} wird hochgeladen…",
-      "uploaded": "{name} hochgeladen",
-      "uploadFailed": "{name} konnte nicht hochgeladen werden: {error}",
-      "uploadFailedReason": "Upload fehlgeschlagen",
       "startingMicrophone": "Mikrofon wird gestartet…",
       "savingRecordingStatus": "Aufnahme wird gespeichert…",
       "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
@@ -1735,7 +1728,6 @@
       "saved": "PDF gespeichert",
       "alreadySaved": "Bereits gespeichert",
       "open": "Öffnen",
-      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
       "tooLarge": "Dieses PDF ist zu groß. Teak speichert Dateien bis 100 MB.",
       "notPdf": "arXiv hat für dieses Paper kein PDF geliefert.",
       "failed": "Das PDF konnte nicht gespeichert werden. Versuchen Sie es erneut."

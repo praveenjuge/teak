@@ -5,6 +5,8 @@ import {
   MAX_FILES_PER_UPLOAD,
   type UploadMultipleFilesResultItem,
 } from "@teak/convex/shared";
+import { captureEvent } from "@teak/convex/shared/analytics";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import {
   createContext,
@@ -57,17 +59,20 @@ const GlobalFileDropContext = createContext<GlobalFileDropContextValue | null>(
   null
 );
 
-interface GlobalFileDropProviderProps {
-  children: ReactNode;
-  onUpgrade?: () => void;
-  upgradeUrl?: string;
-}
+/** Each file a picker, drop or paste sends to be made into a card. */
+const reportSubmittedFiles = (files: readonly File[]) => {
+  for (const file of files) {
+    captureEvent("card_create_submitted", {
+      card_type:
+        inferFileFormat({ fileName: file.name, mimeType: file.type })
+          ?.cardType ?? "document",
+      source: "web",
+      via: "file_upload",
+    });
+  }
+};
 
-export function GlobalFileDropProvider({
-  children,
-  onUpgrade,
-  upgradeUrl,
-}: GlobalFileDropProviderProps) {
+export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
   const t = useTranslations("providers.fileDrop");
   const tUpload = useTranslations("lib.upload");
   const serverErrors = useServerErrors();
@@ -89,7 +94,7 @@ export function GlobalFileDropProvider({
     };
   }, []);
 
-  const { handleUpgrade } = useUpgradeAction(onUpgrade, upgradeUrl);
+  const { showCreateFailure } = useUpgradeAction();
 
   const resolveResultToast = useCallback(
     (results: UploadMultipleFilesResultItem[], skippedCount: number) => {
@@ -120,32 +125,19 @@ export function GlobalFileDropProvider({
         return;
       }
 
-      const limitFailure = summary.failures.find(
-        (failure) =>
-          !failure.success &&
-          failure.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED
-      );
-      if (limitFailure) {
-        toast.error(withSkippedNote(t("cardLimitReached")), {
+      // The card limit first: upgrading is what makes the rest go through.
+      const failedWith = (code: string) =>
+        summary.failures.find(
+          (failure) => !failure.success && failure.errorCode === code
+        );
+      const limited =
+        failedWith(CARD_ERROR_CODES.CARD_LIMIT_REACHED) ??
+        failedWith(CARD_ERROR_CODES.RATE_LIMITED);
+      if (limited) {
+        showCreateFailure(limited, {
           ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
-          action: {
-            label: t("upgrade"),
-            onClick: handleUpgrade,
-          },
-        });
-        return;
-      }
-
-      const rateLimited = summary.failures.find(
-        (failure) =>
-          !failure.success &&
-          failure.errorCode === CARD_ERROR_CODES.RATE_LIMITED
-      );
-      if (rateLimited) {
-        toast.error(withSkippedNote(t("rateLimited")), {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-          id: TOAST_IDS.uploadQueue,
+          note: skippedNote || undefined,
         });
         return;
       }
@@ -187,7 +179,7 @@ export function GlobalFileDropProvider({
         }
       );
     },
-    [handleUpgrade, intlLocale, serverErrors, t, tUpload]
+    [intlLocale, serverErrors, showCreateFailure, t, tUpload]
   );
 
   const handlersRef = useRef<UploadQueueHandlers | null>(null);
@@ -207,7 +199,10 @@ export function GlobalFileDropProvider({
           ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         }),
-      upload: uploadMultipleFiles,
+      upload: (files) => {
+        reportSubmittedFiles(files);
+        return uploadMultipleFiles(files);
+      },
     };
   }, [resolveResultToast, t, tUpload, uploadMultipleFiles]);
   const [queue] = useState(() =>

@@ -29,7 +29,6 @@ import {
 import type { CardWithUrls } from "@/components/cards";
 import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { VaultSetupState } from "@/components/feedback/VaultSetupState";
-import type { AddCardFormProps } from "@/components/forms";
 import { AddCardEmptyState, AddCardForm } from "@/components/forms";
 import { AddCardButton } from "@/components/forms/AddCardActions";
 import { useSaveSearchAsNote } from "@/components/forms/useSaveNote";
@@ -139,12 +138,10 @@ interface CardsScreenProps {
     change: SearchUrlChange
   ) => void;
   onSwitchCard?: (cardId: string) => void;
-  onUpgrade?: AddCardFormProps["onUpgrade"];
   onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
   queryRetryKey?: string;
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
-  upgradeUrl: string;
   view?: LibraryView;
 }
 
@@ -161,12 +158,10 @@ export function CardsScreen({
   onCloseCard,
   onFocusComposerHandled,
   onOpenFolder,
-  onUpgrade,
   queryRetryKey,
   headerLeading,
   onNavigateView,
   view,
-  upgradeUrl,
   searchUrlState,
   onSearchUrlStateChange,
   onSwitchCard,
@@ -636,17 +631,9 @@ export function CardsScreen({
         draftContentRef={draftContentRef}
         onFocus={handleComposerFocus}
         onOpenCard={composerHandlers.onOpenCard}
-        onUpgrade={onUpgrade}
-        upgradeUrl={upgradeUrl}
       />
     ),
-    [
-      composerFocus.pending,
-      composerHandlers,
-      handleComposerFocus,
-      onUpgrade,
-      upgradeUrl,
-    ]
+    [composerFocus.pending, composerHandlers, handleComposerFocus]
   );
 
   // Everything keeps the plain "Teak" title; every other view names the tab
@@ -685,8 +672,6 @@ export function CardsScreen({
         ? null
         : noResultsHelp.noteText,
     onOpenCard: composerHandlers.onOpenCard,
-    onUpgrade,
-    upgradeUrl,
   });
 
   const renderEmptyState = () => {
@@ -782,7 +767,6 @@ export function CardsScreen({
           <AddCardEmptyState
             draftContentRef={draftContentRef}
             onFocus={handleComposerFocus}
-            upgradeUrl={upgradeUrl}
           />
           {hiddenCardsHint ? (
             <div className="mt-4 text-center">{hiddenCardsHint}</div>
@@ -941,14 +925,11 @@ export function CardsScreen({
           batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
           folder={gridFolder}
-          gutter={density.layout.gutter}
           hasMore={
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
-          initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
-          maxColumns={density.layout.maxColumns}
-          minColumnWidth={density.layout.minColumnWidth}
+          layout={density.layout}
           {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}
@@ -962,7 +943,6 @@ export function CardsScreen({
               isFolderView
             )
           }
-          showBulkActions={true}
           view={gridView}
         />
       )}

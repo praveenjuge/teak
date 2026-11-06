@@ -6,7 +6,6 @@ import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
 import { useLibraryUrl } from "../hooks/useLibraryUrl";
 import type { CardsVisualFilters } from "../lib/cardsSearchState";
 import type { LibraryView } from "../lib/libraryViews";
-import { SETTINGS_PLAN_HREF } from "../lib/settingsSections";
 import { CardsReadBoundary } from "./CardsReadBoundary";
 import { CardsScreen } from "./CardsScreen";
 
@@ -55,12 +54,10 @@ export function LibraryScreen({
           onOpenFolder={url.onOpenFolder}
           onSearchUrlStateChange={url.onSearchUrlStateChange}
           onSwitchCard={switchCard}
-          onUpgrade={url.onUpgrade}
           onVisualFiltersChange={rememberVisualFilters}
           queryRetryKey={retryKey}
           searchUrlState={url.searchUrlState}
           selectedCardId={selectedCardId}
-          upgradeUrl={SETTINGS_PLAN_HREF}
           view={view}
         />
       )}

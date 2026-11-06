@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Fichier importé} other {# fichiers importés}}",
       "uploadedSentence": "{count, plural, one {Fichier importé.} other {# fichiers importés.}}",
-      "cardLimitReached": "Limite de fiches gratuites atteinte",
-      "upgrade": "Passer à Pro",
-      "rateLimited": "Trop de fiches créées. Veuillez patienter un instant.",
       "uploadFailed": "Échec de l’importation",
       "uploadFailedMany": "Impossible d’importer {count, plural, one {# fichier} other {# fichiers}}. {reason}",
       "uploading": "Importation…",
@@ -1222,10 +1219,6 @@
       "microphoneDenied": "L’accès au micro a été refusé. Autorisez-le et réessayez.",
       "microphoneMissing": "Aucun micro détecté. Branchez-en un et réessayez.",
       "recordingStartFailed": "Impossible de démarrer l’enregistrement. Vérifiez la configuration de votre micro.",
-      "uploading": "Importation de {name}…",
-      "uploaded": "{name} importé",
-      "uploadFailed": "Impossible d’importer {name} : {error}",
-      "uploadFailedReason": "Échec de l’importation",
       "startingMicrophone": "Démarrage du micro…",
       "savingRecordingStatus": "Sauvegarde de l’enregistrement…",
       "recordingHint": "Parlez naturellement. Teak enregistrera ceci comme fiche audio.",
@@ -1735,7 +1728,6 @@
       "saved": "PDF enregistré",
       "alreadySaved": "Déjà enregistré",
       "open": "Ouvrir",
-      "cardLimitReached": "Limite de fiches gratuites atteinte",
       "tooLarge": "Ce PDF est trop volumineux. Teak conserve les fichiers jusqu’à 100 Mo.",
       "notPdf": "arXiv n’a pas envoyé de PDF pour cet article.",
       "failed": "Impossible d’enregistrer le PDF. Réessayez."

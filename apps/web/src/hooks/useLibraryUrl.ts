@@ -21,7 +21,6 @@ import {
   serializeSearchUrlState,
 } from "@/lib/searchUrlState";
 import { type SearchUrlChange, searchUrlQuery } from "@/lib/searchUrlSync";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   readSharedText,
   SHARE_FILES_PARAM,
@@ -189,7 +188,6 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       [router]
     ),
     onSearchUrlStateChange,
-    onUpgrade: useCallback(() => router.push(SETTINGS_PLAN_HREF), [router]),
     popCardEntry,
     pushCardId: (cardId: string) => setCardId(cardId, false),
     replaceCardId: (cardId: string | null) => setCardId(cardId, true),
