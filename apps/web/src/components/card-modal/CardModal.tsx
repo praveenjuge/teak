@@ -62,7 +62,6 @@ import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { RunnableCardActionId } from "../../hooks/useCardActions";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { CARD_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
@@ -75,6 +74,7 @@ import {
 } from "../../lib/cardActions";
 import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
+import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
   imageFromClipboard,

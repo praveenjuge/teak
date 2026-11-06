@@ -3,7 +3,6 @@
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CARD_DIALOG_ATTRIBUTE,
   type KeyboardShortcut,
   useKeyboardShortcuts,
 } from "../../hooks/useKeyboardShortcuts";
@@ -13,19 +12,17 @@ import {
   paletteCardHref,
   paletteSearchAllHref,
   paletteShuffleHref,
-  requestEmptyTrash,
   settingsDataHref,
   shouldOpenPalette,
 } from "../../lib/commandPalette";
 import {
+  APP_KEYS,
+  CARD_DIALOG_ATTRIBUTE,
   focusLibrarySearch,
   focusNewNoteComposer,
   GO_TO_SETTINGS_KEY,
   GO_TO_TAGS_KEY,
   GO_TO_VIEW_KEYS,
-  pressRecordAudio,
-  pressUploadFiles,
-  registerShortcutsOpener,
 } from "../../lib/keyboardShortcuts";
 import { onDemand, whenIdle } from "../../lib/lazyWithPreload";
 import {
@@ -35,6 +32,10 @@ import {
 } from "../../lib/libraryViews";
 import type { CommandPaletteCommand } from "../command-palette/CommandPalette";
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
+import {
+  useLibraryCommand,
+  useRunLibraryCommand,
+} from "../providers/LibraryCommandsProvider";
 
 const CommandPalette = onDemand(() =>
   import("../command-palette/CommandPalette").then(
@@ -107,6 +108,7 @@ export function LibraryShortcuts({
   const returnPaletteFocus = useReturnFocus(isPaletteOpen);
   const returnShortcutsFocus = useReturnFocus(isDialogOpen);
   const { resolvedTheme, setTheme, systemTheme } = useTheme();
+  const runLibraryCommand = useRunLibraryCommand();
 
   const newNote = useCallback(() => {
     if (!focusNewNoteComposer()) {
@@ -164,7 +166,7 @@ export function LibraryShortcuts({
           newNote();
           return;
         case "upload":
-          pressUploadFiles();
+          runLibraryCommand("uploadFiles");
           return;
         case "import":
         case "export":
@@ -182,7 +184,7 @@ export function LibraryShortcuts({
           setDialogOpen(true);
           return;
         case "empty-trash":
-          requestEmptyTrash();
+          runLibraryCommand("emptyTrash");
           return;
         case "sign-out":
           onSignOut();
@@ -196,6 +198,7 @@ export function LibraryShortcuts({
       onNavigate,
       onSignOut,
       resolvedTheme,
+      runLibraryCommand,
       setDialogOpen,
       setTheme,
       systemTheme,
@@ -216,30 +219,30 @@ export function LibraryShortcuts({
   const shortcuts = useMemo<KeyboardShortcut[]>(
     () => [
       {
-        keys: "/",
+        keys: APP_KEYS.search,
         run: closeDialogThen(() => {
           focusLibrarySearch();
         }),
       },
       {
-        keys: "n",
+        keys: APP_KEYS.newNote,
         run: closeDialogThen(newNote),
       },
       {
-        keys: "u",
+        keys: APP_KEYS.uploadFiles,
         run: closeDialogThen(() => {
-          pressUploadFiles();
+          runLibraryCommand("uploadFiles");
         }),
       },
       {
-        keys: "r",
+        keys: APP_KEYS.recordAudio,
         run: closeDialogThen(() => {
-          pressRecordAudio();
+          runLibraryCommand("recordAudio");
         }),
       },
       {
         alsoOver: CARD_DIALOG_ATTRIBUTE,
-        keys: "?",
+        keys: APP_KEYS.keyboardShortcuts,
         run: () => setDialogOpen(!isDialogOpenRef.current),
       },
       ...LIBRARY_VIEWS.map((view) => ({
@@ -261,20 +264,24 @@ export function LibraryShortcuts({
         }),
       },
     ],
-    [closeDialogThen, newNote, onGoToView, onNavigate, setDialogOpen]
+    [
+      closeDialogThen,
+      newNote,
+      onGoToView,
+      onNavigate,
+      runLibraryCommand,
+      setDialogOpen,
+    ]
   );
 
   // The open palette's dialog holds the keys back, but on a first open its
   // code may still be loading, with no dialog in the page yet.
   useKeyboardShortcuts(shortcuts, { enabled: !isPaletteOpen });
 
-  useEffect(
-    () =>
-      registerShortcutsOpener(() => {
-        setDialogOpen(true);
-      }),
-    [setDialogOpen]
-  );
+  useLibraryCommand("openShortcuts", () => {
+    setDialogOpen(true);
+    return true;
+  });
 
   return (
     <>

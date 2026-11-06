@@ -133,9 +133,13 @@ export function PinnedStrip({
       const from = ids.indexOf(cardId);
       if (move(from, from + step)) {
         event.preventDefault();
+        // Reordering moves the card's element in the page, and the browser
+        // drops focus from an element it moves: give it back once moved.
         requestAnimationFrame(() =>
           listRef.current
-            ?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)
+            ?.querySelector<HTMLElement>(
+              `[data-card-id="${globalThis.CSS.escape(cardId)}"]`
+            )
             ?.focus()
         );
       }

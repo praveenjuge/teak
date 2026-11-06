@@ -3,13 +3,13 @@
 import { api } from "@teak/convex";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Trash } from "vadivam-react";
+import { useLibraryCommand } from "@/components/providers/LibraryCommandsProvider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { isRateLimitError } from "@/lib/cardErrors";
-import { registerEmptyTrash } from "@/lib/commandPalette";
 import { useQuery } from "@/lib/convexQueryHooks";
 
 interface EmptyTrashControlProps {
@@ -27,21 +27,14 @@ export function EmptyTrashControl({
   const tScreen = useTranslations("screens.cards");
   const [open, setOpen] = useState(false);
   const canEmpty = (count ?? 0) > 0;
-  const canEmptyRef = useRef(canEmpty);
-  useEffect(() => {
-    canEmptyRef.current = canEmpty;
-  }, [canEmpty]);
-  useEffect(
-    () =>
-      registerEmptyTrash(() => {
-        if (canEmptyRef.current) {
-          setOpen(true);
-        } else {
-          toast(tScreen("emptyTrash"));
-        }
-      }),
-    [tScreen]
-  );
+  useLibraryCommand("emptyTrash", () => {
+    if (canEmpty) {
+      setOpen(true);
+    } else {
+      toast(tScreen("emptyTrash"));
+    }
+    return true;
+  });
 
   const shown = count ?? 0;
   return (

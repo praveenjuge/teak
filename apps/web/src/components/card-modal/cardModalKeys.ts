@@ -1,5 +1,5 @@
-import { isTypingTarget } from "../../hooks/useKeyboardShortcuts";
 import { type CardActionId, cardActionsForKey } from "../../lib/cardActions";
+import { isTypingTarget, OPEN_OVERLAYS } from "../../lib/keyboardShortcuts";
 import { isApplePlatform } from "../../lib/platform";
 
 /** Keys only the open card has; the rest are card actions. */
@@ -76,12 +76,7 @@ export function cardModalKeyAction(
   return action;
 }
 
-const OTHER_OVERLAYS = [
-  "[role='dialog'][data-state='open']",
-  "[role='alertdialog'][data-state='open']",
-  "[role='menu'][data-state='open']",
-  "[role='listbox'][data-state='open']",
-].join(", ");
+const OTHER_OVERLAYS = OPEN_OVERLAYS.join(", ");
 
 /**
  * Whether Escape should close the card dialog although a tooltip is open. A

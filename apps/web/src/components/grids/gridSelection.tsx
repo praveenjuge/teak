@@ -1,10 +1,7 @@
 import { useTranslations } from "@teak/i18n/react";
 import { useCallback, useEffect, useState } from "react";
-import {
-  isOverlayOpen,
-  isTypingTarget,
-} from "../../hooks/useKeyboardShortcuts";
 import { isSelectAllKey } from "../../lib/gridKeys";
+import { isOverlayOpen, isTypingTarget } from "../../lib/keyboardShortcuts";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 
 /**

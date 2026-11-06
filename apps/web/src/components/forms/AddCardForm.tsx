@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { NEW_NOTE_COMPOSER_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
@@ -362,7 +363,7 @@ export function AddCardForm({
       />
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-        data-new-note-composer=""
+        {...{ [NEW_NOTE_COMPOSER_ATTRIBUTE]: "" }}
         onFocus={onFocus}
       >
         {!hasContent && (

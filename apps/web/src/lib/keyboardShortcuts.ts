@@ -240,6 +240,49 @@ export function isFocusNoteKey(
     : event.ctrlKey && !event.metaKey;
 }
 
+export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
+
+export const CARD_DIALOG_ATTRIBUTE = "data-card-dialog";
+
+const TYPING_ROLES = new Set([
+  "combobox",
+  "searchbox",
+  "spinbutton",
+  "textbox",
+]);
+
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    return true;
+  }
+  if (target.closest("[contenteditable]:not([contenteditable='false'])")) {
+    return true;
+  }
+  const role = target.getAttribute("role");
+  return role !== null && TYPING_ROLES.has(role);
+}
+
+/** Anything open over the page that takes keys: a dialog, a menu, a list. */
+export const OPEN_OVERLAYS = [
+  "[role='dialog'][data-state='open']",
+  "[role='alertdialog'][data-state='open']",
+  "[role='menu'][data-state='open']",
+  "[role='listbox'][data-state='open']",
+] as const;
+
+/** An open overlay, the shortcuts list aside: shortcuts work over that. */
+export const OVERLAY_SELECTOR = OPEN_OVERLAYS.map(
+  (selector) => `${selector}:not([${SHORTCUTS_DIALOG_ATTRIBUTE}])`
+).join(", ");
+
+export function isOverlayOpen(root: ParentNode = document): boolean {
+  return root.querySelector(OVERLAY_SELECTOR) !== null;
+}
+
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
 export const NEW_NOTE_COMPOSER_ATTRIBUTE = "data-new-note-composer";
 
@@ -268,57 +311,6 @@ export function focusNewNoteComposer(): boolean {
   }
   editor.focus();
   editor.scrollIntoView({ block: "nearest" });
-  return true;
-}
-
-const uploadFilesHandlers: Array<() => boolean> = [];
-
-export function registerUploadFiles(handler: () => boolean): () => void {
-  uploadFilesHandlers.push(handler);
-  return () => {
-    const index = uploadFilesHandlers.lastIndexOf(handler);
-    if (index >= 0) {
-      uploadFilesHandlers.splice(index, 1);
-    }
-  };
-}
-
-export function pressUploadFiles(): boolean {
-  return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
-}
-
-const recordAudioHandlers: Array<() => boolean> = [];
-
-export function registerRecordAudio(handler: () => boolean): () => void {
-  recordAudioHandlers.push(handler);
-  return () => {
-    const index = recordAudioHandlers.lastIndexOf(handler);
-    if (index >= 0) {
-      recordAudioHandlers.splice(index, 1);
-    }
-  };
-}
-
-export function pressRecordAudio(): boolean {
-  return recordAudioHandlers[recordAudioHandlers.length - 1]?.() ?? false;
-}
-
-let shortcutsOpener: (() => void) | null = null;
-
-export function registerShortcutsOpener(open: () => void): () => void {
-  shortcutsOpener = open;
-  return () => {
-    if (shortcutsOpener === open) {
-      shortcutsOpener = null;
-    }
-  };
-}
-
-export function openKeyboardShortcuts(): boolean {
-  if (!shortcutsOpener) {
-    return false;
-  }
-  shortcutsOpener();
   return true;
 }
 

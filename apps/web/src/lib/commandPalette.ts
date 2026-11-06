@@ -5,10 +5,10 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
-import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
 import { cardTitle } from "./cardTypes";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
+import { APP_KEYS, isOverlayOpen, keyName } from "./keyboardShortcuts";
 import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
 import {
   LIBRARY_VIEW_PATHS,
@@ -44,7 +44,11 @@ export function isCommandPaletteKey(
   event: PaletteKeyEvent,
   apple = isApplePlatform()
 ): boolean {
-  if (event.key.toLowerCase() !== "k" || event.altKey || event.shiftKey) {
+  if (
+    event.key.toLowerCase() !== APP_KEYS.commandPalette ||
+    event.altKey ||
+    event.shiftKey
+  ) {
     return false;
   }
   return apple
@@ -95,13 +99,13 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   {
     id: "new-note",
     keywords: ["write", "text", "add"],
-    keys: ["N"],
+    keys: [keyName(APP_KEYS.newNote)],
     labelKey: "newNote",
   },
   {
     id: "upload",
     keywords: ["file", "image", "add"],
-    keys: ["U"],
+    keys: [keyName(APP_KEYS.uploadFiles)],
     labelKey: "upload",
   },
   {
@@ -123,7 +127,7 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
   {
     id: "shortcuts",
     keywords: ["keys", "help", "hotkeys"],
-    keys: ["?"],
+    keys: [keyName(APP_KEYS.keyboardShortcuts)],
     labelKey: "shortcuts",
   },
   {
@@ -141,25 +145,6 @@ export const paletteActions = (pathname: string | null | undefined) => {
     (action) => !action.view || action.view === view
   );
 };
-
-let emptyTrashHandler: (() => void) | null = null;
-
-export function registerEmptyTrash(handler: () => void): () => void {
-  emptyTrashHandler = handler;
-  return () => {
-    if (emptyTrashHandler === handler) {
-      emptyTrashHandler = null;
-    }
-  };
-}
-
-export function requestEmptyTrash(): boolean {
-  if (!emptyTrashHandler) {
-    return false;
-  }
-  emptyTrashHandler();
-  return true;
-}
 
 export function isLibraryRoute(pathname: string | null | undefined): boolean {
   return (

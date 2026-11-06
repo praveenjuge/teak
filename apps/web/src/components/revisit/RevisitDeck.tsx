@@ -19,8 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
-import { isTypingTarget } from "@/hooks/useKeyboardShortcuts";
 import { useQuery } from "@/lib/convexQueryHooks";
+import { isTypingTarget } from "@/lib/keyboardShortcuts";
 import {
   REVISIT_DECK_SIZE,
   type RevisitCard,

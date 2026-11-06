@@ -36,7 +36,15 @@ const { ConvexError } = await import("convex/values");
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { requestEmptyTrash } = await import("@/lib/commandPalette");
+const { LibraryCommandsProvider, useRunLibraryCommand } = await import(
+  "@/components/providers/LibraryCommandsProvider"
+);
+let runCommand: ReturnType<typeof useRunLibraryCommand> = () => false;
+function CommandProbe() {
+  runCommand = useRunLibraryCommand();
+  return null;
+}
+const requestEmptyTrash = () => runCommand("emptyTrash");
 const { EmptyTrashButton, EmptyTrashControl } = await import(
   "../EmptyTrashButton"
 );
@@ -63,7 +71,10 @@ async function render(
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <EmptyTrashControl count={count} more={more} onEmpty={onEmpty} />
+      <LibraryCommandsProvider>
+        <CommandProbe />
+        <EmptyTrashControl count={count} more={more} onEmpty={onEmpty} />
+      </LibraryCommandsProvider>
     )
   );
 }

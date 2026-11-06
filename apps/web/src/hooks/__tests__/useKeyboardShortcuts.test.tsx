@@ -14,11 +14,10 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const {
-  CARD_DIALOG_ATTRIBUTE,
-  SHORTCUTS_DIALOG_ATTRIBUTE,
-  useKeyboardShortcuts,
-} = await import("../useKeyboardShortcuts");
+const { useKeyboardShortcuts } = await import("../useKeyboardShortcuts");
+const { CARD_DIALOG_ATTRIBUTE, SHORTCUTS_DIALOG_ATTRIBUTE } = await import(
+  "../../lib/keyboardShortcuts"
+);
 
 const search = mock(() => undefined);
 const favorites = mock(() => undefined);

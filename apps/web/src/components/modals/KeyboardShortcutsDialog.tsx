@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
-import { SHORTCUTS_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import {
   keyboardShortcutGroups,
   platformKey,
+  SHORTCUTS_DIALOG_ATTRIBUTE,
   type ShortcutRow,
 } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
