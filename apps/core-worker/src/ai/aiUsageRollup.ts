@@ -22,7 +22,8 @@ export interface DailyUsageRow {
 }
 
 const MAX_USERS_PER_DAY = 50_000;
-const DEFAULT_DATASET = "teak_ai_usage";
+/** The dataset the AI_USAGE binding writes when AI_USAGE_DATASET is unset. */
+export const DEFAULT_AI_USAGE_DATASET = "teak_ai_usage";
 const SQL_TIMEOUT_MS = 30_000;
 // The SQL API fails a query with a 5xx now and then. The query only reads, so
 // it is retried briefly before the hourly run gives up (and the next hour
@@ -122,7 +123,7 @@ const queryDailyUsage = async (
       `https://api.cloudflare.com/client/v4/accounts/${env.ANALYTICS_ACCOUNT_ID}/analytics_engine/sql`,
       {
         body: dailyUsageSql(
-          env.AI_USAGE_DATASET || DEFAULT_DATASET,
+          env.AI_USAGE_DATASET || DEFAULT_AI_USAGE_DATASET,
           convexSiteUrl,
           date
         ),

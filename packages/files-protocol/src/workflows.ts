@@ -134,6 +134,17 @@ export const WORKFLOW_NAMES = [
 ] as const;
 export type WorkflowName = (typeof WORKFLOW_NAMES)[number];
 
+/** The Worker binding each workflow runs under, in every Wrangler config. */
+export const WORKFLOW_BINDINGS = {
+  "account-deletion": "ACCOUNT_DELETION",
+  "card-processing": "CARD_PROCESSING",
+  export: "EXPORTS",
+  import: "IMPORTS",
+  maintenance: "MAINTENANCE",
+} as const satisfies Record<WorkflowName, string>;
+export type WorkflowBindingName =
+  (typeof WORKFLOW_BINDINGS)[keyof typeof WORKFLOW_BINDINGS];
+
 export const isWorkflowName = (value: unknown): value is WorkflowName =>
   typeof value === "string" &&
   (WORKFLOW_NAMES as readonly string[]).includes(value);

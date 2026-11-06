@@ -1,4 +1,16 @@
+import { WORKFLOW_BINDINGS, type WorkflowName } from "@teak/files-protocol";
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
+
+const WORKFLOW_NOTES: Record<WorkflowName, string> = {
+  "account-deletion":
+    "Workflow deleting an account's data, stage by stage, with durable retries.",
+  "card-processing":
+    "Workflow running card processing (classify, link metadata, categorize, AI metadata, renderables, screenshot).",
+  export: "Workflow building a data export ZIP.",
+  import: "Workflow running a data import.",
+  maintenance:
+    "Workflow for the periodic card cleanup, export cleanup and orphan sweep.",
+};
 
 export const OPS_ENTRIES: EnvVarSpec[] = [
   spec("TEAK_AUTH_URL", {
@@ -227,7 +239,7 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     validation: "url",
     providers: ["cloudflare"],
     required: false,
-    note: "The Worker's own public origin, set as a Wrangler var. Ops run in-process by workflows transform large images by URL through it.",
+    note: "The Worker's own public origin, set as a Wrangler var. The same value as the Convex deployment's FILES_BASE: the two names are kept because both are deployed config. Ops run in-process by workflows transform large images by URL through it.",
   }),
   spec("ANALYTICS_ACCOUNT_ID", {
     owners: ["@teak/core-worker"],
@@ -260,20 +272,10 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     note: "Cloudflare API token with Account Analytics: Read, for the Analytics Engine SQL API the hourly AI usage rollup reads. Set with `bunx wrangler secret put ANALYTICS_API_TOKEN` per Worker; unset skips the rollup.",
   }),
   ...[
-    [
-      "CARD_PROCESSING",
-      "Workflow running card processing (classify, link metadata, categorize, AI metadata, renderables, screenshot).",
-    ],
-    ["EXPORTS", "Workflow building a data export ZIP."],
-    ["IMPORTS", "Workflow running a data import."],
-    [
-      "ACCOUNT_DELETION",
-      "Workflow deleting an account's data, stage by stage, with durable retries.",
-    ],
-    [
-      "MAINTENANCE",
-      "Workflow for the periodic card cleanup, export cleanup and orphan sweep.",
-    ],
+    ...Object.entries(WORKFLOW_BINDINGS).map(([workflow, binding]) => [
+      binding,
+      WORKFLOW_NOTES[workflow as WorkflowName],
+    ]),
     ["OBJECT_DELETIONS", "Queue of storage objects Convex asked to delete."],
     [
       "AI_BACKFILL",

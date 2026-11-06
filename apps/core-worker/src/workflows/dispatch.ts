@@ -9,6 +9,8 @@ import {
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
   verifyDispatchProof,
+  WORKFLOW_BINDINGS,
+  type WorkflowBindingName,
   type WorkflowName,
 } from "@teak/files-protocol";
 import {
@@ -24,34 +26,17 @@ export interface ObjectDeletionMessage {
   keys: string[];
 }
 
-export interface WorkflowBindingsEnv extends ConvexRpcEnv, TelemetryEnvVars {
-  ACCOUNT_DELETION?: Workflow;
-  CARD_PROCESSING?: Workflow;
-  EXPORTS?: Workflow;
-  IMPORTS?: Workflow;
-  MAINTENANCE?: Workflow;
+export interface WorkflowBindingsEnv
+  extends ConvexRpcEnv,
+    TelemetryEnvVars,
+    Partial<Record<WorkflowBindingName, Workflow>> {
   OBJECT_DELETIONS?: Queue<ObjectDeletionMessage>;
 }
 
 export const workflowBinding = (
   env: WorkflowBindingsEnv,
   name: WorkflowName
-): Workflow | undefined => {
-  switch (name) {
-    case "account-deletion":
-      return env.ACCOUNT_DELETION;
-    case "card-processing":
-      return env.CARD_PROCESSING;
-    case "export":
-      return env.EXPORTS;
-    case "import":
-      return env.IMPORTS;
-    case "maintenance":
-      return env.MAINTENANCE;
-    default:
-      return;
-  }
-};
+): Workflow | undefined => env[WORKFLOW_BINDINGS[name]];
 
 /** Workflows' `get` throws for an ID it has no instance for. */
 export const isMissingInstance = (error: unknown): boolean =>

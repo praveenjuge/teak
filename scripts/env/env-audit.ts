@@ -300,11 +300,44 @@ export const extractTurboDecls = (
   return decls;
 };
 
+/** The `[...]` or `{...}` value of the first `"key":` in a Wrangler config. */
+const wranglerBlock = (content: string, key: string): string => {
+  const start = new RegExp(`"${key}"\\s*:\\s*([[{])`).exec(content);
+  if (!start) {
+    return "";
+  }
+  const open = start.index + start[0].length - 1;
+  let depth = 0;
+  for (let index = open; index < content.length; index += 1) {
+    const char = content[index];
+    if (char === "[" || char === "{") {
+      depth += 1;
+    } else if (char === "]" || char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return content.slice(open, index + 1);
+      }
+    }
+  }
+  return "";
+};
+
+const BINDING_NAME = /"name"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
+
 export const extractWranglerDecls = (content: string): string[] => {
   const names: string[] = [];
   const bindingRe = /"binding"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
   for (const match of content.matchAll(bindingRe)) {
     names.push(match[1]);
+  }
+  // Durable Object and rate limit bindings are named by "name".
+  for (const block of [
+    wranglerBlock(wranglerBlock(content, "durable_objects"), "bindings"),
+    wranglerBlock(content, "ratelimits"),
+  ]) {
+    for (const match of block.matchAll(BINDING_NAME)) {
+      names.push(match[1]);
+    }
   }
   const varsMatch = /"vars"\s*:\s*\{([^}]*)\}/.exec(content);
   if (varsMatch) {
