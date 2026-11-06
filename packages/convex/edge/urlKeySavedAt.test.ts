@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -168,7 +168,7 @@ describe("savedAt", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const later = Date.now() + 86_400_000;
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, id, { savedAt: later, updatedAt: later })
+      patchCard(ctx, id, { savedAt: later, updatedAt: later })
     );
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const rows = await t.run(async (ctx) => ({

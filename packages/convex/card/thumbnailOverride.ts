@@ -38,7 +38,7 @@ import {
   PENDING_UPLOAD_CARD_ID,
   queueObjectDeletion,
 } from "../storage/r2";
-import { patchCardWithSearchSync } from "./searchSync";
+import { patchCard } from "./cardWrites";
 
 export const THUMBNAIL_ROLE = "thumbnail-override";
 export const THUMBNAIL_PENDING_ROLE = "thumbnail-override-pending";
@@ -230,7 +230,7 @@ const changeThumbnail = async (
   const changeId = crypto.randomUUID();
   const deleteAfter = now + THUMBNAIL_UNDO_WINDOW_MS;
   const previous = card.thumbnailOverride ?? null;
-  const patched = await patchCardWithSearchSync(ctx, card._id, {
+  const patched = await patchCard(ctx, card._id, {
     thumbnailOverride: next,
     previousThumbnailOverride: { override: previous, changeId, deleteAfter },
     thumbnailChangeId: changeId,
@@ -445,7 +445,7 @@ export const undoThumbnailChangeHandler = async (
     return expired;
   }
   const newer = card.thumbnailOverride;
-  const patched = await patchCardWithSearchSync(ctx, cardId, {
+  const patched = await patchCard(ctx, cardId, {
     thumbnailOverride: previous.override ?? undefined,
     previousThumbnailOverride: undefined,
     thumbnailChangeId: undefined,
@@ -494,7 +494,7 @@ export const deleteReplacedThumbnail = internalMutation({
     }
     await queueObjectDeletion(ctx, storageKey);
     if (card && kept?.override?.storageKey === storageKey) {
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         previousThumbnailOverride: undefined,
       });
     }

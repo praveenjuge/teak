@@ -1,6 +1,6 @@
 import type { DevScenarioCardDef } from "../card/defaultCards";
 import { FOLDER_SCENARIO_START } from "./folderPacks";
-import { palette, SCENARIO_MARKER } from "./helpers";
+import { palette, SCENARIO_MARKER, type SeedCardDef } from "./helpers";
 
 export const ORDERING_SCENARIO_SIZE = 1000;
 export const ORDERING_SCENARIO_PAGE_SIZE = 200;
@@ -343,9 +343,7 @@ const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
 const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
 const SHUFFLE_PARTIAL_TYPES = ["text", "quote", "palette"] as const;
 
-export const shufflePartialScenarioCard = (
-  index: number
-): DevScenarioCardDef => {
+export const shufflePartialScenarioCard = (index: number): SeedCardDef => {
   const keyed = index % 4 === 0;
   const label = `Shuffle #${String(index).padStart(3, "0")} ${
     keyed ? "keyed" : "no key"
@@ -353,7 +351,7 @@ export const shufflePartialScenarioCard = (
   const base = {
     createdAt: SHUFFLE_PARTIAL_START + index * 86_400_000,
     tags: ["scenario-shuffle-partial"],
-    shuffleKey: keyed ? undefined : null,
+    ...(keyed ? {} : { legacy: { noShuffleKey: true as const } }),
   };
   if (index % SHUFFLE_PARTIAL_PAGE_SIZE === 0) {
     const url = `https://example.com/shuffle-partial/${index}#${SCENARIO_MARKER}-shuffle-partial-${index}`;
@@ -370,9 +368,7 @@ export const shufflePartialScenarioCard = (
   };
 };
 
-export const shufflePartialScenarioPage = (
-  page: number
-): DevScenarioCardDef[] => {
+export const shufflePartialScenarioPage = (page: number): SeedCardDef[] => {
   const start = page * SHUFFLE_PARTIAL_PAGE_SIZE;
   const end = Math.min(
     start + SHUFFLE_PARTIAL_PAGE_SIZE,

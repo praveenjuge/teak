@@ -2,6 +2,7 @@ import {
   explainInvalidCardTags,
   isCardHidden,
   isHiddenTagList,
+  MAX_BULK_TAGS,
   normalizeTagList,
   tagKey,
 } from "@teak/convex/shared/tags";
@@ -12,9 +13,6 @@ import {
  * and a tag that differs from one the card has only in case is the one it has,
  * as the server compares them.
  */
-
-/** The server's `MAX_BULK_TAGS`: how many tags one bulk edit may name. */
-export const MAX_TAGS_PER_EDIT = 20;
 
 interface TaggedCard {
   aiTags?: readonly string[];
@@ -96,7 +94,7 @@ export const explainInvalidTagEdit = (
   tags: readonly string[],
   mode: "add" | "remove"
 ): { kind: "tooLong" } | { kind: "tooMany" } | null => {
-  if (tags.length > MAX_TAGS_PER_EDIT) {
+  if (tags.length > MAX_BULK_TAGS) {
     return { kind: "tooMany" };
   }
   // Removing names tags a card already has, older long ones included.

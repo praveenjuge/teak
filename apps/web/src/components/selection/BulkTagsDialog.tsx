@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { MAX_BULK_TAGS, MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  explainInvalidTagEdit,
-  MAX_TAGS_PER_EDIT,
-  parseTagList,
-} from "@/lib/cardTags";
+import { explainInvalidTagEdit, parseTagList } from "@/lib/cardTags";
 
 interface BulkTagsDialogProps {
   mode: "add" | "remove";
@@ -53,7 +49,7 @@ export function BulkTagsDialog({
   if (invalid?.kind === "tooLong") {
     problem = t("tagTooLong", { max: MAX_TAG_NAME_LENGTH });
   } else if (invalid?.kind === "tooMany") {
-    problem = t("tooManyTags", { max: MAX_TAGS_PER_EDIT });
+    problem = t("tooManyTags", { max: MAX_BULK_TAGS });
   }
   const canSubmit = tags.length > 0 && !problem;
 

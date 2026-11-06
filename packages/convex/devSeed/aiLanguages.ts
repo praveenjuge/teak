@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
-import { normalizeCardSearchTag } from "../card/searchSync";
 import { readIsDevDeployment } from "../env";
+import { normalizeCardSearchTag } from "../shared/search/searchText";
 import { isWorkosProductionApi, workosApiBase } from "../shared/workosApi";
 import { link, SCENARIO_MARKER } from "./helpers";
 

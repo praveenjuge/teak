@@ -8,6 +8,7 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
+import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { type ImportHighlightInput, parseImportedTimestamp } from "./validate";
@@ -24,15 +25,15 @@ export interface SourceLink {
   url: string;
 }
 
+// Imports keep fewer tags than a card may hold (`MAX_CARD_TAGS`).
 const MAX_TAGS = 50;
-const MAX_TAG_LENGTH = 64;
 export const MAX_NOTES_LENGTH = 100_000;
 
 export function cleanTags(tags: Iterable<string>): string[] | undefined {
   const seen = new Set<string>();
   for (const raw of tags) {
     const tag = raw.trim();
-    if (tag && tag.length <= MAX_TAG_LENGTH) {
+    if (tag && tag.length <= MAX_TAG_NAME_LENGTH) {
       seen.add(tag);
     }
     if (seen.size === MAX_TAGS) {

@@ -1,12 +1,12 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
+import { patchCard } from "../../../card/cardWrites";
 import {
   mergeProcessingStages,
   stageCompleted,
   stageFailed,
   stageInProgress,
 } from "../../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../../card/searchSync";
 import { pageArchiveValidator, r2KeyValidator } from "../../../schema";
 import { resolveSizeBucket } from "../../../shared/analytics";
 import {
@@ -64,7 +64,7 @@ export const recordPageArchive = internalMutation({
       // Highlighted while this run archived the page: the copy they were
       // made against stays, and this one goes.
       await queueObjectDeletion(ctx, archive.storageKey);
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         processingStatus: mergeProcessingStages(card.processingStatus, {
           archive: stageCompleted(Date.now()),
         }),
@@ -81,7 +81,7 @@ export const recordPageArchive = internalMutation({
       await queueObjectDeletion(ctx, pending);
     }
     const now = Date.now();
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       pageArchive: archive,
       processingStatus: mergeProcessingStages(card.processingStatus, {
         archive: stageCompleted(now),
@@ -128,7 +128,7 @@ export const markPageArchiveStage = internalMutation({
     const now = Date.now();
     const current = card.processingStatus?.archive;
     const failure = toPageArchiveFailureReason(reason);
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       processingStatus: mergeProcessingStages(card.processingStatus, {
         archive:
           status === "in_progress"

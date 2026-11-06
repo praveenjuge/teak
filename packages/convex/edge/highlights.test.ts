@@ -7,8 +7,8 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import { createCardForUserHandler } from "../card/createCard";
+import { onCardChanged } from "../card/onCardChanged";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import { newImportFolderCache } from "../folder/folders";
 import { insertImportedHighlights } from "../highlight/highlights";
@@ -144,7 +144,7 @@ const setup = async () => {
             article: { ...card.article, textKey: key },
           });
         }
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
       });
     }
     return id;

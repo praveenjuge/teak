@@ -283,7 +283,7 @@ export const seedReaderMix = async (
     ctx,
     userId,
     READER_MIX.map(({ card }) => card),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const archives: Array<{
     key: string;
@@ -507,7 +507,7 @@ export const seedReaderSearchPage = async (
       type: "link" as const,
       url: url(index),
     })),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const prefix = buildR2UserPrefix(userId);
   for (const [offset, cardId] of ids.entries()) {

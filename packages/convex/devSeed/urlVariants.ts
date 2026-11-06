@@ -1,4 +1,4 @@
-import type { DevScenarioCardDef } from "../card/defaultCards";
+import type { SeedCardDef } from "./helpers";
 
 const URL_VARIANTS_START = Date.UTC(2025, 0, 1);
 
@@ -118,7 +118,7 @@ const VARIANT_LINKS: {
   },
 ];
 
-export const urlVariantsScenarioPage = (page: number): DevScenarioCardDef[] =>
+export const urlVariantsScenarioPage = (page: number): SeedCardDef[] =>
   page === 0
     ? (["k", "l"] as const).flatMap((version, set) =>
         VARIANT_LINKS.map((link, index) => {
@@ -132,7 +132,7 @@ export const urlVariantsScenarioPage = (page: number): DevScenarioCardDef[] =>
             tags: ["scenario-url-variants"],
             ...(link.isArchived ? { isArchived: true } : {}),
             ...(link.isDeleted ? { isDeleted: true } : {}),
-            ...(version === "l" ? { beforeUrlKey: true as const } : {}),
+            ...(version === "l" ? { legacy: { noUrlKey: true as const } } : {}),
           };
         })
       )

@@ -10,7 +10,7 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import {
   ocrBackfillArgs,
@@ -78,7 +78,7 @@ export const storeLinkOcr = internalMutation({
     ) {
       return false;
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       aiOcrText: aiOcrText || undefined,
       ocrCheckedAt: Date.now(),
     });

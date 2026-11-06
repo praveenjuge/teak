@@ -2,7 +2,8 @@ import polarTest from "@convex-dev/polar/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
-import { ensureCardUsageShards, insertCountedCard } from "../card/cardUsage";
+import { ensureCardUsageShards } from "../card/cardUsage";
+import { insertCard } from "../card/cardWrites";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -160,7 +161,7 @@ describe("account list", () => {
     await t.run(async (ctx) => {
       await ensureCardUsageShards(ctx, "teak_customer", false);
       for (const content of ["one", "two", "three"]) {
-        await insertCountedCard(ctx, {
+        await insertCard(ctx, {
           userId: "teak_customer",
           type: "text",
           content,

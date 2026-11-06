@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 import {
   SEMANTIC_CACHE_TTL_MS,
@@ -93,7 +93,7 @@ const setup = async () => {
         ...(seed.isDeleted ? { deletedAt: createdAt } : {}),
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
   };
@@ -442,7 +442,7 @@ describe("hybrid search with price:", () => {
           createdAt: 2000 + (price ?? 0),
           updatedAt: 2000,
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
         return id;
       });
     const cheap = await product("Brass task light", 40);

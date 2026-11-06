@@ -21,7 +21,7 @@ import {
 } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components, internal } from "../_generated/api";
-import { syncCardSearchTagsBatchHandler } from "../card/searchSync";
+import { syncCardSearchTagsBatchHandler } from "../card/onCardChanged";
 import schema from "../schema";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";

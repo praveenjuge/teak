@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { patchCardWithSearchSync } from "./card/searchSync";
+import { patchCard } from "./card/cardWrites";
 import { queueObjectDeletion } from "./storage/r2";
 import { getR2KeyPrefix } from "./storage/r2Keys";
 import {
@@ -43,10 +43,10 @@ export const getFullCardForMetadata = internalQuery({
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  patch: Parameters<typeof patchCardWithSearchSync>[2],
+  patch: Parameters<typeof patchCard>[2],
   storage: { introduced: string[]; replaced: string[] }
 ): Promise<boolean> => {
-  const committed = await patchCardWithSearchSync(ctx, cardId, patch);
+  const committed = await patchCard(ctx, cardId, patch);
   const orphans = committed ? storage.replaced : storage.introduced;
   await Promise.all(
     orphans.map(async (key) => {
@@ -122,7 +122,7 @@ export const getCardForScreenshot = internalQuery({
 
 type CardMetadata = NonNullable<Doc<"cards">["metadata"]>;
 type StoredLinkPreview = NonNullable<CardMetadata["linkPreview"]>;
-type CardPatch = Parameters<typeof patchCardWithSearchSync>[2];
+type CardPatch = Parameters<typeof patchCard>[2];
 
 const collectMediaStorageRefs = (
   mediaItems: StoredLinkPreview["media"] | undefined
@@ -172,7 +172,7 @@ export const updateCardMetadataHandler = async (
         error: linkPreview?.error,
       }
     );
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       metadataStatus: "completed",
       updatedAt: Date.now(),
     });

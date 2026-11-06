@@ -64,7 +64,7 @@ Every write a processing run makes carries the run's processing revision. Editin
 **Keeping vectors in step.** `cardEmbeddings` (`packages/convex/embedding/`) is the ledger, one row per card that has or is due for a vector.
 
 - `buildEmbeddingText` joins the title, description, AI summary, tags, notes, visual styles and the first 2,000 characters of the body.
-- The search sync (`card/searchSync.ts`) marks a card when its searchable text or type changes and sets `dueAt` 30 seconds out, so a burst of edits costs one embedding and card processing has no embedding step.
+- The change hook every card write runs (`card/onCardChanged.ts`) marks a card when its searchable text or type changes and sets `dueAt` 30 seconds out, so a burst of edits costs one embedding and card processing has no embedding step.
 - The first job claims its owner's due cards (`claimDueEmbeddings`, up to 64, 10-minute lease) and writes them 32 to an `embed-upsert`, because many small Vectorize writes get 429s (`VECTOR_UPSERT_ERROR`, code 40041).
 - A SHA-256 of the version, type and text skips unchanged cards. A job records its result only if `dueAt` still holds the value it read, so an older job never marks a newer edit done.
 - Failures retry with backoff (30 s doubling) five times, then keep `attempts` and `lastError` for the backfill. Deleting a card tombstones its row (`pendingVectorDeleteAt`) until the vector delete succeeds. Without `FILES_BASE` (the end-to-end stack) nothing is marked.

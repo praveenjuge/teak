@@ -176,6 +176,29 @@ describe("card/cardUsage.ts premium sharding", () => {
     }
   });
 
+  test("a billing lookup that fails is logged and still applies the free limit", async () => {
+    const db = makeDb();
+    db.store.userCardUsage.push(saturatedUsage());
+    const ctx = mockMutationCtx({ db });
+    const errors: unknown[][] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    let error: { data?: { code?: string } } | undefined;
+    try {
+      error = await authorizeCardCreation(ctx, "premium-user", {
+        ...freeDeps(),
+        getSubscription: () => Promise.reject(new Error("Polar is down")),
+      } as CardCreationDeps).catch((e) => e);
+    } finally {
+      console.error = originalError;
+    }
+    expect(error?.data?.code).toBe("CARD_LIMIT_REACHED");
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0]?.[0])).toContain("[billing]");
+  });
+
   test("free users with an inexact count below the limit are still gated", async () => {
     const db = makeDb();
     db.store.userCardUsage.push({

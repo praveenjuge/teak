@@ -1,13 +1,13 @@
 import { cardTypeStages } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { patchCard } from "../../card/cardWrites";
 import {
   mergeProcessingStages,
   stageCompleted,
   stagePending,
 } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import { patchCardWithSearchSync } from "../../card/searchSync";
 import type { CardType } from "../../schema";
 
 export const recordClassification = internalMutation({
@@ -27,7 +27,7 @@ export const recordClassification = internalMutation({
 
     if (type === undefined) {
       if (card.processingStatus?.classify?.status !== "completed") {
-        await patchCardWithSearchSync(ctx, cardId, {
+        await patchCard(ctx, cardId, {
           processingStatus: mergeProcessingStages(card.processingStatus, {
             classify: stageCompleted(now, confidence),
           }),
@@ -63,7 +63,7 @@ export const recordClassification = internalMutation({
       }
     }
 
-    await patchCardWithSearchSync(ctx, cardId, patchData);
+    await patchCard(ctx, cardId, patchData);
 
     return null;
   },

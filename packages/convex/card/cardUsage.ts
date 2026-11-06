@@ -1,4 +1,3 @@
-import type { WithoutSystemFields } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -7,8 +6,6 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
-import { urlKey } from "../shared/utils/urlKey";
-import { withHiddenFlag } from "./hiddenCards";
 
 export const CARD_USAGE_SCAN_LIMIT = FREE_TIER_LIMIT + 1;
 export const CARD_USAGE_BASE_SHARDS = 16;
@@ -414,42 +411,6 @@ export const recordActiveCardCreated = async (
     return;
   }
   throw new Error("Card usage shards must be initialized before card creation");
-};
-
-// At the limit the card is deleted again before the error propagates: callers
-// that catch CARD_LIMIT_REACHED per item (bulk create, import) would otherwise
-// commit it uncounted, and Convex has no savepoints.
-export const insertCountedCard = async (
-  ctx: MutationCtx,
-  card: WithoutSystemFields<Doc<"cards">>,
-  options: { hasPremium?: boolean } = {}
-): Promise<Id<"cards">> => {
-  const cardId = await ctx.db.insert(
-    "cards",
-    withHiddenFlag({
-      ...card,
-      urlKey: card.url ? urlKey(card.url) : undefined,
-      // A card missing from the `…_saved` indexes would drop out of lists.
-      savedAt: card.savedAt ?? card.createdAt,
-    })
-  );
-  try {
-    await recordActiveCardCreated(ctx, card.userId, cardId, options);
-  } catch (error) {
-    await ctx.db.delete("cards", cardId);
-    throw error;
-  }
-  return cardId;
-};
-
-export const restoreCountedCard = async (
-  ctx: MutationCtx,
-  card: Doc<"cards">,
-  patch: Partial<Doc<"cards">>,
-  options: { hasPremium?: boolean } = {}
-) => {
-  await recordActiveCardCreated(ctx, card.userId, card._id, options);
-  await ctx.db.patch("cards", card._id, patch);
 };
 
 export const recordActiveCardRemoved = async (

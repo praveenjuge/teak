@@ -6,9 +6,9 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
-  syncCardSearchDocumentHandler,
+  onCardChanged,
   syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
+} from "../card/onCardChanged";
 import schema from "../schema";
 import { MAX_PINNED_CARDS } from "../shared/pins";
 
@@ -61,7 +61,7 @@ const setup = async () => {
         savedAt: createdAt,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       for (let step = 0; step < 10; step += 1) {
         await syncCardSearchTagsBatchHandler(ctx, id);
       }

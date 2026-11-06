@@ -12,7 +12,7 @@ import {
   internalQuery,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import { inferFileFormat } from "../shared/fileFormats";
 import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import { queueCardProcessing } from "../workflowDispatch";
@@ -104,7 +104,7 @@ export const finishPdfOcrCheck = internalMutation({
         await queueCardProcessing(ctx, cardId, { metadataOnly: true })
       );
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       ocrCheckedAt: Date.now(),
     });
   },

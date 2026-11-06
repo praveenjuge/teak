@@ -1,11 +1,11 @@
 import { FILES_WAVEFORM_BARS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
+import { patchCard } from "../../../card/cardWrites";
 import {
   mergeProcessingStages,
   stageFailed,
 } from "../../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../../card/searchSync";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
 import { queueCardProcessingFailed } from "../../../telemetry/schedule";
 
@@ -18,7 +18,7 @@ export const markCardRenderablesFailed = internalMutation({
       return null;
     }
     const now = Date.now();
-    await patchCardWithSearchSync(ctx, args.cardId, {
+    await patchCard(ctx, args.cardId, {
       processingStatus: mergeProcessingStages(card.processingStatus, {
         renderables: stageFailed(
           now,
@@ -52,7 +52,7 @@ export const updateCardFileMetadata = internalMutation({
       return null;
     }
 
-    await patchCardWithSearchSync(ctx, args.cardId, {
+    await patchCard(ctx, args.cardId, {
       fileMetadata: {
         ...(card.fileMetadata || {}),
         width: args.width,
@@ -113,7 +113,7 @@ export const updateCardMediaFacts = internalMutation({
     if (Object.keys(missing).length === 0) {
       return null;
     }
-    await patchCardWithSearchSync(ctx, args.cardId, {
+    await patchCard(ctx, args.cardId, {
       fileMetadata: { ...current, ...missing },
       updatedAt: Date.now(),
     });
@@ -133,7 +133,7 @@ export const updateCardFilePreview = internalMutation({
       return null;
     }
 
-    await patchCardWithSearchSync(ctx, args.cardId, {
+    await patchCard(ctx, args.cardId, {
       fileMetadata: {
         ...(card.fileMetadata || {}),
         preview: {
@@ -205,7 +205,7 @@ export const updateCardThumbnail = internalMutation({
       };
     }
 
-    await patchCardWithSearchSync(ctx, args.cardId, updates);
+    await patchCard(ctx, args.cardId, updates);
     return null;
   },
 });

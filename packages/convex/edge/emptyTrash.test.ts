@@ -9,7 +9,7 @@ import {
   EMPTY_TRASH_PAGE_SIZE,
   EMPTY_TRASH_RATE_LIMITED_MESSAGE,
 } from "../card/emptyTrash";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
+import { onCardChanged } from "../card/onCardChanged";
 import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 
@@ -53,7 +53,7 @@ const setup = async () => {
         savedAt: at,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
   };

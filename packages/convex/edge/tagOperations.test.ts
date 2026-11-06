@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { patchCard } from "../card/cardWrites";
 import {
   CARD_SEARCH_TAG_SYNC_BATCH_SIZE,
-  patchCardWithSearchSync,
-  syncCardSearchDocumentHandler,
+  onCardChanged,
   syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
+} from "../card/onCardChanged";
 import schema from "../schema";
 import { TAG_OPERATION_STALL_MS } from "../shared/tags";
 import {
@@ -57,7 +57,7 @@ const setup = async () => {
         updatedAt: 1000,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, cardId);
+      await onCardChanged(ctx, cardId);
       return cardId;
     });
     return id;
@@ -187,7 +187,7 @@ describe("library-wide tag operations", () => {
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
     expect((await card(late))?.tags).toEqual(["draft"]);
-    await t.run((ctx) => syncCardSearchDocumentHandler(ctx, late));
+    await t.run((ctx) => onCardChanged(ctx, late));
     await runScheduled();
     expect((await card(late))?.tags).toEqual(["final"]);
     const done = await t.run((ctx) =>
@@ -231,7 +231,7 @@ describe("library-wide tag operations", () => {
     ).toBe("running");
     await t.run(async (ctx) => {
       await ctx.db.delete("cardSearchTagSyncStates", pendingSync);
-      await syncCardSearchDocumentHandler(ctx, late);
+      await onCardChanged(ctx, late);
     });
     await runScheduled();
     expect((await card(late))?.tags).toEqual(["final"]);
@@ -277,7 +277,7 @@ describe("library-wide tag operations", () => {
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, trashed, {
+      patchCard(ctx, trashed, {
         isDeleted: undefined,
         deletedAt: undefined,
       })
@@ -451,7 +451,7 @@ describe("tag summary snapshot", () => {
     );
     const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
       t.run((ctx) =>
-        patchCardWithSearchSync(ctx, cardId, {
+        patchCard(ctx, cardId, {
           ...value,
           updatedAt: Date.now(),
         })
@@ -518,7 +518,7 @@ describe("tag summary snapshot", () => {
     const { t, insert, summary, runScheduled } = await setup();
     const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
       t.run((ctx) =>
-        patchCardWithSearchSync(ctx, cardId, {
+        patchCard(ctx, cardId, {
           ...value,
           updatedAt: Date.now(),
         })
@@ -559,13 +559,13 @@ describe("tag summary snapshot", () => {
     await runScheduled();
     // B's edit queues a tag sync; A is re-cased later, before B's sync runs.
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, b, {
+      patchCard(ctx, b, {
         tags: ["Design", "queued"],
         updatedAt: 2000,
       })
     );
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 3000 })
+      patchCard(ctx, a, { tags: ["DESIGN"], updatedAt: 3000 })
     );
     await runScheduled();
     expect(
@@ -591,13 +591,13 @@ describe("tag summary snapshot", () => {
       )?.label
     ).toBe("DESIGN");
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, b, {
+      patchCard(ctx, b, {
         tags: ["Design", "queued"],
         updatedAt: 2000,
       })
     );
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, c, { tags: ["DESIGN"], updatedAt: 3000 })
+      patchCard(ctx, c, { tags: ["DESIGN"], updatedAt: 3000 })
     );
     // C's casing is folded before B's queued sync runs.
     await t.mutation(internal.tag.tagSummary.foldTagCountDeltas, {
@@ -623,12 +623,12 @@ describe("tag summary snapshot", () => {
         updatedAt: 1000,
       });
       // The tag sync is queued, not run.
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
     // The suggestion is kept, in the casing the person chose, before it runs.
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, cardId, {
+      patchCard(ctx, cardId, {
         tags: ["Design Systems"],
         updatedAt: 2000,
       })
@@ -648,7 +648,7 @@ describe("tag summary snapshot", () => {
     await insert({ tags: ["design"], createdAt: 2000 });
     await runScheduled();
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, older, { tags: ["DESIGN"], updatedAt: 3000 })
+      patchCard(ctx, older, { tags: ["DESIGN"], updatedAt: 3000 })
     );
     await runScheduled();
     expect(
@@ -676,7 +676,7 @@ describe("tag summary snapshot", () => {
       }
     });
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, a, { tags: ["DESIGN"], updatedAt: 2000 })
+      patchCard(ctx, a, { tags: ["DESIGN"], updatedAt: 2000 })
     );
     await runScheduled();
     expect(
@@ -701,7 +701,7 @@ describe("tag summary snapshot", () => {
         createdAt: 1000,
         updatedAt: 1000,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       // One batch runs: the first 32 tags have rows, the last 8 don't yet.
       await syncCardSearchTagsBatchHandler(ctx, id, "owner");
       return id;
@@ -711,7 +711,7 @@ describe("tag summary snapshot", () => {
       .reverse()
       .map((tag) => (tag === "tag-0" ? "TAG-0" : tag));
     await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, cardId, { tags: reversed, updatedAt: 2000 })
+      patchCard(ctx, cardId, { tags: reversed, updatedAt: 2000 })
     );
     await runScheduled();
     const rows = await t.run((ctx) =>
@@ -771,9 +771,7 @@ describe("tag summary snapshot", () => {
     const refreshes = () =>
       t.run((ctx) => ctx.db.query("tagSummaryRefreshes").collect());
     const patch = (value: Partial<Doc<"cards">>) =>
-      t.run((ctx) =>
-        patchCardWithSearchSync(ctx, id, { ...value, updatedAt: Date.now() })
-      );
+      t.run((ctx) => patchCard(ctx, id, { ...value, updatedAt: Date.now() }));
     const settle = async () => {
       for (let round = 0; round < 10; round += 1) {
         vi.advanceTimersByTime(1);
@@ -803,7 +801,7 @@ describe("tag summary snapshot", () => {
     );
     const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
       t.run((ctx) =>
-        patchCardWithSearchSync(ctx, cardId, {
+        patchCard(ctx, cardId, {
           ...value,
           updatedAt: Date.now(),
         })
@@ -826,7 +824,7 @@ describe("tag summary snapshot", () => {
     await t.run(async (ctx) => {
       const card = await ctx.db.get("cards", e);
       await ctx.db.delete("cards", e);
-      await syncCardSearchDocumentHandler(ctx, e, "owner", card ?? undefined);
+      await onCardChanged(ctx, e, "owner", card ?? undefined);
     });
     await runScheduled();
 

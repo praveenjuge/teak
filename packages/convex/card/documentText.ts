@@ -19,12 +19,12 @@ import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { patchCard } from "./cardWrites";
 import {
   documentTextObjectKey,
   isExtractedTextTruncated,
   searchPrefix,
 } from "./documentTextFormat";
-import { patchCardWithSearchSync } from "./searchSync";
 import {
   getArticleTextRow,
   getDocumentTextRow,
@@ -132,7 +132,7 @@ export const saveDocumentTextHandler = async (
   if (card.documentTextKey && card.documentTextKey !== args.key) {
     await queueObjectDeletion(ctx, card.documentTextKey);
   }
-  return await patchCardWithSearchSync(ctx, card._id, {
+  return await patchCard(ctx, card._id, {
     documentTextKey: args.key,
     hasExtractedText: true,
     extractedTextCharCount: args.charCount,

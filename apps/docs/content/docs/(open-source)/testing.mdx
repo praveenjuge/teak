@@ -94,7 +94,7 @@ Turbo replays a cached pass until a task's inputs change, and a task's inputs ar
 
 - **Convex:**
   - `packages/convex/__tests__/helpers/` provides `withTestSession`, R2 mocks and public API HTTP helpers.
-  - `packages/convex/edge/occContention.test.ts` has `insertCard` and search sync fixtures.
+  - `insertTestCard` (`packages/convex/__tests__/helpers/cards.test-utils.ts`) saves a card through the real write path; `packages/convex/edge/occContention.test.ts` has change-hook and tag-sync fixtures.
   - `packages/convex/edge/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
 - **End-to-end:** `packages/tests/src/helpers/app.ts` (sign-up, hosted sign-in, API keys, deletion), `emulator.ts` (WorkOS users, emailed codes, session tokens), `page-hooks.ts` (page errors, blocked requests, Convex socket routing), `test.ts` (`retry`, `firstVisible`), `api.ts`, `cli.ts` and `mcp.ts`. Headless WorkOS sessions against staging: `scripts/lib/workos-test-session.ts`.
 - **Raycast:** `createRaycastApiMock` in `apps/raycast/src/__tests__/raycastApiMock.ts`.

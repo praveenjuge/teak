@@ -1,3 +1,4 @@
+import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -29,6 +30,8 @@ interface ItemSeed {
 
 const setup = async (mode: "archive" | "bookmarks" | "pocket" = "archive") => {
   const t = convexTest(schema, modules);
+  // A free account: billing answers that it has no subscription.
+  polarTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   await seedWorkosOwner(t, "owner");
   const newJob = () =>

@@ -209,7 +209,7 @@ export const seedDeadLinks = async (
   if (seeded) {
     return { status: "already_seeded" as const, cards: 0 };
   }
-  await insertCompletedCards(ctx, userId, cards, { ignoreCardLimit: true });
+  await insertCompletedCards(ctx, userId, cards, { hasPremium: true });
   await ctx.scheduler.runAfter(
     0,
     internal.devSeed.deadLinks.writeStubPageArchives,

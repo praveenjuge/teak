@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { syncCardSearch } from "../card/searchSync";
 import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -22,15 +22,16 @@ const insertCard = async (
     ...overrides,
   });
 
-// A card saved through the app: its search sync sets `aiPending`.
-const saveCard = async (
-  ctx: MutationCtx,
-  overrides: Partial<Doc<"cards">> = {}
-) => {
-  const cardId = await insertCard(ctx, overrides);
-  await syncCardSearch(ctx, cardId);
-  return cardId;
-};
+// A card saved through the app, with `aiPending` set.
+const saveCard = (ctx: MutationCtx, overrides: Partial<Doc<"cards">> = {}) =>
+  insertTestCard(ctx, {
+    content: "Card",
+    createdAt: Date.now(),
+    type: "text",
+    updatedAt: Date.now(),
+    userId: "maintenance-test-user",
+    ...overrides,
+  });
 
 describe("maintenance queries", () => {
   test("AI backfill returns only old active cards missing every AI field", async () => {

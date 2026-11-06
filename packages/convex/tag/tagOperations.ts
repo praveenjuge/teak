@@ -13,7 +13,7 @@ import {
   accountDeletionOwnsRows,
   getAccountDeletionState,
 } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   explainInvalidTagName,
@@ -314,7 +314,7 @@ export const runTagOperationBatchHandler = async (
     if (!(tags || aiTags)) {
       continue;
     }
-    await patchCardWithSearchSync(ctx, card._id, {
+    await patchCard(ctx, card._id, {
       ...(tags ? { tags: tags.length > 0 ? tags : undefined } : {}),
       ...(aiTags ? { aiTags: aiTags.length > 0 ? aiTags : undefined } : {}),
       updatedAt: now,

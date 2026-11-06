@@ -1,3 +1,4 @@
+import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
@@ -36,6 +37,8 @@ afterEach(() => {
 
 const setup = async () => {
   const t = convexTest(schema, modules);
+  // A free account: billing answers that it has no subscription.
+  polarTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
@@ -49,7 +52,7 @@ const setup = async () => {
   });
   const seed = (cards: DevScenarioCardDef[]) =>
     t.run((ctx) =>
-      insertCompletedCards(ctx, "owner", cards, { ignoreCardLimit: true })
+      insertCompletedCards(ctx, "owner", cards, { hasPremium: true })
     );
   const seedLink = async (fields: Partial<DevScenarioCardDef> = {}) => {
     const [id] = await seed([

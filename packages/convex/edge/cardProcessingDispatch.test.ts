@@ -1,10 +1,10 @@
 import type { DispatchItem } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "../ai/backfill";
-import { syncCardSearch } from "../card/searchSync";
 import schema from "../schema";
 import { queueCardProcessing } from "../workflowDispatch";
 
@@ -34,12 +34,18 @@ const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
     })
   );
 
-// A card saved through the app: its search sync sets `aiPending`.
-const saveCard = async (t: T, fields: Partial<Doc<"cards">> = {}) => {
-  const cardId = await insertCard(t, fields);
-  await t.run((ctx) => syncCardSearch(ctx, cardId));
-  return cardId;
-};
+// A card saved through the app, with `aiPending` set.
+const saveCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
+  t.run((ctx) =>
+    insertTestCard(ctx, {
+      content: "Some notes",
+      createdAt: NOW - HOUR_MS,
+      type: "text",
+      updatedAt: NOW - HOUR_MS,
+      userId: "owner",
+      ...fields,
+    })
+  );
 
 const card = (t: T, cardId: Id<"cards">) =>
   t.run((ctx) => ctx.db.get("cards", cardId));

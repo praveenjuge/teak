@@ -9,9 +9,9 @@ import { applyAutoFileRulesToCard } from "../folder/rules";
 import { articleSkipReason } from "../shared/article";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { queueCardProcessing } from "../workflowDispatch";
+import { patchCard } from "./cardWrites";
 import { markUnfinishedCardStagesFailed } from "./processingLifecycle";
 import { mergeProcessingStages, stagePending } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 
 /** What a card-processing dispatch row asked its run to do. */
 export const cardRunParams = (
@@ -93,7 +93,7 @@ export const takeSnapshotWaitingAfterRun = async (
   ) {
     return null;
   }
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     processingStatus: mergeProcessingStages(card.processingStatus, {
       archive: stagePending(),
       article: stagePending(),

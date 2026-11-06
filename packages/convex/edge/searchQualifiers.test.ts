@@ -1,14 +1,13 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { patchCard } from "../card/cardWrites";
+import { onCardChanged } from "../card/onCardChanged";
 import { expressionTextReader } from "../card/searchPlanner";
-import {
-  patchCardWithSearchSync,
-  syncCardSearchDocumentHandler,
-} from "../card/searchSync";
 import schema from "../schema";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 
@@ -45,17 +44,17 @@ const setup = async () => {
   const insert = (seed: CardSeed, userId = "owner") => {
     nextCreatedAt += 1;
     const createdAt = nextCreatedAt;
-    return t.run(async (ctx) => {
-      const id = await ctx.db.insert("cards", {
-        userId,
-        type: seed.url ? "link" : "text",
-        createdAt,
-        updatedAt: createdAt,
-        ...seed,
-      });
-      await syncCardSearchDocumentHandler(ctx, id);
-      return id;
-    });
+    return t.run(
+      async (ctx) =>
+        await insertTestCard(ctx, {
+          userId,
+          type: seed.url ? "link" : "text",
+          createdAt,
+          updatedAt: createdAt,
+          shuffleKey: (createdAt % 97) / 97,
+          ...seed,
+        })
+    );
   };
 
   const card = (cardId: Id<"cards">) =>
@@ -120,13 +119,11 @@ describe("urlHost", () => {
     expect((await card(id))?.urlHost).toBe("github.com");
     expect((await searchDocument(id))?.urlHost).toBe("github.com");
 
-    await t.run((ctx) =>
-      patchCardWithSearchSync(ctx, id, { url: "https://例え.jp/page" })
-    );
+    await t.run((ctx) => patchCard(ctx, id, { url: "https://例え.jp/page" }));
     expect((await card(id))?.urlHost).toBe("xn--r8jz45g.jp");
     expect((await searchDocument(id))?.urlHost).toBe("xn--r8jz45g.jp");
 
-    await t.run((ctx) => patchCardWithSearchSync(ctx, id, { url: undefined }));
+    await t.run((ctx) => patchCard(ctx, id, { url: undefined }));
     expect((await card(id))?.urlHost).toBeUndefined();
     expect((await searchDocument(id))?.urlHost).toBeUndefined();
   });
@@ -218,7 +215,7 @@ describe("sourceUrl", () => {
       url: "https://github.com/acme",
     });
     expect((await card(id))?.urlHost).toBe("github.com");
-    await t.run((ctx) => patchCardWithSearchSync(ctx, id, { url: undefined }));
+    await t.run((ctx) => patchCard(ctx, id, { url: undefined }));
     expect((await card(id))?.urlHost).toBe("example.com");
     expect((await searchDocument(id))?.urlHost).toBe("example.com");
   });
@@ -977,7 +974,7 @@ describe("backfillUrlHost", () => {
           createdAt: 1,
           updatedAt: 1,
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
         await ctx.db.patch("cards", id, { urlHost: undefined });
         const document = await ctx.db
           .query("cardSearchDocuments")

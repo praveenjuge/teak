@@ -7,27 +7,21 @@ import { insertFolder } from "../folder/folders";
 import type { CardType } from "../schema";
 import { type FolderColor, folderNameKey } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
-import { isHiddenTagList } from "../shared/tags";
 import { buildColorFacets } from "../shared/utils/colorUtils";
-import { cardSiteHost } from "../shared/utils/urlHost";
-import { urlKey } from "../shared/utils/urlKey";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
   getOrInitializeCardUsage,
   initializeCardUsageShards,
-  recordActiveCardCreated,
-  recordActiveCardRemoved,
 } from "./cardUsage";
+import { insertCard } from "./cardWrites";
 import { AUDIO_TRANSCRIPT, AUDIO_WAVEFORM } from "./onboarding/processed";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
-import { syncCardSearch } from "./searchSync";
-import { newShuffleKey } from "./shuffle";
 import { storeCardTranscript } from "./textContents";
 
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
@@ -79,14 +73,13 @@ export interface DefaultCardDef {
 
 export interface DevScenarioCardDef extends DefaultCardDef {
   aiOcrText?: string;
-  beforeUrlKey?: true;
   completedAt?: number;
   folderIds?: Id<"folders">[];
   pageArchive?: Doc<"cards">["pageArchive"];
   /** Pinned at this place; ignored on an archived card. */
   pinPosition?: number;
   savedAt?: number;
-  shuffleKey?: number | null;
+  shuffleKey?: number;
 }
 
 /**
@@ -392,12 +385,16 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
   },
 ];
 
+/**
+ * Inserts finished cards: processed already (unless `runProcessing`), so they
+ * show complete at once. Onboarding and the dev seed packs use it.
+ */
 export const insertCompletedCards = async (
   ctx: MutationCtx,
   userId: string,
   cards: readonly DevScenarioCardDef[],
-  /** Dev scenario packs only: count the cards as on Pro, past the free cap. */
-  options: { ignoreCardLimit?: boolean } = {}
+  /** Count the cards as on Pro, past the free plan's cap. */
+  options: { hasPremium?: boolean } = {}
 ): Promise<Id<"cards">[]> => {
   const ids: Id<"cards">[] = [];
   await initializeCardUsageShards(
@@ -410,93 +407,74 @@ export const insertCompletedCards = async (
     const timestamp = cardDef.createdAt ?? now + i * 1000;
     const savedAt = cardDef.savedAt ?? timestamp;
     const { colorHexes, colorHues } = buildColorFacets(cardDef.colors);
-    const cardId = await ctx.db.insert("cards", {
-      userId,
-      type: cardDef.type,
-      content: cardDef.content,
-      url: cardDef.url,
-      ...(cardDef.sourceUrl
-        ? { sourceUrl: cardDef.sourceUrl, sourceTitle: cardDef.sourceTitle }
-        : {}),
-      urlHost: cardSiteHost(cardDef) ?? undefined,
-      urlKey: cardDef.url ? urlKey(cardDef.url) : undefined,
-      ...(cardDef.shuffleKey === null
-        ? {}
-        : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
-      tags: cardDef.tags,
-      notes: cardDef.notes,
-      colors: cardDef.colors,
-      colorHexes,
-      colorHues,
-      aiTags: cardDef.aiTags,
-      aiSummary: cardDef.aiSummary,
-      ...(cardDef.aiOcrText
-        ? { aiOcrText: cardDef.aiOcrText, ocrCheckedAt: timestamp }
-        : {}),
-      fileKey: cardDef.fileKey,
-      fileMetadata: cardDef.fileMetadata,
-      thumbnailKey: cardDef.thumbnailKey,
-      scrubKey: cardDef.scrubKey,
-      isFavorited: cardDef.isFavorited,
-      ...(cardDef.folderIds?.length ? { folderIds: cardDef.folderIds } : {}),
-      metadata: cardDef.metadata,
-      metadataTitle: cardDef.metadataTitle,
-      metadataDescription: cardDef.metadataDescription,
-      ...(cardDef.onboarding ? { onboarding: cardDef.onboarding } : {}),
-      ...(cardDef.isArchived
-        ? { isArchived: true as const, archivedAt: timestamp }
-        : {}),
-      ...(cardDef.completedAt === undefined
-        ? {}
-        : { completedAt: cardDef.completedAt }),
-      ...(cardDef.pageArchive ? { pageArchive: cardDef.pageArchive } : {}),
-      ...("pinPosition" in cardDef &&
-      cardDef.pinPosition !== undefined &&
-      !cardDef.isArchived
-        ? { pinPosition: cardDef.pinPosition }
-        : {}),
-      ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
-      ...(cardDef.runProcessing
-        ? {
-            processingStatus: buildInitialProcessingStatus({
-              now,
-              cardType: cardDef.type,
-              classificationStatus: stageCompleted(now, 1),
-            }),
-            ...(cardDef.type === "link" && {
-              metadataStatus: "pending" as const,
-            }),
-          }
-        : { metadataStatus: "completed" as const, processingStatus }),
-      createdAt: timestamp,
-      savedAt,
-      updatedAt: Math.max(timestamp, savedAt),
-    });
-    await recordActiveCardCreated(ctx, userId, cardId, {
-      hasPremium: options.ignoreCardLimit,
-    });
-    if (cardDef.aiTranscript) {
-      await ctx.db.patch(
-        "cards",
-        cardId,
-        await storeCardTranscript(
-          ctx,
-          { _id: cardId, userId },
-          cardDef.aiTranscript
-        )
-      );
-    }
-    if (cardDef.isDeleted) {
-      await ctx.db.patch("cards", cardId, {
-        isDeleted: true,
-        deletedAt: timestamp,
-      });
-      await recordActiveCardRemoved(ctx, userId, cardId);
-    }
-    await syncCardSearch(ctx, cardId, userId);
-    if (cardDef.beforeUrlKey) {
-      await ctx.db.patch("cards", cardId, { urlKey: undefined });
-    }
+    const { aiTranscript } = cardDef;
+    const cardId = await insertCard(
+      ctx,
+      {
+        userId,
+        type: cardDef.type,
+        content: cardDef.content,
+        url: cardDef.url,
+        ...(cardDef.sourceUrl
+          ? { sourceUrl: cardDef.sourceUrl, sourceTitle: cardDef.sourceTitle }
+          : {}),
+        shuffleKey: cardDef.shuffleKey,
+        tags: cardDef.tags,
+        notes: cardDef.notes,
+        colors: cardDef.colors,
+        colorHexes,
+        colorHues,
+        aiTags: cardDef.aiTags,
+        aiSummary: cardDef.aiSummary,
+        ...(cardDef.aiOcrText
+          ? { aiOcrText: cardDef.aiOcrText, ocrCheckedAt: timestamp }
+          : {}),
+        fileKey: cardDef.fileKey,
+        fileMetadata: cardDef.fileMetadata,
+        thumbnailKey: cardDef.thumbnailKey,
+        scrubKey: cardDef.scrubKey,
+        isFavorited: cardDef.isFavorited,
+        ...(cardDef.folderIds?.length ? { folderIds: cardDef.folderIds } : {}),
+        metadata: cardDef.metadata,
+        metadataTitle: cardDef.metadataTitle,
+        metadataDescription: cardDef.metadataDescription,
+        ...(cardDef.onboarding ? { onboarding: cardDef.onboarding } : {}),
+        ...(cardDef.isArchived
+          ? { isArchived: true as const, archivedAt: timestamp }
+          : {}),
+        ...(cardDef.isDeleted
+          ? { isDeleted: true as const, deletedAt: timestamp }
+          : {}),
+        ...(cardDef.completedAt === undefined
+          ? {}
+          : { completedAt: cardDef.completedAt }),
+        ...(cardDef.pageArchive ? { pageArchive: cardDef.pageArchive } : {}),
+        ...(cardDef.pinPosition !== undefined && !cardDef.isArchived
+          ? { pinPosition: cardDef.pinPosition }
+          : {}),
+        ...(cardDef.runProcessing
+          ? {
+              processingStatus: buildInitialProcessingStatus({
+                now,
+                cardType: cardDef.type,
+                classificationStatus: stageCompleted(now, 1),
+              }),
+              ...(cardDef.type === "link" && {
+                metadataStatus: "pending" as const,
+              }),
+            }
+          : { metadataStatus: "completed" as const, processingStatus }),
+        createdAt: timestamp,
+        savedAt,
+        updatedAt: Math.max(timestamp, savedAt),
+      },
+      {
+        hasPremium: options.hasPremium,
+        finish: aiTranscript
+          ? (card) => storeCardTranscript(ctx, card, aiTranscript)
+          : undefined,
+      }
+    );
     if (
       cardDef.type === "document" &&
       cardDef.fileKey &&

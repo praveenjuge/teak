@@ -36,9 +36,9 @@ import {
 } from "./adminAccess";
 import { readHasPremium } from "./auth";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
+import { patchCard } from "./card/cardWrites";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
-import { patchCardWithSearchSync } from "./card/searchSync";
 import { clearCardTranscript } from "./card/textContents";
 import { adminOverviewFields } from "./schema";
 import { normalizeIdentityEmail } from "./shared/workosIds";
@@ -629,7 +629,7 @@ export const resetCardProcessingState = internalMutation({
       classify: stagePending(),
     };
 
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       thumbnailKey: undefined,
       scrubKey: undefined,
       ...(card.fileMetadata ? { fileMetadata } : {}),

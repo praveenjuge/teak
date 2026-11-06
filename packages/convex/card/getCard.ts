@@ -49,20 +49,12 @@ export const getCardByUrlId = query({
       return null;
     }
 
-    const normalizedId = id.trim();
-    if (!normalizedId) {
+    // A URL can hold anything; only a well-formed card id is looked up.
+    const cardId = ctx.db.normalizeId("cards", id.trim());
+    if (!cardId) {
       return null;
     }
-
-    try {
-      return await getCardForUserHandler(
-        ctx,
-        user.teakUserId,
-        normalizedId as Id<"cards">
-      );
-    } catch {
-      return null;
-    }
+    return await getCardForUserHandler(ctx, user.teakUserId, cardId);
   },
 });
 

@@ -13,13 +13,13 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
+  onCardChanged,
+  syncCardSearchTagsBatchHandler,
+} from "../card/onCardChanged";
+import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "../card/searchReads";
-import {
-  syncCardSearchDocumentHandler,
-  syncCardSearchTagsBatchHandler,
-} from "../card/searchSync";
 import { mapConvexErrorToResponse } from "../publicApi/http/shared";
 import schema from "../schema";
 import { MAX_CARD_TAGS } from "../shared/tags";
@@ -271,7 +271,7 @@ describe("Public API Trash and visual filters", () => {
             savedAt: index + 2,
             updatedAt: index + 2,
           });
-          await syncCardSearchDocumentHandler(ctx, id);
+          await onCardChanged(ctx, id);
           await syncCardSearchTagsBatchHandler(ctx, id);
           if (isMatch) {
             ids.unshift(id);
@@ -424,7 +424,7 @@ describe("Search scan budget", () => {
           savedAt: index + 2,
           updatedAt: index + 2,
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
       }
     });
     const found = await t.run((ctx) =>
@@ -469,7 +469,7 @@ describe("Search scan budget", () => {
       const { t, cardId } = await setup();
       await t.run(async (ctx) => {
         await syncCardSearchTagsBatchHandler(ctx, cardId);
-        await syncCardSearchDocumentHandler(ctx, cardId);
+        await onCardChanged(ctx, cardId);
       });
       const search = () =>
         t.run((ctx) =>
@@ -502,7 +502,7 @@ describe("Search scan budget", () => {
           updatedAt: 2,
         });
         await syncCardSearchTagsBatchHandler(ctx, second);
-        await syncCardSearchDocumentHandler(ctx, second);
+        await onCardChanged(ctx, second);
       });
       await expect(search()).rejects.toThrow("Search is too broad");
     }
@@ -1300,7 +1300,7 @@ describe("Stable pagination", () => {
           savedAt: firstCreatedAt + index,
           updatedAt: firstCreatedAt + index,
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
         await syncCardSearchTagsBatchHandler(ctx, id);
         ids.push(id);
       }
@@ -1485,7 +1485,7 @@ describe("Web search pagination", () => {
           createdAt,
           updatedAt: createdAt,
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
         byCreatedAt[createdAt] = id;
       }
       return [50, 40, 30, 20, 10].map((createdAt) => byCreatedAt[createdAt]);

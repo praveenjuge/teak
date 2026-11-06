@@ -5,6 +5,7 @@ import type { CardType } from "../schema";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import type { Id } from "../shared/types";
 import { queueCardProcessingFailed } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
@@ -12,7 +13,6 @@ import {
   stageFailed,
   stagePending,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 import { clearCardTranscript } from "./textContents";
 
 export const initializeCardProcessingState = async (
@@ -25,12 +25,12 @@ export const initializeCardProcessingState = async (
     return false;
   }
   const now = Date.now();
-  const cardType = (card.type ?? "text") as CardType;
+  const cardType = card.type;
   const awaitingLinkMetadata =
     cardType === "link" &&
     (options.refresh === true ||
       card.metadata?.linkPreview?.status !== "success");
-  await patchCardWithSearchSync(ctx, cardId, {
+  await patchCard(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,
     aiLanguage: undefined,
@@ -96,7 +96,7 @@ export const markUnfinishedCardStagesFailed = async (
   if (Object.keys(failedStages).length === 0) {
     return false;
   }
-  await patchCardWithSearchSync(ctx, context.cardId, {
+  await patchCard(ctx, context.cardId, {
     processingStatus: { ...current, ...failedStages },
     updatedAt: now,
   });

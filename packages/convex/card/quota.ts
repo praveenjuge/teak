@@ -91,15 +91,21 @@ export const getCardQuotaEntitlement = async (
   if (readBillingDisabled()) {
     return true;
   }
-  let hasPremium = false;
   try {
-    hasPremium = isApprovedActiveSubscription(
+    return isApprovedActiveSubscription(
       await deps.getSubscription(ctx, { userId })
     );
-  } catch {
-    hasPremium = false;
+  } catch (error) {
+    // Entitlement stays fail-closed: a lookup that keeps failing must not lift
+    // the free cap. The log makes the failure visible instead of silent.
+    console.error(
+      "[billing] subscription lookup failed; applying free limits",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      }
+    );
+    return false;
   }
-  return hasPremium;
 };
 
 export const authorizeCardCreation = async (

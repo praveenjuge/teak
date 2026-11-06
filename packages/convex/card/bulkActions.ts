@@ -9,7 +9,11 @@ import {
   smartFolderMembership,
 } from "../folder/membership";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
-import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
+import {
+  explainInvalidCardTags,
+  MAX_BULK_TAGS,
+  normalizeTagList,
+} from "../shared/tags";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
@@ -17,7 +21,6 @@ import {
 } from "./updateCard";
 
 export const MAX_BULK_CARD_IDS = 100;
-export const MAX_BULK_TAGS = 20;
 
 export const bulkCardActionValidator = v.union(
   v.literal("favorite"),
@@ -192,6 +195,38 @@ export const applyCardAction = async (
   }
 };
 
+const bulkCardFailureValidator = v.object({
+  cardId: v.id("cards"),
+  code: v.string(),
+});
+
+type BulkCardFailure = Infer<typeof bulkCardFailureValidator>;
+
+interface BulkCardActionResult {
+  failedIds: Id<"cards">[];
+  /** Why each card in `failedIds` failed; left out when none did. */
+  failures?: BulkCardFailure[];
+  updatedIds: Id<"cards">[];
+}
+
+/**
+ * A card's error code (`NOT_FOUND`, `CARD_LIMIT_REACHED`...). Anything that
+ * isn't a ConvexError is a bug, so it's logged before the rest carry on.
+ */
+const bulkFailureCode = (error: unknown, action: BulkCardAction): string => {
+  if (error instanceof ConvexError) {
+    const { code } = (error.data ?? {}) as { code?: unknown };
+    if (typeof code === "string") {
+      return code;
+    }
+  }
+  console.error("[bulkActions] a card failed unexpectedly", {
+    action,
+    error: error instanceof Error ? error.message : String(error),
+  });
+  return "INTERNAL";
+};
+
 export const applyBulkCardAction = async (
   ctx: MutationCtx,
   args: {
@@ -202,7 +237,7 @@ export const applyBulkCardAction = async (
     tags?: readonly string[];
     userId: TeakUserId;
   }
-): Promise<{ failedIds: Id<"cards">[]; updatedIds: Id<"cards">[] }> => {
+): Promise<BulkCardActionResult> => {
   const cardIds = Array.from(new Set(args.cardIds));
   if (cardIds.length === 0) {
     throw new ConvexError({
@@ -243,7 +278,7 @@ export const applyBulkCardAction = async (
       : args.action;
 
   const updatedIds: Id<"cards">[] = [];
-  const failedIds: Id<"cards">[] = [];
+  const failures: BulkCardFailure[] = [];
   for (const cardId of cardIds) {
     try {
       await applyCardAction(ctx, {
@@ -255,11 +290,15 @@ export const applyBulkCardAction = async (
         fromFolder: action === "moveToFolder" ? fromFolder : undefined,
       });
       updatedIds.push(cardId);
-    } catch {
-      failedIds.push(cardId);
+    } catch (error) {
+      failures.push({ cardId, code: bulkFailureCode(error, action) });
     }
   }
-  return { updatedIds, failedIds };
+  return {
+    updatedIds,
+    failedIds: failures.map(({ cardId }) => cardId),
+    ...(failures.length > 0 ? { failures } : {}),
+  };
 };
 
 export const bulkUpdateCards = mutation({
@@ -273,6 +312,7 @@ export const bulkUpdateCards = mutation({
   returns: v.object({
     updatedIds: v.array(v.id("cards")),
     failedIds: v.array(v.id("cards")),
+    failures: v.optional(v.array(bulkCardFailureValidator)),
   }),
   handler: async (ctx, args) => {
     const user = await requireSessionUser(ctx);

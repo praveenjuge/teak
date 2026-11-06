@@ -8,8 +8,8 @@ import {
   deleteAccountDataHandler,
   type OwnedCardIds,
 } from "../accountDeletion";
+import { onCardChanged } from "../card/onCardChanged";
 import { searchCardsByDocument } from "../card/searchReads";
-import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import { readFolderCardCount } from "../folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,
@@ -58,7 +58,7 @@ const setup = async () => {
         updatedAt: 1000,
         ...seed,
       });
-      await syncCardSearchDocumentHandler(ctx, id);
+      await onCardChanged(ctx, id);
       return id;
     });
 
@@ -716,7 +716,7 @@ describe("folder view", () => {
           updatedAt: index + 2,
           ...(index % 3 === 0 ? { folderIds: [shelf._id] } : {}),
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
       }
     });
     const inFolder = (
@@ -769,7 +769,7 @@ describe("folder view", () => {
           updatedAt: index + 2,
           folderIds: [shelf._id],
         });
-        await syncCardSearchDocumentHandler(ctx, id);
+        await onCardChanged(ctx, id);
       }
     });
     const found: string[] = [];
