@@ -98,9 +98,12 @@ export const getCardQuotaEntitlement = async (
   } catch (error) {
     // Entitlement stays fail-closed: a lookup that keeps failing must not lift
     // the free cap. The log makes the failure visible instead of silent.
-    console.error("[billing] subscription lookup failed; applying free limits", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.error(
+      "[billing] subscription lookup failed; applying free limits",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      }
+    );
     return false;
   }
 };

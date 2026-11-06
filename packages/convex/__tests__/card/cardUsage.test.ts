@@ -185,7 +185,7 @@ describe("card/cardUsage.ts premium sharding", () => {
     console.error = (...args: unknown[]) => {
       errors.push(args);
     };
-    let error: unknown;
+    let error: { data?: { code?: string } } | undefined;
     try {
       error = await authorizeCardCreation(ctx, "premium-user", {
         ...freeDeps(),
@@ -194,9 +194,7 @@ describe("card/cardUsage.ts premium sharding", () => {
     } finally {
       console.error = originalError;
     }
-    expect((error as { data?: { code?: string } })?.data?.code).toBe(
-      "CARD_LIMIT_REACHED"
-    );
+    expect(error?.data?.code).toBe("CARD_LIMIT_REACHED");
     expect(errors).toHaveLength(1);
     expect(String(errors[0]?.[0])).toContain("[billing]");
   });
