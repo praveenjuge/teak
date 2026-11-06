@@ -1,4 +1,4 @@
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { useCallback, useEffect, useRef } from "react";
 import type { BulkRunResult } from "../lib/bulkCardActions";
 import type { LibrarySort } from "../lib/searchUrlState";

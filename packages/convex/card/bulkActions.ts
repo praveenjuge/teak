@@ -10,6 +10,11 @@ import {
 } from "../folder/membership";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import {
+  type BulkCardAction,
+  bulkCardActionValidator,
+  MAX_BULK_CARD_IDS,
+} from "../shared/bulkCardActions";
+import {
   explainInvalidCardTags,
   MAX_BULK_TAGS,
   normalizeTagList,
@@ -20,23 +25,12 @@ import {
   updateCardFieldsForUserHandler,
 } from "./updateCard";
 
-export const MAX_BULK_CARD_IDS = 100;
-
-export const bulkCardActionValidator = v.union(
-  v.literal("favorite"),
-  v.literal("unfavorite"),
-  v.literal("archive"),
-  v.literal("unarchive"),
-  v.literal("addTags"),
-  v.literal("removeTags"),
-  v.literal("delete"),
-  v.literal("restore"),
-  v.literal("addToFolder"),
-  v.literal("removeFromFolder"),
-  v.literal("moveToFolder")
-);
-
-export type BulkCardAction = Infer<typeof bulkCardActionValidator>;
+// Still exported from here for publicApi.ts and scripts/repo/native-constants.ts.
+export {
+  type BulkCardAction,
+  bulkCardActionValidator,
+  MAX_BULK_CARD_IDS,
+} from "../shared/bulkCardActions";
 
 const isTagAction = (
   action: BulkCardAction

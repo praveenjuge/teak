@@ -1,9 +1,9 @@
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import {
   type CardPinSource,
   captureEvent,
 } from "@teak/convex/shared/analytics";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";

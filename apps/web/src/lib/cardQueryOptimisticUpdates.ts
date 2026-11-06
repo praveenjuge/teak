@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { isHiddenTagList, normalizeTagList } from "@teak/convex/shared/tags";
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
 import { urlKey } from "@teak/convex/shared/utils/urlKey";
@@ -153,7 +153,6 @@ function updateCardsInDetailQueries(
 type UpdateCardFieldArgs = FunctionArgs<typeof api.cards.updateCardField>;
 type BulkUpdateCardsArgs = FunctionArgs<typeof api.cards.bulkUpdateCards>;
 export type CardField = UpdateCardFieldArgs["field"];
-export type { BulkCardAction } from "@teak/convex/card/bulkActions";
 
 type FolderAction = Extract<
   BulkCardAction,

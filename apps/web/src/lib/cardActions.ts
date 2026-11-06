@@ -1,4 +1,4 @@
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import type { Messages } from "@teak/i18n";
 import { isApplePlatform } from "./platform";
 

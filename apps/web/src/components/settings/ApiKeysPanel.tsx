@@ -1,3 +1,4 @@
+import { API_KEY_NAME_MAX_LENGTH } from "@teak/convex/shared/apiKeyName";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useRef, useState } from "react";
@@ -82,9 +83,6 @@ export function nextRevealedKeys(
       return [];
   }
 }
-
-/** Matches the server's cap (`API_KEY_NAME_MAX_LENGTH` in `apiKeys.ts`). */
-export const API_KEY_NAME_MAX_LENGTH = 64;
 
 /**
  * Where focus goes once a revoked key leaves the list: the key that took its

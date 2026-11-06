@@ -1,5 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { useTranslations } from "@teak/i18n/react";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";

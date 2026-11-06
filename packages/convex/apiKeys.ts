@@ -16,10 +16,10 @@ import {
 } from "./publicApi";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
+import { API_KEY_NAME_MAX_LENGTH } from "./shared/apiKeyName";
 import { rateLimiter } from "./shared/rateLimits";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
-export const API_KEY_NAME_MAX_LENGTH = 64;
 
 /** A key's name on one line within 64 characters, or the default. */
 export const cleanApiKeyName = (name: string | undefined): string =>
