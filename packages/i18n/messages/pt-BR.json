@@ -1615,6 +1615,11 @@
       "invalidPost": "Dados da publicação inválidos",
       "signIn": "Entre no Teak para salvar",
       "saveFailed": "Não foi possível salvar a publicação"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "Seu centro de conhecimento pessoal. Salve, organize e redescubra conteúdo da web sem esforço.",
+      "saveCommand": "Salvar esta página no Teak"
     }
   },
   "screens": {

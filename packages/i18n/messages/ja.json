@@ -1615,6 +1615,11 @@
       "invalidPost": "投稿のデータが無効です",
       "signIn": "保存するには Teak にサインインしてください",
       "saveFailed": "投稿を保存できませんでした"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "あなた専用のナレッジハブです。Web コンテンツを手軽に保存、整理して、もう一度見つけられます。",
+      "saveCommand": "このページを Teak に保存"
     }
   },
   "screens": {

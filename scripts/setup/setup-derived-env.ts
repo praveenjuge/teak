@@ -7,9 +7,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname } from "node:path";
+import { MAIN_PORTS, MAIN_SITE_URL } from "../dev/worktree-env.ts";
 
-export const LOCAL_CONVEX_URL = "http://127.0.0.1:3210";
-export const LOCAL_CONVEX_SITE_URL = "http://127.0.0.1:3211";
+export const LOCAL_CONVEX_URL = `http://127.0.0.1:${MAIN_PORTS.convex}`;
+export const LOCAL_CONVEX_SITE_URL = `http://127.0.0.1:${MAIN_PORTS.convexSite}`;
 
 export const derivedEnvTemplate = (entries: Record<string, string>): string =>
   [
@@ -29,7 +30,7 @@ export const webEnvTemplate = (overrides?: {
       overrides?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
       "/callback",
-      overrides?.siteUrl ?? "http://localhost:3000"
+      overrides?.siteUrl ?? MAIN_SITE_URL
     ).toString(),
   });
 

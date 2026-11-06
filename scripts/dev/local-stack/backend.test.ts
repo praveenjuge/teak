@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RunCommandResult } from "@teak/scripts/dev/proc";
+import type { RunCommandResult } from "../proc.ts";
 import {
   convexDevOnce,
   isTransientPushFailure,
   localBackendEnv,
   selectedAnonymousInstance,
   summarizePushFailure,
-} from "./backend";
+} from "./backend.ts";
 
 describe("localBackendEnv", () => {
   test("drops a cloud deploy key, picks the anonymous local backend and gives functions 5 s, leaving the given env alone", () => {

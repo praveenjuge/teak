@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { slotPorts } from "@teak/scripts/dev/worktree-env";
-import deployed from "../../../../apps/core-worker/wrangler.jsonc";
-import { coreWorkerOrigin } from "./config";
-import { coreWorkerConfigs } from "./coreWorker";
+import deployed from "../../../apps/core-worker/wrangler.jsonc";
+import { slotPorts } from "../worktree-env.ts";
+import { coreWorkerOrigin } from "./config.ts";
+import { coreWorkerConfigs } from "./coreWorker.ts";
 
 describe("coreWorkerConfigs", () => {
   test("serves files from a host the API proxy leaves alone", () => {
@@ -96,5 +96,25 @@ describe("coreWorkerConfigs matches the deployed Worker", () => {
       (config.workflows ?? []).map((flow) => flow.class_name).sort();
     expect(classes(worker)).toEqual(classes(deployed));
     expect(worker.triggers.crons).toEqual(deployed.triggers.crons);
+  });
+
+  test("names its Workflows and queues apart from the deployed ones", () => {
+    const names = [
+      ...worker.workflows.map((flow) => flow.name),
+      ...worker.queues.producers.map((producer) => producer.queue),
+      ...worker.queues.consumers.flatMap((consumer) => [
+        consumer.queue,
+        consumer.dead_letter_queue ?? "",
+      ]),
+    ].filter(Boolean);
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.every((name) => name.startsWith("teak-e2e-"))).toBe(true);
+    // Every consumer's dead-letter queue is one the Worker also consumes.
+    const consumed = new Set(worker.queues.consumers.map((c) => c.queue));
+    for (const consumer of worker.queues.consumers) {
+      if (consumer.dead_letter_queue) {
+        expect(consumed.has(consumer.dead_letter_queue)).toBe(true);
+      }
+    }
   });
 });

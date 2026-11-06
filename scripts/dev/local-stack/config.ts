@@ -1,5 +1,5 @@
-import type { WorktreePorts } from "@teak/scripts/dev/worktree-env";
-import type { StackUrls } from "@teak/scripts/lib/stack-state";
+import type { StackUrls } from "../../lib/stack-state.ts";
+import type { WorktreePorts } from "../worktree-env.ts";
 
 export type StackPorts = Pick<
   WorktreePorts,

@@ -11,7 +11,6 @@
         "corsOrigins": [
           "http://localhost:3000",
           "http://localhost:4000",
-          "http://localhost:4100",
           "http://localhost:4200",
           "http://localhost:4300",
           "http://localhost:4400",
@@ -20,7 +19,6 @@
           "http://localhost:4700",
           "http://localhost:4800",
           "http://localhost:4900",
-          "http://localhost:5000",
           "http://localhost:5100",
           "http://localhost:5200",
           "http://localhost:5300",
@@ -40,7 +38,6 @@
           "http://localhost:6700",
           "http://localhost:6800",
           "http://localhost:6900",
-          "http://localhost:7000",
           "http://localhost:7100",
           "http://localhost:7200",
           "http://localhost:7300",

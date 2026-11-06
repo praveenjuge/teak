@@ -108,14 +108,14 @@ Turbo replays a cached pass until a task's inputs change, and a task's inputs ar
 
 ## End-to-end suite
 
-`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack, never the [shared development deployment](/docs/development#the-shared-development-deployment). The same stack runs the app for development with `bun run dev --local` ([A local backend](/docs/development#a-local-backend)). The stack is:
+`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack, never the [shared development deployment](/docs/development#the-shared-development-deployment). The stack lives in `scripts/dev/local-stack/`, and the same stack runs the app for development with `bun run dev --local` ([A local backend](/docs/development#a-local-backend)). The stack is:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (its HTTP routes on the next port),
-- the Core Worker under `wrangler dev` in local mode (`src/stack/coreWorker.ts`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
+- the Core Worker under `wrangler dev` in local mode (`scripts/dev/local-stack/coreWorker.ts`, which takes its Workflows, queues and Cron Triggers from `apps/core-worker/wrangler.jsonc`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
 - the web app.
 
-It needs no secrets, model or API key, so you can run it without access to the development deployment: every WorkOS value and the Core Worker's signing secret are test-only constants in `src/stack/config.ts`, and the emulator keeps everything in memory. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Core Worker 4102 (its inspector on 4103); each linked worktree uses its own ports.
+It needs no secrets, model or API key, so you can run it without access to the development deployment: every WorkOS value and the Core Worker's signing secret are test-only constants in `scripts/dev/local-stack/config.ts`, and the emulator keeps everything in memory. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Core Worker 4102 (its inspector on 4103); each linked worktree uses its own ports.
 
 ### Run it
 
@@ -127,7 +127,7 @@ bun install
 bun run --cwd packages/tests e2e
 ```
 
-`e2e` checks the pinned runtimes and packages, sets up the local backend (`src/stack/backend.ts`), starts the stack, warms it up (`e2e.warmup.config.ts`), runs the Chromium suite (`e2e.config.ts`) and the WebKit half of the browser matrix (`e2e.webkit.config.ts`), and stops everything. Pass `e2e run` arguments to run something narrower, for example `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts` or `bun run --cwd packages/tests e2e -- --grep editor`.
+`e2e` checks the pinned runtimes and packages, sets up the local backend (`scripts/dev/local-stack/backend.ts`), starts the stack, warms it up (`e2e.warmup.config.ts`), runs the Chromium suite (`e2e.config.ts`) and the WebKit half of the browser matrix (`e2e.webkit.config.ts`), and stops everything. Pass `e2e run` arguments to run something narrower, for example `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts` or `bun run --cwd packages/tests e2e -- --grep editor`.
 
 To iterate, keep the stack up in one terminal and run e2e in another:
 
@@ -162,7 +162,7 @@ Files in a suite run in parallel and share nothing: every spec makes its own acc
 
 ### How the stack is wired
 
-`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` and `WORKOS_API_BASE_URL` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
+`scripts/dev/local-stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` and `WORKOS_API_BASE_URL` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
 
 The emulator runs with:
 
@@ -170,7 +170,7 @@ The emulator runs with:
 - `https://api.workos.com` as the token issuer, which the backend requires,
 - a JWT template that adds `email`, `email_verified`, `first_name` and `last_name` to session tokens, like Teak's WorkOS environment.
 
-A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push. Its queries and mutations may run for 5 seconds instead of Convex's 1 (`DATABASE_UDF_USER_TIMEOUT_SECONDS`, set in `src/stack/backend.ts`): the backend shares the machine with the browser and the dev server, and a cold module load could otherwise use up the second before a sign-in's first query started.
+A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push. Its queries and mutations may run for 5 seconds instead of Convex's 1 (`DATABASE_UDF_USER_TIMEOUT_SECONDS`, set in `scripts/dev/local-stack/backend.ts`): the backend shares the machine with the browser and the dev server, and a cold module load could otherwise use up the second before a sign-in's first query started.
 
 ### Accounts
 

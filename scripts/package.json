@@ -16,6 +16,7 @@
     "@teak/files-protocol": "workspace:*",
     "@teak/i18n": "workspace:*",
     "@workos-inc/node": "catalog:",
+    "@workos/emulate": "0.14.0",
     "commander": "catalog:",
     "convex": "catalog:",
     "iron-session": "catalog:",

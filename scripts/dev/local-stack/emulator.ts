@@ -5,7 +5,7 @@ import {
   type Server,
 } from "node:http";
 import { createEmulator } from "@workos/emulate";
-import { emulatorSeed, type StackPorts, stackUrls } from "./config";
+import { emulatorSeed, type StackPorts, stackUrls } from "./config.ts";
 
 // Hosted AuthKit treats a refresh token as single use, but replaying it
 // within 30 seconds returns the same rotated tokens, so a refresh the browser

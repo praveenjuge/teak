@@ -169,6 +169,12 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         uses: ./.github/actions/setup-android-sdk
 
+      - name: Set up Node
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+
       - name: Install posthog-cli
         if: steps.check.outputs.should_run == 'true'
         run: npm install --global "@posthog/cli@${POSTHOG_CLI_VERSION}"
@@ -239,10 +245,8 @@ jobs:
           VERSION: ${{ needs.resolve.outputs.version }}
           OUT: ${{ steps.bundle.outputs.dir }}
         run: |
-          # Another release job may create the release at the same moment.
-          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release create "$TAG_NAME" --title "$VERSION" --verify-tag || true
-          fi
+          # Version Tag creates the release with the tag.
+          node scripts/release/github-release.ts wait "$GITHUB_REPOSITORY" "$TAG_NAME"
           gh release upload "$TAG_NAME" "$OUT/teak-android-${VERSION}.aab" "$OUT/teak-android-${VERSION}-mapping.txt" --clobber
 
       - name: Remove the upload key

@@ -1,154 +1,12 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import {
+  legacyApiRedirects,
+  mcpChallenge,
+  surfaces,
+} from "@teak/scripts/dev/production-surfaces";
 import { published } from "../helpers/env";
 import { expect, test } from "../helpers/test";
-
-interface Probe {
-  body: RegExp;
-  kind: "html" | "json" | "text";
-  name: string;
-  nosniff?: boolean;
-  url: string;
-}
-
-const probes: Probe[] = [
-  {
-    name: "site home",
-    url: `${published.siteUrl}/`,
-    kind: "html",
-    body: /Teak/i,
-  },
-  {
-    name: "apps directory",
-    url: `${published.siteUrl}/apps`,
-    kind: "html",
-    body: /Teak/i,
-  },
-  {
-    name: "docs home",
-    url: `${published.siteUrl}/docs/`,
-    kind: "html",
-    body: /Docs|Teak/i,
-  },
-  {
-    name: "api docs",
-    url: `${published.siteUrl}/docs/api/`,
-    kind: "html",
-    body: /API/i,
-  },
-  {
-    name: "mcp docs",
-    url: `${published.siteUrl}/docs/mcp/`,
-    kind: "html",
-    body: /MCP/i,
-  },
-  {
-    name: "cli docs",
-    url: `${published.siteUrl}/docs/cli/`,
-    kind: "html",
-    body: /CLI|teak/i,
-  },
-  {
-    name: "raycast docs",
-    url: `${published.siteUrl}/docs/raycast/`,
-    kind: "html",
-    body: /Raycast/i,
-  },
-  {
-    name: "skills docs",
-    url: `${published.siteUrl}/docs/skills/`,
-    kind: "html",
-    body: /Skill|Teak/i,
-  },
-  {
-    name: "llms text",
-    url: `${published.siteUrl}/llms.txt`,
-    kind: "text",
-    body: /Teak/i,
-  },
-  {
-    name: "mcp well known",
-    url: `${published.siteUrl}/.well-known/mcp.json`,
-    kind: "json",
-    body: /endpoint/,
-  },
-  {
-    name: "agent skills index",
-    url: `${published.siteUrl}/.well-known/agent-skills/index.json`,
-    kind: "json",
-    body: /"skills"/,
-  },
-  {
-    // A Cloudflare redirect to the teakvault.com index (.agents/guides/environment.md, "Rules set outside the repository").
-    name: "api subdomain agent skills index",
-    url: "https://api.teakvault.com/.well-known/agent-skills/index.json",
-    kind: "json",
-    body: /"skills"/,
-  },
-  {
-    name: "apex api health",
-    url: `${published.siteUrl}/api/healthz`,
-    kind: "json",
-    body: /ok/,
-  },
-  {
-    name: "apex api root",
-    url: `${published.siteUrl}/api`,
-    kind: "json",
-    body: /v1/,
-  },
-  {
-    name: "apex api v1",
-    url: `${published.siteUrl}/api/v1`,
-    kind: "json",
-    body: /endpoint/,
-  },
-  {
-    name: "apex openapi",
-    url: `${published.siteUrl}/api/openapi.json`,
-    kind: "json",
-    body: /openapi/,
-  },
-  {
-    name: "apex mcp resource",
-    url: `${published.siteUrl}/.well-known/oauth-protected-resource/mcp`,
-    kind: "json",
-    body: /resource/,
-  },
-  {
-    name: "app sign-in",
-    url: `${published.appUrl}/sign-in`,
-    kind: "html",
-    body: /sign in/i,
-  },
-  {
-    name: "app sign-up",
-    url: `${published.appUrl}/sign-up`,
-    kind: "html",
-    body: /sign up|account/i,
-  },
-  {
-    name: "api subdomain health",
-    url: "https://api.teakvault.com/healthz",
-    kind: "json",
-    body: /ok/,
-    nosniff: false,
-  },
-  {
-    name: "api subdomain v1",
-    url: "https://api.teakvault.com/v1",
-    kind: "json",
-    body: /endpoint/,
-    nosniff: false,
-  },
-  {
-    name: "api subdomain openapi",
-    url: "https://api.teakvault.com/openapi.json",
-    kind: "json",
-    body: /openapi/,
-    nosniff: false,
-  },
-];
 
 const contentType = {
   html: /text\/html/,
@@ -156,28 +14,16 @@ const contentType = {
   text: /text\/plain/,
 } as const;
 
-const fetchWithNetworkRetry = async (url: string): Promise<Response> => {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      return await fetch(url);
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
-      }
-    }
-  }
-
-  throw lastError;
-};
-
-for (const [index, probe] of probes.entries()) {
+// The suite retries a failed test once (e2e.docs.config.ts), which covers a
+// network blip; the requests themselves don't retry.
+for (const [index, probe] of surfaces(
+  published.siteUrl,
+  published.appUrl
+).entries()) {
   const prefix = `extra-${String(index + 1).padStart(3, "0")} ${probe.name}`;
 
   test(`${prefix} production response contract`, async () => {
-    const response = await fetchWithNetworkRetry(probe.url);
+    const response = await fetch(probe.url);
     const body = await response.text();
 
     expect(response.status, "status is successful").toBeLessThan(400);
@@ -189,18 +35,40 @@ for (const [index, probe] of probes.entries()) {
       response.headers.get("strict-transport-security") ?? "",
       "security headers are present"
     ).toContain("max-age");
-    if (probe.nosniff !== false) {
-      expect(
-        response.headers.get("x-content-type-options") ?? "",
-        "security headers are present"
-      ).toBe("nosniff");
-    }
+    expect(
+      response.headers.get("x-content-type-options") ?? "",
+      "security headers are present"
+    ).toBe("nosniff");
     expect(body, "body contains expected product marker").toMatch(probe.body);
     expect(body, "body has no obvious server error leak").not.toMatch(
       /Unhandled Runtime Error|Internal Server Error|stack trace/i
     );
   });
 }
+
+for (const { from, to } of legacyApiRedirects()) {
+  test(`extra legacy API ${new URL(from).pathname} redirects permanently`, async () => {
+    const response = await fetch(from, { redirect: "manual" });
+    expect(response.status, "308 keeps the method").toBe(308);
+    expect(response.headers.get("location")).toBe(to);
+  });
+}
+
+test("extra MCP challenges an unauthenticated request", async () => {
+  const challenge = mcpChallenge(published.siteUrl);
+  const response = await fetch(challenge.url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(challenge.body),
+  });
+  expect(response.status).toBe(401);
+  expect(response.headers.get("www-authenticate") ?? "").toContain(
+    challenge.metadata
+  );
+});
 
 interface AmoAddon {
   current_version?: { version: string };
@@ -212,7 +80,7 @@ interface AmoAddon {
 // The listing page answers scripted requests with a bot challenge, so this
 // reads AMO's public API. It answers 401 until the add-on has a public version.
 test("extra Firefox add-on is listed on AMO at the slug the docs link to", async () => {
-  const response = await fetchWithNetworkRetry(
+  const response = await fetch(
     "https://addons.mozilla.org/api/v5/addons/addon/teak/"
   );
   expect(response.status, "the listing is public").toBe(200);
@@ -234,7 +102,7 @@ const sha256 = (bytes: ArrayBuffer | Buffer) =>
 
 test("extra agent skills index matches what it serves and this checkout", async () => {
   const indexUrl = `${published.siteUrl}/.well-known/agent-skills/index.json`;
-  const response = await fetchWithNetworkRetry(indexUrl);
+  const response = await fetch(indexUrl);
   expect(
     response.headers.get("access-control-allow-origin"),
     "any agent can read the index"
@@ -242,9 +110,7 @@ test("extra agent skills index matches what it serves and this checkout", async 
   const index = (await response.json()) as SkillsIndex;
   expect(index.skills.map((skill) => skill.name)).toContain("teak");
   for (const skill of index.skills) {
-    const artifact = await fetchWithNetworkRetry(
-      new URL(skill.url, indexUrl).toString()
-    );
+    const artifact = await fetch(new URL(skill.url, indexUrl).toString());
     expect(artifact.status, `${skill.name} artifact is served`).toBe(200);
     expect(
       artifact.headers.get("access-control-allow-origin"),

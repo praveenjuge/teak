@@ -361,17 +361,14 @@ describe("planDevLaunch", () => {
   });
 });
 
-test("--local runs the E2E suite's stack in dev mode, without .env files", () => {
+test("--local runs the local stack in dev mode, without .env files", () => {
   expect(localStackCommand()).toEqual([
     process.execPath,
     "--no-env-file",
-    join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"),
-    "stack",
+    join(ROOT, "scripts/dev/local-stack/run.ts"),
     "--dev",
   ]);
-  expect(
-    existsSync(join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"))
-  ).toBe(true);
+  expect(existsSync(join(ROOT, "scripts/dev/local-stack/run.ts"))).toBe(true);
 });
 
 describe("dev.ts before install", () => {
@@ -380,7 +377,8 @@ describe("dev.ts before install", () => {
     const seen = new Set<string>();
     const found = new Set<string>();
     const visit = (file: string) => {
-      if (seen.has(file)) {
+      // JSON data (scripts/deployments.json) imports nothing.
+      if (seen.has(file) || file.endsWith(".json")) {
         return;
       }
       seen.add(file);

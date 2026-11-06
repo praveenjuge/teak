@@ -13,9 +13,12 @@ on:
       - packages/convex/shared/**
       - packages/files-protocol/src/**
       - packages/i18n/src/**
-      - packages/tests/src/stack/config.ts
+      - packages/i18n/messages/**
+      - scripts/dev/local-stack/config.ts
       - scripts/dev/proc.ts
       - scripts/dev/worktree-env.ts
+      - scripts/dev/production-surfaces.ts
+      - scripts/deployments.json
       - scripts/lib/stack-state.ts
       - scripts/lib/teak-account.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts
