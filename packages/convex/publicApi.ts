@@ -29,6 +29,10 @@ import {
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
 import {
+  isInvalidCursorError,
+  isRateLimitContentionError,
+} from "./convexFailures";
+import {
   decodeChangesCursor,
   decodeCursor,
   decodeShuffleCursor,
@@ -40,13 +44,6 @@ import {
   matchAnchorOf,
   type ShuffleApiCursor,
 } from "./publicApi/cursors";
-import {
-  explainCardTypeMismatch,
-  explainInvalidTags,
-  explainOversizedText,
-  isRateLimitContentionError,
-  parseStringArray,
-} from "./publicApi/http/shared";
 import {
   apiCardSortValidator,
   isAfterMatchAnchor,
@@ -65,6 +62,12 @@ import {
   semanticSearchArgs,
   similarityOption,
 } from "./publicApi/search";
+import {
+  explainCardTypeMismatch,
+  explainInvalidTags,
+  explainOversizedText,
+  parseStringArray,
+} from "./publicApi/validation";
 import {
   listCardTombstonesSince,
   type TombstoneCursor,
@@ -451,8 +454,8 @@ export const shuffleCardsPageForUser = internalQuery({
         numItems: limit,
         maximumRowsRead: SHUFFLE_WALK_SCAN,
       });
-    } catch {
-      throw invalidCursorError();
+    } catch (error) {
+      throw isInvalidCursorError(error) ? invalidCursorError() : error;
     }
     const kept = await Promise.all(
       result.cards.map((card) =>
@@ -735,8 +738,8 @@ export const listCardChangesForUser = internalQuery({
           )
           .order("asc")
           .paginate({ cursor: decoded.cursor, numItems: limit });
-      } catch {
-        throw invalidCursorError();
+      } catch (error) {
+        throw isInvalidCursorError(error) ? invalidCursorError() : error;
       }
       activeCards = page.page.filter((card) => !card.isDeleted);
       for (const card of page.page) {

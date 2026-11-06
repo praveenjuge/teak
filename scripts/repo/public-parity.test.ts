@@ -1,15 +1,26 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
 import type { Command } from "commander";
 import { program } from "../../apps/cli/src/index";
 import {
-  callTeakV1Tool,
-  type PublicApiToolOperation,
+  TEAK_TOOLS,
   TEAK_V1_TOOLS,
-} from "../../packages/convex/mcp/tools";
-import { PUBLIC_API_ERROR_CODES } from "../../packages/convex/publicApi/http/shared";
-import { openApiSpec } from "../../packages/convex/publicApi/openApi/spec";
+  toolInputSchema,
+} from "../../packages/convex/mcp/catalog";
+import { callTeakV1Tool } from "../../packages/convex/mcp/tools";
 import { CARD_ERROR_CODES } from "../../packages/convex/shared/constants";
 import {
+  APP_ONLY_CARD_ERROR_CODES,
+  CARD_LIST_PARAMS,
+  type CardListParam,
+  cliFlagFor,
+  matchPublicApiOperation,
+  PUBLIC_API_ERROR_CODES,
+  PUBLIC_API_OPERATION_IDS,
+  type PublicApiOperationCall,
+} from "../../packages/convex/shared/publicApiContract";
+import {
+  buildCardsSearchParams,
   createTeakClient,
   disconnectConnectGrant,
   ERROR_CODES,
@@ -17,126 +28,46 @@ import {
 import {
   APP_ONLY_CHANGES,
   CLI_LOCAL_COMMANDS,
+  mcpSurface,
+  mcpToolsByOperation,
   PUBLIC_PARITY,
   type PublicParityRow,
   SDK_LOCAL_MEMBERS,
   type Surface,
+  sampleFromSchema,
 } from "./public-parity";
 
 const names = (surface: Surface): readonly string[] =>
   Array.isArray(surface) ? surface : [];
 
-const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
-
-const operations = Object.entries(
-  openApiSpec.paths as Record<string, Record<string, { operationId?: string }>>
-).flatMap(([path, methods]) =>
-  HTTP_METHODS.flatMap((method) => {
-    const operationId = methods[method]?.operationId;
-    if (!operationId) {
-      return [];
-    }
-    return [
-      { method: method.toUpperCase(), operationId, segments: path.split("/") },
-    ];
-  })
-);
-
-const pathMatches = (segments: readonly string[], path: string) => {
-  const parts = path.split("/");
-  return (
-    parts.length === segments.length &&
-    segments.every(
-      (segment, index) =>
-        parts[index] === segment ||
-        (segment.startsWith("{") && (parts[index] ?? "") !== "")
-    )
-  );
-};
-
 const operationFor = (method: string, path: string) =>
-  operations.find(
-    (operation) =>
-      operation.method === method.toUpperCase() &&
-      pathMatches(operation.segments, path)
-  )?.operationId;
+  matchPublicApiOperation(method.toUpperCase(), path)?.operationId;
 
 const rowFor = (operationId: string): PublicParityRow | undefined =>
   PUBLIC_PARITY.find((row) => row.operationId === operationId);
 
-const MCP_SAMPLES: Record<string, unknown> = {
-  // The search and fetch pair ChatGPT connectors expect.
-  fetch: { id: "card_1" },
-  search: { query: "x" },
-  teak_v1_add_cards_to_folder: { folderId: "folder_1", cardIds: ["card_1"] },
-  teak_v1_bulk_cards: { operation: "create", items: [{ content: "x" }] },
-  teak_v1_check_duplicate_url: { url: "https://example.com" },
+// The arguments generated from a tool's schema, except where the tool also
+// checks fields together.
+const REFINED_SAMPLES: Record<string, unknown> = {
   teak_v1_create_card: { content: "x" },
-  teak_v1_create_folder: { name: "Reading" },
-  teak_v1_create_highlight: { cardId: "card_1", quote: "x" },
-  teak_v1_create_thumbnail_upload: {
-    cardId: "card_1",
-    mimeType: "image/png",
-    fileSize: 10,
-  },
-  teak_v1_create_upload: {
-    fileName: "a.png",
-    mimeType: "image/png",
-    fileSize: 10,
-  },
-  teak_v1_delete_card: { cardId: "card_1", confirm: true },
-  teak_v1_delete_folder: { folderId: "folder_1", confirm: true },
-  teak_v1_delete_highlight: { highlightId: "highlight_1", confirm: true },
-  teak_v1_delete_tag: { tag: "design", confirm: true },
-  teak_v1_find_similar_cards: { cardId: "card_1" },
-  teak_v1_get_card: { cardId: "card_1" },
-  teak_v1_get_card_changes: { since: 1 },
-  teak_v1_get_card_content: { cardId: "card_1" },
-  teak_v1_get_card_links: { cardId: "card_1" },
-  teak_v1_get_folder: { folderId: "folder_1" },
-  teak_v1_get_folder_rule_run: { folderId: "folder_1", runId: "run_1" },
-  teak_v1_get_me: {},
-  teak_v1_get_tag_operation: { operationId: "op_1" },
-  teak_v1_list_cards: {},
-  teak_v1_list_favorite_cards: {},
-  teak_v1_list_folders: {},
-  teak_v1_list_highlights: { cardId: "card_1" },
-  teak_v1_list_pinned_cards: {},
-  teak_v1_list_tags: {},
-  teak_v1_merge_tags: { from: "a", into: "b" },
-  teak_v1_refresh_card: { cardId: "card_1" },
-  teak_v1_remove_cards_from_folder: {
-    folderId: "folder_1",
-    cardIds: ["card_1"],
-  },
-  teak_v1_rename_tag: { from: "a", to: "b" },
-  teak_v1_reorder_pinned_cards: { cardIds: ["card_1"] },
-  teak_v1_reset_card_thumbnail: { cardId: "card_1" },
-  teak_v1_restore_card: { cardId: "card_1" },
-  teak_v1_search_cards: { q: "x" },
-  teak_v1_set_card_archived: { cardId: "card_1", isArchived: true },
-  teak_v1_save_card_pdf: { cardId: "card_1" },
-  teak_v1_set_card_done: { cardId: "card_1", done: true },
-  teak_v1_set_card_favorite: { cardId: "card_1", isFavorited: true },
-  teak_v1_set_card_pinned: { cardId: "card_1", isPinned: true },
-  teak_v1_set_card_thumbnail: { cardId: "card_1", fileKey: "key_1" },
-  teak_v1_undo_folder_rule_run: { folderId: "folder_1", runId: "run_1" },
   teak_v1_update_card: { cardId: "card_1", notes: "n" },
   teak_v1_update_folder: { folderId: "folder_1", name: "Later" },
-  teak_v1_update_highlight: { highlightId: "highlight_1", note: null },
 };
 
-const mcpOperations = async (tool: string) => {
+const mcpSample = (tool: (typeof TEAK_TOOLS)[number]) =>
+  REFINED_SAMPLES[tool.name] ?? sampleFromSchema(toolInputSchema(tool.schema));
+
+const mcpOperations = async (tool: (typeof TEAK_TOOLS)[number]) => {
   const reached: string[] = [];
   await callTeakV1Tool(
-    tool,
-    MCP_SAMPLES[tool],
+    tool.name,
+    mcpSample(tool),
     new Request("https://teak.test/mcp", {
       method: "POST",
       headers: { Authorization: "Bearer token" },
     }),
-    (operation: PublicApiToolOperation) => {
-      reached.push(operationFor(operation.method, operation.path) ?? "?");
+    (call: PublicApiOperationCall) => {
+      reached.push(call.operationId);
       return Promise.resolve(Response.json({}));
     }
   ).catch(() => undefined);
@@ -267,29 +198,60 @@ const cliCommands = (command: Command, prefix: string[] = []): string[] =>
       return [path.join(" "), ...cliCommands(child, path)];
     });
 
+const raycastTools = () => {
+  const manifest = JSON.parse(
+    readFileSync(
+      new URL("../../apps/raycast/package.json", import.meta.url),
+      "utf8"
+    )
+  ) as { tools?: { name: string }[] };
+  const files = readdirSync(
+    new URL("../../apps/raycast/src/tools", import.meta.url)
+  ).map((file) => file.replace(/\.ts$/, ""));
+  return { files, manifest: (manifest.tools ?? []).map((tool) => tool.name) };
+};
+
 describe("public surface parity", () => {
-  test("the table lists every OpenAPI operation exactly once", () => {
-    const documented = operations.map((operation) => operation.operationId);
+  test("the table lists every operation exactly once", () => {
     const listed = PUBLIC_PARITY.map((row) => row.operationId);
     expect(new Set(listed).size).toBe(listed.length);
-    expect([...listed].sort()).toEqual([...documented].sort());
+    expect([...listed].sort()).toEqual([...PUBLIC_API_OPERATION_IDS].sort());
   });
 
-  test("every MCP tool is in the table, and reaches its operation", async () => {
-    const tools = TEAK_V1_TOOLS.map((tool) => tool.name);
-    const listed = PUBLIC_PARITY.flatMap((row) => names(row.mcp));
-    expect([...listed].sort()).toEqual([...tools].sort());
-    for (const tool of tools) {
-      const row = PUBLIC_PARITY.find((entry) =>
-        names(entry.mcp).includes(tool)
-      );
-      expect({ tool, reached: await mcpOperations(tool) }).toEqual({
-        tool,
-        reached: [row?.operationId],
+  test("every MCP tool reaches the operation its catalog entry names", async () => {
+    const byOperation = mcpToolsByOperation();
+    for (const tool of TEAK_TOOLS) {
+      const operationId = [...byOperation].find(([, tools]) =>
+        tools.includes(tool.name)
+      )?.[0];
+      expect({ tool: tool.name, reached: await mcpOperations(tool) }).toEqual({
+        tool: tool.name,
+        reached: [operationId],
       });
     }
   });
 
+  test("an operation no MCP tool calls says why, and one a tool calls doesn't", () => {
+    const byOperation = mcpToolsByOperation();
+    for (const row of PUBLIC_PARITY) {
+      expect({
+        operationId: row.operationId,
+        hasTools: byOperation.has(row.operationId),
+        hasGap: row.mcp !== undefined,
+      }).toEqual({
+        operationId: row.operationId,
+        hasTools: !row.mcp,
+        hasGap: !byOperation.has(row.operationId),
+      });
+    }
+  });
+
+  test("every Raycast AI tool is in the table", () => {
+    const listed = PUBLIC_PARITY.flatMap((row) => row.raycast ?? []);
+    const { files, manifest } = raycastTools();
+    expect([...listed].sort()).toEqual([...files].sort());
+    expect([...manifest].sort()).toEqual([...files].sort());
+  });
   test("every SDK member is in the table, and reaches its operation", async () => {
     const members = sdkMembers().filter(
       (member) => !(member in SDK_LOCAL_MEMBERS)
@@ -322,7 +284,7 @@ describe("public surface parity", () => {
 
   test("an operation left off a surface says why", () => {
     for (const row of PUBLIC_PARITY) {
-      for (const surface of [row.mcp, row.sdk, row.cli]) {
+      for (const surface of [mcpSurface(row), row.sdk, row.cli]) {
         if (Array.isArray(surface)) {
           expect(surface.length).toBeGreaterThan(0);
         } else {
@@ -351,9 +313,9 @@ describe("public surface parity", () => {
 
   test("no public operation, tool, method or command sets the account language", () => {
     const setter = /locale|language|preference/i;
-    expect(
-      operations.map((op) => op.operationId).filter((id) => setter.test(id))
-    ).toEqual([]);
+    expect(PUBLIC_API_OPERATION_IDS.filter((id) => setter.test(id))).toEqual(
+      []
+    );
     expect(
       TEAK_V1_TOOLS.map((tool) => tool.name).filter((name) => setter.test(name))
     ).toEqual([]);
@@ -368,44 +330,56 @@ describe("public surface parity", () => {
     expect(PUBLIC_API_ERROR_CODES.filter((code) => !known.has(code))).toEqual(
       []
     );
-    const api = new Set<string>(PUBLIC_API_ERROR_CODES);
+    const api = new Set<string>([
+      ...PUBLIC_API_ERROR_CODES,
+      ...APP_ONLY_CARD_ERROR_CODES,
+    ]);
     expect(
-      Object.values(CARD_ERROR_CODES).filter(
-        (code) => !api.has(code) && code !== "TOO_MANY_FILES"
-      )
+      Object.values(CARD_ERROR_CODES).filter((code) => !api.has(code))
     ).toEqual([]);
   });
 
-  test("the card list filters match on the API, MCP and CLI", () => {
-    const listCards = (
-      openApiSpec.paths["/v1/cards"] as {
-        get: { parameters: { name: string }[] };
-      }
-    ).get.parameters.map((parameter) => parameter.name);
+  test("the card list filters match on the API, MCP, SDK and CLI", () => {
+    const params = Object.keys(CARD_LIST_PARAMS) as CardListParam[];
     const mcpList = TEAK_V1_TOOLS.find(
       (tool) => tool.name === "teak_v1_list_cards"
     );
     if (!mcpList) {
       throw new Error("teak_v1_list_cards is missing");
     }
-    const mcpFields = Object.keys(
-      (mcpList.inputSchema as { properties: Record<string, unknown> })
-        .properties
+    const mcpFields = mcpList.inputSchema.properties as Record<string, unknown>;
+    expect(Object.keys(mcpFields).sort()).toEqual([...params].sort());
+
+    const sent = new URLSearchParams(
+      buildCardsSearchParams({
+        archived: "only",
+        createdAfter: 1,
+        createdBefore: 2,
+        cursor: "c",
+        favorited: true,
+        folder: "f",
+        hex: "#112233",
+        hue: "blue",
+        include: "content",
+        limit: 5,
+        mode: "keyword",
+        pinned: true,
+        query: "q",
+        shuffleSeed: 1,
+        similarTo: "card_1",
+        sort: "shuffle",
+        style: "minimal",
+        tag: "t",
+        trashed: true,
+        type: "link",
+      })
     );
-    expect([...mcpFields].sort()).toEqual([...listCards].sort());
+    expect([...new Set(sent.keys())].sort()).toEqual([...params].sort());
 
     const ls = program.commands.find((command) => command.name() === "ls");
     const flags = new Set(ls?.options.map((option) => option.long));
-    const renamed: Record<string, string> = {
-      cursor: "--next",
-      shuffleSeed: "--seed",
-    };
-    const cliFlag = (parameter: string) =>
-      renamed[parameter] ??
-      `--${parameter.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
-    const missing = listCards
-      .filter((parameter) => parameter !== "q")
-      .filter((parameter) => !flags.has(cliFlag(parameter)));
-    expect(missing).toEqual([]);
+    expect(params.map(cliFlagFor).filter((flag) => !flags.has(flag))).toEqual(
+      []
+    );
   });
 });

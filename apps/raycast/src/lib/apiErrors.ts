@@ -1,22 +1,14 @@
+import { ERROR_CODES } from "teak-sdk";
+
+/**
+ * The SDK's codes, and the extension's own: no API key set, no local API
+ * running, and a folder name that is taken (the API's CONFLICT on create).
+ */
 const KNOWN_ERROR_CODES = [
-  "BAD_REQUEST",
-  "CONFIG_ERROR",
+  ...ERROR_CODES,
   "DEV_API_UNAVAILABLE",
   "FOLDER_EXISTS",
-  "FOLDER_LIMIT",
-  "INTERNAL_ERROR",
-  "INVALID_API_KEY",
-  "INVALID_INPUT",
-  "METHOD_NOT_ALLOWED",
   "MISSING_API_KEY",
-  "NETWORK_ERROR",
-  "NOT_FOUND",
-  "RATE_LIMITED",
-  "REQUEST_FAILED",
-  "SMART_FOLDER",
-  "TAG_EXISTS",
-  "TAG_OPERATION_RUNNING",
-  "UNAUTHORIZED",
 ] as const;
 
 export type RaycastApiErrorCode = (typeof KNOWN_ERROR_CODES)[number];

@@ -1,5 +1,6 @@
 import { type ActionCtx, env, httpAction } from "../_generated/server";
 import { readWorkosResources } from "../env";
+import { validatePublicApiBearer } from "../publicApi/http/auth";
 import {
   buildProtectedResourceMetadata,
   DISCOVERY_CACHE_CONTROL,
@@ -7,11 +8,7 @@ import {
   json,
   withPublicApiGatewayHeaders,
 } from "../publicApi/http/meta";
-import {
-  executePublicApiOperation,
-  type PublicApiOperation,
-  validatePublicApiBearer,
-} from "../publicApi/http/routes";
+import { executePublicApiOperation } from "../publicApi/http/router";
 import { TEAK_FILES_ORIGINS } from "../shared/filesOrigins";
 import { withBackendTelemetryScope } from "../telemetry/posthog";
 import { TEAK_APP_HTML } from "./appHtml.generated";
@@ -79,20 +76,6 @@ export const handleOauthProtectedResourceV1Request = (
 export const oauthProtectedResourceV1 = httpAction(async (_ctx, request) =>
   handleOauthProtectedResourceV1Request(request)
 );
-
-const executeToolOperation = (
-  ctx: ActionCtx,
-  request: Request,
-  operation: PublicApiOperation
-): Promise<Response> =>
-  executePublicApiOperation(
-    ctx,
-    {
-      ...operation,
-      origin: new URL(request.url).origin,
-    },
-    "mcp"
-  );
 
 const readFilesOrigin = (): string => {
   try {
@@ -196,7 +179,11 @@ const handleJsonRpcMessage = async (
         params.name,
         params.arguments ?? {},
         request,
-        (operation) => executeToolOperation(ctx, request, operation)
+        (call) =>
+          executePublicApiOperation(ctx, call, {
+            origin: new URL(request.url).origin,
+            resource: "mcp",
+          })
       );
       return jsonRpcResponse(rpc.id, result);
     } catch (error) {

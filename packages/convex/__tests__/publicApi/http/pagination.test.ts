@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { listCardsV1 } from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
 const authorize = () =>
@@ -30,7 +30,7 @@ const requestPage = async (
   cursor?: string,
   limit = 1
 ) => {
-  const handler = (listCardsV1 as any).handler ?? listCardsV1;
+  const handler = (publicApiV1 as any).handler ?? publicApiV1;
   const url = new URL("https://example.com/v1/cards");
   url.searchParams.set("limit", String(limit));
   if (cursor) {

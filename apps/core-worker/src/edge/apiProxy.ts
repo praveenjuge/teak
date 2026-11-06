@@ -1,3 +1,4 @@
+import { WELL_KNOWN_PATHS } from "@teak/convex/shared/publicApiContract";
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import { EDGE_RATE_LIMIT_HEADER } from "@teak/files-protocol";
 import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
@@ -18,18 +19,14 @@ export const API_PROXY_MAX_BODY_BYTES = 20_000_000;
 
 export const API_PROXY_DOCUMENT_TTL_SECONDS = 300;
 
-const WELL_KNOWN_PATHS = new Set([
-  "/.well-known/oauth-protected-resource",
-  "/.well-known/oauth-protected-resource/mcp",
-  "/.well-known/teak-oauth-clients.json",
-]);
+const WELL_KNOWN = new Set<string>(WELL_KNOWN_PATHS);
 
 /**
  * Public, identical-for-everyone documents. The edge answers them for a few
  * minutes; clients get the lifetime Convex chose (five minutes for the OAuth
  * discovery documents, `no-store` for the OpenAPI spec).
  */
-const EDGE_CACHED_PATHS = new Set([...WELL_KNOWN_PATHS, "/api/openapi.json"]);
+const EDGE_CACHED_PATHS = new Set([...WELL_KNOWN, "/api/openapi.json"]);
 
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": "frame-ancestors 'none'",
@@ -59,7 +56,7 @@ export const upstreamPathFor = (pathname: string): string | null => {
   if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
     return pathname;
   }
-  if (WELL_KNOWN_PATHS.has(pathname)) {
+  if (WELL_KNOWN.has(pathname)) {
     return pathname;
   }
   return null;

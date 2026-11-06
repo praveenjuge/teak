@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FOLDER_COLORS } from "@teak/convex/shared/folders";
+import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
+import {
+  BULK_CARD_OPERATIONS,
+  PUBLIC_API_MAX_BULK_ITEMS,
+} from "@teak/convex/shared/publicApiContract";
 import { randomShuffleSeed } from "@teak/convex/shared/search/shuffle";
+import { THUMBNAIL_MAX_BYTES } from "@teak/convex/shared/thumbnails";
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import {
   Command,
   CommanderError,
@@ -308,17 +315,7 @@ const createCard = async (
   writeTip(`Open it with: teak open ${result.cardId}`, options);
 };
 
-const BULK_OPERATIONS: readonly string[] = [
-  "create",
-  "update",
-  "favorite",
-  "delete",
-  "restore",
-  "archive",
-  "unarchive",
-  "addTags",
-  "removeTags",
-] satisfies BulkCardsOperation[];
+const BULK_OPERATIONS: readonly string[] = BULK_CARD_OPERATIONS;
 
 export const bulkItems = (input: unknown): unknown[] | null => {
   if (Array.isArray(input)) {
@@ -712,7 +709,7 @@ const CARD_COMMANDS: Record<string, Build> = {
     run: favoriteCard,
   }),
   pin: toggleBuilder({
-    description: "Pin a card to the top of the library (up to 12)",
+    description: `Pin a card to the top of the library (up to ${MAX_PINNED_CARDS})`,
     oldFlag: { flags: "--remove", key: "remove", replacement: "unpin" },
     on: true,
     run: pinCard,
@@ -855,7 +852,10 @@ cardCommand("refresh");
 cards
   .command("thumbnail")
   .argument("<id>", "a link card")
-  .argument("[file]", "a JPEG, PNG, WebP, GIF or AVIF image under 20 MB")
+  .argument(
+    "[file]",
+    `a JPEG, PNG, WebP, GIF or AVIF image under ${formatBytes(THUMBNAIL_MAX_BYTES)}`
+  )
   .description("Replace a link card's image, or reset it with --reset")
   .option("--reset", "go back to the image Teak found for the link")
   .action(async (id, file, options) =>
@@ -893,11 +893,10 @@ const readBulkInput = async (file: string | undefined) =>
 
 cards
   .command("bulk")
-  .argument(
-    "<operation>",
-    "create, update, favorite, delete, restore, archive, unarchive, addTags, or removeTags"
+  .argument("<operation>", BULK_CARD_OPERATIONS.join(", "))
+  .description(
+    `Run one operation on up to ${PUBLIC_API_MAX_BULK_ITEMS} cards from a JSON file`
   )
-  .description("Run one operation on up to 100 cards from a JSON file")
   .option("--file <PATH>", "JSON items; - or no --file reads stdin")
   .addOption(new Option("--input <PATH>", "old name of --file").hideHelp())
   .option(
@@ -922,8 +921,10 @@ cards
         'bulk input must be a JSON array or {"items": [...]}'
       );
     }
-    if (items.length === 0 || items.length > 100) {
-      throw new InvalidArgumentError("bulk input must have 1 to 100 items");
+    if (items.length === 0 || items.length > PUBLIC_API_MAX_BULK_ITEMS) {
+      throw new InvalidArgumentError(
+        `bulk input must have 1 to ${PUBLIC_API_MAX_BULK_ITEMS} items`
+      );
     }
     if (options.dryRun) {
       const problems = items.flatMap((item, index) => {

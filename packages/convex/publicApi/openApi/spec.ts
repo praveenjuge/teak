@@ -1,13 +1,14 @@
 import { env, httpAction } from "../../_generated/server";
 import { resolveTeakDevApiUrl } from "../../devUrls";
 import { withPublicApiGatewayHeaders } from "../http/meta";
-import { cardPaths } from "./cards";
+import { cardOperations } from "./cards";
 import { components } from "./components";
-import { exportPaths } from "./exports";
-import { folderPaths } from "./folders";
-import { highlightPaths } from "./highlights";
-import { metaPaths } from "./meta";
-import { tagPaths } from "./tags";
+import { exportOperations } from "./exports";
+import { folderOperations } from "./folders";
+import { highlightOperations } from "./highlights";
+import { metaOperations } from "./meta";
+import { buildOpenApiPaths } from "./operations";
+import { tagOperations } from "./tags";
 
 export const openApiSpec = {
   openapi: "3.1.0",
@@ -23,15 +24,15 @@ export const openApiSpec = {
     { url: resolveTeakDevApiUrl(env) },
   ],
   components,
-  paths: {
-    ...metaPaths,
-    ...cardPaths,
-    ...tagPaths,
-    ...folderPaths,
-    ...highlightPaths,
-    ...exportPaths,
-  },
-} as const;
+  paths: buildOpenApiPaths({
+    ...metaOperations,
+    ...cardOperations,
+    ...tagOperations,
+    ...folderOperations,
+    ...highlightOperations,
+    ...exportOperations,
+  }),
+};
 
 export const openApiV1 = httpAction(async () =>
   withPublicApiGatewayHeaders(

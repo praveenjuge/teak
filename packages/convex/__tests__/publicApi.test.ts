@@ -350,6 +350,39 @@ describe("publicApi", () => {
     expect(result.pageInfo).toEqual({ hasMore: false, nextCursor: null });
   });
 
+  test.each([
+    [
+      "lets a read failure through instead of calling the cursor invalid",
+      new Error("Too many documents read in a single function execution"),
+      "Too many documents read",
+    ],
+    [
+      "calls the cursor invalid when Convex can't read it",
+      new Error("InvalidCursor: Failed to parse cursor"),
+      "Query parameter `cursor` is invalid",
+    ],
+  ])("listCardChangesForUser %s", async (_name, failure, message) => {
+    const module = await import("../publicApi");
+    const handler =
+      (module.listCardChangesForUser as any).handler ??
+      module.listCardChangesForUser;
+    const ctx = {
+      db: withSearchSyncDb({
+        query: mock(() => ({
+          withIndex: mock().mockReturnValue({
+            order: mock().mockReturnValue({
+              paginate: mock().mockRejectedValue(failure),
+            }),
+          }),
+        })),
+      }),
+    } as any;
+
+    await expect(
+      handler(withMappedOwner(ctx), { limit: 50, since: 0, userId: "user_1" })
+    ).rejects.toThrow(message);
+  });
+
   test("executeBulkCardsForUser rejects batches over the item limit", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;

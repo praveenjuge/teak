@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@raycast/api": "^1.104.24",
-    "teak-sdk": "1.0.87"
+    "teak-sdk": "1.0.93"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "21.0.4",

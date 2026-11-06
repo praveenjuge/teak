@@ -7,8 +7,8 @@ import {
 } from "../../devUrls";
 import { readIsDevDeployment } from "../../env";
 import { isLinkPrice } from "../../shared/price";
+import type { CardListInclude } from "../../shared/publicApiContract";
 import { isCardHidden } from "../../shared/tags";
-import type { CardListInclude } from "./shared";
 
 const APP_PROD_URL = "https://app.teakvault.com";
 
