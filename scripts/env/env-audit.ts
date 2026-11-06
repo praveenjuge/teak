@@ -79,10 +79,16 @@ const SKIP_DIRS = new Set([
   ".state",
   ".tmp",
   ".convex",
+  ".wrangler",
+  ".gradle",
+  ".wxt",
+  ".blume",
+  ".idea",
   "_generated",
-  "ios",
-  "android",
 ]);
+
+// Other checkouts inside this one (Claude Code worktrees).
+const SKIP_PATHS = new Set([".claude/worktrees"]);
 
 const META_FILES = new Set([
   "scripts/env/env-contract.ts",
@@ -104,9 +110,7 @@ export const listScannedFiles = (root: string): string[] => {
       }
       const stat = statSync(full);
       if (stat.isDirectory()) {
-        if (!(SKIP_DIRS.has(entry) || entry.startsWith("."))) {
-          walk(full);
-        } else if (entry === ".github") {
+        if (!(SKIP_DIRS.has(entry) || SKIP_PATHS.has(rel))) {
           walk(full);
         }
         continue;
