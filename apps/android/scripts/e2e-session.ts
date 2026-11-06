@@ -6,7 +6,7 @@
  * restarts the app. Prints the account's email and WorkOS user id for seeding.
  */
 import { spawnSync } from "node:child_process";
-import { EMULATOR_CLIENT_ID } from "../../../packages/tests/src/stack/config.ts";
+import { EMULATOR_CLIENT_ID } from "../../../scripts/dev/local-stack/config.ts";
 import {
   createSession,
   type E2eSession,

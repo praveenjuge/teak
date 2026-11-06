@@ -1,5 +1,8 @@
+import {
+  EMULATOR_API_KEY,
+  EMULATOR_CLIENT_ID,
+} from "@teak/scripts/dev/local-stack/config";
 import { expect } from "e2e";
-import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../stack/config";
 import { env } from "./env";
 
 export interface EmulatorUser {

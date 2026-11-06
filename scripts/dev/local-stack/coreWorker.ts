@@ -8,7 +8,7 @@ import {
   E2E_EMAIL_INBOUND_SIGNING_SECRET,
   type StackPorts,
   stackUrls,
-} from "./config";
+} from "./config.ts";
 
 // The Core Worker on the E2E stack: `wrangler dev` in local mode, with
 // Workflows, Queues, R2, KV, Durable Objects and Analytics Engine emulated by
@@ -21,7 +21,7 @@ import {
 // path, which it makes to a server on that local port
 // (apps/core-worker/e2e/fakeLinkFetcher.ts), so a link check can reach it.
 
-const ROOT = join(import.meta.dir, "../../../..");
+const ROOT = join(import.meta.dir, "../../..");
 const WORKER_DIR = join(ROOT, "apps/core-worker");
 const STATE_DIR = join(ROOT, ".agents/.state/e2e-core-worker");
 
@@ -42,36 +42,43 @@ export const coreWorkerDeploymentVars = (ports: StackPorts) => ({
   WORKFLOW_RPC_SECRET: e2eWorkflowRpcSecret(stackUrls(ports).apiOrigin),
 });
 
-const readCompatibilityDate = (): string => {
-  const source = readFileSync(join(WORKER_DIR, "wrangler.jsonc"), "utf8");
-  const match = /"compatibility_date":\s*"([^"]+)"/u.exec(source);
-  if (!match?.[1]) {
-    throw new Error(
-      "apps/core-worker/wrangler.jsonc has no compatibility_date"
-    );
-  }
-  return match[1];
-};
+interface DeployedWorker {
+  compatibility_date: string;
+  compatibility_flags: string[];
+  durable_objects: { bindings: { class_name: string; name: string }[] };
+  queues: {
+    consumers: { dead_letter_queue?: string; queue: string }[];
+    producers: { binding: string; queue: string }[];
+  };
+  ratelimits: unknown[];
+  triggers: { crons: string[] };
+  workflows: { binding: string; class_name: string; name: string }[];
+}
 
-const QUEUE_ROLES = [
-  "object-deletions",
-  "object-deletions-dlq",
-  "ai-backfill",
-  "r2-events",
-] as const;
+/**
+ * The deployed Worker's config (apps/core-worker/wrangler.jsonc). The local
+ * Worker takes its runtime, Workflows, queues, rate limits and Cron Triggers
+ * from it, so a new Workflow or schedule runs locally without another edit.
+ */
+const readDeployedWorker = (): DeployedWorker =>
+  Bun.JSONC.parse(
+    readFileSync(join(WORKER_DIR, "wrangler.jsonc"), "utf8")
+  ) as DeployedWorker;
 
-const queueName = (role: string) => `teak-e2e-${role}`;
+/** `teak-export` → `teak-e2e-export`, so local names never meet deployed ones. */
+const localName = (name: string) => name.replace(/^teak-/, "teak-e2e-");
 
 const FAKE_AI_WORKER = "teak-e2e-fake-ai";
 
 export const coreWorkerConfigs = (ports: StackPorts) => {
-  const compatibilityDate = readCompatibilityDate();
+  const deployed = readDeployedWorker();
+  const compatibilityDate = deployed.compatibility_date;
   const urls = stackUrls(ports);
   const worker = {
     name: "teak-files-e2e",
     main: join(WORKER_DIR, "src/index.ts"),
     compatibility_date: compatibilityDate,
-    compatibility_flags: ["nodejs_compat"],
+    compatibility_flags: deployed.compatibility_flags,
     assets: {
       directory: join(WORKER_DIR, "assets"),
       binding: "ASSETS",
@@ -83,62 +90,44 @@ export const coreWorkerConfigs = (ports: StackPorts) => {
       { binding: "LINK_PAGE_CACHE", id: "teak-e2e-link-page-cache" },
     ],
     durable_objects: {
-      bindings: [
-        { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
-        { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
-        {
-          name: "LINK_FETCHER",
-          class_name: "FakeLinkFetcher",
-          script_name: FAKE_AI_WORKER,
-        },
-      ],
+      // The link fetcher is a Container; the fake worker stands in for it.
+      bindings: deployed.durable_objects.bindings.map((binding) =>
+        binding.name === "LINK_FETCHER"
+          ? {
+              name: binding.name,
+              class_name: "FakeLinkFetcher",
+              script_name: FAKE_AI_WORKER,
+            }
+          : binding
+      ),
     },
     migrations: [
       {
         tag: "e2e-v1",
-        new_sqlite_classes: [
-          "ObjectDeletionGate",
-          "MediaRenderer",
-          "LinkFetcher",
-        ],
+        new_sqlite_classes: deployed.durable_objects.bindings.map(
+          (binding) => binding.class_name
+        ),
       },
     ],
-    ratelimits: [
-      {
-        name: "API_REQUEST_LIMITER",
-        namespace_id: "9941",
-        simple: { limit: 120, period: 60 },
-      },
-      {
-        name: "UNKNOWN_CREDENTIAL_LIMITER",
-        namespace_id: "9942",
-        simple: { limit: 60, period: 60 },
-      },
-    ],
-    workflows: [
-      ["card-processing", "CARD_PROCESSING", "CardProcessingWorkflow"],
-      ["export", "EXPORTS", "ExportWorkflow"],
-      ["import", "IMPORTS", "ImportWorkflow"],
-      ["account-deletion", "ACCOUNT_DELETION", "AccountDeletionWorkflow"],
-      ["maintenance", "MAINTENANCE", "MaintenanceWorkflow"],
-    ].map(([name, binding, className]) => ({
-      name: `teak-e2e-${name}`,
-      binding,
-      class_name: className,
+    ratelimits: deployed.ratelimits,
+    workflows: deployed.workflows.map((workflow) => ({
+      ...workflow,
+      name: localName(workflow.name),
     })),
     queues: {
-      producers: [
-        ["OBJECT_DELETIONS", "object-deletions"],
-        ["AI_BACKFILL", "ai-backfill"],
-        ["R2_EVENTS", "r2-events"],
-      ].map(([binding, role]) => ({ binding, queue: queueName(role) })),
-      consumers: QUEUE_ROLES.map((role) => ({
-        queue: queueName(role),
+      producers: deployed.queues.producers.map((producer) => ({
+        ...producer,
+        queue: localName(producer.queue),
+      })),
+      // Small, quick batches and few retries, so a test sees a message's
+      // outcome in seconds rather than the deployed minutes.
+      consumers: deployed.queues.consumers.map((consumer) => ({
+        queue: localName(consumer.queue),
         max_batch_size: 10,
         max_batch_timeout: 1,
         max_retries: 3,
-        ...(role === "object-deletions"
-          ? { dead_letter_queue: queueName(`${role}-dlq`) }
+        ...(consumer.dead_letter_queue
+          ? { dead_letter_queue: localName(consumer.dead_letter_queue) }
           : {}),
       })),
     },
@@ -154,16 +143,7 @@ export const coreWorkerConfigs = (ports: StackPorts) => {
       },
     ],
     images: { binding: "IMAGES" },
-    triggers: {
-      crons: [
-        "0 2 * * *",
-        "0 3 * * *",
-        "0 */6 * * *",
-        "0 4 * * 1",
-        "15 * * * *",
-        "45 * * * *",
-      ],
-    },
+    triggers: { crons: deployed.triggers.crons },
     vars: {
       CONVEX_SITE_URLS: urls.apiOrigin,
       FILES_PUBLIC_ORIGIN: coreWorkerOrigin(ports),

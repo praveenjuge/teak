@@ -1,3 +1,4 @@
+import { E2E_EMAIL_INBOUND_SIGNING_SECRET } from "@teak/scripts/dev/local-stack/config";
 import {
   handleEmail,
   REJECT_CANT_SAVE,
@@ -6,7 +7,6 @@ import type { InboundMessage } from "../../../../apps/core-worker/src/email/type
 import { clientFor, createAccount, expectVault, gotoApp } from "../helpers/app";
 import { env } from "../helpers/env";
 import { expect, test } from "../helpers/test";
-import { E2E_EMAIL_INBOUND_SIGNING_SECRET } from "../stack/config";
 
 const PDF = Buffer.from(
   "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"

@@ -1,23 +1,24 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readConvexSelection } from "@teak/scripts/dev/capabilities";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
+import { readDotenvFile } from "../../env/env-loader.ts";
+import { listDeploymentVars } from "../../setup/setup-convex.ts";
+import { isMachineLocalValue } from "../../setup/setup-derived-env.ts";
+import { readConvexSelection } from "../capabilities.ts";
 import {
   DEV_DEPLOYMENT,
   isLocalSelection,
   writeConvexSelection,
-} from "@teak/scripts/dev/dev-deployment";
-import { runCommand } from "@teak/scripts/dev/proc";
+} from "../dev-deployment.ts";
+import { runCommand } from "../proc.ts";
 import {
   isPortInUse,
+  MAIN_PORTS,
   type WorktreePorts,
-} from "@teak/scripts/dev/worktree-env";
-import { readDotenvFile } from "@teak/scripts/env/env-loader";
-import { listDeploymentVars } from "@teak/scripts/setup/setup-convex";
-import { isMachineLocalValue } from "@teak/scripts/setup/setup-derived-env";
-import { readResponseTextWithinLimit } from "../../../convex/shared/boundedResponse";
-import { emulatorDeploymentVars } from "./config";
-import { coreWorkerDeploymentVars } from "./coreWorker";
+} from "../worktree-env.ts";
+import { emulatorDeploymentVars } from "./config.ts";
+import { coreWorkerDeploymentVars } from "./coreWorker.ts";
 
 /**
  * Local backends keep their state in packages/convex/.convex, inside the
@@ -88,7 +89,7 @@ export interface ConvexDevOnceOptions extends BackendExitOptions {
 /**
  * `convex dev` arguments that bind a local backend to this checkout's ports.
  * The flags are hidden in the Convex CLI but stable; without them every
- * checkout's backend starts at 3210 and takes the next free port.
+ * checkout's backend starts at the main checkout's port and takes the next free one.
  */
 export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
   ports
@@ -258,10 +259,15 @@ export const convexDevOnce = async (
     if (isTransientPushFailure(output)) {
       await sleepMs(2000 * attempt);
     } else if (
-      !(await collidedWithOwnBackend(output, cwd, opts?.ports?.convex ?? 3210, {
-        ...opts,
-        sleepMs,
-      }))
+      !(await collidedWithOwnBackend(
+        output,
+        cwd,
+        opts?.ports?.convex ?? MAIN_PORTS.convex,
+        {
+          ...opts,
+          sleepMs,
+        }
+      ))
     ) {
       break;
     }

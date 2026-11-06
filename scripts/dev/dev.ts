@@ -25,7 +25,7 @@ import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 const DEV_MAIN = join(ROOT, "scripts/dev/dev-main.ts");
-const LOCAL_STACK = join(ROOT, "packages/tests/src/scripts/run-local-suite.ts");
+const LOCAL_STACK = join(ROOT, "scripts/dev/local-stack/run.ts");
 
 export const DEV_TARGETS: Record<string, string[]> = {
   web: ["@teak/web", "@teak/convex"],
@@ -394,7 +394,6 @@ export const localStackCommand = (): string[] => [
   process.execPath,
   "--no-env-file",
   LOCAL_STACK,
-  "stack",
   "--dev",
 ];
 

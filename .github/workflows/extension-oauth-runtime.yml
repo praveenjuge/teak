@@ -14,7 +14,7 @@ on:
       - packages/files-protocol/src/**
       - packages/i18n/src/**
       - packages/i18n/messages/**
-      - packages/tests/src/stack/config.ts
+      - scripts/dev/local-stack/config.ts
       - scripts/dev/proc.ts
       - scripts/dev/worktree-env.ts
       - scripts/dev/production-surfaces.ts

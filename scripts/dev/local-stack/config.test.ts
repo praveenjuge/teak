@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { slotPorts, stackPorts } from "@teak/scripts/dev/worktree-env";
-import { coreWorkerOrigin, stackUrls } from "./config";
+import { slotPorts, stackPorts } from "../worktree-env.ts";
+import { coreWorkerOrigin, stackUrls } from "./config.ts";
 
 describe("stack ports", () => {
   test("every origin the E2E stack serves is on a port its slot reserves", () => {

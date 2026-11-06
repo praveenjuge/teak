@@ -2,10 +2,7 @@ import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { api } from "@teak/convex";
-import {
-  isPortInUse,
-  type WorktreePorts,
-} from "@teak/scripts/dev/worktree-env";
+import { ConvexHttpClient } from "convex/browser";
 import {
   recordStartingStack,
   type StackState,
@@ -13,14 +10,14 @@ import {
   stackStatePath,
   stopGroup,
   waitFor,
-} from "@teak/scripts/lib/stack-state";
-import { ConvexHttpClient } from "convex/browser";
-import { localBackendEnv } from "./backend";
-import { emulatorWebEnv, stackUrls } from "./config";
-import { startCoreWorker } from "./coreWorker";
-import { startEmulator } from "./emulator";
+} from "../../lib/stack-state.ts";
+import { isPortInUse, type WorktreePorts } from "../worktree-env.ts";
+import { localBackendEnv } from "./backend.ts";
+import { emulatorWebEnv, stackUrls } from "./config.ts";
+import { startCoreWorker } from "./coreWorker.ts";
+import { startEmulator } from "./emulator.ts";
 
-const ROOT = join(import.meta.dir, "../../../..");
+const ROOT = join(import.meta.dir, "../../..");
 const CONVEX_DIR = join(ROOT, "packages/convex");
 const STATE_PATH = stackStatePath(ROOT);
 export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");

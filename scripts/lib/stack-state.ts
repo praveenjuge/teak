@@ -1,7 +1,7 @@
 /**
  * The state file a running stack records, and the process helpers that start
  * and stop one. `bun run dev` (scripts/dev/dev-stack.ts) and the E2E suite's stack
- * (packages/tests/src/stack) share them, so each refuses to start on the
+ * (scripts/dev/local-stack) share them, so each refuses to start on the
  * other's ports and either can be stopped after a crash.
  *
  * The e2e CLI loads this file under Node (packages/tests/src/helpers/env.ts),
@@ -135,6 +135,8 @@ const commands = ():
 const STACK_OWNERS = [
   "scripts/dev/dev-main.ts",
   "scripts/dev/dev.ts",
+  "scripts/dev/local-stack/run.ts",
+  // The e2e suite runs the stack in its own process.
   "run-local-suite.ts",
 ];
 const STACK_MEMBERS = ["convex", "next"];

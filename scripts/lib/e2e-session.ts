@@ -8,7 +8,7 @@ import { join } from "node:path";
 import {
   EMULATOR_API_KEY,
   EMULATOR_CLIENT_ID,
-} from "../../packages/tests/src/stack/config.ts";
+} from "../dev/local-stack/config.ts";
 import { currentStack, type StackState } from "./stack-state.ts";
 
 const ROOT = join(import.meta.dir, "../..");
