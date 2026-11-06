@@ -39,7 +39,7 @@ import { isRetryableFilesError } from "./filesOps";
 import {
   CONVEX_STEP,
   errorMessage,
-  retryConfig,
+  exponentialStep,
   runReported,
   type StepConfig,
   type StepContext,
@@ -97,7 +97,7 @@ const IMPORT_STEP: StepConfig = {
   },
   timeout: "10 minutes",
 };
-const FINALIZE_STEP = retryConfig(3, 500);
+const FINALIZE_STEP = exponentialStep(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
 export const STAGED_PART_BYTES = 8 * 1024 * 1024;

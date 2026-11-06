@@ -5,6 +5,7 @@ import {
   type LinkPrice,
   parseStructuredPrice,
 } from "../index";
+import { providerForHostname } from "../utils/linkCategoryResolver";
 import {
   formatDate,
   type ProviderEnrichmentResult,
@@ -209,9 +210,10 @@ const jsonLdDate = (value: unknown): string | undefined => {
   return typeof value === "string" ? formatDate(value) : undefined;
 };
 
-const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
-  hostname === domain || hostname.endsWith(`.${domain}`);
-
+/**
+ * The provider a link's details come from: the classifier's hint, else the
+ * site its host belongs to (`providerForHostname`), else the host itself.
+ */
 export const detectProvider = (
   url?: string,
   hint?: string
@@ -224,57 +226,7 @@ export const detectProvider = (
   }
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostnameMatchesDomain(hostname, "github.com")) {
-      return "github";
-    }
-    if (hostnameMatchesDomain(hostname, "goodreads.com")) {
-      return "goodreads";
-    }
-    if (
-      hostnameMatchesDomain(hostname, "amazon.com") ||
-      hostnameMatchesDomain(hostname, "amazon.co.uk") ||
-      hostnameMatchesDomain(hostname, "amazon.de") ||
-      hostnameMatchesDomain(hostname, "amazon.fr") ||
-      hostnameMatchesDomain(hostname, "amazon.it") ||
-      hostnameMatchesDomain(hostname, "amazon.es") ||
-      hostnameMatchesDomain(hostname, "amazon.ca") ||
-      hostnameMatchesDomain(hostname, "amazon.com.au") ||
-      hostnameMatchesDomain(hostname, "amazon.co.jp") ||
-      hostnameMatchesDomain(hostname, "amazon.in")
-    ) {
-      return "amazon";
-    }
-    if (hostnameMatchesDomain(hostname, "imdb.com")) {
-      return "imdb";
-    }
-    if (hostnameMatchesDomain(hostname, "netflix.com")) {
-      return "netflix";
-    }
-    if (hostnameMatchesDomain(hostname, "behance.net")) {
-      return "behance";
-    }
-    if (hostnameMatchesDomain(hostname, "dribbble.com")) {
-      return "dribbble";
-    }
-    if (hostnameMatchesDomain(hostname, "spotify.com")) {
-      return "spotify";
-    }
-    if (hostnameMatchesDomain(hostname, "apple.com")) {
-      return "apple";
-    }
-    if (
-      hostnameMatchesDomain(hostname, "youtube.com") ||
-      hostnameMatchesDomain(hostname, "youtu.be")
-    ) {
-      return "youtube";
-    }
-    if (hostnameMatchesDomain(hostname, "medium.com")) {
-      return "medium";
-    }
-    if (hostnameMatchesDomain(hostname, "substack.com")) {
-      return "substack";
-    }
-    return hostname;
+    return providerForHostname(hostname) ?? hostname;
   } catch {
     return undefined;
   }

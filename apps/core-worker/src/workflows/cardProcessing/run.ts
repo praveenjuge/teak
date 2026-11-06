@@ -9,10 +9,11 @@ import {
 } from "@teak/files-protocol";
 import {
   CONVEX_STEP,
+  exponentialStep,
   NO_RETRY,
-  retryConfig,
   runReported,
   type StepConfig,
+  stepAttempts,
   type WorkflowRun,
 } from "../runtime";
 import {
@@ -62,14 +63,13 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 // Step names are durable history: never rename one, and add new steps after
 // the existing ones.
 
-const LINK_METADATA_STEP = retryConfig(5, 5000);
-const CATEGORIZE_STEP = retryConfig(5, 1200);
-const RENDERABLES_STEP = retryConfig(4, 5000);
-const RENDERABLES_ATTEMPTS = 4;
-const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
-const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
+const LINK_METADATA_STEP = exponentialStep(5, 5000);
+const CATEGORIZE_STEP = exponentialStep(5, 1200);
+const RENDERABLES_STEP = exponentialStep(4, 5000);
+const PODCAST_STEP = exponentialStep(2, 60_000, "15 minutes");
+const LINK_TEXT_STEP = exponentialStep(3, 30_000, "5 minutes");
 // A busy image host (429 or 5xx) gets about 7½ minutes to come back.
-const PREVIEW_IMAGE_STEP = retryConfig(5, 30_000, "5 minutes");
+const PREVIEW_IMAGE_STEP = exponentialStep(5, 30_000, "5 minutes");
 
 const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
@@ -261,8 +261,11 @@ const processCard = async (
     (await step.do(
       "classify",
       CONVEX_STEP,
-      reported("card.classification", "classification", 9, () =>
-        classifyCard(job)
+      reported(
+        "card.classification",
+        "classification",
+        stepAttempts(CONVEX_STEP),
+        () => classifyCard(job)
       )
     ));
   if (classified.mode === "skipped") {
@@ -292,13 +295,18 @@ const processCard = async (
       await step.do(
         "fetch link metadata",
         LINK_METADATA_STEP,
-        reported("card.link_metadata", "link_metadata", 5, async () => {
-          const card = (await loadCard(job))?.card;
-          if (!card?.url || card.metadataStatus !== "pending") {
-            return { status: "skipped" as const };
+        reported(
+          "card.link_metadata",
+          "link_metadata",
+          stepAttempts(LINK_METADATA_STEP),
+          async () => {
+            const card = (await loadCard(job))?.card;
+            if (!card?.url || card.metadataStatus !== "pending") {
+              return { status: "skipped" as const };
+            }
+            return await fetchLinkMetadata(job);
           }
-          return await fetchLinkMetadata(job);
-        })
+        )
       );
     } catch (error) {
       const failure = job.refresh
@@ -318,8 +326,11 @@ const processCard = async (
     const categorized = await step.do(
       "categorize",
       CATEGORIZE_STEP,
-      reported("card.categorization", "categorization", 5, () =>
-        categorizeLink(job)
+      reported(
+        "card.categorization",
+        "categorization",
+        stepAttempts(CATEGORIZE_STEP),
+        () => categorizeLink(job)
       )
     );
     if (categorized.mode === "missing") {
@@ -336,8 +347,11 @@ const processCard = async (
       return await step.do(
         "generate renderables",
         RENDERABLES_STEP,
-        reported("card.renderables", "renderables", RENDERABLES_ATTEMPTS, () =>
-          generateRenderables(job, cardType)
+        reported(
+          "card.renderables",
+          "renderables",
+          stepAttempts(RENDERABLES_STEP),
+          () => generateRenderables(job, cardType)
         )
       );
     } catch (error) {

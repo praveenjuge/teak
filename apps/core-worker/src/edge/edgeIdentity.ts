@@ -11,6 +11,7 @@ import {
   sha256Hex,
 } from "@teak/files-protocol";
 import type { ApiProxyEnv } from "./apiProxy";
+import { isMcpPathname } from "./mcpEdge";
 
 export interface EdgeIdentityEnv extends ApiProxyEnv {
   API_WORKOS_ISSUER?: string;
@@ -105,7 +106,7 @@ const looksLikeJwt = (token: string): boolean =>
 
 const audienceFor = (request: Request, host: string): string => {
   const resources = workosResourcesFor(`https://${host}`);
-  return new URL(request.url).pathname.startsWith("/mcp")
+  return isMcpPathname(new URL(request.url).pathname)
     ? resources.mcp
     : resources.api;
 };

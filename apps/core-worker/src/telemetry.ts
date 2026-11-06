@@ -17,13 +17,30 @@ interface WaitUntil {
   waitUntil: (promise: Promise<unknown>) => void;
 }
 
-const createWorkerBatch = (env: TelemetryEnvVars) =>
+/**
+ * The batch every event the Worker sends about itself goes in: its exceptions
+ * and the workflow events (`workflows/telemetry.ts`).
+ */
+export const createWorkerBatch = (
+  env: TelemetryEnvVars,
+  options: { fetch?: typeof fetch } = {}
+) =>
   createPostHogBatch({
+    ...(options.fetch ? { fetch: options.fetch } : {}),
     lib: "teak-files-worker",
     libVersion: packageJson.version,
     platform: "node:javascript",
     token: env.POSTHOG_PROJECT_TOKEN,
   });
+
+/** The properties every Worker event carries beside its own. */
+export const workerEventProperties = (
+  properties: object
+): Record<string, unknown> => ({
+  ...properties,
+  $app_version: packageJson.version,
+  surface: "files-worker",
+});
 
 const sendException = async (
   env: TelemetryEnvVars,
@@ -36,11 +53,7 @@ const sendException = async (
     return;
   }
   batch.captureException(error, {
-    properties: {
-      ...properties,
-      $app_version: packageJson.version,
-      surface: "files-worker",
-    },
+    properties: workerEventProperties(properties),
   });
   const sent = batch.flush();
   if (ctx) {

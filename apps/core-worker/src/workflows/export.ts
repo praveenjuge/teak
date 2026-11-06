@@ -33,7 +33,7 @@ import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
   CONVEX_STEP,
   errorMessage,
-  retryConfig,
+  exponentialStep,
   runReported,
   type WorkflowRun,
 } from "./runtime";
@@ -50,7 +50,7 @@ const CARDS_PAGE_SIZE = 100;
 const PER_CARD_JSON_BYTES = 2 * 1024;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
 
-const ARCHIVE_STEP = retryConfig(3, 30_000, "30 minutes");
+const ARCHIVE_STEP = exponentialStep(3, 30_000, "30 minutes");
 
 interface ArchiveCard {
   card: ExportableCard;
