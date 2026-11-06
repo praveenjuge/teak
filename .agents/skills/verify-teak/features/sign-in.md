@@ -17,7 +17,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 
 ## How to get to it (user POV)
 
-- Open any app URL, such as `http://localhost:3000/` or `/settings`, while signed out.
+- Open any app URL, such as `<appOrigin>/` or `/settings`, while signed out (`bun run dev --status` prints the origin).
 - Open `/sign-in` directly.
 - Signed in: Settings → "Sign out".
 - Signed in: Ctrl+K (⌘K on a Mac) → type "sign out" → Enter.

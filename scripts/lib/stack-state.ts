@@ -159,6 +159,26 @@ export const isStackRunning = (state: StackState): boolean => {
   );
 };
 
+export type StackPhase = "gone" | "ready" | "starting" | "stopped";
+
+/**
+ * The one reading of the stack that every status check shares (`bun run dev
+ * --status`, both doctors, the native apps' E2E sessions): nothing recorded,
+ * recorded but its owner is gone, or alive and starting or ready.
+ */
+export const currentStack = (
+  root: string
+): { phase: StackPhase; state: StackState | null } => {
+  const state = readStackState(root);
+  if (!state) {
+    return { phase: "stopped", state: null };
+  }
+  if (!isStackRunning(state)) {
+    return { phase: "gone", state };
+  }
+  return { phase: state.ready ? "ready" : "starting", state };
+};
+
 // The backend and web app's process group, if any of its members is still a
 // Convex or Next.js process. Without `ps` membership can't be proven, and a
 // group ID may have been reused, so the group is never signaled.
