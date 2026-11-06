@@ -1,23 +1,24 @@
 import type { CardType } from "@teak/convex/shared/constants";
-import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 import {
   createTeakTranslator,
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import { APP_ACTION_IDS, APP_ACTIONS, appActionKey } from "./appCommands";
 import { cardTitle } from "./cardTypes";
+import { getDisplayHostname } from "./displayHost";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
-import { APP_KEYS, isOverlayOpen, keyName } from "./keyboardShortcuts";
+import { isOverlayOpen } from "./keyboardShortcuts";
 import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
 import {
   LIBRARY_VIEW_PATHS,
-  type LibraryView,
   libraryViewFlags,
   libraryViewForPath,
 } from "./libraryViews";
 import type { LinkTitleTranslator } from "./linkTitle";
-import { isApplePlatform } from "./platform";
+import { isApplePlatform, isModKey } from "./platform";
+import { librarySearchHref } from "./searchUrlState";
 
 const englishPalette = createTeakTranslator(
   "en",
@@ -45,15 +46,13 @@ export function isCommandPaletteKey(
   apple = isApplePlatform()
 ): boolean {
   if (
-    event.key.toLowerCase() !== APP_KEYS.commandPalette ||
+    event.key.toLowerCase() !== appActionKey("commandPalette") ||
     event.altKey ||
     event.shiftKey
   ) {
     return false;
   }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
+  return isModKey(event, apple);
 }
 
 const isInsideEditor = (target: EventTarget | null) =>
@@ -75,75 +74,13 @@ export function shouldOpenPalette(
   );
 }
 
-export type CommandPaletteActionId =
-  | "new-note"
-  | "upload"
-  | "import"
-  | "export"
-  | "toggle-theme"
-  | "shuffle"
-  | "shortcuts"
-  | "empty-trash"
-  | "sign-out";
-
-export interface CommandPaletteAction {
-  id: CommandPaletteActionId;
-  keys?: string[];
-  /** Extra English words the filter matches besides the label. */
-  keywords: string[];
-  labelKey: keyof (typeof englishMessages)["commandPalette"]["actions"];
-  view?: LibraryView;
-}
-
-export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
-  {
-    id: "new-note",
-    keywords: ["write", "text", "add"],
-    keys: [keyName(APP_KEYS.newNote)],
-    labelKey: "newNote",
-  },
-  {
-    id: "upload",
-    keywords: ["file", "image", "add"],
-    keys: [keyName(APP_KEYS.uploadFiles)],
-    labelKey: "upload",
-  },
-  {
-    id: "import",
-    keywords: ["bookmarks", "pocket", "data"],
-    labelKey: "import",
-  },
-  {
-    id: "export",
-    keywords: ["download", "backup", "data"],
-    labelKey: "export",
-  },
-  {
-    id: "toggle-theme",
-    keywords: ["dark", "light", "appearance"],
-    labelKey: "toggleTheme",
-  },
-  { id: "shuffle", keywords: ["random", "sort"], labelKey: "shuffle" },
-  {
-    id: "shortcuts",
-    keywords: ["keys", "help", "hotkeys"],
-    keys: [keyName(APP_KEYS.keyboardShortcuts)],
-    labelKey: "shortcuts",
-  },
-  {
-    id: "empty-trash",
-    keywords: ["delete", "forever", "clear"],
-    labelKey: "emptyTrash",
-    view: "trash",
-  },
-  { id: "sign-out", keywords: ["log out", "logout"], labelKey: "signOut" },
-];
-
+/** The app actions the palette offers on this page: Empty Trash in Trash. */
 export const paletteActions = (pathname: string | null | undefined) => {
   const view = libraryViewForPath(pathname);
-  return COMMAND_PALETTE_ACTIONS.filter(
-    (action) => !action.view || action.view === view
-  );
+  return APP_ACTION_IDS.filter((id) => {
+    const entry = APP_ACTIONS[id].palette;
+    return entry !== undefined && (!entry.view || entry.view === view);
+  });
 };
 
 export function isLibraryRoute(pathname: string | null | undefined): boolean {
@@ -169,10 +106,9 @@ const paletteSearchView = (pathname: string | null | undefined) =>
     : "all";
 
 export const paletteSearchAllHref = (query: string, pathname?: string | null) =>
-  libraryHref(
-    LIBRARY_VIEW_PATHS[paletteSearchView(pathname)],
-    new URLSearchParams({ q: query.trim() })
-  );
+  librarySearchHref(LIBRARY_VIEW_PATHS[paletteSearchView(pathname)], {
+    q: query,
+  });
 
 export function paletteShuffleHref(
   pathname: string | null | undefined,
@@ -241,6 +177,6 @@ export function paletteCardHost(card: PaletteCard): string | undefined {
   if (card.type !== "link") {
     return;
   }
-  const host = card.urlHost || getSafeUrlHostname(card.url);
-  return host?.replace(/^www\./, "") || undefined;
+  // A stored urlHost is already without `www.`.
+  return card.urlHost || getDisplayHostname(card.url);
 }

@@ -9,7 +9,7 @@ import {
 } from "@floating-ui/dom";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useRef } from "react";
-import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import { Button } from "../ui/button";
 import type { CardLinkSuggestion } from "./types";
 
@@ -180,7 +180,7 @@ export function CardLinkMenu({
         role="listbox"
       >
         {items.map((item, index) => {
-          const Icon = getCardTypeIconComponent(item.type);
+          const Icon = cardTypeIcon(item.type);
           return (
             <Button
               aria-selected={selected === index}

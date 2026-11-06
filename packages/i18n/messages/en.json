@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {File uploaded} other {Uploaded # files}}",
       "uploadedSentence": "{count, plural, one {File uploaded.} other {Uploaded # files.}}",
-      "cardLimitReached": "Free card limit reached",
-      "upgrade": "Upgrade",
-      "rateLimited": "Too many cards created. Please wait a moment.",
       "uploadFailed": "Upload failed",
       "uploadFailedMany": "Failed to upload {count, plural, other {# files}}. {reason}",
       "uploading": "Uploading…",
@@ -592,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Revisit",
-      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, Z undoes the last archive and Escape leaves.",
+      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, {undoKey} undoes the last archive and Escape leaves.",
       "close": "Close Revisit",
       "progress": "{position} of {total}",
       "loadingCards": "Loading cards",
@@ -602,7 +599,7 @@
       "summary": "{archived} archived · {kept} kept",
       "startOver": "Start over",
       "revisitMore": "Revisit {count} more",
-      "undoHint": "<kbd>Z</kbd> undoes the last archive",
+      "undoHint": "<kbd>{undoKey}</kbd> undoes the last archive",
       "openDetails": "Open details: {type}",
       "added": "Added {date}",
       "inTrash": "In Trash",
@@ -611,7 +608,7 @@
       "releaseToKeep": "Release to keep",
       "archive": "Archive",
       "keep": "Keep",
-      "keyHints": "<kbd>Space</kbd> details · <kbd>Z</kbd> undo · <kbd>Esc</kbd> exit",
+      "keyHints": "<kbd>Space</kbd> details · <kbd>{undoKey}</kbd> undo · <kbd>Esc</kbd> exit",
       "swipeHint": "Swipe left to archive, right to keep"
     }
   },
@@ -797,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Add to folder…",
-      "copyLink": "Copy link",
-      "copyText": "Copy text",
       "download": "Download",
       "moreActions": "More actions",
       "moreLikeThis": "More like this",
@@ -1222,10 +1217,6 @@
       "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
       "microphoneMissing": "No microphone was detected. Connect one and retry.",
       "recordingStartFailed": "Failed to start recording. Check your microphone setup.",
-      "uploading": "Uploading {name}...",
-      "uploaded": "{name} uploaded",
-      "uploadFailed": "Failed to upload {name}: {error}",
-      "uploadFailedReason": "Upload failed",
       "startingMicrophone": "Starting microphone...",
       "savingRecordingStatus": "Saving recording...",
       "recordingHint": "Speak naturally. Teak will save this as an audio card.",
@@ -1475,6 +1466,7 @@
     "groups": {
       "cards": "Cards",
       "openCard": "Open card",
+      "revisit": "Revisit",
       "goTo": "Go to",
       "search": "Search",
       "anywhere": "Anywhere"
@@ -1497,7 +1489,6 @@
       "openOrDownload": "Open the link or download the file",
       "openLink": "Open the link",
       "markLinkDone": "Mark a link done",
-      "copyLinkOrText": "Copy the link or text",
       "readOrPreview": "Read or preview",
       "highlightSelection": "Highlight the selection",
       "goToEverything": "Everything",
@@ -1524,7 +1515,12 @@
       "byFolder": "Cards in a folder",
       "byState": "Favorites, archived, done or to-do",
       "pin": "Pin or unpin",
-      "movePinned": "Move a pinned card left or right"
+      "movePinned": "Move a pinned card left or right",
+      "revisitArchive": "Archive",
+      "revisitKeep": "Keep",
+      "revisitDetails": "Open details",
+      "revisitUndo": "Undo the last archive",
+      "revisitLeave": "Leave Revisit"
     }
   },
   "extension": {
@@ -1740,7 +1736,6 @@
       "saved": "PDF saved",
       "alreadySaved": "Already saved",
       "open": "Open",
-      "cardLimitReached": "Free card limit reached",
       "tooLarge": "This PDF is too large. Teak keeps files up to 100 MB.",
       "notPdf": "arXiv didn't send a PDF for this paper.",
       "failed": "Couldn't save the PDF. Try again."

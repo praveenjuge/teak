@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import "@/__tests__/helpers/nextRouter";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 

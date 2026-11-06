@@ -13,8 +13,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { ClientCard } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
-import type { CardModalCard } from "./types";
 
 export type PageArchiveRowState =
   | { bytes: number; kind: "saved"; textOnly: boolean }
@@ -24,7 +24,7 @@ export type PageArchiveRowState =
 const SAVING = new Set(["pending", "in_progress"]);
 
 export const pageArchiveRowState = (
-  card: Pick<CardModalCard, "pageArchive" | "processingStatus" | "type">
+  card: Pick<ClientCard, "pageArchive" | "processingStatus" | "type">
 ): PageArchiveRowState | null => {
   if (card.type !== "link") {
     return null;
@@ -52,7 +52,7 @@ const FAILURE_MESSAGES = {
   unreachable: "archiveFailedUnreachable",
 } as const satisfies Record<PageArchiveFailureReason, string>;
 
-export function PageArchiveRow({ card }: { card: CardModalCard }) {
+export function PageArchiveRow({ card }: { card: ClientCard }) {
   const t = useTranslations("cardModal.details");
   const locale = useIntlLocale(US_ENGLISH_LOCALE);
   const state = pageArchiveRowState(card);

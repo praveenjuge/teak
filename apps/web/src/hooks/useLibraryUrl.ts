@@ -18,9 +18,9 @@ import {
   parseSearchUrlState,
   SEARCH_URL_PARAMS,
   type SearchUrlState,
+  serializeSearchUrlState,
 } from "@/lib/searchUrlState";
 import { type SearchUrlChange, searchUrlQuery } from "@/lib/searchUrlSync";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import {
   readSharedText,
   SHARE_FILES_PARAM,
@@ -97,14 +97,15 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
 
   const onNavigateView = useCallback(
     (nextView: LibraryView) => {
-      if (new URLSearchParams(window.location.search).has("q")) {
+      // The search text belongs to the page being left; its filters stay.
+      const { pathname: path, search } = window.location;
+      const current = parseSearchUrlState(new URLSearchParams(search));
+      if (current.q) {
+        const query = serializeSearchUrlState({ ...current, q: "" }, search);
         window.history.replaceState(
           null,
           "",
-          libraryHref(
-            window.location.pathname,
-            searchWithout(window.location.search, "q")
-          )
+          query ? `${path}?${query}` : path
         );
       }
       router.push(LIBRARY_VIEW_PATHS[nextView]);
@@ -187,7 +188,6 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       [router]
     ),
     onSearchUrlStateChange,
-    onUpgrade: useCallback(() => router.push(SETTINGS_PLAN_HREF), [router]),
     popCardEntry,
     pushCardId: (cardId: string) => setCardId(cardId, false),
     replaceCardId: (cardId: string | null) => setCardId(cardId, true),

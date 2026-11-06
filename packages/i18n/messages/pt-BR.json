@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Arquivo enviado} other {# arquivos enviados}}",
       "uploadedSentence": "{count, plural, one {Arquivo enviado.} other {# arquivos enviados.}}",
-      "cardLimitReached": "Limite de cards grátis atingido",
-      "upgrade": "Fazer upgrade",
-      "rateLimited": "Muitos cards criados. Aguarde um momento.",
       "uploadFailed": "Falha no envio",
       "uploadFailedMany": "Falha ao enviar {count, plural, one {# arquivo} other {# arquivos}}. {reason}",
       "uploading": "Enviando…",
@@ -592,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Revisitar",
-      "description": "Um card por vez. A seta para a esquerda arquiva, a seta para a direita mantém, Espaço abre os detalhes, Z desfaz o último arquivamento e Esc sai.",
+      "description": "Um card por vez. A seta para a esquerda arquiva, a seta para a direita mantém, Espaço abre os detalhes, {undoKey} desfaz o último arquivamento e Esc sai.",
       "close": "Fechar Revisitar",
       "progress": "{position} de {total}",
       "loadingCards": "Carregando cards",
@@ -602,7 +599,7 @@
       "summary": "{archived} arquivados · {kept} mantidos",
       "startOver": "Recomeçar",
       "revisitMore": "Revisitar mais {count}",
-      "undoHint": "<kbd>Z</kbd> desfaz o último arquivamento",
+      "undoHint": "<kbd>{undoKey}</kbd> desfaz o último arquivamento",
       "openDetails": "Abrir detalhes: {type}",
       "added": "Adicionado em {date}",
       "inTrash": "Na Lixeira",
@@ -611,7 +608,7 @@
       "releaseToKeep": "Solte para manter",
       "archive": "Arquivar",
       "keep": "Manter",
-      "keyHints": "<kbd>Espaço</kbd> detalhes · <kbd>Z</kbd> desfazer · <kbd>Esc</kbd> sair",
+      "keyHints": "<kbd>Espaço</kbd> detalhes · <kbd>{undoKey}</kbd> desfazer · <kbd>Esc</kbd> sair",
       "swipeHint": "Deslize para a esquerda para arquivar, para a direita para manter"
     }
   },
@@ -797,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Adicionar à pasta…",
-      "copyLink": "Copiar link",
-      "copyText": "Copiar texto",
       "download": "Baixar",
       "moreActions": "Mais ações",
       "moreLikeThis": "Mais como este",
@@ -1222,10 +1217,6 @@
       "microphoneDenied": "A permissão do microfone foi negada. Permita o acesso e tente de novo.",
       "microphoneMissing": "Nenhum microfone foi detectado. Conecte um e tente de novo.",
       "recordingStartFailed": "Não foi possível iniciar a gravação. Verifique a configuração do microfone.",
-      "uploading": "Enviando {name}...",
-      "uploaded": "{name} enviado",
-      "uploadFailed": "Não foi possível enviar {name}: {error}",
-      "uploadFailedReason": "Falha no envio",
       "startingMicrophone": "Iniciando o microfone...",
       "savingRecordingStatus": "Salvando a gravação...",
       "recordingHint": "Fale naturalmente. O Teak vai salvar isto como um card de áudio.",
@@ -1475,6 +1466,7 @@
     "groups": {
       "cards": "Cards",
       "openCard": "Card aberto",
+      "revisit": "Revisitar",
       "goTo": "Ir para",
       "search": "Pesquisa",
       "anywhere": "Em qualquer lugar"
@@ -1497,7 +1489,6 @@
       "openOrDownload": "Abrir o link ou baixar o arquivo",
       "openLink": "Abrir o link",
       "markLinkDone": "Marcar um link como concluído",
-      "copyLinkOrText": "Copiar o link ou o texto",
       "readOrPreview": "Ler ou ver a prévia",
       "highlightSelection": "Destacar a seleção",
       "goToEverything": "Tudo",
@@ -1524,7 +1515,12 @@
       "byFolder": "Cards em uma pasta",
       "byState": "Favoritos, arquivados, concluídos ou pendentes",
       "pin": "Fixar ou desafixar",
-      "movePinned": "Mover um card fixado para a esquerda ou para a direita"
+      "movePinned": "Mover um card fixado para a esquerda ou para a direita",
+      "revisitArchive": "Arquivar",
+      "revisitKeep": "Manter",
+      "revisitDetails": "Abrir detalhes",
+      "revisitUndo": "Desfazer o último arquivamento",
+      "revisitLeave": "Sair de Revisitar"
     }
   },
   "extension": {
@@ -1740,7 +1736,6 @@
       "saved": "PDF salvo",
       "alreadySaved": "Já salvo",
       "open": "Abrir",
-      "cardLimitReached": "Limite de cards grátis atingido",
       "tooLarge": "Este PDF é grande demais. O Teak guarda arquivos de até 100 MB.",
       "notPdf": "O arXiv não enviou um PDF para este artigo.",
       "failed": "Não foi possível salvar o PDF. Tente novamente."

@@ -25,6 +25,10 @@ const card = (overrides: Partial<Doc<"cards">> = {}): Doc<"cards"> =>
     ...overrides,
   }) as Doc<"cards">;
 
+const isGridQuery = (query: unknown) =>
+  getFunctionName(query as typeof api.cards.searchCardsPaginated) ===
+  getFunctionName(api.cards.searchCardsPaginated);
+
 const isCardDetailQuery = (query: unknown) =>
   getFunctionName(query as typeof api.cards.getCardByUrlId) ===
   getFunctionName(api.cards.getCardByUrlId);
@@ -98,12 +102,10 @@ describe("card query optimistic updates", () => {
       ...card({ _id: "card-3" as Id<"cards">, content: "billing" }),
       matchedByMeaning: true,
     };
-    let getAllQueriesCall = 0;
     const localStore = {
-      getAllQueries: () =>
-        getAllQueriesCall++ === 0
-          ? []
-          : [
+      getAllQueries: (query: unknown) =>
+        isGridQuery(query)
+          ? [
               {
                 args: {
                   paginationOpts: { cursor: null, numItems: 20 },
@@ -115,7 +117,8 @@ describe("card query optimistic updates", () => {
                   page: [card({ content: "invoice" }), pdf, related],
                 },
               },
-            ],
+            ]
+          : [],
       setQuery: (
         _query: unknown,
         _args: unknown,
@@ -150,9 +153,8 @@ describe("card query optimistic updates", () => {
       page({ types: ["text"] }, null),
     ];
     const written: unknown[] = [];
-    let getAllQueriesCall = 0;
     const localStore = {
-      getAllQueries: () => (getAllQueriesCall++ === 0 ? [] : queries),
+      getAllQueries: (query: unknown) => (isGridQuery(query) ? queries : []),
       setQuery: (_query: unknown, args: unknown) => written.push(args),
     } as unknown as OptimisticLocalStore;
 
@@ -164,35 +166,12 @@ describe("card query optimistic updates", () => {
     expect(written).toEqual([queries[0].args, queries[5].args]);
   });
 
-  it("removes an unfavorited card from every active Favorites query", () => {
-    const values: Doc<"cards">[][] = [];
-    let getAllQueriesCall = 0;
-    const localStore = {
-      getAllQueries: () =>
-        getAllQueriesCall++ === 0
-          ? [{ args: { favoritesOnly: true }, value: [card()] }]
-          : [],
-      setQuery: (_query: unknown, _args: unknown, value: Doc<"cards">[]) =>
-        values.push(value),
-    } as unknown as OptimisticLocalStore;
-
-    updateCardInSearchQueries(
-      localStore,
-      "card-1" as Id<"cards">,
-      (current) => ({ ...current, isFavorited: false })
-    );
-
-    expect(values).toEqual([[]]);
-  });
-
   it("removes an unfavorited card from paginated Favorites pages", () => {
     const values: Array<{ page: Doc<"cards">[] }> = [];
-    let getAllQueriesCall = 0;
     const localStore = {
-      getAllQueries: () =>
-        getAllQueriesCall++ === 0
-          ? []
-          : [
+      getAllQueries: (query: unknown) =>
+        isGridQuery(query)
+          ? [
               {
                 args: {
                   favoritesOnly: true,
@@ -204,7 +183,8 @@ describe("card query optimistic updates", () => {
                   page: [card()],
                 },
               },
-            ],
+            ]
+          : [],
       setQuery: (
         _query: unknown,
         _args: unknown,
@@ -277,11 +257,20 @@ describe("card query optimistic updates", () => {
   });
 });
 
+const GRID_PAGE_ARGS = { paginationOpts: { cursor: null, numItems: 50 } };
+
 /** A local store holding one grid page and the single-card query. */
 const storeWith = (cards: Doc<"cards">[]) => {
   const queries = new Map<string, unknown>([
-    [getFunctionName(api.cards.searchCards), [{ args: {}, value: cards }]],
-    [getFunctionName(api.cards.searchCardsPaginated), []],
+    [
+      getFunctionName(api.cards.searchCardsPaginated),
+      [
+        {
+          args: GRID_PAGE_ARGS,
+          value: { continueCursor: "", isDone: true, page: cards },
+        },
+      ],
+    ],
     [getFunctionName(api.cards.getCardByUrlId), []],
   ]);
   let single: Doc<"cards"> | undefined = cards[0];
@@ -307,10 +296,10 @@ const storeWith = (cards: Doc<"cards">[]) => {
   return {
     grid: () =>
       (
-        queries.get(getFunctionName(api.cards.searchCards)) as Array<{
-          value: Doc<"cards">[];
+        queries.get(getFunctionName(api.cards.searchCardsPaginated)) as Array<{
+          value: { page: Doc<"cards">[] };
         }>
-      )[0]?.value,
+      )[0]?.value.page,
     localStore,
     single: () => single,
     writes,

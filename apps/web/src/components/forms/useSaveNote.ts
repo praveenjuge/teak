@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
-import { isCardLimitError, isRateLimitError } from "@/lib/cardErrors";
 import { addCaptureToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import {
   noteCaptureSavedMessage,
@@ -18,8 +17,6 @@ import {
 export interface SaveNoteOptions {
   onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
-  onUpgrade?: () => void;
-  upgradeUrl?: string;
 }
 
 export interface SaveNoteCallbacks {
@@ -36,18 +33,12 @@ export interface SaveNoteCallbacks {
  * too), with a toast for each outcome — saved, already in Teak, in Trash
  * (with Restore), over the card limit (with Upgrade) or failed.
  */
-export function useSaveNote({
-  onOpenCard,
-  onSuccess,
-  onUpgrade,
-  upgradeUrl,
-}: SaveNoteOptions = {}) {
+export function useSaveNote({ onOpenCard, onSuccess }: SaveNoteOptions = {}) {
   const t = useTranslations("forms.addCard");
-  const tLimits = useTranslations("forms.limits");
   const tEditor = useTranslations("textEditor");
   const tc = useTranslations("common");
   const errors = useServerErrors();
-  const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
+  const { showCreateFailure } = useUpgradeAction();
   const createCard = useMutation(
     api.cards.createCardWithOutcome
   ).withOptimisticUpdate((localStore, args) => {
@@ -60,17 +51,13 @@ export function useSaveNote({
 
   const failed = useCallback(
     (error: unknown, toastId: string | number, fallback: string) => {
-      if (isCardLimitError(error)) {
-        showUpgradeToast(toastId);
-      } else if (isRateLimitError(error)) {
-        toast.error(tLimits("rateLimited"), { id: toastId });
-      } else {
+      if (!showCreateFailure(error, { id: toastId })) {
         // A plain Error here is Convex's own text ("[CONVEX M(...)] Server
         // Error"), which isn't for people; server reasons still come through.
         toast.error(errors.message(error, fallback), { id: toastId });
       }
     },
-    [errors, showUpgradeToast, tLimits]
+    [errors, showCreateFailure]
   );
 
   const openAction = useCallback(

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
+import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -79,7 +80,6 @@ test("closing the open card hands the grid the same props, so it skips a re-rend
               onOpenCard={() => undefined}
               onSwitchCard={() => undefined}
               selectedCardId={selectedCardId}
-              upgradeUrl="/settings"
               view="all"
             />
           </ConvexQueryCacheProvider>

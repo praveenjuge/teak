@@ -1,30 +1,13 @@
 import { type CardActionId, cardActionsForKey } from "../../lib/cardActions";
+import {
+  DIALOG_KEYS,
+  type DialogKeyAction,
+  OPEN_CARD_LINK_KEYS,
+} from "../../lib/cardDialogKeys";
 import { isTypingTarget, OPEN_OVERLAYS } from "../../lib/keyboardShortcuts";
-import { isApplePlatform } from "../../lib/platform";
-
-/** Keys only the open card has; the rest are card actions. */
-type DialogKeyAction =
-  | "previous"
-  | "next"
-  | "focusNotes"
-  | "open"
-  | "copy"
-  | "toggleReader"
-  | "highlight";
+import { isApplePlatform, isModKey } from "../../lib/platform";
 
 export type CardModalKeyAction = DialogKeyAction | CardActionId;
-
-const DIALOG_KEYS: Record<string, DialogKeyAction> = {
-  ArrowLeft: "previous",
-  ArrowRight: "next",
-  k: "previous",
-  j: "next",
-  n: "focusNotes",
-  o: "open",
-  c: "copy",
-  r: "toggleReader",
-  h: "highlight",
-};
 
 /**
  * On Apple platforms Backspace is the Delete key (⌫). ⌘↵ (Ctrl+Enter
@@ -47,10 +30,8 @@ export function cardModalKeyAction(
     return null;
   }
   if (
-    event.key === "Enter" &&
-    (apple
-      ? event.metaKey && !event.ctrlKey
-      : event.ctrlKey && !event.metaKey) &&
+    event.key === OPEN_CARD_LINK_KEYS[1] &&
+    isModKey(event, apple) &&
     !(event.altKey || event.shiftKey || event.repeat)
   ) {
     return "open";

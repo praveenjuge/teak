@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, one {Datei hochgeladen} other {# Dateien hochgeladen}}",
       "uploadedSentence": "{count, plural, one {Datei hochgeladen.} other {# Dateien hochgeladen.}}",
-      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
-      "upgrade": "Upgraden",
-      "rateLimited": "Zu viele Karten erstellt. Bitte warten Sie einen Moment.",
       "uploadFailed": "Upload fehlgeschlagen",
       "uploadFailedMany": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht hochgeladen werden. {reason}",
       "uploading": "Wird hochgeladen…",
@@ -592,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "Wiedersehen",
-      "description": "Eine Karte nach der anderen. Pfeil nach links archiviert sie, Pfeil nach rechts behält sie, die Leertaste öffnet ihre Details, Z macht das letzte Archivieren rückgängig und Esc beendet.",
+      "description": "Eine Karte nach der anderen. Pfeil nach links archiviert sie, Pfeil nach rechts behält sie, die Leertaste öffnet ihre Details, {undoKey} macht das letzte Archivieren rückgängig und Esc beendet.",
       "close": "Wiedersehen schließen",
       "progress": "{position} von {total}",
       "loadingCards": "Karten werden geladen",
@@ -602,7 +599,7 @@
       "summary": "{archived} archiviert · {kept} behalten",
       "startOver": "Von vorn beginnen",
       "revisitMore": "{count} weitere wiedersehen",
-      "undoHint": "<kbd>Z</kbd> macht das letzte Archivieren rückgängig",
+      "undoHint": "<kbd>{undoKey}</kbd> macht das letzte Archivieren rückgängig",
       "openDetails": "Details öffnen: {type}",
       "added": "Hinzugefügt am {date}",
       "inTrash": "Im Papierkorb",
@@ -611,7 +608,7 @@
       "releaseToKeep": "Loslassen zum Behalten",
       "archive": "Archivieren",
       "keep": "Behalten",
-      "keyHints": "<kbd>Leertaste</kbd> Details · <kbd>Z</kbd> rückgängig · <kbd>Esc</kbd> beenden",
+      "keyHints": "<kbd>Leertaste</kbd> Details · <kbd>{undoKey}</kbd> rückgängig · <kbd>Esc</kbd> beenden",
       "swipeHint": "Nach links wischen zum Archivieren, nach rechts zum Behalten"
     }
   },
@@ -797,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Zu Ordner hinzufügen…",
-      "copyLink": "Link kopieren",
-      "copyText": "Text kopieren",
       "download": "Herunterladen",
       "moreActions": "Weitere Aktionen",
       "moreLikeThis": "Ähnliche Karten",
@@ -1222,10 +1217,6 @@
       "microphoneDenied": "Der Mikrofonzugriff wurde verweigert. Erlauben Sie ihn und versuchen Sie es erneut.",
       "microphoneMissing": "Kein Mikrofon erkannt. Schließen Sie eines an und versuchen Sie es erneut.",
       "recordingStartFailed": "Die Aufnahme konnte nicht gestartet werden. Prüfen Sie Ihre Mikrofoneinstellungen.",
-      "uploading": "{name} wird hochgeladen…",
-      "uploaded": "{name} hochgeladen",
-      "uploadFailed": "{name} konnte nicht hochgeladen werden: {error}",
-      "uploadFailedReason": "Upload fehlgeschlagen",
       "startingMicrophone": "Mikrofon wird gestartet…",
       "savingRecordingStatus": "Aufnahme wird gespeichert…",
       "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
@@ -1475,6 +1466,7 @@
     "groups": {
       "cards": "Karten",
       "openCard": "Geöffnete Karte",
+      "revisit": "Wiedersehen",
       "goTo": "Gehe zu",
       "search": "Suche",
       "anywhere": "Überall"
@@ -1497,7 +1489,6 @@
       "openOrDownload": "Link öffnen oder Datei herunterladen",
       "openLink": "Link öffnen",
       "markLinkDone": "Link als erledigt markieren",
-      "copyLinkOrText": "Link oder Text kopieren",
       "readOrPreview": "Lesen oder Vorschau",
       "highlightSelection": "Auswahl markieren",
       "goToEverything": "Alles",
@@ -1524,7 +1515,12 @@
       "byFolder": "Karten in einem Ordner",
       "byState": "Favoriten, archiviert, erledigt oder offen",
       "pin": "Anheften oder lösen",
-      "movePinned": "Angeheftete Karte nach links oder rechts verschieben"
+      "movePinned": "Angeheftete Karte nach links oder rechts verschieben",
+      "revisitArchive": "Archivieren",
+      "revisitKeep": "Behalten",
+      "revisitDetails": "Details öffnen",
+      "revisitUndo": "Letztes Archivieren rückgängig machen",
+      "revisitLeave": "Wiedersehen beenden"
     }
   },
   "extension": {
@@ -1740,7 +1736,6 @@
       "saved": "PDF gespeichert",
       "alreadySaved": "Bereits gespeichert",
       "open": "Öffnen",
-      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
       "tooLarge": "Dieses PDF ist zu groß. Teak speichert Dateien bis 100 MB.",
       "notPdf": "arXiv hat für dieses Paper kein PDF geliefert.",
       "failed": "Das PDF konnte nicht gespeichert werden. Versuchen Sie es erneut."

@@ -59,6 +59,7 @@ const DEVELOPMENT_COPIES: Record<string, number> = {
   "apps/web/src/lib/__tests__/securityHeaders.test.ts": 3,
   "packages/convex/__tests__/authConfig.test.ts": 1,
   "packages/convex/__tests__/mcp/httpServer.test.ts": 2,
+  "packages/convex/__tests__/publicApi/__snapshots__/contractSnapshot.test.ts.snap": 1,
   "packages/convex/__tests__/publicApi/http/gateway.test.ts": 1,
   "packages/convex/devUrls.ts": 1,
   "packages/convex/edge/workosDiscovery.test.ts": 1,

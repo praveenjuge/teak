@@ -2,14 +2,12 @@ import { describe, expect, it } from "bun:test";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
-  CARD_TYPE_ICONS,
   CARD_TYPE_LABELS,
   CARD_TYPE_REGISTRY,
   type CardErrorCode,
   type CardType,
   cardTypes,
   getCardTypeConfig,
-  getCardTypeIcon,
   getCardTypeLabel,
   isCardType,
   MAX_FILE_SIZE,
@@ -62,21 +60,11 @@ describe("Constants", () => {
     });
   });
 
-  describe("CARD_TYPE_ICONS", () => {
-    it("should have icon for each card type", () => {
-      for (const type of cardTypes) {
-        expect(CARD_TYPE_ICONS[type]).toBeDefined();
-        expect(typeof CARD_TYPE_ICONS[type]).toBe("string");
-      }
-    });
-  });
-
   describe("CARD_TYPE_REGISTRY", () => {
     it("should have entry for each card type", () => {
       for (const type of cardTypes) {
         expect(CARD_TYPE_REGISTRY[type]).toBeDefined();
         expect(CARD_TYPE_REGISTRY[type].label).toBeDefined();
-        expect(CARD_TYPE_REGISTRY[type].icon).toBeDefined();
         expect(CARD_TYPE_REGISTRY[type].searchLabel).toBeDefined();
       }
     });
@@ -84,7 +72,6 @@ describe("Constants", () => {
     it("should have consistent labels with CARD_TYPE_LABELS", () => {
       for (const type of cardTypes) {
         expect(CARD_TYPE_REGISTRY[type].label).toBe(CARD_TYPE_LABELS[type]);
-        expect(CARD_TYPE_REGISTRY[type].icon).toBe(CARD_TYPE_ICONS[type]);
       }
     });
   });
@@ -95,7 +82,6 @@ describe("Constants", () => {
 
       expect(config).toEqual({
         label: "Image",
-        icon: "Image",
         searchLabel: "Images",
       });
     });
@@ -105,14 +91,6 @@ describe("Constants", () => {
       const linkConfig = getCardTypeConfig("link");
 
       expect(textConfig.label).not.toBe(linkConfig.label);
-    });
-  });
-
-  describe("getCardTypeIcon", () => {
-    it("should return icon for valid card type", () => {
-      expect(getCardTypeIcon("link")).toBe("Link");
-      expect(getCardTypeIcon("video")).toBe("Video");
-      expect(getCardTypeIcon("quote")).toBe("Quote");
     });
   });
 

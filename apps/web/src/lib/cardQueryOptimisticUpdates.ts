@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { isHiddenTagList, normalizeTagList } from "@teak/convex/shared/tags";
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
 import { urlKey } from "@teak/convex/shared/utils/urlKey";
@@ -83,20 +83,8 @@ export function updateCardsInSearchQueries(
       .filter((card): card is Doc<"cards"> => card !== null)
       .filter((card) => cardMatchesSearchQuery(card, args));
 
-  for (const { args, value } of localStore.getAllQueries(
-    api.cards.searchCards
-  )) {
-    if (value === undefined) {
-      continue;
-    }
-
-    localStore.setQuery(
-      api.cards.searchCards,
-      args,
-      updateCards(value as Doc<"cards">[], args)
-    );
-  }
-
+  // Only the paginated search is ever subscribed to; WebMCP's one-shot
+  // `searchCards` reads have no cache here to patch.
   for (const { args, value } of localStore.getAllQueries(
     api.cards.searchCardsPaginated
   )) {
@@ -153,7 +141,6 @@ function updateCardsInDetailQueries(
 type UpdateCardFieldArgs = FunctionArgs<typeof api.cards.updateCardField>;
 type BulkUpdateCardsArgs = FunctionArgs<typeof api.cards.bulkUpdateCards>;
 export type CardField = UpdateCardFieldArgs["field"];
-export type { BulkCardAction } from "@teak/convex/card/bulkActions";
 
 type FolderAction = Extract<
   BulkCardAction,
@@ -437,14 +424,6 @@ export function addCardToSearchQueries(
   localStore: OptimisticLocalStore,
   newCard: Doc<"cards">
 ) {
-  for (const { args, value } of localStore.getAllQueries(
-    api.cards.searchCards
-  )) {
-    if (value !== undefined && cardMatchesSearchQuery(newCard, args)) {
-      localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
-    }
-  }
-
   // The grid reads pages; a new card belongs on the first page of a list
   // ordered newest first, not inside a ranked search.
   for (const { args, value } of localStore.getAllQueries(
@@ -480,12 +459,6 @@ function findSavedLink(
 ): Doc<"cards"> | undefined {
   const matches = (card: Doc<"cards">) =>
     card.type === "link" && !card.isDeleted && linkKeyOf(card) === key;
-  for (const { value } of localStore.getAllQueries(api.cards.searchCards)) {
-    const found = (value as Doc<"cards">[] | undefined)?.find(matches);
-    if (found) {
-      return found;
-    }
-  }
   for (const { value } of localStore.getAllQueries(
     api.cards.searchCardsPaginated
   )) {

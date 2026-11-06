@@ -265,6 +265,21 @@ export function serializeSearchUrlState(
   return libraryQuery(next);
 }
 
+/**
+ * A link to a library page showing this search: `/?tag=design`. Every link
+ * into a search writes it this way, so it reads back the same.
+ */
+export const librarySearchHref = (
+  pathname: string,
+  search: Partial<SearchUrlState>
+): string => {
+  const query = serializeSearchUrlState({
+    ...EMPTY_SEARCH_URL_STATE,
+    ...search,
+  });
+  return query ? `${pathname}?${query}` : pathname;
+};
+
 function setList(params: URLSearchParams, name: string, values: string[]) {
   if (values.length > 0) {
     params.set(name, values.join(","));

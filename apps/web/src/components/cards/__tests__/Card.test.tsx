@@ -101,7 +101,7 @@ mock.module("../previews/GridVideoPreview", () => ({
     }),
 }));
 
-const { Card, resolveImageCopyUrl } = await import("../Card");
+const { Card } = await import("../Card");
 
 // What the Pinned row offers: no selection.
 const STRIP_ACTIONS = new Set([
@@ -125,35 +125,6 @@ const createLinkCard = (overrides?: Record<string, unknown>) => ({
 });
 
 describe("Cards/Card", () => {
-  test("mints the original image URL only when copying", async () => {
-    const refresh = mock().mockResolvedValue({
-      url: "https://files.teakvault.com/original.jpg",
-    });
-    await expect(
-      resolveImageCopyUrl({
-        cardId: "card_123",
-        fallbackUrl: "https://files.teakvault.com/grid.jpg",
-        fileKey: "original-key",
-        refresh,
-      })
-    ).resolves.toBe("https://files.teakvault.com/original.jpg");
-    expect(refresh).toHaveBeenCalledWith({
-      cardId: "card_123",
-      key: "original-key",
-    });
-  });
-
-  test("does not substitute a preview if refreshing the original URL fails", async () => {
-    await expect(
-      resolveImageCopyUrl({
-        cardId: "card_123",
-        fallbackUrl: "https://files.teakvault.com/grid.jpg",
-        fileKey: "original-key",
-        refresh: mock().mockRejectedValue(new Error("refresh failed")),
-      })
-    ).rejects.toThrow("refresh failed");
-  });
-
   test("a card tells screen readers the keys it answers", () => {
     const markup = renderToStaticMarkup(
       <Card card={createLinkCard() as any} />

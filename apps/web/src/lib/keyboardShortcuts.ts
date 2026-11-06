@@ -3,9 +3,18 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import {
+  type AppActionId,
+  appActionKeys,
+  GO_TO,
+  GO_TO_TARGETS,
+  goToKeys,
+  keyName,
+} from "./appCommands";
 import { type CardActionId, cardActionKeyName } from "./cardActions";
-import type { LibraryView } from "./libraryViews";
-import { isApplePlatform } from "./platform";
+import { dialogKeyName, OPEN_CARD_LINK_KEYS } from "./cardDialogKeys";
+import type { GoToViewOptions, LibraryView } from "./libraryViews";
+import { isApplePlatform, isModKey } from "./platform";
 
 type ShortcutsTranslator = TeakTranslator<"shortcuts">;
 type ShortcutGroupId = keyof (typeof englishMessages)["shortcuts"]["groups"];
@@ -37,44 +46,13 @@ type ShortcutRowDefinition = Omit<ShortcutRow, "id" | "label"> & {
   id: ShortcutRowId;
 };
 
-export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
-  all: "e",
-  favorites: "f",
-  archive: "a",
-  trash: "t",
-};
-
-export const GO_TO_SETTINGS_KEY = "s";
-
-/** `G T` is Trash, so Tags takes `G L`, as Gmail's go to label does. */
-export const GO_TO_TAGS_KEY = "l";
-
 export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
 export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
 
-/**
- * The keys that work anywhere in the library, as `KeyboardEvent.key`. The
- * shortcut handlers, the shortcuts list, the command palette's hints and
- * the composer's buttons read them from here.
- */
-export const APP_KEYS = {
-  commandPalette: "k",
-  keyboardShortcuts: "?",
-  newNote: "n",
-  recordAudio: "r",
-  search: "/",
-  uploadFiles: "u",
-} as const;
+/** Revisit's own keys, besides ← (archive), → (keep), Space and Escape. */
+export const REVISIT_KEYS = { archive: "a", keep: "k", undo: "z" } as const;
 
-export type AppKey = keyof typeof APP_KEYS;
-
-/** How a list shows a key: letters in capitals. */
-export const keyName = (key: string): string =>
-  key.length === 1 ? key.toUpperCase() : key;
-
-const goTo = (key: string) => ["G", keyName(key)];
-
-const appKey = (id: AppKey) => [keyName(APP_KEYS[id])];
+const appKey = (id: AppActionId) => appActionKeys(id);
 
 const cardKey = (id: CardActionId) => {
   const name = cardActionKeyName(id);
@@ -110,36 +88,38 @@ const SHORTCUT_GROUPS: {
       { id: "favorite", keys: cardKey("favorite") },
       { id: "pin", keys: cardKey("pin") },
       { id: "addTag", keys: cardKey("addTags") },
-      { id: "writeNote", keys: ["N"] },
+      { id: "writeNote", keys: [dialogKeyName("focusNotes")] },
       { id: "focusNote", keys: [...FOCUS_NOTE_KEYS], combo: true },
-      { id: "openOrDownload", keys: ["O"] },
-      { id: "openLink", keys: ["Mod", "Enter"], combo: true },
+      { id: "openOrDownload", keys: [dialogKeyName("open")] },
+      { id: "openLink", keys: [...OPEN_CARD_LINK_KEYS], combo: true },
       { id: "markLinkDone", keys: cardKey("done") },
-      { id: "copyLinkOrText", keys: ["C"] },
-      { id: "readOrPreview", keys: ["R"] },
-      { id: "highlightSelection", keys: ["H"] },
+      { id: "copy", keys: cardKey("copy") },
+      { id: "readOrPreview", keys: [dialogKeyName("toggleReader")] },
+      { id: "highlightSelection", keys: [dialogKeyName("highlight")] },
       { id: "archive", keys: cardKey("archive") },
       { id: "moveToTrash", keys: cardKey("moveToTrash") },
     ],
   },
   {
-    id: "goTo",
+    id: "revisit",
     rows: [
-      { id: "goToEverything", keys: goTo(GO_TO_VIEW_KEYS.all), sequence: true },
       {
-        id: "goToFavorites",
-        keys: goTo(GO_TO_VIEW_KEYS.favorites),
-        sequence: true,
+        id: "revisitArchive",
+        keys: ["←", keyName(REVISIT_KEYS.archive)],
       },
-      {
-        id: "goToArchive",
-        keys: goTo(GO_TO_VIEW_KEYS.archive),
-        sequence: true,
-      },
-      { id: "goToTrash", keys: goTo(GO_TO_VIEW_KEYS.trash), sequence: true },
-      { id: "goToTags", keys: goTo(GO_TO_TAGS_KEY), sequence: true },
-      { id: "goToSettings", keys: goTo(GO_TO_SETTINGS_KEY), sequence: true },
+      { id: "revisitKeep", keys: ["→", keyName(REVISIT_KEYS.keep)] },
+      { id: "revisitDetails", keys: ["Space"] },
+      { id: "revisitUndo", keys: [keyName(REVISIT_KEYS.undo)] },
+      { id: "revisitLeave", keys: ["Esc"] },
     ],
+  },
+  {
+    id: "goTo",
+    rows: GO_TO_TARGETS.map((target) => ({
+      id: GO_TO[target].listRow,
+      keys: goToKeys(target),
+      sequence: true,
+    })),
   },
   {
     id: "search",
@@ -159,15 +139,12 @@ const SHORTCUT_GROUPS: {
   {
     id: "anywhere",
     rows: [
-      {
-        id: "commandPalette",
-        keys: ["Mod", keyName(APP_KEYS.commandPalette)],
-        combo: true,
-      },
+      { id: "commandPalette", keys: appKey("commandPalette"), combo: true },
       { id: "search", keys: appKey("search") },
       { id: "newNote", keys: appKey("newNote") },
       { id: "uploadFiles", keys: appKey("uploadFiles") },
       { id: "recordAudio", keys: appKey("recordAudio") },
+      // Sonner's own key for its notifications.
       { id: "notifications", keys: ["Alt", "T"], combo: true },
       { id: "keyboardShortcuts", keys: appKey("keyboardShortcuts") },
     ],
@@ -235,9 +212,7 @@ export function isFocusNoteKey(
   if (event.key.toLowerCase() !== "e" || event.altKey || event.shiftKey) {
     return false;
   }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
+  return isModKey(event, apple);
 }
 
 export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
@@ -312,6 +287,18 @@ export function focusNewNoteComposer(): boolean {
   editor.focus();
   editor.scrollIntoView({ block: "nearest" });
   return true;
+}
+
+/**
+ * New note, from N, the palette or the New menu: the composer on screen,
+ * or Everything's, which takes focus once it shows.
+ */
+export function startNewNote(
+  goToView: (view: LibraryView, options?: GoToViewOptions) => void
+) {
+  if (!focusNewNoteComposer()) {
+    goToView("all", { focusComposer: true });
+  }
 }
 
 /**

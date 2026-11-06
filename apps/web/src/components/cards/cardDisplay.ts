@@ -1,6 +1,5 @@
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { hexToRgb } from "@teak/convex/shared/utils/colorUtils";
-import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 import { formatClockTime } from "@/lib/clockTime";
 import { startsWithTable } from "@/lib/markdownToPlainText";
 
@@ -59,10 +58,6 @@ export function quoteSizeClass(text: string): string {
     return "text-[19px]";
   }
   return "text-[15px]";
-}
-
-export function getDisplayHostname(url?: string): string | undefined {
-  return getSafeUrlHostname(url)?.replace(/^www\./, "") || undefined;
 }
 
 export function getFaviconUrl(hostname?: string): string | undefined {

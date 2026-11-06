@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ClientCard } from "@/lib/cardTypes";
 import { PageArchiveRow, pageArchiveRowState } from "../PageArchiveRow";
-import type { CardModalCard } from "../types";
 
 const ARCHIVE = {
   bytes: 2.4 * 1024 * 1024,
@@ -12,7 +12,7 @@ const ARCHIVE = {
   storageKey: "users/u/cards/c/page-archive/r1-archive.html",
 };
 
-const link = (fields: Partial<CardModalCard> = {}) =>
+const link = (fields: Partial<ClientCard> = {}) =>
   ({
     _creationTime: 0,
     _id: "card_1",
@@ -23,9 +23,9 @@ const link = (fields: Partial<CardModalCard> = {}) =>
     url: "https://example.com/post",
     userId: "user_1",
     ...fields,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
-const render = (card: CardModalCard) =>
+const render = (card: ClientCard) =>
   renderToStaticMarkup(
     <dl>
       <PageArchiveRow card={card} />

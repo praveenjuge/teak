@@ -1,4 +1,5 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
+import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -54,7 +55,6 @@ test("a library revealed on a new URL never writes its old search back", async (
             onSearchUrlStateChange={(state) => writes.push(state)}
             searchUrlState={parseSearchUrlState(new URLSearchParams(query))}
             selectedCardId={null}
-            upgradeUrl="/settings"
             view="all"
           />
         </Activity>

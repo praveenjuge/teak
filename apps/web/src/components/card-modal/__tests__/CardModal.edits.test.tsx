@@ -1,7 +1,8 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardModalCard, GetCurrentValue } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
+import type { GetCurrentValue } from "../types";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -51,7 +52,7 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-const card = (extra: Partial<CardModalCard> = {}) =>
+const card = (extra: Partial<ClientCard> = {}) =>
   ({
     _creationTime: 0,
     _id: "card_1",
@@ -62,10 +63,10 @@ const card = (extra: Partial<CardModalCard> = {}) =>
     updatedAt: 0,
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 async function render(
-  shown: CardModalCard,
+  shown: ClientCard,
   updateContent: (value: string) => void = () => undefined,
   extra: Partial<Parameters<typeof CardModal>[0]> = {}
 ) {
@@ -78,7 +79,7 @@ async function render(
         cardId={shown._id}
         downloadFile={() => undefined}
         getCurrentValue={(field) =>
-          shown[field as keyof CardModalCard] as string | undefined
+          shown[field as keyof ClientCard] as string | undefined
         }
         hasUnsavedChanges={false}
         open

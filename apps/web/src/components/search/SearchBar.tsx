@@ -1,9 +1,8 @@
 import type { TimeFilter } from "@teak/convex/shared";
-import {
-  type CardType,
-  type ColorHueBucket,
-  getCardTypeIcon,
-  type VisualStyle,
+import type {
+  CardType,
+  ColorHueBucket,
+  VisualStyle,
 } from "@teak/convex/shared/constants";
 import { useIntlLocale, useTranslations, useUiLocale } from "@teak/i18n/react";
 import {
@@ -17,33 +16,20 @@ import {
   useState,
 } from "react";
 import {
-  Aperture,
   Archive,
-  Banknote,
   Circle,
   CircleCheck,
   CircleSlash,
   Clock,
   Droplets,
-  File,
-  FileText,
-  Folder,
-  Globe,
-  Image,
-  Link as LinkIcon,
-  ListFilter,
-  Palette,
   Parentheses,
   Quote,
-  ScanText,
   Search,
   Sparkles,
   Split,
   Star,
   Tag,
   TextSearch,
-  Video,
-  Volume2,
   X,
 } from "vadivam-react";
 import { Button } from "@/components/ui/button";
@@ -63,11 +49,13 @@ import {
 } from "@/lib/keyboardShortcuts";
 import { timeFilterLabel } from "@/lib/timeFilterLabel";
 import { cn } from "@/lib/utils";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import {
   type LibrarySort,
   MAX_URL_SEARCH_LENGTH,
 } from "../../lib/searchUrlState";
 import { PageHeader } from "../../screens/PageHeader";
+import { QUALIFIER_ICONS } from "./qualifierIcons";
 import {
   buildSearchSuggestions,
   continuesOperator,
@@ -122,37 +110,9 @@ export interface SearchBarProps {
   title?: ReactNode;
 }
 
-const iconComponentMap = {
-  FileText,
-  Link: LinkIcon,
-  Image,
-  Video,
-  Volume2,
-  File,
-  Palette,
-  Quote,
-} as const;
-
-export const getFilterIcon = (filter: CardType) => {
-  const iconName = getCardTypeIcon(filter) as keyof typeof iconComponentMap;
-  return iconComponentMap[iconName] || FileText;
-};
-
 function preventBlur(e: React.MouseEvent) {
   e.preventDefault();
 }
-
-export const QUALIFIER_ICONS = {
-  tag: Tag,
-  site: Globe,
-  folder: Folder,
-  type: ListFilter,
-  is: Star,
-  like: Sparkles,
-  mood: Aperture,
-  price: Banknote,
-  text: ScanText,
-} as const;
 
 const IS_ICONS: Partial<Record<string, typeof Tag>> = {
   archived: Archive,
@@ -162,7 +122,7 @@ const IS_ICONS: Partial<Record<string, typeof Tag>> = {
 
 const suggestionIcon = (suggestion: SearchSuggestion) => {
   if (suggestion.type) {
-    return getFilterIcon(suggestion.type);
+    return cardTypeIcon(suggestion.type);
   }
   if (suggestion.key === "OR") {
     return Split;
@@ -472,7 +432,7 @@ export function SearchBar({
       !folderNames.has(qualifier.value.trim().toLowerCase());
     let Icon: typeof Tag = QUALIFIER_ICONS[qualifier.key];
     if (qualifier.key === "type") {
-      Icon = getFilterIcon(qualifier.value);
+      Icon = cardTypeIcon(qualifier.value);
     } else if (qualifier.key === "is") {
       Icon = IS_ICONS[qualifier.value] ?? Star;
     } else if (unknownFolder) {
@@ -547,7 +507,7 @@ export function SearchBar({
     });
   }
   for (const filter of filterTags) {
-    const Icon = getFilterIcon(filter);
+    const Icon = cardTypeIcon(filter);
     const typeLabel = types(filter);
     chips.push({
       ariaLabel: t("bar.removeType", { type: typeLabel }),

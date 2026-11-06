@@ -1,4 +1,4 @@
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import {

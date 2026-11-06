@@ -1,6 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
-import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import {
   createTeakTranslator,
   englishMessages,
@@ -57,12 +55,18 @@ import {
   GRID_CARD_ACTIONS,
 } from "../../lib/cardActions";
 import {
+  cardCopyKind,
+  cardCopyText,
+  resolveImageCopyUrl,
+} from "../../lib/cardCopy";
+import {
   cardFileFormat,
   cardTitle,
   linkCardTitle as linkTitleOf,
   showsPictureTile,
 } from "../../lib/cardTypes";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
+import { isCopyCardKey } from "../../lib/gridKeys";
 import type { LinkTitleTranslator } from "../../lib/linkTitle";
 import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
@@ -88,39 +92,6 @@ import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
-
-export async function resolveImageCopyUrl({
-  cardId,
-  fallbackUrl,
-  fileKey,
-  refresh,
-}: {
-  cardId: string;
-  fallbackUrl: string;
-  fileKey?: string;
-  refresh: (args: {
-    cardId: Id<"cards">;
-    key: string;
-  }) => Promise<{ url: string }>;
-}): Promise<string> {
-  if (!fileKey) {
-    return fallbackUrl;
-  }
-  const { url } = await refresh({
-    cardId: cardId as Id<"cards">,
-    key: fileKey,
-  });
-  return url;
-}
-
-export function cardCopyText(
-  card: Pick<CardWithUrls, "content" | "type" | "url">
-): string {
-  if (card.type === "text") {
-    return cardLinkTokensToText(card.content ?? "");
-  }
-  return card.type === "link" ? (card.url ?? "") : "";
-}
 
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
@@ -226,13 +197,6 @@ export const Card = memo(function Card({
     );
   };
 
-  const canCopy =
-    !card.isDeleted &&
-    (card.type === "text" ||
-      card.type === "link" ||
-      (card.type === "image" &&
-        card.fileMetadata?.mimeType !== "image/svg+xml"));
-
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) {
       return;
@@ -244,9 +208,7 @@ export const Card = memo(function Card({
     }
     if (
       canCopy &&
-      (event.metaKey || event.ctrlKey) &&
-      !(event.altKey || event.shiftKey || event.repeat) &&
-      event.key.toLowerCase() === "c" &&
+      isCopyCardKey(event, apple) &&
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
@@ -256,6 +218,7 @@ export const Card = memo(function Card({
 
   const offers = (action: CardActionId) =>
     actions.has(action) && cardActionAvailable(action, card);
+  const canCopy = offers("copy");
   const runAction = (action: CardActionId) => {
     if (!isOptimistic) {
       onAction?.(action, card);
@@ -275,7 +238,7 @@ export const Card = memo(function Card({
     if (isOptimistic) {
       return;
     }
-    if (card.type === "image") {
+    if (cardCopyKind(card) === "image") {
       const url = resolveImageCopyUrl({
         cardId: card._id,
         fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
@@ -325,10 +288,8 @@ export const Card = memo(function Card({
     event.dataTransfer.effectAllowed = "copy";
   };
 
-  const copyLinkOrImageLabel =
-    card.type === "link" ? t("menu.copyLink") : t("menu.copyImage");
-  const copyMenuLabel =
-    card.type === "text" ? t("menu.copyText") : copyLinkOrImageLabel;
+  const copyLabel = cardActionLabel("copy", card);
+  const copyMenuLabel = copyLabel ? t(`menu.${copyLabel}`) : "";
 
   // While cards are selected, F, T, E and Delete act on the selection, so
   // only the keys that still act on this card show.
@@ -470,7 +431,6 @@ export const Card = memo(function Card({
                 ? undefined
                 : cardAriaKeyShortcuts(card, actions, {
                     apple,
-                    canCopy,
                     selecting: Boolean(isSelectionMode),
                   })
             }

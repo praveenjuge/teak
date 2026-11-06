@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, other {# 件のファイルをアップロードしました}}",
       "uploadedSentence": "{count, plural, other {# 件のファイルをアップロードしました。}}",
-      "cardLimitReached": "無料プランのカードの上限に達しました",
-      "upgrade": "アップグレード",
-      "rateLimited": "カードの作成数が多すぎます。しばらくお待ちください。",
       "uploadFailed": "アップロードに失敗しました",
       "uploadFailedMany": "{count, plural, other {# 件のファイル}}をアップロードできませんでした。{reason}",
       "uploading": "アップロード中…",
@@ -592,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "振り返り",
-      "description": "カードを 1 枚ずつ表示します。左矢印キーでアーカイブ、右矢印キーで残す、Space で詳細を開く、Z で直前のアーカイブを取り消し、Escape で終了します。",
+      "description": "カードを 1 枚ずつ表示します。左矢印キーでアーカイブ、右矢印キーで残す、Space で詳細を開く、{undoKey} で直前のアーカイブを取り消し、Escape で終了します。",
       "close": "振り返りを閉じる",
       "progress": "{position} / {total}",
       "loadingCards": "カードを読み込み中",
@@ -602,7 +599,7 @@
       "summary": "アーカイブ {archived} 件 · 残す {kept} 件",
       "startOver": "最初からやり直す",
       "revisitMore": "さらに {count} 件を振り返る",
-      "undoHint": "<kbd>Z</kbd> で直前のアーカイブを取り消します",
+      "undoHint": "<kbd>{undoKey}</kbd> で直前のアーカイブを取り消します",
       "openDetails": "詳細を開く：{type}",
       "added": "{date} に追加",
       "inTrash": "ゴミ箱内",
@@ -611,7 +608,7 @@
       "releaseToKeep": "指を離して残す",
       "archive": "アーカイブ",
       "keep": "残す",
-      "keyHints": "<kbd>Space</kbd> 詳細 · <kbd>Z</kbd> 元に戻す · <kbd>Esc</kbd> 終了",
+      "keyHints": "<kbd>Space</kbd> 詳細 · <kbd>{undoKey}</kbd> 元に戻す · <kbd>Esc</kbd> 終了",
       "swipeHint": "左にスワイプでアーカイブ、右にスワイプで残す"
     }
   },
@@ -797,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "フォルダに追加…",
-      "copyLink": "リンクをコピー",
-      "copyText": "テキストをコピー",
       "download": "ダウンロード",
       "moreActions": "その他の操作",
       "moreLikeThis": "似たカード",
@@ -1222,10 +1217,6 @@
       "microphoneDenied": "マイクへのアクセスが拒否されました。許可してからもう一度お試しください。",
       "microphoneMissing": "マイクが検出されませんでした。マイクを接続してからもう一度お試しください。",
       "recordingStartFailed": "録音を開始できませんでした。マイクの設定を確認してください。",
-      "uploading": "{name} をアップロード中…",
-      "uploaded": "{name} をアップロードしました",
-      "uploadFailed": "{name} をアップロードできませんでした：{error}",
-      "uploadFailedReason": "アップロードに失敗しました",
       "startingMicrophone": "マイクを起動しています…",
       "savingRecordingStatus": "録音を保存しています…",
       "recordingHint": "いつもどおりに話してください。Teak が音声カードとして保存します。",
@@ -1475,6 +1466,7 @@
     "groups": {
       "cards": "カード",
       "openCard": "開いているカード",
+      "revisit": "振り返り",
       "goTo": "移動",
       "search": "検索",
       "anywhere": "どこでも"
@@ -1497,7 +1489,6 @@
       "openOrDownload": "リンクを開くかファイルをダウンロード",
       "openLink": "リンクを開く",
       "markLinkDone": "リンクを完了にする",
-      "copyLinkOrText": "リンクまたはテキストをコピー",
       "readOrPreview": "読む/プレビュー",
       "highlightSelection": "選択範囲をハイライト",
       "goToEverything": "すべて",
@@ -1524,7 +1515,12 @@
       "byFolder": "フォルダ内のカード",
       "byState": "お気に入り・アーカイブ済み・完了・未完了",
       "pin": "ピン留めまたはピン留めを外す",
-      "movePinned": "ピン留めしたカードを左右に移動"
+      "movePinned": "ピン留めしたカードを左右に移動",
+      "revisitArchive": "アーカイブ",
+      "revisitKeep": "残す",
+      "revisitDetails": "詳細を開く",
+      "revisitUndo": "直前のアーカイブを取り消す",
+      "revisitLeave": "振り返りを終了"
     }
   },
   "extension": {
@@ -1740,7 +1736,6 @@
       "saved": "PDF を保存しました",
       "alreadySaved": "保存済みです",
       "open": "開く",
-      "cardLimitReached": "無料プランのカードの上限に達しました",
       "tooLarge": "この PDF は大きすぎます。Teak に保存できるファイルは 100 MB までです。",
       "notPdf": "arXiv からこの論文の PDF が返されませんでした。",
       "failed": "PDF を保存できませんでした。もう一度お試しください。"

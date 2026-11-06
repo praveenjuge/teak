@@ -28,9 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import type { CardHighlight } from "@/hooks/useCardHighlights";
+import type { ClientCard } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
@@ -41,9 +43,8 @@ import {
   getCardDetailSections,
   keyDetailLabels,
 } from "./cardDetails";
-import { getCardTypeIconComponent } from "./cardTypeIcon";
 import { PageArchiveRow, pageArchiveRowState } from "./PageArchiveRow";
-import type { CardModalCard, GetCurrentValue } from "./types";
+import type { GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
   acceptAiTag?: (tag: string) => void;
@@ -83,7 +84,7 @@ interface CardMetadataPanelProps {
   /** The dialog's top line already shows when the card was added. */
   addedInHeader?: boolean;
   backlinks?: CardBacklinks;
-  card: CardModalCard;
+  card: ClientCard;
   getCurrentValue: GetCurrentValue;
   highlights?: CardHighlightsPanelControl;
   image?: CardImageControl;
@@ -177,7 +178,7 @@ export function LinkedFromSection({
     <PanelSection title={t("linkedFrom")}>
       <ul className="-mx-1 space-y-0.5">
         {backlinks.backlinks.map((source) => {
-          const Icon = getCardTypeIconComponent(source.type as CardType);
+          const Icon = cardTypeIcon(source.type as CardType);
           return (
             <li key={source.id}>
               <button
@@ -214,7 +215,7 @@ const isAnchored = (highlight: CardHighlight) =>
   highlight.start !== undefined &&
   highlight.end !== undefined;
 
-const articleOnItsWay = (card: CardModalCard) => {
+const articleOnItsWay = (card: ClientCard) => {
   const stage = card.processingStatus?.article?.status;
   return (
     card.article?.status !== "ready" &&
@@ -247,7 +248,7 @@ export function HighlightsSection({
   card,
   control,
 }: {
-  card: CardModalCard;
+  card: ClientCard;
   control?: CardHighlightsPanelControl;
 }) {
   const t = useTranslations("cardModal.panel");
