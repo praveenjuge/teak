@@ -1,5 +1,10 @@
 import { CommanderError, InvalidArgumentError } from "commander";
-import { TeakApiError, type TeakApiErrorCode } from "teak-sdk";
+import {
+  type OAuthFailure,
+  OAuthSessionError,
+  TeakApiError,
+  type TeakApiErrorCode,
+} from "teak-sdk";
 
 /** A failure the CLI itself raises, with the command that gets past it. */
 export class CliError extends TeakApiError {
@@ -32,6 +37,24 @@ export interface ErrorReport {
   retryAt?: number;
   status?: number;
 }
+
+/** What went wrong signing in, in the CLI's words; the next step follows. */
+const SIGN_IN_WORDS: Record<OAuthFailure, string> = {
+  account_changed: "The signed-in account changed.",
+  account_unverified: "Could not verify your account.",
+  cancelled: "Sign-in was not completed.",
+  not_verified: "Sign-in was not completed.",
+  previous_kept:
+    "Your existing session is still saved. Run teak logout before signing in again.",
+  provider_changed:
+    "Authentication changed during sign-in. Run teak login again.",
+  sign_out_first:
+    "Run teak logout before signing in again, then wait 15 minutes for disconnect to finish.",
+  signed_out: "Sign-in was cancelled by logout. Run teak login again.",
+  token_rejected: "Could not complete Teak sign-in.",
+  unexpected_issuer:
+    "Discovered authentication server does not match TEAK_AUTH_URL.",
+};
 
 /** A flag or argument the command can't take: the user's to fix. */
 export const isUsage = (error: unknown) =>
@@ -120,8 +143,11 @@ export const describeError = (
   error: unknown,
   context: ErrorContext
 ): ErrorReport => {
-  const raw =
+  let raw =
     error instanceof Error ? error.message : String(error ?? "Request failed");
+  if (error instanceof OAuthSessionError) {
+    raw = SIGN_IN_WORDS[error.reason];
+  }
   const message = withId(raw.replace(/^error: /, "").trim(), error, context);
   const next = nextStepFor(error, context);
   const api = error instanceof TeakApiError ? error : undefined;

@@ -6,12 +6,22 @@ export {
   validateOAuthUrl,
 } from "./authDiscovery";
 export {
+  ACCESS_TOKEN_REFRESH_MARGIN_MS,
   type CredentialBinding,
+  createOAuthSession,
   isRefreshTokenDead,
   isWorkosCredential,
   matchesBinding,
+  type OAuthAuthorize,
+  type OAuthCredentialStore,
+  type OAuthCredentials,
+  type OAuthFailure,
+  type OAuthSession,
+  OAuthSessionError,
+  type OAuthSessionOptions,
+  type OAuthSignOutResult,
   refreshAndSave,
-} from "./oauthCredentials";
+} from "./oauthSession";
 export {
   type ConnectTokenResult,
   type ConnectTokens,

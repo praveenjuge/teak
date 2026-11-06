@@ -13,19 +13,11 @@ import { homedir, platform } from "node:os";
 import path from "node:path";
 import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
 import {
-  type AuthDiscovery,
-  createConnectAuthorizeUrl,
-  createPkceChallenge,
+  createOAuthSession,
   createTeakClient,
-  disconnectConnectGrant,
-  discoverAuthServer,
-  fetchConnectOwnerId,
-  isRefreshTokenDead,
-  isWorkosCredential,
-  matchesBinding,
-  randomBase64Url,
-  refreshAndSave,
-  requestConnectTokens,
+  type OAuthCredentialStore,
+  type OAuthCredentials,
+  type OAuthSession,
   TeakApiError,
   type TeakClient,
   type TokenProvider,
@@ -268,58 +260,46 @@ const explicitAuthUrl = (options: ClientOptions) => {
     ? new URL(withoutTrailingSlashes(explicitAuth))
     : undefined;
 };
-const matchesAuthUrl = (authUrl: URL | undefined, issuer: string) =>
-  !authUrl ||
-  withoutTrailingSlashes(authUrl.href) === withoutTrailingSlashes(issuer);
-const discovery = async (options: ClientOptions, forceRefresh = false) => {
-  const authUrl = explicitAuthUrl(options);
-  const local =
-    authUrl &&
-    (isLocalDevelopmentHostname(authUrl.hostname) ||
-      authUrl.hostname === "[::1]");
-  const auth = await discoverAuthServer(apiBaseUrl(options), {
-    forceRefresh,
-    ...(local ? { localIssuer: authUrl.href } : {}),
-  });
-  if (!matchesAuthUrl(authUrl, auth.issuer)) {
-    throw new Error(
-      "Discovered authentication server does not match TEAK_AUTH_URL."
-    );
-  }
-  return auth;
-};
-const binding = (options: ClientOptions, auth: AuthDiscovery) => ({
-  apiUrl: apiBaseUrl(options),
-  issuer: auth.issuer,
-  clientId: auth.clients.cli,
-});
-const savedBinding = ({ binding: saved }: StoredCredentials) =>
-  saved && {
-    origin: saved.apiUrl,
-    issuer: saved.issuer,
-    clientId: saved.clientId,
+const fromStored = (
+  stored: StoredCredentials | null
+): OAuthCredentials | null =>
+  stored && {
+    accessToken: stored.accessToken,
+    expiresAt: stored.expiresAt,
+    refreshToken: stored.refreshToken,
+    ...(stored.binding
+      ? {
+          origin: stored.binding.apiUrl,
+          issuer: stored.binding.issuer,
+          clientId: stored.binding.clientId,
+          ...(stored.binding.ownerId
+            ? { ownerId: stored.binding.ownerId }
+            : {}),
+        }
+      : {}),
   };
-const matchesProvider = (
-  credentials: StoredCredentials,
-  options: ClientOptions,
-  auth: AuthDiscovery
-) =>
-  matchesBinding(savedBinding(credentials), {
-    origin: apiBaseUrl(options),
-    issuer: auth.issuer,
-    clientId: auth.clients.cli,
-  });
-const boundToDeployment = (
-  credentials: StoredCredentials,
-  options: ClientOptions
-) => {
-  const saved = savedBinding(credentials);
-  return (
-    isWorkosCredential(saved) &&
-    saved.origin === apiBaseUrl(options) &&
-    matchesAuthUrl(explicitAuthUrl(options), saved.issuer)
-  );
-};
+const toStored = (credentials: OAuthCredentials): StoredCredentials => ({
+  accessToken: credentials.accessToken,
+  expiresAt: credentials.expiresAt,
+  refreshToken: credentials.refreshToken,
+  ...(credentials.origin && credentials.issuer && credentials.clientId
+    ? {
+        binding: {
+          apiUrl: credentials.origin,
+          issuer: credentials.issuer,
+          clientId: credentials.clientId,
+          ...(credentials.ownerId ? { ownerId: credentials.ownerId } : {}),
+        },
+      }
+    : {}),
+});
+const credentialStore = (options: ClientOptions): OAuthCredentialStore => ({
+  read: () => fromStored(readCredentials(options)),
+  write: (credentials) =>
+    credentials
+      ? writeCredentials(toStored(credentials), options)
+      : clearCredentials(options),
+});
 const credentialOperation = <T>(
   options: ClientOptions,
   work: () => Promise<T>
@@ -330,189 +310,53 @@ const credentialOperation = <T>(
     work
   );
 };
+/** The CLI's sign-in: kept in the keychain or a file, one process at a time. */
+const oauthSession = (options: ClientOptions): OAuthSession => {
+  const authUrl = explicitAuthUrl(options);
+  const localIssuer =
+    authUrl &&
+    (isLocalDevelopmentHostname(authUrl.hostname) ||
+      authUrl.hostname === "[::1]")
+      ? authUrl.href
+      : undefined;
+  return createOAuthSession({
+    apiUrl: apiBaseUrl(options),
+    surface: "cli",
+    store: credentialStore(options),
+    lock: (work) => credentialOperation(options, work),
+    ...(authUrl ? { expectedIssuer: authUrl.href } : {}),
+    ...(localIssuer ? { localIssuer } : {}),
+  });
+};
 const logoutMarker = (options: ClientOptions) =>
   path.join(configDir(), `logout-${credentialAccount(options)}`);
 const readLogoutMarker = (options: ClientOptions) =>
   existsSync(logoutMarker(options))
     ? readFileSync(logoutMarker(options), "utf8")
     : "";
-const LOOPBACK_ALLOWED_AFTER_DISCOVERY = true;
-const refreshCredentials = (
-  current: StoredCredentials,
-  options: ClientOptions,
-  auth: AuthDiscovery
-) =>
-  refreshAndSave(
-    async () => {
-      const next = await exchangeToken(options, auth, {
-        grant_type: "refresh_token",
-        refresh_token: current.refreshToken,
-      });
-      if (next.binding && current.binding?.ownerId) {
-        next.binding.ownerId = current.binding.ownerId;
-      }
-      return next;
-    },
-    (next) => writeCredentials(next, options)
-  );
-const revokeCredentials = async (
-  credentials: StoredCredentials,
-  options: ClientOptions
-) => {
-  const saved = savedBinding(credentials);
-  if (!isWorkosCredential(saved)) {
-    return;
-  }
-  if (saved.origin !== apiBaseUrl(options)) {
-    throw new Error("Saved connection belongs to another deployment");
-  }
-  const result = await disconnectConnectGrant(
-    apiBaseUrl(options),
-    credentials.accessToken,
-    {
-      local: LOOPBACK_ALLOWED_AFTER_DISCOVERY,
-      refreshAccessToken: credentials.refreshToken
-        ? async () => {
-            const auth = await discovery(options, true);
-            if (!matchesProvider(credentials, options, auth)) {
-              throw new Error("Saved connection belongs to another provider");
-            }
-            return (await refreshCredentials(credentials, options, auth))
-              .accessToken;
-          }
-        : undefined,
-    }
-  );
-  if (result !== "disconnected") {
-    throw new Error("Disconnect was not confirmed");
-  }
-};
-export const logout = (options: ClientOptions = {}) =>
-  credentialOperation(options, async () => {
-    writeFileSync(logoutMarker(options), randomBytes(16).toString("hex"), {
-      mode: 0o600,
-    });
-    const credentials = readCredentials(options);
-    if (credentials && (credentials.refreshToken || credentials.accessToken)) {
-      try {
-        await revokeCredentials(credentials, options);
-      } catch (error) {
-        if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
-          clearCredentials(options);
-          return "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
-        }
-        throw new Error(
-          "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
-        );
-      }
-    }
-    clearCredentials(options);
-    return "Logged out of Teak.";
+export const logout = async (options: ClientOptions = {}) => {
+  ensureConfigDir();
+  // A sign-in finishing in another process sees this and drops its grant.
+  writeFileSync(logoutMarker(options), randomBytes(16).toString("hex"), {
+    mode: 0o600,
   });
-const exchangeToken = async (
-  options: ClientOptions,
-  auth: AuthDiscovery,
-  body: Record<string, string>
-): Promise<StoredCredentials> => {
-  const result = await requestConnectTokens(auth, {
-    clientId: auth.clients.cli,
-    grant: body,
-    local: LOOPBACK_ALLOWED_AFTER_DISCOVERY,
-  });
-  if (!result.ok) {
-    throw isRefreshTokenDead(result)
-      ? new TeakApiError("AUTH_REQUIRED", undefined, { status: result.status })
-      : new TeakApiError("UNAUTHORIZED", "Could not complete Teak sign-in.", {
-          status: result.status,
-        });
+  let result: Awaited<ReturnType<OAuthSession["signOut"]>>;
+  try {
+    result = await oauthSession(options).signOut();
+  } catch {
+    throw new Error(
+      "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
+    );
   }
-  const { accessToken, expiresAt, refreshToken } = result.tokens;
-  return {
-    accessToken,
-    expiresAt,
-    refreshToken,
-    binding: binding(options, auth),
-  };
+  return result === "signed-out-here"
+    ? "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps."
+    : "Logged out of Teak.";
 };
 const tokenProvider = (options: ClientOptions): TokenProvider => {
-  let pending: Promise<string | null> | undefined;
-  const issued = new Map<string, string>();
-  const remember = (value: StoredCredentials) => {
-    if (!issued.has(value.accessToken)) {
-      issued.set(value.accessToken, value.refreshToken);
-      if (issued.size > 2) {
-        const oldest = issued.keys().next().value;
-        if (oldest !== undefined) {
-          issued.delete(oldest);
-        }
-      }
-    }
-    return value.accessToken;
-  };
   const explicit = options.apiKey || process.env.TEAK_API_KEY;
-  if (explicit) {
-    return { getAccessToken: () => explicit };
-  }
-  const resolve = (rejectedToken?: string): Promise<string | null> => {
-    const force = rejectedToken !== undefined;
-    if (pending) {
-      return force ? pending.then(() => resolve(rejectedToken)) : pending;
-    }
-    const work = credentialOperation(options, async () => {
-      const current = readCredentials(options);
-      if (!current) {
-        return null;
-      }
-      const fresh = current.expiresAt - Date.now() >= 60_000;
-      // A fresh token goes only to the deployment it was issued for, so it
-      // needs no discovery. A refresh or a 401 checks the provider again.
-      if (fresh && !force && boundToDeployment(current, options)) {
-        return remember(current);
-      }
-      const auth = await discovery(options, force);
-      if (!matchesProvider(current, options, auth)) {
-        return null;
-      }
-      if (
-        fresh &&
-        (!force ||
-          current.accessToken !== rejectedToken ||
-          current.refreshToken !== issued.get(rejectedToken ?? ""))
-      ) {
-        return remember(current);
-      }
-      if (!current.refreshToken) {
-        return null;
-      }
-      try {
-        const next = await refreshCredentials(current, options, auth);
-        const latest = await discovery(options);
-        if (!matchesProvider(next, options, latest)) {
-          return null;
-        }
-        return remember(next);
-      } catch (error) {
-        if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
-          clearCredentials(options);
-        }
-        await discovery(options, true).catch(() => undefined);
-        throw error;
-      }
-    });
-    pending = work;
-    void work
-      .finally(() => {
-        if (pending === work) {
-          pending = undefined;
-        }
-      })
-      .catch(() => undefined);
-    return work;
-  };
-  return {
-    getAccessToken: () => resolve(),
-    onUnauthorized: (rejectedToken) => resolve(rejectedToken),
-  };
+  return explicit
+    ? { getAccessToken: () => explicit }
+    : oauthSession(options).tokenProvider();
 };
 
 export const client = (options: ClientOptions): TeakClient =>
@@ -663,171 +507,110 @@ export const openBrowser = (url: string): Promise<boolean> => {
   });
 };
 
-export const login = async (options: ClientOptions & { browser?: boolean }) => {
-  const logoutEpochAtStart = readLogoutMarker(options);
-  const signInCancelledByLogout = () =>
-    readLogoutMarker(options) !== logoutEpochAtStart;
-  const auth = await discovery(options, true);
-  const saved = readCredentials(options);
-  if (
-    saved &&
-    matchesProvider(saved, options, auth) &&
-    !saved.binding?.ownerId
-  ) {
-    throw new Error(
-      "Run teak logout before signing in again, then wait 15 minutes for disconnect to finish."
-    );
-  }
-  const verifier = randomBase64Url(32);
-  const state = randomBase64Url(24);
-  const codeChallenge = await createPkceChallenge(verifier);
-  for (const port of [14_210, 24_210]) {
-    const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
-    try {
-      const credentials = await new Promise<StoredCredentials>(
-        (resolve, reject) => {
-          const timer = setTimeout(() => {
-            server.close();
-            reject(new Error("Timed out waiting for browser sign-in."));
-          }, 300_000);
-          let exchanging = false;
-          const server = createServer(async (request, response) => {
-            const url = new URL(request.url || "/", redirectUri);
-            const sameState = url.searchParams.get("state") || "";
-            const receivedState = Buffer.from(sameState);
-            const expectedState = Buffer.from(state);
-            const validState =
-              receivedState.length === expectedState.length &&
-              timingSafeEqual(expectedState, receivedState);
-            if (url.pathname !== "/oauth/callback" || !validState) {
-              response.writeHead(400).end("Invalid Teak sign-in callback.");
-              return;
-            }
-            if (exchanging) {
-              response.writeHead(409).end("Sign-in is already completing.");
-              return;
-            }
-            exchanging = true;
-            try {
-              const latest = await discovery(options, true);
-              if (
-                latest.issuer !== auth.issuer ||
-                latest.clients.cli !== auth.clients.cli
-              ) {
-                throw new Error(
-                  "Authentication changed during sign-in. Run teak login again."
-                );
-              }
-              if (
-                !url.searchParams.get("code") ||
-                url.searchParams.has("error")
-              ) {
-                throw new Error(
-                  "Sign-in was not completed. Run teak login again."
-                );
-              }
-              const next = await exchangeToken(options, latest, {
-                code: url.searchParams.get("code") || "",
-                code_verifier: verifier,
-                grant_type: "authorization_code",
-                redirect_uri: redirectUri,
-              });
-              const ownerId = await fetchConnectOwnerId(
-                apiBaseUrl(options),
-                next.accessToken,
-                { local: LOOPBACK_ALLOWED_AFTER_DISCOVERY }
-              );
-              if (!(ownerId && next.binding)) {
-                throw new Error(
-                  "Could not verify your account. Run teak login again."
-                );
-              }
-              next.binding.ownerId = ownerId;
-              response
-                .writeHead(200, { "Content-Type": "text/html" })
-                .end("<p>Return to your terminal to finish signing in.</p>");
-              clearTimeout(timer);
-              server.close();
-              resolve(next);
-            } catch (error) {
-              response
-                .writeHead(400, { "Content-Type": "text/html" })
-                .end(
-                  "<p>Teak sign-in could not complete. Run teak login again.</p>"
-                );
-              clearTimeout(timer);
-              server.close();
-              reject(error);
-            }
-          });
-          server.listen(port, "127.0.0.1", () => {
-            const authUrl = createConnectAuthorizeUrl(auth, {
-              clientId: auth.clients.cli,
-              codeChallenge,
-              redirectUri,
-              state,
-            });
-            process.stderr.write(`${authUrl.toString()}\n`);
-            if (options.browser === false || !isInteractive()) {
-              process.stderr.write("Open the link above to sign in.\n");
-            } else {
-              void openBrowser(authUrl.toString()).then((opened) => {
-                if (!opened) {
-                  process.stderr.write(
-                    "Couldn't open a browser. Open the link above to sign in.\n"
-                  );
-                }
-              });
-            }
-          });
-          server.on("error", (error) => {
-            clearTimeout(timer);
-            server.close();
-            reject(error);
-          });
+const SIGN_IN_PORTS = [14_210, 24_210];
+const SIGN_IN_TIMEOUT_MS = 300_000;
+
+const sameText = (received: string, expected: string) => {
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/**
+ * Waits on a loopback port for the browser's redirect back from sign-in.
+ * Redirects for another sign-in are answered 400 and ignored; the one that
+ * matches stays open until `finish` says how the sign-in ended.
+ */
+const listenForRedirect = (
+  port: number,
+  redirectUri: string,
+  options: { browser?: boolean }
+) => {
+  let answer: ((ok: boolean) => void) | undefined;
+  const server = createServer();
+  const close = () => server.close();
+  const authorize = (url: URL) =>
+    new Promise<string>((resolve, reject) => {
+      const state = url.searchParams.get("state") ?? "";
+      const timer = setTimeout(() => {
+        close();
+        reject(new Error("Timed out waiting for browser sign-in."));
+      }, SIGN_IN_TIMEOUT_MS);
+      server.on("request", (request, response) => {
+        const callback = new URL(request.url || "/", redirectUri);
+        if (
+          callback.pathname !== "/oauth/callback" ||
+          !sameText(callback.searchParams.get("state") || "", state)
+        ) {
+          response.writeHead(400).end("Invalid Teak sign-in callback.");
+          return;
         }
-      );
-      await credentialOperation(options, async () => {
-        if (signInCancelledByLogout()) {
-          throw new Error(
-            "Sign-in was cancelled by logout. Run teak login again."
-          );
+        if (answer) {
+          response.writeHead(409).end("Sign-in is already completing.");
+          return;
         }
-        const latest = await discovery(options, true);
-        if (!matchesProvider(credentials, options, latest)) {
-          throw new Error(
-            "Authentication changed during sign-in. Run teak login again."
-          );
+        clearTimeout(timer);
+        answer = (ok) => {
+          response
+            .writeHead(ok ? 200 : 400, { "Content-Type": "text/html" })
+            .end(
+              ok
+                ? "<p>Return to your terminal to finish signing in.</p>"
+                : "<p>Teak sign-in could not complete. Run teak login again.</p>"
+            );
+          close();
+        };
+        resolve(callback.href);
+      });
+      server.on("error", (error) => {
+        clearTimeout(timer);
+        close();
+        reject(error);
+      });
+      server.listen(port, "127.0.0.1", () => {
+        process.stderr.write(`${url.toString()}\n`);
+        if (options.browser === false || !isInteractive()) {
+          process.stderr.write("Open the link above to sign in.\n");
+          return;
         }
-        const previous = readCredentials(options);
-        const sameOwner =
-          previous &&
-          matchesProvider(previous, options, latest) &&
-          Boolean(previous.binding?.ownerId) &&
-          previous.binding?.ownerId === credentials.binding?.ownerId;
-        if (previous && !sameOwner) {
-          if (
-            matchesProvider(previous, options, latest) &&
-            !previous.binding?.ownerId
-          ) {
-            throw new Error("Run teak logout before signing in again.");
-          }
-          try {
-            await revokeCredentials(previous, options);
-          } catch {
-            throw new Error(
-              "Your existing session is still saved. Run teak logout before signing in again."
+        void openBrowser(url.toString()).then((opened) => {
+          if (!opened) {
+            process.stderr.write(
+              "Couldn't open a browser. Open the link above to sign in.\n"
             );
           }
-        }
-        writeCredentials(credentials, options);
+        });
       });
+    });
+  const finish = (ok: boolean) => {
+    if (answer) {
+      answer(ok);
+    } else {
+      close();
+    }
+  };
+  return { authorize, finish };
+};
+
+export const login = async (options: ClientOptions & { browser?: boolean }) => {
+  const logoutEpochAtStart = readLogoutMarker(options);
+  const session = oauthSession(options);
+  for (const port of SIGN_IN_PORTS) {
+    const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+    const redirect = listenForRedirect(port, redirectUri, options);
+    try {
+      await session.signIn({
+        authorize: redirect.authorize,
+        cancelled: () => readLogoutMarker(options) !== logoutEpochAtStart,
+        redirectUri,
+      });
+      redirect.finish(true);
       return "Logged in to Teak.";
     } catch (error) {
+      redirect.finish(false);
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
         continue;
       }
-      await discovery(options, true).catch(() => undefined);
       throw error;
     }
   }
