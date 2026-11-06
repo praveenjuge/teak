@@ -3,6 +3,7 @@ import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { stageFailed } from "@teak/convex/card/processingStatus";
 import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
+import type { CardProcessingParams } from "@teak/files-protocol";
 import {
   CONVEX_STEP,
   NO_RETRY,
@@ -57,20 +58,6 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 
 // Step names are durable history: never rename one, and add new steps after
 // the existing ones.
-
-export interface CardProcessingParams {
-  /**
-   * Only "load card", "archive page" and the article steps: a link's saved
-   * copy and the article in it.
-   */
-  archiveOnly?: boolean;
-  /** Only "load card", "extract article" and "summarize article". */
-  articleOnly?: boolean;
-  cardId: string;
-  metadataOnly?: boolean;
-  refresh?: boolean;
-  rev: number;
-}
 
 const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);

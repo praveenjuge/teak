@@ -200,7 +200,6 @@
     "AI_GATEWAY_ID": "default",
     "MEDIA_RENDERER_INSTANCES": "4",
     "LINK_FETCHER_INSTANCES": "4",
-    "AI_USAGE_DATASET": "teak_ai_usage",
     // Each of the text and HTML bodies is cut to this many UTF-8 bytes.
     "MAX_BODY_BYTES": "1048576"
   },

@@ -20,9 +20,10 @@ import {
   type FilesProcessAudioResult,
   filesCardKeyPrefix,
   normalizeImageOcrText,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { sha256Hex } from "../../lib";
-import { gatedEnv } from "../filesOps";
+import { gatedEnv } from "../../deletionGate";
+import { InvalidOpInput } from "../../opFailure";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { sanitizeTranscript } from "./aiMetadata";
 import {
@@ -184,7 +185,7 @@ export const processAudioCard = async (
   }
   const sourceKey = card.fileKey;
   if (!isKeyInUserNamespace(loaded.keyPrefix, sourceKey)) {
-    throw new Error("invalid_storage_key_namespace");
+    throw new InvalidOpInput("invalid_storage_key_namespace");
   }
   const { processed: result, text } = await transcribeStoredAudio(
     job,

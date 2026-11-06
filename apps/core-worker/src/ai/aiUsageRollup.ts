@@ -1,6 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../convexRpc";
+import { InvalidOpInput } from "../opFailure";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { aiUsageColumn } from "./aiUsage";
 
@@ -21,7 +22,8 @@ export interface DailyUsageRow {
 }
 
 const MAX_USERS_PER_DAY = 50_000;
-const DEFAULT_DATASET = "teak_ai_usage";
+/** The dataset the AI_USAGE binding writes when AI_USAGE_DATASET is unset. */
+export const DEFAULT_AI_USAGE_DATASET = "teak_ai_usage";
 const SQL_TIMEOUT_MS = 30_000;
 // The SQL API fails a query with a 5xx now and then. The query only reads, so
 // it is retried briefly before the hourly run gives up (and the next hour
@@ -50,7 +52,7 @@ export const dailyUsageSql = (
   date: string
 ): string => {
   if (!DATASET_PATTERN.test(dataset)) {
-    throw new Error("invalid_ai_usage_dataset");
+    throw new InvalidOpInput("invalid_ai_usage_dataset");
   }
   if (
     !(
@@ -58,7 +60,7 @@ export const dailyUsageSql = (
       /^\d{4}-\d{2}-\d{2}$/u.test(date)
     )
   ) {
-    throw new Error("invalid_ai_usage_query");
+    throw new InvalidOpInput("invalid_ai_usage_query");
   }
   const next = utcDate(Date.parse(`${date}T00:00:00Z`) + DAY_MS);
   return [
@@ -121,7 +123,7 @@ const queryDailyUsage = async (
       `https://api.cloudflare.com/client/v4/accounts/${env.ANALYTICS_ACCOUNT_ID}/analytics_engine/sql`,
       {
         body: dailyUsageSql(
-          env.AI_USAGE_DATASET || DEFAULT_DATASET,
+          env.AI_USAGE_DATASET || DEFAULT_AI_USAGE_DATASET,
           convexSiteUrl,
           date
         ),

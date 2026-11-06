@@ -1,3 +1,4 @@
+import { FILES_DEV_KEY_PREFIX } from "@teak/files-protocol";
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const BACKEND_ENTRIES: EnvVarSpec[] = [
@@ -153,6 +154,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "url",
     providers: ["convex-dashboard"],
     required: false,
+    note: "The Core Worker's public origin Convex signs links and ops for: the same value as that Worker's FILES_PUBLIC_ORIGIN.",
   }),
 
   spec("FILES_SIGNING_SECRET", {
@@ -170,9 +172,11 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     targets: ["convex"],
     profiles: ["local", "preview", "production"],
     secret: false,
-    validation: "string",
+    validation: "enum",
+    allowedValues: [FILES_DEV_KEY_PREFIX],
     providers: ["convex-dashboard"],
     required: false,
+    note: "dev/ on the development deployment and unset in production: the Core Worker serves no other prefix, and Convex refuses one (parseFilesKeyPrefix).",
   }),
   spec("BILLING_DISABLED", {
     owners: ["@teak/convex"],

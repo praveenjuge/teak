@@ -9,6 +9,7 @@ import { strToU8, zipSync } from "fflate";
 import type { FakeHandler } from "../test/fakeConvex";
 import { createFakeQueue } from "../test/fakeQueue";
 import { completionReports, createTestRun } from "../test/fakeRun";
+import { opError } from "../test/opsHarness";
 import { fakeHttpEtag } from "../test/testsupport";
 import { callFilesOp } from "./filesOps";
 import { FILE_EXTRACT_FAILED_REASON, runImport } from "./import";
@@ -863,11 +864,7 @@ describe("runImport with items staged in R2", () => {
         ops: (spec) => {
           if (spec.op === "extract-import-files" && refusals > 0) {
             refusals -= 1;
-            return Promise.reject(
-              Object.assign(new Error("files_worker_error:INTERNAL:500:r"), {
-                retryable: true,
-              })
-            );
+            return Promise.reject(opError("INTERNAL", { retryable: true }));
           }
           return callFilesOp(test.env, spec);
         },
@@ -897,11 +894,7 @@ describe("runImport with items staged in R2", () => {
         convex: test.convex,
         ops: (spec) =>
           spec.op === "extract-import-files"
-            ? Promise.reject(
-                Object.assign(new Error("files_worker_error:INTERNAL:500:r"), {
-                  retryable: true,
-                })
-              )
+            ? Promise.reject(opError("INTERNAL", { retryable: true }))
             : callFilesOp(test.env, spec),
       })
     ).toEqual({ status: "completed" });

@@ -4,6 +4,7 @@ import {
   type FilesOp,
 } from "@teak/files-protocol";
 import { currentAiUsageContext, runWithAiUsage } from "../../ai/aiUsage";
+import { InvalidOpInput } from "../../opFailure";
 import {
   observeAiGeneration,
   type WorkflowTelemetry,
@@ -73,12 +74,12 @@ export const runDecision = async <T>(
             job.deps.filesOp<unknown>({ op, params }),
             timeoutMs
           );
-          if (outcome.kind === "fallback") {
+          if (outcome.kind === "declined") {
             return null;
           }
           const result = read(outcome.data);
           if (!result) {
-            throw new Error("invalid_decision_reply");
+            throw new InvalidOpInput("invalid_decision_reply");
           }
           return result;
         }

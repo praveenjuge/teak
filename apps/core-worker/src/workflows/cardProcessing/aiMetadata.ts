@@ -5,6 +5,7 @@ import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
+  filesOpErrorCode,
   normalizeAiLanguage,
   normalizeImageOcrText,
   readFilesAiGenerationFacts,
@@ -16,25 +17,27 @@ import type { FunctionArgs } from "convex/server";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { type CardJob, guardOf } from "./context";
 
-const JSON_VALIDATION_ERROR =
-  /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
-const PROVIDER_CAPACITY_ERROR =
-  /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|status(?: code)? 429|429)\b/iu;
 const RASTER_THUMBNAIL_PENDING_ERROR = /waiting for a raster thumbnail/iu;
 export const METADATA_UNAVAILABLE = "files_worker_metadata_unavailable";
+const INVALID_DIAGNOSTICS = "failed to validate JSON metadata diagnostics";
+const INVALID_RESPONSE = "failed to validate JSON metadata response";
 
-export const isAiProviderCapacityError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
-  return PROVIDER_CAPACITY_ERROR.test(message);
-};
+/** The AI provider was busy; the op said so with `AI_CAPACITY`. */
+export const isAiProviderCapacityError = (error: unknown): boolean =>
+  filesOpErrorCode(error) === "AI_CAPACITY";
 
+/** AI that may still come: it was busy, answered badly or isn't ready. */
 export const isAiMetadataDeferredError = (error: unknown): boolean => {
+  const code = filesOpErrorCode(error);
+  if (code) {
+    return code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT";
+  }
   const message = error instanceof Error ? error.message : String(error);
   return (
-    PROVIDER_CAPACITY_ERROR.test(message) ||
-    JSON_VALIDATION_ERROR.test(message) ||
+    message.endsWith(INVALID_DIAGNOSTICS) ||
+    message.endsWith(INVALID_RESPONSE) ||
     RASTER_THUMBNAIL_PENDING_ERROR.test(message) ||
-    message === METADATA_UNAVAILABLE
+    message.endsWith(METADATA_UNAVAILABLE)
   );
 };
 
@@ -117,16 +120,16 @@ const generateWorkerMetadata = async (
         op,
         params: { prompt },
       });
-      if (outcome.kind === "fallback") {
+      if (outcome.kind === "declined") {
         throw new Error(METADATA_UNAVAILABLE);
       }
       const facts = readFilesAiGenerationFacts(outcome.data);
       if (!facts) {
-        throw new Error("failed to validate JSON metadata diagnostics");
+        throw new Error(INVALID_DIAGNOSTICS);
       }
       const metadata = validateTextMetadata(outcome.data);
       if (!metadata) {
-        throw new Error("failed to validate JSON metadata response");
+        throw new Error(INVALID_RESPONSE);
       }
       return { output: metadata, usage: facts.usage };
     }
@@ -190,7 +193,7 @@ export const generateImageMetadataForStoredKey = async (
       ...(options.telemetry ? { visualStyles: true } : {}),
     },
   });
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     throw new Error(
       "Image analysis is waiting for a raster thumbnail (worker unavailable)"
     );

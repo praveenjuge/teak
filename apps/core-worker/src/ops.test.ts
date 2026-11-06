@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { FILES_PROTOCOL_VERSION } from "@teak/files-protocol";
-import { type FilesOpsEnv, getFilesOpObjectKey, runFilesOp } from "./ops";
+import { getFilesOpObjectKey } from "./ops";
+import { runOp } from "./test/opsHarness";
 import { FakeBucket } from "./test/testsupport";
 
 describe("getFilesOpObjectKey", () => {
@@ -74,35 +74,25 @@ describe("archive-page", () => {
     }
     const fetcher =
       options.fetcher ?? fetcherAnswering("<p>From the server</p>");
-    const response = await runFilesOp(
+    const { body, status } = await runOp(
       {
         BUCKET: bucket as unknown as R2Bucket,
-        FILES_SIGNING_SECRET: "secret",
         LINK_FETCHER: fetcher.namespace,
         LINK_FETCHER_INSTANCES: "1",
-      } as FilesOpsEnv,
-      "request-1",
-      {
-        op: "archive-page",
-        params: {
-          capturedAt: 1,
-          destinationKey: DESTINATION,
-          url: PAGE_URL,
-          ...params,
-        },
-        version: FILES_PROTOCOL_VERSION,
       },
-      "https://files.teakvault.com"
+      "archive-page",
+      {
+        capturedAt: 1,
+        destinationKey: DESTINATION,
+        url: PAGE_URL,
+        ...params,
+      }
     );
-    const body = (await response.json()) as {
-      data?: Record<string, unknown>;
-      error?: { code: string; message: string };
-    };
     const written = bucket.objects.get(DESTINATION);
     return {
       body,
       fetcher,
-      status: response.status,
+      status,
       written: written
         ? {
             contentType: written.httpMetadata?.contentType,

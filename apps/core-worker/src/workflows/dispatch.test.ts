@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { buildWorkflowDispatchSigningPayload } from "@teak/files-protocol";
+import {
+  buildWorkflowDispatchSigningPayload,
+  hmacSha256Hex,
+  sha256Hex,
+} from "@teak/files-protocol";
 import { workflowRpcSecret } from "../convexRpc";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
 import { type ObjectDeletionMessage, runDispatch } from "./dispatch";
 

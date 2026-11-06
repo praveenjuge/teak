@@ -3,6 +3,7 @@ import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
   CARD_TYPE_DECISION_TYPES,
+  cardTypeStages,
   readCardTypeDecision,
 } from "@teak/files-protocol";
 import {
@@ -113,9 +114,9 @@ const completed = (
   confidence,
   mode: "completed",
   needsLinkMetadata,
-  shouldCategorize: type === "link",
+  shouldCategorize: cardTypeStages(type).categorize,
   shouldGenerateMetadata: true,
-  shouldGenerateRenderables: ["image", "video", "document"].includes(type),
+  shouldGenerateRenderables: cardTypeStages(type).renderables,
   type,
 });
 

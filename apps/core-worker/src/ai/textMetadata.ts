@@ -10,6 +10,7 @@ import {
   TEXT_METADATA_MODEL_ID,
   validationRetryPrompt,
 } from "@teak/files-protocol";
+import { InvalidOpInput } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
 import { aiRunOptions } from "./aiGateway";
 import { meteredAiRun } from "./aiUsage";
@@ -102,7 +103,7 @@ export const generateTextMetadataForOp = async (
     prompt.length > MAX_AI_METADATA_INPUT_CHARS ||
     Object.keys(params).some((key) => key !== "prompt")
   ) {
-    throw new Error("invalid_metadata_params");
+    throw new InvalidOpInput("invalid_metadata_params");
   }
   const ai = env.AI;
   if (!ai) {

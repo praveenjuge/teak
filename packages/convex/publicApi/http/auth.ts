@@ -1,3 +1,4 @@
+import { sha256Hex } from "@teak/files-protocol";
 import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import {
@@ -11,7 +12,6 @@ import type { TeakUserId } from "../../securitySessions";
 import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
 import { ignoreTelemetryError } from "../../shared/telemetry";
-import { sha256Hex } from "../../storage/r2Keys";
 import {
   verifyWorkosConnectTokenSignature,
   type WorkosConnectPrincipal,

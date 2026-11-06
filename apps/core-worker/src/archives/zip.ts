@@ -1,7 +1,7 @@
 import { isSafeArchivePath } from "@teak/convex/import/validate";
+import { isValidObjectKey } from "@teak/files-protocol";
 import { Inflate } from "fflate";
-import { OpFailure } from "../opFailure";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 
 // ZIP names without the UTF-8 flag use the standard DOS code page.
 const CP437_HIGH =
@@ -13,7 +13,7 @@ const decodeZipName = (bytes: Uint8Array, flags: number) => {
         bytes
       );
     } catch {
-      throw new Error("invalid_archive_filename");
+      throw new InvalidOpInput("invalid_archive_filename");
     }
   }
   return Array.from(bytes, (byte) =>
@@ -128,7 +128,7 @@ export function parseCentralDirectory(
   count: number
 ): ZipCentralEntry[] {
   if (count > MAX_ENTRIES) {
-    throw new Error("invalid_archive_entry_count");
+    throw new InvalidOpInput("invalid_archive_entry_count");
   }
   const entries: ZipCentralEntry[] = [];
   let offset = 0;
@@ -295,7 +295,7 @@ export async function readZipDirectory(
       names.has(entry.name) ||
       ![0, 8].includes(entry.compressionMethod)
     ) {
-      throw new Error("invalid_archive_entry");
+      throw new InvalidOpInput("invalid_archive_entry");
     }
     names.add(entry.name);
     expanded += entry.uncompressedSize;
@@ -303,7 +303,7 @@ export async function readZipDirectory(
       expanded > MAX_ARCHIVE_BYTES ||
       entry.localHeaderOffset + 30 > cdOffset
     ) {
-      throw new Error("invalid_archive_expanded_size");
+      throw new InvalidOpInput("invalid_archive_expanded_size");
     }
   }
   return { entries, sourceEtag: meta.httpEtag, size: meta.size, cdOffset };
@@ -326,7 +326,7 @@ export async function consumeZipEntry(
       ? entry.uncompressedSize !== 0
       : entry.uncompressedSize / entry.compressedSize > maxRatio)
   ) {
-    throw new Error("invalid_archive_compression_ratio");
+    throw new InvalidOpInput("invalid_archive_compression_ratio");
   }
   const header = await rangeRead(
     bucket,
@@ -474,13 +474,13 @@ export async function extractZipEntries(
 ): Promise<Array<{ bytes: number; destinationKey: string; path: string }>> {
   if (
     !(
-      isValidUploadKey(archiveKey) &&
+      isValidObjectKey(archiveKey) &&
       Array.isArray(requested) &&
       requested.length
     ) ||
     requested.length > 50
   ) {
-    throw new Error("invalid_extract_batch");
+    throw new InvalidOpInput("invalid_extract_batch");
   }
   const namespace = (key: string) =>
     key
@@ -495,13 +495,13 @@ export async function extractZipEntries(
       typeof item.path !== "string" ||
       !isSafeArchivePath(item.path) ||
       typeof item.destinationKey !== "string" ||
-      !isValidUploadKey(item.destinationKey) ||
+      !isValidObjectKey(item.destinationKey) ||
       item.destinationKey === archiveKey ||
       !item.destinationKey.startsWith(`${namespace(archiveKey)}/`) ||
       (item.contentType !== undefined &&
         (typeof item.contentType !== "string" || item.contentType.length > 255))
     ) {
-      throw new Error("invalid_extract_entry");
+      throw new InvalidOpInput("invalid_extract_entry");
     }
     validated.push(item);
   }
@@ -512,7 +512,7 @@ export async function extractZipEntries(
   for (const item of validated) {
     const entry = byName.get(item.path);
     if (!entry || entry.name.endsWith("/")) {
-      throw new Error("invalid_archive_entry");
+      throw new InvalidOpInput("invalid_archive_entry");
     }
     const bytes = await readZipEntry(
       bucket,

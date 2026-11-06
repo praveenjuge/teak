@@ -1,17 +1,17 @@
 import {
   type AnalyticsEventItem,
   accountDeletionInstanceId,
-  buildWorkflowDispatchSigningPayload,
   cardProcessingInstanceId,
   type DispatchItem,
   type DispatchResult,
   exportInstanceId,
-  filesCardKeyPrefix,
   importInstanceId,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
   type MaintenanceParams,
   normalizeConvexSiteUrl,
+  signDispatchProof,
+  WORKFLOW_INSTANCE_MISSING,
   type WorkflowName,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
@@ -25,34 +25,22 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { retryAccountDeletionRun } from "./accountDeletion/workflowRun";
+import { initializeCardProcessingState } from "./card/processingLifecycle";
 import {
-  CARD_PROCESSING_STAGES,
-  initializeCardProcessingState,
-  markUnfinishedCardStagesFailed,
-} from "./card/processingLifecycle";
-import {
+  cardRunParams,
+  failCardRun,
+  fileCardWithoutAiTags,
   pendingRunToTakeOver,
   takeSnapshotWaitingAfterRun,
 } from "./card/processingRuns";
+import { failExportRun } from "./export/workflowRun";
+import { failImportRun } from "./import/workflowRun";
 import {
-  ACTIVE_EXPORT_STATUSES,
-  EXPORT_FAILURE_CLASS,
-} from "./export/constants";
-import { applyAutoFileRulesToCard } from "./folder/rules";
-import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
-import { importStagedPartKeys } from "./import/indexItems";
-import { articleSkipReason } from "./shared/article";
-import { pageArchiveSkipReason } from "./shared/pageArchive";
-import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "./storage/filesWorkerClient";
-import {
-  getR2KeyPrefix,
-  hmacSha256Hex,
-  isR2KeyInNamespace,
-  sha256Hex,
-} from "./storage/r2Keys";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "./storage/coreWorkerClient";
+import { isR2KeyInNamespace } from "./storage/r2Keys";
 import { reportFromMutation } from "./telemetry/alerts";
 import { captureBackendException } from "./telemetry/posthog";
 
@@ -105,6 +93,12 @@ export const claimRetryDelayMs = (attempt: number): number | null =>
     ? null
     : Math.min(60_000, 1000 * 2 ** Math.max(0, attempt));
 
+/**
+ * Transactions that already scheduled an immediate flush. Convex gives each
+ * mutation run its own `ctx.db`, so an entry covers only the transaction in
+ * hand: its later rows (analytics events, more deletion batches) ride on
+ * the one flush, and the entry goes with the transaction.
+ */
 const flushScheduled = new WeakSet<object>();
 
 // crypto.getRandomValues instead of Math.random: static analysis flags
@@ -177,14 +171,14 @@ export const queueCardProcessing = async (
   if (!card) {
     return null;
   }
-  const replaced = await pendingRunToTakeOver(ctx, card);
-  const reset = options.reset === true || replaced?.reset === true;
-  const refresh =
-    options.refresh === true || replaced?.params?.refresh === true;
+  const replacedRow = await pendingRunToTakeOver(ctx, card);
+  const replaced = replacedRow ? cardRunParams(replacedRow) : null;
+  const reset = options.reset === true || replacedRow?.reset === true;
+  const refresh = options.refresh === true || replaced?.refresh === true;
   const metadataOnly =
     !refresh &&
     options.metadataOnly === true &&
-    (!replaced || replaced.params?.metadataOnly === true);
+    (!replaced || replaced.metadataOnly === true);
   // A run that takes over a whole pending run keeps its work: it narrows to
   // the archive or the article only when the run it replaces did too, and
   // to the article alone only when neither asks for the archive.
@@ -195,10 +189,9 @@ export const queueCardProcessing = async (
   const narrow =
     !(reset || metadataOnly) &&
     narrowed(options) &&
-    (!replaced || narrowed(replaced.params));
+    (!replaced || narrowed(replaced));
   const archiveOnly =
-    narrow &&
-    (options.archiveOnly === true || replaced?.params?.archiveOnly === true);
+    narrow && (options.archiveOnly === true || replaced?.archiveOnly === true);
   const articleOnly = narrow && !archiveOnly;
   const rev = (card.processingRev ?? 0) + 1;
   await ctx.db.patch("cards", cardId, { processingRev: rev });
@@ -212,10 +205,10 @@ export const queueCardProcessing = async (
     params: {
       cardId,
       rev,
-      ...(archiveOnly ? { archiveOnly: true } : {}),
-      ...(articleOnly ? { articleOnly: true } : {}),
-      ...(metadataOnly ? { metadataOnly: true } : {}),
-      ...(refresh ? { refresh: true } : {}),
+      ...(archiveOnly ? { archiveOnly: true as const } : {}),
+      ...(articleOnly ? { articleOnly: true as const } : {}),
+      ...(metadataOnly ? { metadataOnly: true as const } : {}),
+      ...(refresh ? { refresh: true as const } : {}),
     },
     rev,
     ...(reset ? { reset: true as const } : {}),
@@ -264,55 +257,6 @@ export const queueMaintenanceWorkflow = async (
     params: { ...params, dispatched: true },
   });
   return instanceId;
-};
-
-const ACCOUNT_DELETION_RETRY_BASE_MS = 5 * 60 * 1000;
-const ACCOUNT_DELETION_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
-
-export const accountDeletionRetryDelayMs = (failures: number): number =>
-  Math.min(
-    ACCOUNT_DELETION_RETRY_MAX_MS,
-    ACCOUNT_DELETION_RETRY_BASE_MS * 2 ** Math.max(0, failures - 1)
-  );
-
-/**
- * Failures another attempt can't fix: the storage being deleted changed
- * under the run. An operator resolves it, then runs
- * `accountDeletionJobs:retry`.
- */
-export const accountDeletionNeedsOperator = (failureCode?: string): boolean =>
-  failureCode?.endsWith("_storage_source_changed") === true;
-
-const consecutiveFailures = async (
-  ctx: MutationCtx,
-  key: string
-): Promise<number> => {
-  const recent = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
-    .order("desc")
-    .take(20);
-  const firstOther = recent.findIndex((row) => row.state !== "failed");
-  return firstOther === -1 ? recent.length : firstOther;
-};
-
-const hasNewerLiveAttempt = async (
-  ctx: MutationCtx,
-  row: Doc<"workflowDispatches">
-): Promise<boolean> => {
-  const newer = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_key_and_createdAt", (q) =>
-      q.eq("key", row.key).gte("createdAt", row.createdAt)
-    )
-    // Newest first: a live attempt is the latest one queued.
-    .order("desc")
-    .take(20);
-  return newer.some(
-    (other) =>
-      other._id !== row._id &&
-      (other.state === "pending" || other.state === "sent")
-  );
 };
 
 /**
@@ -457,7 +401,7 @@ export const claim = internalMutation({
         }
         if (row.reset) {
           await initializeCardProcessingState(ctx, row.cardId, {
-            refresh: row.params?.refresh === true,
+            refresh: cardRunParams(row)?.refresh === true,
           });
         }
       }
@@ -539,26 +483,6 @@ export const release = internalMutation({
   },
 });
 
-const DISPATCH_PROOF_TTL_SECONDS = 120;
-
-export const signDispatch = async (
-  secret: string,
-  convexSiteUrl: string,
-  items: DispatchItem[],
-  now = Date.now()
-): Promise<{ expiresAt: string; signature: string }> => {
-  const expiresAt = String(Math.floor(now / 1000) + DISPATCH_PROOF_TTL_SECONDS);
-  const signature = await hmacSha256Hex(
-    secret,
-    buildWorkflowDispatchSigningPayload({
-      convexSiteUrl,
-      expiresAt,
-      itemsSha256: await sha256Hex(JSON.stringify(items)),
-    })
-  );
-  return { expiresAt, signature };
-};
-
 export const flush = internalAction({
   args: { claimRetry: v.optional(v.number()) },
   returns: v.null(),
@@ -566,7 +490,7 @@ export const flush = internalAction({
     // Convex sets CONVEX_SITE_URL for every deployment; workflows call it back.
     const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
     const secret = env.WORKFLOW_RPC_SECRET;
-    if (!(isFilesWorkerConfigured() && convexSiteUrl && secret)) {
+    if (!(isCoreWorkerConfigured() && convexSiteUrl && secret)) {
       const waiting: boolean = await ctx.runQuery(
         internal.workflowDispatch.hasPending,
         {}
@@ -577,7 +501,7 @@ export const flush = internalAction({
           {
             properties: {
               convex_site_url: Boolean(convexSiteUrl),
-              files_worker: isFilesWorkerConfigured(),
+              files_worker: isCoreWorkerConfigured(),
               rpc_secret: Boolean(secret),
             },
           }
@@ -634,14 +558,13 @@ export const flush = internalAction({
       let error = "dispatch_rejected";
       try {
         const items = claimed.map(({ item }) => item);
-        const outcome = await callFilesWorkerJson<DispatchResult>({
+        const outcome = await callCoreWorkerOp<DispatchResult>({
           op: "dispatch",
           params: {
             convexSiteUrl,
             items,
-            ...(await signDispatch(secret, convexSiteUrl, items)),
+            ...(await signDispatchProof({ convexSiteUrl, items, secret })),
           },
-          timeoutMs: 60_000,
         });
         if (outcome.kind === "declined") {
           failedIds = retryable();
@@ -694,152 +617,40 @@ export const hasPending = internalQuery({
       .first()) !== null,
 });
 
+/**
+ * A run that died, or a dispatch that gave up, is handed to its kind's own
+ * handler, kept beside that kind's domain code.
+ */
 const handleRunFailure = async (
   ctx: MutationCtx,
   row: Doc<"workflowDispatches">,
   error: string
 ): Promise<void> => {
-  const params = (row.params ?? {}) as Record<string, unknown>;
+  const { params } = row;
   switch (row.kind) {
     case "cardProcessing": {
-      if (!row.cardId) {
-        return;
-      }
-      const card = await ctx.db.get("cards", row.cardId);
-      if (!card || (card.processingRev ?? 0) !== row.rev) {
-        return;
-      }
-      // A link whose run ended before its last step still gets its saved
-      // copy, from a run of its own: a page that can't be fetched then fails
-      // only that stage. An archive-only run that fails just fails the stage.
-      // The same goes for the article in a copy the run didn't reach. A
-      // narrowed run that fails just fails its stages.
-      const refresh = params.refresh === true;
-      const narrowed =
-        params.archiveOnly === true || params.articleOnly === true;
-      const archiveSeparately =
-        !narrowed && pageArchiveSkipReason(card, { refresh }) === null;
-      const articleSeparately =
-        !(narrowed || archiveSeparately) &&
-        articleSkipReason(card, { refresh }) === null;
-      await markUnfinishedCardStagesFailed(
-        ctx,
-        {
-          cardId: row.cardId,
-          stages: [
-            ...CARD_PROCESSING_STAGES,
-            ...(archiveSeparately ? [] : (["archive"] as const)),
-            ...(archiveSeparately || articleSeparately
-              ? []
-              : (["article"] as const)),
-          ],
-        },
-        error
-      );
-      if (archiveSeparately || articleSeparately) {
-        await queueCardProcessing(ctx, row.cardId, {
-          ...(archiveSeparately
-            ? { archiveOnly: true }
-            : { articleOnly: true }),
-          ...(refresh ? { refresh: true } : {}),
-        });
+      const card = cardRunParams(row);
+      if (card) {
+        await failCardRun(ctx, row, card, error);
       }
       return;
     }
-    case "export": {
-      const jobId = ctx.db.normalizeId("exportJobs", String(params.jobId));
-      const job = jobId ? await ctx.db.get("exportJobs", jobId) : null;
-      if (
-        jobId &&
-        job &&
-        (ACTIVE_EXPORT_STATUSES as string[]).includes(job.status)
-      ) {
-        await ctx.runMutation(internal.dataExport.failExport, {
-          failureClass: EXPORT_FAILURE_CLASS.UNKNOWN,
-          jobId,
-        });
+    case "export":
+      if (params && "userId" in params) {
+        await failExportRun(ctx, params);
       }
       return;
-    }
-    case "import": {
-      const jobId = ctx.db.normalizeId("importJobs", String(params.jobId));
-      const job = jobId ? await ctx.db.get("importJobs", jobId) : null;
-      if (
-        jobId &&
-        job &&
-        (ACTIVE_IMPORT_STATUSES as readonly string[]).includes(job.status)
-      ) {
-        try {
-          await ctx.runMutation(internal.dataImport.finishJob, {
-            failureClass: "import_workflow_failed",
-            jobId,
-            status: "failed",
-          });
-          await enqueueObjectDeletion(
-            ctx,
-            importStagedPartKeys(
-              filesCardKeyPrefix(getR2KeyPrefix(), job.userId),
-              jobId,
-              job.stagedItems
-            )
-          );
-        } catch (finishError) {
-          console.error("workflow_dispatch.import_finish_failed", {
-            error:
-              finishError instanceof Error
-                ? finishError.message
-                : String(finishError),
-            jobId,
-          });
-        }
+    case "import":
+      if (params && "jobId" in params && !("userId" in params)) {
+        await failImportRun(ctx, params);
       }
       return;
-    }
-    case "accountDeletion": {
-      const stateId = ctx.db.normalizeId(
-        "accountDeletionStates",
-        String(params.stateId)
-      );
-      const state = stateId
-        ? await ctx.db.get("accountDeletionStates", stateId)
-        : null;
-      if (
-        !(
-          stateId &&
-          state &&
-          typeof state.generation === "number" &&
-          state.generation === params.generation
-        )
-      ) {
-        return;
+    case "accountDeletion":
+      if (params && "stateId" in params) {
+        await retryAccountDeletionRun(ctx, row, params);
       }
-      // A newer attempt already queued or running (an operator's `retry`
-      // while this one ran) carries the deletion on: another attempt here
-      // would leave two runs racing on the same stage for good.
-      if (await hasNewerLiveAttempt(ctx, row)) {
-        return;
-      }
-      if (accountDeletionNeedsOperator(state.failureCode)) {
-        await reportFromMutation(ctx, "account_deletion_needs_operator", {
-          failure_code: state.failureCode ?? "",
-          state_id: stateId,
-        });
-        return;
-      }
-      const delayMs = accountDeletionRetryDelayMs(
-        await consecutiveFailures(ctx, row.key)
-      );
-      await ctx.db.patch("accountDeletionStates", stateId, {
-        nextAttemptAt: Date.now() + delayMs,
-      });
-      await queueAccountDeletionWorkflow(
-        ctx,
-        { generation: state.generation, stateId },
-        { delayMs }
-      );
       return;
-    }
-    case "deleteObjects": {
+    case "deleteObjects":
       await insertDispatch(ctx, {
         delayMs: DEAD_LETTER_RETRY_MS,
         key: "deleteObjects",
@@ -847,47 +658,10 @@ const handleRunFailure = async (
         kind: "deleteObjects",
       });
       return;
-    }
     default:
+      // Analytics rows are gone once claimed, and a maintenance run reports
+      // through its cron's heartbeat.
       return;
-  }
-};
-
-export const INSTANCE_MISSING = "instance_missing";
-
-/**
- * Folder rules run when a card's AI tags are written (`updateCardAI`). A
- * card whose run ended without them, because AI failed or had nothing to
- * say, is filed here with what it has. One waiting on the AI backfill isn't:
- * its tags still come.
- */
-const fileCardWithoutAiTags = async (
-  ctx: MutationCtx,
-  row: Doc<"workflowDispatches">
-): Promise<void> => {
-  const params = (row.params ?? {}) as Record<string, unknown>;
-  if (
-    row.kind !== "cardProcessing" ||
-    !row.cardId ||
-    params.archiveOnly === true ||
-    params.articleOnly === true
-  ) {
-    return;
-  }
-  const card = await ctx.db.get("cards", row.cardId);
-  if (
-    !card ||
-    card.isDeleted === true ||
-    // A failed run may have queued an archive or article run after it,
-    // which moves the revision on but leaves AI as it was.
-    (card.processingRev ?? 0) < (row.rev ?? 0) ||
-    card.aiTags !== undefined
-  ) {
-    return;
-  }
-  const metadata = card.processingStatus?.metadata?.status;
-  if (metadata !== "pending" && metadata !== "in_progress") {
-    await applyAutoFileRulesToCard(ctx, card._id);
   }
 };
 
@@ -911,12 +685,12 @@ export const complete = internalMutation({
     }
     const now = Date.now();
     if (
-      error === INSTANCE_MISSING &&
+      error === WORKFLOW_INSTANCE_MISSING &&
       row.state === "sent" &&
       (row.attempts ?? 1) < MAX_DISPATCH_ATTEMPTS
     ) {
       await ctx.db.patch("workflowDispatches", row._id, {
-        error: INSTANCE_MISSING,
+        error: WORKFLOW_INSTANCE_MISSING,
         notBefore: now,
         state: "pending",
       });
@@ -936,7 +710,10 @@ export const complete = internalMutation({
         await queueCardProcessing(ctx, waiting, { archiveOnly: true });
       }
     }
-    await fileCardWithoutAiTags(ctx, row);
+    const card = cardRunParams(row);
+    if (card) {
+      await fileCardWithoutAiTags(ctx, row, card);
+    }
     return null;
   },
 });

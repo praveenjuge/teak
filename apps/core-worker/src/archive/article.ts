@@ -9,19 +9,20 @@ import {
   countWords,
   isArticleLength,
 } from "@teak/convex/shared/article";
-import { PAGE_ARCHIVE_ROLE } from "@teak/convex/shared/pageArchive";
 import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesArticleImage,
   type FilesExtractArticleParams,
   type FilesExtractArticleResult,
+  isValidObjectKey,
+  PAGE_ARCHIVE_ROLE,
   parseCardObjectKey,
 } from "@teak/files-protocol";
 import { parseHTML } from "linkedom";
 import TurndownService from "turndown";
 import { IMAGES_BINDING_MAX_INPUT_BYTES } from "../images/imagesBinding";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput } from "../opFailure";
 import { resolveHttpUrl } from "./css";
 import { createRewriter, htmlResponse } from "./html";
 
@@ -847,17 +848,17 @@ export const parseExtractArticleParams = (
   const { archiveKey, pageUrl } = params;
   if (
     typeof archiveKey !== "string" ||
-    !isValidUploadKey(archiveKey) ||
+    !isValidObjectKey(archiveKey) ||
     parseCardObjectKey(archiveKey).role !== PAGE_ARCHIVE_ROLE
   ) {
-    throw new Error("invalid_storage_key");
+    throw new InvalidOpInput("invalid_storage_key");
   }
   if (
     typeof pageUrl !== "string" ||
     pageUrl.length > FILES_LINK_PAGE_MAX_URL_LENGTH ||
     !resolveHttpUrl(pageUrl, pageUrl)
   ) {
-    throw new Error("invalid_extract_article_params");
+    throw new InvalidOpInput("invalid_extract_article_params");
   }
   return { archiveKey, pageUrl };
 };

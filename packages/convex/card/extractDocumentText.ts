@@ -8,7 +8,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import { storeDocumentText } from "./documentText";
 
 export const extractDocumentText = internalAction({
@@ -39,13 +39,11 @@ export const extractDocumentText = internalAction({
     }
     try {
       const extracted = await extractDocumentFileText(
-        async (params) => {
-          const outcome = await callFilesWorkerJson<FilesInspectResult>({
+        (params) =>
+          callCoreWorkerOp<FilesInspectResult>({
             op: "inspect",
             params: { ...params },
-          });
-          return outcome.kind === "ok" ? outcome : { kind: "fallback" };
-        },
+          }),
         card.fileKey,
         format,
         card

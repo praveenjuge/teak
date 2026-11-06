@@ -1,10 +1,10 @@
+import { sha256Hex } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import { env } from "../_generated/server";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
-import { putObjectViaFilesWorker } from "./filesWorkerClient";
+import { putObjectViaCoreWorker } from "./coreWorkerClient";
 import { getR2Url } from "./fileUrls";
 import { buildR2UserPrefix } from "./r2";
-import { sha256Hex } from "./r2Keys";
 import {
   RAW_METADATA_KINDS,
   RAW_METADATA_MAX_BYTES,
@@ -112,7 +112,7 @@ export const copyAndVerifyRaw = async (
   if ((await hashRawMetadata(json)) !== digest) {
     throw new Error("raw_metadata_hash_mismatch");
   }
-  await putObjectViaFilesWorker({
+  await putObjectViaCoreWorker({
     body: new TextEncoder().encode(json),
     contentType: "application/json",
     key,

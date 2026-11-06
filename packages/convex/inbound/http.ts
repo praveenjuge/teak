@@ -1,3 +1,9 @@
+import {
+  buildInboundEmailSigningPayload,
+  hexDigestsMatch,
+  hmacSha256Hex,
+  sha256Hex,
+} from "@teak/files-protocol";
 import type { HttpRouter } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -13,7 +19,6 @@ import { requireTeakUserId } from "../securitySessions";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 import { CARD_ERROR_CODES } from "../shared/constants";
 import { inferFileFormat, MAX_FILE_NAME_LENGTH } from "../shared/fileFormats";
-import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { planEmailCards } from "./emailContent";
 
@@ -37,24 +42,8 @@ const SIGNATURE_WINDOW_SECONDS = 300;
 const MAX_FIELD_CHARS = 998;
 const SUBJECT_FIELD = "subject";
 
-/** The exact string the Core Worker signs. */
-export const inboundSigningPayload = (
-  path: string,
-  timestamp: string,
-  bodySha256: string
-) => `teak-inbound-email\nv1\n${path}\n${timestamp}\n${bodySha256}`;
-
 const json = (status: number, body: unknown, headers: HeadersInit = {}) =>
   Response.json(body, { headers, status });
-
-/** Compares two hex digests without leaking where they differ. */
-const sameDigest = async (secret: string, given: string, wanted: string) => {
-  const [left, right] = await Promise.all([
-    hmacSha256Hex(secret, `compare\n${given}`),
-    hmacSha256Hex(secret, `compare\n${wanted}`),
-  ]);
-  return left === right;
-};
 
 type Verified = { body: string } | { response: Response };
 
@@ -97,9 +86,9 @@ const readSigned = async (
   }
   const expected = await hmacSha256Hex(
     secret,
-    inboundSigningPayload(path, timestamp, await sha256Hex(body))
+    buildInboundEmailSigningPayload(path, timestamp, await sha256Hex(body))
   );
-  if (!(await sameDigest(secret, signature.toLowerCase(), expected))) {
+  if (!hexDigestsMatch(signature, expected)) {
     return { response: json(401, { error: "invalid_signature" }) };
   }
   return { body };

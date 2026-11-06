@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_PATH,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import {
   EDGE_IDENTITY_KNOWN_TTL_SECONDS,
   EDGE_IDENTITY_UNKNOWN_TTL_SECONDS,

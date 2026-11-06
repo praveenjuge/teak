@@ -3,15 +3,13 @@ import {
   extractDocumentFileText,
   FILES_INSPECT_MAX_ARCHIVE_BYTES,
   type FilesInspectParams,
+  type FilesInspectResult,
   linkOcrSourceKeys,
 } from "./inspect";
+import type { FilesOpOutcome } from "./outcome";
 import { FILES_UPLOAD_MAX_BYTES } from "./storage";
 
-const recordingInspect = (
-  outcome:
-    | { kind: "ok"; data: { facts?: Record<string, number>; text?: string } }
-    | { kind: "fallback" }
-) => {
+const recordingInspect = (outcome: FilesOpOutcome<FilesInspectResult>) => {
   const calls: FilesInspectParams[] = [];
   return {
     calls,
@@ -60,7 +58,11 @@ describe("extractDocumentFileText", () => {
   });
 
   test("asks nothing for a format without text", async () => {
-    const { calls, inspect } = recordingInspect({ kind: "fallback" });
+    const { calls, inspect } = recordingInspect({
+      code: "UNSUPPORTED",
+      kind: "declined",
+      message: "UNSUPPORTED",
+    });
     const result = await extractDocumentFileText(
       inspect,
       "k",
@@ -72,7 +74,11 @@ describe("extractDocumentFileText", () => {
   });
 
   test("reads a declined document as no text", async () => {
-    const { inspect } = recordingInspect({ kind: "fallback" });
+    const { inspect } = recordingInspect({
+      code: "UNSUPPORTED",
+      kind: "declined",
+      message: "UNSUPPORTED",
+    });
     expect(
       await extractDocumentFileText(
         inspect,

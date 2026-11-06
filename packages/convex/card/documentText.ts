@@ -1,4 +1,7 @@
-import { FILES_EXTRACTED_TEXT_MAX_CHARACTERS } from "@teak/files-protocol";
+import {
+  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
+  sha256Hex,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -13,10 +16,9 @@ import { getAccountDeletionState } from "../accountDeletion";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { articleObjectDigest } from "../shared/article";
 import { codePointLength } from "../shared/utils/codePoints";
-import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
+import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
-import { sha256Hex } from "../storage/r2Keys";
 import {
   documentTextObjectKey,
   isExtractedTextTruncated,
@@ -63,7 +65,7 @@ export const storeDocumentText = async (
   const key = documentTextKey(card, await sha256Hex(text));
   const charCount = codePointLength(text);
   if (card.documentTextKey !== key) {
-    await putObjectViaFilesWorker({
+    await putObjectViaCoreWorker({
       body: encoder.encode(text),
       contentType: "text/plain; charset=utf-8",
       key,

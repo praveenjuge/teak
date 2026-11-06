@@ -4,7 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion";
 import { readUserFlags } from "../adminAccess";
-import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
+import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BATCH_SIZE = 100;
@@ -68,7 +68,7 @@ export const runOcrBackfillPage = async (
   }
 ) => {
   const dryRun = args.dryRun ?? true;
-  if (!(dryRun || isFilesWorkerConfigured())) {
+  if (!(dryRun || isCoreWorkerConfigured())) {
     throw new Error("files_worker_not_configured");
   }
   const batchSize = Math.min(

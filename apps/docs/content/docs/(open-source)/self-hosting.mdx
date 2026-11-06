@@ -191,7 +191,7 @@ POLAR_SERVER=sandbox
 POLAR_WEBHOOK_SECRET=secret
 ```
 
-`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; add the rest for the features you want. `SITE_URL` is your web app's origin: card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open it. The `WORKOS_*` values come from [Set up WorkOS](#set-up-workos), and `FILES_BASE`, `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_SECRET` from the [Core Worker](#core-worker).
+`SITE_URL`, `WORKOS_CLIENT_ID`, and `WORKOS_API_KEY` are required; add the rest for the features you want. `SITE_URL` is your web app's origin: card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open it. The `WORKOS_*` values come from [Set up WorkOS](#set-up-workos), and `FILES_BASE`, `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_SECRET` from the [Core Worker](#core-worker). Leave `R2_KEY_PREFIX` unset: the Core Worker serves only unprefixed keys and Teak's own `dev/` development keys, and Convex refuses any other prefix.
 
 ### Core Worker
 
@@ -246,7 +246,7 @@ Copy `apps/core-worker/self-host/example.env` to `self-host/.env` and fill it in
 | `POSTHOG_PROJECT_TOKEN` | Optional. Your own PostHog project token; unset sends nothing |
 | `AI_GATEWAY_ID` | Optional. The [AI Gateway](https://developers.cloudflare.com/ai-gateway/) Workers AI calls go through. Unset uses your account's `default` gateway, which AI Gateway creates on the first call; a gateway with any other name must exist before you deploy |
 
-The Cron Trigger schedules in `triggers.crons` must equal the Cloudflare schedules in `packages/convex/cronSchedules.ts`; a Convex test checks them.
+The Cron Trigger schedules in `triggers.crons` must equal the Cloudflare schedules in `packages/convex/cronSchedules.ts`; a Convex test checks them. Each trigger runs every task whose schedule it is.
 
 #### Secrets
 

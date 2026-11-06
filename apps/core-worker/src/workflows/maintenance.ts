@@ -14,10 +14,14 @@ import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";
 import { cardStorageObjectKeys } from "@teak/convex/storage/cardObjectKeys";
-import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
+import type {
+  FilesOpOutcome,
+  MaintenanceParams,
+  MaintenanceTask,
+} from "@teak/files-protocol";
+import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionArgs } from "convex/server";
 import type { ConvexRpc } from "../convexRpc";
-import { sha256Hex } from "../lib";
 import { reportBackgroundError } from "../telemetry";
 import {
   type FilesOpCaller,
@@ -26,7 +30,6 @@ import {
   withinBudget,
 } from "./deps";
 import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
-import type { FilesOpOutcome } from "./filesOps";
 import {
   type BackgroundEnv,
   CONVEX_STEP,

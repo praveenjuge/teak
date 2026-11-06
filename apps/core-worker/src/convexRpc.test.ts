@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { internal } from "@teak/convex/_generated/api";
-import { hasValidWorkflowRpcSignature } from "@teak/convex/workflowGateway";
+import { verifyWorkflowRpcRequest } from "@teak/files-protocol";
 import {
   allowedConvexSiteUrl,
   createConvexRpc,
@@ -25,11 +25,11 @@ const gatewayAccepts = async (
   origin: string,
   secret: string
 ) =>
-  await hasValidWorkflowRpcSignature(
-    new Headers(init?.headers),
-    new TextEncoder().encode(String(init?.body)).buffer as ArrayBuffer,
+  await verifyWorkflowRpcRequest(
     secret,
-    origin
+    origin,
+    new Headers(init?.headers),
+    String(init?.body)
   );
 
 const complete = internal.workflowDispatch.complete;

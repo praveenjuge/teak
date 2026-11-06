@@ -1,11 +1,20 @@
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { WORKFLOW_BINDINGS } from "@teak/files-protocol";
 import { unstable_readConfig } from "wrangler";
 import rootPackageJson from "../../../package.json";
 import packageJson from "../package.json";
 import { aiRunOptions } from "./ai/aiGateway";
+import { DEFAULT_AI_USAGE_DATASET } from "./ai/aiUsageRollup";
 import { MAX_DELIVERIES } from "./queues/aiBackfill";
+import * as entrypoints from "./workflows/entrypoints";
+
+const CONFIGS = [
+  ["production", "../wrangler.jsonc"],
+  ["development", "../development/wrangler.jsonc"],
+  ["self-host", "../self-host/wrangler.jsonc"],
+] as const;
 
 const baseImages = async (dockerfile: string): Promise<string[]> =>
   Array.from(
@@ -222,7 +231,6 @@ test("the self-host config names nothing of Teak's own deployment", async () => 
   ]);
   expect(Object.keys(config.vars).sort()).toEqual([
     "AI_GATEWAY_ID",
-    "AI_USAGE_DATASET",
     "LINK_FETCHER_INSTANCES",
     "MAX_BODY_BYTES",
     "MEDIA_RENDERER_INSTANCES",
@@ -247,3 +255,35 @@ test("the self-host config sends Workers AI calls through the default gateway", 
     aiRunOptions({ AI_GATEWAY_ID: String(config.vars.AI_GATEWAY_ID) })
   ).toEqual({ gateway: { collectLog: false, id: "default", skipCache: true } });
 });
+
+// Each workflow runs under the binding WORKFLOW_BINDINGS names, in every
+// config the Worker is deployed from.
+test.each(CONFIGS)(
+  "the %s config binds each workflow by its protocol name",
+  (_name, path) => {
+    const config = unstable_readConfig({
+      config: resolve(import.meta.dir, path),
+    });
+    expect(config.workflows.map((workflow) => workflow.binding).sort()).toEqual(
+      Object.values(WORKFLOW_BINDINGS).sort()
+    );
+    for (const workflow of config.workflows) {
+      expect(entrypoints).toHaveProperty(workflow.class_name);
+    }
+  }
+);
+
+test.each(CONFIGS)(
+  "the %s config reads AI usage from the dataset its AI_USAGE binding writes",
+  (_name, path) => {
+    const config = unstable_readConfig({
+      config: resolve(import.meta.dir, path),
+    });
+    const written = config.analytics_engine_datasets.find(
+      (dataset) => dataset.binding === "AI_USAGE"
+    )?.dataset;
+    expect(
+      String(config.vars.AI_USAGE_DATASET ?? DEFAULT_AI_USAGE_DATASET)
+    ).toBe(String(written));
+  }
+);

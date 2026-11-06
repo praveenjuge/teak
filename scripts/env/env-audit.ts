@@ -300,11 +300,69 @@ export const extractTurboDecls = (
   return decls;
 };
 
+/** Where the `[` or `{` of the first `"key": [` or `"key": {` starts, or -1. */
+const wranglerValueStart = (content: string, key: string): number => {
+  const quoted = `"${key}"`;
+  for (
+    let at = content.indexOf(quoted);
+    at !== -1;
+    at = content.indexOf(quoted, at + 1)
+  ) {
+    let index = at + quoted.length;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] !== ":") {
+      continue;
+    }
+    index += 1;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] === "[" || content[index] === "{") {
+      return index;
+    }
+  }
+  return -1;
+};
+
+/** The `[...]` or `{...}` value of the first `"key":` in a Wrangler config. */
+const wranglerBlock = (content: string, key: string): string => {
+  const open = wranglerValueStart(content, key);
+  if (open === -1) {
+    return "";
+  }
+  let depth = 0;
+  for (let index = open; index < content.length; index += 1) {
+    const char = content[index];
+    if (char === "[" || char === "{") {
+      depth += 1;
+    } else if (char === "]" || char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return content.slice(open, index + 1);
+      }
+    }
+  }
+  return "";
+};
+
+const BINDING_NAME = /"name"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
+
 export const extractWranglerDecls = (content: string): string[] => {
   const names: string[] = [];
   const bindingRe = /"binding"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
   for (const match of content.matchAll(bindingRe)) {
     names.push(match[1]);
+  }
+  // Durable Object and rate limit bindings are named by "name".
+  for (const block of [
+    wranglerBlock(wranglerBlock(content, "durable_objects"), "bindings"),
+    wranglerBlock(content, "ratelimits"),
+  ]) {
+    for (const match of block.matchAll(BINDING_NAME)) {
+      names.push(match[1]);
+    }
   }
   const varsMatch = /"vars"\s*:\s*\{([^}]*)\}/.exec(content);
   if (varsMatch) {

@@ -15,7 +15,7 @@ import {
   readCardTranscript,
 } from "../card/textContents";
 import { cardTypeValidator } from "../schema";
-import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
+import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { buildEmbeddingText } from "./text";
 
 // `dueAt` is set exactly while an `embedDue` job is scheduled for the card,
@@ -76,7 +76,7 @@ export const markCardForEmbedding = async (
   cardId: Id<"cards">,
   userId: string
 ) => {
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     return;
   }
   const row = await rowFor(ctx, cardId);

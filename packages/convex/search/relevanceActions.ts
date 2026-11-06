@@ -18,9 +18,9 @@ import {
 } from "../shared/search/relevance";
 import type { SemanticRequest } from "../shared/search/semantic";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import { fetchSemanticRanking } from "./semanticActions";
 
 export const API_RELEVANCE_TIMEOUT_MS = 1500;
@@ -75,7 +75,7 @@ export const ensureRelevanceScores = async (
   if (!(text && cards.length)) {
     return { outcome: "skipped", scores: null };
   }
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     return { outcome: "unavailable", scores: null };
   }
   if (
@@ -107,7 +107,7 @@ export const ensureRelevanceScores = async (
   const startedAt = Date.now();
   let result: FilesRelevanceResult | null = null;
   try {
-    const outcome = await callFilesWorkerJson<unknown>({
+    const outcome = await callCoreWorkerOp<unknown>({
       op: "score-relevance",
       params: {
         ...aiUsageParams(userId),

@@ -1,26 +1,15 @@
-import type { CardType } from "../schema";
+import {
+  cardTypeStages,
+  type ProcessingStageKey,
+  type ProcessingStageStatus,
+  type ProcessingStatus,
+} from "@teak/files-protocol";
 
-export interface ProcessingStageStatus {
-  completedAt?: number;
-  confidence?: number;
-  error?: string;
-  startedAt?: number;
-  status: "pending" | "in_progress" | "completed" | "failed";
-}
-
-export interface ProcessingStatus {
-  /** The link's saved copy; it never fails the card. */
-  archive?: ProcessingStageStatus;
-  /** The article taken from the saved copy; it never fails the card. */
-  article?: ProcessingStageStatus;
-  categorize?: ProcessingStageStatus;
-  classify?: ProcessingStageStatus;
-  metadata?: ProcessingStageStatus;
-  renderables?: ProcessingStageStatus;
-  screenshot?: ProcessingStageStatus;
-}
-
-export type ProcessingStageKey = keyof ProcessingStatus;
+export type {
+  ProcessingStageKey,
+  ProcessingStageStatus,
+  ProcessingStatus,
+} from "@teak/files-protocol";
 
 export const stageCompleted = (
   now: number,
@@ -70,52 +59,33 @@ export const mergeProcessingStages = (
   stages: Partial<ProcessingStatus>
 ): ProcessingStatus => ({ ...(current ?? {}), ...stages });
 
-export const shouldRunRenderablesStage = (cardType: CardType): boolean =>
-  cardType === "image" || cardType === "video" || cardType === "document";
-
-export const shouldRunCategorizeStage = (cardType: CardType): boolean =>
-  cardType === "link";
-
-export const shouldRunArchiveStage = (cardType: CardType): boolean =>
-  cardType === "link";
-
-export const buildInitialProcessingStatus = (params: {
-  now: number;
-  cardType: CardType;
+/**
+ * The stages a classified card of this type starts with: metadata always,
+ * categorize and renderables when the type runs them, and for a link the
+ * archive and article (unless `archive` says what they are instead).
+ */
+export const buildInitialProcessingStatus = ({
+  archive,
+  cardType,
+  classificationStatus,
+  now,
+}: {
+  archive?: Pick<ProcessingStatus, "archive" | "article">;
+  cardType: string;
   classificationStatus?: ProcessingStageStatus;
-  metadataStageNeeded?: boolean;
-  renderablesStageOverride?: boolean;
-  categorizeStageOverride?: boolean;
+  now: number;
 }): ProcessingStatus => {
-  const {
-    now: timestamp,
-    cardType,
-    classificationStatus,
-    metadataStageNeeded = true,
-  } = params;
-  const result: ProcessingStatus = {};
-
-  if (classificationStatus) {
-    result.classify = classificationStatus;
-  }
-
-  const shouldCategorize =
-    params.categorizeStageOverride ?? shouldRunCategorizeStage(cardType);
-
-  result.categorize = shouldCategorize
-    ? stagePending()
-    : stageCompleted(timestamp, 1);
-
-  result.metadata = metadataStageNeeded
-    ? stagePending()
-    : stageCompleted(timestamp, 1);
-
-  const shouldRunRenderables =
-    params.renderablesStageOverride ?? shouldRunRenderablesStage(cardType);
-
-  result.renderables = shouldRunRenderables
-    ? stagePending()
-    : stageCompleted(timestamp, 1);
-
-  return result;
+  const stages = cardTypeStages(cardType);
+  const runIf = (runs: boolean) =>
+    runs ? stagePending() : stageCompleted(now);
+  return {
+    ...(classificationStatus ? { classify: classificationStatus } : {}),
+    categorize: runIf(stages.categorize),
+    metadata: stagePending(),
+    renderables: runIf(stages.renderables),
+    ...(archive ??
+      (stages.archive
+        ? { archive: stagePending(), article: stagePending() }
+        : {})),
+  };
 };

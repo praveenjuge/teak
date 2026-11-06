@@ -1,4 +1,5 @@
-import { buildR2ExportPrefix, sha256Hex } from "../storage/r2Keys";
+import { sha256Hex } from "@teak/files-protocol";
+import { buildR2ExportPrefix } from "../storage/r2Keys";
 
 export const buildArtifactKey = async (
   userId: string,

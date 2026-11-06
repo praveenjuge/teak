@@ -6,7 +6,7 @@ import {
   buildImageSigningPayload,
 } from "@teak/files-protocol";
 import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
-import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
+import { signedOpRequest } from "../../storage/coreWorkerClient";
 import {
   bucketedSignatureExpiry,
   buildSignedWorkerFileUrl,
@@ -287,7 +287,7 @@ describe("signed worker op urls", () => {
     process.env.FILES_SIGNING_SECRET = SECRET;
     try {
       const now = 1_700_000_000;
-      const request = await buildSignedWorkerOpRequest(
+      const request = await signedOpRequest(
         {
           op: "inspect",
           params: {

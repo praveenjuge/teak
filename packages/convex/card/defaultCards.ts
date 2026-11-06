@@ -11,7 +11,7 @@ import { isHiddenTagList } from "../shared/tags";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { urlKey } from "../shared/utils/urlKey";
-import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
+import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
@@ -684,7 +684,7 @@ export const createDefaultCardsForUser = internalMutation({
     }
 
     const createdAt = Date.now();
-    if (isFilesWorkerConfigured()) {
+    if (isCoreWorkerConfigured()) {
       if ((await vaultSetupsOf(ctx, userId)).length === 0) {
         await startVaultSetup(ctx, userId);
       }

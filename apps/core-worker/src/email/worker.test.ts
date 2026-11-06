@@ -1,7 +1,6 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { buildUploadSigningPayload } from "@teak/files-protocol";
+import { buildUploadSigningPayload, hmacSha256Hex } from "@teak/files-protocol";
 import worker, { type Env } from "../index";
-import { hmacSha256Hex } from "../lib";
 import { fixture, messageOf } from "../test/emailSupport";
 import { FakeBucket, withObjectGates } from "../test/testsupport";
 

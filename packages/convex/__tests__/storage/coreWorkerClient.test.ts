@@ -6,10 +6,10 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
 } from "@teak/files-protocol";
 import {
-  buildSignedWorkerOpRequest,
-  buildSignedWorkerUploadUrl,
-  isFilesWorkerConfigured,
-} from "../../storage/filesWorkerClient";
+  isCoreWorkerConfigured,
+  signedOpRequest,
+  signedUploadUrl,
+} from "../../storage/coreWorkerClient";
 
 const SECRET = "test-signing-secret";
 const BASE = "https://files.teakvault.com";
@@ -39,7 +39,7 @@ describe("signed worker upload urls", () => {
     process.env.FILES_BASE = BASE;
     process.env.FILES_SIGNING_SECRET = SECRET;
     const before = Math.floor(Date.now() / 1000);
-    const signed = await buildSignedWorkerUploadUrl({
+    const signed = await signedUploadUrl({
       contentType: "text/plain",
       key: KEY,
       size: 42,
@@ -72,7 +72,7 @@ describe("signed worker upload urls", () => {
   test("leaves the content type unbound when none is given", async () => {
     process.env.FILES_BASE = BASE;
     process.env.FILES_SIGNING_SECRET = SECRET;
-    const signed = await buildSignedWorkerUploadUrl({
+    const signed = await signedUploadUrl({
       contentType: null,
       key: KEY,
     });
@@ -93,7 +93,7 @@ describe("signed worker upload urls", () => {
     process.env.FILES_BASE = BASE;
     process.env.FILES_SIGNING_SECRET = SECRET;
     await expect(
-      buildSignedWorkerUploadUrl({
+      signedUploadUrl({
         contentType: "text/plain",
         key: KEY,
         ttlSeconds: FILES_UPLOAD_MAX_TTL_SECONDS + 1,
@@ -107,9 +107,9 @@ describe("signed worker upload urls", () => {
     delete process.env.FILES_BASE;
     delete process.env.FILES_SIGNING_SECRET;
     try {
-      expect(isFilesWorkerConfigured()).toBe(false);
+      expect(isCoreWorkerConfigured()).toBe(false);
       await expect(
-        buildSignedWorkerUploadUrl({ contentType: "text/plain", key: KEY })
+        signedUploadUrl({ contentType: "text/plain", key: KEY })
       ).rejects.toThrow("files_worker_not_configured");
     } finally {
       if (base !== undefined) {
@@ -127,8 +127,8 @@ describe("signed worker op requests", () => {
     process.env.FILES_BASE = BASE;
     process.env.FILES_SIGNING_SECRET = SECRET;
     const now = 1_000_000;
-    const signed = await buildSignedWorkerOpRequest(
-      { op: "head-object", params: { key: KEY } },
+    const signed = await signedOpRequest(
+      { op: "inspect", params: { key: KEY } },
       now
     );
     const expiresAt = Number(signed.headers["x-teak-expires-at"]);

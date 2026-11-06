@@ -1,4 +1,4 @@
-import type { DispatchItem } from "@teak/files-protocol";
+import { type DispatchItem, verifyDispatchProof } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
@@ -21,7 +21,6 @@ import {
   queueAccountDeletionWorkflow,
   queueExportWorkflow,
   queueImportWorkflow,
-  signDispatch,
 } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -331,6 +330,33 @@ describe("complete", () => {
         ],
       },
     ]);
+  });
+
+  test("deletes an import's staged items even when the job can't be finished", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertImportJob(t, "importing");
+    await t.run(async (ctx) => {
+      await ctx.db.patch("importJobs", jobId, {
+        stagedItems: { pages: 1, parts: 1, cursor: null, part: 1, offset: 0 },
+      });
+      // The account is being deleted, so finishing the job refuses.
+      await ctx.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: 0,
+        startedAt: NOW,
+        userId: "user-1",
+      });
+    });
+    await t.run((ctx) => queueImportWorkflow(ctx, jobId));
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: `import-${jobId}`,
+      status: "errored",
+    });
+    const prefix = buildR2UserPrefix("user-1");
+    expect(
+      (await rows(t)).filter((row) => row.kind === "deleteObjects")
+    ).toMatchObject([{ keys: [`${prefix}/imports/${jobId}/staged/1.json`] }]);
   });
 
   test("starts the next account deletion attempt when a run errors", async () => {
@@ -695,16 +721,17 @@ describe("flush", () => {
     expect(sent[0]?.items.length).toBeLessThanOrEqual(CLAIM_PAGE);
     const params = sent[0];
     expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
-    expect(params?.signature).toBe(
-      (
-        await signDispatch(
-          "deployment-rpc-secret",
-          "https://session-tests.convex.site",
-          params?.items ?? [],
-          (Number(params?.expiresAt) - 120) * 1000
-        )
-      ).signature
-    );
+    expect(
+      await verifyDispatchProof(
+        "deployment-rpc-secret",
+        "https://session-tests.convex.site",
+        {
+          expiresAt: params?.expiresAt,
+          items: params?.items,
+          signature: params?.signature,
+        }
+      )
+    ).toBe(true);
     const states = Object.fromEntries(
       (await rows(t)).map((row) => [row.kind, row.state])
     );

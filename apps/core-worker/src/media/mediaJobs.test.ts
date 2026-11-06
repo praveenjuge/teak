@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
-  FILES_PROTOCOL_VERSION,
-} from "@teak/files-protocol";
+import { FILES_EXTRACTED_TEXT_MAX_CHARACTERS } from "@teak/files-protocol";
 import { MAX_PDF_TEXT_PAGES } from "../archives/inspect";
-import { hmacSha256Hex, sha256Hex } from "../lib";
-import { type FilesOpsEnv, handleInternalOp } from "../ops";
+import { runOp } from "../test/opsHarness";
 import {
   FakeBucket,
   fakeRendererPool,
@@ -19,44 +14,11 @@ import {
   rendererResponse,
 } from "../test/testsupport";
 
-const SECRET = "test-secret";
+const _SECRET = "test-secret";
 const SOURCE = "users/u/cards/c/file/clip.mp4";
 const FRAME = "users/u/cards/c/thumbnail/frame.jpg";
 const SCRUB = "users/u/cards/c/scrub/strip.jpg";
 const SOURCE_BYTES = new Uint8Array(1234).fill(7);
-
-const callOp = async (
-  env: Partial<FilesOpsEnv>,
-  op: string,
-  params: Record<string, unknown>
-) => {
-  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const bodySha256 = await sha256Hex(body);
-  const response = await handleInternalOp(
-    new Request("https://files.teakvault.com/__ops/v1", {
-      body,
-      headers: {
-        "x-teak-expires-at": expiresAt,
-        "x-teak-request-id": requestId,
-        "x-teak-signature": await hmacSha256Hex(
-          SECRET,
-          buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
-        ),
-      },
-      method: "POST",
-    }),
-    { FILES_SIGNING_SECRET: SECRET, ...env } as FilesOpsEnv
-  );
-  return {
-    body: (await response.json()) as {
-      data?: Record<string, unknown>;
-      error?: { code: string; message: string; retryable: boolean };
-    },
-    status: response.status,
-  };
-};
 
 const setup = async (
   answer: (call: RendererCall) => Response | Promise<Response>,
@@ -95,7 +57,7 @@ const videoAnswer =
 describe("extract-video-frame", () => {
   test("stores the frame and the scrub sprite, and returns the media facts", async () => {
     const { bucket, calls, env } = await setup(videoAnswer(true));
-    const { body, status } = await callOp(env, "extract-video-frame", {
+    const { body, status } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       scrubDestinationKey: SCRUB,
       sourceKey: SOURCE,
@@ -130,7 +92,7 @@ describe("extract-video-frame", () => {
     ["lowercase", ["#aabbcc"]],
     ["too long", Array.from({ length: 9 }, () => "#000000")],
   ])("leaves out a %s palette", async (_name, palette) => {
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       (await setup(videoAnswer(false, palette))).env,
       "extract-video-frame",
       { destinationKey: FRAME, sourceKey: SOURCE }
@@ -141,7 +103,7 @@ describe("extract-video-frame", () => {
 
   test("asks for no sprite when Convex passes no scrub key", async () => {
     const { calls, env } = await setup(videoAnswer(false));
-    const { body } = await callOp(env, "extract-video-frame", {
+    const { body } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       sourceKey: SOURCE,
     });
@@ -151,7 +113,7 @@ describe("extract-video-frame", () => {
 
   test("keeps the frame when the sprite could not be made", async () => {
     const { bucket, env } = await setup(videoAnswer(false));
-    const { body } = await callOp(env, "extract-video-frame", {
+    const { body } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       scrubDestinationKey: SCRUB,
       sourceKey: SOURCE,
@@ -167,7 +129,7 @@ describe("extract-video-frame", () => {
     ["a non-string", 42],
   ])("refuses a scrub key in %s", async (_name, scrubDestinationKey) => {
     const { calls, env } = await setup(videoAnswer(true));
-    const { body, status } = await callOp(env, "extract-video-frame", {
+    const { body, status } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       scrubDestinationKey,
       sourceKey: SOURCE,
@@ -186,7 +148,7 @@ describe("extract-video-frame", () => {
       }
       return videoAnswer(false)(call);
     });
-    const { status } = await callOp(env, "extract-video-frame", {
+    const { status } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       sourceKey: SOURCE,
     });
@@ -200,7 +162,7 @@ describe("extract-video-frame", () => {
     const { bucket, calls, env } = await setup(() =>
       rendererError(503, "busy")
     );
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { ...env, MEDIA_RENDERER_INSTANCES: "3" },
       "extract-video-frame",
       { destinationKey: FRAME, sourceKey: SOURCE }
@@ -225,7 +187,7 @@ describe("extract-video-frame", () => {
       const { bucket, env } = await setup(() =>
         rendererError(containerStatus, error)
       );
-      const result = await callOp(env, "extract-video-frame", {
+      const result = await runOp(env, "extract-video-frame", {
         destinationKey: FRAME,
         sourceKey: SOURCE,
       });
@@ -241,7 +203,7 @@ describe("extract-video-frame", () => {
         { bytes: PNG_BYTES, name: "frame", type: "image/jpeg" },
       ])
     );
-    const { status } = await callOp(env, "extract-video-frame", {
+    const { status } = await runOp(env, "extract-video-frame", {
       destinationKey: FRAME,
       sourceKey: SOURCE,
     });
@@ -252,7 +214,7 @@ describe("extract-video-frame", () => {
   test("answers RENDERER_UNAVAILABLE when the binding is missing", async () => {
     const bucket = new FakeBucket();
     await bucket.put(SOURCE, SOURCE_BYTES);
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { BUCKET: bucket as never },
       "extract-video-frame",
       { destinationKey: FRAME, sourceKey: SOURCE }
@@ -272,7 +234,7 @@ describe("render-pdf-thumbnail and probe-media", () => {
         ]),
       pdf
     );
-    const { body, status } = await callOp(env, "render-pdf-thumbnail", {
+    const { body, status } = await runOp(env, "render-pdf-thumbnail", {
       destinationKey: FRAME,
       sourceKey: pdf,
     });
@@ -295,7 +257,7 @@ describe("render-pdf-thumbnail and probe-media", () => {
         facts: mediaFacts({ format: "matroska", height: 1080, width: 1920 }),
       })
     );
-    const { body, status } = await callOp(env, "probe-media", {
+    const { body, status } = await runOp(env, "probe-media", {
       sourceKey: SOURCE,
     });
     expect(status).toBe(200);
@@ -321,7 +283,7 @@ describe("extract-animation-palette", () => {
         }),
       GIF
     );
-    const { body, status } = await callOp(env, "extract-animation-palette", {
+    const { body, status } = await runOp(env, "extract-animation-palette", {
       sourceKey: GIF,
     });
     expect(status).toBe(200);
@@ -335,7 +297,7 @@ describe("extract-animation-palette", () => {
       () => rendererResponse({ facts: mediaFacts(), palette: "red" }),
       GIF
     );
-    const { body } = await callOp(env, "extract-animation-palette", {
+    const { body } = await runOp(env, "extract-animation-palette", {
       sourceKey: GIF,
     });
     expect(body.data).toEqual({ palette: [] });
@@ -343,7 +305,7 @@ describe("extract-animation-palette", () => {
 
   test("refuses a source outside the upload namespace", async () => {
     const { calls, env } = await setup(() => rendererResponse({}), GIF);
-    const { status } = await callOp(env, "extract-animation-palette", {
+    const { status } = await runOp(env, "extract-animation-palette", {
       sourceKey: "../etc/passwd",
     });
     expect(status).toBe(400);
@@ -367,7 +329,7 @@ describe("inspect pdf", () => {
         ]),
       pdf
     );
-    const { body, status } = await callOp(env, "inspect", {
+    const { body, status } = await runOp(env, "inspect", {
       maxBytes: 100 * 1024 * 1024,
       mode: "pdf",
       sourceKey: pdf,
@@ -387,7 +349,7 @@ describe("inspect pdf", () => {
       () => rendererResponse({ pages: 3, truncated: false }),
       pdf
     );
-    const { body, status } = await callOp(env, "inspect", {
+    const { body, status } = await runOp(env, "inspect", {
       maxBytes: 1024 * 1024,
       mode: "pdf",
       sourceKey: pdf,
@@ -399,7 +361,7 @@ describe("inspect pdf", () => {
   test("returns empty text for a PDF the renderer cannot read", async () => {
     const { body, status } = await (async () => {
       const { env } = await setup(() => rendererError(415, "unsupported"), pdf);
-      return await callOp(env, "inspect", {
+      return await runOp(env, "inspect", {
         maxBytes: 1024 * 1024,
         mode: "pdf",
         sourceKey: pdf,
@@ -411,7 +373,7 @@ describe("inspect pdf", () => {
 
   test("skips a PDF over maxBytes without rendering it", async () => {
     const { calls, env } = await setup(() => rendererError(500, "x"), pdf);
-    const { body } = await callOp(env, "inspect", {
+    const { body } = await runOp(env, "inspect", {
       maxBytes: 10,
       mode: "pdf",
       sourceKey: pdf,
@@ -422,7 +384,7 @@ describe("inspect pdf", () => {
 
   test("retries later when the renderer is unavailable", async () => {
     const { env } = await setup(() => rendererError(503, "unavailable"), pdf);
-    const { body, status } = await callOp(env, "inspect", {
+    const { body, status } = await runOp(env, "inspect", {
       maxBytes: 1024 * 1024,
       mode: "pdf",
       sourceKey: pdf,
@@ -433,7 +395,7 @@ describe("inspect pdf", () => {
 
   test("allows 100 MiB only for PDFs", async () => {
     const { env } = await setup(() => rendererError(500, "x"), pdf);
-    const { status } = await callOp(env, "inspect", {
+    const { status } = await runOp(env, "inspect", {
       maxBytes: 100 * 1024 * 1024,
       mode: "text",
       sourceKey: pdf,
@@ -503,7 +465,7 @@ describe("process-audio", () => {
   test("returns facts, both waveforms and a transcript of the converted audio", async () => {
     const { calls, env } = await setup(audioAnswer("converted"), audio);
     const { ai, runs } = fakeAi(["hello there"]);
-    const { body, status } = await callOp({ ...env, AI: ai }, "process-audio", {
+    const { body, status } = await runOp({ ...env, AI: ai }, "process-audio", {
       mimeType: "audio/ogg",
       sourceKey: audio,
       transcribe: true,
@@ -526,7 +488,7 @@ describe("process-audio", () => {
   test("sends native audio straight from R2", async () => {
     const { env } = await setup(audioAnswer("native"), audio);
     const { ai, runs } = fakeAi(["native words"]);
-    const { body } = await callOp({ ...env, AI: ai }, "process-audio", {
+    const { body } = await runOp({ ...env, AI: ai }, "process-audio", {
       mimeType: "audio/wav",
       sourceKey: audio,
       transcribe: true,
@@ -554,7 +516,7 @@ describe("process-audio", () => {
             )
           : Promise.resolve({ text: "hello there" }),
     };
-    const { body } = await callOp(
+    const { body } = await runOp(
       { ...env, AI: ai, AI_GATEWAY_ID: "teak-files" },
       "process-audio",
       { mimeType: "audio/ogg", sourceKey: audio, transcribe: true }
@@ -571,7 +533,7 @@ describe("process-audio", () => {
       httpMetadata: { contentType: "audio/wav" },
     });
     const { ai, runs } = fakeAi(["words"]);
-    await callOp({ ...env, AI: ai }, "process-audio", {
+    await runOp({ ...env, AI: ai }, "process-audio", {
       sourceKey: audio,
       transcribe: true,
     });
@@ -586,7 +548,7 @@ describe("process-audio", () => {
       new Error("3030: Failed to decode audio file."),
       "after conversion",
     ]);
-    const { body } = await callOp({ ...env, AI: ai }, "process-audio", {
+    const { body } = await runOp({ ...env, AI: ai }, "process-audio", {
       sourceKey: audio,
       transcribe: true,
     });
@@ -607,7 +569,7 @@ describe("process-audio", () => {
   test("keeps the waveform when the converted audio still cannot be decoded", async () => {
     const { env } = await setup(audioAnswer("converted"), audio);
     const { ai } = fakeAi([new Error("3030: Failed to decode audio file.")]);
-    const { body, status } = await callOp({ ...env, AI: ai }, "process-audio", {
+    const { body, status } = await runOp({ ...env, AI: ai }, "process-audio", {
       sourceKey: audio,
       transcribe: true,
     });
@@ -622,7 +584,7 @@ describe("process-audio", () => {
   test("skips Whisper when no transcript is wanted", async () => {
     const { calls, env } = await setup(audioAnswer("skipped"), audio);
     const { ai, runs } = fakeAi([]);
-    const { body } = await callOp({ ...env, AI: ai }, "process-audio", {
+    const { body } = await runOp({ ...env, AI: ai }, "process-audio", {
       sourceKey: audio,
       transcribe: false,
     });
@@ -639,7 +601,7 @@ describe("process-audio", () => {
       audioAnswer("skipped", { "45": [...grid.slice(1), 101], "200": detail }),
       audio
     );
-    const { body } = await callOp(env, "process-audio", {
+    const { body } = await runOp(env, "process-audio", {
       sourceKey: audio,
       transcribe: false,
     });
@@ -648,7 +610,7 @@ describe("process-audio", () => {
 
   test("rejects a request without the transcribe flag", async () => {
     const { calls, env } = await setup(audioAnswer("skipped"), audio);
-    const { status } = await callOp(env, "process-audio", {
+    const { status } = await runOp(env, "process-audio", {
       sourceKey: audio,
     });
     expect(status).toBe(400);
@@ -696,7 +658,7 @@ describe("ocr-pdf-pages", () => {
       '{"text":"Tenant: Dana Reyes\\nRent: $1,450"}',
       '{"text":""}',
     ]);
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { ...env, AI: ai.AI as never },
       "ocr-pdf-pages",
       { sourceKey: PDF }
@@ -716,7 +678,7 @@ describe("ocr-pdf-pages", () => {
 
   test("stops at the PDF's last page and at maxPages", async () => {
     const short = await setup(pageAnswer(2), PDF);
-    const { body } = await callOp(
+    const { body } = await runOp(
       { ...short.env, AI: fakeAi(['{"text":"Page one"}']).AI as never },
       "ocr-pdf-pages",
       { sourceKey: PDF }
@@ -725,7 +687,7 @@ describe("ocr-pdf-pages", () => {
     expect(short.calls).toHaveLength(2);
 
     const capped = await setup(pageAnswer(9), PDF);
-    await callOp(
+    await runOp(
       { ...capped.env, AI: fakeAi([]).AI as never },
       "ocr-pdf-pages",
       { maxPages: 1, sourceKey: PDF }
@@ -743,7 +705,7 @@ describe("ocr-pdf-pages", () => {
         ]),
       PDF
     );
-    const { body } = await callOp(
+    const { body } = await runOp(
       {
         ...env,
         AI: fakeAi(['{"text":"Cover page"}', '{"text":"Cover page"}'])
@@ -768,7 +730,7 @@ describe("ocr-pdf-pages", () => {
       '{"text":"cut off',
       '{"text":"Second page"}',
     ]);
-    const { body } = await callOp(
+    const { body } = await runOp(
       { ...env, AI: ai.AI as never },
       "ocr-pdf-pages",
       { sourceKey: PDF }
@@ -783,7 +745,7 @@ describe("ocr-pdf-pages", () => {
 
   test("a PDF the renderer declines reads as nothing, in the full shape", async () => {
     const { env } = await setup(() => rendererError(415, "unsupported"), PDF);
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { ...env, AI: fakeAi([]).AI as never },
       "ocr-pdf-pages",
       { sourceKey: PDF }
@@ -794,7 +756,7 @@ describe("ocr-pdf-pages", () => {
 
   test("a busy renderer fails the op so the caller retries", async () => {
     const { env } = await setup(() => rendererError(503, "busy"), PDF);
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { ...env, AI: fakeAi([]).AI as never },
       "ocr-pdf-pages",
       { sourceKey: PDF }
@@ -805,7 +767,7 @@ describe("ocr-pdf-pages", () => {
 
   test.each([0, 4, 1.5, "2"])("rejects maxPages %p", async (maxPages) => {
     const { env } = await setup(pageAnswer(3), PDF);
-    const { body, status } = await callOp(env, "ocr-pdf-pages", {
+    const { body, status } = await runOp(env, "ocr-pdf-pages", {
       maxPages,
       sourceKey: PDF,
     });

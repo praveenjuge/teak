@@ -9,6 +9,7 @@ import {
   testEnv,
   testJob,
 } from "../../test/cardProcessingKit";
+import { opError } from "../../test/opsHarness";
 import { createWorkflowTelemetry } from "../telemetry";
 import {
   generateLinkMetadata,
@@ -114,10 +115,9 @@ describe("AI metadata generation", () => {
   test.each([
     {
       answer: {
-        throws: Object.assign(
-          new Error("files_worker_ai: rate limit reached 429"),
-          { aiFacts: { usage: { inputTokens: 24, outputTokens: 6 } } }
-        ),
+        throws: Object.assign(opError("AI_CAPACITY", { status: 429 }), {
+          aiFacts: { usage: { inputTokens: 24, outputTokens: 6 } },
+        }),
       },
       capacity: true,
       name: "Workers AI capacity",
@@ -125,10 +125,9 @@ describe("AI metadata generation", () => {
     },
     {
       answer: {
-        throws: Object.assign(
-          new Error("files_worker_ai: failed to validate JSON"),
-          { aiFacts: { usage: { inputTokens: 24, outputTokens: 6 } } }
-        ),
+        throws: Object.assign(opError("AI_INVALID_OUTPUT", { status: 502 }), {
+          aiFacts: { usage: { inputTokens: 24, outputTokens: 6 } },
+        }),
       },
       capacity: false,
       name: "output that never validated",
@@ -141,7 +140,7 @@ describe("AI metadata generation", () => {
       tokens: false,
     },
     {
-      answer: { fallback: "UNSUPPORTED" as const },
+      answer: { declined: "UNSUPPORTED" as const },
       capacity: false,
       name: "an op that declines",
       tokens: false,
@@ -168,20 +167,25 @@ describe("AI metadata generation", () => {
     expect(isAiProviderCapacityError(failure)).toBe(row.capacity);
   });
 
-  test("tells provider capacity from validation failures", () => {
+  test("tells provider capacity from validation failures by the op's code", () => {
+    const capacity = opError("AI_CAPACITY", { status: 429 });
+    const invalid = opError("AI_INVALID_OUTPUT", { status: 502 });
+    expect(isAiProviderCapacityError(capacity)).toBe(true);
+    expect(isAiProviderCapacityError(invalid)).toBe(false);
+    expect(isAiMetadataDeferredError(invalid)).toBe(true);
+    // Past a workflow step only the message is left, with a prefix.
+    expect(
+      isAiProviderCapacityError(
+        new Error(`NonRetryableError: ${capacity.message}`)
+      )
+    ).toBe(true);
+    // A provider's own text no longer stands in for the code.
     expect(
       isAiProviderCapacityError(
         new Error("Rate limit reached on tokens per day (TPD), status code 429")
       )
-    ).toBe(true);
-    expect(
-      isAiProviderCapacityError(
-        new Error("No object generated: response did not match schema")
-      )
     ).toBe(false);
-    expect(isAiMetadataDeferredError(new Error("No output generated."))).toBe(
-      true
-    );
+    expect(isAiMetadataDeferredError(opError("INTERNAL"))).toBe(false);
     expect(isAiMetadataDeferredError(new Error("socket hang up"))).toBe(false);
   });
 });

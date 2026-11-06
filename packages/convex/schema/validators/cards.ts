@@ -1,4 +1,8 @@
-import { v } from "convex/values";
+import {
+  CARD_PROCESSING_STAGES,
+  PROCESSING_STAGE_STATUSES,
+} from "@teak/files-protocol";
+import { type GenericValidator, v } from "convex/values";
 import { cardTypes } from "../../shared/constants";
 import { FILE_KINDS } from "../../shared/fileFormats";
 import { FOLDER_COLORS } from "../../shared/folders";
@@ -25,12 +29,16 @@ export const folderColorValidator = v.union(
   ...FOLDER_COLORS.map((color) => v.literal(color))
 );
 
+/** One field per key, each with the same validator. */
+export const fieldsFor = <Key extends string, Field extends GenericValidator>(
+  keys: readonly Key[],
+  field: Field
+): Record<Key, Field> =>
+  Object.fromEntries(keys.map((key) => [key, field])) as Record<Key, Field>;
+
 const stageStatusValidator = v.object({
   status: v.union(
-    v.literal("pending"),
-    v.literal("in_progress"),
-    v.literal("completed"),
-    v.literal("failed")
+    ...PROCESSING_STAGE_STATUSES.map((status) => v.literal(status))
   ),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
@@ -38,23 +46,10 @@ const stageStatusValidator = v.object({
   error: v.optional(v.string()),
 });
 
-export const processingStatusObjectValidator = v.object({
-  classify: v.optional(stageStatusValidator),
-  categorize: v.optional(stageStatusValidator),
-  metadata: v.optional(stageStatusValidator),
-  renderables: v.optional(stageStatusValidator),
-  screenshot: v.optional(stageStatusValidator),
-  /**
-   * The link's saved copy (`pageArchive`). Never fails the card: a run with
-   * nothing to archive leaves it as it was.
-   */
-  archive: v.optional(stageStatusValidator),
-  /**
-   * The article taken from the saved copy (`article`). Never fails the card:
-   * a link without a copy closes it with no article.
-   */
-  article: v.optional(stageStatusValidator),
-});
+/** One optional status per stage of the shared card-processing contract. */
+export const processingStatusObjectValidator = v.object(
+  fieldsFor(CARD_PROCESSING_STAGES, v.optional(stageStatusValidator))
+);
 
 export const processingStatusValidator = v.optional(
   processingStatusObjectValidator
@@ -366,9 +361,7 @@ export const cardValidator = v.object({
   folderIds: v.optional(v.array(v.id("folders"))),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
-  metadataStatus: v.optional(
-    v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
-  ),
+  metadataStatus: v.optional(metadataStatusValidator),
   metadataTitle: v.optional(v.string()),
   metadataTitleEdited: v.optional(v.boolean()),
   thumbnailOverride: v.optional(thumbnailOverrideValidator),

@@ -26,6 +26,7 @@ import {
 } from "@teak/files-protocol";
 import { loadImageForAi } from "../images/imageMetadata";
 import type { Env } from "../index";
+import { InvalidOpInput } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
 import { aiRunOptions } from "./aiGateway";
 import { meteredAiRun } from "./aiUsage";
@@ -215,7 +216,7 @@ export const parseClefReply = (
   for (const [id, question] of Object.entries(request.questions)) {
     const answer = readAnswer(question, raw[id]);
     if (!answer) {
-      throw new Error("invalid_clef_answer");
+      throw new InvalidOpInput("invalid_clef_answer");
     }
     answers[id] = answer;
   }
@@ -248,7 +249,7 @@ export const runClef = async (
 ): Promise<ClefReply> => {
   const questionCount = Object.keys(request.questions).length;
   if (questionCount === 0 || questionCount > MAX_DECISION_QUESTIONS) {
-    throw new Error("invalid_clef_question_count");
+    throw new InvalidOpInput("invalid_clef_question_count");
   }
   const ai = env.AI;
   if (!ai) {
@@ -302,7 +303,7 @@ const optionalText = (
     return;
   }
   if (typeof value !== "string") {
-    throw new Error(`invalid_${name}`);
+    throw new InvalidOpInput(`invalid_${name}`);
   }
   return value;
 };
@@ -321,10 +322,10 @@ export const buildLinkCategoryRequest = (
     !url ||
     url.length > DECISION_TEXT_LIMITS.linkUrl
   ) {
-    throw new Error("invalid_url");
+    throw new InvalidOpInput("invalid_url");
   }
   if (!isLinkCategory(rulesCategory)) {
-    throw new Error("invalid_rules_category");
+    throw new InvalidOpInput("invalid_rules_category");
   }
   const jsonLdTypes = params.jsonLdTypes;
   if (
@@ -334,13 +335,13 @@ export const buildLinkCategoryRequest = (
       jsonLdTypes.every((type) => typeof type === "string")
     )
   ) {
-    throw new Error("invalid_json_ld_types");
+    throw new InvalidOpInput("invalid_json_ld_types");
   }
   let host: string | undefined;
   try {
     host = new URL(url).hostname;
   } catch {
-    throw new Error("invalid_url");
+    throw new InvalidOpInput("invalid_url");
   }
 
   const state = {
@@ -412,10 +413,10 @@ export const buildCardTypeRequest = (
   const content = params.content;
   const rulesType = params.rulesType;
   if (typeof content !== "string" || !content.trim()) {
-    throw new Error("invalid_content");
+    throw new InvalidOpInput("invalid_content");
   }
   if (!isCardTypeDecisionType(rulesType)) {
-    throw new Error("invalid_rules_type");
+    throw new InvalidOpInput("invalid_rules_type");
   }
   return {
     rulesType,
@@ -535,14 +536,14 @@ export const buildRelevanceRequest = (
     !query.trim() ||
     query.length > DECISION_TEXT_LIMITS.relevanceQuery
   ) {
-    throw new Error("invalid_query");
+    throw new InvalidOpInput("invalid_query");
   }
   if (
     !Array.isArray(cards) ||
     cards.length === 0 ||
     cards.length > MAX_DECISION_QUESTIONS
   ) {
-    throw new Error("invalid_cards");
+    throw new InvalidOpInput("invalid_cards");
   }
   const ids = new Set<string>();
   const questions: Record<string, ClefQuestion> = {};
@@ -553,11 +554,11 @@ export const buildRelevanceRequest = (
       typeof (card as { id?: unknown }).id !== "string" ||
       typeof (card as { text?: unknown }).text !== "string"
     ) {
-      throw new Error("invalid_cards");
+      throw new InvalidOpInput("invalid_cards");
     }
     const { id, text } = card as { id: string; text: string };
     if (ids.has(id)) {
-      throw new Error("invalid_cards");
+      throw new InvalidOpInput("invalid_cards");
     }
     ids.add(id);
     questions[`card.${index}`] = {

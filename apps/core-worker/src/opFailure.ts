@@ -42,6 +42,13 @@ const OP_FAILURES = {
 
 export type OpFailureCode = keyof typeof OP_FAILURES;
 
+/** Parameters an op refuses; it answers INVALID_INPUT with the message. */
+export class InvalidOpInput extends Error {
+  constructor(message: `invalid_${string}`, options?: ErrorOptions) {
+    super(message, options);
+  }
+}
+
 export class OpFailure extends Error {
   readonly code: OpFailureCode;
 

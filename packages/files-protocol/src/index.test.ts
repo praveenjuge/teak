@@ -10,13 +10,16 @@ import {
   cardEmbeddingDocument,
   cardEmbeddingQuery,
   FILES_EDGE_CACHE_CONTROL,
+  FILES_NO_CARD_SEGMENT,
   FILES_OBJECT_KEY_ROOTS,
+  FILES_PENDING_CARD_SEGMENT,
   FILES_PRIVATE_CACHE_CONTROL,
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  isPendingUploadKey,
   isScannedPdf,
   parseCardObjectKey,
   truncateForEmbedding,
@@ -228,6 +231,26 @@ describe("file storage contract", () => {
     ).toMatch(/^users\/1l7d0vx\/cards\/pending\/thumbnail\/[0-9a-f-]{36}$/);
   });
 
+  test("an object with no card stays out of the stale-upload sweep", () => {
+    // An import's source archive is built with no card and may be read for
+    // longer than a day, so only real uploads land under `upload-pending-v2`.
+    const importSource = buildCardObjectKey({
+      envPrefix: "",
+      userId: "user_1",
+      role: "import-source",
+    });
+    expect(importSource).toContain(`/cards/${FILES_NO_CARD_SEGMENT}/`);
+    expect(isPendingUploadKey(importSource)).toBe(false);
+    const upload = buildCardObjectKey({
+      envPrefix: "",
+      userId: "user_1",
+      cardId: FILES_PENDING_CARD_SEGMENT,
+      role: "file",
+    });
+    expect(isPendingUploadKey(upload)).toBe(true);
+    expect(parseCardObjectKey(importSource)).toEqual({ role: "import-source" });
+  });
+
   test("reads the card and role back from a card object key", () => {
     const key = buildCardObjectKey({
       envPrefix: "dev/",
@@ -237,8 +260,31 @@ describe("file storage contract", () => {
     });
     expect(parseCardObjectKey(key)).toEqual({ cardId: "card_9", role: "file" });
     expect(
-      parseCardObjectKey("users/1l7d0vx/cards/pending/thumbnail/x")
+      parseCardObjectKey(
+        buildCardObjectKey({
+          envPrefix: "",
+          userId: "user_1",
+          role: "thumbnail",
+        })
+      )
     ).toEqual({ role: "thumbnail" });
+  });
+
+  test("a pending upload's key names no card", () => {
+    // Convex writes uploads that have no card yet under `upload-pending-v2`.
+    expect(
+      parseCardObjectKey(
+        "users/1l7d0vx/cards/upload-pending-v2/page-snapshot/s1"
+      )
+    ).toEqual({ role: "page-snapshot" });
+    expect(
+      parseCardObjectKey(
+        "dev/users/1l7d0vx/cards/upload-pending-v2/file/x-photo.jpg"
+      )
+    ).toEqual({ role: "file" });
+  });
+
+  test("a key with no card segment parses to nothing", () => {
     expect(parseCardObjectKey("exports/user/archive.zip")).toEqual({});
     expect(parseCardObjectKey("")).toEqual({});
   });

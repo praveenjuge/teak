@@ -1,11 +1,15 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import type { FilesErrorCode, FilesOp } from "@teak/files-protocol";
+import type {
+  FilesErrorCode,
+  FilesOp,
+  FilesOpOutcome,
+} from "@teak/files-protocol";
 import { type ConvexRpc, ConvexRpcError } from "../convexRpc";
-import { callFilesOp, type FilesOpOutcome } from "./filesOps";
+import { callFilesOp } from "./filesOps";
 import { convexFor, type WorkflowRun } from "./runtime";
 
 export type FilesOpCaller = <T>(spec: {
-  fallbackCodes?: readonly FilesErrorCode[];
+  declineCodes?: readonly FilesErrorCode[];
   op: FilesOp;
   params: Record<string, unknown>;
 }) => Promise<FilesOpOutcome<T>>;

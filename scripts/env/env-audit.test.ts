@@ -8,6 +8,7 @@ import {
   extractTurboDecls,
   extractWorkflowEnvKeys,
   extractWorkflowRefs,
+  extractWranglerDecls,
   findSecretDiagnostics,
 } from "./env-audit.ts";
 
@@ -82,6 +83,28 @@ describe("env-audit extractors", () => {
       "A_ONE",
       "B_TWO",
       "C_THREE",
+    ]);
+  });
+
+  test("wrangler declarations include bindings named by name, not other names", () => {
+    const config = `{
+      "name": "core-worker",
+      // A comment
+      "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "teak-files" }],
+      "ratelimits": [{ "name": "API_LIMITER", "namespace_id": "1001" }],
+      "durable_objects": {
+        "bindings": [{ "name": "OBJECT_GATES", "class_name": "Gate" }]
+      },
+      "containers": [{ "class_name": "Gate", "name": "teak-gate" }],
+      "workflows": [{ "name": "teak-run", "binding": "RUNS", "class_name": "Run" }],
+      "vars": { "MAX_BODY_BYTES": "1" }
+    }`;
+    expect(extractWranglerDecls(config).sort()).toEqual([
+      "API_LIMITER",
+      "BUCKET",
+      "MAX_BODY_BYTES",
+      "OBJECT_GATES",
+      "RUNS",
     ]);
   });
 

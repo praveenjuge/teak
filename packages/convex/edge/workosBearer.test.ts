@@ -3,6 +3,8 @@ import counterTest from "@convex-dev/sharded-counter/test";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_HEADER,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
@@ -23,7 +25,6 @@ import { syncCardSearchTagsBatchHandler } from "../card/searchSync";
 import schema from "../schema";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 
 const modules = import.meta.glob("../**/*.ts");
 const issuer = "https://bearer-dev.authkit.app";

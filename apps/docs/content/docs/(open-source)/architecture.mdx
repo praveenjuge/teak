@@ -29,7 +29,7 @@ Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudfl
 | Path | What it is |
 | --- | --- |
 | `packages/convex` | The Convex backend: schema, queries, mutations and actions, the public REST API, the MCP server, and `shared/`, the pure helpers other surfaces import |
-| `packages/files-protocol` | The contract between Convex and the Core Worker: operation shapes, signing and limits |
+| `packages/files-protocol` | The contract between Convex and the Core Worker: operation shapes, a sign and a verify function for each signed request, op outcomes, storage keys, limits, and the card-processing stages and run params |
 | `packages/sdk` | `teak-sdk`, the public TypeScript client ([SDK](/docs/sdk)). The CLI, extension, docs and end-to-end tests use it from source |
 | `packages/i18n` | The message catalogs for the web app and extension ([Translating](/docs/translating)) |
 | `packages/mcp-app` | The card view MCP clients such as Claude show for Teak's tools ([Card views](/docs/mcp#card-views)). `bun run build` writes it into `packages/convex/mcp/appHtml.generated.ts`, which the MCP server serves; a test fails when the two differ |
@@ -40,9 +40,9 @@ Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudfl
 ## How a saved card moves
 
 1. **Save.** A client calls a Convex mutation (the apps) or the public API (the CLI, Raycast, MCP and your scripts). Every signed-in surface gets its Convex identity from a WorkOS AuthKit session; WorkOS is the only sign-in provider in every environment.
-2. **Queue.** The mutation writes the card and, in the same transaction, a row in the workflow dispatch outbox (`queueCardProcessing` in `packages/convex/workflowDispatch.ts`). A flush hands due rows to the Core Worker, which starts a Cloudflare Workflow for each. A resend is safe: an instance that already exists counts as started.
+2. **Queue.** The mutation writes the card and, in the same transaction, a row in the workflow dispatch outbox (`queueCardProcessing` in `packages/convex/workflowDispatch.ts`). A flush hands due rows to the Core Worker, which starts a Cloudflare Workflow for each. A resend is safe: an instance that already exists counts as started. A run that dies goes to its kind's own failure handler (`card/processingRuns.ts`, and `workflowRun.ts` in `export/`, `import/` and `accountDeletion/`).
 3. **Process.** The card-processing Workflow (`apps/core-worker/src/workflows/cardProcessing/run.ts`) fetches link pages, renders thumbnails and previews, transcribes audio, reads text in images and asks Workers AI for tags and a summary. Each step reads and writes Convex through one signed endpoint, the workflow gateway.
-4. **Show.** Each write lands on the card, and every client's live query updates. The card's `processingStatus` records each stage, so a client can show what's still running.
+4. **Show.** Each write lands on the card, and every client's live query updates. The card's `processingStatus` records each stage (the list, and which ones a card type runs, are in `packages/files-protocol/src/cardProcessing.ts`), so a client can show what's still running.
 
 Every write a processing run makes carries the run's processing revision. Editing a card bumps the revision and stops the older run, so a stale run can never overwrite newer work; its write is refused and the run ends as skipped.
 

@@ -29,8 +29,30 @@ export const buildFileSigningPayload = ({
   key: string;
 }): string => [key, exp, contentType, contentDisposition].join("\n");
 
-/** Key prefix of the development deployment, which shares the production bucket. */
+/**
+ * Key prefix of the development deployment's objects. The Worker serves only
+ * the production (`""`) and development prefixes.
+ */
 export const FILES_DEV_KEY_PREFIX = "dev/";
+export const FILES_KEY_PREFIXES = ["", FILES_DEV_KEY_PREFIX] as const;
+export type FilesKeyPrefix = (typeof FILES_KEY_PREFIXES)[number];
+
+/**
+ * Reads a deployment's `R2_KEY_PREFIX`. Surrounding spaces and slashes are
+ * forgiven; a prefix the Worker would refuse throws.
+ */
+export const parseFilesKeyPrefix = (
+  raw: string | undefined
+): FilesKeyPrefix => {
+  const trimmed = (raw ?? "").trim().replace(/^\/+/u, "");
+  const normalized =
+    trimmed && !trimmed.endsWith("/") ? `${trimmed}/` : trimmed;
+  const prefix = FILES_KEY_PREFIXES.find((known) => known === normalized);
+  if (prefix === undefined) {
+    throw new Error("invalid_r2_key_prefix");
+  }
+  return prefix;
+};
 
 export const filesUserKeyRoot = (envPrefix: string): string =>
   `${envPrefix}users/`;
@@ -38,9 +60,37 @@ export const filesUserKeyRoot = (envPrefix: string): string =>
 export const filesExportKeyRoot = (envPrefix: string): string =>
   `${envPrefix}exports/`;
 
-export const FILES_OBJECT_KEY_ROOTS = ["", FILES_DEV_KEY_PREFIX].flatMap(
+export const FILES_USER_KEY_ROOTS = FILES_KEY_PREFIXES.map(filesUserKeyRoot);
+
+export const FILES_OBJECT_KEY_ROOTS = FILES_KEY_PREFIXES.flatMap(
   (envPrefix) => [filesUserKeyRoot(envPrefix), filesExportKeyRoot(envPrefix)]
 );
+
+const MAX_OBJECT_KEY_LENGTH = 1024;
+
+/** A key under a known root with no empty, `..` or NUL segments. */
+export const isValidObjectKey = (key: string): boolean =>
+  key.length > 0 &&
+  key.length <= MAX_OBJECT_KEY_LENGTH &&
+  FILES_OBJECT_KEY_ROOTS.some((root) => key.startsWith(root)) &&
+  !key.includes("\0") &&
+  !key.includes("//") &&
+  !key.split("/").includes("..");
+
+const userSegmentOf = (key: string): string | null => {
+  const root = FILES_USER_KEY_ROOTS.find((candidate) =>
+    key.startsWith(candidate)
+  );
+  return root === undefined
+    ? null
+    : key.slice(root.length).split("/")[0] || null;
+};
+
+/** Both keys sit under the same user's folder, whatever their prefix. */
+export const isSameUserNamespace = (left: string, right: string): boolean => {
+  const user = userSegmentOf(left);
+  return user !== null && user === userSegmentOf(right);
+};
 
 const hashUserId = (userId: string): string =>
   Array.from(new TextEncoder().encode(userId))
@@ -50,7 +100,25 @@ const hashUserId = (userId: string): string =>
 export const filesCardKeyPrefix = (envPrefix: string, userId: string): string =>
   `${filesUserKeyRoot(envPrefix)}${hashUserId(userId)}/cards`;
 
-const PENDING_CARD_SEGMENT = "pending";
+/**
+ * The card segment of an object uploaded before its card exists. The
+ * Worker's stale-upload cleanup deletes what stays here past a day.
+ */
+export const FILES_PENDING_CARD_SEGMENT = "upload-pending-v2";
+/** How long an upload may wait for its card before the Worker deletes it. */
+export const FILES_PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The card segment of an object that belongs to no card, such as an import's
+ * source archive. Nothing deletes it by age: its owner (the import job) does.
+ */
+export const FILES_NO_CARD_SEGMENT = "pending";
+
+/** A user's object still waiting under the pending card segment. */
+export const isPendingUploadKey = (key: string): boolean =>
+  FILES_USER_KEY_ROOTS.some((root) => key.startsWith(root)) &&
+  key.includes(`/cards/${FILES_PENDING_CARD_SEGMENT}/`) &&
+  !key.split("/").includes("..");
 
 export const buildCardObjectKey = ({
   envPrefix,
@@ -72,7 +140,7 @@ export const buildCardObjectKey = ({
   const id = objectId?.replace(/[^a-zA-Z0-9_-]+/g, "-") || crypto.randomUUID();
   return [
     filesCardKeyPrefix(envPrefix, userId),
-    cardId ?? PENDING_CARD_SEGMENT,
+    cardId ?? FILES_NO_CARD_SEGMENT,
     role,
     `${id}${safeName ? `-${safeName}` : ""}`,
   ].join("/");
@@ -95,7 +163,11 @@ export const parseCardObjectKey = (
   }
   const [cardId, role] = [segments[3], segments[4]];
   return {
-    ...(cardId && cardId !== PENDING_CARD_SEGMENT ? { cardId } : {}),
+    ...(cardId &&
+    cardId !== FILES_PENDING_CARD_SEGMENT &&
+    cardId !== FILES_NO_CARD_SEGMENT
+      ? { cardId }
+      : {}),
     ...(role ? { role } : {}),
   };
 };

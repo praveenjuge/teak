@@ -6,7 +6,8 @@ export { cardStorageObjectKeys } from "./cardObjectKeys";
 import { enqueueObjectDeletion } from "../workflowDispatch";
 import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
 
-export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
+/** Where an upload waits for its card; the protocol owns the segment. */
+export { FILES_PENDING_CARD_SEGMENT as PENDING_UPLOAD_CARD_ID } from "@teak/files-protocol";
 
 export const buildR2UserPrefix = (userId: string) =>
   filesCardKeyPrefix(getR2KeyPrefix(), userId);

@@ -22,9 +22,11 @@ import type {
   FilesImportIndexResult,
   FilesImportMarkdownResult,
 } from "@teak/files-protocol";
+import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
 import { importIndexFailureClass } from "../archives/importSource";
-import { sha256Hex } from "../lib";
+import { gatedEnv } from "../deletionGate";
+import { InvalidOpInput } from "../opFailure";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
 import {
@@ -34,7 +36,7 @@ import {
   type WorkflowDeps,
   withinBudget,
 } from "./deps";
-import { gatedEnv, isRetryableFilesError } from "./filesOps";
+import { isRetryableFilesError } from "./filesOps";
 import {
   CONVEX_STEP,
   errorMessage,
@@ -213,7 +215,7 @@ export const runImport = (
     sourceEtag: string
   ): Promise<FilesImportIndexResult> => {
     const outcome = await ops<FilesImportIndexResult>({
-      fallbackCodes: ["INVALID_INPUT"],
+      declineCodes: ["INVALID_INPUT"],
       op: "index-import-source",
       params: {
         cursor,
@@ -264,7 +266,7 @@ export const runImport = (
       throw new Error("source_changed");
     }
     if (page.nextCursor !== null && page.nextCursor <= cursor) {
-      throw new Error("invalid_import_cursor");
+      throw new InvalidOpInput("invalid_import_cursor");
     }
     const seen = new Set<string>();
     const items: ImportIndexItem[] = page.items.map((raw) => {
@@ -488,7 +490,7 @@ export const runImport = (
           markdown: false,
         });
         if (read.nextCursor === null) {
-          throw new Error("invalid_import_cursor");
+          throw new InvalidOpInput("invalid_import_cursor");
         }
         urls.push(...(await Promise.all([...read.seen].map(seenHash))));
         cursor = read.nextCursor;

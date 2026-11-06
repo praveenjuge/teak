@@ -1,3 +1,4 @@
+import type { FilesFinalizeImageResult } from "@teak/files-protocol";
 import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -23,11 +24,10 @@ import {
   toThumbnailMimeType,
 } from "../shared/thumbnails";
 import {
-  buildSignedWorkerUploadUrl,
-  callFilesWorkerJson,
-  type FilesWorkerFinalizeImageResult,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+  signedUploadUrl,
+} from "../storage/coreWorkerClient";
 import {
   ensureObjectOwnership,
   registerOwnedObject,
@@ -170,7 +170,7 @@ export const createThumbnailUploadUrlHandler = async (
   if (!(await registerOwnedObject(ctx, userId, key))) {
     throw new Error("account_storage_write_denied");
   }
-  const signed = await buildSignedWorkerUploadUrl({
+  const signed = await signedUploadUrl({
     contentType,
     key,
     size: args.fileSize,
@@ -284,7 +284,7 @@ export const applyThumbnailOverride = internalMutation({
 });
 
 const refuseDecodedImage = (
-  facts: FilesWorkerFinalizeImageResult
+  facts: FilesFinalizeImageResult
 ): readonly [string, string] | null => {
   if (!toThumbnailMimeType(facts.decodedFormat)) {
     return ["UNSUPPORTED_TYPE", THUMBNAIL_ERROR_MESSAGES.unsupported];
@@ -299,7 +299,7 @@ const refuseDecodedImage = (
 };
 
 const deleteFinalizedObject = (key: string) =>
-  callFilesWorkerJson({ op: "delete-object", params: { key } }).catch(
+  callCoreWorkerOp({ op: "delete-object", params: { key } }).catch(
     () => undefined
   );
 
@@ -311,7 +311,7 @@ export const setThumbnailForUser = async (
   if (!isPendingThumbnailKeyFor(userId, cardId, fileKey)) {
     fail("NOT_FOUND", "Upload not found");
   }
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   await ctx.runMutation(
@@ -327,7 +327,7 @@ export const setThumbnailForUser = async (
     role: THUMBNAIL_ROLE,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callFilesWorkerJson<FilesWorkerFinalizeImageResult>({
+  const outcome = await callCoreWorkerOp<FilesFinalizeImageResult>({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
     declineCodes: ["CONFLICT"],

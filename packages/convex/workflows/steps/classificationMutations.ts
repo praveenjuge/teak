@@ -1,3 +1,4 @@
+import { cardTypeStages } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import {
@@ -35,13 +36,12 @@ export const recordClassification = internalMutation({
       return null;
     }
 
+    const stages = cardTypeStages(type);
     const updatedProcessing = mergeProcessingStages(card.processingStatus, {
       classify: stageCompleted(now, confidence),
-      categorize: type === "link" ? stagePending() : stageCompleted(now, 1),
+      categorize: stages.categorize ? stagePending() : stageCompleted(now, 1),
       metadata: stagePending(),
-      renderables: ["image", "video", "document"].includes(type)
-        ? stagePending()
-        : stageCompleted(now, 1),
+      renderables: stages.renderables ? stagePending() : stageCompleted(now, 1),
     });
 
     const patchData: Record<string, unknown> = {

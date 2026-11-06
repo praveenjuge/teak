@@ -1,4 +1,5 @@
-import type { FilesInspectMode } from "./index";
+import type { FilesInspectMode } from "./ops";
+import type { FilesOpOutcome } from "./outcome";
 import { FILES_UPLOAD_MAX_BYTES } from "./storage";
 
 export const FILES_INSPECT_MAX_ARCHIVE_BYTES = 25 * 1024 * 1024;
@@ -32,7 +33,7 @@ const ARCHIVE_FORMAT_IDS = ["word", "powerpoint"];
 export const extractDocumentFileText = async (
   inspect: (
     params: FilesInspectParams
-  ) => Promise<{ kind: "ok"; data: FilesInspectResult } | { kind: "fallback" }>,
+  ) => Promise<FilesOpOutcome<FilesInspectResult>>,
   sourceKey: string,
   format: { id: string; kind: string },
   card: { fileMetadata?: { kind?: string } | null }

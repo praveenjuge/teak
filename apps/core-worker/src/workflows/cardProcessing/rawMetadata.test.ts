@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sha256Hex } from "../../lib";
+import { sha256Hex } from "@teak/files-protocol";
 import { createMemoryBucket } from "../../test/cardProcessingKit";
 import { hydrateArchivedMetadata, rawMetadataKey } from "./rawMetadata";
 

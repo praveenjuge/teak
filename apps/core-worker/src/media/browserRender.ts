@@ -5,7 +5,7 @@ import {
   type FilesScrapeResult,
   SCREENSHOT_CLEANUP_CSS,
 } from "@teak/files-protocol";
-import { OpFailure } from "../opFailure";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { AcquireBrowser } from "./browserSessions";
 
 export const MAX_RENDER_HTML_BYTES = 2 * 1024 * 1024;
@@ -52,13 +52,13 @@ const withPage = async <T>(
 
 export const decodeHtmlParam = async (value: unknown): Promise<string> => {
   if (typeof value !== "string" || !value) {
-    throw new Error("invalid_html");
+    throw new InvalidOpInput("invalid_html");
   }
   let compressed: Uint8Array;
   try {
     compressed = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
   } catch {
-    throw new Error("invalid_html");
+    throw new InvalidOpInput("invalid_html");
   }
   const reader = new Blob([compressed])
     .stream()
@@ -83,7 +83,7 @@ export const decodeHtmlParam = async (value: unknown): Promise<string> => {
     if (error instanceof OpFailure && error.code === "source_too_large") {
       throw error;
     }
-    throw new Error("invalid_html");
+    throw new InvalidOpInput("invalid_html");
   }
   const bytes = new Uint8Array(total);
   let offset = 0;
@@ -123,7 +123,7 @@ export const validScrapeSelectors = (value: unknown): string[] => {
         selector.length > FILES_SCRAPE_LIMITS.selectorChars
     )
   ) {
-    throw new Error("invalid_selectors");
+    throw new InvalidOpInput("invalid_selectors");
   }
   return value as string[];
 };

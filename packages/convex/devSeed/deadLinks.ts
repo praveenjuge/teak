@@ -5,7 +5,7 @@ import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
+import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { buildR2ObjectKey } from "../storage/r2";
 
 // `dead-links`: link cards with archived copies whose pages answer 404, 410,
@@ -181,7 +181,7 @@ export const writeStubPageArchives = internalAction({
   returns: v.null(),
   handler: async (_ctx, { archives }) => {
     for (const archive of archives) {
-      await putObjectViaFilesWorker({
+      await putObjectViaCoreWorker({
         body: new TextEncoder().encode(stubArchiveHtml(archive)),
         contentType: "text/html; charset=utf-8",
         key: archive.key,

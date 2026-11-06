@@ -7,8 +7,9 @@ import {
   FILES_UPLOAD_MAX_BYTES,
   type FilesLinkedPdfParams,
   type FilesLinkedPdfResult,
+  isValidObjectKey,
 } from "@teak/files-protocol";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput } from "../opFailure";
 
 const ARXIV_HOSTS = new Set(["arxiv.org", "export.arxiv.org"]);
 const MAX_REDIRECTS = 3;
@@ -23,9 +24,9 @@ export const parseLinkedPdfParams = (
     typeof url !== "string" ||
     !isArxivPdfUrl(url) ||
     typeof destinationKey !== "string" ||
-    !isValidUploadKey(destinationKey)
+    !isValidObjectKey(destinationKey)
   ) {
-    throw new Error("invalid_linked_pdf_params");
+    throw new InvalidOpInput("invalid_linked_pdf_params");
   }
   return { destinationKey, url };
 };
@@ -92,7 +93,7 @@ export const storeLinkedPdf = async (
   }
   const id = parseArxivId(params.url);
   if (!id) {
-    throw new Error("invalid_linked_pdf_params");
+    throw new InvalidOpInput("invalid_linked_pdf_params");
   }
   let response: Response | FilesLinkedPdfResult;
   try {

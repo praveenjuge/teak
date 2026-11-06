@@ -1,10 +1,9 @@
 import {
-  buildWorkflowRpcSigningPayload,
   normalizeConvexSiteUrl,
   parseWorkflowRpcRequest,
-  WORKFLOW_RPC_HEADERS,
+  verifyWorkflowRpcRequest,
   WORKFLOW_RPC_MAX_BODY_BYTES,
-  WORKFLOW_RPC_MAX_TTL_SECONDS,
+  type WorkflowRpcErrorCode,
   type WorkflowRpcRequest,
   type WorkflowRpcResponse,
 } from "@teak/files-protocol";
@@ -23,7 +22,6 @@ import {
   httpAction,
   internalMutation,
 } from "./_generated/server";
-import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 import {
   isWorkflowRpcFunction,
   requiresWorkflowRpcGuard,
@@ -38,55 +36,8 @@ const json = (status: number, body: unknown): Response =>
     },
   });
 
-const isCurrentExpiry = (expiresAt: string): boolean => {
-  const expiry = Number(expiresAt);
-  const now = Math.floor(Date.now() / 1000);
-  return (
-    Number.isSafeInteger(expiry) &&
-    String(expiry) === expiresAt &&
-    expiry >= now &&
-    expiry <= now + WORKFLOW_RPC_MAX_TTL_SECONDS
-  );
-};
-
-const signatureMatches = async (
-  secret: string,
-  signature: string,
-  payload: string
-): Promise<boolean> => {
-  const expected = await hmacSha256Hex(secret, payload);
-  const [given, wanted] = await Promise.all([
-    hmacSha256Hex(secret, `compare\n${signature}`),
-    hmacSha256Hex(secret, `compare\n${expected}`),
-  ]);
-  return given === wanted;
-};
-
-export const hasValidWorkflowRpcSignature = async (
-  headers: Headers,
-  body: ArrayBuffer,
-  secret: string,
-  convexSiteUrl: string
-): Promise<boolean> => {
-  const requestId = headers.get(WORKFLOW_RPC_HEADERS.requestId);
-  const expiresAt = headers.get(WORKFLOW_RPC_HEADERS.expiresAt);
-  const signature = headers.get(WORKFLOW_RPC_HEADERS.signature);
-  if (!(requestId && expiresAt && signature) || requestId.length > 128) {
-    return false;
-  }
-  if (!isCurrentExpiry(expiresAt)) {
-    return false;
-  }
-  return await signatureMatches(
-    secret,
-    signature,
-    buildWorkflowRpcSigningPayload({
-      bodySha256: await sha256Hex(body),
-      convexSiteUrl,
-      expiresAt,
-      requestId,
-    })
-  );
+const refuse = (code: WorkflowRpcErrorCode): never => {
+  throw new ConvexError({ code });
 };
 
 export const runGuarded = internalMutation({
@@ -101,10 +52,10 @@ export const runGuarded = internalMutation({
     const id = ctx.db.normalizeId("cards", cardId);
     const card = id ? await ctx.db.get("cards", id) : null;
     if (!card) {
-      throw new ConvexError({ code: "card_missing" });
+      return refuse("card_missing");
     }
     if ((card.processingRev ?? 0) !== rev) {
-      throw new ConvexError({ code: "stale_processing_revision" });
+      return refuse("stale_processing_revision");
     }
     return await ctx.runMutation(makeFunctionReference<"mutation">(name), args);
   },
@@ -183,11 +134,11 @@ export const workflowRpcV1 = httpAction(async (ctx, request) => {
     return json(413, { error: "too_large" });
   }
   if (
-    !(await hasValidWorkflowRpcSignature(
-      request.headers,
-      body,
+    !(await verifyWorkflowRpcRequest(
       secret,
-      convexSiteUrl
+      convexSiteUrl,
+      request.headers,
+      body
     ))
   ) {
     return json(401, { error: "unauthorized" });

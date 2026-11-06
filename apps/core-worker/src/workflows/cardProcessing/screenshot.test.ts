@@ -166,7 +166,7 @@ describe("screenshot", () => {
     const { capture, convex, fakes } = setup(archivedCard("full"), {
       "capture-screenshot": (params) =>
         params.archiveKey
-          ? { fallback: "NOT_FOUND", message: "source_not_found" }
+          ? { declined: "NOT_FOUND", message: "source_not_found" }
           : CAPTURED,
       "fetch-link-page": PAGE,
     });
@@ -200,7 +200,7 @@ describe("screenshot", () => {
 
   test("records a page the renderer declines as failed", async () => {
     const { capture } = setup(linkCard(), {
-      "capture-screenshot": { fallback: "UNSUPPORTED", message: "too tall" },
+      "capture-screenshot": { declined: "UNSUPPORTED", message: "too tall" },
       "fetch-link-page": PAGE,
     });
     expect(await capture()).toEqual({

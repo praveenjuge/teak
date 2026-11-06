@@ -6,8 +6,9 @@ import {
   type FilesStoreOnboardingFilesParams,
   type FilesStoreOnboardingFilesResult,
   isOnboardingSourceName,
+  isValidObjectKey,
 } from "@teak/files-protocol";
-import { isValidUploadKey } from "./upload";
+import { InvalidOpInput } from "../opFailure";
 
 export interface OnboardingFilesEnv {
   ASSETS?: Fetcher;
@@ -25,10 +26,10 @@ const parseFile = (value: unknown): FilesOnboardingFile => {
     contentType.length === 0 ||
     contentType.length > MAX_CONTENT_TYPE_LENGTH ||
     typeof key !== "string" ||
-    !isValidUploadKey(key) ||
+    !isValidObjectKey(key) ||
     !isOnboardingSourceName(source)
   ) {
-    throw new Error("invalid_onboarding_file");
+    throw new InvalidOpInput("invalid_onboarding_file");
   }
   return { contentType, key, source };
 };
@@ -38,7 +39,7 @@ export const parseStoreOnboardingFilesParams = (
 ): FilesStoreOnboardingFilesParams => {
   const { cards } = params;
   if (!Array.isArray(cards) || cards.length === 0) {
-    throw new Error("invalid_onboarding_cards");
+    throw new InvalidOpInput("invalid_onboarding_cards");
   }
   const parsed = cards.map((card) => {
     const { files, onboarding } = (card ?? {}) as Record<string, unknown>;
@@ -49,7 +50,7 @@ export const parseStoreOnboardingFilesParams = (
       !Array.isArray(files) ||
       files.length === 0
     ) {
-      throw new Error("invalid_onboarding_cards");
+      throw new InvalidOpInput("invalid_onboarding_cards");
     }
     return { files: files.map(parseFile), onboarding };
   });
@@ -58,7 +59,7 @@ export const parseStoreOnboardingFilesParams = (
     keys.length > FILES_ONBOARDING_MAX_FILES ||
     new Set(keys).size !== keys.length
   ) {
-    throw new Error("invalid_onboarding_cards");
+    throw new InvalidOpInput("invalid_onboarding_cards");
   }
   return { cards: parsed };
 };

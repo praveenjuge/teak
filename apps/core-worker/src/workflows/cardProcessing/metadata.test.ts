@@ -4,8 +4,8 @@ import {
   buildLinkMetadataPrompt,
   type FilesOp,
   MAX_AI_METADATA_INPUT_CHARS,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { sha256Hex } from "../../lib";
 import {
   CARD_ID,
   createCardConvex,
@@ -20,6 +20,7 @@ import {
   USER_ID,
 } from "../../test/cardProcessingKit";
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
+import { opError } from "../../test/opsHarness";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry, type WorkflowTelemetry } from "../telemetry";
@@ -468,7 +469,7 @@ describe("generating metadata", () => {
       const { generate } = setup({ content: "content" });
       await expect(
         generate("text", { capacity: "retry", restorePendingOnDefer: true })
-      ).rejects.toThrow("files_worker_ai: rate limit reached 429");
+      ).rejects.toThrow("files_worker_error:AI_CAPACITY:429");
     });
 
     test("output that never validates defers after the op's own retries", async () => {
@@ -517,7 +518,7 @@ describe("generating metadata", () => {
           fileMetadata: { height: 1722, width: 3006 },
           thumbnailKey: "t1",
         },
-        { "generate-image-metadata": { fallback: "NOT_FOUND" } }
+        { "generate-image-metadata": { declined: "NOT_FOUND" } }
       );
       expect((await generate("image")).mode).toBe("deferred");
       expect(saved()).toBeUndefined();
@@ -786,7 +787,7 @@ describe("generating metadata", () => {
     });
 
     test.each([
-      ["undecodable audio", { fallback: "UNSUPPORTED" } as const],
+      ["undecodable audio", { declined: "UNSUPPORTED" } as const],
       [
         "a busy renderer",
         { throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:x") },
@@ -930,7 +931,7 @@ describe("generating metadata", () => {
           fileKey: "users/x/cards/c/file/a.wav",
           fileMetadata: { mimeType: "audio/wav" },
         },
-        { "process-audio": { fallback: "NOT_FOUND" } }
+        { "process-audio": { declined: "NOT_FOUND" } }
       );
       expect((await generate("audio")).mode).toBe("skipped");
     });
@@ -1403,7 +1404,7 @@ describe("generating metadata", () => {
         "a declined render",
         { data: { pageCount: null, pagesRead: 0, text: "" } },
       ],
-      ["a missing file", { fallback: "NOT_FOUND" as const }],
+      ["a missing file", { declined: "NOT_FOUND" as const }],
     ])("a scan with %s is checked, with no text", async (_name, answer) => {
       const { generate, saved } = setup(pdfCard, {
         inspect: { data: { facts: { pageCount: 2 }, text: "" } },
@@ -1447,7 +1448,7 @@ describe("generating metadata", () => {
       const { generate } = setup(pdfCard, {
         inspect: { data: { facts: { pageCount: 2 }, text: "" } },
         "ocr-pdf-pages": {
-          throws: new Error("files_worker_ai: rate limit reached 429"),
+          throws: opError("AI_CAPACITY", { status: 429 }),
         },
       });
       await expect(
@@ -1456,7 +1457,7 @@ describe("generating metadata", () => {
           lastAttempt: true,
           restorePendingOnDefer: false,
         })
-      ).rejects.toThrow("rate limit");
+      ).rejects.toThrow("files_worker_error:AI_CAPACITY");
     });
 
     test("a document that isn't a PDF isn't marked checked", async () => {

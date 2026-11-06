@@ -233,7 +233,7 @@ const capture = async (
     destinationKey: screenshotKey,
     htmlGzipBase64: page.data.htmlGzipBase64,
   });
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     return {
       reason: `declined:${outcome.code.toLowerCase()}:${outcome.message}`.slice(
         0,

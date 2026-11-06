@@ -11,10 +11,8 @@ import {
   ACCOUNT_DELETION_STAGES_DONE,
   accountDeletionStage,
 } from "./accountDeletion/stages";
-import {
-  accountDeletionNeedsOperator,
-  queueAccountDeletionWorkflow,
-} from "./workflowDispatch";
+import { accountDeletionNeedsOperator } from "./accountDeletion/workflowRun";
+import { queueAccountDeletionWorkflow } from "./workflowDispatch";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),

@@ -4,8 +4,9 @@ import { join } from "node:path";
 import {
   buildFilesOpSigningPayload,
   FILES_PROTOCOL_VERSION,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import { type FilesOpsEnv, handleInternalOp } from "../ops";
 import { FakeBucket } from "../test/testsupport";
 
