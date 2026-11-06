@@ -8,7 +8,7 @@ import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 import { useTranslations } from "@teak/i18n/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { allFavorited } from "../components/cards/types";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
@@ -22,13 +22,19 @@ import {
   UNDO_BULK_ACTION,
 } from "../lib/bulkCardActions";
 import type { CardActionId } from "../lib/cardActions";
-import { isPinLimitError, isPinned } from "../lib/pinnedCards";
+import {
+  isPinLimitError,
+  isPinned,
+  restoredPinOrder,
+} from "../lib/pinnedCards";
 import {
   useBulkUpdateCards,
   usePermanentDeleteCard,
+  useReorderPinnedCards,
   useSetCardPinned,
   useUpdateCardField,
 } from "./useCardMutations";
+import { usePinnedCards } from "./usePinnedCards";
 
 export interface BulkActionOptions {
   folder?: BulkFolderTarget;
@@ -50,6 +56,12 @@ type ActionTarget = Pick<
 >;
 
 type DoneTarget = Pick<Doc<"cards">, "_id" | "completedAt" | "metadata">;
+
+/** Archiving or trashing a card unpins it; their Undo pins it again. */
+const UNPINNING_ACTIONS: ReadonlySet<BulkCardAction> = new Set([
+  "archive",
+  "delete",
+]);
 
 const succeeded = (run: Promise<BulkRunResult>) =>
   run.then(({ failedIds }) => failedIds.length === 0);
@@ -74,6 +86,49 @@ export function useCardActions() {
   const tActions = useTranslations("hooks.cardActions");
   const tPins = useTranslations("hooks.pinnedCards");
   const tc = useTranslations("common");
+  const reorderPinnedCards = useReorderPinnedCards();
+  const pinned = usePinnedCards();
+  const pinnedRef = useRef(pinned);
+  useEffect(() => {
+    pinnedRef.current = pinned;
+  }, [pinned]);
+
+  /**
+   * Pins `cardIds` again where they were in `before`, the pinned row as it
+   * was when an archive or trash unpinned them.
+   */
+  const restorePins = useCallback(
+    async (before: readonly string[], cardIds: readonly string[]) => {
+      const restoring = new Set(cardIds);
+      const current = pinnedRef.current
+        ?.map((card) => card._id as string)
+        .filter((id) => !restoring.has(id));
+      try {
+        // A new pin goes first, so the last one goes back first.
+        for (const cardId of [...cardIds].reverse()) {
+          // react-doctor-disable-next-line react-doctor/async-await-in-loop
+          await setCardPinned({ cardId: cardId as Id<"cards">, pinned: true });
+        }
+        if (current) {
+          await reorderPinnedCards({
+            cardIds: restoredPinOrder(
+              current,
+              before,
+              cardIds
+            ) as Id<"cards">[],
+          });
+        }
+      } catch (error) {
+        if (isPinLimitError(error)) {
+          toast.error(tPins("limit", { count: MAX_PINNED_CARDS }));
+          return;
+        }
+        captureClientException(error, { operation: "card.restore_pins" });
+        toast.error(tPins("failed.pin"));
+      }
+    },
+    [reorderPinnedCards, setCardPinned, tPins]
+  );
 
   const runBulk = useCallback(
     async (
@@ -83,6 +138,9 @@ export function useCardActions() {
     ): Promise<BulkRunResult> => {
       const toastId = nextToastId();
       const total = new Set(cardIds).size;
+      const pinsBefore = UNPINNING_ACTIONS.has(action)
+        ? (pinnedRef.current ?? []).map((card) => card._id as string)
+        : [];
       if (total > 1 && !options.silent) {
         toast.loading(bulkActionCopy.progress(action, 0, total, t), {
           id: toastId,
@@ -135,13 +193,23 @@ export function useCardActions() {
       } else if (plainUndo) {
         undoSteps = [{ action: plainUndo, cardIds: updatedIds }];
       }
+      const updated = new Set<string>(updatedIds);
+      const unpinned = pinsBefore.filter((id) => updated.has(id));
       const runUndo = async (steps: BulkUndoStep[]) => {
+        const undone = new Set<string>();
         for (const [index, step] of steps.entries()) {
           // react-doctor-disable-next-line react-doctor/async-await-in-loop
-          await runBulk(step.action, step.cardIds, {
+          const stepResult = await runBulk(step.action, step.cardIds, {
             folder: step.folder,
             silent: index < steps.length - 1,
           });
+          for (const id of stepResult.updatedIds) {
+            undone.add(id);
+          }
+        }
+        const repin = unpinned.filter((id) => undone.has(id));
+        if (repin.length > 0) {
+          await restorePins(pinsBefore, repin);
         }
       };
       if (failedIds.length === 0) {
@@ -185,7 +253,7 @@ export function useCardActions() {
       }
       return result;
     },
-    [bulkUpdate, t, tc]
+    [bulkUpdate, restorePins, t, tc]
   );
 
   /** Deletes cards in Trash forever, with one toast for all. */

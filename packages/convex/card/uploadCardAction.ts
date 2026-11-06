@@ -31,7 +31,10 @@ import {
 } from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
-import { clientCardSourceValidator } from "./createCard";
+import {
+  apiCardSourceValidator,
+  clientCardSourceValidator,
+} from "./createCard";
 
 const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
@@ -309,12 +312,17 @@ export const finalizeForUser = async (
 };
 
 export const finalizeUploadedCardForUser = internalAction({
-  args: { ...finalizeArgs, userId: v.string() },
+  args: {
+    ...finalizeArgs,
+    /** The client that uploaded it, for analytics; `api` when not given. */
+    cardSource: v.optional(apiCardSourceValidator),
+    userId: v.string(),
+  },
   returns: finalizeResult,
-  handler: async (ctx, { userId, ...args }) =>
+  handler: async (ctx, { cardSource, userId, ...args }) =>
     finalizeForUser(ctx, await requireTeakUserId(ctx, userId), {
       ...args,
-      source: "api",
+      source: cardSource ?? "api",
     }),
 });
 

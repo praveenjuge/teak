@@ -70,6 +70,11 @@ mock.module("@teak/convex/shared/analytics", () => ({
   },
 }));
 
+let pinnedNow: { _id: string; pinPosition: number }[] = [];
+mock.module("../usePinnedCards", () => ({
+  usePinnedCards: () => pinnedNow,
+}));
+
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { useCardActions } = await import("../useCardActions");
@@ -89,6 +94,7 @@ afterEach(async () => {
   toasts.length = 0;
   events.length = 0;
   refuse = null;
+  pinnedNow = [];
 });
 
 async function render() {
@@ -131,6 +137,41 @@ test("moving a card to Trash says so for 10 seconds, and Undo restores it", asyn
     await Promise.resolve();
   });
   expect(writes.map(({ action }) => action)).toEqual(["delete", "restore"]);
+});
+
+test("Undo after archiving a pinned card pins it again where it was", async () => {
+  pinnedNow = [
+    { _id: "card_first", pinPosition: 0 },
+    { _id: "card_a", pinPosition: 1 },
+    { _id: "card_last", pinPosition: 2 },
+  ];
+  await render();
+  await act(async () => {
+    await actions.run("archive", card({ pinPosition: 1 }));
+  });
+  await act(async () => {
+    toasts[0]?.action?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(writes).toEqual([
+    { action: "archive", cardIds: ["card_a"], tags: undefined },
+    { action: "unarchive", cardIds: ["card_a"], tags: undefined },
+    { cardId: "card_a", pinned: true },
+    { cardIds: ["card_first", "card_a", "card_last"] },
+  ]);
+});
+
+test("Undo after archiving an unpinned card doesn't pin it", async () => {
+  pinnedNow = [{ _id: "card_first", pinPosition: 0 }];
+  await render();
+  await act(async () => {
+    await actions.run("archive", card());
+  });
+  await act(async () => {
+    toasts[0]?.action?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(writes.map(({ action }) => action)).toEqual(["archive", "unarchive"]);
 });
 
 test("a favorite sets the state it shows the opposite of, without a toast", async () => {
