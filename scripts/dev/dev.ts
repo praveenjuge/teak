@@ -255,13 +255,22 @@ export const statusReport = (
   current: { phase: StackPhase; state: StackState | null }
 ) => {
   const stack = current.phase === "gone" ? null : current.state;
+  const password = stack?.account?.password;
   return {
     checkout: ports.namespace,
     phase: current.phase,
     ports,
-    stack: stack?.account
-      ? { ...stack, account: { email: stack.account.email } }
-      : stack,
+    stack:
+      stack?.account && password
+        ? {
+            ...stack,
+            account: { email: stack.account.email },
+            // The sign-in note the text status prints carries it too.
+            notes: stack.notes?.map((note) =>
+              note.replaceAll(password, "<in .agents/.state/stack.json>")
+            ),
+          }
+        : stack,
   };
 };
 
