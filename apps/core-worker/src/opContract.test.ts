@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { runOp } from "./test/opsHarness";
 import { FakeBucket } from "./test/testsupport";
 import { callFilesOp } from "./workflows/filesOps";
@@ -144,15 +144,34 @@ describe("object keys", () => {
   });
 });
 
-test("a Worker without its public origin runs no op, rather than sign for another", async () => {
-  const bucket = new FakeBucket();
-  await expect(
-    callFilesOp(
-      {
-        BUCKET: bucket as unknown as R2Bucket,
-        FILES_SIGNING_SECRET: "secret",
-      },
-      { op: "head-object", params: { key: "users/u1/a.png" } }
-    )
-  ).rejects.toThrow("files_public_origin_not_configured");
+describe("a Worker without its public origin", () => {
+  const env = (bucket: FakeBucket) => ({
+    BUCKET: bucket as unknown as R2Bucket,
+    FILES_SIGNING_SECRET: "secret",
+  });
+
+  test("still runs ops that sign nothing", async () => {
+    const outcome = await callFilesOp(env(new FakeBucket()), {
+      op: "head-object",
+      params: { key: "users/u1/a.png" },
+    });
+    expect(outcome).toEqual({ data: { exists: false }, kind: "ok" });
+  });
+
+  test("fails an op that signs its image URLs, rather than sign for another deployment", async () => {
+    const errors = spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(
+        callFilesOp(env(new FakeBucket()), {
+          op: "analyze-image",
+          params: { sourceKey: "users/u1/a.png" },
+        })
+      ).rejects.toThrow("files_worker_error:INTERNAL");
+      expect(JSON.stringify(errors.mock.calls)).toContain(
+        "files_public_origin_not_configured"
+      );
+    } finally {
+      errors.mockRestore();
+    }
+  });
 });

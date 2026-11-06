@@ -195,10 +195,26 @@ export const answerResponse = ({ envelope, status }: FilesOpAnswer): Response =>
 interface OpContext {
   ctx?: Pick<ExecutionContext, "waitUntil">;
   env: FilesOpsEnv;
-  /** The Worker's own origin, for its signed image URLs. */
-  origin: string;
+  /**
+   * The Worker's own origin, for its signed image URLs. Reading it without
+   * one (an in-process call on a Worker without FILES_PUBLIC_ORIGIN) throws.
+   */
+  readonly origin: string;
   requestId: string;
 }
+
+const opContext = ({
+  origin,
+  ...context
+}: Omit<OpContext, "origin"> & { origin: string | undefined }): OpContext => ({
+  ...context,
+  get origin() {
+    if (!origin) {
+      throw new Error("files_public_origin_not_configured");
+    }
+    return origin;
+  },
+});
 
 /** Reads one op's params, refusing what it can't take, and runs the op. */
 type OpHandler<Op extends FilesOp> = (
@@ -576,7 +592,7 @@ export const runFilesOp = async (
   env: FilesOpsEnv,
   requestId: string,
   body: FilesOpRequest,
-  origin: string,
+  origin: string | undefined,
   ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<FilesOpAnswer> => {
   if (
@@ -607,7 +623,7 @@ export const runFilesOp = async (
     const run = async () => ({
       envelope: filesSuccessEnvelope(
         requestId,
-        await handler(params, { ctx, env, origin, requestId })
+        await handler(params, opContext({ ctx, env, origin, requestId }))
       ),
       status: 200,
     });

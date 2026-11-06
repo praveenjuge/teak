@@ -9,6 +9,7 @@ import {
   type FilesOpResult,
   readFilesOpOutcome,
 } from "@teak/files-protocol";
+import { gatedEnv } from "../deletionGate";
 import { type FilesOpsEnv, runFilesOp } from "../ops";
 
 /** One op call: the op, its params, and the codes the caller takes as a no. */
@@ -25,24 +26,21 @@ export type OpCaller = <Op extends FilesOp>(
 
 /**
  * Runs an op in process, as the network route would, and reads its answer
- * the way Convex does (`readFilesOpOutcome`). The env is the one its entry
- * point gated (`gatedEnv`), so the op's writes go through the deletion
- * gate. A Worker without FILES_PUBLIC_ORIGIN fails the op.
+ * the way Convex does (`readFilesOpOutcome`). Its writes go through the
+ * deletion gate: the Worker's entry points gate the env once, and `gatedEnv`
+ * returns that env unchanged, so this covers only a caller that built its
+ * own env (tests that drive a workflow's functions). The Worker's own origin is FILES_PUBLIC_ORIGIN; without it an op
+ * that signs image URLs fails rather than sign them for another deployment.
  */
 export const callFilesOp = async <Op extends FilesOp>(
   env: FilesOpsEnv,
   spec: FilesOpCall<Op>
 ): Promise<FilesOpOutcome<FilesOpResult<Op>>> => {
-  const origin = env.FILES_PUBLIC_ORIGIN;
-  if (!origin) {
-    // Image ops sign URLs to this Worker's own origin; no other deployment's.
-    throw new Error("files_public_origin_not_configured");
-  }
   const { envelope, status } = await runFilesOp(
-    env,
+    gatedEnv(env),
     `wf-${crypto.randomUUID()}`,
     { op: spec.op, params: spec.params, version: FILES_PROTOCOL_VERSION },
-    origin
+    env.FILES_PUBLIC_ORIGIN
   );
   return readFilesOpOutcome(
     envelope as FilesEnvelope<never>,
