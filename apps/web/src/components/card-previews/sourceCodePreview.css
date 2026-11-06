@@ -1,0 +1,41 @@
+.source-code-preview {
+  color: #9cdcfe;
+  background-color: #1e1e1e;
+}
+
+.source-code-preview .hljs-comment,
+.source-code-preview .hljs-quote {
+  color: #6a9955;
+}
+
+.source-code-preview .hljs-keyword,
+.source-code-preview .hljs-built_in,
+.source-code-preview .hljs-literal,
+.source-code-preview .hljs-name {
+  color: #569cd6;
+}
+
+.source-code-preview .hljs-number,
+.source-code-preview .hljs-addition {
+  color: #b5cea8;
+}
+
+.source-code-preview .hljs-string,
+.source-code-preview .hljs-regexp,
+.source-code-preview .hljs-deletion {
+  color: #ce9178;
+}
+
+.source-code-preview .hljs-title {
+  color: #dcdcaa;
+}
+
+.source-code-preview .hljs-type,
+.source-code-preview .hljs-title.class_ {
+  color: #4ec9b0;
+}
+
+.source-code-preview .hljs-selector-tag,
+.source-code-preview .hljs-selector-class {
+  color: #d7ba7d;
+}

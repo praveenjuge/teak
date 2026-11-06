@@ -67,6 +67,6 @@
   },
   "node": {
     "nodeVersion": "24",
-    "externalPackages": ["react", "@cf-wasm/photon", "hono"]
+    "externalPackages": ["react", "hono"]
   }
 }
