@@ -174,14 +174,14 @@ const fileCardType = (mimeType: unknown): CardType => {
     : "document";
 };
 
-const LIST_SOURCES: Partial<Record<TeakToolName, ListSource>> = {
-  teak_v1_list_cards: "recent",
-  teak_v1_list_favorite_cards: "favorites",
-  teak_v1_list_pinned_cards: "pinned",
-};
+const LIST_SOURCES = new Map<string, ListSource>([
+  ["teak_v1_list_cards", "recent"],
+  ["teak_v1_list_favorite_cards", "favorites"],
+  ["teak_v1_list_pinned_cards", "pinned"],
+] satisfies [TeakToolName, ListSource][]);
 
 const listSourceFor = (toolName: string | undefined): ListSource =>
-  (toolName && LIST_SOURCES[toolName as TeakToolName]) || "search";
+  (toolName === undefined ? undefined : LIST_SOURCES.get(toolName)) ?? "search";
 
 export const viewFromToolResult = ({
   input,

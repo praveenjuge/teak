@@ -43,6 +43,7 @@ import {
   type PublicApiOperationId,
   publicApiOperationSpec,
   publicApiPath,
+  publicApiPathParams,
 } from "@teak/convex/shared/publicApiContract";
 
 export type { CardType } from "@teak/convex/shared/constants";
@@ -1221,8 +1222,16 @@ export const createTeakClient = (options: {
       query?: string;
     },
     parser: (payload: unknown) => T
-  ) =>
-    request(
+  ): Promise<T> => {
+    const missing = publicApiPathParams(operationId).find(
+      (name) => !input.params?.[name]
+    );
+    if (missing) {
+      return Promise.reject(
+        new TeakApiError("INVALID_INPUT", `${missing} is required.`)
+      );
+    }
+    return request(
       `${publicApiPath(operationId, input.params)}${input.query ? `?${input.query}` : ""}`,
       {
         ...(input.body === undefined
@@ -1233,6 +1242,7 @@ export const createTeakClient = (options: {
       },
       parser
     );
+  };
   const card = (cardId: string) => ({ params: { cardId } });
   const idempotency = (requestOptions?: RequestOptions): HeadersInit =>
     requestOptions?.idempotencyKey

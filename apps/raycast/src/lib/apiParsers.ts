@@ -17,27 +17,26 @@ export type RaycastCardLink = CardLinkRef;
 export type RaycastLinkPrice = NonNullable<Card["linkPrice"]>;
 
 /** The fields every card view reads; a list asks for them with its includes. */
-const VIEW_FIELDS = [
-  "aiSummary",
-  "aiTags",
-  "content",
-  "createdAt",
-  "fileUrl",
-  "id",
-  "isFavorited",
-  "linkPreviewImageUrl",
-  "metadataDescription",
-  "metadataTitle",
-  "notes",
-  "screenshotUrl",
-  "tags",
-  "thumbnailUrl",
-  "type",
-  "updatedAt",
-  "url",
-] as const satisfies readonly (keyof Card)[];
-
-type ViewField = (typeof VIEW_FIELDS)[number];
+type ViewField = Extract<
+  keyof Card,
+  | "aiSummary"
+  | "aiTags"
+  | "content"
+  | "createdAt"
+  | "fileUrl"
+  | "id"
+  | "isFavorited"
+  | "linkPreviewImageUrl"
+  | "metadataDescription"
+  | "metadataTitle"
+  | "notes"
+  | "screenshotUrl"
+  | "tags"
+  | "thumbnailUrl"
+  | "type"
+  | "updatedAt"
+  | "url"
+>;
 
 /** Fields newer servers send; a card from an older one leaves them out. */
 type NewerField =
@@ -103,18 +102,127 @@ export type QuickSaveResponse = Omit<CreateCardResponse, "appUrl" | "card"> & {
 
 const SIMILARITY_STATUSES: readonly string[] = ["ok", "pending", "unavailable"];
 
-const hasViewFields = (card: CardListItem | Card): card is Card =>
-  VIEW_FIELDS.every((field) => card[field] !== undefined);
+type JsonObject = Record<string, unknown>;
+
+const isJsonObject = (value: unknown): value is JsonObject =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const isString = (value: unknown): value is string => typeof value === "string";
+const isNullableString = (value: unknown): value is string | null =>
+  typeof value === "string" || value === null;
+const isNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+const isNullableNumber = (value: unknown): value is number | null =>
+  isNumber(value) || value === null;
+const isBoolean = (value: unknown): value is boolean =>
+  typeof value === "boolean";
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isString);
 
 /**
- * The card the SDK parsed, once it has every field the views read; a list
- * item without them (a list asked for fewer includes) is refused.
+ * The type each field the views read must have. The SDK checks only a card's
+ * id and content, so a malformed field would otherwise reach `.join` or
+ * `.map` in a view.
+ */
+const VIEW_FIELD_CHECKS: ReadonlyMap<
+  ViewField | "appUrl",
+  (value: unknown) => boolean
+> = new Map<ViewField | "appUrl", (value: unknown) => boolean>([
+  ["aiSummary", isNullableString],
+  ["aiTags", isStringArray],
+  ["appUrl", isNullableString],
+  ["content", isString],
+  ["createdAt", isNumber],
+  ["fileUrl", isNullableString],
+  ["id", isString],
+  ["isFavorited", isBoolean],
+  ["linkPreviewImageUrl", isNullableString],
+  ["metadataDescription", isNullableString],
+  ["metadataTitle", isNullableString],
+  ["notes", isNullableString],
+  ["screenshotUrl", isNullableString],
+  ["tags", isStringArray],
+  ["thumbnailUrl", isNullableString],
+  ["type", isString],
+  ["updatedAt", isNumber],
+  ["url", isNullableString],
+]);
+
+const hasViewFields = (card: JsonObject): boolean =>
+  [...VIEW_FIELD_CHECKS].every(([field, check]) =>
+    check(Object.hasOwn(card, field) ? card[field] : undefined),
+  );
+
+const optional = <T>(
+  value: unknown,
+  check: (value: unknown) => value is T,
+): T | undefined => (check(value) ? value : undefined);
+
+const isCardLink = (value: unknown): value is RaycastCardLink =>
+  isJsonObject(value) &&
+  isString(value.id) &&
+  isBoolean(value.missing) &&
+  isNullableString(value.title) &&
+  isNullableString(value.type);
+
+const isColor = (value: unknown): value is { hex: string; name?: string } =>
+  isJsonObject(value) &&
+  isString(value.hex) &&
+  (value.name === undefined || isString(value.name));
+
+const isLinkFact = (
+  value: unknown,
+): value is { label: string; value: string } =>
+  isJsonObject(value) && isString(value.label) && isString(value.value);
+
+/** The valid entries of a list, or undefined when it isn't a list. */
+const validEntries = <T>(
+  value: unknown,
+  check: (entry: unknown) => entry is T,
+): T[] | undefined => (Array.isArray(value) ? value.filter(check) : undefined);
+
+const isLinkPrice = (value: unknown): value is RaycastLinkPrice | null =>
+  value === null ||
+  (isJsonObject(value) &&
+    isNumber(value.amount) &&
+    isNullableString(value.currency));
+
+/**
+ * A card from the SDK as the views show it. A field every view reads with
+ * the wrong type fails the request; a newer field with the wrong type is left
+ * out, as it is for a server that predates it.
  */
 export const parseRaycastCard = (card: CardListItem | Card): RaycastCard => {
-  if (!hasViewFields(card)) {
+  const value: unknown = card;
+  if (!(isJsonObject(value) && hasViewFields(value))) {
     throw new RaycastApiError("REQUEST_FAILED");
   }
-  return card;
+  const checked = card as Card;
+  return {
+    ...checked,
+    aiTranscript: optional(value.aiTranscript, isNullableString),
+    archivedAt: optional(value.archivedAt, isNullableNumber),
+    backlinks: validEntries(value.backlinks, isCardLink),
+    colors: validEntries(value.colors, isColor),
+    completedAt: optional(value.completedAt, isNullableNumber),
+    fileName: optional(value.fileName, isNullableString),
+    fileSize: optional(value.fileSize, isNullableNumber),
+    folderIds: optional(value.folderIds, isStringArray),
+    isArchived: optional(value.isArchived, isBoolean),
+    isDeleted: optional(value.isDeleted, isBoolean),
+    isHidden: optional(value.isHidden, isBoolean),
+    linkAuthor: optional(value.linkAuthor, isNullableString),
+    linkCategory: optional(value.linkCategory, isNullableString),
+    linkFacts: validEntries(value.linkFacts, isLinkFact),
+    linkPrice: optional(value.linkPrice, isLinkPrice),
+    linkPublishedAt: optional(value.linkPublishedAt, isNullableString),
+    linkPublisher: optional(value.linkPublisher, isNullableString),
+    linkSiteName: optional(value.linkSiteName, isNullableString),
+    links: validEntries(value.links, isCardLink),
+    mimeType: optional(value.mimeType, isNullableString),
+    savedAt: optional(value.savedAt, isNumber),
+    sourceTitle: optional(value.sourceTitle, isNullableString),
+    sourceUrl: optional(value.sourceUrl, isNullableString),
+  };
 };
 
 export const parseCardsPageResponse = (page: CardsPage): CardsResponse => ({

@@ -132,6 +132,47 @@ describe("newer card fields", () => {
     expect(card.links).toBeUndefined();
   });
 
+  test("drops a malformed newer value instead of rejecting the card", () => {
+    const card = parseRaycastCard({
+      ...sampleCard,
+      backlinks: "card_7",
+      colors: [{ hex: "#ff5500" }, 1, { name: "no hex" }],
+      completedAt: "yesterday",
+      folderIds: [1],
+      isArchived: "yes",
+      linkFacts: [{ label: "Pages" }, { label: "Pages", value: "12" }],
+      linkPrice: { amount: "free" },
+      links: [
+        { id: "card_8" },
+        { id: "card_9", missing: false, title: "Ok", type: null },
+      ],
+    } as unknown as Parameters<typeof parseRaycastCard>[0]);
+    expect(card.id).toBe("card_123");
+    expect(card.backlinks).toBeUndefined();
+    expect(card.colors).toEqual([{ hex: "#ff5500" }]);
+    expect(card.completedAt).toBeUndefined();
+    expect(card.folderIds).toBeUndefined();
+    expect(card.isArchived).toBeUndefined();
+    expect(card.linkFacts).toEqual([{ label: "Pages", value: "12" }]);
+    expect(card.linkPrice).toBeUndefined();
+    expect(card.links?.map((link) => link.id)).toEqual(["card_9"]);
+  });
+
+  test.each([
+    ["tags", "design"],
+    ["aiTags", null],
+    ["content", 42],
+    ["notes", ["a"]],
+    ["isFavorited", "yes"],
+  ])("refuses a card whose %s a view reads is %p", (field, value) => {
+    expect(() =>
+      parseRaycastCard({
+        ...sampleCard,
+        [field]: value,
+      } as unknown as Parameters<typeof parseRaycastCard>[0]),
+    ).toThrow(RaycastApiError);
+  });
+
   test("keeps the similarity status of a page of similar cards", () => {
     const page = parseCardsPageResponse({
       items: [],
