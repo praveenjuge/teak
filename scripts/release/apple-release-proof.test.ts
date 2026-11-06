@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { verifyReleaseProof } from "./apple-release-proof.ts";
+import {
+  rejectedStates,
+  releasePhase,
+  reviewStates,
+  verifyReleaseProof,
+} from "./apple-release-proof.ts";
 
 const fixtureRoot = path.join(import.meta.dir, "../fixtures/apple-release");
 const fixture = (name: string) =>
@@ -75,5 +80,30 @@ describe("Apple release proof", () => {
     };
     input.status.review.latestSubmissionId = "ios-submission-62";
     expect(verifyReleaseProof(input).buildId).toBe("ios-build-65");
+  });
+});
+
+describe("Apple release phase", () => {
+  test.each([
+    ["WAITING_FOR_REVIEW", "review"],
+    ["in_review", "review"],
+    ["READY_FOR_SALE", "review"],
+    ["METADATA_REJECTED", "rejected"],
+    ["PREPARE_FOR_SUBMISSION", "pending"],
+    ["", "pending"],
+  ] as const)("%s is %s", (state, phase) => {
+    expect(releasePhase(state)).toBe(phase);
+  });
+
+  test("the release workflow asks the script instead of listing states", () => {
+    const workflow = fs.readFileSync(
+      path.join(import.meta.dir, "../../.github/workflows/apple-release.yml"),
+      "utf8"
+    );
+    expect(workflow).toContain("apple-release-proof.ts phase");
+    for (const state of [...reviewStates, ...rejectedStates]) {
+      expect(workflow).not.toContain(`|${state}`);
+      expect(workflow).not.toContain(`${state}|`);
+    }
   });
 });

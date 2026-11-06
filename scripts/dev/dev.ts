@@ -3,9 +3,9 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  currentStack,
   isProcessAlive,
-  isStackRunning,
-  readStackState,
+  type StackPhase,
   type StackState,
   stopOrphanedStack,
 } from "../lib/stack-state.ts";
@@ -46,7 +46,7 @@ const resolveTarget = (target: string): string =>
   TARGET_ALIASES[target] ?? target;
 
 export const DEV_USAGE =
-  "Usage: bun run dev [target] [--push] [--local] [--detach] [--status] [--stop] [--all] [--check] [--headless]";
+  "Usage: bun run dev [target] [--push] [--local] [--detach] [--status [--json] [--wait]] [--stop] [--all] [--check] [--headless]";
 
 export const describeTargets = (): string =>
   [
@@ -68,9 +68,11 @@ export interface DevArgs {
   all: boolean;
   detach: boolean;
   headless: boolean;
+  json: boolean;
   local: boolean;
   push: boolean;
   target: string;
+  wait: boolean;
 }
 
 export const parseDevArgs = (argv: string[]): DevArgs => {
@@ -80,9 +82,11 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
       all: false,
       detach: false,
       headless: false,
+      json: false,
       local: false,
       push: false,
       target: "web",
+      wait: false,
     };
   }
   const flags = new Set([
@@ -90,10 +94,12 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
     "--check",
     "--detach",
     "--headless",
+    "--json",
     "--local",
     "--push",
     "--status",
     "--stop",
+    "--wait",
   ]);
   const isTarget = (arg: string) =>
     Boolean(DEV_TARGETS[arg]) ||
@@ -130,14 +136,21 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   } else if (argv.includes("--check")) {
     action = "check";
   }
+  const json = argv.includes("--json");
+  const wait = argv.includes("--wait");
+  if ((json || wait) && action !== "status") {
+    throw new Error("--json and --wait apply only to --status");
+  }
   return {
     action,
     all,
     detach,
     headless: argv.includes("--headless"),
+    json,
     local,
     push,
     target,
+    wait,
   };
 };
 
@@ -182,13 +195,14 @@ export const buildDevCommand = (
 };
 
 const runningStack = (): StackState | null => {
-  const state = readStackState(ROOT);
-  return state && isStackRunning(state) ? state : null;
+  const { phase, state } = currentStack(ROOT);
+  return phase === "gone" ? null : state;
 };
 
 const stopOrphans = async () => {
   if (await stopOrphanedStack(ROOT)) {
-    console.log("Cleaned up a stack left behind by a process that exited.");
+    // stderr, so `--status --json` keeps stdout to the JSON report.
+    console.error("Cleaned up a stack left behind by a process that exited.");
   }
 };
 
@@ -228,6 +242,62 @@ const describeRunning = (running: StackState): string[] => {
     `  ${running.ready ? "Running" : "Starting"} at ${running.urls.appOrigin} (pid ${running.pid}). Stop it with \`bun run dev --stop\`.`,
     ...(running.notes ?? []).map((note) => `  ${note}`),
   ];
+};
+
+/**
+ * What `bun run dev --status --json` prints: this checkout's ports and, while
+ * one runs, its stack as recorded in .agents/.state/stack.json, without the
+ * account's password (CI logs this output; the password stays in the file).
+ * Scripts and workflows read this instead of parsing the file.
+ */
+export const statusReport = (
+  ports: WorktreePorts,
+  current: { phase: StackPhase; state: StackState | null }
+) => {
+  const stack = current.phase === "gone" ? null : current.state;
+  const password = stack?.account?.password;
+  return {
+    checkout: ports.namespace,
+    phase: current.phase,
+    ports,
+    stack:
+      stack?.account && password
+        ? {
+            ...stack,
+            account: { email: stack.account.email },
+            // The sign-in note the text status prints carries it too.
+            notes: stack.notes?.map((note) =>
+              note.replaceAll(password, "<in .agents/.state/stack.json>")
+            ),
+          }
+        : stack,
+  };
+};
+
+// The E2E workflow waited this long for a cold stack before --wait existed.
+const STATUS_WAIT_MS = 360_000;
+
+const printStatus = async (args: DevArgs): Promise<number> => {
+  await stopOrphans();
+  const ports = await resolveWorktree(ROOT);
+  const deadline = Date.now() + STATUS_WAIT_MS;
+  let current = currentStack(ROOT);
+  while (args.wait && current.phase !== "ready" && Date.now() < deadline) {
+    await Bun.sleep(2000);
+    current = currentStack(ROOT);
+  }
+  console.log(
+    args.json
+      ? JSON.stringify(statusReport(ports, current), null, 2)
+      : describeStatus(ports, current.state)
+  );
+  if (args.wait && current.phase !== "ready") {
+    console.error(
+      `✗ No stack was ready after ${STATUS_WAIT_MS / 1000}s. See .agents/.state/stack.log.`
+    );
+    return 1;
+  }
+  return 0;
 };
 
 export const describeStatus = (
@@ -428,9 +498,7 @@ const main = async (argv: string[]): Promise<number> => {
     case "stop":
       return await stopStack();
     case "status":
-      await stopOrphans();
-      console.log(describeStatus(await resolveWorktree(ROOT), runningStack()));
-      return 0;
+      return await printStatus(args);
     case "check":
       console.log(describeCheck(args));
       return 0;

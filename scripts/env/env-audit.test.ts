@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   auditFiles,
   extractCodeUses,
@@ -10,6 +18,7 @@ import {
   extractWorkflowRefs,
   extractWranglerDecls,
   findSecretDiagnostics,
+  listScannedFiles,
 } from "./env-audit.ts";
 
 describe("env-audit extractors", () => {
@@ -324,5 +333,39 @@ describe("turbo env scoping", () => {
         expect(decl.name).not.toContain("*");
       }
     }
+  });
+});
+
+describe("env-audit file walk", () => {
+  test("scans hooks, setup and native apps, and skips build output and nested checkouts", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-env-audit-"));
+    for (const file of [
+      ".agents/hooks/session-start.sh",
+      ".github/workflows/ci.yml",
+      "apps/android/scripts/e2e-session.ts",
+      "apps/web/src/a.ts",
+      "apps/android/app/build/generated.json",
+      "apps/web/.next/server.js",
+      ".claude/worktrees/other/apps/web/src/a.ts",
+      "node_modules/x/index.js",
+      ".agents/.state/stack.json",
+    ]) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), "");
+    }
+    expect(listScannedFiles(root)).toEqual([
+      ".agents/hooks/session-start.sh",
+      ".github/workflows/ci.yml",
+      "apps/android/scripts/e2e-session.ts",
+      "apps/web/src/a.ts",
+    ]);
+  });
+
+  test("a directory link that points back up is walked once", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-env-audit-"));
+    mkdirSync(join(root, "apps/web/src"), { recursive: true });
+    writeFileSync(join(root, "apps/web/src/a.ts"), "");
+    symlinkSync(root, join(root, "apps/web/src/loop"));
+    expect(listScannedFiles(root)).toEqual(["apps/web/src/a.ts"]);
   });
 });

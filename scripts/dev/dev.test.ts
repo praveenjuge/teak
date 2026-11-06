@@ -10,6 +10,7 @@ import {
   needsWebEnv,
   parseDevArgs,
   planDevLaunch,
+  statusReport,
   usesWebStack,
 } from "./dev.ts";
 import { mainWorktreePorts, slotPorts } from "./worktree-env.ts";
@@ -23,10 +24,22 @@ describe("parseDevArgs", () => {
       all: false,
       detach: false,
       headless: false,
+      json: false,
       local: false,
       push: false,
       target: "web",
+      wait: false,
     });
+  });
+
+  test("parses --json and --wait for --status only", () => {
+    expect(parseDevArgs(["--status", "--json", "--wait"])).toMatchObject({
+      action: "status",
+      json: true,
+      wait: true,
+    });
+    expect(() => parseDevArgs(["--json"])).toThrow("--status");
+    expect(() => parseDevArgs(["--detach", "--wait"])).toThrow("--status");
   });
 
   test("parses --local for the web stack only, without --push", () => {
@@ -413,5 +426,55 @@ describe("dev.ts before install", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("Usage: bun run dev");
     expect(result.stdout.toString()).toContain("core:local");
+  });
+});
+
+describe("statusReport", () => {
+  const ports = slotPorts(2);
+  const recorded = {
+    groups: [41],
+    mode: "e2e" as const,
+    ready: true,
+    logPath: "/tmp/stack.log",
+    pid: 42,
+    ports,
+    startedAt: "2026-10-25T00:00:00.000Z",
+    urls: {
+      appOrigin: `http://localhost:${ports.web}`,
+      apiOrigin: `http://localhost:${ports.convexSite}`,
+      convexUrl: `http://127.0.0.1:${ports.convex}`,
+    },
+  };
+
+  test("reports a ready stack with its recorded URLs and ports", () => {
+    expect(statusReport(ports, { phase: "ready", state: recorded })).toEqual({
+      checkout: ports.namespace,
+      phase: "ready",
+      ports,
+      stack: recorded,
+    });
+  });
+
+  test("names the account but leaves its password in the state file", () => {
+    const sample = "sample-sign-in-word";
+    const report = statusReport(ports, {
+      phase: "ready",
+      state: {
+        ...recorded,
+        account: { email: "a@b.test", password: sample },
+        notes: [`Sign in as a@b.test / ${sample} (WorkOS staging).`],
+      },
+    });
+    expect(report.stack?.account).toEqual({ email: "a@b.test" });
+    expect(JSON.stringify(report)).not.toContain(sample);
+    expect(report.stack?.notes).toEqual([
+      "Sign in as a@b.test / <in .agents/.state/stack.json> (WorkOS staging).",
+    ]);
+  });
+
+  test("leaves out a stack whose owner is gone", () => {
+    expect(
+      statusReport(ports, { phase: "gone", state: recorded }).stack
+    ).toBeNull();
   });
 });

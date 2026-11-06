@@ -2,12 +2,22 @@ name: Extension OAuth Runtime
 
 on:
   pull_request:
-    paths:
+    # scripts/repo/workflow-paths.test.ts checks this covers every file the
+    # hermetic OAuth specs load.
+    paths: &oauth-runtime-paths
       - apps/extension/**
       - packages/sdk/src/**
-      - packages/convex/shared/boundedResponse.ts
-      - packages/convex/shared/oauthSurfaces.ts
+      - packages/convex/_generated/api.js
       - packages/convex/devUrls.ts
+      - packages/convex/index.ts
+      - packages/convex/shared/**
+      - packages/files-protocol/src/**
+      - packages/i18n/src/**
+      - packages/tests/src/stack/config.ts
+      - scripts/dev/proc.ts
+      - scripts/dev/worktree-env.ts
+      - scripts/lib/stack-state.ts
+      - scripts/lib/teak-account.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts
       - packages/tests/src/auth-runtime/**
       - packages/tests/src/helpers/**
@@ -16,24 +26,12 @@ on:
       - apps/web/src/components/settings/SecurityConnections.tsx
       - packages/tests/package.json
       - bun.lock
+      - package.json
+      - .github/actions/setup-bun/action.yml
       - .github/workflows/extension-oauth-runtime.yml
   push:
     branches: [main]
-    paths:
-      - apps/extension/**
-      - packages/sdk/src/**
-      - packages/convex/shared/boundedResponse.ts
-      - packages/convex/shared/oauthSurfaces.ts
-      - packages/convex/devUrls.ts
-      - packages/tests/src/extension/oauth-runtime.e2e.ts
-      - packages/tests/src/auth-runtime/**
-      - packages/tests/src/helpers/**
-      - packages/tests/e2e.hermetic.config.ts
-      - packages/tests/src/config/**
-      - apps/web/src/components/settings/SecurityConnections.tsx
-      - packages/tests/package.json
-      - bun.lock
-      - .github/workflows/extension-oauth-runtime.yml
+    paths: *oauth-runtime-paths
 
 permissions:
   contents: read
@@ -51,12 +49,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: ./.github/actions/setup-bun
         with:
-          bun-version-file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: package.json
+          node: "true"
       - run: bun install --frozen-lockfile
       - run: bun --no-env-file x e2e-web install --with-deps chromium
         working-directory: packages/tests

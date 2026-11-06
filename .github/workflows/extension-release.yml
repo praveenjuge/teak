@@ -39,9 +39,7 @@ jobs:
 
       - name: Setup Bun
         if: steps.check.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
         if: steps.check.outputs.should_run == 'true'
@@ -213,9 +211,7 @@ jobs:
 
       - name: Setup Bun
         if: steps.check.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+        uses: ./.github/actions/setup-bun
 
       - name: Setup Node
         if: steps.check.outputs.should_run == 'true'

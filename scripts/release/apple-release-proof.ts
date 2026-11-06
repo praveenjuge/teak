@@ -13,6 +13,25 @@ export const reviewStates = new Set([
   "READY_FOR_SALE",
 ]);
 
+export const rejectedStates = new Set([
+  "DEVELOPER_REJECTED",
+  "INVALID_BINARY",
+  "METADATA_REJECTED",
+  "REJECTED",
+]);
+
+/**
+ * Where an App Store version stands while apple-release.yml waits for it:
+ * submitted (waiting for review or later), rejected, or still on its way.
+ */
+export function releasePhase(state: string): "pending" | "rejected" | "review" {
+  const normalized = state.trim().toUpperCase();
+  if (reviewStates.has(normalized)) {
+    return "review";
+  }
+  return rejectedStates.has(normalized) ? "rejected" : "pending";
+}
+
 /** An App Store Connect API resource as `asc --output json` prints it. */
 export interface AscResource {
   attributes?: Record<string, string | undefined>;
@@ -206,8 +225,12 @@ export type ReleaseProof = ReturnType<typeof verifyReleaseProof>;
 
 function main() {
   const [command, ...args] = process.argv.slice(2);
+  if (command === "phase") {
+    console.log(releasePhase(args[0] ?? ""));
+    return;
+  }
   if (command !== "verify") {
-    throw new Error("Expected verify command.");
+    throw new Error("Expected the verify or phase command.");
   }
   const values = parseArguments(args);
   const proof = verifyReleaseProof({

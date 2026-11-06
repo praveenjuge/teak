@@ -69,6 +69,8 @@ export const PLATFORM_EXACT = [
   "BROWSER",
   "CHROME_PATH",
   "CI",
+  // Claude Code's SessionStart hooks append exports to this file.
+  "CLAUDE_ENV_FILE",
   "CONVEX_CLOUD_URL",
   "CONVEX_DEPLOYMENT",
   "DEV",
@@ -90,6 +92,7 @@ export const PLATFORM_EXACT = [
   "NEXT_RUNTIME",
   "NODE_BINARY",
   "NODE_ENV",
+  "NODE_OPTIONS",
   "npm_lifecycle_event",
   "npm_package_version",
   "OLDPWD",

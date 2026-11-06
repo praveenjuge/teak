@@ -2,6 +2,7 @@
   "extends": ["//"],
   "tasks": {
     "test": {
+      "dependsOn": [],
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/**",

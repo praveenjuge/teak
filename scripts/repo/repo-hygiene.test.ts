@@ -13,9 +13,11 @@ const INDEPENDENT_WORKSPACES = new Set(["apps/raycast"]);
 // `catalog:`, so they write out the catalog's range instead.
 const NPM_PUBLISHED_WORKSPACES = new Set(["apps/cli"]);
 
+type BiomePlugin = { includes?: string[]; path: string } | string;
+
 interface BiomeConfig {
-  overrides?: { includes?: string[] }[];
-  plugins?: ({ includes?: string[]; path: string } | string)[];
+  overrides?: { includes?: string[]; plugins?: BiomePlugin[] }[];
+  plugins?: BiomePlugin[];
 }
 
 const literalPath = (pattern: string): string | null => {
@@ -24,8 +26,12 @@ const literalPath = (pattern: string): string | null => {
 };
 
 const biomePaths = (config: BiomeConfig): string[] => {
+  const plugins = [
+    ...(config.plugins ?? []),
+    ...(config.overrides ?? []).flatMap((override) => override.plugins ?? []),
+  ];
   const patterns = [
-    ...(config.plugins ?? []).flatMap((plugin) =>
+    ...plugins.flatMap((plugin) =>
       typeof plugin === "string"
         ? [plugin]
         : [plugin.path, ...(plugin.includes ?? [])]
@@ -39,12 +45,15 @@ const biomePaths = (config: BiomeConfig): string[] => {
 
 const workspaces = (): string[] => workspaceDirectories(ROOT);
 
-const rootCatalog = (): Record<string, string> =>
-  (
-    JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8")) as {
-      catalog?: Record<string, string>;
-    }
-  ).catalog ?? {};
+interface RootManifest {
+  catalog?: Record<string, string>;
+  overrides?: Record<string, string | Record<string, string>>;
+}
+
+const rootManifest = (): RootManifest =>
+  JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8")) as RootManifest;
+
+const rootCatalog = (): Record<string, string> => rootManifest().catalog ?? {};
 
 interface Dependency {
   field: (typeof DEPENDENCY_FIELDS)[number];
@@ -107,6 +116,20 @@ describe("repo hygiene", () => {
           `${workspace} ${field}.${name}: ${range}`
       );
     expect(wrong).toEqual([]);
+  });
+
+  test("a package both pinned in overrides and in the catalog has one version", () => {
+    const { catalog = {}, overrides = {} } = rootManifest();
+    // A nested override (`"miniflare": { "undici": "…" }`) pins its package too.
+    const pins = (tree: object): [string, string][] =>
+      Object.entries(tree).flatMap(([name, value]): [string, string][] =>
+        typeof value === "string" ? [[name, value]] : pins(value)
+      );
+    const differing = pins(overrides)
+      .filter(([name]) => name in catalog)
+      .filter(([name, version]) => catalog[name] !== version)
+      .map(([name, version]) => `${name}: ${catalog[name]} vs ${version}`);
+    expect(differing).toEqual([]);
   });
 
   test("every catalog entry has a workspace using it", () => {

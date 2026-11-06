@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
 import { isFrameworkAlias } from "./env-aliases.ts";
@@ -79,10 +79,16 @@ const SKIP_DIRS = new Set([
   ".state",
   ".tmp",
   ".convex",
+  ".wrangler",
+  ".gradle",
+  ".wxt",
+  ".blume",
+  ".idea",
   "_generated",
-  "ios",
-  "android",
 ]);
+
+// Other checkouts inside this one (Claude Code worktrees).
+const SKIP_PATHS = new Set([".claude/worktrees"]);
 
 const META_FILES = new Set([
   "scripts/env/env-contract.ts",
@@ -95,7 +101,15 @@ const DOC_EXTENSIONS = new Set([".md", ".mdx", ".txt"]);
 
 export const listScannedFiles = (root: string): string[] => {
   const out: string[] = [];
+  // statSync follows symlinks (the skills links under .claude), so remember
+  // each real directory to stop a link that points back up from looping.
+  const seen = new Set<string>();
   const walk = (dir: string): void => {
+    const real = realpathSync(dir);
+    if (seen.has(real)) {
+      return;
+    }
+    seen.add(real);
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       const rel = relative(root, full);
@@ -104,9 +118,7 @@ export const listScannedFiles = (root: string): string[] => {
       }
       const stat = statSync(full);
       if (stat.isDirectory()) {
-        if (!(SKIP_DIRS.has(entry) || entry.startsWith("."))) {
-          walk(full);
-        } else if (entry === ".github") {
+        if (!(SKIP_DIRS.has(entry) || SKIP_PATHS.has(rel))) {
           walk(full);
         }
         continue;

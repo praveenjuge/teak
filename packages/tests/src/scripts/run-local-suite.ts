@@ -3,11 +3,7 @@ import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveWorktree } from "@teak/scripts/dev/worktree-env";
-import {
-  isStackRunning,
-  readStackState,
-  type StackUrls,
-} from "@teak/scripts/lib/stack-state";
+import { currentStack, type StackUrls } from "@teak/scripts/lib/stack-state";
 import { prepareCheckout } from "@teak/scripts/setup/setup";
 import { localBackendEnv, setupBackend } from "../stack/backend";
 import { seedLocalDevAccount } from "../stack/devAccount";
@@ -42,8 +38,8 @@ const e2e = (args: string[]) =>
     child.once("exit", (code) => resolve(code ?? 1));
   });
 
-const running = readStackState(ROOT);
-if (running && isStackRunning(running)) {
+const { phase } = currentStack(ROOT);
+if (phase === "ready" || phase === "starting") {
   throw new Error(
     "This checkout's stack is running. Stop it with `bun run dev --stop`, then re-run."
   );

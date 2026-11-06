@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mainWorktreePorts } from "../dev/worktree-env.ts";
 import {
+  currentStack,
   isProcessAlive,
   isStackRunning,
   readStackState,
@@ -91,5 +92,49 @@ describe("recordStartingStack", () => {
     recorded.ready = true;
     save();
     expect(readStackState(root)?.ready).toBe(true);
+  });
+});
+
+describe("currentStack", () => {
+  const rootWith = (recorded: StackState | null) => {
+    const root = mkdtempSync(join(tmpdir(), "teak-stack-state-"));
+    if (recorded) {
+      mkdirSync(join(root, ".agents/.state"), { recursive: true });
+      writeFileSync(
+        join(root, ".agents/.state/stack.json"),
+        JSON.stringify(recorded)
+      );
+    }
+    return root;
+  };
+
+  test("is stopped when nothing is recorded", () => {
+    expect(currentStack(rootWith(null))).toEqual({
+      phase: "stopped",
+      state: null,
+    });
+  });
+
+  test("is gone when the recorded owner no longer runs", () => {
+    expect(currentStack(rootWith(state(process.pid))).phase).toBe("gone");
+  });
+
+  test("is starting, then ready, while its owner runs", () => {
+    const owner = Bun.spawn([
+      process.execPath,
+      "-e",
+      "setTimeout(() => {}, 30_000)",
+      "/repo/scripts/dev/dev-main.ts",
+    ]);
+    try {
+      const starting = { ...state(owner.pid), ready: false };
+      expect(currentStack(rootWith(starting)).phase).toBe("starting");
+      expect(currentStack(rootWith(state(owner.pid)))).toMatchObject({
+        phase: "ready",
+        state: { pid: owner.pid },
+      });
+    } finally {
+      owner.kill("SIGKILL");
+    }
   });
 });

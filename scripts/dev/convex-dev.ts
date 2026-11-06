@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { join } from "node:path";
-import { isStackRunning, readStackState } from "../lib/stack-state.ts";
+import { currentStack } from "../lib/stack-state.ts";
 import {
   acquireLease,
   describeLease,
@@ -17,8 +17,8 @@ import { onExitSignal } from "./proc.ts";
 const ROOT = join(import.meta.dir, "../..");
 const idle = () => new Promise(() => undefined);
 
-const stack = readStackState(ROOT);
-if (stack && isStackRunning(stack)) {
+const { phase, state: stack } = currentStack(ROOT);
+if (stack && phase !== "gone") {
   console.log(
     `Using this checkout's running stack and the backend at ${stack.urls.convexUrl}.`
   );

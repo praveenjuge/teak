@@ -3,7 +3,7 @@ import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import type { AscResource } from "./apple-release-proof.ts";
+import { type AscResource, rejectedStates } from "./apple-release-proof.ts";
 import { parseVersion } from "./release-version.ts";
 
 /** What `asc ... --output json` prints for the commands this script runs. */
@@ -39,12 +39,6 @@ const cancellationReadyStates = new Set([
   "READY_FOR_REVIEW",
 ]);
 const reusableStates = new Set(["PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW"]);
-const rejectedStates = new Set([
-  "DEVELOPER_REJECTED",
-  "INVALID_BINARY",
-  "METADATA_REJECTED",
-  "REJECTED",
-]);
 const releasedStates = new Set([
   "PROCESSING_FOR_DISTRIBUTION",
   "READY_FOR_DISTRIBUTION",
