@@ -136,7 +136,7 @@ Saving a link that's already in Teak [re-saves that card](/docs/api#saving-a-lin
 
 ### Trash
 
-`teak rm` moves cards to Trash, and `teak restore` brings them back. `teak trash` lists what's there. `teak rm --permanent` deletes cards in Trash for good: it asks first in a terminal, and needs `--yes` in scripts.
+`teak rm` moves cards to Trash, and `teak restore` brings them back. `teak trash` lists what's there. `teak rm --permanent` deletes cards for good, moving any that aren't in Trash there first: it asks first in a terminal, and needs `--yes` in scripts. `rm`, `restore`, `archive` and `unarchive` send up to 100 cards in one request.
 
 Both accept several card IDs and try every one. They print what worked, then on stderr each ID that failed and why, how many failed, and the command that retries just those. With `--json` the output has a `failed` array and a `summary` of the counts. The command exits with a non-zero code if any ID failed.
 

@@ -3,6 +3,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import type { Command } from "commander";
 import { program } from "../../apps/cli/src/index";
 import {
+  CLI_LOCAL_COMMANDS,
+  CLI_OPERATIONS,
+} from "../../apps/cli/src/operations";
+import { listFlagFor } from "../../apps/cli/src/options";
+import {
   TEAK_TOOLS,
   TEAK_V1_TOOLS,
   toolInputSchema,
@@ -13,7 +18,6 @@ import {
   APP_ONLY_CARD_ERROR_CODES,
   CARD_LIST_PARAMS,
   type CardListParam,
-  cliFlagFor,
   matchPublicApiOperation,
   PUBLIC_API_ERROR_CODES,
   PUBLIC_API_OPERATION_IDS,
@@ -25,16 +29,18 @@ import {
   disconnectConnectGrant,
   ERROR_CODES,
 } from "../../packages/sdk/src/index";
+import { SDK_OPERATIONS } from "../../packages/sdk/src/operations";
 import {
   APP_ONLY_CHANGES,
-  CLI_LOCAL_COMMANDS,
+  cliOperations,
+  cliSurface,
   mcpSurface,
   mcpToolsByOperation,
   PUBLIC_PARITY,
   type PublicParityRow,
-  SDK_LOCAL_MEMBERS,
   type Surface,
   sampleFromSchema,
+  sdkSurface,
 } from "./public-parity";
 
 const names = (surface: Surface): readonly string[] =>
@@ -76,7 +82,11 @@ const mcpOperations = async (tool: (typeof TEAK_TOOLS)[number]) => {
 
 type SdkCall = (client: ReturnType<typeof createTeakClient>) => unknown;
 
-const SDK_SAMPLES = new Map<string, SdkCall>(
+const running = (id: string) =>
+  ({ id, status: "running", updatedAt: Date.now() }) as never;
+
+// One call of each member, or several when its arguments pick the operation.
+const SDK_SAMPLES = new Map<string, SdkCall | SdkCall[]>(
   Object.entries({
     "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
     "cards.changes": (c) => c.cards.changes({ since: 1 }),
@@ -104,11 +114,32 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.search": (c) => c.cards.search({ query: "x" }),
     "cards.setArchived": (c) => c.cards.setArchived("card_1", true),
     "cards.savePdf": (c) => c.cards.savePdf("card_1"),
-    "cards.setDone": (c) => c.cards.setDone("card_1", true),
+    "cards.setDone": [
+      (c) => c.cards.setDone("card_1", true),
+      (c) => c.cards.setDone("card_1", false),
+    ],
+    "cards.createFromFile": (c) =>
+      c.cards.createFromFile({
+        bytes: new Uint8Array([1]),
+        fileName: "a.png",
+      }),
+    "cards.pages": async (c) => {
+      for await (const _page of c.cards.pages()) {
+        break;
+      }
+    },
+    "exports.waitFor": (c) => c.exports.waitFor(),
+    "folders.waitForRuleRun": (c) =>
+      c.folders.waitForRuleRun("folder_1", running("run_1")),
+    "tags.waitFor": (c) => c.tags.waitFor(running("op_1")),
+    "uploads.putFile": (c) =>
+      c.uploads.putFile("https://files.teak.test/put", "x", "text/plain"),
     "cards.setFavorite": (c) => c.cards.setFavorite("card_1", true),
     "cards.setPinned": (c) => c.cards.setPinned("card_1", true),
-    "cards.setThumbnail": (c) =>
-      c.cards.setThumbnail("card_1", { fileKey: "key_1" }),
+    "cards.setThumbnail": [
+      (c) => c.cards.setThumbnail("card_1", { fileKey: "key_1" }),
+      (c) => c.cards.setThumbnail("card_1", new Uint8Array([1]), "image/png"),
+    ],
     "cards.update": (c) => c.cards.update("card_1", { notes: "n" }),
     "exports.latest": (c) => c.exports.latest(),
     "exports.start": (c) => c.exports.start(),
@@ -138,17 +169,37 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
         mimeType: "image/png",
         fileSize: 1,
       }),
-  } satisfies Record<string, SdkCall>)
+  } satisfies Record<string, SdkCall | SdkCall[]>)
 );
 
+const UPLOAD = {
+  expiresIn: 60,
+  fileKey: "key_1",
+  maxFileSize: 1024,
+  method: "PUT",
+  uploadUrl: "https://files.teak.test/put",
+};
+const UPLOAD_OPERATIONS = new Set([
+  "createUpload",
+  "createThumbnailUpload",
+  "createPageSnapshotUpload",
+]);
+
+// Records the operation each request reaches. An upload is answered as one,
+// so the call goes on to its next step; the storage PUT is no operation.
 const recordingFetch = (reached: string[]) =>
   ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
-    reached.push(
+    if (url.hostname === "files.teak.test") {
+      return Promise.resolve(new Response(null));
+    }
+    const operation =
       operationFor(init?.method ?? "GET", url.pathname.replace(/^\/api/, "")) ??
-        "?"
+      "?";
+    reached.push(operation);
+    return Promise.resolve(
+      Response.json(UPLOAD_OPERATIONS.has(operation) ? UPLOAD : {})
     );
-    return Promise.resolve(Response.json({}));
   }) as typeof fetch;
 
 const sdkOperations = async (member: string) => {
@@ -168,11 +219,14 @@ const sdkOperations = async (member: string) => {
   const client = createTeakClient({
     baseUrl: "https://teak.test/api",
     fetch: recordingFetch(reached),
+    retries: 0,
     tokenProvider: { getAccessToken: () => "token" },
   });
-  await Promise.resolve(SDK_SAMPLES.get(member)?.(client)).catch(
-    () => undefined
-  );
+  for (const sample of [SDK_SAMPLES.get(member) ?? []].flat()) {
+    await Promise.resolve()
+      .then(() => sample(client))
+      .catch(() => undefined);
+  }
   return reached;
 };
 
@@ -252,39 +306,54 @@ describe("public surface parity", () => {
     expect([...listed].sort()).toEqual([...files].sort());
     expect([...manifest].sort()).toEqual([...files].sort());
   });
-  test("every SDK member is in the table, and reaches its operation", async () => {
-    const members = sdkMembers().filter(
-      (member) => !(member in SDK_LOCAL_MEMBERS)
+  test("every SDK member reaches exactly the operations it declares", async () => {
+    expect([...sdkMembers(), "disconnectConnectGrant"].sort()).toEqual(
+      Object.keys(SDK_OPERATIONS).sort()
     );
-    const listed = PUBLIC_PARITY.flatMap((row) => names(row.sdk));
-    expect([...listed].sort()).toEqual(
-      [...members, "disconnectConnectGrant"].sort()
-    );
-    for (const row of PUBLIC_PARITY) {
-      for (const member of names(row.sdk)) {
-        expect({ member, reached: await sdkOperations(member) }).toEqual({
-          member,
-          reached: [row.operationId],
-        });
-      }
+    for (const [member, declared] of Object.entries(SDK_OPERATIONS)) {
+      const reached = [...new Set(await sdkOperations(member))].sort();
+      expect({ member, reached }).toEqual({
+        member,
+        reached: [...declared].sort(),
+      });
     }
   });
 
-  test("every CLI command is in the table or does local work", () => {
+  test("every CLI command declares its operations or why it calls none", () => {
     const commands = cliCommands(program);
-    const listed = new Set(PUBLIC_PARITY.flatMap((row) => names(row.cli)));
-    for (const name of listed) {
-      expect(commands).toContain(name);
-    }
-    const unlisted = commands.filter(
-      (name) => !(listed.has(name) || name in CLI_LOCAL_COMMANDS)
+    const declared = Object.keys(cliOperations());
+    expect([...declared, ...Object.keys(CLI_LOCAL_COMMANDS)].sort()).toEqual(
+      [...commands].sort()
     );
-    expect(unlisted).toEqual([]);
+    for (const [command, operations] of Object.entries(CLI_OPERATIONS)) {
+      expect({ command, calls: operations.length > 0 }).toEqual({
+        command,
+        calls: true,
+      });
+    }
+  });
+
+  test("a surface's gap is stated only where nothing on it calls the operation", () => {
+    for (const row of PUBLIC_PARITY) {
+      expect({
+        operationId: row.operationId,
+        sdkCalls: names(sdkSurface({ ...row, sdkGap: undefined })).length > 0,
+        cliCalls: names(cliSurface({ ...row, cliGap: undefined })).length > 0,
+      }).toEqual({
+        operationId: row.operationId,
+        sdkCalls: !row.sdkGap,
+        cliCalls: !row.cliGap,
+      });
+    }
   });
 
   test("an operation left off a surface says why", () => {
     for (const row of PUBLIC_PARITY) {
-      for (const surface of [mcpSurface(row), row.sdk, row.cli]) {
+      for (const surface of [
+        mcpSurface(row),
+        sdkSurface(row),
+        cliSurface(row),
+      ]) {
         if (Array.isArray(surface)) {
           expect(surface.length).toBeGreaterThan(0);
         } else {
@@ -378,7 +447,7 @@ describe("public surface parity", () => {
 
     const ls = program.commands.find((command) => command.name() === "ls");
     const flags = new Set(ls?.options.map((option) => option.long));
-    expect(params.map(cliFlagFor).filter((flag) => !flags.has(flag))).toEqual(
+    expect(params.map(listFlagFor).filter((flag) => !flags.has(flag))).toEqual(
       []
     );
   });

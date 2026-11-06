@@ -12,14 +12,18 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/convex/shared/**",
-        "$TURBO_ROOT$/packages/convex/devUrls.ts"
+        "$TURBO_ROOT$/packages/convex/devUrls.ts",
+        "$TURBO_ROOT$/packages/convex/publicApi/http/serializers.ts",
+        "$TURBO_ROOT$/packages/convex/card/queryUtils.ts"
       ]
     },
     "typecheck": {
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/convex/shared/**",
-        "$TURBO_ROOT$/packages/convex/devUrls.ts"
+        "$TURBO_ROOT$/packages/convex/devUrls.ts",
+        "$TURBO_ROOT$/packages/convex/publicApi/http/serializers.ts",
+        "$TURBO_ROOT$/packages/convex/card/queryUtils.ts"
       ]
     }
   }

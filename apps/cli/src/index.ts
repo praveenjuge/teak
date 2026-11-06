@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { bulkItemProblem } from "@teak/convex/shared/bulkItems";
 import { FOLDER_COLORS } from "@teak/convex/shared/folders";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 import {
@@ -18,11 +19,11 @@ import {
 } from "commander";
 import {
   type BulkCardsOperation,
+  type CardListInput,
   type CardsPage,
   parseTags,
   TeakApiError,
 } from "teak-sdk";
-import { bulkItemProblem } from "./bulk";
 import { addCard, readStdin } from "./files";
 import { formatCardLines, formatCreated, formatDetail } from "./format";
 import {
@@ -196,8 +197,7 @@ const writeCards = async (
       ? { folder: (await resolveFolder(api, options.folder)).id }
       : {}),
   };
-  const fetchPage = (cursor?: string) => {
-    const input = cursor ? { ...query, cursor } : query;
+  const fetchPage = (input: CardListInput) => {
     if (mode === "favorites") {
       return api.cards.favorites(input);
     }
@@ -210,7 +210,10 @@ const writeCards = async (
     }
     return mode === "search" ? api.cards.search(input) : api.cards.list(input);
   };
-  const page = await collectPages(fetchPage, options.all === true);
+  const page = await collectPages(
+    api.cards.pages(query, fetchPage),
+    options.all === true
+  );
   const stoppedEarly =
     options.all === true && page.pageInfo.nextCursor !== null;
   if (options.json) {

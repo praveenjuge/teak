@@ -1,19 +1,13 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/devUrls";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import {
-  type AuthDiscovery,
-  createConnectAuthorizeUrl,
-  createPkceChallenge,
-  disconnectConnectGrant,
-  discoverAuthServer,
-  fetchConnectOwnerId,
-  isRefreshTokenDead,
-  isWorkosCredential,
-  matchesBinding,
-  randomBase64Url,
-  refreshAndSave,
-  requestConnectTokens,
-  validateOAuthUrl,
+  createOAuthSession,
+  createTeakClient,
+  type OAuthCredentials,
+  type OAuthFailure,
+  type OAuthSession,
+  OAuthSessionError,
+  TeakApiError,
+  type TeakClient,
 } from "teak-sdk";
 import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
 import { rememberAccountLocale } from "./locale";
@@ -23,74 +17,43 @@ import { captureExtensionEvent } from "./telemetry";
 
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
 const SURFACE = IS_FIREFOX ? "firefox" : "chrome";
-const LOCAL = Boolean(import.meta.env.DEV);
 const tokenKey = () => siteStorageKey("teakOAuthCredentials");
-const discovery = (forceRefresh = false) => {
-  teakSite();
-  return discoverAuthServer(
-    import.meta.env.DEV ? teakSite() : "https://teakvault.com",
-    {
-      forceRefresh,
-      ...(import.meta.env.DEV
-        ? { localIssuer: resolveTeakDevAppUrl(import.meta.env) }
-        : {}),
-    }
-  );
-};
-const binding = (auth: AuthDiscovery) => ({
-  siteUrl: teakSite(),
-  issuer: auth.issuer,
-  clientId: auth.clients[SURFACE],
-});
-const savedBinding = (credentials: Credentials) => ({
-  origin: credentials.siteUrl,
-  issuer: credentials.issuer,
-  clientId: credentials.clientId,
-});
-const matches = (credentials: Credentials, auth: AuthDiscovery) =>
-  matchesBinding(savedBinding(credentials), {
-    origin: teakSite(),
-    issuer: auth.issuer,
-    clientId: auth.clients[SURFACE],
-  });
-const boundToSite = (credentials: Credentials) => {
-  const saved = savedBinding(credentials);
-  return isWorkosCredential(saved) && saved.origin === teakSite();
-};
-async function readJson(response: Response) {
-  const text = await readResponseTextWithinLimit(response, 64 * 1024);
-  if (text === null) {
-    throw new Error("Authentication response is too large.");
-  }
-  return JSON.parse(text);
-}
+
 export const UNREACHABLE_MESSAGE =
   "Couldn't reach Teak. Check your connection and try again.";
-/** Each browser words a network failure differently ("Failed to fetch",
- * "NetworkError when attempting to fetch resource."); this says it once. */
-export const reachTeak = <T>(request: Promise<T>) =>
-  request.catch((error: unknown) => {
-    throw error instanceof TypeError ? new Error(UNREACHABLE_MESSAGE) : error;
-  });
 
-function fetchAuth(url: string, init: RequestInit) {
-  return reachTeak(
-    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-    fetch(validateOAuthUrl(url, LOCAL).href, {
-      ...init,
-      credentials: "omit",
-      redirect: "error",
-      signal: init.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(10_000)])
-        : AbortSignal.timeout(10_000),
-    })
-  );
-}
-const refreshDiscoveryAfterFailure = () =>
-  discovery(true).then(
-    () => undefined,
-    () => undefined
-  );
+/** What went wrong signing in, in the extension's words. */
+const SIGN_IN_WORDS: Record<OAuthFailure, string> = {
+  account_changed:
+    "Your account changed. Sign in to the original account to finish this save.",
+  account_unverified: "Could not verify your account. Please sign in again.",
+  cancelled: "Sign-in was canceled.",
+  not_verified: "Sign-in could not be verified.",
+  previous_kept:
+    "Could not sign out of your earlier account. Please try again.",
+  provider_changed: "Sign-in provider changed. Please try again.",
+  sign_out_first:
+    "Sign out before reconnecting, then wait 15 minutes for disconnect to finish.",
+  signed_out: "Sign-in was canceled because you signed out.",
+  token_rejected: "Could not connect to Teak. Please try again.",
+  unexpected_issuer: "Sign-in provider changed. Please try again.",
+};
+
+/**
+ * A failure from the SDK in the extension's words: each browser words a
+ * network failure differently ("Failed to fetch", "NetworkError when
+ * attempting to fetch resource."), and the SDK says it once.
+ */
+export const inExtensionWords = (error: unknown): unknown => {
+  if (error instanceof OAuthSessionError) {
+    return new Error(SIGN_IN_WORDS[error.reason]);
+  }
+  if (error instanceof TeakApiError && error.kind === "network") {
+    return new Error(UNREACHABLE_MESSAGE);
+  }
+  return error instanceof TypeError ? new Error(UNREACHABLE_MESSAGE) : error;
+};
+
 export const AUTH_STATE_KEY = "teakOAuthState";
 interface Credentials {
   accessToken: string;
@@ -103,8 +66,6 @@ interface Credentials {
 }
 let ready: Promise<void> | undefined;
 let login: Promise<void> | undefined;
-let signOutEpoch = 0;
-const signedOutSince = (epoch: number) => epoch !== signOutEpoch;
 
 // Firefox and older Chromium builds can't restrict storage.local to trusted
 // extension contexts (Chromium's setAccessLevel is missing there, and calling
@@ -262,159 +223,97 @@ async function writeCredentials(credentials: Credentials | null) {
   });
 }
 
-async function tokenRequest(
-  auth: AuthDiscovery,
-  params: Record<string, string>
-): Promise<Credentials | null> {
-  try {
-    const result = await requestConnectTokens(auth, {
-      clientId: auth.clients[SURFACE],
-      grant: params,
-      local: LOCAL,
-    });
-    if (result.ok) {
-      const { accessToken, expiresAt, refreshToken } = result.tokens;
-      return { ...binding(auth), accessToken, expiresAt, refreshToken };
-    }
-    const rejected =
-      result.reason === "rejected" || result.reason === "client_rejected";
-    if (
-      isRefreshTokenDead(result) ||
-      (rejected && params.grant_type !== "refresh_token")
-    ) {
-      await refreshDiscoveryAfterFailure();
-      return null;
-    }
-    if (rejected) {
-      throw new Error("Could not verify your connection. Please try again.");
-    }
-    throw new Error(
-      result.reason === "invalid_response"
-        ? "Invalid sign-in response."
-        : "Could not connect to Teak. Please try again."
-    );
-  } catch (error) {
-    await refreshDiscoveryAfterFailure();
-    throw error;
-  }
-}
+// The saved shape stays as it was, so an update signs nobody out.
+const fromSaved = (saved: Credentials | null): OAuthCredentials | null =>
+  saved && {
+    accessToken: saved.accessToken,
+    expiresAt: saved.expiresAt,
+    refreshToken: saved.refreshToken,
+    ...(saved.siteUrl ? { origin: saved.siteUrl } : {}),
+    ...(saved.issuer ? { issuer: saved.issuer } : {}),
+    ...(saved.clientId ? { clientId: saved.clientId } : {}),
+    ...(saved.userId ? { ownerId: saved.userId } : {}),
+  };
+const toSaved = (credentials: OAuthCredentials): Credentials => ({
+  accessToken: credentials.accessToken,
+  expiresAt: credentials.expiresAt,
+  refreshToken: credentials.refreshToken,
+  ...(credentials.origin ? { siteUrl: credentials.origin } : {}),
+  ...(credentials.issuer ? { issuer: credentials.issuer } : {}),
+  ...(credentials.clientId ? { clientId: credentials.clientId } : {}),
+  ...(credentials.ownerId ? { userId: credentials.ownerId } : {}),
+});
 
-const refreshCredentials = (credentials: Credentials, auth: AuthDiscovery) =>
-  refreshAndSave(async () => {
-    const renewed = await tokenRequest(auth, {
-      grant_type: "refresh_token",
-      refresh_token: credentials.refreshToken,
-    });
-    return renewed && { ...renewed, userId: credentials.userId };
-  }, writeCredentials);
+let session: OAuthSession | undefined;
+/** The extension's sign-in: kept in protected storage, one change at a time. */
+const oauthSession = (): OAuthSession => {
+  session ??= createOAuthSession({
+    apiUrl: teakSite(),
+    authSiteUrl: import.meta.env.DEV ? teakSite() : "https://teakvault.com",
+    surface: SURFACE,
+    ...(import.meta.env.DEV
+      ? { localIssuer: resolveTeakDevAppUrl(import.meta.env) }
+      : {}),
+    lock: (work) => navigator.locks.request("teak-oauth-credentials", work),
+    store: {
+      read: async () => fromSaved(await readCredentials()),
+      write: (credentials) =>
+        writeCredentials(credentials && toSaved(credentials)),
+    },
+  });
+  return session;
+};
 
-async function revokeCredentials(
-  credentials: Credentials,
-  auth: AuthDiscovery,
-  refreshSaved = false
-) {
-  const saved = savedBinding(credentials);
-  if (!isWorkosCredential(saved) || saved.origin !== teakSite()) {
-    return;
+// Counts Teak API requests for the saved-page badge's budget, and keeps
+// cookies and redirects out of them.
+const teakFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  if (url.origin === teakSite()) {
+    recordApiRequest();
   }
-  const result = await disconnectConnectGrant(
-    teakSite(),
-    credentials.accessToken,
-    {
-      local: LOCAL,
-      refreshAccessToken:
-        refreshSaved && matches(credentials, auth)
-          ? async () =>
-              (await refreshCredentials(credentials, auth))?.accessToken ?? null
-          : undefined,
-    }
-  );
-  if (result === "refresh_rejected") {
-    return "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
-  }
-  if (result !== "disconnected") {
-    throw new Error("Could not sign out. Please try again.");
-  }
-}
+  return fetch(input, { ...init, credentials: "omit", redirect: "error" });
+}) as typeof fetch;
+
+/**
+ * The Teak API as the signed-in user. A 401 refreshes the sign-in; only a
+ * refresh Teak refuses signs out. With `ownerId`, a sign-in for another
+ * account is refused instead of used.
+ */
+export const teakClient = (
+  options: { ownerId?: string; retries?: number } = {}
+): TeakClient =>
+  createTeakClient({
+    baseUrl: teakSite(),
+    fetch: teakFetch,
+    ...(options.retries === undefined ? {} : { retries: options.retries }),
+    tokenProvider: oauthSession().tokenProvider({
+      ownerId: options.ownerId,
+    }),
+    userAgent: "teak-extension",
+  });
+
+/** Whether a failure means there is no usable sign-in. */
+export const isSignedOut = (error: unknown) =>
+  error instanceof TeakApiError &&
+  error.kind === "auth" &&
+  !(error instanceof OAuthSessionError);
 
 export function beginOAuthSignIn(): Promise<void> {
   login ??= (async () => {
     await initializeAuth();
-    const startedAt = signOutEpoch;
-    const auth = await discovery(true);
-    const saved = await readCredentials();
-    if (saved && matches(saved, auth) && !saved.userId) {
-      throw new Error(
-        "Sign out before reconnecting, then wait 15 minutes for disconnect to finish."
-      );
-    }
-    const state = randomBase64Url(32);
-    const verifier = randomBase64Url(32);
-    const redirectUri = chrome.identity.getRedirectURL("oauth/callback");
-    const url = createConnectAuthorizeUrl(auth, {
-      clientId: auth.clients[SURFACE],
-      codeChallenge: await createPkceChallenge(verifier),
-      redirectUri,
-      state,
-    });
     await chrome.storage.local.set({ [AUTH_STATE_KEY]: { pending: true } });
-    {
-      const callback = await chrome.identity.launchWebAuthFlow({
-        url: url.toString(),
-        interactive: true,
-      });
-      if (!callback) {
-        throw new Error("Sign-in was canceled.");
-      }
-      const result = new URL(callback);
-      const code = result.searchParams.get("code");
-      const expected = new URL(redirectUri);
-      if (
-        result.origin !== expected.origin ||
-        result.pathname !== expected.pathname ||
-        result.searchParams.get("state") !== state ||
-        !code ||
-        result.searchParams.has("error")
-      ) {
-        throw new Error("Sign-in could not be verified.");
-      }
-      const current = await discovery(true);
-      if (
-        current.issuer !== auth.issuer ||
-        current.clients[SURFACE] !== auth.clients[SURFACE] ||
-        signedOutSince(startedAt)
-      ) {
-        throw new Error("Sign-in provider changed. Please try again.");
-      }
-      const credentials = await tokenRequest(current, {
-        grant_type: "authorization_code",
-        code,
-        code_verifier: verifier,
-        redirect_uri: redirectUri,
-      });
-      if (!credentials) {
-        throw new Error("Sign-in expired. Please try again.");
-      }
-      const userId = await fetchConnectOwnerId(
-        teakSite(),
-        credentials.accessToken,
-        { local: LOCAL }
-      );
-      if (!userId) {
-        throw new Error("Could not verify your account. Please sign in again.");
-      }
-      credentials.userId = userId;
-      await navigator.locks.request("teak-oauth-credentials", async () => {
-        if (!signedOutSince(startedAt)) {
-          await writeCredentials(credentials);
-        }
-      });
-      await captureExtensionEvent("signed_in", {});
-    }
+    await oauthSession().signIn({
+      redirectUri: chrome.identity.getRedirectURL("oauth/callback"),
+      authorize: async (url) =>
+        (await chrome.identity.launchWebAuthFlow({
+          url: url.toString(),
+          interactive: true,
+        })) ?? null,
+    });
+    await captureExtensionEvent("signed_in", {});
   })()
-    .catch(async (error) => {
-      await refreshDiscoveryAfterFailure();
-      throw error;
+    .catch((error: unknown) => {
+      throw inExtensionWords(error);
     })
     .finally(async () => {
       login = undefined;
@@ -425,112 +324,43 @@ export function beginOAuthSignIn(): Promise<void> {
   return login;
 }
 
-function credentialsForRequest() {
-  return navigator.locks.request("teak-oauth-credentials", async () => {
-    const readAt = signOutEpoch;
-    const credentials = await readCredentials();
-    if (!credentials) {
-      return null;
-    }
-    const fresh = credentials.expiresAt > Date.now() + 30_000;
-    // A fresh token goes only to the site it was issued for, so it needs no
-    // discovery. A refresh, a 401 or sign-out checks the provider again.
-    if (fresh && boundToSite(credentials)) {
-      return signedOutSince(readAt) ? null : credentials;
-    }
-    const auth = await discovery();
-    if (!matches(credentials, auth)) {
-      await writeCredentials(null);
-      return null;
-    }
-    if (fresh) {
-      return signedOutSince(readAt) ? null : credentials;
-    }
-    const renewed = await refreshCredentials(credentials, auth);
-    if (renewed) {
-      const current = await discovery();
-      if (signedOutSince(readAt) && matches(renewed, current)) {
-        await revokeCredentials(renewed, current);
-      }
-      if (!matches(renewed, current) || signedOutSince(readAt)) {
-        await writeCredentials(null);
-        return null;
-      }
-    } else {
-      await writeCredentials(null);
-    }
-    return renewed;
-  });
+export interface OAuthState {
+  authenticated: boolean;
+  notice?: string;
+  pending: boolean;
+  user?: { email: string; id: string; name?: string };
 }
 
-export async function oauthRequest(
-  path: string,
-  init: RequestInit = {},
-  expectedUserId?: string
-): Promise<Response | null> {
-  const requestUrl = new URL(path, teakSite());
-  if (
-    requestUrl.origin !== teakSite() ||
-    !path.startsWith("/") ||
-    path.startsWith("//")
-  ) {
-    throw new Error("Invalid Teak API path.");
-  }
-  const credentials = await reachTeak(credentialsForRequest());
-  if (!credentials) {
-    return null;
-  }
-  if (expectedUserId && credentials.userId !== expectedUserId) {
-    throw new Error(
-      "Your account changed. Sign in to the original account to finish this save."
-    );
-  }
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${credentials.accessToken}`);
-  recordApiRequest();
-  const response = await fetchAuth(requestUrl.href, {
-    ...init,
-    headers,
-    credentials: "omit",
-    redirect: "error",
-  });
-  if (response.status === 401) {
-    await navigator.locks.request("teak-oauth-credentials", async () => {
-      if ((await readCredentials())?.accessToken === credentials.accessToken) {
-        await writeCredentials(null);
-      }
-    });
-    await refreshDiscoveryAfterFailure();
-    return null;
-  }
-  return response;
-}
+const signedOutState = async (): Promise<OAuthState> => {
+  const state = (await chrome.storage.local.get(AUTH_STATE_KEY))[
+    AUTH_STATE_KEY
+  ];
+  const notice =
+    typeof state === "object" &&
+    state !== null &&
+    "notice" in state &&
+    typeof state.notice === "string"
+      ? state.notice
+      : undefined;
+  return {
+    authenticated: false,
+    pending: Boolean(login),
+    ...(notice ? { notice } : {}),
+  };
+};
 
-export async function getOAuthState() {
-  const response = await oauthRequest("/v1/me");
-  if (!response) {
-    const state = (await chrome.storage.local.get(AUTH_STATE_KEY))[
-      AUTH_STATE_KEY
-    ];
-    const notice =
-      typeof state === "object" &&
-      state !== null &&
-      "notice" in state &&
-      typeof state.notice === "string"
-        ? state.notice
-        : undefined;
-    return {
-      authenticated: false,
-      pending: Boolean(login),
-      ...(notice ? { notice } : {}),
-    };
-  }
-  if (!response.ok) {
-    throw new Error("Could not load your account.");
-  }
-  const user = (await readJson(response)).data;
-  if (!user || typeof user.id !== "string" || !user.id) {
-    throw new Error("Invalid account response.");
+export async function getOAuthState(): Promise<OAuthState> {
+  let user: Awaited<ReturnType<TeakClient["me"]>>;
+  try {
+    user = await teakClient().me();
+  } catch (error) {
+    if (isSignedOut(error)) {
+      return await signedOutState();
+    }
+    const failure = inExtensionWords(error);
+    throw failure instanceof TeakApiError
+      ? new Error("Could not load your account.")
+      : failure;
   }
   await rememberAccountLocale(user.locale).catch(() => undefined);
   return {
@@ -544,20 +374,28 @@ export async function getOAuthState() {
   };
 }
 
+const SIGNED_OUT_HERE =
+  "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
+
 export async function signOutOAuth() {
-  signOutEpoch += 1;
-  return await navigator.locks.request("teak-oauth-credentials", async () => {
-    const credentials = await readCredentials();
-    const notice = credentials
-      ? await revokeCredentials(credentials, await discovery(true), true)
-      : undefined;
-    await writeCredentials(null);
-    await chrome.storage.local.remove(captureOwnerKey());
-    if (notice) {
-      await chrome.storage.local.set({
-        [AUTH_STATE_KEY]: { pending: false, changedAt: Date.now(), notice },
-      });
-    }
-    return notice;
-  });
+  await initializeAuth();
+  let result: Awaited<ReturnType<OAuthSession["signOut"]>>;
+  try {
+    result = await oauthSession().signOut();
+  } catch (error) {
+    throw error instanceof TeakApiError || error instanceof Error
+      ? new Error("Could not sign out. Please try again.")
+      : error;
+  }
+  await chrome.storage.local.remove(captureOwnerKey());
+  if (result === "signed-out-here") {
+    await chrome.storage.local.set({
+      [AUTH_STATE_KEY]: {
+        pending: false,
+        changedAt: Date.now(),
+        notice: SIGNED_OUT_HERE,
+      },
+    });
+    return SIGNED_OUT_HERE;
+  }
 }

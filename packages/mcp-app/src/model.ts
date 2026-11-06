@@ -6,6 +6,7 @@
 
 import type { TeakToolName } from "@teak/convex/mcp/catalog";
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
+import type { Card } from "teak-sdk";
 
 export type { CardType } from "@teak/convex/shared/constants";
 
@@ -43,6 +44,11 @@ export type CardView =
   | { kind: "saved"; card: TeakCard; resaved: boolean };
 
 type JsonObject = Record<string, unknown>;
+/**
+ * A card as the API sends it: the SDK's `Card` fields, so a misspelt one
+ * doesn't compile, with each value checked where it is read.
+ */
+type ApiCard = { readonly [K in keyof Card]?: unknown };
 
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -93,7 +99,7 @@ const shortUrl = (url: string | null): string | null =>
     : null;
 
 /** The title a card shows, the way the web app picks it, or null. */
-const cardTitle = (card: JsonObject, type: CardType): string | null => {
+const cardTitle = (card: ApiCard, type: CardType): string | null => {
   if (type === "link") {
     return (
       text(card.linkPreviewTitle) ??
@@ -118,7 +124,7 @@ const cardTitle = (card: JsonObject, type: CardType): string | null => {
  * (or the image chosen for it) before its page screenshot, a file's thumbnail
  * before the file. All of them are signed URLs on Teak's files origin.
  */
-const cardImage = (card: JsonObject, type: CardType): string | null =>
+const cardImage = (card: ApiCard, type: CardType): string | null =>
   type === "link"
     ? (httpUrl(card.linkPreviewImageUrl) ??
       httpUrl(card.thumbnailUrl) ??
@@ -134,34 +140,38 @@ const strings = (value: unknown): string[] =>
     : [];
 
 export const toTeakCard = (value: unknown): TeakCard | null => {
-  if (!(isObject(value) && typeof value.id === "string")) {
+  if (!isObject(value)) {
     return null;
   }
-  const type = (CARD_TYPES as readonly unknown[]).includes(value.type)
-    ? (value.type as CardType)
+  const card: ApiCard = value;
+  if (typeof card.id !== "string") {
+    return null;
+  }
+  const type = (CARD_TYPES as readonly unknown[]).includes(card.type)
+    ? (card.type as CardType)
     : "text";
-  const colors = Array.isArray(value.colors)
-    ? value.colors.filter(
+  const colors = Array.isArray(card.colors)
+    ? card.colors.filter(
         (color): color is { hex: string; name?: string } =>
           isObject(color) &&
           typeof color.hex === "string" &&
           /^#[0-9a-f]{3,8}$/iu.test(color.hex)
       )
     : [];
-  const url = httpUrl(value.url) ?? httpUrl(value.sourceUrl);
+  const url = httpUrl(card.url) ?? httpUrl(card.sourceUrl);
   return {
-    aiSummary: text(value.aiSummary),
-    appUrl: httpUrl(value.appUrl),
+    aiSummary: text(card.aiSummary),
+    appUrl: httpUrl(card.appUrl),
     colors,
-    content: typeof value.content === "string" ? value.content : "",
-    fileName: text(value.fileName),
-    id: value.id,
-    imageUrl: cardImage(value, type),
-    isFavorited: value.isFavorited === true,
-    notes: text(value.notes),
-    siteName: text(value.linkSiteName) ?? hostOf(url),
-    tags: [...new Set([...strings(value.tags), ...strings(value.aiTags)])],
-    title: cardTitle(value, type),
+    content: typeof card.content === "string" ? card.content : "",
+    fileName: text(card.fileName),
+    id: card.id,
+    imageUrl: cardImage(card, type),
+    isFavorited: card.isFavorited === true,
+    notes: text(card.notes),
+    siteName: text(card.linkSiteName) ?? hostOf(url),
+    tags: [...new Set([...strings(card.tags), ...strings(card.aiTags)])],
+    title: cardTitle(card, type),
     type,
     url,
   };
