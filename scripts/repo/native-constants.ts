@@ -8,7 +8,7 @@
 import {
   bulkCardActionValidator,
   MAX_BULK_CARD_IDS,
-} from "../../packages/convex/card/bulkActions";
+} from "../../packages/convex/shared/bulkCardActions";
 import {
   CARD_LINK_PATTERN,
   CARD_LINK_TITLE_MAX_LENGTH,

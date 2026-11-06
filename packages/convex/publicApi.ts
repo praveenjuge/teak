@@ -6,11 +6,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
-import {
-  applyCardAction,
-  type BulkCardAction,
-  normalizeBulkTags,
-} from "./card/bulkActions";
+import { applyCardAction, normalizeBulkTags } from "./card/bulkActions";
 import { createCardForUserHandler } from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
 import {
@@ -77,6 +73,8 @@ import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import type { BulkCardAction } from "./shared/bulkCardActions";
+import { bulkItemProblem } from "./shared/bulkItems";
 import {
   explainInvalidCardSource,
   normalizeCardSource,
@@ -745,58 +743,12 @@ const bulkCardSource = (payload: Record<string, unknown>) => ({
   sourceUrl: payload.sourceUrl as string | undefined,
 });
 
-const BULK_CREATE_FIELDS = new Set([
-  "content",
-  "url",
-  "notes",
-  "tags",
-  "cardType",
-  "pageSnapshotKey",
-  "sourceUrl",
-  "sourceTitle",
-]);
-const BULK_UPDATE_FIELDS = new Set([
-  "cardId",
-  "content",
-  "url",
-  "notes",
-  "tags",
-]);
-
-/** Fails a field the item's operation doesn't take, as POST and PATCH do. */
-const assertKnownBulkFields = (
-  payload: Record<string, unknown>,
-  allowed: ReadonlySet<string>
-) => {
-  const unknownKey = Object.keys(payload).find((key) => !allowed.has(key));
-  if (unknownKey !== undefined) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: `Unknown field \`${unknownKey}\``,
-    });
-  }
-};
-
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
-  assertKnownBulkFields(payload, BULK_CREATE_FIELDS);
   const content =
     typeof payload.content === "string" ? payload.content : undefined;
   const url = typeof payload.url === "string" ? payload.url.trim() : undefined;
   const type =
     typeof payload.cardType === "string" ? payload.cardType : undefined;
-
-  if (content === undefined && !url) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each create item must include `content` or `url`",
-    });
-  }
-  if (type !== "text" && !url && !content?.trim()) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each create item must include `content` or `url`",
-    });
-  }
 
   if (type && !cardTypes.includes(type as CardType)) {
     throw new ConvexError({
@@ -860,19 +812,6 @@ const assertBulkUpdatePayload = (
   payload: Record<string, unknown>,
   card: Doc<"cards">
 ) => {
-  assertKnownBulkFields(payload, BULK_UPDATE_FIELDS);
-  const edits =
-    typeof payload.content === "string" ||
-    typeof payload.url === "string" ||
-    typeof payload.notes === "string" ||
-    payload.notes === null ||
-    Array.isArray(payload.tags);
-  if (!edits) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each update item must include content, url, notes or tags",
-    });
-  }
   if (
     payload.url !== undefined &&
     !(typeof payload.url === "string" && isSafeExternalUrl(payload.url.trim()))
@@ -895,15 +834,6 @@ const assertBulkUpdatePayload = (
   const oversized = explainOversizedText(payload);
   if (oversized) {
     throw new ConvexError({ code: "CONTENT_TOO_LARGE", message: oversized });
-  }
-};
-
-const assertBulkFavoritePayload = (payload: Record<string, unknown>) => {
-  if (typeof payload.isFavorited !== "boolean") {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each favorite item must include `isFavorited` as a boolean",
-    });
   }
 };
 
@@ -939,11 +869,9 @@ export const executeBulkCardsForUser = internalMutation({
 
     for (const [index, item] of args.items.entries()) {
       try {
-        if (!item || typeof item !== "object" || Array.isArray(item)) {
-          throw new ConvexError({
-            code: "INVALID_INPUT",
-            message: "Each bulk item must be an object",
-          });
+        const problem = bulkItemProblem(args.operation, item);
+        if (problem) {
+          throw new ConvexError({ code: "INVALID_INPUT", message: problem });
         }
 
         const payload = item as Record<string, unknown>;
@@ -1065,7 +993,6 @@ export const executeBulkCardsForUser = internalMutation({
 
             let action = args.operation as BulkCardAction;
             if (args.operation === "favorite") {
-              assertBulkFavoritePayload(payload);
               action = payload.isFavorited ? "favorite" : "unfavorite";
             }
             const tags =

@@ -10,6 +10,21 @@ import type { BulkCardOperation } from "./publicApiContract";
 const nonEmptyString = (value: unknown) =>
   typeof value === "string" && value.trim() !== "";
 
+/** The fields each item of these operations may carry, as POST and PATCH take. */
+const ITEM_FIELDS: Partial<Record<BulkCardOperation, ReadonlySet<string>>> = {
+  create: new Set([
+    "content",
+    "url",
+    "notes",
+    "tags",
+    "cardType",
+    "pageSnapshotKey",
+    "sourceUrl",
+    "sourceTitle",
+  ]),
+  update: new Set(["cardId", "content", "url", "notes", "tags"]),
+};
+
 /** The problem with one bulk item, or null when its shape is right. */
 export const bulkItemProblem = (
   operation: BulkCardOperation,
@@ -19,6 +34,13 @@ export const bulkItemProblem = (
     return "Each bulk item must be an object";
   }
   const payload = item as Record<string, unknown>;
+  const allowed = ITEM_FIELDS[operation];
+  const unknownKey = allowed
+    ? Object.keys(payload).find((key) => !allowed.has(key))
+    : undefined;
+  if (unknownKey !== undefined) {
+    return `Unknown field \`${unknownKey}\``;
+  }
   if (operation === "create") {
     // Empty content is fine on an explicit text card.
     const content =

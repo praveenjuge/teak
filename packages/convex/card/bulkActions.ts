@@ -25,13 +25,6 @@ import {
   updateCardFieldsForUserHandler,
 } from "./updateCard";
 
-// Still exported from here for publicApi.ts and scripts/repo/native-constants.ts.
-export {
-  type BulkCardAction,
-  bulkCardActionValidator,
-  MAX_BULK_CARD_IDS,
-} from "../shared/bulkCardActions";
-
 const isTagAction = (
   action: BulkCardAction
 ): action is "addTags" | "removeTags" =>
