@@ -14,7 +14,10 @@ const { Separator } = await import("../separator");
 let root: Root | undefined;
 
 afterEach(async () => {
-  await act(() => root?.unmount());
+  await act(() => {
+    root?.unmount();
+    return Promise.resolve();
+  });
   root = undefined;
   document.body.innerHTML = "";
 });
@@ -22,7 +25,10 @@ afterEach(async () => {
 async function render(children: ReactNode) {
   const container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
-  await act(() => root?.render(children));
+  await act(() => {
+    root?.render(children);
+    return Promise.resolve();
+  });
   return container;
 }
 
@@ -40,7 +46,10 @@ test("a label activates its associated checkbox and forwards its ref", async () 
   if (!(input instanceof HTMLInputElement)) {
     throw new Error("Missing checkbox");
   }
-  await act(() => ref.current?.click());
+  await act(() => {
+    ref.current?.click();
+    return Promise.resolve();
+  });
   expect(input.checked).toBe(true);
   expect(ref.current?.tagName).toBe("LABEL");
 });
@@ -65,9 +74,9 @@ test("multiple mouse presses on label text prevent selection but single presses 
 });
 
 test("a label respects caller cancellation and leaves nested controls alone", async () => {
-  const onMouseDown = mock((event: { preventDefault: () => void }) =>
-    event.preventDefault()
-  );
+  const onMouseDown = mock((event: { preventDefault: () => void }) => {
+    event.preventDefault();
+  });
   const container = await render(
     <Label onMouseDown={onMouseDown}>
       <input aria-label="Name" />

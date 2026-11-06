@@ -88,7 +88,9 @@ describe("File code previews and native labels", () => {
     }
     await browser.locator(`[data-card-id="${id}"]`).click();
     await expectSourcePreview(browser);
-    await expect(browser).toHaveURL(new RegExp(`[?&]card=${id}(?:&|$)`));
+    await expect
+      .poll(async () => new URL(await browser.url()).searchParams.get("card"))
+      .toBe(id);
     await browser.reload();
     await expectSourcePreview(browser);
   });

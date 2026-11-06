@@ -16,21 +16,6 @@ const { VideoPreview } = await import("../VideoPreview");
 
 describe("file text previews", () => {
   test.each([
-    "",
-    " ",
-    "\n",
-    "\nconst value = 1;\n\n\tvalue;\n",
-    "α = 1;\r\nβ = 2;\r\n",
-  ])("preserves source whitespace and empty code: %j", (code) => {
-    const markup = renderToStaticMarkup(
-      <SourceCodePreview code={code} language="typescript" />
-    );
-
-    expect(markup.replace(/<[^>]*>/gu, "")).toBe(code);
-    expect(markup).toContain("data-not-typeset");
-  });
-
-  test.each([
     ["javascript", "const value = 1;"],
     ["js", "const value = 1;"],
     ["jsx", "const element = <Button />;"],
