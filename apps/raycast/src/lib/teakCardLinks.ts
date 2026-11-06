@@ -3,9 +3,9 @@
 export const CARD_LINK_TITLE_MAX_LENGTH = 200;
 export const MAX_CARD_LINKS = 500;
 
-const TOKEN_SOURCE = String.raw`\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]`;
-export const CARD_LINK_PATTERN = new RegExp(TOKEN_SOURCE);
-const TOKEN_REGEX = new RegExp(TOKEN_SOURCE, "g");
+export const CARD_LINK_PATTERN =
+  /\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]/;
+const TOKEN_REGEX = /\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]/g;
 const TITLE_UNSAFE_REGEX = /[|\]\r\n]+/g;
 const SPACES_REGEX = /\s+/g;
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;

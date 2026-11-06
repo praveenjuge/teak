@@ -13,12 +13,15 @@ const WEB_THEME_CSS = resolve(
   "../../apps/web/src/styles/theme.css"
 );
 
+const TOKEN_BLOCKS = {
+  ":root": /^:root \{\n([\s\S]*?)^\}/gm,
+  ".dark": /^\.dark \{\n([\s\S]*?)^\}/gm,
+} as const;
+
 /** The custom properties a top-level `:root` or `.dark` block declares. */
 const tokens = (css: string, selector: ":root" | ".dark") => {
   const values: Record<string, string> = {};
-  const blocks = css.matchAll(
-    new RegExp(`^${selector.replace(".", "\\.")} \\{\\n([\\s\\S]*?)^\\}`, "gm")
-  );
+  const blocks = css.matchAll(TOKEN_BLOCKS[selector]);
   for (const [, body] of blocks) {
     for (const [, name, value] of (body ?? "").matchAll(
       /^\s*(--[\w-]+):\s*([^;]+);/gm
