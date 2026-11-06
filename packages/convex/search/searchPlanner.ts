@@ -21,12 +21,9 @@ import {
   type PriceBound,
   type SearchExpression,
 } from "../shared/search/qualifiers";
-import {
-  buildCardSearchText,
-  normalizeCardSearchTag,
-} from "../shared/search/searchText";
+import { buildCardSearchText } from "../shared/search/searchText";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
-import { isCardHidden } from "../shared/tags";
+import { isCardHidden, tagKey } from "../shared/tags";
 import { cardUrlHost } from "../shared/utils/urlHost";
 
 export interface SearchViewFilters {
@@ -103,10 +100,127 @@ export const expressionTextReader = (
   };
 };
 
-export const cardHasTag = (card: Doc<"cards">, tag: string) =>
+/** Whether a card has a tag, by its key (`tagKey`). */
+export const cardHasTag = (card: Doc<"cards">, key: string) =>
   [...(card.tags ?? []), ...(card.aiTags ?? [])].some(
-    (cardTag) => normalizeCardSearchTag(cardTag) === tag
+    (cardTag) => tagKey(cardTag) === key
   );
+
+/**
+ * What a search asks of each card once the folders and tags it names are
+ * resolved. App search (`resolveSearch`) and the public API both check cards
+ * with `matchesCardSearch`, so a qualifier means the same everywhere.
+ */
+export interface CardSearchFilter {
+  /** `is:archived` while listing Trash: archived cards only. */
+  archivedInTrash: boolean;
+  done: boolean;
+  expression?: SearchExpression;
+  /** The folders `expression` names, by name key; null for none. */
+  expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
+  favoritesOnly: boolean;
+  /** Folders a card must be in, every one of them. */
+  folderIds: readonly Id<"folders">[];
+  ocrTexts: readonly string[];
+  phrases: readonly string[];
+  pinned: boolean;
+  prices: readonly PriceBound[];
+  /** The search's own tags name a hidden tag, so hidden cards show. */
+  revealedByTags: boolean;
+  /** Hidden tags an OR branch names: a hidden card shows when it has one. */
+  revealTags: readonly string[];
+  sites: readonly string[];
+  /** Tag keys a card must have, every one of them. */
+  tags: readonly string[];
+  todo: boolean;
+  types?: readonly CardType[];
+}
+
+/**
+ * Whether a card matches a search's filters and qualifiers. Pass the card's
+ * search document text when the card's own fields leave some of it out;
+ * otherwise words are matched against the card's fields.
+ */
+export const matchesCardSearch = (
+  card: Doc<"cards">,
+  filter: CardSearchFilter,
+  searchableText?: string
+): boolean => {
+  const hidden = isCardHidden(card);
+  if (
+    hidden &&
+    !(
+      filter.revealedByTags ||
+      filter.revealTags.some((revealTag) => cardHasTag(card, revealTag))
+    )
+  ) {
+    return false;
+  }
+  if (filter.archivedInTrash && card.isArchived !== true) {
+    return false;
+  }
+  if (filter.types && !filter.types.includes(card.type)) {
+    return false;
+  }
+  if (filter.favoritesOnly && card.isFavorited !== true) {
+    return false;
+  }
+  const cardFolders = card.folderIds ?? [];
+  if (!filter.folderIds.every((folderId) => cardFolders.includes(folderId))) {
+    return false;
+  }
+  if (!filter.tags.every((tag) => cardHasTag(card, tag))) {
+    return false;
+  }
+  if (filter.sites.length > 0) {
+    const host = cardUrlHost(card);
+    if (!(host && filter.sites.includes(host))) {
+      return false;
+    }
+  }
+  if (
+    !matchesPriceBounds(
+      card.metadata?.linkCategory?.price?.amount,
+      filter.prices
+    )
+  ) {
+    return false;
+  }
+  if (!matchesImageText(card.aiOcrText, filter.ocrTexts)) {
+    return false;
+  }
+  if (!matchesDoneState(card, filter)) {
+    return false;
+  }
+  if (filter.pinned && card.pinPosition === undefined) {
+    return false;
+  }
+  const { expression } = filter;
+  if (!(expression || filter.phrases.length > 0)) {
+    return true;
+  }
+  const text = searchableText ?? buildCardSearchText(card);
+  if (!matchesSearchPhrases(text, filter.phrases)) {
+    return false;
+  }
+  return (
+    !expression ||
+    matchesExpression(
+      expression,
+      card,
+      text,
+      {
+        folder: (name) => {
+          const folderId = filter.expressionFolders?.get(name);
+          return Boolean(folderId && cardFolders.includes(folderId));
+        },
+        hasTag: (tag) => cardHasTag(card, tagKey(tag)),
+        host: cardUrlHost(card),
+      },
+      hidden && !filter.revealedByTags
+    )
+  );
+};
 
 export const resolveFolderNames = async (
   ctx: QueryCtx,
@@ -264,85 +378,34 @@ export const resolveSearch = async (
   );
 
   const tags = Array.from(
-    new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
+    new Set([view.tag ?? "", ...parsed.tags].map(tagKey))
   ).filter(Boolean);
   const { sites, phrases, prices, ocrTexts } = parsed;
   const revealedByTags = revealsHidden(tags);
   const revealTags = revealedByTags ? [] : expressionRevealTags(expression);
   const includeHidden = revealedByTags || revealTags.length > 0;
 
-  const matches = (card: Doc<"cards">, searchableText?: string) => {
-    if (card.userId !== userId) {
-      return false;
-    }
-    if (
-      isCardHidden(card) &&
-      !(
-        revealedByTags ||
-        revealTags.some((revealTag) => cardHasTag(card, revealTag))
-      )
-    ) {
-      return false;
-    }
-    if (archivedInTrash && card.isArchived !== true) {
-      return false;
-    }
-    if (types && !types.includes(card.type)) {
-      return false;
-    }
-    if ((view.favoritesOnly || parsed.favorite) && card.isFavorited !== true) {
-      return false;
-    }
-    const cardFolders = card.folderIds ?? [];
-    if (!folderIds.every((folderId) => cardFolders.includes(folderId))) {
-      return false;
-    }
-    if (!tags.every((tag) => cardHasTag(card, tag))) {
-      return false;
-    }
-    if (sites.length > 0) {
-      const host = cardUrlHost(card);
-      if (!(host && sites.includes(host))) {
-        return false;
-      }
-    }
-    if (
-      !matchesPriceBounds(card.metadata?.linkCategory?.price?.amount, prices)
-    ) {
-      return false;
-    }
-    if (!matchesImageText(card.aiOcrText, ocrTexts)) {
-      return false;
-    }
-    if (!matchesDoneState(card, parsed)) {
-      return false;
-    }
-    if (parsed.pinned && card.pinPosition === undefined) {
-      return false;
-    }
-    const text = searchableText ?? buildCardSearchText(card);
-    if (!matchesSearchPhrases(text, phrases)) {
-      return false;
-    }
-    return (
-      !expression ||
-      matchesExpression(
-        expression,
-        card,
-        text,
-        {
-          folder: (name) => {
-            const folderId = expressionFolders.get(name);
-            return Boolean(folderId && cardFolders.includes(folderId));
-          },
-          hasTag: (tag) => cardHasTag(card, normalizeCardSearchTag(tag)),
-          host: cardUrlHost(card),
-        },
-        isCardHidden(card) && !revealedByTags
-      )
-    );
+  const filter: CardSearchFilter = {
+    archivedInTrash,
+    done: parsed.done,
+    expression,
+    expressionFolders,
+    favoritesOnly: Boolean(view.favoritesOnly || parsed.favorite),
+    folderIds,
+    ocrTexts,
+    phrases,
+    pinned: parsed.pinned,
+    prices,
+    revealedByTags,
+    revealTags,
+    sites,
+    tags,
+    todo: parsed.todo,
+    types,
   };
-  const favoritesOnly = Boolean(view.favoritesOnly || parsed.favorite);
+  const matches = (card: Doc<"cards">, searchableText?: string) =>
+    card.userId === userId && matchesCardSearch(card, filter, searchableText);
+  const { favoritesOnly } = filter;
   const readsOnlyDocumentFields =
     !expression &&
     revealTags.length === 0 &&

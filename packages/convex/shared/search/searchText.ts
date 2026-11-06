@@ -1,5 +1,6 @@
 import type { Doc } from "../../_generated/dataModel";
 import { cardLinkTokensToText } from "../cardLinks";
+import { tagKey } from "../tags";
 
 /** The card fields keyword search reads, besides tags and extracted text. */
 export const CARD_SEARCH_TEXT_FIELDS = [
@@ -44,16 +45,17 @@ export const buildCardSearchText = (
     .join("\n");
 };
 
-export const normalizeCardSearchTag = (tag: string): string =>
-  tag.trim().toLowerCase();
+/**
+ * A tag's search key. The same as `tagKey`, kept for the change hook and
+ * dev seeds; new code calls `tagKey`.
+ */
+export const normalizeCardSearchTag = tagKey;
 
 export const buildCardSearchTags = (
   card: Pick<Doc<"cards">, "tags" | "aiTags">
 ): string[] =>
   Array.from(
     new Set(
-      [...(card.tags ?? []), ...(card.aiTags ?? [])]
-        .map(normalizeCardSearchTag)
-        .filter(Boolean)
+      [...(card.tags ?? []), ...(card.aiTags ?? [])].map(tagKey).filter(Boolean)
     )
   ).sort();

@@ -22,6 +22,7 @@ import {
 } from "../../shared/search/qualifiers";
 import { isSearchMode, semanticRequestFor } from "../../shared/search/semantic";
 import { parseShuffleSeed } from "../../shared/search/shuffle";
+import { tagKey } from "../../shared/tags";
 import { parseOptionalString } from "../validation";
 import {
   type CardsQueryOptions,
@@ -261,7 +262,7 @@ export const parseCardsQueryOptions = (
   const tags = [
     ...new Set(
       [tag, ...parsed.tags]
-        .map((value) => value?.trim().toLowerCase())
+        .map((value) => (value ? tagKey(value) : ""))
         .filter((value): value is string => Boolean(value))
     ),
   ];
