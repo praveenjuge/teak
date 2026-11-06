@@ -30,4 +30,5 @@ Other workspaces import these modules as `@teak/scripts/<path>` (for example
 Scripts in `release/` must run on the pinned Node without Bun: no
 dependencies, only erasable TypeScript (`erasableSyntaxOnly` in
 `tsconfig.json`), and `.ts` extensions on imports. Their shared argument and
-JSON helpers are in `release/release-cli.ts`.
+JSON helpers, and `pollUntil` for every bounded release wait, are in
+`release/release-cli.ts`.

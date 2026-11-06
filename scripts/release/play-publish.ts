@@ -12,7 +12,12 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { sanitizeAscOutput } from "./apple-release-issue.ts";
-import { errorMessage, parseArguments, required } from "./release-cli.ts";
+import {
+  errorMessage,
+  parseArguments,
+  pollUntil,
+  required,
+} from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
 
 interface StoreListing {
@@ -675,22 +680,20 @@ async function writeProof({
   releaseNotes: string;
   version: string;
 }) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const proof = await readProof({ client, version, releaseNotes });
-      fs.writeFileSync(proofPath, `${JSON.stringify(proof, null, 2)}\n`);
-      log(`- Proof: internal and production serve ${proof.versionCode}`);
-      return;
-    } catch (error) {
-      if (attempt === 3) {
-        log(
-          `- Proof: not attached, the read-back failed: ${sanitizeAscOutput(errorMessage(error))}`
-        );
-        console.log(
-          `::warning::Play has ${version}, but reading the tracks back failed. Rerun to attach the proof.`
-        );
-      }
-    }
+  try {
+    const proof = await pollUntil(
+      () => readProof({ client, version, releaseNotes }),
+      { attempts: 3, intervalMs: 5000, timeoutMs: 60_000, retryOn: () => true }
+    );
+    fs.writeFileSync(proofPath, `${JSON.stringify(proof, null, 2)}\n`);
+    log(`- Proof: internal and production serve ${proof.versionCode}`);
+  } catch (error) {
+    log(
+      `- Proof: not attached, the read-back failed: ${sanitizeAscOutput(errorMessage(error))}`
+    );
+    console.log(
+      `::warning::Play has ${version}, but reading the tracks back failed. Rerun to attach the proof.`
+    );
   }
 }
 

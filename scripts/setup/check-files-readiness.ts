@@ -9,6 +9,7 @@ import {
 } from "@teak/files-protocol";
 import { CRONS, cronTasksOn } from "../../packages/convex/cronSchedules";
 import { signedOpRequest } from "../../packages/convex/storage/coreWorkerClient";
+import { pollUntil } from "../release/release-cli.ts";
 
 const includesAll = (
   reported: readonly string[] | undefined,
@@ -63,11 +64,17 @@ if (process.argv.includes("--prod")) {
   );
 }
 
-const RENDERER_ROLLOUT_MS = 20 * 60_000;
-const deadline =
-  Date.now() + (process.argv.includes("--wait") ? RENDERER_ROLLOUT_MS : 0);
-for (;;) {
-  let ready = false;
+/** The Worker answered, but not ready; `reason` says why when it failed. */
+class NotReady extends Error {
+  readonly reason: string;
+  constructor(failedWith?: string) {
+    const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
+    super(`Core worker is not ready${reason}; backend deployment blocked.`);
+    this.reason = reason;
+  }
+}
+
+const checkReady = async (): Promise<void> => {
   let failedWith: string | undefined;
   try {
     const signed = await signedOpRequest({
@@ -81,25 +88,29 @@ for (;;) {
     const result = (await response
       .json()
       .catch(() => null)) as FilesEnvelope<FilesCapabilities> | null;
-    ready = response.ok && result?.ok === true && isReady(result.data);
+    if (response.ok && result?.ok === true && isReady(result.data)) {
+      return;
+    }
   } catch (error) {
     failedWith =
       error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)
         ? error.name
         : "an error";
   }
-  if (ready) {
+  throw new NotReady(failedWith);
+};
+
+const RENDERER_ROLLOUT_MS = 20 * 60_000;
+await pollUntil(checkReady, {
+  // Without --wait, one check.
+  timeoutMs: process.argv.includes("--wait") ? RENDERER_ROLLOUT_MS : 0,
+  intervalMs: 15_000,
+  retryOn: (error) => error instanceof NotReady,
+  onRetry: (error) =>
     console.log(
-      "Core worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
-    );
-    break;
-  }
-  const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
-  if (Date.now() >= deadline) {
-    throw new Error(
-      `Core worker is not ready${reason}; backend deployment blocked.`
-    );
-  }
-  console.log(`Waiting for core-worker deployment readiness…${reason}`);
-  await Bun.sleep(15_000);
-}
+      `Waiting for core-worker deployment readiness…${(error as NotReady).reason}`
+    ),
+});
+console.log(
+  "Core worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
+);

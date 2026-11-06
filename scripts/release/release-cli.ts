@@ -51,3 +51,62 @@ export function githubWorkflowUrl(value: string | undefined): string {
   }
   return url.toString();
 }
+
+export interface PollWindow {
+  /** Most attempts, the first one included. */
+  attempts?: number;
+  /**
+   * Whether one more attempt runs when the pause before it reaches the
+   * deadline. Without it, the failure that started that pause is thrown.
+   */
+  finalAttempt?: boolean;
+  /** Pause between attempts, cut short at the deadline. */
+  intervalMs: number;
+  now?: () => number;
+  /** Called before each pause with the failure being retried. */
+  onRetry?: (error: unknown, attempt: number) => void;
+  /** Which failures are worth another attempt; any other is thrown at once. */
+  retryOn: (error: unknown) => boolean;
+  /** How long to keep trying, from the first attempt. */
+  timeoutMs: number;
+  wait?: (ms: number) => Promise<unknown>;
+}
+
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((done) => setTimeout(done, ms));
+
+/**
+ * Runs `attempt` until it returns. A failure `retryOn` accepts is retried
+ * after `intervalMs` while attempts and time remain; otherwise the failure is
+ * thrown. `attempt` receives the milliseconds left before the deadline.
+ * Release waits use this so each one states its bounds in one place.
+ */
+export async function pollUntil<T>(
+  attempt: (remainingMs: number) => T | Promise<T>,
+  {
+    attempts = Number.POSITIVE_INFINITY,
+    finalAttempt = true,
+    intervalMs,
+    now = Date.now,
+    onRetry,
+    retryOn,
+    timeoutMs,
+    wait = sleep,
+  }: PollWindow
+): Promise<T> {
+  const deadline = now() + timeoutMs;
+  for (let count = 1; ; count++) {
+    try {
+      return await attempt(Math.max(0, deadline - now()));
+    } catch (error) {
+      if (count >= attempts || now() >= deadline || !retryOn(error)) {
+        throw error;
+      }
+      onRetry?.(error, count);
+      await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
+      if (!finalAttempt && now() >= deadline) {
+        throw error;
+      }
+    }
+  }
+}

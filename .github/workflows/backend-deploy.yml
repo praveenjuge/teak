@@ -12,6 +12,7 @@ on:
       - "packages/i18n/**"
       - "apps/core-worker/**"
       - "scripts/setup/check-files-readiness.ts"
+      - "scripts/release/release-cli.ts"
       - "bun.lock"
   workflow_dispatch:
 

@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pollUntil } from "./release-cli.ts";
 import { assertPatchBump, parseVersion } from "./release-version.ts";
 
 const registry = "https://registry.npmjs.org";
@@ -29,6 +30,30 @@ interface WaitWindow {
   now?: () => number;
   timeoutMs?: number;
   wait?: (ms: number) => Promise<unknown>;
+}
+
+/** Each wait's own ceiling on attempts, pause and total time. */
+function checkedWindow(
+  {
+    attempts,
+    intervalMs,
+    timeoutMs,
+  }: { attempts: number; intervalMs: number; timeoutMs: number },
+  limits: { attempts: number; intervalMs: number; timeoutMs: number },
+  label: string
+) {
+  const within = (value: number, min: number, max: number) =>
+    Number.isInteger(value) && value >= min && value <= max;
+  if (
+    !(
+      within(attempts, 1, limits.attempts) &&
+      within(intervalMs, 0, limits.intervalMs) &&
+      within(timeoutMs, 1, limits.timeoutMs)
+    )
+  ) {
+    throw new Error(`Invalid SDK ${label} window.`);
+  }
+  return { attempts, intervalMs, timeoutMs };
 }
 
 interface AttestationBundle {
@@ -65,8 +90,6 @@ interface ProvenanceStatement {
   predicateType?: string;
   subject?: { digest?: { sha512?: string }; name?: string }[];
 }
-
-const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 const stderrOf = (error: unknown): string =>
   String((error as { stderr?: unknown } | null)?.stderr ?? "");
@@ -384,36 +407,21 @@ export async function installWhenResolvable<T>(
     attempts = 24,
     intervalMs = 5000,
     timeoutMs = 120_000,
-    now = Date.now,
-    wait = sleep,
+    now,
+    wait,
   }: WaitWindow = {}
 ): Promise<T> {
-  if (
-    !Number.isInteger(attempts) ||
-    attempts < 1 ||
-    attempts > 24 ||
-    !Number.isInteger(intervalMs) ||
-    intervalMs < 0 ||
-    intervalMs > 5000 ||
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 120_000
-  ) {
-    throw new Error("Invalid SDK install resolution window.");
-  }
-  const deadline = now() + timeoutMs;
-  for (let attempt = 1; attempt < attempts; attempt++) {
-    try {
-      return install();
-    } catch (error) {
-      const unresolved = /npm error code ETARGET\b/.test(stderrOf(error));
-      if (!unresolved || now() >= deadline) {
-        throw error;
-      }
-    }
-    await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
-  }
-  return install();
+  const window = checkedWindow(
+    { attempts, intervalMs, timeoutMs },
+    { attempts: 24, intervalMs: 5000, timeoutMs: 120_000 },
+    "install resolution"
+  );
+  return await pollUntil(install, {
+    ...window,
+    now,
+    wait,
+    retryOn: (error) => /npm error code ETARGET\b/.test(stderrOf(error)),
+  });
 }
 
 // npm serves a new version's attestations a few minutes after the version
@@ -426,39 +434,27 @@ export async function auditWhenAttested<T>(
     attempts = 30,
     intervalMs = 10_000,
     timeoutMs = 300_000,
-    now = Date.now,
-    wait = sleep,
+    now,
+    wait,
   }: WaitWindow = {}
 ): Promise<T> {
-  if (
-    !Number.isInteger(attempts) ||
-    attempts < 1 ||
-    attempts > 30 ||
-    !Number.isInteger(intervalMs) ||
-    intervalMs < 0 ||
-    intervalMs > 10_000 ||
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 300_000
-  ) {
-    throw new Error("Invalid SDK attestation wait window.");
-  }
-  const deadline = now() + timeoutMs;
-  for (let attempt = 1; attempt < attempts; attempt++) {
-    try {
-      return audit();
-    } catch (error) {
+  const window = checkedWindow(
+    { attempts, intervalMs, timeoutMs },
+    { attempts: 30, intervalMs: 10_000, timeoutMs: 300_000 },
+    "attestation wait"
+  );
+  return await pollUntil(audit, {
+    ...window,
+    now,
+    wait,
+    retryOn: (error) => {
       const stderr = stderrOf(error);
-      const notYetAttested =
+      return (
         /npm error code E404\b/.test(stderr) &&
-        stderr.includes("/-/npm/v1/attestations/");
-      if (!notYetAttested || now() >= deadline) {
-        throw error;
-      }
-    }
-    await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
-  }
-  return audit();
+        stderr.includes("/-/npm/v1/attestations/")
+      );
+    },
+  });
 }
 
 export async function verifyProvenance(
@@ -617,6 +613,8 @@ async function main() {
   );
 }
 
+class NotYetPublished extends Error {}
+
 export async function waitForPublished(
   artifact: PackedArtifact,
   {
@@ -624,49 +622,39 @@ export async function waitForPublished(
     attempts = 60,
     intervalMs = 5000,
     timeoutMs = 300_000,
-    now = Date.now,
-    wait = sleep,
+    now,
+    wait,
   }: WaitWindow & { registryUrl?: string } = {}
 ) {
-  if (
-    !Number.isInteger(attempts) ||
-    attempts < 1 ||
-    attempts > 60 ||
-    !Number.isInteger(intervalMs) ||
-    intervalMs < 0 ||
-    intervalMs > 5000 ||
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 300_000
-  ) {
-    throw new Error("Invalid SDK registry visibility window.");
-  }
-  const deadline = now() + timeoutMs;
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    const remaining = deadline - now();
-    if (remaining <= 0) {
+  const window = checkedWindow(
+    { attempts, intervalMs, timeoutMs },
+    { attempts: 60, intervalMs: 5000, timeoutMs: 300_000 },
+    "registry visibility"
+  );
+  const pending = (error: unknown) =>
+    error instanceof NotYetPublished || error instanceof PendingRegistryTarball;
+  try {
+    return await pollUntil(
+      async (remainingMs) => {
+        if (
+          !(await inspectPublished(
+            artifact,
+            registryUrl,
+            Math.min(30_000, remainingMs)
+          ))
+        ) {
+          throw new NotYetPublished();
+        }
+        return true;
+      },
+      { ...window, finalAttempt: false, now, wait, retryOn: pending }
+    );
+  } catch (error) {
+    if (pending(error)) {
       return false;
     }
-    try {
-      if (
-        await inspectPublished(
-          artifact,
-          registryUrl,
-          Math.min(30_000, remaining)
-        )
-      ) {
-        return true;
-      }
-    } catch (error) {
-      if (!(error instanceof PendingRegistryTarball)) {
-        throw error;
-      }
-    }
-    if (attempt + 1 < attempts) {
-      await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
-    }
+    throw error;
   }
-  return false;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
