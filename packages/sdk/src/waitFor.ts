@@ -42,6 +42,8 @@ const beforeDeadline = async <T>(
   timedOut: () => Error,
   signal?: AbortSignal
 ): Promise<T> => {
+  // The read may still settle after the wait stops; never leave it unhandled.
+  work.catch(() => undefined);
   const remaining = deadline - Date.now();
   if (remaining <= 0) {
     throw timedOut();

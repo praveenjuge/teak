@@ -297,6 +297,29 @@ describe("exports.waitFor", () => {
     expect(error.code).toBe("TIMEOUT");
   });
 
+  test("a wait that stops before its first read leaves no unhandled rejection", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const controller = new AbortController();
+      controller.abort(new Error("cancelled"));
+      const error = await rejection(
+        clientFor({
+          "GET /v1/exports/latest": () =>
+            new Promise<Response>((_, reject) =>
+              setTimeout(() => reject(new Error("network down")), 5)
+            ),
+        }).exports.waitFor({ signal: controller.signal })
+      );
+      expect(error.message).toBe("cancelled");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   test("an abort ends the wait while the first read is pending", async () => {
     const controller = new AbortController();
     setTimeout(() => controller.abort(new Error("cancelled")), 5);
