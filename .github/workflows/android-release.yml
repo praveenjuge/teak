@@ -165,11 +165,13 @@ jobs:
           # A release build starts clean, so nothing from a cache reaches the bundle.
           cache-disabled: true
 
-      - name: Install the Android 17 SDK and posthog-cli
+      - name: Install the Android SDK
         if: steps.check.outputs.should_run == 'true'
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
-          npm install --global "@posthog/cli@${POSTHOG_CLI_VERSION}"
+        uses: ./.github/actions/setup-android-sdk
+
+      - name: Install posthog-cli
+        if: steps.check.outputs.should_run == 'true'
+        run: npm install --global "@posthog/cli@${POSTHOG_CLI_VERSION}"
 
       - name: Restore the upload key
         if: steps.check.outputs.should_run == 'true'

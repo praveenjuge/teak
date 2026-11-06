@@ -1,0 +1,14 @@
+name: Set up the Android SDK
+description: Installs the platform and build tools for the compile SDK the Android build declares (TEAK_COMPILE_SDK in apps/android/build-logic).
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sdk="$(sed -nE 's/^internal const val TEAK_COMPILE_SDK = ([0-9]+)$/\1/p' "$GITHUB_WORKSPACE/apps/android/build-logic/convention/src/main/kotlin/TeakAndroid.kt")"
+        if [ -z "$sdk" ]; then
+          echo "TEAK_COMPILE_SDK is missing from apps/android/build-logic." >&2
+          exit 1
+        fi
+        echo "Installing Android SDK $sdk"
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-$sdk.0" "build-tools;$sdk.0.0" > /dev/null
