@@ -5,57 +5,20 @@ import {
 } from "../../devUrls";
 import { readWorkosConnectIssuer, readWorkosResources } from "../../env";
 import { OAUTH_SURFACES } from "../../shared/oauthSurfaces";
+import {
+  OAUTH_PROTECTED_RESOURCE_PATH,
+  PUBLIC_API_OPERATION_IDS,
+  publicApiEndpointLabel,
+} from "../../shared/publicApiContract";
 import { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
 import { WORKOS_CLIENT_ID } from "../../shared/workosIds";
 
 export const API_VERSION = "v1";
 
-export const V1_ENDPOINTS = [
-  "GET /v1/me",
-  "GET /v1/cards",
-  "POST /v1/cards",
-  "POST /v1/uploads",
-  "POST /v1/page-snapshots/upload",
-  "POST /v1/cards/bulk",
-  "GET /v1/cards/changes",
-  "PUT /v1/cards/pinned/order",
-  "GET /v1/cards/duplicate",
-  "GET /v1/cards/:cardId",
-  "PATCH /v1/cards/:cardId",
-  "DELETE /v1/cards/:cardId",
-  "POST /v1/cards/:cardId/restore",
-  "POST /v1/cards/:cardId/refresh",
-  "PATCH /v1/cards/:cardId/favorite",
-  "PATCH /v1/cards/:cardId/pin",
-  "GET /v1/cards/:cardId/content",
-  "POST /v1/cards/:cardId/done",
-  "DELETE /v1/cards/:cardId/done",
-  "POST /v1/cards/:cardId/save-pdf",
-  "GET /v1/cards/:cardId/highlights",
-  "POST /v1/cards/:cardId/highlights",
-  "PATCH /v1/highlights/:highlightId",
-  "DELETE /v1/highlights/:highlightId",
-  "POST /v1/cards/:cardId/thumbnail/upload",
-  "PUT /v1/cards/:cardId/thumbnail",
-  "DELETE /v1/cards/:cardId/thumbnail",
-  "GET /v1/tags",
-  "POST /v1/tags/rename",
-  "POST /v1/tags/merge",
-  "POST /v1/tags/delete",
-  "GET /v1/tags/operations/:operationId",
-  "GET /v1/folders",
-  "POST /v1/folders",
-  "GET /v1/folders/:folderId",
-  "PATCH /v1/folders/:folderId",
-  "DELETE /v1/folders/:folderId",
-  "POST /v1/folders/:folderId/cards",
-  "DELETE /v1/folders/:folderId/cards",
-  "GET /v1/folders/:folderId/rule-runs/:runId",
-  "POST /v1/folders/:folderId/rule-runs/:runId/undo",
-  "POST /v1/exports",
-  "GET /v1/exports/latest",
-  "POST /v1/oauth/disconnect",
-] as const;
+/** What `GET /v1` lists: every operation except the two outside `/v1/`. */
+export const V1_ENDPOINTS: readonly string[] = PUBLIC_API_OPERATION_IDS.filter(
+  (id) => id !== "getHealth" && id !== "getApiDiscovery"
+).map(publicApiEndpointLabel);
 
 export const API_AUTH_HINT =
   "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)";
@@ -108,7 +71,7 @@ export const getPublicMcpUrl = (requestUrl: string): string => {
 
 export const getProtectedResourceUrl = (requestUrl: string): string => {
   const mcpUrl = new URL(getPublicMcpUrl(requestUrl));
-  return `${mcpUrl.origin}/.well-known/oauth-protected-resource${mcpUrl.pathname}`;
+  return `${mcpUrl.origin}${OAUTH_PROTECTED_RESOURCE_PATH}${mcpUrl.pathname}`;
 };
 
 export const buildProtectedResourceMetadata = () => ({

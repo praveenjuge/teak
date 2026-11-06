@@ -13,7 +13,7 @@ import {
   validatePublicApiBearer,
   withAuthorizedUser,
 } from "../../../publicApi/http/auth";
-import { listCardsV1 } from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import { runHandler } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
@@ -334,7 +334,7 @@ describe("public API auth outcomes", () => {
       scannedRows: 0,
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       {
         runMutation: mock().mockResolvedValueOnce(VALID_KEY),
         runQuery: query,

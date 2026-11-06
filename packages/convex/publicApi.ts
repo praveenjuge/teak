@@ -28,6 +28,7 @@ import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
+import { isRateLimitContentionError } from "./convexFailures";
 import {
   decodeChangesCursor,
   decodeCursor,
@@ -40,13 +41,6 @@ import {
   matchAnchorOf,
   type ShuffleApiCursor,
 } from "./publicApi/cursors";
-import {
-  explainCardTypeMismatch,
-  explainInvalidTags,
-  explainOversizedText,
-  isRateLimitContentionError,
-  parseStringArray,
-} from "./publicApi/http/shared";
 import {
   apiCardSortValidator,
   isAfterMatchAnchor,
@@ -65,6 +59,12 @@ import {
   semanticSearchArgs,
   similarityOption,
 } from "./publicApi/search";
+import {
+  explainCardTypeMismatch,
+  explainInvalidTags,
+  explainOversizedText,
+  parseStringArray,
+} from "./publicApi/validation";
 import {
   listCardTombstonesSince,
   type TombstoneCursor,

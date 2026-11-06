@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, mock } from "bun:test";
 import { handleMcpV1Request } from "../../mcp/httpServer";
-import type { PublicApiToolExecutor } from "../../mcp/tools";
+import {
+  PUBLIC_API_OPERATIONS,
+  type PublicApiOperationCall,
+  publicApiPath,
+} from "../../shared/publicApiContract";
 
 export interface JsonRpcSuccess {
   id: number;
@@ -125,11 +129,29 @@ export const initializeMcp = (ctx: any) =>
     })
   );
 
-export const respondWith = (
-  respond: (
-    operation: Parameters<PublicApiToolExecutor>[0]
-  ) => Response | Promise<Response>
+/** A tool's call to the API as the HTTP request it stands for. */
+export interface HttpCall {
+  body?: unknown;
+  headers?: HeadersInit;
+  method: string;
+  path: string;
+  query?: PublicApiOperationCall["query"];
+}
+
+export const withHttp = (call: PublicApiOperationCall): HttpCall => ({
+  method: PUBLIC_API_OPERATIONS[call.operationId].method,
+  path: publicApiPath(call.operationId, call.params),
+  ...(call.query === undefined ? {} : { query: call.query }),
+  ...(call.body === undefined ? {} : { body: call.body }),
+  ...(call.headers === undefined ? {} : { headers: call.headers }),
+});
+
+/** An executor that hands each call to `respond` as its HTTP request. */
+export const httpMock = (
+  respond: (operation: HttpCall) => Response | Promise<Response>
 ) =>
-  mock((operation: Parameters<PublicApiToolExecutor>[0]) =>
-    Promise.resolve(respond(operation))
+  mock((call: PublicApiOperationCall) =>
+    Promise.resolve(respond(withHttp(call)))
   );
+
+export const respondWith = httpMock;

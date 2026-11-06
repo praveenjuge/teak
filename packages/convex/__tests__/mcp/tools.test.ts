@@ -6,6 +6,8 @@ import {
 } from "../../mcp/tools";
 
 import {
+  type HttpCall,
+  httpMock,
   mcpRequest,
   respondWith,
   setUpMcpEnv,
@@ -23,43 +25,41 @@ describe("MCP tools", () => {
       body?: unknown;
       query?: Record<string, unknown>;
     }> = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push({
-          path: operation.path,
-          method: operation.method,
-          authorization: new Headers(operation.headers).get("authorization"),
-          body: operation.body,
-          query: operation.query,
-        });
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push({
+        path: operation.path,
+        method: operation.method,
+        authorization: new Headers(operation.headers).get("authorization"),
+        body: operation.body,
+        query: operation.query,
+      });
 
-        if (operation.method === "DELETE") {
-          return Promise.resolve(new Response(null, { status: 204 }));
-        }
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              id: "card_1",
-              appUrl: "https://app.teakvault.com/?card=card_1",
-              cardId: "card_1",
-              content: "Design note",
-              deletedIds: ["card_2"],
-              fileKey: "users/user_1/file/image.png",
-              items: [{ id: "card_1", metadataTitle: "Design note" }],
-              metadataTitle: "Design note",
-              pageInfo: { hasMore: false, nextCursor: null },
-              status: "created",
-              total: 1,
-              uploadUrl: "https://upload.example",
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            }
-          )
-        );
+      if (operation.method === "DELETE") {
+        return Promise.resolve(new Response(null, { status: 204 }));
       }
-    );
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: "card_1",
+            appUrl: "https://app.teakvault.com/?card=card_1",
+            cardId: "card_1",
+            content: "Design note",
+            deletedIds: ["card_2"],
+            fileKey: "users/user_1/file/image.png",
+            items: [{ id: "card_1", metadataTitle: "Design note" }],
+            metadataTitle: "Design note",
+            pageInfo: { hasMore: false, nextCursor: null },
+            status: "created",
+            total: 1,
+            uploadUrl: "https://upload.example",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    });
     const toolCalls = [
       ["teak_v1_list_cards", { limit: 25, cursor: "cursor_1", tag: "design" }],
       ["teak_v1_create_card", { content: "https://example.com" }],
@@ -167,8 +167,8 @@ describe("MCP tools", () => {
   });
 
   test("finds similar cards through similarTo", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -196,8 +196,8 @@ describe("MCP tools", () => {
   });
 
   test("get_card_content passes kind, and leaves it out when not given", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -246,8 +246,8 @@ describe("MCP tools", () => {
   });
 
   test("pin tools reach the pin routes with their bodies", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json(
@@ -305,8 +305,8 @@ describe("MCP tools", () => {
   });
 
   test("highlight tools reach the highlight routes with their bodies", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         operation.method === "DELETE"
@@ -364,9 +364,9 @@ describe("MCP tools", () => {
   });
 
   test("get_card_links reads the card and returns only its links and backlinks", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const captured: HttpCall[] = [];
     const links = [{ id: "card_2", missing: false, title: "B", type: "text" }];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -429,8 +429,8 @@ describe("MCP tools", () => {
   });
 
   test("search passes a reserved tag on and keeps isHidden on each card", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -453,8 +453,8 @@ describe("MCP tools", () => {
   });
 
   test("gives the model the cards as JSON and always fetches content", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -477,8 +477,8 @@ describe("MCP tools", () => {
   });
 
   test("passes text: through to search image text", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -504,8 +504,8 @@ describe("MCP tools", () => {
   });
 
   test("passes the search mode through and reports the one that ran", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+    const captured: HttpCall[] = [];
+    const executor = httpMock((operation: HttpCall) => {
       captured.push(operation);
       return Promise.resolve(
         Response.json({
@@ -538,46 +538,41 @@ describe("MCP tools", () => {
   });
 
   test("forwards search filters, new tools, and idempotency keys to the API", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        if (
-          operation.method === "POST" &&
-          operation.path.endsWith("/restore")
-        ) {
-          return Promise.resolve(new Response(null, { status: 204 }));
-        }
-        if (operation.path.endsWith("/save-pdf")) {
-          const created = !captured
-            .slice(0, -1)
-            .some((earlier) => earlier.path.endsWith("/save-pdf"));
-          return Promise.resolve(
-            Response.json(
-              { cardId: "doc_1", created },
-              {
-                status: created ? 201 : 200,
-              }
-            )
-          );
-        }
+    const captured: HttpCall[] = [];
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      if (operation.method === "POST" && operation.path.endsWith("/restore")) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (operation.path.endsWith("/save-pdf")) {
+        const created = !captured
+          .slice(0, -1)
+          .some((earlier) => earlier.path.endsWith("/save-pdf"));
         return Promise.resolve(
-          Response.json({
-            cardId: null,
-            items: [{ id: "card_1" }],
-            pageInfo: { hasMore: true, nextCursor: "next" },
-            data: {
-              id: "u",
-              email: "e",
-              plan: "free",
-              cardCount: 3,
-              cardLimit: 200,
-              locale: "de",
-            },
-          })
+          Response.json(
+            { cardId: "doc_1", created },
+            {
+              status: created ? 201 : 200,
+            }
+          )
         );
       }
-    );
+      return Promise.resolve(
+        Response.json({
+          cardId: null,
+          items: [{ id: "card_1" }],
+          pageInfo: { hasMore: true, nextCursor: "next" },
+          data: {
+            id: "u",
+            email: "e",
+            plan: "free",
+            cardCount: 3,
+            cardLimit: 200,
+            locale: "de",
+          },
+        })
+      );
+    });
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -681,25 +676,23 @@ describe("MCP tools", () => {
   });
 
   test("tag tools start tag changes and poll their progress", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        return Promise.resolve(
-          Response.json(
-            {
-              operationId: "op_1",
-              id: "op_1",
-              kind: "rename",
-              status: operation.method === "GET" ? "completed" : "running",
-              changed: 1,
-              total: 1,
-            },
-            { status: operation.method === "GET" ? 200 : 202 }
-          )
-        );
-      }
-    );
+    const captured: HttpCall[] = [];
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json(
+          {
+            operationId: "op_1",
+            id: "op_1",
+            kind: "rename",
+            status: operation.method === "GET" ? "completed" : "running",
+            changed: 1,
+            total: 1,
+          },
+          { status: operation.method === "GET" ? 200 : 202 }
+        )
+      );
+    });
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -762,21 +755,19 @@ describe("MCP tools", () => {
   });
 
   test("folder rule tools send rules and follow and undo rule runs", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        return Promise.resolve(
-          Response.json({
-            id: "run_1",
-            name: "Fonts",
-            status: operation.method === "POST" ? "undoing" : "done",
-            filedCount: 3,
-            taggedCount: 1,
-          })
-        );
-      }
-    );
+    const captured: HttpCall[] = [];
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          id: "run_1",
+          name: "Fonts",
+          status: operation.method === "POST" ? "undoing" : "done",
+          filedCount: 3,
+          taggedCount: 1,
+        })
+      );
+    });
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -837,31 +828,26 @@ describe("MCP tools", () => {
   });
 
   test("folder tools map onto the folder endpoints", async () => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        if (
-          operation.method === "DELETE" &&
-          !operation.path.endsWith("/cards")
-        ) {
-          return Promise.resolve(new Response(null, { status: 204 }));
-        }
-        return Promise.resolve(
-          Response.json({
-            id: "folder_1",
-            name: "Reading",
-            items: [{ id: "folder_1" }],
-            updatedIds: ["card_1"],
-            failedIds:
-              operation.path.endsWith("/cards") && operation.method === "DELETE"
-                ? ["card_2"]
-                : [],
-            folderLimitIds: [],
-          })
-        );
+    const captured: HttpCall[] = [];
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      if (operation.method === "DELETE" && !operation.path.endsWith("/cards")) {
+        return Promise.resolve(new Response(null, { status: 204 }));
       }
-    );
+      return Promise.resolve(
+        Response.json({
+          id: "folder_1",
+          name: "Reading",
+          items: [{ id: "folder_1" }],
+          updatedIds: ["card_1"],
+          failedIds:
+            operation.path.endsWith("/cards") && operation.method === "DELETE"
+              ? ["card_2"]
+              : [],
+          folderLimitIds: [],
+        })
+      );
+    });
     const call = (name: string, input: unknown) =>
       callTeakV1Tool(
         name,
@@ -959,23 +945,21 @@ describe("MCP tools", () => {
       path: string;
       query?: Record<string, unknown>;
     }> = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push({ path: operation.path, query: operation.query });
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              items: [{ id: "card_1" }],
-              pageInfo: { hasMore: false, nextCursor: null },
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            }
-          )
-        );
-      }
-    );
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push({ path: operation.path, query: operation.query });
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            items: [{ id: "card_1" }],
+            pageInfo: { hasMore: false, nextCursor: null },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    });
 
     const result = await callTeakV1Tool(
       "teak_v1_list_favorite_cards",
@@ -1012,20 +996,17 @@ describe("MCP tools", () => {
   test("forwards raw Markdown through create and update tools", async () => {
     const captured: Array<{ body?: unknown; method: string; path: string }> =
       [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        return Response.json({
-          appUrl: "https://app.teakvault.com/?card=card_1",
-          cardId: "card_1",
-          content: (operation.body as { content?: string } | undefined)
-            ?.content,
-          id: "card_1",
-          status: "created",
-          type: "text",
-        });
-      }
-    );
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      return Response.json({
+        appUrl: "https://app.teakvault.com/?card=card_1",
+        cardId: "card_1",
+        content: (operation.body as { content?: string } | undefined)?.content,
+        id: "card_1",
+        status: "created",
+        type: "text",
+      });
+    });
     const created = "\uFEFF  # MCP\r\n\r\n- [ ] create  \n";
     const updated = "  ---\r\ntitle: Update\r\n---  ";
 
@@ -1056,12 +1037,10 @@ describe("MCP tools", () => {
 
   test("create_card sends the page a text card came from", async () => {
     const captured: Array<{ body?: unknown }> = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        return Response.json({ cardId: "card_1", status: "created" });
-      }
-    );
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      return Response.json({ cardId: "card_1", status: "created" });
+    });
     const tool = TEAK_V1_TOOLS.find(
       (entry) => entry.name === "teak_v1_create_card"
     );
@@ -1092,12 +1071,10 @@ describe("MCP tools", () => {
 
   test("update_card sends palette color edits", async () => {
     const captured: Array<{ body?: unknown }> = [];
-    const executor = respondWith(
-      (operation: Parameters<PublicApiToolExecutor>[0]) => {
-        captured.push(operation);
-        return Response.json({ id: "card_1" });
-      }
-    );
+    const executor = respondWith((operation: HttpCall) => {
+      captured.push(operation);
+      return Response.json({ id: "card_1" });
+    });
     const tool = TEAK_V1_TOOLS.find(
       (entry) => entry.name === "teak_v1_update_card"
     );
@@ -1213,29 +1190,43 @@ describe("MCP tools", () => {
     expect(result.content[0]?.text).toContain("cardId:");
   });
 
+  test("an id that is also a route word still names the card", async () => {
+    const executor = mock(async (_call: unknown) =>
+      Response.json({ id: "changes" })
+    );
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card",
+      { cardId: "changes" },
+      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
+      executor as PublicApiToolExecutor
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(executor.mock.calls[0]?.[0]).toMatchObject({
+      operationId: "getCard",
+      params: { cardId: "changes" },
+    });
+  });
+
   test.each([
-    ["teak_v1_get_card", { cardId: "changes" }],
     ["teak_v1_get_card", { cardId: ".." }],
     ["teak_v1_add_cards_to_folder", { folderId: "..", cardIds: ["card_1"] }],
     ["teak_v1_delete_highlight", { highlightId: ".", confirm: true }],
-  ])(
-    "%s refuses an id that would reach another route: %j",
-    async (tool, args) => {
-      const executor = mock(async () =>
-        Response.json({})
-      ) as PublicApiToolExecutor;
-      const result = await callTeakV1Tool(
-        tool,
-        args,
-        mcpRequest({ jsonrpc: "2.0", id: 62, method: "tools/call" }),
-        executor
-      );
+  ])("%s refuses an id that isn't one: %j", async (tool, args) => {
+    const executor = mock(async () =>
+      Response.json({})
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      tool,
+      args,
+      mcpRequest({ jsonrpc: "2.0", id: 62, method: "tools/call" }),
+      executor
+    );
 
-      expect(result.isError).toBe(true);
-      expect(result.structuredContent).toMatchObject({ code: "INVALID_INPUT" });
-      expect(executor).not.toHaveBeenCalled();
-    }
-  );
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ code: "INVALID_INPUT" });
+    expect(executor).not.toHaveBeenCalled();
+  });
 
   test("requires confirm=true for delete tool", async () => {
     const result = await callTeakV1Tool(
@@ -1362,12 +1353,12 @@ describe("MCP tools", () => {
 
 describe("link image tools", () => {
   const run = async (tool: string, input: unknown) => {
-    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const captured: HttpCall[] = [];
     const result = await callTeakV1Tool(
       tool,
       input,
       mcpRequest({ jsonrpc: "2.0", id: 70, method: "tools/call" }),
-      mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      httpMock((operation: HttpCall) => {
         const { headers: _headers, ...request } = operation;
         captured.push(request);
         return Promise.resolve(Response.json({ id: "card_1" }));

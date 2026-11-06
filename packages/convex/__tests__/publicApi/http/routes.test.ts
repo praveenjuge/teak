@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
-import { createCardV1, createUploadV1 } from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { mapConvexErrorToResponse } from "../../../publicApi/http/shared";
 import { MAX_FILE_SIZE } from "../../../shared/constants";
 import {
@@ -10,23 +10,26 @@ import {
 } from "../../helpers/publicApiHttp.test-utils";
 
 describe("publicApiHttp create endpoints", () => {
-  test("createCardV1 returns 405 for non-POST methods", async () => {
+  test("a method /v1/cards doesn't serve is 405 with Allow, before any auth", async () => {
+    const runMutation = mock();
     const response = await runHandler(
-      createCardV1,
-      { runMutation: mock(), runQuery: mock() },
+      publicApiV1,
+      { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
-        method: "GET",
+        method: "DELETE",
       })
     );
 
     expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET, POST, OPTIONS");
     const payload = await response.json();
     expect(payload.code).toBe("METHOD_NOT_ALLOWED");
+    expect(runMutation).not.toHaveBeenCalled();
   });
 
   test("createCardV1 returns 401 without bearer token", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: mock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -53,7 +56,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -100,7 +103,7 @@ describe("publicApiHttp create endpoints", () => {
     const runAfter = mock().mockResolvedValue(null);
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock(), scheduler: { runAfter } },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -116,8 +119,9 @@ describe("publicApiHttp create endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ cardId: "card_1" });
-    expect(completions).toHaveLength(3);
+    expect(completions).toHaveLength(1);
     expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(runAfter.mock.calls[0][0]).toBe(0);
     expect(runAfter.mock.calls[0][2]).toMatchObject({
       responseBody: { cardId: "card_1" },
       responseStatus: 200,
@@ -146,7 +150,7 @@ describe("publicApiHttp create endpoints", () => {
       )
     );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -182,7 +186,7 @@ describe("publicApiHttp create endpoints", () => {
   test("createCardV1 refuses an unsafe sourceUrl before saving", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -211,7 +215,7 @@ describe("publicApiHttp create endpoints", () => {
       )
     );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -240,7 +244,7 @@ describe("publicApiHttp create endpoints", () => {
       rateLimit: { ok: false, retryAt: Date.now() + 30_000 },
     });
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -281,7 +285,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -306,7 +310,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -331,7 +335,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -355,7 +359,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -377,7 +381,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -412,7 +416,7 @@ describe("publicApiHttp create endpoints", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -437,7 +441,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = buildAuthorizedMutationMock();
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -465,7 +469,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createUploadV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/uploads", {
         method: "POST",
@@ -523,7 +527,7 @@ describe("publicApiHttp create endpoints", () => {
         new ConvexError({ code: scenario.code, message: scenario.message })
       );
       const response = await runHandler(
-        createUploadV1,
+        publicApiV1,
         { runMutation, runQuery: mock() },
         new Request("https://example.com/v1/uploads", {
           method: "POST",
@@ -552,7 +556,7 @@ describe("publicApiHttp create endpoints", () => {
     });
     const runQuery = mock();
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -601,7 +605,7 @@ describe("publicApiHttp create endpoints", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -639,12 +643,12 @@ describe("publicApiHttp create endpoints", () => {
       });
 
     const textResponse = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: textMutation, runQuery: mock() },
       request("text")
     );
     const quoteResponse = await runHandler(
-      createCardV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMockWithIdempotencySkip(),
         runQuery: mock(),
@@ -671,7 +675,7 @@ describe("publicApiHttp create endpoints", () => {
         })
       );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -702,7 +706,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -739,7 +743,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -777,7 +781,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -813,7 +817,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -846,7 +850,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -883,7 +887,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -920,7 +924,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
