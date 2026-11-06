@@ -55,7 +55,7 @@ export class FilesOpError extends Error {
   }
 }
 
-const ERROR_CODE = new RegExp(`${ERROR_PREFIX}:([A-Z_]+):`, "u");
+const ERROR_CODE = /files_worker_error:([A-Z_]+):/u;
 
 /** The op error code an error carries, even after it crossed a step. */
 export const filesOpErrorCode = (error: unknown): FilesErrorCode | null => {

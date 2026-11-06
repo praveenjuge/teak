@@ -300,13 +300,38 @@ export const extractTurboDecls = (
   return decls;
 };
 
+/** Where the `[` or `{` of the first `"key": [` or `"key": {` starts, or -1. */
+const wranglerValueStart = (content: string, key: string): number => {
+  const quoted = `"${key}"`;
+  for (
+    let at = content.indexOf(quoted);
+    at !== -1;
+    at = content.indexOf(quoted, at + 1)
+  ) {
+    let index = at + quoted.length;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] !== ":") {
+      continue;
+    }
+    index += 1;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] === "[" || content[index] === "{") {
+      return index;
+    }
+  }
+  return -1;
+};
+
 /** The `[...]` or `{...}` value of the first `"key":` in a Wrangler config. */
 const wranglerBlock = (content: string, key: string): string => {
-  const start = new RegExp(`"${key}"\\s*:\\s*([[{])`).exec(content);
-  if (!start) {
+  const open = wranglerValueStart(content, key);
+  if (open === -1) {
     return "";
   }
-  const open = start.index + start[0].length - 1;
   let depth = 0;
   for (let index = open; index < content.length; index += 1) {
     const char = content[index];

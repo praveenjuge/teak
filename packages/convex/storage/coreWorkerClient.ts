@@ -69,6 +69,8 @@ export const putObjectViaCoreWorker = async ({
     contentType: contentType || null,
     key,
   });
+  // The URL is FILES_BASE, the deployment's own Core Worker, plus a fixed route.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(signed.url, {
     body: body instanceof Uint8Array ? new Uint8Array(body) : body,
     headers: {
@@ -123,6 +125,8 @@ export const callCoreWorkerOp = async <T>(spec: {
   const signed = await signedOpRequest(spec);
   let response: Response;
   try {
+    // The URL is FILES_BASE, the deployment's own Core Worker, plus a fixed route.
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
     response = await fetch(signed.url, {
       ...signed,
       redirect: "error",

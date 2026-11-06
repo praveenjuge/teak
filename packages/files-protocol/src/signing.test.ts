@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   checkSignedExpiry,
   FILES_MULTIPART_MAX_PARTS,
+  FILES_MULTIPART_PART_PATH,
   FILES_MULTIPART_SIZED_URL_MAX_TTL_SECONDS,
   FILES_MULTIPART_URL_MAX_TTL_SECONDS,
   FILES_NETWORK_OPS,
@@ -14,6 +15,7 @@ import {
   hexDigestsMatch,
   isSameUserNamespace,
   isValidObjectKey,
+  MULTIPART_PART_ROUTE,
   parseFilesKeyPrefix,
   readFilesOpOutcome,
   SIGNED_REQUEST_HEADERS,
@@ -144,6 +146,22 @@ describe("single-file upload URLs", () => {
     ).toMatchObject({ code: "INVALID_INPUT", status: 400 });
   });
 
+  test("reads a request type as type/subtype, ignoring its parameters", async () => {
+    const { url } = await signUploadUrl(
+      { base: BASE, contentType: null, key: KEY, secret: SECRET },
+      NOW
+    );
+    const verdict = async (type: string) =>
+      (await verifyUploadUrl(SECRET, new URL(url), type, NOW)).ok;
+    expect(await verdict("text/plain")).toBe(true);
+    expect(await verdict("text/plain ;charset=utf-8")).toBe(true);
+    expect(await verdict("Text/Plain; a=1\nb=2")).toBe(true);
+    expect(await verdict("text")).toBe(false);
+    expect(await verdict("te xt/plain")).toBe(false);
+    expect(await verdict("text/pl@in")).toBe(false);
+    expect(await verdict(`text/${"a".repeat(260)}`)).toBe(false);
+  });
+
   test("refuses keys outside the user and export roots, and long lives", async () => {
     const { url } = await signUploadUrl(
       {
@@ -173,6 +191,16 @@ describe("single-file upload URLs", () => {
 });
 
 describe("multipart part URLs", () => {
+  test("the part route is the part path", () => {
+    const route = MULTIPART_PART_ROUTE.exec(
+      `${FILES_MULTIPART_PART_PATH}/upload%2F1/7`
+    );
+    expect(route?.slice(1)).toEqual(["upload%2F1", "7"]);
+    expect(MULTIPART_PART_ROUTE.test(`${FILES_MULTIPART_PART_PATH}/u/x`)).toBe(
+      false
+    );
+  });
+
   const part = (args: {
     partNumber?: number;
     size?: number | null;

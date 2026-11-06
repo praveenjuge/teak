@@ -401,13 +401,24 @@ export type UploadUrlCheck =
     };
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
-const CONTENT_TYPE =
-  /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+\/[!#$%&'*+\-.^_`|~0-9A-Za-z]+(?:\s*;.*)?$/u;
+const MEDIA_TYPE =
+  /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+\/[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u;
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
 
-const isValidContentType = (value: string): boolean =>
-  value.length > 0 &&
-  value.length <= MAX_CONTENT_TYPE_LENGTH &&
-  CONTENT_TYPE.test(value);
+/** `type/subtype`, optionally followed by `;` and parameters on the same line. */
+const isValidContentType = (value: string): boolean => {
+  if (value.length === 0 || value.length > MAX_CONTENT_TYPE_LENGTH) {
+    return false;
+  }
+  const semicolon = value.indexOf(";");
+  if (semicolon === -1) {
+    return MEDIA_TYPE.test(value);
+  }
+  return (
+    MEDIA_TYPE.test(value.slice(0, semicolon).trimEnd()) &&
+    !LINE_BREAK.test(value.slice(semicolon))
+  );
+};
 
 const authFailure = (check: SignatureFailure) => ({
   code: check.code,
@@ -569,10 +580,8 @@ export type MultipartPartUrlCheck =
     }
   | (SignatureFailure & { message: string });
 
-const MULTIPART_PART_ROUTE = new RegExp(
-  `^${FILES_MULTIPART_PART_PATH.replaceAll("/", "\\/")}\\/([^/]+)\\/(\\d+)$`,
-  "u"
-);
+/** `FILES_MULTIPART_PART_PATH/<uploadId>/<partNumber>`; a test keeps the two in step. */
+export const MULTIPART_PART_ROUTE = /^\/__uploads\/v1\/([^/]+)\/(\d+)$/u;
 
 export const verifyMultipartPartUrl = async (
   secret: string,
@@ -589,11 +598,11 @@ export const verifyMultipartPartUrl = async (
   }
   let uploadId = "";
   try {
-    uploadId = decodeURIComponent(match[1] ?? "");
+    uploadId = decodeURIComponent(match[1]);
   } catch {
     // A malformed escape cannot name a signed upload; refused below.
   }
-  const partNumber = Number.parseInt(match[2] ?? "", 10);
+  const partNumber = Number.parseInt(match[2], 10);
   const size = sizeText === null ? null : Number(sizeText);
   const sizeMalformed =
     size !== null && (!isValidPartSize(size) || String(size) !== sizeText);
