@@ -123,7 +123,13 @@ export type OAuthAuthorize = (url: URL) => Promise<string | URL | null>;
 
 export type OAuthSignOutResult = "disconnected" | "signed-out-here";
 
-const trimSlashes = (value: string) => value.replace(/\/+$/, "");
+const trimSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
 
 const sameUrl = (a: string, b: string) => trimSlashes(a) === trimSlashes(b);
 
