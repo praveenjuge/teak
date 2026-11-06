@@ -8,11 +8,11 @@ import {
 } from "./accountDeletion/batch";
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
+  accountDeletionFailure,
   accountDeletionStage,
 } from "./accountDeletion/stages";
+import { SWEPT_TABLES, sweepAccountRows } from "./accountDeletion/tables";
 import { readDeletionState } from "./accountDeletionJobs";
-import { deleteFolderCardCounts } from "./folder/folderRows";
-import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
@@ -88,200 +88,12 @@ export const ancillaryPage = internalMutation({
     if (state.stage !== accountDeletionStage("accountData")) {
       throw new Error("stale_deletion_stage");
     }
-    const userId = state.userId;
-    const idempotency = await ctx.db
-      .query("apiIdempotencyKeys")
-      .withIndex("by_user_key_hash", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of idempotency) {
-      await ctx.db.delete(row._id);
+    let deletedAny = false;
+    for (const swept of SWEPT_TABLES) {
+      deletedAny =
+        (await sweepAccountRows(ctx, swept, state.userId)) > 0 || deletedAny;
     }
-    const moreTombstones = await deleteCardTombstonesForUserPage(
-      ctx,
-      userId,
-      100
-    );
-    const folderRows = await ctx.db
-      .query("folderCards")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of folderRows) {
-      await ctx.db.delete(row._id);
-    }
-    const folders = await ctx.db
-      .query("folders")
-      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const folder of folders) {
-      await deleteFolderCardCounts(ctx, folder._id);
-      await ctx.db.delete(folder._id);
-    }
-    const ruleApplications = await ctx.db
-      .query("folderRuleApplications")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of ruleApplications) {
-      await ctx.db.delete(row._id);
-    }
-    const ruleRunChanges = await ctx.db
-      .query("folderRuleRunChanges")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of ruleRunChanges) {
-      await ctx.db.delete(row._id);
-    }
-    const ruleRuns = await ctx.db
-      .query("folderRuleRuns")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of ruleRuns) {
-      await ctx.db.delete(row._id);
-    }
-    const tagSummaries = await ctx.db
-      .query("userTagSummaries")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of tagSummaries) {
-      await ctx.db.delete(row._id);
-    }
-    const tagRefreshes = await ctx.db
-      .query("tagSummaryRefreshes")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of tagRefreshes) {
-      await ctx.db.delete(row._id);
-    }
-    const tagCounts = await ctx.db
-      .query("userTagCounts")
-      .withIndex("by_userId_and_tag", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of tagCounts) {
-      await ctx.db.delete(row._id);
-    }
-    const tagCountDeltas = await ctx.db
-      .query("tagCountDeltas")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of tagCountDeltas) {
-      await ctx.db.delete(row._id);
-    }
-    const tagOperations = await ctx.db
-      .query("tagOperations")
-      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of tagOperations) {
-      await ctx.db.delete(row._id);
-    }
-    const vaultSetups = await ctx.db
-      .query("vaultSetups")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of vaultSetups) {
-      await ctx.db.delete(row._id);
-    }
-    const vectorShards = await ctx.db
-      .query("vectorShards")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of vectorShards) {
-      await ctx.db.delete(row._id);
-    }
-    const semanticResults = await ctx.db
-      .query("semanticSearchResults")
-      .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of semanticResults) {
-      await ctx.db.delete(row._id);
-    }
-    const relevanceResults = await ctx.db
-      .query("searchRelevanceResults")
-      .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of relevanceResults) {
-      await ctx.db.delete(row._id);
-    }
-    const linkedPdfs = await ctx.db
-      .query("linkedPdfs")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of linkedPdfs) {
-      await ctx.db.delete(row._id);
-    }
-    const inboundSettings = await ctx.db
-      .query("inboundEmailSettings")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of inboundSettings) {
-      await ctx.db.delete(row._id);
-    }
-    const inboundReceipts = await ctx.db
-      .query("inboundEmailReceipts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of inboundReceipts) {
-      await ctx.db.delete(row._id);
-    }
-    const preferences = await ctx.db
-      .query("userPreferences")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(10);
-    for (const row of preferences) {
-      await ctx.db.delete(row._id);
-    }
-    const cardLinks = await ctx.db
-      .query("cardLinks")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of cardLinks) {
-      await ctx.db.delete(row._id);
-    }
-    const linkChecks = await ctx.db
-      .query("linkChecks")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of linkChecks) {
-      await ctx.db.delete(row._id);
-    }
-    const highlights = await ctx.db
-      .query("highlights")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of highlights) {
-      await ctx.db.delete(row._id);
-    }
-    const linkPasteJobs = await ctx.db
-      .query("linkPasteJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId))
-      .take(100);
-    for (const row of linkPasteJobs) {
-      await ctx.db.delete(row._id);
-    }
-    return (
-      highlights.length > 0 ||
-      linkChecks.length > 0 ||
-      linkPasteJobs.length > 0 ||
-      cardLinks.length > 0 ||
-      preferences.length > 0 ||
-      inboundSettings.length > 0 ||
-      inboundReceipts.length > 0 ||
-      linkedPdfs.length > 0 ||
-      vaultSetups.length > 0 ||
-      semanticResults.length > 0 ||
-      relevanceResults.length > 0 ||
-      vectorShards.length > 0 ||
-      idempotency.length > 0 ||
-      moreTombstones ||
-      folderRows.length > 0 ||
-      folders.length > 0 ||
-      ruleApplications.length > 0 ||
-      ruleRunChanges.length > 0 ||
-      ruleRuns.length > 0 ||
-      tagSummaries.length > 0 ||
-      tagRefreshes.length > 0 ||
-      tagCounts.length > 0 ||
-      tagCountDeltas.length > 0 ||
-      tagOperations.length > 0
-    );
+    return deletedAny;
   },
 });
 const batchKind = v.union(
@@ -312,7 +124,7 @@ export const prepareStorageBatch = internalMutation({
         : state.storageProgress;
     if (!batch.rows.length) {
       if (progress?.kind === kind) {
-        throw new Error("deletion_storage_source_changed");
+        throw accountDeletionFailure("deletion_storage_source_changed");
       }
       return {
         empty: true,
@@ -326,7 +138,7 @@ export const prepareStorageBatch = internalMutation({
       progress &&
       (progress.kind !== kind || progress.fingerprint !== batch.fingerprint)
     ) {
-      throw new Error("deletion_storage_source_changed");
+      throw accountDeletionFailure("deletion_storage_source_changed");
     }
     const offset = progress?.offset ?? 0;
     if (!progress) {
@@ -372,7 +184,7 @@ export const checkpointStorageBatch = internalMutation({
       batch.fingerprint !== fingerprint ||
       count !== Math.min(ACCOUNT_DELETION_KEY_PAGE, batch.keys.length - offset)
     ) {
-      throw new Error("deletion_storage_source_changed");
+      throw accountDeletionFailure("deletion_storage_source_changed");
     }
     const next = offset + count;
     const nextAttemptAt = Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS;

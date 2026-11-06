@@ -2,16 +2,7 @@
 
 import { useTranslations } from "@teak/i18n/react";
 import type { ComponentType, MouseEvent, ReactNode } from "react";
-import {
-  Archive,
-  Hash,
-  Heart,
-  LayoutGrid,
-  PanelLeft,
-  Settings,
-  Trash,
-  type VadivamIcon,
-} from "vadivam-react";
+import { PanelLeft } from "vadivam-react";
 import { LogoMark } from "@/components/LogoMark";
 import {
   Sidebar,
@@ -27,30 +18,17 @@ import {
 } from "@/components/ui/sidebar";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReturnFocus } from "../../hooks/useReturnFocus";
-import {
-  ariaKeyShortcut,
-  GO_TO_SETTINGS_KEY,
-  GO_TO_TAGS_KEY,
-  GO_TO_VIEW_KEYS,
-} from "../../lib/keyboardShortcuts";
-import {
-  LIBRARY_VIEW_PATHS,
-  type LibraryView,
-  libraryViewLabel,
-} from "../../lib/libraryViews";
+import { GO_TO, type GoToTarget, goToKeys } from "../../lib/appCommands";
+import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
+import { type LibraryView, libraryViewLabel } from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;
 
-export const LIBRARY_VIEW_ICONS: Record<LibraryView, VadivamIcon> = {
-  all: LayoutGrid,
-  favorites: Heart,
-  archive: Archive,
-  trash: Trash,
-};
-
 const PRIMARY_VIEWS = ["all", "favorites"] as const;
+const TagsIcon = GO_TO.tags.icon;
+const SettingsIcon = GO_TO.settings.icon;
 const SECONDARY_VIEWS = ["archive", "trash"] as const;
 
 export type SidebarLinkComponent = ComponentType<{
@@ -70,26 +48,18 @@ export interface AppSidebarProps {
   isTagsActive?: boolean;
   LinkComponent: SidebarLinkComponent;
   onNavigate?: () => void;
-  settingsHref?: string;
-  tagsHref?: string;
 }
 
-function ViewTooltip({ view }: { view: LibraryView }) {
-  const t = useTranslations("lib.libraryViews");
-  const label = libraryViewLabel(view, t);
-  return (
+/** A place's name with its `G` key, as its tooltip shows them. */
+const goToTooltip = (target: GoToTarget, label: string) => ({
+  className: "flex items-center gap-2",
+  children: (
     <>
       {label}
-      <ShortcutHint
-        row={{
-          keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
-          label,
-          sequence: true,
-        }}
-      />
+      <ShortcutHint row={{ keys: goToKeys(target), label, sequence: true }} />
     </>
-  );
-}
+  ),
+});
 
 export function AppSidebar({
   activeView,
@@ -99,8 +69,6 @@ export function AppSidebar({
   isTagsActive = false,
   LinkComponent,
   onNavigate,
-  settingsHref = "/settings",
-  tagsHref = "/tags",
 }: AppSidebarProps) {
   const t = useTranslations("sidebar.nav");
   const tViews = useTranslations("lib.libraryViews");
@@ -118,25 +86,23 @@ export function AppSidebar({
   };
 
   const viewItem = (view: LibraryView) => {
-    const Icon = LIBRARY_VIEW_ICONS[view];
+    const { href, icon: Icon } = GO_TO[view];
     const isActive = activeView === view;
+    const label = libraryViewLabel(view, tViews);
     return (
       <SidebarMenuItem key={view}>
         <SidebarMenuButton
           asChild
           isActive={isActive}
-          tooltip={{
-            className: "flex items-center gap-2",
-            children: <ViewTooltip view={view} />,
-          }}
+          tooltip={goToTooltip(view, label)}
         >
           <LinkComponent
             aria-current={isActive ? "page" : undefined}
-            href={LIBRARY_VIEW_PATHS[view]}
+            href={href}
             onClick={handleNavigate}
           >
             <Icon />
-            <span>{libraryViewLabel(view, tViews)}</span>
+            <span>{label}</span>
           </LinkComponent>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -159,7 +125,7 @@ export function AppSidebar({
             >
               <LinkComponent
                 aria-label={t("home")}
-                href={LIBRARY_VIEW_PATHS.all}
+                href={GO_TO.all.href}
                 onClick={handleNavigate}
               >
                 <LogoMark />
@@ -196,28 +162,14 @@ export function AppSidebar({
               <SidebarMenuButton
                 asChild
                 isActive={isTagsActive}
-                tooltip={{
-                  className: "flex items-center gap-2",
-                  children: (
-                    <>
-                      {t("tags")}
-                      <ShortcutHint
-                        row={{
-                          keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
-                          label: t("tags"),
-                          sequence: true,
-                        }}
-                      />
-                    </>
-                  ),
-                }}
+                tooltip={goToTooltip("tags", t("tags"))}
               >
                 <LinkComponent
                   aria-current={isTagsActive ? "page" : undefined}
-                  href={tagsHref}
+                  href={GO_TO.tags.href}
                   onClick={handleNavigate}
                 >
-                  <Hash />
+                  <TagsIcon />
                   <span>{t("tags")}</span>
                 </LinkComponent>
               </SidebarMenuButton>
@@ -237,29 +189,15 @@ export function AppSidebar({
             <SidebarMenuButton
               asChild
               isActive={isSettingsActive}
-              tooltip={{
-                className: "flex items-center gap-2",
-                children: (
-                  <>
-                    {t("settings")}
-                    <ShortcutHint
-                      row={{
-                        keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
-                        label: t("settings"),
-                        sequence: true,
-                      }}
-                    />
-                  </>
-                ),
-              }}
+              tooltip={goToTooltip("settings", t("settings"))}
             >
               <LinkComponent
                 aria-current={isSettingsActive ? "page" : undefined}
                 aria-label={t("settings")}
-                href={settingsHref}
+                href={GO_TO.settings.href}
                 onClick={handleNavigate}
               >
-                <Settings />
+                <SettingsIcon />
                 <span>{t("settings")}</span>
               </LinkComponent>
             </SidebarMenuButton>

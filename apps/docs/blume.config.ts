@@ -1,10 +1,10 @@
+import { DEFAULT_TEAK_DEV_API_URL } from "@teak/convex/devUrls";
 import { defineConfig } from "blume";
 import { openapi } from "blume/reference";
 import { ORGANIZATION_LOGO, ORGANIZATION_SAME_AS } from "./lib/jsonld";
 
 const devConvexSite =
-  process.env.TEAK_DEV_API_URL?.trim() ||
-  "https://reminiscent-kangaroo-59.convex.site";
+  process.env.TEAK_DEV_API_URL?.trim() || DEFAULT_TEAK_DEV_API_URL;
 
 function teakDevProxy() {
   return {

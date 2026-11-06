@@ -1,9 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
-import {
-  type FilesImageTextResult,
-  linkOcrSourceKeys,
-  normalizeImageOcrText,
-} from "@teak/files-protocol";
+import { linkOcrSourceKeys, normalizeImageOcrText } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
 import { type CardJob, guardOf, loadCard } from "./context";
 
@@ -35,7 +31,7 @@ export const readLinkImageText = async (
       }
       const texts: string[] = [];
       for (const sourceKey of keys) {
-        const outcome = await job.deps.filesOp<FilesImageTextResult>({
+        const outcome = await job.deps.filesOp({
           op: "extract-image-text",
           params: { sourceKey },
         });

@@ -12,7 +12,7 @@ Before editing, read `packages/convex/_generated/ai/guidelines.md` and "Convex b
 - Schema changes need explicit approval for any migration or backfill; propose them, don't run them.
 - Import backend APIs from `@teak/convex`, data types from `@teak/convex/_generated/dataModel`, shared constants from `@teak/convex/shared/constants`.
 - A public API operation ships on the API, MCP, SDK and CLI together (`scripts/repo/public-parity.ts`).
-- Card processing runs on the Core Worker's Workflows, started with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Keep the processing-revision guard on every write the Worker makes through the workflow gateway.
+- Card processing runs on the Core Worker's Workflows, started with `queueCardProcessing` (`packages/convex/card/processingRuns.ts`) through the workflow dispatch outbox (`workflowDispatch/outbox.ts`; each kind's spec lives beside its domain and is listed in `workflowDispatch.ts`). Object deletions go through `queueObjectDeletion` (`storage/objectDeletion.ts`) only. Keep the processing-revision guard on every write the Worker makes through the workflow gateway.
 
 ## Prove the change
 

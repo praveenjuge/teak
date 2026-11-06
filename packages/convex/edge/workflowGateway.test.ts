@@ -4,11 +4,9 @@ import {
   WORKFLOW_RPC_TTL_SECONDS,
   type WorkflowRpcResponse,
 } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import schema from "../schema";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const SECRET = "workflow-rpc-test-secret";
 const FILES_SECRET = "files-signing-test-secret";
 const SITE_URL = "https://prod-deployment.convex.site";
@@ -39,7 +37,7 @@ const signedRequest = async (
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const { cardId, dispatchId } = await t.run(async (ctx) => {
     const now = Date.now();
     const cardId = await ctx.db.insert("cards", {

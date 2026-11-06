@@ -39,6 +39,7 @@ import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
+import { librarySearchHref } from "../lib/searchUrlState";
 import {
   applyTagOperationToSummary,
   type TagSummaryItem,
@@ -61,8 +62,8 @@ const SORT_LABELS = {
   name: "sortName",
 } as const satisfies Record<TagSort, string>;
 
-const libraryTagHref = (name: string) =>
-  `${LIBRARY_VIEW_PATHS.all}?${new URLSearchParams({ tag: name })}`;
+const libraryTagHref = (tag: string) =>
+  librarySearchHref(LIBRARY_VIEW_PATHS.all, { tag });
 
 export interface TagsScreenProps {
   headerLeading?: ReactNode;

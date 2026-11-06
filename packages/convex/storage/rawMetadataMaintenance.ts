@@ -8,9 +8,10 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { queueObjectDeletion } from "./objectDeletion";
 import { ensureObjectOwnership } from "./ownership";
-import { cardStorageObjectKeys, queueObjectDeletion } from "./r2";
+import { cardStorageObjectKeys } from "./r2";
 import {
   archivedRawSummary,
   copyAndVerifyRaw,
@@ -25,8 +26,7 @@ import {
 
 const functions = () => internal.storage.rawMetadataMaintenance;
 const kindValidator = v.union(
-  v.literal("linkPreview"),
-  v.literal("linkCategory")
+  ...RAW_METADATA_KINDS.map((kind) => v.literal(kind))
 );
 const ARCHIVE_PAGE_TIME_BUDGET_MS = 4 * 60_000;
 

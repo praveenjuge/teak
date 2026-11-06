@@ -4,41 +4,12 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCard } from "./card/cardWrites";
-import { queueObjectDeletion } from "./storage/r2";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 import { getR2KeyPrefix } from "./storage/r2Keys";
 import {
   assertArchivedRawReference,
   serializeArchivableRaw,
 } from "./storage/rawMetadata";
-
-export * from "./linkMetadata/instagram";
-export { extractInstagramMediaFromHtml } from "./linkMetadata/instagramHtml";
-export {
-  buildDebugRaw,
-  buildErrorPreview,
-  buildSuccessPreview,
-  findAttributeValue,
-  firstFromSources,
-  getSelectorValue,
-  parseLinkPreview,
-  sanitizeImageUrl,
-  sanitizeText,
-  sanitizeUrl,
-  toSelectorMap,
-} from "./linkMetadata/parsing";
-export * from "./linkMetadata/selectors";
-export * from "./linkMetadata/types";
-export { normalizeUrl } from "./linkMetadata/url";
-
-export const getFullCardForMetadataHandler = async (
-  ctx: QueryCtx,
-  { cardId }: { cardId: Id<"cards"> }
-) => await ctx.db.get("cards", cardId);
-
-export const getFullCardForMetadata = internalQuery({
-  args: { cardId: v.id("cards") },
-  handler: getFullCardForMetadataHandler,
-});
 
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
@@ -48,18 +19,9 @@ const commitCardStorageSwap = async (
 ): Promise<boolean> => {
   const committed = await patchCard(ctx, cardId, patch);
   const orphans = committed ? storage.replaced : storage.introduced;
-  await Promise.all(
-    orphans.map(async (key) => {
-      try {
-        await queueObjectDeletion(ctx, key);
-      } catch (error) {
-        console.error(
-          `[linkMetadata] Failed to delete storage ${key} for card ${cardId}:`,
-          error
-        );
-      }
-    })
-  );
+  for (const key of orphans) {
+    await queueObjectDeletion(ctx, key);
+  }
   return committed;
 };
 

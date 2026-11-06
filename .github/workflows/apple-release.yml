@@ -1158,15 +1158,8 @@ jobs:
             --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             "${prior_args[@]}"
 
-          for attempt in 1 2 3 4 5 6; do
-            if gh release view "v$VERSION" > /dev/null 2>&1; then break; fi
-            gh release create "v$VERSION" --verify-tag --title "v$VERSION" --generate-notes > /dev/null 2>&1 || true
-            if [ "$attempt" -eq 6 ]; then
-              echo "Could not resolve GitHub Release v$VERSION." >&2
-              exit 1
-            fi
-            sleep 10
-          done
+          # Version Tag creates the release with the tag.
+          node scripts/release/github-release.ts wait "$GITHUB_REPOSITORY" "v$VERSION"
           gh release upload "v$VERSION" "$RUNNER_TEMP/$MANIFEST_NAME" --clobber
           {
             echo "- Review submission: $submission_id"

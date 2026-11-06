@@ -1,5 +1,6 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
+import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 
 /**
  * Minimal structural view of the WebMCP `ModelContext` API surface Teak uses.
@@ -106,8 +107,7 @@ const TAGS_TOOL_DESCRIPTION =
   "Add or remove tags on one Teak card for the signed-in user. Tags match ignoring case; tags not mentioned are kept. Returns the updated tag list.";
 const FAVORITE_TOOL_DESCRIPTION =
   "Set or clear the favorite flag on one Teak card for the signed-in user. Returns the updated flag.";
-const PIN_TOOL_DESCRIPTION =
-  "Pin one Teak card to the top of the signed-in user's library, or unpin it. Up to 12 cards can be pinned, and archived cards can't be. Returns the updated flag.";
+const PIN_TOOL_DESCRIPTION = `Pin one Teak card to the top of the signed-in user's library, or unpin it. Up to ${MAX_PINNED_CARDS} cards can be pinned, and archived cards can't be. Returns the updated flag.`;
 const RECENT_TOOL_DESCRIPTION =
   "List the signed-in user's most recently created Teak cards, newest first, with an optional card-type filter. Returns matching card summaries.";
 
@@ -637,8 +637,6 @@ export interface WebMcpQueryDeps {
     pinned: boolean;
   }) => Promise<null>;
 }
-
-export { getModelContext } from "./webmcpContext";
 
 export interface RegisterWebMcpToolsOptions {
   logger?: (message: string) => void;

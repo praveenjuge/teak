@@ -100,18 +100,27 @@ describe("Card keyboard access", () => {
     });
   };
 
-  test.each(["metaKey", "ctrlKey"])(
-    "copies the card's text with %s+C",
-    async (modifier) => {
-      const onCopyImage = mock();
-      const card = await renderCard({ onCopyImage });
-      await pressCopy(card, modifier);
-      expect(onCopyImage).toHaveBeenCalledWith(
-        "my\\_file\\_name\\_v2 costs 2\\*3",
-        false
-      );
-    }
-  );
+  // ⌘ on a Mac, Ctrl elsewhere: the key the menu and the shortcuts list name.
+  const apple = /Mac|iPhone|iPad/.test(navigator.platform);
+  const MOD = apple ? "metaKey" : "ctrlKey";
+  const OTHER = apple ? "ctrlKey" : "metaKey";
+
+  test("copies the card's text with the platform's ⌘C or Ctrl+C", async () => {
+    const onCopyImage = mock();
+    const card = await renderCard({ onCopyImage });
+    await pressCopy(card, MOD);
+    expect(onCopyImage).toHaveBeenCalledWith(
+      "my\\_file\\_name\\_v2 costs 2\\*3",
+      false
+    );
+  });
+
+  test("the other platform's key doesn't copy", async () => {
+    const onCopyImage = mock();
+    const card = await renderCard({ onCopyImage });
+    await pressCopy(card, OTHER);
+    expect(onCopyImage).not.toHaveBeenCalled();
+  });
 
   test("copies a card link in the note as its title", async () => {
     const onCopyImage = mock();
@@ -130,7 +139,7 @@ describe("Card keyboard access", () => {
       )
     );
     const card = container.querySelector<HTMLElement>('[role="button"]');
-    await pressCopy(card as HTMLElement, "metaKey");
+    await pressCopy(card as HTMLElement, MOD);
     expect(onCopyImage).toHaveBeenCalledWith("See Garden plan first", false);
   });
 
@@ -141,7 +150,7 @@ describe("Card keyboard access", () => {
     paragraph.textContent = "Selected words";
     document.body.append(paragraph);
     window.getSelection()?.selectAllChildren(paragraph);
-    await pressCopy(card, "metaKey");
+    await pressCopy(card, MOD);
     window.getSelection()?.removeAllRanges();
     expect(onCopyImage).not.toHaveBeenCalled();
   });
@@ -158,7 +167,7 @@ describe("Card keyboard access", () => {
     );
     const card = container.querySelector<HTMLElement>('[role="button"]');
     expect(card).not.toBeNull();
-    await pressCopy(card as HTMLElement, "metaKey");
+    await pressCopy(card as HTMLElement, MOD);
     expect(onCopyImage).not.toHaveBeenCalled();
   });
 

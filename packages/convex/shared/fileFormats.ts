@@ -1,4 +1,8 @@
-import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
+import {
+  FILES_UPLOAD_MAX_BYTES,
+  GENERIC_MEDIA_TYPES,
+  normalizeMediaType,
+} from "@teak/files-protocol";
 import type { CardType } from "./constants";
 
 export const FILE_KINDS = [
@@ -68,12 +72,8 @@ export interface FilePreviewFacts {
 export const MAX_FILE_NAME_LENGTH = 240;
 export const MAX_FILE_SIZE = FILES_UPLOAD_MAX_BYTES;
 
-export const GENERIC_MIME_TYPES = new Set([
-  "",
-  "application/binary",
-  "application/octet-stream",
-  "binary/octet-stream",
-]);
+/** Types that say nothing about the bytes; see files-protocol's mediaTypes. */
+export const GENERIC_MIME_TYPES: ReadonlySet<string> = GENERIC_MEDIA_TYPES;
 
 export const isGenericMimeType = (
   mimeType: string | null | undefined
@@ -587,9 +587,9 @@ export const fileUploadErrorCode = (
   return "INVALID_INPUT";
 };
 
-export const normalizeMimeType = (
+export const normalizeMimeType: (
   mimeType: string | null | undefined
-): string => mimeType?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+) => string = normalizeMediaType;
 
 export const validateFileName = (fileName: string): string => {
   const normalized = fileName.trim();
@@ -780,3 +780,27 @@ export const validateUploadFile = (input: {
 
 export const mimeTypeForFileName = (fileName: string): string =>
   inferFileFormat({ fileName })?.mimeType ?? "application/octet-stream";
+
+/**
+ * The usual file extension for a media type, when the registry knows the
+ * type: the format it is the main type of first, then any format that
+ * takes it. Formats whose `extension` is a family name ("audio", "video")
+ * name none.
+ */
+export const extensionForMimeType = (
+  mimeType: string | null | undefined
+): string | undefined => {
+  const normalized = normalizeMimeType(mimeType);
+  if (GENERIC_MIME_TYPES.has(normalized)) {
+    return;
+  }
+  const named = FILE_FORMATS.filter((definition) =>
+    (definition.suffixes as readonly string[]).includes(definition.extension)
+  );
+  return (
+    named.find((definition) => definition.mimeType === normalized) ??
+    named.find((definition) =>
+      (definition.mimeTypes as readonly string[]).includes(normalized)
+    )
+  )?.extension;
+};

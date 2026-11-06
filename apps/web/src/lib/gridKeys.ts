@@ -9,7 +9,7 @@ import {
   selectionKeyAction,
 } from "./cardActions";
 import type { GridDirection } from "./gridNavigation";
-import { isApplePlatform } from "./platform";
+import { isApplePlatform, isModKey } from "./platform";
 
 export interface GridKeyContext {
   addToFolder: boolean;
@@ -77,15 +77,23 @@ export function gridKeyAction(
 }
 
 /** ⌘A on a Mac, Ctrl+A elsewhere: in selection mode it picks every card. */
-export function isSelectAllKey(
-  event: Pick<
-    globalThis.KeyboardEvent,
-    "altKey" | "ctrlKey" | "key" | "metaKey" | "repeat" | "shiftKey"
-  >
-): boolean {
-  return (
-    (event.metaKey || event.ctrlKey) &&
-    !(event.altKey || event.shiftKey || event.repeat) &&
-    event.key.toLowerCase() === "a"
-  );
-}
+export const isSelectAllKey = (
+  event: GridModKeyEvent,
+  apple = isApplePlatform()
+): boolean => isModLetter(event, "a", apple);
+
+/** ⌘C on a Mac, Ctrl+C elsewhere: a focused card's copy. */
+export const isCopyCardKey = (
+  event: GridModKeyEvent,
+  apple = isApplePlatform()
+): boolean => isModLetter(event, "c", apple);
+
+type GridModKeyEvent = Pick<
+  globalThis.KeyboardEvent,
+  "altKey" | "ctrlKey" | "key" | "metaKey" | "repeat" | "shiftKey"
+>;
+
+const isModLetter = (event: GridModKeyEvent, letter: string, apple: boolean) =>
+  isModKey(event, apple) &&
+  !(event.altKey || event.shiftKey || event.repeat) &&
+  event.key.toLowerCase() === letter;

@@ -7,7 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { type ActionCtx, action } from "../_generated/server";
 import { aiUsageParams } from "../ai/usage";
-import { rateLimiter } from "../shared/rateLimits";
+import { rateLimiter } from "../rateLimiter";
 import {
   buildRelevanceCardText,
   currentRelevanceScores,
@@ -108,7 +108,7 @@ export const ensureRelevanceScores = async (
   const startedAt = Date.now();
   let result: FilesRelevanceResult | null = null;
   try {
-    const outcome = await callCoreWorkerOp<unknown>({
+    const outcome = await callCoreWorkerOp({
       op: "score-relevance",
       params: {
         ...aiUsageParams(userId),

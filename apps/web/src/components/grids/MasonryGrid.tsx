@@ -1,5 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { useTranslations } from "@teak/i18n/react";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
@@ -32,6 +32,7 @@ import type {
   CardView,
   SelectionAction,
 } from "../../lib/cardActions";
+import type { CardGridLayout } from "../../lib/cardDensity";
 import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { gridKeyAction } from "../../lib/gridKeys";
@@ -89,7 +90,8 @@ const MEASURING_STYLE = {
 } as const;
 
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
-const DEFAULT_ROOT_MARGIN = "200px 0px";
+/** How far below the screen the next cards start to load. */
+const LOAD_MORE_ROOT_MARGIN = "200px 0px";
 const PRIORITY_CARD_COUNT = 10;
 
 // antd animates items in and out. Its motion forgets it has mounted while
@@ -120,22 +122,24 @@ export interface MasonryGridHandle {
   returnFocusTo: (cardId: string) => boolean;
 }
 
+const DEFAULT_LAYOUT: CardGridLayout = {
+  gutter: GRID_GUTTER,
+  maxColumns: MAX_COLUMNS,
+  minColumnWidth: MIN_COLUMN_WIDTH,
+};
+
 export interface MasonryGridProps {
   addCardForm?: ReactNode;
   addToFolder?: BulkBarFolder;
+  /** Cards shown at first, and how many more each scroll to the end shows. */
   batchSize?: number;
   columns?: MasonryColumns;
   filteredCards: Doc<"cards">[];
   folder?: BulkBarFolder;
-  gutter?: number;
   hasMore?: boolean;
-  initialBatchSize?: number;
   isLoadingMore?: boolean;
-  loadMoreRootMargin?: string;
-  /** The most columns a wide grid shows. */
-  maxColumns?: number;
-  /** The narrowest a column may get before the grid drops one. */
-  minColumnWidth?: number;
+  /** The gap, the most columns and the narrowest column: the card density. */
+  layout?: CardGridLayout;
   onAddToFolderDone?: (added: boolean) => void;
   onBulkAction?: (
     action: BulkCardAction,
@@ -165,7 +169,6 @@ export interface MasonryGridProps {
   ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
-  showBulkActions?: boolean;
   view?: CardView;
 }
 
@@ -176,7 +179,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   filteredCards,
   view = "library",
   showAddForm = false,
-  showBulkActions = true,
   addCardForm,
   onCardAction,
   onCardClick,
@@ -184,23 +186,19 @@ export const MasonryGrid = memo(function MasonryGrid({
   onDeleteForever,
   onCopyImage,
   ref,
-  initialBatchSize = DEFAULT_BATCH_SIZE,
   batchSize = DEFAULT_BATCH_SIZE,
   resetKey,
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
-  loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
   columns,
-  gutter = GRID_GUTTER,
-  maxColumns = MAX_COLUMNS,
-  minColumnWidth = MIN_COLUMN_WIDTH,
+  layout = DEFAULT_LAYOUT,
 }: MasonryGridProps) {
+  const { gutter, maxColumns, minColumnWidth } = layout;
   const t = useTranslations("grids.masonry");
   const tDialog = useTranslations("cards.deleteForeverDialog");
   const inTrash = view === "trash";
   const resolvedResetKey = resetKey ?? inTrash;
-  const normalizedInitialBatchSize = Math.max(1, initialBatchSize);
   const normalizedBatchSize = Math.max(1, batchSize);
 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -228,7 +226,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
   }, [addToFolderId]);
   const [visibleCount, setVisibleCount] = useState(() =>
-    Math.min(normalizedInitialBatchSize, filteredCards.length)
+    Math.min(normalizedBatchSize, filteredCards.length)
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -270,7 +268,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   const normalizedBatchSizeRef = useRef(normalizedBatchSize);
   const onLoadMoreRef = useRef(onLoadMore);
   const hasMoreRef = useRef(hasMore);
-  const loadMoreRootMarginRef = useRef(loadMoreRootMargin);
 
   useEffect(() => {
     normalizedBatchSizeRef.current = normalizedBatchSize;
@@ -281,9 +278,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   useEffect(() => {
     hasMoreRef.current = hasMore;
   }, [hasMore]);
-  useEffect(() => {
-    loadMoreRootMarginRef.current = loadMoreRootMargin;
-  }, [loadMoreRootMargin]);
 
   useEffect(() => {
     const didReset = resetKeyRef.current !== resolvedResetKey;
@@ -302,10 +296,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         return 0;
       }
 
-      const initialCount = Math.min(
-        normalizedInitialBatchSize,
-        filteredCards.length
-      );
+      const initialCount = Math.min(normalizedBatchSize, filteredCards.length);
 
       if (didReset || prev === 0) {
         return initialCount;
@@ -313,7 +304,7 @@ export const MasonryGrid = memo(function MasonryGrid({
 
       return Math.min(prev, filteredCards.length);
     });
-  }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
+  }, [resolvedResetKey, filteredCards.length, normalizedBatchSize]);
 
   // A finished page clears the request even when it showed no new cards: a
   // search merges cached cards with the server's pages, so a page of cards
@@ -365,7 +356,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onLoadMoreRef.current?.();
         }
       },
-      { root: null, rootMargin: loadMoreRootMarginRef.current, threshold: 0 }
+      { root: null, rootMargin: LOAD_MORE_ROOT_MARGIN, threshold: 0 }
     );
 
     observer.observe(sentinel);
@@ -594,7 +585,8 @@ export const MasonryGrid = memo(function MasonryGrid({
         }
       } else if (action === "deleteForever") {
         setPendingPermanentDeleteId(card._id);
-      } else if (action !== "done") {
+      } else if (action !== "done" && action !== "copy") {
+        // A card copies itself (`onCopyImage`); done belongs to the open card.
         onCardAction?.(action, card, source);
       }
     },
@@ -930,7 +922,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   };
 
   const bulkActionBar: ReactNode =
-    showBulkActions && onBulkAction && isSelectionMode ? (
+    onBulkAction && isSelectionMode ? (
       <BulkActionBar
         addToFolder={addToFolder}
         allFavorited={allSelectedFavorited}

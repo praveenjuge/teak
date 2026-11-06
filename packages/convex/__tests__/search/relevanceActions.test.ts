@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
+import { internal } from "../../_generated/api";
 
 let workerCalls: Array<{ op: string; params: any }> = [];
 let workerAnswer: (params: any) => Promise<unknown>;
@@ -17,9 +18,9 @@ beforeAll(async () => {
     },
     isCoreWorkerConfigured: () => true,
   }));
-  const actualLimits = await import("../../shared/rateLimits");
-  mock.module(import.meta.resolve("../../shared/rateLimits"), () => ({
-    ...actualLimits,
+  const actualLimiter = await import("../../rateLimiter");
+  mock.module(import.meta.resolve("../../rateLimiter"), () => ({
+    ...actualLimiter,
     rateLimiter: {
       limit: () => {
         rateLimitCalls += 1;
@@ -58,12 +59,19 @@ const makeCtx = (cached: unknown = null, gate = "allowed", stored = true) => {
     ctx: {
       runQuery: (ref: unknown) =>
         Promise.resolve(
-          getFunctionName(ref as never).endsWith("getAiGate") ? gate : cached
+          getFunctionName(ref as never) ===
+            getFunctionName(internal.adminAccess.getAiGate)
+            ? gate
+            : cached
         ),
       runMutation: (ref: unknown, args: any) => {
         const name = getFunctionName(ref as never);
         mutations.push({ name, args });
-        return Promise.resolve(name.endsWith("storeScores") ? stored : true);
+        return Promise.resolve(
+          name === getFunctionName(internal.search.relevanceCache.storeScores)
+            ? stored
+            : true
+        );
       },
     },
   };
@@ -97,7 +105,7 @@ describe("ensureRelevanceScores", () => {
       userId: "teak_user",
     });
     expect(mutations.map((entry) => entry.name)).toEqual([
-      "search/relevanceCache:storeScores",
+      getFunctionName(internal.search.relevanceCache.storeScores),
     ]);
     expect(rateLimitCalls).toBe(1);
   });

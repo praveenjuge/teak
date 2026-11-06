@@ -129,6 +129,7 @@ describe("weekly pending upload sweep", () => {
   const sweepEnv = (bucket: FakeBucket) =>
     ({
       BUCKET: bucket,
+      FILES_PUBLIC_ORIGIN: "https://files.example.com",
       FILES_SIGNING_SECRET: "secret",
     }) as unknown as BackgroundEnv;
 

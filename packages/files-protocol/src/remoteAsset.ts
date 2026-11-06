@@ -1,3 +1,4 @@
+import { isGenericMediaType, normalizeMediaType } from "./mediaTypes";
 export type FilesRemoteAssetKind = "image" | "video";
 
 export const FILES_REMOTE_ASSET_MAX_BYTES: Record<
@@ -91,16 +92,9 @@ export const guessVideoContentType = (url: string): string | null => {
   return extension ? (VIDEO_TYPES[extension] ?? null) : null;
 };
 
-/** Types that say only "some bytes", so the URL decides instead. */
-const GENERIC_CONTENT_TYPES = new Set([
-  "application/octet-stream",
-  "binary/octet-stream",
-]);
-
-const specificContentType = (headerValue: string | null) => {
-  const type = headerValue?.split(";")[0]?.trim().toLowerCase();
-  return type && !GENERIC_CONTENT_TYPES.has(type) ? type : undefined;
-};
+/** A type that says more than "some bytes"; otherwise the URL decides. */
+const specificContentType = (headerValue: string | null) =>
+  isGenericMediaType(headerValue) ? undefined : normalizeMediaType(headerValue);
 
 export const resolveRemoteAssetContentType = (
   headerValue: string | null,

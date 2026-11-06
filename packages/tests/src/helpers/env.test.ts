@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { stackUrls } from "@teak/scripts/dev/local-stack/config";
 import { slotPorts } from "@teak/scripts/dev/worktree-env";
 import type { StackState } from "@teak/scripts/lib/stack-state";
-import { stackUrls } from "../stack/config";
 import { FIXTURE_URLS, resolveStackUrls } from "./env";
 
 const running: StackState = {

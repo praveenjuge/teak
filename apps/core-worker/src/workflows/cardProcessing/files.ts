@@ -14,15 +14,11 @@ import {
   FILES_INSPECT_MAX_ARCHIVE_BYTES,
   FILES_INSPECT_MAX_SOURCE_BYTES,
   FILES_TRANSCRIPTION_MODEL,
-  type FilesInspectResult,
-  type FilesMediaProbeResult,
-  type FilesPdfOcrResult,
   type FilesProcessAudioResult,
   filesCardKeyPrefix,
   normalizeImageOcrText,
   sha256Hex,
 } from "@teak/files-protocol";
-import { gatedEnv } from "../../deletionGate";
 import { InvalidOpInput } from "../../opFailure";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { sanitizeTranscript } from "./aiMetadata";
@@ -56,7 +52,7 @@ export const recordMediaFacts = async (
     return known.duration;
   }
   try {
-    const outcome = await job.deps.filesOp<FilesMediaProbeResult>({
+    const outcome = await job.deps.filesOp({
       op: "probe-media",
       params: { sourceKey: card.fileKey },
     });
@@ -127,7 +123,7 @@ export const transcribeStoredAudio = async (
         traceId: job.cardId,
       },
       async () => {
-        const outcome = await job.deps.filesOp<FilesProcessAudioResult>({
+        const outcome = await job.deps.filesOp({
           op: "process-audio",
           params: {
             sourceKey,
@@ -233,7 +229,7 @@ export const buildFilePreviewFactsForKey = async (
   if (!mode) {
     return null;
   }
-  const outcome = await job.deps.filesOp<FilesInspectResult>({
+  const outcome = await job.deps.filesOp({
     op: "inspect",
     params: {
       formatId: format.id,
@@ -258,7 +254,7 @@ export const extractFileTextForKey = (
 ): Promise<ExtractedDocumentText> =>
   extractDocumentFileText(
     (params) =>
-      job.deps.filesOp<FilesInspectResult>({
+      job.deps.filesOp({
         op: "inspect",
         params: { ...params },
       }),
@@ -271,7 +267,7 @@ export const readScannedPdfText = async (
   job: CardJob,
   sourceKey: string
 ): Promise<string> => {
-  const outcome = await job.deps.filesOp<FilesPdfOcrResult>({
+  const outcome = await job.deps.filesOp({
     op: "ocr-pdf-pages",
     params: { sourceKey },
   });
@@ -298,7 +294,7 @@ export const storeDocumentText = async (
   const charCount = Array.from(text).length;
   if (card.documentTextKey !== key) {
     await ensureObjectOwnership(job, card.userId, key);
-    await gatedEnv(job.env).BUCKET.put(key, text, {
+    await job.env.BUCKET.put(key, text, {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
     });
   }

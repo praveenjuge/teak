@@ -5,21 +5,7 @@ import {
   type TeakTranslator,
 } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import {
-  Dices,
-  File,
-  FileText,
-  FolderSearch,
-  Image,
-  Layers,
-  Link as LinkIcon,
-  Palette,
-  Quote,
-  SlidersHorizontal,
-  type VadivamIcon,
-  Video,
-  Volume2,
-} from "vadivam-react";
+import { Dices, FolderSearch, Layers, SlidersHorizontal } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,6 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CARD_DENSITIES, type CardDensity } from "../../lib/cardDensity";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
 import {
@@ -47,17 +34,6 @@ import {
 } from "../cards/cardTypeLabel";
 
 const englishSearch = createTeakTranslator("en", englishMessages, "search");
-
-const TYPE_ICONS: Record<CardType, VadivamIcon> = {
-  text: FileText,
-  link: LinkIcon,
-  image: Image,
-  video: Video,
-  audio: Volume2,
-  document: File,
-  palette: Palette,
-  quote: Quote,
-};
 
 interface ViewMenuProps {
   activeTypes: readonly CardType[];
@@ -146,7 +122,7 @@ export function ViewMenu({
               {t("viewMenu.show")}
             </DropdownMenuLabel>
             {cardTypes.map((type) => {
-              const Icon = TYPE_ICONS[type];
+              const Icon = cardTypeIcon(type);
               return (
                 <DropdownMenuCheckboxItem
                   checked={activeTypes.includes(type)}

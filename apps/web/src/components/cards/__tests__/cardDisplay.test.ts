@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatDuration,
-  getDisplayHostname,
   getFaviconUrl,
   getFileFormatBadge,
   isCardProcessing,
@@ -10,22 +9,6 @@ import {
   readableTextOn,
   splitNotePreview,
 } from "../cardDisplay";
-
-describe("getDisplayHostname", () => {
-  test("drops www. and keeps the rest of the host", () => {
-    expect(getDisplayHostname("https://www.theverge.com/2024/a")).toBe(
-      "theverge.com"
-    );
-    expect(getDisplayHostname("https://docs.convex.dev/x?y=1")).toBe(
-      "docs.convex.dev"
-    );
-  });
-
-  test("names no site for unsafe or missing links", () => {
-    expect(getDisplayHostname("javascript:alert(1)")).toBeUndefined();
-    expect(getDisplayHostname(undefined)).toBeUndefined();
-  });
-});
 
 describe("getFaviconUrl", () => {
   test("sends only the hostname to the favicon service", () => {

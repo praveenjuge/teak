@@ -1,9 +1,6 @@
-import { api } from "@teak/convex";
-import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import { useTranslations } from "@teak/i18n/react";
 import {
   createContext,
   type ReactNode,
@@ -32,29 +29,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
+import { useCanCreateCard } from "@/hooks/useCanCreateCard";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { formatClockTime } from "@/lib/clockTime";
 import { runMenuItemShortcut } from "@/lib/menuShortcuts";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
-import {
-  describeUploadFailures,
-  uploadAcceptAttribute,
-  uploadFailureKind,
-} from "@/lib/upload/fileDrop";
+import { uploadAcceptAttribute } from "@/lib/upload/fileDrop";
 import { cn } from "@/lib/utils";
-import { useQuery } from "../../lib/convexQueryHooks";
-import { APP_KEYS, keyName } from "../../lib/keyboardShortcuts";
+import { useRunAfterClose } from "../../hooks/useRunAfterClose";
+import { appActionKeys } from "../../lib/appCommands";
 import { useLibraryCommand } from "../providers/LibraryCommandsProvider";
 
 interface AddCardProviderProps {
   children: ReactNode;
   onNewNote?: () => void;
   onSuccess?: () => void;
-  onUpgrade?: () => void;
-  upgradeUrl?: string;
 }
 
 const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
@@ -133,15 +122,10 @@ export function AddCardProvider({
   children,
   onNewNote,
   onSuccess,
-  onUpgrade,
-  upgradeUrl = SETTINGS_PLAN_HREF,
 }: AddCardProviderProps) {
   const t = useTranslations("forms.addCardActions");
   const tLimits = useTranslations("forms.limits");
   const tc = useTranslations("common");
-  const errors = useServerErrors();
-  const tUploadMessages = useTranslations("lib.upload");
-  const intlLocale = useIntlLocale();
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -155,8 +139,7 @@ export function AddCardProvider({
     extension: string;
   } | null>(null);
 
-  const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
-  const canCreateCard = cardCreationStatus?.canCreateCard ?? true;
+  const canCreateCard = useCanCreateCard() ?? true;
   const globalFileDrop = useGlobalFileDrop();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -167,7 +150,7 @@ export function AddCardProvider({
 
   const { uploadFile } = useFileUpload();
 
-  const { showUpgradeToast } = useUpgradeAction(onUpgrade, upgradeUrl);
+  const { showCreateFailure, showUpgradeToast } = useUpgradeAction();
 
   const clearRecordingResources = useCallback(() => {
     if (timerRef.current) {
@@ -223,15 +206,11 @@ export function AddCardProvider({
           return;
         }
 
-        if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-          showUpgradeToast(toastId);
-          keep(tLimits("cardLimitReached"));
-          return;
-        }
-
-        if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.dismiss(toastId);
-          keep(tLimits("rateLimited"));
+        const limit = showCreateFailure(result, { id: toastId });
+        if (limit) {
+          keep(
+            tLimits(limit === "cardLimit" ? "cardLimitReached" : "rateLimited")
+          );
           return;
         }
 
@@ -246,7 +225,7 @@ export function AddCardProvider({
         setIsSubmitting(false);
       }
     },
-    [onSuccess, showUpgradeToast, t, tLimits, uploadFile]
+    [onSuccess, showCreateFailure, t, tLimits, uploadFile]
   );
 
   const startRecording = useCallback(async () => {
@@ -408,63 +387,12 @@ export function AddCardProvider({
     // Cancelling the picker fires `cancel`, not `change`.
     input.addEventListener("cancel", () => input.remove(), { once: true });
 
-    input.onchange = async (event) => {
+    input.onchange = (event) => {
       const files = Array.from((event.target as HTMLInputElement).files || []);
       input.remove();
-
-      if (files.length === 0) {
-        return;
-      }
-
-      if (globalFileDrop) {
-        globalFileDrop.enqueueFiles(files);
-        return;
-      }
-
-      for (const file of files) {
-        const toastId = toast.loading(t("uploading", { name: file.name }));
-        captureEvent("card_create_submitted", {
-          card_type:
-            inferFileFormat({ fileName: file.name, mimeType: file.type })
-              ?.cardType ?? "document",
-          source: "web",
-          via: "file_upload",
-        });
-        // react-doctor-disable-next-line react-doctor/async-await-in-loop
-        const result = await uploadFile(file, { content: "" });
-
-        if (result.success) {
-          toast.success(t("uploaded", { name: file.name }), { id: toastId });
-          onSuccess?.();
-          continue;
-        }
-
-        if (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
-          showUpgradeToast(toastId);
-          break;
-        }
-        if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error(tLimits("rateLimited"), {
-            id: toastId,
-          });
-          break;
-        }
-
-        toast.error(
-          uploadFailureKind(result) === "other"
-            ? t("uploadFailed", {
-                name: file.name,
-                error: result.error
-                  ? errors.byEnglishMessage(result.error)
-                  : t("uploadFailedReason"),
-              })
-            : describeUploadFailures(
-                [{ ...result, file: file.name }],
-                tUploadMessages,
-                intlLocale
-              ),
-          { ...MANUAL_CLOSE_TOAST_OPTIONS, id: toastId }
-        );
+      // Picked files upload like dropped ones, through the one upload queue.
+      if (files.length > 0) {
+        globalFileDrop?.enqueueFiles(files);
       }
     };
 
@@ -604,13 +532,18 @@ export function AddCardProvider({
   );
 }
 
+// The New menu's items, each with its app action's key.
+const NEW_NOTE_KEY = appActionKeys("newNote")[0];
+const UPLOAD_KEY = appActionKeys("uploadFiles")[0];
+const RECORD_KEY = appActionKeys("recordAudio")[0];
+
 function NewMenuItems({
-  afterCloseRef,
   controls,
+  runAfterClose,
 }: {
-  /** What to do once the menu has closed, instead of focusing its trigger. */
-  afterCloseRef: { current: (() => void) | null };
   controls: AddCardControls;
+  /** What to do once the menu has closed, instead of focusing its trigger. */
+  runAfterClose: (action: () => void) => void;
 }) {
   const t = useTranslations("forms.addCardActions");
   // Key hints mean nothing without a keyboard.
@@ -620,26 +553,26 @@ function NewMenuItems({
     </DropdownMenuShortcut>
   );
   const { newNote } = controls;
-  const keepFocus = () => {
-    afterCloseRef.current = () => undefined;
-  };
+  // The file picker or the recording dialog has focus now: the closing
+  // menu mustn't take it back for its trigger.
+  const keepFocus = () => runAfterClose(() => undefined);
   return (
     <>
       {newNote ? (
         <DropdownMenuItem
-          aria-keyshortcuts={keyName(APP_KEYS.newNote)}
+          aria-keyshortcuts={NEW_NOTE_KEY}
           onSelect={() => {
             // The composer takes focus once the menu has let go of it.
-            afterCloseRef.current = newNote;
+            runAfterClose(newNote);
           }}
         >
           <PenLine />
           {t("noteOrLink")}
-          {hint(keyName(APP_KEYS.newNote))}
+          {hint(NEW_NOTE_KEY)}
         </DropdownMenuItem>
       ) : null}
       <DropdownMenuItem
-        aria-keyshortcuts={keyName(APP_KEYS.uploadFiles)}
+        aria-keyshortcuts={UPLOAD_KEY}
         disabled={controls.isUploading}
         onSelect={() => {
           keepFocus();
@@ -649,10 +582,10 @@ function NewMenuItems({
       >
         <Upload />
         {t("uploadFiles")}
-        {hint(keyName(APP_KEYS.uploadFiles))}
+        {hint(UPLOAD_KEY)}
       </DropdownMenuItem>
       <DropdownMenuItem
-        aria-keyshortcuts={keyName(APP_KEYS.recordAudio)}
+        aria-keyshortcuts={RECORD_KEY}
         disabled={!controls.canStartRecording}
         onSelect={() => {
           keepFocus();
@@ -661,7 +594,7 @@ function NewMenuItems({
       >
         <Mic />
         {t("recordAudio")}
-        {hint(keyName(APP_KEYS.recordAudio))}
+        {hint(RECORD_KEY)}
       </DropdownMenuItem>
     </>
   );
@@ -676,25 +609,18 @@ function NewMenu({
   controls: AddCardControls;
   trigger: ReactNode;
 }) {
-  const afterCloseRef = useRef<(() => void) | null>(null);
+  const { onCloseAutoFocus, runAfterClose } = useRunAfterClose();
   return (
     <DropdownMenu>
       {trigger}
       <DropdownMenuContent
         align={align}
         className="w-52"
-        onCloseAutoFocus={(event) => {
-          const afterClose = afterCloseRef.current;
-          if (afterClose) {
-            afterCloseRef.current = null;
-            event.preventDefault();
-            afterClose();
-          }
-        }}
+        onCloseAutoFocus={onCloseAutoFocus}
         onKeyDown={runMenuItemShortcut}
         side="bottom"
       >
-        <NewMenuItems afterCloseRef={afterCloseRef} controls={controls} />
+        <NewMenuItems controls={controls} runAfterClose={runAfterClose} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

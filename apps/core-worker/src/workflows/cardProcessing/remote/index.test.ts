@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { socialFetch } from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
 import { resolveLinkCategory } from "@teak/convex/shared";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { MAX_LINK_FACTS } from "@teak/convex/shared/linkCategory/remoteDetails";
@@ -9,6 +8,7 @@ import {
   enrichLinkCategory,
   remoteLookupInput,
 } from "@teak/convex/shared/linkCategory/rules";
+import { socialFetch } from "../../../test/socialFetch";
 import {
   fetchRemoteDetails,
   type RemoteDetails,

@@ -2,8 +2,20 @@
  * The public API's operations and the values its inputs take, in one place.
  * The Convex router, the OpenAPI document, the MCP server, the SDK, the CLI
  * and the Core Worker read them from here, so an operation is declared once.
+ * The JSON bodies operations read are declared beside them, as Zod schemas,
+ * in `publicApiBodies.ts` (kept apart so the SDK doesn't bundle Zod).
  */
-import { cardTypes } from "./constants";
+import {
+  COLOR_HUE_BUCKETS,
+  cardTypes,
+  VISUAL_STYLE_TAXONOMY,
+} from "./constants";
+import {
+  PUBLIC_API_DEFAULT_LIMIT,
+  PUBLIC_API_MAX_LIMIT,
+} from "./publicApiLimits";
+import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./search/constants";
+import { MAX_SHUFFLE_SEED } from "./search/shuffle";
 import { CARD_LIST_SORTS } from "./search/sort";
 
 export {
@@ -319,39 +331,6 @@ export const publicApiMethodsFor = (pathname: string): PublicApiMethod[] => {
 
 export const PUBLIC_API_CARD_TYPES = cardTypes;
 export const PUBLIC_API_CARD_SORTS = CARD_LIST_SORTS;
-/**
- * The query parameters `listCards` takes, which every surface offers. The
- * CLI names its flag after the parameter in kebab case unless `cliFlag`
- * says otherwise.
- */
-export const CARD_LIST_PARAMS = {
-  q: { cliFlag: "--query" },
-  similarTo: {},
-  mode: {},
-  limit: {},
-  cursor: { cliFlag: "--next" },
-  sort: {},
-  shuffleSeed: { cliFlag: "--seed" },
-  type: {},
-  tag: {},
-  favorited: {},
-  pinned: {},
-  trashed: {},
-  folder: {},
-  archived: {},
-  style: {},
-  hue: {},
-  hex: {},
-  createdAfter: {},
-  createdBefore: {},
-  include: {},
-} as const satisfies Record<string, { cliFlag?: string }>;
-export type CardListParam = keyof typeof CARD_LIST_PARAMS;
-
-export const cliFlagFor = (param: CardListParam): string =>
-  (CARD_LIST_PARAMS[param] as { cliFlag?: string }).cliFlag ??
-  `--${param.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
-
 export const ARCHIVED_FILTERS = ["exclude", "only", "include"] as const;
 export type ArchivedFilter = (typeof ARCHIVED_FILTERS)[number];
 export const CARD_LIST_INCLUDES = [
@@ -381,6 +360,136 @@ export type BulkCardOperation = (typeof BULK_CARD_OPERATIONS)[number];
 /** How a search finds cards: words and meaning, words only, meaning only. */
 export const SEARCH_MODES = ["hybrid", "keyword", "semantic"] as const;
 export type SearchMode = (typeof SEARCH_MODES)[number];
+
+/**
+ * What `q` accepts, written once for every surface that describes it. A
+ * test checks it names every qualifier and `is:` value the parser reads.
+ */
+export const SEARCH_QUERY_HELP =
+  'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done (links marked done), is:todo (links to read, watch or buy that are not done yet), site:github.com, folder:"Reading list", like:<cardId> (the cards closest in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; only links with a price match), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases". A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old; not like: or mood:), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Qualifiers combine with the other filters.';
+
+/** How a card list parameter's value is written. */
+export type CardListParamKind =
+  | "boolean"
+  | "enum"
+  | "integer"
+  | "text"
+  | "timestamp";
+
+export interface CardListParamSpec {
+  /**
+   * The value the API uses when the parameter is left out: sending it is
+   * the same as leaving it out.
+   */
+  readonly default?: number | string;
+  /** What the parameter does, in words any surface can show. */
+  readonly doc: string;
+  readonly kind: CardListParamKind;
+  /** Several values, comma-separated, in one parameter. */
+  readonly list?: true;
+  /** The largest value, or for a repeatable one the most values. */
+  readonly max?: number;
+  readonly min?: number;
+  /** Repeat the parameter to match any of several values. */
+  readonly repeatable?: true;
+  /** The values an `enum` takes. */
+  readonly values?: readonly string[];
+}
+
+/**
+ * The query parameters `listCards` takes, which every surface offers, and
+ * what each one takes. Each surface names its own inputs (the SDK calls `q`
+ * `query`, the CLI has its own flags); a test checks every one offers each
+ * parameter. The order is the order the SDK writes them.
+ */
+export const CARD_LIST_PARAMS = {
+  q: { kind: "text", doc: SEARCH_QUERY_HELP },
+  type: {
+    kind: "enum",
+    values: cardTypes,
+    repeatable: true,
+    doc: "One card type, or several to match any of them",
+  },
+  style: {
+    kind: "enum",
+    values: VISUAL_STYLE_TAXONOMY,
+    repeatable: true,
+    max: SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION,
+    doc: "Visual styles: cards matching any of them",
+  },
+  hue: {
+    kind: "enum",
+    values: COLOR_HUE_BUCKETS,
+    repeatable: true,
+    max: SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION,
+    doc: "Color families: cards with any of them",
+  },
+  hex: {
+    kind: "text",
+    repeatable: true,
+    max: SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION,
+    doc: "Exact colors such as #112233",
+  },
+  tag: { kind: "text", doc: "Exact tag" },
+  folder: { kind: "text", doc: "Only cards in this folder id" },
+  cursor: { kind: "text", doc: "pageInfo.nextCursor from the previous page" },
+  include: {
+    kind: "enum",
+    values: CARD_LIST_INCLUDES,
+    list: true,
+    doc: "Extra field sets; content is always included",
+  },
+  favorited: { kind: "boolean", doc: "true lists favorites only" },
+  pinned: {
+    kind: "boolean",
+    doc: "true lists only cards pinned to the top of the library; without q they come back in their pinned order",
+  },
+  trashed: { kind: "boolean", doc: "true lists cards in Trash only" },
+  archived: {
+    kind: "enum",
+    values: ARCHIVED_FILTERS,
+    default: "exclude",
+    doc: "Archived cards: exclude (default) leaves them out, only lists just them, include lists them too",
+  },
+  similarTo: {
+    kind: "text",
+    doc: "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)",
+  },
+  mode: {
+    kind: "enum",
+    values: SEARCH_MODES,
+    default: "hybrid",
+    doc: "How q finds cards: hybrid (default) matches words and meaning, keyword matches words only, semantic matches meaning only",
+  },
+  sort: {
+    kind: "enum",
+    values: CARD_LIST_SORTS,
+    default: "newest",
+    doc: "newest (default) or oldest by saved date, shuffle (a stable random order that needs shuffleSeed) or relevance (best match, with q)",
+  },
+  shuffleSeed: {
+    kind: "integer",
+    min: 0,
+    max: MAX_SHUFFLE_SEED,
+    doc: "Required with sort shuffle: the same seed gives the same order, a new one reshuffles",
+  },
+  createdAfter: { kind: "timestamp", doc: "Created after this time (Unix ms)" },
+  createdBefore: {
+    kind: "timestamp",
+    doc: "Created before this time (Unix ms)",
+  },
+  limit: {
+    kind: "integer",
+    min: 1,
+    max: PUBLIC_API_MAX_LIMIT,
+    default: PUBLIC_API_DEFAULT_LIMIT,
+    doc: "How many cards one page holds",
+  },
+} as const satisfies Record<string, CardListParamSpec>;
+export type CardListParam = keyof typeof CARD_LIST_PARAMS;
+export const CARD_LIST_PARAM_NAMES = Object.keys(
+  CARD_LIST_PARAMS
+) as CardListParam[];
 
 /** Every `code` an API error body can carry. */
 export const PUBLIC_API_ERROR_CODES = [

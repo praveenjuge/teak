@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardModalCard } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -48,7 +48,7 @@ const card = (extra: Record<string, unknown> = {}) =>
     url: "https://example.com/story",
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 const inCategory = (category: string | undefined, extra = {}) =>
   card({
@@ -66,7 +66,7 @@ const inCategory = (category: string | undefined, extra = {}) =>
     ...extra,
   });
 
-const dialog = (shown: CardModalCard, toggleDone?: () => void) => (
+const dialog = (shown: ClientCard, toggleDone?: () => void) => (
   <CardModal
     card={shown}
     cardId={shown._id}
@@ -92,7 +92,7 @@ const dialog = (shown: CardModalCard, toggleDone?: () => void) => (
   />
 );
 
-async function render(shown: CardModalCard, toggleDone?: () => void) {
+async function render(shown: ClientCard, toggleDone?: () => void) {
   if (root) {
     await act(() => root?.render(dialog(shown, toggleDone)));
     return;

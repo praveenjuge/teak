@@ -86,15 +86,6 @@ interface FinalizeArgs {
   tags?: string[];
 }
 
-interface FinalizedUpload {
-  content?: string;
-  destinationKey: string;
-  sourceEtag: string;
-  storedEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
-}
-
 const throwUploadError = (code: string, message: string): never => {
   throw new ConvexError({ code, message });
 };
@@ -190,9 +181,7 @@ export const finalizeForUser = async (
     objectId: args.destinationObjectId,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callCoreWorkerOp<
-    FinalizedUpload | FilesFinalizeImageResult
-  >({
+  const outcome = await callCoreWorkerOp({
     op: isImageUpload ? "finalize-image-upload" : "finalize-upload",
     params: {
       destinationKey,

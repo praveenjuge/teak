@@ -54,6 +54,3 @@ export const buildAuthorizedMutationMock = () =>
     rateLimitKey: "component:key_1",
     rateLimit: { ok: true, retryAt: undefined },
   });
-
-export const buildAuthorizedMutationMockWithIdempotencySkip =
-  buildAuthorizedMutationMock;

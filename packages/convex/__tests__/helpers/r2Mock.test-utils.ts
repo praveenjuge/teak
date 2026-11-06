@@ -1,5 +1,6 @@
 // Bun's `mock.module` is registered globally, so a test file that mocks
-// `storage/r2` affects every other test that imports it.
+// `storage/r2` or `storage/objectDeletion` affects every other test that
+// imports it.
 
 import { mock } from "bun:test";
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
@@ -33,8 +34,13 @@ export const r2Mocks = {
 export const r2MockModuleFactory = () => ({
   PENDING_UPLOAD_CARD_ID,
   cardStorageObjectKeys,
-  queueObjectDeletion: r2Mocks.queueObjectDeletion,
   buildR2UserPrefix: r2Mocks.buildR2UserPrefix,
   buildR2ObjectKey: r2Mocks.buildR2ObjectKey,
   r2: r2Mocks.r2,
+});
+
+export const objectDeletionMockModuleFactory = () => ({
+  enqueue: mock(),
+  objectDeletionDispatch: { delivery: "delete-objects" },
+  queueObjectDeletion: r2Mocks.queueObjectDeletion,
 });

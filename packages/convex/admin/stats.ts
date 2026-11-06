@@ -321,12 +321,6 @@ export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
   };
 }
 
-export const growthPercent = (
-  current: number,
-  previous: number
-): number | null =>
-  previous > 0 ? ((current - previous) / previous) * 100 : null;
-
 export const startOfUtcWeek = (timestamp: number) => {
   const day = startOfUtcDay(timestamp);
   const weekday = (new Date(day).getUTCDay() + 6) % 7;

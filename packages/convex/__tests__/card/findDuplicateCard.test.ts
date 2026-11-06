@@ -187,38 +187,4 @@ describe("card/findDuplicateCard.ts", () => {
     expect(result.placeholderUrl).toContain(`/__images/v1/tiny/${encodedKey}`);
     expect(result.thumbnailUrl).toContain(`/__images/v1/grid/${encodedKey}`);
   });
-
-  test("uses by_user_url_deleted index", async () => {
-    const duplicateCard = {
-      _id: "c1",
-      _creationTime: 1,
-      userId: "u1",
-      type: "link",
-      url: "https://example.com",
-    };
-
-    const queryMock = {
-      withIndex: mock().mockReturnValue({
-        order: mock().mockReturnValue({
-          first: mock().mockResolvedValue(duplicateCard),
-        }),
-      }),
-    };
-
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      db: {
-        query: mock().mockReturnValue(queryMock),
-      },
-    } as any);
-
-    const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
-    await handler(ctx, { url: "https://example.com" });
-
-    expect(ctx.db.query).toHaveBeenCalledWith("cards");
-    expect(queryMock.withIndex).toHaveBeenCalledWith(
-      "by_user_url_deleted",
-      expect.any(Function)
-    );
-  });
 });

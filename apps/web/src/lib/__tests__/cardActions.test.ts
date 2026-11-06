@@ -8,6 +8,18 @@ import {
 } from "../cardActions";
 import { keyboardShortcutGroups } from "../keyboardShortcuts";
 
+const GRID_WITH_COPY: ReadonlySet<CardActionId> = new Set([
+  "copy",
+  "favorite",
+  "pin",
+  "addTags",
+  "archive",
+  "moveToTrash",
+  "restore",
+  "deleteForever",
+  "select",
+]);
+
 const GRID: ReadonlySet<CardActionId> = new Set([
   "favorite",
   "pin",
@@ -27,10 +39,16 @@ describe("cardActionForKey", () => {
     ["e", "archive"],
     ["Delete", "moveToTrash"],
     ["d", "done"],
+    ["c", "copy"],
   ] as const)("in the open card, %p runs %p", (key, action) => {
-    expect(cardActionForKey(key, "dialog", { type: "link" }, false)).toBe(
-      action
-    );
+    expect(
+      cardActionForKey(
+        key,
+        "dialog",
+        { type: "link", url: "https://example.com" },
+        false
+      )
+    ).toBe(action);
   });
 
   test("Delete deletes a card in Trash forever, from the grid only", () => {
@@ -61,6 +79,7 @@ describe("keyboard shortcuts list", () => {
     addTag: "addTags",
     addTags: "addTags",
     archive: "archive",
+    copy: "copy",
     favorite: "favorite",
     markLinkDone: "done",
     moveToTrash: "moveToTrash",
@@ -69,7 +88,7 @@ describe("keyboard shortcuts list", () => {
   };
 
   test("lists the key that runs each card action, in the grid and the open card", () => {
-    const link: ActionCard = { type: "link" };
+    const link: ActionCard = { type: "link", url: "https://example.com" };
     for (const group of keyboardShortcutGroups()) {
       if (group.id !== "cards" && group.id !== "openCard") {
         continue;
@@ -77,7 +96,8 @@ describe("keyboard shortcuts list", () => {
       const surface = group.id === "cards" ? "grid" : "dialog";
       for (const row of group.rows) {
         const action = row.id ? ROW_ACTIONS[row.id] : undefined;
-        if (!action) {
+        // A grid's copy is ⌘C or Ctrl+C, a combo, not one key.
+        if (!action || row.combo) {
           continue;
         }
         const [key] = row.keys;
@@ -105,19 +125,22 @@ describe("cardAriaKeyShortcuts", () => {
   });
 
   test("a card that copies adds its copy key, per platform", () => {
-    expect(
-      cardAriaKeyShortcuts({}, GRID, { apple: false, canCopy: true })
-    ).toBe("Enter F P T E Delete X Control+C");
-    expect(cardAriaKeyShortcuts({}, GRID, { apple: true, canCopy: true })).toBe(
+    const note: ActionCard = { type: "text" };
+    expect(cardAriaKeyShortcuts(note, GRID_WITH_COPY, { apple: false })).toBe(
+      "Enter F P T E Delete X Control+C"
+    );
+    expect(cardAriaKeyShortcuts(note, GRID_WITH_COPY, { apple: true })).toBe(
       "Enter F P T E Backspace X Meta+C"
+    );
+    expect(cardAriaKeyShortcuts(note, GRID, { apple: false })).toBe(
+      "Enter F P T E Delete X"
     );
   });
 
   test("while cards are selected, a card only toggles itself", () => {
     expect(
-      cardAriaKeyShortcuts({}, GRID, {
+      cardAriaKeyShortcuts({ type: "text" }, GRID_WITH_COPY, {
         apple: false,
-        canCopy: true,
         selecting: true,
       })
     ).toBe("Enter X");

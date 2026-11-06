@@ -16,6 +16,12 @@ describe("card errors", () => {
     ).toBe("FILE_TOO_LARGE");
   });
 
+  test("reads a failed upload's code", () => {
+    expect(
+      cardErrorCode({ success: false, errorCode: "CARD_LIMIT_REACHED" })
+    ).toBe("CARD_LIMIT_REACHED");
+  });
+
   test("ignores codes that aren't card errors, and things that aren't errors", () => {
     expect(cardErrorCode(new ConvexError({ code: "NOT_FOUND" }))).toBeNull();
     expect(cardErrorCode("RATE_LIMITED")).toBeNull();

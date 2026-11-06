@@ -24,6 +24,8 @@
         "!**/packages/convex/_generated/**",
         "!**/packages/convex/__tests__/**",
         "!**/*.test.ts",
+        // The adapters that verify their caller, the only ones allowed to call
+        // the WorkOS identity boundaries (the rule's message points here).
         "!**/packages/convex/securitySessions.ts",
         "!**/packages/convex/workosBootstrap.ts",
         "!**/packages/convex/publicApi/http/auth.ts"
@@ -318,7 +320,9 @@
       "includes": [
         "packages/convex/linkMetadata/**",
         "!packages/convex/linkMetadata/ssrf.ts",
-        "!packages/convex/linkMetadata/x.ts"
+        "apps/core-worker/src/workflows/cardProcessing/social/**",
+        "!apps/core-worker/src/workflows/cardProcessing/social/x.ts",
+        "!apps/core-worker/src/workflows/cardProcessing/social/*.test.ts"
       ],
       "linter": {
         "rules": {

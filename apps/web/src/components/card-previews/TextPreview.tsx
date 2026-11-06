@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import {
   ariaKeyShortcut,
   FOCUS_NOTE_KEYS,
@@ -17,7 +17,7 @@ import { useFocusMode } from "../text-editor/useFocusMode";
 import { Button } from "../ui/button";
 
 interface TextPreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
   cardLinks?: CardLinkOptions;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;

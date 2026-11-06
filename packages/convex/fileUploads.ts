@@ -17,12 +17,9 @@ import {
   isCoreWorkerConfigured,
   signedMultipartPartUrl,
 } from "./storage/coreWorkerClient";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 import { ensureObjectOwnership } from "./storage/ownership";
-import {
-  buildR2ObjectKey,
-  PENDING_UPLOAD_CARD_ID,
-  queueObjectDeletion,
-} from "./storage/r2";
+import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
 export const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -176,10 +173,7 @@ export const prepareMultipartUpload = action({
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
     await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
-    const created = await callCoreWorkerOp<{
-      key: string;
-      uploadId: string;
-    }>({
+    const created = await callCoreWorkerOp({
       op: "create-multipart",
       params: { key: sourceKey, contentType: args.fileType },
     });
@@ -337,11 +331,7 @@ export const completeMultipartUpload = action({
         message: "Upload has incomplete parts",
       });
     }
-    const completed = await callCoreWorkerOp<{
-      etag: string;
-      key: string;
-      size: number;
-    }>({
+    const completed = await callCoreWorkerOp({
       op: "complete-multipart",
       params: {
         key: session.sourceKey,

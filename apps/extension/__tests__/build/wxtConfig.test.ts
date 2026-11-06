@@ -113,7 +113,10 @@ describe("manifest", () => {
         default: "Alt+Shift+S",
         mac: "Alt+Shift+S",
       });
-      expect(command?.description).toBe("Save this page to Teak");
+      expect(command?.description).toBe("__MSG_saveCommand__");
+      expect(localeMessages("en").saveCommand?.message).toBe(
+        "Save this page to Teak"
+      );
     }
   );
 

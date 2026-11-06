@@ -329,6 +329,7 @@ describe("card processing", () => {
       card,
       {
         "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "delete-object": { data: { deleted: true } },
         "extract-image-text": { data: { text: "" } },
         "fetch-link-page": {
           data: {

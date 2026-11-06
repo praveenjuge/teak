@@ -3,7 +3,7 @@ import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
 import type { PostHogProperties } from "../shared/posthog";
 import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
-import { queueAnalyticsEvent } from "../workflowDispatch";
+import { queueAnalyticsEvent } from "../workflowDispatch/outbox";
 import { type InboundEmailEventArgs, recordInboundEmailEvent } from "./events";
 import { backendAppVersion, isBackendCaptureEnabled } from "./posthog";
 

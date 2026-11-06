@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { MAX_FOLDER_CARD_IDS } from "@teak/convex/shared/folders";
-import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
+import { PUBLIC_API_MAX_BULK_ITEMS } from "@teak/convex/shared/publicApiContract";
 import {
   THUMBNAIL_ERROR_MESSAGES,
   THUMBNAIL_MAX_BYTES,
@@ -12,6 +13,7 @@ import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n/locales";
 import { InvalidArgumentError } from "commander";
 import {
+  type BulkCardsOperation,
   type CardContentKind,
   type CardsPage,
   type ExportJob,
@@ -22,6 +24,7 @@ import {
   type LatestExport,
   type TagOperation,
   TeakApiError,
+  type TeakApiErrorCode,
   type TeakClient,
 } from "teak-sdk";
 import { CliError } from "./errors";
@@ -45,30 +48,38 @@ import {
   writeTip,
 } from "./runtime";
 
-type PageFetcher = (cursor?: string) => Promise<CardsPage>;
-
 const mergeSearchMode = (
   listing: CardsPage["searchMode"],
   page: CardsPage["searchMode"]
 ) => (page === "keyword" ? "keyword" : listing);
 
+/**
+ * The first page of a listing, or with `all` every page up to `maxItems`
+ * cards, read from the SDK's page iterator.
+ */
 export const collectPages = async (
-  fetchPage: PageFetcher,
+  pages: AsyncIterable<CardsPage> | Iterable<CardsPage>,
   all: boolean,
   maxItems = MAX_ALL_CARDS
 ): Promise<CardsPage> => {
-  const first = await fetchPage();
-  if (!(all && first.pageInfo.nextCursor)) {
-    return first;
-  }
-  const items = [...first.items];
-  let cursor: string | null = first.pageInfo.nextCursor;
-  let { searchMode } = first;
-  while (cursor && items.length < maxItems) {
-    const page = await fetchPage(cursor);
+  let first: CardsPage | undefined;
+  const items: CardsPage["items"] = [];
+  let cursor: string | null = null;
+  let searchMode: CardsPage["searchMode"];
+  for await (const page of pages) {
+    first ??= page;
     items.push(...page.items);
     cursor = page.pageInfo.nextCursor;
-    searchMode = mergeSearchMode(searchMode, page.searchMode);
+    searchMode = mergeSearchMode(
+      searchMode ?? page.searchMode,
+      page.searchMode
+    );
+    if (!all || items.length >= maxItems) {
+      break;
+    }
+  }
+  if (!(first && all)) {
+    return first ?? { items, pageInfo: { hasMore: false, nextCursor: null } };
   }
   return {
     items,
@@ -112,6 +123,47 @@ const eachCard = async (
       succeeded.push(id);
     } catch (error) {
       failed.push({ error, id });
+    }
+  }
+  return { failed, succeeded };
+};
+
+/**
+ * Runs one bulk operation over the ids, a hundred at a time, and sorts out
+ * which worked: the same report `eachCard` gives, in one request per hundred.
+ */
+const bulkEach = async (
+  api: TeakClient,
+  operation: BulkCardsOperation,
+  ids: string[]
+) => {
+  const succeeded: string[] = [];
+  const failed: CardFailure[] = [];
+  for (let start = 0; start < ids.length; start += PUBLIC_API_MAX_BULK_ITEMS) {
+    const chunk = ids.slice(start, start + PUBLIC_API_MAX_BULK_ITEMS);
+    try {
+      const { results } = await api.cards.bulk(
+        operation,
+        chunk.map((cardId) => ({ cardId })),
+        { idempotencyKey: `teak-cli-${randomUUID()}` }
+      );
+      for (const [index, id] of chunk.entries()) {
+        const result = results.find((entry) => entry.index === index);
+        if (result?.status === "success") {
+          succeeded.push(id);
+        } else {
+          failed.push({
+            error: new TeakApiError(
+              ((result?.status === "error" && result.code) ||
+                "REQUEST_FAILED") as TeakApiErrorCode,
+              result?.status === "error" ? result.error : undefined
+            ),
+            id,
+          });
+        }
+      }
+    } catch (error) {
+      failed.push(...chunk.map((id) => ({ error, id })));
     }
   }
   return { failed, succeeded };
@@ -205,20 +257,19 @@ export const deleteCards = async (
     }
   }
   const api = client(options);
-  const deleteForever = async (id: string) => {
-    try {
-      await api.cards.delete(id, { permanent: true });
-    } catch (error) {
-      if (!(error instanceof TeakApiError && error.code === "NOT_IN_TRASH")) {
-        throw error;
-      }
-      await api.cards.delete(id);
-      await api.cards.delete(id, { permanent: true });
-    }
-  };
-  const { failed, succeeded } = await eachCard(ids, (id) =>
-    options.permanent ? deleteForever(id) : api.cards.delete(id)
-  );
+  // Only a card in Trash can be deleted forever, so every card goes there
+  // first; one already in Trash stays.
+  const trashed = await bulkEach(api, "delete", ids);
+  const forever = options.permanent
+    ? await eachCard(trashed.succeeded, (id) =>
+        api.cards.delete(id, { permanent: true })
+      )
+    : trashed;
+  const failed = [
+    ...trashed.failed,
+    ...(options.permanent ? forever.failed : []),
+  ];
+  const succeeded = forever.succeeded;
   const done = options.permanent
     ? (id: string) => `Deleted ${id} forever`
     : (id: string) => `Moved ${id} to Trash. Undo with: teak restore ${id}`;
@@ -241,10 +292,7 @@ export const deleteCards = async (
 };
 
 export const restoreCards = async (ids: string[], options: GlobalOptions) => {
-  const api = client(options);
-  const { failed, succeeded } = await eachCard(ids, (id) =>
-    api.cards.restore(id)
-  );
+  const { failed, succeeded } = await bulkEach(client(options), "restore", ids);
   writeBatch(
     options.json
       ? {
@@ -263,9 +311,10 @@ export const setCardsArchived = async (
   isArchived: boolean,
   options: GlobalOptions
 ) => {
-  const api = client(options);
-  const { failed, succeeded } = await eachCard(ids, (id) =>
-    api.cards.setArchived(id, isArchived)
+  const { failed, succeeded } = await bulkEach(
+    client(options),
+    isArchived ? "archive" : "unarchive",
+    ids
   );
   writeBatch(
     options.json
@@ -538,104 +587,66 @@ const describeExport = (latest: LatestExport) => {
 const isActive = (job: ExportJob | null) =>
   job?.status === "pending" || job?.status === "running";
 
-const sleep = (ms: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
-const FIRST_POLL_MS = 250;
-const MAX_POLL_MS = 3000;
-
-interface PollOptions<T> {
-  intervalMs?: number;
-  progress: (value: T) => string | null;
-  refresh: (value: T) => Promise<T>;
-  running: (value: T) => boolean;
-  start: T;
-  /** The error to raise when the wait runs out: what keeps going, and how to check. */
-  timedOut: (waited: string) => CliError;
-  timeoutMs?: number;
-}
-
 /**
- * Polls until `running` is false, backing off from 250 ms to 3 s, and gives up
- * after `timeoutMs` (10 minutes by default) so no wait runs forever.
+ * Shows a wait's progress on one line of stderr while it runs, for a person
+ * at a terminal, and clears it after.
  */
-// A status read that is still going at the deadline ends the wait too, so a
-// slow request can't stretch --timeout.
-const beforeDeadline = async <T>(
-  work: Promise<T>,
-  deadline: number,
-  timedOut: () => Error
+const progressLine = async <T>(
+  describe: (value: T) => string | null,
+  wait: (onProgress?: (value: T) => void) => Promise<T>
 ): Promise<T> => {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) {
-    throw timedOut();
+  if (!showsProgress()) {
+    return wait();
   }
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(timedOut()), remaining);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
-const poll = async <T>(input: PollOptions<T>): Promise<T> => {
-  const timeoutMs = input.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
-  const deadline = Date.now() + timeoutMs;
-  const progress = showsProgress();
-  let value = input.start;
-  let delay = input.intervalMs ?? FIRST_POLL_MS;
-  try {
-    while (input.running(value)) {
-      if (Date.now() >= deadline) {
-        throw input.timedOut(formatDuration(timeoutMs));
-      }
-      const line = progress ? input.progress(value) : null;
+    return await wait((value) => {
+      const line = describe(value);
       if (line) {
         process.stderr.write(`\r${line}`);
       }
-      await sleep(Math.min(delay, Math.max(0, deadline - Date.now())));
-      delay = input.intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
-      value = await beforeDeadline(input.refresh(value), deadline, () =>
-        input.timedOut(formatDuration(timeoutMs))
-      );
-    }
+    });
   } finally {
-    if (progress) {
-      process.stderr.write("\r\x1b[K");
-    }
+    process.stderr.write("\r\x1b[K");
   }
-  return value;
 };
 
-const waitForExport = async (
+/** The SDK's wait options from the CLI's flags: 10 minutes unless --timeout. */
+const waitOptions = (
+  options: { intervalMs?: number; timeout?: number },
+  timedOut: (waited: string) => CliError
+) => {
+  const timeoutMs = options.timeout ?? DEFAULT_WAIT_TIMEOUT_MS;
+  return {
+    intervalMs: options.intervalMs,
+    timedOut: () => timedOut(formatDuration(timeoutMs)),
+    timeoutMs,
+  };
+};
+
+const waitForExport = (
   api: TeakClient,
   intervalMs?: number,
-  timeoutMs?: number
+  timeout?: number
 ) =>
-  poll({
-    intervalMs,
-    progress: (latest: LatestExport) =>
+  progressLine(
+    (latest: LatestExport) =>
       latest.job?.processedCount
         ? `${latest.job.processedCount} cards processed…`
         : null,
-    refresh: () => api.exports.latest(),
-    running: (latest) => isActive(latest.job),
-    start: await api.exports.latest(),
-    timedOut: (waited) =>
-      new CliError(
-        "TIMEOUT",
-        `Stopped waiting after ${waited}. The export keeps going.`,
-        { next: "Check on it with: teak export status" }
-      ),
-    timeoutMs,
-  });
+    (onProgress) =>
+      api.exports.waitFor({
+        ...waitOptions(
+          { intervalMs, timeout },
+          (waited) =>
+            new CliError(
+              "TIMEOUT",
+              `Stopped waiting after ${waited}. The export keeps going.`,
+              { next: "Check on it with: teak export status" }
+            )
+        ),
+        onProgress,
+      })
+  );
 
 export const exportStatus = async (options: GlobalOptions) => {
   const latest = await client(options).exports.latest();
@@ -749,29 +760,31 @@ export const formatRuleRun = (run: FolderRuleRun) =>
     ...(run.canUndo ? ["(can be undone)"] : []),
   ].join("  ");
 
-const waitForRuleRun = async (
+const waitForRuleRun = (
   api: TeakClient,
   folder: Pick<Folder, "id" | "name">,
   started: FolderRuleRun,
   options: { intervalMs?: number; timeout?: number }
 ) =>
-  poll({
-    intervalMs: options.intervalMs,
-    progress: (run: FolderRuleRun) =>
+  progressLine(
+    (run: FolderRuleRun) =>
       `Filed ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`,
-    refresh: (run) => api.folders.getRuleRun(folder.id, run.id),
-    running: (run) => run.status === "running" || run.status === "undoing",
-    start: started,
-    timedOut: (waited) =>
-      new CliError(
-        "TIMEOUT",
-        `Stopped waiting after ${waited}. The rule run keeps going.`,
-        {
-          next: `Check on it with: teak folders rule-run ${shellArg(folder.name)} ${started.id}`,
-        }
-      ),
-    timeoutMs: options.timeout,
-  });
+    (onProgress) =>
+      api.folders.waitForRuleRun(folder.id, started, {
+        ...waitOptions(
+          options,
+          (waited) =>
+            new CliError(
+              "TIMEOUT",
+              `Stopped waiting after ${waited}. The rule run keeps going.`,
+              {
+                next: `Check on it with: teak folders rule-run ${shellArg(folder.name)} ${started.id}`,
+              }
+            )
+        ),
+        onProgress,
+      })
+  );
 
 export interface FolderRuleOptions {
   autoFile?: string | false;
@@ -1044,33 +1057,28 @@ export const describeTagOperation = (operation: TagOperation) => {
   return `${doing}: ${operation.changed} of ${cardsLabel(operation.total)} changed so far. Check with: teak tags status ${operation.id}`;
 };
 
-const stalled = (operation: TagOperation) =>
-  Date.now() - operation.updatedAt > TAG_OPERATION_STALL_MS;
-
-const waitForTagOperation = async (
+const waitForTagOperation = (
   api: TeakClient,
   started: TagOperation,
   options: { intervalMs?: number; timeout?: number }
-) => {
-  const operation = await poll({
-    intervalMs: options.intervalMs,
-    progress: (current: TagOperation) =>
+) =>
+  progressLine(
+    (current: TagOperation) =>
       `${current.changed} of ${cardsLabel(current.total)} changed…`,
-    refresh: (current) => api.tags.operation(current.id),
-    running: (current) => current.status === "running" && !stalled(current),
-    start: started,
-    timedOut: (waited) =>
-      new CliError(
-        "TIMEOUT",
-        `Stopped waiting after ${waited}. The tag change keeps going.`,
-        { next: `Check on it with: teak tags status ${started.id}` }
-      ),
-    timeoutMs: options.timeout,
-  });
-  return operation.status === "running"
-    ? { ...operation, status: "failed" as const }
-    : operation;
-};
+    (onProgress) =>
+      api.tags.waitFor(started, {
+        ...waitOptions(
+          options,
+          (waited) =>
+            new CliError(
+              "TIMEOUT",
+              `Stopped waiting after ${waited}. The tag change keeps going.`,
+              { next: `Check on it with: teak tags status ${started.id}` }
+            )
+        ),
+        onProgress,
+      })
+  );
 
 const reportTagOperation = (
   operation: TagOperation,

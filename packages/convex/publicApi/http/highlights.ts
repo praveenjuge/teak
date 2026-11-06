@@ -9,7 +9,7 @@ import {
 } from "../../shared/highlights/constants";
 import { noContent, type PublicApiCall } from "./operation";
 import { serializeHighlight } from "./serializers";
-import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
+import { errorResponse, json } from "./shared";
 
 const objectBody = (
   body: unknown
@@ -78,60 +78,53 @@ export const handleCreateHighlightRequest = async ({
   if (tooLong) {
     return invalid(tooLong);
   }
+  const source = await ctx.runQuery(
+    internal.publicApiHighlights.getHighlightArticleForUser,
+    { userId, cardId }
+  );
+  let text: string;
   try {
-    const source = await ctx.runQuery(
-      internal.publicApiHighlights.getHighlightArticleForApi,
-      { userId, cardId }
-    );
-    let text: string;
-    try {
-      text = await readArticleReaderText(source);
-    } catch (error) {
-      console.warn("[publicApi] article text unreadable", {
-        cardId,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return errorResponse(
-        503,
-        "SERVICE_UNAVAILABLE",
-        "The saved article couldn't be read. Try again."
-      );
-    }
-    const anchor = anchorQuote(text, {
-      quote,
-      prefix: (fields.prefix as { value?: string }).value,
-      suffix: (fields.suffix as { value?: string }).value,
-    });
-    if (!anchor) {
-      return errorResponse(
-        422,
-        "QUOTE_NOT_FOUND",
-        HIGHLIGHT_ERROR_MESSAGES.QUOTE_NOT_FOUND
-      );
-    }
-    const result = await ctx.runMutation(
-      internal.publicApiHighlights.createHighlightForApi,
-      {
-        userId,
-        cardId: source.cardId,
-        // The text the quote was found in: a card whose article changed
-        // since refuses the offsets.
-        articleKey: source.textKey,
-        quote: text.slice(anchor.start, anchor.end),
-        prefix: anchor.prefix,
-        suffix: anchor.suffix,
-        start: anchor.start,
-        end: anchor.end,
-        ...(note?.trim() ? { note } : {}),
-      }
-    );
-    return json(
-      result.created ? 201 : 200,
-      serializeHighlight(result.highlight)
-    );
+    text = await readArticleReaderText(source);
   } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to create the highlight");
+    console.warn("[publicApi] article text unreadable", {
+      cardId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return errorResponse(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "The saved article couldn't be read. Try again."
+    );
   }
+  const anchor = anchorQuote(text, {
+    quote,
+    prefix: (fields.prefix as { value?: string }).value,
+    suffix: (fields.suffix as { value?: string }).value,
+  });
+  if (!anchor) {
+    return errorResponse(
+      422,
+      "QUOTE_NOT_FOUND",
+      HIGHLIGHT_ERROR_MESSAGES.QUOTE_NOT_FOUND
+    );
+  }
+  const result = await ctx.runMutation(
+    internal.publicApiHighlights.createHighlightForUser,
+    {
+      userId,
+      cardId: source.cardId,
+      // The text the quote was found in: a card whose article changed
+      // since refuses the offsets.
+      articleKey: source.textKey,
+      quote: text.slice(anchor.start, anchor.end),
+      prefix: anchor.prefix,
+      suffix: anchor.suffix,
+      start: anchor.start,
+      end: anchor.end,
+      ...(note?.trim() ? { note } : {}),
+    }
+  );
+  return json(result.created ? 201 : 200, serializeHighlight(result.highlight));
 };
 
 export const handleListHighlightsRequest = async ({
@@ -139,15 +132,11 @@ export const handleListHighlightsRequest = async ({
   params,
   userId,
 }: PublicApiCall): Promise<Response> => {
-  try {
-    const rows = await ctx.runQuery(
-      internal.publicApiHighlights.listHighlightsForApi,
-      { userId, cardId: params.cardId }
-    );
-    return json(200, { items: rows.map(serializeHighlight) });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to list highlights");
-  }
+  const rows = await ctx.runQuery(
+    internal.publicApiHighlights.listHighlightsForUser,
+    { userId, cardId: params.cardId }
+  );
+  return json(200, { items: rows.map(serializeHighlight) });
 };
 
 export const handleDeleteHighlightRequest = async ({
@@ -155,15 +144,11 @@ export const handleDeleteHighlightRequest = async ({
   params,
   userId,
 }: PublicApiCall): Promise<Response> => {
-  try {
-    await ctx.runMutation(internal.publicApiHighlights.deleteHighlightForApi, {
-      userId,
-      highlightId: params.highlightId,
-    });
-    return noContent();
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update the highlight");
-  }
+  await ctx.runMutation(internal.publicApiHighlights.deleteHighlightForUser, {
+    userId,
+    highlightId: params.highlightId,
+  });
+  return noContent();
 };
 
 export const handleUpdateHighlightRequest = async ({
@@ -187,13 +172,9 @@ export const handleUpdateHighlightRequest = async ({
   if (tooLong) {
     return invalid(tooLong);
   }
-  try {
-    const highlight = await ctx.runMutation(
-      internal.publicApiHighlights.updateHighlightForApi,
-      { userId, highlightId: params.highlightId, note }
-    );
-    return json(200, serializeHighlight(highlight));
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to update the highlight");
-  }
+  const highlight = await ctx.runMutation(
+    internal.publicApiHighlights.updateHighlightForUser,
+    { userId, highlightId: params.highlightId, note }
+  );
+  return json(200, serializeHighlight(highlight));
 };

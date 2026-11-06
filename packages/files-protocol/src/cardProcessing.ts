@@ -28,6 +28,7 @@ export const CARD_RUN_STAGES = [
   "renderables",
   "screenshot",
 ] as const satisfies readonly ProcessingStageKey[];
+export type CardRunStage = (typeof CARD_RUN_STAGES)[number];
 
 /** The AI pipeline stages the admin overview counts. */
 export const AI_PIPELINE_STAGES = [

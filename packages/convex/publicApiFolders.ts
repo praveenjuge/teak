@@ -1,94 +1,29 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
-import {
-  createFolderForUser,
-  deleteFolderForUser,
-  folderReturnValidator,
-  getFolderForUser,
-  listFoldersForUser,
-  loadFolderSummary,
-  requireFolderForUser,
-  updateFolderForUser,
-} from "./folder/folders";
+import { folderOwnerOperations } from "./folder/folders";
+import { requireFolderForUser } from "./folder/lookup";
 import {
   applyFolderMembershipToCards,
   smartFolderMembership,
 } from "./folder/membership";
 import {
   folderRuleRunValidator,
-  getFolderRuleRunForUser,
-  undoFolderRuleRunForUser,
+  getFolderRuleRunForUser as readFolderRuleRun,
+  undoFolderRuleRunForUser as undoFolderRuleRun,
 } from "./folder/rules";
-import { folderColorValidator } from "./schema/validators/cards";
+import { apiMutation, apiQuery } from "./ownerOperation";
 import { requireTeakUserId } from "./securitySessions";
 
-const folderRuleArgs = {
-  autoTags: v.optional(v.array(v.string())),
-  autoFileQuery: v.optional(v.union(v.string(), v.null())),
-  autoFileEnabled: v.optional(v.boolean()),
-};
+// The public API's folder functions: the app's folder operations for the
+// credential's owner, and the card and rule-run changes only the API takes.
+export const listFoldersForUser = apiQuery(folderOwnerOperations.list);
+export const getFolderForUser = apiQuery(folderOwnerOperations.get);
+export const createFolderForUser = apiMutation(folderOwnerOperations.create);
+export const updateFolderForUser = apiMutation(folderOwnerOperations.update);
+export const deleteFolderForUser = apiMutation(folderOwnerOperations.delete);
 
-export const listFoldersForApi = internalQuery({
-  args: { userId: v.string() },
-  returns: v.array(folderReturnValidator),
-  handler: async (ctx, args) =>
-    listFoldersForUser(ctx, await requireTeakUserId(ctx, args.userId)),
-});
-
-export const getFolderForApi = internalQuery({
-  args: { userId: v.string(), folderId: v.string() },
-  returns: v.union(folderReturnValidator, v.null()),
-  handler: async (ctx, args) => {
-    const folder = await getFolderForUser(
-      ctx,
-      await requireTeakUserId(ctx, args.userId),
-      args.folderId
-    );
-    return folder ? await loadFolderSummary(ctx, folder) : null;
-  },
-});
-
-export const createFolderForApi = internalMutation({
-  args: {
-    userId: v.string(),
-    name: v.string(),
-    color: v.optional(folderColorValidator),
-    kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
-    query: v.optional(v.string()),
-    ...folderRuleArgs,
-  },
-  returns: folderReturnValidator,
-  handler: async (ctx, { userId, ...args }) =>
-    createFolderForUser(ctx, await requireTeakUserId(ctx, userId), args),
-});
-
-export const updateFolderForApi = internalMutation({
-  args: {
-    userId: v.string(),
-    folderId: v.string(),
-    name: v.optional(v.string()),
-    color: v.optional(v.union(folderColorValidator, v.null())),
-    query: v.optional(v.string()),
-    ...folderRuleArgs,
-  },
-  returns: folderReturnValidator,
-  handler: async (ctx, { userId, ...args }) =>
-    updateFolderForUser(ctx, await requireTeakUserId(ctx, userId), args),
-});
-
-export const deleteFolderForApi = internalMutation({
-  args: { userId: v.string(), folderId: v.string() },
-  returns: v.id("folders"),
-  handler: async (ctx, args) =>
-    deleteFolderForUser(
-      ctx,
-      await requireTeakUserId(ctx, args.userId),
-      args.folderId
-    ),
-});
-
-export const changeFolderCardsForApi = internalMutation({
+export const changeFolderCardsForUser = internalMutation({
   args: {
     userId: v.string(),
     folderId: v.string(),
@@ -128,22 +63,22 @@ export const changeFolderCardsForApi = internalMutation({
   },
 });
 
-export const getFolderRuleRunForApi = internalQuery({
+export const getFolderRuleRunForUser = internalQuery({
   args: { userId: v.string(), folderId: v.string(), runId: v.string() },
   returns: folderRuleRunValidator,
   handler: async (ctx, args) => {
     const owner = await requireTeakUserId(ctx, args.userId);
     await requireFolderForUser(ctx, owner, args.folderId);
-    return getFolderRuleRunForUser(ctx, owner, args.folderId, args.runId);
+    return readFolderRuleRun(ctx, owner, args.folderId, args.runId);
   },
 });
 
-export const undoFolderRuleRunForApi = internalMutation({
+export const undoFolderRuleRunForUser = internalMutation({
   args: { userId: v.string(), folderId: v.string(), runId: v.string() },
   returns: folderRuleRunValidator,
   handler: async (ctx, args) => {
     const owner = await requireTeakUserId(ctx, args.userId);
     await requireFolderForUser(ctx, owner, args.folderId);
-    return undoFolderRuleRunForUser(ctx, owner, args.folderId, args.runId);
+    return undoFolderRuleRun(ctx, owner, args.folderId, args.runId);
   },
 });

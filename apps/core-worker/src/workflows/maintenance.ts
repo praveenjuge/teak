@@ -24,9 +24,9 @@ import type { FunctionArgs } from "convex/server";
 import type { ConvexRpc } from "../convexRpc";
 import { reportBackgroundError } from "../telemetry";
 import {
-  type FilesOpCaller,
-  resolveDeps,
-  type WorkflowDeps,
+  type OpCaller,
+  type OpDeps,
+  resolveOpDeps,
   withinBudget,
 } from "./deps";
 import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
@@ -34,7 +34,7 @@ import {
   type BackgroundEnv,
   CONVEX_STEP,
   errorMessage,
-  retryConfig,
+  exponentialStep,
   runReported,
   type WorkflowRun,
 } from "./runtime";
@@ -58,13 +58,13 @@ const MAX_SWEEP_CARD_PAGES = 4000;
 const MAX_SWEEP_LIST_PAGES = 2000;
 const SWEEP_REFERENCE_PAGE_SIZE = 100;
 const MAX_SWEEP_REFERENCE_PAGES = 4000;
-const SWEEP_STEP = retryConfig(3, 60_000, "30 minutes");
+const SWEEP_STEP = exponentialStep(3, 60_000, "30 minutes");
 // The admin metrics scans read at most 400 pages of 500 cards, as the Convex
 // action they replaced did; a longer scan marks its result approximate.
 const MAX_METRICS_PAGES = 400;
 const FLAG_BATCH = 200;
-const METRICS_STEP = retryConfig(3, 60_000, "30 minutes");
-const BILLING_STEP = retryConfig(3, 30_000, "5 minutes");
+const METRICS_STEP = exponentialStep(3, 60_000, "30 minutes");
+const BILLING_STEP = exponentialStep(3, 30_000, "5 minutes");
 
 export const startMaintenanceTask = async (
   env: BackgroundEnv,
@@ -91,7 +91,7 @@ export const startMaintenanceTask = async (
 
 interface TaskContext {
   convex: ConvexRpc;
-  ops: FilesOpCaller;
+  ops: OpCaller;
   run: WorkflowRun<MaintenanceParams>;
 }
 
@@ -282,10 +282,7 @@ const sweepOrphans = async ({ convex, ops }: TaskContext) => {
     const listed: FilesOpOutcome<{
       cursor: string | null;
       objects: Array<{ key: string; lastModified: number; size: number }>;
-    }> = await ops<{
-      cursor: string | null;
-      objects: Array<{ key: string; lastModified: number; size: number }>;
-    }>({
+    }> = await ops({
       op: "list-objects",
       params: {
         limit: SWEEP_LIST_LIMIT,
@@ -491,9 +488,9 @@ const TASKS: Record<
 
 export const runMaintenance = async (
   run: WorkflowRun<MaintenanceParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<unknown> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { task } = run.params;
   const handler = TASKS[task];
   if (!handler) {

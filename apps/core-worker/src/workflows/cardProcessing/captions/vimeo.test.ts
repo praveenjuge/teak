@@ -3,7 +3,7 @@ import {
   hangUntilAborted,
   jsonResponse,
   socialFetch,
-} from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
+} from "../../../test/socialFetch";
 import { fetchVideoCaptions } from "./index";
 import {
   chooseVimeoTrack,

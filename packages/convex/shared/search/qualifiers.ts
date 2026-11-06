@@ -991,13 +991,25 @@ export const matchesSearchPhrases = (
 
 const WHITESPACE_RUNS = /\s+/g;
 
+/**
+ * `is:done` and `is:todo`. Only links can be marked done, so both match
+ * links only, wherever the search runs: a card brought in done from an
+ * import is still not a link to finish.
+ */
 export const matchesDoneState = (
   card: {
     completedAt?: number;
     metadata?: { linkCategory?: { category?: string } };
+    type: string;
   },
   parsed: Pick<ParsedSearchQuery, "done" | "todo">
 ): boolean => {
+  if (!(parsed.done || parsed.todo)) {
+    return true;
+  }
+  if (card.type !== "link") {
+    return false;
+  }
   if (parsed.done && card.completedAt === undefined) {
     return false;
   }

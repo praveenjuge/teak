@@ -88,7 +88,7 @@ describe("direct upload URLs", () => {
   let originalGetSubscription: any;
 
   beforeAll(async () => {
-    const { polar } = await import("../../billing");
+    const { polar } = await import("../../billing/polar");
     originalGetSubscription = polar.getCurrentSubscription;
     polar.getCurrentSubscription = (async () => null) as any;
     process.env.FILES_BASE = "https://files.test";
@@ -96,7 +96,7 @@ describe("direct upload URLs", () => {
   });
 
   afterAll(async () => {
-    const { polar } = await import("../../billing");
+    const { polar } = await import("../../billing/polar");
     polar.getCurrentSubscription = originalGetSubscription;
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) {

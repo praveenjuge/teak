@@ -1,14 +1,12 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const link = internal.workosUsers.linkWorkosUser;
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;

@@ -19,8 +19,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
+import { keyName } from "@/lib/appCommands";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { isTypingTarget } from "@/lib/keyboardShortcuts";
+import { isTypingTarget, REVISIT_KEYS } from "@/lib/keyboardShortcuts";
 import {
   REVISIT_DECK_SIZE,
   type RevisitCard,
@@ -69,22 +70,25 @@ export function revisitKeyAction(event: {
   }
   switch (event.key) {
     case "ArrowLeft":
-    case "a":
-    case "A":
       return "archive";
     case "ArrowRight":
-    case "k":
-    case "K":
       return "keep";
     case " ":
       return "details";
-    case "z":
-    case "Z":
-      return "undo";
     default:
-      return null;
+      break;
   }
+  const letter = event.key.toLowerCase();
+  if (letter === REVISIT_KEYS.archive) {
+    return "archive";
+  }
+  if (letter === REVISIT_KEYS.keep) {
+    return "keep";
+  }
+  return letter === REVISIT_KEYS.undo ? "undo" : null;
 }
+
+const UNDO_KEY = keyName(REVISIT_KEYS.undo);
 
 export function focusRevisitDeck(): boolean {
   const deck = document.querySelector<HTMLElement>("[data-revisit-deck]");
@@ -347,7 +351,7 @@ export function RevisitDeck({
           </div>
           {deck.canUndo ? (
             <p className="text-muted-foreground text-xs">
-              {t.rich("undoHint", { kbd })}
+              {t.rich("undoHint", { kbd, undoKey: UNDO_KEY })}
             </p>
           ) : null}
         </div>
@@ -471,7 +475,7 @@ export function RevisitDeck({
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <DialogDescription className="sr-only">
-          {t("description")}
+          {t("description", { undoKey: UNDO_KEY })}
         </DialogDescription>
         <div className="flex h-dvh w-full flex-col overflow-hidden">
           <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -529,7 +533,7 @@ export function RevisitDeck({
                   </Button>
                 </div>
                 <p className="text-muted-foreground text-xs max-sm:hidden">
-                  {t.rich("keyHints", { kbd })}
+                  {t.rich("keyHints", { kbd, undoKey: UNDO_KEY })}
                 </p>
                 <p className="text-muted-foreground text-xs sm:hidden">
                   {t("swipeHint")}

@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { patchCard } from "../../../card/cardWrites";
+import { queueCardProcessing } from "../../../card/processingRuns";
 import {
   mergeProcessingStages,
   stageCompleted,
@@ -17,9 +18,9 @@ import {
   pageArchiveSkipReason,
   toPageArchiveFailureReason,
 } from "../../../shared/pageArchive";
-import { buildR2UserPrefix, queueObjectDeletion } from "../../../storage/r2";
+import { queueObjectDeletion } from "../../../storage/objectDeletion";
+import { buildR2UserPrefix } from "../../../storage/r2";
 import { queueBackendEvent } from "../../../telemetry/schedule";
-import { queueCardProcessing } from "../../../workflowDispatch";
 
 const durationBucket = (ms: number): string => {
   if (ms < 5000) {

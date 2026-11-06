@@ -1,8 +1,4 @@
-import {
-  type FilesImageTextResult,
-  linkOcrSourceKeys,
-  normalizeImageOcrText,
-} from "@teak/files-protocol";
+import { linkOcrSourceKeys, normalizeImageOcrText } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import {
@@ -110,7 +106,7 @@ export const backfillLinkOcrCard = internalAction({
     const texts: string[] = [];
     try {
       for (const sourceKey of candidate.sourceKeys) {
-        const outcome = await callCoreWorkerOp<FilesImageTextResult>({
+        const outcome = await callCoreWorkerOp({
           op: "extract-image-text",
           params: { sourceKey },
         });

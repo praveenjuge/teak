@@ -287,3 +287,18 @@ test.each(CONFIGS)(
     ).toBe(String(written));
   }
 );
+
+test.each([
+  ["production", "../wrangler.jsonc", "https://files.teakvault.com"],
+  [
+    "development",
+    "../development/wrangler.jsonc",
+    "https://core-worker-dev.praveenjuge.workers.dev",
+  ],
+])("the %s worker names its own public origin", (_name, path, origin) => {
+  // The Worker signs its image URLs to this origin, and has no default.
+  const config = unstable_readConfig({
+    config: resolve(import.meta.dir, path),
+  });
+  expect(config.vars.FILES_PUBLIC_ORIGIN).toBe(origin);
+});

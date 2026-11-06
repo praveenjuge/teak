@@ -1,28 +1,20 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import type {
-  FilesErrorCode,
-  FilesOp,
-  FilesOpOutcome,
-} from "@teak/files-protocol";
 import { type ConvexRpc, ConvexRpcError } from "../convexRpc";
-import { callFilesOp } from "./filesOps";
+import { callFilesOp, type OpCaller } from "./filesOps";
 import { convexFor, type WorkflowRun } from "./runtime";
 
-export type FilesOpCaller = <T>(spec: {
-  declineCodes?: readonly FilesErrorCode[];
-  op: FilesOp;
-  params: Record<string, unknown>;
-}) => Promise<FilesOpOutcome<T>>;
+export type { OpCaller } from "./filesOps";
 
-export interface WorkflowDeps {
+/** A workflow's Convex and op callers; tests pass their own. */
+export interface OpDeps {
   convex?: ConvexRpc;
-  ops?: FilesOpCaller;
+  ops?: OpCaller;
 }
 
-export const resolveDeps = (
+export const resolveOpDeps = (
   run: WorkflowRun<unknown>,
-  deps: WorkflowDeps = {}
-): { convex: ConvexRpc; ops: FilesOpCaller } => ({
+  deps: OpDeps = {}
+): { convex: ConvexRpc; ops: OpCaller } => ({
   convex: deps.convex ?? convexFor(run.env, run.params),
   ops: deps.ops ?? ((spec) => callFilesOp(run.env, spec)),
 });

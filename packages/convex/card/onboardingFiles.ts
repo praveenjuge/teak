@@ -1,4 +1,3 @@
-import type { FilesStoreOnboardingFilesResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
@@ -62,7 +61,7 @@ const storeOnboardingFiles = async (
       throw new Error("account_storage_write_denied");
     }
     called = true;
-    const outcome = await callCoreWorkerOp<FilesStoreOnboardingFilesResult>({
+    const outcome = await callCoreWorkerOp({
       op: "store-onboarding-files",
       params: {
         cards: planned.map((card) => ({

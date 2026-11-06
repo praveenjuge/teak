@@ -1,12 +1,9 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 // The SDK depends on this package, so the test reads its source directly to
 // prove the SDK can read what these endpoints serve.
 import { discoverAuthServer } from "../../sdk/src/authDiscovery";
-import schema from "../schema";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const workosIssuer = "https://discovery-dev.authkit.app";
 const clientIds = {
   cli: "client_CLI",
@@ -38,8 +35,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 function setup() {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   return t;
 }
 

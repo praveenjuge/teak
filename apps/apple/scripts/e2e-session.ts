@@ -6,7 +6,7 @@
  * apps/apple/scripts/ui-tests.sh instead.
  */
 
-import { EMULATOR_CLIENT_ID } from "../../../packages/tests/src/stack/config.ts";
+import { EMULATOR_CLIENT_ID } from "../../../scripts/dev/local-stack/config.ts";
 import {
   createSession,
   type E2eSession,

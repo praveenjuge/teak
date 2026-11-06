@@ -5,9 +5,10 @@
  */
 import { ConvexError, v } from "convex/values";
 import type { ActionCtx } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import type { SessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { WORKOS_SESSION_CURSOR, WORKOS_SESSION_ID } from "../shared/workosIds";
+import { isWorkosApiConfigured } from "./client";
 import {
   listWorkosSessions,
   revokeWorkosSession,
@@ -140,12 +141,10 @@ export const sessionPageValidator = v.object({
   continueCursor: v.string(),
 });
 
-function workosSessionApiKey() {
-  const apiKey = process.env.WORKOS_API_KEY;
-  if (!apiKey) {
+function assertDeviceServiceConfigured() {
+  if (!isWorkosApiConfigured()) {
     throw new Error("Device service is unavailable. Please try again.");
   }
-  return apiKey;
 }
 
 // Settings shows its own text for any failure; the code and message are the
@@ -179,9 +178,9 @@ export const listDeviceSessions = async (
   if (cursor && !WORKOS_SESSION_CURSOR.test(cursor)) {
     throw new Error("Invalid device page. Please refresh.");
   }
-  const apiKey = workosSessionApiKey();
+  assertDeviceServiceConfigured();
   await chargeWorkosRequest(ctx, user.teakUserId);
-  const result = await listWorkosSessions(user.workosUserId, apiKey, {
+  const result = await listWorkosSessions(user.workosUserId, {
     limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
     after: cursor || undefined,
   });
@@ -203,17 +202,17 @@ export const revokeDeviceSession = async (
   if (!WORKOS_SESSION_ID.test(sessionId)) {
     throw new Error("Invalid device session.");
   }
-  const apiKey = workosSessionApiKey();
+  assertDeviceServiceConfigured();
   if (sessionId === user.sessionId) {
     await chargeWorkosRequest(ctx, user.teakUserId);
-    await revokeWorkosSession(sessionId, apiKey);
+    await revokeWorkosSession(sessionId);
     return;
   }
   let after: string | undefined;
   const seen = new Set<string>();
   for (let page = 0; page < 20; page++) {
     await chargeWorkosRequest(ctx, user.teakUserId);
-    const result = await listWorkosSessions(user.workosUserId, apiKey, {
+    const result = await listWorkosSessions(user.workosUserId, {
       limit: 100,
       after,
     });
@@ -223,7 +222,7 @@ export const revokeDeviceSession = async (
         return;
       }
       await chargeWorkosRequest(ctx, user.teakUserId);
-      await revokeWorkosSession(sessionId, apiKey);
+      await revokeWorkosSession(sessionId);
       return;
     }
     const next = result.after;
@@ -248,13 +247,13 @@ export const revokeOtherDeviceSessions = async (
   ctx: ActionCtx,
   user: SessionUser
 ): Promise<{ hasMore: boolean; revokedCount: number }> => {
-  const apiKey = workosSessionApiKey();
+  assertDeviceServiceConfigured();
   const others: string[] = [];
   let after: string | undefined;
   const seen = new Set<string>();
   for (let page = 0; page < MAX_OTHER_SESSION_PAGES; page++) {
     await chargeWorkosRequest(ctx, user.teakUserId);
-    const result = await listWorkosSessions(user.workosUserId, apiKey, {
+    const result = await listWorkosSessions(user.workosUserId, {
       limit: 100,
       after,
     });
@@ -280,7 +279,7 @@ export const revokeOtherDeviceSessions = async (
       continue;
     }
     await chargeWorkosRequest(ctx, user.teakUserId);
-    await revokeWorkosSession(sessionId, apiKey);
+    await revokeWorkosSession(sessionId);
     revokedCount += 1;
   }
   return {

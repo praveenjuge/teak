@@ -2,22 +2,19 @@ import { MAX_PINNED_CARDS } from "../../shared/pins";
 import {
   PUBLIC_API_CARD_SORTS,
   PUBLIC_API_CARD_TYPES,
+  SEARCH_QUERY_HELP,
 } from "../../shared/publicApiContract";
 import { PUBLIC_API_MAX_LIMIT } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
-import {
-  THUMBNAIL_MAX_BYTES,
-  THUMBNAIL_MIME_TYPES,
-} from "../../shared/thumbnails";
 import {
   apiErrorContent,
   apiKeySecurity,
   cardIdParameter,
   doneErrorResponses,
-  THUMBNAIL_TYPES_DESCRIPTION,
   thumbnailErrorResponses,
 } from "./components";
 import type { OpenApiOperations } from "./operations";
+import { requestBodySchema } from "./requestBodies";
 
 const LIMIT_DESCRIPTION = `Page size, default 50. A whole number above ${PUBLIC_API_MAX_LIMIT} returns ${PUBLIC_API_MAX_LIMIT}; anything that isn't a whole number from 1 up is \`400 INVALID_INPUT\`.`;
 
@@ -27,8 +24,7 @@ export const cardOperations = {
       {
         in: "query",
         name: "q",
-        description:
-          'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:pinned` (cards pinned to the top), `is:archived`, `is:done` (links marked done), `is:todo` (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and `"quoted phrases"`. A `-` before a word, phrase or qualifier leaves those cards out (`design -figma`, `-tag:old`, `-is:archived`; not `like:` or `mood:`), uppercase `OR` matches either side (`tag:fonts OR tag:type`), and parentheses group (`(site:github.com OR site:gitlab.com) -is:archived`). A `-` binds tightest, then a space, then `OR`; lowercase `or` and a `-` inside a word (`to-do`) are plain text. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret` (`-tag:hidden` never shows them, and `tag:hidden OR tag:x` shows them only through the `tag:hidden` side). The plain word `secret` does not show them.',
+        description: `${SEARCH_QUERY_HELP} A \`-\` binds tightest, then a space, then \`OR\`; lowercase \`or\` and a \`-\` inside a word (\`to-do\`) are plain text. Several \`price:\` bounds make a range. Cards tagged \`secret\` or \`hidden\` (\`isHidden\`) are left out of every list unless the search names one of those tags: \`q=#secret\`, \`q=tag:hidden\` or \`tag=secret\` (\`-tag:hidden\` never shows them, and \`tag:hidden OR tag:x\` shows them only through the \`tag:hidden\` side). The plain word \`secret\` does not show them.`,
         schema: { type: "string" },
       },
       {
@@ -557,22 +553,7 @@ export const cardOperations = {
     requestBody: {
       content: {
         "application/json": {
-          schema: {
-            additionalProperties: false,
-            properties: {
-              fileSize: {
-                description: `Bytes; at most ${THUMBNAIL_MAX_BYTES} (20 MB).`,
-                type: "number",
-              },
-              mimeType: {
-                description: THUMBNAIL_TYPES_DESCRIPTION,
-                enum: [...THUMBNAIL_MIME_TYPES],
-                type: "string",
-              },
-            },
-            required: ["mimeType", "fileSize"],
-            type: "object",
-          },
+          schema: requestBodySchema("createThumbnailUpload"),
         },
       },
     },
@@ -598,18 +579,7 @@ export const cardOperations = {
     requestBody: {
       content: {
         "application/json": {
-          schema: {
-            additionalProperties: false,
-            properties: {
-              fileKey: {
-                description:
-                  "From POST /v1/cards/{cardId}/thumbnail/upload, for this card",
-                type: "string",
-              },
-            },
-            required: ["fileKey"],
-            type: "object",
-          },
+          schema: requestBodySchema("setCardThumbnail"),
         },
       },
     },

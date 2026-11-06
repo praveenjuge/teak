@@ -7,6 +7,16 @@ import {
   useKeyboardShortcuts,
 } from "../../hooks/useKeyboardShortcuts";
 import { useReturnFocus } from "../../hooks/useReturnFocus";
+import { useRunAfterClose } from "../../hooks/useRunAfterClose";
+import {
+  type AppActionId,
+  appActionKey,
+  GO_TO,
+  GO_TO_TARGETS,
+  type GoToTarget,
+  goToSequence,
+  isLibraryViewTarget,
+} from "../../lib/appCommands";
 import {
   isCommandPaletteKey,
   paletteCardHref,
@@ -16,20 +26,12 @@ import {
   shouldOpenPalette,
 } from "../../lib/commandPalette";
 import {
-  APP_KEYS,
   CARD_DIALOG_ATTRIBUTE,
   focusLibrarySearch,
-  focusNewNoteComposer,
-  GO_TO_SETTINGS_KEY,
-  GO_TO_TAGS_KEY,
-  GO_TO_VIEW_KEYS,
+  startNewNote,
 } from "../../lib/keyboardShortcuts";
 import { onDemand, whenIdle } from "../../lib/lazyWithPreload";
-import {
-  type GoToViewOptions,
-  LIBRARY_VIEWS,
-  type LibraryView,
-} from "../../lib/libraryViews";
+import type { GoToViewOptions, LibraryView } from "../../lib/libraryViews";
 import type { CommandPaletteCommand } from "../command-palette/CommandPalette";
 import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
 import {
@@ -49,6 +51,14 @@ interface LibraryShortcutsProps {
   onSignOut: () => void;
   pathname: string | null;
 }
+
+/** The actions a single key runs; the palette's key and `?` work apart. */
+const KEY_ACTIONS = [
+  "search",
+  "newNote",
+  "uploadFiles",
+  "recordAudio",
+] as const satisfies readonly AppActionId[];
 
 /**
  * Flips light and dark. Flipping back to what the system uses goes back to
@@ -74,20 +84,21 @@ export function LibraryShortcuts({
     isDialogOpenRef.current = open;
     setIsDialogOpen(open);
   }, []);
+  const returnShortcutsFocus = useReturnFocus(isDialogOpen);
+  const shortcutsDialog = useRunAfterClose(returnShortcutsFocus);
   // A shortcut pressed in the list closes it first and runs once it has
-  // closed: while the dialog's focus trap is up, moving focus (to the
-  // search box, say) would be pulled back into it.
-  const afterCloseRef = useRef<(() => void) | null>(null);
+  // closed (see useRunAfterClose).
+  const { runAfterClose: runAfterDialogCloses } = shortcutsDialog;
   const closeDialogThen = useCallback(
     (action: () => void) => () => {
       if (isDialogOpenRef.current) {
-        afterCloseRef.current = action;
+        runAfterDialogCloses(action);
         setDialogOpen(false);
         return;
       }
       action();
     },
-    [setDialogOpen]
+    [runAfterDialogCloses, setDialogOpen]
   );
 
   useEffect(
@@ -104,17 +115,10 @@ export function LibraryShortcuts({
     isPaletteOpenRef.current = open;
     setIsPaletteOpen(open);
   }, []);
-  const afterPaletteCloseRef = useRef<(() => void) | null>(null);
   const returnPaletteFocus = useReturnFocus(isPaletteOpen);
-  const returnShortcutsFocus = useReturnFocus(isDialogOpen);
+  const palette = useRunAfterClose(returnPaletteFocus);
   const { resolvedTheme, setTheme, systemTheme } = useTheme();
   const runLibraryCommand = useRunLibraryCommand();
-
-  const newNote = useCallback(() => {
-    if (!focusNewNoteComposer()) {
-      onGoToView("all", { focusComposer: true });
-    }
-  }, [onGoToView]);
 
   // Its own listener: shortcuts ignore keys held with Cmd or Ctrl. It
   // listens in the bubble phase so a text editor's Cmd+K (edit a link)
@@ -138,6 +142,70 @@ export function LibraryShortcuts({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [closeDialogThen, setPaletteOpen]);
 
+  const goTo = useCallback(
+    (target: GoToTarget) => {
+      if (isLibraryViewTarget(target)) {
+        onGoToView(target);
+      } else {
+        onNavigate(GO_TO[target].href);
+      }
+    },
+    [onGoToView, onNavigate]
+  );
+
+  // What each app action does, whether a key or the palette ran it.
+  const runAction = useCallback(
+    (id: AppActionId) => {
+      switch (id) {
+        case "search":
+          focusLibrarySearch();
+          return;
+        case "newNote":
+          startNewNote(onGoToView);
+          return;
+        case "uploadFiles":
+        case "recordAudio":
+        case "emptyTrash":
+          runLibraryCommand(id);
+          return;
+        case "import":
+        case "export":
+          onNavigate(settingsDataHref(id));
+          return;
+        case "toggleTheme":
+          setTheme(toggledTheme(resolvedTheme, systemTheme));
+          return;
+        case "shuffle":
+          onNavigate(
+            paletteShuffleHref(window.location.pathname, window.location.search)
+          );
+          return;
+        case "keyboardShortcuts":
+          setDialogOpen(true);
+          return;
+        case "signOut":
+          onSignOut();
+          return;
+        case "commandPalette":
+          setPaletteOpen(true);
+          return;
+        default:
+          return;
+      }
+    },
+    [
+      onGoToView,
+      onNavigate,
+      onSignOut,
+      resolvedTheme,
+      runLibraryCommand,
+      setDialogOpen,
+      setPaletteOpen,
+      setTheme,
+      systemTheme,
+    ]
+  );
+
   const runCommand = useCallback(
     (command: CommandPaletteCommand) => {
       switch (command.kind) {
@@ -158,120 +226,45 @@ export function LibraryShortcuts({
             paletteSearchAllHref(command.query, window.location.pathname)
           );
           return;
-        default:
-          break;
-      }
-      switch (command.id) {
-        case "new-note":
-          newNote();
-          return;
-        case "upload":
-          runLibraryCommand("uploadFiles");
-          return;
-        case "import":
-        case "export":
-          onNavigate(settingsDataHref(command.id));
-          return;
-        case "toggle-theme":
-          setTheme(toggledTheme(resolvedTheme, systemTheme));
-          return;
-        case "shuffle":
-          onNavigate(
-            paletteShuffleHref(window.location.pathname, window.location.search)
-          );
-          return;
-        case "shortcuts":
-          setDialogOpen(true);
-          return;
-        case "empty-trash":
-          runLibraryCommand("emptyTrash");
-          return;
-        case "sign-out":
-          onSignOut();
+        case "action":
+          runAction(command.id);
           return;
         default:
           return;
       }
     },
-    [
-      newNote,
-      onNavigate,
-      onSignOut,
-      resolvedTheme,
-      runLibraryCommand,
-      setDialogOpen,
-      setTheme,
-      systemTheme,
-    ]
+    [onNavigate, runAction]
   );
 
+  const { runAfterClose: runAfterPaletteCloses } = palette;
   const handlePaletteSelect = useCallback(
     (command: CommandPaletteCommand) => {
       if (!isPaletteOpenRef.current) {
         return;
       }
-      afterPaletteCloseRef.current = () => runCommand(command);
+      runAfterPaletteCloses(() => runCommand(command));
       setPaletteOpen(false);
     },
-    [runCommand, setPaletteOpen]
+    [runAfterPaletteCloses, runCommand, setPaletteOpen]
   );
 
   const shortcuts = useMemo<KeyboardShortcut[]>(
     () => [
-      {
-        keys: APP_KEYS.search,
-        run: closeDialogThen(() => {
-          focusLibrarySearch();
-        }),
-      },
-      {
-        keys: APP_KEYS.newNote,
-        run: closeDialogThen(newNote),
-      },
-      {
-        keys: APP_KEYS.uploadFiles,
-        run: closeDialogThen(() => {
-          runLibraryCommand("uploadFiles");
-        }),
-      },
-      {
-        keys: APP_KEYS.recordAudio,
-        run: closeDialogThen(() => {
-          runLibraryCommand("recordAudio");
-        }),
-      },
-      {
-        alsoOver: CARD_DIALOG_ATTRIBUTE,
-        keys: APP_KEYS.keyboardShortcuts,
-        run: () => setDialogOpen(!isDialogOpenRef.current),
-      },
-      ...LIBRARY_VIEWS.map((view) => ({
-        keys: `g ${GO_TO_VIEW_KEYS[view]}`,
-        run: closeDialogThen(() => {
-          onGoToView(view);
-        }),
+      ...KEY_ACTIONS.map((id) => ({
+        keys: appActionKey(id),
+        run: closeDialogThen(() => runAction(id)),
       })),
       {
-        keys: `g ${GO_TO_TAGS_KEY}`,
-        run: closeDialogThen(() => {
-          onNavigate("/tags");
-        }),
+        alsoOver: CARD_DIALOG_ATTRIBUTE,
+        keys: appActionKey("keyboardShortcuts"),
+        run: () => setDialogOpen(!isDialogOpenRef.current),
       },
-      {
-        keys: `g ${GO_TO_SETTINGS_KEY}`,
-        run: closeDialogThen(() => {
-          onNavigate("/settings");
-        }),
-      },
+      ...GO_TO_TARGETS.map((target) => ({
+        keys: goToSequence(target),
+        run: closeDialogThen(() => goTo(target)),
+      })),
     ],
-    [
-      closeDialogThen,
-      newNote,
-      onGoToView,
-      onNavigate,
-      runLibraryCommand,
-      setDialogOpen,
-    ]
+    [closeDialogThen, goTo, runAction, setDialogOpen]
   );
 
   // The open palette's dialog holds the keys back, but on a first open its
@@ -286,32 +279,14 @@ export function LibraryShortcuts({
   return (
     <>
       <CommandPalette
-        onCloseAutoFocus={(event) => {
-          const action = afterPaletteCloseRef.current;
-          afterPaletteCloseRef.current = null;
-          if (action) {
-            event.preventDefault();
-            action();
-            return;
-          }
-          returnPaletteFocus(event);
-        }}
+        onCloseAutoFocus={palette.onCloseAutoFocus}
         onOpenChange={setPaletteOpen}
         onSelect={handlePaletteSelect}
         open={isPaletteOpen}
         pathname={pathname}
       />
       <KeyboardShortcutsDialog
-        onCloseAutoFocus={(event) => {
-          const action = afterCloseRef.current;
-          if (action) {
-            afterCloseRef.current = null;
-            event.preventDefault();
-            action();
-            return;
-          }
-          returnShortcutsFocus(event);
-        }}
+        onCloseAutoFocus={shortcutsDialog.onCloseAutoFocus}
         onOpenChange={setDialogOpen}
         open={isDialogOpen}
       />

@@ -5,16 +5,21 @@ import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
   type MutationCtx,
-  mutation,
   type QueryCtx,
   query,
 } from "../_generated/server";
 import {
   accountDeletionOwnsRows,
   getAccountDeletionState,
-} from "../accountDeletion";
+} from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
-import { getSessionUser, requireSessionUserId } from "../securitySessions";
+import {
+  ownerMutation,
+  ownerQuery,
+  sessionMutation,
+  sessionQuery,
+} from "../ownerOperation";
+import { getSessionUser } from "../securitySessions";
 import {
   explainInvalidTagName,
   explainInvalidTagSource,
@@ -394,28 +399,36 @@ export const runTagOperationBatch = internalMutation({
     runTagOperationBatchHandler(ctx, operationId),
 });
 
-export const startTagOperation = mutation({
-  args: {
-    kind: tagOperationKindValidator,
-    from: v.string(),
-    to: v.optional(v.string()),
-  },
-  returns: tagOperationReturnValidator,
-  handler: async (ctx, args) =>
-    startTagOperationForUser(ctx, await requireSessionUserId(ctx), args),
-});
+/**
+ * Renaming, merging and deleting tags, once for every surface: the app's
+ * functions below, and the public API's in `publicApiTags`.
+ */
+export const tagOperationOwnerOperations = {
+  start: ownerMutation({
+    args: {
+      kind: tagOperationKindValidator,
+      from: v.string(),
+      to: v.optional(v.string()),
+    },
+    returns: tagOperationReturnValidator,
+    handler: (ctx, ownerId, args) =>
+      startTagOperationForUser(ctx, ownerId, args),
+  }),
+  get: ownerQuery({
+    args: { operationId: v.string() },
+    returns: v.union(tagOperationReturnValidator, v.null()),
+    handler: (ctx, ownerId, { operationId }) =>
+      getTagOperationForUser(ctx, ownerId, operationId),
+  }),
+};
 
-export const getTagOperation = query({
-  args: { operationId: v.string() },
-  returns: v.union(tagOperationReturnValidator, v.null()),
-  handler: async (ctx, { operationId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      return null;
-    }
-    return getTagOperationForUser(ctx, user.teakUserId, operationId);
-  },
-});
+export const startTagOperation = sessionMutation(
+  tagOperationOwnerOperations.start
+);
+export const getTagOperation = sessionQuery(
+  tagOperationOwnerOperations.get,
+  null
+);
 
 export const getLatestTagOperation = query({
   args: {},

@@ -10,14 +10,13 @@ import { SidebarFoldersBoundary } from "@/components/sidebar/SidebarFoldersBound
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useSignOut } from "@/hooks/useSignOut";
 import { folderIdForPath } from "@/lib/folders";
-import { focusNewNoteComposer } from "@/lib/keyboardShortcuts";
+import { startNewNote } from "@/lib/keyboardShortcuts";
 import {
   type GoToViewOptions,
   type LibraryView,
   libraryViewForPath,
   libraryViewHref,
 } from "@/lib/libraryViews";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { IntentLink } from "./IntentLink";
 import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
@@ -43,11 +42,10 @@ export function AppShell({
     [router]
   );
 
-  const handleNewNote = useCallback(() => {
-    if (!focusNewNoteComposer()) {
-      handleGoToView("all", { focusComposer: true });
-    }
-  }, [handleGoToView]);
+  const handleNewNote = useCallback(
+    () => startNewNote(handleGoToView),
+    [handleGoToView]
+  );
 
   const handleNavigate = useCallback(
     (href: string) => {
@@ -62,18 +60,10 @@ export function AppShell({
     signOut().catch(() => undefined);
   }, [signOut]);
 
-  const handleUpgrade = useCallback(() => {
-    router.push(SETTINGS_PLAN_HREF);
-  }, [router]);
-
   return (
     <LibraryCommandsProvider>
       <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>
-        <AddCardProvider
-          onNewNote={handleNewNote}
-          onUpgrade={handleUpgrade}
-          upgradeUrl={SETTINGS_PLAN_HREF}
-        >
+        <AddCardProvider onNewNote={handleNewNote}>
           <SkipToContent />
           <OfflineNotice />
           <LibraryShortcuts

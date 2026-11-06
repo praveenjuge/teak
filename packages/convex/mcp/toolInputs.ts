@@ -3,12 +3,9 @@ import { z } from "zod";
 import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
-  FOLDER_COLORS,
-  MAX_FOLDER_AUTO_TAGS,
-  MAX_FOLDER_CARD_IDS,
-  MAX_FOLDER_NAME_LENGTH,
-  MAX_SMART_FOLDER_QUERY_LENGTH,
-} from "../shared/folders";
+  PUBLIC_API_BODIES,
+  type PublicApiBodyOperationId,
+} from "../shared/publicApiBodies";
 import {
   ARCHIVED_FILTERS,
   BULK_CARD_OPERATIONS,
@@ -21,8 +18,8 @@ import {
   PUBLIC_API_MAX_BULK_ITEMS,
   PUBLIC_API_MAX_LIMIT,
   SEARCH_MODES,
+  SEARCH_QUERY_HELP,
 } from "../shared/publicApiContract";
-import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { MAX_PALETTE_COLORS } from "../shared/utils/colorUtils";
 
 export const nonEmptyString = z.string().trim().min(1);
@@ -36,12 +33,7 @@ export const cardTypeSchema = z.enum(PUBLIC_API_CARD_TYPES);
 export const confirmSchema = z.literal(true);
 
 export const cardFiltersShape = {
-  q: z
-    .string()
-    .describe(
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Qualifiers combine with the other filters.'
-    )
-    .optional(),
+  q: z.string().describe(SEARCH_QUERY_HELP).optional(),
   similarTo: nonEmptyString
     .describe(
       "A card id: only the cards closest to it in meaning (the same as like:<cardId> in q)"
@@ -117,22 +109,56 @@ export const cardFiltersSchema = z.strictObject(cardFiltersShape);
 export const cardIdSchema = z.strictObject({ cardId: idSchema });
 export const noArguments = z.strictObject({});
 
-export const tagNameSchema = nonEmptyString.max(MAX_TAG_NAME_LENGTH);
-// The tag being changed may be an older one longer than today's limit.
-export const tagSourceSchema = nonEmptyString.max(MAX_TAG_KEY_LENGTH);
-export const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
-export const smartFolderQuerySchema = nonEmptyString.max(
-  MAX_SMART_FOLDER_QUERY_LENGTH
-);
-export const folderRuleInputFields = {
-  autoTags: z.array(nonEmptyString).max(MAX_FOLDER_AUTO_TAGS).optional(),
-  autoFileQuery: smartFolderQuerySchema.or(z.null()).optional(),
-  autoFileEnabled: z.boolean().optional(),
+type BodyShape<Id extends PublicApiBodyOperationId> =
+  (typeof PUBLIC_API_BODIES)[Id]["shape"];
+
+/**
+ * A tool whose arguments are an operation's path parameters and its body's
+ * fields, as the API declares them (`PUBLIC_API_BODIES`): the body's own
+ * checks, such as a smart folder needing its query, run on the tool's
+ * arguments too. `extra` adds arguments (path parameters, `confirm`), or
+ * narrows a field the tool checks before it calls the API.
+ */
+export const bodyToolSchema = <
+  Id extends PublicApiBodyOperationId,
+  Extra extends z.ZodRawShape = Record<never, never>,
+>(
+  operationId: Id,
+  extra: Extra = {} as Extra
+) => {
+  const body: z.ZodType = PUBLIC_API_BODIES[operationId];
+  const shape = PUBLIC_API_BODIES[operationId].shape as BodyShape<Id>;
+  const fields = Object.keys(shape);
+  return z
+    .strictObject({ ...shape, ...extra } as Omit<BodyShape<Id>, keyof Extra> &
+      Extra)
+    .superRefine((value, ctx) => {
+      const parsed = body.safeParse(
+        Object.fromEntries(
+          Object.entries(value).filter(([key]) => fields.includes(key))
+        )
+      );
+      for (const issue of parsed.success ? [] : parsed.error.issues) {
+        if (issue.code === "custom") {
+          ctx.addIssue({ code: "custom", message: issue.message });
+        }
+      }
+    });
 };
-export const folderCardsSchema = z.strictObject({
-  folderId: idSchema,
-  cardIds: z.array(nonEmptyString).min(1).max(MAX_FOLDER_CARD_IDS),
-});
+
+/** The body fields of a tool's arguments, for the operation it calls. */
+export const bodyOf = (
+  operationId: PublicApiBodyOperationId,
+  input: Record<string, unknown>
+): Record<string, unknown> => {
+  const fields = Object.keys(PUBLIC_API_BODIES[operationId].shape);
+  return Object.fromEntries(
+    Object.entries(input).filter(
+      ([key, value]) => fields.includes(key) && value !== undefined
+    )
+  );
+};
+
 export const folderRuleRunSchema = z.strictObject({
   folderId: idSchema,
   runId: idSchema,
@@ -232,43 +258,6 @@ export const updateCardSchema = z
       });
     }
   });
-
-export const createFolderSchema = z
-  .strictObject({
-    name: folderNameSchema,
-    color: z.enum(FOLDER_COLORS).optional(),
-    kind: z.enum(["manual", "smart"]).optional(),
-    query: smartFolderQuerySchema.optional(),
-    ...folderRuleInputFields,
-  })
-  .refine((value) => (value.kind === "smart") === (value.query !== undefined), {
-    message: 'A smart folder needs `query`, and `query` needs kind "smart"',
-    path: ["query"],
-  });
-export const UPDATE_FOLDER_FIELDS = [
-  "name",
-  "color",
-  "query",
-  "autoTags",
-  "autoFileQuery",
-  "autoFileEnabled",
-] as const;
-export const updateFolderSchema = z
-  .strictObject({
-    folderId: idSchema,
-    name: folderNameSchema.optional(),
-    color: z.enum(FOLDER_COLORS).or(z.null()).optional(),
-    query: smartFolderQuerySchema.optional(),
-    ...folderRuleInputFields,
-  })
-  .refine(
-    (value) => UPDATE_FOLDER_FIELDS.some((field) => value[field] !== undefined),
-    {
-      message:
-        "Provide name, color, query, autoTags, autoFileQuery or autoFileEnabled",
-      path: ["name"],
-    }
-  );
 
 export const bulkCardsSchema = z
   .strictObject({

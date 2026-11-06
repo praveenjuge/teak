@@ -1,4 +1,8 @@
 const ARXIV_HOSTS = new Set(["arxiv.org", "www.arxiv.org", "export.arxiv.org"]);
+
+/** One of arXiv's own hosts, where its papers and their PDFs live. */
+export const isArxivHost = (hostname: string): boolean =>
+  ARXIV_HOSTS.has(hostname.toLowerCase());
 // 2301.01234 (4 or 5 digits after the dot) and hep-th/9901001, either with
 // an optional version. Nothing else reaches the API's id_list.
 const NEW_STYLE_ID_REGEX = /^\d{4}\.\d{4,5}(?:v\d{1,3})?$/;
@@ -12,7 +16,7 @@ export const parseArxivId = (url: string): string | null => {
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
       return null;
     }
-    if (!ARXIV_HOSTS.has(parsed.hostname.toLowerCase())) {
+    if (!isArxivHost(parsed.hostname)) {
       return null;
     }
     const id = parsed.pathname.match(ARXIV_PATH_REGEX)?.[1];

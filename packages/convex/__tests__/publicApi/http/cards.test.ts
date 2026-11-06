@@ -1,12 +1,12 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
+import { internal } from "../../../_generated/api";
 import { publicApiV1 } from "../../../publicApi/http/router";
 import { serializeCard } from "../../../publicApi/http/serializers";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
-  buildAuthorizedMutationMockWithIdempotencySkip,
   callPublicApi,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
@@ -502,12 +502,11 @@ describe("publicApiHttp card endpoints", () => {
   });
 
   test("bulkCardsV1 executes bulk operations", async () => {
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        operation: "favorite",
-        results: [{ index: 0, status: "success", cardId: "card_1" }],
-        summary: { total: 1, succeeded: 1, failed: 0 },
-      });
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      operation: "favorite",
+      results: [{ index: 0, status: "success", cardId: "card_1" }],
+      summary: { total: 1, succeeded: 1, failed: 0 },
+    });
 
     const response = await runHandler(
       publicApiV1,
@@ -550,9 +549,7 @@ describe("publicApiHttp card endpoints", () => {
       summary: { total: 2, succeeded: 1, failed: 1 },
     };
     const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
-        result
-      );
+      buildAuthorizedMutationMock().mockResolvedValueOnce(result);
 
     const response = await runHandler(
       publicApiV1,
@@ -576,7 +573,7 @@ describe("publicApiHttp card endpoints", () => {
   });
 
   test("bulkCardsV1 rejects an unknown operation", async () => {
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
       publicApiV1,
       { runMutation, runQuery: mock() },
@@ -785,7 +782,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ id: "card_1", ...links });
     expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
-      "card/cardLinks:getCardLinksForUser"
+      getFunctionName(internal.card.cardLinks.getCardLinksForUser)
     );
   });
 
@@ -826,7 +823,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ id: "card_1", ...links });
     expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
-      "card/cardLinks:getCardLinksForUser"
+      getFunctionName(internal.card.cardLinks.getCardLinksForUser)
     );
   });
 
@@ -2216,7 +2213,9 @@ describe("link image routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(upload);
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "card/thumbnailOverride:createThumbnailUploadUrlForUser"
+      getFunctionName(
+        internal.card.thumbnailOverride.createThumbnailUploadUrlForUser
+      )
     );
     expect(runMutation.mock.calls[1][1]).toEqual({
       cardId: "card_1",
@@ -2265,7 +2264,7 @@ describe("link image routes", () => {
       thumbnailOverridden: true,
     });
     expect(getFunctionName(runAction.mock.calls[0][0])).toBe(
-      "card/thumbnailOverride:setLinkThumbnailForUser"
+      getFunctionName(internal.card.thumbnailOverride.setLinkThumbnailForUser)
     );
     expect(runAction.mock.calls[0][1]).toEqual({
       cardId: "card_1",
@@ -2321,7 +2320,7 @@ describe("link image routes", () => {
       thumbnailOverridden: false,
     });
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "card/thumbnailOverride:resetLinkThumbnailForUser"
+      getFunctionName(internal.card.thumbnailOverride.resetLinkThumbnailForUser)
     );
   });
 
@@ -2385,7 +2384,9 @@ describe("page snapshots", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(upload);
     expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
-      "publicApiPageSnapshots:createPageSnapshotUploadForUser"
+      getFunctionName(
+        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser
+      )
     );
     expect(runMutation.mock.calls[1][1]).toEqual({
       bytes: 4096,
@@ -2404,13 +2405,17 @@ describe("page snapshots", () => {
       runMutation.mock.calls.map((call: unknown[]) =>
         getFunctionName(call[0] as never)
       )
-    ).not.toContain("publicApiPageSnapshots:createPageSnapshotUploadForUser");
+    ).not.toContain(
+      getFunctionName(
+        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser
+      )
+    );
   });
 
   test.each([
-    [{}, "`bytes` must be a positive whole number"],
+    [{}, "Body must include `bytes`"],
     [{ bytes: 1.5 }, "`bytes` must be a positive whole number"],
-    [{ bytes: 10, fileName: "page.html" }, "Unknown field `fileName`"],
+    [{ bytes: 10, fileName: "page.html" }, "Body may include only `bytes`"],
   ])("refuses %j", async (body, error) => {
     const response = await post(body);
     expect(response.status).toBe(400);
@@ -2460,7 +2465,7 @@ describe("page snapshots", () => {
     const save = runMutation.mock.calls.find(
       (call: unknown[]) =>
         getFunctionName(call[0] as never) ===
-        "publicApi/cardsForUser:quickSaveForUser"
+        getFunctionName(internal.publicApi.cardsForUser.quickSaveForUser)
     );
     expect(save?.[1]).toMatchObject({
       pageSnapshotKey: upload.fileKey,

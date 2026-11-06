@@ -21,7 +21,7 @@ import {
 } from "../../test/cardProcessingKit";
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import { opError } from "../../test/opsHarness";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry, type WorkflowTelemetry } from "../telemetry";
 import { resolveImageAnalysisKey } from "./imageAnalysisKey";
@@ -111,7 +111,7 @@ const setup = (
     },
     ...envFields,
   });
-  const ops: FilesOpCaller = (spec) =>
+  const ops: OpCaller = (spec) =>
     spec.op === "generate-text-metadata" || spec.op === "generate-link-metadata"
       ? callFilesOp(env, spec)
       : fakes.ops(spec);

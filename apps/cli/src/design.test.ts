@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { bulkItemProblem } from "@teak/convex/shared/bulkItems";
 import { type Command, InvalidArgumentError } from "commander";
 import { TeakApiError } from "teak-sdk";
-import { bulkItemProblem } from "./bulk";
 import { CliError, describeError, formatErrorText } from "./errors";
 import { formatCardLine } from "./format";
 import {
@@ -127,7 +127,7 @@ describe("errors", () => {
   test("the sign-in step isn't said twice", () => {
     const report = describeError(new TeakApiError("AUTH_REQUIRED"), context);
     expect(report.next).toContain("teak login");
-    expect(formatErrorText(report)).toBe(report.message);
+    expect(formatErrorText(report).split("teak login")).toHaveLength(2);
   });
 
   test("a usage error is USAGE and points at the command's help", () => {
@@ -195,13 +195,15 @@ describe("--all", () => {
   test("stops at the cap and keeps the cursor, so the listing isn't called complete", async () => {
     let calls = 0;
     const page = await collectPages(
-      () => {
-        calls += 1;
-        return Promise.resolve({
-          items: [{ id: `c${calls}` }],
-          pageInfo: { hasMore: true, nextCursor: `n${calls}` },
-        } as never);
-      },
+      (function* () {
+        for (;;) {
+          calls += 1;
+          yield {
+            items: [{ id: `c${calls}` }],
+            pageInfo: { hasMore: true, nextCursor: `n${calls}` },
+          } as never;
+        }
+      })(),
       true,
       3
     );
@@ -389,11 +391,7 @@ describe("bulk dry run", () => {
       "Each update item must include content, url, notes or tags",
     ],
     ["addTags", { cardId: "c1", tags: ["a"] }, null],
-    [
-      "removeTags",
-      { cardId: "c1", tags: [] },
-      "Each removeTags item must include `tags` as a list of names",
-    ],
+    ["removeTags", { cardId: "c1", tags: [] }, "Name at least one tag"],
     ["archive", { cardId: "" }, "Each bulk item must include a valid `cardId`"],
     ["delete", [], "Each bulk item must be an object"],
   ] as const)("%s %j", (operation, item, problem) => {

@@ -1,11 +1,11 @@
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
-import { readCardEntitlement } from "./auth";
+import { readCardEntitlement } from "./billing/polar";
 import { getActiveCardCount } from "./card/cardUsage";
 import { readAccountLocale } from "./settings/preferences";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 
-export const profileForOwner = internalQuery({
+export const profileForUser = internalQuery({
   args: { teakUserId: v.string(), includeUsage: v.optional(v.boolean()) },
   returns: v.union(
     v.object({

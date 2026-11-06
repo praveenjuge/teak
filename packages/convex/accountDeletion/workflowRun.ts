@@ -1,23 +1,51 @@
-import type { Infer } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import { accountDeletionInstanceId } from "@teak/files-protocol";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { accountDeletionRunParamsValidator } from "../schema/validators/dispatch";
 import { reportFromMutation } from "../telemetry/alerts";
-import { queueAccountDeletionWorkflow } from "../workflowDispatch";
+import {
+  type DispatchKindSpec,
+  type DispatchRow,
+  insertDispatch,
+} from "../workflowDispatch/outbox";
+import { accountDeletionNeedsOperator } from "./stages";
+
+/**
+ * Each failed run is started again as a new attempt. Attempts are numbered
+ * by when they were queued, not by counting earlier rows: those are pruned
+ * after a week while Cloudflare keeps instances longer, and a reused ID
+ * would never start.
+ */
+export const queueAccountDeletionWorkflow = async (
+  ctx: MutationCtx,
+  binding: { generation: number; stateId: Id<"accountDeletionStates"> },
+  options: { delayMs?: number } = {}
+): Promise<string> => {
+  const key = `accountDeletion:${binding.stateId}:${binding.generation}`;
+  const latest = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
+    .order("desc")
+    .first();
+  const instanceId = accountDeletionInstanceId(
+    binding.stateId,
+    binding.generation,
+    Math.max(Date.now(), (latest?.createdAt ?? 0) + 1)
+  );
+  await insertDispatch(ctx, {
+    delayMs: options.delayMs,
+    instanceId,
+    key,
+    kind: "accountDeletion",
+    params: binding,
+  });
+  return instanceId;
+};
 
 const RETRY_BASE_MS = 5 * 60 * 1000;
 const RETRY_MAX_MS = 6 * 60 * 60 * 1000;
 
 export const accountDeletionRetryDelayMs = (failures: number): number =>
   Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** Math.max(0, failures - 1));
-
-/**
- * Failures another attempt can't fix: the storage being deleted changed
- * under the run. An operator resolves it, then runs
- * `accountDeletionJobs:retry`.
- */
-export const accountDeletionNeedsOperator = (failureCode?: string): boolean =>
-  failureCode?.endsWith("_storage_source_changed") === true;
 
 const consecutiveFailures = async (
   ctx: MutationCtx,
@@ -55,11 +83,11 @@ const hasNewerLiveAttempt = async (
  * A deletion whose run died starts again as a new attempt, backing off with
  * each failure in a row, unless an operator has to look first.
  */
-export const retryAccountDeletionRun = async (
+const retryAccountDeletionRun = async (
   ctx: MutationCtx,
-  row: Doc<"workflowDispatches">,
-  { generation, stateId }: Infer<typeof accountDeletionRunParamsValidator>
+  row: DispatchRow<"accountDeletion">
 ): Promise<void> => {
+  const { generation, stateId } = row.params;
   const state = await ctx.db.get("accountDeletionStates", stateId);
   if (state?.generation !== generation) {
     return;
@@ -84,4 +112,11 @@ export const retryAccountDeletionRun = async (
     nextAttemptAt: Date.now() + delayMs,
   });
   await queueAccountDeletionWorkflow(ctx, { generation, stateId }, { delayMs });
+};
+
+export const accountDeletionDispatch: DispatchKindSpec<"accountDeletion"> = {
+  delivery: "workflow",
+  onFailure: retryAccountDeletionRun,
+  staleAfterMs: 6 * 60 * 60 * 1000,
+  workflow: "account-deletion",
 };

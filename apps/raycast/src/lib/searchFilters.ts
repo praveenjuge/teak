@@ -1,7 +1,11 @@
-import { type CardType, isCardType } from "teak-sdk";
+import { CARD_SORTS, type CardSort, type CardType, isCardType } from "teak-sdk";
 import { parseCardReference } from "./cardReference";
 
-export const SORT_OPTIONS = ["newest", "oldest", "shuffle"] as const;
+export type RaycastSort = Exclude<CardSort, "relevance">;
+/** The API's sorts but best match, which needs a ranked search to mean anything. */
+export const SORT_OPTIONS = CARD_SORTS.filter(
+  (sort): sort is RaycastSort => sort !== "relevance",
+);
 
 export const HUE_OPTIONS = [
   "red",
@@ -39,7 +43,6 @@ export const STYLE_OPTIONS = [
 ] as const;
 
 export type RaycastCardType = CardType;
-export type RaycastSort = (typeof SORT_OPTIONS)[number];
 
 export interface ParsedSearchFilters {
   archived?: boolean;

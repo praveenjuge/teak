@@ -2,11 +2,11 @@ import { useTranslations } from "@teak/i18n/react";
 import { useRef } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { isGifCard } from "@/lib/cardTypes";
 
 interface VideoPreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
 }
 
 export function VideoPreview({ card }: VideoPreviewProps) {

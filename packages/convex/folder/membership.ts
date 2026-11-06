@@ -8,7 +8,7 @@ import {
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../shared/folders";
-import { requireFolderForUser } from "./folders";
+import { requireFolderForUser } from "./lookup";
 import { autoTagsForJoinedFolders } from "./rules";
 
 const cardNotFound = () =>

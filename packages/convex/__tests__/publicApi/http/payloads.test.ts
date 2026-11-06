@@ -3,10 +3,9 @@ import {
   parseCreatePayload,
   parsePatchPayload,
   validateCreatePayload,
-  validateFavoritePayload,
   validatePatchPayload,
-  validateUploadPayload,
 } from "../../../publicApi/http/payloads";
+import { parsePublicApiBody } from "../../../shared/publicApiBodies";
 
 describe("validateCreatePayload", () => {
   test("accepts a text card and keeps notes, tags and source", () => {
@@ -233,30 +232,42 @@ describe("parseCreatePayload: sourceUrl and sourceTitle", () => {
   });
 });
 
-describe("validateUploadPayload", () => {
+describe("createUpload body", () => {
   test("accepts a named file with a size and type", () => {
     expect(
-      validateUploadPayload({
-        fileName: "clip.mp4",
+      parsePublicApiBody("createUpload", {
+        fileName: " clip.mp4 ",
         fileSize: 10,
         mimeType: "video/mp4",
       })
-    ).toEqual({ fileName: "clip.mp4", fileSize: 10, mimeType: "video/mp4" });
+    ).toEqual({
+      body: { fileName: "clip.mp4", fileSize: 10, mimeType: "video/mp4" },
+    });
   });
 
   test.each([
-    ["a missing size", { fileName: "a.png", mimeType: "image/png" }],
+    [
+      "a missing size",
+      { fileName: "a.png", mimeType: "image/png" },
+      "Body must include `fileSize`",
+    ],
     [
       "a string size",
       { fileName: "a.png", fileSize: "10", mimeType: "image/png" },
+      "`fileSize` must be a number",
     ],
-    ["a missing type", { fileName: "a.png", fileSize: 10 }],
+    [
+      "a blank type",
+      { fileName: "a.png", fileSize: 10, mimeType: " " },
+      "`mimeType` can't be blank",
+    ],
     [
       "an extra field",
       { fileName: "a.png", fileSize: 10, mimeType: "image/png", url: "x" },
+      "Body may include only `fileName`, `fileSize` or `mimeType`",
     ],
-  ])("rejects %s", (_label: string, payload: unknown) => {
-    expect(validateUploadPayload(payload)).toBeNull();
+  ])("rejects %s", (_label: string, payload: unknown, error: string) => {
+    expect(parsePublicApiBody("createUpload", payload)).toEqual({ error });
   });
 });
 
@@ -399,19 +410,27 @@ describe("parseCreatePayload: size limits", () => {
   });
 });
 
-describe("validateFavoritePayload", () => {
+describe("setCardFavorite body", () => {
   test("accepts exactly an isFavorited boolean", () => {
-    expect(validateFavoritePayload({ isFavorited: true })).toEqual({
-      isFavorited: true,
-    });
+    expect(
+      parsePublicApiBody("setCardFavorite", { isFavorited: true })
+    ).toEqual({ body: { isFavorited: true } });
   });
 
   test.each([
-    ["a string flag", { isFavorited: "true" }],
-    ["an extra field", { isFavorited: true, note: "x" }],
-    ["an empty body", {}],
-  ])("rejects %s", (_label: string, payload: unknown) => {
-    expect(validateFavoritePayload(payload)).toBeNull();
+    [
+      "a string flag",
+      { isFavorited: "true" },
+      "`isFavorited` must be true or false",
+    ],
+    [
+      "an extra field",
+      { isFavorited: true, note: "x" },
+      "Body may include only `isFavorited`",
+    ],
+    ["an empty body", {}, "Body must include `isFavorited`"],
+  ])("rejects %s", (_label: string, payload: unknown, error: string) => {
+    expect(parsePublicApiBody("setCardFavorite", payload)).toEqual({ error });
   });
 });
 

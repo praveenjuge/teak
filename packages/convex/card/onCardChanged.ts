@@ -1,7 +1,7 @@
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import {
   markCardForEmbedding,
   tombstoneCardEmbedding,
@@ -16,8 +16,8 @@ import {
   buildCardSearchTags,
   buildCardSearchText,
   CARD_SEARCH_TEXT_FIELDS,
-  normalizeCardSearchTag,
 } from "../shared/search/searchText";
+import { tagKey } from "../shared/tags";
 import {
   addTagCountDelta,
   addTagLabel,
@@ -73,7 +73,7 @@ export const CARD_CHANGE_FIELDS: ReadonlySet<string> = new Set([
 const typedTagLabels = (tags: string[] | undefined) => {
   const labels = new Map<string, string>();
   for (const tag of tags ?? []) {
-    const key = normalizeCardSearchTag(tag);
+    const key = tagKey(tag);
     if (key && !labels.has(key)) {
       labels.set(key, tag.trim());
     }
@@ -598,7 +598,7 @@ export const syncCardSearchTagsBatchHandler = async (
     // so they never replace it.
     const labels = new Map<string, string | undefined>();
     for (const sourceTag of sourceSlice) {
-      const tag = normalizeCardSearchTag(sourceTag);
+      const tag = tagKey(sourceTag);
       if (tag && !labels.has(tag)) {
         labels.set(tag, phase === "tags" ? sourceTag.trim() : undefined);
       }

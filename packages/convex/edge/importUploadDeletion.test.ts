@@ -1,5 +1,4 @@
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   convexForWorker,
@@ -7,14 +6,13 @@ import {
 } from "../__tests__/helpers/coreWorker.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
+import { type Backend, newBackend, workosIdentity } from "./helpers.testUtils";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();
 const { FakeBucket, withObjectGates, worker } = coreWorker;
-const modules = import.meta.glob("../**/*.ts");
 const drainImports = (
-  t: ReturnType<typeof convexTest>,
+  t: Backend,
   env: Record<string, unknown>,
   stateId: Id<"accountDeletionStates">
 ): Promise<boolean> =>
@@ -55,7 +53,7 @@ afterEach(() => {
 });
 
 test("deletion retains its source and state while an authenticated import completion is in flight", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   apiKeysTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -65,13 +63,7 @@ test("deletion retains its source and state while an authenticated import comple
       emailVerified: true,
     })
   );
-  const signed = t.withIdentity({
-    issuer: "https://api.workos.com/user_management/client_IMPORT",
-    subject: "user_IMPORT",
-    sid: "session_IMPORT",
-    email_verified: true,
-    external_id: ownerId,
-  });
+  const signed = t.withIdentity(workosIdentity("user_IMPORT", ownerId));
   const bucket = new FakeBucket();
   const upload = bucket.createMultipartUpload(key);
   await upload.uploadPart(1, new Uint8Array([1]));
@@ -157,7 +149,7 @@ test("deletion retains its source and state while an authenticated import comple
 });
 
 async function importSession() {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   apiKeysTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -167,13 +159,7 @@ async function importSession() {
       emailVerified: true,
     })
   );
-  const signed = t.withIdentity({
-    issuer: "https://api.workos.com/user_management/client_IMPORT",
-    subject: "user_IMPORT",
-    sid: "session_IMPORT",
-    email_verified: true,
-    external_id: ownerId,
-  });
+  const signed = t.withIdentity(workosIdentity("user_IMPORT", ownerId));
 
   return { t, signed };
 }
@@ -488,13 +474,9 @@ test("another user cannot record parts on someone else's import", async () => {
       emailVerified: true,
     })
   );
-  const intruder = t.withIdentity({
-    issuer: "https://api.workos.com/user_management/client_IMPORT",
-    subject: "user_INTRUDER",
-    sid: "session_INTRUDER",
-    email_verified: true,
-    external_id: "import-intruder",
-  });
+  const intruder = t.withIdentity(
+    workosIdentity("user_INTRUDER", "import-intruder")
+  );
   await expect(
     intruder.mutation(api.dataImport.recordImportPart, {
       jobId: created.jobId,

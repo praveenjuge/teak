@@ -17,10 +17,10 @@ import {
   FILES_UPLOAD_PATH,
   type FilesErrorCode,
   type FilesErrorEnvelope,
-  type FilesOp,
   type FilesOpRequest,
   type FilesSuccessEnvelope,
 } from "./ops";
+import type { FilesOp } from "./opTable";
 import { isValidObjectKey } from "./storage";
 import {
   buildWorkflowDispatchSigningPayload,

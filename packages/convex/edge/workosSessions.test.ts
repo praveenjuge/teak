@@ -1,17 +1,15 @@
 import type { UserIdentity } from "convex/server";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
 import {
   getSessionProfile,
   getSessionUser,
   requireTeakUserId,
 } from "../securitySessions";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const clientId = "client_SESSION";
 // The identity Convex exposes for a hosted AuthKit access token through the
 // customJwt provider: claims stay raw (`email_verified`, not `emailVerified`).
@@ -27,7 +25,7 @@ const claims = {
   auth_time: 1,
 };
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;

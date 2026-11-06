@@ -14,7 +14,7 @@ Other workspaces import these modules as `@teak/scripts/<path>` (for example
 
 | Folder | What's there |
 | --- | --- |
-| `dev/` | `bun run dev` and the stack it runs: ports per worktree, the push lease, the Core Worker in development, smoke checks, cloud Docker helpers |
+| `dev/` | `bun run dev` and the stack it runs: ports per worktree, the push lease, the Core Worker in development, the local stack (`local-stack/`: a local backend, the WorkOS emulator and the Core Worker in Miniflare, for `bun run dev --local` and the e2e suite), the production smoke, cloud Docker helpers |
 | `setup/` | `bun run setup` and `bun run doctor` |
 | `env/` | The environment contract, its loader and targets, and the env and dotenv audits |
 | `release/` | Release preparation, the lockstep version checks, and the scripts release workflows run with plain `node` |
@@ -30,4 +30,5 @@ Other workspaces import these modules as `@teak/scripts/<path>` (for example
 Scripts in `release/` must run on the pinned Node without Bun: no
 dependencies, only erasable TypeScript (`erasableSyntaxOnly` in
 `tsconfig.json`), and `.ts` extensions on imports. Their shared argument and
-JSON helpers are in `release/release-cli.ts`.
+JSON helpers, and `pollUntil` for every bounded release wait, are in
+`release/release-cli.ts`.

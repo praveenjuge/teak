@@ -137,7 +137,7 @@ export const createImportUpload = action({
       }
     );
     try {
-      const creation = await callCoreWorkerOp<{ uploadId: string }>({
+      const creation = await callCoreWorkerOp({
         op: "create-multipart",
         params: {
           key: sourceKey,
@@ -261,7 +261,7 @@ export const completeImportUpload = action({
       { jobId, userId, uploadId: job.uploadId }
     );
     try {
-      const completion = await callCoreWorkerOp<{ size: number }>({
+      const completion = await callCoreWorkerOp({
         op: "complete-multipart",
         params: {
           key: job.sourceKey,

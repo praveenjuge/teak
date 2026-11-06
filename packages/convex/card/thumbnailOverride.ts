@@ -10,13 +10,14 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import type { thumbnailOverrideValidator } from "../schema/validators/cards";
 import {
   requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   THUMBNAIL_ERROR_MESSAGES,
   THUMBNAIL_MAX_BYTES,
@@ -28,6 +29,7 @@ import {
   isCoreWorkerConfigured,
   signedUploadUrl,
 } from "../storage/coreWorkerClient";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import {
   ensureObjectOwnership,
   registerOwnedObject,
@@ -36,7 +38,6 @@ import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
-  queueObjectDeletion,
 } from "../storage/r2";
 import { patchCard } from "./cardWrites";
 
@@ -327,7 +328,7 @@ export const setThumbnailForUser = async (
     role: THUMBNAIL_ROLE,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callCoreWorkerOp<FilesFinalizeImageResult>({
+  const outcome = await callCoreWorkerOp({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
     declineCodes: ["CONFLICT"],

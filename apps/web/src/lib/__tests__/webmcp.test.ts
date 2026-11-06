@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
-  getModelContext,
   normalizeCreateToolInput,
   normalizeFavoriteToolInput,
   normalizeGetToolInput,
@@ -26,6 +25,7 @@ import {
   type WebMcpToolDefinition,
   type WebMcpToolEventType,
 } from "../webmcp";
+import { getModelContext } from "../webmcpContext";
 
 const cardId = (value: string) => value as Id<"cards">;
 

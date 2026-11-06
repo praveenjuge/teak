@@ -5,7 +5,7 @@ import {
   getCardCreationStatusHandler,
   getCurrentUserHandler,
 } from "../auth";
-import { polar } from "../billing";
+import { polar } from "../billing/polar";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 import { noop } from "./helpers/convex.test-utils";

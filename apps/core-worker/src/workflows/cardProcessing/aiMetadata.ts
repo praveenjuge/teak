@@ -4,7 +4,6 @@ import { HIDDEN_TAG_KEYS } from "@teak/convex/shared/tags";
 import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
-  type FilesTextMetadataOpResult,
   filesOpErrorCode,
   normalizeAiLanguage,
   normalizeImageOcrText,
@@ -116,7 +115,7 @@ const generateWorkerMetadata = async (
       traceId: job.cardId,
     },
     async () => {
-      const outcome = await job.deps.filesOp<FilesTextMetadataOpResult>({
+      const outcome = await job.deps.filesOp({
         op,
         params: { prompt },
       });
@@ -179,13 +178,7 @@ export const generateImageMetadataForStoredKey = async (
     visualStyles?: VisualStyle[];
   }
 > => {
-  const outcome = await job.deps.filesOp<{
-    language?: unknown;
-    summary: string;
-    tags: string[];
-    text?: unknown;
-    visualStyles?: unknown;
-  }>({
+  const outcome = await job.deps.filesOp({
     op: "generate-image-metadata",
     params: {
       sourceKey,

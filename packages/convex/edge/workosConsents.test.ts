@@ -1,17 +1,13 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import type { FunctionReturnType } from "convex/server";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const setup = () => {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;

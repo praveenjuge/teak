@@ -1,100 +1,21 @@
 import type { CardActionId } from "../../lib/cardActions";
+import type { ClientCard } from "../../lib/cardTypes";
 
 export type { PinTarget } from "../../lib/pinnedCards";
 
-export interface LinkPreviewMetadata {
-  description?: string;
-  faviconUrl?: string;
-  imageHeight?: number;
-  imageUrl?: string;
-  imageWidth?: number;
-  screenshotHeight?: number;
-  screenshotWidth?: number;
-  status?: string;
-  title?: string;
-}
+type FileMetadata = NonNullable<ClientCard["fileMetadata"]>;
 
-export interface LinkPreviewMedia {
-  contentType?: string;
-  height?: number;
-  posterContentType?: string;
-  posterHeight?: number;
-  posterUrl?: string;
-  posterWidth?: number;
-  type: "image" | "video";
-  url: string;
-  width?: number;
-}
+export type LinkPreviewMetadata = NonNullable<
+  NonNullable<ClientCard["metadata"]>["linkPreview"]
+>;
+export type ScrubMetadata = NonNullable<FileMetadata["scrub"]>;
+export type WaveformMetadata = NonNullable<FileMetadata["waveform"]>;
 
-export interface ScrubMetadata {
-  frameHeight: number;
-  frames: number;
-  frameWidth: number;
-}
-
-export interface WaveformMetadata {
-  detail: number[];
-  grid: number[];
-}
-
-export interface CardWithUrls {
-  _id: string;
-  aiSummary?: string;
-  colors?: Array<{ hex: string }>;
-  compactUrl?: string;
-  completedAt?: number;
-  content?: string;
-  detailUrl?: string;
-  fileKey?: string;
-  fileMetadata?: {
-    duration?: number;
-    fileName?: string;
-    height?: number;
-    width?: number;
-    mimeType?: string;
-    scrub?: ScrubMetadata;
-    waveform?: WaveformMetadata;
-  };
-  fileUrl?: string;
-  hasThumbnailOverride?: true;
-  isArchived?: boolean;
-  isDeleted?: boolean;
-  isFavorited?: boolean;
-  linkPreviewImageUrl?: string;
-  linkPreviewMedia?: LinkPreviewMedia[];
-  metadata?: {
-    linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
-    linkCategory?: {
-      category?: string;
-      facts?: Array<{ label: string; value: string }>;
-      price?: { amount: number; currency?: string };
-    };
-  };
-  metadataDescription?: string;
-  metadataTitle?: string;
-  metadataTitleEdited?: boolean;
-  pageArchive?: {
-    capturedAt: number;
-    kind: "full" | "text_only";
-    storageKey: string;
-  };
-  placeholderUrl?: string;
-  processingStatus?: Partial<
-    Record<
-      string,
-      { status: "completed" | "failed" | "in_progress" | "pending" }
-    >
-  >;
-  screenshotUrl?: string;
-  scrubKey?: string;
-  scrubUrl?: string;
-  sourceUrl?: string;
-  thumbnailKey?: string;
-  thumbnailOverride?: { height: number; storageKey: string; width: number };
-  thumbnailUrl?: string;
-  type?: string;
-  url?: string;
-}
+/**
+ * A card as a grid, the pinned row or Revisit shows it: what the server
+ * sends (`ClientCard`), any of which an optimistic card may not have yet.
+ */
+export type CardWithUrls = Omit<Partial<ClientCard>, "_id"> & { _id: string };
 
 /** Where a card was on screen when it was opened, in viewport pixels. */
 export interface CardOpenOrigin {

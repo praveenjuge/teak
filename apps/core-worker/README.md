@@ -585,7 +585,7 @@ read or write that fails falls back to fetching. Without the binding
 
 Deterministic tests cover signed routes, pagination, source replacement, ZIP64
 reads beyond 4 GiB, unsafe entries, actual decompression limits, Markdown
-outcomes, and binding input/output limits. `packages/convex/edge/importConsolidation.test.ts`
+outcomes, and binding input/output limits. `packages/convex/edge/import/consolidation.test.ts`
 checks real Convex mutation state for deduplication, action replay, cancellation,
 and rejected source changes using the edge test runtime.
 

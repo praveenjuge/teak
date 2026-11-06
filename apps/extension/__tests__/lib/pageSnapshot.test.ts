@@ -7,6 +7,7 @@ import {
   uploadPageSnapshot,
 } from "../../lib/pageSnapshot";
 import { saveToTeak } from "../../lib/saveToTeak";
+import { apiClient } from "../helpers/teakClient";
 
 const gunzip = async (bytes: Uint8Array<ArrayBuffer>) =>
   await new Response(
@@ -111,13 +112,12 @@ describe("saveToTeak with a page snapshot", () => {
     const result = await saveToTeak(
       { content: "https://example.com/post", source: "shortcut" },
       {
-        fetchImpl: fetchImpl as unknown as typeof fetch,
+        client: apiClient(request, fetchImpl as unknown as typeof fetch),
         onPageSnapshotUploaded: (key) => {
           kept.push(key);
           return Promise.resolve();
         },
         pageSnapshot: snapshot,
-        request,
       }
     );
 
@@ -152,10 +152,12 @@ describe("saveToTeak with a page snapshot", () => {
     const result = await saveToTeak(
       { content: "https://example.com/post", source: "popup-auto-save" },
       {
-        fetchImpl: (async () =>
-          new Response(null, { status: put })) as unknown as typeof fetch,
+        client: apiClient(
+          request,
+          (async () =>
+            new Response(null, { status: put })) as unknown as typeof fetch
+        ),
         pageSnapshot: snapshot,
-        request,
       }
     );
     expect(result).toEqual({ cardId: "card_1", status: "saved" });
@@ -168,13 +170,12 @@ describe("saveToTeak with a page snapshot", () => {
     const signals: AbortSignal[] = [];
     const started = Date.now();
     const key = await uploadPageSnapshot(snapshot, {
-      fetchImpl: ((_url: string, init?: RequestInit) => {
+      client: apiClient(api(), ((_url: string, init?: RequestInit) => {
         if (init?.signal) {
           signals.push(init.signal);
         }
         return new Promise(() => undefined);
-      }) as unknown as typeof fetch,
-      request: api(),
+      }) as unknown as typeof fetch),
       timeoutMs: 50,
     });
     expect(key).toBeNull();
@@ -190,7 +191,7 @@ describe("saveToTeak with a page snapshot", () => {
         pageSnapshotKey: UPLOAD.fileKey,
         source: "shortcut",
       },
-      { pageSnapshot: null, request }
+      { pageSnapshot: null, client: apiClient(request) }
     );
     expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
     expect(bodyOf(request, "/v1/cards").pageSnapshotKey).toBe(UPLOAD.fileKey);
@@ -200,7 +201,7 @@ describe("saveToTeak with a page snapshot", () => {
     const request = api();
     await saveToTeak(
       { content: "A quote from the page", source: "context-menu" },
-      { pageSnapshot: snapshot, request }
+      { pageSnapshot: snapshot, client: apiClient(request) }
     );
     expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
   });

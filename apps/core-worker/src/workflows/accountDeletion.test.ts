@@ -3,7 +3,7 @@ import { FakeConvexError, type FakeHandler } from "../test/fakeConvex";
 import { completionReports, createTestRun } from "../test/fakeRun";
 import { withObjectGates } from "../test/testsupport";
 import { runAccountDeletion } from "./accountDeletion";
-import type { FilesOpCaller } from "./deps";
+import type { OpCaller } from "./deps";
 import { callFilesOp } from "./filesOps";
 
 const ACCOUNT_DATA = 3;
@@ -171,7 +171,7 @@ const setup = (
   const env = withObjectGates(test.env);
   test.run.env = env;
   const opCalls: Array<{ op: string; params: Record<string, unknown> }> = [];
-  const ops: FilesOpCaller = (spec) => {
+  const ops: OpCaller = (spec) => {
     opCalls.push({ op: spec.op, params: spec.params });
     if (spec.op === "vector-delete") {
       return Promise.resolve({ data: {} as never, kind: "ok" });
@@ -268,7 +268,7 @@ describe("runAccountDeletion", () => {
     });
     const test = setup(backend);
     const frozenKeys = new Set<string>();
-    const ops: FilesOpCaller = (spec) => {
+    const ops: OpCaller = (spec) => {
       if (spec.op !== "freeze-object") {
         return test.ops(spec);
       }
@@ -302,13 +302,16 @@ describe("runAccountDeletion", () => {
   test("a failing stage retries with a capped backoff, then records the failure", async () => {
     const backend = deletionBackend();
     backend.handlers["accountDeletionActions:runStage"] = () => {
-      throw new Error("deletion_posthog_unavailable");
+      throw new FakeConvexError(
+        "deletion_posthog_failed:unreachable",
+        "deletion_posthog_failed:unreachable"
+      );
     };
     const test = setup(backend);
 
     await expect(
       runAccountDeletion(test.run, { convex: test.convex, ops: test.ops })
-    ).rejects.toThrow("deletion_posthog_unavailable");
+    ).rejects.toThrow("deletion_posthog_failed:unreachable");
 
     expect(
       test.steps.delays

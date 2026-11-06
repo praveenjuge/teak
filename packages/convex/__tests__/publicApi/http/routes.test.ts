@@ -5,7 +5,6 @@ import { mapConvexErrorToResponse } from "../../../publicApi/http/shared";
 import { MAX_FILE_SIZE } from "../../../shared/constants";
 import {
   buildAuthorizedMutationMock,
-  buildAuthorizedMutationMockWithIdempotencySkip,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
 
@@ -602,7 +601,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 finalizes fileKey uploads through the canonical action", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_file",
@@ -651,11 +650,10 @@ describe("publicApiHttp create endpoints", () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const content =
       "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\nhttps://example.com  ";
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_text",
-        status: "created",
-      });
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      cardId: "card_text",
+      status: "created",
+    });
 
     const response = await runHandler(
       publicApiV1,
@@ -680,11 +678,10 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 only allows whitespace content for explicit text cards", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const textMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_text",
-        status: "created",
-      });
+    const textMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      cardId: "card_text",
+      status: "created",
+    });
     const request = (cardType: "quote" | "text") =>
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -703,7 +700,7 @@ describe("publicApiHttp create endpoints", () => {
     const quoteResponse = await runHandler(
       publicApiV1,
       {
-        runMutation: buildAuthorizedMutationMockWithIdempotencySkip(),
+        runMutation: buildAuthorizedMutationMock(),
         runQuery: mock(),
       },
       request("quote")
@@ -719,14 +716,13 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 preserves stable text-size errors", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
-        new ConvexError({
-          code: "CONTENT_TOO_LARGE",
-          message:
-            "Text card content must not exceed 512 KiB when encoded as UTF-8.",
-        })
-      );
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "CONTENT_TOO_LARGE",
+        message:
+          "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      })
+    );
     const response = await runHandler(
       publicApiV1,
       { runMutation, runQuery: mock() },
@@ -752,7 +748,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 infers an uploaded file type when cardType is omitted", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_source",
@@ -787,7 +783,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when direct metadata omits size", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -825,7 +821,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValue(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -863,7 +859,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 accepts a successful canonical upload finalization", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_file",
@@ -894,7 +890,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -931,7 +927,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 reports stored MIME mismatches consistently", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "TYPE_MISMATCH",
@@ -968,7 +964,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "FILE_TOO_LARGE",

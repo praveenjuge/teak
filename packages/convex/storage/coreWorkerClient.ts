@@ -1,8 +1,12 @@
 import {
+  type FilesAiUsageAttribution,
   type FilesEnvelope,
   type FilesErrorCode,
   type FilesNetworkOp,
   type FilesOpOutcome,
+  type FilesOpParams,
+  type FilesOpResult,
+  filesOpTimeoutMs,
   nowInSeconds,
   readFilesOpOutcome,
   SIGNED_REQUEST_HEADERS,
@@ -15,18 +19,7 @@ import {
 import { env } from "../_generated/server";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
-export const STORE_LINKED_PDF_TIMEOUT_MS = 150_000;
-
-const DEFAULT_OP_TIMEOUT_MS = 120_000;
-
-const OP_TIMEOUT_MS: Partial<Record<FilesNetworkOp, number>> = {
-  dispatch: 60_000,
-  "embed-upsert": 60_000,
-  "store-linked-pdf": STORE_LINKED_PDF_TIMEOUT_MS,
-  "vector-delete": 30_000,
-  "vector-query": 30_000,
-  "vector-similar": 30_000,
-};
+export const STORE_LINKED_PDF_TIMEOUT_MS = filesOpTimeoutMs("store-linked-pdf");
 
 export const isCoreWorkerConfigured = (): boolean =>
   Boolean(env.FILES_BASE && env.FILES_SIGNING_SECRET);
@@ -113,16 +106,20 @@ export const signedOpRequest = async (
   await signFilesOpRequest({ ...coreWorker(), ...spec }, nowSeconds);
 
 /**
- * Runs one op on the Core Worker. Network failures and every answer that
- * is neither a result nor a decline throw, so the caller's retries apply.
+ * Runs one op on the Core Worker, its params and result typed by the op's
+ * entry in `FILES_OP_SPECS`. Network failures and every answer that is
+ * neither a result nor a decline throw, so the caller's retries apply.
  */
-export const callCoreWorkerOp = async <T>(spec: {
+export const callCoreWorkerOp = async <Op extends FilesNetworkOp>(spec: {
   declineCodes?: readonly FilesErrorCode[];
-  op: FilesNetworkOp;
-  params: Record<string, unknown>;
+  op: Op;
+  params: FilesOpParams<Op> & FilesAiUsageAttribution;
   timeoutMs?: number;
-}): Promise<FilesOpOutcome<T>> => {
-  const signed = await signedOpRequest(spec);
+}): Promise<FilesOpOutcome<FilesOpResult<Op>>> => {
+  const signed = await signedOpRequest({
+    op: spec.op,
+    params: { ...spec.params },
+  });
   let response: Response;
   try {
     // The URL is FILES_BASE, the deployment's own Core Worker, plus a fixed route.
@@ -130,17 +127,15 @@ export const callCoreWorkerOp = async <T>(spec: {
     response = await fetch(signed.url, {
       ...signed,
       redirect: "error",
-      signal: AbortSignal.timeout(
-        spec.timeoutMs ?? OP_TIMEOUT_MS[spec.op] ?? DEFAULT_OP_TIMEOUT_MS
-      ),
+      signal: AbortSignal.timeout(spec.timeoutMs ?? filesOpTimeoutMs(spec.op)),
     });
   } catch (error) {
     throw new Error(
       `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
     );
   }
-  const envelope = (await response
-    .json()
-    .catch(() => null)) as FilesEnvelope<T> | null;
+  const envelope = (await response.json().catch(() => null)) as FilesEnvelope<
+    FilesOpResult<Op>
+  > | null;
   return readFilesOpOutcome(envelope, response.status, spec.declineCodes);
 };

@@ -25,7 +25,7 @@ Preconditions:
 
 - Signed in ([sign-in](./sign-in.md)), with the backend that has the `csv` and `links` modes pushed: the running Core Worker and Convex must both know them, or the upload is refused or the import fails.
 - No import is running (a second one is refused until the first finishes).
-- Fixtures live in `packages/tests/src/web/import-fixtures/` (the e2e upload tool takes paths relative to `packages/tests`): `full.csv`, `aliases.csv`, `no-url.csv`, `variants.csv`, `unsafe-urls.csv`, `semicolon.csv`, `unclosed-quote.csv`, `links.txt`. More awkward files are in `packages/convex/__tests__/import/fixtures/` (BOM and CRLF, quoted newlines, pipe tags); copy one into the fixtures folder to upload it.
+- Fixtures live in `packages/tests/src/web/import-fixtures/` (the e2e upload tool takes paths relative to `packages/tests`): `full.csv`, `aliases.csv`, `no-url.csv`, `variants.csv`, `unsafe-urls.csv`, `semicolon.csv`, `unclosed-quote.csv`, `links.txt`. More awkward files are in `apps/core-worker/src/archives/sources/fixtures/`, beside the parsers (BOM and CRLF, quoted newlines, pipe tags); copy one into the fixtures folder to upload it.
 
 Steps:
 
@@ -60,6 +60,7 @@ Steps:
 ## Gotchas
 
 - Imports parse in the Core Worker, so a new import mode needs the Core Worker and Convex deployed (Core Worker first). Until then, choosing a new source fails at "Start import" (Convex refuses the mode) or right after parsing (the Worker doesn't know it).
+- The parsers live in the Worker (`apps/core-worker/src/archives/sources/`); Convex keeps only the item validation and the import job. `bun test apps/core-worker/src/archives` runs them, with the export round trips.
 - The separator comes from the header line alone: a header with any comma reads as comma-separated, even if rows use semicolons.
 - Imports that ran before the row-label fix keep their stored reasons ("Row 4 has no url" under "Row 4"); the panel hides the repeated label, but the downloaded report still shows both.
 - Rows are numbered as a spreadsheet shows them: the header is row 1, blank lines count, and a quoted cell over several lines is one row.

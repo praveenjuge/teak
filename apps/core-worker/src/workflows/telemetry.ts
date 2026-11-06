@@ -1,12 +1,13 @@
 import type { ServerEventCatalog } from "@teak/convex/shared/analytics";
-import {
-  createPostHogBatch,
-  type PostHogBatch,
-} from "@teak/convex/shared/posthog";
+import type { PostHogBatch } from "@teak/convex/shared/posthog";
 import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
-import packageJson from "../../package.json";
 import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
-import { reportBackgroundError, type TelemetryEnvVars } from "../telemetry";
+import {
+  createWorkerBatch,
+  reportBackgroundError,
+  type TelemetryEnvVars,
+  workerEventProperties,
+} from "../telemetry";
 
 // PostHog events from workflow steps and queue consumers. One isolate runs
 // many steps at once, so nothing here lives at module level: each step makes
@@ -26,26 +27,13 @@ export const createWorkflowTelemetry = (
   env: TelemetryEnvVars,
   options: { fetch?: typeof fetch } = {}
 ): WorkflowTelemetry => {
-  const batch: PostHogBatch = createPostHogBatch({
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-    lib: "teak-files-worker",
-    libVersion: packageJson.version,
-    platform: "node:javascript",
-    token: env.POSTHOG_PROJECT_TOKEN,
-  });
+  const batch: PostHogBatch = createWorkerBatch(env, options);
   return {
     flush: async () => {
       await batch.flush();
     },
     record: (event, properties) => {
-      batch.capture({
-        event,
-        properties: {
-          ...properties,
-          $app_version: packageJson.version,
-          surface: "files-worker",
-        },
-      });
+      batch.capture({ event, properties: workerEventProperties(properties) });
     },
   };
 };

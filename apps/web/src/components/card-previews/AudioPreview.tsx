@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import { Button } from "@/components/ui/button";
-import type { CardWithUrls as BaseCardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { formatClockTime } from "@/lib/clockTime";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
@@ -13,12 +13,12 @@ import {
 } from "../cards/previews/AudioWavePreview";
 import type { WaveformMetadata } from "../cards/types";
 
-type CardWithUrls = BaseCardWithUrls & {
+type AudioCard = ClientCard & {
   fileMetadata?: { waveform?: WaveformMetadata };
 };
 
 interface AudioPreviewProps {
-  card: CardWithUrls;
+  card: AudioCard;
 }
 
 export function AudioPreview({ card }: AudioPreviewProps) {

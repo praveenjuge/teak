@@ -279,15 +279,8 @@ describe("teak cards", () => {
     expect(result.stdout).toContain("file: notes.pdf (4.6 MB)");
   });
 
-  test("delete moves every id to trash and says so", async () => {
-    routes.set(
-      "DELETE /v1/cards/card_a",
-      () => new Response(null, { status: 204 })
-    );
-    routes.set(
-      "DELETE /v1/cards/card_b",
-      () => new Response(null, { status: 204 })
-    );
+  test("delete moves every id to trash in one request and says so", async () => {
+    routes.set("POST /v1/cards/bulk", bulkAnswers());
 
     const result = await teak("--json", "rm", "card_a", "card_b");
 
@@ -297,10 +290,13 @@ describe("teak cards", () => {
       permanent: false,
       summary: { failed: 0, succeeded: 2, total: 2 },
     });
-    expect(requests.map((request) => request.method)).toEqual([
-      "DELETE",
-      "DELETE",
+    expect(bulkRequests()).toEqual([
+      {
+        items: [{ cardId: "card_a" }, { cardId: "card_b" }],
+        operation: "delete",
+      },
     ]);
+    expect(requests).toHaveLength(1);
   });
 
   test("tags list prints names with counts", async () => {
@@ -323,6 +319,41 @@ describe("teak cards", () => {
 const emptyPage = () =>
   json({ items: [], pageInfo: { hasMore: false, nextCursor: null } });
 const noContent = () => new Response(null, { status: 204 });
+/**
+ * POST /v1/cards/bulk answering each item by its card id: a success, or the
+ * code and message given for that id.
+ */
+const bulkAnswers =
+  (failures: Record<string, [code: string, error: string]> = {}): Route =>
+  async (request) => {
+    const { items, operation } = (await request.json()) as {
+      items: { cardId: string }[];
+      operation: string;
+    };
+    const results = items.map(({ cardId }, index) => {
+      const failure = failures[cardId];
+      return failure
+        ? { code: failure[0], error: failure[1], index, status: "error" }
+        : { cardId, index, status: "success" };
+    });
+    const failedIds = items
+      .map(({ cardId }) => cardId)
+      .filter((cardId) => failures[cardId]);
+    return json({
+      failedIds,
+      operation,
+      results,
+      summary: {
+        failed: failedIds.length,
+        succeeded: items.length - failedIds.length,
+        total: items.length,
+      },
+    });
+  };
+const bulkRequests = () =>
+  requests
+    .filter((request) => request.path === "/v1/cards/bulk")
+    .map((request) => JSON.parse(request.body) as unknown);
 
 describe("teak empty lists", () => {
   const expectEmpty = (
@@ -666,7 +697,7 @@ describe("teak parity commands", () => {
 
   test("trash lists Trash and restore brings cards back", async () => {
     routes.set("GET /v1/cards", emptyPage);
-    routes.set("POST /v1/cards/card_a/restore", noContent);
+    routes.set("POST /v1/cards/bulk", bulkAnswers());
     await teak("trash");
     const restored = await teak("restore", "card_a");
     expect(requests[0]?.path).toContain("trashed=true");
@@ -675,35 +706,36 @@ describe("teak parity commands", () => {
   });
 
   test("permanent delete needs --yes when there is no terminal to ask", async () => {
+    routes.set("POST /v1/cards/bulk", bulkAnswers());
     routes.set("DELETE /v1/cards/card_a", noContent);
     const refused = await teak("rm", "card_a", "--permanent");
     expect(refused.code).toBe(EXIT.usage);
     expect(requests).toHaveLength(0);
     const deleted = await teak("rm", "card_a", "--permanent", "--yes");
     expect(deleted.code).toBe(0);
-    expect(requests[0]?.path).toBe("/v1/cards/card_a?permanent=true");
+    expect(requests.at(-1)?.path).toBe("/v1/cards/card_a?permanent=true");
   });
 
-  test("permanent delete of a card outside Trash moves it there first", async () => {
+  test("permanent delete moves the cards to Trash, then deletes each forever", async () => {
     const inTrash = new Set<string>();
-    routes.set("DELETE /v1/cards/card_a", (_request, url) => {
-      if (url.searchParams.get("permanent") !== "true") {
-        inTrash.add("card_a");
-        return noContent();
-      }
-      return inTrash.has("card_a")
+    const trash = bulkAnswers();
+    routes.set("POST /v1/cards/bulk", (request, url) => {
+      inTrash.add("card_a");
+      return trash(request, url);
+    });
+    routes.set("DELETE /v1/cards/card_a", () =>
+      inTrash.has("card_a")
         ? noContent()
         : json(
             { code: "NOT_IN_TRASH", error: "Move the card to Trash first" },
             409
-          );
-    });
+          )
+    );
     const deleted = await teak("rm", "card_a", "--permanent", "--yes");
     expect(deleted.code).toBe(0);
     expect(deleted.stdout).toContain("Deleted card_a forever");
     expect(requests.map((request) => request.path)).toEqual([
-      "/v1/cards/card_a?permanent=true",
-      "/v1/cards/card_a",
+      "/v1/cards/bulk",
       "/v1/cards/card_a?permanent=true",
     ]);
   });
@@ -1319,21 +1351,24 @@ describe("teak batch and fallback behavior", () => {
     expect(body).not.toHaveProperty("content");
   });
 
-  const missing = () =>
-    json({ code: "NOT_FOUND", error: "Card not found" }, 404);
-
   test("rm tries every id and reports which ones failed", async () => {
-    routes.set("DELETE /v1/cards/card_a", noContent);
-    routes.set("DELETE /v1/cards/bogus", missing);
-    routes.set("DELETE /v1/cards/card_b", noContent);
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ bogus: ["NOT_FOUND", "Card not found"] })
+    );
 
     const result = await teak("rm", "card_a", "bogus", "card_b");
 
     expect(result.code).toBe(EXIT.notFound);
-    expect(requests.map((request) => request.path)).toEqual([
-      "/v1/cards/card_a",
-      "/v1/cards/bogus",
-      "/v1/cards/card_b",
+    expect(bulkRequests()).toEqual([
+      {
+        items: [
+          { cardId: "card_a" },
+          { cardId: "bogus" },
+          { cardId: "card_b" },
+        ],
+        operation: "delete",
+      },
     ]);
     expect(result.stdout).toContain("Moved card_a to Trash");
     expect(result.stdout).toContain("Moved card_b to Trash");
@@ -1342,8 +1377,10 @@ describe("teak batch and fallback behavior", () => {
   });
 
   test("rm --json lists deleted and failed ids", async () => {
-    routes.set("DELETE /v1/cards/card_a", noContent);
-    routes.set("DELETE /v1/cards/bogus", missing);
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ bogus: ["NOT_FOUND", "Card not found"] })
+    );
 
     const result = await teak("--json", "rm", "card_a", "bogus");
 
@@ -1357,8 +1394,10 @@ describe("teak batch and fallback behavior", () => {
   });
 
   test("restore tries every id and reports which ones failed", async () => {
-    routes.set("POST /v1/cards/bogus/restore", missing);
-    routes.set("POST /v1/cards/card_b/restore", noContent);
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ bogus: ["NOT_FOUND", "Card not found"] })
+    );
 
     const text = await teak("restore", "bogus", "card_b");
     expect(text.code).toBe(EXIT.notFound);
@@ -1718,18 +1757,21 @@ describe("teak batch and fallback behavior", () => {
   });
 
   test("archive and unarchive change each card, and ls --archived lists them", async () => {
-    routes.set("PATCH /v1/cards/card_a", () =>
-      json(card("card_a", { isArchived: true }))
-    );
-    routes.set("PATCH /v1/cards/card_b", () =>
-      json({ code: "NOT_FOUND", error: "Card not found" }, 404)
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ card_b: ["NOT_FOUND", "Card not found"] })
     );
 
     const archived = await teak("archive", "card_a", "card_b");
     expect(archived.stdout).toContain("Archived card_a");
     expect(archived.stderr).toContain("card_b: Card not found");
     expect(archived.code).not.toBe(0);
-    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({ isArchived: true });
+    expect(bulkRequests()).toEqual([
+      {
+        items: [{ cardId: "card_a" }, { cardId: "card_b" }],
+        operation: "archive",
+      },
+    ]);
 
     requests.length = 0;
     const restored = await teak("--json", "cards", "unarchive", "card_a");
@@ -1738,9 +1780,9 @@ describe("teak batch and fallback behavior", () => {
       summary: { failed: 0, succeeded: 1, total: 1 },
       unarchivedIds: ["card_a"],
     });
-    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
-      isArchived: false,
-    });
+    expect(bulkRequests()).toEqual([
+      { items: [{ cardId: "card_a" }], operation: "unarchive" },
+    ]);
 
     routes.set("GET /v1/cards", emptyPage);
     requests.length = 0;
@@ -2328,8 +2370,10 @@ describe("teak design rules", () => {
   });
 
   test("a partly failed batch counts the failures and prints the retry", async () => {
-    routes.set("POST /v1/cards/card_a/restore", noContent);
-    routes.set("POST /v1/cards/gone/restore", notFound);
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ gone: ["NOT_FOUND", "Card not found"] })
+    );
     const result = await teak("restore", "card_a", "gone");
     expect(result.stdout.trim()).toBe("Restored card_a");
     expect(result.stderr.trim().split("\n")).toEqual([
@@ -2340,7 +2384,10 @@ describe("teak design rules", () => {
   });
 
   test("a retry keeps an explicit --api-url and asks for the key again", async () => {
-    routes.set("POST /v1/cards/gone/restore", notFound);
+    routes.set(
+      "POST /v1/cards/bulk",
+      bulkAnswers({ gone: ["NOT_FOUND", "Card not found"] })
+    );
     const url = server.url.toString();
     const result = await teakWithEnv(
       { TEAK_API_URL: "" },

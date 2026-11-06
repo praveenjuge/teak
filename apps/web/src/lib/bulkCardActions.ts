@@ -1,5 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
+import {
+  type BulkCardAction,
+  MAX_BULK_CARD_IDS,
+} from "@teak/convex/shared/bulkCardActions";
 import type { TeakTranslator } from "@teak/i18n";
 import { clipFolderName } from "./clipFolderName";
 import { englishTranslator } from "./englishTranslators";
@@ -17,7 +20,8 @@ export interface BulkFolderTarget {
   fromFolderName?: string;
 }
 
-export const BULK_CHUNK_SIZE = 100;
+/** One request per this many cards: the most the server takes at once. */
+export const BULK_CHUNK_SIZE = MAX_BULK_CARD_IDS;
 
 export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
   {

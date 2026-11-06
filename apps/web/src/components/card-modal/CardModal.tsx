@@ -1,5 +1,4 @@
 import { opensOnRead } from "@teak/convex/shared/article";
-import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
@@ -58,12 +57,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
+import type { ClientCard } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { RunnableCardActionId } from "../../hooks/useCardActions";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
+import { useRunAfterClose } from "../../hooks/useRunAfterClose";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
 import {
   type CardActionId,
@@ -72,8 +73,15 @@ import {
   cardActionLabel,
   cardActionShortcut,
 } from "../../lib/cardActions";
-import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
+import { cardCopyKind, cardCopyText } from "../../lib/cardCopy";
+import {
+  cardStageClass,
+  cardTypeIcon,
+  hasEditableText,
+  isFileCardType,
+} from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
+import { getDisplayHostname } from "../../lib/displayHost";
 import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
@@ -91,7 +99,6 @@ import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { CardActionIcon } from "../cards/CardActionIcon";
-import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { EditLinkDialog } from "../cards/EditLinkDialog";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
@@ -125,10 +132,9 @@ import {
 } from "./cardModalFrame";
 import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
-import { getCardTypeIconComponent } from "./cardTypeIcon";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { PaletteStage } from "./PaletteStage";
-import type { CardModalCard, GetCurrentValue } from "./types";
+import type { GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
 import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
@@ -146,7 +152,7 @@ function CardPreview({
   thumbnail,
   updateContent,
 }: {
-  card: CardModalCard;
+  card: ClientCard;
   cardLinks?: CardLinkOptions;
   getCurrentValue: GetCurrentValue;
   paletteColors?: PaletteColorsControl;
@@ -208,26 +214,6 @@ function CardPreview({
   }
 }
 
-function stageContentClass(card: CardModalCard): string {
-  switch (card.type) {
-    case "image":
-      return "flex min-h-full items-center justify-center p-4 md:h-full md:p-8";
-    case "video":
-      return "flex items-center justify-center bg-black max-md:aspect-video md:h-full";
-    case "document": {
-      return cardFileFormat(card)?.preview === "pdf" && card.fileUrl
-        ? "h-[70dvh] p-2 md:h-full md:p-3"
-        : "p-5 md:p-8";
-    }
-    case "link":
-      return "px-5 pt-5 pb-6 md:px-10 md:pt-8 md:pb-10";
-    case "text":
-      return "mx-auto w-full max-w-3xl px-5 pt-5 pb-6 md:px-10 md:pt-10 md:pb-12";
-    default:
-      return "flex min-h-full items-center justify-center p-5 md:p-10";
-  }
-}
-
 const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
 
 /** Preview · Read: the chosen one is filled, so it reads at a glance. */
@@ -236,10 +222,7 @@ export const STAGE_VIEW_ITEM_CLASS =
 
 type StageView = "preview" | "read";
 
-const useStageView = (
-  card: CardModalCard | null | undefined,
-  open: boolean
-) => {
+const useStageView = (card: ClientCard | null | undefined, open: boolean) => {
   const [choice, setChoice] = useState<{
     cardId: string;
     view: StageView;
@@ -305,9 +288,6 @@ const useStageView = (
   };
 };
 
-/** The dialog's own copy key; card actions take theirs from the registry. */
-const COPY_KEY = "C";
-
 interface SidebarAction {
   caption: string;
   icon: ReactNode;
@@ -321,9 +301,11 @@ interface SidebarAction {
 
 interface CardModalProps {
   backlinks?: CardBacklinks;
-  card?: CardModalCard | null;
+  card?: ClientCard | null;
   cardId?: string | null;
   cardLinks?: CardLinkOptions;
+  /** Copies an image card's picture, as the card's menu in a grid does. */
+  copyImage?: () => void;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
   hasUnsavedChanges: boolean;
@@ -361,6 +343,7 @@ export function CardModal({
   card: cardProp,
   cardId,
   cardLinks,
+  copyImage,
   open,
   openOrigin: openOriginPoint,
   onCancel,
@@ -637,10 +620,15 @@ export function CardModal({
     }
   };
   const canDownload = Boolean(card?.fileKey && isFileCardType(card.type));
+  // What C and "Copy" copy: the same as the card in a grid (cardCopyKind),
+  // with a note's text as it is being edited.
+  const copyKind = card ? cardCopyKind(card) : null;
   const copyableText =
-    card?.type === "text" || card?.type === "quote"
-      ? cardLinkTokensToText(getCurrentValue("content") ?? "")
+    card && copyKind !== "image"
+      ? cardCopyText(card, getCurrentValue("content"))
       : "";
+  const canCopy =
+    copyKind === "image" ? Boolean(copyImage) : copyableText !== "";
   const canToggleDone = can("done");
   const isDone = card?.completedAt !== undefined;
   const doneVerb = doneActionLabel(card?.metadata?.linkCategory?.category);
@@ -660,17 +648,18 @@ export function CardModal({
 
   const copyFailed = t("toasts.copyFailed");
   const copyCard = () => {
-    if (card?.url) {
-      void copyText(card.url, {
-        copied: t("toasts.copiedLink"),
-        failed: copyFailed,
-      });
-    } else if (copyableText) {
-      void copyText(copyableText, {
-        copied: t("toasts.copiedText"),
-        failed: copyFailed,
-      });
+    if (!canCopy) {
+      return;
     }
+    if (copyKind === "image") {
+      copyImage?.();
+      return;
+    }
+    void copyText(copyableText, {
+      copied:
+        copyKind === "link" ? t("toasts.copiedLink") : t("toasts.copiedText"),
+      failed: copyFailed,
+    });
   };
 
   const focusPanelField = (field: "notes" | "tags") => {
@@ -680,20 +669,14 @@ export function CardModal({
   // Add to folder opens once the menu has closed. Opened at once, the
   // closing menu took focus back from it and then unmounted, leaving focus
   // on the page, so every card key went dead after the dialog closed.
-  const foldersAfterMenu = useRef<boolean>(false);
-  const openFoldersFromMenu = () => {
-    foldersAfterMenu.current = true;
-  };
-  const onMenuCloseAutoFocus = (event: Event) => {
-    if (!foldersAfterMenu.current) {
-      return;
-    }
-    foldersAfterMenu.current = false;
-    event.preventDefault();
-    // The dialog gives focus back to what had it when it opened: the card.
-    contentRef.current?.focus();
-    setIsFoldersOpen(true);
-  };
+  const { onCloseAutoFocus: onMenuCloseAutoFocus, runAfterClose } =
+    useRunAfterClose();
+  const openFoldersFromMenu = () =>
+    runAfterClose(() => {
+      // The dialog gives focus back to what had it when it opened: the card.
+      contentRef.current?.focus();
+      setIsFoldersOpen(true);
+    });
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (
@@ -777,7 +760,7 @@ export function CardModal({
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);
-  const TypeIcon = getCardTypeIconComponent(card?.type as CardType | undefined);
+  const TypeIcon = cardTypeIcon(card?.type as CardType | undefined);
   const editedTitle = getCurrentValue("metadataTitle");
   const titleValue =
     card && editedTitle !== card.metadataTitle
@@ -786,7 +769,7 @@ export function CardModal({
   const showTitle = Boolean(
     heading &&
       (heading.editable || heading.title !== typeLabel) &&
-      !(card?.type === "text" || card?.type === "quote")
+      !hasEditableText(card?.type)
   );
   const addedLabel = card
     ? formatAddedDate(card.createdAt, undefined, {
@@ -799,7 +782,7 @@ export function CardModal({
     : undefined;
 
   const favoriteLabel = actionLabel("favorite");
-  const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
+  const copyLabel = actionLabel("copy");
   const moreLabel = t("menu.moreActions");
 
   // `quiet` is the trash sidebar's secondary Download, under Restore.
@@ -879,14 +862,14 @@ export function CardModal({
         tone: "primary",
       });
     }
-    if (card.url || copyableText) {
+    if (canCopy) {
       sidebarActions.push({
         caption: tc("copy"),
         icon: <Copy />,
         id: "copy",
         label: copyLabel,
         onClick: copyCard,
-        shortcut: [COPY_KEY],
+        shortcut: [cardActionKeyName("copy") ?? ""],
       });
     }
     sidebarActions.push({
@@ -928,10 +911,10 @@ export function CardModal({
         </DropdownMenuItem>,
       ]);
     }
-    if (isMobile && (card.url || copyableText)) {
+    if (isMobile && canCopy) {
       menuGroups.push([
         <DropdownMenuItem
-          aria-keyshortcuts={COPY_KEY}
+          aria-keyshortcuts={shortcut("copy")?.keys}
           key="copy"
           onClick={copyCard}
         >
@@ -1345,7 +1328,7 @@ export function CardModal({
                           />
                         </div>
                       ) : (
-                        <div className={stageContentClass(card)}>
+                        <div className={cardStageClass(card)}>
                           <CardPreview
                             card={card}
                             cardLinks={guardedCardLinks}

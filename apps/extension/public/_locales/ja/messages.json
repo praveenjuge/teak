@@ -6,5 +6,9 @@
   "extDescription": {
     "message": "あなた専用のナレッジハブです。Web コンテンツを手軽に保存、整理して、もう一度見つけられます。",
     "description": "The extension's description in the browser's extension list and store."
+  },
+  "saveCommand": {
+    "message": "このページを Teak に保存",
+    "description": "The keyboard shortcut's name in the browser's extension shortcuts settings."
   }
 }

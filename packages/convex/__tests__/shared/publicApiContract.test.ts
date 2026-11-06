@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   CARD_LIST_PARAMS,
-  cliFlagFor,
   matchPublicApiOperation,
   PUBLIC_API_OPERATION_IDS,
   PUBLIC_API_OPERATIONS,
@@ -9,7 +8,12 @@ import {
   publicApiMethodsFor,
   publicApiPath,
   publicApiPathParams,
+  SEARCH_QUERY_HELP,
 } from "../../shared/publicApiContract";
+import {
+  SEARCH_IS_WORDS,
+  SEARCH_QUALIFIER_KEYS,
+} from "../../shared/search/qualifiers";
 
 describe("matchPublicApiOperation", () => {
   test.each([
@@ -126,7 +130,31 @@ test("listCards documents exactly the card list parameters", async () => {
   expect([...parameters].sort()).toEqual(Object.keys(CARD_LIST_PARAMS).sort());
 });
 
-test("cliFlagFor names a parameter's CLI flag", () => {
-  expect(cliFlagFor("createdAfter")).toBe("--created-after");
-  expect(cliFlagFor("shuffleSeed")).toBe("--seed");
+test("the search help names every qualifier and is: value the parser reads", () => {
+  const missing = [
+    ...SEARCH_QUALIFIER_KEYS.map((key) => `${key}:`),
+    ...Object.keys(SEARCH_IS_WORDS).map((value) => `is:${value}`),
+  ].filter((qualifier) => !SEARCH_QUERY_HELP.includes(qualifier));
+  expect(missing).toEqual([]);
+});
+
+test("every enum parameter lists its values and keeps its default among them", () => {
+  for (const [name, spec] of Object.entries(CARD_LIST_PARAMS)) {
+    const { values, default: fallback } = spec as {
+      default?: number | string;
+      values?: readonly string[];
+    };
+    if (spec.kind === "enum") {
+      expect({ name, values: (values ?? []).length > 0 }).toEqual({
+        name,
+        values: true,
+      });
+    }
+    if (typeof fallback === "string") {
+      expect({ name, listed: values?.includes(fallback) }).toEqual({
+        name,
+        listed: true,
+      });
+    }
+  }
 });

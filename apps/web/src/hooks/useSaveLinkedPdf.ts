@@ -1,12 +1,13 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useUpgradeAction } from "@/hooks/useUpgradeAction";
+import { isCardLimitError } from "@/lib/cardErrors";
 import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
 import { type ErrorsTranslator, translateErrorKey } from "@/lib/serverErrors";
 
@@ -21,9 +22,7 @@ export const savePdfErrorMessage = (
 ): string => {
   const code = (error as { data?: { code?: unknown } } | null)?.data?.code;
   switch (code) {
-    case CARD_ERROR_CODES.CARD_LIMIT_REACHED:
-      return t("cardLimitReached");
-    case CARD_ERROR_CODES.RATE_LIMITED:
+    case "RATE_LIMITED":
       return translateErrorKey(errors, "pdfs.RATE_LIMITED");
     case "IN_PROGRESS":
       return translateErrorKey(errors, "pdfs.IN_PROGRESS");
@@ -46,6 +45,7 @@ export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
   const t = useTranslations("hooks.savePdf");
   const errors = useTranslations("errors");
   const savePdf = useAction(api.card.saveLinkedPdf.saveLinkedPdf);
+  const { showUpgradeToast } = useUpgradeAction();
   const inFlight = useRef(new Set<string>());
   const [savingCardIds, setSavingCardIds] = useState<ReadonlySet<string>>(
     () => new Set()
@@ -74,13 +74,17 @@ export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
             : {}),
         });
       } catch (error) {
-        toast.error(savePdfErrorMessage(error, t, errors));
+        if (isCardLimitError(error)) {
+          showUpgradeToast();
+        } else {
+          toast.error(savePdfErrorMessage(error, t, errors));
+        }
       } finally {
         inFlight.current.delete(cardId);
         setSavingCardIds((current) => withoutCard(current, cardId));
       }
     },
-    [errors, onOpenCard, savePdf, t]
+    [errors, onOpenCard, savePdf, showUpgradeToast, t]
   );
 
   const isSaving = useCallback(

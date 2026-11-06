@@ -8,18 +8,21 @@ import {
   type AccountDeletionStage,
 } from "./accountDeletion/stages";
 import { closeBillingCustomer } from "./billing";
-import { workosRequest, workosUserPath } from "./shared/workosClient";
 import { WORKOS_USER_ID } from "./shared/workosIds";
+import {
+  isWorkosApiConfigured,
+  workosRequest,
+  workosUserPath,
+} from "./workos/client";
 
 const deleteWorkosUser = async (workosUserId: string) => {
   if (!WORKOS_USER_ID.test(workosUserId)) {
     throw new Error("deletion_workos_user_id_invalid");
   }
-  const apiKey = process.env.WORKOS_API_KEY;
-  if (!apiKey) {
+  if (!isWorkosApiConfigured()) {
     throw new Error("deletion_workos_unavailable");
   }
-  const response = await workosRequest(workosUserPath(workosUserId), apiKey, {
+  const response = await workosRequest(workosUserPath(workosUserId), {
     method: "DELETE",
   });
   if (!response.ok && response.status !== 404) {

@@ -4,13 +4,13 @@ import {
   type FilesPdfOcrResult,
   normalizeImageOcrText,
 } from "@teak/files-protocol";
-import { InspectSourceMissing } from "../archives/zip";
 import {
   INVALID_IMAGE_OUTPUT,
   readImageText,
   toDataUrl,
 } from "../images/imageMetadata";
 import type { Env } from "../index";
+import { OpFailure } from "../opFailure";
 import { renderPdfPageBytes } from "./mediaJobs";
 import { RendererDeclined } from "./rendererClient";
 
@@ -46,7 +46,7 @@ export const ocrPdfPages = async (
 ): Promise<FilesPdfOcrResult> => {
   const head = await env.BUCKET.head(sourceKey);
   if (!head) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (head.size > FILES_UPLOAD_MAX_BYTES) {
     return NOTHING_READ;

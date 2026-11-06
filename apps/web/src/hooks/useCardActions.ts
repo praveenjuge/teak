@@ -1,9 +1,9 @@
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { BulkCardAction } from "@teak/convex/card/bulkActions";
 import {
   type CardPinSource,
   captureEvent,
 } from "@teak/convex/shared/analytics";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
@@ -407,7 +407,10 @@ export type CardActionsRunner = ReturnType<typeof useCardActions>;
 export type CardGridSource = Extract<CardPinSource, "grid" | "shortcut">;
 
 /** The actions the runner does itself; a surface handles the rest. */
-export type RunnableCardActionId = Exclude<CardActionId, "addTags" | "select">;
+export type RunnableCardActionId = Exclude<
+  CardActionId,
+  "addTags" | "copy" | "select"
+>;
 
 /** What a grid hands up: it selects cards and confirms deletes itself. */
-export type GridCardAction = Exclude<CardActionId, "select" | "done">;
+export type GridCardAction = Exclude<CardActionId, "copy" | "done" | "select">;

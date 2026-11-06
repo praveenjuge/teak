@@ -1,9 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
-import {
-  getAccountDeletionState,
-  initiateAccountDeletion,
-} from "./accountDeletion";
+import { initiateAccountDeletion } from "./accountDeletion";
+import { getAccountDeletionState } from "./accountDeletion/gate";
 import {
   type DevScenarioCardDef,
   insertCompletedCards,
@@ -12,12 +10,12 @@ import {
 } from "./card/defaultCards";
 import { link, palette } from "./devSeed/helpers";
 import { SCENARIOS } from "./devSeed/scenarios";
-import { readIsDevDeployment } from "./env";
+import { readIsDevDeployment, readWorkosApiBase } from "./env";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
   CLOUD_DEV_ACCOUNT_EMAIL_RANGE,
 } from "./shared/devAccounts";
-import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
+import { isWorkosProductionApi } from "./shared/workosApi";
 
 export const DEV_SEED_CARDS: DevScenarioCardDef[] = [
   {
@@ -156,7 +154,7 @@ export const seed = internalMutation({
     cards: v.number(),
   }),
   handler: async (ctx, { workosUserId }) => {
-    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
+    if (!readIsDevDeployment() && isWorkosProductionApi(readWorkosApiBase())) {
       throw new Error(
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );
@@ -203,7 +201,7 @@ export const seedScenario = internalMutation({
     folders: v.optional(v.number()),
   }),
   handler: async (ctx, { workosUserId, scenario, page = 0, origin }) => {
-    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
+    if (!readIsDevDeployment() && isWorkosProductionApi(readWorkosApiBase())) {
       throw new Error(
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );

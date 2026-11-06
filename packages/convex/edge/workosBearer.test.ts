@@ -1,4 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import {
   buildEdgeRateLimitSigningPayload,
@@ -8,7 +7,6 @@ import {
 } from "@teak/files-protocol";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import {
   afterEach,
@@ -22,11 +20,10 @@ import {
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components, internal } from "../_generated/api";
 import { syncCardSearchTagsBatchHandler } from "../card/onCardChanged";
-import schema from "../schema";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const issuer = "https://bearer-dev.authkit.app";
 const ownerId = "legacy-owner";
 const userId = "user_PROVIDER";
@@ -94,8 +91,7 @@ async function token(audience = apiAudience, overrides: JWTPayload = {}) {
 }
 
 async function setup() {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const owner = await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: ownerId,

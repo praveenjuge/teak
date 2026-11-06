@@ -3,13 +3,17 @@ import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { stageFailed } from "@teak/convex/card/processingStatus";
 import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
-import type { CardProcessingParams } from "@teak/files-protocol";
+import {
+  type CardProcessingParams,
+  cardTypeStages,
+} from "@teak/files-protocol";
 import {
   CONVEX_STEP,
+  exponentialStep,
   NO_RETRY,
-  retryConfig,
   runReported,
   type StepConfig,
+  stepAttempts,
   type WorkflowRun,
 } from "../runtime";
 import {
@@ -59,14 +63,13 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 // Step names are durable history: never rename one, and add new steps after
 // the existing ones.
 
-const LINK_METADATA_STEP = retryConfig(5, 5000);
-const CATEGORIZE_STEP = retryConfig(5, 1200);
-const RENDERABLES_STEP = retryConfig(4, 5000);
-const RENDERABLES_ATTEMPTS = 4;
-const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
-const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
+const LINK_METADATA_STEP = exponentialStep(5, 5000);
+const CATEGORIZE_STEP = exponentialStep(5, 1200);
+const RENDERABLES_STEP = exponentialStep(4, 5000);
+const PODCAST_STEP = exponentialStep(2, 60_000, "15 minutes");
+const LINK_TEXT_STEP = exponentialStep(3, 30_000, "5 minutes");
 // A busy image host (429 or 5xx) gets about 7½ minutes to come back.
-const PREVIEW_IMAGE_STEP = retryConfig(5, 30_000, "5 minutes");
+const PREVIEW_IMAGE_STEP = exponentialStep(5, 30_000, "5 minutes");
 
 const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
@@ -222,16 +225,6 @@ const processCard = async (
             ? {
                 confidence: classify.confidence ?? 1,
                 mode: "completed",
-                needsLinkMetadata:
-                  card.type === "link" &&
-                  card.metadata?.linkPreview?.status !== "success",
-                shouldCategorize: card.type === "link",
-                shouldGenerateMetadata: true,
-                shouldGenerateRenderables: [
-                  "image",
-                  "video",
-                  "document",
-                ].includes(card.type),
                 type: card.type,
               }
             : null,
@@ -268,28 +261,30 @@ const processCard = async (
     (await step.do(
       "classify",
       CONVEX_STEP,
-      reported("card.classification", "classification", 9, () =>
-        classifyCard(job)
+      reported(
+        "card.classification",
+        "classification",
+        stepAttempts(CONVEX_STEP),
+        () => classifyCard(job)
       )
     ));
   if (classified.mode === "skipped") {
     return { mode: "skipped", reason: "card_missing" };
   }
   const cardType = classified.type;
+  const stages = cardTypeStages(cardType);
 
   if (metadataOnly) {
-    const metadata = classified.shouldGenerateMetadata
-      ? await runMetadataStep(job, step, reported, cardType)
-      : null;
+    const metadata = await runMetadataStep(job, step, reported, cardType);
     // An episode whose first run had no AI metadata wasn't transcribed.
     if (
       isPodcastLink(cardType, initial.linkCategory) &&
-      metadata?.mode === "completed"
+      metadata.mode === "completed"
     ) {
       await transcribePodcastStep(job, step, { keepTranscript: true });
     }
     // The metadata just written summarized the page without its article.
-    if (initial.hasArticle && metadata?.mode === "completed") {
+    if (initial.hasArticle && metadata.mode === "completed") {
       await summarizeArticleStep(job, step);
     }
     return completedResult(classified, cardType, metadata, null);
@@ -300,13 +295,18 @@ const processCard = async (
       await step.do(
         "fetch link metadata",
         LINK_METADATA_STEP,
-        reported("card.link_metadata", "link_metadata", 5, async () => {
-          const card = (await loadCard(job))?.card;
-          if (!card?.url || card.metadataStatus !== "pending") {
-            return { status: "skipped" as const };
+        reported(
+          "card.link_metadata",
+          "link_metadata",
+          stepAttempts(LINK_METADATA_STEP),
+          async () => {
+            const card = (await loadCard(job))?.card;
+            if (!card?.url || card.metadataStatus !== "pending") {
+              return { status: "skipped" as const };
+            }
+            return await fetchLinkMetadata(job);
           }
-          return await fetchLinkMetadata(job);
-        })
+        )
       );
     } catch (error) {
       const failure = job.refresh
@@ -322,12 +322,15 @@ const processCard = async (
   }
 
   let categorization: { category: string; confidence: number } | undefined;
-  if (classified.shouldCategorize) {
+  if (stages.categorize) {
     const categorized = await step.do(
       "categorize",
       CATEGORIZE_STEP,
-      reported("card.categorization", "categorization", 5, () =>
-        categorizeLink(job)
+      reported(
+        "card.categorization",
+        "categorization",
+        stepAttempts(CATEGORIZE_STEP),
+        () => categorizeLink(job)
       )
     );
     if (categorized.mode === "missing") {
@@ -344,8 +347,11 @@ const processCard = async (
       return await step.do(
         "generate renderables",
         RENDERABLES_STEP,
-        reported("card.renderables", "renderables", RENDERABLES_ATTEMPTS, () =>
-          generateRenderables(job, cardType)
+        reported(
+          "card.renderables",
+          "renderables",
+          stepAttempts(RENDERABLES_STEP),
+          () => generateRenderables(job, cardType)
         )
       );
     } catch (error) {
@@ -372,9 +378,7 @@ const processCard = async (
   let metadata: MetadataResult | null = null;
   let renderables: RenderablesResult | null = null;
   if (cardType === "image" || cardType === "video") {
-    renderables = classified.shouldGenerateRenderables
-      ? await runRenderables()
-      : null;
+    renderables = stages.renderables ? await runRenderables() : null;
     if (cardType === "image") {
       await step
         .do("extract palette", NO_RETRY(), async () => {
@@ -390,14 +394,14 @@ const processCard = async (
           return null;
         });
     }
-    metadata = classified.shouldGenerateMetadata ? await runMetadata() : null;
+    metadata = await runMetadata();
   } else {
     // Both settle before either's error ends the run: a run that reported
     // while the other step was still writing would leave that stage to the
     // failure handler, or its "mark failed" step to a run already over.
     const [metadataRun, renderablesRun] = await Promise.allSettled([
-      classified.shouldGenerateMetadata ? runMetadata() : null,
-      classified.shouldGenerateRenderables ? runRenderables() : null,
+      runMetadata(),
+      stages.renderables ? runRenderables() : null,
     ]);
     // A newer run took over: that ends this one as superseded, whatever else
     // failed beside it.

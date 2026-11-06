@@ -1,5 +1,4 @@
-import { HOUR, MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
-import { components } from "../_generated/api";
+import { HOUR, MINUTE } from "@convex-dev/rate-limiter";
 
 export const RATE_LIMIT_CONFIG = {
   cardCreation: {
@@ -135,8 +134,3 @@ export const RATE_LIMIT_CONFIG = {
     maxReserved: 3,
   },
 } as const;
-
-export const rateLimiter = new RateLimiter(
-  components.rateLimiterV2,
-  RATE_LIMIT_CONFIG
-);

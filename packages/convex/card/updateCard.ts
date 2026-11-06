@@ -6,6 +6,7 @@ import {
   mutation,
 } from "../_generated/server";
 import { truncateCardTitle } from "../publicApi/validation";
+import { rateLimiter } from "../rateLimiter";
 import {
   requireSessionUser,
   requireTeakUserId,
@@ -13,7 +14,7 @@ import {
 } from "../securitySessions";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   explainInvalidCardTags,
   normalizeTagList,
@@ -27,8 +28,7 @@ import {
   parsePaletteHex,
 } from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
-import { queueObjectDeletion } from "../storage/r2";
-import { queueCardProcessing } from "../workflowDispatch";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
@@ -39,6 +39,7 @@ import {
 import { patchCard } from "./cardWrites";
 import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
+import { queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,

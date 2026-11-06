@@ -1,5 +1,5 @@
+import { inboundEmailDomain, isSaveAddress } from "@teak/files-protocol";
 import PostalMime from "postal-mime";
-import { DEFAULT_INBOUND_DOMAIN, isSaveAddress } from "./address";
 import { type SelectedAttachment, selectAttachments } from "./attachments";
 import { verifySender } from "./auth";
 import {
@@ -154,10 +154,7 @@ export const handleEmail = async (
     deps.log({ event: "inbound_email", outcome: "rejected", reason });
   };
   if (
-    !isSaveAddress(
-      message.to,
-      env.INBOUND_EMAIL_DOMAIN || DEFAULT_INBOUND_DOMAIN
-    )
+    !isSaveAddress(message.to, inboundEmailDomain(env.INBOUND_EMAIL_DOMAIN))
   ) {
     reject("unknown_address", REJECT_UNKNOWN_ADDRESS);
     return;

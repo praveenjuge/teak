@@ -152,7 +152,7 @@ Every linked worktree leases its own block of ports the first time it runs, reco
 
 ### A local backend
 
-`bun run dev --local` (add `--detach` to return once it's ready) runs the web app on the [end-to-end suite's stack](/docs/testing#end-to-end-suite) instead of the shared deployment: a local Convex backend that pushes this checkout's `packages/convex` as you edit it, the WorkOS emulator, and the Core Worker in Miniflare. It needs no Convex login or deploy key, and nothing you do there reaches another checkout, so it suits schema changes and destructive work, and checkouts without access to the development deployment.
+`bun run dev --local` (add `--detach` to return once it's ready) runs the web app on the local stack in `scripts/dev/local-stack/` (the one the [end-to-end suite](/docs/testing#end-to-end-suite) runs against) instead of the shared deployment: a local Convex backend that pushes this checkout's `packages/convex` as you edit it, the WorkOS emulator, and the Core Worker in Miniflare. It needs no Convex login or deploy key, and nothing you do there reaches another checkout, so it suits schema changes and destructive work, and checkouts without access to the development deployment.
 
 It creates `dev+local-<checkout>@example.org` on the emulator with a new password each time it starts, and seeds its vault with the same sample cards. `bun run dev --status` prints the sign-in. Link fetching, screenshots, transcripts, embeddings, WorkOS Connect and billing don't run there ([What the local stack doesn't cover](/docs/testing#what-the-local-stack-doesnt-cover)). It takes over `packages/convex/.env.local`; after `bun run dev --stop`, the next `bun run dev` selects the development deployment again.
 

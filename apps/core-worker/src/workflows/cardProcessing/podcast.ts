@@ -1,7 +1,6 @@
 import { internal } from "@teak/convex/_generated/api";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import { gatedEnv } from "../../deletionGate";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
   type GeneratedMetadata,
@@ -186,10 +185,10 @@ export const transcribeFoundEpisode = async (
     guardOf(job)
   );
   try {
-    // Through the deletion gate, so account deletion can fence the key and
-    // abort an upload in flight.
+    // The run's bucket goes through the deletion gate, so account deletion
+    // can fence the key and abort an upload in flight.
     const download = await downloadEpisodeToR2(
-      gatedEnv(job.env).BUCKET,
+      job.env.BUCKET,
       key,
       episode.audioUrl,
       {
@@ -255,8 +254,11 @@ export const transcribeFoundEpisode = async (
     // One that couldn't be deleted stays listed, for card deletion.
     let deleted = false;
     try {
-      await job.env.BUCKET.delete(key);
-      deleted = true;
+      const outcome = await job.deps.filesOp({
+        op: "delete-object",
+        params: { key },
+      });
+      deleted = outcome.kind === "ok";
     } catch (error) {
       console.warn("[cardProcessing/podcast] episode audio not deleted", {
         cardId: job.cardId,

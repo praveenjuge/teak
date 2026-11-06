@@ -1,7 +1,3 @@
-import type {
-  FilesVectorQueryResult,
-  FilesVectorSimilarResult,
-} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, action, internalQuery } from "../_generated/server";
@@ -9,8 +5,8 @@ import {
   readUserVectorShard,
   userVectorNamespace,
 } from "../embedding/userVectors";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import {
   SEMANTIC_TOP_K,
@@ -60,7 +56,7 @@ const askVectorService = async (
   timeoutMs: number
 ): Promise<{ matches: { id: string; score: number }[]; found: boolean }> => {
   if (request.kind === "like") {
-    const result = await callCoreWorkerOp<FilesVectorSimilarResult>({
+    const result = await callCoreWorkerOp({
       op: "vector-similar",
       params: { ...vectors, id: request.cardId, topK: SEMANTIC_TOP_K },
       timeoutMs,
@@ -70,7 +66,7 @@ const askVectorService = async (
     }
     return result.data;
   }
-  const result = await callCoreWorkerOp<FilesVectorQueryResult>({
+  const result = await callCoreWorkerOp({
     op: "vector-query",
     params: {
       ...vectors,

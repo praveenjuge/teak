@@ -1,0 +1,82 @@
+/**
+ * The public API operations each CLI command calls, and why the others call
+ * none. A top-level shortcut (`teak ls`) calls what its `teak cards` command
+ * does. The parity table (scripts/repo/public-parity.ts) reads its CLI
+ * column from here, and its test checks every listed command is here.
+ */
+import type { PublicApiOperationId } from "@teak/convex/shared/publicApiContract";
+
+export const CLI_OPERATIONS: Record<string, readonly PublicApiOperationId[]> = {
+  logout: ["disconnectOAuthConsent"],
+  "auth status": ["getMe"],
+  whoami: ["getMe"],
+  "cards list": ["listCards"],
+  "cards search": ["listCards"],
+  "cards similar": ["listCards"],
+  "cards favorites": ["listCards"],
+  "cards pins": ["listCards"],
+  "cards pins order": ["reorderPinnedCards"],
+  "cards trash": ["listCards"],
+  "cards get": ["getCard"],
+  "cards create": ["createUpload", "createCard"],
+  "cards update": ["updateCard"],
+  "cards delete": ["bulkCards", "deleteCard"],
+  "cards restore": ["bulkCards"],
+  "cards refresh": ["refreshCard"],
+  "cards thumbnail": [
+    "createThumbnailUpload",
+    "setCardThumbnail",
+    "resetCardThumbnail",
+  ],
+  "cards archive": ["bulkCards"],
+  "cards unarchive": ["bulkCards"],
+  "cards duplicate": ["findDuplicateCard"],
+  "cards content": ["getCardContent"],
+  "cards links": ["getCard"],
+  "cards open": ["getCard"],
+  "cards download": ["getCard"],
+  "cards favorite": ["setCardFavorite"],
+  "cards unfavorite": ["setCardFavorite"],
+  "cards pin": ["setCardPinned"],
+  "cards unpin": ["setCardPinned"],
+  "cards done": ["markCardDone"],
+  "cards todo": ["unmarkCardDone"],
+  "cards save-pdf": ["saveCardPdf"],
+  "cards bulk": ["bulkCards"],
+  "cards changes": ["listCardChanges"],
+  tags: ["listTags"],
+  "tags list": ["listTags"],
+  "tags add": ["updateCard"],
+  "tags remove": ["updateCard"],
+  "tags rename": ["renameTag", "getTagOperation"],
+  "tags merge": ["mergeTags", "getTagOperation"],
+  "tags delete": ["deleteTag", "getTagOperation"],
+  "tags status": ["getTagOperation"],
+  folders: ["listFolders"],
+  "folders list": ["listFolders"],
+  "folders get": ["getFolder"],
+  "folders create": ["createFolder"],
+  "folders rules": ["updateFolder", "getFolderRuleRun"],
+  "folders rule-run": ["getFolderRuleRun"],
+  "folders undo-rule-run": ["undoFolderRuleRun"],
+  "folders rename": ["updateFolder"],
+  "folders delete": ["deleteFolder"],
+  "folders add": ["addCardsToFolder"],
+  "folders remove": ["removeCardsFromFolder"],
+  "highlights list": ["listHighlights"],
+  "highlights add": ["createHighlight"],
+  "highlights note": ["updateHighlight"],
+  "highlights delete": ["deleteHighlight"],
+  export: ["startExport", "getLatestExport"],
+  "export status": ["getLatestExport"],
+  "export download": ["getLatestExport"],
+};
+
+/** Commands that call no public operation, and what they do instead. */
+export const CLI_LOCAL_COMMANDS: Record<string, string> = {
+  login: "signs in through the browser and stores the credential",
+  auth: "groups `auth status`",
+  cards: "groups the card commands",
+  completion: "prints a shell completion script; it makes no request",
+  highlights: "groups the highlight commands",
+};

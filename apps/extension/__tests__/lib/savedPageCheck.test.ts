@@ -8,6 +8,7 @@ import {
   SAVED_CACHE_MS,
 } from "../../lib/savedPageCheck";
 import { memoryArea } from "../helpers/chromeStorage";
+import { apiClient, TEAK_API } from "../helpers/teakClient";
 
 const SAVED_URL = "https://example.com/saved";
 const NEW_URL = "https://example.com/new";
@@ -71,17 +72,18 @@ function setup({
       return Promise.resolve();
     },
     recentRequests: () => recentRequests,
-    request: async (path) => {
-      const url = new URL(path, "https://teak.test").searchParams.get("url");
-      requested.push(url ?? "");
-      if (!signedIn) {
-        return null;
-      }
-      return await (respond?.(url ?? "") ??
-        Response.json({
-          cardId: savedUrls.includes(url ?? "") ? "card-1" : null,
-        }));
-    },
+    client: () =>
+      apiClient(async (path) => {
+        const url = new URL(path, TEAK_API).searchParams.get("url");
+        requested.push(url ?? "");
+        if (!signedIn) {
+          return null;
+        }
+        return await (respond?.(url ?? "") ??
+          Response.json({
+            cardId: savedUrls.includes(url ?? "") ? "card-1" : null,
+          }));
+      }),
     storage: storage as unknown as chrome.storage.StorageArea,
   });
   return { ...time, account, badges, checker, requested, storage };

@@ -268,7 +268,7 @@ const DOMAIN_RULES: DomainRule[] = [
     category: "design_portfolio",
     provider: "dribbble",
   },
-  { domain: "behance.net", category: "design_portfolio" },
+  { domain: "behance.net", category: "design_portfolio", provider: "behance" },
   { domain: "figma.com", category: "design_portfolio", provider: "figma" },
   { domain: "youtube.com", category: "tv", provider: "youtube" },
   { domain: "youtu.be", category: "tv", provider: "youtube" },
@@ -300,7 +300,7 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "spotify.com", category: "music", provider: "spotify" },
   { domain: "podcasts.apple.com", category: "podcast", provider: "apple" },
   { domain: "music.apple.com", category: "music", provider: "apple" },
-  { domain: "netflix.com", category: "tv" },
+  { domain: "netflix.com", category: "tv", provider: "netflix" },
   { domain: "hulu.com", category: "tv" },
   { domain: "eventbrite.com", category: "event" },
   { domain: "lu.ma", category: "event" },
@@ -412,6 +412,18 @@ const pickPathRule = (pathname: string | undefined): PathRule | null => {
   }
   return null;
 };
+
+/**
+ * The site a link is on, by its host: the provider of the first domain
+ * rule that names one, whatever the link's path. The resolver, provider
+ * enrichment and the remote detail lookups all read it from here.
+ */
+export const providerForHostname = (hostname: string): string | undefined =>
+  DOMAIN_RULES.find(
+    (rule) =>
+      rule.provider !== undefined &&
+      hostnameMatches(hostname.toLowerCase(), rule.domain)
+  )?.provider;
 
 const pickProviderMapping = (
   hostname: string | undefined

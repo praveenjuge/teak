@@ -1,4 +1,5 @@
 import { PAGE_SNAPSHOT_MAX_BYTES } from "@teak/convex/shared/pageArchive";
+import type { TeakClient } from "teak-sdk";
 
 export interface PageSnapshot {
   gzip: Uint8Array<ArrayBuffer>;
@@ -179,69 +180,46 @@ export async function capturePageSnapshot(
 }
 
 export interface UploadPageSnapshotDependencies {
-  fetchImpl?: typeof fetch;
-  request: (path: string, init?: RequestInit) => Promise<Response | null>;
+  client: TeakClient;
   timeoutMs?: number;
 }
 
+/**
+ * Uploads the page the browser showed, for a link's saved copy, and returns
+ * its key; null when it can't be done in time. A save never waits on it.
+ */
 export async function uploadPageSnapshot(
   snapshot: PageSnapshot,
   {
-    fetchImpl = fetch,
-    request,
+    client,
     timeoutMs = PAGE_SNAPSHOT_UPLOAD_TIMEOUT_MS,
   }: UploadPageSnapshotDependencies
 ): Promise<string | null> {
   const controller = new AbortController();
+  const { signal } = controller;
   const timedOut = new Promise<null>((resolve) => {
-    controller.signal.addEventListener("abort", () => resolve(null));
+    signal.addEventListener("abort", () => resolve(null));
   });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await Promise.race([
-      uploadSnapshot(snapshot, fetchImpl, request, controller.signal),
-      timedOut,
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function uploadSnapshot(
-  snapshot: PageSnapshot,
-  fetchImpl: typeof fetch,
-  request: UploadPageSnapshotDependencies["request"],
-  signal: AbortSignal
-): Promise<string | null> {
-  try {
-    const prepared = await request("/v1/page-snapshots/upload", {
-      body: JSON.stringify({ bytes: snapshot.gzip.byteLength }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-      signal,
-    });
-    if (!prepared?.ok) {
-      return null;
-    }
-    const upload = (await prepared.json()) as {
-      fileKey?: unknown;
-      uploadUrl?: unknown;
-    };
-    if (
-      typeof upload.fileKey !== "string" ||
-      typeof upload.uploadUrl !== "string"
-    ) {
-      return null;
-    }
-    const put = await fetchImpl(upload.uploadUrl, {
-      body: snapshot.gzip,
-      headers: { "Content-Type": "application/gzip" },
-      method: "PUT",
-      signal,
-    });
-    return put.ok ? upload.fileKey : null;
-  } catch (error) {
+  const upload = (async () => {
+    const prepared = await client.pageSnapshots.createUpload(
+      { bytes: snapshot.gzip.byteLength },
+      { signal }
+    );
+    await client.uploads.putFile(
+      prepared.uploadUrl,
+      snapshot.gzip,
+      "application/gzip",
+      { signal }
+    );
+    return prepared.fileKey;
+  })().catch((error: unknown) => {
     console.warn("Teak: page snapshot upload failed", error);
     return null;
+  });
+  try {
+    return await Promise.race([upload, timedOut]);
+  } finally {
+    clearTimeout(timer);
   }
 }

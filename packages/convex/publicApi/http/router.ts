@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { type ActionCtx, httpAction } from "../../_generated/server";
 import {
   matchPublicApiOperation,
@@ -27,7 +28,6 @@ import {
   handleSetFavoriteRequest,
   handleSetPinnedRequest,
   handleSetThumbnailRequest,
-  handleTagsRequest,
   handleThumbnailUploadRequest,
   handleUpdateCardRequest,
   setDone,
@@ -57,7 +57,11 @@ import type { PublicApiHandler } from "./operation";
 import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
 import { handlePinnedOrderRequest } from "./pins";
 import { errorResponse, mapConvexErrorToResponse } from "./shared";
-import { handleGetTagOperationRequest, startTagOperation } from "./tags";
+import {
+  handleGetTagOperationRequest,
+  handleTagsRequest,
+  startTagOperation,
+} from "./tags";
 
 /** Operations with an HTTP action of their own, outside the bearer gate. */
 export type StandaloneOperationId =
@@ -168,12 +172,15 @@ const runOperation = async (
       userId: auth.validated.userId,
     });
   } catch (error) {
-    // A handler maps the errors it expects; anything else still answers
-    // with the API's JSON error and its headers, not the runtime's 500.
-    console.error("[publicApi] operation failed", {
-      error: error instanceof Error ? error.message : String(error),
-      operationId: run.operationId,
-    });
+    // Every handler's errors answer here: a ConvexError with its code and
+    // status, anything else as the API's JSON 500 with its headers, not the
+    // runtime's. Only the unexpected ones are logged.
+    if (!(error instanceof ConvexError)) {
+      console.error("[publicApi] operation failed", {
+        error: error instanceof Error ? error.message : String(error),
+        operationId: run.operationId,
+      });
+    }
     return mapConvexErrorToResponse(error, "The request failed");
   }
 };

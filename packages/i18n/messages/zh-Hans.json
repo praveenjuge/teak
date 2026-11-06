@@ -507,9 +507,6 @@
     "fileDrop": {
       "uploaded": "{count, plural, other {已上传 # 个文件}}",
       "uploadedSentence": "{count, plural, other {已上传 # 个文件。}}",
-      "cardLimitReached": "已达到免费卡片上限",
-      "upgrade": "升级",
-      "rateLimited": "创建的卡片过多，请稍候。",
       "uploadFailed": "上传失败",
       "uploadFailedMany": "{count, plural, other {# 个文件}}上传失败。{reason}",
       "uploading": "正在上传…",
@@ -592,7 +589,7 @@
   "revisit": {
     "deck": {
       "title": "回顾",
-      "description": "一次一张卡片。按左箭头归档，按右箭头保留，按空格键打开详情，按 Z 撤销上次归档，按 Escape 退出。",
+      "description": "一次一张卡片。按左箭头归档，按右箭头保留，按空格键打开详情，按 {undoKey} 撤销上次归档，按 Escape 退出。",
       "close": "关闭回顾",
       "progress": "{position} / {total}",
       "loadingCards": "正在加载卡片",
@@ -602,7 +599,7 @@
       "summary": "已归档 {archived} · 已保留 {kept}",
       "startOver": "重新开始",
       "revisitMore": "再回顾 {count} 张",
-      "undoHint": "按 <kbd>Z</kbd> 撤销上次归档",
+      "undoHint": "按 <kbd>{undoKey}</kbd> 撤销上次归档",
       "openDetails": "打开详情：{type}",
       "added": "添加于 {date}",
       "inTrash": "在废纸篓中",
@@ -611,7 +608,7 @@
       "releaseToKeep": "松开以保留",
       "archive": "归档",
       "keep": "保留",
-      "keyHints": "<kbd>Space</kbd> 详情 · <kbd>Z</kbd> 撤销 · <kbd>Esc</kbd> 退出",
+      "keyHints": "<kbd>Space</kbd> 详情 · <kbd>{undoKey}</kbd> 撤销 · <kbd>Esc</kbd> 退出",
       "swipeHint": "向左轻扫以归档，向右轻扫以保留"
     }
   },
@@ -797,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "添加到文件夹…",
-      "copyLink": "复制链接",
-      "copyText": "复制文本",
       "download": "下载",
       "moreActions": "更多操作",
       "moreLikeThis": "更多类似内容",
@@ -1222,10 +1217,6 @@
       "microphoneDenied": "麦克风权限被拒绝。请允许后重试。",
       "microphoneMissing": "未检测到麦克风。请连接麦克风后重试。",
       "recordingStartFailed": "无法开始录音。请检查你的麦克风设置。",
-      "uploading": "正在上传 {name}…",
-      "uploaded": "{name} 已上传",
-      "uploadFailed": "无法上传 {name}：{error}",
-      "uploadFailedReason": "上传失败",
       "startingMicrophone": "正在启动麦克风…",
       "savingRecordingStatus": "正在保存录音…",
       "recordingHint": "自然地说话即可。Teak 会将其保存为音频卡片。",
@@ -1475,6 +1466,7 @@
     "groups": {
       "cards": "卡片",
       "openCard": "卡片打开时",
+      "revisit": "回顾",
       "goTo": "前往",
       "search": "搜索",
       "anywhere": "任意位置"
@@ -1497,7 +1489,6 @@
       "openOrDownload": "打开链接或下载文件",
       "openLink": "打开链接",
       "markLinkDone": "将链接标为已完成",
-      "copyLinkOrText": "复制链接或文本",
       "readOrPreview": "阅读或预览",
       "highlightSelection": "高亮所选内容",
       "goToEverything": "全部",
@@ -1524,7 +1515,12 @@
       "byFolder": "某个文件夹中的卡片",
       "byState": "收藏、已归档、已完成或待办",
       "pin": "置顶或取消置顶",
-      "movePinned": "向左或向右移动置顶卡片"
+      "movePinned": "向左或向右移动置顶卡片",
+      "revisitArchive": "归档",
+      "revisitKeep": "保留",
+      "revisitDetails": "打开详情",
+      "revisitUndo": "撤销上次归档",
+      "revisitLeave": "退出回顾"
     }
   },
   "extension": {
@@ -1615,6 +1611,11 @@
       "invalidPost": "帖子数据无效",
       "signIn": "登录 Teak 以保存",
       "saveFailed": "无法保存帖子"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "您的个人知识中心。轻松保存、整理并重新发现网页内容。",
+      "saveCommand": "将此网页保存到 Teak"
     }
   },
   "screens": {
@@ -1735,7 +1736,6 @@
       "saved": "PDF 已保存",
       "alreadySaved": "已保存过",
       "open": "打开",
-      "cardLimitReached": "已达到免费卡片上限",
       "tooLarge": "此 PDF 过大。Teak 可保存最大 100 MB 的文件。",
       "notPdf": "arXiv 没有为这篇论文提供 PDF。",
       "failed": "无法保存 PDF，请重试。"
