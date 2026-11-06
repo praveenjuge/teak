@@ -39,3 +39,5 @@ Steps:
 - The free 200-card limit and the 60-an-hour limit drop mail silently by design: no card and no bounce.
 - Email Routing takes messages up to 25 MiB including encoding, so about 18 MB of attachments.
 - Settings needs a signed-in account; the address on Integrations is the deployment's (`in-dev.teakvault.com` on dev).
+- The domain is read the same way on both sides (`inboundEmailDomain` in `packages/files-protocol/src/inboundEmail.ts`: trimmed, lowercase, `in.teakvault.com` when unset), so the address Integrations shows is the one the Worker accepts.
+- An attachment without a file name is kept when the file registry knows its type, and named `attachment-<n>.<extension>` from it (`extensionForMimeType`, `packages/convex/shared/fileFormats.ts`): an unnamed `audio/x-wav` part becomes `attachment-1.wav`. `bun test apps/core-worker/src/email/attachments.test.ts` covers it.
