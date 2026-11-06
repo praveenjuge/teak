@@ -4,6 +4,7 @@ import {
   hostForDisplay,
 } from "@teak/convex/shared/utils/urlHost";
 import type { TeakTranslator } from "@teak/i18n";
+import { TeakApiError, type TeakClient } from "teak-sdk";
 
 export const OMNIBOX_KEYWORD = "teak";
 export const OMNIBOX_MIN_CHARS = 2;
@@ -299,40 +300,32 @@ export function createInputThrottle(
 export async function searchOmnibox(
   text: string,
   signal: AbortSignal,
-  request: (path: string, init?: RequestInit) => Promise<Response | null>
+  client: TeakClient
 ): Promise<OmniboxOutcome> {
-  const params = new URLSearchParams({
-    include: "content",
-    limit: String(OMNIBOX_RESULT_LIMIT),
-    // Chromium drops an extension's suggestions that arrive about 1.5 s after
-    // the last keystroke; ranking by meaning often takes longer, so the
-    // suggestions match words. Enter opens the full search.
-    mode: "keyword",
-    q: truncateCodePoints(text.trim(), OMNIBOX_MAX_QUERY_LENGTH),
-  });
-  let response: Response | null;
+  let items: unknown[];
   try {
-    response = await request(`/v1/cards?${params}`, { signal });
+    ({ items } = await client.cards.list(
+      {
+        include: "content",
+        limit: OMNIBOX_RESULT_LIMIT,
+        // Chromium drops an extension's suggestions that arrive about 1.5 s
+        // after the last keystroke; ranking by meaning often takes longer, so
+        // the suggestions match words. Enter opens the full search.
+        mode: "keyword",
+        query: truncateCodePoints(text.trim(), OMNIBOX_MAX_QUERY_LENGTH),
+      },
+      { signal }
+    ));
   } catch (error) {
     if (signal.aborted) {
       throw error;
     }
-    return { kind: "error" };
-  }
-  if (!response) {
-    return { kind: "signedOut" };
-  }
-  if (response.status === 429) {
-    return { kind: "rateLimited" };
-  }
-  if (!response.ok) {
-    return { kind: "error" };
-  }
-  const body = (await response.json().catch(() => null)) as {
-    items?: unknown;
-  } | null;
-  const items = Array.isArray(body?.items) ? body.items : null;
-  if (!items) {
+    if (error instanceof TeakApiError && error.kind === "auth") {
+      return { kind: "signedOut" };
+    }
+    if (error instanceof TeakApiError && error.kind === "rate_limited") {
+      return { kind: "rateLimited" };
+    }
     return { kind: "error" };
   }
   const cards = items
@@ -340,8 +333,8 @@ export async function searchOmnibox(
       (item): item is OmniboxCard =>
         typeof item === "object" &&
         item !== null &&
-        typeof item.appUrl === "string" &&
-        typeof item.type === "string"
+        typeof (item as OmniboxCard).appUrl === "string" &&
+        typeof (item as OmniboxCard).type === "string"
     )
     .slice(0, OMNIBOX_RESULT_LIMIT);
   return cards.length > 0 ? { kind: "results", cards } : { kind: "empty" };

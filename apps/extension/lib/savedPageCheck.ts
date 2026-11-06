@@ -1,3 +1,4 @@
+import { TeakApiError, type TeakClient } from "teak-sdk";
 import { isRestrictedUrl } from "./restrictedUrl";
 
 export const SAVED_CACHE_MS = 5 * 60_000;
@@ -18,6 +19,8 @@ export interface CheckedTab {
 type Lookup = "saved" | "unsaved" | "unknown" | "skipped";
 
 export interface SavedPageCheckDependencies {
+  /** The Teak API, without retries: a check that fails is just skipped. */
+  client: () => TeakClient;
   clock?: {
     clearTimeout: (id: ReturnType<typeof setTimeout>) => void;
     now: () => number;
@@ -26,7 +29,6 @@ export interface SavedPageCheckDependencies {
   owner: () => Promise<string | undefined>;
   paint: (tabId: number, saved: boolean) => Promise<void>;
   recentRequests: () => number;
-  request: (path: string) => Promise<Response | null>;
   storage: chrome.storage.StorageArea;
 }
 
@@ -48,7 +50,7 @@ export function createSavedPageCheck({
   owner,
   paint,
   recentRequests,
-  request,
+  client,
   storage,
   // Browsers throw "Illegal invocation" when their timers run as another
   // object's method, so each one is wrapped.
@@ -112,32 +114,19 @@ export function createSavedPageCheck({
     checksAt.push(clock.now());
     const askedIn = epoch;
     try {
-      const response = await request(
-        `/v1/cards/duplicate?url=${encodeURIComponent(url)}`
-      );
-      if (!response) {
-        return "unknown";
-      }
-      if (response.status === 429) {
-        const seconds = Number(response.headers.get("Retry-After"));
-        pausedUntil =
-          clock.now() +
-          (Number.isFinite(seconds) && seconds > 0
-            ? seconds * 1000
-            : MINUTE_MS);
-        return "unknown";
-      }
-      if (!response.ok) {
-        return "unknown";
-      }
-      const body = (await response.json()) as { cardId?: unknown };
+      const cardId = await client().cards.duplicate(url);
       if (askedIn !== epoch) {
         return "unknown";
       }
-      const saved = typeof body.cardId === "string";
+      const saved = cardId !== null;
       await writeCache(account, url, saved);
       return saved ? "saved" : "unsaved";
-    } catch {
+    } catch (error) {
+      if (error instanceof TeakApiError && error.kind === "rate_limited") {
+        // Retry-After, as the SDK read it against the real clock.
+        const wait = error.retryAt ? error.retryAt - Date.now() : 0;
+        pausedUntil = clock.now() + (wait > 0 ? wait : MINUTE_MS);
+      }
       return "unknown";
     }
   };

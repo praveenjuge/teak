@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, mock, test } from "bun:test";
 import { saveToTeak } from "../../lib/saveToTeak";
+import { apiClient } from "../helpers/teakClient";
 
 describe("OAuth content saving", () => {
   test.each(["context-menu", "inline-post", "popup-auto-save"] as const)(
@@ -16,7 +17,7 @@ describe("OAuth content saving", () => {
             source,
             idempotencyKey: "pending-save-id",
           },
-          { request }
+          { client: apiClient(request) }
         )
       ).toEqual({ status: "saved", cardId: "saved-card" });
       expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
@@ -31,12 +32,12 @@ describe("OAuth content saving", () => {
   );
   test("preserves selected text without a duplicate lookup", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ cardId: "text-card" })
+      Response.json({ status: "created", cardId: "text-card" })
     );
     expect(
       await saveToTeak(
         { content: "  Notes\nwith formatting  ", source: "context-menu" },
-        { request }
+        { client: apiClient(request) }
       )
     ).toEqual({ status: "saved", cardId: "text-card" });
     expect(request).toHaveBeenCalledTimes(1);
@@ -47,7 +48,7 @@ describe("OAuth content saving", () => {
   });
   test("keeps the page a text selection came from", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ cardId: "text-card" })
+      Response.json({ status: "created", cardId: "text-card" })
     );
     await saveToTeak(
       {
@@ -56,7 +57,7 @@ describe("OAuth content saving", () => {
         sourceTitle: `  ${"t".repeat(320)}  `,
         sourceUrl: "https://example.com/essay",
       },
-      { request }
+      { client: apiClient(request) }
     );
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       cardType: "text",
@@ -67,7 +68,7 @@ describe("OAuth content saving", () => {
   });
   test("a selection that is a bare URL saves as a link, with no source", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ cardId: "link-card" })
+      Response.json({ status: "created", cardId: "link-card" })
     );
     await saveToTeak(
       {
@@ -76,7 +77,7 @@ describe("OAuth content saving", () => {
         sourceTitle: "Where it was",
         sourceUrl: "https://example.com/page",
       },
-      { request }
+      { client: apiClient(request) }
     );
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       url: "https://example.org/linked",
@@ -88,11 +89,11 @@ describe("OAuth content saving", () => {
     `https://example.com/${"a".repeat(2100)}`,
   ])("leaves out a source page it can't keep: %p", async (sourceUrl) => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ cardId: "text-card" })
+      Response.json({ status: "created", cardId: "text-card" })
     );
     await saveToTeak(
       { content: "Quote", source: "context-menu", sourceUrl },
-      { request }
+      { client: apiClient(request) }
     );
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       cardType: "text",
@@ -101,7 +102,7 @@ describe("OAuth content saving", () => {
   });
   test("a selection that only starts with a URL saves as text", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ cardId: "text-card" })
+      Response.json({ status: "created", cardId: "text-card" })
     );
     await saveToTeak(
       {
@@ -109,7 +110,7 @@ describe("OAuth content saving", () => {
         source: "context-menu",
         sourceUrl: "https://example.com/essay",
       },
-      { request }
+      { client: apiClient(request) }
     );
     expect(request).toHaveBeenCalledTimes(1);
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
@@ -131,7 +132,7 @@ describe("OAuth content saving", () => {
       expect(
         await saveToTeak(
           { content: "https://example.com/", source: "inline-post" },
-          { request }
+          { client: apiClient(request) }
         )
       ).toEqual({ status: "duplicate", cardId: "existing-card" });
       expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
@@ -142,7 +143,7 @@ describe("OAuth content saving", () => {
     expect(
       await saveToTeak(
         { content: "Note", source: "context-menu" },
-        { request: async () => null }
+        { client: apiClient(async () => null) }
       )
     ).toEqual({ status: "unauthenticated" });
   });
@@ -150,14 +151,15 @@ describe("OAuth content saving", () => {
     const result = await saveToTeak(
       { content: "Note", source: "context-menu" },
       {
-        request: async () =>
+        client: apiClient(async () =>
           Response.json(
             {
               code: "CARD_LIMIT_REACHED",
               error: "Your library is full.",
             },
             { status: 403 }
-          ),
+          )
+        ),
       }
     );
     expect(result).toEqual({
@@ -169,7 +171,10 @@ describe("OAuth content saving", () => {
   test("rejects empty content and unsupported inline hosts before network access", async () => {
     const request = mock(async () => Response.json({}));
     expect(
-      await saveToTeak({ content: " ", source: "context-menu" }, { request })
+      await saveToTeak(
+        { content: " ", source: "context-menu" },
+        { client: apiClient(request) }
+      )
     ).toMatchObject({ code: "EMPTY_CONTENT" });
     expect(
       await saveToTeak(
@@ -178,7 +183,7 @@ describe("OAuth content saving", () => {
           enforceAllowedHosts: true,
           source: "inline-post",
         },
-        { request }
+        { client: apiClient(request) }
       )
     ).toMatchObject({ code: "UNSUPPORTED_HOST" });
     expect(request).not.toHaveBeenCalled();
@@ -193,7 +198,7 @@ describe("OAuth content saving", () => {
     expect(
       await saveToTeak(
         { content: "https://example.com/", source: "context-menu" },
-        { request }
+        { client: apiClient(request) }
       )
     ).toMatchObject({ status: "error", code: "RATE_LIMITED" });
     expect(request).toHaveBeenCalledTimes(1);

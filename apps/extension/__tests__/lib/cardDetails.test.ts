@@ -8,14 +8,18 @@ import {
 } from "../../lib/cardDetails";
 import { isPatchCardPayload } from "../../lib/cardPatch";
 import type { CardPatchResponse } from "../../types/messages";
+import { apiCard, apiClient } from "../helpers/teakClient";
 
 describe("patchCard", () => {
   test("sends only the fields that changed", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ id: "card_1" })
+      Response.json(apiCard())
     );
     expect(
-      await patchCard({ cardId: "card_1", tags: ["design"] }, { request })
+      await patchCard(
+        { cardId: "card_1", tags: ["design"] },
+        { client: apiClient(request) }
+      )
     ).toEqual({ status: "updated" });
     expect(request.mock.calls[0]?.[0]).toBe("/v1/cards/card_1");
     expect(request.mock.calls[0]?.[1]?.method).toBe("PATCH");
@@ -24,35 +28,26 @@ describe("patchCard", () => {
     });
   });
 
-  test("tries once more after a network error", async () => {
-    let calls = 0;
-    const request = mock(() => {
-      calls += 1;
-      return calls === 1
-        ? Promise.reject(new TypeError("Failed to fetch"))
-        : Promise.resolve(Response.json({ id: "card_1" }));
-    });
-    expect(
-      await patchCard({ cardId: "card_1", notes: "hi" }, { request })
-    ).toEqual({ status: "updated" });
-    expect(request).toHaveBeenCalledTimes(2);
-  });
-
-  test("gives up after a second network error", async () => {
+  test("says the change wasn't saved when Teak can't be reached", async () => {
     const request = mock(() =>
       Promise.reject(new TypeError("Failed to fetch"))
     );
     expect(
-      await patchCard({ cardId: "card_1", notes: "hi" }, { request })
+      await patchCard(
+        { cardId: "card_1", notes: "hi" },
+        { client: apiClient(request) }
+      )
     ).toMatchObject({ status: "error", code: "NETWORK" });
-    expect(request).toHaveBeenCalledTimes(2);
   });
 
   test("explains a rate limit", async () => {
     const request = async () =>
       Response.json({ code: "RATE_LIMITED", error: "slow" }, { status: 429 });
     expect(
-      await patchCard({ cardId: "card_1", tags: [] }, { request })
+      await patchCard(
+        { cardId: "card_1", tags: [] },
+        { client: apiClient(request) }
+      )
     ).toEqual({
       status: "error",
       code: "RATE_LIMITED",
@@ -67,7 +62,10 @@ describe("patchCard", () => {
         { status: 404 }
       );
     expect(
-      await patchCard({ cardId: "card_x", tags: [] }, { request })
+      await patchCard(
+        { cardId: "card_x", tags: [] },
+        { client: apiClient(request) }
+      )
     ).toEqual({
       status: "error",
       code: "NOT_FOUND",
@@ -79,7 +77,7 @@ describe("patchCard", () => {
     expect(
       await patchCard(
         { cardId: "card_1", tags: [] },
-        { request: async () => null }
+        { client: apiClient(async () => null) }
       )
     ).toEqual({ status: "unauthenticated" });
   });
@@ -133,7 +131,7 @@ describe("loadSaveDetails", () => {
     expect(
       await loadSaveDetails(
         { cardId: "card_1", alreadySaved: false },
-        { request }
+        { client: apiClient(request) }
       )
     ).toEqual({ status: "ok", libraryTags: ["art", "design", "rare"] });
     expect(request).toHaveBeenCalledTimes(1);
@@ -143,12 +141,12 @@ describe("loadSaveDetails", () => {
     const request = mock(async (path: string) =>
       path === "/v1/tags"
         ? tags.clone()
-        : Response.json({ notes: null, tags: ["design"] })
+        : Response.json(apiCard({ notes: null, tags: ["design"] }))
     );
     expect(
       await loadSaveDetails(
         { cardId: "card_1", alreadySaved: true },
-        { request }
+        { client: apiClient(request) }
       )
     ).toEqual({
       status: "ok",
@@ -166,7 +164,7 @@ describe("loadSaveDetails", () => {
     expect(
       await loadSaveDetails(
         { cardId: "card_1", alreadySaved: true },
-        { request }
+        { client: apiClient(request) }
       )
     ).toMatchObject({ status: "error", code: "NOT_FOUND" });
   });

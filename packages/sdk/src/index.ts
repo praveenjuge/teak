@@ -1207,10 +1207,12 @@ export const createTeakClient = (options: {
     requestOptions?.idempotencyKey
       ? { "Idempotency-Key": requestOptions.idempotencyKey }
       : {};
+  /** Sends bytes to a signed upload URL; `signal` cancels the upload. */
   const putFile = async (
     uploadUrl: string,
     bytes: BodyInit,
-    mimeType: string
+    mimeType: string,
+    putOptions?: { signal?: AbortSignal }
   ) => {
     const headers = new Headers({ "Content-Type": mimeType });
     const byteLength = byteLengthForBody(bytes);
@@ -1221,6 +1223,7 @@ export const createTeakClient = (options: {
       body: bytes,
       headers,
       method: "PUT",
+      ...(putOptions?.signal ? { signal: putOptions.signal } : {}),
     }).catch(() => {
       throw new TeakApiError("NETWORK_ERROR");
     });
@@ -1701,8 +1704,15 @@ export const createTeakClient = (options: {
        * it with `Content-Type: application/gzip`, then pass the `fileKey`
        * to `cards.create` as `pageSnapshotKey`.
        */
-      createUpload: (input: CreatePageSnapshotUploadInput) =>
-        call("createPageSnapshotUpload", { body: input }, asUpload),
+      createUpload: (
+        input: CreatePageSnapshotUploadInput,
+        requestOptions?: RequestOptions
+      ) =>
+        call(
+          "createPageSnapshotUpload",
+          { body: input, signal: requestOptions?.signal },
+          asUpload
+        ),
     },
     uploads: {
       create: createUpload,

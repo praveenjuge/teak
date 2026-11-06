@@ -556,7 +556,11 @@ export const createOAuthSession = (options: OAuthSessionOptions) => {
           try {
             await revoke(previous, true);
           } catch {
-            throw new OAuthSessionError("previous_kept");
+            // One from a registration the deployment no longer lists can't
+            // be refreshed to disconnect it; it gives way to the new one.
+            if (matches(previous, latest)) {
+              throw new OAuthSessionError("previous_kept");
+            }
           }
         }
         await store.write(signedIn);

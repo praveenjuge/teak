@@ -1,26 +1,20 @@
 import { assertUrlStructureSafe } from "@teak/convex/linkMetadata/ssrf";
 import { readResponseBlobWithinLimit } from "@teak/convex/shared/boundedResponse";
-import {
-  inferFileFormat,
-  isGenericMimeType,
-  MAX_FILE_SIZE,
-  validateFileName,
-} from "@teak/convex/shared/fileFormats";
+import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
+import type { UploadedFile } from "teak-sdk";
 import type { TeakSaveResponse } from "../types/messages";
-import { oauthRequest, reachTeak } from "./oauthAuth";
+import { teakClient } from "./oauthAuth";
 import {
-  restResult,
   type SaveSource,
   type SaveToTeakDependencies,
+  savedResult,
+  saveFailure,
 } from "./saveToTeak";
 
 const CONTENT_DISPOSITION_FILENAME_REGEX =
   /filename\*?=(?:UTF-8''|")?([^";]+)/iu;
 
-export interface UploadedFile {
-  fileEtag?: string;
-  fileKey: string;
-}
+export type { UploadedFile } from "teak-sdk";
 export interface FileUploadDependencies extends SaveToTeakDependencies {
   onUploaded?: (uploaded: UploadedFile) => Promise<void>;
 }
@@ -92,101 +86,23 @@ export async function saveFileToTeak(
   input: FileUploadInput,
   dependencies: FileUploadDependencies = {}
 ): Promise<TeakSaveResponse> {
-  let fileName: string;
+  const client = dependencies.client ?? teakClient();
   try {
-    fileName = validateFileName(input.fileName);
-  } catch (error) {
-    return errorResponse(
-      error instanceof Error ? error.message : "Invalid file",
-      "INVALID_FILE_NAME"
-    );
-  }
-
-  if (!(input.bytes.size > 0 && input.bytes.size <= MAX_FILE_SIZE)) {
-    return fileTooLargeResponse();
-  }
-
-  const format = inferFileFormat({
-    fileName,
-    mimeType: input.mimeType || input.bytes.type,
-  });
-  if (!format) {
-    return errorResponse("Unsupported file type", "UNSUPPORTED_TYPE");
-  }
-  const declaredMimeType = input.mimeType || input.bytes.type;
-  const mimeType = isGenericMimeType(declaredMimeType)
-    ? format.mimeType
-    : declaredMimeType;
-
-  const request = dependencies.request ?? oauthRequest;
-  try {
-    let uploaded = input.uploaded;
-    if (!uploaded) {
-      const prepared = await request("/v1/uploads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName,
-          fileSize: input.bytes.size,
-          mimeType,
-        }),
-      });
-      if (!prepared) {
-        return { status: "unauthenticated" };
-      }
-      if (!prepared.ok) {
-        return restResult(prepared);
-      }
-      const upload = await prepared.json();
-      if (
-        typeof upload.fileKey !== "string" ||
-        typeof upload.uploadUrl !== "string"
-      ) {
-        throw new Error("Invalid upload response.");
-      }
-      const fetchImpl = dependencies.fetchImpl ?? fetch;
-      const uploadResponse = await reachTeak(
-        fetchImpl(upload.uploadUrl, {
-          body: input.bytes,
-          headers: { "Content-Type": mimeType },
-          method: "PUT",
-        })
-      );
-      if (!uploadResponse.ok) {
-        return errorResponse(
-          `Upload failed with status ${uploadResponse.status}`
-        );
-      }
-
-      uploaded = {
-        fileKey: upload.fileKey,
-        fileEtag: uploadResponse.headers.get("etag") ?? undefined,
-      };
-      await dependencies.onUploaded?.(uploaded);
-    }
-
-    return await restResult(
-      await request("/v1/cards", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": input.idempotencyKey ?? crypto.randomUUID(),
+    return savedResult(
+      await client.cards.createFromFile(
+        {
+          bytes: input.bytes,
+          content: input.fileName.trim(),
+          fileName: input.fileName,
+          mimeType: input.mimeType || undefined,
+          onUploaded: dependencies.onUploaded,
+          uploaded: input.uploaded,
         },
-        body: JSON.stringify({
-          cardType: format.cardType,
-          content: fileName,
-          fileKey: uploaded.fileKey,
-          fileName,
-          fileSize: input.bytes.size,
-          mimeType,
-          fileEtag: uploaded.fileEtag,
-        }),
-      })
+        { idempotencyKey: input.idempotencyKey ?? crypto.randomUUID() }
+      )
     );
   } catch (error) {
-    return errorResponse(
-      error instanceof Error ? error.message : "Upload failed"
-    );
+    return saveFailure(error, "Upload failed");
   }
 }
 
