@@ -1,8 +1,3 @@
-import {
-  buildColorFacets,
-  extractPaletteColors,
-  MAX_PALETTE_COLORS,
-} from "@teak/convex/shared/utils/colorUtils";
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
@@ -16,6 +11,11 @@ import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
+import {
+  buildColorFacets,
+  extractPaletteColors,
+  MAX_PALETTE_COLORS,
+} from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { urlKey } from "../shared/utils/urlKey";
 import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";

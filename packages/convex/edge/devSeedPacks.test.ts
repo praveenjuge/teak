@@ -78,8 +78,8 @@ const seededRows = (t: Awaited<ReturnType<typeof setup>>) =>
     const folders = (await ctx.db.query("folders").collect()).map((folder) =>
       strip(folder)
     );
-    const highlights = (await ctx.db.query("highlights").collect()).map(
-      (row) => strip(row)
+    const highlights = (await ctx.db.query("highlights").collect()).map((row) =>
+      strip(row)
     );
     const settings = (await ctx.db.query("inboundEmailSettings").collect()).map(
       (row) => strip(row)

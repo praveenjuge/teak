@@ -1,11 +1,11 @@
 import type { MutationCtx } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
 import { planEmailCards } from "../inbound/emailContent";
-import type { RemoteDetails } from "../workflows/steps/categorization/remote/index";
+import type { RemoteDetails } from "../shared/linkCategory/remoteDetails";
 import {
   classifyLinkCategory,
   enrichLinkCategory,
-} from "../workflows/steps/categorization/rules";
+} from "../shared/linkCategory/rules";
 import {
   type FolderScenario,
   type FolderScenarioCard,

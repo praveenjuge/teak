@@ -3,12 +3,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { requireTeakUserId } from "../securitySessions";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { isArxivPdfUrl, parseArxivId } from "../shared/utils/arxiv";
 import { STORE_LINKED_PDF_TIMEOUT_MS } from "../storage/coreWorkerClient";
 import { buildR2ObjectKey, queueObjectDeletion } from "../storage/r2";
-import {
-  isArxivPdfUrl,
-  parseArxivId,
-} from "../workflows/steps/categorization/remote/arxiv";
 import { clientCardSourceValidator } from "./createCard";
 import { ensureCardQuotaAvailable } from "./quota";
 import { createUploadedCardForUser } from "./uploadCard";

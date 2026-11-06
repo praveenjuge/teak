@@ -2,7 +2,7 @@ import {
   arxivPdfUrl,
   isArxivPdfUrl,
   parseArxivId,
-} from "@teak/convex/workflows/steps/categorization/remote/arxiv";
+} from "@teak/convex/shared/utils/arxiv";
 import {
   FILES_UPLOAD_MAX_BYTES,
   type FilesLinkedPdfParams,

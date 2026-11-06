@@ -76,10 +76,10 @@ import {
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
 import { LINK_CATEGORIES } from "../shared/linkCategories";
+import { buildRawSelectorMap } from "../shared/linkCategory/enrichment";
+import { getRawAttribute } from "../shared/linkCategory/providers/common";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
 import { filterLocalCards } from "../shared/search/localSearch";
-import { buildRawSelectorMap } from "../workflows/steps/categorization/enrichment";
-import { findFeedUrl } from "../workflows/steps/podcast/resolveEnclosure";
 
 const modules = import.meta.glob("../**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -1288,9 +1288,10 @@ describe("devSeed folder packs", () => {
     expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
     const rssOnly = byTitle("An episode found through its show's RSS feed");
     expect(
-      findFeedUrl(
+      getRawAttribute(
         buildRawSelectorMap(rssOnly?.metadata?.linkPreview?.raw),
-        rssOnly?.url ?? ""
+        "link[rel='alternate'][type='application/rss+xml']",
+        "href"
       )
     ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
