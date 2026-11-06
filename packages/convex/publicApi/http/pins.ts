@@ -1,35 +1,18 @@
 import { internal } from "../../_generated/api";
-import type { ActionCtx } from "../../_generated/server";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
 import { captureBackendEvent } from "../../telemetry/posthog";
-import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
+import type { PublicApiCall } from "./operation";
 import { validatePinOrderPayload } from "./payloads";
 import { serializeListCard } from "./serializers";
-import {
-  errorResponse,
-  json,
-  mapConvexErrorToResponse,
-  parseJsonBody,
-} from "./shared";
+import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
 
 /** `PUT /v1/cards/pinned/order`. */
 export const handlePinnedOrderRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
+  const { ctx, request, userId } = call;
+  const payload = call.body;
   const order = validatePinOrderPayload(payload);
   if (!order) {
     return errorResponse(
@@ -41,9 +24,9 @@ export const handlePinnedOrderRequest = async (
   try {
     const cards: CardWithUrls[] = await ctx.runMutation(
       internal.publicApi.cardsForUser.reorderPinnedCardsForUser,
-      { cardIds: order.cardIds, userId: auth.validated.userId }
+      { cardIds: order.cardIds, userId }
     );
-    await captureBackendEvent("card_pins_reordered", auth.validated.userId, {
+    await captureBackendEvent("card_pins_reordered", userId, {
       count: cards.length,
       source: "api",
     });

@@ -48,6 +48,7 @@
         "linkedom": "^0.18.14",
         "postal-mime": "2.7.3",
         "turndown": "^7.2.4",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@types/probe-image-size": "^7.2.5",
@@ -105,7 +106,7 @@
       "version": "1.0.93",
       "dependencies": {
         "@raycast/api": "^1.104.24",
-        "teak-sdk": "1.0.87",
+        "teak-sdk": "1.0.93",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "21.0.4",
@@ -264,6 +265,7 @@
         "@modelcontextprotocol/client": "2.4.0",
         "@modelcontextprotocol/core": "2.4.0",
         "@modelcontextprotocol/ext-apps": "2.0.4",
+        "@teak/convex": "workspace:*",
         "@types/bun": "catalog:",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
@@ -3755,8 +3757,6 @@
     "svgo/css-what": ["css-what@7.0.0", "", {}, "sha512-wD5oz5xibMOPHzy13CyGmogB3phdvcDaB5t0W/Nr5Z2O/agcB8YwOz6e2Lsp10pNDzBoDO9nVa3RGs/2BttpHQ=="],
 
     "svgo/sax": ["sax@1.6.1", "", {}, "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="],
-
-    "teak-raycast/teak-sdk": ["teak-sdk@1.0.87", "", {}, "sha512-mmzp9sn6Y+IaLuNeTF+jBfUgOBvv6F2NrQSS8I8XhvVy8fVwF0b8/awgKLsdfZtQN2Xav/w25yXzrbnUE2TBsQ=="],
 
     "tinyglobby/picomatch": ["picomatch@4.0.4", "", {}, "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A=="],
 

@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import {
-  cardByIdV1,
   executePublicApiOperation,
-  highlightByIdV1,
-} from "../../../publicApi/http/routes";
+  publicApiV1,
+} from "../../../publicApi/http/router";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
+  callPublicApi,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
@@ -86,7 +86,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
       highlight: row({ note: "Early" }),
     });
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       request("POST", "/v1/cards/card_1/highlights", {
         quote: "water  in the\nmorning",
@@ -125,7 +125,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
   test("a merge or a passage highlighted already answers 200", async () => {
     global.fetch = mock(() => Promise.resolve(new Response(ARTICLE))) as never;
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
           created: false,
@@ -143,7 +143,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
     global.fetch = mock(() => Promise.resolve(new Response(ARTICLE))) as never;
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation,
         runQuery: mock().mockResolvedValueOnce(await articleSource()),
@@ -160,7 +160,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
     ["NOT_FOUND", 404],
   ])("%s from the card answers %i", async (code, status) => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock(),
         runQuery: mock().mockRejectedValueOnce(
@@ -176,7 +176,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
   test("HIGHLIGHT_LIMIT from the write answers 409", async () => {
     global.fetch = mock(() => Promise.resolve(new Response(ARTICLE))) as never;
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({ code: "HIGHLIGHT_LIMIT", message: "Full" })
@@ -198,7 +198,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
   ])("refuses %j before any read", async (body, message) => {
     const runQuery = mock();
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       request("POST", "/v1/cards/card_1/highlights", body)
     );
@@ -215,7 +215,7 @@ describe("the other highlight operations", () => {
       row({ _id: "highlight_2", unanchored: true, source: "import" }),
     ]);
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       request("GET", "/v1/cards/card_1/highlights")
     );
@@ -234,7 +234,7 @@ describe("the other highlight operations", () => {
       row()
     );
     const response = await runHandler(
-      highlightByIdV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       request("PATCH", "/v1/highlights/highlight_1", { note: null })
     );
@@ -248,7 +248,7 @@ describe("the other highlight operations", () => {
 
   test("PATCH without a note is 400", async () => {
     const response = await runHandler(
-      highlightByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       request("PATCH", "/v1/highlights/highlight_1", { text: "x" })
     );
@@ -257,7 +257,7 @@ describe("the other highlight operations", () => {
 
   test("DELETE answers 204, and another account's highlight 404", async () => {
     const deleted = await runHandler(
-      highlightByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce(null),
         runQuery: mock(),
@@ -266,7 +266,7 @@ describe("the other highlight operations", () => {
     );
     expect(deleted.status).toBe(204);
     const missing = await runHandler(
-      highlightByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({ code: "NOT_FOUND", message: "Highlight not found" })
@@ -278,9 +278,9 @@ describe("the other highlight operations", () => {
     expect(missing.status).toBe(404);
   });
 
-  test("MCP, SDK and CLI reach the routes through executePublicApiOperation", async () => {
+  test("REST reaches the highlight routes through the router", async () => {
     const runQuery = mock().mockResolvedValueOnce([]);
-    const response = await executePublicApiOperation(
+    const response = await callPublicApi(
       mockActionCtx(
         withMappedOwner({
           runMutation: buildAuthorizedMutationMock(),
@@ -295,5 +295,31 @@ describe("the other highlight operations", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ items: [] });
+  });
+
+  test("MCP's executor runs listHighlights by id and forwards the card id", async () => {
+    const runQuery = mock().mockResolvedValueOnce([row()]);
+    const response = await executePublicApiOperation(
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: buildAuthorizedMutationMock(),
+          runQuery,
+        } as never)
+      ),
+      {
+        operationId: "listHighlights",
+        params: { cardId: "card_1" },
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      },
+      { origin: "https://example.com", resource: "mcp" }
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      items: [{ id: "highlight_1", cardId: "card_1" }],
+    });
+    const call = runQuery.mock.calls.find(
+      ([ref]) => nameOf(ref) === "publicApiHighlights:listHighlightsForApi"
+    );
+    expect(call?.[1]).toMatchObject({ cardId: "card_1" });
   });
 });

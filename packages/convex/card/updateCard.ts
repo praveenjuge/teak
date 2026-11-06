@@ -5,7 +5,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { truncateCardTitle } from "../publicApi/http/shared";
+import { truncateCardTitle } from "../publicApi/validation";
 import {
   requireSessionUser,
   requireTeakUserId,

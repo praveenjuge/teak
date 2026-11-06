@@ -195,10 +195,8 @@ const tokenProviderFor = (auth: AuthMode): TokenProvider => {
 const raycastCodeFor = (error: TeakApiError): RaycastApiErrorCode => {
   switch (error.status) {
     case 401:
-      // The SDK reports an unknown 401 code as REQUEST_FAILED.
-      return error.code === "REQUEST_FAILED"
-        ? "INVALID_API_KEY"
-        : toErrorCode(error.code, "INVALID_API_KEY");
+      // A missing, expired or revoked credential: the user signs in again.
+      return "INVALID_API_KEY";
     case 404:
       return toErrorCode(error.code, "NOT_FOUND");
     case 429:
@@ -301,20 +299,9 @@ export const getCardById = (
     parseRaycastCard(await client.cards.get(requireCardId(cardId))),
   );
 
-/**
- * A card update with the palette edits Teak's API takes. The pinned teak-sdk
- * predates `addColors` and `removeColors` but sends its input as the request
- * body, so they reach the API; this widening can go once the pin publishes
- * them.
- */
-export type CardUpdate = UpdateCardInput & {
-  addColors?: string[];
-  removeColors?: string[];
-};
-
 export const updateCard = (
   cardId: string,
-  input: CardUpdate,
+  input: UpdateCardInput,
   auth: AuthMode,
 ): Promise<RaycastCard> =>
   withClient(auth, async (client) =>
@@ -517,7 +504,8 @@ export const createSmartFolder = (
   withClient(auth, async (client) =>
     parseFolder(await client.folders.create({ ...input, kind: "smart" })),
   ).catch((error: unknown) => {
-    throw error instanceof RaycastApiError && error.status === 409
+    // Creating a folder conflicts only with a folder of the same name.
+    throw error instanceof RaycastApiError && error.code === "CONFLICT"
       ? new RaycastApiError("FOLDER_EXISTS", 409)
       : error;
   });

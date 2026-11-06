@@ -19,23 +19,14 @@ import {
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../../shared/highlights/constants";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
+import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
-import { TAG_OPERATION_COUNT_LIMIT } from "../../shared/tags";
+import {
+  MAX_TAG_NAME_LENGTH,
+  TAG_OPERATION_COUNT_LIMIT,
+} from "../../shared/tags";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
-import { MAX_TAG_LENGTH } from "../http/shared";
-
-export const CARD_TYPES = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
-export const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;
 export const apiKeySecurity = [{ bearerAuth: [] }];
 export const folderIdParameters = [
   {
@@ -86,7 +77,7 @@ export const thumbnailErrorResponses = {
   },
 } as const;
 const tagListSchema = {
-  items: { maxLength: MAX_TAG_LENGTH, type: "string" },
+  items: { maxLength: MAX_TAG_NAME_LENGTH, type: "string" },
   type: "array",
 } as const;
 
@@ -475,7 +466,7 @@ export const components = {
         cardType: {
           description:
             "Optional explicit card type. Text content is stored as raw Markdown without normalization. When omitted, Teak keeps automatic URL, quote, and palette classification. Uploaded file types are inferred from fileName and mimeType. image, video, audio, and document need an uploaded file (fileKey); palette needs at least one readable color in content, notes, or tags.",
-          enum: CARD_TYPES,
+          enum: PUBLIC_API_CARD_TYPES,
           type: "string",
         },
         content: {
@@ -582,7 +573,7 @@ export const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
-          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, pageSnapshotKey, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
+          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, pageSnapshotKey, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_NAME_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
           maxItems: PUBLIC_API_MAX_BULK_ITEMS,
           type: "array",

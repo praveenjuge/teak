@@ -50,7 +50,7 @@ test("routed endpoints still reach their handlers", async () => {
   expect((await t.fetch("/v1/cards/c1", { method: "GET" })).status).toBe(401);
 });
 
-test("GET /v1 lists every operation the OpenAPI document describes", () => {
+test("GET /v1 lists exactly the /v1 operations the OpenAPI document describes", () => {
   const described = Object.entries(openApiSpec.paths).flatMap(
     ([path, operations]) =>
       Object.keys(operations).map(
@@ -58,9 +58,35 @@ test("GET /v1 lists every operation the OpenAPI document describes", () => {
           `${method.toUpperCase()} ${path.replace(/\{(\w+)\}/g, ":$1")}`
       )
   );
-  const listed = new Set<string>(V1_ENDPOINTS);
-  const missing = described.filter(
-    (operation) => operation.includes(" /v1/") && !listed.has(operation)
+  expect([...V1_ENDPOINTS].sort()).toEqual(
+    described.filter((operation) => operation.includes(" /v1/")).sort()
   );
-  expect(missing).toEqual([]);
+});
+
+test.each([
+  ["GET", "/v1/cards/c1/save-pdf", "POST, OPTIONS"],
+  ["PUT", "/v1/folders/f1/cards", "POST, DELETE, OPTIONS"],
+])(
+  "%s %s, a card or folder path served for other methods, is 405",
+  async (method, path, allow) => {
+    const t = convexTest(schema, modules);
+    const response = await t.fetch(path, { method });
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe(allow);
+  }
+);
+
+test.each([
+  "/v1/me",
+  "/v1/cards",
+  "/v1/cards/c1/highlights",
+  "/v1/oauth/disconnect",
+  "/v1/tags/operations/op1",
+])("OPTIONS %s answers the CORS preflight", async (path) => {
+  const t = convexTest(schema, modules);
+  const response = await t.fetch(path, { method: "OPTIONS" });
+  expect(response.status).toBe(204);
+  expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+    "PATCH"
+  );
 });

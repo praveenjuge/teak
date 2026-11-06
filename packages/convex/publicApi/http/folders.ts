@@ -1,81 +1,49 @@
 import { internal } from "../../_generated/api";
-import type { ActionCtx } from "../../_generated/server";
-import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
+import { noContent, type PublicApiCall } from "./operation";
 import { parseFolderCardsPayload, parseFolderPayload } from "./payloads";
-import { parseFolderRoute } from "./routeParsing";
 import { serializeFolder, serializeFolderRuleRun } from "./serializers";
-import {
-  errorResponse,
-  json,
-  mapConvexErrorToResponse,
-  parseJsonBody,
-} from "./shared";
+import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
 
-const readJson = async (
-  request: Request
-): Promise<{ payload: unknown } | { error: Response }> => {
+const folderIdOf = (call: PublicApiCall) => call.params.folderId;
+
+export const handleListFoldersRequest = async ({
+  ctx,
+  userId,
+}: PublicApiCall): Promise<Response> => {
   try {
-    return { payload: await parseJsonBody(request) };
-  } catch {
-    return { error: errorResponse(400, "BAD_REQUEST", "Invalid JSON body") };
+    const folders = await ctx.runQuery(
+      internal.publicApiFolders.listFoldersForApi,
+      { userId }
+    );
+    return json(200, { items: folders.map(serializeFolder) });
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to list folders");
   }
 };
 
-export const handleFoldersRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response> => {
-  if (request.method !== "GET" && request.method !== "POST") {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  const userId = auth.validated.userId;
-
-  if (request.method === "GET") {
-    try {
-      const folders = await ctx.runQuery(
-        internal.publicApiFolders.listFoldersForApi,
-        { userId }
-      );
-      return json(200, { items: folders.map(serializeFolder) });
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to list folders");
-    }
-  }
-
-  const body = await readJson(request);
-  if ("error" in body) {
-    return body.error;
-  }
-  const parsed = parseFolderPayload(body.payload, "create");
+export const handleCreateFolderRequest = async ({
+  body,
+  ctx,
+  userId,
+}: PublicApiCall): Promise<Response> => {
+  const parsed = parseFolderPayload(body, "create");
   if ("error" in parsed) {
     return errorResponse(400, "INVALID_INPUT", parsed.error);
   }
+  const { autoFileEnabled, autoFileQuery, autoTags, color, kind, name, query } =
+    parsed.payload;
   try {
     const folder = await ctx.runMutation(
       internal.publicApiFolders.createFolderForApi,
       {
         userId,
-        name: parsed.payload.name ?? "",
-        ...(parsed.payload.color ? { color: parsed.payload.color } : {}),
-        ...(parsed.payload.kind ? { kind: parsed.payload.kind } : {}),
-        ...(parsed.payload.query === undefined
-          ? {}
-          : { query: parsed.payload.query }),
-        ...(parsed.payload.autoTags === undefined
-          ? {}
-          : { autoTags: parsed.payload.autoTags }),
-        ...(parsed.payload.autoFileQuery === undefined
-          ? {}
-          : { autoFileQuery: parsed.payload.autoFileQuery }),
-        ...(parsed.payload.autoFileEnabled === undefined
-          ? {}
-          : { autoFileEnabled: parsed.payload.autoFileEnabled }),
+        name: name ?? "",
+        ...(color ? { color } : {}),
+        ...(kind ? { kind } : {}),
+        ...(query === undefined ? {} : { query }),
+        ...(autoTags === undefined ? {} : { autoTags }),
+        ...(autoFileQuery === undefined ? {} : { autoFileQuery }),
+        ...(autoFileEnabled === undefined ? {} : { autoFileEnabled }),
       }
     );
     return json(201, serializeFolder(folder));
@@ -84,102 +52,109 @@ export const handleFoldersRequest = async (
   }
 };
 
-export const handleFolderByIdRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+export const handleGetFolderRequest = async (
+  call: PublicApiCall
 ): Promise<Response> => {
-  const route = parseFolderRoute(request);
-  if (!route) {
-    return errorResponse(404, "NOT_FOUND", "Folder route not found");
-  }
-  const allowed = {
-    folder: ["GET", "PATCH", "DELETE"],
-    cards: ["POST", "DELETE"],
-    ruleRun: ["GET"],
-    undoRuleRun: ["POST"],
-  }[route.kind];
-  if (!allowed.includes(request.method)) {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  const userId = auth.validated.userId;
-  const { folderId } = route;
-
   try {
-    if (route.kind === "ruleRun" || route.kind === "undoRuleRun") {
-      const args = { userId, folderId, runId: route.runId };
-      const run =
-        route.kind === "ruleRun"
-          ? await ctx.runQuery(
-              internal.publicApiFolders.getFolderRuleRunForApi,
-              args
-            )
-          : await ctx.runMutation(
-              internal.publicApiFolders.undoFolderRuleRunForApi,
-              args
-            );
-      return json(200, serializeFolderRuleRun(run));
-    }
+    const folder = await call.ctx.runQuery(
+      internal.publicApiFolders.getFolderForApi,
+      { userId: call.userId, folderId: folderIdOf(call) }
+    );
+    return folder
+      ? json(200, serializeFolder(folder))
+      : errorResponse(404, "NOT_FOUND", "Folder not found");
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to update folder");
+  }
+};
 
-    if (route.kind === "cards") {
-      const body = await readJson(request);
-      if ("error" in body) {
-        return body.error;
-      }
-      const parsed = parseFolderCardsPayload(body.payload);
-      if ("error" in parsed) {
-        return errorResponse(400, "INVALID_INPUT", parsed.error);
-      }
-      const result = await ctx.runMutation(
+export const handleUpdateFolderRequest = async (
+  call: PublicApiCall
+): Promise<Response> => {
+  const parsed = parseFolderPayload(call.body, "update");
+  if ("error" in parsed) {
+    return errorResponse(400, "INVALID_INPUT", parsed.error);
+  }
+  try {
+    const folder = await call.ctx.runMutation(
+      internal.publicApiFolders.updateFolderForApi,
+      { userId: call.userId, folderId: folderIdOf(call), ...parsed.payload }
+    );
+    return json(200, serializeFolder(folder));
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to update folder");
+  }
+};
+
+export const handleDeleteFolderRequest = async (
+  call: PublicApiCall
+): Promise<Response> => {
+  try {
+    await call.ctx.runMutation(internal.publicApiFolders.deleteFolderForApi, {
+      userId: call.userId,
+      folderId: folderIdOf(call),
+    });
+    return noContent();
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to update folder");
+  }
+};
+
+const changeFolderCards =
+  (action: "add" | "remove") =>
+  async (call: PublicApiCall): Promise<Response> => {
+    const parsed = parseFolderCardsPayload(call.body);
+    if ("error" in parsed) {
+      return errorResponse(400, "INVALID_INPUT", parsed.error);
+    }
+    try {
+      const result = await call.ctx.runMutation(
         internal.publicApiFolders.changeFolderCardsForApi,
         {
-          userId,
-          folderId,
-          action: request.method === "POST" ? "add" : "remove",
+          userId: call.userId,
+          folderId: folderIdOf(call),
+          action,
           cardIds: parsed.cardIds,
         }
       );
       return json(200, result);
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to update folder");
     }
+  };
 
-    if (request.method === "GET") {
-      const folder = await ctx.runQuery(
-        internal.publicApiFolders.getFolderForApi,
-        { userId, folderId }
-      );
-      return folder
-        ? json(200, serializeFolder(folder))
-        : errorResponse(404, "NOT_FOUND", "Folder not found");
-    }
+export const handleAddCardsToFolderRequest = changeFolderCards("add");
+export const handleRemoveCardsFromFolderRequest = changeFolderCards("remove");
 
-    if (request.method === "DELETE") {
-      await ctx.runMutation(internal.publicApiFolders.deleteFolderForApi, {
-        userId,
-        folderId,
-      });
-      return new Response(null, {
-        status: 204,
-        headers: { "Cache-Control": "no-store" },
-      });
-    }
+const ruleRunArgs = (call: PublicApiCall) => ({
+  userId: call.userId,
+  folderId: folderIdOf(call),
+  runId: call.params.runId,
+});
 
-    const body = await readJson(request);
-    if ("error" in body) {
-      return body.error;
-    }
-    const parsed = parseFolderPayload(body.payload, "update");
-    if ("error" in parsed) {
-      return errorResponse(400, "INVALID_INPUT", parsed.error);
-    }
-    const folder = await ctx.runMutation(
-      internal.publicApiFolders.updateFolderForApi,
-      { userId, folderId, ...parsed.payload }
+export const handleGetFolderRuleRunRequest = async (
+  call: PublicApiCall
+): Promise<Response> => {
+  try {
+    const run = await call.ctx.runQuery(
+      internal.publicApiFolders.getFolderRuleRunForApi,
+      ruleRunArgs(call)
     );
-    return json(200, serializeFolder(folder));
+    return json(200, serializeFolderRuleRun(run));
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to update folder");
+  }
+};
+
+export const handleUndoFolderRuleRunRequest = async (
+  call: PublicApiCall
+): Promise<Response> => {
+  try {
+    const run = await call.ctx.runMutation(
+      internal.publicApiFolders.undoFolderRuleRunForApi,
+      ruleRunArgs(call)
+    );
+    return json(200, serializeFolderRuleRun(run));
   } catch (error) {
     return mapConvexErrorToResponse(error, "Failed to update folder");
   }

@@ -21,7 +21,7 @@ import {
   normalizeCardSource,
 } from "../shared/cardSource";
 import { isCardHidden } from "../shared/tags";
-import { explainCardTypeMismatch, explainInvalidTags } from "./http/shared";
+import { explainCardTypeMismatch, explainInvalidTags } from "./validation";
 
 const quickSaveResultValidator = v.object({
   status: v.literal("created"),

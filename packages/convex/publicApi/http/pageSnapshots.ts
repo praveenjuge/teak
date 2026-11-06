@@ -1,14 +1,7 @@
 import { internal } from "../../_generated/api";
-import type { ActionCtx } from "../../_generated/server";
 import { PAGE_SNAPSHOT_MAX_BYTES } from "../../shared/pageArchive";
-import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
-import {
-  errorResponse,
-  json,
-  mapConvexErrorToResponse,
-  parseJsonBody,
-} from "./shared";
+import type { PublicApiCall } from "./operation";
+import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
 
 export const parsePageSnapshotUploadPayload = (
   payload: unknown
@@ -36,20 +29,10 @@ export const parsePageSnapshotUploadPayload = (
  * as `pageSnapshotKey` to POST /v1/cards.
  */
 export const handleCreatePageSnapshotUploadRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
+  const { ctx, userId } = call;
+  const payload = call.body;
   const parsed = parsePageSnapshotUploadPayload(payload);
   if ("error" in parsed) {
     return errorResponse(400, "INVALID_INPUT", parsed.error);
@@ -66,7 +49,7 @@ export const handleCreatePageSnapshotUploadRequest = async (
       200,
       await ctx.runMutation(
         internal.publicApiPageSnapshots.createPageSnapshotUploadForUser,
-        { bytes: parsed.bytes, userId: auth.validated.userId }
+        { bytes: parsed.bytes, userId }
       )
     );
   } catch (error) {

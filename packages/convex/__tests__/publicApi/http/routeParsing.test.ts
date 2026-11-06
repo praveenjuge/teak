@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  parseCardRoute,
   parseCardsQueryOptions,
   parseIncludeSet,
 } from "../../../publicApi/http/routeParsing";
@@ -216,33 +215,6 @@ describe("parseCardsQueryOptions", () => {
       });
     }
   );
-});
-
-describe("parseCardRoute", () => {
-  test.each([
-    ["GET", "/v1/cards/card_1", { cardId: "card_1", operation: "get" }],
-    ["DELETE", "/v1/cards/card_1", { cardId: "card_1", operation: "delete" }],
-    ["PATCH", "/v1/cards/card_1", { cardId: "card_1", operation: "patch" }],
-    [
-      "PATCH",
-      "/v1/cards/card_1/favorite",
-      { cardId: "card_1", operation: "favorite" },
-    ],
-  ] as const)("routes %s %s", (method, path, expected) => {
-    expect(parseCardRoute(new Request(`${API}${path}`, { method }))).toEqual(
-      expected
-    );
-  });
-
-  test.each([
-    ["POST", "/v1/cards/card_1"],
-    ["GET", "/v1/cards/card_1/favorite"],
-    ["PATCH", "/v1/cards/card_1/unknown"],
-    ["GET", "/v2/cards/card_1"],
-    ["GET", "/v1/cards"],
-  ])("does not route %s %s", (method: string, path: string) => {
-    expect(parseCardRoute(new Request(`${API}${path}`, { method }))).toBeNull();
-  });
 });
 
 test.each(["style", "hue", "hex"])(

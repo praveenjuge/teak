@@ -1,11 +1,11 @@
-export type CardListSort = "newest" | "oldest" | "relevance" | "shuffle";
-
-export const CARD_LIST_SORTS: readonly CardListSort[] = [
+export const CARD_LIST_SORTS = [
   "newest",
   "oldest",
   "relevance",
   "shuffle",
-];
+] as const;
+
+export type CardListSort = (typeof CARD_LIST_SORTS)[number];
 
 export const normalizeCardListSort = (value: unknown): CardListSort => {
   if (value === "oldest" || value === "relevance" || value === "shuffle") {

@@ -5,7 +5,6 @@ import {
   CARD_TYPE_ICONS,
   CARD_TYPE_LABELS,
   CARD_TYPE_REGISTRY,
-  CARD_TYPES,
   type CardErrorCode,
   type CardType,
   cardTypes,
@@ -31,7 +30,6 @@ describe("Constants", () => {
         "text",
         "video",
       ]);
-      expect(CARD_TYPES).toEqual(cardTypes);
     });
   });
 

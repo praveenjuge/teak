@@ -2,6 +2,11 @@ import {
   COLOR_HUE_BUCKETS,
   VISUAL_STYLE_TAXONOMY,
 } from "@teak/convex/shared/constants";
+import {
+  MAX_SHUFFLE_SEED,
+  PUBLIC_API_CARD_SORTS,
+  SEARCH_MODES,
+} from "@teak/convex/shared/publicApiContract";
 import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
 import { parsePaletteHex } from "@teak/convex/shared/utils/colorUtils";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
@@ -150,34 +155,33 @@ export const parseDateRange = (value: string, now?: Date) => {
   return parsed.range;
 };
 
+const listed = (values: readonly string[]) =>
+  `${values.slice(0, -1).join(", ")} or ${values.at(-1)}`;
+
+const isCardSort = (value: unknown): value is CardSort =>
+  (PUBLIC_API_CARD_SORTS as readonly unknown[]).includes(value);
+
 export const parseSort = (value: string): CardSort => {
-  if (
-    !(
-      value === "newest" ||
-      value === "oldest" ||
-      value === "relevance" ||
-      value === "shuffle"
-    )
-  ) {
+  if (!isCardSort(value)) {
     throw new InvalidArgumentError(
-      "sort must be newest, oldest, relevance or shuffle"
+      `sort must be ${listed(PUBLIC_API_CARD_SORTS)}`
     );
   }
   return value;
 };
 
 export const parseMode = (value: string): SearchMode => {
-  if (!(value === "hybrid" || value === "keyword" || value === "semantic")) {
-    throw new InvalidArgumentError("mode must be hybrid, keyword or semantic");
+  if (!(SEARCH_MODES as readonly string[]).includes(value)) {
+    throw new InvalidArgumentError(`mode must be ${listed(SEARCH_MODES)}`);
   }
-  return value;
+  return value as SearchMode;
 };
 
 export const parseSeed = (value: string): number => {
   const seed = parseShuffleSeed(value.trim());
   if (seed === undefined) {
     throw new InvalidArgumentError(
-      "seed must be a whole number from 0 to 2147483647"
+      `seed must be a whole number from 0 to ${MAX_SHUFFLE_SEED}`
     );
   }
   return seed;
@@ -207,13 +211,7 @@ const strings = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.length > 0 ? value : undefined;
 
 export const queryOptions = (options: Record<string, unknown>) => {
-  const sort: CardSort | undefined =
-    options.sort === "newest" ||
-    options.sort === "oldest" ||
-    options.sort === "relevance" ||
-    options.sort === "shuffle"
-      ? options.sort
-      : undefined;
+  const sort = isCardSort(options.sort) ? options.sort : undefined;
   const range = options.date as { end: number; start: number } | undefined;
   return {
     createdAfter:

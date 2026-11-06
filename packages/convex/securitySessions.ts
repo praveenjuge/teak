@@ -7,20 +7,20 @@ import {
   internalQuery,
   type QueryCtx,
 } from "./_generated/server";
-import { rateLimiter } from "./shared/rateLimits";
 import { workosIssuer } from "./shared/workosApi";
 import {
   WORKOS_CLIENT_ID,
-  WORKOS_SESSION_CURSOR,
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
   workosDisplayName,
 } from "./shared/workosIds";
 import {
-  listWorkosSessions,
-  revokeWorkosSession,
-  type WorkosSession,
-} from "./workos/sessions";
+  listDeviceSessions,
+  revokeDeviceSession,
+  revokeOtherDeviceSessions,
+  type SessionPage,
+  sessionPageValidator,
+} from "./workos/sessionDevices";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -88,77 +88,6 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
     : null;
 }
 
-/**
- * What a session's user agent says, as parts each client words in its own
- * language. Browser and system names are product names, so they stay as is;
- * a client shows a value it doesn't know as its generic word.
- */
-export interface SessionAgent {
-  browser?: "edge" | "firefox" | "chrome" | "safari";
-  kind: "browser" | "extension" | "unknown";
-  os?: "ipados" | "ios" | "android" | "macos" | "windows" | "linux";
-}
-
-const AGENT_BROWSERS: [RegExp, NonNullable<SessionAgent["browser"]>][] = [
-  [/Edg\//, "edge"],
-  [/Firefox\//, "firefox"],
-  [/(?:Chrome|CriOS)\//, "chrome"],
-  [/Safari\//, "safari"],
-];
-const AGENT_SYSTEMS: [RegExp, NonNullable<SessionAgent["os"]>][] = [
-  [/iPad/, "ipados"],
-  [/iPhone|iPod/, "ios"],
-  [/Android/, "android"],
-  [/Macintosh|Mac OS X/, "macos"],
-  [/Windows/, "windows"],
-  [/Linux/, "linux"],
-];
-
-export function describeSessionAgent(
-  agent: string | null | undefined
-): SessionAgent {
-  if (!agent) {
-    return { kind: "unknown" };
-  }
-  if (agent.startsWith("Teak Browser")) {
-    return { kind: "extension" };
-  }
-  const browser = AGENT_BROWSERS.find(([pattern]) => pattern.test(agent))?.[1];
-  const os = AGENT_SYSTEMS.find(([pattern]) => pattern.test(agent))?.[1];
-  return {
-    kind: "browser",
-    ...(browser ? { browser } : {}),
-    ...(os ? { os } : {}),
-  };
-}
-
-const BROWSER_NAMES: Record<NonNullable<SessionAgent["browser"]>, string> = {
-  edge: "Edge",
-  firefox: "Firefox",
-  chrome: "Chrome",
-  safari: "Safari",
-};
-const SYSTEM_NAMES: Record<NonNullable<SessionAgent["os"]>, string> = {
-  ipados: "iPadOS",
-  ios: "iOS",
-  android: "Android",
-  macos: "macOS",
-  windows: "Windows",
-  linux: "Linux",
-};
-
-/** The English name clients that predate `agent` still show. */
-export function sessionDisplayName(agent: SessionAgent): string {
-  if (agent.kind === "unknown") {
-    return "Unknown device";
-  }
-  if (agent.kind === "extension") {
-    return "Teak browser extension";
-  }
-  const browser = agent.browser ? BROWSER_NAMES[agent.browser] : "Browser";
-  return agent.os ? `${browser} on ${SYSTEM_NAMES[agent.os]}` : browser;
-}
-
 export type TeakUserId = string & { readonly __brand: "TeakUserId" };
 type SessionCtx =
   | Pick<ActionCtx, "auth" | "runQuery">
@@ -208,7 +137,7 @@ export async function requireTeakUserId(
   return resolved;
 }
 
-interface SessionUser {
+export interface SessionUser {
   identity: UserIdentity;
   sessionId: string;
   teakUserId: TeakUserId;
@@ -322,175 +251,32 @@ export async function getSessionProfile(
   };
 }
 
-const displayValidator = v.object({
-  id: v.string(),
-  name: v.string(),
-  agent: v.optional(
-    v.object({
-      kind: v.union(
-        v.literal("browser"),
-        v.literal("extension"),
-        v.literal("unknown")
-      ),
-      browser: v.optional(v.string()),
-      os: v.optional(v.string()),
-    })
-  ),
-  signedInAt: v.number(),
-  lastActiveAt: v.optional(v.number()),
-  current: v.boolean(),
-});
-
-interface DisplaySession {
-  agent?: SessionAgent;
-  current: boolean;
-  id: string;
-  lastActiveAt?: number;
-  name: string;
-  signedInAt: number;
-}
-
-/** A session as Settings lists it; `lastActiveAt` only once it moved on. */
-export function displaySession(
-  session: WorkosSession,
-  currentSessionId: string
-): DisplaySession {
-  const agent = describeSessionAgent(session.userAgent);
-  return {
-    id: session.id,
-    name: sessionDisplayName(agent),
-    agent,
-    signedInAt: session.createdAt,
-    ...(session.updatedAt !== undefined && session.updatedAt > session.createdAt
-      ? { lastActiveAt: session.updatedAt }
-      : {}),
-    current: session.id === currentSessionId,
-  };
-}
-
-const isLiveSession = (session: WorkosSession) =>
-  session.status === "active" && session.expiresAt > Date.now();
-
-const sessionPageValidator = v.object({
-  page: v.array(displayValidator),
-  isDone: v.boolean(),
-  continueCursor: v.string(),
-});
-
-function workosSessionApiKey() {
-  const apiKey = process.env.WORKOS_API_KEY;
-  if (!apiKey) {
-    throw new Error("Device service is unavailable. Please try again.");
+/** The signed-in user the device actions act for. */
+const requireDeviceUser = async (ctx: ActionCtx) => {
+  const user = await getSessionUser(ctx);
+  if (!user) {
+    throw new Error("Please sign in again.");
   }
-  return apiKey;
-}
+  return user;
+};
 
-// Settings shows its own text for any failure; the code and message are the
-// public API's for too many requests.
-async function chargeWorkosRequest(ctx: ActionCtx, teakUserId: string) {
-  const limit = await rateLimiter.limit(ctx, "workosSessionRequests", {
-    key: teakUserId,
-    throws: false,
-  });
-  if (!limit.ok) {
-    throw new ConvexError({
-      code: "RATE_LIMITED",
-      message: "Too many requests",
-      retryAt: Date.now() + limit.retryAfter,
-    });
-  }
-}
-
+// Settings' devices list. The WorkOS calls live in workos/sessionDevices.ts;
+// these keep the function paths the web app calls.
 export const listAuthkitSessions = action({
   args: { paginationOpts: paginationOptsValidator },
   returns: sessionPageValidator,
-  handler: async (
-    ctx,
-    { paginationOpts }
-  ): Promise<{
-    page: DisplaySession[];
-    isDone: boolean;
-    continueCursor: string;
-  }> => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Please sign in again.");
-    }
-    const cursor = paginationOpts.cursor;
-    if (cursor && !WORKOS_SESSION_CURSOR.test(cursor)) {
-      throw new Error("Invalid device page. Please refresh.");
-    }
-    const apiKey = workosSessionApiKey();
-    await chargeWorkosRequest(ctx, user.teakUserId);
-    const result = await listWorkosSessions(user.workosUserId, apiKey, {
-      limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
-      after: cursor || undefined,
-    });
-    const next = result.after ?? "";
-    return {
-      page: result.sessions
-        .filter(isLiveSession)
-        .map((session) => displaySession(session, user.sessionId)),
-      isDone: !next,
-      continueCursor: next,
-    };
-  },
+  handler: async (ctx, { paginationOpts }): Promise<SessionPage> =>
+    listDeviceSessions(ctx, await requireDeviceUser(ctx), paginationOpts),
 });
 
 export const revokeAuthkitSession = action({
   args: { sessionId: v.string() },
   returns: v.null(),
   handler: async (ctx, { sessionId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Please sign in again.");
-    }
-    if (!WORKOS_SESSION_ID.test(sessionId)) {
-      throw new Error("Invalid device session.");
-    }
-    const apiKey = workosSessionApiKey();
-    if (sessionId === user.sessionId) {
-      await chargeWorkosRequest(ctx, user.teakUserId);
-      await revokeWorkosSession(sessionId, apiKey);
-      return null;
-    }
-    let after: string | undefined;
-    const seen = new Set<string>();
-    for (let page = 0; page < 20; page++) {
-      await chargeWorkosRequest(ctx, user.teakUserId);
-      const result = await listWorkosSessions(user.workosUserId, apiKey, {
-        limit: 100,
-        after,
-      });
-      const target = result.sessions.find(
-        (session) => session.id === sessionId
-      );
-      if (target) {
-        if (target.status !== "active" || target.expiresAt <= Date.now()) {
-          return null;
-        }
-        await chargeWorkosRequest(ctx, user.teakUserId);
-        await revokeWorkosSession(sessionId, apiKey);
-        return null;
-      }
-      const next = result.after;
-      if (!next) {
-        throw new Error("Device session was not found.");
-      }
-      if (seen.has(next)) {
-        throw new Error("Device service returned an invalid page.");
-      }
-      seen.add(next);
-      after = next;
-    }
-    throw new Error("Could not verify this device. Please contact support.");
+    await revokeDeviceSession(ctx, await requireDeviceUser(ctx), sessionId);
+    return null;
   },
 });
-
-const MAX_OTHER_SESSION_PAGES = 20;
-// Leaves room in the per-minute WorkOS budget for the list pages and for
-// Settings to list devices again afterwards.
-const MAX_OTHER_SESSION_REVOKES = 20;
 
 /**
  * Signs out every live session of this account except the one making the
@@ -500,51 +286,8 @@ const MAX_OTHER_SESSION_REVOKES = 20;
 export const revokeOtherAuthkitSessions = action({
   args: {},
   returns: v.object({ revokedCount: v.number(), hasMore: v.boolean() }),
-  handler: async (ctx) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Please sign in again.");
-    }
-    const apiKey = workosSessionApiKey();
-    const others: string[] = [];
-    let after: string | undefined;
-    const seen = new Set<string>();
-    for (let page = 0; page < MAX_OTHER_SESSION_PAGES; page++) {
-      await chargeWorkosRequest(ctx, user.teakUserId);
-      const result = await listWorkosSessions(user.workosUserId, apiKey, {
-        limit: 100,
-        after,
-      });
-      for (const session of result.sessions) {
-        if (isLiveSession(session) && session.id !== user.sessionId) {
-          others.push(session.id);
-        }
-      }
-      const next = result.after;
-      if (!next) {
-        break;
-      }
-      // `listWorkosSessions` checks the cursor's format; this only stops a loop.
-      if (seen.has(next)) {
-        throw new Error("Device service returned an invalid page.");
-      }
-      seen.add(next);
-      after = next;
-    }
-    let revokedCount = 0;
-    for (const sessionId of others.slice(0, MAX_OTHER_SESSION_REVOKES)) {
-      if (sessionId === user.sessionId) {
-        continue;
-      }
-      await chargeWorkosRequest(ctx, user.teakUserId);
-      await revokeWorkosSession(sessionId, apiKey);
-      revokedCount += 1;
-    }
-    return {
-      revokedCount,
-      hasMore: others.length > MAX_OTHER_SESSION_REVOKES,
-    };
-  },
+  handler: async (ctx) =>
+    revokeOtherDeviceSessions(ctx, await requireDeviceUser(ctx)),
 });
 
 export async function getDeletionRetryPrincipal(ctx: SessionCtx) {

@@ -18,13 +18,7 @@ import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { withAuthorizedUser } from "../../../publicApi/http/auth";
-import {
-  bulkCardsV1,
-  cardByIdV1,
-  changesCardsV1,
-  createCardV1,
-  listCardsV1,
-} from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
@@ -47,7 +41,7 @@ describe("publicApiHttp auth and validation", () => {
     });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/card_123/favorite", {
         method: "PATCH",
@@ -71,7 +65,7 @@ describe("publicApiHttp auth and validation", () => {
   test("static card routes authorize with the bearer API key", async () => {
     const cases = [
       {
-        handler: listCardsV1,
+        handler: publicApiV1,
         method: "GET",
         path: "/v1/cards",
         query: mock().mockResolvedValue({
@@ -86,7 +80,7 @@ describe("publicApiHttp auth and validation", () => {
           items: [{ cardId: "card_1", isFavorited: true }],
           operation: "favorite",
         },
-        handler: bulkCardsV1,
+        handler: publicApiV1,
         method: "POST",
         mutation:
           buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
@@ -100,7 +94,7 @@ describe("publicApiHttp auth and validation", () => {
         query: mock(),
       },
       {
-        handler: changesCardsV1,
+        handler: publicApiV1,
         method: "GET",
         path: "/v1/cards/changes",
         queryString: "?since=1&limit=10",
@@ -149,7 +143,7 @@ describe("publicApiHttp auth and validation", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -172,7 +166,7 @@ describe("publicApiHttp auth and validation", () => {
       .mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -192,7 +186,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for malformed JSON", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -212,7 +206,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for empty content", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -232,7 +226,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for unsafe url scheme", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -260,7 +254,7 @@ describe("publicApiHttp auth and validation", () => {
       );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -291,7 +285,7 @@ describe("publicApiHttp auth and validation", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -343,7 +337,7 @@ describe("publicApiHttp auth and validation", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",

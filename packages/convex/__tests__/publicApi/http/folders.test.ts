@@ -1,9 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
-import { executePublicApiOperation } from "../../../publicApi/http/routes";
-import type { PublicApiOperation } from "../../../publicApi/http/shared";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
-import { buildAuthorizedMutationMock } from "../../helpers/publicApiHttp.test-utils";
+import type { ApiRequest as PublicApiOperation } from "../../helpers/publicApiHttp.test-utils";
+import {
+  buildAuthorizedMutationMock,
+  callPublicApi,
+} from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
 const AUTH = {
@@ -35,7 +37,7 @@ const run = (
   const ctx = withMappedOwner({ runMutation, runQuery: query });
   return {
     ctx,
-    response: executePublicApiOperation(mockActionCtx(ctx), {
+    response: callPublicApi(mockActionCtx(ctx), {
       headers: AUTH,
       ...operation,
     }),
@@ -370,7 +372,7 @@ describe("public API folders", () => {
   });
 
   test("requires a valid key", async () => {
-    const response = await executePublicApiOperation(
+    const response = await callPublicApi(
       mockActionCtx(withMappedOwner({ runMutation: mock(), runQuery: mock() })),
       { method: "GET", path: "/v1/folders" }
     );

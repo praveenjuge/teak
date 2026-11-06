@@ -16,15 +16,15 @@ Read this before adding a field, a table, an index, an API operation or a backgr
 A feature in the public API ships on MCP, the SDK and the CLI in the same pull request, in this order:
 
 1. Internal function in `packages/convex/publicApi*.ts`.
-2. Handler in `publicApi/http/*.ts`, dispatched by `executePublicApiOperation` (`publicApi/http/routes.ts`).
-3. Route plus its `OPTIONS` in `http.ts`.
-4. The operation in `publicApi/openApi/`.
-5. The tool in `mcp/tools.ts`.
-6. The method in `packages/sdk/src/index.ts`.
+2. The operation in `PUBLIC_API_OPERATIONS` (`packages/convex/shared/publicApiContract.ts`): its `operationId`, method, path and whether it reads a JSON body. The Convex routes, `GET /v1`, the 404 and 405 answers and the OpenAPI paths come from it.
+3. Its handler in `publicApi/http/*.ts`, added to `HANDLERS` in `publicApi/http/router.ts`. The router has already checked the credential and parsed the body; TypeScript fails until every operation has a handler.
+4. Its OpenAPI description in `publicApi/openApi/`, keyed by `operationId`; TypeScript fails until every operation has one.
+5. The tool in `mcp/catalog.ts`: its Zod arguments (the JSON Schema clients see is generated from them), the operation it calls and its summary.
+6. The method in `packages/sdk/src/index.ts`, which calls the operation by `operationId`.
 7. The command in `apps/cli/src/index.ts` and `library.ts`.
-8. The row in `scripts/repo/public-parity.ts`, which maps every OpenAPI operation to its MCP tool, SDK method and CLI command, or gives the reason a surface leaves it out.
+8. The row in `scripts/repo/public-parity.ts`: the SDK method, CLI command and Raycast AI tool that use the operation, or the reason a surface leaves it out. The MCP column is read from the catalog.
 
-`scripts/repo/public-parity.test.ts` calls every MCP tool and SDK method, walks the CLI command tree and compares the card list filters, so a missed step fails the root `bun run test`. A new error code goes in `PUBLIC_API_ERROR_CODES` (`publicApi/http/shared.ts`) and the SDK's `ERROR_CODES`; the same test fails when the SDK doesn't know a code the API returns.
+Enum values, limits and error codes the surfaces share live in `publicApiContract.ts` too, and the SDK, CLI, Raycast and MCP App read them from there. `scripts/repo/public-parity.test.ts` calls every MCP tool and SDK method, walks the CLI command tree and checks the card list parameters (`CARD_LIST_PARAMS`) on the API, MCP, SDK and CLI, so a missed step fails the root `bun run test`. A new error code goes in `PUBLIC_API_ERROR_CODES`; the SDK's `ERROR_CODES` include it.
 
 Update the [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) docs with it ([Docs](#docs) maps each source to its page).
 
@@ -69,7 +69,7 @@ A feature people can use updates its page in these docs and, once it ships, its 
 
 | When you change | Update |
 | --- | --- |
-| The public API (`packages/convex/http.ts`, `publicApi/http/*.ts`, `publicApi/openApi/*.ts`) | `content/docs/(developers)/api.mdx` |
+| The public API (`packages/convex/http.ts`, `shared/publicApiContract.ts`, `publicApi/http/*.ts`, `publicApi/openApi/*.ts`) | `content/docs/(developers)/api.mdx` |
 | MCP (`packages/convex/mcp`) | `content/docs/(developers)/mcp.mdx` |
 | The SDK (`packages/sdk/src`) | `content/docs/(developers)/sdk.mdx` |
 | The Apple app | `content/docs/(apps)/mac.mdx` and `content/docs/(apps)/mobile.mdx` |
