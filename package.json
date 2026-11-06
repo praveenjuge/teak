@@ -20,7 +20,7 @@
     "doctor": "bun --no-env-file run scripts/setup/doctor.ts",
     "fix": "ultracite fix",
     "lint": "turbo run lint",
-    "pre-commit": "bun --no-env-file run scripts/repo/check-lockfile.ts && turbo run typecheck lint build --affected && turbo run test --affected --filter=@teak/scripts",
+    "pre-commit": "bun --no-env-file run scripts/repo/check-lockfile.ts && biome check --staged --no-errors-on-unmatched && turbo run typecheck lint build --affected && turbo run test --affected --filter=@teak/scripts",
     "prepare": "[ -f .git ] || simple-git-hooks || exit 0",
     "publish:raycast": "cd apps/raycast && bun run publish",
     "r2:lifecycle": "bun --no-env-file run scripts/cloudflare/cloudflare-r2-lifecycle.ts",

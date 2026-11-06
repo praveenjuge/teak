@@ -91,7 +91,7 @@ bun run --cwd packages/tests e2e # The end-to-end suite, on its own local stack
 bun run check            # Quality report (Ultracite)
 bun run fix              # Auto-fix issues
 
-bun run pre-commit       # Pre-commit checks
+bun run pre-commit       # Pre-commit checks: Biome on staged files (CI's bun run check), then affected typecheck, lint, build and the repo checks
 bun run publish:raycast  # Publish to Raycast store
 bun run clean            # Clear Turborepo caches
 ```
