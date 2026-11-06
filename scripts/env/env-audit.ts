@@ -280,6 +280,9 @@ export interface TurboDecl {
   path: string;
 }
 
+export const isTurboConfig = (path: string): boolean =>
+  /(?:^|\/)turbo\.jsonc?$/.test(path);
+
 export const extractTurboDecls = (
   content: string,
   path: string
@@ -290,9 +293,13 @@ export const extractTurboDecls = (
     tasks?: Record<string, { env?: string[]; passThroughEnv?: string[] }>;
   };
   try {
-    parsed = JSON.parse(content);
-  } catch {
-    return [];
+    // Turbo reads comments and trailing commas in both turbo.json and
+    // turbo.jsonc. A file it can't parse would hide its env declarations.
+    parsed = Bun.JSONC.parse(content) as typeof parsed;
+  } catch (error) {
+    throw new Error(
+      `Could not parse ${path}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
   const decls: TurboDecl[] = [];
   for (const name of parsed.globalEnv ?? []) {
@@ -464,7 +471,7 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
     if (DOC_EXTENSIONS.has(ext)) {
       continue;
     }
-    if (path.endsWith("turbo.json")) {
+    if (isTurboConfig(path)) {
       for (const decl of extractTurboDecls(content, path)) {
         if (decl.name.includes("*")) {
           findings.push({

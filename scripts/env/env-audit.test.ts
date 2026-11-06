@@ -18,6 +18,7 @@ import {
   extractWorkflowRefs,
   extractWranglerDecls,
   findSecretDiagnostics,
+  isTurboConfig,
   listScannedFiles,
 } from "./env-audit.ts";
 
@@ -78,6 +79,23 @@ describe("env-audit extractors", () => {
       { name: "API_KEY", line: 1 },
       { name: "OTHER_SECRET", line: 2 },
     ]);
+  });
+
+  test("turbo.jsonc declarations are read, comments and all", () => {
+    const decls = extractTurboDecls(
+      '{\n  // shared\n  "globalEnv": ["A_ONE"],\n  "tasks": { "build": { "env": ["B_TWO",] } },\n}',
+      "apps/x/turbo.jsonc"
+    );
+    expect(decls.map((decl) => decl.name).sort()).toEqual(["A_ONE", "B_TWO"]);
+    expect(isTurboConfig("apps/x/turbo.jsonc")).toBe(true);
+    expect(isTurboConfig("turbo.json")).toBe(true);
+    expect(isTurboConfig("apps/x/not-turbo.json")).toBe(false);
+  });
+
+  test("a Turbo config that doesn't parse fails the audit", () => {
+    expect(() => extractTurboDecls('{"globalEnv": [', "turbo.json")).toThrow(
+      "Could not parse turbo.json"
+    );
   });
 
   test("turbo declarations include env and passThroughEnv", () => {
