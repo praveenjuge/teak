@@ -105,3 +105,14 @@ export const TAGS_CASE_SCENARIO_CARDS: DevScenarioCardDef[] = [
   tagsCaseCard("cjk", "CJK tags", { tags: ["设计", "デザイン", "디자인"] }),
   tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
 ];
+
+export const PINNED_SCENARIO_CARDS: DevScenarioCardDef[] = Array.from(
+  { length: 13 },
+  (_, index): DevScenarioCardDef => ({
+    type: "text",
+    content: `${index < 11 ? "Pinned" : "Unpinned"} note ${index + 1}`,
+    tags: ["scenario-pinned"],
+    ...(index === 2 ? { isFavorited: true } : {}),
+    ...(index < 11 ? { pinPosition: index } : {}),
+  })
+);

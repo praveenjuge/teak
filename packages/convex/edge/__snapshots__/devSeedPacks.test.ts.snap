@@ -1,0 +1,449 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`every dev seed pack seeds the same rows 1`] = `
+{
+  "ai-languages": {
+    "result": {
+      "cards": 18,
+      "status": "seeded",
+    },
+    "rows": "8559017871fd412c7ccdf3ec045579ff0fab95b5342d63a39b780885d25a4e4c",
+    "size": 11728,
+  },
+  "archive-mix": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "87dd48e6f52364ef563b018eb23aee32bc6e6985c513341c3c5cc56d1fbb5add",
+    "size": 132225,
+  },
+  "backlinks": {
+    "result": {
+      "cards": 186,
+      "status": "seeded",
+    },
+    "rows": "f03155e07edcf627f9d855411b4cd219f3ea61ee64bc939dac5150e0a7494a4b",
+    "size": 106733,
+  },
+  "card-details": {
+    "result": {
+      "cards": 10,
+      "status": "seeded",
+    },
+    "rows": "0d6de73db39d64bccfbc87da63630558921e13a7322be13174c1e6c436093fba",
+    "size": 12708,
+  },
+  "card-in-50-folders": {
+    "result": {
+      "cards": 2,
+      "folders": 51,
+      "status": "seeded",
+    },
+    "rows": "6129de5620b9da162cc8b3723e194a7e3be0b4e25bf11c488917ca2d6cc8025a",
+    "size": 10385,
+  },
+  "card-limit-199": {
+    "result": {
+      "cards": 199,
+      "status": "seeded",
+    },
+    "rows": "c2cc309dafe94375d598c1bbbd1a845297d8cb2a1501f231d44fffe0a48ce883",
+    "size": 109612,
+  },
+  "card-links": {
+    "result": {
+      "cards": 138,
+      "status": "seeded",
+    },
+    "rows": "73e164c702ede4a11fd99f0bcadfc46e59c962a91bb7e8261261749ebfb95ae3",
+    "size": 101387,
+  },
+  "checklists": {
+    "result": {
+      "cards": 9,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "f574bdf5b7a699c593881b2a3ee1d09bcaa947ebd9edff2ccb9aa296739d79da",
+    "size": 9287,
+  },
+  "dead-links": {
+    "result": {
+      "cards": 10,
+      "status": "seeded",
+    },
+    "rows": "d5b8b63c6d795344a3f62d5e5ca33ac60f030706c153fe9c973e6e9309e54472",
+    "size": 9288,
+  },
+  "done-states": {
+    "result": {
+      "cards": 28,
+      "folders": 2,
+      "status": "seeded",
+    },
+    "rows": "a44763f374cfca42c7dc1ddbd7aa78f0725574e352843a7fbc81ab5d5450f545",
+    "size": 26784,
+  },
+  "done-states-images": {
+    "result": {
+      "cards": 201,
+      "status": "seeded",
+    },
+    "rows": "99c63876ff2dc3694ed0d5a32691ce09c2967c75d35abfb2c18d11e0cbc01bf0",
+    "size": 149333,
+  },
+  "email-attachments": {
+    "result": {
+      "cards": 9,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "5eb10af922dc8abcef091e8596dad615c45db6243adc36b4f243a3e0439b12d1",
+    "size": 6572,
+  },
+  "email-in": {
+    "result": {
+      "cards": 8,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "e92b53164d5d862d9a7b35b7d208b310c72966b5af2a773716a6de5ecded61c7",
+    "size": 5808,
+  },
+  "export-ugly": {
+    "result": {
+      "cards": 12,
+      "folders": 58,
+      "status": "seeded",
+    },
+    "rows": "7f51bd8efd0be26458bc051139cfd2cfece21c60d3436f7f800cac4604de8599",
+    "size": 19865,
+  },
+  "focus-notes": {
+    "result": {
+      "cards": 6,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "cae31405f3a05d5fc8605feb0f2a20ff9275f7ac84ea30e199f2fe082f6693c3",
+    "size": 287175,
+  },
+  "folder-rules": {
+    "result": {
+      "cards": 6,
+      "folders": 5,
+      "status": "seeded",
+    },
+    "rows": "2260a7206ed4d632ebc184471d994340fac762751d3d4ff76808ac64fa454e09",
+    "size": 5073,
+  },
+  "folders-500": {
+    "result": {
+      "cards": 3,
+      "folders": 500,
+      "status": "seeded",
+    },
+    "rows": "032b4f8793bdae9bb8dd3673de07d206fab1c4c8872f4ac1a3a17668c572fc5f",
+    "size": 85538,
+  },
+  "folders-one": {
+    "result": {
+      "cards": 15,
+      "folders": 1,
+      "status": "seeded",
+    },
+    "rows": "1a23c66e94781ca4cd7f51b32720d8b449d0f4f1efb15f054f2e8c7326cdb32e",
+    "size": 9316,
+  },
+  "folders-ugly": {
+    "result": {
+      "cards": 14,
+      "folders": 12,
+      "status": "seeded",
+    },
+    "rows": "4dfe89aed66d78a7eaf710b3966eca2bd3e392abf507f57588bba1093086625b",
+    "size": 12281,
+  },
+  "hidden-mix": {
+    "result": {
+      "cards": 12,
+      "folders": 3,
+      "status": "seeded",
+    },
+    "rows": "5700923ce95bd2ed7526d9861fa719584724911e8e557104540fed1ee8587073",
+    "size": 8375,
+  },
+  "hidden-mix-1000": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "764e92eb7b377a57c5e1de09bbb346bb53d949120e00dfbaeaf0b7790c74b8e2",
+    "size": 132509,
+  },
+  "highlights-mix": {
+    "result": {
+      "error": "Seed reader-mix first, and wait until its articles are ready.",
+    },
+    "rows": "2f5a73f4703dbf01bd1adbd465ed1f2533af08fbc152e615d8f387ecf4537654",
+    "size": 72,
+  },
+  "keyboard-mixed": {
+    "result": {
+      "cards": 48,
+      "status": "seeded",
+    },
+    "rows": "54a95c436ff6b013a5751f65857e1505544d999935d9e837e7c5fb3ffd95328b",
+    "size": 32736,
+  },
+  "locale-switch": {
+    "result": {
+      "cards": 0,
+      "status": "seeded",
+    },
+    "rows": "c83de253025f2ca67a37d30187738d91be4d881bad4e33f3b8c786f99e9df99e",
+    "size": 133,
+  },
+  "note-tables": {
+    "result": {
+      "cards": 13,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "1b6ee94b7feb1386b23220c9974873a68fe2295e7092b5763877463c566eb161",
+    "size": 567610,
+  },
+  "ocr-documents": {
+    "result": {
+      "cards": 10,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "154eb99e19275118f1c8ebf66ec932b497441d42b9212cef41f53f26288f62a0",
+    "size": 7923,
+  },
+  "ocr-images": {
+    "result": {
+      "cards": 45,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "6286cc23ddb4ab4cd038f69b3ed1fe78c3d5166169dfc453e97378670a14d9f2",
+    "size": 39830,
+  },
+  "ocr-links": {
+    "result": {
+      "cards": 7,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "98e56c066325f0d9dedfde97b98f70b11a5e1bf82b210a03d04a9dbb3479df06",
+    "size": 6988,
+  },
+  "omnibox-titles": {
+    "result": {
+      "cards": 11,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "96870076cdcaa3899ccc96864cea961652bdd61fb028bf3075f98b4aa52ff597",
+    "size": 8345,
+  },
+  "ordering": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "e50816ac652afd7b0009cf8ac5b1847658cfc4dca81d67cd26171e6d5c44afde",
+    "size": 129059,
+  },
+  "ordering-saved": {
+    "result": {
+      "cards": 7,
+      "folders": 1,
+      "status": "seeded",
+    },
+    "rows": "6fb55c5c12fcce941152dbf3d26c659906f2152e4da5c8034bdbf8bcf8f10df3",
+    "size": 5779,
+  },
+  "page-archive-mix": {
+    "result": {
+      "cards": 8,
+      "status": "seeded",
+    },
+    "rows": "f2d1a8a028a13a53317192f072beb91ce674454a418c3c0224f7ad68874c2f33",
+    "size": 8597,
+  },
+  "palette-mixed": {
+    "result": {
+      "cards": 8,
+      "folders": 60,
+      "status": "seeded",
+    },
+    "rows": "c7858a257355ab7eccbedccac7a7543a50774ecae1167b9e875d3217071e2b6e",
+    "size": 19468,
+  },
+  "paste-links": {
+    "result": {
+      "cards": 195,
+      "status": "seeded",
+    },
+    "rows": "c09869d17767cc2cc092439329fc9bf255c552e2a36a2e78591864a061de5446",
+    "size": 109064,
+  },
+  "pinned": {
+    "result": {
+      "cards": 13,
+      "status": "seeded",
+    },
+    "rows": "1c8c91e5867c0fdcb8b294ea0c751295f7763c49615d8d0c2e5f366663fa7e98",
+    "size": 7360,
+  },
+  "podcast-transcripts": {
+    "result": {
+      "cards": 8,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "1e05a9c15e5d8840235b0f0612eae33a72ab95eda53ed21097ceab2bca838cca",
+    "size": 12219,
+  },
+  "reader-mix": {
+    "result": {
+      "cards": 11,
+      "status": "seeded",
+    },
+    "rows": "f636e5f5c0ff7df0905bd8b3ca6233997701429bdeab822f2af71e8599342252",
+    "size": 14021,
+  },
+  "reader-search-1000": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "a3b010be6cd9227185d44562edcaf669f79bc1ccfde6258463b2a687c3fa2cef",
+    "size": 251613,
+  },
+  "resave": {
+    "result": {
+      "cards": 307,
+      "folders": 3,
+      "status": "seeded",
+    },
+    "rows": "7be9ce36c633cdce743b9cc6a9bc0ca622f7fffe3c867b608d89a6f734721e81",
+    "size": 214959,
+  },
+  "resave-at-limit": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "2a7f3f470636d48fd440974f24d9f529a06d580e3c4c96049f51748d302c3754",
+    "size": 111029,
+  },
+  "revisit-sizes": {
+    "result": {
+      "cards": 67,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "02066c6413577b8f438413d53eaa2f55c99dea5372321e6277f909df5e5d28cd",
+    "size": 51883,
+  },
+  "rich-sites": {
+    "result": {
+      "cards": 19,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "381a19d9d193c8977f904992e53448f6bfcdc90f64f42e17eab940e54236faac",
+    "size": 29476,
+  },
+  "save-details": {
+    "result": {
+      "cards": 7,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "90f404ab1d2c00224862a307b004aa3f70b455a9a1dcbb9e0e10bbd5c7111d8e",
+    "size": 5450,
+  },
+  "search-operators": {
+    "result": {
+      "cards": 400,
+      "folders": 5,
+      "status": "seeded",
+    },
+    "rows": "9ba3e603ada339f59870eb38eb6fc8e6d62898abed2247b883d2e1d7090ebf4e",
+    "size": 260895,
+  },
+  "search-qualifiers": {
+    "result": {
+      "cards": 37,
+      "folders": 4,
+      "status": "seeded",
+    },
+    "rows": "31c694940a5ba94b472957ed1c1a8ecc75a06f4580446a16b56a190d9a73b123",
+    "size": 30130,
+  },
+  "search-qualifiers-1000": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "ddd6a0566b838185a1124dc0f24aa36644a74b66ba08f6e7b0e0ba1bc11388f8",
+    "size": 162351,
+  },
+  "shuffle-partial": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "c0aa17f1ca1f4873fdd9cb58c77a17d9f78f0b89c38e965c58ed940912a6647f",
+    "size": 122091,
+  },
+  "smart-folders": {
+    "result": {
+      "cards": 9,
+      "folders": 9,
+      "status": "seeded",
+    },
+    "rows": "7cbdcab7d2180057ef248ca4679913c82dea77834dffa6b4b9b7a2d7afc98cce",
+    "size": 8246,
+  },
+  "tags-2000": {
+    "result": {
+      "cards": 200,
+      "status": "seeded",
+    },
+    "rows": "f2746e34e1dae05cb7aa0cbcc0a64529249e7417cb8d7dcce6a20cbcdd027a72",
+    "size": 122801,
+  },
+  "tags-case": {
+    "result": {
+      "cards": 11,
+      "status": "seeded",
+    },
+    "rows": "a9740afe275b0208e21f69b621f404d941723760b487c57532822367660289f7",
+    "size": 8475,
+  },
+  "url-variants": {
+    "result": {
+      "cards": 50,
+      "status": "seeded",
+    },
+    "rows": "c7538b998f9473881b301464eb203a0063f6fea70d311454290ac2b93bab2ca0",
+    "size": 45982,
+  },
+  "video-captions": {
+    "result": {
+      "cards": 10,
+      "folders": 0,
+      "status": "seeded",
+    },
+    "rows": "a327f13b8ee0248bc4048a0a15a3e17d807528622e73be0c8b21f031ac87f1f5",
+    "size": 13284,
+  },
+}
+`;

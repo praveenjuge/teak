@@ -1,6 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
-import { buildRawSelectorMap } from "@teak/convex/workflows/steps/categorization/enrichment";
-import { resolveEnclosure } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
+import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { runWithAiUsage } from "../../ai/aiUsage";
 import { gatedEnv } from "../../deletionGate";
 import type { WorkflowTelemetry } from "../telemetry";
@@ -21,6 +20,7 @@ import {
 import { transcribeStoredAudio } from "./files";
 import { buildLinkContentParts } from "./metadata";
 import { downloadEpisodeToR2 } from "./podcastAudio";
+import { resolveEnclosure } from "./podcastFeed/resolveEnclosure";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
 export type PodcastMissReason =
