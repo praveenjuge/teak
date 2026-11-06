@@ -14,10 +14,17 @@ interface TagOperationFields {
   toField?: string;
 }
 
-const START_FIELDS: Record<TagOperationKind, TagOperationFields> = {
-  rename: { kind: "rename", fromField: "from", toField: "to" },
-  merge: { kind: "merge", fromField: "from", toField: "into" },
-  delete: { kind: "delete", fromField: "tag" },
+const startFields = (kind: TagOperationKind): TagOperationFields => {
+  switch (kind) {
+    case "rename":
+      return { kind: "rename", fromField: "from", toField: "to" };
+    case "merge":
+      return { kind: "merge", fromField: "from", toField: "into" };
+    case "delete":
+      return { kind: "delete", fromField: "tag" };
+    default:
+      return kind satisfies never;
+  }
 };
 
 export const serializeTagOperation = (operation: TagOperationSummary) => ({
@@ -94,7 +101,7 @@ export const handleGetTagOperationRequest = async ({
 export const startTagOperation =
   (kind: TagOperationKind) =>
   async ({ body, ctx, userId }: PublicApiCall): Promise<Response> => {
-    const start = START_FIELDS[kind];
+    const start = startFields(kind);
     const parsed = parseTagOperationPayload(body, start);
     if ("error" in parsed) {
       return errorResponse(400, "INVALID_INPUT", parsed.error);

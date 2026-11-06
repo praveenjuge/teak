@@ -40,8 +40,8 @@ import {
   PUBLIC_API_DEFAULT_LIMIT,
   PUBLIC_API_ERROR_CODES,
   PUBLIC_API_MAX_LIMIT,
-  PUBLIC_API_OPERATIONS,
   type PublicApiOperationId,
+  publicApiOperationSpec,
   publicApiPath,
 } from "@teak/convex/shared/publicApiContract";
 
@@ -1229,7 +1229,7 @@ export const createTeakClient = (options: {
           ? {}
           : { body: JSON.stringify(input.body) }),
         ...(input.headers ? { headers: input.headers } : {}),
-        method: PUBLIC_API_OPERATIONS[operationId].method,
+        method: publicApiOperationSpec(operationId).method,
       },
       parser
     );

@@ -152,8 +152,25 @@ export interface PublicApiOperationCall {
   query?: Readonly<Record<string, PublicApiQueryValue>>;
 }
 
-const operationSpec = (id: PublicApiOperationId): PublicApiOperationSpec =>
-  PUBLIC_API_OPERATIONS[id];
+const OPERATION_SPECS = new Map<PublicApiOperationId, PublicApiOperationSpec>(
+  Object.entries(PUBLIC_API_OPERATIONS) as [
+    PublicApiOperationId,
+    PublicApiOperationSpec,
+  ][]
+);
+
+/** An operation's method, path and body rule. */
+export const publicApiOperationSpec = (
+  id: PublicApiOperationId
+): PublicApiOperationSpec => {
+  const spec = OPERATION_SPECS.get(id);
+  if (!spec) {
+    throw new Error(`Unknown public API operation: ${id}`);
+  }
+  return spec;
+};
+
+const operationSpec = publicApiOperationSpec;
 
 /** The names of an operation's path parameters, in path order. */
 export const publicApiPathParams = (id: PublicApiOperationId): string[] =>

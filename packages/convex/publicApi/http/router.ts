@@ -115,6 +115,10 @@ const HANDLERS: Record<GatedOperationId, PublicApiHandler> = {
   getLatestExport: handleLatestExportRequest,
 };
 
+const HANDLER_BY_OPERATION = new Map<GatedOperationId, PublicApiHandler>(
+  Object.entries(HANDLERS) as [GatedOperationId, PublicApiHandler][]
+);
+
 const isGated = (id: PublicApiOperationId): id is GatedOperationId =>
   id in HANDLERS;
 
@@ -148,7 +152,11 @@ const runOperation = async (
       return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
     }
   }
-  return await HANDLERS[run.operationId]({
+  const handler = HANDLER_BY_OPERATION.get(run.operationId);
+  if (!handler) {
+    return errorResponse(404, "NOT_FOUND", "Not found");
+  }
+  return await handler({
     body,
     ctx,
     params: run.params,
