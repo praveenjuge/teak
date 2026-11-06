@@ -8,6 +8,8 @@ import path from "node:path";
  */
 export function workspaceDirectories(repoRoot: string): string[] {
   const { workspaces = [] } = JSON.parse(
+    // The repository's own root manifest.
+    // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
     fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
   ) as { workspaces?: string[] };
   const directories = workspaces.flatMap((pattern) => {
@@ -18,6 +20,8 @@ export function workspaceDirectories(repoRoot: string): string[] {
       throw new Error(`Unsupported workspace pattern: ${pattern}`);
     }
     const parent = pattern.slice(0, -2);
+    // A workspace folder the root manifest names.
+    // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
     return fs
       .readdirSync(path.join(repoRoot, parent), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
@@ -25,6 +29,8 @@ export function workspaceDirectories(repoRoot: string): string[] {
   });
   return directories
     .filter((directory) =>
+      // A workspace folder the root manifest names.
+      // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
       fs.existsSync(path.join(repoRoot, directory, "package.json"))
     )
     .sort();

@@ -29,7 +29,10 @@
         "$TURBO_ROOT$/apps/apple/tests/*.ts",
         "$TURBO_ROOT$/apps/android/scripts/*.ts",
         "$TURBO_ROOT$/apps/android/tests/*.ts",
+        "$TURBO_ROOT$/apps/cli/src/**",
         "$TURBO_ROOT$/apps/core-worker/development/wrangler.jsonc",
+        "$TURBO_ROOT$/apps/raycast/src/**",
+        "$TURBO_ROOT$/apps/web/src/**",
         "$TURBO_ROOT$/biome.jsonc"
       ]
     }
