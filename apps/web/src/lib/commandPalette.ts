@@ -1,11 +1,11 @@
 import type { CardType } from "@teak/convex/shared/constants";
-import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 import {
   createTeakTranslator,
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
 import { cardTitle } from "./cardTypes";
+import { getDisplayHostname } from "./displayHost";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { APP_KEYS, isOverlayOpen, keyName } from "./keyboardShortcuts";
@@ -18,6 +18,7 @@ import {
 } from "./libraryViews";
 import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform } from "./platform";
+import { librarySearchHref } from "./searchUrlState";
 
 const englishPalette = createTeakTranslator(
   "en",
@@ -169,10 +170,9 @@ const paletteSearchView = (pathname: string | null | undefined) =>
     : "all";
 
 export const paletteSearchAllHref = (query: string, pathname?: string | null) =>
-  libraryHref(
-    LIBRARY_VIEW_PATHS[paletteSearchView(pathname)],
-    new URLSearchParams({ q: query.trim() })
-  );
+  librarySearchHref(LIBRARY_VIEW_PATHS[paletteSearchView(pathname)], {
+    q: query,
+  });
 
 export function paletteShuffleHref(
   pathname: string | null | undefined,
@@ -241,6 +241,6 @@ export function paletteCardHost(card: PaletteCard): string | undefined {
   if (card.type !== "link") {
     return;
   }
-  const host = card.urlHost || getSafeUrlHostname(card.url);
-  return host?.replace(/^www\./, "") || undefined;
+  // A stored urlHost is already without `www.`.
+  return card.urlHost || getDisplayHostname(card.url);
 }

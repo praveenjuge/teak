@@ -2,10 +2,7 @@
 
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import {
-  getSafeUrlHostname,
-  sanitizeExternalUrl,
-} from "@teak/convex/shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -20,6 +17,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Wordmark } from "@/components/Wordmark";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useQuery } from "@/lib/convexQueryHooks";
+import { getDisplayHostname } from "@/lib/displayHost";
 import { cn } from "@/lib/utils";
 
 /** A redirect quicker than this shows nothing at all. */
@@ -37,9 +35,6 @@ type Phase =
   | { kind: "checking" }
   | { kind: "unavailable" }
   | { copy: ArchivedCopy; kind: "archive" };
-
-const hostOf = (url: string | undefined) =>
-  getSafeUrlHostname(url)?.replace(/^www\./u, "");
 
 const reportCheck = (target: LinkOpenTarget) => {
   if (target.target === "unavailable" || !target.outcome) {
@@ -132,7 +127,7 @@ export function OpenLinkScreen({ cardId }: { cardId: string }) {
   const checkLink = useAction(api.card.linkCheck.checkCardLinkForOpen);
   const card = useQuery(api.cards.getCardByUrlId, { id: cardId });
   const original = sanitizeExternalUrl(card?.url);
-  const host = hostOf(card?.url);
+  const host = getDisplayHostname(card?.url);
 
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
   const [visible, setVisible] = useState(false);
@@ -184,7 +179,10 @@ export function OpenLinkScreen({ cardId }: { cardId: string }) {
               archiveUrl: target.archiveUrl,
               capturedAt: target.capturedAt,
               cardId,
-              host: target.sourceHost ?? hostOf(target.url) ?? target.url,
+              host:
+                target.sourceHost ??
+                getDisplayHostname(target.url) ??
+                target.url,
               url: target.url,
             },
           });

@@ -74,6 +74,7 @@ import {
 } from "../../lib/cardActions";
 import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
+import { getDisplayHostname } from "../../lib/displayHost";
 import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
@@ -91,7 +92,6 @@ import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { CardActionIcon } from "../cards/CardActionIcon";
-import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { EditLinkDialog } from "../cards/EditLinkDialog";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";

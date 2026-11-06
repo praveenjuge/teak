@@ -1,7 +1,4 @@
-import {
-  getSafeUrlHostname,
-  sanitizeExternalUrl,
-} from "@teak/convex/shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { CardWithUrls } from "@/hooks/useCardModal";
+import { getDisplayHostname } from "@/lib/displayHost";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatLinkByline } from "../../lib/linkByline";
@@ -206,7 +204,7 @@ export function LinkPreview({
   const openThroughCheck = (event: React.MouseEvent<HTMLAnchorElement>) =>
     handleCardLinkClick(event, card);
 
-  const hostname = getSafeUrlHostname(card.url)?.replace(/^www\./, "");
+  const hostname = getDisplayHostname(card.url);
   const byline = formatLinkByline(
     {
       author: linkPreview?.author,
