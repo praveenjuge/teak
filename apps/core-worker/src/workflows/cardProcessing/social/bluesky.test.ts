@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
-  fetchBlueskyPost,
-  isBlueskyPostUrl,
-  parseBlueskyPostUrl,
-} from "../../linkMetadata/bluesky";
-import {
   hangUntilAborted,
   jsonResponse,
   socialFetch,
   socialFixture,
-} from "../helpers/socialFetch.test-utils";
+} from "../../../test/socialFetch";
+import {
+  fetchBlueskyPost,
+  isBlueskyPostUrl,
+  parseBlueskyPostUrl,
+} from "./bluesky";
 
 const POST_URL = "https://bsky.app/profile/bsky.app/post/3l6oveex3ii2l";
 const DID = "did:plc:z72i7hdynmk6r22z27h6tvur";

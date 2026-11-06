@@ -1,6 +1,6 @@
-import { sanitizeText, sanitizeUrl } from "./parsing";
+import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import { decodeHtmlEntities } from "@teak/convex/linkMetadata/staticHtml";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
-import { decodeHtmlEntities } from "./staticHtml";
 
 export const X_HOSTNAMES = ["x.com", "twitter.com"] as const;
 const X_OEMBED_ENDPOINTS = [

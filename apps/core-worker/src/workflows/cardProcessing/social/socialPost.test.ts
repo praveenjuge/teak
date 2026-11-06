@@ -1,18 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
-  fetchSocialPostMetadata,
-  mapOpenGraphSocialPost,
-  toSocialPostPreviewFields,
-} from "../../linkMetadata/socialPost";
-import {
-  buildSocialPostText,
-  htmlToText,
-} from "../../linkMetadata/socialPostHelpers";
-import {
   jsonResponse,
   socialFetch,
   socialFixture,
-} from "../helpers/socialFetch.test-utils";
+} from "../../../test/socialFetch";
+import {
+  fetchSocialPostMetadata,
+  mapOpenGraphSocialPost,
+  toSocialPostPreviewFields,
+} from "./socialPost";
+import { buildSocialPostText, htmlToText } from "./socialPostHelpers";
 
 describe("fetchSocialPostMetadata", () => {
   test.each([

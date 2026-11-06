@@ -1,4 +1,5 @@
-import { sanitizeText, sanitizeUrl } from "./parsing";
+import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import type { RemoteFetchDeps } from "../remote/common";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
 import {
   buildSocialPostText,
@@ -7,7 +8,6 @@ import {
   htmlToText,
   isDirectMp4Url,
   limitSocialMedia,
-  type SocialFetchDeps,
   sameSocialUrl,
   socialPostBase,
   toIsoDate,
@@ -110,7 +110,7 @@ const mastodonMedia = (
  */
 export const fetchMastodonStatus = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   const ref = parseMastodonStatusUrl(url);
   if (!ref) {

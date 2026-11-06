@@ -1,4 +1,5 @@
-import { sanitizeText, sanitizeUrl } from "./parsing";
+import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import type { RemoteFetchDeps } from "../remote/common";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
 import {
   buildSocialPostText,
@@ -6,7 +7,6 @@ import {
   formatSocialByline,
   isDirectMp4Url,
   limitSocialMedia,
-  type SocialFetchDeps,
   socialPostBase,
   toIsoDate,
 } from "./socialPostHelpers";
@@ -162,7 +162,7 @@ const fromRedditJson = (url: string, post: RedditPost): SocialPostMetadata => {
 
 const fetchRedditOEmbed = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   const { data } = await fetchSocialJson<RedditOEmbed>(
     `${REDDIT_ORIGIN}/oembed?url=${encodeURIComponent(url)}`,
@@ -190,7 +190,7 @@ const fetchRedditOEmbed = async (
 
 export const fetchRedditPost = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   const path = parseRedditPostPath(url);
   if (!path) {

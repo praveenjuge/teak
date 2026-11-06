@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
-  fetchMastodonStatus,
-  isMastodonStatusUrl,
-  parseMastodonStatusUrl,
-} from "../../linkMetadata/mastodon";
-import {
   hangUntilAborted,
   jsonResponse,
   socialFetch,
   socialFixture,
-} from "../helpers/socialFetch.test-utils";
+} from "../../../test/socialFetch";
+import {
+  fetchMastodonStatus,
+  isMastodonStatusUrl,
+  parseMastodonStatusUrl,
+} from "./mastodon";
 
 const STATUS_URL = "https://mastodon.social/@Gargron/109311046116149744";
 const API_URL = "https://mastodon.social/api/v1/statuses/109311046116149744";

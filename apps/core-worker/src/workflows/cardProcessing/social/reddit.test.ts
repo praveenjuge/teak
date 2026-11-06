@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  fetchRedditPost,
-  isRedditPostUrl,
-  parseRedditPostPath,
-} from "../../linkMetadata/reddit";
-import {
   jsonResponse,
   socialFetch,
   socialFixture,
-} from "../helpers/socialFetch.test-utils";
+} from "../../../test/socialFetch";
+import {
+  fetchRedditPost,
+  isRedditPostUrl,
+  parseRedditPostPath,
+} from "./reddit";
 
 const POST_URL =
   "https://www.reddit.com/r/battlestations/comments/abc123/my_desk_setup/";

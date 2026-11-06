@@ -1,12 +1,15 @@
+import type {
+  LinkPreviewMetadata,
+  ScrapeSelectorResult,
+} from "@teak/convex/linkMetadata/types";
+import type { RemoteFetchDeps } from "../remote/common";
 import { fetchBlueskyPost, isBlueskyPostUrl } from "./bluesky";
 import { mapLinkedInOpenGraph } from "./linkedin";
 import { fetchMastodonStatus, isMastodonStatusUrl } from "./mastodon";
 import { fetchRedditPost, isRedditPostUrl } from "./reddit";
-import type { SocialFetchDeps } from "./socialPostHelpers";
 import { mapSubstackNoteOpenGraph } from "./substackNotes";
 import { mapThreadsOpenGraph } from "./threads";
 import { fetchTikTokVideo, isTikTokVideoUrl } from "./tiktok";
-import type { LinkPreviewMetadata, ScrapeSelectorResult } from "./types";
 
 export type SocialPlatform =
   | "bluesky"
@@ -66,7 +69,7 @@ export type ParsedLinkPreview = Partial<
 
 export const fetchSocialPostMetadata = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   try {
     if (isBlueskyPostUrl(url)) {

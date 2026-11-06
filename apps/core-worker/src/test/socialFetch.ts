@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { SocialFetchDeps } from "../../linkMetadata/socialPostHelpers";
+import type { RemoteFetchDeps } from "../workflows/cardProcessing/remote/common";
 
 export const PUBLIC_ADDRESS = "93.184.216.34";
 
@@ -13,7 +13,10 @@ export const jsonResponse = (body: unknown, init?: ResponseInit) =>
 export const socialFixture = <T = any>(name: string): T =>
   JSON.parse(
     readFileSync(
-      new URL(`../linkMetadata/fixtures/social/${name}`, import.meta.url),
+      new URL(
+        `../workflows/cardProcessing/social/fixtures/${name}`,
+        import.meta.url
+      ),
       "utf8"
     )
   );
@@ -26,7 +29,7 @@ export const socialFetch = (
   { addresses = [PUBLIC_ADDRESS] }: { addresses?: string[] } = {}
 ) => {
   const requests: string[] = [];
-  const deps: SocialFetchDeps = {
+  const deps: RemoteFetchDeps = {
     resolveDns: async () => addresses,
     pinnedFetch: async (url, _addresses, init) => {
       requests.push(url);

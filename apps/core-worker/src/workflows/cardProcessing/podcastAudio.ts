@@ -5,12 +5,12 @@ import {
 } from "@teak/convex/linkMetadata/ssrf";
 import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import { ObjectWriteBlockedError } from "../../deletionGate";
+import { TEAKBOT_USER_AGENT } from "../../userAgent";
 
 /** Tracking redirects stack up in front of episodes; each hop is checked. */
 export const EPISODE_MAX_REDIRECTS = 8;
 const PART_BYTES = 8 * 1024 * 1024;
 export const EPISODE_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export type EpisodeDownload =
   | { bytes: number; contentType: string; stored: true }
@@ -49,7 +49,10 @@ export const downloadEpisodeToR2 = async (
       url,
       deps.resolveDns,
       {
-        headers: { accept: "audio/*, video/mp4", "user-agent": USER_AGENT },
+        headers: {
+          accept: "audio/*, video/mp4",
+          "user-agent": TEAKBOT_USER_AGENT,
+        },
         signal: AbortSignal.timeout(timeoutMs),
       },
       deps.pinnedFetch,

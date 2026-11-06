@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { richSiteJson } from "../../../test/richSites";
 import {
   hangUntilAborted,
   jsonResponse,
   socialFetch,
-} from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
-import { richSiteJson } from "../../../test/richSites";
+} from "../../../test/socialFetch";
 import {
   fetchWikipediaDetails,
   parseWikipediaUrl,

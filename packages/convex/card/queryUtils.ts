@@ -2,7 +2,7 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { LinkPreviewMediaItem } from "../linkMetadata";
+import type { LinkPreviewMediaItem } from "../linkMetadata/types";
 import type { CreatedAtRange } from "../shared";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 import { readCardTranscript } from "./textContents";

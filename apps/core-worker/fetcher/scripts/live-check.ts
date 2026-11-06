@@ -3,8 +3,6 @@ import { lookup } from "node:dns/promises";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isInstagramPostUrl } from "../../../../packages/convex/linkMetadata/instagram";
-import { extractInstagramMediaFromHtml } from "../../../../packages/convex/linkMetadata/instagramHtml";
 import { parseLinkPreview } from "../../../../packages/convex/linkMetadata/parsing";
 import { SCRAPE_ELEMENTS } from "../../../../packages/convex/linkMetadata/selectors";
 import {
@@ -13,10 +11,12 @@ import {
 } from "../../../../packages/convex/linkMetadata/ssrf";
 import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
 import { normalizeUrl } from "../../../../packages/convex/linkMetadata/url";
+import { isInstagramPostUrl } from "../../src/workflows/cardProcessing/social/instagram";
+import { extractInstagramMediaFromHtml } from "../../src/workflows/cardProcessing/social/instagramHtml";
 import {
   fetchXStatusMetadata,
   isXStatusUrl,
-} from "../../../../packages/convex/linkMetadata/x";
+} from "../../src/workflows/cardProcessing/social/x";
 import { FETCHER_HEADERS, FETCHER_PATH } from "../src/protocol";
 
 const PORT = 18_080;

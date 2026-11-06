@@ -5,7 +5,7 @@ import {
   isInstagramPostUrl,
   isInstagramUrl,
   normalizeInstagramExtractedMedia,
-} from "../../linkMetadata/instagram";
+} from "./instagram";
 
 describe("isInstagramHostname", () => {
   it("should return true for exact match", () => {

@@ -30,6 +30,7 @@ import {
 import { postToFetcher, type RemoteAssetEnv } from "../media/remoteAsset";
 import { RendererUnavailable } from "../media/rendererClient";
 import { InvalidOpInput } from "../opFailure";
+import { TEAKBOT_USER_AGENT } from "../userAgent";
 import {
   buildPageArchive,
   type FetchedAsset,
@@ -46,7 +47,6 @@ export interface ArchivePageDeps {
   resolveDns?: DnsResolver;
 }
 
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 const SUBRESOURCE_TIMEOUT_MS = 15_000;
 /** Leaves the step's 5 minutes room to write and record the copy. */
 const ARCHIVE_DEADLINE_MS = 3 * 60 * 1000;
@@ -175,7 +175,7 @@ export const createArchiveFetchers = (
         url,
         resolveDns,
         {
-          headers: { accept, "user-agent": USER_AGENT },
+          headers: { accept, "user-agent": TEAKBOT_USER_AGENT },
           signal: AbortSignal.timeout(SUBRESOURCE_TIMEOUT_MS),
         },
         hop

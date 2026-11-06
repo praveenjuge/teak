@@ -318,7 +318,9 @@
       "includes": [
         "packages/convex/linkMetadata/**",
         "!packages/convex/linkMetadata/ssrf.ts",
-        "!packages/convex/linkMetadata/x.ts"
+        "apps/core-worker/src/workflows/cardProcessing/social/**",
+        "!apps/core-worker/src/workflows/cardProcessing/social/x.ts",
+        "!apps/core-worker/src/workflows/cardProcessing/social/*.test.ts"
       ],
       "linter": {
         "rules": {

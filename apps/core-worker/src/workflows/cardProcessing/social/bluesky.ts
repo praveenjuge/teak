@@ -1,11 +1,11 @@
-import { sanitizeText, sanitizeUrl } from "./parsing";
+import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import type { RemoteFetchDeps } from "../remote/common";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
 import {
   buildSocialPostText,
   fetchSocialJson,
   formatSocialByline,
   limitSocialMedia,
-  type SocialFetchDeps,
   socialPostBase,
   toIsoDate,
 } from "./socialPostHelpers";
@@ -126,7 +126,7 @@ const blueskyMedia = (
 
 const resolveBlueskyDid = async (
   actor: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<string | null> => {
   if (actor.startsWith("did:")) {
     return actor;
@@ -142,7 +142,7 @@ const resolveBlueskyDid = async (
 
 export const fetchBlueskyPost = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   const ref = parseBlueskyPostUrl(url);
   if (!ref) {

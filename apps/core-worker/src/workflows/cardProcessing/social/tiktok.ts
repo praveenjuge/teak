@@ -1,11 +1,11 @@
-import { sanitizeText, sanitizeUrl } from "./parsing";
+import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import type { RemoteFetchDeps } from "../remote/common";
 import type { SocialPostMetadata } from "./socialPost";
 import {
   buildSocialPostText,
   fetchSocialJson,
   formatSocialByline,
   limitSocialMedia,
-  type SocialFetchDeps,
   socialPostBase,
   toIsoDate,
 } from "./socialPostHelpers";
@@ -56,7 +56,7 @@ export const tikTokIdToIsoDate = (id: string): string | undefined => {
 
 export const fetchTikTokVideo = async (
   url: string,
-  deps: SocialFetchDeps
+  deps: RemoteFetchDeps
 ): Promise<SocialPostMetadata | null> => {
   const ref = parseTikTokVideoUrl(url);
   if (!ref) {

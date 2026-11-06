@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
+  jsonResponse,
+  socialFetch,
+  socialFixture,
+} from "../../../test/socialFetch";
+import {
   fetchTikTokVideo,
   isTikTokVideoUrl,
   parseTikTokVideoUrl,
   tikTokIdToIsoDate,
-} from "../../linkMetadata/tiktok";
-import {
-  jsonResponse,
-  socialFetch,
-  socialFixture,
-} from "../helpers/socialFetch.test-utils";
+} from "./tiktok";
 
 const VIDEO_URL = "https://www.tiktok.com/@scout2015/video/6718335390845095173";
 const OEMBED_URL = `https://www.tiktok.com/oembed?url=${encodeURIComponent(VIDEO_URL)}`;

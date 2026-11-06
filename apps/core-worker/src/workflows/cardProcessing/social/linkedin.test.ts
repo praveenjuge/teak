@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  isLinkedInPostUrl,
-  mapLinkedInOpenGraph,
-} from "../../linkMetadata/linkedin";
+import { isLinkedInPostUrl, mapLinkedInOpenGraph } from "./linkedin";
 
 const POST_URL =
   "https://www.linkedin.com/posts/janedoe_design-activity-7100000000000000000-abcd";

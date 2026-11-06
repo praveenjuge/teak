@@ -1,78 +1,25 @@
+import { sanitizeText } from "@teak/convex/linkMetadata/parsing";
 import { Parser } from "htmlparser2";
-import { sanitizeText } from "./parsing";
+import { fetchRemoteJson, type RemoteFetchDeps } from "../remote/common";
 import type {
   ParsedLinkPreview,
   SocialPlatform,
   SocialPostMedia,
   SocialPostMetadata,
 } from "./socialPost";
-import {
-  type DnsResolver,
-  type PinnedFetch,
-  readBodyWithLimit,
-  safeFetch,
-} from "./ssrf";
 
-export interface SocialFetchDeps {
-  pinnedFetch?: PinnedFetch;
-  resolveDns: DnsResolver;
-  timeoutMs?: number;
-}
-
-export const SOCIAL_FETCH_TIMEOUT_MS = 10_000;
 export const MAX_SOCIAL_JSON_BYTES = 1024 * 1024;
 export const MAX_SOCIAL_MEDIA_ITEMS = 10;
 export const SOCIAL_TITLE_MAX_LENGTH = 512;
 export const SOCIAL_DESCRIPTION_MAX_LENGTH = 4000;
-const SOCIAL_USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 const MP4_PATH_REGEX = /\.mp4$/i;
 const HIDDEN_TAGS = new Set(["script", "style"]);
 const TRAILING_SLASH_REGEX = /\/+$/;
 
-export interface SocialJsonResult<T> {
-  data: T | null;
-  status: number;
-}
-
-export const fetchSocialJson = async <T>(
-  url: string,
-  deps: SocialFetchDeps
-): Promise<SocialJsonResult<T>> => {
-  try {
-    const { response } = await safeFetch(
-      url,
-      deps.resolveDns,
-      {
-        headers: {
-          accept: "application/json",
-          "user-agent": SOCIAL_USER_AGENT,
-        },
-        signal: AbortSignal.timeout(deps.timeoutMs ?? SOCIAL_FETCH_TIMEOUT_MS),
-      },
-      deps.pinnedFetch
-    );
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      return { data: null, status: response.status };
-    }
-    const declaredLength = Number(response.headers.get("content-length"));
-    if (declaredLength > MAX_SOCIAL_JSON_BYTES) {
-      await response.body?.cancel().catch(() => undefined);
-      return { data: null, status: response.status };
-    }
-    const body = await readBodyWithLimit(response, MAX_SOCIAL_JSON_BYTES);
-    return {
-      data: JSON.parse(new TextDecoder().decode(body)) as T,
-      status: response.status,
-    };
-  } catch (error) {
-    console.warn("[linkMetadata] Social post fetch failed", {
-      message: error instanceof Error ? error.message : String(error),
-    });
-    return { data: null, status: 0 };
-  }
-};
+/** A post's JSON from its site, at most `MAX_SOCIAL_JSON_BYTES`. */
+export const fetchSocialJson = <T>(url: string, deps: RemoteFetchDeps) =>
+  fetchRemoteJson<T>(url, deps, { maxBytes: MAX_SOCIAL_JSON_BYTES });
 
 export const htmlToText = (html: string | undefined): string | undefined => {
   if (!html) {

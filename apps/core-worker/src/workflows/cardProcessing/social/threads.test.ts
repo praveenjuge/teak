@@ -3,7 +3,7 @@ import {
   isThreadsPostUrl,
   mapThreadsOpenGraph,
   parseThreadsPostUrl,
-} from "../../linkMetadata/threads";
+} from "./threads";
 
 const POST_URL = "https://www.threads.net/@zuck/post/C8abc123";
 

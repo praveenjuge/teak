@@ -11,10 +11,10 @@ import {
   isValidObjectKey,
 } from "@teak/files-protocol";
 import { InvalidOpInput } from "../opFailure";
+import { TEAKBOT_USER_AGENT } from "../userAgent";
 
 const MAX_REDIRECTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export const parseLinkedPdfParams = (
   params: Record<string, unknown>
@@ -42,7 +42,7 @@ const fetchPdf = async (
   let current = new URL(url);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     const response = await fetcher(current.toString(), {
-      headers: { accept: "application/pdf", "user-agent": USER_AGENT },
+      headers: { accept: "application/pdf", "user-agent": TEAKBOT_USER_AGENT },
       redirect: "manual",
       signal,
     });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractInstagramMediaFromHtml } from "../../linkMetadata/instagramHtml";
+import { extractInstagramMediaFromHtml } from "./instagramHtml";
 
 const POST_URL = "https://www.instagram.com/p/Cabc123_XyZ/";
 const REEL_URL = "https://www.instagram.com/reel/Rdef456/?igsh=abc";

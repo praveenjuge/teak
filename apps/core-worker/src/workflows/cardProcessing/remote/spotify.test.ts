@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  jsonResponse,
-  socialFetch,
-} from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { richSiteJson } from "../../../test/richSites";
+import { jsonResponse, socialFetch } from "../../../test/socialFetch";
 import { fetchSpotifyDetails, parseSpotifyUrl } from "./spotify";
 
 const oembedUrl = (page: string) =>

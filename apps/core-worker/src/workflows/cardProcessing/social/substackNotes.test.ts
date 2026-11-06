@@ -3,7 +3,7 @@ import {
   isSubstackNoteUrl,
   mapSubstackNoteOpenGraph,
   parseSubstackNoteUrl,
-} from "../../linkMetadata/substackNotes";
+} from "./substackNotes";
 
 const NOTE_URL = "https://substack.com/@writer/note/c-12345678";
 
