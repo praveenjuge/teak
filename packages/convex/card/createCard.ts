@@ -44,6 +44,16 @@ export const clientCardSourceValidator = v.union(
   v.literal("android")
 );
 
+/** The client behind a public API save: see `publicApi/http/callerSource`. */
+export const apiCardSourceValidator = v.union(
+  v.literal("api"),
+  v.literal("mcp"),
+  v.literal("cli"),
+  v.literal("raycast"),
+  v.literal("extension")
+);
+export type ApiCardSource = Infer<typeof apiCardSourceValidator>;
+
 const createCardArgs = {
   content: v.string(),
   type: v.optional(cardTypeValidator),

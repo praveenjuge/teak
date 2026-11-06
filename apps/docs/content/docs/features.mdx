@@ -141,7 +141,7 @@ Pin up to 12 cards to keep them at the top of **Everything**: choose **Pin to to
 
 - The row shows only on **Everything** with no search or filter and the **Newest** order. Elsewhere a pinned card stays where it ranks, with a pin in its corner.
 - Search `is:pinned` to list them.
-- Archiving a card or moving it to Trash unpins it. Favorites and pins are separate.
+- Archiving a card or moving it to Trash unpins it; **Undo** on that toast pins it again in its old place. Favorites and pins are separate.
 - Pin on the web, or with `PATCH /v1/cards/:cardId/pin` and `isPinned: true` in the [API](/docs/api#pinned-cards), MCP, SDK or CLI. The Mac, iPhone, iPad and Android apps can search `is:pinned` but don't pin or show the row.
 
 ## Notes
@@ -407,7 +407,7 @@ Teak shows what a page says about itself:
 - **Wikipedia:** the short description, last edit date, lead image and whether it's a disambiguation page.
 - **arXiv:** authors, publish date, subject and DOI. **Save PDF** saves the paper's PDF as its own document card (it counts toward your card limit); saving it again opens the card you have.
 - **YouTube:** channel, length and upload date.
-- **Spotify and Apple Music:** artist, kind (track, album, playlist or episode) and cover art.
+- **Spotify and Apple Music:** name, artist, kind (track, album, playlist or episode) and cover art.
 - **Books:** a page with its ISBN in its data (as on Goodreads), or an Amazon book link with a 10-digit ISBN, gets its author, page count, publisher, date and cover from Open Library.
 - **Social posts:** posts from X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn and Substack Notes keep their text, author and date. Bluesky, Mastodon and Reddit posts keep up to 10 photos and a video when one is offered as a file. Private, deleted and login-only posts are saved like any page.
 

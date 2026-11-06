@@ -95,6 +95,31 @@ export const spotifyArtist = (
     : undefined;
 };
 
+const oEmbedUrl = (ref: SpotifyRef) =>
+  `https://open.spotify.com/oembed?url=${encodeURIComponent(ref.url)}`;
+
+// Spotify answers most fetchers with its web player shell, whose title is
+// "Spotify – Web Player" whatever the link names.
+const SHELL_TITLE_REGEX = /^spotify\b/i;
+
+/**
+ * The name of the album, track, playlist or show a Spotify link opens, from
+ * oEmbed, when the page's own title is only the web player's. Undefined for
+ * any other link, or when the page already named it.
+ */
+export const fetchSpotifyTitle = async (
+  sourceUrl: string,
+  pageTitle: string | undefined,
+  deps: RemoteFetchDeps
+): Promise<string | undefined> => {
+  const ref = parseSpotifyUrl(sourceUrl);
+  if (!ref || (pageTitle && !SHELL_TITLE_REGEX.test(pageTitle.trim()))) {
+    return;
+  }
+  const { data } = await fetchRemoteJson<SpotifyOEmbed>(oEmbedUrl(ref), deps);
+  return factValue(data?.title);
+};
+
 export const fetchSpotifyDetails = async (
   sourceUrl: string,
   rawMap: RawSelectorMap,
@@ -104,10 +129,7 @@ export const fetchSpotifyDetails = async (
   if (!ref) {
     return null;
   }
-  const { data } = await fetchRemoteJson<SpotifyOEmbed>(
-    `https://open.spotify.com/oembed?url=${encodeURIComponent(ref.url)}`,
-    deps
-  );
+  const { data } = await fetchRemoteJson<SpotifyOEmbed>(oEmbedUrl(ref), deps);
   const artist = factValue(spotifyArtist(ref.kind, rawMap));
   const details: RemoteDetails = {
     source: "spotify",

@@ -28,6 +28,7 @@ import {
   objectKey,
 } from "./context";
 import { archiveRawMetadata } from "./rawMetadata";
+import { fetchSpotifyTitle } from "./remote/spotify";
 import {
   type InstagramPostMedia,
   isInstagramPostUrl,
@@ -627,7 +628,12 @@ export const fetchLinkMetadata = async (
       });
     }
 
-    const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const scraped = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const spotifyTitle = await fetchSpotifyTitle(normalizedUrl, scraped.title, {
+      pinnedFetch: job.deps.pinnedFetch,
+      resolveDns: job.deps.resolveDns,
+    });
+    const parsed = spotifyTitle ? { ...scraped, title: spotifyTitle } : scraped;
     const openGraphPost = mapOpenGraphSocialPost(normalizedUrl, parsed);
     if (openGraphPost) {
       return await saveSocialPost(openGraphPost, pageUrl);

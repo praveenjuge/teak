@@ -187,6 +187,7 @@ import type * as publicApi from "../publicApi.js";
 import type * as publicApi_cardsForUser from "../publicApi/cardsForUser.js";
 import type * as publicApi_cursors from "../publicApi/cursors.js";
 import type * as publicApi_http_auth from "../publicApi/http/auth.js";
+import type * as publicApi_http_callerSource from "../publicApi/http/callerSource.js";
 import type * as publicApi_http_cards from "../publicApi/http/cards.js";
 import type * as publicApi_http_duplicate from "../publicApi/http/duplicate.js";
 import type * as publicApi_http_exports from "../publicApi/http/exports.js";
@@ -550,6 +551,7 @@ declare const fullApi: ApiFromModules<{
   "publicApi/cardsForUser": typeof publicApi_cardsForUser;
   "publicApi/cursors": typeof publicApi_cursors;
   "publicApi/http/auth": typeof publicApi_http_auth;
+  "publicApi/http/callerSource": typeof publicApi_http_callerSource;
   "publicApi/http/cards": typeof publicApi_http_cards;
   "publicApi/http/duplicate": typeof publicApi_http_duplicate;
   "publicApi/http/exports": typeof publicApi_http_exports;

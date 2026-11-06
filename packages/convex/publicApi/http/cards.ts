@@ -48,7 +48,7 @@ const MAX_SHUFFLE_READS = 4;
 const handleCreateCardRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
-  const { ctx, request, userId } = call;
+  const { cardSource, ctx, request, userId } = call;
 
   const payload = call.body;
   const parsedCreate = parseCreatePayload(payload);
@@ -83,6 +83,7 @@ const handleCreateCardRequest = async (
                 fileName: createPayload.fileName,
                 fileSize: createPayload.fileSize,
                 fileType: createPayload.mimeType,
+                cardSource,
                 notes:
                   createPayload.notes === null
                     ? undefined
@@ -113,6 +114,7 @@ const handleCreateCardRequest = async (
               ...(createPayload.pageSnapshotKey
                 ? { pageSnapshotKey: createPayload.pageSnapshotKey }
                 : {}),
+              cardSource,
               source: createPayload.source,
               sourceTitle: createPayload.sourceTitle,
               sourceUrl: createPayload.sourceUrl,
@@ -1045,7 +1047,7 @@ const BULK_OPERATIONS = new Set([
 const handleBulkCardsRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
-  const { ctx, request, userId } = call;
+  const { cardSource, ctx, request, userId } = call;
 
   const payload = call.body;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -1110,6 +1112,7 @@ const handleBulkCardsRequest = async (
     },
     () =>
       ctx.runMutation(internal.publicApi.executeBulkCardsForUser, {
+        cardSource,
         items,
         operation,
         userId,

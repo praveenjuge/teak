@@ -8,6 +8,7 @@ export type CardCreationSource =
   | "mobile"
   | "extension"
   | "raycast"
+  | "cli"
   | "api"
   | "mcp"
   | "share_intent"

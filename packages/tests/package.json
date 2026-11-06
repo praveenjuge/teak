@@ -19,7 +19,7 @@
     "@teak/scripts": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "node-html-parser": "^9.0.1",
+    "htmlparser2": "catalog:",
     "teak-sdk": "workspace:*"
   },
   "devDependencies": {

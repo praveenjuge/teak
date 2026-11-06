@@ -19,6 +19,8 @@ type ErrorCode = PublicApiErrorCode;
 
 interface AuthorizedUser {
   access: "full_access";
+  /** The WorkOS Connect client an OAuth token was issued to. */
+  clientId?: string;
   keyId: string;
   rateLimitKey: string;
   source: "component" | "oauth";
