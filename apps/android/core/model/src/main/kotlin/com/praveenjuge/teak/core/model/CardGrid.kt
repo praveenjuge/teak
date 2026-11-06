@@ -12,7 +12,9 @@ object CardGrid {
     private const val DOCUMENT_FALLBACK_RATIO = 3.0 / 4.0
     private const val FOOTER_HEIGHT = 44.0
 
+    /** Rows in `cardGrid.json`, which Apple's `CardGrid` reads too. */
     fun columnCount(widthDp: Float): Int = when {
+        widthDp >= 1300 -> 5
         widthDp >= 1000 -> 4
         widthDp >= 700 -> 3
         else -> 2

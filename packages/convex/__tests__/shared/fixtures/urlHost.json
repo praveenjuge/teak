@@ -1,0 +1,111 @@
+{
+  "$comment": "normalizeUrlHost and hostForDisplay rows (packages/convex/shared/utils/urlHost.ts) for Apple's and Android's UrlHost. A null `host` means there's no site.",
+  "normalize": [
+    {
+      "input": "https://www.GitHub.com/teak",
+      "host": "github.com"
+    },
+    {
+      "input": "github.com",
+      "host": "github.com"
+    },
+    {
+      "input": "github.com/teak?tab=1",
+      "host": "github.com"
+    },
+    {
+      "input": "WWW.example.com:8080/x?y",
+      "host": "example.com"
+    },
+    {
+      "input": "http://example.com./path",
+      "host": "example.com"
+    },
+    {
+      "input": "https://blog.example.com",
+      "host": "blog.example.com"
+    },
+    {
+      "input": "https://例え.jp/パス",
+      "host": "xn--r8jz45g.jp"
+    },
+    {
+      "input": "münchen.de",
+      "host": "xn--mnchen-3ya.de"
+    },
+    {
+      "input": "https://MÜNCHEN.de",
+      "host": "xn--mnchen-3ya.de"
+    },
+    {
+      "input": "http://192.168.0.1:3000/",
+      "host": "192.168.0.1"
+    },
+    {
+      "input": "http://[::1]/",
+      "host": "[::1]"
+    },
+    {
+      "input": "localhost:8080",
+      "host": "localhost"
+    },
+    {
+      "input": "www",
+      "host": "www"
+    },
+    {
+      "input": "",
+      "host": null
+    },
+    {
+      "input": "   ",
+      "host": null
+    },
+    {
+      "input": "mailto:someone@example.com",
+      "host": null
+    },
+    {
+      "input": "tel:+15551234",
+      "host": null
+    },
+    {
+      "input": "javascript:alert(1)",
+      "host": null
+    },
+    {
+      "input": "http://",
+      "host": null
+    }
+  ],
+  "display": [
+    {
+      "host": "xn--r8jz45g.jp",
+      "display": "例え.jp"
+    },
+    {
+      "host": "xn--mnchen-3ya.de",
+      "display": "münchen.de"
+    },
+    {
+      "host": "github.com",
+      "display": "github.com"
+    },
+    {
+      "host": "xn--!!.com",
+      "display": "xn--!!.com"
+    },
+    {
+      "host": "xn--mw767205604493046e.com",
+      "display": "xn--mw767205604493046e.com"
+    },
+    {
+      "host": "xn--99999999999999999999999.com",
+      "display": "xn--99999999999999999999999.com"
+    },
+    {
+      "host": "xn--zzzzzzzzzzzzzzzzzzzzzzzzzzzzz.com",
+      "display": "xn--zzzzzzzzzzzzzzzzzzzzzzzzzzzzz.com"
+    }
+  ]
+}

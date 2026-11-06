@@ -10,7 +10,7 @@ public enum SearchQualifierKey: String, CaseIterable, Sendable {
     case tag, type, `is`, site, folder, like, mood, price, text
 }
 
-public enum SearchIsValue: String, Sendable {
+public enum SearchIsValue: String, Sendable, CaseIterable {
     case fav, archived, done, todo, pinned
 
     public var label: String {
@@ -70,17 +70,12 @@ public struct ParsedSearchQuery: Hashable, Sendable {
 }
 
 public enum SearchQualifiers {
-    static let trimCharacters: Set<Character> = Set(",.;:!?()[]{}\"'")
+    static let trimCharacters = Set(SharedConstants.shared.searchTokenTrimCharacters)
     private static let quoteCharacters: Set<Unicode.Scalar> = ["\"", "\u{201C}", "\u{201D}"]
-    private static let favoriteWords: Set<String> = ["fav", "favs", "favorite", "favorites", "favourite", "favourites", "starred"]
-    private static let archivedWords: Set<String> = ["archived", "archive"]
-    private static let doneWords: Set<String> = ["done", "completed", "finished"]
-    private static let todoWords: Set<String> = ["todo", "to-do"]
-    private static let pinnedWords: Set<String> = ["pinned", "pin", "pins"]
     private static let maxMoodLength = 200
     private static let maxOCRTextLength = 200
     /// Lowercasing can lengthen a tag, so keys allow more than a name's 64.
-    static let maxTagKeyLength = 256
+    static let maxTagKeyLength: Int = SharedConstants.shared.limits.maxTagKeyLength
 
     public struct RawToken: Hashable, Sendable {
         public let prefix: String
@@ -210,17 +205,8 @@ public enum SearchQualifiers {
         tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    /// Everyday words for each card type, as on the web (`CARD_TYPE_ALIASES` in
-    /// packages/convex/shared/search/qualifiers.ts). Each also works with an `s`.
-    private static let cardTypeAliases: [String: CardType] = [
-        "bookmark": .link, "clip": .video, "color": .palette, "colour": .palette,
-        "doc": .document, "memo": .audio, "movie": .video, "note": .text,
-        "pdf": .document, "photo": .image, "pic": .image, "picture": .image,
-        "recording": .audio, "url": .link, "voice": .audio, "website": .link,
-    ]
-
     private static func typeForWord(_ word: String) -> CardType? {
-        CardType(rawValue: word) ?? cardTypeAliases[word]
+        CardType(rawValue: word) ?? SharedConstants.shared.cardTypeAliases[word].flatMap(CardType.init(rawValue:))
     }
 
     private static func parseType(_ value: String) -> CardType? {
@@ -291,13 +277,11 @@ public enum SearchQualifiers {
             return parseType(value).map { SearchQualifier(key, $0.rawValue) }
         case .is:
             let word = value.lowercased()
-            if favoriteWords.contains(word) { return SearchQualifier(key, SearchIsValue.fav.rawValue) }
-            if doneWords.contains(word) { return SearchQualifier(key, SearchIsValue.done.rawValue) }
-            if todoWords.contains(word) { return SearchQualifier(key, SearchIsValue.todo.rawValue) }
-            if pinnedWords.contains(word) { return SearchQualifier(key, SearchIsValue.pinned.rawValue) }
-            return archivedWords.contains(word) ? SearchQualifier(key, SearchIsValue.archived.rawValue) : nil
+            let words = SharedConstants.shared.searchIsWords
+            return SearchIsValue.allCases.first { words[$0.rawValue]?.contains(word) == true }
+                .map { SearchQualifier(key, $0.rawValue) }
         case .site:
-            return normalizeHost(value).map { SearchQualifier(key, $0) }
+            return UrlHost.normalize(value).map { SearchQualifier(key, $0) }
         case .folder:
             return SearchQualifier(key, value)
         case .like:
@@ -311,29 +295,6 @@ public enum SearchQualifiers {
             let text = prefix(collapseSpaces(value), utf16: maxOCRTextLength).trimmingCharacters(in: .whitespacesAndNewlines)
             return text.isEmpty ? nil : SearchQualifier(key, text)
         }
-    }
-
-    /// The lowercase host without `www.`, a port or a path, as `normalizeUrlHost`
-    /// reads a `site:` value. Unicode names stay as typed; the backend reads the text.
-    static func normalizeHost(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.firstMatch(of: /^[a-zA-Z][a-zA-Z\d+.\-]*:(?!\/\/)(?!\d)/) == nil else { return nil }
-        let afterScheme = trimmed.firstMatch(of: /^[a-zA-Z][a-zA-Z\d+.\-]*:\/\//).map { String(trimmed[$0.range.upperBound...]) }
-            ?? trimmed
-        let authority = afterScheme.prefix { !"/?#\\".contains($0) }
-        let hostAndPort = authority.split(separator: "@", omittingEmptySubsequences: false).last.map(String.init) ?? ""
-        var host: String
-        if hostAndPort.hasPrefix("[") {
-            guard let close = hostAndPort.firstIndex(of: "]") else { return nil }
-            host = String(hostAndPort[...close])
-        } else {
-            host = String(hostAndPort.prefix { $0 != ":" })
-        }
-        host = host.lowercased()
-        guard !host.isEmpty, !host.contains(where: { $0.isWhitespace || "<>^|%\u{0}".contains($0) }) else { return nil }
-        while host.hasSuffix(".") { host.removeLast() }
-        if host.hasPrefix("www."), host.count > 4 { host.removeFirst(4) }
-        return host.isEmpty ? nil : host
     }
 
     private static func isSimilarity(_ key: SearchQualifierKey) -> Bool { key == .like || key == .mood }
@@ -357,8 +318,10 @@ public enum SearchQualifiers {
         return "\"\(escaped)\""
     }
 
+    /// A `site:` shows its host in Unicode; the backend reads either form.
     public static func format(_ qualifier: SearchQualifier) -> String {
-        "\(qualifier.key.rawValue):\(needsQuotes(qualifier.value) ? quote(qualifier.value) : qualifier.value)"
+        let value = qualifier.key == .site ? UrlHost.forDisplay(qualifier.value) : qualifier.value
+        return "\(qualifier.key.rawValue):\(needsQuotes(value) ? quote(value) : value)"
     }
 
     private static func isHexColor(_ value: String) -> Bool {
@@ -417,7 +380,7 @@ public enum SearchQualifiers {
         case .tag: return (tr("native.filters.chips.tag"), qualifier.value)
         case .type: return (tr("native.filters.chips.type"), CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
         case .is: return (tr("native.filters.chips.is"), SearchIsValue(rawValue: qualifier.value)?.label ?? qualifier.value)
-        case .site: return (tr("native.filters.chips.site"), qualifier.value)
+        case .site: return (tr("native.filters.chips.site"), UrlHost.forDisplay(qualifier.value))
         case .folder: return (tr("native.filters.chips.folder"), qualifier.value)
         case .like: return (tr("native.filters.chips.like"), likeTitle ?? tr("native.filters.chips.anyCard"))
         case .mood: return (tr("native.filters.chips.mood"), tr("native.filters.chips.moodValue", qualifier.value))

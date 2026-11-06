@@ -85,19 +85,30 @@ export interface ParsedSearchQuery {
 
 const QUOTE_CHARACTERS = new Set(['"', "“", "”"]);
 
-const FAVORITE_WORDS = new Set([
-  "fav",
-  "favs",
-  "favorite",
-  "favorites",
-  "favourite",
-  "favourites",
-  "starred",
-]);
-const ARCHIVED_WORDS = new Set(["archived", "archive"]);
-const DONE_WORDS = new Set(["done", "completed", "finished"]);
-const TODO_WORDS = new Set(["todo", "to-do"]);
-const PINNED_WORDS = new Set(["pinned", "pin", "pins"]);
+/** The words each `is:` value accepts. The Apple and Android ports read this table. */
+export const SEARCH_IS_WORDS: Readonly<
+  Record<SearchIsValue, readonly string[]>
+> = {
+  fav: [
+    "fav",
+    "favs",
+    "favorite",
+    "favorites",
+    "favourite",
+    "favourites",
+    "starred",
+  ],
+  archived: ["archived", "archive"],
+  done: ["done", "completed", "finished"],
+  todo: ["todo", "to-do"],
+  pinned: ["pinned", "pin", "pins"],
+};
+
+const FAVORITE_WORDS = new Set(SEARCH_IS_WORDS.fav);
+const ARCHIVED_WORDS = new Set(SEARCH_IS_WORDS.archived);
+const DONE_WORDS = new Set(SEARCH_IS_WORDS.done);
+const TODO_WORDS = new Set(SEARCH_IS_WORDS.todo);
+const PINNED_WORDS = new Set(SEARCH_IS_WORDS.pinned);
 
 interface RawToken {
   negated: boolean;

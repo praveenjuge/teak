@@ -1,20 +1,9 @@
 import type { RaycastCardLink } from "./apiParsers";
 import { getTeakCardUrl } from "./constants";
-
-const LINK_TOKEN = /\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]/g;
-const CODE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]+`)/;
+import { replaceCardLinkTokens } from "./teakCardLinks";
 
 const escapeLinkText = (title: string): string =>
   title.replace(/[\\[\]]/g, "\\$&");
-
-const replaceOutsideCode = (
-  markdown: string,
-  replace: (segment: string) => string,
-): string =>
-  markdown
-    .split(CODE)
-    .map((segment, index) => (index % 2 === 1 ? segment : replace(segment)))
-    .join("");
 
 const titleFor = (
   id: string,
@@ -28,21 +17,20 @@ const titleFor = (
   return linked?.title?.trim() || storedTitle.trim() || "Card";
 };
 
+/** Links outside code, the ones Teak indexes; tokens in code stay as written. */
 export const renderCardLinks = (
   markdown: string,
   links: readonly RaycastCardLink[] = [],
 ): string =>
-  replaceOutsideCode(markdown, (segment) =>
-    segment.replace(LINK_TOKEN, (_match, storedTitle: string, id: string) => {
-      const title = titleFor(id, storedTitle, links);
-      return links.find((link) => link.id === id)?.missing
-        ? `_${title}_`
-        : `[${escapeLinkText(title)}](${getTeakCardUrl(id)})`;
-    }),
-  );
+  replaceCardLinkTokens(markdown, (storedTitle, id) => {
+    const title = titleFor(id, storedTitle, links);
+    return links.find((link) => link.id === id)?.missing
+      ? `_${title}_`
+      : `[${escapeLinkText(title)}](${getTeakCardUrl(id)})`;
+  });
 
 export const cardLinksToText = (text: string): string =>
-  text.replace(LINK_TOKEN, (_match, title: string) => title.trim() || "Card");
+  replaceCardLinkTokens(text, (title) => title.trim() || "Card");
 
 export const backlinksMarkdown = (
   backlinks: readonly RaycastCardLink[],

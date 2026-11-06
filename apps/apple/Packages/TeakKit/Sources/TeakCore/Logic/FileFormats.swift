@@ -30,7 +30,7 @@ public enum FileFormats {
 
     public static func validFileName(_ name: String) -> String? {
         let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty, normalized.count <= SharedConstants.shared.limits.maxFileNameLength,
+        guard !normalized.isEmpty, normalized.utf16.count <= SharedConstants.shared.limits.maxFileNameLength,
               normalized != ".", normalized != "..", !normalized.contains("/"), !normalized.contains("\\"),
               !normalized.unicodeScalars.contains(where: { $0.value <= 31 || $0.value == 127 })
         else { return nil }

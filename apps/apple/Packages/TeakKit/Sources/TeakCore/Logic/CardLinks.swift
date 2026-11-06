@@ -5,16 +5,16 @@ import Foundation
 /// indexes are UTF-16 units, as in JavaScript, so both sides cut titles and
 /// find tokens at the same places.
 public enum CardLinks {
-    public static let titleMaxLength = 200
+    public static let titleMaxLength: Int = SharedConstants.shared.limits.cardLinkTitleMaxLength
     /// Distinct targets indexed per card; later ones still render.
-    public static let maxLinks = 500
+    public static let maxLinks: Int = SharedConstants.shared.limits.maxCardLinks
 
-    static let tokenPattern = #"\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]"#
+    static let tokenPattern: String = SharedConstants.shared.cardLinkTokenPattern
     private static let tokenRegex = regex(tokenPattern)
     private static let titleUnsafeRegex = regex(#"[|\]\r\n]+"#)
     private static let spacesRegex = regex(#"\s+"#)
     private static let fenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})"#)
-    private static let closingFenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})[ \t]*$"#)
+    private static let closingFenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})[ \t\r]*$"#)
     private static let backtickRunRegex = regex("`+")
     private static let listItemRegex = regex(#"^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)"#)
     private static let codeIndent = 4

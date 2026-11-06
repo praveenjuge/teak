@@ -83,11 +83,6 @@ object SearchQuery {
     private const val SEMANTIC_QUERY_MIN_CHARS = 2
     private val CONVEX_ID = Regex("^[0-9a-z]{31,37}$")
     private val QUOTES = setOf('"', '“', '”')
-    private val FAVORITE_WORDS = setOf("fav", "favs", "favorite", "favorites", "favourite", "favourites", "starred")
-    private val ARCHIVED_WORDS = setOf("archived", "archive")
-    private val DONE_WORDS = setOf("done", "completed", "finished")
-    private val TODO_WORDS = setOf("todo", "to-do")
-    private val PINNED_WORDS = setOf("pinned", "pin", "pins")
     private val PRICE_BOUND = Regex("^(<=|>=|<|>|=)(\\d{1,12}(?:\\.\\d{1,6})?)$")
     private val WHITESPACE = Regex("\\s+")
 
@@ -244,29 +239,8 @@ object SearchQuery {
         return value.substring(start, end)
     }
 
-    // Everyday words for each card type, as on the web (CARD_TYPE_ALIASES in
-    // packages/convex/shared/search/qualifiers.ts). Each also works with an `s`.
-    private val CARD_TYPE_ALIASES: Map<String, CardType> = mapOf(
-        "bookmark" to CardType.Link,
-        "clip" to CardType.Video,
-        "color" to CardType.Palette,
-        "colour" to CardType.Palette,
-        "doc" to CardType.Document,
-        "memo" to CardType.Audio,
-        "movie" to CardType.Video,
-        "note" to CardType.Text,
-        "pdf" to CardType.Document,
-        "photo" to CardType.Image,
-        "pic" to CardType.Image,
-        "picture" to CardType.Image,
-        "recording" to CardType.Audio,
-        "url" to CardType.Link,
-        "voice" to CardType.Audio,
-        "website" to CardType.Link,
-    )
-
     private fun typeForWord(word: String): CardType? =
-        if (word in CARD_TYPES) CardType.entries.first { it.wireName == word } else CARD_TYPE_ALIASES[word]
+        CardType.fromWire(word) ?: CARD_TYPE_ALIASES[word]?.let(CardType::fromWire)
 
     private fun parseType(value: String): CardType? {
         val word = value.trim().lowercase()
@@ -302,14 +276,7 @@ object SearchQuery {
             "type" -> parseType(value)?.let(SearchQualifier::Type)
             "is" -> {
                 val word = value.lowercase()
-                when (word) {
-                    in FAVORITE_WORDS -> SearchQualifier.Is(SearchIsValue.Favorite)
-                    in DONE_WORDS -> SearchQualifier.Is(SearchIsValue.Done)
-                    in TODO_WORDS -> SearchQualifier.Is(SearchIsValue.Todo)
-                    in PINNED_WORDS -> SearchQualifier.Is(SearchIsValue.Pinned)
-                    in ARCHIVED_WORDS -> SearchQualifier.Is(SearchIsValue.Archived)
-                    else -> null
-                }
+                SearchIsValue.entries.firstOrNull { word in SEARCH_IS_WORDS[it.wire].orEmpty() }?.let(SearchQualifier::Is)
             }
             "site" -> UrlHost.normalize(value)?.let(SearchQualifier::Site)
             "folder" -> SearchQualifier.Folder(value)

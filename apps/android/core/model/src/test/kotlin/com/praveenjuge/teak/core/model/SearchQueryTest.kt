@@ -1,11 +1,15 @@
 package com.praveenjuge.teak.core.model
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Mirrors `packages/convex/__tests__/shared/search/qualifiers.test.ts` and `semantic.test.ts`. */
+/** Runs the rows in `searchQualifiers.json`, as `packages/convex/__tests__/shared/search/qualifiers.test.ts` does, and mirrors `semantic.test.ts`. */
 class SearchQueryTest {
     private fun parse(input: String) = SearchQuery.parse(input)
 
@@ -23,76 +27,33 @@ class SearchQueryTest {
         assertEquals("tag:design type:link site:github.com \"design system\" notes", parsed.canonical)
     }
 
+    @Serializable
+    private data class FieldRow(val input: String, val field: String, val expected: JsonElement)
+
+    @Serializable
+    private data class FieldRows(val fields: List<FieldRow>)
+
+    private fun field(parsed: ParsedSearchQuery, name: String): JsonElement = when (name) {
+        "tags" -> JsonArray(parsed.tags.map(::JsonPrimitive))
+        "types" -> JsonArray(parsed.types.map { JsonPrimitive(it.wireName) })
+        "sites" -> JsonArray(parsed.sites.map(::JsonPrimitive))
+        "folders" -> JsonArray(parsed.folders.map(::JsonPrimitive))
+        "phrases" -> JsonArray(parsed.phrases.map(::JsonPrimitive))
+        "ocrTexts" -> JsonArray(parsed.ocrTexts.map(::JsonPrimitive))
+        "terms" -> JsonArray(parsed.terms.map(::JsonPrimitive))
+        "favorite" -> JsonPrimitive(parsed.favorite)
+        "archived" -> JsonPrimitive(parsed.archived)
+        "done" -> JsonPrimitive(parsed.done)
+        "todo" -> JsonPrimitive(parsed.todo)
+        "text" -> JsonPrimitive(parsed.text)
+        else -> error("No field $name")
+    }
+
     @Test
     fun `reads each field the way the backend does`() {
-        val cases: List<Triple<String, (ParsedSearchQuery) -> Any?, Any?>> = listOf(
-            Triple("#Design", { it.tags }, listOf("design")),
-            Triple("TAG:Design", { it.tags }, listOf("design")),
-            Triple("tag:\"Design Systems\"", { it.tags }, listOf("design systems")),
-            Triple("#fff", { it.tags }, emptyList<String>()),
-            Triple("#fff", { it.terms }, listOf("#fff")),
-            Triple("#3B82F6,", { it.terms }, listOf("#3B82F6,")),
-            Triple("#bad", { it.terms }, listOf("#bad")),
-            Triple("tag:bad", { it.tags }, listOf("bad")),
-            Triple("#design-ops", { it.tags }, listOf("design-ops")),
-            Triple("#", { it.terms }, emptyList<String>()),
-            Triple("type:links", { it.types }, listOf(CardType.Link)),
-            Triple("Type:IMAGE", { it.types }, listOf(CardType.Image)),
-            Triple("type:banana", { it.terms }, listOf("type:banana")),
-            Triple("type:note", { it.types }, listOf(CardType.Text)),
-            Triple("type:Notes", { it.types }, listOf(CardType.Text)),
-            Triple("type:pdf", { it.types }, listOf(CardType.Document)),
-            Triple("type:docs", { it.types }, listOf(CardType.Document)),
-            Triple("type:photos", { it.types }, listOf(CardType.Image)),
-            Triple("type:picture", { it.types }, listOf(CardType.Image)),
-            Triple("type:colours", { it.types }, listOf(CardType.Palette)),
-            Triple("type:color", { it.types }, listOf(CardType.Palette)),
-            Triple("type:voice", { it.types }, listOf(CardType.Audio)),
-            Triple("type:memos", { it.types }, listOf(CardType.Audio)),
-            Triple("type:url", { it.types }, listOf(CardType.Link)),
-            Triple("type:bookmarks", { it.types }, listOf(CardType.Link)),
-            Triple("type:quotes", { it.types }, listOf(CardType.Quote)),
-            Triple("type:movie", { it.types }, listOf(CardType.Video)),
-            Triple("type:constructor", { it.terms }, listOf("type:constructor")),
-            Triple("type:", { it.terms }, emptyList<String>()),
-            Triple("is:fav", { it.favorite }, true),
-            Triple("is:favourites", { it.favorite }, true),
-            Triple("is:starred", { it.favorite }, true),
-            Triple("is:archived", { it.archived }, true),
-            Triple("is:done", { it.done }, true),
-            Triple("is:Completed", { it.done }, true),
-            Triple("is:finished", { it.done }, true),
-            Triple("is:todo", { it.todo }, true),
-            Triple("is:to-do", { it.todo }, true),
-            Triple("is:nope", { it.terms }, listOf("is:nope")),
-            Triple("site:www.Example.com", { it.sites }, listOf("example.com")),
-            Triple("site:https://example.com/path:8080", { it.sites }, listOf("example.com")),
-            Triple("site:example.com:8080", { it.sites }, listOf("example.com")),
-            Triple("site:例え.jp", { it.sites }, listOf("xn--r8jz45g.jp")),
-            Triple("site:mailto:x@y.z", { it.terms }, listOf("site:mailto:x@y.z")),
-            Triple("site:[::1]", { it.sites }, listOf("[::1]")),
-            Triple("site:[2001:db8::1],", { it.sites }, listOf("[2001:db8::1]")),
-            Triple("site:http://[::1]:8080/x", { it.sites }, listOf("[::1]")),
-            Triple("folder:\"Reading list\"", { it.folders }, listOf("reading list")),
-            Triple("folder:Inbox,", { it.folders }, listOf("inbox")),
-            Triple("foo:bar", { it.terms }, listOf("foo:bar")),
-            Triple("https://github.com", { it.terms }, listOf("https://github.com")),
-            Triple("\"unbalanced phrase", { it.phrases }, listOf("unbalanced phrase")),
-            Triple("“smart quotes”", { it.phrases }, listOf("smart quotes")),
-            Triple("\"\"", { it.phrases }, emptyList<String>()),
-            Triple("tag:a tag:A #a", { it.tags }, listOf("a")),
-            Triple("site:a.com site:b.com", { it.sites }, listOf("a.com", "b.com")),
-            Triple("🎨 #🎨", { it.tags }, listOf("🎨")),
-            Triple("text:4411", { it.ocrTexts }, listOf("4411")),
-            Triple("TEXT:\"Total  Due\"", { it.ocrTexts }, listOf("Total Due")),
-            Triple("text:Total text:total", { it.ocrTexts }, listOf("Total")),
-            Triple("text:a text:b", { it.ocrTexts }, listOf("a", "b")),
-            Triple("text:", { it.terms }, emptyList<String>()),
-            Triple("text:\"  \"", { it.ocrTexts }, emptyList<String>()),
-            Triple("text:4411", { it.text }, ""),
-            Triple("text:東京駅", { it.ocrTexts }, listOf("東京駅")),
-        )
-        for ((input, field, expected) in cases) assertEquals(expected, field(parse(input)), input)
+        for (row in Fixtures.load<FieldRows>("searchQualifiers").fields) {
+            assertEquals(row.expected, field(parse(row.input), row.field), "${row.input} → ${row.field}")
+        }
     }
 
     @Test

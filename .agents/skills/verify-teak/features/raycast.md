@@ -9,7 +9,7 @@ The Teak Raycast extension saves and finds cards from the keyboard. Search Cards
 - `ray-folders` lists manual and smart folders (Browse Folders) and opens one as a card list.
 - `ray-random` shows 20 shuffled cards with Keep and Archive Card.
 - `ray-similar` finds similar cards from the action or from the Find Similar Cards command with an ID or a Teak link.
-- `ray-detail` shows `[[` links by title, Linked from, price, category, byline, published date, saved-from source and the done row.
+- `ray-detail` shows `[[` links by title (a token in code, an indented block included, stays as written, as Teak reads it), Linked from, price, category, byline, published date, saved-from source and the done row.
 - `ray-tags` renames, merges and deletes tags and waits for the background change.
 - `ray-save` sends tags and a note with Quick Save and Save to Teak. Quick Save fills Content from copied text, never from a copied file's name.
 - `ray-resave` saves a link that's already in Teak (Save Current Browser Tab, Save Clipboard, Save Selected Text, Save to Teak, Quick Save) with one `POST /v1/cards` and no duplicate check first. `resaved: true` shows the toast "Already saved" with "Moved to the top" ("Moved back from Archive" for an archived card) and **Open Card**; the AI save tool answers "Already in Teak, moved to the top: <id>". Lists place an upserted card by `savedAt ?? createdAt`.

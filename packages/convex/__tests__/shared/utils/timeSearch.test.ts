@@ -1,130 +1,48 @@
 import { describe, expect, test } from "bun:test";
 import { parseTimeSearchQuery } from "../../../shared/utils/timeSearch";
+import { loadFixture } from "../loadFixture.test-utils";
 
-const toParts = (timestamp: number) => {
+const fixture = loadFixture<{
+  now: string;
+  rows: { end: string | null; query: string; start: string | null }[];
+}>("timeSearch");
+
+const day = (timestamp: number) => {
   const date = new Date(timestamp);
-  return [date.getFullYear(), date.getMonth(), date.getDate()];
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-const getRangeParts = (range: { start: number; end: number }) => ({
-  start: toParts(range.start),
-  end: toParts(range.end),
-});
-
 describe("parseTimeSearchQuery", () => {
-  const now = new Date(2026, 1, 3, 12, 0, 0);
+  const now = new Date(fixture.now);
 
-  test("parses today", () => {
-    const result = parseTimeSearchQuery("today", { now, weekStart: 0 });
-    expect(result?.label).toBe("Today");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2026, 1, 3],
-      end: [2026, 1, 4],
-    });
-  });
-
-  test("parses yesterday", () => {
-    const result = parseTimeSearchQuery("yesterday", { now, weekStart: 0 });
-    expect(result?.label).toBe("Yesterday");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2026, 1, 2],
-      end: [2026, 1, 3],
-    });
-  });
-
-  test("parses last week", () => {
-    const result = parseTimeSearchQuery("last week", { now, weekStart: 0 });
-    expect(result?.label).toBe("Last Week");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2026, 0, 25],
-      end: [2026, 1, 1],
-    });
-  });
-
-  test("parses weekday", () => {
-    const result = parseTimeSearchQuery("monday", { now, weekStart: 0 });
-    expect(result?.label).toBe("Monday");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2026, 1, 2],
-      end: [2026, 1, 3],
-    });
-  });
-
-  test("parses last weekday", () => {
-    const result = parseTimeSearchQuery("last monday", { now, weekStart: 0 });
-    expect(result?.label).toBe("Last Monday");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2026, 0, 26],
-      end: [2026, 0, 27],
-    });
-  });
-
-  test("parses explicit month", () => {
-    const result = parseTimeSearchQuery("June 2024", { now, weekStart: 0 });
-    expect(result?.label).toBe("Jun 2024");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 5, 1],
-      end: [2024, 6, 1],
-    });
-  });
-
-  test("parses explicit date", () => {
-    const result = parseTimeSearchQuery("June 5, 2024", {
-      now,
-      weekStart: 0,
-    });
-    expect(result?.label).toBe("Jun 5, 2024");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 5, 5],
-      end: [2024, 5, 6],
-    });
-  });
-
-  test("parses ISO date", () => {
-    const result = parseTimeSearchQuery("2024-06-05", { now, weekStart: 0 });
-    expect(result?.label).toBe("Jun 5, 2024");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 5, 5],
-      end: [2024, 5, 6],
-    });
-  });
-
-  test("parses US date", () => {
-    const result = parseTimeSearchQuery("06/05/2024", { now, weekStart: 0 });
-    expect(result?.label).toBe("Jun 5, 2024");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 5, 5],
-      end: [2024, 5, 6],
-    });
-  });
-
-  test("parses year", () => {
-    const result = parseTimeSearchQuery("2024", { now, weekStart: 0 });
-    expect(result?.label).toBe("2024");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 0, 1],
-      end: [2025, 0, 1],
-    });
-  });
-
-  test("a four-digit number far from now is a word, not a year", () => {
-    for (const query of ["4411", "1234", "9999", "0042"]) {
-      expect(parseTimeSearchQuery(query, { now, weekStart: 0 })).toBeNull();
+  test.each(fixture.rows)(
+    "$query → $start to $end",
+    ({ query, start, end }) => {
+      const result = parseTimeSearchQuery(query, { now, weekStart: 0 });
+      expect(
+        result
+          ? { start: day(result.range.start), end: day(result.range.end) }
+          : null
+      ).toEqual(start && end ? { start, end } : null);
     }
-    expect(parseTimeSearchQuery("1999", { now, weekStart: 0 })?.label).toBe(
-      "1999"
-    );
-  });
+  );
 
-  test("parses range", () => {
-    const result = parseTimeSearchQuery("June 2024 to July 2025", {
-      now,
-      weekStart: 0,
-    });
-    expect(result?.label).toBe("Jun 2024 – Jul 2025");
-    expect(getRangeParts(result!.range)).toEqual({
-      start: [2024, 5, 1],
-      end: [2025, 7, 1],
-    });
+  test.each([
+    ["today", "Today"],
+    ["yesterday", "Yesterday"],
+    ["last week", "Last Week"],
+    ["monday", "Monday"],
+    ["last monday", "Last Monday"],
+    ["June 2024", "Jun 2024"],
+    ["June 5, 2024", "Jun 5, 2024"],
+    ["2024-06-05", "Jun 5, 2024"],
+    ["06/05/2024", "Jun 5, 2024"],
+    ["2024", "2024"],
+    ["June 2024 to July 2025", "Jun 2024 – Jul 2025"],
+  ])("labels %p as %p", (query, label) => {
+    expect(parseTimeSearchQuery(query, { now, weekStart: 0 })?.label).toBe(
+      label
+    );
   });
 });

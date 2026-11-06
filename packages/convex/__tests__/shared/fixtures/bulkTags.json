@@ -1,0 +1,88 @@
+{
+  "$comment": "Tags typed for many cards at once, split at commas and lowercased as the apps send them: normalizeBulkTags (packages/convex/card/bulkActions.ts) on the backend, BulkTags on Apple and Android. `error` is null, EMPTY, NAME_TOO_LONG or TOO_MANY_TAGS.",
+  "rows": [
+    {
+      "text": "design, Inspiration ,design",
+      "tags": ["design", "inspiration"],
+      "error": null
+    },
+    {
+      "text": "",
+      "tags": [],
+      "error": "EMPTY"
+    },
+    {
+      "text": " , ,",
+      "tags": [],
+      "error": "EMPTY"
+    },
+    {
+      "text": "t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19",
+      "tags": [
+        "t0",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "t7",
+        "t8",
+        "t9",
+        "t10",
+        "t11",
+        "t12",
+        "t13",
+        "t14",
+        "t15",
+        "t16",
+        "t17",
+        "t18",
+        "t19"
+      ],
+      "error": null
+    },
+    {
+      "text": "t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20",
+      "tags": [
+        "t0",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "t7",
+        "t8",
+        "t9",
+        "t10",
+        "t11",
+        "t12",
+        "t13",
+        "t14",
+        "t15",
+        "t16",
+        "t17",
+        "t18",
+        "t19",
+        "t20"
+      ],
+      "error": "TOO_MANY_TAGS"
+    },
+    {
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tags": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "error": null
+    },
+    {
+      "text": "ok, xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tags": [
+        "ok",
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "error": "NAME_TOO_LONG"
+    }
+  ]
+}

@@ -61,6 +61,23 @@ class ConvexCardsRepositoryTest {
     }
 
     @Test
+    fun `style, color and hex words search as filters, as on Apple and the web`() = runTest {
+        convex.responses["cards:searchMobileCardSummariesPaginated"] = {
+            buildJsonObject {
+                put("page", buildJsonArray {})
+                put("isDone", true)
+                put("continueCursor", "")
+            }
+        }
+        repository.page(CardQuery(search = "minimal blue #3b82f6 posters"), cursor = null, numItems = 20).first()
+        val args = convex.calls.single().args
+        assertEquals(listOf("minimal"), args["styleFilters"])
+        assertEquals(listOf("blue"), args["hueFilters"])
+        assertEquals(listOf("#3B82F6"), args["hexFilters"])
+        assertEquals("posters", args["searchQuery"])
+    }
+
+    @Test
     fun `decodes summaries, ignoring fields the app doesn't use`() = runTest {
         convex.responses["cards:searchMobileCardSummariesPaginated"] = {
             buildJsonObject {

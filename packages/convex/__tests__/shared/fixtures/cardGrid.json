@@ -1,0 +1,45 @@
+{
+  "$comment": "How many columns the Apple and Android card grids show at a window width (points or dp). The widest grid shows as many columns as the web's (MAX_COLUMNS in apps/web/src/components/grids/gridColumns.ts).",
+  "columns": [
+    {
+      "width": 320,
+      "columns": 2
+    },
+    {
+      "width": 411,
+      "columns": 2
+    },
+    {
+      "width": 699,
+      "columns": 2
+    },
+    {
+      "width": 700,
+      "columns": 3
+    },
+    {
+      "width": 999,
+      "columns": 3
+    },
+    {
+      "width": 1000,
+      "columns": 4
+    },
+    {
+      "width": 1280,
+      "columns": 4
+    },
+    {
+      "width": 1299,
+      "columns": 4
+    },
+    {
+      "width": 1300,
+      "columns": 5
+    },
+    {
+      "width": 2560,
+      "columns": 5
+    }
+  ]
+}

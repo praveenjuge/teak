@@ -192,3 +192,44 @@ enum Fixture {
         return (try? JSONSerialization.data(withJSONObject: record)) ?? Data()
     }
 }
+
+/// The repository's root, found from this file: `swift test` runs from the checkout.
+let repositoryRoot = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent() // TeakCoreTests
+    .deletingLastPathComponent() // Tests
+    .deletingLastPathComponent() // TeakKit
+    .deletingLastPathComponent() // Packages
+    .deletingLastPathComponent() // apple
+    .deletingLastPathComponent() // apps
+    .deletingLastPathComponent()
+
+/// A fixture value: a flag, a word or a list of words.
+enum FixtureValue: Decodable, Equatable, Sendable {
+    case bool(Bool)
+    case string(String)
+    case strings([String])
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let flag = try? container.decode(Bool.self) {
+            self = .bool(flag)
+        } else if let word = try? container.decode(String.self) {
+            self = .string(word)
+        } else {
+            self = .strings(try container.decode([String].self))
+        }
+    }
+}
+
+/// Test cases the TypeScript tests in `packages/convex/__tests__/shared/` and
+/// Android's `core:model` tests read too, so every port runs the same rows.
+enum Fixtures {
+    static func load<T: Decodable>(_ name: String, as type: T.Type = T.self) -> T {
+        let url = repositoryRoot.appending(path: "packages/convex/__tests__/shared/fixtures/\(name).json")
+        do {
+            return try JSONDecoder().decode(T.self, from: Data(contentsOf: url))
+        } catch {
+            preconditionFailure("Can't read the \(name) fixture at \(url.path): \(error)")
+        }
+    }
+}
