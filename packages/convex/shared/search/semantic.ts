@@ -6,8 +6,9 @@ import { normalizeHexColor } from "../utils/colorUtils";
 import { expressionIndexWords } from "./expression";
 import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
 
-export const SEARCH_MODES = ["hybrid", "keyword", "semantic"] as const;
-export type SearchMode = (typeof SEARCH_MODES)[number];
+import { SEARCH_MODES, type SearchMode } from "../publicApiContract";
+
+export { SEARCH_MODES, type SearchMode } from "../publicApiContract";
 
 export const isSearchMode = (value: unknown): value is SearchMode =>
   (SEARCH_MODES as readonly unknown[]).includes(value);

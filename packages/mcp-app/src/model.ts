@@ -4,18 +4,11 @@
  * packages/convex/publicApi/http/serializers.ts).
  */
 
-export const CARD_TYPES = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
+import type { TeakToolName } from "@teak/convex/mcp/catalog";
+import { type CardType, cardTypes } from "@teak/convex/shared/constants";
 
-export type CardType = (typeof CARD_TYPES)[number];
+export type { CardType } from "@teak/convex/shared/constants";
+const CARD_TYPES = cardTypes;
 
 export interface TeakCard {
   aiSummary: string | null;
@@ -180,18 +173,14 @@ const fileCardType = (mimeType: unknown): CardType => {
     : "document";
 };
 
-const listSourceFor = (toolName: string | undefined): ListSource => {
-  if (toolName === "teak_v1_list_favorite_cards") {
-    return "favorites";
-  }
-  if (toolName === "teak_v1_list_pinned_cards") {
-    return "pinned";
-  }
-  if (toolName === "teak_v1_list_cards") {
-    return "recent";
-  }
-  return "search";
+const LIST_SOURCES: Partial<Record<TeakToolName, ListSource>> = {
+  teak_v1_list_cards: "recent",
+  teak_v1_list_favorite_cards: "favorites",
+  teak_v1_list_pinned_cards: "pinned",
 };
+
+const listSourceFor = (toolName: string | undefined): ListSource =>
+  (toolName && LIST_SOURCES[toolName as TeakToolName]) || "search";
 
 export const viewFromToolResult = ({
   input,

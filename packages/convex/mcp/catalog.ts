@@ -79,8 +79,9 @@ export interface TeakTool<Input = never> {
   view?: true;
 }
 
-const tool = <Input>(definition: TeakTool<Input>) =>
-  definition as unknown as TeakTool<unknown>;
+const tool = <Input, const Name extends string>(
+  definition: TeakTool<Input> & { name: Name }
+) => definition as unknown as TeakTool<unknown> & { name: Name };
 
 export const toObjectPayload = (payload: unknown): JsonObject =>
   payload && typeof payload === "object" && !Array.isArray(payload)
@@ -129,8 +130,8 @@ const pageToCardResults = (payload: JsonObject): JsonObject => ({
   total: count(payload),
 });
 
-const listCardsTool = (
-  definition: Pick<TeakTool, "description" | "name" | "title">,
+const listCardsTool = <const Name extends string>(
+  definition: Pick<TeakTool, "description" | "title"> & { name: Name },
   extraQuery: Record<string, QueryValue>,
   noun: string
 ) =>
@@ -182,7 +183,7 @@ const appUrlOf = (card: JsonObject): string =>
 const cardParams = (input: { cardId: string }) => ({ cardId: input.cardId });
 
 /** Every tool, in the order `tools/list` names them. */
-export const TEAK_TOOLS: readonly TeakTool<unknown>[] = [
+export const TEAK_TOOLS = [
   tool({
     name: "teak_v1_list_cards",
     title: "List cards",
@@ -882,7 +883,10 @@ export const TEAK_TOOLS: readonly TeakTool<unknown>[] = [
     }),
     summary: (_payload, input) => `Moved card ${input.cardId} to Trash`,
   }),
-];
+] as const;
+
+/** The name of every tool, for a client that tells them apart. */
+export type TeakToolName = (typeof TEAK_TOOLS)[number]["name"];
 
 const TOOLS_BY_NAME: ReadonlyMap<string, TeakTool<unknown>> = new Map(
   TEAK_TOOLS.map((entry) => [entry.name, entry])

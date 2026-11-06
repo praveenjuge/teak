@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
+import { MAX_FOLDER_CARD_IDS } from "@teak/convex/shared/folders";
 import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
 import {
   THUMBNAIL_ERROR_MESSAGES,
@@ -974,8 +975,8 @@ export const changeFolderCards = async (
   const updatedIds: string[] = [];
   const failedIds: string[] = [];
   const folderLimitIds: string[] = [];
-  for (let start = 0; start < cardIds.length; start += 100) {
-    const chunk = cardIds.slice(start, start + 100);
+  for (let start = 0; start < cardIds.length; start += MAX_FOLDER_CARD_IDS) {
+    const chunk = cardIds.slice(start, start + MAX_FOLDER_CARD_IDS);
     const result =
       action === "add"
         ? await api.folders.addCards(folder.id, chunk)

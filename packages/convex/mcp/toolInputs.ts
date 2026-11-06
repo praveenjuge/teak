@@ -13,6 +13,7 @@ import {
   ARCHIVED_FILTERS,
   BULK_CARD_OPERATIONS,
   CARD_LIST_INCLUDES,
+  type CardListParam,
   MAX_SHUFFLE_SEED,
   MAX_VISUAL_FILTERS,
   PUBLIC_API_CARD_SORTS,
@@ -111,7 +112,7 @@ export const cardFiltersShape = {
       "Extra field sets. Defaults to content and metadata so items are full cards; content is always included."
     )
     .optional(),
-};
+} satisfies Record<CardListParam, z.ZodType>;
 export const cardFiltersSchema = z.strictObject(cardFiltersShape);
 export const cardIdSchema = z.strictObject({ cardId: idSchema });
 export const noArguments = z.strictObject({});

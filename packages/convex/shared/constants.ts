@@ -327,8 +327,6 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   TYPE_MISMATCH: "Uploaded file does not match the selected type.",
 } as const;
 
-export const CARD_TYPES = [...cardTypes] as readonly CardType[];
-
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
   text: "Text",
   link: "Link",

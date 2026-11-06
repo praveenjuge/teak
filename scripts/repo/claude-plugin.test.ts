@@ -32,6 +32,22 @@ describe("Claude plugin (plugins/teak)", () => {
     }
   });
 
+  test("the MCP docs page documents exactly the server's tools", () => {
+    const page = readFileSync(
+      join(root, "apps/docs/content/docs/(developers)/mcp.mdx"),
+      "utf8"
+    );
+    const tools = page.slice(page.indexOf("## Available Tools"));
+    const named = new Set(
+      [...tools.matchAll(/`(teak_v1_[a-z_]+|search|fetch)`/gu)].map(
+        ([, name]) => name
+      )
+    );
+    expect([...named].sort()).toEqual(
+      TEAK_V1_TOOLS.map((tool) => tool.name).sort()
+    );
+  });
+
   test("connects to the same MCP server the registry and docs list", () => {
     const servers = readJson(join(plugin, ".mcp.json")).mcpServers;
     const registry = readJson(join(root, "server.json"));

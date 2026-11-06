@@ -196,7 +196,7 @@ export const readWorkosConnectClients = () => {
 };
 
 // Published clients still read `primary` from this document. teak-sdk up to
-// 1.0.86 (Raycast pins 1.0.81) also refuses it without a `safari` client,
+// 1.0.86 also refuses it without a `safari` client,
 // retired with Teak for Mac. Nothing uses that ID, so it repeats the CLI's.
 // teak-sdk after 1.0.91 reads all it needs for sign-in from this document
 // alone: the MCP resource, and AuthKit's authorize and token endpoints, which

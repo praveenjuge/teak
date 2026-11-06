@@ -610,7 +610,14 @@ const withSignedArticleImages = async (
   imageKeys: readonly string[]
 ): Promise<string> => {
   const urls = await Promise.all(
-    imageKeys.map((key) => tryResolveObjectUrl(key).catch(() => undefined))
+    imageKeys.map((key) =>
+      tryResolveObjectUrl(key).catch((error: unknown) => {
+        // The article still reads without the image; its token stays a link.
+        console.warn("[publicApi] article image unavailable", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      })
+    )
   );
   return replaceArticleImageTokens(
     markdown,

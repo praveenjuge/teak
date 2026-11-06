@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CARD_LIST_PARAMS,
+  cliFlagFor,
   matchPublicApiOperation,
   PUBLIC_API_OPERATION_IDS,
   PUBLIC_API_OPERATIONS,
@@ -103,4 +105,20 @@ test("publicApiEndpointLabel writes path parameters the way GET /v1 lists them",
   expect(publicApiEndpointLabel("getFolderRuleRun")).toBe(
     "GET /v1/folders/:folderId/rule-runs/:runId"
   );
+});
+
+test("listCards documents exactly the card list parameters", async () => {
+  const { openApiSpec } = await import("../../publicApi/openApi/spec");
+  const listCards = openApiSpec.paths["/v1/cards"]?.get as
+    | { parameters: { name: string }[] }
+    | undefined;
+  const parameters = (listCards?.parameters ?? []).map(
+    (parameter) => parameter.name
+  );
+  expect([...parameters].sort()).toEqual(Object.keys(CARD_LIST_PARAMS).sort());
+});
+
+test("cliFlagFor names a parameter's CLI flag", () => {
+  expect(cliFlagFor("createdAfter")).toBe("--created-after");
+  expect(cliFlagFor("shuffleSeed")).toBe("--seed");
 });

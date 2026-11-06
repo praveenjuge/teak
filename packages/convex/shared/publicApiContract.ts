@@ -7,11 +7,12 @@ import { cardTypes } from "./constants";
 import { CARD_LIST_SORTS } from "./search/sort";
 
 export {
+  PUBLIC_API_DEFAULT_LIMIT,
   PUBLIC_API_MAX_BULK_ITEMS,
   PUBLIC_API_MAX_LIMIT,
 } from "./publicApiLimits";
 export { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION as MAX_VISUAL_FILTERS } from "./search/constants";
-export { SEARCH_MODES, type SearchMode } from "./search/semantic";
+export { MAX_SHUFFLE_SEED } from "./search/shuffle";
 
 export type PublicApiMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 
@@ -283,6 +284,39 @@ export const publicApiMethodsFor = (pathname: string): PublicApiMethod[] => {
 
 export const PUBLIC_API_CARD_TYPES = cardTypes;
 export const PUBLIC_API_CARD_SORTS = CARD_LIST_SORTS;
+/**
+ * The query parameters `listCards` takes, which every surface offers. The
+ * CLI names its flag after the parameter in kebab case unless `cliFlag`
+ * says otherwise.
+ */
+export const CARD_LIST_PARAMS = {
+  q: { cliFlag: "--query" },
+  similarTo: {},
+  mode: {},
+  limit: {},
+  cursor: { cliFlag: "--next" },
+  sort: {},
+  shuffleSeed: { cliFlag: "--seed" },
+  type: {},
+  tag: {},
+  favorited: {},
+  pinned: {},
+  trashed: {},
+  folder: {},
+  archived: {},
+  style: {},
+  hue: {},
+  hex: {},
+  createdAfter: {},
+  createdBefore: {},
+  include: {},
+} as const satisfies Record<string, { cliFlag?: string }>;
+export type CardListParam = keyof typeof CARD_LIST_PARAMS;
+
+export const cliFlagFor = (param: CardListParam): string =>
+  (CARD_LIST_PARAMS[param] as { cliFlag?: string }).cliFlag ??
+  `--${param.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+
 export const ARCHIVED_FILTERS = ["exclude", "only", "include"] as const;
 export type ArchivedFilter = (typeof ARCHIVED_FILTERS)[number];
 export const CARD_LIST_INCLUDES = [
@@ -309,8 +343,9 @@ export const BULK_CARD_OPERATIONS = [
   "restore",
 ] as const;
 export type BulkCardOperation = (typeof BULK_CARD_OPERATIONS)[number];
-/** The largest `shuffleSeed`: a non-negative 32-bit integer. */
-export const MAX_SHUFFLE_SEED = 2_147_483_647;
+/** How a search finds cards: words and meaning, words only, meaning only. */
+export const SEARCH_MODES = ["hybrid", "keyword", "semantic"] as const;
+export type SearchMode = (typeof SEARCH_MODES)[number];
 
 /** Every `code` an API error body can carry. */
 export const PUBLIC_API_ERROR_CODES = [
@@ -348,6 +383,12 @@ export const PUBLIC_API_ERROR_CODES = [
   "UNSUPPORTED_TYPE",
 ] as const;
 export type PublicApiErrorCode = (typeof PUBLIC_API_ERROR_CODES)[number];
+
+/**
+ * Card error codes the API never returns: the web app's limit on files in
+ * one drop. The API saves one file per card.
+ */
+export const APP_ONLY_CARD_ERROR_CODES = ["TOO_MANY_FILES"] as const;
 
 /** OAuth discovery documents, served beside the API and the MCP server. */
 export const TEAK_OAUTH_CLIENTS_PATH = "/.well-known/teak-oauth-clients.json";
