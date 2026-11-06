@@ -1,19 +1,13 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import {
-  bulkCardsV1,
-  cardByIdV1,
-  changesCardsV1,
-  executePublicApiOperation,
-  listCardsV1,
-  tagsV1,
-} from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { serializeCard } from "../../../publicApi/http/serializers";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
   buildAuthorizedMutationMockWithIdempotencySkip,
+  callPublicApi,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
@@ -23,7 +17,7 @@ describe("publicApiHttp card endpoints", () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
 
     for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
-      const response = await executePublicApiOperation(
+      const response = await callPublicApi(
         mockActionCtx(
           withMappedOwner({
             runMutation: buildAuthorizedMutationMock(),
@@ -46,7 +40,7 @@ describe("publicApiHttp card endpoints", () => {
   test.each([true, false])(
     "dispatches restore for a card with deleted=%s",
     async (isDeleted) => {
-      const response = await executePublicApiOperation(
+      const response = await callPublicApi(
         mockActionCtx(
           withMappedOwner({
             runMutation:
@@ -77,7 +71,7 @@ describe("publicApiHttp card endpoints", () => {
     const message =
       "Search is too broad. Add a type, favorite, or date filter.";
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock(),
         runQuery: mock().mockRejectedValue(
@@ -104,7 +98,7 @@ describe("publicApiHttp card endpoints", () => {
     const runMutation = buildAuthorizedMutationMock();
 
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards?createdAfter=10junk", {
         method: "GET",
@@ -157,7 +151,7 @@ describe("publicApiHttp card endpoints", () => {
       scannedRows: 1,
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       new Request(
         "https://example.com/v1/cards?type=image&type=link&include=content,metadata,processing",
@@ -204,7 +198,7 @@ describe("publicApiHttp card endpoints", () => {
       'tag:design type:link site:www.GitHub.com "design system" #ui folder:"Reading list" is:fav'
     );
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?q=${q}&tag=Brand&type=link&type=image`
@@ -249,7 +243,7 @@ describe("publicApiHttp card endpoints", () => {
       pageInfo: { hasMore: false, nextCursor: null },
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?q=${encodeURIComponent("#Secret")}`
@@ -271,7 +265,7 @@ describe("publicApiHttp card endpoints", () => {
       scannedRows: 0,
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?q=${encodeURIComponent("site:example.com is:archived")}`
@@ -294,7 +288,7 @@ describe("publicApiHttp card endpoints", () => {
       scannedRows: 0,
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?q=${encodeURIComponent("price:>20 price:<=100")}`
@@ -318,7 +312,7 @@ describe("publicApiHttp card endpoints", () => {
       pageInfo: { hasMore: false, nextCursor: null },
     });
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?mode=keyword&q=${encodeURIComponent('text:"Total due" text:4411')}`
@@ -346,7 +340,7 @@ describe("publicApiHttp card endpoints", () => {
         scannedRows: 0,
       });
       const response = await runHandler(
-        listCardsV1,
+        publicApiV1,
         { runMutation: buildAuthorizedMutationMock(), runQuery },
         authorized(`https://example.com/v1/cards?q=${encodeURIComponent(q)}`)
       );
@@ -364,7 +358,7 @@ describe("publicApiHttp card endpoints", () => {
       pageInfo: { hasMore: false, nextCursor: null },
     });
     await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?mode=keyword&q=${encodeURIComponent("desk lamp price:<50")}`
@@ -387,7 +381,7 @@ describe("publicApiHttp card endpoints", () => {
   ])("listCardsV1 answers %s with %s with no cards", async (q, param) => {
     const runQuery = mock();
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         `https://example.com/v1/cards?q=${encodeURIComponent(q)}&${param}`
@@ -404,7 +398,7 @@ describe("publicApiHttp card endpoints", () => {
   test("listCardsV1 answers an unknown folder with 404 even when q contradicts the other filters", async () => {
     const runQuery = mock().mockResolvedValue(null);
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized(
         "https://example.com/v1/cards?folder=missing&type=link&q=type:text"
@@ -422,7 +416,7 @@ describe("publicApiHttp card endpoints", () => {
       scannedRows: 0,
     });
     await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized("https://example.com/v1/cards?q=is:archived&trashed=true")
     );
@@ -435,7 +429,7 @@ describe("publicApiHttp card endpoints", () => {
 
   test("listCardsV1 rejects any invalid repeated type", async () => {
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards?type=image&type=invalid", {
         headers: {
@@ -478,7 +472,7 @@ describe("publicApiHttp card endpoints", () => {
     });
 
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request(
         "https://example.com/v1/cards?limit=10&include=content,metadata",
@@ -516,7 +510,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -561,7 +555,7 @@ describe("publicApiHttp card endpoints", () => {
       );
 
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -584,7 +578,7 @@ describe("publicApiHttp card endpoints", () => {
   test("bulkCardsV1 rejects an unknown operation", async () => {
     const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -603,7 +597,7 @@ describe("publicApiHttp card endpoints", () => {
     const runMutation = buildAuthorizedMutationMock();
 
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -633,7 +627,7 @@ describe("publicApiHttp card endpoints", () => {
     const runMutation = buildAuthorizedMutationMock();
 
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -660,7 +654,7 @@ describe("publicApiHttp card endpoints", () => {
     async (limit: string) => {
       const runQuery = mock();
       const response = await runHandler(
-        changesCardsV1,
+        publicApiV1,
         { runMutation: buildAuthorizedMutationMock(), runQuery },
         new Request(
           `https://example.com/v1/cards/changes?since=1&limit=${limit}`,
@@ -692,7 +686,7 @@ describe("publicApiHttp card endpoints", () => {
     });
 
     const response = await runHandler(
-      changesCardsV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/changes?since=1&limit=10", {
         method: "GET",
@@ -719,7 +713,7 @@ describe("publicApiHttp card endpoints", () => {
     });
 
     const response = await runHandler(
-      tagsV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/tags", {
         method: "GET",
@@ -742,7 +736,7 @@ describe("publicApiHttp card endpoints", () => {
     const runQuery = mock().mockResolvedValueOnce(null);
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/not-an-id", {
         method: "PATCH",
@@ -779,7 +773,7 @@ describe("publicApiHttp card endpoints", () => {
       })
       .mockResolvedValueOnce(links);
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         headers: {
@@ -817,7 +811,7 @@ describe("publicApiHttp card endpoints", () => {
       .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" })
       .mockResolvedValueOnce(links);
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -852,7 +846,7 @@ describe("publicApiHttp card endpoints", () => {
     let response: Response;
     try {
       response = await runHandler(
-        cardByIdV1,
+        publicApiV1,
         { runMutation: buildAuthorizedMutationMock(), runQuery },
         new Request("https://example.com/v1/cards/card_1", {
           headers: {
@@ -886,7 +880,7 @@ describe("publicApiHttp card endpoints", () => {
       pageInfo: { hasMore: false, nextCursor: null },
     });
     const response = await runHandler(
-      changesCardsV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       new Request("https://example.com/v1/cards/changes?since=1&limit=10", {
         headers: {
@@ -926,7 +920,7 @@ describe("publicApiHttp card endpoints", () => {
         },
       });
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         headers: {
@@ -962,7 +956,7 @@ describe("publicApiHttp card endpoints", () => {
         updatedAt: 2,
       });
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery },
       authorized("https://example.com/v1/cards/card_1")
     );
@@ -998,7 +992,7 @@ describe("publicApiHttp card endpoints", () => {
       .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -1053,7 +1047,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -1082,7 +1076,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -1116,7 +1110,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -1142,7 +1136,7 @@ describe("publicApiHttp card endpoints", () => {
       .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -1167,7 +1161,7 @@ describe("publicApiHttp card endpoints", () => {
       .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1/favorite", {
         method: "PATCH",
@@ -1192,7 +1186,7 @@ describe("publicApiHttp card endpoints", () => {
     "%s allows Trash lifecycle operation %s",
     async (method: string, suffix: string) => {
       const response = await runHandler(
-        cardByIdV1,
+        publicApiV1,
         {
           runMutation:
             buildAuthorizedMutationMock().mockResolvedValueOnce(null),
@@ -1244,7 +1238,7 @@ describe("publicApiHttp card endpoints", () => {
         .mockResolvedValueOnce(card && { userId: "user_1", ...card })
         .mockResolvedValueOnce(source);
       return runHandler(
-        cardByIdV1,
+        publicApiV1,
         { runMutation: buildAuthorizedMutationMock(), runQuery },
         contentRequest(query)
       );
@@ -1461,7 +1455,7 @@ describe("publicApiHttp card endpoints", () => {
         changed: true,
       });
       const response = await runHandler(
-        cardByIdV1,
+        publicApiV1,
         {
           runMutation,
           runQuery: mock()
@@ -1489,7 +1483,7 @@ describe("publicApiHttp card endpoints", () => {
     ["CONFLICT", "Restore this card from Trash before marking it done", 409],
   ])("/done maps %s to %p", async (code, message, status) => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({ code, message })
@@ -1514,7 +1508,7 @@ describe("publicApiHttp card endpoints", () => {
     });
   const savePdf = (runAction: ReturnType<typeof mock>, card = linkCard) =>
     runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runAction,
         runMutation: buildAuthorizedMutationMock(),
@@ -1585,10 +1579,10 @@ describe("publicApiHttp card endpoints", () => {
     expect(runAction).toHaveBeenCalledTimes(1);
   });
 
-  test("GET /save-pdf is not a route", async () => {
+  test("GET /save-pdf is 405: the path takes POST only", async () => {
     const runAction = mock();
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runAction,
         runMutation: buildAuthorizedMutationMock(),
@@ -1596,7 +1590,8 @@ describe("publicApiHttp card endpoints", () => {
       },
       savePdfRequest("GET")
     );
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("POST, OPTIONS");
     expect(runAction).not.toHaveBeenCalled();
   });
 
@@ -1611,7 +1606,7 @@ describe("publicApiHttp card endpoints", () => {
 
   test("refresh answers 202 with the queued card", async () => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
           cardId: "card_1",
@@ -1634,7 +1629,7 @@ describe("publicApiHttp card endpoints", () => {
   test("refresh maps the rate limit to 429 with retryAt and Retry-After", async () => {
     const retryAt = Date.now() + 30_000;
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({
@@ -1661,7 +1656,7 @@ describe("publicApiHttp card endpoints", () => {
 
   test("refresh of a card in Trash answers 409", async () => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({
@@ -1687,7 +1682,7 @@ describe("publicApiHttp card endpoints", () => {
   test("refresh of an unknown card answers 404 without queueing", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery: mock().mockResolvedValueOnce(null) },
       refreshRequest("missing")
     );
@@ -1696,7 +1691,7 @@ describe("publicApiHttp card endpoints", () => {
   });
 
   test("refresh is reachable through executePublicApiOperation", async () => {
-    const response = await executePublicApiOperation(
+    const response = await callPublicApi(
       mockActionCtx(
         withMappedOwner({
           runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
@@ -1724,7 +1719,7 @@ describe("publicApiHttp card endpoints", () => {
     "%s /done is reachable through executePublicApiOperation, as MCP calls it",
     async (method) => {
       const link = { _id: "card_1", userId: "user_1", type: "link" };
-      const response = await executePublicApiOperation(
+      const response = await callPublicApi(
         mockActionCtx(
           withMappedOwner({
             runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
@@ -1754,7 +1749,7 @@ describe("publicApiHttp card endpoints", () => {
   test("a permanent delete of an active card asks to trash it first", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation,
         runQuery: mock()
@@ -1779,7 +1774,7 @@ describe("publicApiHttp card endpoints", () => {
 
   test("a backend NOT_IN_TRASH race also answers 409", async () => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
           new ConvexError({
@@ -1817,7 +1812,7 @@ describe("publicApiHttp card endpoints", () => {
   ])("bulk delete rejects a %s permanent flag", async (_label, body) => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      bulkCardsV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/bulk", {
         method: "POST",
@@ -1842,7 +1837,7 @@ describe("publicApiHttp card endpoints", () => {
       .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "DELETE",
@@ -1867,7 +1862,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "GET",
@@ -1893,7 +1888,7 @@ describe("publicApiHttp card endpoints", () => {
       });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery },
       new Request("https://example.com/v1/cards/card_1", {
         method: "PATCH",
@@ -2009,7 +2004,7 @@ describe("listCardsV1 search modes", () => {
   test("rejects an unknown mode", async () => {
     const { ctx } = ctxFor();
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       ctx,
       authorizedRequest("q=chair&mode=bogus")
     );
@@ -2021,7 +2016,7 @@ describe("listCardsV1 search modes", () => {
     await withWorker("ok", async (calls) => {
       const { ctx, pageArgs } = ctxFor();
       const response = await runHandler(
-        listCardsV1,
+        publicApiV1,
         ctx,
         authorizedRequest(`q=${encodeURIComponent("Cozy nook tag:home")}`)
       );
@@ -2039,7 +2034,7 @@ describe("listCardsV1 search modes", () => {
     await withWorker("ok", async () => {
       const { ctx, pageArgs } = ctxFor();
       const response = await runHandler(
-        listCardsV1,
+        publicApiV1,
         ctx,
         authorizedRequest("q=chair&mode=semantic")
       );
@@ -2052,7 +2047,7 @@ describe("listCardsV1 search modes", () => {
     await withWorker("fail", async (calls) => {
       const { ctx, pageArgs } = ctxFor();
       const response = await runHandler(
-        listCardsV1,
+        publicApiV1,
         ctx,
         authorizedRequest("q=chair")
       );
@@ -2068,7 +2063,7 @@ describe("listCardsV1 search modes", () => {
       for (const query of ["q=chair&mode=keyword", "q=tag%3Adesign"]) {
         const { ctx, pageArgs } = ctxFor();
         const response = await runHandler(
-          listCardsV1,
+          publicApiV1,
           ctx,
           authorizedRequest(query)
         );
@@ -2082,7 +2077,7 @@ describe("listCardsV1 search modes", () => {
   test("a qualifier-only search reports keyword mode", async () => {
     const { ctx } = ctxFor();
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       ctx,
       authorizedRequest("q=tag%3Adesign")
     );
@@ -2092,7 +2087,7 @@ describe("listCardsV1 search modes", () => {
   test("similarTo needs a card id", async () => {
     const { ctx } = ctxFor();
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       ctx,
       authorizedRequest("similarTo=not-a-card")
     );
@@ -2105,7 +2100,7 @@ describe("listCardsV1 search modes", () => {
     await withWorker("ok", async () => {
       const { ctx, pageArgs } = ctxFor();
       const answer = await runHandler(
-        listCardsV1,
+        publicApiV1,
         ctx,
         authorizedRequest(`similarTo=${anchor}&type=image`)
       );
@@ -2127,7 +2122,7 @@ describe("listCardsV1 search modes", () => {
         )
       );
       const gone = await runHandler(
-        listCardsV1,
+        publicApiV1,
         missing.ctx,
         authorizedRequest(`similarTo=${anchor}`)
       );
@@ -2144,7 +2139,7 @@ describe("listCardsV1 search modes", () => {
   test("a different like: in q than similarTo matches nothing", async () => {
     const { ctx, pageArgs } = ctxFor();
     const response = await runHandler(
-      listCardsV1,
+      publicApiV1,
       ctx,
       authorizedRequest(
         "similarTo=j979t50bv7gjxz2mazwwf5tes18gbvnt&q=like%3Aj97a1vaafgzkxkzag6rb6wt0gs8gbq0x"
@@ -2162,7 +2157,7 @@ describe("listCardsV1 search modes", () => {
       nextCursor: null,
       scannedRows: 0,
     }));
-    const response = await runHandler(listCardsV1, ctx, authorizedRequest(""));
+    const response = await runHandler(publicApiV1, ctx, authorizedRequest(""));
     expect(await response.json()).not.toHaveProperty("searchMode");
   });
 });
@@ -2193,7 +2188,7 @@ describe("link image routes", () => {
       runQuery?: unknown;
     } = {}
   ) =>
-    executePublicApiOperation(
+    callPublicApi(
       withMappedOwner({
         runAction: runAction ?? mock().mockResolvedValue({}),
         runMutation: runMutation ?? buildAuthorizedMutationMock(),
@@ -2345,7 +2340,7 @@ describe("link image routes", () => {
 
   test("the PUT route is served by the card-by-id handler", async () => {
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       {
         runAction: mock().mockResolvedValue({ changeId: "c", undoUntil: 1 }),
         runMutation: buildAuthorizedMutationMock(),
@@ -2375,7 +2370,7 @@ describe("page snapshots", () => {
     uploadUrl: "https://files.example.com/__upload/v1/s1",
   };
   const post = (body: unknown, runMutation = buildAuthorizedMutationMock()) =>
-    executePublicApiOperation(
+    callPublicApi(
       withMappedOwner({
         runMutation,
         runQuery: mock().mockResolvedValue(null),
@@ -2446,7 +2441,7 @@ describe("page snapshots", () => {
       cardId: "card_1",
       status: "created",
     });
-    const response = await executePublicApiOperation(
+    const response = await callPublicApi(
       withMappedOwner({
         runMutation,
         runQuery: mock().mockResolvedValue(null),

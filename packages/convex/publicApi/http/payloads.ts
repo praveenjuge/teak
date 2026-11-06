@@ -14,12 +14,10 @@ import {
   MAX_FOLDERS_PER_CARD,
 } from "../../shared/folders";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
+import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
 import { isSafeExternalUrl } from "../../shared/utils/safeUrl";
 import {
-  CARD_TYPES,
-  type CreateCardPayload,
-  type CreateUploadPayload,
   explainCardTypeMismatch,
   explainInvalidTags,
   explainOversizedText,
@@ -27,7 +25,8 @@ import {
   parseOptionalString,
   parseStringArray,
   truncateCardTitle,
-} from "./shared";
+} from "../validation";
+import type { CreateCardPayload, CreateUploadPayload } from "./shared";
 
 type CreatePayloadResult =
   | { code?: "CONTENT_TOO_LARGE"; error: string }
@@ -114,9 +113,12 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   if (sourceError) {
     return { error: sourceError };
   }
-  if (cardType !== undefined && !CARD_TYPES.has(cardType)) {
+  if (
+    cardType !== undefined &&
+    !(PUBLIC_API_CARD_TYPES as readonly string[]).includes(cardType)
+  ) {
     return {
-      error: `\`cardType\` must be one of: ${[...CARD_TYPES].join(", ")}`,
+      error: `\`cardType\` must be one of: ${PUBLIC_API_CARD_TYPES.join(", ")}`,
     };
   }
   if (

@@ -276,3 +276,30 @@ test("an account created at sign-in can mint a key and read me", async () => {
     data: { id: "teak_early", email: "early@example.com" },
   });
 });
+
+test("an MCP card id that is also a route word names a card, not the route", async () => {
+  const { t, key } = await setup();
+  const response = await t.fetch("/mcp", {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "teak_v1_get_card", arguments: { cardId: "changes" } },
+    }),
+  });
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as {
+    result: { isError?: boolean; structuredContent: Record<string, unknown> };
+  };
+  expect(body.result.isError).toBe(true);
+  expect(body.result.structuredContent).toMatchObject({
+    code: "NOT_FOUND",
+    status: 404,
+  });
+});

@@ -1,33 +1,31 @@
 import { internal } from "../../_generated/api";
-import type { ActionCtx } from "../../_generated/server";
 import {
   explainInvalidTagName,
   explainInvalidTagSource,
   type TagOperationKind,
 } from "../../shared/tags";
 import type { TagOperationSummary } from "../../tag/tagOperations";
-import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
-import {
-  errorResponse,
-  json,
-  mapConvexErrorToResponse,
-  parseJsonBody,
-} from "./shared";
+import type { PublicApiCall } from "./operation";
+import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
 
-const OPERATION_PREFIX = "/v1/tags/operations/";
+interface TagOperationFields {
+  fromField: string;
+  kind: TagOperationKind;
+  toField?: string;
+}
 
-const START_ROUTES: Record<
-  string,
-  { kind: TagOperationKind; fromField: string; toField?: string }
-> = {
-  "/v1/tags/rename": { kind: "rename", fromField: "from", toField: "to" },
-  "/v1/tags/merge": { kind: "merge", fromField: "from", toField: "into" },
-  "/v1/tags/delete": { kind: "delete", fromField: "tag" },
+const startFields = (kind: TagOperationKind): TagOperationFields => {
+  switch (kind) {
+    case "rename":
+      return { kind: "rename", fromField: "from", toField: "to" };
+    case "merge":
+      return { kind: "merge", fromField: "from", toField: "into" };
+    case "delete":
+      return { kind: "delete", fromField: "tag" };
+    default:
+      return kind satisfies never;
+  }
 };
-
-export const isTagOperationPath = (pathname: string): boolean =>
-  pathname in START_ROUTES || pathname.startsWith(OPERATION_PREFIX);
 
 export const serializeTagOperation = (operation: TagOperationSummary) => ({
   id: operation._id,
@@ -82,69 +80,40 @@ export const parseTagOperationPayload = (
   return { from: values[0] ?? "", ...(values[1] ? { to: values[1] } : {}) };
 };
 
-export const handleTagOperationRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response> => {
-  const { pathname } = new URL(request.url);
-  const start = START_ROUTES[pathname];
-  let operationId: string | undefined;
-  if (!start) {
-    try {
-      operationId = decodeURIComponent(pathname.slice(OPERATION_PREFIX.length));
-    } catch {
-      return errorResponse(404, "NOT_FOUND", "Tag route not found");
-    }
-    if (
-      !(pathname.startsWith(OPERATION_PREFIX) && operationId) ||
-      operationId.includes("/")
-    ) {
-      return errorResponse(404, "NOT_FOUND", "Tag route not found");
-    }
-  }
-  const method = start ? "POST" : "GET";
-  if (request.method !== method) {
-    return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
-  }
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  const userId = auth.validated.userId;
-
-  if (!start) {
-    try {
-      const operation = await ctx.runQuery(
-        internal.publicApiTags.getTagOperationForApi,
-        { userId, operationId: operationId ?? "" }
-      );
-      return operation
-        ? json(200, serializeTagOperation(operation))
-        : errorResponse(404, "NOT_FOUND", "Tag operation not found");
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to fetch tag operation");
-    }
-  }
-
-  let payload: unknown;
+export const handleGetTagOperationRequest = async ({
+  ctx,
+  params,
+  userId,
+}: PublicApiCall): Promise<Response> => {
   try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
-  const parsed = parseTagOperationPayload(payload, start);
-  if ("error" in parsed) {
-    return errorResponse(400, "INVALID_INPUT", parsed.error);
-  }
-  try {
-    const operation = await ctx.runMutation(
-      internal.publicApiTags.startTagOperationForApi,
-      { userId, kind: start.kind, ...parsed }
+    const operation = await ctx.runQuery(
+      internal.publicApiTags.getTagOperationForApi,
+      { userId, operationId: params.operationId }
     );
-    const body = serializeTagOperation(operation);
-    return json(202, { operationId: body.id, ...body });
+    return operation
+      ? json(200, serializeTagOperation(operation))
+      : errorResponse(404, "NOT_FOUND", "Tag operation not found");
   } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to start tag change");
+    return mapConvexErrorToResponse(error, "Failed to fetch tag operation");
   }
 };
+
+export const startTagOperation =
+  (kind: TagOperationKind) =>
+  async ({ body, ctx, userId }: PublicApiCall): Promise<Response> => {
+    const start = startFields(kind);
+    const parsed = parseTagOperationPayload(body, start);
+    if ("error" in parsed) {
+      return errorResponse(400, "INVALID_INPUT", parsed.error);
+    }
+    try {
+      const operation = await ctx.runMutation(
+        internal.publicApiTags.startTagOperationForApi,
+        { userId, kind, ...parsed }
+      );
+      const serialized = serializeTagOperation(operation);
+      return json(202, { operationId: serialized.id, ...serialized });
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to start tag change");
+    }
+  };

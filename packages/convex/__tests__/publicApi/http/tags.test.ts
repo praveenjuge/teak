@@ -1,10 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { executePublicApiOperation } from "../../../publicApi/http/routes";
-import type { PublicApiOperation } from "../../../publicApi/http/shared";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
-import { buildAuthorizedMutationMock } from "../../helpers/publicApiHttp.test-utils";
+import type { ApiRequest as PublicApiOperation } from "../../helpers/publicApiHttp.test-utils";
+import {
+  buildAuthorizedMutationMock,
+  callPublicApi,
+} from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
 const AUTH = {
@@ -37,7 +39,7 @@ const run = (
   const runMutation = buildAuthorizedMutationMock();
   runMutation.mockImplementation((...args) => mutation(...args));
   const ctx = withMappedOwner({ runMutation, runQuery: query });
-  return executePublicApiOperation(mockActionCtx(ctx), {
+  return callPublicApi(mockActionCtx(ctx), {
     headers: AUTH,
     ...request,
   });

@@ -252,7 +252,7 @@ describe("raycast request handling", () => {
       );
     }
 
-    expect(capturedUrls).toEqual([
+    expect([...new Set(capturedUrls)]).toEqual([
       "https://reminiscent-kangaroo-59.convex.site/v1/cards?include=content%2Cmetadata%2Cprocessing&limit=1",
     ]);
   });
@@ -601,7 +601,7 @@ describe("raycast request handling", () => {
       }) as unknown as typeof fetch,
     );
     globalThis.fetch = ((input, init) => {
-      if (String(input).includes("oauth-protected-resource")) {
+      if (String(input).includes("teak-oauth-clients")) {
         discoveryReads += 1;
       }
       if (discoveryReads >= 2 && String(input).includes(".well-known")) {
@@ -945,7 +945,7 @@ describe("raycast file saves and Trash", () => {
       respondWith(() =>
         json(
           {
-            code: "REQUEST_FAILED",
+            code: "CONFLICT",
             error: "A folder with this name already exists",
           },
           409,

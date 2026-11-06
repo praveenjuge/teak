@@ -11,7 +11,7 @@ import {
   query,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
-import { isOptimisticConcurrencyError } from "../publicApi/http/shared";
+import { isOptimisticConcurrencyError } from "../convexFailures";
 import { getSessionUser, requireTeakUserId } from "../securitySessions";
 import { captureBackendException } from "../telemetry/posthog";
 

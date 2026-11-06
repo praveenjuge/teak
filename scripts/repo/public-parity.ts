@@ -1,3 +1,10 @@
+import {
+  TEAK_TOOLS,
+  type TeakTool,
+  toolInputSchema,
+} from "../../packages/convex/mcp/catalog";
+import type { PublicApiOperationId } from "../../packages/convex/shared/publicApiContract";
+
 export interface IntentionalGap {
   none: string;
 }
@@ -7,8 +14,14 @@ export type Surface = readonly string[] | IntentionalGap;
 export interface PublicParityRow {
   cli: Surface;
   feature: string;
-  mcp: Surface;
-  operationId: string;
+  /**
+   * Why no MCP tool calls the operation. The tools that do are read from
+   * the MCP catalog, which names each tool's operation.
+   */
+  mcp?: IntentionalGap;
+  operationId: PublicApiOperationId;
+  /** The Raycast AI tools (`apps/raycast/src/tools`) that call it. */
+  raycast?: readonly string[];
   sdk: Surface;
 }
 
@@ -47,21 +60,12 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   {
     operationId: "getMe",
     feature: "Account, plan and usage",
-    mcp: ["teak_v1_get_me"],
     sdk: ["me"],
     cli: ["whoami", "auth status"],
   },
   {
     operationId: "listCards",
     feature: "List and search cards",
-    mcp: [
-      "teak_v1_list_cards",
-      "teak_v1_search_cards",
-      "teak_v1_list_favorite_cards",
-      "teak_v1_list_pinned_cards",
-      "teak_v1_find_similar_cards",
-      "search",
-    ],
     sdk: [
       "cards.list",
       "cards.search",
@@ -81,46 +85,42 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
       "similar",
       "trash",
     ],
+    raycast: ["search-cards", "get-recent"],
   },
   {
     operationId: "createCard",
     feature: "Save a card",
-    mcp: ["teak_v1_create_card"],
     sdk: ["cards.create"],
     cli: ["cards create", "add"],
+    raycast: ["save-card"],
   },
   {
     operationId: "createUpload",
     feature: "Upload a file",
-    mcp: ["teak_v1_create_upload"],
     sdk: ["uploads.create"],
     cli: ["cards create", "add"],
   },
   {
     operationId: "bulkCards",
     feature: "Act on up to 100 cards",
-    mcp: ["teak_v1_bulk_cards"],
     sdk: ["cards.bulk"],
     cli: ["cards bulk"],
   },
   {
     operationId: "listCardChanges",
     feature: "Cards changed since a time",
-    mcp: ["teak_v1_get_card_changes"],
     sdk: ["cards.changes"],
     cli: ["cards changes"],
   },
   {
     operationId: "findDuplicateCard",
     feature: "Find the card that saves a URL",
-    mcp: ["teak_v1_check_duplicate_url"],
     sdk: ["cards.duplicate"],
     cli: ["cards duplicate"],
   },
   {
     operationId: "getCard",
     feature: "Get a card",
-    mcp: ["teak_v1_get_card", "teak_v1_get_card_links", "fetch"],
     sdk: ["cards.get", "cards.links"],
     cli: [
       "cards get",
@@ -131,11 +131,11 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
       "open",
       "download",
     ],
+    raycast: ["get-card"],
   },
   {
     operationId: "updateCard",
     feature: "Edit, archive or retag a card",
-    mcp: ["teak_v1_update_card", "teak_v1_set_card_archived"],
     sdk: ["cards.update", "cards.setArchived"],
     cli: [
       "cards update",
@@ -146,39 +146,35 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
       "tags add",
       "tags remove",
     ],
+    raycast: ["update-card"],
   },
   {
     operationId: "deleteCard",
     feature: "Move to Trash or delete forever",
-    mcp: ["teak_v1_delete_card"],
     sdk: ["cards.delete"],
     cli: ["cards delete", "rm"],
   },
   {
     operationId: "restoreCard",
     feature: "Restore from Trash",
-    mcp: ["teak_v1_restore_card"],
     sdk: ["cards.restore"],
     cli: ["cards restore", "restore"],
   },
   {
     operationId: "getCardContent",
     feature: "A card's full text",
-    mcp: ["teak_v1_get_card_content"],
     sdk: ["cards.content"],
     cli: ["cards content", "content"],
   },
   {
     operationId: "refreshCard",
     feature: "Refresh a card's details",
-    mcp: ["teak_v1_refresh_card"],
     sdk: ["cards.refresh"],
     cli: ["cards refresh", "refresh"],
   },
   {
     operationId: "createThumbnailUpload",
     feature: "Upload a link's new image",
-    mcp: ["teak_v1_create_thumbnail_upload"],
     sdk: ["cards.createThumbnailUpload"],
     cli: ["cards thumbnail"],
   },
@@ -192,21 +188,18 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   {
     operationId: "setCardThumbnail",
     feature: "Replace a link's image",
-    mcp: ["teak_v1_set_card_thumbnail"],
     sdk: ["cards.setThumbnail"],
     cli: ["cards thumbnail"],
   },
   {
     operationId: "resetCardThumbnail",
     feature: "Reset a link's image",
-    mcp: ["teak_v1_reset_card_thumbnail"],
     sdk: ["cards.resetThumbnail"],
     cli: ["cards thumbnail"],
   },
   {
     operationId: "markCardDone",
     feature: "Mark a link done",
-    mcp: ["teak_v1_set_card_done"],
     sdk: ["cards.setDone"],
     cli: ["cards done", "done"],
   },
@@ -224,154 +217,135 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   {
     operationId: "saveCardPdf",
     feature: "Save a paper's PDF",
-    mcp: ["teak_v1_save_card_pdf"],
     sdk: ["cards.savePdf"],
     cli: ["cards save-pdf"],
   },
   {
     operationId: "setCardFavorite",
     feature: "Favorite a card",
-    mcp: ["teak_v1_set_card_favorite"],
     sdk: ["cards.setFavorite"],
     cli: ["cards favorite", "fav", "cards unfavorite", "unfav"],
+    raycast: ["favorite-card"],
   },
   {
     operationId: "setCardPinned",
     feature: "Pin a card to the top",
-    mcp: ["teak_v1_set_card_pinned"],
     sdk: ["cards.setPinned"],
     cli: ["cards pin", "pin", "cards unpin", "unpin"],
   },
   {
     operationId: "reorderPinnedCards",
     feature: "Reorder pinned cards",
-    mcp: ["teak_v1_reorder_pinned_cards"],
     sdk: ["cards.reorderPinned"],
     cli: ["cards pins order"],
   },
   {
     operationId: "listTags",
     feature: "List tags",
-    mcp: ["teak_v1_list_tags"],
     sdk: ["tags.list"],
     cli: ["tags", "tags list"],
+    raycast: ["list-tags"],
   },
   {
     operationId: "renameTag",
     feature: "Rename a tag everywhere",
-    mcp: ["teak_v1_rename_tag"],
     sdk: ["tags.rename"],
     cli: ["tags rename"],
   },
   {
     operationId: "mergeTags",
     feature: "Merge tags",
-    mcp: ["teak_v1_merge_tags"],
     sdk: ["tags.merge"],
     cli: ["tags merge"],
   },
   {
     operationId: "deleteTag",
     feature: "Delete a tag everywhere",
-    mcp: ["teak_v1_delete_tag"],
     sdk: ["tags.delete"],
     cli: ["tags delete"],
   },
   {
     operationId: "getTagOperation",
     feature: "Progress of a tag change",
-    mcp: ["teak_v1_get_tag_operation"],
     sdk: ["tags.operation"],
     cli: ["tags status"],
   },
   {
     operationId: "listFolders",
     feature: "List folders",
-    mcp: ["teak_v1_list_folders"],
     sdk: ["folders.list"],
     cli: ["folders", "folders list"],
+    raycast: ["list-folders"],
   },
   {
     operationId: "createFolder",
     feature: "Create a folder or smart folder",
-    mcp: ["teak_v1_create_folder"],
     sdk: ["folders.create"],
     cli: ["folders create"],
   },
   {
     operationId: "getFolder",
     feature: "Get a folder",
-    mcp: ["teak_v1_get_folder"],
     sdk: ["folders.get"],
     cli: ["folders get"],
   },
   {
     operationId: "updateFolder",
     feature: "Rename, recolor, change a smart search or a folder's rules",
-    mcp: ["teak_v1_update_folder"],
     sdk: ["folders.update"],
     cli: ["folders rename", "folders rules"],
   },
   {
     operationId: "deleteFolder",
     feature: "Delete a folder, keeping its cards",
-    mcp: ["teak_v1_delete_folder"],
     sdk: ["folders.delete"],
     cli: ["folders delete"],
   },
   {
     operationId: "addCardsToFolder",
     feature: "Add cards to a folder",
-    mcp: ["teak_v1_add_cards_to_folder"],
     sdk: ["folders.addCards"],
     cli: ["folders add"],
   },
   {
     operationId: "removeCardsFromFolder",
     feature: "Remove cards from a folder",
-    mcp: ["teak_v1_remove_cards_from_folder"],
     sdk: ["folders.removeCards"],
     cli: ["folders remove"],
   },
   {
     operationId: "getFolderRuleRun",
     feature: "Progress of a folder rule run",
-    mcp: ["teak_v1_get_folder_rule_run"],
     sdk: ["folders.getRuleRun"],
     cli: ["folders rule-run"],
   },
   {
     operationId: "undoFolderRuleRun",
     feature: "Undo a folder rule run",
-    mcp: ["teak_v1_undo_folder_rule_run"],
     sdk: ["folders.undoRuleRun"],
     cli: ["folders undo-rule-run"],
   },
   {
     operationId: "listHighlights",
     feature: "List a link's highlights",
-    mcp: ["teak_v1_list_highlights"],
     sdk: ["highlights.list"],
     cli: ["highlights list"],
   },
   {
     operationId: "createHighlight",
     feature: "Highlight a passage of a link's article by its text",
-    mcp: ["teak_v1_create_highlight"],
     sdk: ["highlights.create"],
     cli: ["highlights add"],
   },
   {
     operationId: "updateHighlight",
     feature: "Change or clear a highlight's note",
-    mcp: ["teak_v1_update_highlight"],
     sdk: ["highlights.update"],
     cli: ["highlights note"],
   },
   {
     operationId: "deleteHighlight",
     feature: "Remove a highlight",
-    mcp: ["teak_v1_delete_highlight"],
     sdk: ["highlights.delete"],
     cli: ["highlights delete"],
   },
@@ -419,6 +393,67 @@ export const SDK_LOCAL_MEMBERS: Record<string, string> = {
   "uploads.putFile": "uploads bytes straight to the signed storage URL",
 };
 
+type JsonSchema = Record<string, unknown>;
+
+/**
+ * The smallest arguments a JSON Schema describes: each required property
+ * with its first allowed value. Enough to see which operation a tool calls.
+ */
+export const sampleFromSchema = (schema: JsonSchema): unknown => {
+  if ("const" in schema) {
+    return schema.const;
+  }
+  if (Array.isArray(schema.enum)) {
+    return schema.enum[0];
+  }
+  if (Array.isArray(schema.anyOf)) {
+    return sampleFromSchema(schema.anyOf[0] as JsonSchema);
+  }
+  const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
+  switch (type) {
+    case "object": {
+      const properties = (schema.properties ?? {}) as Record<
+        string,
+        JsonSchema
+      >;
+      const required = (schema.required ?? []) as string[];
+      return Object.fromEntries(
+        required.map((name) => [name, sampleFromSchema(properties[name] ?? {})])
+      );
+    }
+    case "array":
+      return Array.from({ length: Number(schema.minItems ?? 0) }, () =>
+        sampleFromSchema((schema.items ?? {}) as JsonSchema)
+      );
+    case "boolean":
+      return true;
+    case "integer":
+    case "number":
+      return Number(schema.minimum ?? 1);
+    default:
+      return "x1";
+  }
+};
+
+const operationOf = (tool: TeakTool<unknown>): PublicApiOperationId =>
+  tool.call(sampleFromSchema(toolInputSchema(tool.schema))).operationId;
+
+/** The MCP tools that call each operation. */
+export const mcpToolsByOperation = (): Map<PublicApiOperationId, string[]> => {
+  const byOperation = new Map<PublicApiOperationId, string[]>();
+  for (const tool of TEAK_TOOLS) {
+    const operationId = operationOf(tool);
+    byOperation.set(operationId, [
+      ...(byOperation.get(operationId) ?? []),
+      tool.name,
+    ]);
+  }
+  return byOperation;
+};
+
+export const mcpSurface = (row: PublicParityRow): Surface =>
+  row.mcp ?? mcpToolsByOperation().get(row.operationId) ?? [];
+
 const cell = (surface: Surface) =>
   Array.isArray(surface)
     ? surface.map((name) => `\`${name}\``).join(", ")
@@ -430,7 +465,7 @@ export const parityMarkdown = () =>
     "| --- | --- | --- | --- | --- |",
     ...PUBLIC_PARITY.map(
       (row) =>
-        `| ${row.feature} | \`${row.operationId}\` | ${cell(row.mcp)} | ${cell(row.sdk)} | ${cell(row.cli)} |`
+        `| ${row.feature} | \`${row.operationId}\` | ${cell(mcpSurface(row))} | ${cell(row.sdk)} | ${cell(row.cli)} |`
     ),
     "",
     "| App-only change | Read by | Why no API, MCP, SDK or CLI setter |",

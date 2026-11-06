@@ -1,10 +1,7 @@
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
-import { type ActionCtx, httpAction } from "../../_generated/server";
 import { readExportDownloadUrl } from "../../dataExport";
-import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
-import { withPublicApiGatewayHeaders } from "./meta";
+import type { PublicApiCall } from "./operation";
 import { errorResponse, json } from "./shared";
 
 interface ExportSummary {
@@ -42,15 +39,9 @@ const serializeExport = (job: ExportSummary, downloadUrl: string | null) => ({
 });
 
 export async function handleLatestExportRequest(
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-  const userId = auth.validated.userId;
+  const { ctx, userId } = call;
   try {
     const latest: {
       canStartNew: boolean;
@@ -76,14 +67,9 @@ export async function handleLatestExportRequest(
 }
 
 export async function handleStartExportRequest(
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { ctx, userId } = call;
   try {
     const result: {
       job?: ExportSummary;
@@ -91,7 +77,7 @@ export async function handleStartExportRequest(
       reason?: "already_active" | "quota_exceeded";
       started: boolean;
     } = await ctx.runMutation(internal.dataExport.startExportForUser, {
-      userId: auth.validated.userId,
+      userId,
     });
     if (result.started && result.job) {
       return json(202, { job: serializeExport(result.job, null) });
@@ -117,11 +103,3 @@ export async function handleStartExportRequest(
     return errorResponse(500, "INTERNAL_ERROR", "Failed to start export");
   }
 }
-
-export const exportsV1 = httpAction(async (ctx, request) =>
-  withPublicApiGatewayHeaders(
-    request.method === "POST"
-      ? await handleStartExportRequest(ctx, request)
-      : await handleLatestExportRequest(ctx, request)
-  )
-);
