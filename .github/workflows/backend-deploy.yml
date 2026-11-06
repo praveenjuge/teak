@@ -3,10 +3,13 @@ name: Backend Deploy
 on:
   push:
     branches: [main]
+    # scripts/repo/workflow-paths.test.ts checks this covers every file the
+    # Convex modules import.
     paths:
       - ".github/workflows/backend-deploy.yml"
       - "packages/convex/**"
       - "packages/files-protocol/**"
+      - "packages/i18n/**"
       - "apps/core-worker/**"
       - "scripts/setup/check-files-readiness.ts"
       - "bun.lock"
