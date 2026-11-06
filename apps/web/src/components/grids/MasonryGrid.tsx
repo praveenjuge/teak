@@ -585,7 +585,8 @@ export const MasonryGrid = memo(function MasonryGrid({
         }
       } else if (action === "deleteForever") {
         setPendingPermanentDeleteId(card._id);
-      } else if (action !== "done") {
+      } else if (action !== "done" && action !== "copy") {
+        // A card copies itself (`onCopyImage`); done belongs to the open card.
         onCardAction?.(action, card, source);
       }
     },

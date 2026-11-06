@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Zu Ordner hinzufügen…",
-      "copyLink": "Link kopieren",
-      "copyText": "Text kopieren",
       "download": "Herunterladen",
       "moreActions": "Weitere Aktionen",
       "moreLikeThis": "Ähnliche Karten",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "Link öffnen oder Datei herunterladen",
       "openLink": "Link öffnen",
       "markLinkDone": "Link als erledigt markieren",
-      "copyLinkOrText": "Link oder Text kopieren",
       "readOrPreview": "Lesen oder Vorschau",
       "highlightSelection": "Auswahl markieren",
       "goToEverything": "Alles",

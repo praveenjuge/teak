@@ -136,23 +136,30 @@ describe("gridKeyAction", () => {
     }
   );
 
+  // ⌘A on a Mac and Ctrl+A elsewhere, as the shortcuts list says; the
+  // other platform's key does nothing.
   test.each([
-    [{ key: "a", metaKey: true }, true],
-    [{ key: "A", ctrlKey: true }, true],
-    [{ key: "a" }, false],
-    [{ key: "a", metaKey: true, shiftKey: true }, false],
-    [{ key: "a", ctrlKey: true, repeat: true }, false],
-    [{ key: "c", metaKey: true }, false],
-  ])("isSelectAllKey(%o) is %p", (event, expected) => {
+    [{ key: "a", metaKey: true }, true, true],
+    [{ key: "a", ctrlKey: true }, true, false],
+    [{ key: "A", ctrlKey: true }, false, true],
+    [{ key: "a", metaKey: true }, false, false],
+    [{ key: "a" }, false, false],
+    [{ key: "a", metaKey: true, shiftKey: true }, true, false],
+    [{ key: "a", ctrlKey: true, repeat: true }, false, false],
+    [{ key: "c", metaKey: true }, true, false],
+  ])("isSelectAllKey(%o) on Apple %p is %p", (event, apple, expected) => {
     expect(
-      isSelectAllKey({
-        altKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        repeat: false,
-        shiftKey: false,
-        ...event,
-      })
+      isSelectAllKey(
+        {
+          altKey: false,
+          ctrlKey: false,
+          metaKey: false,
+          repeat: false,
+          shiftKey: false,
+          ...event,
+        },
+        apple
+      )
     ).toBe(expected);
   });
 

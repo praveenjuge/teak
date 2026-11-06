@@ -1,5 +1,4 @@
 import { opensOnRead } from "@teak/convex/shared/article";
-import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
@@ -72,6 +71,7 @@ import {
   cardActionLabel,
   cardActionShortcut,
 } from "../../lib/cardActions";
+import { cardCopyKind, cardCopyText } from "../../lib/cardCopy";
 import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
 import { getDisplayHostname } from "../../lib/displayHost";
@@ -305,9 +305,6 @@ const useStageView = (
   };
 };
 
-/** The dialog's own copy key; card actions take theirs from the registry. */
-const COPY_KEY = "C";
-
 interface SidebarAction {
   caption: string;
   icon: ReactNode;
@@ -324,6 +321,8 @@ interface CardModalProps {
   card?: CardModalCard | null;
   cardId?: string | null;
   cardLinks?: CardLinkOptions;
+  /** Copies an image card's picture, as the card's menu in a grid does. */
+  copyImage?: () => void;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
   hasUnsavedChanges: boolean;
@@ -361,6 +360,7 @@ export function CardModal({
   card: cardProp,
   cardId,
   cardLinks,
+  copyImage,
   open,
   openOrigin: openOriginPoint,
   onCancel,
@@ -637,10 +637,15 @@ export function CardModal({
     }
   };
   const canDownload = Boolean(card?.fileKey && isFileCardType(card.type));
+  // What C and "Copy" copy: the same as the card in a grid (cardCopyKind),
+  // with a note's text as it is being edited.
+  const copyKind = card ? cardCopyKind(card) : null;
   const copyableText =
-    card?.type === "text" || card?.type === "quote"
-      ? cardLinkTokensToText(getCurrentValue("content") ?? "")
+    card && copyKind !== "image"
+      ? cardCopyText(card, getCurrentValue("content"))
       : "";
+  const canCopy =
+    copyKind === "image" ? Boolean(copyImage) : copyableText !== "";
   const canToggleDone = can("done");
   const isDone = card?.completedAt !== undefined;
   const doneVerb = doneActionLabel(card?.metadata?.linkCategory?.category);
@@ -660,17 +665,18 @@ export function CardModal({
 
   const copyFailed = t("toasts.copyFailed");
   const copyCard = () => {
-    if (card?.url) {
-      void copyText(card.url, {
-        copied: t("toasts.copiedLink"),
-        failed: copyFailed,
-      });
-    } else if (copyableText) {
-      void copyText(copyableText, {
-        copied: t("toasts.copiedText"),
-        failed: copyFailed,
-      });
+    if (!canCopy) {
+      return;
     }
+    if (copyKind === "image") {
+      copyImage?.();
+      return;
+    }
+    void copyText(copyableText, {
+      copied:
+        copyKind === "link" ? t("toasts.copiedLink") : t("toasts.copiedText"),
+      failed: copyFailed,
+    });
   };
 
   const focusPanelField = (field: "notes" | "tags") => {
@@ -799,7 +805,7 @@ export function CardModal({
     : undefined;
 
   const favoriteLabel = actionLabel("favorite");
-  const copyLabel = card?.url ? t("menu.copyLink") : t("menu.copyText");
+  const copyLabel = actionLabel("copy");
   const moreLabel = t("menu.moreActions");
 
   // `quiet` is the trash sidebar's secondary Download, under Restore.
@@ -879,14 +885,14 @@ export function CardModal({
         tone: "primary",
       });
     }
-    if (card.url || copyableText) {
+    if (canCopy) {
       sidebarActions.push({
         caption: tc("copy"),
         icon: <Copy />,
         id: "copy",
         label: copyLabel,
         onClick: copyCard,
-        shortcut: [COPY_KEY],
+        shortcut: [cardActionKeyName("copy") ?? ""],
       });
     }
     sidebarActions.push({
@@ -928,10 +934,10 @@ export function CardModal({
         </DropdownMenuItem>,
       ]);
     }
-    if (isMobile && (card.url || copyableText)) {
+    if (isMobile && canCopy) {
       menuGroups.push([
         <DropdownMenuItem
-          aria-keyshortcuts={COPY_KEY}
+          aria-keyshortcuts={shortcut("copy")?.keys}
           key="copy"
           onClick={copyCard}
         >

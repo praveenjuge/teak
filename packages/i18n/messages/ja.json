@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "フォルダに追加…",
-      "copyLink": "リンクをコピー",
-      "copyText": "テキストをコピー",
       "download": "ダウンロード",
       "moreActions": "その他の操作",
       "moreLikeThis": "似たカード",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "リンクを開くかファイルをダウンロード",
       "openLink": "リンクを開く",
       "markLinkDone": "リンクを完了にする",
-      "copyLinkOrText": "リンクまたはテキストをコピー",
       "readOrPreview": "読む/プレビュー",
       "highlightSelection": "選択範囲をハイライト",
       "goToEverything": "すべて",

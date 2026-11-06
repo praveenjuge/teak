@@ -87,12 +87,14 @@ const thumbnailControl = (): LinkThumbnailControl => ({
 async function render(
   card: CardModalCard,
   {
+    copyImage,
     linkThumbnail = thumbnailControl(),
     onMoreLikeThis = mock(),
     savePdf,
     openLink = mock(),
     runAction = mock(async (_action: string) => true),
   }: {
+    copyImage?: () => void;
     linkThumbnail?: LinkThumbnailControl;
     onMoreLikeThis?: (cardId: string) => void;
     openLink?: () => void;
@@ -107,6 +109,7 @@ async function render(
       <CardModal
         card={card}
         cardId={card._id}
+        copyImage={copyImage}
         downloadFile={() => undefined}
         getCurrentValue={() => undefined}
         hasUnsavedChanges={false}
@@ -133,6 +136,24 @@ async function render(
   );
   return { linkThumbnail, onMoreLikeThis, openLink, runAction };
 }
+
+test("an image copies its picture from the open card, as it does from the grid", async () => {
+  const copyImage = mock();
+  await render(
+    linkCard({
+      fileKey: "photo-key",
+      fileMetadata: { mimeType: "image/png" },
+      type: "image",
+      url: undefined,
+    } as Partial<CardModalCard>),
+    { copyImage }
+  );
+  expect(
+    document.querySelector("aside button[aria-label='Copy image']")
+  ).not.toBeNull();
+  await press("c");
+  expect(copyImage).toHaveBeenCalledTimes(1);
+});
 
 async function openMenu() {
   const trigger = document.querySelector<HTMLButtonElement>(

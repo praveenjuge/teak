@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Add to folder…",
-      "copyLink": "Copy link",
-      "copyText": "Copy text",
       "download": "Download",
       "moreActions": "More actions",
       "moreLikeThis": "More like this",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "Open the link or download the file",
       "openLink": "Open the link",
       "markLinkDone": "Mark a link done",
-      "copyLinkOrText": "Copy the link or text",
       "readOrPreview": "Read or preview",
       "highlightSelection": "Highlight the selection",
       "goToEverything": "Everything",

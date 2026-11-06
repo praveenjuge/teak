@@ -5,7 +5,7 @@ import {
 } from "@teak/i18n";
 import { type CardActionId, cardActionKeyName } from "./cardActions";
 import type { LibraryView } from "./libraryViews";
-import { isApplePlatform } from "./platform";
+import { isApplePlatform, isModKey } from "./platform";
 
 type ShortcutsTranslator = TeakTranslator<"shortcuts">;
 type ShortcutGroupId = keyof (typeof englishMessages)["shortcuts"]["groups"];
@@ -115,7 +115,7 @@ const SHORTCUT_GROUPS: {
       { id: "openOrDownload", keys: ["O"] },
       { id: "openLink", keys: ["Mod", "Enter"], combo: true },
       { id: "markLinkDone", keys: cardKey("done") },
-      { id: "copyLinkOrText", keys: ["C"] },
+      { id: "copy", keys: cardKey("copy") },
       { id: "readOrPreview", keys: ["R"] },
       { id: "highlightSelection", keys: ["H"] },
       { id: "archive", keys: cardKey("archive") },
@@ -235,9 +235,7 @@ export function isFocusNoteKey(
   if (event.key.toLowerCase() !== "e" || event.altKey || event.shiftKey) {
     return false;
   }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
+  return isModKey(event, apple);
 }
 
 export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";

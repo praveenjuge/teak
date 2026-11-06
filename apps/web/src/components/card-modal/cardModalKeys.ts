@@ -1,6 +1,6 @@
 import { type CardActionId, cardActionsForKey } from "../../lib/cardActions";
 import { isTypingTarget, OPEN_OVERLAYS } from "../../lib/keyboardShortcuts";
-import { isApplePlatform } from "../../lib/platform";
+import { isApplePlatform, isModKey } from "../../lib/platform";
 
 /** Keys only the open card has; the rest are card actions. */
 type DialogKeyAction =
@@ -8,7 +8,6 @@ type DialogKeyAction =
   | "next"
   | "focusNotes"
   | "open"
-  | "copy"
   | "toggleReader"
   | "highlight";
 
@@ -21,7 +20,6 @@ const DIALOG_KEYS: Record<string, DialogKeyAction> = {
   j: "next",
   n: "focusNotes",
   o: "open",
-  c: "copy",
   r: "toggleReader",
   h: "highlight",
 };
@@ -48,9 +46,7 @@ export function cardModalKeyAction(
   }
   if (
     event.key === "Enter" &&
-    (apple
-      ? event.metaKey && !event.ctrlKey
-      : event.ctrlKey && !event.metaKey) &&
+    isModKey(event, apple) &&
     !(event.altKey || event.shiftKey || event.repeat)
   ) {
     return "open";

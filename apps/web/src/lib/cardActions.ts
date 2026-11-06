@@ -1,5 +1,6 @@
 import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import type { Messages } from "@teak/i18n";
+import { type CopyableCard, cardCopyKind } from "./cardCopy";
 import { isApplePlatform } from "./platform";
 
 /**
@@ -17,7 +18,8 @@ export type CardActionId =
   | "restore"
   | "deleteForever"
   | "select"
-  | "done";
+  | "done"
+  | "copy";
 
 /** Where a key runs: on the focused card in a grid, or in the card dialog. */
 export type CardKeySurface = "grid" | "dialog";
@@ -27,7 +29,7 @@ export type CardView = "library" | "archive" | "trash";
 
 export type SelectionAction = BulkCardAction | "copyLinks" | "deleteForever";
 
-export interface ActionCard {
+export interface ActionCard extends CopyableCard {
   isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -131,6 +133,20 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: (card) => card.type === "link" && !card.isDeleted,
     key: "d",
     keySurfaces: ["dialog"],
+  },
+  // C in the open card; a focused card in a grid takes ⌘C or Ctrl+C
+  // (`copyCardShortcut`), as anything selected on a page does.
+  copy: {
+    available: (card) => cardCopyKind(card) !== null,
+    key: "c",
+    keySurfaces: ["dialog"],
+    label: (card) => {
+      const kind = cardCopyKind(card);
+      if (kind === "image") {
+        return "copyImage";
+      }
+      return kind === "link" ? "copyLink" : "copyText";
+    },
   },
 };
 
@@ -280,9 +296,8 @@ export function cardAriaKeyShortcuts(
   offered: ReadonlySet<CardActionId>,
   {
     apple = isApplePlatform(),
-    canCopy = false,
     selecting = false,
-  }: { apple?: boolean; canCopy?: boolean; selecting?: boolean } = {}
+  }: { apple?: boolean; selecting?: boolean } = {}
 ): string {
   const keys = ["Enter"];
   for (const id of CARD_ACTION_IDS) {
@@ -298,7 +313,7 @@ export function cardAriaKeyShortcuts(
       }
     }
   }
-  if (canCopy && !selecting) {
+  if (offered.has("copy") && cardActionAvailable("copy", card) && !selecting) {
     keys.push(copyCardShortcut(apple).keys);
   }
   return keys.join(" ");

@@ -1,7 +1,10 @@
+import { api } from "@teak/convex";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
+import { useAction } from "convex/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { resolveImageCopyUrl } from "@/lib/cardCopy";
 import { copyText } from "@/lib/clipboard";
 import { englishTranslator } from "@/lib/englishTranslators";
 import { sizeSvgRoot } from "@/lib/svgSize";
@@ -156,4 +159,36 @@ export function useCardClipboard(options: CopyCardContentOptions = {}) {
   );
 
   return { handleCopyImage };
+}
+
+interface ImageCard {
+  _id: string;
+  fileKey?: string;
+  fileUrl?: string;
+  thumbnailUrl?: string;
+}
+
+/**
+ * Copies an image card's original picture, the way the card's ⌘C in a grid
+ * does: the open card copies what the grid copies.
+ */
+export function useCopyCardImage() {
+  const refresh = useAction(api.card.getFileUrl.refreshCardMediaUrl);
+  const { handleCopyImage } = useCardClipboard();
+  return useCallback(
+    (card: ImageCard) => {
+      // Started straight from the press: the clipboard write has to begin
+      // before any await (see copyCardContentToClipboard).
+      void handleCopyImage(
+        resolveImageCopyUrl({
+          cardId: card._id,
+          fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
+          fileKey: card.fileKey,
+          refresh,
+        }),
+        true
+      );
+    },
+    [handleCopyImage, refresh]
+  );
 }

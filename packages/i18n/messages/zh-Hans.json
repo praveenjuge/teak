@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "添加到文件夹…",
-      "copyLink": "复制链接",
-      "copyText": "复制文本",
       "download": "下载",
       "moreActions": "更多操作",
       "moreLikeThis": "更多类似内容",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "打开链接或下载文件",
       "openLink": "打开链接",
       "markLinkDone": "将链接标为已完成",
-      "copyLinkOrText": "复制链接或文本",
       "readOrPreview": "阅读或预览",
       "highlightSelection": "高亮所选内容",
       "goToEverything": "全部",

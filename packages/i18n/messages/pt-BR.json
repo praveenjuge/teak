@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "Adicionar à pasta…",
-      "copyLink": "Copiar link",
-      "copyText": "Copiar texto",
       "download": "Baixar",
       "moreActions": "Mais ações",
       "moreLikeThis": "Mais como este",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "Abrir o link ou baixar o arquivo",
       "openLink": "Abrir o link",
       "markLinkDone": "Marcar um link como concluído",
-      "copyLinkOrText": "Copiar o link ou o texto",
       "readOrPreview": "Ler ou ver a prévia",
       "highlightSelection": "Destacar a seleção",
       "goToEverything": "Tudo",

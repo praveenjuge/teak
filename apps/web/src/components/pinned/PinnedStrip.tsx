@@ -42,6 +42,7 @@ const STRIP_KEY_CONTEXT: GridKeyContext = {
 
 /** The row has no selection, and nothing in it is in Trash. */
 const STRIP_CARD_ACTIONS: ReadonlySet<CardActionId> = new Set([
+  "copy",
   "favorite",
   "pin",
   "addTags",

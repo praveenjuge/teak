@@ -4,6 +4,7 @@ import {
   ArchiveRestore,
   Circle,
   CircleCheck,
+  Copy,
   Heart,
   Pin,
   PinOff,
@@ -40,6 +41,8 @@ export function cardActionIcon(
       return SquareCheckBig;
     case "done":
       return card.completedAt === undefined ? Circle : CircleCheck;
+    case "copy":
+      return Copy;
     default:
       return action satisfies never;
   }

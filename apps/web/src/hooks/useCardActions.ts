@@ -339,7 +339,10 @@ export type CardActionsRunner = ReturnType<typeof useCardActions>;
 export type CardGridSource = Extract<CardPinSource, "grid" | "shortcut">;
 
 /** The actions the runner does itself; a surface handles the rest. */
-export type RunnableCardActionId = Exclude<CardActionId, "addTags" | "select">;
+export type RunnableCardActionId = Exclude<
+  CardActionId,
+  "addTags" | "copy" | "select"
+>;
 
 /** What a grid hands up: it selects cards and confirms deletes itself. */
-export type GridCardAction = Exclude<CardActionId, "select" | "done">;
+export type GridCardAction = Exclude<CardActionId, "copy" | "done" | "select">;

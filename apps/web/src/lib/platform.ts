@@ -19,6 +19,18 @@ export function isApplePlatform(
   return APPLE_PLATFORM.test(platform);
 }
 
-export function getPrimaryModifierLabel(nav?: NavigatorLike): "Cmd" | "Ctrl" {
-  return (nav ? isApplePlatform(nav) : isApplePlatform()) ? "Cmd" : "Ctrl";
+/**
+ * Whether the shortcut key ("Mod") is held: ⌘ on Apple platforms and Ctrl
+ * elsewhere, with the other one up. Every Mod shortcut reads this, so what
+ * a key does always matches the ⌘ or Ctrl its hint and
+ * `aria-keyshortcuts` name; Ctrl on a Mac or the Windows key elsewhere is
+ * not the shortcut key.
+ */
+export function isModKey(
+  event: { ctrlKey: boolean; metaKey: boolean },
+  apple = isApplePlatform()
+): boolean {
+  return apple
+    ? event.metaKey && !event.ctrlKey
+    : event.ctrlKey && !event.metaKey;
 }

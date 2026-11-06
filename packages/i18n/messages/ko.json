@@ -794,8 +794,6 @@
     },
     "menu": {
       "addToFolder": "폴더에 추가…",
-      "copyLink": "링크 복사",
-      "copyText": "텍스트 복사",
       "download": "다운로드",
       "moreActions": "추가 작업",
       "moreLikeThis": "비슷한 카드",
@@ -1490,7 +1488,6 @@
       "openOrDownload": "링크 열기 또는 파일 다운로드",
       "openLink": "링크 열기",
       "markLinkDone": "링크를 완료로 표시",
-      "copyLinkOrText": "링크 또는 텍스트 복사",
       "readOrPreview": "읽기 또는 미리보기",
       "highlightSelection": "선택한 부분 하이라이트",
       "goToEverything": "전체",

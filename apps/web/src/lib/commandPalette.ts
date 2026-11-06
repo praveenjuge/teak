@@ -17,7 +17,7 @@ import {
   libraryViewForPath,
 } from "./libraryViews";
 import type { LinkTitleTranslator } from "./linkTitle";
-import { isApplePlatform } from "./platform";
+import { isApplePlatform, isModKey } from "./platform";
 import { librarySearchHref } from "./searchUrlState";
 
 const englishPalette = createTeakTranslator(
@@ -52,9 +52,7 @@ export function isCommandPaletteKey(
   ) {
     return false;
   }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
+  return isModKey(event, apple);
 }
 
 const isInsideEditor = (target: EventTarget | null) =>
