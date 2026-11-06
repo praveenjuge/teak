@@ -59,6 +59,23 @@ data class SearchFacets(
             return Token(Kind.Keyword, token.lowercase())
         }
 
+        /** Whether a quote is still open after [word], skipping `\"` and `\\` inside quotes as `SearchQuery.tokenize` does. */
+        private fun quotesOpenAfter(word: String, openBefore: Boolean): Boolean {
+            var open = openBefore
+            var index = 0
+            while (index < word.length) {
+                val character = word[index]
+                val next = word.getOrNull(index + 1)
+                if (open && character == '\\' && next != null && (next in QUOTES || next == '\\')) {
+                    index += 2
+                    continue
+                }
+                if (character in QUOTES) open = !open
+                index += 1
+            }
+            return open
+        }
+
         /**
          * Lifts the plain words that [classify] reads as a style, color or hex out of [search]. Words in
          * quotes, qualifiers and searches with operators stay as typed.
@@ -74,7 +91,7 @@ data class SearchFacets(
             var inQuotes = false
             for (word in trimmed.split(WHITESPACE)) {
                 val quoted = inQuotes || word.any { it in QUOTES }
-                if (word.count { it in QUOTES } % 2 == 1) inQuotes = !inQuotes
+                inQuotes = quotesOpenAfter(word, inQuotes)
                 val token = if (!quoted && word in terms) classify(word) else null
                 val bucket = when (token?.kind) {
                     Kind.Style -> styles

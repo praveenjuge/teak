@@ -38,6 +38,14 @@ class SearchFacetsTest {
     }
 
     @Test
+    fun `an escaped quote inside a phrase doesn't end it`() {
+        assertEquals(
+            SearchFacets("\"say \\\" blue whale\"", hues = listOf("blue")),
+            SearchFacets.split("\"say \\\" blue whale\" blue"),
+        )
+    }
+
+    @Test
     fun `sends the lifted words as filters beside the color picked from the menu`() {
         assertEquals(
             mapOf(
