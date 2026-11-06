@@ -71,10 +71,11 @@ const beforeDeadline = async <T>(
 /**
  * Reads `refresh` until `running` says the work is over, backing off between
  * reads, and gives up at the timeout so no wait runs forever. Returns the
- * last value read.
+ * last value read. `start` may be the first read still in flight; the
+ * deadline and the signal cover it like every later read.
  */
 export const waitFor = async <T>(
-  start: T,
+  start: T | Promise<T>,
   poll: {
     refresh: (value: T) => Promise<T>;
     running: (value: T) => boolean;
@@ -89,7 +90,12 @@ export const waitFor = async <T>(
         "TIMEOUT",
         "Stopped waiting; the work keeps going in Teak."
       ));
-  let value = start;
+  let value = await beforeDeadline(
+    Promise.resolve(start),
+    deadline,
+    timedOut,
+    poll.signal
+  );
   let wait = poll.intervalMs ?? FIRST_POLL_MS;
   while (poll.running(value)) {
     if (Date.now() >= deadline) {

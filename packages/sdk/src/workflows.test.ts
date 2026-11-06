@@ -282,6 +282,34 @@ describe("waiting for background work", () => {
   });
 });
 
+describe("exports.waitFor", () => {
+  const stuck = () =>
+    new Promise<Response>(() => {
+      // The first status read never answers.
+    });
+
+  test("gives up at the timeout while the first read is pending", async () => {
+    const error = await rejection(
+      clientFor({ "GET /v1/exports/latest": stuck }).exports.waitFor({
+        timeoutMs: 20,
+      })
+    );
+    expect(error.code).toBe("TIMEOUT");
+  });
+
+  test("an abort ends the wait while the first read is pending", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new Error("cancelled")), 5);
+    const error = await rejection(
+      clientFor({ "GET /v1/exports/latest": stuck }).exports.waitFor({
+        signal: controller.signal,
+        timeoutMs: 60_000,
+      })
+    );
+    expect(error.message).toBe("cancelled");
+  });
+});
+
 test("a cancelled bulk request sends nothing", async () => {
   const seen: string[] = [];
   const controller = new AbortController();

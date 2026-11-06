@@ -1591,8 +1591,8 @@ export const createTeakClient = (options: {
     exports: {
       latest: latestExport,
       /** Waits for a running export to finish; returns the latest export. */
-      waitFor: async (options: WaitOptions<LatestExport> = {}) =>
-        waitFor(await latestExport(), {
+      waitFor: (options: WaitOptions<LatestExport> = {}) =>
+        waitFor(latestExport(), {
           ...options,
           refresh: latestExport,
           running: (latest) =>
