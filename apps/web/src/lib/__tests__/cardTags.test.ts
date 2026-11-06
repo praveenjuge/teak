@@ -8,12 +8,12 @@ import {
 } from "../cardTags";
 
 describe("adding a typed tag to a card", () => {
-  test("keeps the case it was typed in, trimmed, as the server saves it", () => {
+  test("trims and lowercases it, as the Apple and Android apps do", () => {
     expect(addTagToCard({ tags: ["design"] }, "  Web Dev ")).toEqual({
       hides: false,
       kind: "add",
-      tag: "Web Dev",
-      tags: ["design", "Web Dev"],
+      tag: "web dev",
+      tags: ["design", "web dev"],
     });
   });
 
@@ -38,6 +38,7 @@ describe("adding a typed tag to a card", () => {
   test("says a hidden tag hides the card, unless it was hidden already", () => {
     expect(addTagToCard({ tags: [] }, "Secret")).toMatchObject({
       hides: true,
+      tag: "secret",
     });
     expect(
       addTagToCard({ isHidden: true, tags: ["hidden"] }, "secret")
@@ -46,9 +47,9 @@ describe("adding a typed tag to a card", () => {
 });
 
 describe("a bulk tag edit", () => {
-  test("reads commas as separate tags, once each, in their typed case", () => {
+  test("reads commas as separate tags, once each, as typed tags", () => {
     expect(parseTagList(" Design, later ,design,, Later")).toEqual([
-      "Design",
+      "design",
       "later",
     ]);
   });

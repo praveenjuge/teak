@@ -7,9 +7,10 @@ import {
 } from "@teak/convex/shared/tags";
 
 /**
- * Every tag edit in the web app goes through here, so each one saves what the
- * server would: tags are trimmed, keep the case they were typed in, and a tag
- * that differs from one the card has only in case is the one it has.
+ * Every tag edit in the web app goes through here. A typed tag is trimmed and
+ * lowercased, as the Apple and Android apps type it (`CardEdit.normalizeTag`),
+ * and a tag that differs from one the card has only in case is the one it has,
+ * as the server compares them.
  */
 
 /** The server's `MAX_BULK_TAGS`: how many tags one bulk edit may name. */
@@ -24,9 +25,12 @@ interface TaggedCard {
 const hasTag = (list: readonly string[], tag: string) =>
   list.some((item) => tagKey(item) === tagKey(tag));
 
+/** A tag as someone types it. */
+export const typedTag = (value: string): string => tagKey(value);
+
 /** Comma-separated tags as one edit names them. */
 export const parseTagList = (value: string): string[] =>
-  normalizeTagList(value.split(","));
+  normalizeTagList(value.split(",").map(typedTag));
 
 export const findTag = (
   tags: readonly string[] | undefined,
@@ -65,7 +69,7 @@ export type AddTagResult =
  * `hides` says the tag hides a card that was showing.
  */
 export const addTagToCard = (card: TaggedCard, input: string): AddTagResult => {
-  const [tag] = normalizeTagList([input]);
+  const tag = typedTag(input);
   if (!tag) {
     return { kind: "empty" };
   }
