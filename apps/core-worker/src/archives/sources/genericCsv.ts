@@ -1,4 +1,4 @@
-import { IMPORT_FAILURE } from "../shared/importSources";
+import { IMPORT_FAILURE } from "@teak/convex/shared/importSources";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { type CsvRowProblem, detectCsvDelimiter, parseCsvRecords } from "./csv";
 import {

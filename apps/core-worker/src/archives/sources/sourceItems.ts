@@ -1,17 +1,20 @@
 import {
+  type ImportHighlightInput,
+  parseImportedTimestamp,
+} from "@teak/convex/import/validate";
+import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_CARD,
-} from "../shared/folders";
+} from "@teak/convex/shared/folders";
 import {
   highlightLength,
   MAX_HIGHLIGHT_NOTE_CHARS,
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
-} from "../shared/highlights/constants";
-import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
-import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
+} from "@teak/convex/shared/highlights/constants";
+import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { type ImportHighlightInput, parseImportedTimestamp } from "./validate";
 
 export interface SourceLink {
   createdAt?: number;

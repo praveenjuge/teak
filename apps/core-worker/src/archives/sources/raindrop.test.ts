@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseRaindropCsv } from "../../import/raindrop";
+import { parseRaindropCsv } from "./raindrop";
 
 describe("backend raindrop CSV parser", () => {
   test("maps url, title, note, tags, folder, created, and favorite", () => {

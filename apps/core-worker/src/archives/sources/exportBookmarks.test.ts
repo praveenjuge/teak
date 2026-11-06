@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildBookmarksHtml, escapeHtml } from "../../export/bookmarks";
-import { type SerializedCard, toDualTimestamp } from "../../export/serialize";
-import { parseBookmarksHtml } from "../../import/bookmarks";
+import { buildBookmarksHtml, escapeHtml } from "@teak/convex/export/bookmarks";
+import {
+  type SerializedCard,
+  toDualTimestamp,
+} from "@teak/convex/export/serialize";
+import { parseBookmarksHtml } from "./bookmarks";
 
 const link = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   id: "card_1",

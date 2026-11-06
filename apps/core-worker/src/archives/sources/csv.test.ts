@@ -4,12 +4,8 @@ import {
   parseCsvRecords,
   parseCsvRows,
   readCsvTable,
-} from "../../import/csv";
-import {
-  cleanTags,
-  folderPath,
-  parseSourceDate,
-} from "../../import/sourceItems";
+} from "./csv";
+import { cleanTags, folderPath, parseSourceDate } from "./sourceItems";
 
 describe("shared CSV reader", () => {
   const cases: [string, string[][]][] = [

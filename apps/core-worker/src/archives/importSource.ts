@@ -1,6 +1,3 @@
-import type { ParsedBookmarkItem } from "@teak/convex/import/bookmarks";
-import { ImportLimitExceeded } from "@teak/convex/import/sourceItems";
-import { parseImportSource } from "@teak/convex/import/sources";
 import {
   IMPORT_FAILURE,
   isImportMode,
@@ -22,6 +19,9 @@ import {
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import { readImportJson } from "./importJson";
 import { indexOmnivoreZip, isZipSource } from "./importOmnivore";
+import type { ParsedBookmarkItem } from "./sources/bookmarks";
+import { ImportLimitExceeded } from "./sources/sourceItems";
+import { parseImportSource } from "./sources/sources";
 import {
   ArchiveEntryTooLargeError,
   readZipDirectory,

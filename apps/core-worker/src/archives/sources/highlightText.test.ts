@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { validateImportCard } from "@teak/convex/import/validate";
 import {
   parseOmnivoreHighlights,
   parseRaindropHighlights,
-} from "../../import/highlightText";
-import { cleanHighlights } from "../../import/sourceItems";
-import { validateImportCard } from "../../import/validate";
+} from "./highlightText";
+import { cleanHighlights } from "./sourceItems";
 
 describe("parseOmnivoreHighlights", () => {
   test("splits quote blocks; the lines after one are its note", () => {

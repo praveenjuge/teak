@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildCardsCsv, CSV_COLUMNS, csvCell } from "../../export/csv";
-import { type SerializedCard, toDualTimestamp } from "../../export/serialize";
-import { parseCsvRows } from "../../import/csv";
+import { buildCardsCsv, CSV_COLUMNS, csvCell } from "@teak/convex/export/csv";
+import {
+  type SerializedCard,
+  toDualTimestamp,
+} from "@teak/convex/export/serialize";
+import { parseCsvRows } from "./csv";
 
 const card = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   id: "card_1",

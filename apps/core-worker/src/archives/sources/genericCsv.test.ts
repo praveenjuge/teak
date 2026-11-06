@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { validateImportCard } from "@teak/convex/import/validate";
+import { IMPORT_FAILURE } from "@teak/convex/shared/importSources";
+import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import {
   CSV_HEADER_ALIASES,
   parseGenericCsv,
   splitCsvTags,
-} from "../../import/genericCsv";
-import { ImportLimitExceeded } from "../../import/sourceItems";
-import { validateImportCard } from "../../import/validate";
-import { IMPORT_FAILURE } from "../../shared/importSources";
-import { urlKey } from "../../shared/utils/urlKey";
+} from "./genericCsv";
+import { ImportLimitExceeded } from "./sourceItems";
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/csv/${name}`, import.meta.url), "utf8");

@@ -1,4 +1,4 @@
-import type { ImportMode } from "../shared/importSources";
+import type { ImportMode } from "@teak/convex/shared/importSources";
 import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
 import { parseGenericCsv } from "./genericCsv";
 import { parseInstapaperCsv } from "./instapaper";

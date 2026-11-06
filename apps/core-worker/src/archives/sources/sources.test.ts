@@ -1,19 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { parseInstapaperCsv } from "../../import/instapaper";
-import { parseLinkwardenJson } from "../../import/linkwarden";
-import { parseMymindCsv } from "../../import/mymind";
-import { omnivoreItem, parseOmnivoreJson } from "../../import/omnivore";
-import { parseOneTabText } from "../../import/onetab";
-import { parsePocketExport } from "../../import/pocket";
-import { parseReaderTags, parseReadwiseCsv } from "../../import/readwise";
-import { parseImportSource } from "../../import/sources";
-import { validateImportCard } from "../../import/validate";
+import { validateImportCard } from "@teak/convex/import/validate";
 import {
   describeImportFailure,
   IMPORT_MODES,
   importMaxBytes,
-} from "../../shared/importSources";
+} from "@teak/convex/shared/importSources";
+import { parseInstapaperCsv } from "./instapaper";
+import { parseLinkwardenJson } from "./linkwarden";
+import { parseMymindCsv } from "./mymind";
+import { omnivoreItem, parseOmnivoreJson } from "./omnivore";
+import { parseOneTabText } from "./onetab";
+import { parsePocketExport } from "./pocket";
+import { parseReaderTags, parseReadwiseCsv } from "./readwise";
+import { parseImportSource } from "./sources";
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");

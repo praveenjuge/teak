@@ -1,4 +1,4 @@
-import type { ImportHighlightInput } from "./validate";
+import type { ImportHighlightInput } from "@teak/convex/import/validate";
 
 const QUOTE_LINE = /^\s{0,3}>\s?(.*)$/u;
 const HIGHLIGHT_LINE = /^\s*highlight\s*:\s?(.*)$/iu;

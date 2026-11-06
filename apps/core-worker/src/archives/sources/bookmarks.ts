@@ -1,7 +1,7 @@
+import type { ImportCardInput } from "@teak/convex/import/validate";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Parser } from "htmlparser2";
-import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import { cleanTags, folderPath, ImportLimitExceeded } from "./sourceItems";
-import type { ImportCardInput } from "./validate";
 
 export interface ParsedBookmarkItem {
   card?: ImportCardInput;
