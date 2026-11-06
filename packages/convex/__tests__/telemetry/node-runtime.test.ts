@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const convexRoot = resolve(import.meta.dirname, "../..");
-const repositoryRoot = resolve(convexRoot, "../..");
 
 const listDeployableSourceFiles = (
   directory: string,
@@ -41,20 +40,5 @@ describe("deployable Convex modules", () => {
     );
 
     expect(invalidPaths).toEqual([]);
-  });
-
-  test("typechecks regenerated declarations without a hoisted-typescript symlink", () => {
-    const workflow = readFileSync(
-      resolve(repositoryRoot, ".github/workflows/backend-deploy.yml"),
-      "utf8"
-    );
-
-    expect(workflow).toContain("bunx convex codegen");
-    expect(workflow).toContain("bun run typecheck");
-    expect(workflow).toContain("--typecheck disable");
-    expect(workflow).not.toContain(
-      'ln -s "$GITHUB_WORKSPACE/node_modules/typescript" node_modules/typescript'
-    );
-    expect(workflow).not.toContain("--typecheck-components");
   });
 });

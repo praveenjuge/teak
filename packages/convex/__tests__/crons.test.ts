@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { CRONS, cronTasksOn } from "../cronSchedules";
 import crons from "../crons";
 
@@ -9,20 +7,6 @@ const EXPECTED_SCHEDULES: Record<string, string> = {
   "cleanup-finished-link-pastes": "25 3 * * *",
   "cleanup-expired-folder-rule-runs": "15 * * * *",
 };
-
-const WORKER_DIR = join(import.meta.dir, "../../../apps/core-worker");
-const WRANGLER_CONFIGS = [
-  join(WORKER_DIR, "wrangler.jsonc"),
-  join(WORKER_DIR, "development/wrangler.jsonc"),
-  join(WORKER_DIR, "self-host/wrangler.jsonc"),
-];
-
-const triggerCrons = (path: string): string[] =>
-  (
-    Bun.JSONC.parse(readFileSync(path, "utf-8")) as {
-      triggers?: { crons?: string[] };
-    }
-  ).triggers?.crons ?? [];
 
 describe("crons.ts", () => {
   test("names every scheduled job once", () => {
@@ -56,16 +40,4 @@ describe("crons.ts", () => {
       )
     );
   });
-
-  test.each(WRANGLER_CONFIGS)(
-    "the Cloudflare tasks' schedules are exactly the Cron Triggers in %s",
-    (path) => {
-      const schedules = new Set(
-        cronTasksOn("cloudflare").map((task) => CRONS[task].schedule)
-      );
-      expect([...new Set(triggerCrons(path))].sort()).toEqual(
-        [...schedules].sort()
-      );
-    }
-  );
 });

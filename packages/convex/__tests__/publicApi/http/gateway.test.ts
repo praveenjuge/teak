@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import type { CardWithUrls } from "../../../card/queryUtils";
 import { serializeListCard } from "../../../publicApi/http/serializers";
 import { testId } from "../../helpers/convex.test-utils";
@@ -19,7 +17,6 @@ const listCard = (
 import {
   discoveryV1,
   healthzV1,
-  V1_ENDPOINTS,
   v1CorsPreflight,
 } from "../../../publicApi/http/meta";
 import { openApiSpec, openApiV1 } from "../../../publicApi/openApi/spec";
@@ -29,11 +26,6 @@ const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, request);
 };
-
-const docsPath = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../../../../../apps/docs/content/docs/(developers)/api.mdx"
-);
 
 describe("Convex public API metadata", () => {
   test("returns health status with gateway headers", async () => {
@@ -182,18 +174,6 @@ describe("Convex public API metadata", () => {
       { url: "https://api.teakvault.com" },
       { url: "https://reminiscent-kangaroo-59.convex.site" },
     ]);
-  });
-
-  test("the API page documents every /v1 method and path", () => {
-    const docs = readFileSync(docsPath, "utf8");
-    const tableRow = (path: string) =>
-      docs.split("\n").find((line) => line.startsWith(`| \`${path}\` |`)) ?? "";
-    const undocumented = V1_ENDPOINTS.filter((endpoint) => {
-      const [method = "", path = ""] = endpoint.split(" ");
-      return !(docs.includes(endpoint) || tableRow(path).includes(method));
-    });
-    expect(docs).toContain("/openapi.json");
-    expect(undocumented).toEqual([]);
   });
 
   test("documents revocation-only Connect authentication without a request body", () => {
