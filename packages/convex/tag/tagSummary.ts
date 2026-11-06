@@ -6,13 +6,13 @@ import {
   internalMutation,
   internalQuery,
   type MutationCtx,
-  mutation,
   type QueryCtx,
   query,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import { isOptimisticConcurrencyError } from "../convexFailures";
-import { getSessionUser, requireTeakUserId } from "../securitySessions";
+import { apiMutation, ownerMutation, sessionMutation } from "../ownerOperation";
+import { getSessionUser } from "../securitySessions";
 import { captureBackendException } from "../telemetry/posthog";
 
 export const TAG_SUMMARY_DEBOUNCE_MS = 15_000;
@@ -521,22 +521,6 @@ export const recomputeTagSummary = internalAction({
   },
 });
 
-export const requestTagSummaryForUser = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    const owner = await requireTeakUserId(ctx, userId);
-    const existing = await ctx.db
-      .query("userTagSummaries")
-      .withIndex("by_userId", (q) => q.eq("userId", owner))
-      .first();
-    if (!existing) {
-      await markTagSummaryDirty(ctx, owner, 0);
-    }
-    return null;
-  },
-});
-
 export const listTagSummary = query({
   args: {},
   returns: v.union(tagSummaryValidator, v.null()),
@@ -559,21 +543,23 @@ export const listTagSummary = query({
   },
 });
 
-export const requestTagSummary = mutation({
+/** Asks for a person's first tag summary; one that exists keeps itself fresh. */
+const requestTagSummaryOperation = ownerMutation({
   args: {},
   returns: v.null(),
-  handler: async (ctx) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      return null;
-    }
+  handler: async (ctx, ownerId) => {
     const existing = await ctx.db
       .query("userTagSummaries")
-      .withIndex("by_userId", (q) => q.eq("userId", user.teakUserId))
+      .withIndex("by_userId", (q) => q.eq("userId", ownerId))
       .first();
     if (!existing) {
-      await markTagSummaryDirty(ctx, user.teakUserId, 0);
+      await markTagSummaryDirty(ctx, ownerId, 0);
     }
     return null;
   },
 });
+
+export const requestTagSummary = sessionMutation(requestTagSummaryOperation, {
+  signedOut: null,
+});
+export const requestTagSummaryForUser = apiMutation(requestTagSummaryOperation);

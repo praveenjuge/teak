@@ -86,7 +86,7 @@ export const handleGetTagOperationRequest = async ({
   userId,
 }: PublicApiCall): Promise<Response> => {
   const operation = await ctx.runQuery(
-    internal.publicApiTags.getTagOperationForApi,
+    internal.publicApiTags.getTagOperationForUser,
     { userId, operationId: params.operationId }
   );
   return operation
@@ -103,7 +103,7 @@ export const startTagOperation =
       return errorResponse(400, "INVALID_INPUT", parsed.error);
     }
     const operation = await ctx.runMutation(
-      internal.publicApiTags.startTagOperationForApi,
+      internal.publicApiTags.startTagOperationForUser,
       { userId, kind, ...parsed }
     );
     const serialized = serializeTagOperation(operation);

@@ -79,7 +79,7 @@ export const handleCreateHighlightRequest = async ({
     return invalid(tooLong);
   }
   const source = await ctx.runQuery(
-    internal.publicApiHighlights.getHighlightArticleForApi,
+    internal.publicApiHighlights.getHighlightArticleForUser,
     { userId, cardId }
   );
   let text: string;
@@ -109,7 +109,7 @@ export const handleCreateHighlightRequest = async ({
     );
   }
   const result = await ctx.runMutation(
-    internal.publicApiHighlights.createHighlightForApi,
+    internal.publicApiHighlights.createHighlightForUser,
     {
       userId,
       cardId: source.cardId,
@@ -133,7 +133,7 @@ export const handleListHighlightsRequest = async ({
   userId,
 }: PublicApiCall): Promise<Response> => {
   const rows = await ctx.runQuery(
-    internal.publicApiHighlights.listHighlightsForApi,
+    internal.publicApiHighlights.listHighlightsForUser,
     { userId, cardId: params.cardId }
   );
   return json(200, { items: rows.map(serializeHighlight) });
@@ -144,7 +144,7 @@ export const handleDeleteHighlightRequest = async ({
   params,
   userId,
 }: PublicApiCall): Promise<Response> => {
-  await ctx.runMutation(internal.publicApiHighlights.deleteHighlightForApi, {
+  await ctx.runMutation(internal.publicApiHighlights.deleteHighlightForUser, {
     userId,
     highlightId: params.highlightId,
   });
@@ -173,7 +173,7 @@ export const handleUpdateHighlightRequest = async ({
     return invalid(tooLong);
   }
   const highlight = await ctx.runMutation(
-    internal.publicApiHighlights.updateHighlightForApi,
+    internal.publicApiHighlights.updateHighlightForUser,
     { userId, highlightId: params.highlightId, note }
   );
   return json(200, serializeHighlight(highlight));

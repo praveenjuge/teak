@@ -6,16 +6,17 @@ import {
   type MutationCtx,
   mutation,
   type QueryCtx,
-  query,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCard } from "../card/cardWrites";
-import { folderColorValidator } from "../schema/validators/cards";
 import {
-  getSessionUser,
-  requireSessionUserId,
-  type TeakUserId,
-} from "../securitySessions";
+  ownerMutation,
+  ownerQuery,
+  sessionMutation,
+  sessionQuery,
+} from "../ownerOperation";
+import { folderColorValidator } from "../schema/validators/cards";
+import { requireSessionUserId, type TeakUserId } from "../securitySessions";
 import {
   explainInvalidFolderName,
   explainInvalidSmartFolderQuery,
@@ -608,67 +609,65 @@ export const deleteFolderBatch = internalMutation({
     deleteFolderBatchHandler(ctx, folderId, deletingAt),
 });
 
-export const listFolders = query({
-  args: {},
-  returns: v.array(folderReturnValidator),
-  handler: async (ctx) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      return [];
-    }
-    return listFoldersForUser(ctx, user.teakUserId);
-  },
-});
+const folderRuleArgs = {
+  autoTags: v.optional(v.array(v.string())),
+  autoFileQuery: v.optional(v.union(v.string(), v.null())),
+  autoFileEnabled: v.optional(v.boolean()),
+};
 
-export const getFolder = query({
-  args: { folderId: v.string() },
-  returns: v.union(folderReturnValidator, v.null()),
-  handler: async (ctx, { folderId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      return null;
-    }
-    const folder = await getFolderForUser(ctx, user.teakUserId, folderId);
-    return folder ? await loadFolderSummary(ctx, folder) : null;
-  },
-});
+/**
+ * What a person can do to their folders, once for every surface: the app's
+ * functions below, and the public API's in `publicApiFolders`.
+ */
+export const folderOwnerOperations = {
+  list: ownerQuery({
+    args: {},
+    returns: v.array(folderReturnValidator),
+    handler: (ctx, ownerId) => listFoldersForUser(ctx, ownerId),
+  }),
+  get: ownerQuery({
+    args: { folderId: v.string() },
+    returns: v.union(folderReturnValidator, v.null()),
+    handler: async (ctx, ownerId, { folderId }) => {
+      const folder = await getFolderForUser(ctx, ownerId, folderId);
+      return folder ? await loadFolderSummary(ctx, folder) : null;
+    },
+  }),
+  create: ownerMutation({
+    args: {
+      name: v.string(),
+      color: v.optional(folderColorValidator),
+      kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
+      query: v.optional(v.string()),
+      ...folderRuleArgs,
+    },
+    returns: folderReturnValidator,
+    handler: (ctx, ownerId, args) => createFolderForUser(ctx, ownerId, args),
+  }),
+  update: ownerMutation({
+    args: {
+      folderId: v.string(),
+      name: v.optional(v.string()),
+      color: v.optional(v.union(folderColorValidator, v.null())),
+      query: v.optional(v.string()),
+      ...folderRuleArgs,
+    },
+    returns: folderReturnValidator,
+    handler: (ctx, ownerId, args) => updateFolderForUser(ctx, ownerId, args),
+  }),
+  delete: ownerMutation({
+    args: { folderId: v.string() },
+    returns: v.id("folders"),
+    handler: (ctx, ownerId, { folderId }) =>
+      deleteFolderForUser(ctx, ownerId, folderId),
+  }),
+};
 
-export const createFolder = mutation({
-  args: {
-    name: v.string(),
-    color: v.optional(folderColorValidator),
-    kind: v.optional(v.union(v.literal("manual"), v.literal("smart"))),
-    query: v.optional(v.string()),
-    autoTags: v.optional(v.array(v.string())),
-    autoFileQuery: v.optional(v.union(v.string(), v.null())),
-    autoFileEnabled: v.optional(v.boolean()),
-  },
-  returns: folderReturnValidator,
-  handler: async (ctx, args) =>
-    createFolderForUser(ctx, await requireSessionUserId(ctx), args),
-});
-
-export const updateFolder = mutation({
-  args: {
-    folderId: v.id("folders"),
-    name: v.optional(v.string()),
-    color: v.optional(v.union(folderColorValidator, v.null())),
-    query: v.optional(v.string()),
-    autoTags: v.optional(v.array(v.string())),
-    autoFileQuery: v.optional(v.union(v.string(), v.null())),
-    autoFileEnabled: v.optional(v.boolean()),
-  },
-  returns: folderReturnValidator,
-  handler: async (ctx, args) =>
-    updateFolderForUser(ctx, await requireSessionUserId(ctx), args),
-});
-
-export const deleteFolder = mutation({
-  args: { folderId: v.id("folders") },
-  returns: v.id("folders"),
-  handler: async (ctx, { folderId }) =>
-    deleteFolderForUser(ctx, await requireSessionUserId(ctx), folderId),
-});
+export const listFolders = sessionQuery(folderOwnerOperations.list, []);
+export const getFolder = sessionQuery(folderOwnerOperations.get, null);
+export const createFolder = sessionMutation(folderOwnerOperations.create);
+export const updateFolder = sessionMutation(folderOwnerOperations.update);
+export const deleteFolder = sessionMutation(folderOwnerOperations.delete);
 
 export const restoreFolder = mutation({
   args: { folderId: v.id("folders") },

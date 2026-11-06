@@ -203,6 +203,7 @@ import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
+import type * as ownerOperation from "../ownerOperation.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApi_cardsForUser from "../publicApi/cardsForUser.js";
 import type * as publicApi_cursors from "../publicApi/cursors.js";
@@ -582,6 +583,7 @@ declare const fullApi: ApiFromModules<{
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
+  ownerOperation: typeof ownerOperation;
   publicApi: typeof publicApi;
   "publicApi/cardsForUser": typeof publicApi_cardsForUser;
   "publicApi/cursors": typeof publicApi_cursors;

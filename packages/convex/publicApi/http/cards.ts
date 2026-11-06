@@ -189,7 +189,7 @@ const handleCardsListRequest = async (
   let folderId: string | undefined;
   if (options.folder) {
     const folder = await ctx.runQuery(
-      internal.publicApiFolders.getFolderForApi,
+      internal.publicApiFolders.getFolderForUser,
       { userId, folderId: options.folder }
     );
     if (!folder) {

@@ -106,7 +106,7 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
       updatedAt: 11,
     });
     const [ref, args] = runMutation.mock.calls[1] ?? [];
-    expect(nameOf(ref)).toBe("publicApiHighlights:createHighlightForApi");
+    expect(nameOf(ref)).toBe("publicApiHighlights:createHighlightForUser");
     const text =
       "Plant marigolds around the tomatoes. Water in the morning. In summer, water in the morning again.";
     const start = text.lastIndexOf("water in the morning");
@@ -225,7 +225,7 @@ describe("the other highlight operations", () => {
       body.items.map((item: { anchored: boolean }) => item.anchored)
     ).toEqual([true, false]);
     expect(nameOf(runQuery.mock.calls[0]?.[0])).toBe(
-      "publicApiHighlights:listHighlightsForApi"
+      "publicApiHighlights:listHighlightsForUser"
     );
   });
 
@@ -318,7 +318,7 @@ describe("the other highlight operations", () => {
       items: [{ id: "highlight_1", cardId: "card_1" }],
     });
     const call = runQuery.mock.calls.find(
-      ([ref]) => nameOf(ref) === "publicApiHighlights:listHighlightsForApi"
+      ([ref]) => nameOf(ref) === "publicApiHighlights:listHighlightsForUser"
     );
     expect(call?.[1]).toMatchObject({ cardId: "card_1" });
   });

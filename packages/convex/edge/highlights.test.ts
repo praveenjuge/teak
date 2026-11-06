@@ -414,6 +414,27 @@ describe("making highlights", () => {
     ).toBe("NOT_FOUND");
     expect(await rows(cardId)).toHaveLength(1);
   });
+
+  test("the app and the public API refuse an id that isn't a highlight the same way", async () => {
+    const { link, owner, t } = await setup();
+    const cardId = await link();
+    expect(
+      await codeOf(
+        owner.mutation(api.highlight.highlights.updateNote, {
+          highlightId: cardId,
+          note: "mine",
+        })
+      )
+    ).toBe("NOT_FOUND");
+    expect(
+      await codeOf(
+        t.mutation(internal.publicApiHighlights.deleteHighlightForUser, {
+          userId: OWNER,
+          highlightId: "not-a-highlight",
+        })
+      )
+    ).toBe("NOT_FOUND");
+  });
 });
 
 describe("notes and removal", () => {

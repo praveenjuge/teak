@@ -11,7 +11,7 @@ export const handleListFoldersRequest = async ({
   userId,
 }: PublicApiCall): Promise<Response> => {
   const folders = await ctx.runQuery(
-    internal.publicApiFolders.listFoldersForApi,
+    internal.publicApiFolders.listFoldersForUser,
     { userId }
   );
   return json(200, { items: folders.map(serializeFolder) });
@@ -29,7 +29,7 @@ export const handleCreateFolderRequest = async ({
   const { autoFileEnabled, autoFileQuery, autoTags, color, kind, name, query } =
     parsed.payload;
   const folder = await ctx.runMutation(
-    internal.publicApiFolders.createFolderForApi,
+    internal.publicApiFolders.createFolderForUser,
     {
       userId,
       name: name ?? "",
@@ -48,7 +48,7 @@ export const handleGetFolderRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
   const folder = await call.ctx.runQuery(
-    internal.publicApiFolders.getFolderForApi,
+    internal.publicApiFolders.getFolderForUser,
     { userId: call.userId, folderId: folderIdOf(call) }
   );
   return folder
@@ -64,7 +64,7 @@ export const handleUpdateFolderRequest = async (
     return errorResponse(400, "INVALID_INPUT", parsed.error);
   }
   const folder = await call.ctx.runMutation(
-    internal.publicApiFolders.updateFolderForApi,
+    internal.publicApiFolders.updateFolderForUser,
     { userId: call.userId, folderId: folderIdOf(call), ...parsed.payload }
   );
   return json(200, serializeFolder(folder));
@@ -73,7 +73,7 @@ export const handleUpdateFolderRequest = async (
 export const handleDeleteFolderRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
-  await call.ctx.runMutation(internal.publicApiFolders.deleteFolderForApi, {
+  await call.ctx.runMutation(internal.publicApiFolders.deleteFolderForUser, {
     userId: call.userId,
     folderId: folderIdOf(call),
   });
@@ -88,7 +88,7 @@ const changeFolderCards =
       return errorResponse(400, "INVALID_INPUT", parsed.error);
     }
     const result = await call.ctx.runMutation(
-      internal.publicApiFolders.changeFolderCardsForApi,
+      internal.publicApiFolders.changeFolderCardsForUser,
       {
         userId: call.userId,
         folderId: folderIdOf(call),
@@ -112,7 +112,7 @@ export const handleGetFolderRuleRunRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
   const run = await call.ctx.runQuery(
-    internal.publicApiFolders.getFolderRuleRunForApi,
+    internal.publicApiFolders.getFolderRuleRunForUser,
     ruleRunArgs(call)
   );
   return json(200, serializeFolderRuleRun(run));
@@ -122,7 +122,7 @@ export const handleUndoFolderRuleRunRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {
   const run = await call.ctx.runMutation(
-    internal.publicApiFolders.undoFolderRuleRunForApi,
+    internal.publicApiFolders.undoFolderRuleRunForUser,
     ruleRunArgs(call)
   );
   return json(200, serializeFolderRuleRun(run));
