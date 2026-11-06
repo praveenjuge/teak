@@ -32,11 +32,19 @@ const recipeFiles = (): string[] => [
 // Ports are leased per checkout (scripts/dev/worktree-env.ts), so a recipe
 // takes them from `bun run dev --status`. A port the recipe binds itself
 // (`--port 8799`) is the exception.
+// A recipe may start its own server on a fixed port (`wrangler dev --port
+// 8799`) and then open it; every other port comes from the stack's status.
 const hardCodedPorts = (markdown: string): string[] => {
   const ownPorts = new Set(
-    [...markdown.matchAll(/--port[ =](\d+)/g)].map((match) => match[1])
+    [...markdown.matchAll(/\bdev\b[^`\n]*?--port[ =](\d+)/g)].map(
+      (match) => match[1]
+    )
   );
-  return [...markdown.matchAll(/(?:localhost|127\.0\.0\.1|\[::1\]):(\d+)/g)]
+  const urls = [
+    ...markdown.matchAll(/(?:localhost|127\.0\.0\.1|\[::1\]):(\d+)/g),
+  ];
+  const flags = [...markdown.matchAll(/--port[ =](\d+)/g)];
+  return [...urls, ...flags]
     .filter((match) => !ownPorts.has(match[1]))
     .map((match) => match[0]);
 };
@@ -65,6 +73,7 @@ const repoPaths = (markdown: string): string[] =>
         !(
           /[<>*…{]/.test(path) ||
           path.startsWith(".agents/.state/") ||
+          /(?:^|\/)(?:dist|build|\.next|\.output)(?:\/|$)/.test(path) ||
           /(?:^|\/)\.env|local\.properties$/.test(path)
         )
     );
@@ -206,6 +215,14 @@ describe("verify-teak feature map", () => {
     expect(
       hardCodedPorts("`wrangler dev --port 8799`, then `localhost:8799`")
     ).toEqual([]);
+    expect(
+      hardCodedPorts(
+        "`wrangler workflows instances describe x --local --port 4102`"
+      )
+    ).toEqual(["--port 4102"]);
+    expect(
+      repoPaths("read `apps/docs/dist` or `apps/docs/package.json`")
+    ).toEqual(["apps/docs/package.json"]);
     expect(seedPacks("Seed `resave`, then seed `folders-one`.")).toEqual([
       "resave",
       "folders-one",

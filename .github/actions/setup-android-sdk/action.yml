@@ -11,4 +11,7 @@ runs:
           exit 1
         fi
         echo "Installing Android SDK $sdk"
+        # `shell: bash` adds pipefail, and `yes` exits on SIGPIPE once
+        # sdkmanager stops reading; only sdkmanager's own status should count.
+        set +o pipefail
         yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-$sdk.0" "build-tools;$sdk.0.0" > /dev/null

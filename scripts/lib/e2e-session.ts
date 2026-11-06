@@ -41,6 +41,8 @@ export const loopbackUrl = (path: string, origin: string) => {
 };
 
 const emulator = async (origin: string, path: string, body: unknown) => {
+  // loopbackUrl refuses every host but this machine's.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(loopbackUrl(path, origin), {
     method: "POST",
     headers: {
