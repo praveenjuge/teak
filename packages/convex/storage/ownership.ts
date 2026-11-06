@@ -4,10 +4,9 @@ import type { Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
   internalMutation,
-  internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { isCoreWorkerConfigured } from "./coreWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
@@ -72,14 +71,6 @@ export const registerObjects = internalMutation({
     }
     return true;
   },
-});
-export const getObjectsPage = internalQuery({
-  args: { userId: v.string() },
-  handler: (ctx, { userId }) =>
-    ctx.db
-      .query("accountStorageObjects")
-      .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
-      .take(100),
 });
 
 export const ensureObjectOwnership = async (

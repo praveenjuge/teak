@@ -8,7 +8,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { getAccountDeletionState } from "../accountDeletion/gate";
 import {
   getArticleTextRow,
   getDocumentTextRow,

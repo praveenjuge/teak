@@ -51,7 +51,7 @@ describe("card/createCard.ts", () => {
 
   beforeEach(async () => {
     const _authModule = await import("../../auth");
-    const billingModule = await import("../../billing");
+    const billingModule = await import("../../billing/polar");
 
     originalGetSubscription = billingModule.polar.getCurrentSubscription;
 
@@ -82,7 +82,7 @@ describe("card/createCard.ts", () => {
   };
 
   afterEach(async () => {
-    const billingModule = await import("../../billing");
+    const billingModule = await import("../../billing/polar");
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
     for (const [key, value] of savedEnv) {
       if (value === undefined) {

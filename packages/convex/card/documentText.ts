@@ -12,13 +12,14 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { getAccountDeletionState } from "../accountDeletion/gate";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { articleObjectDigest } from "../shared/article";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
-import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
 import { patchCard } from "./cardWrites";
 import {
   documentTextObjectKey,

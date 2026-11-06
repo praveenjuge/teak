@@ -3,7 +3,11 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { queueAccountDeletionWorkflow } from "../accountDeletion/workflowRun";
+import { queueExportWorkflow } from "../export/workflowRun";
+import { queueImportWorkflow } from "../import/workflowRun";
 import schema from "../schema";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import {
   queueCardOutcome,
@@ -13,15 +17,13 @@ import {
 import {
   CLAIM_PAGE,
   claimRetryDelayMs,
-  DEAD_LETTER_RETRY_MS,
   DISPATCH_RETENTION_MS,
-  enqueueObjectDeletion,
-  FLUSH_JITTER_MS,
   MAX_DISPATCH_ATTEMPTS,
-  queueAccountDeletionWorkflow,
-  queueExportWorkflow,
-  queueImportWorkflow,
 } from "../workflowDispatch";
+import {
+  DEAD_LETTER_RETRY_MS,
+  FLUSH_JITTER_MS,
+} from "../workflowDispatch/outbox";
 
 const modules = import.meta.glob("../**/*.ts");
 const HOUR_MS = 60 * 60 * 1000;
@@ -107,20 +109,41 @@ const insertImportJob = (t: ReturnType<typeof convexTest>, status: string) =>
     })
   );
 
-describe("enqueueObjectDeletion", () => {
-  test("queues namespaced keys in batches the Worker accepts", async () => {
+describe("queueObjectDeletion", () => {
+  test("queues keys in batches the Worker accepts, skipping blanks and repeats", async () => {
     const t = convexTest(schema, modules);
     const keys = [
       ...Array.from({ length: 250 }, (_, index) => fileKey(index)),
       fileKey(0),
       "",
-      "not-a-teak-key",
+      undefined,
     ];
-    const queued = await t.run((ctx) => enqueueObjectDeletion(ctx, keys));
+    const queued = await t.run((ctx) => queueObjectDeletion(ctx, keys));
     expect(queued).toBe(250);
     const queuedRows = await rows(t);
     expect(queuedRows.map((row) => row.keys?.length)).toEqual([100, 100, 50]);
     expect(queuedRows.every((row) => row.state === "pending")).toBe(true);
+  });
+
+  test("refuses a key outside this deployment's namespace and queues none", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1), "not-a-teak-key"]))
+    ).rejects.toThrow("invalid_storage_key_namespace");
+    expect(await rows(t)).toEqual([]);
+  });
+
+  test("the action entry point follows the same rule", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.storage.objectDeletion.enqueue, {
+      keys: [fileKey(1), "", fileKey(1)],
+    });
+    expect((await rows(t)).map((row) => row.keys)).toEqual([[fileKey(1)]]);
+    await expect(
+      t.mutation(internal.storage.objectDeletion.enqueue, {
+        keys: ["not-a-teak-key"],
+      })
+    ).rejects.toThrow("invalid_storage_key_namespace");
   });
 });
 
@@ -130,7 +153,7 @@ describe("claim", () => {
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, jobId, "user-1");
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
     });
     const claimed = await t.mutation(internal.workflowDispatch.claim, {});
     const items = claimed.map(
@@ -169,7 +192,7 @@ describe("claim", () => {
 describe("release", () => {
   test("puts rows the Worker refused back to pending with a delay", async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     const [claimed] = await t.mutation(internal.workflowDispatch.claim, {});
     await t.mutation(internal.workflowDispatch.release, {
       error: "queue_failed",
@@ -219,7 +242,7 @@ describe("release", () => {
 
   test("queues the keys of a deletion it gives up on again after a long wait", async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
     const dispatchId = await sentAtMaxAttempts(t);
     await t.mutation(internal.workflowDispatch.release, {
       error: "worker_down",
@@ -648,7 +671,7 @@ describe("reconcile helpers", () => {
 describe("flush", () => {
   test("leaves rows pending when no Core Worker is configured", async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
   });
@@ -658,7 +681,7 @@ describe("flush", () => {
     const t = convexTest(schema, modules);
     await t.action(internal.workflowDispatch.flush, {});
     expect(sentEvents()).toEqual([]);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect(sentEvents()).toMatchObject([
       {
@@ -713,7 +736,7 @@ describe("flush", () => {
     const t = convexTest(schema, modules);
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
       await queueExportWorkflow(ctx, jobId, "user-1");
     });
     await t.action(internal.workflowDispatch.flush, {});
@@ -820,7 +843,7 @@ describe("flush scheduling", () => {
     const second = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
     await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     expect(await flushes(t)).toBe(3);
   });
 
@@ -831,7 +854,7 @@ describe("flush scheduling", () => {
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, first, "user-1");
       await queueExportWorkflow(ctx, second, "user-1");
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
     });
     expect(await flushes(t)).toBe(1);
   });
@@ -872,7 +895,7 @@ describe("flush scheduling", () => {
         state: "pending",
       })
     );
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(2)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(2)]));
     expect(await flushes(t)).toBe(1);
   });
 

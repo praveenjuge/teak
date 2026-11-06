@@ -7,13 +7,13 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import {
   getSessionUser,
   requireSessionUser,
   requireTeakUserId,
 } from "../securitySessions";
 import { TRASH_COUNT_LIMIT } from "../shared/constants";
-import { rateLimiter } from "../shared/rateLimits";
 import { permanentDeleteCardForUserHandler } from "./deleteCard";
 
 export const EMPTY_TRASH_PAGE_SIZE = 25;

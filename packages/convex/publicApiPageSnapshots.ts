@@ -1,11 +1,12 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
+import { rateLimiter } from "./rateLimiter";
 import { requireTeakUserId } from "./securitySessions";
 import {
   PAGE_SNAPSHOT_MAX_BYTES,
   PAGE_SNAPSHOT_ROLE,
 } from "./shared/pageArchive";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "./shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
 import { signedUploadUrl } from "./storage/coreWorkerClient";
 import { registerOwnedObject } from "./storage/ownership";
 import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";

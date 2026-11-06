@@ -302,13 +302,16 @@ describe("runAccountDeletion", () => {
   test("a failing stage retries with a capped backoff, then records the failure", async () => {
     const backend = deletionBackend();
     backend.handlers["accountDeletionActions:runStage"] = () => {
-      throw new Error("deletion_posthog_unavailable");
+      throw new FakeConvexError(
+        "deletion_posthog_failed:unreachable",
+        "deletion_posthog_failed:unreachable"
+      );
     };
     const test = setup(backend);
 
     await expect(
       runAccountDeletion(test.run, { convex: test.convex, ops: test.ops })
-    ).rejects.toThrow("deletion_posthog_unavailable");
+    ).rejects.toThrow("deletion_posthog_failed:unreachable");
 
     expect(
       test.steps.delays

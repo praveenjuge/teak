@@ -7,13 +7,13 @@ import { components, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import {
-  assertAccountNotDeleting,
   beginAccountDeletion,
   deleteAccountDataHandler,
   type OwnedCardIds,
   takeOwnedCards,
 } from "../accountDeletion";
 import { captureDeletionBatch } from "../accountDeletion/batch";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,
@@ -39,6 +39,7 @@ import {
   analyticsShardForRequest,
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "../idempotencyAnalytics";
+import { rateLimiter } from "../rateLimiter";
 import schema from "../schema";
 import { getSearchResultLimit } from "../search/searchCards";
 import {
@@ -47,7 +48,7 @@ import {
 } from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
 import { FREE_TIER_LIMIT } from "../shared/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   buildCardSearchTags,
   buildCardSearchText,

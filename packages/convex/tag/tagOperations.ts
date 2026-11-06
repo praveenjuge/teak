@@ -11,7 +11,7 @@ import {
 import {
   accountDeletionOwnsRows,
   getAccountDeletionState,
-} from "../accountDeletion";
+} from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import {
   ownerMutation,

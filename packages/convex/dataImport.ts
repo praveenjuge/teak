@@ -8,7 +8,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { assertAccountNotDeleting } from "./accountDeletion";
+import { assertAccountNotDeleting } from "./accountDeletion/gate";
 import { newImportFolderCache } from "./folder/folders";
 import {
   ACTIVE_IMPORT_STATUSES,
@@ -16,14 +16,19 @@ import {
   IMPORT_PART_BYTES,
 } from "./import/constants";
 import { createImportedCard, importItemFields } from "./import/items";
+import { queueImportWorkflow } from "./import/workflowRun";
 import {
   importModeValidator,
   stagedItemsValidator,
 } from "./schema/validators/jobs";
-import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  resolveStoredUserId,
+} from "./securitySessions";
 import { urlKey } from "./shared/utils/urlKey";
-import { buildR2UserPrefix, queueObjectDeletion } from "./storage/r2";
-import { queueImportWorkflow } from "./workflowDispatch";
+import { queueObjectDeletion } from "./storage/objectDeletion";
+import { buildR2UserPrefix } from "./storage/r2";
 
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
 
@@ -90,12 +95,11 @@ export const getLatestImport = query({
   args: {},
   returns: v.union(v.null(), summaryValidator),
   handler: async (ctx) => {
-    let userId: string;
-    try {
-      userId = await requireSessionUserId(ctx);
-    } catch {
+    const session = await getSessionUser(ctx);
+    if (!session) {
       return null;
     }
+    const userId = session.teakUserId;
     const job = await ctx.db
       .query("importJobs")
       .withIndex("by_user_created", (q) => q.eq("userId", userId))

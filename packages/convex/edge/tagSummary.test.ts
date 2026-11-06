@@ -12,8 +12,9 @@ import {
 // foldTagCountDeltas reads the deletion state first, so failing that read
 // once makes the fold fail the way a real write conflict does.
 const deletionState = vi.hoisted(() => ({ failNext: null as Error | null }));
-vi.mock("../accountDeletion", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../accountDeletion")>();
+vi.mock("../accountDeletion/gate", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../accountDeletion/gate")>();
   return {
     ...actual,
     getAccountDeletionState: (

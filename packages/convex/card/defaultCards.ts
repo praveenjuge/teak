@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { insertFolder } from "../folder/folders";
 import type { CardType } from "../shared/constants";
 import { type FolderColor, folderNameKey } from "../shared/folders";
@@ -10,13 +10,13 @@ import { parseSearchQuery } from "../shared/search/qualifiers";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
-import { queueCardProcessing } from "../workflowDispatch";
 import {
   getOrInitializeCardUsage,
   initializeCardUsageShards,
 } from "./cardUsage";
 import { insertCard } from "./cardWrites";
 import { AUDIO_TRANSCRIPT, AUDIO_WAVEFORM } from "./onboarding/processed";
+import { queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,

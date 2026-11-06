@@ -472,9 +472,14 @@ describe("durable deletion admission and tombstones", () => {
       })
     ).toBe(false);
     expect(
-      await t.query(internal.storage.ownership.getObjectsPage, {
-        userId: "permanent-owner",
-      })
+      await t.run((ctx) =>
+        ctx.db
+          .query("accountStorageObjects")
+          .withIndex("by_userId_and_key", (q) =>
+            q.eq("userId", "permanent-owner")
+          )
+          .collect()
+      )
     ).toMatchObject([{ key }]);
   });
   test("complete stages erase populated disposable data and delete the WorkOS user", async () => {
@@ -1109,7 +1114,7 @@ describe("analytics deletion", () => {
         ...binding,
         stage: 5,
       })
-    ).rejects.toThrow("deletion_posthog_status_503");
+    ).rejects.toThrow("deletion_posthog_failed:status_503");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await t.mutation(internal.accountDeletionJobs.recordFailure, {
       ...binding,

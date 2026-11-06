@@ -1,9 +1,9 @@
 import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
-import { readIsDevDeployment } from "../env";
+import { readIsDevDeployment, readWorkosApiBase } from "../env";
 import { normalizeCardSearchTag } from "../shared/search/searchText";
-import { isWorkosProductionApi, workosApiBase } from "../shared/workosApi";
+import { isWorkosProductionApi } from "../shared/workosApi";
 import { link, SCENARIO_MARKER } from "./helpers";
 
 export const AI_LANGUAGES_SCENARIO = "ai-languages";
@@ -166,7 +166,7 @@ export const report = internalQuery({
     })
   ),
   handler: async (ctx, { workosUserId }) => {
-    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
+    if (!readIsDevDeployment() && isWorkosProductionApi(readWorkosApiBase())) {
       throw new Error(
         "The AI language report runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );

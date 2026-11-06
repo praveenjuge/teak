@@ -7,6 +7,7 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import schema from "../schema";
+import { readAccountLocale } from "../settings/preferences";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -127,9 +128,9 @@ describe("account language", () => {
       await owner.query(api.settings.preferences.getPreferences, {})
     ).toEqual({ locale: "en" });
     expect(
-      await t.query(internal.settings.preferences.getPreferencesForUser, {
-        userId: "owner",
-      })
+      await t.run(async (ctx) => ({
+        locale: await readAccountLocale(ctx, "owner"),
+      }))
     ).toEqual({ locale: "en" });
   });
 
@@ -156,9 +157,9 @@ describe("account language", () => {
     ).rejects.toThrow(/userId/);
     expect(await rows("owner")).toMatchObject([{ locale: "de" }]);
     expect(
-      await t.query(internal.settings.preferences.getPreferencesForUser, {
-        userId: "owner",
-      })
+      await t.run(async (ctx) => ({
+        locale: await readAccountLocale(ctx, "owner"),
+      }))
     ).toEqual({ locale: "de" });
   });
 

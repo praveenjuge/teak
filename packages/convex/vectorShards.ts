@@ -1,20 +1,17 @@
-import {
-  CURRENT_VECTOR_SHARD,
-  vectorNamespaceForUser,
-} from "@teak/files-protocol";
+import { CURRENT_VECTOR_SHARD } from "@teak/files-protocol";
 import { v } from "convex/values";
 import {
   internalMutation,
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
-import { getR2KeyPrefix } from "./storage/r2Keys";
+import { userVectorNamespace } from "./embedding/userVectors";
 
 export const getOrAssignVectorShard = async (
   ctx: MutationCtx,
   userId: string
 ): Promise<{ namespace: string; shard: number }> => {
-  const namespace = vectorNamespaceForUser(`${getR2KeyPrefix()}${userId}`);
+  const namespace = userVectorNamespace(userId);
   if (!namespace) {
     throw new Error("vector_namespace_invalid");
   }

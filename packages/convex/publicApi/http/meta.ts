@@ -3,15 +3,17 @@ import {
   isLocalDevelopmentHostname,
   resolveTeakDevApiUrl,
 } from "../../devUrls";
-import { readWorkosConnectIssuer, readWorkosResources } from "../../env";
-import { OAUTH_SURFACES } from "../../shared/oauthSurfaces";
+import {
+  readWorkosConnectClients,
+  readWorkosConnectIssuer,
+  readWorkosResources,
+} from "../../env";
 import {
   OAUTH_PROTECTED_RESOURCE_PATH,
   PUBLIC_API_OPERATION_IDS,
   publicApiEndpointLabel,
 } from "../../shared/publicApiContract";
 import { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
-import { WORKOS_CLIENT_ID } from "../../shared/workosIds";
 
 export const API_VERSION = "v1";
 
@@ -174,26 +176,6 @@ export const unroutedV1Response = (
           error: `No endpoint at ${method} ${pathname}. GET /v1 lists them.`,
         })
   );
-
-export const readWorkosConnectClients = () => {
-  const configured = {
-    cli: env.WORKOS_CONNECT_CLI_CLIENT_ID,
-    raycast: env.WORKOS_CONNECT_RAYCAST_CLIENT_ID,
-    chrome: env.WORKOS_CONNECT_CHROME_CLIENT_ID,
-    firefox: env.WORKOS_CONNECT_FIREFOX_CLIENT_ID,
-  };
-  return Object.fromEntries(
-    OAUTH_SURFACES.map((surface) => {
-      const clientId = configured[surface];
-      if (!(clientId && WORKOS_CLIENT_ID.test(clientId))) {
-        throw new Error(
-          `Missing or invalid WorkOS Connect client for ${surface}.`
-        );
-      }
-      return [surface, clientId];
-    })
-  );
-};
 
 // Published clients still read `primary` from this document. teak-sdk up to
 // 1.0.86 also refuses it without a `safari` client,

@@ -7,24 +7,36 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import {
+  ACCOUNT_DELETION_FAILURE_REASONS,
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   ACCOUNT_DELETION_STAGES_DONE,
+  accountDeletionFailureCode,
+  accountDeletionNeedsOperator,
   accountDeletionStage,
 } from "./accountDeletion/stages";
-import { accountDeletionNeedsOperator } from "./accountDeletion/workflowRun";
-import { queueAccountDeletionWorkflow } from "./workflowDispatch";
+import {
+  accountDeletionRetryDelayMs,
+  queueAccountDeletionWorkflow,
+} from "./accountDeletion/workflowRun";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
   generation: v.number(),
 };
-export const readDeletionState = async (
+/**
+ * The deletion this run belongs to, and the one owner it still deletes:
+ * a stale generation or an owner row that changed stops the run.
+ */
+const readDeletionBinding = async (
   ctx: Pick<QueryCtx, "db">,
   {
     stateId,
     generation,
   }: { stateId: Id<"accountDeletionStates">; generation: number }
-): Promise<Doc<"accountDeletionStates">> => {
+): Promise<{
+  owner: Doc<"users">;
+  state: Doc<"accountDeletionStates">;
+}> => {
   const state = await ctx.db.get("accountDeletionStates", stateId);
   if (!state || state.generation !== generation) {
     throw new Error("stale_deletion_generation");
@@ -33,11 +45,18 @@ export const readDeletionState = async (
     .query("users")
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", state.userId))
     .take(2);
-  if (owners.length !== 1 || owners[0].workosUserId !== state.workosUserId) {
+  const owner = owners[0];
+  if (owners.length !== 1 || owner?.workosUserId !== state.workosUserId) {
     throw new Error("deletion_binding_changed");
   }
-  return state;
+  return { owner, state };
 };
+
+export const readDeletionState = async (
+  ctx: Pick<QueryCtx, "db">,
+  binding: { stateId: Id<"accountDeletionStates">; generation: number }
+): Promise<Doc<"accountDeletionStates">> =>
+  (await readDeletionBinding(ctx, binding)).state;
 export const getState = internalQuery({
   args: bindingArgs,
   handler: (ctx, binding) => readDeletionState(ctx, binding),
@@ -62,20 +81,12 @@ export const finalize = internalMutation({
   args: bindingArgs,
   returns: v.boolean(),
   handler: async (ctx, { stateId, generation }) => {
-    const state = await ctx.db.get("accountDeletionStates", stateId);
-    if (
-      !state ||
-      state.generation !== generation ||
-      state.stage !== ACCOUNT_DELETION_STAGES_DONE
-    ) {
+    const { state, owner } = await readDeletionBinding(ctx, {
+      stateId,
+      generation,
+    });
+    if (state.stage !== ACCOUNT_DELETION_STAGES_DONE) {
       throw new Error("stale_deletion_stage");
-    }
-    const owners = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", state.userId))
-      .take(2);
-    if (owners.length !== 1 || owners[0].workosUserId !== state.workosUserId) {
-      throw new Error("deletion_binding_changed");
     }
     if (
       !Number.isInteger(generation) ||
@@ -86,7 +97,6 @@ export const finalize = internalMutation({
     ) {
       throw new Error("deletion_completion_invalid");
     }
-    const owner = owners[0];
     const redaction =
       owner.identityOrigin === "workos"
         ? {}
@@ -164,9 +174,7 @@ export const recordFailure = internalMutation({
     stage: v.number(),
     reason: v.optional(
       v.union(
-        v.literal("storage_source_changed"),
-        v.literal("object_write_pending"),
-        v.literal("analytics_deletion_failed")
+        ...ACCOUNT_DELETION_FAILURE_REASONS.map((reason) => v.literal(reason))
       )
     ),
   },
@@ -176,10 +184,10 @@ export const recordFailure = internalMutation({
     if (!state || state.generation !== generation || state.stage !== stage) {
       return null;
     }
-    const failureCode = `account_deletion_stage_${stage}_${reason ?? "failed"}`;
+    const failureCode = accountDeletionFailureCode(stage, reason);
     await ctx.db.patch("accountDeletionStates", stateId, {
       failureCode,
-      nextAttemptAt: Date.now() + 300_000,
+      nextAttemptAt: Date.now() + accountDeletionRetryDelayMs(1),
     });
     console.error("account_deletion_retry_required", {
       stateId,

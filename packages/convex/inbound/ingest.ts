@@ -7,10 +7,10 @@ import {
 } from "../_generated/server";
 import { createCardForUserHandler } from "../card/createCard";
 import { mintPendingUpload, signPendingUpload } from "../publicApiUploads";
+import { rateLimiter } from "../rateLimiter";
 import { CARD_ERROR_CODES } from "../shared/constants";
-import { rateLimiter } from "../shared/rateLimits";
 import { normalizeIdentityEmail } from "../shared/workosIds";
-import { queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { queueInboundEmailEvent } from "../telemetry/schedule";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";

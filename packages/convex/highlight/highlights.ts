@@ -9,7 +9,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, type QueryCtx, query } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
 import {
@@ -17,6 +17,7 @@ import {
   ownerMutation,
   sessionMutation,
 } from "../ownerOperation";
+import { rateLimiter } from "../rateLimiter";
 import { highlightValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import {
@@ -33,8 +34,8 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { queueObjectDeletion } from "../storage/r2";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { queueBackendEvent } from "../telemetry/schedule";
 
 /** The server's messages; the web app shows its own words for each code. */

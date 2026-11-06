@@ -1,13 +1,9 @@
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
-import type { MutationCtx } from "../_generated/server";
-
-export { cardStorageObjectKeys } from "./cardObjectKeys";
-
-import { enqueueObjectDeletion } from "../workflowDispatch";
-import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
+import { getR2KeyPrefix } from "./r2Keys";
 
 /** Where an upload waits for its card; the protocol owns the segment. */
 export { FILES_PENDING_CARD_SEGMENT as PENDING_UPLOAD_CARD_ID } from "@teak/files-protocol";
+export { cardStorageObjectKeys } from "./cardObjectKeys";
 
 export const buildR2UserPrefix = (userId: string) =>
   filesCardKeyPrefix(getR2KeyPrefix(), userId);
@@ -19,11 +15,3 @@ export const buildR2ObjectKey = (args: {
   fileName?: string;
   objectId?: string;
 }) => buildCardObjectKey({ envPrefix: getR2KeyPrefix(), ...args });
-
-export const queueObjectDeletion = async (ctx: MutationCtx, key?: string) => {
-  if (!key) {
-    return;
-  }
-  assertR2KeyInNamespace(key);
-  await enqueueObjectDeletion(ctx, [key]);
-};

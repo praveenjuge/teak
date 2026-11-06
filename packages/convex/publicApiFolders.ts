@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { folderOwnerOperations, requireFolderForUser } from "./folder/folders";
+import { folderOwnerOperations } from "./folder/folders";
+import { requireFolderForUser } from "./folder/lookup";
 import {
   applyFolderMembershipToCards,
   smartFolderMembership,

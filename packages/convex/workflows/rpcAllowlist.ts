@@ -110,30 +110,31 @@ export const isWorkflowRpcFunction = (name: string): boolean =>
 
 // Card processing writes. The gateway refuses one without the run's
 // `guard: { cardId, rev }`, so a run a newer revision replaced never writes.
-const GUARDED_WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
-  "ai/mutations:updateCardProcessing",
-  "card/articleText:markArticleStage",
-  "card/articleText:recordNoArticle",
-  "card/articleText:saveArticleSummary",
-  "card/articleText:saveArticleText",
-  "card/documentText:saveDocumentText",
-  "card/processingRpc:markStagesInProgress",
-  "linkMetadata:updateCardMetadata",
-  "linkMetadata:updateCardPreviewImage",
-  "linkMetadata:updateCardScreenshot",
-  "workflows/aiMetadata/mutations:updateCardAI",
-  "workflows/aiMetadata/mutations:updateCardColors",
-  "workflows/steps/archive/mutations:markPageArchiveStage",
-  "workflows/steps/archive/mutations:recordPageArchive",
-  "workflows/steps/categorization/mutations:updateCategorization",
-  "workflows/steps/classificationMutations:recordClassification",
-  "workflows/steps/podcast/mutations:trackPodcastAudio",
-  "workflows/steps/renderables/mutations:markCardRenderablesFailed",
-  "workflows/steps/renderables/mutations:updateCardFileMetadata",
-  "workflows/steps/renderables/mutations:updateCardFilePreview",
-  "workflows/steps/renderables/mutations:updateCardMediaFacts",
-  "workflows/steps/renderables/mutations:updateCardThumbnail",
-]);
+export const GUARDED_WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> =
+  new Set<string>([
+    "ai/mutations:updateCardProcessing",
+    "card/articleText:markArticleStage",
+    "card/articleText:recordNoArticle",
+    "card/articleText:saveArticleSummary",
+    "card/articleText:saveArticleText",
+    "card/documentText:saveDocumentText",
+    "card/processingRpc:markStagesInProgress",
+    "linkMetadata:updateCardMetadata",
+    "linkMetadata:updateCardPreviewImage",
+    "linkMetadata:updateCardScreenshot",
+    "workflows/aiMetadata/mutations:updateCardAI",
+    "workflows/aiMetadata/mutations:updateCardColors",
+    "workflows/steps/archive/mutations:markPageArchiveStage",
+    "workflows/steps/archive/mutations:recordPageArchive",
+    "workflows/steps/categorization/mutations:updateCategorization",
+    "workflows/steps/classificationMutations:recordClassification",
+    "workflows/steps/podcast/mutations:trackPodcastAudio",
+    "workflows/steps/renderables/mutations:markCardRenderablesFailed",
+    "workflows/steps/renderables/mutations:updateCardFileMetadata",
+    "workflows/steps/renderables/mutations:updateCardFilePreview",
+    "workflows/steps/renderables/mutations:updateCardMediaFacts",
+    "workflows/steps/renderables/mutations:updateCardThumbnail",
+  ]);
 
 export const requiresWorkflowRpcGuard = (
   name: string,

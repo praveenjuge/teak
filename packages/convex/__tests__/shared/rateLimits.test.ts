@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { rateLimiter } from "../../shared/rateLimits";
+import { rateLimiter } from "../../rateLimiter";
 
 describe("shared/rateLimits", () => {
   test("shards the high-volume limits to avoid write contention", () => {

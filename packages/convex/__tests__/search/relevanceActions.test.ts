@@ -17,9 +17,9 @@ beforeAll(async () => {
     },
     isCoreWorkerConfigured: () => true,
   }));
-  const actualLimits = await import("../../shared/rateLimits");
-  mock.module(import.meta.resolve("../../shared/rateLimits"), () => ({
-    ...actualLimits,
+  const actualLimiter = await import("../../rateLimiter");
+  mock.module(import.meta.resolve("../../rateLimiter"), () => ({
+    ...actualLimiter,
     rateLimiter: {
       limit: () => {
         rateLimitCalls += 1;

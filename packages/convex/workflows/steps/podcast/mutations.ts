@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
-import { accountDeletionOwnsRows } from "../../../accountDeletion";
+import { accountDeletionOwnsRows } from "../../../accountDeletion/gate";
+import { rateLimiter } from "../../../rateLimiter";
 import { r2KeyValidator } from "../../../schema/validators/cards";
-import { rateLimiter } from "../../../shared/rateLimits";
 import { buildR2UserPrefix } from "../../../storage/r2";
 
 /** One of the owner's podcast transcriptions this hour; false past the limit. */

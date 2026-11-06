@@ -1,5 +1,5 @@
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
-import { workosRequest, workosUserPath } from "../shared/workosClient";
+import { workosRequest, workosUserPath } from "./client";
 
 const APP_ID = /^(?:connect_app_|conn_app_)[A-Za-z0-9]+$/;
 
@@ -16,10 +16,9 @@ const appsPath = (workosUserId: string, appId?: string) =>
 
 export async function listAuthorizedAppsPage(
   workosUserId: string,
-  apiKey: string,
   options: { after?: string; limit: number; timeoutMs: number }
 ): Promise<{ apps: AuthorizedApp[]; after: string | null } | null> {
-  const response = await workosRequest(appsPath(workosUserId), apiKey, {
+  const response = await workosRequest(appsPath(workosUserId), {
     query: { limit: String(options.limit), after: options.after || undefined },
     timeoutMs: options.timeoutMs,
   });
@@ -69,13 +68,12 @@ export async function listAuthorizedAppsPage(
 export async function deleteAuthorizedApp(
   workosUserId: string,
   appId: string,
-  apiKey: string,
   timeoutMs: number
 ): Promise<void> {
   if (!APP_ID.test(appId)) {
     throw new Error("workos_authorized_apps_invalid");
   }
-  const response = await workosRequest(appsPath(workosUserId, appId), apiKey, {
+  const response = await workosRequest(appsPath(workosUserId, appId), {
     method: "DELETE",
     timeoutMs,
   });

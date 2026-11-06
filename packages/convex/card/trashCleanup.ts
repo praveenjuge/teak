@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { deleteCardFolderRuleRows } from "../folder/rules";
 import { recordCardTombstone } from "../publicApiTombstones";
-import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { cardStorageObjectKeys } from "../storage/r2";
 import { onCardChanged } from "./onCardChanged";
 
 const LOG_PREFIX = "[card/trashCleanup]";

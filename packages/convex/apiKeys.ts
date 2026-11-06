@@ -14,10 +14,14 @@ import {
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
-import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
+import { rateLimiter } from "./rateLimiter";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  resolveStoredUserId,
+} from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { API_KEY_NAME_MAX_LENGTH } from "./shared/apiKeyName";
-import { rateLimiter } from "./shared/rateLimits";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
 
@@ -264,12 +268,11 @@ export const listUserApiKeys = query({
   args: {},
   returns: v.array(listedApiKeyValidator),
   handler: async (ctx) => {
-    let ownerId: string;
-    try {
-      ownerId = await requireSessionUserId(ctx);
-    } catch {
+    const session = await getSessionUser(ctx);
+    if (!session) {
       return [];
     }
+    const ownerId = session.teakUserId;
 
     const componentKeys = await getComponentKeysForOwner(ctx, ownerId);
     return componentKeys

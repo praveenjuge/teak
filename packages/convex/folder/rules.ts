@@ -9,7 +9,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { readCardSearchTexts } from "../card/textContents";
 import { resolveSearch } from "../search/searchPlanner";
@@ -29,7 +29,7 @@ import {
   normalizeTagList,
   tagKey,
 } from "../shared/tags";
-import { normalizeSmartFolderQuery, requireFolderForUser } from "./folders";
+import { normalizeSmartFolderQuery, requireFolderForUser } from "./lookup";
 
 /**
  * Each card a batch changes can read about 2 MiB: its own row, its text rows

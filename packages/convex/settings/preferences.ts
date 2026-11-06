@@ -5,7 +5,6 @@ import {
 } from "@teak/i18n/locales";
 import { ConvexError, v } from "convex/values";
 import {
-  internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
@@ -86,12 +85,4 @@ export const setLocale = mutation({
     await writeAccountLocale(ctx, userId, locale);
     return { locale };
   },
-});
-
-export const getPreferencesForUser = internalQuery({
-  args: { userId: v.string() },
-  returns: preferencesValidator,
-  handler: async (ctx, { userId }) => ({
-    locale: await readAccountLocale(ctx, userId),
-  }),
 });

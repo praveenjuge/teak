@@ -10,7 +10,7 @@ import {
   rotateUserApiKey,
   validateUserApiKey,
 } from "../apiKeys";
-import { rateLimiter } from "../shared/rateLimits";
+import { rateLimiter } from "../rateLimiter";
 import {
   answerIdentityQuery,
   withMappedOwner,

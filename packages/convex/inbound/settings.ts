@@ -6,8 +6,8 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser, requireSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { queueInboundEmailEvent } from "../telemetry/schedule";
 
 const DEFAULT_INBOUND_EMAIL_DOMAIN = "in.teakvault.com";

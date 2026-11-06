@@ -5,7 +5,7 @@ import { internalQuery, query } from "./_generated/server";
 import { DAY_MS, startOfUtcWeek, utcDay } from "./admin/stats";
 import { ensureAdmin, readUserFlags } from "./adminAccess";
 import { daysAgoDate } from "./adminUsage";
-import { readHasPremium } from "./auth";
+import { readHasPremium } from "./billing/polar";
 import { isOnboardingCard } from "./card/defaultCards";
 
 const CARD_SCAN_LIMIT = 2000;

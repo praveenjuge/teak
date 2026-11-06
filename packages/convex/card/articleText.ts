@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { getAccountDeletionState } from "../accountDeletion/gate";
 import { markCardForEmbedding } from "../embedding/state";
 import { r2KeyValidator } from "../schema/validators/cards";
 import {
@@ -16,7 +16,8 @@ import {
   isArticleObjectKey,
   readingMinutes,
 } from "../shared/article";
-import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent } from "../telemetry/schedule";
 import { patchCard } from "./cardWrites";
 import { searchPrefix } from "./documentTextFormat";

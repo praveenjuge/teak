@@ -1,11 +1,15 @@
-import { filesCardKeyPrefix } from "@teak/files-protocol";
-import type { Infer } from "convex/values";
+import { filesCardKeyPrefix, importInstanceId } from "@teak/files-protocol";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { importRunParamsValidator } from "../schema/validators/dispatch";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { getR2KeyPrefix } from "../storage/r2Keys";
 import { reportFromMutation } from "../telemetry/alerts";
-import { enqueueObjectDeletion } from "../workflowDispatch";
+import {
+  type DispatchKindSpec,
+  type DispatchRow,
+  insertDispatch,
+} from "../workflowDispatch/outbox";
 import { ACTIVE_IMPORT_STATUSES } from "./constants";
 import { importStagedPartKeys } from "./indexItems";
 
@@ -14,9 +18,9 @@ import { importStagedPartKeys } from "./indexItems";
  * deleted: no run will read them again. A job that can't be finished (its
  * account is being deleted) is reported, and its parts still go.
  */
-export const failImportRun = async (
+const failImportRun = async (
   ctx: MutationCtx,
-  { jobId }: Infer<typeof importRunParamsValidator>
+  { params: { jobId } }: DispatchRow<"import">
 ): Promise<void> => {
   const job = await ctx.db.get("importJobs", jobId);
   if (
@@ -39,7 +43,7 @@ export const failImportRun = async (
       job_id: jobId,
     });
   }
-  await enqueueObjectDeletion(
+  await queueObjectDeletion(
     ctx,
     importStagedPartKeys(
       filesCardKeyPrefix(getR2KeyPrefix(), job.userId),
@@ -47,4 +51,25 @@ export const failImportRun = async (
       job.stagedItems
     )
   );
+};
+
+export const queueImportWorkflow = async (
+  ctx: MutationCtx,
+  jobId: Id<"importJobs">
+): Promise<string> => {
+  const instanceId = importInstanceId(jobId);
+  await insertDispatch(ctx, {
+    instanceId,
+    key: `import:${jobId}`,
+    kind: "import",
+    params: { jobId },
+  });
+  return instanceId;
+};
+
+export const importDispatch: DispatchKindSpec<"import"> = {
+  delivery: "workflow",
+  onFailure: failImportRun,
+  staleAfterMs: 6 * 60 * 60 * 1000,
+  workflow: "import",
 };

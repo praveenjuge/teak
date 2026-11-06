@@ -8,6 +8,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
 import { onCardChanged } from "../card/onCardChanged";
+import { queueCardProcessing } from "../card/processingRuns";
 import {
   FOLDER_RULE_BATCH_SIZE,
   FOLDER_RULE_PREVIEW_LIMIT,
@@ -20,7 +21,6 @@ import {
   MAX_FOLDER_AUTO_TAGS,
   MAX_FOLDER_RULES,
 } from "../shared/folders";
-import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
 

@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import {
+  EMAIL_ATTACHMENT_SKIP_REASONS,
+  EMAIL_RECEIVED_OUTCOMES,
   type EmailAttachmentSkipReason,
   type EmailReceivedOutcome,
   resolveSizeBucket,
@@ -87,28 +89,26 @@ export const emitCardProcessingFailed = internalAction({
  * Save by email's server events, scheduled by the HTTP actions in
  * `inbound/http.ts`; never content or addresses.
  */
+/** The Save by email events `recordInboundEmailEvent` sends. */
+const INBOUND_EMAIL_EVENTS = [
+  "email_received",
+  "email_attachment_saved",
+  "email_attachment_skipped",
+  "email_save_toggled",
+] as const satisfies readonly ServerEventName[];
+
 export const emitInboundEmail = internalAction({
   args: {
     enabled: v.optional(v.boolean()),
-    event: v.union(
-      v.literal("email_received"),
-      v.literal("email_attachment_saved"),
-      v.literal("email_attachment_skipped"),
-      v.literal("email_save_toggled")
-    ),
+    event: v.union(...INBOUND_EMAIL_EVENTS.map((event) => v.literal(event))),
     kind: v.optional(v.string()),
     outcome: v.optional(
-      v.union(
-        v.literal("saved"),
-        v.literal("dropped_limit"),
-        v.literal("dropped_rate"),
-        v.literal("deferred_rate"),
-        v.literal("empty"),
-        v.literal("duplicate")
-      )
+      v.union(...EMAIL_RECEIVED_OUTCOMES.map((outcome) => v.literal(outcome)))
     ),
     reason: v.optional(
-      v.union(v.literal("format"), v.literal("size"), v.literal("limit"))
+      v.union(
+        ...EMAIL_ATTACHMENT_SKIP_REASONS.map((reason) => v.literal(reason))
+      )
     ),
     sizeBytes: v.optional(v.number()),
     userId: v.string(),
@@ -124,11 +124,7 @@ export const emitInboundEmail = internalAction({
 
 export interface InboundEmailEventArgs {
   enabled?: boolean;
-  event:
-    | "email_received"
-    | "email_attachment_saved"
-    | "email_attachment_skipped"
-    | "email_save_toggled";
+  event: (typeof INBOUND_EMAIL_EVENTS)[number];
   kind?: string;
   outcome?: EmailReceivedOutcome;
   reason?: EmailAttachmentSkipReason;

@@ -5,7 +5,7 @@ import {
   internalQuery,
   type QueryCtx,
 } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
   type RelevanceScore,

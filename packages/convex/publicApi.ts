@@ -20,6 +20,7 @@ import {
   cardListScope,
 } from "./card/listQuery";
 import { readPinnedCards } from "./card/pins";
+import { queueCardProcessing } from "./card/processingRuns";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
@@ -71,6 +72,7 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
+import { rateLimiter } from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
@@ -84,14 +86,12 @@ import {
   clampPublicApiLimit,
   PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
 } from "./shared/publicApiLimits";
-import { rateLimiter } from "./shared/rateLimits";
 import {
   isShuffleSeed,
   shuffleBySeed,
   shuffleRank,
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
-import { queueCardProcessing } from "./workflowDispatch";
 
 const pageInfoValidator = v.object({
   nextCursor: v.union(v.string(), v.null()),

@@ -4,6 +4,7 @@ import type { DeletionBatchKind } from "@teak/convex/accountDeletion/batch";
 import {
   ACCOUNT_DELETION_STAGES,
   ACCOUNT_DELETION_STAGES_DONE,
+  accountDeletionFailure,
   accountDeletionStage,
   deletionFailureReason,
 } from "@teak/convex/accountDeletion/stages";
@@ -89,7 +90,7 @@ export const drainStorageBatch = async (
       }
     }
     if (pending) {
-      throw new Error("deletion_object_write_pending");
+      throw accountDeletionFailure("deletion_object_write_pending");
     }
     const deleted = await ops({ op: "delete-objects", params: { keys } });
     if (deleted.kind !== "ok") {
