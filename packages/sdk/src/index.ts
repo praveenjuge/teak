@@ -1407,6 +1407,7 @@ export const createTeakClient = (options: {
           {
             body: { items, operation },
             headers: idempotency(requestOptions),
+            signal: requestOptions?.signal,
           },
           (v) => v as BulkCardsResponse
         ),

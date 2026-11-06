@@ -282,6 +282,19 @@ describe("waiting for background work", () => {
   });
 });
 
+test("a cancelled bulk request sends nothing", async () => {
+  const seen: string[] = [];
+  const controller = new AbortController();
+  controller.abort();
+  await rejection(
+    clientFor(
+      { "POST /v1/cards/bulk": () => Response.json({ results: [] }) },
+      seen
+    ).cards.bulk("delete", [{ cardId: "c1" }], { signal: controller.signal })
+  );
+  expect(seen).toEqual([]);
+});
+
 test("a caller's signal cancels a listing", async () => {
   const client = createTeakClient({
     baseUrl: "https://api.example",
