@@ -137,6 +137,32 @@ describe("library order follows the saved date", () => {
     ]);
   });
 
+  test("the plain card list with favorites only leaves out the others", async () => {
+    const { owner } = await setup([
+      { content: "Newest note", type: "text", createdAt: 3000 },
+      {
+        content: "Middle note",
+        type: "text",
+        createdAt: 2000,
+        isFavorited: true,
+      },
+      {
+        content: "Imported note",
+        type: "text",
+        createdAt: 1000,
+        isFavorited: true,
+      },
+    ]);
+    expect(
+      contents(await owner.query(api.cards.getCards, { favoritesOnly: true }))
+    ).toEqual(["Middle note", "Imported note"]);
+    expect(contents(await owner.query(api.cards.getCards, {}))).toEqual([
+      "Newest note",
+      "Middle note",
+      "Imported note",
+    ]);
+  });
+
   test("Trash orders by saved date too", async () => {
     const { owner } = await setup(
       LIBRARY.map((card) => ({ ...card, isDeleted: true }))
