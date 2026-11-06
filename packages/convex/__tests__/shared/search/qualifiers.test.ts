@@ -13,7 +13,7 @@ import {
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
 import { semanticQueryText } from "../../../shared/search/semantic";
-import { loadFixture } from "../loadFixture";
+import { loadFixture } from "../loadFixture.test-utils";
 
 const { fields } = loadFixture<{
   fields: { expected: unknown; field: string; input: string }[];

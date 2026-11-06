@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { renderSharedConstants as renderAndroid } from "../../apps/android/scripts/shared-constants";
 import { renderSharedConstants as renderApple } from "../../apps/apple/scripts/shared-constants";
 import { MAX_COLUMNS } from "../../apps/web/src/components/grids/gridColumns";
-import { loadFixture } from "../../packages/convex/__tests__/shared/loadFixture";
+import { loadFixture } from "../../packages/convex/__tests__/shared/loadFixture.test-utils";
 import { COLOR_HUE_BUCKETS } from "../../packages/convex/shared/constants";
 import { buildNativeConstants, COLOR_HUE_SWATCHES } from "./native-constants";
 

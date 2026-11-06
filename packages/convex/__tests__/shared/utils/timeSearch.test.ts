@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseTimeSearchQuery } from "../../../shared/utils/timeSearch";
-import { loadFixture } from "../loadFixture";
+import { loadFixture } from "../loadFixture.test-utils";
 
 const fixture = loadFixture<{
   now: string;

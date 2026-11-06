@@ -8,7 +8,7 @@ import {
   parseCardLinkIds,
   replaceCardLinkTokens,
 } from "../../shared/cardLinks";
-import { loadFixture } from "./loadFixture";
+import { loadFixture } from "./loadFixture.test-utils";
 
 interface CardLinkFixtures {
   formatToken: { id: string; name: string; title: string; token: string }[];

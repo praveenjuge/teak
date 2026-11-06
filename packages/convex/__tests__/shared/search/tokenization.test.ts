@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { classifySearchToken } from "../../../shared/search/tokenization";
-import { loadFixture } from "../loadFixture";
+import { loadFixture } from "../loadFixture.test-utils";
 
 const { classify } = loadFixture<{
   classify: { kind: string; token: string; value: string }[];

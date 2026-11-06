@@ -3,7 +3,7 @@ import {
   hostForDisplay,
   normalizeUrlHost,
 } from "../../../shared/utils/urlHost";
-import { loadFixture } from "../loadFixture";
+import { loadFixture } from "../loadFixture.test-utils";
 
 const { normalize, display } = loadFixture<{
   display: { display: string; host: string }[];

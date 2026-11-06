@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { normalizeBulkTags } from "../../card/bulkActions";
-import { loadFixture } from "../shared/loadFixture";
+import { loadFixture } from "../shared/loadFixture.test-utils";
 
 const { rows } = loadFixture<{
   rows: { error: string | null; tags: string[]; text: string }[];

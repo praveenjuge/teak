@@ -12,7 +12,7 @@ import {
   cardLinkTokensToText,
   parseCardLinkIds,
 } from "../../apps/raycast/src/lib/teakCardLinks";
-import { loadFixture } from "../../packages/convex/__tests__/shared/loadFixture";
+import { loadFixture } from "../../packages/convex/__tests__/shared/loadFixture.test-utils";
 import {
   COLOR_HUE_BUCKETS,
   VISUAL_STYLE_TAXONOMY,

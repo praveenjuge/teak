@@ -3,7 +3,7 @@ import {
   extractUrlFromContent,
   resolveTextCardInput,
 } from "../../../shared/utils/linkDetection";
-import { loadFixture } from "../loadFixture";
+import { loadFixture } from "../loadFixture.test-utils";
 
 const { extract } = loadFixture<{
   extract: { cleanedContent: string; content: string; url: string | null }[];

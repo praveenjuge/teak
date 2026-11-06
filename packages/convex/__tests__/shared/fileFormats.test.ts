@@ -10,7 +10,7 @@ import {
   validateFileName,
   validateUploadFile,
 } from "../../shared/fileFormats";
-import { loadFixture } from "./loadFixture";
+import { loadFixture } from "./loadFixture.test-utils";
 
 const fileNames = loadFixture<{ invalid: string[]; valid: string[] }>(
   "fileNames"
