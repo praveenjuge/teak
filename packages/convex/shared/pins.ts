@@ -12,6 +12,3 @@ export const PIN_ERROR_MESSAGES = {
     "List every pinned card exactly once, in the order you want them",
   PIN_LIMIT_REACHED: `You can pin up to ${MAX_PINNED_CARDS} cards. Unpin one first.`,
 } as const;
-
-export const isCardPinned = (card: { pinPosition?: number }): boolean =>
-  card.pinPosition !== undefined;

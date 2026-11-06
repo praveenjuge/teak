@@ -113,7 +113,6 @@ const definedOnly = (
   );
 
 const FULL_CARD_INCLUDE = "content,metadata";
-const APP_URL = "https://app.teakvault.com";
 
 // Content always comes back: a note or quote card is its content, and the
 // card view has nothing else to show for it.
@@ -177,8 +176,10 @@ const textFromCard = (card: JsonObject): string =>
     .filter((value): value is string => Boolean(value?.trim()))
     .join("\n\n");
 
+// The API gives every card its `appUrl` on the deployment's own web app
+// (a self-hosted one's `SITE_URL`), so the tools never name Teak's.
 const appUrlOf = (card: JsonObject): string =>
-  typeof card.appUrl === "string" ? card.appUrl : APP_URL;
+  typeof card.appUrl === "string" ? card.appUrl : "";
 
 const cardParams = (input: { cardId: string }) => ({ cardId: input.cardId });
 

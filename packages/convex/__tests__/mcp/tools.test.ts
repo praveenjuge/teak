@@ -1,9 +1,6 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
-import {
-  callTeakV1Tool,
-  type PublicApiToolExecutor,
-  TEAK_V1_TOOLS,
-} from "../../mcp/tools";
+import { TEAK_V1_TOOLS } from "../../mcp/catalog";
+import { callTeakV1Tool, type PublicApiToolExecutor } from "../../mcp/tools";
 import * as posthog from "../../telemetry/posthog";
 
 import {
@@ -1433,6 +1430,35 @@ describe("link image tools", () => {
       (entry) => entry.name === "teak_v1_create_card"
     );
     expect(tool?.description).toContain("resaved: true");
+  });
+
+  test("search and fetch link to the card on the deployment's own web app", async () => {
+    const appUrl = "https://teak.example.org/?card=card_1";
+    const card = { appUrl, id: "card_1", content: "Self-hosted" };
+    const executor = respondWith((operation: HttpCall) =>
+      Response.json(
+        operation.path === "/v1/cards/card_1" ? card : { items: [card] }
+      )
+    );
+    const request = mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call" });
+
+    const search = await callTeakV1Tool(
+      "search",
+      { query: "self" },
+      request,
+      executor
+    );
+    const fetched = await callTeakV1Tool(
+      "fetch",
+      { id: "card_1" },
+      request,
+      executor
+    );
+
+    expect(search.structuredContent).toMatchObject({
+      results: [{ id: "card_1", url: appUrl }],
+    });
+    expect(fetched.structuredContent).toMatchObject({ url: appUrl });
   });
 
   test("records an error outcome when a tool call throws", async () => {
