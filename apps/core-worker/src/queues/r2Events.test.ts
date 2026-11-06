@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { FILES_PENDING_UPLOAD_STALE_AFTER_MS } from "@teak/files-protocol";
 import { createFakeBatch, createFakeQueue } from "../test/fakeQueue";
 import { FakeBucket } from "../test/testsupport";
 import type { BackgroundEnv } from "../workflows/runtime";
 import {
   handleR2EventsBatch,
   MAX_QUEUE_DELAY_SECONDS,
-  PENDING_UPLOAD_STALE_AFTER_MS,
   sweepStalePendingUploads,
 } from "./r2Events";
 
@@ -58,7 +58,7 @@ describe("pending upload events", () => {
       bytes: new Uint8Array([1]),
       uploadedAt: NOW,
     });
-    const due = NOW + PENDING_UPLOAD_STALE_AFTER_MS;
+    const due = NOW + FILES_PENDING_UPLOAD_STALE_AFTER_MS;
     const { batch, outcomes } = createFakeBatch("teak-r2-events", [
       { key: PENDING, kind: "pending-upload-check", uploadedAt: NOW },
     ]);
@@ -87,8 +87,12 @@ describe("pending upload events", () => {
     const cardFile = "users/u1/cards/card-1/file/photo.jpg";
     bucket.objects.set(cardFile, { bytes: new Uint8Array([1]) });
     const { batch, outcomes } = createFakeBatch("teak-r2-events", [
-      created(cardFile, NOW - 2 * PENDING_UPLOAD_STALE_AFTER_MS),
-      created(PENDING, NOW - 2 * PENDING_UPLOAD_STALE_AFTER_MS, "DeleteObject"),
+      created(cardFile, NOW - 2 * FILES_PENDING_UPLOAD_STALE_AFTER_MS),
+      created(
+        PENDING,
+        NOW - 2 * FILES_PENDING_UPLOAD_STALE_AFTER_MS,
+        "DeleteObject"
+      ),
       created("exports/abc/export.zip", NOW),
       {
         key: "users/u1/cards/upload-pending-v2/../../x",

@@ -8,6 +8,7 @@ import {
   FILES_NETWORK_OPS,
   FILES_OP_MAX_BODY_BYTES,
   FILES_PDF_OCR_MAX_PAGES,
+  FILES_PENDING_UPLOAD_STALE_AFTER_MS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
   FILES_SCREENSHOT_SIZE,
@@ -368,7 +369,6 @@ const validKeyList = (value: unknown): string[] => {
   return Array.from(new Set(value as string[]));
 };
 
-const PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const CLEANUP_LIST_PAGE_SIZE = 1000;
 const CLEANUP_MAX_PAGES = 10;
 const CLEANUP_DELETE_BATCH_SIZE = 100;
@@ -572,7 +572,7 @@ const dispatch = async (
       let cursor = optionalString(params, "cursor");
       let deleted = 0;
       let pages = 0;
-      const staleBefore = Date.now() - PENDING_UPLOAD_STALE_AFTER_MS;
+      const staleBefore = Date.now() - FILES_PENDING_UPLOAD_STALE_AFTER_MS;
       do {
         const listed = await env.BUCKET.list({
           prefix,

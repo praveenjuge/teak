@@ -76,6 +76,7 @@ export type FilesImportMarkdownResult =
     };
 
 export * from "./article";
+export * from "./cardProcessing";
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";

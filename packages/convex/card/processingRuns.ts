@@ -1,9 +1,25 @@
-import { cardProcessingInstanceId } from "@teak/files-protocol";
+import {
+  CARD_RUN_STAGES,
+  type CardProcessingParams,
+  cardProcessingInstanceId,
+} from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { applyAutoFileRulesToCard } from "../folder/rules";
+import { articleSkipReason } from "../shared/article";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
+import { queueCardProcessing } from "../workflowDispatch";
+import { markUnfinishedCardStagesFailed } from "./processingLifecycle";
 import { mergeProcessingStages, stagePending } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchSync";
+
+/** What a card-processing dispatch row asked its run to do. */
+export const cardRunParams = (
+  row: Pick<Doc<"workflowDispatches">, "kind" | "params">
+): CardProcessingParams | null =>
+  row.kind === "cardProcessing" && row.params && "rev" in row.params
+    ? row.params
+    : null;
 
 export const pendingRunToTakeOver = async (
   ctx: MutationCtx,
@@ -71,9 +87,8 @@ export const takeSnapshotWaitingAfterRun = async (
   // An archive-only run already tried every page that came before it was
   // sent; only one that came later gets another run, so a page that can't
   // be saved isn't retried forever.
-  const params = (row.params ?? {}) as Record<string, unknown>;
   if (
-    params.archiveOnly === true &&
+    cardRunParams(row)?.archiveOnly === true &&
     (card.pendingPageSnapshotAt ?? 0) <= (row.sentAt ?? row._creationTime)
   ) {
     return null;
@@ -85,4 +100,81 @@ export const takeSnapshotWaitingAfterRun = async (
     }),
   });
   return card._id;
+};
+
+/**
+ * A card run that died fails its unfinished stages. A link whose run ended
+ * before its last step still gets its saved copy, from a run of its own: a
+ * page that can't be fetched then fails only that stage. The same goes for
+ * the article in a copy the run didn't reach. A narrowed run that fails
+ * just fails its stages.
+ */
+export const failCardRun = async (
+  ctx: MutationCtx,
+  row: Doc<"workflowDispatches">,
+  params: CardProcessingParams,
+  error: string
+): Promise<void> => {
+  const card = row.cardId ? await ctx.db.get("cards", row.cardId) : null;
+  if (!card || (card.processingRev ?? 0) !== row.rev) {
+    return;
+  }
+  const refresh = params.refresh === true;
+  const narrowed = params.archiveOnly === true || params.articleOnly === true;
+  const archiveSeparately =
+    !narrowed && pageArchiveSkipReason(card, { refresh }) === null;
+  const articleSeparately =
+    !(narrowed || archiveSeparately) &&
+    articleSkipReason(card, { refresh }) === null;
+  await markUnfinishedCardStagesFailed(
+    ctx,
+    {
+      cardId: card._id,
+      stages: [
+        ...CARD_RUN_STAGES,
+        ...(archiveSeparately ? [] : (["archive"] as const)),
+        ...(archiveSeparately || articleSeparately
+          ? []
+          : (["article"] as const)),
+      ],
+    },
+    error
+  );
+  if (archiveSeparately || articleSeparately) {
+    await queueCardProcessing(ctx, card._id, {
+      ...(archiveSeparately ? { archiveOnly: true } : { articleOnly: true }),
+      ...(refresh ? { refresh: true } : {}),
+    });
+  }
+};
+
+/**
+ * Folder rules run when a card's AI tags are written (`updateCardAI`). A
+ * card whose run ended without them, because AI failed or had nothing to
+ * say, is filed here with what it has. One waiting on the AI backfill isn't:
+ * its tags still come.
+ */
+export const fileCardWithoutAiTags = async (
+  ctx: MutationCtx,
+  row: Doc<"workflowDispatches">,
+  params: CardProcessingParams
+): Promise<void> => {
+  if (params.archiveOnly === true || params.articleOnly === true) {
+    return;
+  }
+  const card = row.cardId ? await ctx.db.get("cards", row.cardId) : null;
+  if (
+    !card ||
+    card.isDeleted === true ||
+    // A failed run may have queued an archive or article run after it,
+    // which moves the revision on but leaves AI as it was.
+    (card.processingRev ?? 0) < (row.rev ?? 0) ||
+    card.aiTags !== undefined
+  ) {
+    return;
+  }
+  const metadata = card.processingStatus?.metadata?.status;
+  if (metadata !== "pending" && metadata !== "in_progress") {
+    await applyAutoFileRulesToCard(ctx, card._id);
+  }
 };

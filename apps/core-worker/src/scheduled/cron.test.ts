@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CRONS } from "@teak/convex/cronSchedules";
+import { CRONS, type CronTask, cronTasksOn } from "@teak/convex/cronSchedules";
 import { createConvexRpc } from "../convexRpc";
 import {
   createFakeConvex,
@@ -116,6 +116,32 @@ describe("Cron Triggers", () => {
       expect([...heartbeats(PROD), ...heartbeats(DEV)]).toEqual([]);
     }
   );
+
+  test("every Cloudflare cron task runs on the schedule CRONS gives it", async () => {
+    const maintenanceRuns: Partial<Record<CronTask, string>> = {
+      adminDailySnapshot: "admin-snapshot",
+      cleanupExpiredExports: "export-cleanup",
+      cleanupInboundEmailReceipts: "receipt-cleanup",
+      cleanupOldDeletedCards: "card-cleanup",
+      sweepOrphanedObjects: "orphan-sweep",
+    };
+    for (const task of cronTasksOn("cloudflare")) {
+      const { calls, heartbeats, run } = setup();
+      await run(CRONS[task].schedule);
+      const maintenance = maintenanceRuns[task];
+      const ran = maintenance
+        ? calls.some((call) => call.startsWith(`${maintenance} `))
+        : heartbeats(PROD).includes(`${CRONS[task].name} started`);
+      expect({ ran, task }).toEqual({ ran: true, task });
+    }
+  });
+
+  test("a trigger no task is scheduled on runs nothing", async () => {
+    const { calls, heartbeats, run } = setup();
+    await run("7 7 7 7 *");
+    expect(calls).toEqual([]);
+    expect(heartbeats(PROD)).toEqual([]);
+  });
 
   test("the admin snapshot starts once a day on its own schedule", async () => {
     const { calls, run } = setup();

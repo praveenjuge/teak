@@ -30,7 +30,6 @@ import { isCardRunInFlight } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   mergeProcessingStages,
-  shouldRunArchiveStage,
   stageCompleted,
   stagePending,
 } from "./processingStatus";
@@ -378,16 +377,11 @@ export const createCardForUserHandler = async (
     colors: resolvedColors,
     colorHexes,
     colorHues,
-    processingStatus: {
-      ...buildInitialProcessingStatus({
-        now,
-        cardType,
-        classificationStatus,
-      }),
-      ...(shouldRunArchiveStage(cardType)
-        ? { archive: stagePending(), article: stagePending() }
-        : {}),
-    },
+    processingStatus: buildInitialProcessingStatus({
+      now,
+      cardType,
+      classificationStatus,
+    }),
     ...(pageSnapshotKey
       ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
       : {}),

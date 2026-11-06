@@ -105,9 +105,14 @@ export const filesCardKeyPrefix = (envPrefix: string, userId: string): string =>
  * Worker's stale-upload cleanup deletes what stays here past a day.
  */
 export const FILES_PENDING_CARD_SEGMENT = "upload-pending-v2";
+/** How long an upload may wait for its card before the Worker deletes it. */
+export const FILES_PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
+/** A user's object still waiting under the pending card segment. */
 export const isPendingUploadKey = (key: string): boolean =>
-  key.includes(`/cards/${FILES_PENDING_CARD_SEGMENT}/`);
+  FILES_USER_KEY_ROOTS.some((root) => key.startsWith(root)) &&
+  key.includes(`/cards/${FILES_PENDING_CARD_SEGMENT}/`) &&
+  !key.split("/").includes("..");
 
 export const buildCardObjectKey = ({
   envPrefix,

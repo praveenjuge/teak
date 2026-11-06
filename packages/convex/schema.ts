@@ -12,6 +12,7 @@ import {
   highlightValidator,
   r2KeyValidator,
 } from "./schema/validators/cards";
+import { workflowDispatchParamsValidator } from "./schema/validators/dispatch";
 import {
   exportJobItemValidator,
   exportJobValidator,
@@ -174,7 +175,7 @@ export default defineSchema({
     ),
     key: v.string(),
     instanceId: v.optional(v.string()),
-    params: v.optional(v.any()),
+    params: v.optional(workflowDispatchParamsValidator),
     keys: v.optional(v.array(v.string())),
     state: v.union(
       v.literal("pending"),
