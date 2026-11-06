@@ -1615,6 +1615,11 @@
       "invalidPost": "Invalid post data",
       "signIn": "Sign in to Teak to save",
       "saveFailed": "Failed to save post"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.",
+      "saveCommand": "Save this page to Teak"
     }
   },
   "screens": {

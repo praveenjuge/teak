@@ -1615,6 +1615,11 @@
       "invalidPost": "잘못된 게시물 데이터",
       "signIn": "저장하려면 Teak에 로그인하세요",
       "saveFailed": "게시물을 저장하지 못했습니다"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "나만의 지식 허브입니다. 웹 콘텐츠를 손쉽게 저장하고 정리하며 다시 찾아볼 수 있습니다.",
+      "saveCommand": "이 페이지를 Teak에 저장"
     }
   },
   "screens": {

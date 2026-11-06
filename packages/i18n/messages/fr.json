@@ -1615,6 +1615,11 @@
       "invalidPost": "Données de publication non valides",
       "signIn": "Connectez-vous à Teak pour enregistrer",
       "saveFailed": "Impossible d’enregistrer la publication"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "Votre centre de connaissances personnel. Enregistrez, organisez et redécouvrez du contenu web sans effort.",
+      "saveCommand": "Enregistrer cette page dans Teak"
     }
   },
   "screens": {

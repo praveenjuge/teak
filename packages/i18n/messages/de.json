@@ -1615,6 +1615,11 @@
       "invalidPost": "Ungültige Beitragsdaten",
       "signIn": "Bei Teak anmelden, um zu speichern",
       "saveFailed": "Der Beitrag konnte nicht gespeichert werden"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "Ihre persönliche Wissenszentrale. Speichern, ordnen und entdecken Sie Webinhalte mühelos wieder.",
+      "saveCommand": "Diese Seite in Teak speichern"
     }
   },
   "screens": {

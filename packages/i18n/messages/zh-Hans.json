@@ -1615,6 +1615,11 @@
       "invalidPost": "帖子数据无效",
       "signIn": "登录 Teak 以保存",
       "saveFailed": "无法保存帖子"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "您的个人知识中心。轻松保存、整理并重新发现网页内容。",
+      "saveCommand": "将此网页保存到 Teak"
     }
   },
   "screens": {

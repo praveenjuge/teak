@@ -1615,6 +1615,11 @@
       "invalidPost": "Datos de la publicación no válidos",
       "signIn": "Inicie sesión en Teak para guardar",
       "saveFailed": "No se pudo guardar la publicación"
+    },
+    "manifest": {
+      "name": "Teak",
+      "description": "Su centro de conocimiento personal. Guarde, organice y redescubra contenido web sin esfuerzo.",
+      "saveCommand": "Guardar esta página en Teak"
     }
   },
   "screens": {
