@@ -29,15 +29,13 @@
     "htmlparser2": "catalog:",
     "linkedom": "^0.18.14",
     "postal-mime": "2.7.3",
-    "turndown": "^7.2.4",
-    "zod": "catalog:"
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@types/probe-image-size": "^7.2.5",
     "@types/turndown": "^5.0.6",
     "jose": "catalog:",
     "probe-image-size": "7.4.0",
-    "undici": "^7.30.1",
     "wrangler": "catalog:"
   }
 }

@@ -2,9 +2,10 @@
 
 import type { FileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
-import { Highlight, type Language, themes } from "prism-react-renderer";
-import { useEffect, useState } from "react";
+import { common, createLowlight } from "lowlight";
+import { type ReactNode, useEffect, useState } from "react";
 import Markdown from "react-markdown";
+import "./sourceCodePreview.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   cachedFileTextPreview,
@@ -12,18 +13,42 @@ import {
 } from "./fileTextPreviewCache";
 
 const LANGUAGE_CLASS_REGEX = /language-([\w-]+)/u;
-const SUPPORTED_LANGUAGES: Record<string, Language> = {
+const highlighter = createLowlight(common);
+const SUPPORTED_LANGUAGES: Record<string, string> = {
   css: "css",
-  html: "markup",
+  html: "xml",
   javascript: "javascript",
-  jsx: "jsx",
+  js: "javascript",
+  jsx: "javascript",
   json: "json",
   markdown: "markdown",
-  markup: "markup",
-  mdx: "markup",
-  text: "plain",
-  tsx: "tsx",
+  markup: "xml",
+  mdx: "xml",
+  ts: "typescript",
+  tsx: "typescript",
   typescript: "typescript",
+};
+
+type HighlightNode = ReturnType<
+  typeof highlighter.highlight
+>["children"][number];
+
+const renderHighlightNode = (node: HighlightNode, key: number): ReactNode => {
+  if (node.type === "text") {
+    return node.value;
+  }
+  if (node.type !== "element") {
+    return null;
+  }
+  const className = node.properties.className;
+  return (
+    <span
+      className={Array.isArray(className) ? className.join(" ") : undefined}
+      key={key}
+    >
+      {node.children.map(renderHighlightNode)}
+    </span>
+  );
 };
 
 interface SourceCodePreviewProps {
@@ -31,50 +56,22 @@ interface SourceCodePreviewProps {
   language?: string;
 }
 
-const prismLanguage = (language?: string): Language =>
-  (language && SUPPORTED_LANGUAGES[language]) || "plain";
-
-const withStableKeys = <T,>(
-  values: readonly T[],
-  keyFor: (value: T) => string
-): Array<{ key: string; value: T }> => {
-  const occurrences = new Map<string, number>();
-  return values.map((value) => {
-    const baseKey = keyFor(value);
-    const occurrence = occurrences.get(baseKey) ?? 0;
-    occurrences.set(baseKey, occurrence + 1);
-    return { key: `${baseKey}-${occurrence}`, value };
-  });
-};
-
-const tokenKey = (token: { content: string; types: string[] }): string =>
-  `${token.types.join("-")}:${token.content}`;
-
 export function SourceCodePreview({ code, language }: SourceCodePreviewProps) {
+  const grammar =
+    language && Object.hasOwn(SUPPORTED_LANGUAGES, language)
+      ? SUPPORTED_LANGUAGES[language]
+      : undefined;
+  const content = grammar
+    ? highlighter.highlight(grammar, code).children.map(renderHighlightNode)
+    : code;
+
   return (
-    <Highlight
-      code={code}
-      language={prismLanguage(language)}
-      theme={themes.vsDark}
+    <pre
+      className="source-code-preview max-h-[70vh] overflow-auto rounded-xl p-4 font-mono text-xs leading-5"
+      data-not-typeset
     >
-      {({ className, getLineProps, getTokenProps, style, tokens }) => (
-        <pre
-          className={`${className} max-h-[70vh] overflow-auto rounded-xl p-4 font-mono text-xs leading-5`}
-          data-not-typeset
-          style={style}
-        >
-          {withStableKeys(tokens, (line) => line.map(tokenKey).join("|")).map(
-            ({ key: lineKey, value: line }) => (
-              <div key={lineKey} {...getLineProps({ line })}>
-                {withStableKeys(line, tokenKey).map(({ key, value: token }) => (
-                  <span key={key} {...getTokenProps({ token })} />
-                ))}
-              </div>
-            )
-          )}
-        </pre>
-      )}
-    </Highlight>
+      <code>{content}</code>
+    </pre>
   );
 }
 

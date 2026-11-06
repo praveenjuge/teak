@@ -1,4 +1,4 @@
-import { parse } from "node-html-parser";
+import { readDocsHtml } from "../helpers/docs-html";
 import { published } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 
@@ -38,16 +38,11 @@ test("sitemap pages and internal links resolve", async () => {
     const response = await fetch(url);
     expect(response.status, url).toBeLessThan(400);
     const html = await response.text();
-    expect(parse(html).querySelector("title")?.text.trim(), url).toBeTruthy();
-    const targets = parse(html)
-      .querySelectorAll("a[href^='/']")
-      // Cloudflare email obfuscation links resolve through client-side
-      // decoding, not a real page, and 404 on a plain fetch.
-      .filter((link) => !link.getAttribute("href")?.startsWith("/cdn-cgi/"))
-      .slice(0, 20)
-      .map((link) =>
-        new URL(link.getAttribute("href")!, published.siteUrl).toString()
-      );
+    const { title, internalLinks } = readDocsHtml(html);
+    expect(title, url).toBeTruthy();
+    const targets = internalLinks.map((href) =>
+      new URL(href, published.siteUrl).toString()
+    );
     const statuses = await Promise.all(
       [...new Set(targets)].map(
         async (target) => [target, await linkStatus(target)] as const

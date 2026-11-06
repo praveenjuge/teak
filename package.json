@@ -44,6 +44,9 @@
     },
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "blume": {
+      "undici": "8.12.2"
+    },
     "convex": "1.49.0",
     "convex-helpers": "0.1.128",
     "esbuild": "0.28.2",
@@ -53,12 +56,13 @@
     },
     "playwright-core": "1.63.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "unifont": {
+      "undici": "8.12.2"
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "js-yaml": "5.4.3",
-    "lru-cache": "11.5.3",
     "simple-git-hooks": "^2.13.1",
     "turbo": "^2.11.7",
     "ultracite": "7.12.0"
