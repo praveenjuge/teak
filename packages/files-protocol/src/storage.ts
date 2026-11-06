@@ -108,6 +108,12 @@ export const FILES_PENDING_CARD_SEGMENT = "upload-pending-v2";
 /** How long an upload may wait for its card before the Worker deletes it. */
 export const FILES_PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * The card segment of an object that belongs to no card, such as an import's
+ * source archive. Nothing deletes it by age: its owner (the import job) does.
+ */
+export const FILES_NO_CARD_SEGMENT = "pending";
+
 /** A user's object still waiting under the pending card segment. */
 export const isPendingUploadKey = (key: string): boolean =>
   FILES_USER_KEY_ROOTS.some((root) => key.startsWith(root)) &&
@@ -134,7 +140,7 @@ export const buildCardObjectKey = ({
   const id = objectId?.replace(/[^a-zA-Z0-9_-]+/g, "-") || crypto.randomUUID();
   return [
     filesCardKeyPrefix(envPrefix, userId),
-    cardId ?? FILES_PENDING_CARD_SEGMENT,
+    cardId ?? FILES_NO_CARD_SEGMENT,
     role,
     `${id}${safeName ? `-${safeName}` : ""}`,
   ].join("/");
@@ -157,7 +163,11 @@ export const parseCardObjectKey = (
   }
   const [cardId, role] = [segments[3], segments[4]];
   return {
-    ...(cardId && cardId !== FILES_PENDING_CARD_SEGMENT ? { cardId } : {}),
+    ...(cardId &&
+    cardId !== FILES_PENDING_CARD_SEGMENT &&
+    cardId !== FILES_NO_CARD_SEGMENT
+      ? { cardId }
+      : {}),
     ...(role ? { role } : {}),
   };
 };

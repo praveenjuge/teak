@@ -255,8 +255,13 @@ export const filesSuccessEnvelope = <T>(
   version: FILES_PROTOCOL_VERSION,
 });
 
-const withoutTrailingSlash = (base: string): string =>
-  base.replace(/\/+$/u, "");
+const withoutTrailingSlash = (base: string): string => {
+  let end = base.length;
+  while (end > 0 && base[end - 1] === "/") {
+    end -= 1;
+  }
+  return base.slice(0, end);
+};
 
 export interface SignedOpRequest {
   body: string;

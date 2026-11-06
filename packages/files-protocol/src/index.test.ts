@@ -10,13 +10,16 @@ import {
   cardEmbeddingDocument,
   cardEmbeddingQuery,
   FILES_EDGE_CACHE_CONTROL,
+  FILES_NO_CARD_SEGMENT,
   FILES_OBJECT_KEY_ROOTS,
+  FILES_PENDING_CARD_SEGMENT,
   FILES_PRIVATE_CACHE_CONTROL,
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesOp,
+  isPendingUploadKey,
   isScannedPdf,
   parseCardObjectKey,
   truncateForEmbedding,
@@ -225,9 +228,27 @@ describe("file storage contract", () => {
     );
     expect(
       buildCardObjectKey({ envPrefix: "", userId: "user_1", role: "thumbnail" })
-    ).toMatch(
-      /^users\/1l7d0vx\/cards\/upload-pending-v2\/thumbnail\/[0-9a-f-]{36}$/
-    );
+    ).toMatch(/^users\/1l7d0vx\/cards\/pending\/thumbnail\/[0-9a-f-]{36}$/);
+  });
+
+  test("an object with no card stays out of the stale-upload sweep", () => {
+    // An import's source archive is built with no card and may be read for
+    // longer than a day, so only real uploads land under `upload-pending-v2`.
+    const importSource = buildCardObjectKey({
+      envPrefix: "",
+      userId: "user_1",
+      role: "import-source",
+    });
+    expect(importSource).toContain(`/cards/${FILES_NO_CARD_SEGMENT}/`);
+    expect(isPendingUploadKey(importSource)).toBe(false);
+    const upload = buildCardObjectKey({
+      envPrefix: "",
+      userId: "user_1",
+      cardId: FILES_PENDING_CARD_SEGMENT,
+      role: "file",
+    });
+    expect(isPendingUploadKey(upload)).toBe(true);
+    expect(parseCardObjectKey(importSource)).toEqual({ role: "import-source" });
   });
 
   test("reads the card and role back from a card object key", () => {
