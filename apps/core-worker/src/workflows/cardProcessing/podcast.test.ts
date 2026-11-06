@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { FilesOp } from "@teak/files-protocol";
-import { freezeObject } from "../../deletionGate";
+import { freezeObject, gatedEnv } from "../../deletionGate";
 import {
   createCardConvex,
   createFakeOps,
@@ -100,15 +100,19 @@ const setup = (
   const convex = createCardConvex(card, handlers);
   const fakes = createFakeOps({ "process-audio": processAudio });
   const bucket = new FakeBucket();
-  const env = withObjectGates(
-    testEnv({
-      AI: workersAi as never,
-      AI_USAGE: { writeDataPoint: () => undefined },
-      BUCKET: bucket as never,
-    })
+  // Gated as a workflow run's env is (`workflows/entrypoints.ts`).
+  const env = gatedEnv(
+    withObjectGates(
+      testEnv({
+        AI: workersAi as never,
+        AI_USAGE: { writeDataPoint: () => undefined },
+        BUCKET: bucket as never,
+      })
+    )
   );
   const ops: OpCaller = (spec) =>
-    spec.op === ("generate-link-metadata" satisfies FilesOp)
+    spec.op === ("generate-link-metadata" satisfies FilesOp) ||
+    spec.op === ("delete-object" satisfies FilesOp)
       ? callFilesOp(env, spec)
       : fakes.ops(spec);
   const siteRequests: string[] = [];

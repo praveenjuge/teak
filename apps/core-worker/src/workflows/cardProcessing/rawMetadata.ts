@@ -6,7 +6,6 @@ import {
 } from "@teak/convex/storage/rawMetadataJson";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
-import { gatedEnv } from "../../deletionGate";
 import { type CardJob, ensureObjectOwnership } from "./context";
 
 export const rawMetadataKey = (
@@ -94,7 +93,7 @@ export const archiveRawMetadata = async <T extends ArchivablePart>(
       digest
     );
     await ensureObjectOwnership(job, owner.userId, key);
-    const bucket = gatedEnv(job.env).BUCKET;
+    const bucket = job.env.BUCKET;
     await bucket.put(key, json, {
       httpMetadata: { contentType: "application/json" },
     });

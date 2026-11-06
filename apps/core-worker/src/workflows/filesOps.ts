@@ -9,7 +9,6 @@ import {
   type FilesOpResult,
   readFilesOpOutcome,
 } from "@teak/files-protocol";
-import { gatedEnv } from "../deletionGate";
 import { type FilesOpsEnv, runFilesOp } from "../ops";
 
 /** One op call: the op, its params, and the codes the caller takes as a no. */
@@ -28,14 +27,16 @@ const DEFAULT_PUBLIC_ORIGIN = "https://files.teakvault.com";
 
 /**
  * Runs an op in process, as the network route would, and reads its answer
- * the way Convex does (`readFilesOpOutcome`).
+ * the way Convex does (`readFilesOpOutcome`). The env is the one its entry
+ * point gated (`gatedEnv`), so the op's writes go through the deletion
+ * gate.
  */
 export const callFilesOp = async <Op extends FilesOp>(
   env: FilesOpsEnv,
   spec: FilesOpCall<Op>
 ): Promise<FilesOpOutcome<FilesOpResult<Op>>> => {
   const { envelope, status } = await runFilesOp(
-    gatedEnv(env),
+    env,
     `wf-${crypto.randomUUID()}`,
     { op: spec.op, params: spec.params, version: FILES_PROTOCOL_VERSION },
     env.FILES_PUBLIC_ORIGIN ?? DEFAULT_PUBLIC_ORIGIN

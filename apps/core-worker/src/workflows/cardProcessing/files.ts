@@ -19,7 +19,6 @@ import {
   normalizeImageOcrText,
   sha256Hex,
 } from "@teak/files-protocol";
-import { gatedEnv } from "../../deletionGate";
 import { InvalidOpInput } from "../../opFailure";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { sanitizeTranscript } from "./aiMetadata";
@@ -295,7 +294,7 @@ export const storeDocumentText = async (
   const charCount = Array.from(text).length;
   if (card.documentTextKey !== key) {
     await ensureObjectOwnership(job, card.userId, key);
-    await gatedEnv(job.env).BUCKET.put(key, text, {
+    await job.env.BUCKET.put(key, text, {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
     });
   }

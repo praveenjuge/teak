@@ -28,7 +28,6 @@ import {
 } from "@teak/files-protocol";
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
-import { gatedEnv } from "../deletionGate";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
@@ -369,7 +368,7 @@ export const runExport = (
     const archiveWithout = async (
       omittedCardIds: ReadonlySet<string>
     ): Promise<FilesOpOutcome<BuildExportResult>> => {
-      await gatedEnv(env).BUCKET.put(
+      await env.BUCKET.put(
         manifestKey,
         JSON.stringify(
           buildExportManifest({
@@ -388,7 +387,7 @@ export const runExport = (
           params: { artifactKey, fileName, manifestKey },
         });
       } finally {
-        await Promise.resolve(gatedEnv(env).BUCKET.delete(manifestKey)).catch(
+        await Promise.resolve(env.BUCKET.delete(manifestKey)).catch(
           () => undefined
         );
       }

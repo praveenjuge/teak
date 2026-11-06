@@ -6,7 +6,7 @@ import {
   filesCardKeyPrefix,
   sha256Hex,
 } from "@teak/files-protocol";
-import { freezeObject } from "../../deletionGate";
+import { freezeObject, gatedEnv } from "../../deletionGate";
 import {
   CARD_ID,
   createCardConvex,
@@ -262,7 +262,7 @@ describe("document text", () => {
 
   test("a document's text is not written once account deletion has locked its key", async () => {
     const bucket = new FakeBucket();
-    const env = withObjectGates(testEnv({ BUCKET: bucket as never }));
+    const env = gatedEnv(withObjectGates(testEnv({ BUCKET: bucket as never })));
     const card = makeCard({});
     const convex = createCardConvex(card);
     const job = testJob(

@@ -25,7 +25,6 @@ import type {
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
 import { importIndexFailureClass } from "../archives/importSource";
-import { gatedEnv } from "../deletionGate";
 import { InvalidOpInput } from "../opFailure";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
@@ -161,7 +160,7 @@ export const runImport = (
   const { convex, ops } = resolveOpDeps(run, deps);
   const { env, step } = run;
   const jobId = run.params.jobId as Id<"importJobs">;
-  const bucket = () => gatedEnv(env).BUCKET;
+  const bucket = () => env.BUCKET;
 
   const loadJob = () =>
     convex.query(internal.dataImport.getWorkflowJob, { jobId });

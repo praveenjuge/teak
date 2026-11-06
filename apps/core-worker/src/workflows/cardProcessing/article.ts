@@ -13,7 +13,6 @@ import {
 } from "@teak/convex/shared/article";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import { gatedEnv } from "../../deletionGate";
 import type { StepConfig } from "../runtime";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata } from "./aiMetadata";
@@ -142,7 +141,7 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   const stored = new Set(
     current ? [current.textKey, ...current.imageKeys] : []
   );
-  const bucket = gatedEnv(job.env).BUCKET;
+  const bucket = job.env.BUCKET;
   for (const image of images) {
     if (!stored.has(image.key)) {
       await ensureObjectOwnership(job, card.userId, image.key);
@@ -212,7 +211,7 @@ export const summarizeArticle = async (
       if (gate !== "allowed") {
         return { reason: `ai_${gate}`, status: "skipped" };
       }
-      const object = await gatedEnv(job.env).BUCKET.get(article.textKey);
+      const object = await job.env.BUCKET.get(article.textKey);
       if (!object) {
         return { reason: "article_missing", status: "skipped" };
       }
