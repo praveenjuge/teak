@@ -31,7 +31,7 @@ import {
 import { queueExportWorkflow } from "./export/workflowRun";
 import { readLiveFolders } from "./folder/folders";
 import { loadCardHighlights } from "./highlight/highlights";
-import { requireSessionUserId } from "./securitySessions";
+import { getSessionUser, requireSessionUserId } from "./securitySessions";
 import { getR2Url } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/objectDeletion";
 
@@ -268,12 +268,11 @@ export const getLatestExport = query({
   args: {},
   returns: v.union(v.null(), latestExportValidator),
   handler: async (ctx) => {
-    let userId: string;
-    try {
-      userId = await requireSessionUserId(ctx);
-    } catch {
+    const session = await getSessionUser(ctx);
+    if (!session) {
       return null;
     }
+    const userId = session.teakUserId;
     return await readLatestExport(ctx, userId);
   },
 });

@@ -472,9 +472,14 @@ describe("durable deletion admission and tombstones", () => {
       })
     ).toBe(false);
     expect(
-      await t.query(internal.storage.ownership.getObjectsPage, {
-        userId: "permanent-owner",
-      })
+      await t.run((ctx) =>
+        ctx.db
+          .query("accountStorageObjects")
+          .withIndex("by_userId_and_key", (q) =>
+            q.eq("userId", "permanent-owner")
+          )
+          .collect()
+      )
     ).toMatchObject([{ key }]);
   });
   test("complete stages erase populated disposable data and delete the WorkOS user", async () => {

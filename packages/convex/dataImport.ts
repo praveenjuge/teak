@@ -21,7 +21,11 @@ import {
   importModeValidator,
   stagedItemsValidator,
 } from "./schema/validators/jobs";
-import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  resolveStoredUserId,
+} from "./securitySessions";
 import { urlKey } from "./shared/utils/urlKey";
 import { queueObjectDeletion } from "./storage/objectDeletion";
 import { buildR2UserPrefix } from "./storage/r2";
@@ -91,12 +95,11 @@ export const getLatestImport = query({
   args: {},
   returns: v.union(v.null(), summaryValidator),
   handler: async (ctx) => {
-    let userId: string;
-    try {
-      userId = await requireSessionUserId(ctx);
-    } catch {
+    const session = await getSessionUser(ctx);
+    if (!session) {
       return null;
     }
+    const userId = session.teakUserId;
     const job = await ctx.db
       .query("importJobs")
       .withIndex("by_user_created", (q) => q.eq("userId", userId))

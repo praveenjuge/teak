@@ -7,7 +7,6 @@ import {
   createSnapshotTally,
   cronHealth,
   DAY_MS,
-  growthPercent,
   monthlyAmount,
   monthlyPolarFee,
   type SubscriptionLike,
@@ -294,24 +293,6 @@ describe("monthly revenue", () => {
     expect(summary.pastDue).toBe(1);
     expect(summary.revenue.usd.netMrr).toBe(920);
   });
-});
-
-describe("growthPercent", () => {
-  test.each([
-    [110, 100, 10],
-    [90, 100, -10],
-    [5, 0, null],
-  ] as [number, number, number | null][])(
-    "%d against %d is %p",
-    (current: number, previous: number, expected: number | null) => {
-      const result = growthPercent(current, previous);
-      if (expected === null) {
-        expect(result).toBeNull();
-      } else {
-        expect(result).toBeCloseTo(expected);
-      }
-    }
-  );
 });
 
 describe("buildRetentionCohorts", () => {

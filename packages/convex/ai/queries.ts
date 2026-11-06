@@ -70,14 +70,3 @@ export const findCardsMissingAi = internalQuery({
   args: {},
   handler: (ctx) => findCardsMissingAiCandidates(ctx),
 });
-
-export const getCardForVerification = internalQuery({
-  args: { cardId: v.id("cards"), userId: v.string() },
-  handler: async (ctx, { cardId, userId }) => {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card || card.userId !== userId) {
-      return null;
-    }
-    return { exists: true };
-  },
-});

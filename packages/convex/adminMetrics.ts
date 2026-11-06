@@ -10,6 +10,11 @@ import {
   query,
 } from "./_generated/server";
 import {
+  isActivated,
+  savedCardsBetween,
+  savedCardsFirstWeek,
+} from "./admin/activation";
+import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   autoInternalUserIds,
@@ -30,7 +35,7 @@ import {
 import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
 import { readCustomerSubscriptions } from "./adminBilling";
 import { polarApi, readHasPremium } from "./billing/polar";
-import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
+import { isOnboardingCard } from "./card/defaultCards";
 import { queueMaintenanceWorkflow } from "./workflowDispatch/outbox";
 
 const USER_PAGE = 1000;
@@ -303,15 +308,8 @@ export const cohortActivity = internalQuery({
     weeks: v.number(),
   },
   handler: async (ctx, { users, now, weeks }): Promise<CohortActivity[]> => {
-    const savedIn = async (userId: string, from: number, to: number) => {
-      const rows = await ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q.eq("userId", userId).gte("createdAt", from).lt("createdAt", to)
-        )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARDS.length);
-      return rows.filter((card) => !isOnboardingCard(card)).length;
-    };
+    const savedIn = (userId: string, from: number, to: number) =>
+      savedCardsBetween(ctx, userId, from, to);
     const results: CohortActivity[] = [];
     for (const user of users) {
       const signupWeek = startOfUtcWeek(user.createdAt);
@@ -327,11 +325,7 @@ export const cohortActivity = internalQuery({
         }
       }
       const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
-      const cardsFirstWeek = await savedIn(
-        user.teakUserId,
-        user.createdAt,
-        user.createdAt + windowMs
-      );
+      const cardsFirstWeek = await savedCardsFirstWeek(ctx, user);
       const savedAny =
         cardsFirstWeek > 0 ||
         (await savedIn(user.teakUserId, user.createdAt, now + 1)) > 0;
@@ -341,9 +335,7 @@ export const cohortActivity = internalQuery({
         activeWeeks,
         cardsFirstWeek,
         savedFirstCard: savedAny,
-        activated:
-          user.createdAt <= now - windowMs &&
-          cardsFirstWeek >= ACTIVATION_CARD_THRESHOLD,
+        activated: isActivated(user.createdAt, cardsFirstWeek, now),
         returnedWeek2:
           user.createdAt > now - 2 * windowMs
             ? null

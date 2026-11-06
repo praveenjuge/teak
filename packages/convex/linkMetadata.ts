@@ -30,16 +30,6 @@ export * from "./linkMetadata/selectors";
 export * from "./linkMetadata/types";
 export { normalizeUrl } from "./linkMetadata/url";
 
-export const getFullCardForMetadataHandler = async (
-  ctx: QueryCtx,
-  { cardId }: { cardId: Id<"cards"> }
-) => await ctx.db.get("cards", cardId);
-
-export const getFullCardForMetadata = internalQuery({
-  args: { cardId: v.id("cards") },
-  handler: getFullCardForMetadataHandler,
-});
-
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,

@@ -11,7 +11,6 @@ mock.module("../storage/r2", r2MockModuleFactory);
 mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 const {
-  getFullCardForMetadataHandler,
   getCardForLinkFetchHandler,
   getCardForScreenshotHandler,
   updateCardMetadataHandler,
@@ -29,19 +28,6 @@ const createMockCtx = () => {
 };
 
 describe("linkMetadata", () => {
-  describe("getFullCardForMetadata", () => {
-    test("fetches card by id", async () => {
-      const ctx = createMockCtx();
-      const cardId = testId("cards", "card_123");
-      const card = { _id: cardId, type: "link" };
-      ctx.db.get.mockResolvedValue(card);
-
-      const result = await getFullCardForMetadataHandler(ctx, { cardId });
-      expect(ctx.db.get).toHaveBeenCalledWith("cards", cardId);
-      expect(result).toEqual<unknown>(card);
-    });
-  });
-
   describe("updateCardMetadata", () => {
     test("returns early if card not found", async () => {
       const ctx = createMockCtx();
@@ -541,9 +527,6 @@ test("link fetch reader preserves classification gates and owner without unrelat
     keyPrefix: "",
     processingStatus: { classify: { status: "in_progress" } },
   });
-  expect(
-    await getFullCardForMetadataHandler(ctx, { cardId: testId("cards", "c1") })
-  ).toEqual<unknown>(card);
   ctx.db.get.mockResolvedValue(null);
   expect(
     await getCardForLinkFetchHandler(ctx, { cardId: testId("cards", "c1") })
@@ -676,16 +659,6 @@ describe("linkMetadata storage cleanup", () => {
   beforeEach(() => {
     r2Mocks.queueObjectDeletion.mockReset();
     r2Mocks.queueObjectDeletion.mockResolvedValue(null);
-  });
-
-  describe("getFullCardForMetadata", () => {
-    test("returns null for missing card", async () => {
-      const ctx = { db: { get: mock().mockResolvedValue(null) } } as any;
-      const result = await getFullCardForMetadataHandler(ctx, {
-        cardId: "c1",
-      } as any);
-      expect(result).toBeNull();
-    });
   });
 
   describe("updateCardMetadata storage and dimensions", () => {

@@ -71,6 +71,7 @@ import {
 import { readFolderCardCount } from "../folder/folderRows";
 import schema from "../schema";
 import { searchCardsByDocument } from "../search/searchReads";
+import { readAccountLocale } from "../settings/preferences";
 import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
@@ -1357,9 +1358,9 @@ describe("devSeed folder packs", () => {
       })
     ).toEqual({ status: "seeded", cards: 0 });
     expect(
-      await t.query(internal.settings.preferences.getPreferencesForUser, {
-        userId: "teak_dev",
-      })
+      await t.run(async (ctx) => ({
+        locale: await readAccountLocale(ctx, "teak_dev"),
+      }))
     ).toEqual({ locale: "de" });
   });
 

@@ -11,6 +11,11 @@ import {
   query,
 } from "./_generated/server";
 import {
+  activationWindowEnded,
+  isActivated,
+  savedCardsFirstWeek,
+} from "./admin/activation";
+import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
@@ -37,7 +42,7 @@ import {
 import { readHasPremium } from "./billing/polar";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { patchCard } from "./card/cardWrites";
-import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
+import { isOnboardingCard } from "./card/defaultCards";
 import { queueCardProcessing } from "./card/processingRuns";
 import { stagePending } from "./card/processingStatus";
 import { clearCardTranscript } from "./card/textContents";
@@ -412,23 +417,15 @@ export const activityUsersPage = internalQuery({
 
 export const countActivatedUsers = internalQuery({
   args: {
+    now: v.number(),
     users: v.array(v.object({ teakUserId: v.string(), createdAt: v.number() })),
   },
-  handler: async (ctx, { users }): Promise<number> => {
-    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
+  handler: async (ctx, { now, users }): Promise<number> => {
     let activated = 0;
     for (const user of users) {
-      const firstWeek = await ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .gte("createdAt", user.createdAt)
-            .lt("createdAt", user.createdAt + windowMs)
-        )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARDS.length);
-      const saved = firstWeek.filter((card) => !isOnboardingCard(card));
-      if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
+      if (
+        isActivated(user.createdAt, await savedCardsFirstWeek(ctx, user), now)
+      ) {
         activated += 1;
       }
     }
@@ -472,9 +469,8 @@ export const getActivity = action({
         ctx.runQuery(internal.admin.activityUsersPage, { since, cursor })
     );
 
-    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
     const eligible = users.rows.filter(
-      (user) => !user.deleted && user.createdAt <= now - windowMs
+      (user) => !user.deleted && activationWindowEnded(user.createdAt, now)
     );
     const cohort = eligible.slice(0, ACTIVATION_COHORT_LIMIT);
     let activated = 0;
@@ -484,7 +480,7 @@ export const getActivity = action({
         .map(({ teakUserId, createdAt }) => ({ teakUserId, createdAt }));
       const count: number = await ctx.runQuery(
         internal.admin.countActivatedUsers,
-        { users: batch }
+        { now, users: batch }
       );
       activated += count;
     }

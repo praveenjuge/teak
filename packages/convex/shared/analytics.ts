@@ -19,15 +19,23 @@ export type CardCreationSource =
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
-export type EmailReceivedOutcome =
-  | "saved"
-  | "dropped_limit"
-  | "dropped_rate"
-  | "deferred_rate"
-  | "empty"
-  | "duplicate";
+export const EMAIL_RECEIVED_OUTCOMES = [
+  "saved",
+  "dropped_limit",
+  "dropped_rate",
+  "deferred_rate",
+  "empty",
+  "duplicate",
+] as const;
+export type EmailReceivedOutcome = (typeof EMAIL_RECEIVED_OUTCOMES)[number];
 
-export type EmailAttachmentSkipReason = "format" | "size" | "limit";
+export const EMAIL_ATTACHMENT_SKIP_REASONS = [
+  "format",
+  "size",
+  "limit",
+] as const;
+export type EmailAttachmentSkipReason =
+  (typeof EMAIL_ATTACHMENT_SKIP_REASONS)[number];
 
 export type CardDoneSource = "panel" | "api";
 
