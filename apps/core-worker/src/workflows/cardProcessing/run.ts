@@ -3,7 +3,10 @@ import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { stageFailed } from "@teak/convex/card/processingStatus";
 import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
-import type { CardProcessingParams } from "@teak/files-protocol";
+import {
+  type CardProcessingParams,
+  cardTypeStages,
+} from "@teak/files-protocol";
 import {
   CONVEX_STEP,
   NO_RETRY,
@@ -222,16 +225,6 @@ const processCard = async (
             ? {
                 confidence: classify.confidence ?? 1,
                 mode: "completed",
-                needsLinkMetadata:
-                  card.type === "link" &&
-                  card.metadata?.linkPreview?.status !== "success",
-                shouldCategorize: card.type === "link",
-                shouldGenerateMetadata: true,
-                shouldGenerateRenderables: [
-                  "image",
-                  "video",
-                  "document",
-                ].includes(card.type),
                 type: card.type,
               }
             : null,
@@ -276,20 +269,19 @@ const processCard = async (
     return { mode: "skipped", reason: "card_missing" };
   }
   const cardType = classified.type;
+  const stages = cardTypeStages(cardType);
 
   if (metadataOnly) {
-    const metadata = classified.shouldGenerateMetadata
-      ? await runMetadataStep(job, step, reported, cardType)
-      : null;
+    const metadata = await runMetadataStep(job, step, reported, cardType);
     // An episode whose first run had no AI metadata wasn't transcribed.
     if (
       isPodcastLink(cardType, initial.linkCategory) &&
-      metadata?.mode === "completed"
+      metadata.mode === "completed"
     ) {
       await transcribePodcastStep(job, step, { keepTranscript: true });
     }
     // The metadata just written summarized the page without its article.
-    if (initial.hasArticle && metadata?.mode === "completed") {
+    if (initial.hasArticle && metadata.mode === "completed") {
       await summarizeArticleStep(job, step);
     }
     return completedResult(classified, cardType, metadata, null);
@@ -322,7 +314,7 @@ const processCard = async (
   }
 
   let categorization: { category: string; confidence: number } | undefined;
-  if (classified.shouldCategorize) {
+  if (stages.categorize) {
     const categorized = await step.do(
       "categorize",
       CATEGORIZE_STEP,
@@ -372,9 +364,7 @@ const processCard = async (
   let metadata: MetadataResult | null = null;
   let renderables: RenderablesResult | null = null;
   if (cardType === "image" || cardType === "video") {
-    renderables = classified.shouldGenerateRenderables
-      ? await runRenderables()
-      : null;
+    renderables = stages.renderables ? await runRenderables() : null;
     if (cardType === "image") {
       await step
         .do("extract palette", NO_RETRY(), async () => {
@@ -390,14 +380,14 @@ const processCard = async (
           return null;
         });
     }
-    metadata = classified.shouldGenerateMetadata ? await runMetadata() : null;
+    metadata = await runMetadata();
   } else {
     // Both settle before either's error ends the run: a run that reported
     // while the other step was still writing would leave that stage to the
     // failure handler, or its "mark failed" step to a run already over.
     const [metadataRun, renderablesRun] = await Promise.allSettled([
-      classified.shouldGenerateMetadata ? runMetadata() : null,
-      classified.shouldGenerateRenderables ? runRenderables() : null,
+      runMetadata(),
+      stages.renderables ? runRenderables() : null,
     ]);
     // A newer run took over: that ends this one as superseded, whatever else
     // failed beside it.

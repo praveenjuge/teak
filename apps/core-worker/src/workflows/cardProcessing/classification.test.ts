@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { cardTypeStages } from "@teak/files-protocol";
 import {
   createCardConvex,
   createFakeOps,
@@ -107,9 +108,8 @@ describe("classification step", () => {
       expect(result.mode).toBe("completed");
       expect(result.type).toBe("quote");
       expect(result.confidence).toBe(0.95);
-      expect(result.shouldCategorize).toBe(false);
-      expect(result.shouldGenerateRenderables).toBe(false);
-      expect(result.needsLinkMetadata).toBe(false);
+      expect(cardTypeStages(result.type).categorize).toBe(false);
+      expect(cardTypeStages(result.type).renderables).toBe(false);
       expect(mockRunMutation.mock.calls).toEqual([
         [
           "workflows/steps/classificationMutations:recordClassification",
@@ -664,8 +664,7 @@ describe("classification step", () => {
       const result = await classifyCompletedWith(mockRunMutation);
 
       expect(result.type).toBe("link");
-      expect(result.shouldCategorize).toBe(true);
-      expect(result.needsLinkMetadata).toBe(true);
+      expect(cardTypeStages(result.type).categorize).toBe(true);
     });
 
     test("preserves non-link type with additional content", async () => {
@@ -694,7 +693,7 @@ describe("classification step", () => {
       const result = await classifyCompletedWith(mockRunMutation);
 
       expect(result.type).toBe("text");
-      expect(result.shouldGenerateRenderables).toBe(false);
+      expect(cardTypeStages(result.type).renderables).toBe(false);
     });
 
     test("detects a comma-separated color list as palette", async () => {
@@ -712,8 +711,8 @@ describe("classification step", () => {
     });
   });
 
-  describe("workflow flags", () => {
-    test("sets shouldCategorize only for links", async () => {
+  describe("the stage plan its type gives", () => {
+    test("a link is categorized", async () => {
       const card = {
         _id: "c1",
         url: "https://example.com",
@@ -722,7 +721,7 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldCategorize).toBe(true);
+      expect(cardTypeStages(result.type).categorize).toBe(true);
     });
 
     test("does not categorize non-link cards", async () => {
@@ -734,22 +733,10 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldCategorize).toBe(false);
+      expect(cardTypeStages(result.type).categorize).toBe(false);
     });
 
-    test("always shouldGenerateMetadata", async () => {
-      const card = {
-        _id: "c1",
-        content: "test",
-      };
-      givenCard(card);
-
-      const result = await classifyCompletedWith(mockRunMutation);
-
-      expect(result.shouldGenerateMetadata).toBe(true);
-    });
-
-    test("shouldGenerateRenderables for images", async () => {
+    test("an image gets renderables", async () => {
       const card = {
         _id: "c1",
         fileMetadata: { mimeType: "image/png" },
@@ -758,10 +745,10 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldGenerateRenderables).toBe(true);
+      expect(cardTypeStages(result.type).renderables).toBe(true);
     });
 
-    test("shouldGenerateRenderables for videos", async () => {
+    test("a video gets renderables", async () => {
       const card = {
         _id: "c1",
         fileMetadata: { mimeType: "video/mp4" },
@@ -770,10 +757,10 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldGenerateRenderables).toBe(true);
+      expect(cardTypeStages(result.type).renderables).toBe(true);
     });
 
-    test("shouldGenerateRenderables for documents", async () => {
+    test("a document gets renderables", async () => {
       const card = {
         _id: "c1",
         fileMetadata: { mimeType: "application/pdf" },
@@ -782,7 +769,7 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldGenerateRenderables).toBe(true);
+      expect(cardTypeStages(result.type).renderables).toBe(true);
     });
 
     test("should not generate renderables for text", async () => {
@@ -794,32 +781,7 @@ describe("classification step", () => {
 
       const result = await classifyCompletedWith(mockRunMutation);
 
-      expect(result.shouldGenerateRenderables).toBe(false);
-    });
-
-    test("needsLinkMetadata for links without preview", async () => {
-      const card = {
-        _id: "c1",
-        url: "https://example.com",
-      };
-      givenCard(card);
-
-      const result = await classifyCompletedWith(mockRunMutation);
-
-      expect(result.needsLinkMetadata).toBe(true);
-    });
-
-    test("does not need link metadata with successful preview", async () => {
-      const card = {
-        _id: "c1",
-        url: "https://example.com",
-        metadata: { linkPreview: { status: "success" } },
-      };
-      givenCard(card);
-
-      const result = await classifyCompletedWith(mockRunMutation);
-
-      expect(result.needsLinkMetadata).toBe(false);
+      expect(cardTypeStages(result.type).renderables).toBe(false);
     });
   });
 

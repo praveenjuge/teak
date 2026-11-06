@@ -1,3 +1,4 @@
+import { CARD_RUN_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { getR2KeyPrefix } from "../storage/r2Keys";
@@ -16,12 +17,9 @@ export const getCardForProcessing = internalQuery({
   },
 });
 
+// The stages a run marks in progress, as files-protocol lists them.
 const stageKeyValidator = v.union(
-  v.literal("classify"),
-  v.literal("categorize"),
-  v.literal("metadata"),
-  v.literal("renderables"),
-  v.literal("screenshot")
+  ...CARD_RUN_STAGES.map((stage) => v.literal(stage))
 );
 
 export const markStagesInProgress = internalMutation({

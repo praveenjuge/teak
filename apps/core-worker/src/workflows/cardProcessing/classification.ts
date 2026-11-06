@@ -2,7 +2,6 @@ import { internal } from "@teak/convex/_generated/api";
 import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
-  cardTypeStages,
   isCardTypeDecisionType,
   readCardTypeDecision,
 } from "@teak/files-protocol";
@@ -24,13 +23,13 @@ import { runDecision } from "./decisions";
 
 const MAX_PALETTE_COLORS = 12;
 
+/**
+ * What the card turned out to be. The stages it runs next come from its
+ * type (`cardTypeStages`).
+ */
 export interface CompletedClassification {
   confidence: number;
   mode: "completed";
-  needsLinkMetadata: boolean;
-  shouldCategorize: boolean;
-  shouldGenerateMetadata: boolean;
-  shouldGenerateRenderables: boolean;
   type: CardType;
 }
 
@@ -106,17 +105,8 @@ const recordClassification = (
 
 const completed = (
   type: CardType,
-  confidence: number,
-  needsLinkMetadata = false
-): CompletedClassification => ({
-  confidence,
-  mode: "completed",
-  needsLinkMetadata,
-  shouldCategorize: cardTypeStages(type).categorize,
-  shouldGenerateMetadata: true,
-  shouldGenerateRenderables: cardTypeStages(type).renderables,
-  type,
-});
+  confidence: number
+): CompletedClassification => ({ confidence, mode: "completed", type });
 
 interface Classification {
   recorded: { confidence: number; type?: CardType };
@@ -173,12 +163,7 @@ const decideClassification = async (
     recorded: shouldUpdateType
       ? { confidence: normalizedConfidence, type: normalizedType }
       : { confidence: normalizedConfidence },
-    result: completed(
-      normalizedType,
-      normalizedConfidence,
-      normalizedType === "link" &&
-        card.metadata?.linkPreview?.status !== "success"
-    ),
+    result: completed(normalizedType, normalizedConfidence),
   };
 };
 

@@ -3,6 +3,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { DnsResolver, PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
 import {
   buildCardObjectKey,
+  type CardRunStage,
   FILES_UPLOAD_MAX_BYTES,
   filesUserKeyRoot,
 } from "@teak/files-protocol";
@@ -77,16 +78,9 @@ export const loadCard = (job: CardJob): Promise<LoadedCard | null> =>
     cardId: job.cardId,
   }) as Promise<LoadedCard | null>;
 
-export type StageKey =
-  | "categorize"
-  | "classify"
-  | "metadata"
-  | "renderables"
-  | "screenshot";
-
 export const markInProgress = async (
   job: CardJob,
-  stages: StageKey[]
+  stages: CardRunStage[]
 ): Promise<void> => {
   await job.deps.convex.mutation(
     internal.card.processingRpc.markStagesInProgress,
