@@ -7,7 +7,7 @@ import {
   onCardChanged,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
-import { searchCardsByExactTag } from "../card/searchReads";
+import { searchCardsByExactTag } from "../search/searchReads";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";

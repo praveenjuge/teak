@@ -9,7 +9,7 @@ import {
   type OwnedCardIds,
 } from "../accountDeletion";
 import { onCardChanged } from "../card/onCardChanged";
-import { searchCardsByDocument } from "../card/searchReads";
+import { searchCardsByDocument } from "../search/searchReads";
 import { readFolderCardCount } from "../folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,

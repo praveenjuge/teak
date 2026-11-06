@@ -9,11 +9,9 @@ import {
 } from "../../card/documentText";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
-import {
-  API_RELEVANCE_TIMEOUT_MS,
-  ensureRelevanceScores,
-} from "../../search/relevanceActions";
+import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
+import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
@@ -503,7 +501,7 @@ export const relevanceForPage = async (
     candidates: candidates.items,
     spentToken,
     text,
-    timeoutMs: API_RELEVANCE_TIMEOUT_MS,
+    timeoutMs: API_SEARCH_TIMEOUT_MS,
     userId,
   });
   if (pinned === true) {

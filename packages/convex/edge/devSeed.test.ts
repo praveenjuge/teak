@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { searchCardsByDocument } from "../card/searchReads";
+import { searchCardsByDocument } from "../search/searchReads";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
 import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";

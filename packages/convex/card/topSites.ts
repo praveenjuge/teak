@@ -4,7 +4,7 @@ import { getSessionUser } from "../securitySessions";
 import { hostForDisplay } from "../shared/utils/urlHost";
 import { keepVisible } from "./hiddenCards";
 import { buildCardListQuery } from "./listQuery";
-import { cardUrlHost } from "./searchPlanner";
+import { cardUrlHost } from "../shared/utils/urlHost";
 
 const TOP_SITES_SCAN_LIMIT = 500;
 const TOP_SITES_TEXT_SCAN_LIMIT = 200;

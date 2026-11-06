@@ -15,7 +15,7 @@ import { onCardChanged } from "../card/onCardChanged";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
-} from "../card/searchReads";
+} from "../search/searchReads";
 import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 

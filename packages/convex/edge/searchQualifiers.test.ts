@@ -7,7 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { patchCard } from "../card/cardWrites";
 import { onCardChanged } from "../card/onCardChanged";
-import { expressionTextReader } from "../card/searchPlanner";
+import { expressionTextReader } from "../search/searchPlanner";
 import schema from "../schema";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 

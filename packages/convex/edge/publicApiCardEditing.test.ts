@@ -19,7 +19,7 @@ import {
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
-} from "../card/searchReads";
+} from "../search/searchReads";
 import { mapConvexErrorToResponse } from "../publicApi/http/shared";
 import schema from "../schema";
 import { MAX_CARD_TAGS } from "../shared/tags";

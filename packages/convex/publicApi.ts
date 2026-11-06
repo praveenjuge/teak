@@ -22,7 +22,7 @@ import {
 import { readPinnedCards } from "./card/pins";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
-import { resolveFolderNames } from "./card/searchPlanner";
+import { resolveFolderNames } from "./search/searchPlanner";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
 import {
   type CardFieldEdit,

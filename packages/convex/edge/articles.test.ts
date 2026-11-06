@@ -10,7 +10,7 @@ import { initializeCardProcessingState } from "../card/processingLifecycle";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
-} from "../card/searchReads";
+} from "../search/searchReads";
 import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";

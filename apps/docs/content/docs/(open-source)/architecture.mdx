@@ -79,7 +79,7 @@ npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false}'
 
 The Monday `sweep-orphaned-objects` cron first runs `embedding/sweep:sweepVectorLedger`, which only reports (`vectors.ledger_clean`, `vectors.ledger_problems_detected` or `vectors.ledger_sweep_incomplete`): stuck deletes, rows without cards, exhausted embeds and lost jobs. `embedding/inspect:searchByMeaning` queries one user's vectors from the CLI (`'{"userId":"teak_…","text":"…"}'`).
 
-**Hybrid search.** Every search blends keyword and meaning matches (`mode` `hybrid` by default; `keyword` and `semantic` for one side). The pure parts are in `packages/convex/shared/search/semantic.ts`, the rest in `packages/convex/search/`.
+**Hybrid search.** Every search blends keyword and meaning matches (`mode` `hybrid` by default; `keyword` and `semantic` for one side). The pure parts are in `packages/convex/shared/search/` (`semantic.ts` for meaning, `searchText.ts` for the text a card is found by), the rest in `packages/convex/search/`: the search queries, planner, reads, caches and actions. `search/` reads cards; `card/` never imports it, and a card write reaches search only through its change hook (`card/onCardChanged.ts`).
 
 - Only free words of 2 or more characters make a vector call (`semanticQueryText`, at most 500 characters).
 - `semanticSearchResults` caches each ranking (up to 100 cards) for 10 minutes, keyed by a hash of the version and text, so search text is never stored.
@@ -87,7 +87,7 @@ The Monday `sweep-orphaned-objects` cron first runs `embedding/sweep:sweepVector
 - Fusion is reciprocal rank (`1 / (60 + rank)` per side); meaning-only matches below `SEMANTIC_MIN_SCORE` (0.35) are dropped.
 - No Core Worker, an error or timeout, or more than 60 uncached searches a minute per user leaves the search keyword-only, logged as `[search/semantic]`.
 
-**Similar cards and mood.** `like:<card id>` (More like this, the API's `similarTo`) searches with the card's stored vector through the `vector-similar` op; `mood:"…"` embeds its text and reads image vectors only (a `type` metadata filter, plus an unfiltered query for vectors written before types). Both live in `card/similarSearch.ts`, list meaning matches only, allow one anchor per search, and return at most 100 cards.
+**Similar cards and mood.** `like:<card id>` (More like this, the API's `similarTo`) searches with the card's stored vector through the `vector-similar` op; `mood:"…"` embeds its text and reads image vectors only (a `type` metadata filter, plus an unfiltered query for vectors written before types). Both live in `search/similarSearch.ts`, list meaning matches only, allow one anchor per search, and return at most 100 cards.
 
 </Visibility>
 

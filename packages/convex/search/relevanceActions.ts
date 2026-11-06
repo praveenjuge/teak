@@ -7,7 +7,6 @@ import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { type ActionCtx, action } from "../_generated/server";
 import { aiUsageParams } from "../ai/usage";
-import { searchCardsPaginatedArgsValidator } from "../card/searchCardsPaginated";
 import { rateLimiter } from "../shared/rateLimits";
 import {
   buildRelevanceCardText,
@@ -21,11 +20,13 @@ import {
   callCoreWorkerOp,
   isCoreWorkerConfigured,
 } from "../storage/coreWorkerClient";
+import { searchCardsPaginatedArgsValidator } from "./searchCardsPaginated";
 import { fetchSemanticRanking } from "./semanticActions";
-
-export const API_RELEVANCE_TIMEOUT_MS = 1500;
-const GRID_RELEVANCE_TIMEOUT_MS = 3000;
-const GRID_SEMANTIC_TIMEOUT_MS = 5000;
+import {
+  API_SEARCH_TIMEOUT_MS,
+  GRID_RELEVANCE_TIMEOUT_MS,
+  GRID_SEMANTIC_TIMEOUT_MS,
+} from "./timeouts";
 
 export type RelevanceOutcome =
   | "ok"
@@ -61,7 +62,7 @@ export const ensureRelevanceScores = async (
     candidates,
     spentToken = false,
     text,
-    timeoutMs = API_RELEVANCE_TIMEOUT_MS,
+    timeoutMs = API_SEARCH_TIMEOUT_MS,
     userId,
   }: {
     candidates: readonly CandidateCard[];

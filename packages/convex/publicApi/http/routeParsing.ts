@@ -1,4 +1,4 @@
-import { narrowTypesForQuery } from "../../card/searchPlanner";
+import { narrowTypesForQuery } from "../../search/searchPlanner";
 import { normalizeVisualFilterArgs } from "../../card/visualFilters";
 import type { CardType } from "../../schema";
 import {

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
-import type { SemanticRanking } from "../search/semanticCache";
+import { scanInBatches } from "../card/scanInBatches";
 import { getSessionUser } from "../securitySessions";
 import type { SearchSimilarity } from "../shared/search/qualifiers";
 import { buildCardSearchText } from "../shared/search/searchText";
@@ -10,8 +10,8 @@ import {
   SIMILAR_CARDS_LIMIT,
 } from "../shared/search/semantic";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
-import { scanInBatches } from "./scanInBatches";
 import { movedTranscriptSearchText } from "./searchReads";
+import type { SemanticRanking } from "./semanticCache";
 
 export const isSimilarAnchorAvailable = async (
   ctx: QueryCtx,

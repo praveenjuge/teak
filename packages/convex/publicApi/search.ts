@@ -15,20 +15,20 @@ import { attachFileUrls } from "../card/queryUtils";
 import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
   cardHasTag,
-  cardUrlHost,
   expressionTextReader,
   resolveExpressionFolders,
-} from "../card/searchPlanner";
+} from "../search/searchPlanner";
+import { cardUrlHost } from "../shared/utils/urlHost";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
   searchCardsByExactTag,
   searchCardsByOcrText,
-} from "../card/searchReads";
+} from "../search/searchReads";
 import {
   isSimilarAnchorAvailable,
   loadSimilarCards,
-} from "../card/similarSearch";
+} from "../search/similarSearch";
 import {
   doesCardMatchVisualFilters,
   normalizeVisualFilterArgs,

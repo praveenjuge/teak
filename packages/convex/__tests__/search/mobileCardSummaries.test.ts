@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { toMobileCardSummary } from "../../card/mobileCardSummaries";
+import { toMobileCardSummary } from "../../search/mobileCardSummaries";
 import { testId } from "../helpers/convex.test-utils";
 
 describe("mobile card summaries", () => {
