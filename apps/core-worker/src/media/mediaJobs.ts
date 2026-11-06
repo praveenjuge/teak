@@ -23,7 +23,6 @@ import type { WorkersAiBinding } from "../ai/aiGateway";
 import { meteredAiRun } from "../ai/aiUsage";
 import { isAudioDecodeError } from "../ai/transcript";
 import { MAX_PDF_TEXT_PAGES, textFacts } from "../archives/inspect";
-import { InspectSourceMissing } from "../archives/zip";
 import { OpFailure } from "../opFailure";
 import {
   callRenderer,
@@ -62,7 +61,7 @@ export const r2SourceOpener = (
   return async () => {
     const object = await bucket.get(key);
     if (!object) {
-      throw new InspectSourceMissing();
+      throw new OpFailure("source_not_found");
     }
     if (
       (etag !== null && object.httpEtag !== etag) ||
@@ -278,7 +277,7 @@ export const extractPdfTextViaRenderer = async (
 ): Promise<{ facts: Record<string, number>; text: string }> => {
   const head = await env.BUCKET.head(sourceKey);
   if (!head) {
-    throw new InspectSourceMissing();
+    throw new OpFailure("source_not_found");
   }
   if (head.size > maxBytes || head.size > FILES_UPLOAD_MAX_BYTES) {
     return { facts: textFacts(""), text: "" };

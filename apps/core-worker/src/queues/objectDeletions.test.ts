@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { createFakeBatch, createFakeQueue } from "../test/fakeQueue";
 import { FakeBucket } from "../test/testsupport";
-import type { FilesOpCaller } from "../workflows/deps";
+import type { OpCaller } from "../workflows/deps";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { handleQueueBatch } from "./index";
@@ -47,7 +47,7 @@ describe("object deletion consumer", () => {
       { keys: [key(0)] },
       { keys: [key(1)] },
     ]);
-    const ops: FilesOpCaller = (spec) =>
+    const ops: OpCaller = (spec) =>
       (spec.params.keys as string[]).includes(key(1))
         ? Promise.reject(new Error("r2 unavailable"))
         : callFilesOp(env, spec);

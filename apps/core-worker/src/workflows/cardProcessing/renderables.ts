@@ -7,6 +7,8 @@ import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type {
   FilesAnimationPaletteResult,
   FilesOp,
+  FilesOpParams,
+  FilesOpResult,
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
@@ -24,29 +26,24 @@ import {
 import { buildFilePreviewFactsForKey, recordMediaFacts } from "./files";
 import { hasKnownTinyImageDimensions } from "./imageAnalysisKey";
 
-interface ImageAnalysis {
-  exif?: Record<string, number | string>;
-  height: number;
-  palette: string[];
-  width: number;
-}
-
 type RenderingOutcome<T> =
   | { data: T; kind: "ok" }
   | { kind: "declined"; reason: string };
 
-const runRendering = async <T>(
+type RenderingOp = Extract<
+  FilesOp,
+  | "capture-screenshot"
+  | "extract-animation-palette"
+  | "extract-video-frame"
+  | "render-pdf-thumbnail"
+>;
+
+const runRendering = async <Op extends RenderingOp>(
   job: CardJob,
-  op: Extract<
-    FilesOp,
-    | "capture-screenshot"
-    | "extract-animation-palette"
-    | "extract-video-frame"
-    | "render-pdf-thumbnail"
-  >,
-  params: Record<string, unknown>
-): Promise<RenderingOutcome<T>> => {
-  const outcome = await job.deps.filesOp<T>({ op, params });
+  op: Op,
+  params: FilesOpParams<Op>
+): Promise<RenderingOutcome<FilesOpResult<Op>>> => {
+  const outcome = await job.deps.filesOp({ op, params });
   return outcome.kind === "ok"
     ? outcome
     : {
@@ -83,7 +80,7 @@ const analyzeImage = async (
     return { generated: false, success: true };
   }
   try {
-    const outcome = await job.deps.filesOp<ImageAnalysis>({
+    const outcome = await job.deps.filesOp({
       op: "analyze-image",
       params: { sourceKey: card.fileKey },
     });
@@ -150,15 +147,11 @@ const generateVideoThumbnail = async (
   await ensureObjectOwnership(job, card.userId, scrubKey);
   let outcome: RenderingOutcome<FilesVideoFrameResult>;
   try {
-    outcome = await runRendering<FilesVideoFrameResult>(
-      job,
-      "extract-video-frame",
-      {
-        destinationKey: thumbnailKey,
-        scrubDestinationKey: scrubKey,
-        sourceKey: card.fileKey,
-      }
-    );
+    outcome = await runRendering(job, "extract-video-frame", {
+      destinationKey: thumbnailKey,
+      scrubDestinationKey: scrubKey,
+      sourceKey: card.fileKey,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[renderables/video] Frame extraction failed", {
@@ -224,11 +217,9 @@ const extractAnimationPalette = async (
   }
   let outcome: RenderingOutcome<FilesAnimationPaletteResult>;
   try {
-    outcome = await runRendering<FilesAnimationPaletteResult>(
-      job,
-      "extract-animation-palette",
-      { sourceKey: card.fileKey }
-    );
+    outcome = await runRendering(job, "extract-animation-palette", {
+      sourceKey: card.fileKey,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[renderables/animation] Palette failed", {
@@ -310,11 +301,10 @@ const generatePdfThumbnail = async (
   await ensureObjectOwnership(job, card.userId, thumbnailKey);
   let outcome: RenderingOutcome<FilesPdfThumbnailResult>;
   try {
-    outcome = await runRendering<FilesPdfThumbnailResult>(
-      job,
-      "render-pdf-thumbnail",
-      { destinationKey: thumbnailKey, sourceKey: card.fileKey }
-    );
+    outcome = await runRendering(job, "render-pdf-thumbnail", {
+      destinationKey: thumbnailKey,
+      sourceKey: card.fileKey,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[renderables/pdf] Page render failed", {
@@ -466,7 +456,7 @@ export const extractPaletteFromImage = async (job: CardJob): Promise<void> => {
     return;
   }
   try {
-    const outcome = await job.deps.filesOp<ImageAnalysis>({
+    const outcome = await job.deps.filesOp({
       op: "analyze-image",
       params: { sourceKey: card.fileKey },
     });

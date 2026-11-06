@@ -176,10 +176,7 @@ export const prepareMultipartUpload = action({
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
     await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
-    const created = await callCoreWorkerOp<{
-      key: string;
-      uploadId: string;
-    }>({
+    const created = await callCoreWorkerOp({
       op: "create-multipart",
       params: { key: sourceKey, contentType: args.fileType },
     });
@@ -337,11 +334,7 @@ export const completeMultipartUpload = action({
         message: "Upload has incomplete parts",
       });
     }
-    const completed = await callCoreWorkerOp<{
-      etag: string;
-      key: string;
-      size: number;
-    }>({
+    const completed = await callCoreWorkerOp({
       op: "complete-multipart",
       params: {
         key: session.sourceKey,

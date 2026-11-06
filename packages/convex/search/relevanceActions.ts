@@ -108,7 +108,7 @@ export const ensureRelevanceScores = async (
   const startedAt = Date.now();
   let result: FilesRelevanceResult | null = null;
   try {
-    const outcome = await callCoreWorkerOp<unknown>({
+    const outcome = await callCoreWorkerOp({
       op: "score-relevance",
       params: {
         ...aiUsageParams(userId),

@@ -4,6 +4,7 @@ import {
   sha256Hex,
 } from "@teak/files-protocol";
 import { downloadZip } from "client-zip";
+import { OpFailure } from "../opFailure";
 
 const MISSING_FILE_MAX_ATTEMPTS = 2;
 
@@ -12,15 +13,15 @@ const MISSING_FILE_MAX_ATTEMPTS = 2;
 // 5 GB export ceiling.
 const PART_SIZE = 32 * 1024 * 1024;
 
-export class ExportManifestInvalid extends Error {
+export class ExportManifestInvalid extends OpFailure {
   constructor() {
-    super("manifest_invalid");
+    super("invalid_input", { message: "manifest_invalid" });
   }
 }
 
-export class ExportTooLarge extends Error {
+export class ExportTooLarge extends OpFailure {
   constructor() {
-    super("export_too_large");
+    super("source_too_large", { message: "export_too_large" });
   }
 }
 

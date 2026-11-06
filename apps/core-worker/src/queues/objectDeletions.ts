@@ -5,7 +5,7 @@ import {
 } from "@teak/files-protocol";
 
 import { reportBackgroundError } from "../telemetry";
-import type { FilesOpCaller } from "../workflows/deps";
+import type { OpCaller } from "../workflows/deps";
 import type { ObjectDeletionMessage } from "../workflows/dispatch";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
@@ -29,7 +29,7 @@ const messageKeys = (body: unknown): string[] | null => {
 export const queueObjectDeletions = async (
   env: BackgroundEnv,
   keys: readonly (string | undefined)[],
-  ops: FilesOpCaller = (spec) => callFilesOp(env, spec)
+  ops: OpCaller = (spec) => callFilesOp(env, spec)
 ): Promise<number> => {
   const usable = [
     ...new Set(
@@ -65,7 +65,7 @@ export const queueObjectDeletions = async (
 export const handleObjectDeletionBatch = async (
   batch: MessageBatch<unknown>,
   env: BackgroundEnv,
-  ops: FilesOpCaller = (spec) => callFilesOp(env, spec)
+  ops: OpCaller = (spec) => callFilesOp(env, spec)
 ): Promise<void> => {
   for (const message of batch.messages) {
     const keys = messageKeys(message.body);

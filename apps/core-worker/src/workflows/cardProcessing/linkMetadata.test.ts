@@ -21,7 +21,7 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import {
   fetchLinkMetadata,
@@ -832,7 +832,7 @@ describe("link page cache on refresh", () => {
       } as unknown as KVNamespace,
     });
     const fakes = createFakeOps({});
-    const ops: FilesOpCaller = (spec) =>
+    const ops: OpCaller = (spec) =>
       spec.op === ("fetch-link-page" satisfies FilesOp)
         ? callFilesOp(env, spec)
         : fakes.ops(spec);

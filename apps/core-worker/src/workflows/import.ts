@@ -31,9 +31,9 @@ import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
 import {
   isTransientError,
-  resolveDeps,
+  type OpDeps,
+  resolveOpDeps,
   settleConvexErrors,
-  type WorkflowDeps,
   withinBudget,
 } from "./deps";
 import { isRetryableFilesError } from "./filesOps";
@@ -156,9 +156,9 @@ const withoutStatus = <T extends { status: string }>({
 
 export const runImport = (
   run: WorkflowRun<ImportParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<{ status: ImportOutcome }> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { env, step } = run;
   const jobId = run.params.jobId as Id<"importJobs">;
   const bucket = () => gatedEnv(env).BUCKET;
@@ -193,7 +193,7 @@ export const runImport = (
     if (job.sourceEtag) {
       return job.sourceEtag;
     }
-    const head = await ops<{ etag?: string; exists: boolean; size?: number }>({
+    const head = await ops({
       op: "head-object",
       params: { key: job.sourceKey },
     });
@@ -214,7 +214,7 @@ export const runImport = (
     cursor: number,
     sourceEtag: string
   ): Promise<FilesImportIndexResult> => {
-    const outcome = await ops<FilesImportIndexResult>({
+    const outcome = await ops({
       declineCodes: ["INVALID_INPUT"],
       op: "index-import-source",
       params: {
@@ -239,7 +239,7 @@ export const runImport = (
     sourceEtag: string,
     path: string
   ): Promise<FilesImportMarkdownResult> => {
-    const outcome = await ops<FilesImportMarkdownResult>({
+    const outcome = await ops({
       op: "read-import-markdown",
       params: { path, sourceEtag, sourceKey: job.sourceKey },
     });
@@ -515,9 +515,7 @@ export const runImport = (
       for (const entry of needed.values()) {
         await ensureOwned(job.userId, entry.destinationKey);
       }
-      const outcome = await ops<
-        Array<{ destinationKey: string; path: string }>
-      >({
+      const outcome = await ops({
         op: "extract-import-files",
         params: {
           archiveKey: job.sourceKey,

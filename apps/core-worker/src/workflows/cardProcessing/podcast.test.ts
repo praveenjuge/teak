@@ -12,7 +12,7 @@ import {
   testJob,
 } from "../../test/cardProcessingKit";
 import { FakeBucket, withObjectGates } from "../../test/testsupport";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry } from "../telemetry";
 import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
@@ -107,7 +107,7 @@ const setup = (
       BUCKET: bucket as never,
     })
   );
-  const ops: FilesOpCaller = (spec) =>
+  const ops: OpCaller = (spec) =>
     spec.op === ("generate-link-metadata" satisfies FilesOp)
       ? callFilesOp(env, spec)
       : fakes.ops(spec);

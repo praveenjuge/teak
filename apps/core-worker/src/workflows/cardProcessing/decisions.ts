@@ -2,6 +2,7 @@ import {
   CLEF_FLASH_MODEL_ID,
   CLEF_MODEL_ID,
   type FilesOp,
+  type FilesOpParams,
 } from "@teak/files-protocol";
 import { currentAiUsageContext, runWithAiUsage } from "../../ai/aiUsage";
 import { InvalidOpInput } from "../../opFailure";
@@ -36,7 +37,7 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 };
 
-export const runDecision = async <T>(
+export const runDecision = async <T, Op extends DecisionOp = DecisionOp>(
   job: CardJob,
   {
     op,
@@ -46,8 +47,8 @@ export const runDecision = async <T>(
     timeoutMs = CARD_PROCESSING_DECISION_TIMEOUT_MS,
     userId,
   }: {
-    op: DecisionOp;
-    params: Record<string, unknown>;
+    op: Op;
+    params: FilesOpParams<Op>;
     read: (data: unknown) => T | null;
     telemetry?: WorkflowTelemetry;
     timeoutMs?: number;
@@ -71,7 +72,7 @@ export const runDecision = async <T>(
         },
         async () => {
           const outcome = await withTimeout(
-            job.deps.filesOp<unknown>({ op, params }),
+            job.deps.filesOp({ op, params }),
             timeoutMs
           );
           if (outcome.kind === "declined") {

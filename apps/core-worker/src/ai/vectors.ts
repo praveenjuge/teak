@@ -22,9 +22,7 @@ import {
 } from "@teak/files-protocol";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
-import { aiRunOptions } from "./aiGateway";
-import { meteredAiRun } from "./aiUsage";
-import { isCapacityError, MetadataCapacityError } from "./textMetadata";
+import { runWorkersAi } from "./workersAi";
 
 // Vectorize answers a burst of writes with 429 (`VECTOR_UPSERT_ERROR (code =
 // 40041): Too Many Requests`). It is load, not a fault: answer RATE_LIMITED
@@ -214,27 +212,15 @@ const indexForShard = (env: FilesOpsEnv, shard: number): Vectorize => {
 };
 
 const embed = async (env: FilesOpsEnv, texts: string[]) => {
-  const ai = env.AI;
-  if (!ai) {
+  if (!env.AI) {
     throw new Error("ai_unavailable");
   }
-  let response: unknown;
-  try {
-    response = await meteredAiRun(
-      env,
-      {
-        functionId: "teak.ai.embedding",
-        isCapacity: isCapacityError,
-        model: CARD_EMBEDDING_MODEL,
-      },
-      () => ai.run(CARD_EMBEDDING_MODEL, { text: texts }, aiRunOptions(env))
-    );
-  } catch (error) {
-    if (isCapacityError(error)) {
-      throw new MetadataCapacityError({ validationRetryCount: 0 });
-    }
-    throw error;
-  }
+  const response = await runWorkersAi(env, {
+    capacityRetries: 0,
+    functionId: "teak.ai.embedding",
+    input: { text: texts },
+    model: CARD_EMBEDDING_MODEL,
+  });
   const data = (response as { data?: unknown } | null)?.data;
   if (
     !Array.isArray(data) ||

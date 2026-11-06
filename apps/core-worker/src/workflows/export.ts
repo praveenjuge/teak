@@ -30,7 +30,7 @@ import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
 import { gatedEnv } from "../deletionGate";
 import { queueObjectDeletions } from "../queues/objectDeletions";
-import { resolveDeps, settleConvexErrors, type WorkflowDeps } from "./deps";
+import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
   CONVEX_STEP,
   errorMessage,
@@ -235,9 +235,9 @@ export const buildExportManifest = (args: {
 
 export const runExport = (
   run: WorkflowRun<ExportParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<{ status: ExportOutcome }> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { env, instanceId, step } = run;
   const jobId = run.params.jobId as Id<"exportJobs">;
   const { userId } = run.params;
@@ -383,7 +383,7 @@ export const runExport = (
         { httpMetadata: { contentType: "application/json" } }
       );
       try {
-        return await ops<BuildExportResult>({
+        return await ops({
           op: "build-export",
           params: { artifactKey, fileName, manifestKey },
         });

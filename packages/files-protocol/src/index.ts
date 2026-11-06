@@ -86,6 +86,7 @@ export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";
 export * from "./onboarding";
+export * from "./opTable";
 export * from "./outcome";
 export * from "./pageArchive";
 export * from "./remoteAsset";

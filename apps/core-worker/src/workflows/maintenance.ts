@@ -24,9 +24,9 @@ import type { FunctionArgs } from "convex/server";
 import type { ConvexRpc } from "../convexRpc";
 import { reportBackgroundError } from "../telemetry";
 import {
-  type FilesOpCaller,
-  resolveDeps,
-  type WorkflowDeps,
+  type OpCaller,
+  type OpDeps,
+  resolveOpDeps,
   withinBudget,
 } from "./deps";
 import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
@@ -91,7 +91,7 @@ export const startMaintenanceTask = async (
 
 interface TaskContext {
   convex: ConvexRpc;
-  ops: FilesOpCaller;
+  ops: OpCaller;
   run: WorkflowRun<MaintenanceParams>;
 }
 
@@ -282,10 +282,7 @@ const sweepOrphans = async ({ convex, ops }: TaskContext) => {
     const listed: FilesOpOutcome<{
       cursor: string | null;
       objects: Array<{ key: string; lastModified: number; size: number }>;
-    }> = await ops<{
-      cursor: string | null;
-      objects: Array<{ key: string; lastModified: number; size: number }>;
-    }>({
+    }> = await ops({
       op: "list-objects",
       params: {
         limit: SWEEP_LIST_LIMIT,
@@ -491,9 +488,9 @@ const TASKS: Record<
 
 export const runMaintenance = async (
   run: WorkflowRun<MaintenanceParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<unknown> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { task } = run.params;
   const handler = TASKS[task];
   if (!handler) {

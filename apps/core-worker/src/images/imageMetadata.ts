@@ -5,8 +5,7 @@ import {
   normalizeImageOcrText,
   validateTextMetadata,
 } from "@teak/files-protocol";
-import { aiRunOptions } from "../ai/aiGateway";
-import { meteredAiRun } from "../ai/aiUsage";
+import { runWorkersAi } from "../ai/workersAi";
 import type { Env } from "../index";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import {
@@ -18,12 +17,8 @@ import {
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 2048;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
-const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
 const MAX_PROMPT_CHARS = 6000;
 export const INVALID_IMAGE_OUTPUT = "invalid_image_metadata_output";
-const CAPACITY_RETRY_BASE_DELAY_MS = 250;
-const WORKERS_AI_CAPACITY_ERROR =
-  /(?:\b3040\b.*capacity|capacity temporarily exceeded)/iu;
 
 export const IMAGE_ANALYSIS_SYSTEM_PROMPT = `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image, and read any text in it. Answer directly without thinking step by step.
 
@@ -130,16 +125,6 @@ export const toDataUrl = (bytes: Uint8Array, mediaType: string): string => {
   return `data:${mediaType};base64,${btoa(binary)}`;
 };
 
-const isWorkersAiCapacityError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
-  return WORKERS_AI_CAPACITY_ERROR.test(message);
-};
-
-const waitForCapacityRetry = (attempt: number): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
-  });
-
 export const loadImageForAi = async (
   env: Env,
   origin: string,
@@ -189,51 +174,37 @@ const runVisionJson = async <T>(
   env: Env,
   request: VisionJsonRequest<T>
 ): Promise<{ validationAttempt: number; value: T }> => {
-  const ai = env.AI;
-  if (!ai) {
-    throw new Error("workers_ai_not_configured");
-  }
-  let capacityAttempt = 0;
   let validationAttempt = 0;
   for (;;) {
     try {
-      const response = await meteredAiRun(
-        env,
-        {
-          functionId: request.functionId,
-          isCapacity: isWorkersAiCapacityError,
-          model: IMAGE_METADATA_MODEL_ID,
-        },
-        () =>
-          ai.run(
-            IMAGE_METADATA_MODEL_ID,
+      const response = await runWorkersAi(env, {
+        functionId: request.functionId,
+        input: {
+          max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
+          messages: [
+            { content: request.system, role: "system" },
             {
-              max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
-              messages: [
-                { content: request.system, role: "system" },
+              content: [
+                { text: request.prompt(validationAttempt), type: "text" },
                 {
-                  content: [
-                    { text: request.prompt(validationAttempt), type: "text" },
-                    {
-                      image_url: { url: request.imageDataUrl },
-                      type: "image_url",
-                    },
-                  ],
-                  role: "user",
+                  image_url: { url: request.imageDataUrl },
+                  type: "image_url",
                 },
               ],
-              response_format: { type: "json_object" },
-              // Gemma 4 thinks by default, and its reasoning shares
-              // max_tokens: on dense images it spent the whole cap and
-              // answered with empty or cut-off content.
-              chat_template_kwargs: { enable_thinking: false },
-              ...(request.frequencyPenalty === undefined
-                ? {}
-                : { frequency_penalty: request.frequencyPenalty }),
+              role: "user",
             },
-            aiRunOptions(env)
-          )
-      );
+          ],
+          response_format: { type: "json_object" },
+          // Gemma 4 thinks by default, and its reasoning shares
+          // max_tokens: on dense images it spent the whole cap and
+          // answered with empty or cut-off content.
+          chat_template_kwargs: { enable_thinking: false },
+          ...(request.frequencyPenalty === undefined
+            ? {}
+            : { frequency_penalty: request.frequencyPenalty }),
+        },
+        model: IMAGE_METADATA_MODEL_ID,
+      });
       const text = extractMessageText(response);
       if (text === null) {
         throw new Error("malformed_workers_ai_response");
@@ -245,14 +216,6 @@ const runVisionJson = async <T>(
       return { validationAttempt, value };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (
-        capacityAttempt < MAX_IMAGE_METADATA_CAPACITY_RETRIES &&
-        isWorkersAiCapacityError(error)
-      ) {
-        await waitForCapacityRetry(capacityAttempt);
-        capacityAttempt += 1;
-        continue;
-      }
       if (
         validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
         ![INVALID_IMAGE_OUTPUT, "malformed_workers_ai_response"].includes(

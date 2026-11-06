@@ -2,8 +2,8 @@ import { internal } from "@teak/convex/_generated/api";
 import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
-  CARD_TYPE_DECISION_TYPES,
   cardTypeStages,
+  isCardTypeDecisionType,
   readCardTypeDecision,
 } from "@teak/files-protocol";
 import {
@@ -46,15 +46,13 @@ const reviewTextCardType = async (
   const rules: { type: CardType; confidence: number } = heuristicQuote
     ? { type: "quote", confidence: 0.95 }
     : deterministicClassify(card);
-  if (!(CARD_TYPE_DECISION_TYPES as readonly string[]).includes(rules.type)) {
+  const rulesType = rules.type;
+  if (!isCardTypeDecisionType(rulesType)) {
     return rules;
   }
   const result = await runDecision(job, {
     op: "decide-card-type",
-    params: {
-      content: card.content,
-      rulesType: rules.type,
-    },
+    params: { content: card.content, rulesType },
     read: readCardTypeDecision,
     userId: card.userId,
   });

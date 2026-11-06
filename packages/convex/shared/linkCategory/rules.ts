@@ -1,5 +1,6 @@
 import {
   DECISION_TEXT_LIMITS,
+  type FilesLinkCategoryDecisionParams,
   type FilesLinkCategoryDecisionResult,
   readLinkCategoryDecision,
 } from "@teak/files-protocol";
@@ -512,7 +513,7 @@ export const linkCategoryDecisionParams = (
   classification: CategoryClassificationResult,
   sourceUrl: string,
   structuredEntities: unknown
-): Record<string, unknown> | null => {
+): FilesLinkCategoryDecisionParams | null => {
   if (
     !(
       classification.reason &&

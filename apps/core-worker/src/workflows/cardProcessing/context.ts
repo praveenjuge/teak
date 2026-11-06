@@ -13,7 +13,7 @@ import {
   createContainerStreamingFetch,
   createDohResolver,
 } from "../../media/pinnedHop";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
@@ -22,7 +22,7 @@ import { PODCAST_LOOKUP_MAX_BYTES } from "./podcastFeed/resolveEnclosure";
 export interface CardProcessingDeps {
   aiGate: AiGateReader;
   convex: ConvexRpc;
-  filesOp: FilesOpCaller;
+  filesOp: OpCaller;
   pinnedFetch: PinnedFetch;
   podcastFetch: { episode: PinnedFetch; feed: PinnedFetch };
   resolveDns: DnsResolver;

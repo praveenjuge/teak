@@ -3,7 +3,6 @@ import {
   accountDeletionInstanceId,
   cardProcessingInstanceId,
   type DispatchItem,
-  type DispatchResult,
   exportInstanceId,
   importInstanceId,
   MAX_DISPATCH_DELETE_KEYS,
@@ -558,7 +557,7 @@ export const flush = internalAction({
       let error = "dispatch_rejected";
       try {
         const items = claimed.map(({ item }) => item);
-        const outcome = await callCoreWorkerOp<DispatchResult>({
+        const outcome = await callCoreWorkerOp({
           op: "dispatch",
           params: {
             convexSiteUrl,

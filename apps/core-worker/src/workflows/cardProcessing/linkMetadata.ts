@@ -31,7 +31,6 @@ import {
 import {
   type FilesLinkPageResult,
   type FilesRemoteAssetKind,
-  type FilesRemoteAssetResult,
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
@@ -124,7 +123,7 @@ export const gunzipBase64 = async (value: string): Promise<string> => {
 };
 
 export const fetchLinkPageForCard = (job: CardJob, url: string) =>
-  job.deps.filesOp<FilesLinkPageResult>({
+  job.deps.filesOp({
     op: "fetch-link-page",
     params: {
       ...(job.refresh ? { fresh: true } : {}),
@@ -171,7 +170,7 @@ const storeRemoteAsset = async (
   const key = objectKey(loaded, { cardId: job.cardId, role });
   try {
     await ensureObjectOwnership(job, loaded.card.userId, key);
-    const outcome = await job.deps.filesOp<FilesRemoteAssetResult>({
+    const outcome = await job.deps.filesOp({
       op: "store-remote-asset",
       params: {
         destinationKey: key,

@@ -11,11 +11,7 @@ import {
   articleSkipReason,
   articleTextObjectKey,
 } from "@teak/convex/shared/article";
-import {
-  type FilesExtractArticleResult,
-  filesCardKeyPrefix,
-  sha256Hex,
-} from "@teak/files-protocol";
+import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
 import { gatedEnv } from "../../deletionGate";
 import type { StepConfig } from "../runtime";
@@ -99,7 +95,7 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   }
   const archive = card.pageArchive as NonNullable<typeof card.pageArchive>;
   await markStage(job, "in_progress");
-  const outcome = await job.deps.filesOp<FilesExtractArticleResult>({
+  const outcome = await job.deps.filesOp({
     op: "extract-article",
     params: { archiveKey: archive.storageKey, pageUrl: archive.sourceUrl },
   });

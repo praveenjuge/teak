@@ -1,7 +1,3 @@
-import type {
-  FilesEmbedUpsertResult,
-  FilesVectorDeleteResult,
-} from "@teak/files-protocol";
 import {
   EMBED_UPSERT_MAX_ITEMS,
   VECTOR_DELETE_MAX_IDS,
@@ -27,7 +23,7 @@ const errorMessage = (error: unknown) =>
 
 const deleteVectorIdsOnWorker = async (shard: number, ids: string[]) => {
   for (let start = 0; start < ids.length; start += VECTOR_DELETE_MAX_IDS) {
-    const outcome = await callCoreWorkerOp<FilesVectorDeleteResult>({
+    const outcome = await callCoreWorkerOp({
       op: "vector-delete",
       params: { ids: ids.slice(start, start + VECTOR_DELETE_MAX_IDS), shard },
     });
@@ -171,7 +167,7 @@ const embedBatch = async (
       internal.vectorShards.assignVectorShard,
       { userId }
     );
-    const outcome = await callCoreWorkerOp<FilesEmbedUpsertResult>({
+    const outcome = await callCoreWorkerOp({
       op: "embed-upsert",
       params: {
         items: items.map(({ row }) => ({

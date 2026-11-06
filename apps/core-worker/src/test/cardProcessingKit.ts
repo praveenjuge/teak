@@ -10,7 +10,7 @@ import type {
   CardJob,
   CardProcessingDeps,
 } from "../workflows/cardProcessing/context";
-import type { FilesOpCaller } from "../workflows/deps";
+import type { OpCaller } from "../workflows/deps";
 import type { BackgroundEnv } from "../workflows/runtime";
 import {
   createFakeConvex,
@@ -426,7 +426,7 @@ export const createFakeOps = (
   >
 ) => {
   const calls: Array<{ op: FilesOp; params: Record<string, unknown> }> = [];
-  const ops: FilesOpCaller = <T>(spec: {
+  const ops: OpCaller = <T>(spec: {
     op: FilesOp;
     params: Record<string, unknown>;
   }): Promise<FilesOpOutcome<T>> => {
@@ -508,7 +508,7 @@ export const noNetwork = {
 export const testDeps = (
   env: BackgroundEnv,
   fetcher: typeof fetch,
-  ops: FilesOpCaller,
+  ops: OpCaller,
   extra: Partial<CardProcessingDeps> = {}
 ): CardProcessingDeps => {
   const convex =

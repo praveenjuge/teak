@@ -3,7 +3,7 @@ import { utcDay } from "@teak/convex/admin/stats";
 import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
 import { completionReports, createTestRun } from "../test/fakeRun";
-import type { FilesOpCaller } from "./deps";
+import type { OpCaller } from "./deps";
 import { callFilesOp } from "./filesOps";
 import { runMaintenance, startMaintenanceTask } from "./maintenance";
 import type { BackgroundEnv } from "./runtime";
@@ -170,7 +170,7 @@ describe("export cleanup", () => {
         });
       }
     }
-    const ops: FilesOpCaller = (spec) =>
+    const ops: OpCaller = (spec) =>
       (spec.params.keys as string[]).includes(artifact("job-b"))
         ? Promise.reject(new Error("files_worker_error:INTERNAL:500:r"))
         : callFilesOp(test.env, spec);
