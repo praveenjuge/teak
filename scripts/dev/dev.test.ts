@@ -380,7 +380,8 @@ describe("dev.ts before install", () => {
     const seen = new Set<string>();
     const found = new Set<string>();
     const visit = (file: string) => {
-      if (seen.has(file)) {
+      // JSON data (scripts/deployments.json) imports nothing.
+      if (seen.has(file) || file.endsWith(".json")) {
         return;
       }
       seen.add(file);

@@ -3,5 +3,21 @@
     "name": "uncommon-ladybug-882",
     "convexUrl": "https://uncommon-ladybug-882.convex.cloud",
     "siteUrl": "https://uncommon-ladybug-882.convex.site"
+  },
+  "development": {
+    "name": "reminiscent-kangaroo-59",
+    "convexUrl": "https://reminiscent-kangaroo-59.convex.cloud",
+    "siteUrl": "https://reminiscent-kangaroo-59.convex.site"
+  },
+  "mainCheckoutPorts": {
+    "web": 3000,
+    "docs": 3001,
+    "extension": 3003,
+    "convex": 3210,
+    "convexSite": 3211,
+    "emulator": 4100,
+    "emulatorUpstream": 4101,
+    "coreWorker": 4102,
+    "coreWorkerInspector": 4103
   }
 }
