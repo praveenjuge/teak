@@ -5,7 +5,11 @@ import {
 } from "@teak/convex/__tests__/helpers/socialFetch.test-utils";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { richSiteJson } from "../../../test/richSites";
-import { fetchSpotifyDetails, parseSpotifyUrl } from "./spotify";
+import {
+  fetchSpotifyDetails,
+  fetchSpotifyTitle,
+  parseSpotifyUrl,
+} from "./spotify";
 
 const oembedUrl = (page: string) =>
   `https://open.spotify.com/oembed?url=${encodeURIComponent(page)}`;
@@ -145,5 +149,48 @@ describe("fetchSpotifyDetails", () => {
     const details = await fetchSpotifyDetails(TRACK, tags({}), deps);
 
     expect(details?.imageUrl).toBeUndefined();
+  });
+});
+
+describe("fetchSpotifyTitle", () => {
+  test("names an album whose page is only the web player", async () => {
+    const { deps, requests } = socialFetch((url) =>
+      url === oembedUrl(ALBUM)
+        ? jsonResponse(richSiteJson("spotify-album.json"))
+        : undefined
+    );
+
+    const title = await fetchSpotifyTitle(
+      `${ALBUM}?si=share`,
+      "Spotify – Web Player",
+      deps
+    );
+
+    expect(requests).toEqual([oembedUrl(ALBUM)]);
+    expect(title).toBe("Emotion (Deluxe)");
+  });
+
+  test("names a link whose page had no title", async () => {
+    const { deps } = socialFetch(() => jsonResponse({ title: "Never Gonna" }));
+    expect(await fetchSpotifyTitle(TRACK, undefined, deps)).toBe("Never Gonna");
+  });
+
+  test.each([
+    [ALBUM, "Emotion (Deluxe) - Album by Carly Rae Jepsen | Spotify"],
+    [
+      "https://example.com/album/1DFixLWuPkv3KT3TnV35m3",
+      "Spotify – Web Player",
+    ],
+  ])("leaves %s alone", async (url, pageTitle) => {
+    const { deps, requests } = socialFetch(() => jsonResponse({ title: "x" }));
+    expect(await fetchSpotifyTitle(url, pageTitle, deps)).toBeUndefined();
+    expect(requests).toEqual([]);
+  });
+
+  test("keeps the page title when oEmbed fails", async () => {
+    const { deps } = socialFetch(() => undefined);
+    expect(
+      await fetchSpotifyTitle(ALBUM, "Spotify – Web Player", deps)
+    ).toBeUndefined();
   });
 });

@@ -10,6 +10,7 @@ import {
 } from "../../shared/publicApiContract";
 import type { WorkosResource } from "../../workos/tokens";
 import { withAuthorizedUser } from "./auth";
+import { cardSourceForCaller } from "./callerSource";
 import {
   handleBulkCardsRequest,
   handleCardChangesRequest,
@@ -159,6 +160,7 @@ const runOperation = async (
   try {
     return await handler({
       body,
+      cardSource: cardSourceForCaller(auth.validated, run.resource),
       ctx,
       params: run.params,
       request: run.request,

@@ -1,4 +1,5 @@
 import type { ActionCtx } from "../../_generated/server";
+import type { ApiCardSource } from "../../card/createCard";
 import type { TeakUserId } from "../../securitySessions";
 import type { WorkosResource } from "../../workos/tokens";
 
@@ -6,6 +7,8 @@ import type { WorkosResource } from "../../workos/tokens";
 export interface PublicApiCall {
   /** The parsed JSON body, for an operation that reads one. */
   body: unknown;
+  /** Which client made the call, as the source of the cards it creates. */
+  cardSource: ApiCardSource;
   ctx: ActionCtx;
   /** Decoded path parameters, by the names in the operation's path. */
   params: Readonly<Record<string, string>>;

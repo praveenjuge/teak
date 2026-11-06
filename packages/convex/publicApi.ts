@@ -11,7 +11,10 @@ import {
   type BulkCardAction,
   normalizeBulkTags,
 } from "./card/bulkActions";
-import { createCardForUserHandler } from "./card/createCard";
+import {
+  apiCardSourceValidator,
+  createCardForUserHandler,
+} from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
 import {
   archivedFilterValidator,
@@ -1028,6 +1031,8 @@ const assertBulkFavoritePayload = (payload: Record<string, unknown>) => {
 export const executeBulkCardsForUser = internalMutation({
   args: {
     userId: v.string(),
+    /** The client that sent the bulk create, for analytics; `api` when not given. */
+    cardSource: v.optional(apiCardSourceValidator),
     operation: v.union(
       v.literal("create"),
       v.literal("update"),
@@ -1095,7 +1100,7 @@ export const executeBulkCardsForUser = internalMutation({
                   tags: bulkItemTags(payload),
                   type: requestedType,
                 },
-                { source: "api" }
+                { source: args.cardSource ?? "api" }
               );
 
             results.push({
