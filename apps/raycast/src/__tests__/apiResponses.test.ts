@@ -213,8 +213,9 @@ describe("folders and tag operations", () => {
 
 describe("list items", () => {
   test("refuses a list item without the fields a card view reads", () => {
-    const withoutNotes: Partial<typeof sampleCard> = { ...sampleCard };
-    delete withoutNotes.notes;
+    const withoutNotes = Object.fromEntries(
+      Object.entries(sampleCard).filter(([field]) => field !== "notes"),
+    );
     expect(() =>
       parseCardsPageResponse({
         items: [withoutNotes],

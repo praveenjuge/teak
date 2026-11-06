@@ -2,11 +2,10 @@ import {
   VECTOR_QUERY_MAX_CHARS,
   VECTOR_QUERY_MAX_TOP_K,
 } from "@teak/files-protocol";
+import { SEARCH_MODES, type SearchMode } from "../publicApiContract";
 import { normalizeHexColor } from "../utils/colorUtils";
 import { expressionIndexWords } from "./expression";
 import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
-
-import { SEARCH_MODES, type SearchMode } from "../publicApiContract";
 
 export { SEARCH_MODES, type SearchMode } from "../publicApiContract";
 

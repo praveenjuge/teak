@@ -8,6 +8,7 @@ import type { TeakToolName } from "@teak/convex/mcp/catalog";
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
 
 export type { CardType } from "@teak/convex/shared/constants";
+
 const CARD_TYPES = cardTypes;
 
 export interface TeakCard {
