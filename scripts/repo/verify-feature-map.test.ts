@@ -7,6 +7,7 @@ import {
   readFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { SCENARIOS } from "@teak/convex/devSeed/scenarios";
 
 const ROOT = join(import.meta.dir, "../..");
 const SKILL = join(ROOT, ".agents/skills/verify-teak");
@@ -78,39 +79,6 @@ const repoPaths = (markdown: string): string[] =>
         )
     );
 
-// Every scenario pack devSeed:seedScenario knows, read from the message it
-// throws for an unknown one (the pack table isn't exported).
-const knownSeedPacks = async (): Promise<Set<string>> => {
-  const previous = process.env.TEAK_DEV_DEPLOYMENT;
-  process.env.TEAK_DEV_DEPLOYMENT = "true";
-  try {
-    const { seedScenario } = await import("../../packages/convex/devSeed.ts");
-    const handler = (
-      seedScenario as unknown as {
-        _handler: (ctx: unknown, args: unknown) => Promise<unknown>;
-      }
-    )._handler;
-    const message = await handler(
-      {},
-      { workosUserId: "user_none", scenario: "__no_such_pack__" }
-    ).then(
-      () => "",
-      (error: Error) => error.message
-    );
-    return new Set(
-      [...message.matchAll(/^ {2}([a-z0-9-]+): /gm)].map(
-        (match) => match[1] ?? ""
-      )
-    );
-  } finally {
-    if (previous === undefined) {
-      delete process.env.TEAK_DEV_DEPLOYMENT;
-    } else {
-      process.env.TEAK_DEV_DEPLOYMENT = previous;
-    }
-  }
-};
-
 const relativeLinks = (markdown: string): string[] =>
   [...markdown.matchAll(/\]\(([^)#\s]+)(?:#[^)]*)?\)/g)]
     .map((match) => match[1] ?? "")
@@ -138,6 +106,21 @@ describe("verify-teak feature map", () => {
         existsSync(join(FEATURES, target)),
         `features/README.md links to missing ${target}`
       ).toBe(true);
+    }
+  });
+
+  test("the index names each feature by its title", () => {
+    // `- [Title](./file.md) covers …`: the title is the feature file's H1.
+    const index = readFileSync(join(FEATURES, "README.md"), "utf-8");
+    const entries = [
+      ...index.matchAll(/^- \[([^\]]+)\]\(\.\/([^)]+\.md)\) covers \S/gm),
+    ].map((match) => [match[2] ?? "", match[1] ?? ""] as const);
+    expect(entries.map(([file]) => file).sort()).toEqual(featureFiles());
+    for (const [file, title] of entries) {
+      const heading = readFileSync(join(FEATURES, file), "utf-8").match(
+        /^# (.+)$/m
+      )?.[1];
+      expect(title, `${file}'s index entry`).toBe(heading ?? "");
     }
   });
 
@@ -185,9 +168,8 @@ describe("verify-teak feature map", () => {
     }
   });
 
-  test("every seed pack a recipe names exists", async () => {
-    const known = await knownSeedPacks();
-    expect(known.size).toBeGreaterThan(10);
+  test("every seed pack a recipe names exists", () => {
+    const known = new Set(SCENARIOS.map((pack) => pack.name));
     for (const file of recipeFiles()) {
       for (const pack of seedPacks(readFileSync(file, "utf-8"))) {
         expect(known.has(pack), `${file} seeds unknown pack ${pack}`).toBe(
