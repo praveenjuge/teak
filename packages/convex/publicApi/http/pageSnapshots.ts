@@ -1,7 +1,7 @@
 import { internal } from "../../_generated/api";
 import { PAGE_SNAPSHOT_MAX_BYTES } from "../../shared/pageArchive";
 import type { PublicApiCall } from "./operation";
-import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
+import { errorResponse, json } from "./shared";
 
 export const parsePageSnapshotUploadPayload = (
   payload: unknown
@@ -44,15 +44,11 @@ export const handleCreatePageSnapshotUploadRequest = async (
       `A page snapshot can be at most ${PAGE_SNAPSHOT_MAX_BYTES} bytes`
     );
   }
-  try {
-    return json(
-      200,
-      await ctx.runMutation(
-        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser,
-        { bytes: parsed.bytes, userId }
-      )
-    );
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to prepare the upload");
-  }
+  return json(
+    200,
+    await ctx.runMutation(
+      internal.publicApiPageSnapshots.createPageSnapshotUploadForUser,
+      { bytes: parsed.bytes, userId }
+    )
+  );
 };

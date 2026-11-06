@@ -6,7 +6,7 @@ import {
 } from "../../shared/tags";
 import type { TagOperationSummary } from "../../tag/tagOperations";
 import type { PublicApiCall } from "./operation";
-import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
+import { errorResponse, json } from "./shared";
 
 interface TagOperationFields {
   fromField: string;
@@ -85,17 +85,13 @@ export const handleGetTagOperationRequest = async ({
   params,
   userId,
 }: PublicApiCall): Promise<Response> => {
-  try {
-    const operation = await ctx.runQuery(
-      internal.publicApiTags.getTagOperationForApi,
-      { userId, operationId: params.operationId }
-    );
-    return operation
-      ? json(200, serializeTagOperation(operation))
-      : errorResponse(404, "NOT_FOUND", "Tag operation not found");
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch tag operation");
-  }
+  const operation = await ctx.runQuery(
+    internal.publicApiTags.getTagOperationForApi,
+    { userId, operationId: params.operationId }
+  );
+  return operation
+    ? json(200, serializeTagOperation(operation))
+    : errorResponse(404, "NOT_FOUND", "Tag operation not found");
 };
 
 export const startTagOperation =
@@ -106,14 +102,27 @@ export const startTagOperation =
     if ("error" in parsed) {
       return errorResponse(400, "INVALID_INPUT", parsed.error);
     }
-    try {
-      const operation = await ctx.runMutation(
-        internal.publicApiTags.startTagOperationForApi,
-        { userId, kind, ...parsed }
-      );
-      const serialized = serializeTagOperation(operation);
-      return json(202, { operationId: serialized.id, ...serialized });
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to start tag change");
-    }
+    const operation = await ctx.runMutation(
+      internal.publicApiTags.startTagOperationForApi,
+      { userId, kind, ...parsed }
+    );
+    const serialized = serializeTagOperation(operation);
+    return json(202, { operationId: serialized.id, ...serialized });
   };
+
+/** `GET /v1/tags`; the listing's policy is in `tag/tagListing`. */
+export const handleTagsRequest = async ({
+  ctx,
+  userId,
+}: PublicApiCall): Promise<Response> => {
+  const { requestSummary, ...listing } = await ctx.runQuery(
+    internal.tag.tagListing.listTagsForUser,
+    { userId }
+  );
+  if (requestSummary) {
+    await ctx.runMutation(internal.tag.tagSummary.requestTagSummaryForUser, {
+      userId,
+    });
+  }
+  return json(200, listing);
+};

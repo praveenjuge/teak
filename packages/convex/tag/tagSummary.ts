@@ -521,25 +521,6 @@ export const recomputeTagSummary = internalAction({
   },
 });
 
-export const getTagSummaryForUser = internalQuery({
-  args: { userId: v.string() },
-  returns: v.union(tagSummaryValidator, v.null()),
-  handler: async (ctx, { userId }) => {
-    const owner = await requireTeakUserId(ctx, userId);
-    const summary = await ctx.db
-      .query("userTagSummaries")
-      .withIndex("by_userId", (q) => q.eq("userId", owner))
-      .first();
-    return summary
-      ? {
-          items: summary.items,
-          isComplete: summary.isComplete,
-          computedAt: summary.computedAt,
-        }
-      : null;
-  },
-});
-
 export const requestTagSummaryForUser = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),

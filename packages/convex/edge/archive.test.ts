@@ -143,7 +143,7 @@ describe("an archived card leaves the library but stays in Archive", () => {
     expect(await apiPage({ tag: "moodboard" })).toEqual(kept);
     expect(await apiPage({ searchQuery: "moodboard" })).toEqual(kept);
     expect(await apiList()).toEqual(kept);
-    const tags = await t.query(internal.publicApi.listTagsForUser, {
+    const tags = await t.query(internal.tag.tagListing.listTagsForUser, {
       userId: "owner",
     });
     expect(tags.items).toEqual([{ name: "moodboard", count: 1 }]);

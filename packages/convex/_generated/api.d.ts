@@ -350,6 +350,7 @@ import type * as storage_r2Keys from "../storage/r2Keys.js";
 import type * as storage_rawMetadata from "../storage/rawMetadata.js";
 import type * as storage_rawMetadataJson from "../storage/rawMetadataJson.js";
 import type * as storage_rawMetadataMaintenance from "../storage/rawMetadataMaintenance.js";
+import type * as tag_tagListing from "../tag/tagListing.js";
 import type * as tag_tagOperations from "../tag/tagOperations.js";
 import type * as tag_tagSummary from "../tag/tagSummary.js";
 import type * as tags from "../tags.js";
@@ -728,6 +729,7 @@ declare const fullApi: ApiFromModules<{
   "storage/rawMetadata": typeof storage_rawMetadata;
   "storage/rawMetadataJson": typeof storage_rawMetadataJson;
   "storage/rawMetadataMaintenance": typeof storage_rawMetadataMaintenance;
+  "tag/tagListing": typeof tag_tagListing;
   "tag/tagOperations": typeof tag_tagOperations;
   "tag/tagSummary": typeof tag_tagSummary;
   tags: typeof tags;

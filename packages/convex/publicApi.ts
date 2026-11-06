@@ -117,11 +117,6 @@ const changesResultValidator = v.object({
   pageInfo: pageInfoValidator,
 });
 
-const tagSummaryValidator = v.object({
-  name: v.string(),
-  count: v.number(),
-});
-
 const bulkResultValidator = v.object({
   operation: v.union(
     v.literal("create"),
@@ -596,119 +591,6 @@ export const pinnedCardsPageForUser = internalQuery({
       items: applyQuoteFormattingToList(cardsWithUrls),
       pageInfo: { nextCursor: null, hasMore: false },
     };
-  },
-});
-
-const MAX_TAG_ROWS_READ = 8000;
-// Most distinct tags one listing counts. Each is two index lookups, and a
-// function may only make so many, so a vault of many small tags stops here
-// (GET /v1/tags then answers from the background tag summary).
-const MAX_TAGS_READ = 500;
-
-export const listTagsForUser = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  returns: v.object({
-    items: v.array(tagSummaryValidator),
-    isComplete: v.boolean(),
-  }),
-  handler: async (ctx, args) => {
-    const userId = await requireTeakUserId(ctx, args.userId);
-    const counts: { name: string; count: number }[] = [];
-    let budget = MAX_TAG_ROWS_READ;
-    let tagsLeft = MAX_TAGS_READ;
-    let isComplete = true;
-    let previousTag: string | undefined;
-
-    while (isComplete) {
-      if (tagsLeft <= 0) {
-        const more = await ctx.db
-          .query("cardSearchTags")
-          .withIndex("by_user_tag_deleted_saved", (query) =>
-            previousTag === undefined
-              ? query.eq("userId", userId)
-              : query.eq("userId", userId).gt("tag", previousTag)
-          )
-          .first();
-        isComplete = more === null;
-        break;
-      }
-      tagsLeft -= 1;
-      const afterTag = previousTag;
-      const next = await ctx.db
-        .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_saved", (query) =>
-          afterTag === undefined
-            ? query.eq("userId", userId)
-            : query.eq("userId", userId).gt("tag", afterTag)
-        )
-        .first();
-      if (!next) {
-        break;
-      }
-      budget -= 1;
-      previousTag = next.tag;
-
-      let count = 0;
-      const activeRows = ctx.db
-        .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_archived_saved", (query) =>
-          query
-            .eq("userId", userId)
-            .eq("tag", next.tag)
-            .eq("isDeleted", undefined)
-            .eq("isArchived", undefined)
-        );
-      for await (const _row of activeRows) {
-        if (budget <= 0) {
-          isComplete = false;
-          break;
-        }
-        budget -= 1;
-        count += 1;
-      }
-      if (count > 0) {
-        counts.push({ name: next.tag, count });
-      }
-      if (budget <= 0) {
-        isComplete = false;
-      }
-    }
-
-    return {
-      items: counts.sort((left, right) => {
-        if (left.count === right.count) {
-          return left.name.localeCompare(right.name);
-        }
-        return right.count - left.count;
-      }),
-      isComplete,
-    };
-  },
-});
-
-export const getFreshTagSummaryForUser = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  returns: v.union(v.object({ items: v.array(tagSummaryValidator) }), v.null()),
-  handler: async (ctx, args) => {
-    const userId = await requireTeakUserId(ctx, args.userId);
-    const summary = await ctx.db
-      .query("userTagSummaries")
-      .withIndex("by_userId", (query) => query.eq("userId", userId))
-      .first();
-    if (!summary?.isComplete) {
-      return null;
-    }
-    const pendingRefresh = await ctx.db
-      .query("tagSummaryRefreshes")
-      .withIndex("by_userId", (query) => query.eq("userId", userId))
-      .first();
-    return pendingRefresh
-      ? null
-      : { items: summary.items.map(({ name, count }) => ({ name, count })) };
   },
 });
 

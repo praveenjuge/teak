@@ -12,6 +12,7 @@ import {
 } from "../card/onCardChanged";
 import schema from "../schema";
 import { TAG_OPERATION_STALL_MS } from "../shared/tags";
+import { countTagsLive, readSettledTagSummary } from "../tag/tagListing";
 import {
   TAG_OPERATION_BATCH_SIZE,
   TAG_OPERATION_MAX_SYNC_WAITS,
@@ -508,10 +509,8 @@ describe("tag summary snapshot", () => {
     await patch(a, { tags: ["Design Systems"] });
     await runScheduled();
     expect((await item("design systems"))?.label).toBe("Design Systems");
-    const fresh = await t.query(internal.publicApi.getFreshTagSummaryForUser, {
-      userId: "owner",
-    });
-    expect(fresh?.items).toContainEqual({ name: "design systems", count: 3 });
+    const settled = await t.run((ctx) => readSettledTagSummary(ctx, "owner"));
+    expect(settled).toContainEqual({ name: "design systems", count: 3 });
   });
 
   test("a re-case holds through a tag sync still queued, and in a full recount", async () => {
@@ -1002,25 +1001,20 @@ describe("overlapping recomputes", () => {
 describe("GET /v1/tags summary", () => {
   test("a settled summary answers with the live count's items, and a pending refresh or incomplete summary does not", async () => {
     const { t, insert, runScheduled } = await setup();
-    const fresh = () =>
-      t.query(internal.publicApi.getFreshTagSummaryForUser, {
-        userId: "owner",
-      });
+    const fresh = () => t.run((ctx) => readSettledTagSummary(ctx, "owner"));
     await insert({ tags: ["Design", "web"] });
     await insert({ tags: ["design"], aiTags: ["UI"] });
     await insert({ tags: ["design"], isDeleted: true, deletedAt: 1000 });
     await insert({ tags: ["archived-only"], isArchived: true });
     await runScheduled();
 
-    const live = await t.query(internal.publicApi.listTagsForUser, {
-      userId: "owner",
-    });
+    const live = await t.run((ctx) => countTagsLive(ctx, "owner"));
     expect(live.isComplete).toBe(true);
-    expect(await fresh()).toEqual({ items: live.items });
+    expect(await fresh()).toEqual(live.items);
 
     await insert({ tags: ["new-tag"] });
     await runScheduled();
-    expect((await fresh())?.items).toContainEqual({
+    expect(await fresh()).toContainEqual({
       name: "new-tag",
       count: 1,
     });
@@ -1069,6 +1063,13 @@ describe("tag listings with many small tags", () => {
       }
       await ctx.db.insert("tagSummaryRefreshes", { userId: "owner", dueAt: 0 });
     });
+    // Before any snapshot, the listing is the bounded live count and asks
+    // for one.
+    expect(
+      await t.query(internal.tag.tagListing.listTagsForUser, {
+        userId: "owner",
+      })
+    ).toMatchObject({ isComplete: false, requestSummary: true });
     await t.action(internal.tag.tagSummary.recomputeTagSummary, {
       userId: "owner",
     });
@@ -1076,11 +1077,15 @@ describe("tag listings with many small tags", () => {
     expect(snapshot?.items).toHaveLength(distinct);
     expect(snapshot?.isComplete).toBe(true);
 
-    const live = await t.query(internal.publicApi.listTagsForUser, {
-      userId: "owner",
-    });
+    const live = await t.run((ctx) => countTagsLive(ctx, "owner"));
     expect(live.items).toHaveLength(500);
     expect(live.isComplete).toBe(false);
+    // Too many to count live: GET /v1/tags answers from the snapshot.
+    expect(
+      await t.query(internal.tag.tagListing.listTagsForUser, {
+        userId: "owner",
+      })
+    ).toMatchObject({ isComplete: true, requestSummary: false });
   }, 30_000);
 
   test("one snapshot page counts a page of rows, however many small tags they hold", async () => {
