@@ -22,7 +22,6 @@ import {
 import { readPinnedCards } from "./card/pins";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
-import { resolveFolderNames } from "./search/searchPlanner";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
 import {
   type CardFieldEdit,
@@ -72,8 +71,9 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { cardTypeValidator } from "./schema";
+import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
+import { resolveFolderNames } from "./search/searchPlanner";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import {
   explainInvalidCardSource,

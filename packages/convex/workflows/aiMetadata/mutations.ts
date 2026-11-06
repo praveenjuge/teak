@@ -5,7 +5,10 @@ import { patchCard } from "../../card/cardWrites";
 import { mergeProcessingStages } from "../../card/processingStatus";
 import { storeCardTranscript } from "../../card/textContents";
 import { autoFileCard } from "../../folder/rules";
-import { colorValidator, processingStatusValidator } from "../../schema";
+import {
+  colorValidator,
+  processingStatusValidator,
+} from "../../schema/validators/cards";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
 export const updateCardAI = internalMutation({

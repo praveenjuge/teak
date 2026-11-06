@@ -20,7 +20,7 @@ import {
   getFolderRuleRunForUser,
   undoFolderRuleRunForUser,
 } from "./folder/rules";
-import { folderColorValidator } from "./schema";
+import { folderColorValidator } from "./schema/validators/cards";
 import { requireTeakUserId } from "./securitySessions";
 
 const folderRuleArgs = {

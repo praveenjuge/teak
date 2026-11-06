@@ -6,7 +6,10 @@ import {
   mergeProcessingStages,
   stageFailed,
 } from "../../../card/processingStatus";
-import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
+import {
+  filePreviewFactsValidator,
+  imageExifValidator,
+} from "../../../schema/validators/cards";
 import { queueCardProcessingFailed } from "../../../telemetry/schedule";
 
 export const markCardRenderablesFailed = internalMutation({

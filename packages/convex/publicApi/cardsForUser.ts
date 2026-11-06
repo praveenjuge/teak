@@ -14,7 +14,7 @@ import {
   updateCardFieldsForUserHandler,
 } from "../card/updateCard";
 import { setCardFoldersForUser } from "../folder/membership";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { requireTeakUserId } from "../securitySessions";
 import {
   explainInvalidCardSource,

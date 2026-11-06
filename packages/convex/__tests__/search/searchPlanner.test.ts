@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { narrowTypesForQuery } from "../../search/searchPlanner";
-import type { CardType } from "../../schema";
+import type { CardType } from "../../shared/constants";
 import { parseSearchQuery } from "../../shared/search/qualifiers";
 
 describe("narrowTypesForQuery", () => {

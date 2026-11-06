@@ -14,7 +14,7 @@ import type {
   cardValidator,
   fileMetadataValidator,
   metadataValidator,
-} from "../schema";
+} from "../schema/validators/cards";
 
 export type CardData = Infer<typeof cardValidator>;
 

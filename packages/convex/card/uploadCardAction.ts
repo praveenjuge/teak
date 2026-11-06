@@ -6,7 +6,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
 import type { EmailAttachmentClaim } from "../inbound/attachmentClaims";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import {
   getSessionUser,
   requireTeakUserId,

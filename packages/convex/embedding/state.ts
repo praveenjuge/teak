@@ -14,7 +14,7 @@ import {
   getDocumentTextRow,
   readCardTranscript,
 } from "../card/textContents";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { buildEmbeddingText } from "./text";
 

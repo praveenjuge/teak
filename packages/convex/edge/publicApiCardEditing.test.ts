@@ -16,12 +16,12 @@ import {
   onCardChanged,
   syncCardSearchTagsBatchHandler,
 } from "../card/onCardChanged";
+import { mapConvexErrorToResponse } from "../publicApi/http/shared";
+import schema from "../schema";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "../search/searchReads";
-import { mapConvexErrorToResponse } from "../publicApi/http/shared";
-import schema from "../schema";
 import { MAX_CARD_TAGS } from "../shared/tags";
 
 const modules = import.meta.glob("../**/*.ts");

@@ -10,7 +10,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import type { thumbnailOverrideValidator } from "../schema";
+import type { thumbnailOverrideValidator } from "../schema/validators/cards";
 import {
   requireSessionUser,
   requireTeakUserId,

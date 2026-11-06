@@ -12,11 +12,11 @@ import {
 import { captureDeletionBatch } from "../accountDeletion/batch";
 import { documentTextKey } from "../card/documentText";
 import { onCardChanged } from "../card/onCardChanged";
+import schema from "../schema";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
 } from "../search/searchReads";
-import schema from "../schema";
 import { cardStorageObjectKeys } from "../storage/r2";
 
 const modules = import.meta.glob("../**/*.ts");

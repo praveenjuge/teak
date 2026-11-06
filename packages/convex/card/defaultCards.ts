@@ -4,7 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import { insertFolder } from "../folder/folders";
-import type { CardType } from "../schema";
+import type { CardType } from "../shared/constants";
 import { type FolderColor, folderNameKey } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import { buildColorFacets } from "../shared/utils/colorUtils";

@@ -17,7 +17,7 @@ import {
   findVisualMatches,
   normalizeVisualFilterArgs,
 } from "../card/visualFilters";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import {

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { cardTypeValidator, cardValidator } from "../schema";
+import { cardTypeValidator, cardValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { isCardHidden } from "../shared/tags";

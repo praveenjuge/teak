@@ -1,7 +1,7 @@
 import { cardTypeStages } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { CardType } from "../schema";
+import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import type { Id } from "../shared/types";
 import { queueCardProcessingFailed } from "../telemetry/schedule";

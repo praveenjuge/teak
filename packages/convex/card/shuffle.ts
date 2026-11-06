@@ -6,7 +6,7 @@ import type {
 } from "convex/server";
 import type { DataModel, Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { CardType } from "../schema";
+import type { CardType } from "../shared/constants";
 import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import {

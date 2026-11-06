@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { accountDeletionOwnsRows } from "../../../accountDeletion";
-import { r2KeyValidator } from "../../../schema";
+import { r2KeyValidator } from "../../../schema/validators/cards";
 import { rateLimiter } from "../../../shared/rateLimits";
 import { buildR2UserPrefix } from "../../../storage/r2";
 

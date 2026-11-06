@@ -36,7 +36,10 @@ import {
   normalizeVisualFilterArgs,
   visualFilterTypes,
 } from "../card/visualFilters";
-import { cardTypeValidator, searchModeValidator } from "../schema";
+import {
+  cardTypeValidator,
+  searchModeValidator,
+} from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import { clampPageSize, clampSearchOffset } from "../shared/search/constants";
 import {

@@ -8,8 +8,9 @@ import {
   completeEmailAttachment,
   emailAttachmentClaimValidator,
 } from "./inbound/attachmentClaims";
-import { type CardType, cardTypeValidator } from "./schema";
+import { cardTypeValidator } from "./schema/validators/cards";
 import { requireTeakUserId } from "./securitySessions";
+import type { CardType } from "./shared/constants";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,

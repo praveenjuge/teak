@@ -9,7 +9,7 @@ import {
   query,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import {
   getSessionUser,
   requireTeakUserId,

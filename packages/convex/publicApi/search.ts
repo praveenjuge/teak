@@ -14,11 +14,15 @@ import {
 import { attachFileUrls } from "../card/queryUtils";
 import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+} from "../card/visualFilters";
+import { searchModeValidator } from "../schema/validators/cards";
+import {
   cardHasTag,
   expressionTextReader,
   resolveExpressionFolders,
 } from "../search/searchPlanner";
-import { cardUrlHost } from "../shared/utils/urlHost";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
@@ -26,18 +30,13 @@ import {
   searchCardsByOcrText,
 } from "../search/searchReads";
 import {
-  isSimilarAnchorAvailable,
-  loadSimilarCards,
-} from "../search/similarSearch";
-import {
-  doesCardMatchVisualFilters,
-  normalizeVisualFilterArgs,
-} from "../card/visualFilters";
-import { searchModeValidator } from "../schema";
-import {
   type SemanticRanking,
   semanticRankingValidator,
 } from "../search/semanticCache";
+import {
+  isSimilarAnchorAvailable,
+  loadSimilarCards,
+} from "../search/similarSearch";
 import type { TeakUserId } from "../securitySessions";
 import { clampPublicApiLimit } from "../shared/publicApiLimits";
 import {
@@ -67,6 +66,7 @@ import {
 } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
+import { cardUrlHost } from "../shared/utils/urlHost";
 import {
   type ApiCursor,
   encodeCursor,

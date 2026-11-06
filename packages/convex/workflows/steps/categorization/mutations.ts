@@ -6,7 +6,7 @@ import {
   mergeProcessingStages,
   stageCompleted,
 } from "../../../card/processingStatus";
-import { r2KeyValidator } from "../../../schema";
+import { r2KeyValidator } from "../../../schema/validators/cards";
 import { rateLimiter } from "../../../shared/rateLimits";
 import { queueObjectDeletion } from "../../../storage/r2";
 import {
