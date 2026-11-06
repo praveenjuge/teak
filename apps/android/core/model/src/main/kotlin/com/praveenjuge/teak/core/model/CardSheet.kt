@@ -43,9 +43,8 @@ object CardSheet {
     fun isPdf(card: Card): Boolean =
         card.fileMetadata?.mimeType == "application/pdf" || card.fileMetadata?.fileName?.lowercase()?.endsWith(".pdf") == true
 
-    fun hostname(url: String?): String? = url?.let {
-        runCatching { URI(it).host }.getOrNull()?.removePrefix("www.")?.takeIf(String::isNotEmpty)
-    }
+    /** The site a link is on, as search's `site:` reads it, shown in Unicode: "例え.jp", not "xn--r8jz45g.jp". */
+    fun hostname(url: String?): String? = UrlHost.normalize(url)?.let(UrlHost::forDisplay)
 
     private fun sanitizeFileName(name: String): String? {
         val trimmed = name.trim().replace(Regex("[/\\\\]+"), "_")

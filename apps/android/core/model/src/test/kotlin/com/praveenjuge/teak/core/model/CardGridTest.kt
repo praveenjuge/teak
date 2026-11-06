@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.model
 
+import kotlinx.serialization.Serializable
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -7,11 +8,17 @@ class CardGridTest {
     private fun summary(id: String, type: CardType, ratio: Double? = null, image: String? = null) =
         CardSummary(id = id, creationTime = 0.0, type = type, title = id, aspectRatio = ratio, compactUrl = image)
 
+    @Serializable
+    private data class ColumnRow(val width: Int, val columns: Int)
+
+    @Serializable
+    private data class Rows(val columns: List<ColumnRow>)
+
     @Test
-    fun `columns grow with the window`() {
-        assertEquals(2, CardGrid.columnCount(411f))
-        assertEquals(3, CardGrid.columnCount(700f))
-        assertEquals(4, CardGrid.columnCount(1280f))
+    fun `columns grow with the window as on Apple`() {
+        for (row in Fixtures.load<Rows>("cardGrid").columns) {
+            assertEquals(row.columns, CardGrid.columnCount(row.width.toFloat()), "${row.width} dp")
+        }
     }
 
     @Test

@@ -1,0 +1,350 @@
+{
+  "$comment": "parseSearchQuery rows (packages/convex/shared/search/qualifiers.ts) for Apple's SearchQualifiers and Android's SearchQuery. `field` names a ParsedSearchQuery field; types are wire names.",
+  "fields": [
+    {
+      "input": "#Design",
+      "field": "tags",
+      "expected": ["design"]
+    },
+    {
+      "input": "TAG:Design",
+      "field": "tags",
+      "expected": ["design"]
+    },
+    {
+      "input": "tag:\"Design Systems\"",
+      "field": "tags",
+      "expected": ["design systems"]
+    },
+    {
+      "input": "#fff",
+      "field": "tags",
+      "expected": []
+    },
+    {
+      "input": "#fff",
+      "field": "terms",
+      "expected": ["#fff"]
+    },
+    {
+      "input": "#3B82F6,",
+      "field": "terms",
+      "expected": ["#3B82F6,"]
+    },
+    {
+      "input": "#bad",
+      "field": "terms",
+      "expected": ["#bad"]
+    },
+    {
+      "input": "tag:bad",
+      "field": "tags",
+      "expected": ["bad"]
+    },
+    {
+      "input": "#design-ops",
+      "field": "tags",
+      "expected": ["design-ops"]
+    },
+    {
+      "input": "#",
+      "field": "terms",
+      "expected": []
+    },
+    {
+      "input": "type:links",
+      "field": "types",
+      "expected": ["link"]
+    },
+    {
+      "input": "Type:IMAGE",
+      "field": "types",
+      "expected": ["image"]
+    },
+    {
+      "input": "type:banana",
+      "field": "terms",
+      "expected": ["type:banana"]
+    },
+    {
+      "input": "type:note",
+      "field": "types",
+      "expected": ["text"]
+    },
+    {
+      "input": "type:Notes",
+      "field": "types",
+      "expected": ["text"]
+    },
+    {
+      "input": "type:pdf",
+      "field": "types",
+      "expected": ["document"]
+    },
+    {
+      "input": "type:docs",
+      "field": "types",
+      "expected": ["document"]
+    },
+    {
+      "input": "type:photos",
+      "field": "types",
+      "expected": ["image"]
+    },
+    {
+      "input": "type:picture",
+      "field": "types",
+      "expected": ["image"]
+    },
+    {
+      "input": "type:colours",
+      "field": "types",
+      "expected": ["palette"]
+    },
+    {
+      "input": "type:color",
+      "field": "types",
+      "expected": ["palette"]
+    },
+    {
+      "input": "type:voice",
+      "field": "types",
+      "expected": ["audio"]
+    },
+    {
+      "input": "type:memos",
+      "field": "types",
+      "expected": ["audio"]
+    },
+    {
+      "input": "type:url",
+      "field": "types",
+      "expected": ["link"]
+    },
+    {
+      "input": "type:bookmarks",
+      "field": "types",
+      "expected": ["link"]
+    },
+    {
+      "input": "type:quotes",
+      "field": "types",
+      "expected": ["quote"]
+    },
+    {
+      "input": "type:movie",
+      "field": "types",
+      "expected": ["video"]
+    },
+    {
+      "input": "type:constructor",
+      "field": "terms",
+      "expected": ["type:constructor"]
+    },
+    {
+      "input": "type:",
+      "field": "terms",
+      "expected": []
+    },
+    {
+      "input": "is:fav",
+      "field": "favorite",
+      "expected": true
+    },
+    {
+      "input": "is:favourites",
+      "field": "favorite",
+      "expected": true
+    },
+    {
+      "input": "is:starred",
+      "field": "favorite",
+      "expected": true
+    },
+    {
+      "input": "is:archived",
+      "field": "archived",
+      "expected": true
+    },
+    {
+      "input": "is:done",
+      "field": "done",
+      "expected": true
+    },
+    {
+      "input": "is:Completed",
+      "field": "done",
+      "expected": true
+    },
+    {
+      "input": "is:finished",
+      "field": "done",
+      "expected": true
+    },
+    {
+      "input": "is:todo",
+      "field": "todo",
+      "expected": true
+    },
+    {
+      "input": "is:to-do",
+      "field": "todo",
+      "expected": true
+    },
+    {
+      "input": "is:nope",
+      "field": "terms",
+      "expected": ["is:nope"]
+    },
+    {
+      "input": "site:www.Example.com",
+      "field": "sites",
+      "expected": ["example.com"]
+    },
+    {
+      "input": "site:www.GitHub.com/path",
+      "field": "sites",
+      "expected": ["github.com"]
+    },
+    {
+      "input": "site:https://example.com/path:8080",
+      "field": "sites",
+      "expected": ["example.com"]
+    },
+    {
+      "input": "site:https://gitlab.com:8443",
+      "field": "sites",
+      "expected": ["gitlab.com"]
+    },
+    {
+      "input": "site:example.com:8080",
+      "field": "sites",
+      "expected": ["example.com"]
+    },
+    {
+      "input": "site:例え.jp",
+      "field": "sites",
+      "expected": ["xn--r8jz45g.jp"]
+    },
+    {
+      "input": "site:münchen.de",
+      "field": "sites",
+      "expected": ["xn--mnchen-3ya.de"]
+    },
+    {
+      "input": "site:mailto:x@y.z",
+      "field": "terms",
+      "expected": ["site:mailto:x@y.z"]
+    },
+    {
+      "input": "site:mailto:x",
+      "field": "terms",
+      "expected": ["site:mailto:x"]
+    },
+    {
+      "input": "site:[::1]",
+      "field": "sites",
+      "expected": ["[::1]"]
+    },
+    {
+      "input": "site:[2001:db8::1],",
+      "field": "sites",
+      "expected": ["[2001:db8::1]"]
+    },
+    {
+      "input": "site:http://[::1]:8080/x",
+      "field": "sites",
+      "expected": ["[::1]"]
+    },
+    {
+      "input": "folder:\"Reading list\"",
+      "field": "folders",
+      "expected": ["reading list"]
+    },
+    {
+      "input": "folder:Inbox,",
+      "field": "folders",
+      "expected": ["inbox"]
+    },
+    {
+      "input": "foo:bar",
+      "field": "terms",
+      "expected": ["foo:bar"]
+    },
+    {
+      "input": "https://github.com",
+      "field": "terms",
+      "expected": ["https://github.com"]
+    },
+    {
+      "input": "\"unbalanced phrase",
+      "field": "phrases",
+      "expected": ["unbalanced phrase"]
+    },
+    {
+      "input": "“smart quotes”",
+      "field": "phrases",
+      "expected": ["smart quotes"]
+    },
+    {
+      "input": "\"\"",
+      "field": "phrases",
+      "expected": []
+    },
+    {
+      "input": "tag:a tag:A #a",
+      "field": "tags",
+      "expected": ["a"]
+    },
+    {
+      "input": "site:a.com site:b.com",
+      "field": "sites",
+      "expected": ["a.com", "b.com"]
+    },
+    {
+      "input": "🎨 #🎨",
+      "field": "tags",
+      "expected": ["🎨"]
+    },
+    {
+      "input": "text:4411",
+      "field": "ocrTexts",
+      "expected": ["4411"]
+    },
+    {
+      "input": "TEXT:\"Total  Due\"",
+      "field": "ocrTexts",
+      "expected": ["Total Due"]
+    },
+    {
+      "input": "text:Total text:total",
+      "field": "ocrTexts",
+      "expected": ["Total"]
+    },
+    {
+      "input": "text:a text:b",
+      "field": "ocrTexts",
+      "expected": ["a", "b"]
+    },
+    {
+      "input": "text:",
+      "field": "terms",
+      "expected": []
+    },
+    {
+      "input": "text:\"  \"",
+      "field": "ocrTexts",
+      "expected": []
+    },
+    {
+      "input": "text:4411",
+      "field": "text",
+      "expected": ""
+    },
+    {
+      "input": "text:東京駅",
+      "field": "ocrTexts",
+      "expected": ["東京駅"]
+    }
+  ]
+}

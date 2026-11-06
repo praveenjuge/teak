@@ -7,12 +7,11 @@ import java.text.BreakIterator
  * keep them in step. The id is the link; the stored title is only a fallback.
  */
 object CardLinks {
-    private const val TOKEN = "\\[\\[([^\\]|\\n]{0,200})\\|teak:([a-z0-9]{16,64})\\]\\]"
-    val PATTERN = Regex(TOKEN)
+    val PATTERN = Regex(CARD_LINK_TOKEN_PATTERN)
     private val TITLE_UNSAFE = Regex("[|\\]\\r\\n]+")
     private val SPACES = Regex("\\s+")
     private val FENCE = Regex("^ {0,3}(`{3,}|~{3,})")
-    private val CLOSING_FENCE = Regex("^ {0,3}(`{3,}|~{3,})[ \\t]*$")
+    private val CLOSING_FENCE = Regex("^ {0,3}(`{3,}|~{3,})[ \\t\\r]*$")
     private val BACKTICK_RUN = Regex("`+")
     private val LEADING_SPACE = Regex("^[ \\t]+")
     private val LIST_ITEM = Regex("^( *)([-+*]|\\d{1,9}[.)])( {1,4}|$)")

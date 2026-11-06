@@ -25,6 +25,7 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.QualifierChip
 import com.praveenjuge.teak.core.model.QualifierChips
+import com.praveenjuge.teak.core.model.SearchFacets
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
 import com.praveenjuge.teak.core.model.SearchQuery
@@ -335,7 +336,8 @@ class LibraryViewModel @AssistedInject constructor(
                 // that's only a date has nothing to rank, while an empty one still warms a saved `like:` folder.
                 val date = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))
                 if (date != null && date.rest.isBlank()) return@collectLatestIn
-                val text = date?.rest ?: typed
+                // Style, color and hex words filter rather than rank, as in the paged query.
+                val text = SearchFacets.split(date?.rest ?: typed).text
                 val combined = if (scope != null) SearchQuery.combine(scope, text) else text
                 if (combined == null) return@collectLatestIn
                 if (SearchQuery.semanticRequest(SearchQuery.parse(combined)) == null) return@collectLatestIn

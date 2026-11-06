@@ -189,16 +189,20 @@ public enum SearchTokens {
             return SearchToken(kind: .type, value: value, label: type.label)
         }
         let constants = SharedConstants.shared
-        let facet = value.filter { $0.isLetter || $0.isNumber }
+        // As `classifySearchToken` reads a word: without the punctuation around it.
+        let word = value.trimmingCharacters(in: CharacterSet(charactersIn: constants.searchTokenTrimCharacters))
+        let facet = word.filter { $0.isLetter || $0.isNumber }
         if let style = constants.visualStyleAliases[facet] {
             return SearchToken(kind: .style, value: style, label: VisualStyle.label(style))
         }
         if let hue = constants.colorHueAliases[facet], let bucket = ColorHue(hue) {
             return SearchToken(kind: .hue, value: hue, label: bucket.label)
         }
-        let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
-        if isHex(hex), value.hasPrefix("#") || hex.count == 6 {
-            let full = (hex.count == 3 ? hex.map { "\($0)\($0)" }.joined() : hex).uppercased()
+        let hex = word.hasPrefix("#") ? String(word.dropFirst()) : word
+        if isHex(hex), word.hasPrefix("#") || hex.count == 6 {
+            // "#RGB(A)" and "#RRGGBB(AA)" search as "#RRGGBB", as `normalizeHexColor` reads them.
+            let rgb = hex.count <= 4 ? hex.prefix(3).map { "\($0)\($0)" }.joined() : String(hex.prefix(6))
+            let full = rgb.uppercased()
             return SearchToken(kind: .hex, value: "#" + full, label: "#" + full)
         }
         return SearchToken(kind: .keyword, value: trimmed, label: trimmed)
@@ -218,7 +222,7 @@ public enum SearchTokens {
         let raws = SearchQualifiers.tokenize(trimmed)
         var run: [SearchQualifiers.RawToken] = []
         func flush() {
-            for word in words(run, alone: raws.count == 1, now: now, timeZone: timeZone) {
+            for word in words(run, now: now, timeZone: timeZone) {
                 switch word {
                 case let .token(token): tokens.append(token)
                 case let .kept(source): keep(source)
@@ -258,8 +262,7 @@ public enum SearchTokens {
 
     private static let liftedKinds: Set<SearchToken.Kind> = [.date, .type, .style, .hue, .hex, .favorites, .trash]
 
-    /// `alone`: the run is the whole search, not words beside qualifiers or quotes.
-    private static func words(_ input: [SearchQualifiers.RawToken], alone: Bool, now: Date, timeZone: TimeZone) -> [Word] {
+    private static func words(_ input: [SearchQualifiers.RawToken], now: Date, timeZone: TimeZone) -> [Word] {
         let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
         let words = input.map { $0.text.trimmingCharacters(in: punctuation) }
         var result: [Word] = []
@@ -278,9 +281,7 @@ public enum SearchTokens {
                 index += length
             } else {
                 let token = classify(words[index], now: now, timeZone: timeZone)
-                let lifts = liftedKinds.contains(token.kind)
-                    && !(token.kind == .date && !(alone && words.count == 1) && TimeSearch.isMonthName(words[index]))
-                result.append(lifts ? .token(token) : .kept(input[index].source))
+                result.append(liftedKinds.contains(token.kind) ? .token(token) : .kept(input[index].source))
                 index += 1
             }
         }
@@ -299,7 +300,7 @@ public enum SearchTokens {
                 let slice = raws[start..<(start + length)]
                 guard !slice.contains(where: \.quoted) else { continue }
                 let phrase = slice.map { $0.text.trimmingCharacters(in: punctuation) }.joined(separator: " ")
-                if length == 1, phrase.contains(":") || phrase.allSatisfy(\.isNumber) || TimeSearch.isMonthName(phrase) {
+                if length == 1, phrase.contains(":") || phrase.allSatisfy(\.isNumber) {
                     continue
                 }
                 if let filter = TimeSearch.parse(phrase, now: now, timeZone: timeZone) {
@@ -360,7 +361,7 @@ public enum SearchTokens {
     }
 
     private static func isHex(_ value: String) -> Bool {
-        [3, 6].contains(value.count) && value.allSatisfy(\.isHexDigit)
+        [3, 4, 6, 8].contains(value.count) && value.allSatisfy(\.isHexDigit)
     }
 }
 

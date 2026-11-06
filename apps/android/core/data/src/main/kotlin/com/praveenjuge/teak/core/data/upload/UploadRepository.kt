@@ -19,6 +19,7 @@ import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
 import com.praveenjuge.teak.core.model.UiText
+import com.praveenjuge.teak.core.model.UploadFiles
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -230,19 +231,13 @@ class WorkManagerUploadRepository @Inject constructor(
     private fun mimeType(uri: Uri, name: String): String {
         val reported = context.contentResolver.getType(uri)
         val fromName = MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
-        return when {
-            reported == null || reported in GENERIC -> fromName ?: reported ?: "application/octet-stream"
-            else -> reported
-        }
+        return UploadFiles.mimeType(reported, fromName)
     }
 
-    private fun safeName(name: String): String =
-        name.replace(Regex("[/\\\\]+"), "_").trim().takeUnless { it.isEmpty() || it == "." || it == ".." }
-            ?: "upload_${System.currentTimeMillis()}"
+    private fun safeName(name: String): String = UploadFiles.safeName(name, fallback = "upload_${System.currentTimeMillis()}")
 
     private companion object {
         const val ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000L
-        val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
 }
 

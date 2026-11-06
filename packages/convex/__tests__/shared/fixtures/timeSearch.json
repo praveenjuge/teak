@@ -1,0 +1,172 @@
+{
+  "$comment": "parseTimeSearchQuery rows (packages/convex/shared/utils/timeSearch.ts) for Apple's and Android's TimeSearch. `now` is local time with weeks starting on Sunday; `start` and `end` are local days, `end` exclusive. A null `start` means the words stay a text search.",
+  "now": "2026-02-03T12:00:00",
+  "timeZone": "America/New_York",
+  "rows": [
+    {
+      "query": "today",
+      "start": "2026-02-03",
+      "end": "2026-02-04"
+    },
+    {
+      "query": "yesterday",
+      "start": "2026-02-02",
+      "end": "2026-02-03"
+    },
+    {
+      "query": "last week",
+      "start": "2026-01-25",
+      "end": "2026-02-01"
+    },
+    {
+      "query": "Last  Month",
+      "start": "2026-01-01",
+      "end": "2026-02-01"
+    },
+    {
+      "query": "monday",
+      "start": "2026-02-02",
+      "end": "2026-02-03"
+    },
+    {
+      "query": "last monday",
+      "start": "2026-01-26",
+      "end": "2026-01-27"
+    },
+    {
+      "query": "June 2024",
+      "start": "2024-06-01",
+      "end": "2024-07-01"
+    },
+    {
+      "query": "June 5, 2024",
+      "start": "2024-06-05",
+      "end": "2024-06-06"
+    },
+    {
+      "query": "2024-06-05",
+      "start": "2024-06-05",
+      "end": "2024-06-06"
+    },
+    {
+      "query": "06/05/2024",
+      "start": "2024-06-05",
+      "end": "2024-06-06"
+    },
+    {
+      "query": "2024",
+      "start": "2024-01-01",
+      "end": "2025-01-01"
+    },
+    {
+      "query": "1900",
+      "start": "1900-01-01",
+      "end": "1901-01-01"
+    },
+    {
+      "query": "1999",
+      "start": "1999-01-01",
+      "end": "2000-01-01"
+    },
+    {
+      "query": "2036",
+      "start": "2036-01-01",
+      "end": "2037-01-01"
+    },
+    {
+      "query": "June 2024 to July 2025",
+      "start": "2024-06-01",
+      "end": "2025-08-01"
+    },
+    {
+      "query": "from 2024-06-05 to 2024-07-01",
+      "start": "2024-06-05",
+      "end": "2024-07-02"
+    },
+    {
+      "query": "march",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "mar",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "design inspiration",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "2024-02-30",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "July 2025 to June 2024",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "1234",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "4096",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "4411",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "0042",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "9999",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "2037",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "1899",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "２０２４",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "٢٠٢٤",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "june ２０２４",
+      "start": null,
+      "end": null
+    },
+    {
+      "query": "２０２４-０６-０５",
+      "start": null,
+      "end": null
+    }
+  ]
+}

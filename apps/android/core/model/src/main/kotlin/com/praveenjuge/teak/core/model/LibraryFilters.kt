@@ -56,9 +56,18 @@ data class LibraryFilters(
         return SearchQuery.join(parts).takeIf { it.isNotEmpty() }
     }
 
-    fun toSearchArgs(): Map<String, Any> = buildMap {
+    /**
+     * `cards:searchCardSummaries` arguments for these filters and [search]: the words naming a style, a
+     * color or a hex color filter as `styleFilters`, `hueFilters` and `hexFilters`, as Apple and the web send them.
+     */
+    fun toSearchArgs(search: String = ""): Map<String, Any> = buildMap {
+        val facets = SearchFacets.split(search)
+        val hues = (listOfNotNull(hue?.wireName) + facets.hues).distinct()
         if (favoritesOnly) put("favoritesOnly", true)
-        hue?.let { put("hueFilters", listOf(it.wireName)) }
+        if (hues.isNotEmpty()) put("hueFilters", hues)
+        if (facets.styles.isNotEmpty()) put("styleFilters", facets.styles)
+        if (facets.hexes.isNotEmpty()) put("hexFilters", facets.hexes)
+        if (facets.text.isNotEmpty()) put("searchQuery", facets.text)
         if (trashOnly) put("showTrashOnly", true)
         if (archivedOnly) put("showArchivedOnly", true)
         if (types.isNotEmpty()) put("types", types.map { it.wireName })

@@ -16,43 +16,56 @@ private func day(_ milliseconds: Double) -> String {
     return formatter.string(from: Date(timeIntervalSince1970: milliseconds / 1000))
 }
 
+struct TimeSearchRows: Decodable, Sendable {
+    struct Row: Decodable, Sendable, CustomTestStringConvertible {
+        let query: String
+        let start: String?
+        let end: String?
+        var testDescription: String { query }
+    }
+
+    let now: String
+    let timeZone: String
+    let rows: [Row]
+}
+
 @Suite(.english) struct TimeSearchTests {
+    static let fixture = Fixtures.load("timeSearch", as: TimeSearchRows.self)
+
+    /// `timeSearch.json`'s `now` and zone, which match `tuesdayNoon` in New York.
+    @Test func theFixtureIsTuesdayNoonInNewYork() throws {
+        let fixture = Self.fixture
+        let zone = try #require(TimeZone(identifier: fixture.timeZone))
+        let formatter = DateFormatter()
+        formatter.timeZone = zone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        #expect(formatter.date(from: fixture.now) == tuesdayNoon)
+        #expect(zone == newYork)
+    }
+
+    @Test(arguments: TimeSearchTests.fixture.rows)
+    func readsTheSharedRows(_ row: TimeSearchRows.Row) {
+        let result = TimeSearch.parse(row.query, now: tuesdayNoon, timeZone: newYork)
+        let range = result.map { [day($0.range.lowerBound), day($0.range.upperBound)] }
+        let expected = row.start.flatMap { start in row.end.map { [start, $0] } }
+        #expect(range == expected, "\(row.query)")
+    }
+
     @Test(arguments: [
-        ("today", "Today", "2026-02-03", "2026-02-04"),
-        ("yesterday", "Yesterday", "2026-02-02", "2026-02-03"),
-        ("last week", "Last week", "2026-01-25", "2026-02-01"),
-        ("Last  Month", "Last month", "2026-01-01", "2026-02-01"),
-        ("monday", "Monday", "2026-02-02", "2026-02-03"),
-        ("last monday", "Last Monday", "2026-01-26", "2026-01-27"),
-        ("June 2024", "Jun 2024", "2024-06-01", "2024-07-01"),
-        ("June 5, 2024", "Jun 5, 2024", "2024-06-05", "2024-06-06"),
-        ("2024-06-05", "Jun 5, 2024", "2024-06-05", "2024-06-06"),
-        ("06/05/2024", "Jun 5, 2024", "2024-06-05", "2024-06-06"),
-        ("2024", "2024", "2024-01-01", "2025-01-01"),
-        ("June 2024 to July 2025", "Jun 2024 – Jul 2025", "2024-06-01", "2025-08-01"),
-        ("from 2024-06-05 to 2024-07-01", "Jun 5, 2024 – Jul 1, 2024", "2024-06-05", "2024-07-02"),
-        ("march", "Mar 2026", "2026-03-01", "2026-04-01"),
+        ("today", "Today"), ("yesterday", "Yesterday"), ("last week", "Last week"), ("Last  Month", "Last month"),
+        ("monday", "Monday"), ("last monday", "Last Monday"), ("June 2024", "Jun 2024"), ("June 5, 2024", "Jun 5, 2024"),
+        ("2024-06-05", "Jun 5, 2024"), ("06/05/2024", "Jun 5, 2024"), ("2024", "2024"),
+        ("June 2024 to July 2025", "Jun 2024 – Jul 2025"), ("from 2024-06-05 to 2024-07-01", "Jun 5, 2024 – Jul 1, 2024"),
     ])
-    func parsesDatePhrases(query: String, label: String, start: String, end: String) throws {
-        let result = try #require(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork))
-        #expect(result.label == label)
-        #expect(day(result.range.lowerBound) == start)
-        #expect(day(result.range.upperBound) == end)
+    func labelsDatePhrases(query: String, label: String) {
+        #expect(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork)?.label == label)
     }
 
     @Test func labelsDatesInTheAppsLanguage() {
         let german = Locale(identifier: "de")
         #expect(TimeSearch.parse("2024-06-05", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "5. Juni 2024")
         #expect(TimeSearch.parse("monday", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "Montag")
-    }
-
-    @Test(arguments: [
-        "design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", "", "1234", "4096", "2037",
-        // Swift's `\d` matches these digits but `Int` can't read them; they stay text, as on the web.
-        "２０２４", "٢٠٢٤", "june ２０２４", "２０２４-０６-０５",
-    ])
-    func leavesOtherTextToFullTextSearch(query: String) {
-        #expect(TimeSearch.parse(query, now: tuesdayNoon, timeZone: newYork) == nil)
     }
 }
 
@@ -175,7 +188,7 @@ private func day(_ milliseconds: Double) -> String {
         #expect(may["searchQuery"] == "things i may need")
         #expect(SearchTokens.parse("things i may need", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(SearchTokens.parse("may type:link", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword, .type])
-        #expect(SearchTokens.parse("march", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.date])
+        #expect(SearchTokens.parse("march", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(SearchTokens.parse("top 100 bad sites", now: tuesdayNoon, timeZone: newYork).map(\.kind) == [.keyword])
         #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
             == "-figma last week")
@@ -261,8 +274,16 @@ private func day(_ milliseconds: Double) -> String {
                     linkPreviewImageUrl: linkPreviewImageUrl)
     }
 
+    private struct ColumnRows: Decodable {
+        struct Row: Decodable { let width: Double, columns: Int }
+        let columns: [Row]
+    }
+
+    /// `cardGrid.json`, which Android's `CardGrid` reads too.
     @Test func usesMoreColumnsAsTheWindowWidens() {
-        #expect([402, 820, 1180, 1400].map { CardGrid.columnCount(width: $0) } == [2, 3, 4, 5])
+        for row in Fixtures.load("cardGrid", as: ColumnRows.self).columns {
+            #expect(CardGrid.columnCount(width: row.width) == row.columns, "\(row.width) points")
+        }
     }
 
     @Test func placesEachTileInTheShortestColumn() {

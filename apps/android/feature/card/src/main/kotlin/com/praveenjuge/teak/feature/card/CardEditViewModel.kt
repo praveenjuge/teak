@@ -174,8 +174,8 @@ class CardEditViewModel @AssistedInject constructor(
         val state = _uiState.value
         val card = state.card ?: return
         if (!state.canSave) return
-        if (card.type == CardType.Quote && state.draft?.editableContent.isNullOrBlank()) {
-            _uiState.update { it.copy(alert = EditAlert(UiText.of("native.card.edit.quoteEmptyTitle"), UiText.of("native.card.edit.quoteEmptyMessage"))) }
+        CardEdit.validationError(card, state.draft)?.let { problem ->
+            _uiState.update { it.copy(alert = EditAlert(problem.title, problem.message)) }
             return
         }
         val changes = state.changes

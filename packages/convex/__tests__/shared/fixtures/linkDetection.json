@@ -1,0 +1,235 @@
+{
+  "$comment": "extractUrlFromContent rows (packages/convex/shared/utils/linkDetection.ts) for Apple's and Android's LinkDetection. A null `url` means the text saves as a note.",
+  "extract": [
+    {
+      "content": "",
+      "url": null,
+      "cleanedContent": ""
+    },
+    {
+      "content": "   ",
+      "url": null,
+      "cleanedContent": ""
+    },
+    {
+      "content": "https://example.com",
+      "url": "https://example.com",
+      "cleanedContent": "https://example.com"
+    },
+    {
+      "content": "http://example.com/path",
+      "url": "http://example.com/path",
+      "cleanedContent": "http://example.com/path"
+    },
+    {
+      "content": "Check out this link: https://example.com",
+      "url": "https://example.com",
+      "cleanedContent": "Check out this link: https://example.com"
+    },
+    {
+      "content": "Visit https://example.com or http://test.com",
+      "url": "https://example.com",
+      "cleanedContent": "Visit https://example.com or http://test.com"
+    },
+    {
+      "content": "htp://invalid-url",
+      "url": null,
+      "cleanedContent": "htp://invalid-url"
+    },
+    {
+      "content": "example.com/path",
+      "url": null,
+      "cleanedContent": "example.com/path"
+    },
+    {
+      "content": "ftp://example.com",
+      "url": null,
+      "cleanedContent": "ftp://example.com"
+    },
+    {
+      "content": "https://example.com?query=test&param=value",
+      "url": "https://example.com?query=test&param=value",
+      "cleanedContent": "https://example.com?query=test&param=value"
+    },
+    {
+      "content": "https://example.com#section",
+      "url": "https://example.com#section",
+      "cleanedContent": "https://example.com#section"
+    },
+    {
+      "content": "Check this: https://example.com.",
+      "url": "https://example.com",
+      "cleanedContent": "Check this: https://example.com."
+    },
+    {
+      "content": "See (https://x.com/a).",
+      "url": "https://x.com/a",
+      "cleanedContent": "See (https://x.com/a)."
+    },
+    {
+      "content": "Read https://x.com/a, then rest",
+      "url": "https://x.com/a",
+      "cleanedContent": "Read https://x.com/a, then rest"
+    },
+    {
+      "content": "Is it https://x.com/a?",
+      "url": "https://x.com/a",
+      "cleanedContent": "Is it https://x.com/a?"
+    },
+    {
+      "content": "Wow https://x.com/a!!",
+      "url": "https://x.com/a",
+      "cleanedContent": "Wow https://x.com/a!!"
+    },
+    {
+      "content": "Notes: https://x.com/a; more",
+      "url": "https://x.com/a",
+      "cleanedContent": "Notes: https://x.com/a; more"
+    },
+    {
+      "content": "Then https://x.com/a: done",
+      "url": "https://x.com/a",
+      "cleanedContent": "Then https://x.com/a: done"
+    },
+    {
+      "content": "She said \"https://x.com/a\".",
+      "url": "https://x.com/a",
+      "cleanedContent": "She said \"https://x.com/a\"."
+    },
+    {
+      "content": "It's 'https://x.com/a'",
+      "url": "https://x.com/a",
+      "cleanedContent": "It's 'https://x.com/a'"
+    },
+    {
+      "content": "\\[see https://x.com/a\\]",
+      "url": "https://x.com/a",
+      "cleanedContent": "\\[see https://x.com/a\\]"
+    },
+    {
+      "content": "{https://x.com/a}",
+      "url": "https://x.com/a",
+      "cleanedContent": "{https://x.com/a}"
+    },
+    {
+      "content": "Autolink &lt;https://x.com/a&gt;.",
+      "url": "https://x.com/a",
+      "cleanedContent": "Autolink &lt;https://x.com/a&gt;."
+    },
+    {
+      "content": "Teak is https://en.wikipedia.org/wiki/Teak_(wood) wood",
+      "url": "https://en.wikipedia.org/wiki/Teak_(wood)",
+      "cleanedContent": "Teak is https://en.wikipedia.org/wiki/Teak_(wood) wood"
+    },
+    {
+      "content": "(see https://en.wikipedia.org/wiki/Teak_(wood)).",
+      "url": "https://en.wikipedia.org/wiki/Teak_(wood)",
+      "cleanedContent": "(see https://en.wikipedia.org/wiki/Teak_(wood))."
+    },
+    {
+      "content": "Query https://x.com/a?b=1&amp;c=2.",
+      "url": "https://x.com/a?b=1&c=2",
+      "cleanedContent": "Query https://x.com/a?b=1&amp;c=2."
+    },
+    {
+      "content": "Path https://x.com/a/b/ end",
+      "url": "https://x.com/a/b/",
+      "cleanedContent": "Path https://x.com/a/b/ end"
+    },
+    {
+      "content": "Array https://x.com/list?ids[0]=1 here",
+      "url": "https://x.com/list?ids[0]=1",
+      "cleanedContent": "Array https://x.com/list?ids[0]=1 here"
+    },
+    {
+      "content": "https://x.com/a next",
+      "url": "https://x.com/a",
+      "cleanedContent": "https://x.com/a next"
+    },
+    {
+      "content": "see https://x.com/a then",
+      "url": "https://x.com/a",
+      "cleanedContent": "see https://x.com/a then"
+    },
+    {
+      "content": "https://example.com/a.",
+      "url": "https://example.com/a.",
+      "cleanedContent": "https://example.com/a."
+    },
+    {
+      "content": "https://localhost:3000/path",
+      "url": "https://localhost:3000/path",
+      "cleanedContent": "https://localhost:3000/path"
+    },
+    {
+      "content": "https://user:pass@example.com",
+      "url": "https://user:pass@example.com",
+      "cleanedContent": "https://user:pass@example.com"
+    },
+    {
+      "content": "https://192.168.1.1/path",
+      "url": "https://192.168.1.1/path",
+      "cleanedContent": "https://192.168.1.1/path"
+    },
+    {
+      "content": "https://müller.de/path",
+      "url": "https://müller.de/path",
+      "cleanedContent": "https://müller.de/path"
+    },
+    {
+      "content": "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+      "url": "https://www.goodreads.com/book/show/2767052-the-hunger-games",
+      "cleanedContent": "https://www.goodreads.com/book/show/2767052-the-hunger-games"
+    },
+    {
+      "content": "https://en.wikipedia.org/wiki/Tectona\\_grandis",
+      "url": "https://en.wikipedia.org/wiki/Tectona_grandis",
+      "cleanedContent": "https://en.wikipedia.org/wiki/Tectona_grandis"
+    },
+    {
+      "content": "https://example.com/\\*star\\*",
+      "url": "https://example.com/*star*",
+      "cleanedContent": "https://example.com/*star*"
+    },
+    {
+      "content": "https://example.com/~user/\\~home",
+      "url": "https://example.com/~user/~home",
+      "cleanedContent": "https://example.com/~user/~home"
+    },
+    {
+      "content": "https://example.com/list?ids\\[0\\]=1",
+      "url": "https://example.com/list?ids[0]=1",
+      "cleanedContent": "https://example.com/list?ids[0]=1"
+    },
+    {
+      "content": "https://example.org/?a=1&amp;b=2",
+      "url": "https://example.org/?a=1&b=2",
+      "cleanedContent": "https://example.org/?a=1&b=2"
+    },
+    {
+      "content": "https://example.org/?q=&lt;tag&gt;",
+      "url": "https://example.org/?q=<tag>",
+      "cleanedContent": "https://example.org/?q=<tag>"
+    },
+    {
+      "content": "https://example.org/my\\_page?a=1&amp;b=2\\_x",
+      "url": "https://example.org/my_page?a=1&b=2_x",
+      "cleanedContent": "https://example.org/my_page?a=1&b=2_x"
+    },
+    {
+      "content": "https://example.org/a\\\\\\_b?q=&amp;lt;",
+      "url": "https://example.org/a\\_b?q=&lt;",
+      "cleanedContent": "https://example.org/a\\_b?q=&lt;"
+    },
+    {
+      "content": "https://example.org/a%5Cb/%26c?d=%3Ce%3E",
+      "url": "https://example.org/a%5Cb/%26c?d=%3Ce%3E",
+      "cleanedContent": "https://example.org/a%5Cb/%26c?d=%3Ce%3E"
+    },
+    {
+      "content": "Read https://en.wikipedia.org/wiki/Tectona\\_grandis?a=1&amp;b=2 later",
+      "url": "https://en.wikipedia.org/wiki/Tectona_grandis?a=1&b=2",
+      "cleanedContent": "Read https://en.wikipedia.org/wiki/Tectona\\_grandis?a=1&amp;b=2 later"
+    }
+  ]
+}

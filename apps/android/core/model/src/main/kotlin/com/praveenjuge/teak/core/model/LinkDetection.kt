@@ -4,8 +4,14 @@ data class TextCardInput(val content: String, val type: CardType, val url: Strin
 
 /** Port of `resolveTextCardInput` in packages/convex/shared/utils/linkDetection.ts. */
 object LinkDetection {
-    private val urlOnly = Regex("^https?://\\S+$")
-    private val urlInline = Regex("(https?://\\S+)")
+    /**
+     * JavaScript's `\s`. Java's `\s` is ASCII only, so a URL followed by a no-break space ran on into
+     * the next word.
+     */
+    private const val SPACE = "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF"
+    private val space = Regex("[$SPACE]")
+    private val urlOnly = Regex("^https?://[^$SPACE]+$")
+    private val urlInline = Regex("(https?://[^$SPACE]+)")
     private val markdownEscape = Regex("\\\\([!-/:-@\\[-`{-~])")
     private val htmlEntity = Regex("&(amp|lt|gt);")
     private val entities = mapOf("amp" to "&", "lt" to "<", "gt" to ">")
@@ -16,7 +22,7 @@ object LinkDetection {
 
     // WHATWG URL parsing (what the backend uses) accepts characters java.net.URI rejects, such as
     // `|` or `{`, so check only what it requires: an http(s) scheme and a non-empty host.
-    private val httpUrl = Regex("^https?://[^/?#\\s]+")
+    private val httpUrl = Regex("^https?://[^/?#$SPACE]+")
 
     private fun isHttpUrl(candidate: String): Boolean = httpUrl.containsMatchIn(candidate)
 
@@ -44,7 +50,7 @@ object LinkDetection {
     }
 
     fun extractUrl(content: String): Pair<String?, String> {
-        val trimmed = content.trim()
+        val trimmed = content.trim { space.matches(it.toString()) }
         if (trimmed.isEmpty()) return null to ""
         if (urlOnly.matches(trimmed)) {
             val url = unescape(trimmed)

@@ -2,39 +2,71 @@ import Foundation
 import Testing
 @testable import TeakCore
 
-// Tables mirror the TypeScript tests in packages/convex/__tests__/shared/
-// (and apps/web/src/lib/__tests__/ for EXIF and publish dates), so the
-// Apple, Android and web surfaces agree. Keep the rows in step with them.
+// Rows for card links and search come from the fixtures in
+// packages/convex/__tests__/shared/fixtures, which the TypeScript and Android
+// tests read too. The other tables mirror the TypeScript tests there (and
+// apps/web/src/lib/__tests__/ for EXIF and publish dates).
 
 private let idA = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 
+struct CardLinkRows: Decodable, Sendable {
+    struct Parse: Decodable, Sendable, CustomTestStringConvertible {
+        let name: String
+        let markdown: String
+        let ids: [String]
+        var testDescription: String { name }
+    }
+
+    struct Format: Decodable, Sendable, CustomTestStringConvertible {
+        let name: String
+        let title: String
+        let id: String
+        let token: String
+        var testDescription: String { name }
+    }
+
+    struct Text: Decodable, Sendable, CustomTestStringConvertible {
+        let name: String
+        let markdown: String
+        let text: String
+        var testDescription: String { name }
+    }
+
+    let parseIds: [Parse]
+    let formatToken: [Format]
+    let tokensToText: [Text]
+
+    static let shared = Fixtures.load("cardLinks", as: CardLinkRows.self)
+}
+
+struct SearchQualifierRows: Decodable, Sendable {
+    struct Field: Decodable, Sendable, CustomTestStringConvertible {
+        let input: String
+        let field: String
+        let expected: FixtureValue
+        var testDescription: String { "\(input) → \(field)" }
+    }
+
+    let fields: [Field]
+
+    static let shared = Fixtures.load("searchQualifiers", as: SearchQualifierRows.self)
+}
+
 @Suite(.english) struct CardLinksTests {
-    @Test(arguments: [
-        ("one link", "See [[Plan|teak:\(idA)]].", [idA]),
-        ("order kept, duplicates dropped", "[[B|teak:\(idB)]] then [[A|teak:\(idA)]] and [[B again|teak:\(idB)]]", [idB, idA]),
-        ("an empty title", "[[|teak:\(idA)]]", [idA]),
-        ("inline code", "`[[Plan|teak:\(idA)]]`", []),
-        ("double-backtick code", "`` a [[Plan|teak:\(idA)]] ``", []),
-        ("a fenced block", "```\n[[Plan|teak:\(idA)]]\n```\n[[B|teak:\(idB)]]", [idB]),
-        ("a tilde fence", "~~~md\n[[Plan|teak:\(idA)]]\n~~~", []),
-        ("a fence line with an info string inside a block", "```\n```js\n[[Plan|teak:\(idA)]]\n```", []),
-        ("an indented block", "Intro\n\n    [[Plan|teak:\(idA)]]", []),
-        ("a list item's indented paragraph", "- Item\n\n    [[Plan|teak:\(idA)]]", [idA]),
-        ("an ordered item's indented continuation", "1. Item\n    [[Plan|teak:\(idA)]]", [idA]),
-        ("a nested item's indented paragraph", "- Outer\n    - Inner\n\n      [[Plan|teak:\(idA)]]", [idA]),
-        ("an indented block inside a list item", "- Item\n\n      [[Plan|teak:\(idA)]]", []),
-        ("an indented block after a list ends", "- Item\n\nParagraph\n\n    [[Plan|teak:\(idA)]]", []),
-        ("an unclosed backtick", "`oops [[Plan|teak:\(idA)]]", [idA]),
-        ("no id", "[[x|teak:]]", []),
-        ("no prefix", "[[x]]", []),
-        ("an uppercase id", "[[x|teak:K17A8M9X2P3Q4R5S]]", []),
-        ("a too-short id", "[[x|teak:abc]]", []),
-        ("a pipe in the title", "[[a|b|teak:\(idA)]]", []),
-        ("a newline in the title", "[[a\nb|teak:\(idA)]]", []),
-    ])
-    func parsesLinkedIds(_ name: String, markdown: String, ids: [String]) {
-        #expect(CardLinks.parseIds(markdown) == ids, "\(name)")
+    @Test(arguments: CardLinkRows.shared.parseIds)
+    func parsesLinkedIds(_ row: CardLinkRows.Parse) {
+        #expect(CardLinks.parseIds(row.markdown) == row.ids, "\(row.name)")
+    }
+
+    @Test(arguments: CardLinkRows.shared.formatToken)
+    func formatsTokensTheGrammarReadsBack(_ row: CardLinkRows.Format) {
+        #expect(CardLinks.formatToken(title: row.title, id: row.id) == row.token, "\(row.name)")
+    }
+
+    @Test(arguments: CardLinkRows.shared.tokensToText)
+    func showsEachLinkAsItsStoredTitle(_ row: CardLinkRows.Text) {
+        #expect(CardLinks.tokensToText(row.markdown) == row.text, "\(row.name)")
     }
 
     @Test func indexesAtMost500DistinctTargets() {
@@ -56,12 +88,6 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         #expect(elapsed < .seconds(1))
     }
 
-    @Test func formattingReplacesCharactersTheGrammarCantHold() {
-        #expect(CardLinks.formatToken(title: "a | b ]] c\nd", id: idA) == "[[a b c d|teak:\(idA)]]")
-        #expect(CardLinks.formatToken(title: "   ", id: idA) == "[[Card|teak:\(idA)]]")
-        #expect(CardLinks.formatToken(title: "Reading list", id: idA) == "[[Reading list|teak:\(idA)]]")
-    }
-
     @Test(arguments: [
         String(repeating: "a", count: 300), String(repeating: "b", count: 512),
         String(repeating: "c", count: 198) + "👩‍👩‍👧‍👦👩‍👩‍👧‍👦", String(repeating: "漢字", count: 150),
@@ -73,27 +99,6 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         #expect(match.id == idA)
         #expect(match.title.utf16.count <= CardLinks.titleMaxLength)
         #expect(!match.title.hasSuffix("\u{200D}\u{2026}"))
-    }
-
-    private static let family = "👩‍👩‍👧‍👦"
-    private static func c(_ count: Int) -> String { String(repeating: "c", count: count) }
-    private static let cuts: [(String, String, String)] = [
-        ("kept whole", c(185) + family + String(repeating: "d", count: 30), c(185) + family + "ddd…"),
-        ("dropped whole", c(190) + family + String(repeating: "d", count: 30), c(190) + "…"),
-        ("not split at a surrogate", c(198) + "😀😀", c(198) + "…"),
-    ]
-
-    @Test(arguments: cuts)
-    func anEmojiAtTheCut(_ name: String, title: String, expected: String) {
-        let stored = CardLinks.matches(CardLinks.formatToken(title: title, id: idA)).first?.title
-        #expect(stored == expected, "\(name)")
-    }
-
-    @Test func showsEachLinkAsItsStoredTitleLeavingCodeAlone() {
-        #expect(CardLinks.tokensToText("Read [[Plan|teak:\(idA)]] and `[[Raw|teak:\(idB)]]`")
-            == "Read Plan and `[[Raw|teak:\(idB)]]`")
-        #expect(CardLinks.tokensToText("See [[Use `foo`|teak:\(idA)]].") == "See Use `foo`.")
-        #expect(CardLinks.tokensToText("plain [[x]] text") == "plain [[x]] text")
     }
 
     @Test func passesTheTitleAndIdToTheReplacer() {
@@ -108,52 +113,34 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 }
 
 @Suite(.english) struct SearchQualifierTests {
-    private static let rows: [(String, String, [String])] = [
-        ("#Design", "tags", ["design"]), ("TAG:Design", "tags", ["design"]),
-        ("tag:\"Design Systems\"", "tags", ["design systems"]), ("#fff", "tags", []), ("#fff", "terms", ["#fff"]),
-        ("#3B82F6,", "terms", ["#3B82F6,"]), ("#bad", "terms", ["#bad"]), ("tag:bad", "tags", ["bad"]),
-        ("#design-ops", "tags", ["design-ops"]), ("#", "terms", []), ("type:links", "types", ["link"]),
-        ("Type:IMAGE", "types", ["image"]), ("type:banana", "terms", ["type:banana"]), ("type:", "terms", []),
-        ("type:note", "types", ["text"]), ("type:Notes", "types", ["text"]), ("type:pdf", "types", ["document"]),
-        ("type:docs", "types", ["document"]), ("type:photos", "types", ["image"]), ("type:picture", "types", ["image"]),
-        ("type:colours", "types", ["palette"]), ("type:color", "types", ["palette"]), ("type:voice", "types", ["audio"]),
-        ("type:memos", "types", ["audio"]), ("type:url", "types", ["link"]), ("type:bookmarks", "types", ["link"]),
-        ("type:quotes", "types", ["quote"]), ("type:movie", "types", ["video"]),
-        ("type:constructor", "terms", ["type:constructor"]),
-        ("folder:\"Reading list\"", "folders", ["reading list"]), ("folder:Inbox,", "folders", ["inbox"]),
-        ("foo:bar", "terms", ["foo:bar"]), ("https://github.com", "terms", ["https://github.com"]),
-        ("\"unbalanced phrase", "phrases", ["unbalanced phrase"]), ("“smart quotes”", "phrases", ["smart quotes"]),
-        ("\"\"", "phrases", []), ("tag:a tag:A #a", "tags", ["a"]), ("🎨 #🎨", "tags", ["🎨"]),
-        ("text:4411", "ocrTexts", ["4411"]), ("TEXT:\"Total  Due\"", "ocrTexts", ["Total Due"]),
-        ("text:Total text:total", "ocrTexts", ["Total"]), ("text:a text:b", "ocrTexts", ["a", "b"]),
-        ("text:", "terms", []), ("text:\"  \"", "ocrTexts", []), ("text:東京駅", "ocrTexts", ["東京駅"]),
-        ("is:nope", "terms", ["is:nope"]), ("site:www.GitHub.com/path", "sites", ["github.com"]),
-        ("site:https://gitlab.com:8443", "sites", ["gitlab.com"]), ("site:mailto:x", "terms", ["site:mailto:x"]),
-    ]
-
-    private static func field(_ parsed: ParsedSearchQuery, _ name: String) -> [String] {
+    private static func field(_ parsed: ParsedSearchQuery, _ name: String) -> FixtureValue? {
         switch name {
-        case "tags": parsed.tags
-        case "types": parsed.types.map(\.rawValue)
-        case "folders": parsed.folders
-        case "phrases": parsed.phrases
-        case "ocrTexts": parsed.ocrTexts
-        case "sites": parsed.sites
-        default: parsed.terms
+        case "tags": .strings(parsed.tags)
+        case "types": .strings(parsed.types.map(\.rawValue))
+        case "folders": .strings(parsed.folders)
+        case "phrases": .strings(parsed.phrases)
+        case "ocrTexts": .strings(parsed.ocrTexts)
+        case "sites": .strings(parsed.sites)
+        case "terms": .strings(parsed.terms)
+        case "favorite": .bool(parsed.has(.fav))
+        case "archived": .bool(parsed.has(.archived))
+        case "done": .bool(parsed.has(.done))
+        case "todo": .bool(parsed.has(.todo))
+        case "text": .string(parsed.text)
+        default: nil
         }
     }
 
-    @Test(arguments: rows)
-    func readsQualifiers(input: String, field: String, expected: [String]) {
-        #expect(Self.field(SearchQualifiers.parse(input), field) == expected, "\(input) → \(field)")
+    @Test(arguments: SearchQualifierRows.shared.fields)
+    func readsQualifiers(_ row: SearchQualifierRows.Field) {
+        #expect(Self.field(SearchQualifiers.parse(row.input), row.field) == row.expected, "\(row.input) → \(row.field)")
     }
 
-    @Test(arguments: [
-        ("is:fav", SearchIsValue.fav), ("is:favourites", .fav), ("is:starred", .fav), ("is:archived", .archived),
-        ("is:done", .done), ("is:Completed", .done), ("is:finished", .done), ("is:todo", .todo), ("is:to-do", .todo),
-    ])
-    func readsShowQualifiers(input: String, value: SearchIsValue) {
-        #expect(SearchQualifiers.parse(input).has(value))
+    @Test func showsASiteInUnicodeAndSendsItInPunycode() {
+        let parsed = SearchQualifiers.parse("notes site:WWW.例え.jp")
+        #expect(parsed.sites == ["xn--r8jz45g.jp"])
+        #expect(parsed.canonical == "site:例え.jp notes")
+        #expect(SearchQualifiers.chip(SearchQualifier(.site, "xn--r8jz45g.jp")).label == "例え.jp")
     }
 
     @Test func readsEveryQualifierPhraseAndWord() {

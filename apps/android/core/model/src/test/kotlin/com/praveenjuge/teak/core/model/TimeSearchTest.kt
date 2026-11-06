@@ -1,8 +1,10 @@
 package com.praveenjuge.teak.core.model
 
+import kotlinx.serialization.Serializable
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.Locale
@@ -20,6 +22,25 @@ class TimeSearchTest {
         assertEquals(label, result.labelText, query)
         assertEquals(start, day(result.range.start), query)
         assertEquals(end, day(result.range.endExclusive), query)
+    }
+
+    @Serializable
+    private data class Row(val query: String, val start: String?, val end: String?)
+
+    @Serializable
+    private data class Rows(val now: String, val timeZone: String, val rows: List<Row>)
+
+    @Test
+    fun `reads the shared date rows the way the web does`() {
+        val fixture = Fixtures.load<Rows>("timeSearch")
+        val rowZone = ZoneId.of(fixture.timeZone)
+        val now = LocalDateTime.parse(fixture.now).atZone(rowZone)
+        fun localDay(millis: Long) = Instant.ofEpochMilli(millis).atZone(rowZone).toLocalDate().toString()
+        for (row in fixture.rows) {
+            val range = TimeSearch.parse(row.query, now, Locale.US)?.range
+            val expected = row.start?.let { it to row.end }
+            assertEquals(expected, range?.let { localDay(it.start) to localDay(it.endExclusive) }, row.query)
+        }
     }
 
     @Test
