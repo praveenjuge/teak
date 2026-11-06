@@ -1,9 +1,9 @@
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { useRef } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
 import type { CardWithUrls } from "@/hooks/useCardModal";
+import { isGifCard } from "@/lib/cardTypes";
 
 interface VideoPreviewProps {
   card: CardWithUrls;
@@ -24,14 +24,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
     return null;
   }
 
-  const format = card.fileMetadata?.fileName
-    ? inferFileFormat({
-        fileName: card.fileMetadata.fileName,
-        mimeType: card.fileMetadata.mimeType,
-      })
-    : null;
-
-  if (format?.id === "gif") {
+  if (isGifCard(card)) {
     return (
       <ResilientMediaImage
         alt={card.fileMetadata?.fileName || card.content || t("gifAlt")}

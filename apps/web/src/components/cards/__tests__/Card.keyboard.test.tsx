@@ -285,28 +285,27 @@ describe("Card menu shortcuts", () => {
 describe("getCardAccessibleLabel", () => {
   test.each([
     [
-      { type: "link", content: "", url: "https://example.com" },
-      "Example",
+      {
+        type: "link",
+        content: "",
+        metadata: { linkPreview: { status: "success", title: "Example" } },
+        url: "https://example.com",
+      },
       "Link: Example",
     ],
     [
       { type: "link", content: "", url: "https://example.com" },
-      undefined,
       "Link: https://example.com",
     ],
     [
       { type: "image", content: "", fileMetadata: { fileName: "cat.png" } },
-      undefined,
       "Image: cat.png",
     ],
-    [
-      { type: "quote", content: "**Stay** curious" },
-      undefined,
-      "Quote: Stay curious",
-    ],
-    [{ type: "audio", content: "" }, undefined, "Audio card"],
-  ] as const)("names %p", (card, linkTitle, expected) => {
-    expect(getCardAccessibleLabel(card as any, linkTitle)).toBe(expected);
+    [{ type: "quote", content: "**Stay** curious" }, "Quote: Stay curious"],
+    [{ type: "text", content: "Groceries\n- eggs" }, "Text: Groceries"],
+    [{ type: "audio", content: "" }, "Audio card"],
+  ] as const)("names %p", (card, expected) => {
+    expect(getCardAccessibleLabel(card as any)).toBe(expected);
   });
 
   test("clips very long text", () => {

@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from "react";
+import { cardDialogStage } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
 
 type Stage = "media" | "reading" | "note" | "compact";
@@ -24,19 +25,11 @@ export function isShortNote(card?: FramedCard | null): boolean {
 }
 
 function stageFor(card?: FramedCard | null, shortNote?: boolean): Stage {
-  const type = card?.type;
-  if (
-    type === "image" ||
-    type === "video" ||
-    type === "document" ||
-    type === "link"
-  ) {
-    return "media";
-  }
-  if (type === "text") {
+  const stage = cardDialogStage(card?.type);
+  if (stage === "text") {
     return (shortNote ?? isShortNote(card)) ? "note" : "reading";
   }
-  return "compact";
+  return stage;
 }
 
 /**

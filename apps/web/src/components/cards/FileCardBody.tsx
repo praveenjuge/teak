@@ -1,4 +1,5 @@
 import { useTranslations } from "@teak/i18n/react";
+import { isGifCard } from "../../lib/cardTypes";
 import { formatDuration, getFileFormatBadge } from "./cardDisplay";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -30,9 +31,7 @@ export function ImageCardBody({ card, isPriority }: FileCardBodyProps) {
 }
 
 export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
-  const isGif =
-    card.fileMetadata?.mimeType === "image/gif" ||
-    (card.fileMetadata?.fileName?.toLowerCase().endsWith(".gif") ?? false);
+  const isGif = isGifCard(card);
   return (
     <GridVideoPreview
       cardId={card._id}

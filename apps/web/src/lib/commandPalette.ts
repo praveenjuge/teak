@@ -6,11 +6,11 @@ import {
   type TeakTranslator,
 } from "@teak/i18n";
 import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
+import { cardTitle } from "./cardTypes";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { type LibraryView, libraryViewForPath } from "./libraryViews";
-import { type LinkTitleTranslator, resolveLinkTitle } from "./linkTitle";
-import { markdownToPlainText } from "./markdownToPlainText";
+import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform } from "./platform";
 
 const englishPalette = createTeakTranslator(
@@ -235,33 +235,10 @@ export function paletteCardTitle(
   t: TeakTranslator<"commandPalette"> = englishPalette,
   linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
 ): string {
-  const isFileCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "audio" ||
-    card.type === "document";
-  const linkPreview =
-    card.metadata?.linkPreview?.status === "success"
-      ? card.metadata.linkPreview
-      : undefined;
-  const title =
-    (card.type === "link"
-      ? resolveLinkTitle(
-          {
-            metadataTitle: card.metadataTitle,
-            metadataTitleEdited: card.metadataTitleEdited,
-            previewTitle: linkPreview?.title,
-            url: card.url,
-          },
-          linkTitle
-        )
-      : "") ||
-    (isFileCard ? card.fileMetadata?.fileName : "") ||
-    card.metadataTitle ||
-    markdownToPlainText(card.content?.trim().split("\n", 1)[0]).trim() ||
-    card.fileMetadata?.fileName ||
-    t("cards.untitled");
-  return title.slice(0, MAX_PALETTE_TITLE_LENGTH);
+  return (cardTitle(card, linkTitle) || t("cards.untitled")).slice(
+    0,
+    MAX_PALETTE_TITLE_LENGTH
+  );
 }
 
 export function paletteCardHost(card: PaletteCard): string | undefined {

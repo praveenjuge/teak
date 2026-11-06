@@ -1,7 +1,6 @@
 import { opensOnRead } from "@teak/convex/shared/article";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import type { CardType } from "@teak/convex/shared/constants";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
@@ -74,6 +73,7 @@ import {
   cardActionLabel,
   cardActionShortcut,
 } from "../../lib/cardActions";
+import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
 import {
   firstFile,
@@ -215,13 +215,7 @@ function stageContentClass(card: CardModalCard): string {
     case "video":
       return "flex items-center justify-center bg-black max-md:aspect-video md:h-full";
     case "document": {
-      const format = card.fileMetadata?.fileName
-        ? inferFileFormat({
-            fileName: card.fileMetadata.fileName,
-            mimeType: card.fileMetadata.mimeType,
-          })
-        : null;
-      return format?.preview === "pdf" && card.fileUrl
+      return cardFileFormat(card)?.preview === "pdf" && card.fileUrl
         ? "h-[70dvh] p-2 md:h-full md:p-3"
         : "p-5 md:p-8";
     }
@@ -642,9 +636,7 @@ export function CardModal({
       });
     }
   };
-  const canDownload = Boolean(
-    card?.fileKey && ["document", "audio", "video", "image"].includes(card.type)
-  );
+  const canDownload = Boolean(card?.fileKey && isFileCardType(card.type));
   const copyableText =
     card?.type === "text" || card?.type === "quote"
       ? cardLinkTokensToText(getCurrentValue("content") ?? "")

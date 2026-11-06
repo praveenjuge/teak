@@ -1,7 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
   createTeakTranslator,
   englishMessages,
@@ -57,9 +56,14 @@ import {
   copyCardShortcut,
   GRID_CARD_ACTIONS,
 } from "../../lib/cardActions";
+import {
+  cardFileFormat,
+  cardTitle,
+  linkCardTitle as linkTitleOf,
+  showsPictureTile,
+} from "../../lib/cardTypes";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
-import { resolveLinkTitle } from "../../lib/linkTitle";
-import { markdownToPlainText } from "../../lib/markdownToPlainText";
+import type { LinkTitleTranslator } from "../../lib/linkTitle";
 import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
@@ -79,7 +83,7 @@ import {
   QuickActionButton,
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
-import { successfulLinkPreview, useLinkCardImage } from "./linkCardImage";
+import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
@@ -131,24 +135,19 @@ const englishAccessibleLabel: AccessibleLabelTranslator = createTeakTranslator(
 export function getCardAccessibleLabel(
   card: Pick<
     CardWithUrls,
-    "content" | "fileMetadata" | "metadataTitle" | "type" | "url"
+    | "content"
+    | "fileMetadata"
+    | "metadata"
+    | "metadataTitle"
+    | "metadataTitleEdited"
+    | "type"
+    | "url"
   >,
-  linkTitle?: string,
-  t: AccessibleLabelTranslator = englishAccessibleLabel
+  t: AccessibleLabelTranslator = englishAccessibleLabel,
+  linkTitle?: LinkTitleTranslator
 ): string {
   const type = card.type || "card";
-  const isFileCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "audio" ||
-    card.type === "document";
-  const title =
-    (card.type === "link" ? linkTitle || card.metadataTitle || card.url : "") ||
-    (isFileCard ? card.fileMetadata?.fileName : "") ||
-    markdownToPlainText(card.content) ||
-    card.metadataTitle ||
-    card.fileMetadata?.fileName ||
-    "";
+  const title = cardTitle(card, linkTitle);
   if (!title) {
     return t("untitled", { type });
   }
@@ -185,11 +184,7 @@ export const Card = memo(function Card({
   const isOptimistic = isOptimisticCard(card._id);
   const isFirstPaintCopy = use(FirstPaintCopyContext);
   const cardRef = useRef<HTMLDivElement>(null);
-  const fileName = card.fileMetadata?.fileName;
-  const fileFormat =
-    card.type === "document" && fileName
-      ? inferFileFormat({ fileName, mimeType: card.fileMetadata?.mimeType })
-      : null;
+  const fileFormat = card.type === "document" ? cardFileFormat(card) : null;
 
   const prefetchDocumentPreview = () => {
     if (
@@ -300,15 +295,7 @@ export const Card = memo(function Card({
     openCardLink(card);
   };
 
-  const linkCardTitle = resolveLinkTitle(
-    {
-      metadataTitle: card.metadataTitle,
-      metadataTitleEdited: card.metadataTitleEdited,
-      previewTitle: successfulLinkPreview(card)?.title,
-      url: card.url,
-    },
-    tLinkTitle
-  );
+  const linkCardTitle = linkTitleOf(card, tLinkTitle);
   const { image: linkImage, onImageError: handleLinkImageError } =
     useLinkCardImage(card);
 
@@ -464,9 +451,7 @@ export const Card = memo(function Card({
   const showHoverSelect =
     !(isOptimistic || isSelectionMode) && offers("select");
   const isMediaCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "document" ||
+    showsPictureTile(card.type) ||
     (card.type === "link" && Boolean(linkImage)) ||
     (card.type === "palette" && Boolean(card.colors?.length));
 
@@ -489,7 +474,7 @@ export const Card = memo(function Card({
                     selecting: Boolean(isSelectionMode),
                   })
             }
-            aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
+            aria-label={getCardAccessibleLabel(card, tLabel, tLinkTitle)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
               // The focus and selection rings sit on the tile itself (see

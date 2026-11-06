@@ -26,16 +26,13 @@ import {
   type RevisitCard,
   type RevisitDeck as RevisitDeckState,
 } from "../../hooks/useRevisitDeck";
-import { resolveLinkTitle } from "../../lib/linkTitle";
+import { linkCardTitle } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
 import { getCardAccessibleLabel } from "../cards/Card";
 import { CardBody } from "../cards/CardBody";
 import { mediaAspectRatio } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
-import {
-  successfulLinkPreview,
-  useLinkCardImage,
-} from "../cards/linkCardImage";
+import { useLinkCardImage } from "../cards/linkCardImage";
 import type { CardWithUrls } from "../cards/types";
 
 export const REVISIT_SWIPE_THRESHOLD = 96;
@@ -117,24 +114,10 @@ const deckCardWidth = (card: CardWithUrls): string => {
   return `min(100%, calc(${height} * ${DECK_TILE_RATIO}))`;
 };
 
-const deckCardTitle = (
-  card: CardWithUrls,
-  tLinkTitle: Parameters<typeof resolveLinkTitle>[1]
-) =>
-  resolveLinkTitle(
-    {
-      metadataTitle: card.metadataTitle,
-      metadataTitleEdited: card.metadataTitleEdited,
-      previewTitle: successfulLinkPreview(card)?.title,
-      url: card.url,
-    },
-    tLinkTitle
-  );
-
 function DeckCard({ card }: { card: CardWithUrls }) {
   const { image, onImageError } = useLinkCardImage(card);
   const tLinkTitle = useTranslations("lib.linkTitle");
-  const title = deckCardTitle(card, tLinkTitle);
+  const title = linkCardTitle(card, tLinkTitle);
   return (
     <div
       className="max-h-(--revisit-card-height)"
@@ -463,11 +446,7 @@ export function RevisitDeck({
   } else if (deck.status === "ready" && deck.done) {
     statusText = t("allCaughtUp");
   } else if (showActions && deck.current) {
-    statusText = `${t("progress", { position: deck.position, total: deck.total })}. ${getCardAccessibleLabel(
-      deck.current,
-      deckCardTitle(deck.current, tLinkTitle),
-      tCardLabel
-    )}`;
+    statusText = `${t("progress", { position: deck.position, total: deck.total })}. ${getCardAccessibleLabel(deck.current, tCardLabel, tLinkTitle)}`;
   }
 
   return (
