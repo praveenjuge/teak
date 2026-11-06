@@ -44,8 +44,8 @@ Add `-f release_notes="…"` to override `whatsNew` for that run.
 Done once. A run that's missing one of these fails and points here.
 
 1. **Play Console**
-   - A personal developer account (`5908919908827380132`) with identity, Android device and phone verified, and production access granted (November 2026).
-   - The app "Teak: Save Inspirations" (`com.praveenjuge.teak`, app `4976359198684653280`). It's live in production, with trader status declared for the account and the app, and the Terms of Service link https://teakvault.com/docs/terms-of-service.
+   - A personal developer account with identity, Android device and phone verified, and production access granted (November 2026).
+   - The app "Teak: Save Inspirations" (`com.praveenjuge.teak`). It's live in production, with trader status declared for the account and the app, and the Terms of Service link https://teakvault.com/docs/terms-of-service.
    - Managed publishing is off, so approved changes go live at once.
 2. **Upload key**
    - It lives at `~/.teak-android/teak-upload.jks`, alias `upload`. Its password is in the macOS login Keychain under `teak-android-upload-key`, and both are backed up in the password manager. Losing the key means asking Google for an upload-key reset.
