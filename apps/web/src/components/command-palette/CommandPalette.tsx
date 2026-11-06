@@ -20,6 +20,7 @@ import {
   goToKeys,
   isLibraryViewTarget,
 } from "../../lib/appCommands";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import {
   PALETTE_CARD_LIMIT,
   PALETTE_MIN_CARD_QUERY_LENGTH,
@@ -41,7 +42,6 @@ import {
   type SettingsSection,
   visibleSettingsSections,
 } from "../../lib/settingsSections";
-import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 import {
@@ -278,7 +278,7 @@ function PaletteCardRows({
   return (
     <>
       {cards.cards.map((card) => {
-        const Icon = getCardTypeIconComponent(card.type);
+        const Icon = cardTypeIcon(card.type);
         const title = paletteCardTitle(card, t, tLinkTitle);
         const host = paletteCardHost(card);
         return (

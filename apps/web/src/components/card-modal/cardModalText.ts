@@ -3,8 +3,10 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import type { ClientCard } from "@/lib/cardTypes";
 import type { CardSaveState } from "../../hooks/useCardModal";
-import type { CardModalCard, GetCurrentValue } from "./types";
+import { hasEditableText } from "../../lib/cardTypes";
+import type { GetCurrentValue } from "./types";
 
 export type CardModalTranslator = TeakTranslator<"cardModal">;
 
@@ -34,12 +36,12 @@ export function saveStateLabel(
 }
 
 export function emptiedContentNotice(
-  card: CardModalCard | null | undefined,
+  card: ClientCard | null | undefined,
   getCurrentValue: GetCurrentValue,
   t: CardModalTranslator = englishCardModal
 ): string | null {
   if (
-    !(card && (card.type === "text" || card.type === "quote")) ||
+    !(card && hasEditableText(card.type)) ||
     card.isDeleted ||
     !card.content?.trim() ||
     (getCurrentValue("content") ?? "").trim()

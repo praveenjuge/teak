@@ -1,34 +1,15 @@
 import { api } from "@teak/convex";
-import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";
 import { useConvex } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { ClientCard } from "@/lib/cardTypes";
 import { openCardLink } from "@/lib/openCardLink";
 import { useUpdateCardField } from "./useCardMutations";
 import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
-
-export type CardWithUrls = Doc<"cards"> & {
-  detailUrl?: string;
-  fileUrl?: string;
-  thumbnailUrl?: string;
-  screenshotUrl?: string;
-  linkPreviewMedia?: Array<{
-    contentType?: string;
-    height?: number;
-    posterContentType?: string;
-    posterHeight?: number;
-    posterUrl?: string;
-    posterWidth?: number;
-    type: "image" | "video";
-    url: string;
-    width?: number;
-  }>;
-  linkPreviewImageUrl?: string;
-  hasThumbnailOverride?: true;
-};
 
 export type TextField =
   | "content"
@@ -42,7 +23,7 @@ type PendingChanges = Partial<Record<TextField, string>>;
 export type CardSaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 export interface CardModalOptions {
-  card?: CardWithUrls | null;
+  card?: ClientCard | null;
   onOpenLink?: (url: string) => void;
 }
 

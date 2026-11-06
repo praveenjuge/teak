@@ -13,8 +13,9 @@ import {
   Quote,
   Search,
 } from "vadivam-react";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
-import { getFilterIcon, QUALIFIER_ICONS } from "../search/SearchBar";
+import { QUALIFIER_ICONS } from "../search/qualifierIcons";
 import {
   describeKeywordChip,
   describeQualifierChip,
@@ -86,7 +87,7 @@ export function SmartFolderQuery({
       !folderNames.has(qualifier.value.trim().toLowerCase());
     let Icon = QUALIFIER_ICONS[qualifier.key] as typeof Search;
     if (qualifier.key === "type") {
-      Icon = getFilterIcon(qualifier.value);
+      Icon = cardTypeIcon(qualifier.value);
     } else if (qualifier.key === "is" && qualifier.value === "archived") {
       Icon = Archive;
     } else if (unknownFolder) {

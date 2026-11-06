@@ -1,10 +1,10 @@
 import { useTranslations } from "@teak/i18n/react";
 import { Textarea } from "@/components/ui/textarea";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import type { GetCurrentValue } from "../card-modal/types";
 
 interface QuotePreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
   readOnly?: boolean;

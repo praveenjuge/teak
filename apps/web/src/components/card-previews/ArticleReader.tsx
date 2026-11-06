@@ -20,12 +20,12 @@ import Markdown, {
 } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import type { CardModalCard } from "@/components/card-modal";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
 import { SiteFavicon } from "@/components/cards/SiteFavicon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
+import type { ClientCard } from "@/lib/cardTypes";
 import { getDisplayHostname } from "@/lib/displayHost";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { handleCardLinkClick } from "@/lib/openCardLink";
@@ -59,7 +59,7 @@ export type ArticleReaderState =
   | { kind: "none" };
 
 export const articleReaderState = (
-  card: Pick<CardModalCard, "article" | "processingStatus" | "type">
+  card: Pick<ClientCard, "article" | "processingStatus" | "type">
 ): ArticleReaderState => {
   if (card.type !== "link") {
     return { kind: "none" };
@@ -183,7 +183,7 @@ const useArticleMarkdown = (
 };
 
 interface ArticleReaderProps {
-  card: CardModalCard;
+  card: ClientCard;
   highlightControlsRef?: RefObject<ReaderHighlightControls | null>;
   highlightJump?: HighlightJump | null;
   highlights?: CardHighlightsControl;

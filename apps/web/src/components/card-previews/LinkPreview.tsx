@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { getDisplayHostname } from "@/lib/displayHost";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
@@ -125,7 +125,7 @@ export interface LinkPreviewLinkState {
 }
 
 interface LinkPreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
   LinkComponent?: React.ComponentType<{
     href: string;
     className?: string;

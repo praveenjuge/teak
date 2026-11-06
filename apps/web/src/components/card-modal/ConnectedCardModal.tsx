@@ -3,6 +3,7 @@ import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useCopyCardImage } from "@/hooks/useCardClipboard";
 import { useCardHighlights } from "@/hooks/useCardHighlights";
+import type { ClientCard } from "@/lib/cardTypes";
 import {
   type RunnableCardActionId,
   useCardActions,
@@ -17,10 +18,9 @@ import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
-import type { CardModalCard } from "./types";
 
 export interface ConnectedCardModalProps {
-  card?: CardModalCard | null;
+  card?: ClientCard | null;
   cardId: string | null;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;

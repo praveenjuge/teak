@@ -1,5 +1,6 @@
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
+import { hasEditableText } from "./cardTypes";
 
 /**
  * What copying a card puts on the clipboard. The card's menu, its ⌘C or
@@ -34,7 +35,7 @@ export function cardCopyKind(card: CopyableCard): CardCopyKind | null {
   if (card.url) {
     return "link";
   }
-  if (card.type === "text" || card.type === "quote") {
+  if (hasEditableText(card.type)) {
     return "text";
   }
   return null;

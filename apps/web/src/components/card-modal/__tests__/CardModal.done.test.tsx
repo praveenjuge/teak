@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardModalCard } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -48,7 +48,7 @@ const card = (extra: Record<string, unknown> = {}) =>
     url: "https://example.com/story",
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 const inCategory = (category: string | undefined, extra = {}) =>
   card({
@@ -67,7 +67,7 @@ const inCategory = (category: string | undefined, extra = {}) =>
   });
 
 async function render(
-  shown: CardModalCard,
+  shown: ClientCard,
   runAction: (action: string) => Promise<boolean> = async () => true
 ) {
   const container = document.body.appendChild(document.createElement("div"));

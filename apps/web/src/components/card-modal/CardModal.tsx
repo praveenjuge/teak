@@ -57,6 +57,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
+import type { ClientCard } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { RunnableCardActionId } from "../../hooks/useCardActions";
 import type { CardSaveState } from "../../hooks/useCardModal";
@@ -73,7 +74,12 @@ import {
   cardActionShortcut,
 } from "../../lib/cardActions";
 import { cardCopyKind, cardCopyText } from "../../lib/cardCopy";
-import { cardFileFormat, isFileCardType } from "../../lib/cardTypes";
+import {
+  cardStageClass,
+  cardTypeIcon,
+  hasEditableText,
+  isFileCardType,
+} from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
 import { getDisplayHostname } from "../../lib/displayHost";
 import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
@@ -126,10 +132,9 @@ import {
 } from "./cardModalFrame";
 import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
-import { getCardTypeIconComponent } from "./cardTypeIcon";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { PaletteStage } from "./PaletteStage";
-import type { CardModalCard, GetCurrentValue } from "./types";
+import type { GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
 import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
@@ -147,7 +152,7 @@ function CardPreview({
   thumbnail,
   updateContent,
 }: {
-  card: CardModalCard;
+  card: ClientCard;
   cardLinks?: CardLinkOptions;
   getCurrentValue: GetCurrentValue;
   paletteColors?: PaletteColorsControl;
@@ -209,26 +214,6 @@ function CardPreview({
   }
 }
 
-function stageContentClass(card: CardModalCard): string {
-  switch (card.type) {
-    case "image":
-      return "flex min-h-full items-center justify-center p-4 md:h-full md:p-8";
-    case "video":
-      return "flex items-center justify-center bg-black max-md:aspect-video md:h-full";
-    case "document": {
-      return cardFileFormat(card)?.preview === "pdf" && card.fileUrl
-        ? "h-[70dvh] p-2 md:h-full md:p-3"
-        : "p-5 md:p-8";
-    }
-    case "link":
-      return "px-5 pt-5 pb-6 md:px-10 md:pt-8 md:pb-10";
-    case "text":
-      return "mx-auto w-full max-w-3xl px-5 pt-5 pb-6 md:px-10 md:pt-10 md:pb-12";
-    default:
-      return "flex min-h-full items-center justify-center p-5 md:p-10";
-  }
-}
-
 const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
 
 /** Preview · Read: the chosen one is filled, so it reads at a glance. */
@@ -237,10 +222,7 @@ export const STAGE_VIEW_ITEM_CLASS =
 
 type StageView = "preview" | "read";
 
-const useStageView = (
-  card: CardModalCard | null | undefined,
-  open: boolean
-) => {
+const useStageView = (card: ClientCard | null | undefined, open: boolean) => {
   const [choice, setChoice] = useState<{
     cardId: string;
     view: StageView;
@@ -319,7 +301,7 @@ interface SidebarAction {
 
 interface CardModalProps {
   backlinks?: CardBacklinks;
-  card?: CardModalCard | null;
+  card?: ClientCard | null;
   cardId?: string | null;
   cardLinks?: CardLinkOptions;
   /** Copies an image card's picture, as the card's menu in a grid does. */
@@ -778,7 +760,7 @@ export function CardModal({
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);
-  const TypeIcon = getCardTypeIconComponent(card?.type as CardType | undefined);
+  const TypeIcon = cardTypeIcon(card?.type as CardType | undefined);
   const editedTitle = getCurrentValue("metadataTitle");
   const titleValue =
     card && editedTitle !== card.metadataTitle
@@ -787,7 +769,7 @@ export function CardModal({
   const showTitle = Boolean(
     heading &&
       (heading.editable || heading.title !== typeLabel) &&
-      !(card?.type === "text" || card?.type === "quote")
+      !hasEditableText(card?.type)
   );
   const addedLabel = card
     ? formatAddedDate(card.createdAt, undefined, {
@@ -1346,7 +1328,7 @@ export function CardModal({
                           />
                         </div>
                       ) : (
-                        <div className={stageContentClass(card)}>
+                        <div className={cardStageClass(card)}>
                           <CardPreview
                             card={card}
                             cardLinks={guardedCardLinks}

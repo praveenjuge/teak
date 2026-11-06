@@ -1,8 +1,8 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import type { ClientCard } from "@/lib/cardTypes";
 import type { LinkThumbnailControl } from "../../../hooks/useLinkThumbnail";
-import type { CardModalCard } from "../types";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -64,7 +64,7 @@ afterEach(async () => {
   window.localStorage.clear();
 });
 
-const linkCard = (extra: Partial<CardModalCard> = {}) =>
+const linkCard = (extra: Partial<ClientCard> = {}) =>
   ({
     _id: "card_1",
     _creationTime: 0,
@@ -76,7 +76,7 @@ const linkCard = (extra: Partial<CardModalCard> = {}) =>
     url: "https://example.com/lamp",
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 const thumbnailControl = (): LinkThumbnailControl => ({
   isBusy: false,
@@ -85,7 +85,7 @@ const thumbnailControl = (): LinkThumbnailControl => ({
 });
 
 async function render(
-  card: CardModalCard,
+  card: ClientCard,
   {
     copyImage,
     linkThumbnail = thumbnailControl(),
@@ -145,7 +145,7 @@ test("an image copies its picture from the open card, as it does from the grid",
       fileMetadata: { mimeType: "image/png" },
       type: "image",
       url: undefined,
-    } as Partial<CardModalCard>),
+    } as Partial<ClientCard>),
     { copyImage }
   );
   expect(
@@ -230,7 +230,7 @@ test("a replaced image can be reset from Details", async () => {
         height: 10,
         updatedAt: 1,
       },
-    } as Partial<CardModalCard>)
+    } as Partial<ClientCard>)
   );
   await act(() => panelProps?.image?.onReset?.());
   expect(linkThumbnail.reset).toHaveBeenCalledTimes(1);
@@ -244,7 +244,7 @@ test("Edit link sits beside the link's URL in Details, not in the menu", async (
 });
 
 test("a card in Trash has no actions, menu, Edit link or image actions", async () => {
-  await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
+  await render(linkCard({ isDeleted: true } as Partial<ClientCard>));
   expect(
     document.querySelector("button[aria-label='More actions']")
   ).toBeNull();
@@ -256,7 +256,7 @@ test("a card in Trash has no actions, menu, Edit link or image actions", async (
 
 test("a card in Trash says so in the sidebar, with Restore and Delete forever", async () => {
   const { runAction } = await render(
-    linkCard({ isDeleted: true } as Partial<CardModalCard>)
+    linkCard({ isDeleted: true } as Partial<ClientCard>)
   );
   // The sidebar also holds the (empty) save status, so read every status.
   const statuses = [...document.querySelectorAll("aside [role='status']")].map(
@@ -269,7 +269,7 @@ test("a card in Trash says so in the sidebar, with Restore and Delete forever", 
 });
 
 test("the sidebar leads with the title, then Open and the icon row", async () => {
-  await render(linkCard({ metadataTitle: "A lamp" } as Partial<CardModalCard>));
+  await render(linkCard({ metadataTitle: "A lamp" } as Partial<ClientCard>));
   const aside = document.querySelector("aside[aria-label='Card details']");
   expect(aside?.querySelector("textarea[aria-label='Title']")).toBeTruthy();
   expect(aside?.querySelector("h2")?.textContent).toBe("A lamp");
@@ -386,7 +386,7 @@ test.each([
         fileKey: "users/user_1/cards/card_1/file",
         type,
         url: undefined,
-      } as Partial<CardModalCard>)
+      } as Partial<ClientCard>)
     );
     await openMenu();
     expect(downloadControls().length > 0).toBe(offered);
@@ -405,7 +405,7 @@ test.each([
         isDeleted: true,
         type: "image",
         url,
-      } as Partial<CardModalCard>)
+      } as Partial<ClientCard>)
     );
     const aside = document.querySelector("aside[aria-label='Card details']");
     const download = Array.from(aside?.querySelectorAll("button") ?? []).find(
