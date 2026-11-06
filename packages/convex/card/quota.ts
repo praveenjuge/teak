@@ -96,12 +96,12 @@ export const getCardQuotaEntitlement = async (
       await deps.getSubscription(ctx, { userId })
     );
   } catch (error) {
-    // A billing outage must not refuse a paying user's save, so a failed
-    // lookup counts as Pro until it answers again.
-    console.error("[billing] subscription lookup failed; allowing the save", {
+    // Entitlement stays fail-closed: a lookup that keeps failing must not lift
+    // the free cap. The log makes the failure visible instead of silent.
+    console.error("[billing] subscription lookup failed; applying free limits", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return true;
+    return false;
   }
 };
 

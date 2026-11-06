@@ -176,7 +176,7 @@ describe("card/cardUsage.ts premium sharding", () => {
     }
   });
 
-  test("a billing lookup that fails doesn't refuse a save at the free limit", async () => {
+  test("a billing lookup that fails is logged and still applies the free limit", async () => {
     const db = makeDb();
     db.store.userCardUsage.push(saturatedUsage());
     const ctx = mockMutationCtx({ db });
@@ -185,15 +185,18 @@ describe("card/cardUsage.ts premium sharding", () => {
     console.error = (...args: unknown[]) => {
       errors.push(args);
     };
+    let error: unknown;
     try {
-      const { hasPremium } = await authorizeCardCreation(ctx, "premium-user", {
+      error = await authorizeCardCreation(ctx, "premium-user", {
         ...freeDeps(),
         getSubscription: () => Promise.reject(new Error("Polar is down")),
-      } as CardCreationDeps);
-      expect(hasPremium).toBe(true);
+      } as CardCreationDeps).catch((e) => e);
     } finally {
       console.error = originalError;
     }
+    expect((error as { data?: { code?: string } })?.data?.code).toBe(
+      "CARD_LIMIT_REACHED"
+    );
     expect(errors).toHaveLength(1);
     expect(String(errors[0]?.[0])).toContain("[billing]");
   });
