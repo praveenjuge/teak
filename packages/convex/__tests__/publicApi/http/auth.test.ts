@@ -17,6 +17,7 @@ import {
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { internal } from "../../../_generated/api";
 import { withAuthorizedUser } from "../../../publicApi/http/auth";
 import { publicApiV1 } from "../../../publicApi/http/router";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
@@ -445,7 +446,10 @@ describe("Connect consent checks", () => {
       mutations: () => calls(ctx.runMutation),
     };
   };
-  const read = ["workosConsents:readConnectConsent", principal];
+  const read = [
+    getFunctionName(internal.workosConsents.readConnectConsent),
+    principal,
+  ];
 
   test("a charged request for a recently seen consent only reads", async () => {
     const b = backend({
@@ -492,7 +496,7 @@ describe("Connect consent checks", () => {
       expect(auth).toMatchObject({ validated: { userId: "owner_1" } });
       expect(b.mutations()).toEqual([
         [
-          "workosConsents:authorizeConnectConsent",
+          getFunctionName(internal.workosConsents.authorizeConnectConsent),
           { ...principal, chargeRateLimit: false },
         ],
       ]);
@@ -513,7 +517,7 @@ describe("Connect consent checks", () => {
     expect(b.queries()).toEqual([]);
     expect(b.mutations()).toEqual([
       [
-        "workosConsents:authorizeConnectConsent",
+        getFunctionName(internal.workosConsents.authorizeConnectConsent),
         { ...principal, chargeRateLimit: true },
       ],
     ]);

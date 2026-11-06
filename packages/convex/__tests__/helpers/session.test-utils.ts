@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, mock } from "bun:test";
 import { getFunctionName } from "convex/server";
+import { internal } from "../../_generated/api";
 
 const TEST_CLIENT_ID = "client_sessiontests";
 const originalClientId = process.env.WORKOS_CLIENT_ID;
@@ -113,7 +114,7 @@ export const answerIdentityQuery = (
     return { handled: false };
   }
   if (
-    name === "securitySessions:identityMapping" &&
+    name === getFunctionName(internal.securitySessions.identityMapping) &&
     typeof args?.teakUserId === "string"
   ) {
     return {
@@ -128,7 +129,8 @@ export const answerIdentityQuery = (
     };
   }
   if (
-    name === "workosIdentity:resolveStoredWorkosOwner" &&
+    name ===
+      getFunctionName(internal.workosIdentity.resolveStoredWorkosOwner) &&
     typeof args?.teakUserId === "string"
   ) {
     return {
@@ -139,7 +141,7 @@ export const answerIdentityQuery = (
           : { status: "denied", reason: "deleted_user" },
     };
   }
-  if (name === "workosIdentity:resolveWorkosOwner") {
+  if (name === getFunctionName(internal.workosIdentity.resolveWorkosOwner)) {
     return {
       handled: true,
       value:

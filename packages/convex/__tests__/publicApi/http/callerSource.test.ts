@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";
+import { internal } from "../../../_generated/api";
 import { cardSourceForCaller } from "../../../publicApi/http/callerSource";
 import { executePublicApiOperation } from "../../../publicApi/http/router";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
@@ -43,7 +44,7 @@ const savedSource = (runMutation: ReturnType<typeof mock>) =>
   runMutation.mock.calls.find(
     (call: unknown[]) =>
       getFunctionName(call[0] as never) ===
-      "publicApi/cardsForUser:quickSaveForUser"
+      getFunctionName(internal.publicApi.cardsForUser.quickSaveForUser)
   )?.[1]?.cardSource;
 
 const createCtx = () => {

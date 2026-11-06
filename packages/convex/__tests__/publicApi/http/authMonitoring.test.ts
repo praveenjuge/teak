@@ -9,6 +9,7 @@ import {
 } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { internal } from "../../../_generated/api";
 import {
   validatePublicApiBearer,
   withAuthorizedUser,
@@ -18,6 +19,10 @@ import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import { runHandler } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
+const VALIDATE_KEY = getFunctionName(internal.apiKeys.validateUserApiKey);
+const INVALID_AUTH_LIMIT = getFunctionName(
+  internal.publicApi.consumeInvalidApiAuthLimit
+);
 const API_KEY =
   "teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 const VALID_KEY = {
@@ -105,7 +110,9 @@ describe("public API auth outcomes", () => {
 
   test("malformed bearer still charges the shared invalid-auth bucket", async () => {
     const ctx = backend({
-      "publicApi:consumeInvalidApiAuthLimit": { ok: true },
+      [INVALID_AUTH_LIMIT]: {
+        ok: true,
+      },
     });
     const auth = await withAuthorizedUser(ctx, request("garbage"));
     expect(rejection(auth).status).toBe(401);
@@ -119,8 +126,10 @@ describe("public API auth outcomes", () => {
   test("a revoked API key is an invalid credential", async () => {
     const auth = await withAuthorizedUser(
       backend({
-        "apiKeys:validateUserApiKey": null,
-        "publicApi:consumeInvalidApiAuthLimit": { ok: true },
+        [VALIDATE_KEY]: null,
+        [INVALID_AUTH_LIMIT]: {
+          ok: true,
+        },
       }),
       request(API_KEY)
     );
@@ -134,8 +143,8 @@ describe("public API auth outcomes", () => {
   test("an exhausted invalid-auth bucket keeps its 429", async () => {
     const auth = await withAuthorizedUser(
       backend({
-        "apiKeys:validateUserApiKey": null,
-        "publicApi:consumeInvalidApiAuthLimit": {
+        [VALIDATE_KEY]: null,
+        [INVALID_AUTH_LIMIT]: {
           ok: false,
           retryAt: Date.now() + 5000,
         },
@@ -152,7 +161,7 @@ describe("public API auth outcomes", () => {
   test("a valid key over its own rate limit keeps its 429", async () => {
     const auth = await withAuthorizedUser(
       backend({
-        "apiKeys:validateUserApiKey": {
+        [VALIDATE_KEY]: {
           ...VALID_KEY,
           rateLimit: { ok: false, retryAt: Date.now() + 5000 },
         },
@@ -168,7 +177,7 @@ describe("public API auth outcomes", () => {
 
   test("the MCP transport gate is logged once as a gate check", async () => {
     const error = await validatePublicApiBearer(
-      backend({ "apiKeys:validateUserApiKey": VALID_KEY }),
+      backend({ [VALIDATE_KEY]: VALID_KEY }),
       request(API_KEY, "/mcp"),
       "mcp"
     );
@@ -212,7 +221,7 @@ describe("public API auth outcomes", () => {
       );
       try {
         const auth = await withAuthorizedUser(
-          backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
+          backend({ [INVALID_AUTH_LIMIT]: { ok: true } }),
           request(connectToken(Math.floor(exp)))
         );
         expect(rejection(auth).status).toBe(401);
@@ -256,7 +265,7 @@ describe("public API auth outcomes", () => {
       .sign(keys.privateKey);
     try {
       const auth = await withAuthorizedUser(
-        backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
+        backend({ [INVALID_AUTH_LIMIT]: { ok: true } }),
         request(token)
       );
       expect(rejection(auth).status).toBe(401);
@@ -270,7 +279,7 @@ describe("public API auth outcomes", () => {
       // client refreshes it.
       const flooded = await withAuthorizedUser(
         backend({
-          "publicApi:consumeInvalidApiAuthLimit": {
+          [INVALID_AUTH_LIMIT]: {
             ok: false,
             retryAt: Date.now() + 5000,
           },
@@ -298,7 +307,7 @@ describe("public API auth outcomes", () => {
       "a validator that throws",
       () => undefined,
       {
-        "apiKeys:validateUserApiKey": new Error("db down"),
+        [VALIDATE_KEY]: new Error("db down"),
       },
       API_KEY,
       500,
@@ -308,7 +317,7 @@ describe("public API auth outcomes", () => {
       "per-key limiter contention",
       () => undefined,
       {
-        "apiKeys:validateUserApiKey": new Error(
+        [VALIDATE_KEY]: new Error(
           'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
         ),
       },
@@ -360,7 +369,7 @@ describe("public API auth outcomes", () => {
     });
     const auth = await withAuthorizedUser(
       backend({
-        "apiKeys:validateUserApiKey": VALID_KEY,
+        [VALIDATE_KEY]: VALID_KEY,
       }),
       request(API_KEY)
     );

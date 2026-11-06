@@ -1,10 +1,8 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
-const setup = () => convexTest(schema, modules);
+const setup = () => newBackend();
 type TestBackend = ReturnType<typeof setup>;
 const rows = (t: TestBackend) =>
   t.run((ctx) => ctx.db.query("users").take(200));

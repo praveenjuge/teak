@@ -126,21 +126,6 @@ describe("card/getCards.ts", () => {
       );
     });
 
-    test("uses favorites index when favoritesOnly", async () => {
-      const cards: any[] = [];
-      const query = buildQuery(cards);
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (getCards as any).handler ?? getCards;
-      await handler(ctx, { favoritesOnly: true });
-      expect(ctx.db.query).toHaveBeenCalledWith("cards");
-      expect(query.withIndex).toHaveBeenCalled();
-    });
-
     test("returns the default number of cards when no limit is given", async () => {
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

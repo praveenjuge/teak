@@ -1,5 +1,3 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -69,7 +67,6 @@ import {
   tags2000ScenarioCard,
 } from "../devSeed/volumeScenarios";
 import { readFolderCardCount } from "../folder/folderRows";
-import schema from "../schema";
 import { searchCardsByDocument } from "../search/searchReads";
 import { readAccountLocale } from "../settings/preferences";
 import {
@@ -81,12 +78,12 @@ import { buildRawSelectorMap } from "../shared/linkCategory/enrichment";
 import { getRawAttribute } from "../shared/linkCategory/providers/common";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
 import { filterLocalCards } from "../shared/search/localSearch";
+import { newBackend } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "teak_dev",
@@ -195,7 +192,7 @@ describe("pruning cloud dev accounts", () => {
   const CLOUD_EMAIL = "dev+cloud-0a1b2c3d-main@example.org";
 
   const withOwner = async (email: string, workosUserId: string) => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await ctx.db.insert("users", {
         teakUserId: `teak_${workosUserId}`,
@@ -2031,7 +2028,6 @@ describe("devSeed reader packs", () => {
       })
     );
     const t = await setup();
-    rateLimiterTest.register(t, "rateLimiterV2");
     const seed = (scenario: string) =>
       t.mutation(internal.devSeed.seedScenario, {
         workosUserId: WORKOS_USER_ID,

@@ -4,6 +4,7 @@ import type {
   FilesStoreOnboardingFilesParams,
 } from "@teak/files-protocol";
 import { getFunctionName } from "convex/server";
+import { internal } from "../../_generated/api";
 import { ONBOARDING_CARDS } from "../../card/defaultCards";
 import { addOnboardingCards } from "../../card/onboardingFiles";
 import { buildR2UserPrefix } from "../../storage/r2";
@@ -78,11 +79,13 @@ const coreWorkerFetch = mock(
 const ctx = {
   runMutation: mock((ref: unknown, args: Record<string, unknown>) => {
     const name = getFunctionName(ref as never);
-    if (name.endsWith("registerObjects")) {
+    if (name === getFunctionName(internal.storage.ownership.registerObjects)) {
       registered.push(args.keys as string[]);
       return Promise.resolve(registrationAllowed);
     }
-    if (name.endsWith("insertOnboardingCards")) {
+    if (
+      name === getFunctionName(internal.card.defaultCards.insertOnboardingCards)
+    ) {
       const insert = args as (typeof inserts)[number];
       if (failInsert && insert.stored.length > 0) {
         return Promise.reject(new Error("insert failed"));

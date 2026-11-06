@@ -1,5 +1,4 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import {
   buildEdgeRateLimitSigningPayload,
@@ -7,14 +6,11 @@ import {
   hmacSha256Hex,
 } from "@teak/files-protocol";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
-import schema from "../schema";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { newBackend, signIn } from "./helpers";
 
-const modules = import.meta.glob("../**/*.ts");
 const SECRET = "edge-rate-limit-test-secret";
 
 const sha256Hex = async (text: string): Promise<string> =>
@@ -53,19 +49,11 @@ afterEach(() => {
 });
 
 const exhaustedKey = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
-  const workosUserId = await seedWorkosOwner(t, "edge-limit-owner");
-  const client = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_edgelimit",
-    email_verified: true,
-    external_id: "edge-limit-owner",
-  });
+  const client = await signIn(t, "edge-limit-owner");
   const { key } = await client.mutation(api.apiKeys.createUserApiKey, {
     name: "Edge limit",
   });

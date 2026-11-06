@@ -1,13 +1,10 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { newBackend } from "./helpers";
 
 describe("vector shards", () => {
   test("places a new user on the current shard, in a namespace of their own", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     expect(
       await t.mutation(internal.vectorShards.assignVectorShard, {
         userId: "teak_user_a",
@@ -21,7 +18,7 @@ describe("vector shards", () => {
   });
 
   test("keeps a user on the shard they were first placed on", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) =>
       ctx.db.insert("vectorShards", { userId: "teak_user_a", shard: 3 })
     );
@@ -38,7 +35,7 @@ describe("vector shards", () => {
   });
 
   test("refuses a user id too long to be a Vectorize namespace", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await expect(
       t.mutation(internal.vectorShards.assignVectorShard, {
         userId: "x".repeat(65),
