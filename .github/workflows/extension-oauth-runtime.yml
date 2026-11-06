@@ -17,6 +17,7 @@ on:
       - packages/tests/src/stack/config.ts
       - scripts/dev/proc.ts
       - scripts/dev/worktree-env.ts
+      - scripts/dev/production-surfaces.ts
       - scripts/deployments.json
       - scripts/lib/stack-state.ts
       - scripts/lib/teak-account.ts
