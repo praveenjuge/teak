@@ -7,6 +7,7 @@ import {
   type DispatchRow,
   insertDispatch,
 } from "../workflowDispatch/outbox";
+import { accountDeletionNeedsOperator } from "./stages";
 
 /**
  * Each failed run is started again as a new attempt. Attempts are numbered
@@ -45,14 +46,6 @@ const RETRY_MAX_MS = 6 * 60 * 60 * 1000;
 
 export const accountDeletionRetryDelayMs = (failures: number): number =>
   Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** Math.max(0, failures - 1));
-
-/**
- * Failures another attempt can't fix: the storage being deleted changed
- * under the run. An operator resolves it, then runs
- * `accountDeletionJobs:retry`.
- */
-export const accountDeletionNeedsOperator = (failureCode?: string): boolean =>
-  failureCode?.endsWith("_storage_source_changed") === true;
 
 const consecutiveFailures = async (
   ctx: MutationCtx,

@@ -1109,7 +1109,7 @@ describe("analytics deletion", () => {
         ...binding,
         stage: 5,
       })
-    ).rejects.toThrow("deletion_posthog_status_503");
+    ).rejects.toThrow("deletion_posthog_failed:status_503");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await t.mutation(internal.accountDeletionJobs.recordFailure, {
       ...binding,
