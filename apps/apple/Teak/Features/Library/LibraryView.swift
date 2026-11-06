@@ -77,12 +77,14 @@ struct LibraryView: View {
                     #endif
                 Button(tr("common.cancel"), role: .cancel) { bulkTags = "" }
                 Button(tr("native.actions.addTags")) {
-                    let tags = CardEdit.adding(bulkTags, to: [])
+                    let parsed = BulkTags.parse(bulkTags)
+                    guard parsed.canAdd else { return }
                     bulkTags = ""
-                    Task { await library.run(.addTags, tags: tags) }
+                    Task { await library.run(.addTags, tags: parsed.tags) }
                 }
+                .disabled(!BulkTags.parse(bulkTags).canAdd)
             } message: {
-                Text(tr("native.bulk.tagsHint"))
+                Text(BulkTags.parse(bulkTags).error ?? tr("native.bulk.tagsHint"))
             }
             .sheet(isPresented: $pickingFolder) {
                 FolderPickerView(mode: .bulk(count: library.selection?.count ?? 0), folders: services.folders) { folder in

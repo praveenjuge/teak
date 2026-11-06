@@ -8,6 +8,7 @@ object BulkCopy {
         BulkAction.Archive -> UiText.of("native.bulk.done.archive", count = count)
         BulkAction.Unarchive -> UiText.of("native.bulk.done.unarchive", count = count)
         BulkAction.AddTags -> UiText.of("native.bulk.done.addTags", count = count)
+        BulkAction.RemoveTags -> UiText.of("native.bulk.done.removeTags", count = count)
         BulkAction.Delete -> UiText.of("native.bulk.done.delete", count = count)
         BulkAction.Restore -> UiText.of("native.bulk.done.restore", count = count)
         BulkAction.AddToFolder -> folder?.let { UiText.of("native.bulk.done.addToFolder", it, count = count) }
@@ -20,6 +21,7 @@ object BulkCopy {
         BulkAction.Archive -> UiText.of("native.bulk.failed.archive")
         BulkAction.Unarchive -> UiText.of("native.bulk.failed.unarchive")
         BulkAction.AddTags -> UiText.of("native.bulk.failed.addTags")
+        BulkAction.RemoveTags -> UiText.of("native.bulk.failed.removeTags")
         BulkAction.Delete -> UiText.of("native.bulk.failed.delete")
         BulkAction.Restore -> UiText.of("native.bulk.failed.restore")
         BulkAction.AddToFolder -> UiText.of("native.bulk.failed.addToFolder")
