@@ -1,6 +1,7 @@
 import { EDGE_IDENTITY_PATH, WORKFLOW_RPC_PATH } from "@teak/files-protocol";
 import { httpRouter, type PublicHttpAction } from "convex/server";
-import { polar, polarWebhookEvents } from "./billing";
+import { polarWebhookEvents } from "./billing";
+import { polar } from "./billing/polar";
 import { edgeIdentityV1 } from "./edgeIdentity";
 import { registerInboundRoutes } from "./inbound/http";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";

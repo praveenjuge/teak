@@ -107,6 +107,8 @@ const syncSubscription = (
   });
 
 beforeEach(() => {
+  // A deployment that sells plans has a Polar token.
+  vi.stubEnv("POLAR_ACCESS_TOKEN", "polar_test_token");
   polarSdk.customersCreate.mockClear();
   polarSdk.customersDelete.mockClear();
   polarSdk.checkoutsCreate.mockClear();

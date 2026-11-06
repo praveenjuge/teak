@@ -72,6 +72,7 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
+import { rateLimiter } from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
@@ -85,7 +86,6 @@ import {
   clampPublicApiLimit,
   PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
 } from "./shared/publicApiLimits";
-import { rateLimiter } from "./shared/rateLimits";
 import {
   isShuffleSeed,
   shuffleBySeed,

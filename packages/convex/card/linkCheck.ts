@@ -13,8 +13,8 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser, requireSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import {
   getSafeUrlHostname,
   sanitizeExternalUrl,

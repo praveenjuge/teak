@@ -8,14 +8,14 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { readWorkosConnectClients } from "./env";
 import {
   limitApiRequests,
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
-import { readWorkosConnectClients } from "./publicApi/http/meta";
+import { rateLimiter } from "./rateLimiter";
 import { getSessionUser } from "./securitySessions";
-import { rateLimiter } from "./shared/rateLimits";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { disconnectApplication } from "./workosApplicationDisconnect";
 import { resolveOwner } from "./workosIdentity";

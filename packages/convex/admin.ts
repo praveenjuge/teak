@@ -34,7 +34,7 @@ import {
   writeAdminSettings,
   writeAudit,
 } from "./adminAccess";
-import { readHasPremium } from "./auth";
+import { readHasPremium } from "./billing/polar";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { patchCard } from "./card/cardWrites";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";

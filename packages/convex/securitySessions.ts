@@ -7,6 +7,7 @@ import {
   internalQuery,
   type QueryCtx,
 } from "./_generated/server";
+import { readWorkosClientId } from "./env";
 import { workosIssuer } from "./shared/workosApi";
 import {
   WORKOS_CLIENT_ID,
@@ -64,20 +65,26 @@ export function readWorkosSessionIdentity(
     : null;
 }
 
-export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
-  let identity: UserIdentity | null;
+/**
+ * The caller's identity, or null when there is none. Convex throws
+ * "Unauthenticated" for a token it can't verify, which is the same as none.
+ */
+async function readCallerIdentity(
+  ctx: Pick<ActionCtx, "auth">
+): Promise<UserIdentity | null> {
   try {
-    identity = await ctx.auth.getUserIdentity();
+    return await ctx.auth.getUserIdentity();
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthenticated") {
       return null;
     }
     throw error;
   }
-  const claims = readWorkosSessionClaims(
-    identity,
-    process.env.WORKOS_CLIENT_ID ?? ""
-  );
+}
+
+export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
+  const identity = await readCallerIdentity(ctx);
+  const claims = readWorkosSessionClaims(identity, readWorkosClientId());
   return claims
     ? {
         ...claims,
@@ -147,22 +154,11 @@ export interface SessionUser {
 export async function getSessionUser(
   ctx: SessionCtx
 ): Promise<SessionUser | null> {
-  let identity: UserIdentity | null;
-  try {
-    identity = await ctx.auth.getUserIdentity();
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
+  const identity = await readCallerIdentity(ctx);
   if (!identity) {
     return null;
   }
-  const principal = readWorkosSessionIdentity(
-    identity,
-    process.env.WORKOS_CLIENT_ID ?? ""
-  );
+  const principal = readWorkosSessionIdentity(identity, readWorkosClientId());
   if (!principal) {
     return null;
   }
@@ -291,13 +287,10 @@ export const revokeOtherAuthkitSessions = action({
 });
 
 export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
-  const identity = await ctx.auth.getUserIdentity();
+  const identity = await readCallerIdentity(ctx);
   if (!identity) {
     return null;
   }
-  const claims = readWorkosSessionIdentity(
-    identity,
-    process.env.WORKOS_CLIENT_ID ?? ""
-  );
+  const claims = readWorkosSessionIdentity(identity, readWorkosClientId());
   return claims ? { workosUserId: claims.workosUserId } : null;
 }

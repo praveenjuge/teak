@@ -13,9 +13,9 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
 import { INBOUND_ATTACHMENT_PATH, INBOUND_EMAIL_PATH } from "../inbound/http";
+import { rateLimiter } from "../rateLimiter";
 import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
-import { rateLimiter } from "../shared/rateLimits";
 
 const modules = import.meta.glob("../**/*.ts");
 const SECRET = "inbound-test-secret";

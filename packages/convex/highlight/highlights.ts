@@ -17,6 +17,7 @@ import {
 import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
+import { rateLimiter } from "../rateLimiter";
 import { highlightValidator } from "../schema/validators/cards";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
@@ -33,7 +34,7 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { queueBackendEvent } from "../telemetry/schedule";
 

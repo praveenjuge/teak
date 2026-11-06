@@ -10,13 +10,14 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import type { thumbnailOverrideValidator } from "../schema/validators/cards";
 import {
   requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   THUMBNAIL_ERROR_MESSAGES,
   THUMBNAIL_MAX_BYTES,

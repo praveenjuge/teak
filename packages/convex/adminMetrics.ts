@@ -28,8 +28,8 @@ import {
   utcDay,
 } from "./admin/stats";
 import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
-import { createPolarClient, readCustomerSubscriptions } from "./adminBilling";
-import { readHasPremium } from "./auth";
+import { readCustomerSubscriptions } from "./adminBilling";
+import { polarApi, readHasPremium } from "./billing/polar";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { queueMaintenanceWorkflow } from "./workflowDispatch/outbox";
 
@@ -187,7 +187,7 @@ export const readSnapshotBilling = internalAction({
   handler: async (
     ctx
   ): Promise<{ billing: SnapshotBilling | null; isComplete: boolean }> => {
-    const polar = createPolarClient();
+    const polar = polarApi();
     if (!polar) {
       return { billing: null, isComplete: true };
     }

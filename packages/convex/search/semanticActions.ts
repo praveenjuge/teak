@@ -9,8 +9,8 @@ import {
   readUserVectorShard,
   userVectorNamespace,
 } from "../embedding/userVectors";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import {
   SEMANTIC_TOP_K,

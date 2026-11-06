@@ -4,9 +4,10 @@ import {
   parseWorkosApiBase,
   workosIssuer,
 } from "../../shared/workosApi";
-import { workosRequest, workosUserPath } from "../../shared/workosClient";
+import { workosRequest, workosUserPath } from "../../workos/client";
 
 const originalBase = process.env.WORKOS_API_BASE_URL;
+const originalKey = process.env.WORKOS_API_KEY;
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -14,6 +15,11 @@ afterEach(() => {
     delete process.env.WORKOS_API_BASE_URL;
   } else {
     process.env.WORKOS_API_BASE_URL = originalBase;
+  }
+  if (originalKey === undefined) {
+    delete process.env.WORKOS_API_KEY;
+  } else {
+    process.env.WORKOS_API_KEY = originalKey;
   }
   globalThis.fetch = originalFetch;
 });
@@ -69,7 +75,8 @@ describe("workosRequest", () => {
         Response.json({ message: "not found" }, { status: 404 })
       );
     }) as typeof fetch;
-    await workosRequest(workosUserPath("user_123"), "sk_test_default");
+    process.env.WORKOS_API_KEY = "sk_test_default";
+    await workosRequest(workosUserPath("user_123"));
     return new URL(requested);
   };
 
@@ -78,6 +85,13 @@ describe("workosRequest", () => {
     const url = await requestedUrl();
     expect(url.origin).toBe("https://api.workos.com");
     expect(url.pathname).toBe("/user_management/users/user_123");
+  });
+
+  test("refuses to call without an API key", () => {
+    delete process.env.WORKOS_API_KEY;
+    expect(() => workosRequest(workosUserPath("user_123"))).toThrow(
+      "workos_api_key_missing"
+    );
   });
 
   test("calls the configured loopback emulator", async () => {

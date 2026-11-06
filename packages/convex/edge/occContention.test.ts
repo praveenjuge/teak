@@ -39,6 +39,7 @@ import {
   analyticsShardForRequest,
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "../idempotencyAnalytics";
+import { rateLimiter } from "../rateLimiter";
 import schema from "../schema";
 import { getSearchResultLimit } from "../search/searchCards";
 import {
@@ -47,7 +48,7 @@ import {
 } from "../search/searchReads";
 import type { TeakUserId } from "../securitySessions";
 import { FREE_TIER_LIMIT } from "../shared/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   buildCardSearchTags,
   buildCardSearchText,

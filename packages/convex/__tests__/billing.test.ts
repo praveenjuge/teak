@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 
 const mockCustomersCreate = mock().mockResolvedValue({ id: "cust_1" });
@@ -16,6 +16,20 @@ mock.module("@polar-sh/sdk", () => ({
     customerSessions = { create: mockCustomerSessionsCreate };
   },
 }));
+
+// A deployment that sells plans has a Polar token; without one, checkout
+// and the portal refuse before calling Polar.
+const originalToken = process.env.POLAR_ACCESS_TOKEN;
+beforeEach(() => {
+  process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
+});
+afterEach(() => {
+  if (originalToken === undefined) {
+    delete process.env.POLAR_ACCESS_TOKEN;
+  } else {
+    process.env.POLAR_ACCESS_TOKEN = originalToken;
+  }
+});
 
 describe("billing.ts", () => {
   test("createCheckoutLinkHandler captures checkout start", async () => {
@@ -62,7 +76,8 @@ describe("billing.ts", () => {
 
   test("createCustomerPortalHandler captures portal open", async () => {
     const module = await import("../billing");
-    module.polar.getCurrentSubscription = mock().mockResolvedValue({
+    const { polar } = await import("../billing/polar");
+    polar.getCurrentSubscription = mock().mockResolvedValue({
       status: "active",
       customerId: "cust_1",
     });

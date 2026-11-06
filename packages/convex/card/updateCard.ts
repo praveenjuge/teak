@@ -6,6 +6,7 @@ import {
   mutation,
 } from "../_generated/server";
 import { truncateCardTitle } from "../publicApi/validation";
+import { rateLimiter } from "../rateLimiter";
 import {
   requireSessionUser,
   requireTeakUserId,
@@ -13,7 +14,7 @@ import {
 } from "../securitySessions";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   explainInvalidCardTags,
   normalizeTagList,

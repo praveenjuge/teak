@@ -40,15 +40,9 @@ export const isLoopbackOrigin = (value: string | undefined) => {
   }
 };
 
-// Function code may read the optional variable directly; auth config may not.
-export const workosApiBase = () =>
-  parseWorkosApiBase(process.env.WORKOS_API_BASE_URL);
-
 export const isWorkosProductionApi = (base: URL) =>
   base.origin === PRODUCTION_ORIGIN;
 
 // AuthKit tokens always name api.workos.com as their issuer.
 export const workosIssuer = (clientId: string) =>
   `${PRODUCTION_ORIGIN}/user_management/${clientId}`;
-
-export const workosApiUrl = (path: string) => new URL(path, workosApiBase());

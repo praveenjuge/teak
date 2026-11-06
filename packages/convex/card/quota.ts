@@ -1,31 +1,24 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion/gate";
-import { polar } from "../billing";
-import { readBillingDisabled } from "../env";
+import { readCardEntitlement, type SubscriptionLookup } from "../billing/polar";
+import { rateLimiter } from "../rateLimiter";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
-import { isApprovedActiveSubscription } from "../shared/polarPlans";
-import { rateLimiter } from "../shared/rateLimits";
 import { ensureCardUsageShards, getCardUsageSnapshot } from "./cardUsage";
 
 export interface CardQuotaDeps {
-  getSubscription: (
-    ctx: MutationCtx,
-    args: { userId: string }
-  ) => Promise<{ productId?: string; status?: string } | null | undefined>;
+  getSubscription?: SubscriptionLookup;
 }
 
 interface CardCreationDeps extends CardQuotaDeps {
   rateLimiter: Pick<typeof rateLimiter, "limit">;
 }
 
-const defaultQuotaDeps: CardQuotaDeps = {
-  getSubscription: (ctx, args) => polar.getCurrentSubscription(ctx, args),
-};
+const defaultQuotaDeps: CardQuotaDeps = {};
 
 const defaultCardCreationDeps: CardCreationDeps = {
   ...defaultQuotaDeps,
@@ -88,24 +81,7 @@ export const getCardQuotaEntitlement = async (
   deps: CardQuotaDeps = defaultQuotaDeps
 ) => {
   await assertAccountNotDeleting(ctx, userId);
-  if (readBillingDisabled()) {
-    return true;
-  }
-  try {
-    return isApprovedActiveSubscription(
-      await deps.getSubscription(ctx, { userId })
-    );
-  } catch (error) {
-    // Entitlement stays fail-closed: a lookup that keeps failing must not lift
-    // the free cap. The log makes the failure visible instead of silent.
-    console.error(
-      "[billing] subscription lookup failed; applying free limits",
-      {
-        error: error instanceof Error ? error.message : String(error),
-      }
-    );
-    return false;
-  }
+  return await readCardEntitlement(ctx, userId, deps.getSubscription);
 };
 
 export const authorizeCardCreation = async (

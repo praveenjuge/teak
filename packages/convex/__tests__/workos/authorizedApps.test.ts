@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
@@ -6,8 +6,17 @@ import {
 import { asFetch } from "../helpers/convex.test-utils";
 
 const originalFetch = globalThis.fetch;
+const originalKey = process.env.WORKOS_API_KEY;
+beforeEach(() => {
+  process.env.WORKOS_API_KEY = "test-key";
+});
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  if (originalKey === undefined) {
+    delete process.env.WORKOS_API_KEY;
+  } else {
+    process.env.WORKOS_API_KEY = originalKey;
+  }
 });
 
 const stubProvider = (respond: () => Response) => {
@@ -31,9 +40,9 @@ test("a page longer than the requested limit is rejected", async () => {
       })),
     })
   );
-  await expect(
-    listAuthorizedAppsPage("user_TEST", "test-key", page)
-  ).rejects.toThrow("workos_authorized_apps_invalid");
+  await expect(listAuthorizedAppsPage("user_TEST", page)).rejects.toThrow(
+    "workos_authorized_apps_invalid"
+  );
   expect(requests.map(({ url }) => url.searchParams.get("limit"))).toEqual([
     "10",
   ]);
@@ -43,7 +52,7 @@ test.each(["conn_app_TEST", "connect_app_01M40P8YVQV6ED9DCMYM0BYZG0"])(
   "deletes the exact supported app ID %s",
   async (appId) => {
     const requests = stubProvider(() => new Response(null, { status: 204 }));
-    await deleteAuthorizedApp("user_TEST", appId, "test-key", 1000);
+    await deleteAuthorizedApp("user_TEST", appId, 1000);
     expect(
       requests.map(({ method, url }) => `${method} ${url.pathname}`)
     ).toEqual([
@@ -62,11 +71,11 @@ test.each([
   const requests = stubProvider(() =>
     Response.json({ data: [{ application: { id: appId } }] })
   );
-  await expect(
-    listAuthorizedAppsPage("user_TEST", "test-key", page)
-  ).rejects.toThrow("workos_authorized_apps_invalid");
-  await expect(
-    deleteAuthorizedApp("user_TEST", appId, "test-key", 1000)
-  ).rejects.toThrow("workos_authorized_apps_invalid");
+  await expect(listAuthorizedAppsPage("user_TEST", page)).rejects.toThrow(
+    "workos_authorized_apps_invalid"
+  );
+  await expect(deleteAuthorizedApp("user_TEST", appId, 1000)).rejects.toThrow(
+    "workos_authorized_apps_invalid"
+  );
   expect(requests.map(({ method }) => method)).toEqual(["GET"]);
 });

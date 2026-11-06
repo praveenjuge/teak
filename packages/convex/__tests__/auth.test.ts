@@ -60,10 +60,10 @@ describe("auth", () => {
     CARD_ERROR_CODES = constantsModule.CARD_ERROR_CODES;
     FREE_TIER_LIMIT = constantsModule.FREE_TIER_LIMIT;
 
-    const billingModule = await import("../billing");
+    const billingModule = await import("../billing/polar");
     polar = billingModule.polar;
 
-    const rateLimitsModule = await import("../shared/rateLimits");
+    const rateLimitsModule = await import("../rateLimiter");
     rateLimiter = rateLimitsModule.rateLimiter;
   });
 

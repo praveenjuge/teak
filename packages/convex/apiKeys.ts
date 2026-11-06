@@ -14,9 +14,9 @@ import {
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
+import { rateLimiter } from "./rateLimiter";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
-import { rateLimiter } from "./shared/rateLimits";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
 export const API_KEY_NAME_MAX_LENGTH = 64;

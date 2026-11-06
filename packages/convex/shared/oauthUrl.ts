@@ -1,4 +1,4 @@
-import { isLocalDevelopmentHostname } from "../devUrls";
+import { isLocalDevelopmentHostname } from "./localHosts";
 
 export const isLoopbackHostname = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname) || hostname === "[::1]";

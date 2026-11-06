@@ -445,7 +445,7 @@ describe("publicApi", () => {
   });
 
   test("executeBulkCardsForUser preserves explicit text and enforces its byte limit", async () => {
-    const billingModule = await import("../billing");
+    const billingModule = await import("../billing/polar");
     const originalGetSubscription = billingModule.polar.getCurrentSubscription;
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
 
