@@ -16,7 +16,7 @@ After a card is saved, Teak works on it in the background: it settles the card's
 ## How to get to it (user POV)
 
 - Save a card anywhere (the composer, the API, the CLI, MCP, the extension). Its tags and summary appear on the card in the library, and in the card dialog, within seconds.
-- The run itself is not shown to users. On the local E2E stack, the Core Worker serves Cloudflare's Local Explorer at `http://127.0.0.1:4102/cdn-cgi/local/explorer` (a browser UI) and its REST API at `/cdn-cgi/local/explorer/api` (the OpenAPI document is the API root).
+- The run itself is not shown to users. On the local E2E stack, the Core Worker serves Cloudflare's Local Explorer at `http://127.0.0.1:<coreWorker>/cdn-cgi/local/explorer` (`ports.coreWorker` in `bun run dev --status --json`) (a browser UI) and its REST API at `/cdn-cgi/local/explorer/api` (the OpenAPI document is the API root).
 
 ## Driving it with the API and Local Explorer
 
@@ -25,7 +25,7 @@ Preconditions:
 - The local E2E stack, which runs the Core Worker under `wrangler dev --local`: `bun run dev --stop`, then `bun run --cwd packages/tests e2e:stack` as a background command (it prints "E2E stack is up"). Ports are in `.agents/.state/stack.json` (`ports.coreWorker`, `urls.apiOrigin`); a worktree has its own. The shared dev deployment's Worker runs on Cloudflare, so these steps don't reach it.
 - An emulator account with an API key: call `createApiAccount("verify")` from `packages/tests/src/helpers/app.ts` in a short `bun --no-env-file` script, and keep the key in `.agents/.state/verify/<run-id>/`.
 
-Steps (with `X=http://127.0.0.1:4102/cdn-cgi/local/explorer/api` and `API=http://127.0.0.1:3211`):
+Steps (with `X=http://127.0.0.1:<coreWorker>/cdn-cgi/local/explorer/api` and `API=<apiOrigin>`, from `ports.coreWorker` and `stack.urls.apiOrigin` in `bun run dev --status --json`):
 
 - **Save.** `curl -X POST $API/v1/cards -H "Authorization: Bearer $KEY" -H 'content-type: application/json' -d '{"content":"verify-<run-id> sourdough starter notes"}'`. The response has `cardId`, and `processingStatus.classify` and `.metadata` are `pending`.
 - **Run.** `curl $X/workflows/teak-e2e-card-processing/instances`: an instance `card-<cardId>-1` is `running`, then `complete`. `curl $X/workflows/teak-e2e-card-processing/instances/card-<cardId>-1`: `result.steps` lists "load card", "classify", "generate metadata", "emit completion" and "report complete", each `success: true`, and `result.output` is `{"mode":"completed", …, "metadata":{"aiTagsCount":4,"hasSummary":true, …}}`. The same from Wrangler, run in `apps/core-worker`: `bunx wrangler workflows instances describe teak-e2e-card-processing latest --local --port 4102` (step outputs and timing as tables).

@@ -38,7 +38,7 @@ import {
 import { auditDotenv } from "../env/dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "../env/env-audit.ts";
 import { validateWebEnvContent } from "../env/validate-env.ts";
-import { isStackRunning, readStackState } from "../lib/stack-state.ts";
+import { currentStack } from "../lib/stack-state.ts";
 import { listDeploymentVarNames } from "./setup-convex.ts";
 
 const ROOT = join(import.meta.dir, "../..");
@@ -424,8 +424,8 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
     worktree.namespace === "main"
       ? "main checkout"
       : `worktree ${worktree.namespace}`;
-  const running = readStackState(ROOT);
-  if (running && isStackRunning(running)) {
+  const { phase, state: running } = currentStack(ROOT);
+  if (running && (phase === "ready" || phase === "starting")) {
     return {
       detail: `this checkout's stack is running at ${running.urls.appOrigin} (${scope})`,
       id: "ports",

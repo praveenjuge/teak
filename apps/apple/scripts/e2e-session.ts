@@ -1,85 +1,21 @@
-import { randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+/**
+ * Prints the launch environment that signs the app in to this checkout's
+ * running E2E stack as a fresh emulator account:
+ *   bun --no-env-file run apps/apple/scripts/e2e-session.ts
+ * With `--runner-env`, prints the stack's URLs as shell exports for
+ * apps/apple/scripts/ui-tests.sh instead.
+ */
+
+import { EMULATOR_CLIENT_ID } from "../../../packages/tests/src/stack/config.ts";
 import {
-  EMULATOR_API_KEY,
-  EMULATOR_CLIENT_ID,
-} from "../../../packages/tests/src/stack/config";
+  createSession,
+  type E2eSession,
+  loadE2eStack,
+} from "../../../scripts/lib/e2e-session.ts";
 
-const statePath = resolve(
-  import.meta.dir,
-  "../../../.agents/.state/stack.json"
-);
+export { loopbackUrl } from "../../../scripts/lib/e2e-session.ts";
 
-export const loadStack = async () => {
-  const state = JSON.parse(await readFile(statePath, "utf8")) as {
-    mode?: string;
-    ready?: boolean;
-    urls: { appOrigin: string; convexUrl: string; emulatorOrigin: string };
-  };
-  if (state.mode !== "e2e" || !state.ready) {
-    throw new Error(
-      "Start the E2E stack first: bun run --cwd packages/tests e2e:stack"
-    );
-  }
-  return state.urls;
-};
-
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-export const loopbackUrl = (path: string, origin: string) => {
-  const url = new URL(path, origin);
-  if (!LOOPBACK_HOSTS.has(url.hostname)) {
-    throw new Error(
-      `The E2E emulator must run on this machine, not ${url.hostname}`
-    );
-  }
-  return url;
-};
-
-const emulator = async (origin: string, path: string, body: unknown) => {
-  const response = await fetch(loopbackUrl(path, origin), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${EMULATOR_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Emulator ${path} failed: ${response.status}`);
-  }
-  return response.json();
-};
-
-export const createSession = async (label = "apple") => {
-  const urls = await loadStack();
-  const email = `e2e-${label}-${Date.now()}-${randomBytes(4).toString("hex")}@example.org`;
-  const password = `Teak-${randomBytes(12).toString("hex")}-Aa1`;
-  await emulator(urls.emulatorOrigin, "/user_management/users", {
-    email,
-    email_verified: true,
-    first_name: "Teak",
-    last_name: "Test",
-    password,
-  });
-  const response = await emulator(
-    urls.emulatorOrigin,
-    "/user_management/authenticate",
-    {
-      client_id: EMULATOR_CLIENT_ID,
-      client_secret: EMULATOR_API_KEY,
-      email,
-      grant_type: "password",
-      password,
-    }
-  );
-  return { urls, email, response };
-};
-
-export const launchEnvironment = (
-  session: Awaited<ReturnType<typeof createSession>>
-) => ({
+export const launchEnvironment = (session: E2eSession) => ({
   TeakConvexURL: session.urls.convexUrl,
   TeakWorkOSURL: session.urls.emulatorOrigin,
   TeakWebURL: session.urls.appOrigin,
@@ -90,9 +26,34 @@ export const launchEnvironment = (
   ),
 });
 
+const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+/** The XCUITest runner's environment: the stack's URLs, as shell exports. */
+export const runnerExports = (urls: {
+  appOrigin: string;
+  convexUrl: string;
+  emulatorOrigin?: string;
+}): string =>
+  [
+    ["TEST_RUNNER_TEAK_E2E_CONVEX_URL", urls.convexUrl],
+    ["TEST_RUNNER_TEAK_E2E_EMULATOR_URL", urls.emulatorOrigin ?? ""],
+    ["TEST_RUNNER_TEAK_E2E_WEB_URL", urls.appOrigin],
+  ]
+    .map(([name, value]) => `export ${name}=${shellQuote(value)}`)
+    .join("\n");
+
 if (import.meta.main) {
-  const session = await createSession();
-  for (const [key, value] of Object.entries(launchEnvironment(session))) {
-    console.log(`${key}=${value}`);
+  if (process.argv.includes("--runner-env")) {
+    try {
+      console.log(runnerExports(loadE2eStack().urls));
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  } else {
+    const session = await createSession("apple");
+    for (const [key, value] of Object.entries(launchEnvironment(session))) {
+      console.log(`${key}=${value}`);
+    }
   }
 }

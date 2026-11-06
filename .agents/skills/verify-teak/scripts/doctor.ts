@@ -18,10 +18,7 @@ import {
   leaseStatus,
 } from "../../../../scripts/dev/convex-push-lease.ts";
 import { runCommand } from "../../../../scripts/dev/proc.ts";
-import {
-  isStackRunning,
-  readStackState,
-} from "../../../../scripts/lib/stack-state.ts";
+import { currentStack } from "../../../../scripts/lib/stack-state.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
 
@@ -219,19 +216,19 @@ const checkLog = (logPath: string) => {
 };
 
 const main = async () => {
-  const state = readStackState(ROOT);
+  const { phase, state } = currentStack(ROOT);
   if (!state) {
     report("fail", "stack: not running. Start it with `bun run dev --detach`.");
     return;
   }
-  if (!isStackRunning(state)) {
+  if (phase === "gone") {
     report(
       "fail",
       `stack: recorded pid ${state.pid} is gone. Run \`bun run dev --stop\`, then \`bun run dev --detach\`.`
     );
     return;
   }
-  if (!state.ready) {
+  if (phase === "starting") {
     report(
       "fail",
       "stack: still starting. Wait for `bun run dev --detach` to return."

@@ -82,12 +82,10 @@ jobs:
       - name: Start the E2E stack
         run: |
           bun run --cwd packages/tests e2e:stack > "$RUNNER_TEMP/stack.out" 2>&1 &
-          for _ in $(seq 1 180); do
-            grep -q '"ready": true' .agents/.state/stack.json 2>/dev/null && exit 0
-            sleep 2
-          done
-          cat "$RUNNER_TEMP/stack.out"
-          exit 1
+          if ! bun run dev --status --wait; then
+            cat "$RUNNER_TEMP/stack.out"
+            exit 1
+          fi
       - name: iPhone flows
         run: |
           device="$(xcrun simctl list devices available | grep -oE 'iPhone 1[0-9] Pro \(' | head -1 | sed 's/ ($//')"

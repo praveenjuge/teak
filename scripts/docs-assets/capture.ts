@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   type BrowserContext,
@@ -6,6 +6,7 @@ import {
   type Locator,
   type Page,
 } from "playwright-core";
+import { currentStack } from "../lib/stack-state.ts";
 import {
   browserPath,
   CACHE,
@@ -38,12 +39,13 @@ interface Prepared {
   markers?: Locator[];
 }
 
-const stack = JSON.parse(
-  readFileSync(path.join(root, ".agents/.state/stack.json"), "utf8")
-) as {
-  account: { email: string; password: string };
-  urls: { appOrigin: string };
-};
+const { phase, state: stack } = currentStack(root);
+if (!(stack?.account && phase === "ready")) {
+  throw new Error(
+    "Start this checkout's dev stack first: bun run dev --detach (its seeded account signs in)."
+  );
+}
+const account = stack.account;
 const app = stack.urls.appOrigin;
 
 /** Docs show a made-up person, never the stack's account or its devices. */
@@ -89,14 +91,14 @@ const signIn = async (context: BrowserContext) => {
   const email = page.getByRole("textbox", { name: "Email" });
   await email.or(page.getByRole("heading", { name: "Everything" })).waitFor();
   if (await email.isVisible()) {
-    await email.fill(stack.account.email);
+    await email.fill(account.email);
     await page
       .getByRole("button", { name: /^Continue/ })
       .first()
       .click();
     await page
       .getByRole("textbox", { name: "Password" })
-      .fill(stack.account.password);
+      .fill(account.password);
     // Hosted WorkOS says "Sign in"; the local stack's emulator, "Continue".
     await page.getByRole("button", { name: /^(Sign in|Continue)$/ }).click();
     await page
