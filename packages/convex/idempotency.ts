@@ -52,13 +52,13 @@ export const IDEMPOTENCY_PENDING_LEASE_MS = 10 * 60 * 1000;
 
 // A handler presents its lease's token to complete or release the key, so one
 // whose lease lapsed and was taken over can't touch the newer reservation.
-// Calls without a token come from handlers started before tokens existed.
 const holdsLease = (
   record: { leaseToken?: string; state: string },
   leaseToken: string | undefined
 ) =>
-  leaseToken === undefined ||
-  (record.state === "pending" && record.leaseToken === leaseToken);
+  leaseToken !== undefined &&
+  record.state === "pending" &&
+  record.leaseToken === leaseToken;
 
 const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) =>
   ctx.db

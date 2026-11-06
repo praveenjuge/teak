@@ -16,19 +16,38 @@ const request = {
   userId: "idempotency-user",
 };
 
-const begin = (t: ReturnType<typeof convexTest>, overrides = {}) =>
-  t.mutation(internal.idempotency.beginIdempotencyRequestForUser, {
-    ...request,
-    ...overrides,
-  });
+// The handler holding a reservation presents its lease token, as the
+// public API does; the helpers default to the latest one begin handed out.
+const leases = new WeakMap<object, string>();
+
+const begin = async (t: ReturnType<typeof convexTest>, overrides = {}) => {
+  const reservation = await t.mutation(
+    internal.idempotency.beginIdempotencyRequestForUser,
+    { ...request, ...overrides }
+  );
+  if (reservation.status === "started" && reservation.record.leaseToken) {
+    leases.set(t, reservation.record.leaseToken);
+  }
+  return reservation;
+};
 
 const complete = (t: ReturnType<typeof convexTest>, overrides = {}) =>
   t.mutation(internal.idempotency.completeIdempotencyRequestForUser, {
     keyHash: request.keyHash,
+    leaseToken: leases.get(t),
     requestHash: request.requestHash,
     responseBody: { cardId: "card_1", status: "created" },
     responseStatus: 201,
     ttlMs: TTL_MS,
+    userId: request.userId,
+    ...overrides,
+  });
+
+const release = (t: ReturnType<typeof convexTest>, overrides = {}) =>
+  t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
+    keyHash: request.keyHash,
+    leaseToken: leases.get(t),
+    requestHash: request.requestHash,
     userId: request.userId,
     ...overrides,
   });
@@ -131,12 +150,7 @@ describe("idempotency keys", () => {
       leaseToken: stale.record.leaseToken,
       responseBody: { cardId: "stale" },
     });
-    await t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
-      keyHash: request.keyHash,
-      leaseToken: stale.record.leaseToken,
-      requestHash: request.requestHash,
-      userId: request.userId,
-    });
+    await release(t, { leaseToken: stale.record.leaseToken });
     expect((await begin(t)).status).toBe("in_progress");
 
     await complete(t, { leaseToken: current.record.leaseToken });
@@ -148,15 +162,20 @@ describe("idempotency keys", () => {
     });
   });
 
+  test("a call without the lease token can't complete or release the reservation", async () => {
+    const t = convexTest(schema, modules);
+    await begin(t);
+
+    await complete(t, { leaseToken: undefined, responseBody: { cardId: "x" } });
+    await release(t, { leaseToken: undefined });
+    expect((await begin(t)).status).toBe("in_progress");
+  });
+
   test("releasing a pending request lets the client retry from scratch", async () => {
     const t = convexTest(schema, modules);
 
     await begin(t);
-    await t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
-      keyHash: request.keyHash,
-      requestHash: request.requestHash,
-      userId: request.userId,
-    });
+    await release(t);
 
     expect((await begin(t)).status).toBe("started");
   });
@@ -166,11 +185,7 @@ describe("idempotency keys", () => {
 
     await begin(t);
     await complete(t);
-    await t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
-      keyHash: request.keyHash,
-      requestHash: request.requestHash,
-      userId: request.userId,
-    });
+    await release(t);
 
     expect((await begin(t)).status).toBe("replay");
   });

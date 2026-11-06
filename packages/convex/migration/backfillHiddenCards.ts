@@ -3,9 +3,8 @@ import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion/gate";
 import { HIDDEN_TAG_KEYS, isHiddenTagList, tagKey } from "../shared/tags";
+import { backfillArgs, backfillReturns, runBackfillPage } from "./runner";
 
-const DEFAULT_BATCH_SIZE = 100;
-const MAX_BATCH_SIZE = 200;
 /**
  * Most user ids carried from batch to batch to count affected users: a
  * Convex array holds at most 8,192 values. Past it, the count is a floor.
@@ -42,127 +41,92 @@ const emptyTotals = (): Totals => ({
 
 export const backfillHiddenCards = internalMutation({
   args: {
-    cursor: v.optional(v.union(v.string(), v.null())),
-    dryRun: v.optional(v.boolean()),
-    batchSize: v.optional(v.number()),
-    once: v.optional(v.boolean()),
-    totals: v.optional(totalsValidator),
+    ...backfillArgs(totalsValidator),
     affectedUserIds: v.optional(v.array(v.string())),
   },
-  returns: v.object({
-    dryRun: v.boolean(),
-    isDone: v.boolean(),
-    continueCursor: v.union(v.string(), v.null()),
-    continuationScheduled: v.boolean(),
-    batch: totalsValidator,
-    totals: totalsValidator,
-  }),
-  handler: async (ctx, args) => {
-    const dryRun = args.dryRun ?? true;
-    const batchSize = Math.min(
-      MAX_BATCH_SIZE,
-      Math.max(1, Math.floor(args.batchSize ?? DEFAULT_BATCH_SIZE))
-    );
-    const page = await ctx.db
-      .query("cards")
-      .paginate({ cursor: args.cursor ?? null, numItems: batchSize });
-
+  returns: backfillReturns(totalsValidator),
+  handler: (ctx, args) => {
     const affectedUserIds = new Set(args.affectedUserIds ?? []);
-    const batch = emptyTotals();
-    const batchUsers = new Set<string>();
-    const accountDeleting = createAccountDeletionGate(ctx);
-    for (const card of page.page) {
-      batch.examined += 1;
-      const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
-      if (isHidden) {
-        batch.hiddenCards += 1;
-        batchUsers.add(card.userId);
-        const keys = new Set((card.tags ?? []).map(tagKey));
-        for (const key of HIDDEN_TAG_KEYS) {
-          if (keys.has(key)) {
-            batch.tags[key] += 1;
+    let affectedUsersCapped = args.totals?.affectedUsersCapped === true;
+    return runBackfillPage(ctx, args, {
+      // Users are counted by ID across pages, up to MAX_TRACKED_USERS.
+      add: (previous: Totals, batch: Totals): Totals => ({
+        examined: previous.examined + batch.examined,
+        hiddenCards: previous.hiddenCards + batch.hiddenCards,
+        cardsToUpdate: previous.cardsToUpdate + batch.cardsToUpdate,
+        searchDocumentsToUpdate:
+          previous.searchDocumentsToUpdate + batch.searchDocumentsToUpdate,
+        skippedDeletingAccounts:
+          previous.skippedDeletingAccounts + batch.skippedDeletingAccounts,
+        tags: {
+          secret: previous.tags.secret + batch.tags.secret,
+          hidden: previous.tags.hidden + batch.tags.hidden,
+        },
+        affectedUsers: affectedUserIds.size,
+        ...(affectedUsersCapped ? { affectedUsersCapped: true } : {}),
+      }),
+      empty: emptyTotals,
+      name: "backfillHiddenCards",
+      read: (cursor, numItems) =>
+        ctx.db.query("cards").paginate({ cursor, numItems }),
+      self: internal["migration/backfillHiddenCards"].backfillHiddenCards,
+      visit: async (cards, batch, dryRun) => {
+        const batchUsers = new Set<string>();
+        const accountDeleting = createAccountDeletionGate(ctx);
+        for (const card of cards) {
+          batch.examined += 1;
+          const isHidden = isHiddenTagList(card.tags)
+            ? (true as const)
+            : undefined;
+          if (isHidden) {
+            batch.hiddenCards += 1;
+            batchUsers.add(card.userId);
+            const keys = new Set((card.tags ?? []).map(tagKey));
+            for (const key of HIDDEN_TAG_KEYS) {
+              if (keys.has(key)) {
+                batch.tags[key] += 1;
+              }
+            }
+          }
+          const searchDocument = await ctx.db
+            .query("cardSearchDocuments")
+            .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
+            .unique();
+          const cardChanges = card.isHidden !== isHidden;
+          const documentChanges =
+            searchDocument !== null && searchDocument.isHidden !== isHidden;
+          if (!(cardChanges || documentChanges)) {
+            continue;
+          }
+          if (await accountDeleting(card.userId)) {
+            batch.skippedDeletingAccounts += 1;
+            continue;
+          }
+          if (cardChanges) {
+            batch.cardsToUpdate += 1;
+            if (!dryRun) {
+              await ctx.db.patch("cards", card._id, { isHidden });
+            }
+          }
+          if (documentChanges && searchDocument) {
+            batch.searchDocumentsToUpdate += 1;
+            if (!dryRun) {
+              await ctx.db.patch("cardSearchDocuments", searchDocument._id, {
+                isHidden,
+              });
+            }
           }
         }
-      }
-      const searchDocument = await ctx.db
-        .query("cardSearchDocuments")
-        .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-        .unique();
-      const cardChanges = card.isHidden !== isHidden;
-      const documentChanges =
-        searchDocument !== null && searchDocument.isHidden !== isHidden;
-      if (!(cardChanges || documentChanges)) {
-        continue;
-      }
-      if (await accountDeleting(card.userId)) {
-        batch.skippedDeletingAccounts += 1;
-        continue;
-      }
-      if (cardChanges) {
-        batch.cardsToUpdate += 1;
-        if (!dryRun) {
-          await ctx.db.patch("cards", card._id, { isHidden });
+        batch.affectedUsers = batchUsers.size;
+        for (const userId of batchUsers) {
+          if (affectedUserIds.size < MAX_TRACKED_USERS) {
+            affectedUserIds.add(userId);
+          } else if (!affectedUserIds.has(userId)) {
+            affectedUsersCapped = true;
+          }
         }
-      }
-      if (documentChanges && searchDocument) {
-        batch.searchDocumentsToUpdate += 1;
-        if (!dryRun) {
-          await ctx.db.patch("cardSearchDocuments", searchDocument._id, {
-            isHidden,
-          });
-        }
-      }
-    }
-    batch.affectedUsers = batchUsers.size;
-    let affectedUsersCapped = args.totals?.affectedUsersCapped === true;
-    for (const userId of batchUsers) {
-      if (affectedUserIds.size < MAX_TRACKED_USERS) {
-        affectedUserIds.add(userId);
-      } else if (!affectedUserIds.has(userId)) {
-        affectedUsersCapped = true;
-      }
-    }
-
-    const previous = args.totals ?? emptyTotals();
-    const totals: Totals = {
-      examined: previous.examined + batch.examined,
-      hiddenCards: previous.hiddenCards + batch.hiddenCards,
-      cardsToUpdate: previous.cardsToUpdate + batch.cardsToUpdate,
-      searchDocumentsToUpdate:
-        previous.searchDocumentsToUpdate + batch.searchDocumentsToUpdate,
-      skippedDeletingAccounts:
-        previous.skippedDeletingAccounts + batch.skippedDeletingAccounts,
-      tags: {
-        secret: previous.tags.secret + batch.tags.secret,
-        hidden: previous.tags.hidden + batch.tags.hidden,
+        return { affectedUserIds: [...affectedUserIds] };
       },
-      affectedUsers: affectedUserIds.size,
-      ...(affectedUsersCapped ? { affectedUsersCapped: true } : {}),
-    };
-    const isDone = page.isDone;
-    const continuationScheduled = !(isDone || args.once);
-    if (continuationScheduled) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal["migration/backfillHiddenCards"].backfillHiddenCards,
-        {
-          cursor: page.continueCursor,
-          dryRun,
-          batchSize,
-          totals,
-          affectedUserIds: [...affectedUserIds],
-        }
-      );
-    } else if (isDone) {
-      console.log("backfillHiddenCards finished", { dryRun, ...totals });
-    }
-    return {
-      dryRun,
-      isDone,
-      continueCursor: isDone ? null : page.continueCursor,
-      continuationScheduled,
-      batch,
-      totals,
-    };
+    });
   },
 });
