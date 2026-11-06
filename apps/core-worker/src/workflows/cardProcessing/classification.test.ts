@@ -652,6 +652,29 @@ describe("classification step", () => {
       expect(result.type).toBe("link");
     });
 
+    test.each([
+      "https://www.example.com/report.pdf",
+      "https://example.com/report.pdf/",
+      "https://example.com/report.pdf?utm_source=newsletter",
+      "http://example.com/report.pdf#page=2",
+    ])(
+      "a link saved as %p, a form of its PDF URL, stays a link",
+      async (content) => {
+        // Convex saved it as a bare link (isBareLinkContent), so classification
+        // must not turn it into a document.
+        givenCard({
+          _id: "c1",
+          content,
+          type: "link",
+          url: "https://example.com/report.pdf",
+        });
+
+        const result = await classifyCompletedWith(mockRunMutation);
+
+        expect(result.type).toBe("link");
+      }
+    );
+
     test("classifies content-only bare URL as link when url field is set", async () => {
       const card = {
         _id: "c1",

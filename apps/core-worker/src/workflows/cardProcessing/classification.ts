@@ -1,6 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
+import { isBareLinkContent } from "@teak/convex/shared/utils/bareLink";
 import {
   isCardTypeDecisionType,
   readCardTypeDecision,
@@ -143,12 +144,14 @@ const decideClassification = async (
   const { type: resultType, confidence: resultConfidence } =
     reviewed ?? deterministicClassify(card);
 
-  const trimmedContent =
-    typeof card.content === "string" ? card.content.trim() : "";
+  // The same test the save made: text that is only the link, in any form.
   const urlOnlyCard =
     !!card.url &&
     !card.fileKey &&
-    (trimmedContent.length === 0 || trimmedContent === card.url);
+    isBareLinkContent(
+      typeof card.content === "string" ? card.content : "",
+      card.url
+    );
 
   const normalizedType: CardType =
     urlOnlyCard && resultType !== "link" ? "link" : resultType;
