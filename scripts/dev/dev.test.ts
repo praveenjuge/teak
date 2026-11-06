@@ -456,16 +456,17 @@ describe("statusReport", () => {
   });
 
   test("names the account but leaves its password in the state file", () => {
+    const sample = "sample-sign-in-word";
     const report = statusReport(ports, {
       phase: "ready",
       state: {
         ...recorded,
-        account: { email: "a@b.test", password: "pw-secret" },
-        notes: ["Sign in as a@b.test / pw-secret (WorkOS staging)."],
+        account: { email: "a@b.test", password: sample },
+        notes: [`Sign in as a@b.test / ${sample} (WorkOS staging).`],
       },
     });
     expect(report.stack?.account).toEqual({ email: "a@b.test" });
-    expect(JSON.stringify(report)).not.toContain("pw-secret");
+    expect(JSON.stringify(report)).not.toContain(sample);
     expect(report.stack?.notes).toEqual([
       "Sign in as a@b.test / <in .agents/.state/stack.json> (WorkOS staging).",
     ]);
