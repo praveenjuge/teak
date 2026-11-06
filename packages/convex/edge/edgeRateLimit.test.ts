@@ -4,6 +4,7 @@ import counterTest from "@convex-dev/sharded-counter/test";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_HEADER,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
@@ -12,7 +13,6 @@ import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
 import schema from "../schema";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { hmacSha256Hex } from "../storage/r2Keys";
 
 const modules = import.meta.glob("../**/*.ts");
 const SECRET = "edge-rate-limit-test-secret";

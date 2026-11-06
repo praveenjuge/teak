@@ -1,20 +1,20 @@
 /// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
+import {
+  buildInboundEmailSigningPayload,
+  hmacSha256Hex,
+  sha256Hex,
+} from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import { accountDeletionStage } from "../accountDeletion/stages";
-import {
-  INBOUND_ATTACHMENT_PATH,
-  INBOUND_EMAIL_PATH,
-  inboundSigningPayload,
-} from "../inbound/http";
+import { INBOUND_ATTACHMENT_PATH, INBOUND_EMAIL_PATH } from "../inbound/http";
 import schema from "../schema";
 import { FREE_TIER_LIMIT } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
-import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 
 const modules = import.meta.glob("../**/*.ts");
 const SECRET = "inbound-test-secret";
@@ -82,7 +82,7 @@ const signedPost = async (
     "content-type": "application/json",
     "x-teak-signature": await hmacSha256Hex(
       secret,
-      inboundSigningPayload(path, timestamp, await sha256Hex(body))
+      buildInboundEmailSigningPayload(path, timestamp, await sha256Hex(body))
     ),
     "x-teak-timestamp": timestamp,
   },

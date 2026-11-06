@@ -1,5 +1,5 @@
 import {
-  gatedBucket,
+  gatedEnv,
   ObjectWriteBlockedError,
   objectIsFrozen,
 } from "./deletionGate";
@@ -15,16 +15,21 @@ export {
   MaintenanceWorkflow,
 } from "./workflows/entrypoints";
 
-import { PAGE_ARCHIVE_ROLE } from "@teak/convex/shared/pageArchive";
 import {
-  buildMultipartPartSigningPayload,
   FILES_EDGE_CACHE_CONTROL,
   FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
+  FILES_MULTIPART_PART_PATH,
+  FILES_OP_PATH,
   FILES_PRIVATE_CACHE_CONTROL,
-  FILES_PROTOCOL_VERSION,
+  FILES_UPLOAD_PATH,
   type FilesErrorCode,
+  filesErrorEnvelope,
+  multipartPartLimit,
+  PAGE_ARCHIVE_ROLE,
   parseCardObjectKey,
+  SIGNED_REQUEST_HEADERS,
+  verifyMultipartPartUrl,
 } from "@teak/files-protocol";
 import { PAGE_ARCHIVE_CONTENT_SECURITY_POLICY } from "./archive/inline";
 import { convexSiteUrls } from "./convexRpc";
@@ -39,15 +44,10 @@ import {
   handleImageRequest,
   handleImageSourceRequest,
 } from "./images/imageTransform";
-import {
-  parseSingleByteRange,
-  verifyHmacPayload,
-  verifySignedFileRequest,
-} from "./lib";
+import { parseSingleByteRange, verifySignedFileRequest } from "./lib";
 import { handleInternalOp } from "./ops";
 import { handleQueueBatch } from "./queues";
 import { handleScheduled } from "./scheduled/cron";
-import { retryingReads } from "./storage/r2Retry";
 import { handleSignedUpload } from "./storage/upload";
 import { reportUnhandledError } from "./telemetry";
 import type { BackgroundEnv } from "./workflows/runtime";
@@ -71,7 +71,10 @@ const json = (data: unknown, status = 200): Response =>
     },
   });
 
-const multipartError = (
+const requestIdOf = (request: Request): string =>
+  request.headers.get(SIGNED_REQUEST_HEADERS.requestId) ?? crypto.randomUUID();
+
+const signedUrlError = (
   requestId: string,
   code: FilesErrorCode,
   message: string,
@@ -79,11 +82,7 @@ const multipartError = (
   retryable = false
 ): Response => {
   const response = json(
-    {
-      error: { code, message, requestId, retryable },
-      ok: false,
-      version: FILES_PROTOCOL_VERSION,
-    },
+    filesErrorEnvelope({ code, message, requestId, retryable }),
     status
   );
   allowAnyOriginForSignedUrl(response.headers);
@@ -94,8 +93,8 @@ const methodNotAllowed = (
   request: Request,
   allow: "POST" | "PUT"
 ): Response => {
-  const response = multipartError(
-    request.headers.get("x-teak-request-id") ?? crypto.randomUUID(),
+  const response = signedUrlError(
+    requestIdOf(request),
     "INVALID_INPUT",
     `Method must be ${allow}`,
     405
@@ -126,85 +125,24 @@ const corsPreflight = (): Response => {
 
 /** The Cache API's largest object; export archives reach 5 GB. */
 const EDGE_CACHE_MAX_BYTES = 512 * 1024 * 1024;
-const MULTIPART_URL_MAX_TTL_SECONDS = 60 * 60;
-const MULTIPART_MAX_PART_BYTES = 16 * 1024 * 1024;
 
 const handleMultipartPart = async (
   request: Request,
   env: Env,
   url: URL
 ): Promise<Response> => {
-  const requestId =
-    request.headers.get("x-teak-request-id") ?? crypto.randomUUID();
-  const match = /^\/__uploads\/v1\/([^/]+)\/(\d+)$/u.exec(url.pathname);
-  const key = url.searchParams.get("key");
-  const expiresAt = url.searchParams.get("exp");
-  const signature = url.searchParams.get("sig");
-  const boundSizeText = url.searchParams.get("sz");
-  const boundSize = boundSizeText === null ? null : Number(boundSizeText);
-  if (!(match && key && expiresAt && signature)) {
-    return multipartError(
-      requestId,
-      "AUTH_INVALID",
-      "Request authentication failed",
-      401
-    );
+  const requestId = requestIdOf(request);
+  const part = await verifyMultipartPartUrl(env.FILES_SIGNING_SECRET, url);
+  if (!part.ok) {
+    return signedUrlError(requestId, part.code, part.message, part.status);
   }
-  let uploadId = "";
-  try {
-    uploadId = decodeURIComponent(match[1] ?? "");
-  } catch {
-    // A malformed escape cannot name a signed upload; refused below.
-  }
-  const partNumber = Number.parseInt(match[2] ?? "", 10);
-  const expiry = Number.parseInt(expiresAt, 10);
-  const now = Math.floor(Date.now() / 1000);
-  if (
-    !(uploadId && Number.isSafeInteger(partNumber)) ||
-    partNumber < 1 ||
-    partNumber > 100 ||
-    !Number.isSafeInteger(expiry) ||
-    String(expiry) !== expiresAt ||
-    expiry < now ||
-    (boundSize !== null &&
-      (!Number.isSafeInteger(boundSize) ||
-        boundSize <= 0 ||
-        boundSize > 64 * 1024 * 1024 ||
-        String(boundSize) !== boundSizeText)) ||
-    expiry > now + (boundSize === null ? MULTIPART_URL_MAX_TTL_SECONDS : 86_400)
-  ) {
-    return multipartError(
-      requestId,
-      expiry < now ? "AUTH_EXPIRED" : "AUTH_INVALID",
-      "Request authentication failed",
-      expiry < now ? 410 : 403
-    );
-  }
-  const valid = await verifyHmacPayload(
-    env.FILES_SIGNING_SECRET,
-    buildMultipartPartSigningPayload({
-      expiresAt,
-      key,
-      partNumber,
-      uploadId,
-      size: boundSize,
-    }),
-    signature
-  );
-  if (!valid) {
-    return multipartError(
-      requestId,
-      "AUTH_INVALID",
-      "Request authentication failed",
-      403
-    );
-  }
+  const { key, partNumber, size: boundSize, uploadId } = part;
   const contentLength = Number.parseInt(
     request.headers.get("content-length") ?? "",
     10
   );
   if (!(request.body && Number.isSafeInteger(contentLength))) {
-    return multipartError(
+    return signedUrlError(
       requestId,
       "INVALID_INPUT",
       "Multipart part Content-Length is required",
@@ -213,11 +151,10 @@ const handleMultipartPart = async (
   }
   if (
     contentLength <= 0 ||
-    contentLength >
-      (boundSize === null ? MULTIPART_MAX_PART_BYTES : boundSize) ||
+    contentLength > multipartPartLimit(boundSize) ||
     (boundSize !== null && contentLength !== boundSize)
   ) {
-    return multipartError(
+    return signedUrlError(
       requestId,
       "PAYLOAD_TOO_LARGE",
       "Multipart part size is invalid",
@@ -237,7 +174,7 @@ const handleMultipartPart = async (
     return new Response(null, { status: 204, headers });
   } catch (error) {
     if (error instanceof ObjectWriteBlockedError) {
-      return multipartError(
+      return signedUrlError(
         requestId,
         "CONFLICT",
         "Object writes are blocked",
@@ -248,7 +185,7 @@ const handleMultipartPart = async (
       error: error instanceof Error ? error.message : String(error),
       partNumber,
     });
-    return multipartError(
+    return signedUrlError(
       requestId,
       "INTERNAL",
       "Multipart upload failed",
@@ -391,29 +328,23 @@ const handler = {
     if (!bindings.OBJECT_GATES) {
       return json({ error: "object_gate_not_configured" }, 503);
     }
-    const env = {
-      ...bindings,
-      BUCKET: gatedBucket({
-        ...bindings,
-        BUCKET: retryingReads(bindings.BUCKET),
-      }),
-    };
+    const env = gatedEnv(bindings);
 
-    if (url.pathname === "/__ops/v1") {
+    if (url.pathname === FILES_OP_PATH) {
       if (requestMethod !== "POST") {
         return methodNotAllowed(request, "POST");
       }
       return await handleInternalOp(request, env, ctx);
     }
 
-    if (url.pathname.startsWith("/__uploads/v1/")) {
+    if (url.pathname.startsWith(`${FILES_MULTIPART_PART_PATH}/`)) {
       if (requestMethod !== "PUT") {
         return methodNotAllowed(request, "PUT");
       }
       return await handleMultipartPart(request, env, url);
     }
 
-    if (url.pathname.startsWith("/__upload/v1/")) {
+    if (url.pathname.startsWith(`${FILES_UPLOAD_PATH}/`)) {
       if (requestMethod !== "PUT") {
         return methodNotAllowed(request, "PUT");
       }

@@ -232,7 +232,7 @@ describe("transcribePodcastEpisode", () => {
 
   test("audio the worker declines gets no transcript and is deleted", async () => {
     const ctx = setup(podcastCard(), {
-      processAudio: { fallback: "UNSUPPORTED_TYPE", message: "undecodable" },
+      processAudio: { declined: "UNSUPPORTED_TYPE", message: "undecodable" },
     });
 
     expect(await ctx.run()).toEqual({

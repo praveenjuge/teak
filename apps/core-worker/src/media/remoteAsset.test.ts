@@ -1,14 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  FILES_PROTOCOL_VERSION,
-} from "@teak/files-protocol";
 import { FETCHER_HEADERS } from "../../fetcher/src/protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
-import { type FilesOpsEnv, handleInternalOp } from "../ops";
+import { runOp } from "../test/opsHarness";
 import { FakeBucket, JPEG_BYTES } from "../test/testsupport";
 
-const SECRET = "test-secret";
+const _SECRET = "test-secret";
 const KEY = "users/u1/cards/c1/link-preview-image/abc";
 
 interface FetcherCall {
@@ -41,46 +36,16 @@ const storeAsset = async (
 ) => {
   const bucket = new FakeBucket();
   const pool = fetcherPool(answer);
-  const body = JSON.stringify({
-    op: "store-remote-asset",
-    params,
-    version: FILES_PROTOCOL_VERSION,
-  });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const response = await handleInternalOp(
-    new Request("https://files.teakvault.com/__ops/v1", {
-      body,
-      headers: {
-        "x-teak-expires-at": expiresAt,
-        "x-teak-request-id": requestId,
-        "x-teak-signature": await hmacSha256Hex(
-          SECRET,
-          buildFilesOpSigningPayload({
-            bodySha256: await sha256Hex(body),
-            expiresAt,
-            requestId,
-          })
-        ),
-      },
-      method: "POST",
-    }),
+  const { body, status } = await runOp(
     {
       BUCKET: bucket as never,
-      FILES_SIGNING_SECRET: SECRET,
       LINK_FETCHER: pool.namespace,
       LINK_FETCHER_INSTANCES: "2",
-    } as FilesOpsEnv
-  );
-  return {
-    body: (await response.json()) as {
-      data?: Record<string, unknown>;
-      error?: { code: string; retryable: boolean };
     },
-    bucket,
-    calls: pool.calls,
-    status: response.status,
-  };
+    "store-remote-asset",
+    params
+  );
+  return { body, bucket, calls: pool.calls, status };
 };
 
 const imageResponse = () =>

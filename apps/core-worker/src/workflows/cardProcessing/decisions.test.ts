@@ -78,7 +78,7 @@ describe("decisions in card steps", () => {
   });
 
   test("a declined op is no decision", async () => {
-    const { result } = await decide({ fallback: "UNSUPPORTED" });
+    const { result } = await decide({ declined: "UNSUPPORTED" });
     expect(result).toBeNull();
   });
 

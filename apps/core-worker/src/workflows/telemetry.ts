@@ -3,6 +3,7 @@ import {
   createPostHogBatch,
   type PostHogBatch,
 } from "@teak/convex/shared/posthog";
+import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
 import packageJson from "../../package.json";
 import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
 import { reportBackgroundError, type TelemetryEnvVars } from "../telemetry";
@@ -124,7 +125,12 @@ export const emitCardProcessingCompleted = (
     return Promise.resolve();
   });
 
+/** An op error is judged by its code; anything else by its message. */
 export const isRetryableBackgroundError = (error: unknown): boolean => {
+  const code = filesOpErrorCode(error);
+  if (code) {
+    return isTransientFilesOpCode(code);
+  }
   const message = error instanceof Error ? error.message : String(error);
   return /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b|stale_processing_revision|card_missing/iu.test(
     message

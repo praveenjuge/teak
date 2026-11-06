@@ -1,7 +1,6 @@
 import {
   type AnalyticsEventItem,
   accountDeletionInstanceId,
-  buildWorkflowDispatchSigningPayload,
   cardProcessingInstanceId,
   type DispatchItem,
   type DispatchResult,
@@ -12,6 +11,7 @@ import {
   MAX_DISPATCH_ITEMS,
   type MaintenanceParams,
   normalizeConvexSiteUrl,
+  signDispatchProof,
   type WorkflowName,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
@@ -44,15 +44,10 @@ import { importStagedPartKeys } from "./import/indexItems";
 import { articleSkipReason } from "./shared/article";
 import { pageArchiveSkipReason } from "./shared/pageArchive";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "./storage/filesWorkerClient";
-import {
-  getR2KeyPrefix,
-  hmacSha256Hex,
-  isR2KeyInNamespace,
-  sha256Hex,
-} from "./storage/r2Keys";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "./storage/coreWorkerClient";
+import { getR2KeyPrefix, isR2KeyInNamespace } from "./storage/r2Keys";
 import { reportFromMutation } from "./telemetry/alerts";
 import { captureBackendException } from "./telemetry/posthog";
 
@@ -539,26 +534,6 @@ export const release = internalMutation({
   },
 });
 
-const DISPATCH_PROOF_TTL_SECONDS = 120;
-
-export const signDispatch = async (
-  secret: string,
-  convexSiteUrl: string,
-  items: DispatchItem[],
-  now = Date.now()
-): Promise<{ expiresAt: string; signature: string }> => {
-  const expiresAt = String(Math.floor(now / 1000) + DISPATCH_PROOF_TTL_SECONDS);
-  const signature = await hmacSha256Hex(
-    secret,
-    buildWorkflowDispatchSigningPayload({
-      convexSiteUrl,
-      expiresAt,
-      itemsSha256: await sha256Hex(JSON.stringify(items)),
-    })
-  );
-  return { expiresAt, signature };
-};
-
 export const flush = internalAction({
   args: { claimRetry: v.optional(v.number()) },
   returns: v.null(),
@@ -566,7 +541,7 @@ export const flush = internalAction({
     // Convex sets CONVEX_SITE_URL for every deployment; workflows call it back.
     const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
     const secret = env.WORKFLOW_RPC_SECRET;
-    if (!(isFilesWorkerConfigured() && convexSiteUrl && secret)) {
+    if (!(isCoreWorkerConfigured() && convexSiteUrl && secret)) {
       const waiting: boolean = await ctx.runQuery(
         internal.workflowDispatch.hasPending,
         {}
@@ -577,7 +552,7 @@ export const flush = internalAction({
           {
             properties: {
               convex_site_url: Boolean(convexSiteUrl),
-              files_worker: isFilesWorkerConfigured(),
+              files_worker: isCoreWorkerConfigured(),
               rpc_secret: Boolean(secret),
             },
           }
@@ -634,14 +609,13 @@ export const flush = internalAction({
       let error = "dispatch_rejected";
       try {
         const items = claimed.map(({ item }) => item);
-        const outcome = await callFilesWorkerJson<DispatchResult>({
+        const outcome = await callCoreWorkerOp<DispatchResult>({
           op: "dispatch",
           params: {
             convexSiteUrl,
             items,
-            ...(await signDispatch(secret, convexSiteUrl, items)),
+            ...(await signDispatchProof({ convexSiteUrl, items, secret })),
           },
-          timeoutMs: 60_000,
         });
         if (outcome.kind === "declined") {
           failedIds = retryable();

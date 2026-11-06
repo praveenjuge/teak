@@ -2,7 +2,7 @@ import { internal } from "@teak/convex/_generated/api";
 import { buildRawSelectorMap } from "@teak/convex/workflows/steps/categorization/enrichment";
 import { resolveEnclosure } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import { gatedEnv } from "../filesOps";
+import { gatedEnv } from "../../deletionGate";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
   type GeneratedMetadata,

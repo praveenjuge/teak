@@ -1,14 +1,14 @@
 import {
   type AnalyticsEventItem,
-  buildWorkflowDispatchSigningPayload,
   type DispatchItem,
   type DispatchItemResult,
   type DispatchResult,
+  isValidObjectKey,
   isWorkflowInstanceId,
   isWorkflowName,
   MAX_DISPATCH_DELETE_KEYS,
   MAX_DISPATCH_ITEMS,
-  WORKFLOW_RPC_MAX_TTL_SECONDS,
+  verifyDispatchProof,
   type WorkflowName,
 } from "@teak/files-protocol";
 import {
@@ -16,9 +16,8 @@ import {
   type ConvexRpcEnv,
   workflowRpcSecret,
 } from "../convexRpc";
-import { sha256Hex, verifyHmacPayload } from "../lib";
+import { InvalidOpInput } from "../opFailure";
 import { sendInBatches } from "../queues/sendBatch";
-import { isValidUploadKey } from "../storage/upload";
 import { sendBackendEvents, type TelemetryEnvVars } from "../telemetry";
 
 export interface ObjectDeletionMessage {
@@ -128,7 +127,7 @@ const parseItem = (record: unknown): DispatchItem | null => {
       !Array.isArray(keys) ||
       keys.length === 0 ||
       keys.length > MAX_DISPATCH_DELETE_KEYS ||
-      keys.some((key) => typeof key !== "string" || !isValidUploadKey(key))
+      keys.some((key) => typeof key !== "string" || !isValidObjectKey(key))
     ) {
       return null;
     }
@@ -167,48 +166,30 @@ export const parseDispatchItems = (params: Record<string, unknown>) => {
     items.length === 0 ||
     items.length > MAX_DISPATCH_ITEMS
   ) {
-    throw new Error("invalid_dispatch_items");
+    throw new InvalidOpInput("invalid_dispatch_items");
   }
   return items.map(parseItem);
 };
 
-/**
- * Whether the dispatching deployment signed these items with its own
- * workflow RPC secret. The files signing secret that authenticated the op is
- * shared with development, so it alone can't say which deployment sent it.
- */
 const hasValidDispatchProof = async (
   env: WorkflowBindingsEnv,
   convexSiteUrl: string,
   params: Record<string, unknown>,
   now: number
 ): Promise<boolean> => {
-  const { expiresAt, items, signature } = params;
-  if (typeof expiresAt !== "string" || typeof signature !== "string") {
-    return false;
-  }
-  const expiry = Number(expiresAt);
-  const nowSeconds = Math.floor(now / 1000);
-  if (
-    !Number.isSafeInteger(expiry) ||
-    String(expiry) !== expiresAt ||
-    expiry < nowSeconds ||
-    expiry > nowSeconds + WORKFLOW_RPC_MAX_TTL_SECONDS
-  ) {
-    return false;
-  }
   const secret = await workflowRpcSecret(env, convexSiteUrl);
-  if (!secret) {
-    return false;
-  }
-  return await verifyHmacPayload(
-    secret,
-    buildWorkflowDispatchSigningPayload({
+  return (
+    secret !== null &&
+    (await verifyDispatchProof(
+      secret,
       convexSiteUrl,
-      expiresAt,
-      itemsSha256: await sha256Hex(JSON.stringify(items)),
-    }),
-    signature
+      {
+        expiresAt: params.expiresAt,
+        items: params.items,
+        signature: params.signature,
+      },
+      Math.floor(now / 1000)
+    ))
   );
 };
 
@@ -236,10 +217,10 @@ export const runDispatch = async (
 ): Promise<DispatchResult> => {
   const convexSiteUrl = allowedConvexSiteUrl(env, params.convexSiteUrl);
   if (!convexSiteUrl) {
-    throw new Error("invalid_convex_site_url");
+    throw new InvalidOpInput("invalid_convex_site_url");
   }
   if (!(await hasValidDispatchProof(env, convexSiteUrl, params, now))) {
-    throw new Error("invalid_dispatch_proof");
+    throw new InvalidOpInput("invalid_dispatch_proof");
   }
   const items = parseDispatchItems(params);
   const results: DispatchItemResult[] = items.map((item, index) => ({

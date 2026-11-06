@@ -1,11 +1,11 @@
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_PATH,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import schema from "../schema";
-import { hmacSha256Hex } from "../storage/r2Keys";
 
 const modules = import.meta.glob("../**/*.ts");
 const SECRET = "edge-identity-test-secret";

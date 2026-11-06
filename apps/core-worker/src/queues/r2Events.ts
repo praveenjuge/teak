@@ -1,4 +1,5 @@
-import { callFilesOp, type FilesOpOutcome } from "../workflows/filesOps";
+import type { FilesOpOutcome } from "@teak/files-protocol";
+import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 
 export interface R2EventNotification {

@@ -16,6 +16,7 @@ import {
 import { createContainerPinnedFetch } from "./media/pinnedHop";
 import type { RemoteAssetEnv } from "./media/remoteAsset";
 import { RendererUnavailable } from "./media/rendererClient";
+import { InvalidOpInput } from "./opFailure";
 
 // The `check-link` op: is a saved link's page still there? It answers `dead`
 // only for a 404 or 410 after redirects, or a domain that no longer exists.
@@ -41,7 +42,7 @@ export const parseLinkCheckParams = (
     url.length > FILES_LINK_CHECK_MAX_URL_LENGTH ||
     !/^https?:\/\//iu.test(url)
   ) {
-    throw new Error("invalid_link_check_params");
+    throw new InvalidOpInput("invalid_link_check_params");
   }
   return { url };
 };

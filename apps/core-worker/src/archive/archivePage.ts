@@ -5,16 +5,15 @@ import {
   safeFetch,
 } from "@teak/convex/linkMetadata/ssrf";
 import {
-  PAGE_ARCHIVE_ROLE,
-  PAGE_SNAPSHOT_MAX_BYTES,
-  PAGE_SNAPSHOT_MAX_RAW_BYTES,
-  PAGE_SNAPSHOT_ROLE,
-} from "@teak/convex/shared/pageArchive";
-import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesArchivePageParams,
   type FilesArchivePageResult,
   isRemoteAssetPageUrl,
+  isValidObjectKey,
+  PAGE_ARCHIVE_ROLE,
+  PAGE_SNAPSHOT_MAX_BYTES,
+  PAGE_SNAPSHOT_MAX_RAW_BYTES,
+  PAGE_SNAPSHOT_ROLE,
   parseCardObjectKey,
 } from "@teak/files-protocol";
 import {
@@ -30,7 +29,7 @@ import {
 } from "../media/pinnedHop";
 import { postToFetcher, type RemoteAssetEnv } from "../media/remoteAsset";
 import { RendererUnavailable } from "../media/rendererClient";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput } from "../opFailure";
 import {
   buildPageArchive,
   type FetchedAsset,
@@ -68,14 +67,14 @@ export const parseArchivePageParams = (
     typeof capturedAt !== "number" ||
     !Number.isFinite(capturedAt)
   ) {
-    throw new Error("invalid_archive_page_params");
+    throw new InvalidOpInput("invalid_archive_page_params");
   }
   if (
     typeof destinationKey !== "string" ||
-    !isValidUploadKey(destinationKey) ||
+    !isValidObjectKey(destinationKey) ||
     parseCardObjectKey(destinationKey).role !== PAGE_ARCHIVE_ROLE
   ) {
-    throw new Error("invalid_storage_key");
+    throw new InvalidOpInput("invalid_storage_key");
   }
   if (snapshotKey !== undefined) {
     const root = cardsRoot(destinationKey);
@@ -84,12 +83,12 @@ export const parseArchivePageParams = (
     // Only the same account's pending snapshot uploads may be read.
     if (
       typeof snapshotKey !== "string" ||
-      !isValidUploadKey(snapshotKey) ||
+      !isValidObjectKey(snapshotKey) ||
       !root ||
       cardsRoot(snapshotKey) !== root ||
       parsed.role !== PAGE_SNAPSHOT_ROLE
     ) {
-      throw new Error("invalid_storage_key");
+      throw new InvalidOpInput("invalid_storage_key");
     }
   }
   return {

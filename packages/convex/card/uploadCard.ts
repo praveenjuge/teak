@@ -17,7 +17,7 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "../shared/markdown";
-import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
+import { signedUploadUrl } from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import {
   buildR2ObjectKey,
@@ -112,7 +112,7 @@ export const uploadAndCreateCard = mutation({
         fileName: _args.fileName,
       });
       await ensureObjectOwnership(ctx, user.teakUserId, key);
-      const signed = await buildSignedWorkerUploadUrl({
+      const signed = await signedUploadUrl({
         contentType: _args.fileType || "application/octet-stream",
         key,
         size: _args.fileSize,

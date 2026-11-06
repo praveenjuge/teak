@@ -2,7 +2,7 @@ import type { FilesStoreOnboardingFilesResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import { buildR2ObjectKey } from "../storage/r2";
 import {
   ONBOARDING_CARDS,
@@ -24,7 +24,7 @@ const errorMessage = (error: unknown) =>
 const deleteObjects = (keys: string[]) =>
   keys.length === 0
     ? Promise.resolve()
-    : callFilesWorkerJson({ op: "delete-objects", params: { keys } }).then(
+    : callCoreWorkerOp({ op: "delete-objects", params: { keys } }).then(
         () => undefined,
         () => undefined
       );
@@ -62,7 +62,7 @@ const storeOnboardingFiles = async (
       throw new Error("account_storage_write_denied");
     }
     called = true;
-    const outcome = await callFilesWorkerJson<FilesStoreOnboardingFilesResult>({
+    const outcome = await callCoreWorkerOp<FilesStoreOnboardingFilesResult>({
       op: "store-onboarding-files",
       params: {
         cards: planned.map((card) => ({

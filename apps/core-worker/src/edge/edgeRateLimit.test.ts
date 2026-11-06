@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { RATE_LIMIT_CONFIG } from "@teak/convex/shared/rateLimits";
-import { buildEdgeRateLimitSigningPayload } from "@teak/files-protocol";
+import {
+  buildEdgeRateLimitSigningPayload,
+  hmacSha256Hex,
+  sha256Hex,
+} from "@teak/files-protocol";
 import { unstable_readConfig } from "wrangler";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import type { EdgeIdentityDeps } from "./edgeIdentity";
 import {
   applyEdgeRateLimit,

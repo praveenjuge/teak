@@ -20,9 +20,9 @@ import {
   semanticRequestFor,
 } from "../shared/search/semantic";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import {
   type SemanticEntry,
   type SemanticRanking,
@@ -62,7 +62,7 @@ const askVectorService = async (
   timeoutMs: number
 ): Promise<{ matches: { id: string; score: number }[]; found: boolean }> => {
   if (request.kind === "like") {
-    const result = await callFilesWorkerJson<FilesVectorSimilarResult>({
+    const result = await callCoreWorkerOp<FilesVectorSimilarResult>({
       op: "vector-similar",
       params: { ...vectors, id: request.cardId, topK: SEMANTIC_TOP_K },
       timeoutMs,
@@ -72,7 +72,7 @@ const askVectorService = async (
     }
     return result.data;
   }
-  const result = await callFilesWorkerJson<FilesVectorQueryResult>({
+  const result = await callCoreWorkerOp<FilesVectorQueryResult>({
     op: "vector-query",
     params: {
       ...vectors,
@@ -111,7 +111,7 @@ export const fetchSemanticRanking = async (
     return { outcome: "anchor_unavailable", ranking: null };
   }
   const namespace = userVectorNamespace(userId);
-  if (!(namespace && isFilesWorkerConfigured())) {
+  if (!(namespace && isCoreWorkerConfigured())) {
     return { outcome: "unavailable", ranking: null };
   }
   const key = await semanticSearchKey(request.cacheText);

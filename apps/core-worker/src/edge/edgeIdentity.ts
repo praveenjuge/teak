@@ -6,8 +6,9 @@ import {
   EDGE_IDENTITY_MAX_TTL_SECONDS,
   EDGE_IDENTITY_PATH,
   type EdgeIdentityLookup,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import type { ApiProxyEnv } from "./apiProxy";
 
 export interface EdgeIdentityEnv extends ApiProxyEnv {

@@ -11,7 +11,7 @@ import {
   internalQuery,
 } from "../_generated/server";
 import { patchCardWithSearchSync } from "../card/searchSync";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import {
   ocrBackfillArgs,
   ocrBackfillReturns,
@@ -110,7 +110,7 @@ export const backfillLinkOcrCard = internalAction({
     const texts: string[] = [];
     try {
       for (const sourceKey of candidate.sourceKeys) {
-        const outcome = await callFilesWorkerJson<FilesImageTextResult>({
+        const outcome = await callCoreWorkerOp<FilesImageTextResult>({
           op: "extract-image-text",
           params: { sourceKey },
         });

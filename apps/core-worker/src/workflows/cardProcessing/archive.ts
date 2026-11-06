@@ -109,7 +109,7 @@ export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
     },
   });
   const source = snapshotKey ? "extension" : "server";
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     const reason: PageArchiveFailureReason =
       outcome.code === "PAYLOAD_TOO_LARGE" ? "too_large" : "archive_error";
     await markStage(job, { reason, source, status: "failed" });

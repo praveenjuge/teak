@@ -3,8 +3,9 @@ import {
   buildFilesOpSigningPayload,
   FILES_PROTOCOL_VERSION,
   type FilesLinkCheckResult,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "./lib";
 import {
   checkLink,
   createDohLookup,

@@ -11,6 +11,8 @@ import {
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_HEADER,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
@@ -23,7 +25,6 @@ import {
   createCardV1,
   listCardsV1,
 } from "../../../publicApi/http/routes";
-import { hmacSha256Hex, sha256Hex } from "../../../storage/r2Keys";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,

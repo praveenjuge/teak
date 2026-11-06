@@ -4,10 +4,9 @@ import {
   type RawMetadataKind,
   serializeArchivableRaw,
 } from "@teak/convex/storage/rawMetadataJson";
-import { filesCardKeyPrefix } from "@teak/files-protocol";
+import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
-import { sha256Hex } from "../../lib";
-import { gatedEnv } from "../filesOps";
+import { gatedEnv } from "../../deletionGate";
 import { type CardJob, ensureObjectOwnership } from "./context";
 
 export const rawMetadataKey = (

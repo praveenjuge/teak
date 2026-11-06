@@ -21,15 +21,16 @@ import {
   type ExportableCard,
   serializeCard,
 } from "@teak/convex/export/serialize";
+import type { FilesOpOutcome } from "@teak/files-protocol";
 import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
 } from "@teak/files-protocol";
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
+import { gatedEnv } from "../deletionGate";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { resolveDeps, settleConvexErrors, type WorkflowDeps } from "./deps";
-import { type FilesOpOutcome, gatedEnv } from "./filesOps";
 import {
   CONVEX_STEP,
   errorMessage,
@@ -402,7 +403,7 @@ export const runExport = (
       );
       outcome = await archiveWithout(missingFileCardIds);
     }
-    if (outcome.kind === "fallback") {
+    if (outcome.kind === "declined") {
       console.warn("[workflows/export] archive declined", {
         code: outcome.code,
         jobId,

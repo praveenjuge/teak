@@ -8,7 +8,7 @@ import {
 import { aiRunOptions } from "../ai/aiGateway";
 import { meteredAiRun } from "../ai/aiUsage";
 import type { Env } from "../index";
-import { OpFailure } from "../opFailure";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
@@ -240,7 +240,7 @@ const runVisionJson = async <T>(
       }
       const value = request.parse(text);
       if (value === null) {
-        throw new Error(INVALID_IMAGE_OUTPUT);
+        throw new InvalidOpInput(INVALID_IMAGE_OUTPUT);
       }
       return { validationAttempt, value };
     } catch (error) {

@@ -8,14 +8,14 @@ let rateLimitCalls = 0;
 let ensureRelevanceScores: any;
 
 beforeAll(async () => {
-  const actualClient = await import("../../storage/filesWorkerClient");
-  mock.module(import.meta.resolve("../../storage/filesWorkerClient"), () => ({
+  const actualClient = await import("../../storage/coreWorkerClient");
+  mock.module(import.meta.resolve("../../storage/coreWorkerClient"), () => ({
     ...actualClient,
-    callFilesWorkerJson: (spec: { op: string; params: any }) => {
+    callCoreWorkerOp: (spec: { op: string; params: any }) => {
       workerCalls.push(spec);
       return workerAnswer(spec.params);
     },
-    isFilesWorkerConfigured: () => true,
+    isCoreWorkerConfigured: () => true,
   }));
   const actualLimits = await import("../../shared/rateLimits");
   mock.module(import.meta.resolve("../../shared/rateLimits"), () => ({

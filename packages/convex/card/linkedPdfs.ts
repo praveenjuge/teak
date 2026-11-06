@@ -3,7 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { requireTeakUserId } from "../securitySessions";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { STORE_LINKED_PDF_TIMEOUT_MS } from "../storage/filesWorkerClient";
+import { STORE_LINKED_PDF_TIMEOUT_MS } from "../storage/coreWorkerClient";
 import { buildR2ObjectKey, queueObjectDeletion } from "../storage/r2";
 import {
   isArxivPdfUrl,

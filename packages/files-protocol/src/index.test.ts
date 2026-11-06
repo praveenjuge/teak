@@ -225,7 +225,9 @@ describe("file storage contract", () => {
     );
     expect(
       buildCardObjectKey({ envPrefix: "", userId: "user_1", role: "thumbnail" })
-    ).toMatch(/^users\/1l7d0vx\/cards\/pending\/thumbnail\/[0-9a-f-]{36}$/);
+    ).toMatch(
+      /^users\/1l7d0vx\/cards\/upload-pending-v2\/thumbnail\/[0-9a-f-]{36}$/
+    );
   });
 
   test("reads the card and role back from a card object key", () => {
@@ -237,8 +239,31 @@ describe("file storage contract", () => {
     });
     expect(parseCardObjectKey(key)).toEqual({ cardId: "card_9", role: "file" });
     expect(
-      parseCardObjectKey("users/1l7d0vx/cards/pending/thumbnail/x")
+      parseCardObjectKey(
+        buildCardObjectKey({
+          envPrefix: "",
+          userId: "user_1",
+          role: "thumbnail",
+        })
+      )
     ).toEqual({ role: "thumbnail" });
+  });
+
+  test("a pending upload's key names no card", () => {
+    // Convex writes uploads that have no card yet under `upload-pending-v2`.
+    expect(
+      parseCardObjectKey(
+        "users/1l7d0vx/cards/upload-pending-v2/page-snapshot/s1"
+      )
+    ).toEqual({ role: "page-snapshot" });
+    expect(
+      parseCardObjectKey(
+        "dev/users/1l7d0vx/cards/upload-pending-v2/file/x-photo.jpg"
+      )
+    ).toEqual({ role: "file" });
+  });
+
+  test("a key with no card segment parses to nothing", () => {
     expect(parseCardObjectKey("exports/user/archive.zip")).toEqual({});
     expect(parseCardObjectKey("")).toEqual({});
   });

@@ -1,16 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  FILES_PROTOCOL_VERSION,
-  type FilesScrapeResult,
-} from "@teak/files-protocol";
+import type { FilesScrapeResult } from "@teak/files-protocol";
 import type { FetcherPageResponse } from "../../fetcher/src/protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
-import { type FilesOpsEnv, handleInternalOp } from "../ops";
+import { runOp } from "../test/opsHarness";
 import { decodeHtmlParam } from "./browserRender";
 import { fetchLinkPage } from "./linkPage";
 
-const SECRET = "test-secret";
+const _SECRET = "test-secret";
 const URL_ = "https://site.example/post";
 const SELECTORS = ["meta[property='og:title']", "head > title"];
 const HTML = "<html><head><title>Café &amp; co</title></head></html>";
@@ -58,54 +53,22 @@ const fetcherPool = (answer: (call: FetcherCall) => Response) => {
   return { calls, namespace: namespace as unknown as DurableObjectNamespace };
 };
 
-const runOp = async (
+const fetchPage = async (
   answer: (call: FetcherCall) => Response,
   params: Record<string, unknown> = { selectors: SELECTORS, url: URL_ }
 ) => {
   const pool = fetcherPool(answer);
-  const body = JSON.stringify({
-    op: "fetch-link-page",
-    params,
-    version: FILES_PROTOCOL_VERSION,
-  });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const response = await handleInternalOp(
-    new Request("https://files.teakvault.com/__ops/v1", {
-      body,
-      headers: {
-        "x-teak-expires-at": expiresAt,
-        "x-teak-request-id": requestId,
-        "x-teak-signature": await hmacSha256Hex(
-          SECRET,
-          buildFilesOpSigningPayload({
-            bodySha256: await sha256Hex(body),
-            expiresAt,
-            requestId,
-          })
-        ),
-      },
-      method: "POST",
-    }),
-    {
-      FILES_SIGNING_SECRET: SECRET,
-      LINK_FETCHER: pool.namespace,
-      LINK_FETCHER_INSTANCES: "2",
-    } as FilesOpsEnv
+  const { body, status } = await runOp(
+    { LINK_FETCHER: pool.namespace, LINK_FETCHER_INSTANCES: "2" },
+    "fetch-link-page",
+    params
   );
-  return {
-    body: (await response.json()) as {
-      data?: Record<string, unknown>;
-      error?: { code: string; retryable: boolean };
-    },
-    calls: pool.calls,
-    status: response.status,
-  };
+  return { body, calls: pool.calls, status };
 };
 
 describe("fetch-link-page op", () => {
   test("returns the Container's static scrape, page URL, charset and gzipped HTML", async () => {
-    const { body, calls } = await runOp(() => Response.json(page()));
+    const { body, calls } = await fetchPage(() => Response.json(page()));
     expect(calls).toHaveLength(1);
     expect(calls[0]?.path).toBe("/fetch-page");
     expect(calls[0]?.body).toEqual({ selectors: SELECTORS, url: URL_ });
@@ -121,7 +84,7 @@ describe("fetch-link-page op", () => {
   });
 
   test("passes the Container's refusal through as a result, not an error", async () => {
-    const { body } = await runOp(() =>
+    const { body } = await fetchPage(() =>
       Response.json(
         {
           contentType: "application/pdf",
@@ -139,7 +102,7 @@ describe("fetch-link-page op", () => {
   });
 
   test("keeps an HTTP status and maps an unknown refusal to fetch_failed", async () => {
-    const http = await runOp(() =>
+    const http = await fetchPage(() =>
       Response.json(
         { error: "skipped", reason: "http_error", status: 404 },
         { status: 422 }
@@ -150,7 +113,7 @@ describe("fetch-link-page op", () => {
       reason: "http_error",
       status: 404,
     });
-    const unknown = await runOp(() =>
+    const unknown = await fetchPage(() =>
       Response.json({ error: "skipped", reason: "nope" }, { status: 422 })
     );
     expect(unknown.body.data).toEqual({
@@ -161,7 +124,7 @@ describe("fetch-link-page op", () => {
 
   test("moves past a busy instance and is retryable when all are busy", async () => {
     let answered = 0;
-    const once = await runOp(() => {
+    const once = await fetchPage(() => {
       answered += 1;
       return answered === 1
         ? new Response(JSON.stringify({ error: "busy" }), { status: 503 })
@@ -170,7 +133,7 @@ describe("fetch-link-page op", () => {
     expect(once.calls).toHaveLength(2);
     expect(once.calls[0]?.instance).not.toBe(once.calls[1]?.instance);
     expect(once.body.data).toMatchObject({ fetched: true });
-    const allBusy = await runOp(
+    const allBusy = await fetchPage(
       () => new Response(JSON.stringify({ error: "busy" }), { status: 503 })
     );
     expect(allBusy.calls).toHaveLength(2);
@@ -181,7 +144,7 @@ describe("fetch-link-page op", () => {
   });
 
   test("treats a malformed Container answer as the Container being unavailable", async () => {
-    const { body } = await runOp(() =>
+    const { body } = await fetchPage(() =>
       Response.json({ ...page(), pageUrl: "javascript:alert(1)" })
     );
     expect(body.error).toMatchObject({
@@ -200,7 +163,7 @@ describe("fetch-link-page op", () => {
   ])(
     "rejects params with %s without calling the Container",
     async (_label, params) => {
-      const { body, calls, status } = await runOp(
+      const { body, calls, status } = await fetchPage(
         () => Response.json(page()),
         params
       );

@@ -1,24 +1,38 @@
 import type { BrowserWorker } from "@cloudflare/puppeteer";
 import { CRONS, cronTasksOn } from "@teak/convex/cronSchedules";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
-import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
-  buildFilesOpSigningPayload,
   DISPATCH_ITEM_TYPES,
-  FILES_OPS,
+  FILES_IMPORT_MODES,
+  FILES_MULTIPART_MAX_PARTS,
+  FILES_NETWORK_OPS,
+  FILES_OP_MAX_BODY_BYTES,
   FILES_PDF_OCR_MAX_PAGES,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
   FILES_SCREENSHOT_SIZE,
   FILES_UPLOAD_MAX_BYTES,
+  FILES_USER_KEY_ROOTS,
+  type FilesAiGenerationFacts,
+  type FilesCapabilities,
+  type FilesEnvelope,
   type FilesErrorCode,
   type FilesFinalizeImageParams,
   type FilesOpRequest,
+  filesErrorEnvelope,
+  filesSuccessEnvelope,
   isFilesInspectMode,
+  isFilesNetworkOp,
   isFilesOp,
+  isPendingUploadKey,
+  isSameUserNamespace,
+  isValidObjectKey,
   MAINTENANCE_TASKS,
+  MAX_DISPATCH_DELETE_KEYS,
+  PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES,
+  SIGNED_REQUEST_HEADERS,
   VECTOR_DELETE_MAX_IDS,
-  VECTOR_GET_MAX_IDS,
+  verifyFilesOpRequest,
 } from "@teak/files-protocol";
 import type { AiGatewayEnv, WorkersAiBinding } from "./ai/aiGateway";
 import { type AiUsageContext, runWithAiUsage } from "./ai/aiUsage";
@@ -41,7 +55,6 @@ import {
   parseVectorQueryParams,
   parseVectorSimilarParams,
   vectorDelete,
-  vectorGet,
   vectorQuery,
   vectorSimilar,
 } from "./ai/vectors";
@@ -72,13 +85,11 @@ import {
   generateImageMetadataForOp,
   loadImageForAi,
 } from "./images/imageMetadata";
-import { sha256Hex, verifyBodySignature } from "./lib";
 import { checkLinkOp } from "./linkCheck";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
   scrapeHtml,
-  validScrapeSelectors,
 } from "./media/browserRender";
 import {
   type AcquireBrowser,
@@ -101,13 +112,12 @@ import {
   RendererDeclined,
   RendererUnavailable,
 } from "./media/rendererClient";
-import { OpFailure } from "./opFailure";
+import { InvalidOpInput, OpFailure } from "./opFailure";
 import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
 import {
   parseStoreOnboardingFilesParams,
   storeOnboardingFiles,
 } from "./storage/onboardingFiles";
-import { isValidUploadKey } from "./storage/upload";
 import { reportInternalOpError } from "./telemetry";
 import { runDispatch, type WorkflowBindingsEnv } from "./workflows/dispatch";
 
@@ -152,8 +162,11 @@ export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   POSTHOG_PROJECT_TOKEN?: string;
 }
 
-const json = (data: unknown, status = 200): Response =>
-  Response.json(data, { status, headers: { "cache-control": "no-store" } });
+/** An op's envelope and the HTTP status it goes out with. */
+export interface FilesOpAnswer<T = unknown> {
+  envelope: FilesEnvelope<T>;
+  status: number;
+}
 
 const fail = (
   requestId: string,
@@ -161,25 +174,25 @@ const fail = (
   message: string,
   status: number,
   retryable = false,
-  aiFacts?: import("@teak/files-protocol").FilesAiGenerationFacts
-): Response =>
-  json(
-    {
-      error: {
-        code,
-        message,
-        requestId,
-        retryable,
-        ...(aiFacts ? { aiFacts } : {}),
-      },
-      ok: false,
-      version: FILES_PROTOCOL_VERSION,
-    },
-    status
-  );
+  aiFacts?: FilesAiGenerationFacts
+): FilesOpAnswer => ({
+  envelope: filesErrorEnvelope({
+    aiFacts,
+    code,
+    message,
+    requestId,
+    retryable,
+  }),
+  status,
+});
 
-const success = <T>(requestId: string, data: T): Response =>
-  json({ data, ok: true, requestId, version: FILES_PROTOCOL_VERSION });
+const success = <T>(requestId: string, data: T): FilesOpAnswer<T> => ({
+  envelope: filesSuccessEnvelope(requestId, data),
+  status: 200,
+});
+
+export const answerResponse = ({ envelope, status }: FilesOpAnswer): Response =>
+  Response.json(envelope, { status, headers: { "cache-control": "no-store" } });
 
 const requiredString = (
   params: Record<string, unknown>,
@@ -187,7 +200,7 @@ const requiredString = (
 ): string => {
   const value = params[key];
   if (typeof value !== "string" || !value) {
-    throw new Error(`invalid_${key}`);
+    throw new InvalidOpInput(`invalid_${key}`);
   }
   return value;
 };
@@ -200,27 +213,14 @@ const optionalString = (
   return typeof value === "string" && value ? value : null;
 };
 
-const stripDevPrefix = (key: string): string =>
-  key.startsWith("dev/") ? key.slice(4) : key;
-
-const sameUserNamespace = (left: string, right: string): boolean => {
-  const leftParts = stripDevPrefix(left).split("/");
-  const rightParts = stripDevPrefix(right).split("/");
-  return (
-    leftParts[0] === "users" &&
-    rightParts[0] === "users" &&
-    leftParts[1] === rightParts[1]
-  );
-};
-
 const finalizeUpload = async (
   bucket: R2Bucket,
   params: Record<string, unknown>
 ) => {
   const sourceKey = requiredString(params, "sourceKey");
   const destinationKey = requiredString(params, "destinationKey");
-  if (!sameUserNamespace(sourceKey, destinationKey)) {
-    throw new Error("invalid_storage_key");
+  if (!isSameUserNamespace(sourceKey, destinationKey)) {
+    throw new InvalidOpInput("invalid_storage_key");
   }
   const source = await bucket.get(sourceKey);
   if (!source) {
@@ -246,7 +246,7 @@ const finalizeUpload = async (
         ignoreBOM: true,
       }).decode(bytes);
     } catch {
-      throw new Error("invalid_utf8");
+      throw new InvalidOpInput("invalid_utf8");
     }
   }
   const stored = await bucket.put(destinationKey, body, {
@@ -272,13 +272,13 @@ const derivedImageKeys = (params: Record<string, unknown>) => {
   const destinationKey = requiredString(params, "destinationKey");
   if (
     !(
-      isValidUploadKey(sourceKey) &&
-      isValidUploadKey(destinationKey) &&
-      sameUserNamespace(sourceKey, destinationKey)
+      isValidObjectKey(sourceKey) &&
+      isValidObjectKey(destinationKey) &&
+      isSameUserNamespace(sourceKey, destinationKey)
     ) ||
     sourceKey === destinationKey
   ) {
-    throw new Error("invalid_storage_key");
+    throw new InvalidOpInput("invalid_storage_key");
   }
   return { destinationKey, sourceKey };
 };
@@ -294,20 +294,20 @@ const optionalDerivedKey = (
   }
   if (
     typeof value !== "string" ||
-    !isValidUploadKey(value) ||
-    !sameUserNamespace(keys.sourceKey, value) ||
+    !isValidObjectKey(value) ||
+    !isSameUserNamespace(keys.sourceKey, value) ||
     value === keys.sourceKey ||
     value === keys.destinationKey
   ) {
-    throw new Error("invalid_storage_key");
+    throw new InvalidOpInput("invalid_storage_key");
   }
   return value;
 };
 
 const validSourceKey = (params: Record<string, unknown>): string => {
   const sourceKey = requiredString(params, "sourceKey");
-  if (!isValidUploadKey(sourceKey)) {
-    throw new Error("invalid_storage_key");
+  if (!isValidObjectKey(sourceKey)) {
+    throw new InvalidOpInput("invalid_storage_key");
   }
   return sourceKey;
 };
@@ -316,15 +316,11 @@ const MAX_INSPECT_BYTES = 64 * 1024 * 1024;
 
 const validArchiveKey = (params: Record<string, unknown>): string => {
   const archiveKey = requiredString(params, "archiveKey");
-  if (!isValidUploadKey(archiveKey)) {
-    throw new Error("invalid_storage_key");
+  if (!isValidObjectKey(archiveKey)) {
+    throw new InvalidOpInput("invalid_storage_key");
   }
   return archiveKey;
 };
-
-// A saved copy stays within its 20 MiB budget; this leaves room for markup
-// and stays well under the 32 MiB a message to Browser Run may carry.
-const MAX_SCREENSHOT_ARCHIVE_BYTES = 24 * 1024 * 1024;
 
 const readArchiveHtml = async (
   bucket: R2Bucket,
@@ -334,7 +330,7 @@ const readArchiveHtml = async (
   if (!object) {
     throw new OpFailure("source_not_found");
   }
-  if (object.size > MAX_SCREENSHOT_ARCHIVE_BYTES) {
+  if (object.size > PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES) {
     await object.body.cancel().catch(() => undefined);
     throw new OpFailure("source_too_large");
   }
@@ -343,8 +339,8 @@ const readArchiveHtml = async (
 
 const validDestinationKey = (params: Record<string, unknown>): string => {
   const destinationKey = requiredString(params, "destinationKey");
-  if (!isValidUploadKey(destinationKey)) {
-    throw new Error("invalid_storage_key");
+  if (!isValidObjectKey(destinationKey)) {
+    throw new InvalidOpInput("invalid_storage_key");
   }
   return destinationKey;
 };
@@ -360,21 +356,18 @@ const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
   };
 };
 
-export const DELETE_OBJECTS_MAX_KEYS = 100;
-
 const validKeyList = (value: unknown): string[] => {
   if (
     !Array.isArray(value) ||
     value.length === 0 ||
-    value.length > DELETE_OBJECTS_MAX_KEYS ||
-    value.some((key) => typeof key !== "string" || !isValidUploadKey(key))
+    value.length > MAX_DISPATCH_DELETE_KEYS ||
+    value.some((key) => typeof key !== "string" || !isValidObjectKey(key))
   ) {
-    throw new Error("invalid_keys");
+    throw new InvalidOpInput("invalid_keys");
   }
   return Array.from(new Set(value as string[]));
 };
 
-const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 const PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const CLEANUP_LIST_PAGE_SIZE = 1000;
 const CLEANUP_MAX_PAGES = 10;
@@ -386,14 +379,14 @@ const dispatch = async (
   body: FilesOpRequest,
   origin: string,
   ctx?: Pick<ExecutionContext, "waitUntil">
-): Promise<Response> => {
+): Promise<FilesOpAnswer> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
     case "capabilities":
       return success(requestId, {
-        operations: FILES_OPS,
+        operations: FILES_NETWORK_OPS,
         dispatchItems: DISPATCH_ITEM_TYPES,
-        importModes: IMPORT_MODES,
+        importModes: FILES_IMPORT_MODES,
         crons: cronTasksOn("cloudflare").map((task) => CRONS[task].name),
         maintenanceTasks: MAINTENANCE_TASKS,
         ai: Boolean(env.AI),
@@ -408,7 +401,7 @@ const dispatch = async (
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
-      });
+      } satisfies FilesCapabilities);
     case "index-import-source":
       return success(requestId, await indexImportSource(env.BUCKET, params));
     case "read-import-markdown":
@@ -428,7 +421,7 @@ const dispatch = async (
         maxBytes <= 0 ||
         maxBytes > (mode === "pdf" ? FILES_UPLOAD_MAX_BYTES : MAX_INSPECT_BYTES)
       ) {
-        throw new Error("invalid_inspect_params");
+        throw new InvalidOpInput("invalid_inspect_params");
       }
       if (mode === "pdf") {
         return success(
@@ -485,12 +478,12 @@ const dispatch = async (
       if (
         !Array.isArray(parts) ||
         parts.length === 0 ||
-        parts.length > 100 ||
+        parts.length > FILES_MULTIPART_MAX_PARTS ||
         typeof expectedSize !== "number" ||
         !Number.isSafeInteger(expectedSize) ||
         expectedSize < 0
       ) {
-        throw new Error("invalid_parts");
+        throw new InvalidOpInput("invalid_parts");
       }
       const existing = await env.BUCKET.head(requiredString(params, "key"));
       if (existing) {
@@ -514,7 +507,7 @@ const dispatch = async (
             typeof value.partNumber !== "number" ||
             typeof value.etag !== "string"
           ) {
-            throw new Error("invalid_part");
+            throw new InvalidOpInput("invalid_part");
           }
           return { partNumber: value.partNumber, etag: value.etag };
         })
@@ -527,15 +520,15 @@ const dispatch = async (
     }
     case "freeze-object": {
       const key = requiredString(params, "key");
-      if (!isValidUploadKey(key)) {
-        throw new Error("invalid_storage_key");
+      if (!isValidObjectKey(key)) {
+        throw new InvalidOpInput("invalid_storage_key");
       }
       return success(requestId, { frozen: await freezeObject(env, key) });
     }
     case "abort-multipart": {
       const key = requiredString(params, "key");
-      if (!isValidUploadKey(key)) {
-        throw new Error("invalid_storage_key");
+      if (!isValidObjectKey(key)) {
+        throw new InvalidOpInput("invalid_storage_key");
       }
       try {
         await env.BUCKET.resumeMultipartUpload(
@@ -554,8 +547,8 @@ const dispatch = async (
     case "finalize-image-upload": {
       const sourceKey = requiredString(params, "sourceKey");
       const destinationKey = requiredString(params, "destinationKey");
-      if (!sameUserNamespace(sourceKey, destinationKey)) {
-        throw new Error("invalid_storage_key");
+      if (!isSameUserNamespace(sourceKey, destinationKey)) {
+        throw new InvalidOpInput("invalid_storage_key");
       }
       const finalization = {
         destinationKey,
@@ -573,14 +566,13 @@ const dispatch = async (
     }
     case "cleanup-stale-pending-uploads": {
       const prefix = requiredString(params, "prefix");
-      if (!(prefix === "users/" || prefix === "dev/users/")) {
-        throw new Error("invalid_cleanup_params");
+      if (!(FILES_USER_KEY_ROOTS as readonly string[]).includes(prefix)) {
+        throw new InvalidOpInput("invalid_cleanup_params");
       }
       let cursor = optionalString(params, "cursor");
       let deleted = 0;
       let pages = 0;
       const staleBefore = Date.now() - PENDING_UPLOAD_STALE_AFTER_MS;
-      const pendingSegment = `/cards/${PENDING_UPLOAD_CARD_ID}/`;
       do {
         const listed = await env.BUCKET.list({
           prefix,
@@ -588,7 +580,7 @@ const dispatch = async (
           limit: CLEANUP_LIST_PAGE_SIZE,
         });
         const staleKeys = listed.objects.flatMap((object) =>
-          object.key.includes(pendingSegment) &&
+          isPendingUploadKey(object.key) &&
           object.uploaded.getTime() <= staleBefore
             ? [object.key]
             : []
@@ -623,8 +615,8 @@ const dispatch = async (
     }
     case "head-object": {
       const key = requiredString(params, "key");
-      if (!isValidUploadKey(key)) {
-        throw new Error("invalid_storage_key");
+      if (!isValidObjectKey(key)) {
+        throw new InvalidOpInput("invalid_storage_key");
       }
       const object = await env.BUCKET.head(key);
       if (!object) {
@@ -640,10 +632,10 @@ const dispatch = async (
     case "list-objects": {
       const prefix = requiredString(params, "prefix");
       if (
-        !(prefix.startsWith("users/") || prefix.startsWith("dev/users/")) ||
+        !FILES_USER_KEY_ROOTS.some((root) => prefix.startsWith(root)) ||
         prefix.includes("\0")
       ) {
-        throw new Error("invalid_prefix");
+        throw new InvalidOpInput("invalid_prefix");
       }
       const limit = params.limit;
       if (
@@ -653,7 +645,7 @@ const dispatch = async (
           limit <= 0 ||
           limit > 1000)
       ) {
-        throw new Error("invalid_limit");
+        throw new InvalidOpInput("invalid_limit");
       }
       const cursor = optionalString(params, "cursor");
       const listed = await env.BUCKET.list({
@@ -680,7 +672,7 @@ const dispatch = async (
     case "generate-image-metadata": {
       const title = optionalString(params, "title");
       if (title !== null && title.length > 2000) {
-        throw new Error("invalid_title");
+        throw new InvalidOpInput("invalid_title");
       }
       const sourceKey = requiredString(params, "sourceKey");
       const image =
@@ -722,7 +714,7 @@ const dispatch = async (
         (maxPages as number) < 1 ||
         (maxPages as number) > FILES_PDF_OCR_MAX_PAGES
       ) {
-        throw new Error("invalid_max_pages");
+        throw new InvalidOpInput("invalid_max_pages");
       }
       return success(
         requestId,
@@ -740,7 +732,7 @@ const dispatch = async (
     case "decide-visual-styles": {
       const title = optionalString(params, "title");
       if (title !== null && title.length > 2000) {
-        throw new Error("invalid_title");
+        throw new InvalidOpInput("invalid_title");
       }
       return success(
         requestId,
@@ -829,11 +821,6 @@ const dispatch = async (
           parseVectorIdsParams(params, VECTOR_DELETE_MAX_IDS)
         )
       );
-    case "vector-get":
-      return success(
-        requestId,
-        await vectorGet(env, parseVectorIdsParams(params, VECTOR_GET_MAX_IDS))
-      );
     case "vector-query":
       return success(
         requestId,
@@ -856,12 +843,6 @@ const dispatch = async (
             : {}),
         })
       );
-    case "scrape-html": {
-      const selectors = validScrapeSelectors(params.selectors);
-      const acquire = browserAcquirer(env);
-      const html = await decodeHtmlParam(params.htmlGzipBase64);
-      return success(requestId, await scrapeHtml(acquire, html, selectors));
-    }
     case "probe-media":
       return success(
         requestId,
@@ -878,7 +859,7 @@ const dispatch = async (
         typeof params.transcribe !== "boolean" ||
         (mimeType !== null && mimeType.length > 255)
       ) {
-        throw new Error("invalid_audio_params");
+        throw new InvalidOpInput("invalid_audio_params");
       }
       return success(
         requestId,
@@ -891,7 +872,7 @@ const dispatch = async (
     }
     case "extract-import-files": {
       if (!Array.isArray(params.entries)) {
-        throw new Error("invalid_entries");
+        throw new InvalidOpInput("invalid_entries");
       }
       return success(
         requestId,
@@ -909,59 +890,70 @@ const dispatch = async (
         await runDispatch(env, params, Date.now(), ctx)
       );
     default:
-      throw new Error("invalid_operation");
+      throw new InvalidOpInput("invalid_operation");
   }
 };
 
+/** The network route: a signed op from Convex, one of the network ops. */
 export const handleInternalOp = async (
   request: Request,
   env: FilesOpsEnv,
   ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<Response> => {
-  const requestId = request.headers.get("x-teak-request-id") ?? "unknown";
+  const requestId =
+    request.headers.get(SIGNED_REQUEST_HEADERS.requestId) ?? "unknown";
   const rawBody = await readResponseTextWithinLimit(
     new Response(request.body),
-    1024 * 1024
+    FILES_OP_MAX_BODY_BYTES
   );
   if (rawBody === null) {
-    return fail(
-      requestId,
-      "PAYLOAD_TOO_LARGE",
-      "Operation request exceeds 1 MiB",
-      413
+    return answerResponse(
+      fail(
+        requestId,
+        "PAYLOAD_TOO_LARGE",
+        "Operation request exceeds 1 MiB",
+        413
+      )
     );
   }
-  const bodySha256 = await sha256Hex(rawBody);
-  const verification = await verifyBodySignature(
+  const verification = await verifyFilesOpRequest(
     env.FILES_SIGNING_SECRET,
-    {
-      bodySha256,
-      expiresAt: request.headers.get("x-teak-expires-at"),
-      requestId,
-      signature: request.headers.get("x-teak-signature"),
-    },
-    buildFilesOpSigningPayload
+    request.headers,
+    rawBody
   );
   if (!verification.ok) {
-    return fail(
-      requestId,
-      verification.status === 410 ? "AUTH_EXPIRED" : "AUTH_INVALID",
-      "Request authentication failed",
-      verification.status
+    return answerResponse(
+      fail(
+        requestId,
+        verification.code,
+        "Request authentication failed",
+        verification.status
+      )
     );
   }
-  let body: FilesOpRequest;
+  let body: unknown;
   try {
-    body = JSON.parse(rawBody) as FilesOpRequest;
+    body = JSON.parse(rawBody);
   } catch {
-    return fail(requestId, "INVALID_INPUT", "Invalid JSON body", 400);
+    return answerResponse(
+      fail(requestId, "INVALID_INPUT", "Invalid JSON body", 400)
+    );
   }
-  return await runFilesOp(
-    env,
-    requestId,
-    body,
-    new URL(request.url).origin,
-    ctx
+  const op =
+    body && typeof body === "object" ? (body as { op?: unknown }).op : null;
+  if (!isFilesNetworkOp(op)) {
+    return answerResponse(
+      fail(requestId, "UNSUPPORTED", "Unsupported operation", 400)
+    );
+  }
+  return answerResponse(
+    await runFilesOp(
+      env,
+      requestId,
+      body as FilesOpRequest,
+      new URL(request.url).origin,
+      ctx
+    )
   );
 };
 
@@ -988,7 +980,7 @@ export const runFilesOp = async (
   body: FilesOpRequest,
   origin: string,
   ctx?: Pick<ExecutionContext, "waitUntil">
-): Promise<Response> => {
+): Promise<FilesOpAnswer> => {
   if (
     !body ||
     typeof body !== "object" ||
@@ -1070,10 +1062,10 @@ export const runFilesOp = async (
     if (error instanceof ExportManifestInvalid) {
       return fail(requestId, "INVALID_INPUT", error.message, 400);
     }
-    const message = error instanceof Error ? error.message : "internal_error";
-    if (message.startsWith("invalid_")) {
-      return fail(requestId, "INVALID_INPUT", message, 400);
+    if (error instanceof InvalidOpInput) {
+      return fail(requestId, "INVALID_INPUT", error.message, 400);
     }
+    const message = error instanceof Error ? error.message : "internal_error";
     // Error objects serialize to {} in Workers logs, so log their fields.
     console.error("[core-worker] operation failed", {
       message,

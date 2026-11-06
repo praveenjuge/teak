@@ -1,4 +1,4 @@
-import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
+import { CARD_EMBEDDING_VERSION, sha256Hex } from "@teak/files-protocol";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -7,7 +7,6 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { SEMANTIC_TOP_K } from "../shared/search/semantic";
-import { sha256Hex } from "../storage/r2Keys";
 
 export const SEMANTIC_CACHE_TTL_MS = 10 * 60 * 1000;
 export const SEMANTIC_PENDING_TTL_MS = 15 * 1000;

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
+import { buildInboundEmailSigningPayload } from "@teak/files-protocol";
 import {
   buildPayload,
   cutJsonUtf8,
   SUBJECT_MAX_CHARS,
   signedHeaders,
-  signingString,
 } from "./payload";
 
 describe("cutJsonUtf8", () => {
@@ -100,9 +100,9 @@ describe("buildPayload", () => {
 
 describe("signing", () => {
   test("the signed string binds the route, the time and the body hash", () => {
-    expect(signingString("/inbound/email", "1792000000", "abc")).toBe(
-      "teak-inbound-email\nv1\n/inbound/email\n1792000000\nabc"
-    );
+    expect(
+      buildInboundEmailSigningPayload("/inbound/email", "1792000000", "abc")
+    ).toBe("teak-inbound-email\nv1\n/inbound/email\n1792000000\nabc");
   });
 
   test("the signature is HMAC-SHA256 hex of that string", async () => {

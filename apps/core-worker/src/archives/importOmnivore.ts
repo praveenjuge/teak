@@ -11,6 +11,7 @@ import {
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexResult,
 } from "@teak/files-protocol";
+import { InvalidOpInput } from "../opFailure";
 import {
   rangeRead,
   readZipDirectory,
@@ -90,7 +91,7 @@ export async function indexOmnivoreZip(
     }
   }
   if (files.length === 0) {
-    throw new Error("invalid_import_source");
+    throw new InvalidOpInput("invalid_import_source");
   }
   files.sort((a, b) => a.start - b.start);
   const chained = files.every(
@@ -106,7 +107,7 @@ export async function indexOmnivoreZip(
         )
       );
     } catch {
-      throw new Error("invalid_import_source");
+      throw new InvalidOpInput("invalid_import_source");
     }
   };
 
@@ -117,7 +118,7 @@ export async function indexOmnivoreZip(
   if (chained) {
     total = files.at(-1)?.end ?? 0;
     if (total > MAX_ITEMS) {
-      throw new Error("invalid_bookmark_count");
+      throw new InvalidOpInput("invalid_bookmark_count");
     }
     const needed = files.filter(
       (file) => file.end > cursor && file.start < pageEnd
@@ -126,7 +127,7 @@ export async function indexOmnivoreZip(
     needed.forEach((file, fileIndex) => {
       const list = lists[fileIndex] ?? [];
       if (list.length !== file.end - file.start) {
-        throw new Error("invalid_import_source");
+        throw new InvalidOpInput("invalid_import_source");
       }
       list.forEach((item, offset) => {
         pageItems.push({
@@ -143,7 +144,7 @@ export async function indexOmnivoreZip(
     );
     total = all.length;
     if (total > MAX_ITEMS) {
-      throw new Error("invalid_bookmark_count");
+      throw new InvalidOpInput("invalid_bookmark_count");
     }
     pageItems = all.map((entry, index) => ({ index, ...entry }));
   }

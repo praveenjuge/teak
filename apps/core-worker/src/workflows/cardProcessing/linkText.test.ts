@@ -11,6 +11,7 @@ import {
   testEnv,
   testJob,
 } from "../../test/cardProcessingKit";
+import { opError } from "../../test/opsHarness";
 import { readLinkImageText } from "./linkText";
 
 const OG_IMAGE = "users/user_1/cards/c/link-image/og.jpg";
@@ -74,8 +75,8 @@ describe("link image text", () => {
 
   test.each([
     ["no legible text", { data: { text: "" } }],
-    ["an image it can't decode", { fallback: "UNSUPPORTED" as const }],
-    ["an image that is gone", { fallback: "NOT_FOUND" as const }],
+    ["an image it can't decode", { declined: "UNSUPPORTED" as const }],
+    ["an image that is gone", { declined: "NOT_FOUND" as const }],
   ])("%s is read as none", async (_name, answer) => {
     const { read, saved } = setup(
       linkCard({ screenshotStorageKey: SCREENSHOT }),
@@ -121,10 +122,10 @@ describe("link image text", () => {
   test("a busy Workers AI throws for the step to retry, and saves nothing", async () => {
     const { read, saved } = setup(linkCard({ imageStorageKey: OG_IMAGE }), {
       "extract-image-text": {
-        throws: new Error("files_worker_ai: rate limit reached 429"),
+        throws: opError("AI_CAPACITY", { status: 429 }),
       },
     });
-    await expect(read()).rejects.toThrow("rate limit");
+    await expect(read()).rejects.toThrow("files_worker_error:AI_CAPACITY");
     expect(saved()).toBeUndefined();
   });
 });

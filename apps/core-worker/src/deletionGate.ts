@@ -1,4 +1,6 @@
+import { InvalidOpInput } from "./opFailure";
 import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
+import { retryingReads } from "./storage/r2Retry";
 
 export interface DeletionGateEnv {
   BUCKET: R2Bucket;
@@ -81,7 +83,7 @@ const decode = (value: WireValue): unknown => {
         value[1].map(([key, item]) => [key, decode(item)])
       );
     default:
-      throw new Error("invalid_object_gate_wire_value");
+      throw new InvalidOpInput("invalid_object_gate_wire_value");
   }
 };
 const serialize = (value: unknown): string => JSON.stringify(encode(value));
@@ -464,6 +466,19 @@ export async function freezeObject(
   }
   return ((await response.json()) as { frozen: boolean }).frozen === true;
 }
+
+/**
+ * The env every op runs with: reads retried on R2's transient errors and
+ * writes fenced by the deletion gate. Without OBJECT_GATES (some tests) the
+ * bucket stays as it is.
+ */
+export const gatedEnv = <Env extends DeletionGateEnv>(env: Env): Env =>
+  env.OBJECT_GATES
+    ? {
+        ...env,
+        BUCKET: gatedBucket({ ...env, BUCKET: retryingReads(env.BUCKET) }),
+      }
+    : env;
 
 // Rollout must provision OBJECT_GATES and drain unfenced historical writers
 // before account deletion is enabled; code cannot check the drain.

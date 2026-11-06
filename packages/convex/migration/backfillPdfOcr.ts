@@ -14,7 +14,7 @@ import {
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchSync";
 import { inferFileFormat } from "../shared/fileFormats";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
   ocrBackfillArgs,
@@ -134,7 +134,7 @@ export const backfillPdfOcrCard = internalAction({
     }
     let scanned: boolean;
     try {
-      const outcome = await callFilesWorkerJson<FilesInspectResult>({
+      const outcome = await callCoreWorkerOp<FilesInspectResult>({
         op: "inspect",
         params: {
           formatId: "pdf",

@@ -13,10 +13,10 @@ import { fileUploadSessionValidator } from "./schema";
 import { requireSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {
-  buildSignedMultipartPartUrl,
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "./storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+  signedMultipartPartUrl,
+} from "./storage/coreWorkerClient";
 import { ensureObjectOwnership } from "./storage/ownership";
 import {
   buildR2ObjectKey,
@@ -59,7 +59,7 @@ const signMissingParts = async (session: {
       .filter((partNumber) => !uploaded.has(partNumber))
       .map(async (partNumber) => ({
         partNumber,
-        uploadUrl: await buildSignedMultipartPartUrl({
+        uploadUrl: await signedMultipartPartUrl({
           key: session.sourceKey,
           partNumber,
           uploadId: session.uploadId,
@@ -149,7 +149,7 @@ export const prepareMultipartUpload = action({
         message: "Multipart upload is reserved for large files",
       });
     }
-    if (!isFilesWorkerConfigured()) {
+    if (!isCoreWorkerConfigured()) {
       throw new Error("files_worker_not_configured");
     }
     const existing: Doc<"fileUploadSessions"> | null = await ctx.runQuery(
@@ -176,7 +176,7 @@ export const prepareMultipartUpload = action({
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
     await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
-    const created = await callFilesWorkerJson<{
+    const created = await callCoreWorkerOp<{
       key: string;
       uploadId: string;
     }>({
@@ -194,7 +194,7 @@ export const prepareMultipartUpload = action({
         uploadId: created.data.uploadId,
       });
     } catch (error) {
-      await callFilesWorkerJson({
+      await callCoreWorkerOp({
         op: "abort-multipart",
         params: { key: sourceKey, uploadId: created.data.uploadId },
       }).catch(() => undefined);
@@ -337,7 +337,7 @@ export const completeMultipartUpload = action({
         message: "Upload has incomplete parts",
       });
     }
-    const completed = await callFilesWorkerJson<{
+    const completed = await callCoreWorkerOp<{
       etag: string;
       key: string;
       size: number;

@@ -14,10 +14,10 @@ import {
 import {
   type FilesExtractArticleResult,
   filesCardKeyPrefix,
+  sha256Hex,
 } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import { sha256Hex } from "../../lib";
-import { gatedEnv } from "../filesOps";
+import { gatedEnv } from "../../deletionGate";
 import type { StepConfig } from "../runtime";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata } from "./aiMetadata";
@@ -103,7 +103,7 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
     op: "extract-article",
     params: { archiveKey: archive.storageKey, pageUrl: archive.sourceUrl },
   });
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     throw new Error(`extract_article_unavailable:${outcome.code}`);
   }
   const result = outcome.data;

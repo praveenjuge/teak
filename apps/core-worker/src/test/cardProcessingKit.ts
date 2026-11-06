@@ -1,4 +1,8 @@
-import type { FilesErrorCode, FilesOp } from "@teak/files-protocol";
+import type {
+  FilesErrorCode,
+  FilesOp,
+  FilesOpOutcome,
+} from "@teak/files-protocol";
 import { createFetcherHandler } from "../../fetcher/src/handler";
 import { createAiGateReader } from "../ai/aiGate";
 import { createConvexRpc } from "../convexRpc";
@@ -7,7 +11,6 @@ import type {
   CardProcessingDeps,
 } from "../workflows/cardProcessing/context";
 import type { FilesOpCaller } from "../workflows/deps";
-import type { FilesOpOutcome } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 import {
   createFakeConvex,
@@ -414,7 +417,7 @@ export const createCardConvex = (
 
 export type OpAnswer =
   | { data: unknown }
-  | { fallback: FilesErrorCode; message?: string }
+  | { declined: FilesErrorCode; message?: string }
   | { throws: Error };
 
 export const createFakeOps = (
@@ -436,11 +439,11 @@ export const createFakeOps = (
     if ("throws" in answer) {
       return Promise.reject(answer.throws);
     }
-    if ("fallback" in answer) {
+    if ("declined" in answer) {
       return Promise.resolve({
-        code: answer.fallback,
-        kind: "fallback",
-        message: answer.message ?? answer.fallback,
+        code: answer.declined,
+        kind: "declined",
+        message: answer.message ?? answer.declined,
       });
     }
     return Promise.resolve({ data: answer.data as T, kind: "ok" });

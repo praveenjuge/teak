@@ -1,4 +1,4 @@
-import type { DispatchItem } from "@teak/files-protocol";
+import { type DispatchItem, verifyDispatchProof } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
@@ -21,7 +21,6 @@ import {
   queueAccountDeletionWorkflow,
   queueExportWorkflow,
   queueImportWorkflow,
-  signDispatch,
 } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -695,16 +694,17 @@ describe("flush", () => {
     expect(sent[0]?.items.length).toBeLessThanOrEqual(CLAIM_PAGE);
     const params = sent[0];
     expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
-    expect(params?.signature).toBe(
-      (
-        await signDispatch(
-          "deployment-rpc-secret",
-          "https://session-tests.convex.site",
-          params?.items ?? [],
-          (Number(params?.expiresAt) - 120) * 1000
-        )
-      ).signature
-    );
+    expect(
+      await verifyDispatchProof(
+        "deployment-rpc-secret",
+        "https://session-tests.convex.site",
+        {
+          expiresAt: params?.expiresAt,
+          items: params?.items,
+          signature: params?.signature,
+        }
+      )
+    ).toBe(true);
     const states = Object.fromEntries(
       (await rows(t)).map((row) => [row.kind, row.state])
     );

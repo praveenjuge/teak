@@ -2,8 +2,9 @@ import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import {
   addressKey,
   type EdgeIdentity,

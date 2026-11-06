@@ -1,6 +1,7 @@
 import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
+  sha256Hex,
 } from "@teak/files-protocol";
 import { downloadZip } from "client-zip";
 
@@ -107,13 +108,6 @@ interface ZipInput {
   lastModified: Date;
   name: string;
 }
-
-const sha256Hex = async (bytes: Uint8Array): Promise<string> => {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
-};
 
 const collectZipInputs = async function* (
   bucket: R2Bucket,

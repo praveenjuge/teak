@@ -4,7 +4,7 @@ import {
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexItem,
 } from "@teak/files-protocol";
-import { OpFailure } from "../opFailure";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import {
   consumeZipEntry,
   type ZipCentralEntry,
@@ -56,7 +56,7 @@ export async function readImportJson(
     };
     parser.onToken = ({ token, value, partial }) => {
       if (typeof value === "string" && value.length > 1024 * 1024) {
-        throw new Error("invalid_archive_json_value_size");
+        throw new InvalidOpInput("invalid_archive_json_value_size");
       }
       if (partial) {
         return;
@@ -69,13 +69,13 @@ export async function readImportJson(
         ) {
           cardsArrays += 1;
           if (cardsArrays > 1) {
-            throw new Error("invalid_archive_duplicate_cards");
+            throw new InvalidOpInput("invalid_archive_duplicate_cards");
           }
           hasCards = true;
         }
         depth++;
         if (depth > 64) {
-          throw new Error("invalid_archive_json_depth");
+          throw new InvalidOpInput("invalid_archive_json_depth");
         }
       } else if (
         token === TokenType.RIGHT_BRACE ||
@@ -87,7 +87,7 @@ export async function readImportJson(
       }
       valueBytes += typeof value === "string" ? value.length : 8;
       if (valueBytes > FILES_IMPORT_PAGE_BYTES) {
-        throw new Error("invalid_archive_json_value_size");
+        throw new InvalidOpInput("invalid_archive_json_value_size");
       }
     };
     parser.onValue = ({ key: field, value, stack }) => {
@@ -104,7 +104,7 @@ export async function readImportJson(
       const sourceIndex = total++;
       valueBytes = 0;
       if (total > 10_000) {
-        throw new Error("invalid_archive_card_count");
+        throw new InvalidOpInput("invalid_archive_card_count");
       }
       if (sourceIndex < cursor || full) {
         return;

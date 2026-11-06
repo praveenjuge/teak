@@ -8,7 +8,7 @@ import {
   type MutationCtx,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { isFilesWorkerConfigured } from "./filesWorkerClient";
+import { isCoreWorkerConfigured } from "./coreWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
 const accountClosedOrClosing = async (ctx: MutationCtx, userId: string) => {
@@ -88,7 +88,7 @@ export const ensureObjectOwnership = async (
   key: string,
   exportJobId?: Id<"exportJobs">
 ) => {
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   if (

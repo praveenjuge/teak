@@ -1,6 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../convexRpc";
+import { InvalidOpInput } from "../opFailure";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { aiUsageColumn } from "./aiUsage";
 
@@ -50,7 +51,7 @@ export const dailyUsageSql = (
   date: string
 ): string => {
   if (!DATASET_PATTERN.test(dataset)) {
-    throw new Error("invalid_ai_usage_dataset");
+    throw new InvalidOpInput("invalid_ai_usage_dataset");
   }
   if (
     !(
@@ -58,7 +59,7 @@ export const dailyUsageSql = (
       /^\d{4}-\d{2}-\d{2}$/u.test(date)
     )
   ) {
-    throw new Error("invalid_ai_usage_query");
+    throw new InvalidOpInput("invalid_ai_usage_query");
   }
   const next = utcDate(Date.parse(`${date}T00:00:00Z`) + DAY_MS);
   return [
