@@ -59,7 +59,7 @@ function fakePlay({
     if (url.hostname === "upload.session.googleapis.com") {
       const target = url.searchParams.get("target");
       if (target === "bundles") {
-        state.bundles.push(1_000_093);
+        state.bundles.push({ versionCode: 1_000_093, sha256: "abc" });
         return json({ versionCode: 1_000_093, sha256: "abc" });
       }
       return json({ deobfuscationFile: { symbolType: "proguard" } });
@@ -94,7 +94,7 @@ function fakePlay({
     }
     if (rest === "/bundles") {
       return json({
-        bundles: state.bundles.map((versionCode) => ({ versionCode })),
+        bundles: state.bundles,
       });
     }
     const track = /^\/tracks\/(\w+)$/.exec(rest)?.[1];
@@ -229,11 +229,37 @@ describe("Play publish", () => {
   });
 
   test("reuses a bundle a failed run already uploaded", async () => {
-    const play = fakePlay({ bundles: [1_000_093] });
+    const play = fakePlay({
+      bundles: [{ versionCode: 1_000_093, sha256: sha256(Buffer.from("aab")) }],
+    });
     await run(play.client);
     expect(play.state.calls).not.toContain(
       "POST edits/edit-1/bundles?uploadType=resumable"
     );
+  });
+
+  test("refuses a different bundle Play already has for the version code", async () => {
+    const play = fakePlay({
+      bundles: [{ versionCode: 1_000_093, sha256: "someone-elses-build" }],
+    });
+    await expect(run(play.client)).rejects.toThrow(
+      "different bundle with version code 1000093"
+    );
+    expect(play.state.calls.some((call) => call.includes("proguard"))).toBe(
+      false
+    );
+    expect(play.state.committed).toEqual([]);
+  });
+
+  test("a dry run checks everything even when production has the version", async () => {
+    const play = fakePlay({
+      production: [{ status: "completed", versionCodes: ["1000093"] }],
+      bundles: [{ versionCode: 1_000_093, sha256: sha256(Buffer.from("aab")) }],
+    });
+    const result = await run(play.client, { dryRun: true });
+    expect(result.dryRun).toBe(true);
+    expect(play.state.calls).toContain("POST edits/edit-1:validate");
+    expect(play.state.committed).toEqual([]);
   });
 
   test("leaves unchanged listing text and images alone", async () => {

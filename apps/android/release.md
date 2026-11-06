@@ -25,13 +25,13 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 
 ### Dry run and rerun
 
-A dry run does the whole edit, including the upload and Play's validation, then discards it. It can start from any branch, and its summary shows what would change against what Play has now:
+A dry run does the whole edit, including the upload and Play's validation, then discards it. It runs even for a version production already serves, so you can check listing changes at any time. It can start from any branch, and its summary shows what would change against what Play has now:
 
 ```bash
 gh workflow run android-release.yml --ref <branch> -f version=<version> -f dry_run=true
 ```
 
-To publish an existing tag again (after a failure, or with different notes), run from `main`, which must contain the tag:
+To publish an existing tag again after a failure, run from `main`, which must contain the tag. If production already serves that version (or a newer one), the rerun changes nothing in Play and only retries the proof; new notes then wait for the next release:
 
 ```bash
 gh workflow run android-release.yml --ref main -f version=<version> -f dry_run=false

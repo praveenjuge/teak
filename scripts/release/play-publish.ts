@@ -366,7 +366,11 @@ export async function publish({
       `edits/${edit}/tracks/production`
     );
     const highest = highestServingCode(production);
-    if (highest >= versionCode) {
+    if (highest >= versionCode && dryRun) {
+      log(
+        `- Production already serves version code ${highest}; a real run would skip ${version}. Checking the rest anyway.`
+      );
+    } else if (highest >= versionCode) {
       log(
         `Production already serves version code ${highest}, so ${version} (${versionCode}) isn't published.`
       );
@@ -381,7 +385,16 @@ export async function publish({
 
     const bundles =
       (await client.call("GET", `edits/${edit}/bundles`)).bundles ?? [];
-    if (bundles.some((item) => Number(item.versionCode) === versionCode)) {
+    const existing = bundles.find(
+      (item) => Number(item.versionCode) === versionCode
+    );
+    if (existing) {
+      // The mapping only fits the exact bundle it came from.
+      if (existing.sha256 !== sha256(bundle)) {
+        throw new Error(
+          `Play already has a different bundle with version code ${versionCode}; its mapping wouldn't match. Ship the next patch version instead.`
+        );
+      }
       log(`- Bundle ${versionCode}: already uploaded, reused`);
     } else {
       const uploaded = await client.upload(
@@ -524,6 +537,34 @@ function parseArguments(args) {
   return values;
 }
 
+// Play has the release by now, so a failed read-back is a warning, not a
+// failed release: the run stays green and no proof is attached.
+async function writeProof({
+  client,
+  version,
+  releaseNotes,
+  path: proofPath,
+  log,
+}) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const proof = await readProof({ client, version, releaseNotes });
+      fs.writeFileSync(proofPath, `${JSON.stringify(proof, null, 2)}\n`);
+      log(`- Proof: internal and production serve ${proof.versionCode}`);
+      return;
+    } catch (error) {
+      if (attempt === 3) {
+        log(
+          `- Proof: not attached, the read-back failed: ${sanitizeAscOutput(error.message)}`
+        );
+        console.log(
+          `::warning::Play has ${version}, but reading the tracks back failed. Rerun to attach the proof.`
+        );
+      }
+    }
+  }
+}
+
 function parseServiceAccount(keyJson) {
   try {
     return JSON.parse(keyJson);
@@ -572,14 +613,17 @@ async function main() {
       dryRun,
       log,
     });
-    if (result.committed && values.proof) {
-      const proof = await readProof({
+    // A rerun of the version production already serves retries the proof.
+    const submitted =
+      result.committed || result.productionVersionCode === result.versionCode;
+    if (!dryRun && submitted && values.proof) {
+      await writeProof({
         client,
         version: values.version,
         releaseNotes,
+        path: values.proof,
+        log,
       });
-      fs.writeFileSync(values.proof, `${JSON.stringify(proof, null, 2)}\n`);
-      log(`- Proof: internal and production serve ${proof.versionCode}`);
     }
   } catch (error) {
     if (values["error-file"]) {

@@ -25,7 +25,9 @@ on:
         type: boolean
 
 concurrency:
-  group: android-release-${{ inputs.version || github.ref }}
+  # A tag push and a dispatch naming the same version share one group, so
+  # the tag never builds twice at once.
+  group: android-release-${{ inputs.version && format('v{0}', inputs.version) || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -249,9 +251,11 @@ jobs:
     needs: [resolve, build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # One Play edit at a time for the app; a newer release waits, then wins.
+    # One real Play edit at a time for the app; a newer release waits, then
+    # wins. Dry runs stay out of the queue so they never displace a pending
+    # release (GitHub keeps only the newest pending job in a group).
     concurrency:
-      group: play-publish-com.praveenjuge.teak
+      group: ${{ needs.resolve.outputs.dry_run == 'true' && format('play-dry-run-{0}', github.run_id) || 'play-publish-com.praveenjuge.teak' }}
       cancel-in-progress: false
 
     steps:
@@ -326,7 +330,8 @@ jobs:
           PROOF: ${{ steps.assets.outputs.dir }}/teak-android-${{ needs.resolve.outputs.version }}-play.json
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # No proof means production already served this version or a newer one.
+          # No proof means production already served a newer version, or the
+          # read-back failed after Play accepted the release (a warning).
           if [ -f "$PROOF" ]; then
             gh release upload "$TAG_NAME" "$PROOF" --clobber
           fi
