@@ -261,6 +261,25 @@ describe("waiting for background work", () => {
     );
     expect(error.message).toBe("still going");
   });
+
+  test("an abort during a read ends the wait with the signal's reason", async () => {
+    const controller = new AbortController();
+    const error = await rejection(
+      waitFor(0, {
+        intervalMs: 1,
+        refresh: () => {
+          controller.abort(new Error("cancelled"));
+          return new Promise<number>(() => {
+            // A read that never answers.
+          });
+        },
+        running: () => true,
+        signal: controller.signal,
+        timeoutMs: 60_000,
+      })
+    );
+    expect(error.message).toBe("cancelled");
+  });
 });
 
 test("a caller's signal cancels a listing", async () => {

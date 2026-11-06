@@ -34,27 +34,37 @@ const delay = (ms: number, signal?: AbortSignal) =>
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 
-// A read still going at the deadline ends the wait too, so one slow request
-// can't stretch the timeout.
+// A read still going at the deadline, or when the caller aborts, ends the
+// wait too, so one slow request can't stretch the timeout or hold a cancel.
 const beforeDeadline = async <T>(
   work: Promise<T>,
   deadline: number,
-  timedOut: () => Error
+  timedOut: () => Error,
+  signal?: AbortSignal
 ): Promise<T> => {
   const remaining = deadline - Date.now();
   if (remaining <= 0) {
     throw timedOut();
   }
+  if (signal?.aborted) {
+    throw signal.reason;
+  }
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
   try {
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(timedOut()), remaining);
+        onAbort = () => reject(signal?.reason);
+        signal?.addEventListener("abort", onAbort, { once: true });
       }),
     ]);
   } finally {
     clearTimeout(timer);
+    if (onAbort) {
+      signal?.removeEventListener("abort", onAbort);
+    }
   }
 };
 
@@ -91,7 +101,12 @@ export const waitFor = async <T>(
       poll.signal
     );
     wait = poll.intervalMs ?? Math.min(wait * 2, MAX_POLL_MS);
-    value = await beforeDeadline(poll.refresh(value), deadline, timedOut);
+    value = await beforeDeadline(
+      poll.refresh(value),
+      deadline,
+      timedOut,
+      poll.signal
+    );
   }
   return value;
 };
