@@ -21,7 +21,7 @@ import {
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../../storage/r2";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 const articleText = (internal as any)["card/articleText"];
 const NOW = Date.UTC(2026, 9, 20, 10);

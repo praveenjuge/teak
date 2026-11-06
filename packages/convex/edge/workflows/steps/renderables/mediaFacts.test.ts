@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { internal } from "../../../../_generated/api";
 import { cardStorageObjectKeys } from "../../../../storage/r2";
-import { type Backend, newBackend } from "../../../helpers";
+import { type Backend, newBackend } from "../../../helpers.test-utils";
 
 const insertCard = (
   t: Backend,

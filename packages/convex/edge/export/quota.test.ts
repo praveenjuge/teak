@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { internal } from "../../_generated/api";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 const OWNER = "export-quota-owner";
 

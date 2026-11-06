@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const link = internal.workosUsers.linkWorkosUser;
 const setup = () => {

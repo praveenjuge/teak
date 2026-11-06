@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../_generated/api";
-import { newBackend, workosIdentity } from "./helpers";
+import { newBackend, workosIdentity } from "./helpers.test-utils";
 
 const OWNER = "upload-owner";
 const PART = 8 * 1024 * 1024;

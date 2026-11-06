@@ -4,7 +4,7 @@ import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { type Backend, newBackend } from "./helpers";
+import { type Backend, newBackend } from "./helpers.test-utils";
 
 const insertCard = async (
   ctx: MutationCtx,

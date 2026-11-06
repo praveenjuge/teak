@@ -19,7 +19,7 @@ import {
   markTagSummaryDirty,
   TAG_SUMMARY_PAGE_ROWS,
 } from "../../tag/tagSummary";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

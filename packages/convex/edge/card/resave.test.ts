@@ -13,7 +13,7 @@ import { serializeCard } from "../../export/serialize";
 import { normalizeIndexItem } from "../../import/indexItems";
 import type { TeakUserId } from "../../securitySessions";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 const SAVED = "https://www.example.com/post/";
 const VARIANT = "http://example.com/post?utm_source=newsletter#top";

@@ -8,7 +8,7 @@ import {
   getSessionUser,
   requireTeakUserId,
 } from "../securitySessions";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const clientId = "client_SESSION";
 // The identity Convex exposes for a hosted AuthKit access token through the

@@ -5,7 +5,7 @@ import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "../../ai/backfill";
 import { queueCardProcessing } from "../../card/processingRuns";
-import { type Backend, newBackend } from "../helpers";
+import { type Backend, newBackend } from "../helpers.test-utils";
 
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
 const HOUR_MS = 60 * 60 * 1000;

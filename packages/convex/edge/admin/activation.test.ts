@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { insertTestCard } from "../../__tests__/helpers/cards.test-utils";
 import { internal } from "../../_generated/api";
 import { DAY_MS } from "../../admin/stats";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 // The admin overview and the metrics cohorts count activated users the same
 // way: five of their own cards (onboarding cards don't count) in a first

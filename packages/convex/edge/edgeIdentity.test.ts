@@ -4,7 +4,7 @@ import {
   hmacSha256Hex,
 } from "@teak/files-protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const SECRET = "edge-identity-test-secret";
 const KEY_HASH = "a".repeat(64);

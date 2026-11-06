@@ -5,7 +5,7 @@ import {
   type WorkflowRpcResponse,
 } from "@teak/files-protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const SECRET = "workflow-rpc-test-secret";
 const FILES_SECRET = "files-signing-test-secret";

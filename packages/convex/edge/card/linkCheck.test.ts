@@ -8,7 +8,7 @@ import {
   LINK_CHECK_DEAD_TTL_MS,
 } from "../../card/linkCheck";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 const URL_GONE = "https://example.com/gone";
 const ARCHIVE_KEY = "users/owner/cards/c1/page-archive/abc123-archive.html";

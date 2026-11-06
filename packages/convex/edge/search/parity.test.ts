@@ -6,7 +6,7 @@ import { insertTestCard } from "../../__tests__/helpers/cards.test-utils";
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 const OWNER = "parity-owner";
 

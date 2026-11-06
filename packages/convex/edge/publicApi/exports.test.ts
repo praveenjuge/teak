@@ -4,7 +4,7 @@ import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api } from "../../_generated/api";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 const OWNER = "export-owner";
 

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { afterEach, expect, test, vi } from "vitest";
 import { internal } from "../../../../_generated/api";
-import { newBackend } from "../../../helpers";
+import { newBackend } from "../../../helpers.test-utils";
 
 afterEach(() => {
   vi.useRealTimers();

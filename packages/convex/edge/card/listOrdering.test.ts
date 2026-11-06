@@ -4,7 +4,7 @@ import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { deriveCardFields } from "../../card/derivedFields";
 import { onCardChanged } from "../../card/onCardChanged";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

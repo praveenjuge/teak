@@ -8,7 +8,7 @@ import { onCardChanged } from "../../card/onCardChanged";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
 import { THUMBNAIL_UNDO_WINDOW_MS } from "../../shared/thumbnails";
 import { buildR2ObjectKey } from "../../storage/r2";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 interface WorkerCall {
   op: string;

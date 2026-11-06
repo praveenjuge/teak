@@ -20,7 +20,7 @@ import {
   searchCardsByExactTag,
 } from "../../search/searchReads";
 import { MAX_CARD_TAGS } from "../../shared/tags";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

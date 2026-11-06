@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const principal = {
   workosUserId: "user_ONE",

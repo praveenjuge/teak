@@ -6,7 +6,7 @@ import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils"
 import { api, internal } from "../../_generated/api";
 import { accountDeletionStage } from "../../accountDeletion/stages";
 import { readAccountLocale } from "../../settings/preferences";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 const codeOf = async (promise: Promise<unknown>) => {
   try {

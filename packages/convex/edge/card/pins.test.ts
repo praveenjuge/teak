@@ -7,7 +7,7 @@ import type { Id } from "../../_generated/dataModel";
 import type { NewCard } from "../../card/cardWrites";
 import { syncCardSearchTagsBatchHandler } from "../../card/onCardChanged";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

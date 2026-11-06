@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { onCardChanged } from "../../card/onCardChanged";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 const USER = "teak_embed_owner";
 

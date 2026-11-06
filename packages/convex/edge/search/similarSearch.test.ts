@@ -3,7 +3,7 @@ import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { onCardChanged } from "../../card/onCardChanged";
 import { semanticSearchKey } from "../../search/semanticCache";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 interface WorkerCall {
   op: string;

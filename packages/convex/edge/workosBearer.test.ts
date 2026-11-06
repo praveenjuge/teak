@@ -22,7 +22,7 @@ import { api as backendApi, components, internal } from "../_generated/api";
 import { syncCardSearchTagsBatchHandler } from "../card/onCardChanged";
 import { API_KEY_TOKEN_PREFIX } from "../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const issuer = "https://bearer-dev.authkit.app";
 const ownerId = "legacy-owner";

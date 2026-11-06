@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
 import { onCardChanged } from "../../card/onCardChanged";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

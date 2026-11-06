@@ -6,7 +6,7 @@ import {
   SEMANTIC_CACHE_TTL_MS,
   semanticSearchKey,
 } from "../../search/semanticCache";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 const STRONG = 0.45;
 const WEAK = 0.2;

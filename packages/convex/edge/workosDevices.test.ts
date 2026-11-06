@@ -5,7 +5,7 @@ import {
   readWorkosSessionIdentity,
 } from "../securitySessions";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const claims = {
   subject: "user_OWNER",

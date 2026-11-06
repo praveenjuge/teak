@@ -6,7 +6,7 @@ import type { Id } from "../../_generated/dataModel";
 import { insertCompletedCards } from "../../card/defaultCards";
 import { readFolderCardCount } from "../../folder/folderRows";
 import { insertFolder } from "../../folder/folders";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

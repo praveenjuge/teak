@@ -10,7 +10,7 @@ import { api, internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { insertCompletedCards } from "../../card/defaultCards";
 import { buildR2UserPrefix } from "../../storage/r2";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const coreWorker = await loadCoreWorker();

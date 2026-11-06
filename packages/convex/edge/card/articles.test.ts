@@ -16,7 +16,7 @@ import {
   articleTextObjectKey,
 } from "../../shared/article";
 import { buildR2UserPrefix, cardStorageObjectKeys } from "../../storage/r2";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 const articleText = (internal as any)["card/articleText"];
 const documentText = (internal as any)["card/documentText"];

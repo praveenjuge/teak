@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../../_generated/api";
 import { accountDeletionStage } from "../../accountDeletion/stages";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 const backend = () => newBackend();
 type Backend = ReturnType<typeof backend>;

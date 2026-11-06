@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../../_generated/api";
 import { queueCardProcessing } from "../../card/processingRuns";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 const PRODUCT_URL = "https://shop.example/products/mug";
 const DAY_MS = 24 * 60 * 60 * 1000;

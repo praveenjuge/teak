@@ -13,7 +13,7 @@ import {
   syncCardSearchTagsBatchHandler,
 } from "../../card/onCardChanged";
 import { MAX_CARD_TAGS } from "../../shared/tags";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

@@ -11,7 +11,7 @@ import {
 } from "../../card/defaultCards";
 import { readCardTranscript } from "../../card/textContents";
 import { buildR2ObjectKey } from "../../storage/r2";
-import { newBackend, workosIdentity } from "../helpers";
+import { newBackend, workosIdentity } from "../helpers.test-utils";
 
 const USER_ID = "teak_onboarding";
 const UPLOAD_CARDS = ONBOARDING_CARDS.filter((card) => card.uploads);

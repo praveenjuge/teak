@@ -5,7 +5,7 @@ import type { NewCard } from "../../card/cardWrites";
 import { deriveCardFields } from "../../card/derivedFields";
 import { CARD_LIST_PAGE_ROW_LIMIT } from "../../card/listQuery";
 import { onCardChanged } from "../../card/onCardChanged";
-import { newBackend, signIn } from "../helpers";
+import { newBackend, signIn } from "../helpers.test-utils";
 
 beforeEach(() => {
   vi.useFakeTimers();

@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { newBackend, workosClaims } from "./helpers";
+import { newBackend, workosClaims } from "./helpers.test-utils";
 
 const setup = () => {
   const t = newBackend();

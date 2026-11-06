@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 describe("vector shards", () => {
   test("places a new user on the current shard, in a namespace of their own", async () => {

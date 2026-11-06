@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { internal } from "../_generated/api";
-import { newBackend } from "./helpers";
+import { newBackend } from "./helpers.test-utils";
 
 const setup = () => newBackend();
 type TestBackend = ReturnType<typeof setup>;

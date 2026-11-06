@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { V1_ENDPOINTS } from "../../publicApi/http/meta";
 import { openApiSpec } from "../../publicApi/openApi/spec";
-import { newBackend } from "../helpers";
+import { newBackend } from "../helpers.test-utils";
 
 test.each([
   ["DELETE", "/v1/cards", "GET, POST, OPTIONS"],
