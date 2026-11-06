@@ -71,7 +71,9 @@ simulator or Mac window it captures from and the device frame it renders in.
      apple-<iphone|ipad|mac> <version-id>` with the editable App Store
      version's ID (`asc versions list --app 6756574989`). It validates,
      replaces the set, and waits until Apple holds the exact files in order.
-   - Play: upload by hand in Play Console until the app is live.
+   - Play: the Android release workflow publishes the committed phone
+     screenshots and feature graphic with each release, replacing a set only
+     when its files changed (`apps/android/release.md`).
    - Raycast: the images ship with the extension's next store release
      (`apps/raycast/metadata`).
 

@@ -107,15 +107,14 @@ No. Cards are stored until the person deletes them.
 
 ## Store listing assets
 
-Assets live in `listing/en-US/`:
+`store.config.json` holds the listing text (title, short and full description) and the release notes, and names the images in `listing/en-US/graphics/`:
 
-- `title.txt` (23 of 30 characters)
-- `short_description.txt` (77 of 80)
-- `full_description.txt` (under 4,000)
-- `graphics/icon.png`, 512 × 512
-- `graphics/feature_graphic.png`, 1024 × 500
-- `graphics/phone-screenshots/`, five 1080 × 1920 phone screenshots, in order
+- `icon.png`, 512 × 512
+- `feature_graphic.png`, 1024 × 500
+- `phone-screenshots/`, five 1080 × 1920 phone screenshots, in order
 
 The feature graphic and screenshots come from the store images pipeline in
-`scripts/store-assets/README.md`. Upload them by hand in Play Console. Tablet
-screenshots (7-inch and 10-inch, at least one each) are still to come.
+`scripts/store-assets/README.md`. Each Android release publishes the text and
+any changed images (see `../release.md`), so edit them here, not in Play
+Console. Tablet screenshots (7-inch and 10-inch, at least one each) are still
+to come.
