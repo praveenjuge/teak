@@ -276,7 +276,7 @@ describe("IntegrationsSettings", () => {
       /<button[^>]*aria-checked="false"[^>]*aria-label="Save by email"[^>]*role="switch"/
     );
     expect(markup).toContain('id="apps"');
-    expect(markup).toContain('aria-label="Chrome (opens in a new tab)"');
+    expect(markup).toContain('aria-label="Chrome Get (opens in a new tab)"');
     expect(markup).toContain('id="api-keys"');
     expect(markup).toContain("Create key");
     const external = [...markup.matchAll(/<a[^>]*target="_blank"[^>]*>/g)].map(

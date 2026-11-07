@@ -213,6 +213,7 @@ export function SettingsLinkRow({
           ) : null}
         </span>
       </span>
+      {/* Paints nothing in a flex row; keeps label and value apart in the row's text. */}{" "}
       <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground text-sm">
         {value}
         {external ? (

@@ -73,7 +73,9 @@ export function AppsSection() {
     >
       {APP_LINKS.map(({ href, id, logo }) => (
         <SettingsLinkRow
-          aria-label={t("opensInNewTab", { name: t(`apps.${id}`) })}
+          aria-label={t("opensInNewTab", {
+            name: `${t(`apps.${id}`)} ${t("get")}`,
+          })}
           external
           href={href}
           icon={<SettingsLogoTile src={logo} />}
