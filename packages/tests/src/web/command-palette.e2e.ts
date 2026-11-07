@@ -1,5 +1,3 @@
-
-
 import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
 import { retry } from "../helpers/test";
@@ -122,7 +120,7 @@ test("Export in the palette opens Settings at its Export section", async ({
         await sidebarToggle.click();
       }
       await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false", {
-        timeout: 2_000,
+        timeout: 2000,
       });
     },
     { timeout: 30_000 }
