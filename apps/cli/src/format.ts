@@ -60,6 +60,53 @@ export const formatCardLine = (card: CardLineInput, plain = false) => {
 export const formatCardLines = (cards: CardLineInput[]) =>
   cards.map((card) => formatCardLine(card, plainOutput())).join("\n");
 
+const SNIPPET_CHARS = 54;
+
+const cardCells = (card: CardLineInput) => {
+  const text = (card.content || "").replace(/\s+/g, " ").trim();
+  return [
+    card.id,
+    card.type,
+    text.length > SNIPPET_CHARS
+      ? `${text.slice(0, SNIPPET_CHARS - 1)}...`
+      : text,
+    (card.tags || [])
+      .slice(0, 4)
+      .map((tag) => `#${tag}`)
+      .join(" "),
+    `${relativeAge(Date.now() - card.createdAt)}${card.isHidden ? " hidden" : ""}`,
+  ];
+};
+
+const CARD_HEADERS = ["ID", "Type", "Content", "Tags", "Age"];
+
+/**
+ * A listing for a person: a header row, then one card per row in aligned
+ * columns. A pipe (`plain`) gets the tab-separated lines with no header.
+ */
+export const formatCardTable = (
+  cards: CardLineInput[],
+  plain = plainOutput()
+) => {
+  if (plain) {
+    return cards.map((card) => formatCardLine(card, true)).join("\n");
+  }
+  const rows = [CARD_HEADERS, ...cards.map(cardCells)];
+  const widths = CARD_HEADERS.map((_, column) =>
+    Math.max(...rows.map((row) => (row[column] ?? "").length))
+  );
+  return rows
+    .map((row) =>
+      row
+        .map((cell, column) =>
+          column === row.length - 1 ? cell : cell.padEnd(widths[column] ?? 0)
+        )
+        .join("  ")
+        .trimEnd()
+    )
+    .join("\n");
+};
+
 const TRANSCRIPT_PREVIEW_CHARS = 600;
 
 const fileLine = (card: Card) => {

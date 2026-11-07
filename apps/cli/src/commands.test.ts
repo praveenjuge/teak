@@ -1130,6 +1130,7 @@ describe("teak exit codes", () => {
         code: "NOT_FOUND",
         message: "Card not found: missing",
         next: 'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
+        reason: "not_found",
         status: 404,
       },
     });
@@ -1662,7 +1663,7 @@ describe("teak batch and fallback behavior", () => {
     const neither = await teak("highlights", "note", "h_1");
     expect(neither.code).not.toBe(0);
 
-    const removed = await teak("highlights", "rm", "h_1");
+    const removed = await teak("highlights", "rm", "h_1", "--yes");
     expect(removed.stdout).toBe("Removed highlight h_1\n");
 
     const notFound = await teak("highlights", "add", "card_b", "tulips");
@@ -1876,7 +1877,13 @@ describe("teak batch and fallback behavior", () => {
     await teak("ls", "--folder", "Reading");
     expect(requests.at(-1)?.path).toContain("folder=folder_1");
 
-    const removed = await teak("--json", "folders", "delete", "folder_1");
+    const removed = await teak(
+      "--json",
+      "folders",
+      "delete",
+      "folder_1",
+      "--yes"
+    );
     expect(JSON.parse(removed.stdout)).toEqual({
       deleted: ["folder_1"],
       summary: { failed: 0, succeeded: 1, total: 1 },
@@ -2152,6 +2159,7 @@ describe("teak design rules", () => {
         code: "USAGE",
         message: "unknown option '--zzz'",
         next: "Add --help to the command to see its options.",
+        reason: "invalid_usage",
       },
     });
   });
@@ -2420,5 +2428,318 @@ describe("teak design rules", () => {
     expect(root.stdout).toContain("130  stopped with Ctrl+C");
     const list = await teak("cards", "list", "--help");
     expect(list.stdout).toContain("Examples:\n  teak cards list --type link");
+  });
+});
+
+describe("teak CLI guidelines", () => {
+  const ESC = String.fromCharCode(27);
+  const BEL = String.fromCharCode(7);
+  const hostile = `Title ${ESC}]0;owned${BEL}${ESC}[31mred${ESC}[0m end`;
+
+  test("saved text can't send escape sequences to the terminal; JSON keeps it escaped", async () => {
+    routes.set("GET /v1/cards/card_x", () =>
+      json(card("card_x", { content: hostile, notes: hostile }))
+    );
+    routes.set("GET /v1/cards", () =>
+      json({
+        items: [card("card_x", { content: hostile })],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
+    );
+    const detail = await teak("cards", "get", "card_x");
+    expect(detail.code).toBe(0);
+    expect(detail.stdout).not.toContain(ESC);
+    expect(detail.stdout).not.toContain(BEL);
+    expect(detail.stdout).toContain("Title ]0;owned[31mred[0m end");
+    const listing = await teak("ls");
+    expect(listing.stdout).not.toContain(ESC);
+    const asJson = await teak("--json", "cards", "get", "card_x");
+    expect(asJson.stdout).toContain("\\u001b]0;owned");
+    expect(JSON.parse(asJson.stdout).content).toBe(hostile);
+  });
+
+  test("a server's message can't send escape sequences either", async () => {
+    routes.set("GET /v1/cards/card_x", () =>
+      json({ code: "NOT_FOUND", error: `Gone ${ESC}[2J` }, 404)
+    );
+    const result = await teak("cards", "get", "card_x");
+    expect(result.code).toBe(EXIT.notFound);
+    expect(result.stderr).not.toContain(ESC);
+    expect(result.stderr).toContain("Gone [2J");
+  });
+
+  test("folders delete and highlights delete need --yes when no one can answer", async () => {
+    const folder = await teak("--json", "folders", "delete", "Reading");
+    expect(folder.code).toBe(EXIT.usage);
+    expect(folder.stdout).toBe("");
+    expect(JSON.parse(folder.stderr).error).toMatchObject({
+      code: "USAGE",
+      message: "Deleting a folder can't be undone; add --yes to confirm",
+      reason: "confirmation_required",
+    });
+    const highlight = await teak("highlights", "delete", "h_1");
+    expect(highlight.code).toBe(EXIT.usage);
+    expect(highlight.stderr).toContain(
+      "Deleting a highlight can't be undone; add --yes to confirm"
+    );
+    // Refused before any request.
+    expect(requests).toHaveLength(0);
+  });
+
+  test("an unknown --fields name on a read is a usage error that lists the fields", async () => {
+    routes.set("GET /v1/cards/card_a", () => json(card("card_a")));
+    const result = await teak(
+      "--json",
+      "--fields",
+      "id,idd",
+      "cards",
+      "get",
+      "card_a"
+    );
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stdout).toBe("");
+    const { error } = JSON.parse(result.stderr);
+    expect(error.reason).toBe("invalid_usage");
+    expect(error.message).toStartWith('unknown field "idd"; fields here: ');
+    expect(error.message).toContain("content");
+  });
+
+  test("an unknown --fields name after a change prints the result and warns", async () => {
+    routes.set("PATCH /v1/cards/card_a/favorite", () =>
+      json(card("card_a", { isFavorited: true }))
+    );
+    const result = await teak("--json", "--fields", "id,nope", "fav", "card_a");
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ id: "card_a" });
+    const { warning } = JSON.parse(result.stderr);
+    expect(warning.reason).toBe("unknown_fields");
+    expect(warning.unknownFields).toEqual(["nope"]);
+    expect(warning.message).toContain("The change was made.");
+  });
+
+  test("every bad value is reported at once, before any request", async () => {
+    const result = await teak(
+      "--json",
+      "ls",
+      "--limit",
+      "zero",
+      "--type",
+      "spaceship"
+    );
+    expect(result.code).toBe(EXIT.usage);
+    const { error } = JSON.parse(result.stderr);
+    expect(error.reason).toBe("invalid_usage");
+    expect(error.problems).toHaveLength(2);
+    expect(error.problems[0]).toBe(
+      "option '-n, --limit <NUMBER>' argument 'zero' is invalid. limit must be a positive number"
+    );
+    expect(error.problems[1]).toStartWith(
+      "option '--type <type>' argument 'spaceship' is invalid. type must be one of:"
+    );
+    expect(requests).toHaveLength(0);
+    const text = await teak("ls", "--limit", "zero", "--type", "spaceship");
+    expect(text.stderr).toContain("limit must be a positive number");
+    expect(text.stderr).toContain("type must be one of");
+  });
+
+  test("errors carry a reason a script can branch on", async () => {
+    const missing = await teak("--json", "cards", "get");
+    expect(missing.code).toBe(EXIT.usage);
+    expect(JSON.parse(missing.stderr).error.reason).toBe("missing_input");
+    routes.set("GET /v1/me", () =>
+      json({ code: "INVALID_API_KEY", error: "Invalid API key" }, 401)
+    );
+    const auth = await teak("--json", "whoami");
+    expect(JSON.parse(auth.stderr).error.reason).toBe("login_required");
+  });
+
+  test("help comes as JSON, makes no request and reads no key", async () => {
+    const root = await teakWithEnv({ TEAK_API_KEY: "" }, "help", "--json");
+    expect(root.code).toBe(0);
+    const cli = JSON.parse(root.stdout);
+    expect(cli.command).toBe("teak");
+    expect(cli.exitCodes["2"]).toContain("usage");
+    expect(
+      cli.commands.map((command: { command: string }) => command.command)
+    ).toContain("teak cards");
+    const list = await teak("cards", "list", "--help", "--json");
+    const described = JSON.parse(list.stdout);
+    expect(described.command).toBe("teak cards list");
+    expect(described.examples).toContain(
+      "teak cards list --type link --hue blue"
+    );
+    expect(
+      described.options.find(
+        (option: { long: string | null }) => option.long === "--limit"
+      )
+    ).toMatchObject({ short: "-n", value: "<NUMBER>" });
+    expect(requests).toHaveLength(0);
+  });
+
+  test("help --search finds a command by what it does", async () => {
+    const result = await teak("help", "--search", "trash", "forever");
+    expect(result.code).toBe(0);
+    expect(result.stdout.split("\n")[0]).toStartWith(
+      "teak cards delete (teak rm)"
+    );
+    const asJson = await teak("help", "--search", "palette", "color", "--json");
+    const { results } = JSON.parse(asJson.stdout);
+    expect(results[0].command).toBe("teak cards update");
+    const none = await teak("help", "--search", "zzzzqx");
+    expect(none.stdout).toBe("");
+    expect(none.stderr).toContain("No commands match");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("--tag repeats to match any of several tags", async () => {
+    routes.set("GET /v1/cards", () =>
+      json({
+        items: [card("card_a")],
+        pageInfo: { hasMore: false, nextCursor: null },
+        searchMode: "keyword",
+      })
+    );
+    // Tags joined into the search aren't text meaning search could miss.
+    const tagsOnly = await teak("ls", "--tag", "a", "--tag", "b");
+    expect(tagsOnly.stderr).not.toContain("mode: keyword");
+    const typed = await teak("ls", "-q", "cozy", "--tag", "a", "--tag", "b");
+    expect(typed.stderr).toContain("mode: keyword");
+    await teak("ls", "--tag", "design");
+    expect(
+      new URL(`http://x${requests.at(-1)?.path}`).searchParams.get("tag")
+    ).toBe("design");
+    await teak("ls", "-q", "fonts", "--tag", "design", "--tag", "web type");
+    const params = new URL(`http://x${requests.at(-1)?.path}`).searchParams;
+    expect(params.get("tag")).toBeNull();
+    expect(params.get("q")).toBe('fonts (tag:design OR tag:"web type")');
+  });
+
+  test("download -o - writes the file to stdout, and -o json is refused", async () => {
+    routes.set("GET /v1/cards/card_f", () =>
+      json(
+        card("card_f", {
+          fileName: "poster.png",
+          fileUrl: `${server.url}files/poster.png`,
+        })
+      )
+    );
+    routes.set("GET /files/poster.png", () => new Response("png-bytes"));
+    const piped = await teak("download", "card_f", "-o", "-");
+    expect(piped.code).toBe(0);
+    expect(piped.stdout).toBe("png-bytes");
+    expect(existsSync(join(workDirectory, "-"))).toBe(false);
+    requests.length = 0;
+    const withJson = await teak("--json", "download", "card_f", "-o", "-");
+    expect(withJson.code).toBe(EXIT.usage);
+    const named = await teak("download", "card_f", "-o", "json");
+    expect(named.code).toBe(EXIT.usage);
+    expect(named.stderr).toContain("add --json");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("a saved file appears whole, with no partial file left beside it", async () => {
+    routes.set("GET /v1/cards/card_f", () =>
+      json(
+        card("card_f", {
+          fileName: "atomic.txt",
+          fileUrl: `${server.url}files/atomic.txt`,
+        })
+      )
+    );
+    let body = "first";
+    routes.set("GET /files/atomic.txt", () => new Response(body));
+    const target = join(workDirectory, "atomic.txt");
+    rmSync(target, { force: true });
+    expect((await teak("download", "card_f")).code).toBe(0);
+    body = "second";
+    expect((await teak("download", "card_f")).code).toBe(EXIT.usage);
+    expect(readFileSync(target, "utf8")).toBe("first");
+    expect((await teak("download", "card_f", "--force")).code).toBe(0);
+    expect(readFileSync(target, "utf8")).toBe("second");
+    const { readdirSync } = await import("node:fs");
+    expect(
+      readdirSync(workDirectory).filter((name) => name.endsWith(".part"))
+    ).toEqual([]);
+  });
+
+  test("--api-key - reads the key from stdin", async () => {
+    routes.set("GET /v1/me", () =>
+      json({
+        data: {
+          id: "u",
+          email: "me@example.org",
+          plan: "pro",
+          cardCount: 1,
+          cardLimit: null,
+          settingsUrl: "https://app/settings",
+        },
+      })
+    );
+    const result = await teakWithStdin(
+      "teak_from_stdin\n",
+      false,
+      "--api-key",
+      "-",
+      "whoami"
+    );
+    expect(result.code).toBe(0);
+    expect(requests.at(-1)?.auth).toBe("Bearer teak_from_stdin");
+    const empty = await teakWithStdin("", false, "--api-key", "-", "whoami");
+    expect(empty.code).toBe(EXIT.usage);
+    expect(empty.stderr).toContain("read no key");
+  });
+
+  test("Ctrl+C during a wait says the job keeps going, and exits 130", async () => {
+    const job = { createdAt: 1, id: "exp_1", status: "running" };
+    routes.set("POST /v1/exports", () => json({ job }, 202));
+    routes.set("GET /v1/exports/latest", () =>
+      json({ canStartNew: false, job, nextAvailableAt: null })
+    );
+    const child = spawn(
+      [
+        process.execPath,
+        "run",
+        join(import.meta.dir, "index.ts"),
+        "export",
+        "--wait",
+      ],
+      {
+        cwd: workDirectory,
+        env: {
+          ...env,
+          TEAK_API_KEY: API_KEY,
+          TEAK_API_URL: server.url.toString(),
+          XDG_CONFIG_HOME: configHome,
+        },
+        stderr: "pipe",
+        stdout: "pipe",
+        timeout: 15_000,
+      }
+    );
+    const deadline = Date.now() + 10_000;
+    while (
+      !requests.some((request) => request.path === "/v1/exports/latest") &&
+      Date.now() < deadline
+    ) {
+      await Bun.sleep(50);
+    }
+    child.kill("SIGINT");
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(code).toBe(130);
+    expect(stdout).toBe("");
+    expect(stderr).toBe(
+      "Stopped.\nThe export keeps going on Teak. Check on it with: teak export status\n"
+    );
+  });
+
+  test("-v prints the version, and -V still does", async () => {
+    const short = await teak("-v");
+    expect(short.code).toBe(0);
+    expect(short.stdout).toMatch(/^\d+\.\d+\.\d+\n$/);
+    expect((await teak("-V")).stdout).toBe(short.stdout);
   });
 });

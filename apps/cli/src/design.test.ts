@@ -2,8 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { bulkItemProblem } from "@teak/convex/shared/bulkItems";
 import { type Command, InvalidArgumentError } from "commander";
 import { TeakApiError } from "teak-sdk";
-import { CliError, describeError, formatErrorText } from "./errors";
-import { formatCardLine } from "./format";
+import {
+  CliError,
+  ConfirmationRequiredError,
+  describeError,
+  ERROR_REASONS,
+  formatErrorText,
+  InterruptedError,
+} from "./errors";
+import { formatCardLine, formatCardTable } from "./format";
 import {
   commandPath,
   completionScript,
@@ -11,11 +18,13 @@ import {
   EXAMPLES,
   findCommand,
 } from "./help";
-import { program, SHORTCUTS } from "./index";
+import { changesData, program, SHORTCUTS } from "./index";
 import { collectPages } from "./library";
 import { canPrompt, isAgent, isInteractive, type ModeInput } from "./mode";
 import { parseDuration, parseTime } from "./options";
-import { selectFields } from "./runtime";
+import { selectFields, unknownFields } from "./runtime";
+import { terminalText } from "./terminal";
+import { checkForUpdate, isNewer } from "./update";
 
 const tty = (env: Record<string, string> = {}): ModeInput => ({
   env,
@@ -98,6 +107,7 @@ describe("errors", () => {
       code: "NOT_FOUND",
       message: "Card not found: card_x",
       next: 'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
+      reason: "not_found",
       requestId: "req_1",
       status: 404,
     });
@@ -140,6 +150,7 @@ describe("errors", () => {
       code: "USAGE",
       message: "bad",
       next: "See the options with: teak tags delete --help",
+      reason: "invalid_usage",
     });
   });
 
@@ -396,5 +407,157 @@ describe("bulk dry run", () => {
     ["delete", [], "Each bulk item must be an object"],
   ] as const)("%s %j", (operation, item, problem) => {
     expect(bulkItemProblem(operation, item)).toBe(problem);
+  });
+});
+
+describe("terminal text", () => {
+  test("keeps printable text, newlines and tabs, and drops control characters", () => {
+    const esc = String.fromCharCode(27);
+    expect(terminalText(`a${esc}]8;;https://x${esc}\\b\tc\r\nd\re`)).toBe(
+      "a]8;;https://x\\b\tc\nd\ne"
+    );
+    expect(terminalText(`x${String.fromCharCode(0x9b)}31m`)).toBe("x31m");
+    expect(terminalText("Café ☕ 日本")).toBe("Café ☕ 日本");
+  });
+});
+
+describe("card table", () => {
+  const row = (id: string, content: string, tags: string[] = []) => ({
+    content,
+    createdAt: Date.now() - 3 * 60 * 60 * 1000,
+    id,
+    tags,
+    type: "text",
+  });
+
+  test("a person gets a header and aligned columns", () => {
+    const lines = formatCardTable(
+      [row("card_a", "short", ["design"]), row("card_long_id", "a longer one")],
+      false
+    ).split("\n");
+    expect(lines[0]).toBe("ID            Type  Content       Tags     Age");
+    expect(lines[1]).toBe("card_a        text  short         #design  3h");
+    expect(lines[2]).toBe("card_long_id  text  a longer one           3h");
+  });
+
+  test("a pipe gets tab-separated rows and no header", () => {
+    const out = formatCardTable([row("card_a", "short")], true);
+    expect(out.startsWith("card_a\ttext\tshort\t")).toBe(true);
+  });
+});
+
+describe("update check", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  test("compares major, minor and patch as numbers", () => {
+    expect(isNewer("1.0.10", "1.0.9")).toBe(true);
+    expect(isNewer("1.0.9", "1.0.9")).toBe(false);
+    expect(isNewer("1.0.8", "1.0.9")).toBe(false);
+    expect(isNewer("2.0.0-beta.1", "1.9.9")).toBe(true);
+  });
+
+  test("asks at most once a day and says so at most once a day", async () => {
+    let asked = 0;
+    const fetchLatest = () => {
+      asked += 1;
+      return Promise.resolve("1.0.99");
+    };
+    const first = await checkForUpdate({
+      current: "1.0.93",
+      fetchLatest,
+      now: 10 * DAY,
+      state: {},
+    });
+    expect(first.notice).toBe(
+      "teak-cli 1.0.99 is out (you have 1.0.93). Update with: npm install -g teak-cli@latest"
+    );
+    const later = await checkForUpdate({
+      current: "1.0.93",
+      fetchLatest,
+      now: 10 * DAY + 1000,
+      state: first.state,
+    });
+    expect(later.notice).toBeUndefined();
+    expect(asked).toBe(1);
+    const tomorrow = await checkForUpdate({
+      current: "1.0.93",
+      fetchLatest,
+      now: 11 * DAY,
+      state: later.state,
+    });
+    expect(tomorrow.notice).toBeDefined();
+    expect(asked).toBe(2);
+  });
+
+  test("says nothing when up to date or offline, and doesn't retry offline each run", async () => {
+    const upToDate = await checkForUpdate({
+      current: "1.0.99",
+      fetchLatest: () => Promise.resolve("1.0.99"),
+      now: DAY,
+      state: {},
+    });
+    expect(upToDate.notice).toBeUndefined();
+    const offline = await checkForUpdate({
+      current: "1.0.93",
+      fetchLatest: () => Promise.reject(new Error("offline")),
+      now: DAY,
+      state: {},
+    });
+    expect(offline.notice).toBeUndefined();
+    expect(offline.state.checkedAt).toBe(DAY);
+  });
+});
+
+describe("error reasons", () => {
+  test("each kind of failure has one stable reason", () => {
+    const reason = (error: unknown) =>
+      describeError(error, { apiUrl: "https://teakvault.com/api" }).reason;
+    expect(reason(new TeakApiError("UNAUTHORIZED"))).toBe("login_required");
+    expect(reason(new TeakApiError("CARD_LIMIT_REACHED"))).toBe(
+      "limit_reached"
+    );
+    expect(reason(new TeakApiError("TIMEOUT"))).toBe("timed_out");
+    expect(reason(new TeakApiError("NETWORK_ERROR"))).toBe("network");
+    expect(reason(new ConfirmationRequiredError("add --yes"))).toBe(
+      "confirmation_required"
+    );
+    expect(reason(new InterruptedError())).toBe("cancelled");
+    expect(reason(new Error("boom"))).toBe("unknown");
+    for (const error of [new InterruptedError(), new Error("x")]) {
+      expect(ERROR_REASONS).toContain(reason(error));
+    }
+  });
+
+  test("a stopped command says what is still true", () => {
+    const report = describeError(
+      new InterruptedError("The export keeps going on Teak."),
+      { apiUrl: "https://teakvault.com/api" }
+    );
+    expect(report).toMatchObject({
+      code: "CANCELLED",
+      message: "Stopped.",
+      next: "The export keeps going on Teak.",
+      reason: "cancelled",
+    });
+  });
+});
+
+describe("reads and changes", () => {
+  test("a command changes data when it calls more than reads", () => {
+    expect(changesData("cards get")).toBe(false);
+    expect(changesData("ls")).toBe(false);
+    expect(changesData("rm")).toBe(true);
+    expect(changesData("tags rename")).toBe(true);
+    expect(changesData("completion")).toBe(false);
+  });
+});
+
+describe("unknown fields", () => {
+  test("names the fields no record has, and the fields there are", () => {
+    expect(
+      unknownFields({ items: [{ id: 1, url: 2 }, { id: 3 }] }, ["id", "uri"])
+    ).toEqual({ known: ["id", "url"], unknown: ["uri"] });
+    // An empty listing can't say which names are wrong.
+    expect(unknownFields({ items: [] }, ["anything"]).unknown).toEqual([]);
   });
 });

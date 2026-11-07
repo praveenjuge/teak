@@ -103,6 +103,7 @@ teak folders create "Reading list" --color blue
 teak folders create "Design links" --query 'tag:design type:link'   # a smart folder
 teak folders add "Reading list" <card-id> <card-id>
 teak folders get "Reading list"
+teak folders delete "Reading list" --yes   # cards are kept
 teak tags rename inspo inspiration --wait   # every card, including Trash and Archive
 teak tags merge ux design
 teak tags delete draft --dry-run # how many library cards have it; nothing changes
@@ -117,7 +118,7 @@ Highlights are passages marked in a link's saved article, each with an optional 
 teak highlights list <card-id>   # in article order, notes indented
 teak highlights add <card-id> "a passage from the article" --note "why"   # found by its text
 teak highlights note <highlight-id> "new note"   # --clear removes it
-teak highlights delete <highlight-id>
+teak highlights delete <highlight-id> --yes   # can't be undone
 ```
 
 Change up to 100 cards at once from a JSON file: `teak cards bulk archive --file items.json` (add `--dry-run` to check it first) (`create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, `removeTags`).
@@ -137,7 +138,7 @@ teak --json cards changes --since 1d --limit 50       # --since takes 2026-01-01
 teak --json tags
 ```
 
-Errors go to stderr as one JSON line with `code`, `message` and `next` (what to run instead). Exit codes: 0 ok, 1 failed (or a `--wait` timed out), 2 usage, 3 not signed in, 4 not found, 5 rate limited. In an agent's shell the CLI never prompts, so a delete that would ask needs `--yes`. Page with `--next <cursor>` from `pageInfo.nextCursor`.
+Errors go to stderr as one JSON line with `code`, `reason` (a stable word to branch on, such as `confirmation_required`, `login_required`, `not_found` or `invalid_usage`), `message` and `next` (what to run instead). Exit codes: 0 ok, 1 failed (or a `--wait` timed out), 2 usage, 3 not signed in, 4 not found, 5 rate limited, 130 stopped. In an agent's shell the CLI never prompts, so a delete that can't be undone (`rm --permanent`, `tags delete`, `folders delete`, `highlights delete`) needs `--yes`. `teak help --json` lists every command and option as JSON, and `teak help --search "<words>"` finds one by what it does. Page with `--next <cursor>` from `pageInfo.nextCursor`.
 
 For destructive operations, confirm intent before deleting cards unless the user explicitly asked for cleanup. `teak rm` moves cards to Trash, where `teak restore` brings them back. Only use `teak rm --permanent --yes` when the user asked for a permanent delete.
 

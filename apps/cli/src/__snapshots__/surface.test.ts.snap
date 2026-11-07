@@ -1,0 +1,1088 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the command surface stays as published 1`] = `
+{
+  "arguments": [],
+  "command": "teak",
+  "commands": [
+    {
+      "arguments": [],
+      "command": "teak login",
+      "options": [
+        "--no-browser",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak logout",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak auth",
+      "commands": [
+        {
+          "arguments": [],
+          "command": "teak auth status",
+          "options": [
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak whoami",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak cards",
+      "commands": [
+        {
+          "aliases": [
+            "ls",
+          ],
+          "arguments": [],
+          "command": "teak cards list",
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "[query]",
+          ],
+          "command": "teak cards search",
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards similar",
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [],
+          "command": "teak cards favorites",
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [],
+          "command": "teak cards pins",
+          "commands": [
+            {
+              "arguments": [
+                "<ids...>",
+              ],
+              "command": "teak cards pins order",
+              "options": [
+                "-h, --help",
+              ],
+            },
+          ],
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [],
+          "command": "teak cards trash",
+          "options": [
+            "-q, --query <text>",
+            "--similar-to <id>",
+            "--type <type>",
+            "--tag <tag>",
+            "--favorited",
+            "--pinned",
+            "--trashed",
+            "--archived",
+            "--folder <folder>",
+            "--style <style>",
+            "--hue <hue>",
+            "--hex <color>",
+            "--mode <mode>",
+            "-n, --limit <NUMBER>",
+            "--next <CURSOR>",
+            "--sort <sort>",
+            "--seed <NUMBER>",
+            "--created-after <TIME>",
+            "--created-before <TIME>",
+            "--include <groups>",
+            "--date <phrase>",
+            "-a, --all",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards get",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "add",
+          ],
+          "arguments": [
+            "[content]",
+          ],
+          "command": "teak cards create",
+          "options": [
+            "--url <URL>",
+            "--file <PATH>",
+            "--tags <tags>",
+            "--notes <notes>",
+            "--source-url <URL>",
+            "--source-title <title>",
+            "--type <type>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards update",
+          "options": [
+            "--content <text>",
+            "--title <title>",
+            "--notes <notes>",
+            "--url <URL>",
+            "--tags <tags>",
+            "--add-color <hex>",
+            "--remove-color <hex>",
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "rm",
+          ],
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak cards delete",
+          "options": [
+            "--permanent",
+            "-y, --yes",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak cards restore",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak cards refresh",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+            "[file]",
+          ],
+          "command": "teak cards thumbnail",
+          "options": [
+            "--reset",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak cards archive",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak cards unarchive",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<url>",
+          ],
+          "command": "teak cards duplicate",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards content",
+          "options": [
+            "--kind <kind>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards links",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards open",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards download",
+          "options": [
+            "-o, --output <PATH>",
+            "--force",
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "fav",
+          ],
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards favorite",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "unfav",
+          ],
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards unfavorite",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards pin",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards unpin",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards done",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards todo",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+          ],
+          "command": "teak cards save-pdf",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<operation>",
+          ],
+          "command": "teak cards bulk",
+          "options": [
+            "--file <PATH>",
+            "--dry-run",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [],
+          "command": "teak cards changes",
+          "options": [
+            "--since <TIME>",
+            "--next <CURSOR>",
+            "-n, --limit <NUMBER>",
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak tags",
+      "commands": [
+        {
+          "arguments": [],
+          "command": "teak tags list",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+            "<tags...>",
+          ],
+          "command": "teak tags add",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+            "<tags...>",
+          ],
+          "command": "teak tags remove",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<from>",
+            "<to>",
+          ],
+          "command": "teak tags rename",
+          "options": [
+            "--dry-run",
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<from>",
+            "<into>",
+          ],
+          "command": "teak tags merge",
+          "options": [
+            "--dry-run",
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<tag>",
+          ],
+          "command": "teak tags delete",
+          "options": [
+            "--dry-run",
+            "-y, --yes",
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<operationId>",
+          ],
+          "command": "teak tags status",
+          "options": [
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak folders",
+      "commands": [
+        {
+          "aliases": [
+            "ls",
+          ],
+          "arguments": [],
+          "command": "teak folders list",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "show",
+          ],
+          "arguments": [
+            "<folder>",
+          ],
+          "command": "teak folders get",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<name>",
+          ],
+          "command": "teak folders create",
+          "options": [
+            "--color <color>",
+            "--query <search>",
+            "--auto-tag <tag>",
+            "--auto-file <search>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+          ],
+          "command": "teak folders rules",
+          "options": [
+            "--auto-tag <tag>",
+            "--no-auto-tags",
+            "--auto-file <search>",
+            "--no-auto-file",
+            "--pause",
+            "--resume",
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+            "[runId]",
+          ],
+          "command": "teak folders rule-run",
+          "options": [
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+            "[runId]",
+          ],
+          "command": "teak folders undo-rule-run",
+          "options": [
+            "--wait",
+            "--timeout <DURATION>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+            "[name]",
+          ],
+          "command": "teak folders rename",
+          "options": [
+            "--color <color>",
+            "--query <search>",
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "rm",
+          ],
+          "arguments": [
+            "<folders...>",
+          ],
+          "command": "teak folders delete",
+          "options": [
+            "-y, --yes",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+            "<ids...>",
+          ],
+          "command": "teak folders add",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<folder>",
+            "<ids...>",
+          ],
+          "command": "teak folders remove",
+          "options": [
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak highlights",
+      "commands": [
+        {
+          "aliases": [
+            "ls",
+          ],
+          "arguments": [
+            "<cardId>",
+          ],
+          "command": "teak highlights list",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<cardId>",
+            "<quote>",
+          ],
+          "command": "teak highlights add",
+          "options": [
+            "--note <text>",
+            "--prefix <text>",
+            "--suffix <text>",
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [
+            "<id>",
+            "[text]",
+          ],
+          "command": "teak highlights note",
+          "options": [
+            "--clear",
+            "-h, --help",
+          ],
+        },
+        {
+          "aliases": [
+            "rm",
+          ],
+          "arguments": [
+            "<ids...>",
+          ],
+          "command": "teak highlights delete",
+          "options": [
+            "-y, --yes",
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak export",
+      "commands": [
+        {
+          "arguments": [],
+          "command": "teak export status",
+          "options": [
+            "-h, --help",
+          ],
+        },
+        {
+          "arguments": [],
+          "command": "teak export download",
+          "options": [
+            "-o, --output <PATH>",
+            "--force",
+            "-h, --help",
+          ],
+        },
+      ],
+      "options": [
+        "-o, --output <PATH>",
+        "--force",
+        "--wait",
+        "--timeout <DURATION>",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<shell>",
+      ],
+      "command": "teak completion",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak ls",
+      "options": [
+        "-q, --query <text>",
+        "--similar-to <id>",
+        "--type <type>",
+        "--tag <tag>",
+        "--favorited",
+        "--pinned",
+        "--trashed",
+        "--archived",
+        "--folder <folder>",
+        "--style <style>",
+        "--hue <hue>",
+        "--hex <color>",
+        "--mode <mode>",
+        "-n, --limit <NUMBER>",
+        "--next <CURSOR>",
+        "--sort <sort>",
+        "--seed <NUMBER>",
+        "--created-after <TIME>",
+        "--created-before <TIME>",
+        "--include <groups>",
+        "--date <phrase>",
+        "-a, --all",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "[query]",
+      ],
+      "command": "teak search",
+      "options": [
+        "-q, --query <text>",
+        "--similar-to <id>",
+        "--type <type>",
+        "--tag <tag>",
+        "--favorited",
+        "--pinned",
+        "--trashed",
+        "--archived",
+        "--folder <folder>",
+        "--style <style>",
+        "--hue <hue>",
+        "--hex <color>",
+        "--mode <mode>",
+        "-n, --limit <NUMBER>",
+        "--next <CURSOR>",
+        "--sort <sort>",
+        "--seed <NUMBER>",
+        "--created-after <TIME>",
+        "--created-before <TIME>",
+        "--include <groups>",
+        "--date <phrase>",
+        "-a, --all",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak similar",
+      "options": [
+        "-q, --query <text>",
+        "--similar-to <id>",
+        "--type <type>",
+        "--tag <tag>",
+        "--favorited",
+        "--pinned",
+        "--trashed",
+        "--archived",
+        "--folder <folder>",
+        "--style <style>",
+        "--hue <hue>",
+        "--hex <color>",
+        "--mode <mode>",
+        "-n, --limit <NUMBER>",
+        "--next <CURSOR>",
+        "--sort <sort>",
+        "--seed <NUMBER>",
+        "--created-after <TIME>",
+        "--created-before <TIME>",
+        "--include <groups>",
+        "--date <phrase>",
+        "-a, --all",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [],
+      "command": "teak trash",
+      "options": [
+        "-q, --query <text>",
+        "--similar-to <id>",
+        "--type <type>",
+        "--tag <tag>",
+        "--favorited",
+        "--pinned",
+        "--trashed",
+        "--archived",
+        "--folder <folder>",
+        "--style <style>",
+        "--hue <hue>",
+        "--hex <color>",
+        "--mode <mode>",
+        "-n, --limit <NUMBER>",
+        "--next <CURSOR>",
+        "--sort <sort>",
+        "--seed <NUMBER>",
+        "--created-after <TIME>",
+        "--created-before <TIME>",
+        "--include <groups>",
+        "--date <phrase>",
+        "-a, --all",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "[content]",
+      ],
+      "command": "teak add",
+      "options": [
+        "--url <URL>",
+        "--file <PATH>",
+        "--tags <tags>",
+        "--notes <notes>",
+        "--source-url <URL>",
+        "--source-title <title>",
+        "--type <type>",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<ids...>",
+      ],
+      "command": "teak rm",
+      "options": [
+        "--permanent",
+        "-y, --yes",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<ids...>",
+      ],
+      "command": "teak restore",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<ids...>",
+      ],
+      "command": "teak refresh",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<ids...>",
+      ],
+      "command": "teak archive",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<ids...>",
+      ],
+      "command": "teak unarchive",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak content",
+      "options": [
+        "--kind <kind>",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak links",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak open",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak download",
+      "options": [
+        "-o, --output <PATH>",
+        "--force",
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak fav",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak unfav",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak pin",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak unpin",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak done",
+      "options": [
+        "-h, --help",
+      ],
+    },
+    {
+      "arguments": [
+        "<id>",
+      ],
+      "command": "teak todo",
+      "options": [
+        "-h, --help",
+      ],
+    },
+  ],
+  "options": [
+    "-v, --version",
+    "--api-key <key>",
+    "--api-url <URL>",
+    "--json",
+    "--fields <names>",
+    "-h, --help",
+  ],
+}
+`;

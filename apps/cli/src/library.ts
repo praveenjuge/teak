@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { MAX_FOLDER_CARD_IDS } from "@teak/convex/shared/folders";
@@ -9,7 +9,6 @@ import {
   THUMBNAIL_MAX_BYTES,
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
-import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n/locales";
 import { InvalidArgumentError } from "commander";
 import {
@@ -27,8 +26,15 @@ import {
   type TeakApiErrorCode,
   type TeakClient,
 } from "teak-sdk";
-import { CliError } from "./errors";
-import { mimeFor } from "./files";
+import { CliError, ConfirmationRequiredError } from "./errors";
+import {
+  fetchBytes,
+  mimeFor,
+  outputTarget,
+  refuseExisting,
+  writeNewFile,
+  writeSaved,
+} from "./files";
 import { formatCardLinks } from "./format";
 import { canPrompt, showsProgress } from "./mode";
 import {
@@ -38,15 +44,19 @@ import {
 } from "./options";
 import {
   type ClientOptions,
+  clearProgress,
   client,
   EXIT,
   exitCodeFor,
   type GlobalOptions,
   openBrowser,
+  setProgressShown,
+  whileWaiting,
   write,
   writeList,
   writeTip,
 } from "./runtime";
+import { terminalText } from "./terminal";
 
 const mergeSearchMode = (
   listing: CardsPage["searchMode"],
@@ -98,12 +108,36 @@ const confirm = async (question: string) => {
     input: process.stdin,
     output: process.stderr,
   });
+  // Ctrl+C at the question stops the command like anywhere else.
+  prompt.on("SIGINT", () => {
+    prompt.close();
+    process.kill(process.pid, "SIGINT");
+  });
   try {
-    const answer = await prompt.question(`${question} (y/N) `);
+    const answer = await prompt.question(`${terminalText(question)} (y/N) `);
     return /^y(es)?$/i.test(answer.trim());
   } finally {
     prompt.close();
   }
+};
+
+/**
+ * Every command that can't be undone asks first. `--yes` answers the
+ * question; where no one can answer it, the command stops and says to add
+ * --yes, rather than going ahead.
+ */
+export const confirmed = async (
+  question: string | (() => Promise<string>),
+  refusal: string,
+  options: { yes?: boolean }
+) => {
+  if (options.yes) {
+    return true;
+  }
+  if (!canPrompt()) {
+    throw new ConfirmationRequiredError(refusal);
+  }
+  return confirm(typeof question === "string" ? question : await question());
 };
 
 interface CardFailure {
@@ -217,7 +251,9 @@ const writeBatch = (
   if (!options.json) {
     process.stderr.write(
       `${[
-        ...failed.map(({ error, id }) => `${id}: ${failureMessage(error)}`),
+        ...failed.map(({ error, id }) =>
+          terminalText(`${id}: ${failureMessage(error)}`)
+        ),
         `${summary.succeeded} of ${summary.total} ${report.noun} done; ${summary.failed} failed.`,
         `Retry the failed ones: teak${targetFlags(options)} ${report.retry(failed.map(({ id }) => id))}`,
       ].join("\n")}\n`
@@ -244,17 +280,17 @@ export const deleteCards = async (
   ids: string[],
   options: GlobalOptions & { permanent?: boolean; yes?: boolean }
 ) => {
-  if (options.permanent && !options.yes) {
-    if (!canPrompt()) {
-      throw new InvalidArgumentError(
-        "--permanent can't be undone; add --yes to confirm"
-      );
-    }
-    const noun = ids.length === 1 ? "this card" : `these ${ids.length} cards`;
-    if (!(await confirm(`Delete ${noun} forever? This can't be undone.`))) {
-      write(options.json ? { deletedIds: [] } : "Nothing deleted.", options);
-      return;
-    }
+  const noun = ids.length === 1 ? "this card" : `these ${ids.length} cards`;
+  if (
+    options.permanent &&
+    !(await confirmed(
+      `Delete ${noun} forever? This can't be undone.`,
+      "--permanent can't be undone; add --yes to confirm",
+      options
+    ))
+  ) {
+    write(options.json ? { deletedIds: [] } : "Nothing deleted.", options);
+    return;
   }
   const api = client(options);
   // Only a card in Trash can be deleted forever, so every card goes there
@@ -446,54 +482,24 @@ export const openCard = async (id: string, options: GlobalOptions) => {
   }
 };
 
-// Checked before any download or export starts, so a rerun doesn't spend a
-// weekly export on a file it then refuses to write.
-const refuseExisting = (target: string, force?: boolean) => {
-  if (existsSync(target) && !force) {
-    throw new InvalidArgumentError(
-      `${target} already exists; pass --force to replace it`
-    );
-  }
-};
-
-const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
-  refuseExisting(target, force);
-  writeFileSync(target, bytes);
-};
-
-const fetchBytes = async (url: string) => {
-  const response = await fetchWebUrl(
-    url,
-    undefined,
-    () =>
-      new TeakApiError(
-        "REQUEST_FAILED",
-        "Teak returned a download link that isn't a web address"
-      )
-  );
-  if (!response.ok) {
-    throw new TeakApiError(
-      "REQUEST_FAILED",
-      `Download failed with status ${response.status}`,
-      { status: response.status }
-    );
-  }
-  return new Uint8Array(await response.arrayBuffer());
-};
-
 export const downloadCard = async (
   id: string,
   options: GlobalOptions & { force?: boolean; output?: string }
 ) => {
+  const output = outputTarget(options.output, options);
+  if (output && output !== "-") {
+    refuseExisting(output, options.force);
+  }
   const card = await client(options).cards.get(id);
   if (!card.fileUrl) {
     throw new InvalidArgumentError("This card has no file to download");
   }
-  const target =
-    options.output || path.basename(card.fileName || `${card.id}.bin`);
-  refuseExisting(target, options.force);
+  const target = output || path.basename(card.fileName || `${card.id}.bin`);
+  if (target !== "-") {
+    refuseExisting(target, options.force);
+  }
   writeNewFile(target, await fetchBytes(card.fileUrl), options.force);
-  write(options.json ? { path: target } : `Saved ${target}`, options);
+  writeSaved(target, options);
 };
 
 const planLine = (me: Awaited<ReturnType<TeakClient["me"]>>) =>
@@ -584,6 +590,9 @@ const describeExport = (latest: LatestExport) => {
   return lines.join("\n");
 };
 
+const CHECK_EXPORT = "Check on it with: teak export status";
+const EXPORT_KEEPS_GOING = `The export keeps going on Teak. ${CHECK_EXPORT}`;
+
 const isActive = (job: ExportJob | null) =>
   job?.status === "pending" || job?.status === "running";
 
@@ -602,11 +611,12 @@ const progressLine = async <T>(
     return await wait((value) => {
       const line = describe(value);
       if (line) {
-        process.stderr.write(`\r${line}`);
+        process.stderr.write(`\r\x1b[K${terminalText(line)}`);
+        setProgressShown(true);
       }
     });
   } finally {
-    process.stderr.write("\r\x1b[K");
+    clearProgress();
   }
 };
 
@@ -628,24 +638,26 @@ const waitForExport = (
   intervalMs?: number,
   timeout?: number
 ) =>
-  progressLine(
-    (latest: LatestExport) =>
-      latest.job?.processedCount
-        ? `${latest.job.processedCount} cards processed…`
-        : null,
-    (onProgress) =>
-      api.exports.waitFor({
-        ...waitOptions(
-          { intervalMs, timeout },
-          (waited) =>
-            new CliError(
-              "TIMEOUT",
-              `Stopped waiting after ${waited}. The export keeps going.`,
-              { next: "Check on it with: teak export status" }
-            )
-        ),
-        onProgress,
-      })
+  whileWaiting(EXPORT_KEEPS_GOING, () =>
+    progressLine(
+      (latest: LatestExport) =>
+        latest.job?.processedCount
+          ? `${latest.job.processedCount} cards processed…`
+          : null,
+      (onProgress) =>
+        api.exports.waitFor({
+          ...waitOptions(
+            { intervalMs, timeout },
+            (waited) =>
+              new CliError(
+                "TIMEOUT",
+                `Stopped waiting after ${waited}. The export keeps going.`,
+                { next: CHECK_EXPORT }
+              )
+          ),
+          onProgress,
+        })
+    )
   );
 
 export const exportStatus = async (options: GlobalOptions) => {
@@ -656,6 +668,10 @@ export const exportStatus = async (options: GlobalOptions) => {
 export const downloadExport = async (
   options: GlobalOptions & { force?: boolean; output?: string }
 ) => {
+  const output = outputTarget(options.output, options);
+  if (output && output !== "-") {
+    refuseExisting(output, options.force);
+  }
   const { job } = await client(options).exports.latest();
   if (!job?.downloadUrl) {
     throw new InvalidArgumentError(
@@ -663,10 +679,10 @@ export const downloadExport = async (
     );
   }
   const target =
-    options.output ||
+    output ||
     `teak-export-${new Date(job.createdAt).toISOString().slice(0, 10)}.zip`;
   writeNewFile(target, await fetchBytes(job.downloadUrl), options.force);
-  write(options.json ? { path: target } : `Saved ${target}`, options);
+  writeSaved(target, options);
 };
 
 export const startExport = async (
@@ -678,8 +694,9 @@ export const startExport = async (
     wait?: boolean;
   }
 ) => {
-  if (options.output) {
-    refuseExisting(options.output, options.force);
+  const output = outputTarget(options.output, options);
+  if (output && output !== "-") {
+    refuseExisting(output, options.force);
   }
   const api = client(options);
   try {
@@ -705,7 +722,12 @@ export const startExport = async (
     await downloadExport(options);
     return;
   }
-  write(options.json ? latest : describeExport(latest), options);
+  if (options.output === "-") {
+    // stdout was to carry the ZIP, so the export's state goes to stderr.
+    process.stderr.write(`${describeExport(latest)}\n`);
+  } else {
+    write(options.json ? latest : describeExport(latest), options);
+  }
   if (options.output || (options.wait && latest.job?.status !== "ready")) {
     process.exitCode = EXIT.api;
   } else if (!options.wait && isActive(latest.job)) {
@@ -765,26 +787,28 @@ const waitForRuleRun = (
   folder: Pick<Folder, "id" | "name">,
   started: FolderRuleRun,
   options: { intervalMs?: number; timeout?: number }
-) =>
-  progressLine(
-    (run: FolderRuleRun) =>
-      `Filed ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`,
-    (onProgress) =>
-      api.folders.waitForRuleRun(folder.id, started, {
-        ...waitOptions(
-          options,
-          (waited) =>
-            new CliError(
-              "TIMEOUT",
-              `Stopped waiting after ${waited}. The rule run keeps going.`,
-              {
-                next: `Check on it with: teak folders rule-run ${shellArg(folder.name)} ${started.id}`,
-              }
-            )
-        ),
-        onProgress,
-      })
+) => {
+  const check = `Check on it with: teak folders rule-run ${shellArg(folder.name)} ${started.id}`;
+  return whileWaiting(`The rule run keeps going on Teak. ${check}`, () =>
+    progressLine(
+      (run: FolderRuleRun) =>
+        `Filed ${cardsLabel(run.filedCount)}, tagged ${cardsLabel(run.taggedCount)}…`,
+      (onProgress) =>
+        api.folders.waitForRuleRun(folder.id, started, {
+          ...waitOptions(
+            options,
+            (waited) =>
+              new CliError(
+                "TIMEOUT",
+                `Stopped waiting after ${waited}. The rule run keeps going.`,
+                { next: check }
+              )
+          ),
+          onProgress,
+        })
+    )
   );
+};
 
 export interface FolderRuleOptions {
   autoFile?: string | false;
@@ -957,7 +981,22 @@ export const updateFolder = async (
   write(options.json ? updated : formatFolderLine(updated), options);
 };
 
-export const deleteFolders = async (refs: string[], options: GlobalOptions) => {
+export const deleteFolders = async (
+  refs: string[],
+  options: GlobalOptions & { yes?: boolean }
+) => {
+  const what =
+    refs.length === 1 ? `folder "${refs[0]}"` : `these ${refs.length} folders`;
+  if (
+    !(await confirmed(
+      `Delete ${what}? Its cards are kept. This can't be undone.`,
+      "Deleting a folder can't be undone; add --yes to confirm",
+      options
+    ))
+  ) {
+    write(options.json ? { deleted: [] } : "Nothing deleted.", options);
+    return;
+  }
   const api = client(options);
   const { failed, succeeded } = await eachCard(refs, async (ref) =>
     api.folders.delete((await resolveFolder(api, ref)).id)
@@ -1062,22 +1101,26 @@ const waitForTagOperation = (
   started: TagOperation,
   options: { intervalMs?: number; timeout?: number }
 ) =>
-  progressLine(
-    (current: TagOperation) =>
-      `${current.changed} of ${cardsLabel(current.total)} changed…`,
-    (onProgress) =>
-      api.tags.waitFor(started, {
-        ...waitOptions(
-          options,
-          (waited) =>
-            new CliError(
-              "TIMEOUT",
-              `Stopped waiting after ${waited}. The tag change keeps going.`,
-              { next: `Check on it with: teak tags status ${started.id}` }
-            )
-        ),
-        onProgress,
-      })
+  whileWaiting(
+    `The tag change keeps going on Teak. Check on it with: teak tags status ${started.id}`,
+    () =>
+      progressLine(
+        (current: TagOperation) =>
+          `${current.changed} of ${cardsLabel(current.total)} changed…`,
+        (onProgress) =>
+          api.tags.waitFor(started, {
+            ...waitOptions(
+              options,
+              (waited) =>
+                new CliError(
+                  "TIMEOUT",
+                  `Stopped waiting after ${waited}. The tag change keeps going.`,
+                  { next: `Check on it with: teak tags status ${started.id}` }
+                )
+            ),
+            onProgress,
+          })
+      )
   );
 
 const reportTagOperation = (
@@ -1143,21 +1186,17 @@ export const startTagOperation = async (
     );
     return;
   }
-  if (kind === "delete" && !options.yes) {
-    if (!canPrompt()) {
-      throw new InvalidArgumentError(
-        "Deleting a tag changes every card that has it; add --yes to confirm"
-      );
-    }
-    const count = await tagCardCount(api, from);
-    if (
-      !(await confirm(
-        `Remove "${from}" from ${cardsLabel(count)} in your library, and from any in Archive and Trash? This can't be undone.`
-      ))
-    ) {
-      write(options.json ? { deleted: false } : "Nothing changed.", options);
-      return;
-    }
+  if (
+    kind === "delete" &&
+    !(await confirmed(
+      async () =>
+        `Remove "${from}" from ${cardsLabel(await tagCardCount(api, from))} in your library, and from any in Archive and Trash? This can't be undone.`,
+      "Deleting a tag changes every card that has it; add --yes to confirm",
+      options
+    ))
+  ) {
+    write(options.json ? { deleted: false } : "Nothing changed.", options);
+    return;
   }
   let operation: TagOperation;
   if (kind === "rename") {
@@ -1251,8 +1290,20 @@ export const noteHighlight = async (
 
 export const removeHighlights = async (
   ids: string[],
-  options: GlobalOptions
+  options: GlobalOptions & { yes?: boolean }
 ) => {
+  const what =
+    ids.length === 1 ? "this highlight" : `these ${ids.length} highlights`;
+  if (
+    !(await confirmed(
+      `Delete ${what} and ${ids.length === 1 ? "its note" : "their notes"}? This can't be undone.`,
+      "Deleting a highlight can't be undone; add --yes to confirm",
+      options
+    ))
+  ) {
+    write(options.json ? { deleted: [] } : "Nothing deleted.", options);
+    return;
+  }
   const api = client(options);
   const { failed, succeeded } = await eachCard(ids, (id) =>
     api.highlights.delete(id)

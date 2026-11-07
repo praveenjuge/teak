@@ -49,3 +49,7 @@ export const showsProgress = (input: ModeInput = current()) =>
 
 /** stdout goes to a pipe or a file: print tab-separated fields, in full. */
 export const plainOutput = (input: ModeInput = current()) => !input.stdoutTTY;
+
+/** Mark errors (✗) and warnings (!) for a person reading stderr. */
+export const marksStderr = (input: ModeInput = current()) =>
+  input.stderrTTY && !unattended(input);

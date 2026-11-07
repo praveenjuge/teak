@@ -242,7 +242,7 @@ test("teak highlights adds a passage by its quote, lists, notes and removes it",
       await runCli(["--json", "highlights", "list", cardId], readerKey)
     ).items[0].note
   ).toBeNull();
-  expect(await runCli(["highlights", "rm", added.id], readerKey)).toBe(
+  expect(await runCli(["highlights", "rm", added.id, "--yes"], readerKey)).toBe(
     `Removed highlight ${added.id}`
   );
 });
