@@ -1,5 +1,8 @@
+
+
 import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
+import { retry } from "../helpers/test";
 import { expect, generateTestContent, test } from "./fixtures";
 
 const pathOf = async (url: Promise<string>) => new URL(await url).pathname;
@@ -111,8 +114,20 @@ test("Export in the palette opens Settings at its Export section", async ({
     timeout: 30_000,
   });
   const sidebarToggle = browser.locator('[data-sidebar="collapse"]');
-  await sidebarToggle.click();
-  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
+  // A click landing before hydration is dropped, so click again while the
+  // button still reads expanded; after the flip a click cannot toggle back.
+  await retry(
+    async () => {
+      if ((await sidebarToggle.getAttribute("aria-expanded")) === "true") {
+        await sidebarToggle.click();
+      }
+      await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false", {
+        timeout: 2_000,
+      });
+    },
+    { timeout: 30_000 }
+  );
+  // The shell answered, so the restoring click lands.
   await sidebarToggle.click();
   await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
   await browser.keyboard.press("ControlOrMeta+k");
