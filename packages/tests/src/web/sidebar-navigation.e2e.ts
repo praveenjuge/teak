@@ -121,12 +121,16 @@ test("on a phone the sidebar is a drawer that closes after navigating", async ({
   await gotoApp(browser, "/");
   await expectVault({ browser, screen });
   const drawer = browser.locator('[data-mobile="true"]');
-  // The page paints before hydration wires the toggle's handler; live
-  // cards carry data-card-id and only render after the app is live.
-  await expect(browser.locator("[data-card-id]").first()).toBeVisible({
+  const toggle = screen.getByRole("button", "Toggle sidebar");
+  // Cards arrive server-rendered, so they cannot prove hydration. The
+  // toggle's aria-expanded mirrors the desktop sidebar (default open)
+  // until the isMobile effect flips it to the closed mobile drawer; the
+  // flip proves the provider state the click reads, not that the whole
+  // page finished hydrating.
+  await expect(toggle).toHaveAttribute("aria-expanded", "false", {
     timeout: 30_000,
   });
-  await screen.getByRole("button", "Toggle sidebar").click();
+  await toggle.click();
   await expect(drawer).toBeVisible({ timeout: 30_000 });
   await browser.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
