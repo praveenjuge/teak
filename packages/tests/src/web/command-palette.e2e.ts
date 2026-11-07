@@ -102,12 +102,19 @@ test("Export in the palette opens Settings at its Export section", async ({
   await expect(screen.getByRole("button", "Sign out")).toBeEnabled({
     timeout: 30_000,
   });
-  // Settings paints its shell before hydration wires the palette's key
-  // listener; the usage meter only renders with live account data, so it
-  // proves the app is interactive before the key press.
+  // The usage meter can render from the server-seeded query before
+  // hydration wires the shell's handlers, so it cannot prove the page
+  // answers input. A sidebar collapse that flips aria-expanded can only
+  // come from the click handler, so it proves the shell - the palette's
+  // key listener included - is wired before the key press.
   await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible({
     timeout: 30_000,
   });
+  const sidebarToggle = browser.locator('[data-sidebar="collapse"]');
+  await sidebarToggle.click();
+  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
+  await sidebarToggle.click();
+  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
   await browser.keyboard.press("ControlOrMeta+k");
   const input = screen.getByRole(
     "combobox",
