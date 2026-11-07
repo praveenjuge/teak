@@ -113,6 +113,13 @@ test("Export in the palette opens Settings at its Export section", async ({
     "combobox",
     "Search commands, folders and cards"
   );
+  // A key pressed while the just-loaded page is still settling can be
+  // lost; press once more, then let the assert fail if it stays shut.
+  try {
+    await expect(input).toBeVisible({ timeout: 10_000 });
+  } catch {
+    await browser.keyboard.press("ControlOrMeta+k");
+  }
   await expect(input).toBeVisible({ timeout: 30_000 });
   await input.pressSequentially("export");
   await browser.keyboard.press("Enter");
