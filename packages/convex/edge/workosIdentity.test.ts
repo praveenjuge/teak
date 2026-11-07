@@ -1,13 +1,11 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
 import { setOwnerVerified } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import schema from "../schema";
+import { newBackend, workosClaims } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   return t;
 };
 type Backend = ReturnType<typeof setup>;
@@ -129,13 +127,12 @@ describe("read-only canonical WorkOS owner resolution", () => {
       reason: "verify_email",
     });
     await t
-      .withIdentity({
-        issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-        subject: input.workosUserId,
-        sid: "session_PROVIDER",
-        email: "legacy@example.com",
-        email_verified: true,
-      })
+      .withIdentity(
+        workosClaims(input.workosUserId, {
+          sid: "session_PROVIDER",
+          email: "legacy@example.com",
+        })
+      )
       .mutation(api.workosBootstrap.ensureUser, {});
     expect(await resolve(t)).toEqual({
       status: "ok",

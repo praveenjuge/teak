@@ -11,6 +11,7 @@ const { createRoot } = await import("react-dom/client");
 const {
   cardModalFrameClass,
   isShortNote,
+  openOriginStyle,
   SHORT_NOTE_MAX_CHARS,
   useCardModalFrameClass,
 } = await import("../cardModalFrame");
@@ -80,5 +81,21 @@ describe("a short note being edited", () => {
     expect(frame).toContain(READING_FRAME);
     await render({ _id: "c", content: "Short again", type: "text" });
     expect(frame).toContain(NOTE_FRAME);
+  });
+});
+
+describe("openOriginStyle", () => {
+  const viewport = { width: 1000, height: 800 };
+
+  test("grows the dialog from the centre of the card that opened it", () => {
+    expect(openOriginStyle({ x: 200, y: 250 }, viewport)).toBe("20.0% 31.3%");
+  });
+
+  test("keeps the origin on screen for a card scrolled partly out of view", () => {
+    expect(openOriginStyle({ x: 1100, y: -350 }, viewport)).toBe("100.0% 0.0%");
+  });
+
+  test("grows from the middle when no card was clicked", () => {
+    expect(openOriginStyle(undefined, viewport)).toBeUndefined();
   });
 });

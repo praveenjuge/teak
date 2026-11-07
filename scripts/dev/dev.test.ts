@@ -10,6 +10,7 @@ import {
   needsWebEnv,
   parseDevArgs,
   planDevLaunch,
+  statusReport,
   usesWebStack,
 } from "./dev.ts";
 import { mainWorktreePorts, slotPorts } from "./worktree-env.ts";
@@ -23,10 +24,22 @@ describe("parseDevArgs", () => {
       all: false,
       detach: false,
       headless: false,
+      json: false,
       local: false,
       push: false,
       target: "web",
+      wait: false,
     });
+  });
+
+  test("parses --json and --wait for --status only", () => {
+    expect(parseDevArgs(["--status", "--json", "--wait"])).toMatchObject({
+      action: "status",
+      json: true,
+      wait: true,
+    });
+    expect(() => parseDevArgs(["--json"])).toThrow("--status");
+    expect(() => parseDevArgs(["--detach", "--wait"])).toThrow("--status");
   });
 
   test("parses --local for the web stack only, without --push", () => {
@@ -232,7 +245,7 @@ describe("describeStatus", () => {
       ready: true,
       logPath: "/tmp/stack.log",
       pid: 42,
-      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      ports: mainWorktreePorts(),
       startedAt: "2026-10-09T00:00:00.000Z",
       urls: {
         appOrigin: "http://localhost:3000",
@@ -253,7 +266,7 @@ describe("describeStatus", () => {
       ready: true,
       logPath: "/tmp/stack.log",
       pid: 42,
-      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      ports: mainWorktreePorts(),
       startedAt: "2026-10-25T00:00:00.000Z",
       urls: {
         appOrigin: "http://localhost:3000",
@@ -348,17 +361,14 @@ describe("planDevLaunch", () => {
   });
 });
 
-test("--local runs the E2E suite's stack in dev mode, without .env files", () => {
+test("--local runs the local stack in dev mode, without .env files", () => {
   expect(localStackCommand()).toEqual([
     process.execPath,
     "--no-env-file",
-    join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"),
-    "stack",
+    join(ROOT, "scripts/dev/local-stack/run.ts"),
     "--dev",
   ]);
-  expect(
-    existsSync(join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"))
-  ).toBe(true);
+  expect(existsSync(join(ROOT, "scripts/dev/local-stack/run.ts"))).toBe(true);
 });
 
 describe("dev.ts before install", () => {
@@ -367,7 +377,8 @@ describe("dev.ts before install", () => {
     const seen = new Set<string>();
     const found = new Set<string>();
     const visit = (file: string) => {
-      if (seen.has(file)) {
+      // JSON data (scripts/deployments.json) imports nothing.
+      if (seen.has(file) || file.endsWith(".json")) {
         return;
       }
       seen.add(file);
@@ -413,5 +424,55 @@ describe("dev.ts before install", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain("Usage: bun run dev");
     expect(result.stdout.toString()).toContain("core:local");
+  });
+});
+
+describe("statusReport", () => {
+  const ports = slotPorts(2);
+  const recorded = {
+    groups: [41],
+    mode: "e2e" as const,
+    ready: true,
+    logPath: "/tmp/stack.log",
+    pid: 42,
+    ports,
+    startedAt: "2026-10-25T00:00:00.000Z",
+    urls: {
+      appOrigin: `http://localhost:${ports.web}`,
+      apiOrigin: `http://localhost:${ports.convexSite}`,
+      convexUrl: `http://127.0.0.1:${ports.convex}`,
+    },
+  };
+
+  test("reports a ready stack with its recorded URLs and ports", () => {
+    expect(statusReport(ports, { phase: "ready", state: recorded })).toEqual({
+      checkout: ports.namespace,
+      phase: "ready",
+      ports,
+      stack: recorded,
+    });
+  });
+
+  test("names the account but leaves its password in the state file", () => {
+    const sample = "sample-sign-in-word";
+    const report = statusReport(ports, {
+      phase: "ready",
+      state: {
+        ...recorded,
+        account: { email: "a@b.test", password: sample },
+        notes: [`Sign in as a@b.test / ${sample} (WorkOS staging).`],
+      },
+    });
+    expect(report.stack?.account).toEqual({ email: "a@b.test" });
+    expect(JSON.stringify(report)).not.toContain(sample);
+    expect(report.stack?.notes).toEqual([
+      "Sign in as a@b.test / <in .agents/.state/stack.json> (WorkOS staging).",
+    ]);
+  });
+
+  test("leaves out a stack whose owner is gone", () => {
+    expect(
+      statusReport(ports, { phase: "gone", state: recorded }).stack
+    ).toBeNull();
   });
 });

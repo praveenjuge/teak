@@ -1,0 +1,172 @@
+import { describe, expect, test } from "bun:test";
+import { toMobileCardSummary } from "../../search/mobileCardSummaries";
+import { testId } from "../helpers/convex.test-utils";
+
+describe("mobile card summaries", () => {
+  test("returns compact display fields without full card content", () => {
+    const longContent = "A".repeat(400);
+    const summary = toMobileCardSummary({
+      _creationTime: 1,
+      _id: testId("cards", "card-1"),
+      colors: [{ hex: "#112233" }],
+      content: longContent,
+      createdAt: 1,
+      processingStatus: {},
+      placeholderUrl: "https://example.com/tiny.jpg",
+      thumbnailUrl: "https://example.com/thumb.jpg",
+      type: "text",
+      updatedAt: 1,
+      userId: "user-1",
+    });
+
+    expect(summary.previewText).toHaveLength(280);
+    expect(summary.thumbnailUrl).toBe("https://example.com/thumb.jpg");
+    expect(summary.placeholderUrl).toBe("https://example.com/tiny.jpg");
+    expect(summary.colors).toEqual(["#112233"]);
+    expect(summary).not.toHaveProperty("content");
+    expect(summary).not.toHaveProperty("aiTranscript");
+    expect(summary).not.toHaveProperty("fileUrl");
+  });
+
+  const base = {
+    _creationTime: 1,
+    _id: testId("cards", "card-2"),
+    createdAt: 1,
+    processingStatus: {},
+    updatedAt: 1,
+    userId: "user-1",
+  };
+
+  test("reports the media aspect ratio and favorite state for grid tiles", () => {
+    const image = toMobileCardSummary({
+      ...base,
+      content: "",
+      fileMetadata: { width: 1200, height: 800 },
+      isFavorited: true,
+      type: "image",
+    });
+    expect(image.aspectRatio).toBe(1.5);
+    expect(image.isFavorited).toBe(true);
+
+    const note = toMobileCardSummary({ ...base, content: "Hi", type: "text" });
+    expect(note.aspectRatio).toBeUndefined();
+    expect(note.isFavorited).toBeUndefined();
+  });
+
+  test("sizes link tiles from the image the summary shows", () => {
+    const linkPreview = {
+      imageHeight: 630,
+      imageWidth: 1200,
+      screenshotHeight: 1000,
+      screenshotWidth: 800,
+      status: "success" as const,
+      title: "Example",
+    };
+    const withImage = toMobileCardSummary({
+      ...base,
+      content: "",
+      linkPreviewImageUrl: "https://example.com/og.jpg",
+      metadata: { linkPreview },
+      type: "link",
+      url: "https://example.com",
+    });
+    expect(withImage.linkPreviewImageUrl).toBe("https://example.com/og.jpg");
+    expect(withImage.aspectRatio).toBeCloseTo(1200 / 630);
+
+    const screenshotOnly = toMobileCardSummary({
+      ...base,
+      content: "",
+      metadata: { linkPreview },
+      screenshotUrl: "https://example.com/shot.jpg",
+      type: "link",
+      url: "https://example.com",
+    });
+    expect(screenshotOnly.aspectRatio).toBe(0.8);
+  });
+
+  test("carries the archive, done, category and price state tiles show", () => {
+    const product = toMobileCardSummary({
+      ...base,
+      completedAt: 1_700_000_000_000,
+      content: "",
+      isArchived: true,
+      metadata: {
+        linkCategory: {
+          category: "product",
+          fetchedAt: 1,
+          price: { amount: 49.5, currency: "USD" },
+          sourceUrl: "https://shop.example.com/lamp",
+        },
+      },
+      type: "link",
+      url: "https://shop.example.com/lamp",
+    });
+    expect(product.isArchived).toBe(true);
+    expect(product.completedAt).toBe(1_700_000_000_000);
+    expect(product.linkCategory).toBe("product");
+    expect(product.linkPrice).toEqual({ amount: 49.5, currency: "USD" });
+
+    const note = toMobileCardSummary({ ...base, content: "Hi", type: "text" });
+    expect(note.isArchived).toBeUndefined();
+    expect(note.completedAt).toBeUndefined();
+    expect(note.linkCategory).toBeUndefined();
+    expect(note.linkPrice).toBeUndefined();
+  });
+
+  test("names an untitled link after its site instead of its URL", () => {
+    const summary = toMobileCardSummary({
+      ...base,
+      content: "https://www.example.com/articles/42?ref=feed",
+      type: "link",
+      url: "https://www.example.com/articles/42?ref=feed",
+    });
+    expect(summary.title).toBe("example.com");
+  });
+});
+
+describe("a link with a chosen image", () => {
+  test("takes its aspect ratio from the chosen image", () => {
+    const summary = toMobileCardSummary({
+      _creationTime: 1,
+      _id: testId("cards", "card-3"),
+      content: "",
+      createdAt: 1,
+      hasThumbnailOverride: true,
+      linkPreviewImageUrl: "https://files.example.com/chosen.jpg",
+      metadata: {
+        linkPreview: { imageHeight: 630, imageWidth: 1200, status: "success" },
+      },
+      processingStatus: {},
+      thumbnailOverride: {
+        height: 900,
+        storageKey: "users/u/cards/card-3/thumbnail-override/chosen",
+        updatedAt: 1,
+        width: 600,
+      },
+      type: "link",
+      updatedAt: 1,
+      url: "https://example.com",
+      userId: "user-1",
+    });
+    expect(summary.linkPreviewImageUrl).toBe(
+      "https://files.example.com/chosen.jpg"
+    );
+    expect(summary.aspectRatio).toBeCloseTo(600 / 900);
+    expect(summary.hasThumbnailOverride).toBe(true);
+  });
+
+  test("shows [[…]] links as their titles, never the raw token", () => {
+    const summary = toMobileCardSummary({
+      _creationTime: 1,
+      _id: testId("cards", "card-links"),
+      createdAt: 1,
+      processingStatus: {},
+      updatedAt: 1,
+      userId: "user-1",
+      content: "See [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] today",
+      type: "text",
+    });
+    expect(summary.previewText).toBe("See Plan today");
+    expect(summary.title).toBe("See Plan today");
+  });
+});

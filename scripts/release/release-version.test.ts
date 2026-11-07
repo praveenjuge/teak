@@ -40,8 +40,14 @@ describe("release versions", () => {
       ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        `${JSON.stringify({
+          version: "1.0.60",
+          workspaces: ["apps/*", "packages/*"],
+        })}\n`
+      );
       for (const relative of [
-        "package.json",
         "apps/web/package.json",
         "packages/sdk/package.json",
         "apps/apple/SafariExtension/Resources/manifest.json",

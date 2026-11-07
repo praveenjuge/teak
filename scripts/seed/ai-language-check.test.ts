@@ -30,7 +30,7 @@ describe("the script a summary is written in", () => {
     ["Notizen aus dem Meeting über die App.", "latin"],
     ["Figmaで新しいデザインシステムを作る。", "japanese"],
     ["2026 → 42", "none"],
-  ])("%s is %s", (text, expected) => {
+  ] as const)("%s is %s", (text, expected) => {
     expect(summaryScript(text)).toBe(expected);
   });
 

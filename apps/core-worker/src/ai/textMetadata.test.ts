@@ -1,36 +1,14 @@
 import { describe, expect, mock, spyOn, test } from "bun:test";
 import {
-  buildFilesOpSigningPayload,
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
-  FILES_PROTOCOL_VERSION,
   TEXT_METADATA_MODEL_ID,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import { type FilesOpsEnv, handleInternalOp } from "../ops";
+import { handleOp, opCall } from "../test/opsHarness";
 import { FakeBucket } from "../test/testsupport";
 
 const result = { tags: ["design", "systems"], summary: "A useful resource." };
-const signedRequest = async (op: string, params: unknown) => {
-  const body = JSON.stringify({ version: FILES_PROTOCOL_VERSION, op, params });
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 60);
-  return new Request("https://files.teakvault.com/__ops/v1", {
-    method: "POST",
-    body,
-    headers: {
-      "x-teak-request-id": "metadata-test",
-      "x-teak-expires-at": expiresAt,
-      "x-teak-signature": await hmacSha256Hex(
-        "test-secret",
-        buildFilesOpSigningPayload({
-          bodySha256: await sha256Hex(body),
-          expiresAt,
-          requestId: "metadata-test",
-        })
-      ),
-    },
-  });
-};
 const env = (run: NonNullable<FilesOpsEnv["AI"]>["run"]): FilesOpsEnv => ({
   BUCKET: new FakeBucket() as never,
   FILES_SIGNING_SECRET: "test-secret",
@@ -55,8 +33,8 @@ describe("signed text/link metadata", () => {
           ],
         });
       });
-      const response = await handleInternalOp(
-        await signedRequest(op, { prompt: "Analyze a useful resource" }),
+      const response = await handleOp(
+        opCall(op, { prompt: "Analyze a useful resource" }),
         env(run)
       );
       expect(response.status).toBe(200);
@@ -85,8 +63,8 @@ describe("signed text/link metadata", () => {
           choices: [{ message: { content: JSON.stringify(answer) } }],
         })
       );
-      const response = await handleInternalOp(
-        await signedRequest("generate-text-metadata", { prompt: "東京のメモ" }),
+      const response = await handleOp(
+        opCall("generate-text-metadata", { prompt: "東京のメモ" }),
         env(run)
       );
       expect(response.status).toBe(200);
@@ -105,8 +83,8 @@ describe("signed text/link metadata", () => {
         choices: [{ message: { content: JSON.stringify(result) } }],
       })
     );
-    const response = await handleInternalOp(
-      await signedRequest("generate-text-metadata", { prompt: "A note" }),
+    const response = await handleOp(
+      opCall("generate-text-metadata", { prompt: "A note" }),
       { ...env(run), AI_GATEWAY_ID: "teak-files" }
     );
     expect(response.status).toBe(200);
@@ -120,8 +98,8 @@ describe("signed text/link metadata", () => {
         choices: [{ message: { content: JSON.stringify(result) } }],
       })
     );
-    const response = await handleInternalOp(
-      await signedRequest("generate-link-metadata", { prompt: "A link" }),
+    const response = await handleOp(
+      opCall("generate-link-metadata", { prompt: "A link" }),
       { ...env(run), AI_GATEWAY_ID: " " }
     );
     expect(response.status).toBe(200);
@@ -146,8 +124,8 @@ describe("signed text/link metadata", () => {
     { prompt: "" },
   ])("rejects unsafe or unbounded parameters", async (params) => {
     const run = mock(async () => result);
-    const response = await handleInternalOp(
-      await signedRequest("generate-link-metadata", params),
+    const response = await handleOp(
+      opCall("generate-link-metadata", params),
       env(run)
     );
     expect(response.status).toBe(400);
@@ -159,8 +137,8 @@ describe("signed text/link metadata", () => {
       expect(messages[1]!.content.length).toBeLessThanOrEqual(6000);
       return Promise.resolve({ response: "not JSON" });
     });
-    const response = await handleInternalOp(
-      await signedRequest("generate-text-metadata", {
+    const response = await handleOp(
+      opCall("generate-text-metadata", {
         prompt: "x".repeat(6000),
       }),
       env(run)
@@ -173,8 +151,8 @@ describe("signed text/link metadata", () => {
     const run = mock()
       .mockResolvedValueOnce({ response: '{"tags":[42],"summary":"wrong"}' })
       .mockResolvedValueOnce({ response: JSON.stringify(result) });
-    const response = await handleInternalOp(
-      await signedRequest("generate-text-metadata", { prompt: "Content" }),
+    const response = await handleOp(
+      opCall("generate-text-metadata", { prompt: "Content" }),
       env(run)
     );
     expect((await response.json()).data).toMatchObject(result);
@@ -184,8 +162,8 @@ describe("signed text/link metadata", () => {
     "surfaces provider capacity without retries: %s",
     async (message) => {
       const run = mock(() => Promise.reject(new Error(message)));
-      const response = await handleInternalOp(
-        await signedRequest("generate-text-metadata", { prompt: "Content" }),
+      const response = await handleOp(
+        opCall("generate-text-metadata", { prompt: "Content" }),
         env(run)
       );
       expect(response.status).toBe(429);
@@ -208,8 +186,8 @@ describe("signed text/link metadata", () => {
           })
         )
       );
-      const response = await handleInternalOp(
-        await signedRequest("generate-text-metadata", { prompt: "Content" }),
+      const response = await handleOp(
+        opCall("generate-text-metadata", { prompt: "Content" }),
         env(run)
       );
       expect(response.status).toBe(expected);
@@ -230,8 +208,8 @@ describe("signed text/link metadata", () => {
       const run = mock(() =>
         Promise.reject(Object.assign(new Error(message), { status, code }))
       );
-      const response = await handleInternalOp(
-        await signedRequest("generate-text-metadata", { prompt: "Content" }),
+      const response = await handleOp(
+        opCall("generate-text-metadata", { prompt: "Content" }),
         env(run)
       );
       expect(response.status).toBe(429);
@@ -251,8 +229,8 @@ describe("signed text/link metadata", () => {
       }
     );
     try {
-      const response = await handleInternalOp(
-        await signedRequest("generate-text-metadata", { prompt }),
+      const response = await handleOp(
+        opCall("generate-text-metadata", { prompt }),
         env(run)
       );
       expect(response.status).toBe(500);
@@ -279,8 +257,8 @@ describe("signed text/link metadata", () => {
     const run = mock().mockRejectedValue(
       new Error("failed_generation: Failed to validate JSON")
     );
-    const response = await handleInternalOp(
-      await signedRequest("generate-link-metadata", { prompt: "Content" }),
+    const response = await handleOp(
+      opCall("generate-link-metadata", { prompt: "Content" }),
       env(run)
     );
     expect(response.status).toBe(502);
@@ -297,8 +275,8 @@ describe("signed text/link metadata", () => {
         response: JSON.stringify(result),
         usage: { prompt_tokens: 10, completion_tokens: 5 },
       });
-    const response = await handleInternalOp(
-      await signedRequest("generate-text-metadata", { prompt: "Private text" }),
+    const response = await handleOp(
+      opCall("generate-text-metadata", { prompt: "Private text" }),
       env(run)
     );
     expect((await response.json()).data).toEqual({
@@ -312,8 +290,8 @@ describe("signed text/link metadata", () => {
       response: "malformed",
       usage: { prompt_tokens: 8, completion_tokens: 2 },
     });
-    const response = await handleInternalOp(
-      await signedRequest("generate-text-metadata", { prompt: "Private text" }),
+    const response = await handleOp(
+      opCall("generate-text-metadata", { prompt: "Private text" }),
       env(run)
     );
     const envelope = await response.json();

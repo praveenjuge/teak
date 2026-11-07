@@ -8,7 +8,7 @@ import {
 } from "../card/defaultCards";
 import { stageFailed, stagePending } from "../card/processingStatus";
 import { PAGE_ARCHIVE_ROLE } from "../shared/pageArchive";
-import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
+import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { registerOwnedObject } from "../storage/ownership";
 import { buildR2ObjectKey } from "../storage/r2";
 import { SCENARIO_MARKER } from "./helpers";
@@ -155,7 +155,7 @@ export const seedPageArchiveMix = async (
     ctx,
     userId,
     PAGE_ARCHIVE_MIX.map(({ card }) => card),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const stubs: Array<{ key: string; kind: "full" | "text_only"; url: string }> =
     [];
@@ -223,7 +223,7 @@ export const writeStubArchives = internalAction({
   returns: v.null(),
   handler: async (_ctx, { stubs }) => {
     for (const stub of stubs) {
-      await putObjectViaFilesWorker({
+      await putObjectViaCoreWorker({
         body: new TextEncoder().encode(stubArchiveHtml(stub.kind, stub.url)),
         contentType: "text/html",
         key: stub.key,

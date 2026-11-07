@@ -1,40 +1,41 @@
 #!/usr/bin/env bun
+import {
+  DISPATCH_ITEM_TYPES,
+  FILES_IMPORT_MODES,
+  FILES_NETWORK_OPS,
+  type FilesCapabilities,
+  type FilesEnvelope,
+  MAINTENANCE_TASKS,
+} from "@teak/files-protocol";
 import { CRONS, cronTasksOn } from "../../packages/convex/cronSchedules";
-import { IMPORT_MODES } from "../../packages/convex/shared/importSources";
-import { buildSignedWorkerOpRequest } from "../../packages/convex/storage/filesWorkerClient";
-import { MAINTENANCE_TASKS } from "../../packages/files-protocol/src/workflows";
+import { signedOpRequest } from "../../packages/convex/storage/coreWorkerClient";
+import { pollUntil } from "../release/release-cli.ts";
 
-const required = [
-  "extract-animation-palette",
-  "extract-image-text",
-  "ocr-pdf-pages",
-  "process-audio",
-  "generate-text-metadata",
-  "generate-link-metadata",
-  "index-import-source",
-  "read-import-markdown",
-  "extract-import-files",
-  "abort-multipart",
-  "delete-objects",
-  "freeze-object",
-  "fetch-link-page",
-  "store-remote-asset",
-  "store-linked-pdf",
-  "check-link",
-  "store-onboarding-files",
-  "embed-upsert",
-  "vector-delete",
-  "vector-get",
-  "vector-query",
-  "vector-similar",
-  "dispatch",
-  "decide-card-type",
-  "decide-link-category",
-  "decide-visual-styles",
-  "score-relevance",
-];
+const includesAll = (
+  reported: readonly string[] | undefined,
+  required: readonly string[]
+): boolean => required.every((value) => reported?.includes(value));
 
-const requiredDispatchItems = ["workflow", "delete-objects", "analytics-event"];
+/** The deployed Worker can run everything this Convex will ask of it. */
+const isReady = (data: FilesCapabilities): boolean =>
+  data.ai &&
+  data.images &&
+  data.browser &&
+  data.fetcher &&
+  data.renderer &&
+  data.rendererHealthy === true &&
+  data.vectors &&
+  data.workflows &&
+  data.vectorTypes &&
+  data.onboardingFiles &&
+  includesAll(data.operations, FILES_NETWORK_OPS) &&
+  includesAll(data.dispatchItems, DISPATCH_ITEM_TYPES) &&
+  includesAll(data.importModes, FILES_IMPORT_MODES) &&
+  includesAll(
+    data.crons,
+    cronTasksOn("cloudflare").map((task) => CRONS[task].name)
+  ) &&
+  includesAll(data.maintenanceTasks, MAINTENANCE_TASKS);
 
 async function productionEnv(name: string): Promise<string> {
   const child = Bun.spawn(
@@ -63,14 +64,20 @@ if (process.argv.includes("--prod")) {
   );
 }
 
-const RENDERER_ROLLOUT_MS = 20 * 60_000;
-const deadline =
-  Date.now() + (process.argv.includes("--wait") ? RENDERER_ROLLOUT_MS : 0);
-for (;;) {
-  let ready = false;
+/** The Worker answered, but not ready; `reason` says why when it failed. */
+class NotReady extends Error {
+  readonly reason: string;
+  constructor(failedWith?: string) {
+    const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
+    super(`Core worker is not ready${reason}; backend deployment blocked.`);
+    this.reason = reason;
+  }
+}
+
+const checkReady = async (): Promise<void> => {
   let failedWith: string | undefined;
   try {
-    const signed = await buildSignedWorkerOpRequest({
+    const signed = await signedOpRequest({
       op: "capabilities",
       params: { checkRenderer: true },
     });
@@ -78,68 +85,32 @@ for (;;) {
       ...signed,
       signal: AbortSignal.timeout(60_000),
     });
-    const result = (await response.json()) as {
-      ok?: boolean;
-      data?: {
-        ai?: boolean;
-        browser?: boolean;
-        dispatchItems?: string[];
-        fetcher?: boolean;
-        images?: boolean;
-        crons?: string[];
-        importModes?: string[];
-        maintenanceTasks?: string[];
-        onboardingFiles?: boolean;
-        operations?: string[];
-        renderer?: boolean;
-        rendererHealthy?: boolean;
-        vectors?: boolean;
-        workflows?: boolean;
-        vectorTypes?: boolean;
-      };
-    };
-    ready =
-      response.ok &&
-      result.ok === true &&
-      result.data?.ai === true &&
-      result.data.images === true &&
-      result.data.browser === true &&
-      result.data.fetcher === true &&
-      result.data.renderer === true &&
-      result.data.rendererHealthy === true &&
-      result.data.vectors === true &&
-      result.data.workflows === true &&
-      result.data.vectorTypes === true &&
-      result.data.onboardingFiles === true &&
-      required.every((op) => result.data?.operations?.includes(op)) &&
-      requiredDispatchItems.every((type) =>
-        result.data?.dispatchItems?.includes(type)
-      ) &&
-      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode)) &&
-      cronTasksOn("cloudflare").every((task) =>
-        result.data?.crons?.includes(CRONS[task].name)
-      ) &&
-      MAINTENANCE_TASKS.every((task) =>
-        result.data?.maintenanceTasks?.includes(task)
-      );
+    const result = (await response
+      .json()
+      .catch(() => null)) as FilesEnvelope<FilesCapabilities> | null;
+    if (response.ok && result?.ok === true && isReady(result.data)) {
+      return;
+    }
   } catch (error) {
     failedWith =
       error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)
         ? error.name
         : "an error";
   }
-  if (ready) {
+  throw new NotReady(failedWith);
+};
+
+const RENDERER_ROLLOUT_MS = 20 * 60_000;
+await pollUntil(checkReady, {
+  // Without --wait, one check.
+  timeoutMs: process.argv.includes("--wait") ? RENDERER_ROLLOUT_MS : 0,
+  intervalMs: 15_000,
+  retryOn: (error) => error instanceof NotReady,
+  onRetry: (error) =>
     console.log(
-      "Core worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
-    );
-    break;
-  }
-  const reason = failedWith ? ` (the check failed with ${failedWith})` : "";
-  if (Date.now() >= deadline) {
-    throw new Error(
-      `Core worker is not ready${reason}; backend deployment blocked.`
-    );
-  }
-  console.log(`Waiting for core-worker deployment readiness…${reason}`);
-  await Bun.sleep(15_000);
-}
+      `Waiting for core-worker deployment readiness…${(error as NotReady).reason}`
+    ),
+});
+console.log(
+  "Core worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
+);

@@ -1,5 +1,10 @@
 import { internal } from "@teak/convex/_generated/api";
-import { CRONS } from "@teak/convex/cronSchedules";
+import {
+  CRONS,
+  type CronHandler,
+  type CronTask,
+  cronTasksOn,
+} from "@teak/convex/cronSchedules";
 import type { MaintenanceTask } from "@teak/files-protocol";
 import { type AiUsageRollupEnv, rollUpAiUsage } from "../ai/aiUsageRollup";
 import { type ConvexRpc, convexSiteUrls, createConvexRpc } from "../convexRpc";
@@ -66,14 +71,7 @@ const monitored = async (
   await recordHeartbeat(convex, name, "succeeded");
 };
 
-const SCHEDULE = {
-  aiBackfill: CRONS.aiMetadataBackfill.schedule,
-  aiUsage: CRONS.aiUsageRollup.schedule,
-  cardCleanup: CRONS.cleanupOldDeletedCards.schedule,
-  exportCleanup: CRONS.cleanupExpiredExports.schedule,
-  hourly: CRONS.reconcileWorkflows.schedule,
-  weekly: CRONS.sweepOrphanedObjects.schedule,
-} as const;
+type CloudflareCronTask = Exclude<CronTask, CronHandler>;
 
 export const handleScheduled = async (
   controller: Pick<ScheduledController, "cron" | "scheduledTime">,
@@ -117,102 +115,104 @@ export const handleScheduled = async (
     }
   };
 
-  switch (controller.cron) {
-    // The admin snapshot shares this trigger (CRONS.adminDailySnapshot).
-    case SCHEDULE.cardCleanup:
-      await Promise.all([
-        forEachDeployment("card-cleanup", maintenance("card-cleanup")),
-        forEachDeployment("admin-snapshot", maintenance("admin-snapshot")),
-      ]);
-      return;
-    case SCHEDULE.exportCleanup:
-      await Promise.all([
-        forEachDeployment("export-cleanup", maintenance("export-cleanup")),
-        forEachDeployment("receipt-cleanup", maintenance("receipt-cleanup")),
-      ]);
-      return;
-    case SCHEDULE.weekly:
-      await Promise.all([
-        forEachDeployment("orphan-sweep", maintenance("orphan-sweep")),
-        sweepPendingUploads(env, ctx, convexFor, deps),
-      ]);
-      return;
-    case SCHEDULE.aiBackfill:
-      await forEachDeployment(
+  // Every task whose schedule is this trigger's runs; tasks that share a
+  // schedule share its Cron Trigger.
+  const runners: Record<CloudflareCronTask, () => Promise<unknown>> = {
+    adminDailySnapshot: () =>
+      forEachDeployment("admin-snapshot", maintenance("admin-snapshot")),
+    aiMetadataBackfill: () =>
+      forEachDeployment(
         "ai-backfill",
         monitoredTask(CRONS.aiMetadataBackfill.name, (url) =>
           (deps.enqueueAiBackfill ?? enqueueAiBackfill)(env, url)
         )
-      );
-      return;
-    case SCHEDULE.aiUsage:
+      ),
+    aiUsageRollup: () => {
       if (!(env.ANALYTICS_ACCOUNT_ID && env.ANALYTICS_API_TOKEN)) {
         console.log("[cron] AI usage rollup skipped: SQL API not configured");
-        return;
+        return Promise.resolve();
       }
-      await forEachDeployment(
+      return forEachDeployment(
         "ai-usage-rollup",
         monitoredTask(CRONS.aiUsageRollup.name, (url, convex) =>
           (deps.rollUpAiUsage ?? rollUpAiUsage)(env, url, { convex })
         )
       );
-      return;
-    case SCHEDULE.hourly:
-      await Promise.all([
-        forEachDeployment(
-          "reconcile-workflows",
-          monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
-            const summary = await (
-              deps.reconcileWorkflows ?? reconcileWorkflows
-            )(env, convex);
-            console.log("[cron] workflows reconciled", summary);
-          })
-        ),
-        forEachDeployment(
-          "cleanup-expired-idempotency",
-          monitoredTask(
-            CRONS.cleanupExpiredIdempotency.name,
-            async (_url, convex) => {
-              const report = await startIdempotencyCleanup(convex);
-              console.log("[cron] idempotency cleanup", report);
-            }
-          )
-        ),
-        forEachDeployment(
-          "cleanup-abandoned-import-uploads",
-          monitoredTask(
-            CRONS.cleanupAbandonedImportUploads.name,
-            async (_url, convex) => {
-              const expired = await expireImportUploads(env, convex);
-              console.log("[cron] import uploads expired", { expired });
-            }
-          )
-        ),
-        forEachDeployment(
-          "cleanup-expired-upload-sessions",
-          monitoredTask(
-            CRONS.cleanupExpiredUploadSessions.name,
-            async (_url, convex) => {
-              const cleaned = await expireUploadSessions(env, convex);
-              console.log("[cron] upload sessions expired", { cleaned });
-            }
-          )
-        ),
-        forEachDeployment(
-          "cleanup-semantic-search-cache",
-          monitoredTask(
-            CRONS.cleanupSemanticSearchCache.name,
-            async (_url, convex) => {
-              const deleted = await cleanUpSearchCaches(convex);
-              console.log("[cron] search caches cleaned", deleted);
-            }
-          )
-        ),
-      ]);
-      return;
-    default:
-      console.error("[cron] no task", { cron: controller.cron });
+    },
+    cleanupAbandonedImportUploads: () =>
+      forEachDeployment(
+        "cleanup-abandoned-import-uploads",
+        monitoredTask(
+          CRONS.cleanupAbandonedImportUploads.name,
+          async (_url, convex) => {
+            const expired = await expireImportUploads(env, convex);
+            console.log("[cron] import uploads expired", { expired });
+          }
+        )
+      ),
+    cleanupExpiredExports: () =>
+      forEachDeployment("export-cleanup", maintenance("export-cleanup")),
+    cleanupExpiredIdempotency: () =>
+      forEachDeployment(
+        "cleanup-expired-idempotency",
+        monitoredTask(
+          CRONS.cleanupExpiredIdempotency.name,
+          async (_url, convex) => {
+            const report = await startIdempotencyCleanup(convex);
+            console.log("[cron] idempotency cleanup", report);
+          }
+        )
+      ),
+    cleanupExpiredUploadSessions: () =>
+      forEachDeployment(
+        "cleanup-expired-upload-sessions",
+        monitoredTask(
+          CRONS.cleanupExpiredUploadSessions.name,
+          async (_url, convex) => {
+            const cleaned = await expireUploadSessions(env, convex);
+            console.log("[cron] upload sessions expired", { cleaned });
+          }
+        )
+      ),
+    cleanupInboundEmailReceipts: () =>
+      forEachDeployment("receipt-cleanup", maintenance("receipt-cleanup")),
+    cleanupOldDeletedCards: () =>
+      forEachDeployment("card-cleanup", maintenance("card-cleanup")),
+    cleanupSemanticSearchCache: () =>
+      forEachDeployment(
+        "cleanup-semantic-search-cache",
+        monitoredTask(
+          CRONS.cleanupSemanticSearchCache.name,
+          async (_url, convex) => {
+            const deleted = await cleanUpSearchCaches(convex);
+            console.log("[cron] search caches cleaned", deleted);
+          }
+        )
+      ),
+    reconcileWorkflows: () =>
+      forEachDeployment(
+        "reconcile-workflows",
+        monitoredTask(CRONS.reconcileWorkflows.name, async (_url, convex) => {
+          const summary = await (deps.reconcileWorkflows ?? reconcileWorkflows)(
+            env,
+            convex
+          );
+          console.log("[cron] workflows reconciled", summary);
+        })
+      ),
+    sweepOrphanedObjects: () =>
+      forEachDeployment("orphan-sweep", maintenance("orphan-sweep")),
+    sweepStalePendingUploads: () =>
+      sweepPendingUploads(env, ctx, convexFor, deps),
+  };
+  const due = cronTasksOn("cloudflare").filter(
+    (task) => CRONS[task].schedule === controller.cron
+  ) as CloudflareCronTask[];
+  if (due.length === 0) {
+    console.error("[cron] no task", { cron: controller.cron });
+    return;
   }
+  await Promise.all(due.map((task) => runners[task]()));
 };
 
 const sweepPendingUploads = async (

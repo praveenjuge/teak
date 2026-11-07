@@ -73,6 +73,9 @@ describe("viewFromToolResult", () => {
     ["teak_v1_list_pinned_cards", "pinned"],
     ["teak_v1_list_cards", "recent"],
     [undefined, "search"],
+    ["toString", "search"],
+    ["__proto__", "search"],
+    ["constructor", "search"],
   ])("names the list for %s", (toolName, source) => {
     expect(
       viewFromToolResult({

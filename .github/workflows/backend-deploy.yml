@@ -3,12 +3,16 @@ name: Backend Deploy
 on:
   push:
     branches: [main]
+    # scripts/repo/workflow-paths.test.ts checks this covers every file the
+    # Convex modules import.
     paths:
       - ".github/workflows/backend-deploy.yml"
       - "packages/convex/**"
       - "packages/files-protocol/**"
+      - "packages/i18n/**"
       - "apps/core-worker/**"
       - "scripts/setup/check-files-readiness.ts"
+      - "scripts/release/release-cli.ts"
       - "bun.lock"
   workflow_dispatch:
 
@@ -30,9 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+      - uses: ./.github/actions/setup-bun
       - run: bun install --frozen-lockfile
       - name: Verify deployment credentials
         run: |

@@ -1,10 +1,11 @@
+import type { MutationCtx } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
 import { planEmailCards } from "../inbound/emailContent";
-import type { RemoteDetails } from "../workflows/steps/categorization/remote/index";
+import type { RemoteDetails } from "../shared/linkCategory/remoteDetails";
 import {
   classifyLinkCategory,
   enrichLinkCategory,
-} from "../workflows/steps/categorization/rules";
+} from "../shared/linkCategory/rules";
 import {
   type FolderScenario,
   type FolderScenarioCard,
@@ -625,4 +626,28 @@ export const richSitesPack = (): FolderScenarioPack => {
       ),
     ],
   };
+};
+
+/** Save by email, turned on as Settings does, for the email-in pack. */
+export const turnOnSaveByEmail = async (ctx: MutationCtx, userId: string) => {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("inboundEmailSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  if (existing) {
+    await ctx.db.patch("inboundEmailSettings", existing._id, {
+      enabled: true,
+      lastReceivedAt: now - 3_600_000,
+      updatedAt: now,
+    });
+    return;
+  }
+  await ctx.db.insert("inboundEmailSettings", {
+    createdAt: now,
+    enabled: true,
+    lastReceivedAt: now - 3_600_000,
+    updatedAt: now,
+    userId,
+  });
 };

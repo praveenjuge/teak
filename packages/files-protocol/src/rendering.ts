@@ -74,11 +74,6 @@ export interface FilesCaptureScreenshotResult {
   width: number;
 }
 
-export interface FilesScrapeParams {
-  htmlGzipBase64: string;
-  selectors: string[];
-}
-
 export interface FilesScrapeResult {
   selectors: Array<{
     results: Array<{

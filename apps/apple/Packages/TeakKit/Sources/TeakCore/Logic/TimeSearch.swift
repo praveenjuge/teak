@@ -8,11 +8,12 @@ public struct TimeFilter: Hashable, Sendable {
     public let range: CreatedAtRange
 }
 
-/// Turns searches like "last week", "monday", "march", "June 2024" or
+/// Turns searches like "last week", "monday", "June 2024" or
 /// "2024-06-05 to 2024-07-01" into a created-at range, so the library filters
 /// by date instead of searching text. Port of `parseTimeSearchQuery`
 /// (`packages/convex/shared/utils/timeSearch.ts`) with weeks starting on
-/// Sunday, plus the Mac app's bare month names ("march" is this year's March).
+/// Sunday; `timeSearch.json` holds the rows both run. A month name alone
+/// ("march") stays a word, as on the web and Android.
 public enum TimeSearch {
     private struct DayRange {
         let start: Date
@@ -25,15 +26,7 @@ public enum TimeSearch {
         "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7, "august": 8, "aug": 8, "september": 9,
         "sep": 9, "sept": 9, "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12, "dec": 12,
     ]
-    private static let fullMonths: Set<String> = [
-        "january", "february", "march", "april", "may", "june", "july", "august", "september", "sept",
-        "october", "november", "december",
-    ]
     private static let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-
-    public static func isMonthName(_ word: String) -> Bool {
-        fullMonths.contains(word.lowercased())
-    }
 
     /// `locale` only words the label; the words people type stay English.
     public static func parse(_ query: String, now: Date = Date(), timeZone: TimeZone = .current,
@@ -154,9 +147,6 @@ public enum TimeSearch {
         }
         if let m = query.wholeMatch(of: /([a-z]+)\s+([0-9]{4})/), let index = months[String(m.1)] {
             return month(Int(m.2)!, index)
-        }
-        if fullMonths.contains(query), let index = months[query] {
-            return month(calendar.component(.year, from: today), index)
         }
         if let m = query.wholeMatch(of: /([0-9]{4})/) {
             let year = Int(m.1)!

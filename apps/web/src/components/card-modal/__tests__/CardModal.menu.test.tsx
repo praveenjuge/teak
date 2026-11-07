@@ -1,8 +1,8 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import type { ClientCard } from "@/lib/cardTypes";
 import type { LinkThumbnailControl } from "../../../hooks/useLinkThumbnail";
-import type { CardModalCard } from "../types";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -64,7 +64,7 @@ afterEach(async () => {
   window.localStorage.clear();
 });
 
-const linkCard = (extra: Partial<CardModalCard> = {}) =>
+const linkCard = (extra: Partial<ClientCard> = {}) =>
   ({
     _id: "card_1",
     _creationTime: 0,
@@ -76,7 +76,7 @@ const linkCard = (extra: Partial<CardModalCard> = {}) =>
     url: "https://example.com/lamp",
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 const thumbnailControl = (): LinkThumbnailControl => ({
   isBusy: false,
@@ -85,25 +85,21 @@ const thumbnailControl = (): LinkThumbnailControl => ({
 });
 
 async function render(
-  card: CardModalCard,
+  card: ClientCard,
   {
+    copyImage,
     linkThumbnail = thumbnailControl(),
     onMoreLikeThis = mock(),
     savePdf,
-    handleDelete = mock(async () => undefined),
-    handleRestore = mock(async () => undefined),
     openLink = mock(),
-    toggleArchive,
-    toggleDone,
+    runAction = mock(async (_action: string) => true),
   }: {
-    handleDelete?: (onClose?: () => void) => Promise<void>;
-    handleRestore?: (onClose?: () => void) => Promise<void>;
+    copyImage?: () => void;
     linkThumbnail?: LinkThumbnailControl;
     onMoreLikeThis?: (cardId: string) => void;
     openLink?: () => void;
+    runAction?: ReturnType<typeof mock<(action: string) => Promise<boolean>>>;
     savePdf?: { isSaving: boolean; save: () => void };
-    toggleArchive?: () => void;
-    toggleDone?: () => void;
   } = {}
 ) {
   const container = document.body.appendChild(document.createElement("div"));
@@ -113,16 +109,15 @@ async function render(
       <CardModal
         card={card}
         cardId={card._id}
+        copyImage={copyImage}
         downloadFile={() => undefined}
         getCurrentValue={() => undefined}
-        handleDelete={handleDelete}
-        handlePermanentDelete={async () => undefined}
-        handleRestore={handleRestore}
         hasUnsavedChanges={false}
         linkThumbnail={linkThumbnail}
         onMoreLikeThis={onMoreLikeThis}
         open
         openLink={openLink}
+        runAction={runAction}
         saveChanges={async () => true}
         savePdf={savePdf}
         saveState="idle"
@@ -133,25 +128,32 @@ async function render(
           setTagInput: () => undefined,
           tagInput: "",
         }}
-        toggleArchive={toggleArchive}
-        toggleDone={toggleDone}
-        toggleFavorite={() => undefined}
         updateContent={() => undefined}
         updateNotes={() => undefined}
         updateTitle={() => undefined}
       />
     )
   );
-  return {
-    handleDelete,
-    handleRestore,
-    linkThumbnail,
-    onMoreLikeThis,
-    openLink,
-    toggleArchive,
-    toggleDone,
-  };
+  return { linkThumbnail, onMoreLikeThis, openLink, runAction };
 }
+
+test("an image copies its picture from the open card, as it does from the grid", async () => {
+  const copyImage = mock();
+  await render(
+    linkCard({
+      fileKey: "photo-key",
+      fileMetadata: { mimeType: "image/png" },
+      type: "image",
+      url: undefined,
+    } as Partial<ClientCard>),
+    { copyImage }
+  );
+  expect(
+    document.querySelector("aside button[aria-label='Copy image']")
+  ).not.toBeNull();
+  await press("c");
+  expect(copyImage).toHaveBeenCalledTimes(1);
+});
 
 async function openMenu() {
   const trigger = document.querySelector<HTMLButtonElement>(
@@ -228,7 +230,7 @@ test("a replaced image can be reset from Details", async () => {
         height: 10,
         updatedAt: 1,
       },
-    } as Partial<CardModalCard>)
+    } as Partial<ClientCard>)
   );
   await act(() => panelProps?.image?.onReset?.());
   expect(linkThumbnail.reset).toHaveBeenCalledTimes(1);
@@ -242,7 +244,7 @@ test("Edit link sits beside the link's URL in Details, not in the menu", async (
 });
 
 test("a card in Trash has no actions, menu, Edit link or image actions", async () => {
-  await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
+  await render(linkCard({ isDeleted: true } as Partial<ClientCard>));
   expect(
     document.querySelector("button[aria-label='More actions']")
   ).toBeNull();
@@ -253,8 +255,8 @@ test("a card in Trash has no actions, menu, Edit link or image actions", async (
 });
 
 test("a card in Trash says so in the sidebar, with Restore and Delete forever", async () => {
-  const { handleRestore } = await render(
-    linkCard({ isDeleted: true } as Partial<CardModalCard>)
+  const { runAction } = await render(
+    linkCard({ isDeleted: true } as Partial<ClientCard>)
   );
   // The sidebar also holds the (empty) save status, so read every status.
   const statuses = [...document.querySelectorAll("aside [role='status']")].map(
@@ -263,16 +265,11 @@ test("a card in Trash says so in the sidebar, with Restore and Delete forever", 
   expect(statuses).toContain("This card is in Trash");
   expect(button("Delete forever")).toBeDefined();
   await act(() => button("Restore")?.click());
-  expect(handleRestore).toHaveBeenCalledTimes(1);
+  expect(runAction.mock.calls).toEqual([["restore"]]);
 });
 
 test("the sidebar leads with the title, then Open and the icon row", async () => {
-  await render(
-    linkCard({ metadataTitle: "A lamp" } as Partial<CardModalCard>),
-    {
-      toggleDone: mock(),
-    }
-  );
+  await render(linkCard({ metadataTitle: "A lamp" } as Partial<ClientCard>));
   const aside = document.querySelector("aside[aria-label='Card details']");
   expect(aside?.querySelector("textarea[aria-label='Title']")).toBeTruthy();
   expect(aside?.querySelector("h2")?.textContent).toBe("A lamp");
@@ -293,11 +290,16 @@ test("the sidebar leads with the title, then Open and the icon row", async () =>
 });
 
 test("the menu keeps only what the icon row doesn't hold", async () => {
-  await render(linkCard(), { toggleDone: mock() });
+  await render(linkCard());
   await openMenu();
   const items = Array.from(document.querySelectorAll("[role='menuitem']"));
   const labels = items.map((item) => menuItemLabel(item as HTMLElement));
-  expect(labels).toEqual(["More like this", "Move to Trash"]);
+  expect(labels).toEqual([
+    "More like this",
+    "Pin to top",
+    "Archive",
+    "Move to Trash",
+  ]);
 });
 
 test("once the actions scroll away, a one-line copy stays pinned on top", async () => {
@@ -338,13 +340,12 @@ test("the details stay beside the card: I does nothing and the menu can't hide t
 });
 
 test("O and Mod+Enter open the link, and D marks it done", async () => {
-  const toggleDone = mock();
-  const { openLink } = await render(linkCard(), { toggleDone });
+  const { openLink, runAction } = await render(linkCard());
   await press("o");
   await press("Enter", { ctrlKey: true });
   expect(openLink).toHaveBeenCalledTimes(2);
   await press("d");
-  expect(toggleDone).toHaveBeenCalledTimes(1);
+  expect(runAction.mock.calls).toEqual([["done"]]);
 });
 
 test("C copies the link", async () => {
@@ -385,7 +386,7 @@ test.each([
         fileKey: "users/user_1/cards/card_1/file",
         type,
         url: undefined,
-      } as Partial<CardModalCard>)
+      } as Partial<ClientCard>)
     );
     await openMenu();
     expect(downloadControls().length > 0).toBe(offered);
@@ -404,7 +405,7 @@ test.each([
         isDeleted: true,
         type: "image",
         url,
-      } as Partial<CardModalCard>)
+      } as Partial<ClientCard>)
     );
     const aside = document.querySelector("aside[aria-label='Card details']");
     const download = Array.from(aside?.querySelectorAll("button") ?? []).find(
@@ -422,16 +423,14 @@ test("a file card with nothing stored offers no Download", async () => {
 });
 
 test.each([
-  ["e", "toggleArchive"],
-  ["Delete", "handleDelete"],
-  ["Backspace", "handleDelete"],
+  ["e", "archive"],
+  ["p", "pin"],
+  ["Delete", "moveToTrash"],
+  ["Backspace", "moveToTrash"],
 ] as const)(
   "pressing %p in the open menu runs %s and closes the menu",
-  async (key, handler) => {
-    const spies = await render(linkCard(), {
-      handleDelete: mock(async () => undefined),
-      toggleArchive: mock(),
-    });
+  async (key, action) => {
+    const { runAction } = await render(linkCard());
     await openMenu();
     const menu = document.querySelector<HTMLElement>("[role='menu']");
     expect(menu).not.toBeNull();
@@ -440,7 +439,7 @@ test.each([
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key })
       );
     });
-    expect(spies[handler]).toHaveBeenCalledTimes(1);
+    expect(runAction.mock.calls).toEqual([[action]]);
     expect(document.querySelector("[role='menu']")).toBeNull();
   }
 );

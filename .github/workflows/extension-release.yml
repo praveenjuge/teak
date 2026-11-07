@@ -39,9 +39,9 @@ jobs:
 
       - name: Setup Bun
         if: steps.check.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        uses: ./.github/actions/setup-bun
         with:
-          bun-version-file: package.json
+          node: "true"
 
       - name: Install dependencies
         if: steps.check.outputs.should_run == 'true'
@@ -181,11 +181,8 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
           RELEASE_ZIP: ${{ steps.zip.outputs.release_zip_path }}
         run: |
-          version="${TAG_NAME#v}"
-          # The Firefox job may create the release at the same moment.
-          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release create "$TAG_NAME" --title "$version" --verify-tag || true
-          fi
+          # Version Tag creates the release with the tag.
+          node scripts/release/github-release.ts wait "$GITHUB_REPOSITORY" "$TAG_NAME"
           gh release upload "$TAG_NAME" "$RELEASE_ZIP" --clobber
 
   firefox:
@@ -213,9 +210,7 @@ jobs:
 
       - name: Setup Bun
         if: steps.check.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+        uses: ./.github/actions/setup-bun
 
       - name: Setup Node
         if: steps.check.outputs.should_run == 'true'
@@ -327,9 +322,6 @@ jobs:
           RELEASE_ZIP: ${{ steps.zip.outputs.release_zip_path }}
           SOURCES_ZIP: ${{ steps.zip.outputs.sources_zip_path }}
         run: |
-          version="${TAG_NAME#v}"
-          # The Chrome job may create the release at the same moment.
-          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release create "$TAG_NAME" --title "$version" --verify-tag || true
-          fi
+          # Version Tag creates the release with the tag.
+          node scripts/release/github-release.ts wait "$GITHUB_REPOSITORY" "$TAG_NAME"
           gh release upload "$TAG_NAME" "$RELEASE_ZIP" "$SOURCES_ZIP" --clobber

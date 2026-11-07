@@ -1,13 +1,13 @@
 // Seed packs for `[[…]]` card links: the cards are inserted first, then the
 // notes that link to them, since a link names its target's id.
 
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { patchCard } from "../card/cardWrites";
 import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { syncCardSearch } from "../card/searchSync";
 import { formatCardLinkToken } from "../shared/cardLinks";
 
 export const CARD_LINK_SCENARIOS = ["card-links", "backlinks"] as const;
@@ -38,16 +38,13 @@ const card = (
   ...extra,
 });
 
-/** Rewrites a seeded note's content; the search sync rebuilds its links. */
+/** Rewrites a seeded note's content; the change hook rebuilds its links. */
 const setContent = async (
   ctx: MutationCtx,
-  userId: string,
   cardId: Id<"cards">,
   content: string
 ) => {
-  const previous = (await ctx.db.get("cards", cardId)) as Doc<"cards">;
-  await ctx.db.patch("cards", cardId, { content });
-  await syncCardSearch(ctx, cardId, userId, previous);
+  await patchCard(ctx, cardId, { content });
 };
 
 const deletedCardId = async (ctx: MutationCtx, userId: string) => {
@@ -92,7 +89,7 @@ const insertMarker = (
         url: marker(scenario),
       }),
     ],
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
 
 /** Real targets for the 500- and 501-link notes; the rest are missing. */
@@ -116,7 +113,7 @@ const seedCardLinks = async (ctx: MutationCtx, userId: string) => {
         card(scenario, 8, "Renamed after linking\n\nIt was 'Old name'."),
         card(scenario, 9, "Trashed target\n\nIn Trash.", { isDeleted: true }),
       ],
-      { ignoreCardLimit: true }
+      { hasPremium: true }
     );
   const manyTargets = await insertCompletedCards(
     ctx,
@@ -124,7 +121,7 @@ const seedCardLinks = async (ctx: MutationCtx, userId: string) => {
     Array.from({ length: MANY_LINK_TARGETS }, (_, index) =>
       card(scenario, 20 + index, `Target ${index + 1}`)
     ),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const deleted = await deletedCardId(ctx, userId);
   const manyIds = (count: number) =>
@@ -141,7 +138,7 @@ const seedCardLinks = async (ctx: MutationCtx, userId: string) => {
     Array.from({ length: 8 }, (_, index) =>
       card(scenario, 200 + index, "Linking note")
     ),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const [self, broken, many, tooMany, cycleA, cycleB, cycleC, code] = notes;
   const contents: [Id<"cards"> | undefined, string][] = [
@@ -191,7 +188,7 @@ const seedCardLinks = async (ctx: MutationCtx, userId: string) => {
   ];
   for (const [id, content] of contents) {
     if (id) {
-      await setContent(ctx, userId, id, content);
+      await setContent(ctx, id, content);
     }
   }
   return 1 + 9 + MANY_LINK_TARGETS + notes.length;
@@ -218,7 +215,7 @@ const seedBacklinks = async (ctx: MutationCtx, userId: string) => {
       card(scenario, 4, "Cycle B"),
       card(scenario, 5, "Links to itself"),
     ],
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   if (!(hub && crowded && cycleA && cycleB && self)) {
     return 0;
@@ -250,13 +247,12 @@ const seedBacklinks = async (ctx: MutationCtx, userId: string) => {
         )
       ),
     ],
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
-  await setContent(ctx, userId, cycleA, `Cycle A ${link("Cycle B", cycleB)}`);
-  await setContent(ctx, userId, cycleB, `Cycle B ${link("Cycle A", cycleA)}`);
+  await setContent(ctx, cycleA, `Cycle A ${link("Cycle B", cycleB)}`);
+  await setContent(ctx, cycleB, `Cycle B ${link("Cycle A", cycleA)}`);
   await setContent(
     ctx,
-    userId,
     self,
     `Links to itself ${link("Me", self)}, a deleted card ${link("Gone", deleted)} and someone else's ${link("Theirs", UNKNOWN_ID)}`
   );

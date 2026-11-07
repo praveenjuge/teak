@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   buildFilesOpSigningPayload,
   FILES_PROTOCOL_VERSION,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import { type FilesOpsEnv, handleInternalOp } from "../ops";
 import { FakeBucket } from "../test/testsupport";
 import { parseLinkedPdfParams, storeLinkedPdf } from "./linkedPdf";
@@ -92,19 +93,18 @@ describe("storeLinkedPdf", () => {
     expect(requests).toEqual([]);
   });
 
-  test("follows a redirect within arXiv", async () => {
+  test.each([
+    "https://export.arxiv.org/pdf/1706.03762v7",
+    // The same hosts that make a link an arXiv paper (shared/utils/arxiv).
+    "https://www.arxiv.org/pdf/1706.03762v7",
+  ])("follows a redirect within arXiv, to %s", async (location) => {
     const bucket = new FakeBucket();
     const { fetcher, requests } = network((url) =>
-      url === PDF
-        ? Response.redirect("https://export.arxiv.org/pdf/1706.03762v7", 301)
-        : pdf()
+      url === PDF ? Response.redirect(location, 301) : pdf()
     );
 
     expect((await store(bucket, fetcher)).stored).toBe(true);
-    expect(requests.map((request) => request.url)).toEqual([
-      PDF,
-      "https://export.arxiv.org/pdf/1706.03762v7",
-    ]);
+    expect(requests.map((request) => request.url)).toEqual([PDF, location]);
   });
 
   test.each([

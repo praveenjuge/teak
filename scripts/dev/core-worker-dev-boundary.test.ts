@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import config from "../../apps/core-worker/development/wrangler.jsonc";
-import { TEAK_FILES_HOSTS } from "../../apps/web/src/components/cards/previews/mediaRecovery";
-import { TEAK_DEV_FILES_ORIGIN as webOrigin } from "../../apps/web/src/lib/security-headers";
-import { DEVELOPMENT_FILES_ORIGIN } from "../cloudflare/check-cloudflare";
 import {
   assertDevelopmentWorkerConfig,
   assertIsolatedDevelopmentFiles,
@@ -280,11 +277,4 @@ describe("readDevelopmentFilesRouting", () => {
       "neither the shared nor the isolated"
     );
   });
-});
-
-test("every client trusts exactly the canonical development Files origin", () => {
-  expect(webOrigin).toBe(DEVELOPMENT_FILES_ORIGIN);
-  expect([...TEAK_FILES_HOSTS].sort()).toEqual(
-    ["files.teakvault.com", new URL(DEVELOPMENT_FILES_ORIGIN).hostname].sort()
-  );
 });

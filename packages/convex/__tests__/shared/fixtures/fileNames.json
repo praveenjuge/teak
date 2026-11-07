@@ -1,0 +1,23 @@
+{
+  "$comment": "validateFileName rows (packages/convex/shared/fileFormats.ts): names the backend takes for an upload, and ones it refuses. Apple checks them before uploading; Android renames a file so it's always taken.",
+  "valid": [
+    "photo.jpg",
+    "  notes.md  ",
+    "résumé 2024.pdf",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.pdf",
+    "..hidden"
+  ],
+  "invalid": [
+    "",
+    "   ",
+    ".",
+    "..",
+    "../secret.json",
+    "..\\secret.json",
+    "bad\u0000.json",
+    "tab\there.txt",
+    "line\nbreak.txt",
+    "del.txt",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.pdf"
+  ]
+}

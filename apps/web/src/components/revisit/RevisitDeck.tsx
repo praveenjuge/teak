@@ -19,22 +19,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
-import { isTypingTarget } from "@/hooks/useKeyboardShortcuts";
+import { keyName } from "@/lib/appCommands";
 import { useQuery } from "@/lib/convexQueryHooks";
+import { isTypingTarget, REVISIT_KEYS } from "@/lib/keyboardShortcuts";
 import {
   REVISIT_DECK_SIZE,
   type RevisitCard,
   type RevisitDeck as RevisitDeckState,
 } from "../../hooks/useRevisitDeck";
-import { resolveLinkTitle } from "../../lib/linkTitle";
+import { linkCardTitle } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
 import { getCardAccessibleLabel } from "../cards/Card";
 import { CardBody } from "../cards/CardBody";
+import { mediaAspectRatio } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
-import {
-  successfulLinkPreview,
-  useLinkCardImage,
-} from "../cards/linkCardImage";
+import { useLinkCardImage } from "../cards/linkCardImage";
 import type { CardWithUrls } from "../cards/types";
 
 export const REVISIT_SWIPE_THRESHOLD = 96;
@@ -71,22 +70,25 @@ export function revisitKeyAction(event: {
   }
   switch (event.key) {
     case "ArrowLeft":
-    case "a":
-    case "A":
       return "archive";
     case "ArrowRight":
-    case "k":
-    case "K":
       return "keep";
     case " ":
       return "details";
-    case "z":
-    case "Z":
-      return "undo";
     default:
-      return null;
+      break;
   }
+  const letter = event.key.toLowerCase();
+  if (letter === REVISIT_KEYS.archive) {
+    return "archive";
+  }
+  if (letter === REVISIT_KEYS.keep) {
+    return "keep";
+  }
+  return letter === REVISIT_KEYS.undo ? "undo" : null;
 }
+
+const UNDO_KEY = keyName(REVISIT_KEYS.undo);
 
 export function focusRevisitDeck(): boolean {
   const deck = document.querySelector<HTMLElement>("[data-revisit-deck]");
@@ -94,39 +96,36 @@ export function focusRevisitDeck(): boolean {
   return deck !== null;
 }
 
-const mediaWidth = (card: CardWithUrls): string | undefined => {
-  const isMedia =
-    card.type === "image" || card.type === "video" || card.type === "document";
-  const width = card.fileMetadata?.width;
-  const height = card.fileMetadata?.height;
-  if (!(isMedia && width && height)) {
-    return undefined;
+/**
+ * A deck card is as wide as its tile can be without passing the deck's
+ * height: an image or video at its own shape, any other card at the grid's
+ * 4:3 tile, leaving a link room for its name line under the tile.
+ */
+const DECK_TILE_RATIO = 4 / 3;
+const deckCardWidth = (card: CardWithUrls): string => {
+  if (card.type === "image" || card.type === "video") {
+    const ratio = mediaAspectRatio(
+      card.fileMetadata?.width,
+      card.fileMetadata?.height,
+      card.type === "video" ? 16 / 9 : 4 / 3
+    );
+    return `min(100%, calc(var(--revisit-card-height) * ${ratio}))`;
   }
-  return `min(100%, calc(var(--revisit-card-height) * ${width / height}))`;
+  const height =
+    card.type === "link"
+      ? "(var(--revisit-card-height) - 2.25rem)"
+      : "var(--revisit-card-height)";
+  return `min(100%, calc(${height} * ${DECK_TILE_RATIO}))`;
 };
-
-const deckCardTitle = (
-  card: CardWithUrls,
-  tLinkTitle: Parameters<typeof resolveLinkTitle>[1]
-) =>
-  resolveLinkTitle(
-    {
-      metadataTitle: card.metadataTitle,
-      metadataTitleEdited: card.metadataTitleEdited,
-      previewTitle: successfulLinkPreview(card)?.title,
-      url: card.url,
-    },
-    tLinkTitle
-  );
 
 function DeckCard({ card }: { card: CardWithUrls }) {
   const { image, onImageError } = useLinkCardImage(card);
   const tLinkTitle = useTranslations("lib.linkTitle");
-  const title = deckCardTitle(card, tLinkTitle);
+  const title = linkCardTitle(card, tLinkTitle);
   return (
     <div
-      className="max-h-(--revisit-card-height) overflow-hidden rounded-2xl bg-card shadow-lg ring-1 ring-border"
-      style={{ width: mediaWidth(card) ?? "100%" }}
+      className="max-h-(--revisit-card-height)"
+      style={{ width: deckCardWidth(card) }}
     >
       <CardBody
         card={card}
@@ -352,7 +351,7 @@ export function RevisitDeck({
           </div>
           {deck.canUndo ? (
             <p className="text-muted-foreground text-xs">
-              {t.rich("undoHint", { kbd })}
+              {t.rich("undoHint", { kbd, undoKey: UNDO_KEY })}
             </p>
           ) : null}
         </div>
@@ -451,11 +450,7 @@ export function RevisitDeck({
   } else if (deck.status === "ready" && deck.done) {
     statusText = t("allCaughtUp");
   } else if (showActions && deck.current) {
-    statusText = `${t("progress", { position: deck.position, total: deck.total })}. ${getCardAccessibleLabel(
-      deck.current,
-      deckCardTitle(deck.current, tLinkTitle),
-      tCardLabel
-    )}`;
+    statusText = `${t("progress", { position: deck.position, total: deck.total })}. ${getCardAccessibleLabel(deck.current, tCardLabel, tLinkTitle)}`;
   }
 
   return (
@@ -480,7 +475,7 @@ export function RevisitDeck({
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <DialogDescription className="sr-only">
-          {t("description")}
+          {t("description", { undoKey: UNDO_KEY })}
         </DialogDescription>
         <div className="flex h-dvh w-full flex-col overflow-hidden">
           <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -538,7 +533,7 @@ export function RevisitDeck({
                   </Button>
                 </div>
                 <p className="text-muted-foreground text-xs max-sm:hidden">
-                  {t.rich("keyHints", { kbd })}
+                  {t.rich("keyHints", { kbd, undoKey: UNDO_KEY })}
                 </p>
                 <p className="text-muted-foreground text-xs sm:hidden">
                   {t("swipeHint")}

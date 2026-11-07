@@ -1,11 +1,12 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { patchCard } from "../card/cardWrites";
+import { cardNeedsAiMetadata } from "../card/derivedFields";
+import { queueCardProcessing } from "../card/processingRuns";
 import { stageFailed } from "../card/processingStatus";
-import { patchCardWithSearchSync } from "../card/searchSync";
-import { queueCardProcessing } from "../workflowDispatch";
-import { cardNeedsAiMetadata, findCardsMissingAiCandidates } from "./queries";
+import { findCardsMissingAiCandidates } from "./queries";
 
 export const AI_BACKFILL_INTERVAL_HOURS = 6;
 const AI_BACKFILL_RETRY_WINDOW_HOURS = 24;
@@ -32,7 +33,7 @@ export const claimAiBackfillCard = async (
   const attempts = card.aiBackfillAttempts ?? 0;
   const now = Date.now();
   if (attempts >= MAX_AI_BACKFILL_ATTEMPTS) {
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       aiTags: [],
       processingStatus: {
         ...(card.processingStatus ?? {}),

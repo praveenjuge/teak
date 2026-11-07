@@ -1,13 +1,11 @@
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_PATH,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import schema from "../schema";
-import { hmacSha256Hex } from "../storage/r2Keys";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const SECRET = "edge-identity-test-secret";
 const KEY_HASH = "a".repeat(64);
 
@@ -44,7 +42,7 @@ const signedHeaders = async (
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     await ctx.db.insert("apiKeyAuthCache", {
       keyId: "key_1",

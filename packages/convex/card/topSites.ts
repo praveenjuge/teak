@@ -1,10 +1,9 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
-import { hostForDisplay } from "../shared/utils/urlHost";
+import { cardUrlHost, hostForDisplay } from "../shared/utils/urlHost";
 import { keepVisible } from "./hiddenCards";
 import { buildCardListQuery } from "./listQuery";
-import { cardUrlHost } from "./searchPlanner";
 
 const TOP_SITES_SCAN_LIMIT = 500;
 const TOP_SITES_TEXT_SCAN_LIMIT = 200;

@@ -12,12 +12,13 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { cardStorageObjectKeys } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
 } from "./cardUsage";
-import { syncCardSearch } from "./searchSync";
+import { onCardChanged } from "./onCardChanged";
 import { updateCardFieldForUserHandler } from "./updateCard";
 
 export const permanentDeleteCard = mutation({
@@ -70,7 +71,7 @@ export const permanentDeleteCardForUserHandler = async (
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);
   }
-  await syncCardSearch(ctx, cardId, card.userId, card);
+  await onCardChanged(ctx, cardId, card.userId, card);
   for (const key of cardStorageObjectKeys(card)) {
     await queueObjectDeletion(ctx, key);
   }

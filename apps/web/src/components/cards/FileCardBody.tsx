@@ -1,4 +1,5 @@
 import { useTranslations } from "@teak/i18n/react";
+import { isGifCard } from "../../lib/cardTypes";
 import { formatDuration, getFileFormatBadge } from "./cardDisplay";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -30,12 +31,11 @@ export function ImageCardBody({ card, isPriority }: FileCardBodyProps) {
 }
 
 export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
-  const isGif =
-    card.fileMetadata?.mimeType === "image/gif" ||
-    (card.fileMetadata?.fileName?.toLowerCase().endsWith(".gif") ?? false);
+  const isGif = isGifCard(card);
   return (
     <GridVideoPreview
       cardId={card._id}
+      durationLabel={formatDuration(card.fileMetadata?.duration)}
       height={card.fileMetadata?.height}
       isGif={isGif}
       isPriority={isPriority}
@@ -51,12 +51,20 @@ export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
   );
 }
 
-export function AudioCardBody({ card }: Pick<FileCardBodyProps, "card">) {
+export function AudioCardBody({
+  card,
+  textInsets,
+}: Pick<FileCardBodyProps, "card"> & { textInsets?: string }) {
   const t = useTranslations("cards.body");
   return (
     <AudioWavePreview
       cardId={card._id}
       durationLabel={formatDuration(card.fileMetadata?.duration)}
+      formatBadge={getFileFormatBadge(
+        card.fileMetadata?.fileName,
+        card.fileMetadata?.mimeType
+      )}
+      textInsets={textInsets}
       title={
         card.metadataTitle || card.fileMetadata?.fileName || t("recording")
       }

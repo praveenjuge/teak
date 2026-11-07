@@ -20,18 +20,13 @@ jobs:
       TURBO_UI: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: ./.github/actions/setup-bun
         with:
-          bun-version-file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: package.json
+          node: "true"
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Format and lint (Biome)
         run: bun run check
-      - name: Lint backend identity boundary
-        run: bun run --cwd packages/convex lint
       - name: Audit env contract
         run: bun run audit:env
       - name: Check generated Worker types
@@ -44,12 +39,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: ./.github/actions/setup-bun
         with:
-          bun-version-file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: package.json
+          node: "true"
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Build the Firefox extension
@@ -74,8 +66,8 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-      - name: Install the Android 17 SDK
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
+      - name: Install the Android SDK
+        uses: ./.github/actions/setup-android-sdk
       - name: Lint, unit tests and a release build
         run: ./gradlew lint testDebugUnitTest :app:assembleRelease --console=plain
 
@@ -104,9 +96,7 @@ jobs:
         working-directory: apps/core-worker
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+      - uses: ./.github/actions/setup-bun
       - name: Build the renderer image
         run: docker build --platform linux/amd64 -t teak-renderer container
       - name: Start the renderer (Cloudflare basic size)

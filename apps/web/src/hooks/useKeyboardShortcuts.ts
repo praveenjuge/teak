@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isTypingTarget, OVERLAY_SELECTOR } from "../lib/keyboardShortcuts";
 
 export interface KeyboardShortcut {
   /**
@@ -12,45 +13,6 @@ export interface KeyboardShortcut {
 }
 
 export const SHORTCUT_SEQUENCE_TIMEOUT_MS = 1000;
-
-export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
-
-export const CARD_DIALOG_ATTRIBUTE = "data-card-dialog";
-
-const TYPING_ROLES = new Set([
-  "combobox",
-  "searchbox",
-  "spinbutton",
-  "textbox",
-]);
-
-export function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-  const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-    return true;
-  }
-  if (target.closest("[contenteditable]:not([contenteditable='false'])")) {
-    return true;
-  }
-  const role = target.getAttribute("role");
-  return role !== null && TYPING_ROLES.has(role);
-}
-
-const OVERLAY_SELECTOR = [
-  "[role='dialog'][data-state='open']",
-  "[role='alertdialog'][data-state='open']",
-  "[role='menu'][data-state='open']",
-  "[role='listbox'][data-state='open']",
-]
-  .map((selector) => `${selector}:not([${SHORTCUTS_DIALOG_ATTRIBUTE}])`)
-  .join(", ");
-
-export function isOverlayOpen(root: ParentNode = document): boolean {
-  return root.querySelector(OVERLAY_SELECTOR) !== null;
-}
 
 const openOverlays = (): Element[] =>
   Array.from(document.querySelectorAll(OVERLAY_SELECTOR));

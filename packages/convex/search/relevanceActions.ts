@@ -7,8 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { type ActionCtx, action } from "../_generated/server";
 import { aiUsageParams } from "../ai/usage";
-import { searchCardsPaginatedArgsValidator } from "../card/searchCardsPaginated";
-import { rateLimiter } from "../shared/rateLimits";
+import { rateLimiter } from "../rateLimiter";
 import {
   buildRelevanceCardText,
   currentRelevanceScores,
@@ -18,14 +17,16 @@ import {
 } from "../shared/search/relevance";
 import type { SemanticRequest } from "../shared/search/semantic";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
+import { searchCardsPaginatedArgsValidator } from "./searchCardsPaginated";
 import { fetchSemanticRanking } from "./semanticActions";
-
-export const API_RELEVANCE_TIMEOUT_MS = 1500;
-const GRID_RELEVANCE_TIMEOUT_MS = 3000;
-const GRID_SEMANTIC_TIMEOUT_MS = 5000;
+import {
+  API_SEARCH_TIMEOUT_MS,
+  GRID_RELEVANCE_TIMEOUT_MS,
+  GRID_SEMANTIC_TIMEOUT_MS,
+} from "./timeouts";
 
 export type RelevanceOutcome =
   | "ok"
@@ -61,7 +62,7 @@ export const ensureRelevanceScores = async (
     candidates,
     spentToken = false,
     text,
-    timeoutMs = API_RELEVANCE_TIMEOUT_MS,
+    timeoutMs = API_SEARCH_TIMEOUT_MS,
     userId,
   }: {
     candidates: readonly CandidateCard[];
@@ -75,7 +76,7 @@ export const ensureRelevanceScores = async (
   if (!(text && cards.length)) {
     return { outcome: "skipped", scores: null };
   }
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     return { outcome: "unavailable", scores: null };
   }
   if (
@@ -107,7 +108,7 @@ export const ensureRelevanceScores = async (
   const startedAt = Date.now();
   let result: FilesRelevanceResult | null = null;
   try {
-    const outcome = await callFilesWorkerJson<unknown>({
+    const outcome = await callCoreWorkerOp({
       op: "score-relevance",
       params: {
         ...aiUsageParams(userId),

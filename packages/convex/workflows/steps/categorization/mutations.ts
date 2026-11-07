@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
+import { patchCard } from "../../../card/cardWrites";
 import {
   mergeProcessingStages,
   stageCompleted,
 } from "../../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../../card/searchSync";
-import { r2KeyValidator } from "../../../schema";
-import { rateLimiter } from "../../../shared/rateLimits";
-import { queueObjectDeletion } from "../../../storage/r2";
+import { rateLimiter } from "../../../rateLimiter";
+import { r2KeyValidator } from "../../../schema/validators/cards";
+import { queueObjectDeletion } from "../../../storage/objectDeletion";
 import {
   assertArchivedRawReference,
   serializeArchivableRaw,
@@ -52,7 +52,7 @@ export const updateCategorization = internalMutation({
     };
 
     assertArchivedRawReference(card, "linkCategory", metadata);
-    const committed = await patchCardWithSearchSync(ctx, cardId, {
+    const committed = await patchCard(ctx, cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
       updatedAt: now,

@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardModalCard } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -29,7 +29,7 @@ afterEach(async () => {
   window.localStorage.clear();
 });
 
-const imageCard = (extra: Partial<CardModalCard> = {}) =>
+const imageCard = (extra: Partial<ClientCard> = {}) =>
   ({
     _id: "card_1",
     _creationTime: 0,
@@ -46,10 +46,10 @@ const imageCard = (extra: Partial<CardModalCard> = {}) =>
     updatedAt: 0,
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 async function render(
-  card: CardModalCard,
+  card: ClientCard,
   extra: Partial<Parameters<typeof CardMetadataPanel>[0]> = {}
 ) {
   const tags = {
@@ -66,7 +66,7 @@ async function render(
     root?.render(
       <CardMetadataPanel
         card={card}
-        getCurrentValue={(field) => card[field as keyof CardModalCard] as never}
+        getCurrentValue={(field) => card[field as keyof ClientCard] as never}
         onCommit={() => undefined}
         onNotesChange={() => undefined}
         tags={tags}
@@ -111,7 +111,7 @@ test("a note with nothing left to list has no empty Details heading", async () =
       content: "Groceries",
       fileMetadata: undefined,
       type: "text",
-    } as Partial<CardModalCard>),
+    } as Partial<ClientCard>),
     { addedInHeader: true }
   );
   expect(detailLabels()).toEqual([]);
@@ -124,7 +124,7 @@ test("Details stays open on the next card once someone opened it", async () => {
   await act(() => root?.unmount());
   root = undefined;
 
-  await render(imageCard({ _id: "card_2" } as Partial<CardModalCard>));
+  await render(imageCard({ _id: "card_2" } as Partial<ClientCard>));
   expect(detailLabels()).toContain("File name");
   expect(window.localStorage.getItem(DETAILS_EXPANDED_KEY)).toBe("1");
 });
@@ -208,7 +208,7 @@ const linkCard = () =>
     fileMetadata: undefined,
     type: "link",
     url: "https://example.com/lamp",
-  } as Partial<CardModalCard>);
+  } as Partial<ClientCard>);
 
 test("a link's URL row offers Edit link, and its Image row Replace", async () => {
   const onEditLink = mock();

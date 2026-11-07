@@ -89,6 +89,7 @@ describe("card/getCard.ts", () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
+        normalizeId: mock().mockReturnValue(null),
         get: mock().mockImplementation(() => {
           throw new Error("invalid id");
         }),
@@ -100,6 +101,25 @@ describe("card/getCard.ts", () => {
     const result = await handler(ctx, { id: "12345" });
 
     expect(result).toBeNull();
+  });
+
+  test("getCardByUrlId lets a failed read surface instead of reporting the card missing", async () => {
+    const ctx = withTestSession({
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        normalizeId: mock().mockImplementation(
+          (_table: string, id: string) => id
+        ),
+        get: mock().mockRejectedValue(new Error("database unavailable")),
+      },
+      storage: { getUrl: mock() },
+    } as any);
+
+    const handler = (getCardByUrlId as any).handler ?? getCardByUrlId;
+
+    await expect(handler(ctx, { id: "c1" })).rejects.toThrow(
+      "database unavailable"
+    );
   });
 
   test("getCard hydrates stored link media and falls back preview image to first attachment", async () => {

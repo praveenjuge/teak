@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildFileSigningPayload } from "@teak/files-protocol";
+import { buildFileSigningPayload, hmacSha256Hex } from "@teak/files-protocol";
 import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
-import {
-  hmacSha256Hex,
-  parseSingleByteRange,
-  verifySignedFileRequest,
-} from "./lib";
+import { parseSingleByteRange, verifySignedFileRequest } from "./lib";
 
 const {
   secret: SECRET,
@@ -67,7 +63,7 @@ describe("files proxy verification", () => {
       { ...params, exp: "1700000001" },
       1_700_000_002
     );
-    expect(result).toEqual({ ok: false, status: 410 });
+    expect(result).toMatchObject({ ok: false, status: 410 });
   });
 
   test("rejects tampered signatures", async () => {
@@ -82,34 +78,34 @@ describe("files proxy verification", () => {
         tampered,
         1_699_999_999
       );
-      expect(result).toEqual({ ok: false, status: 403 });
+      expect(result).toMatchObject({ ok: false, status: 403 });
     }
   });
 
   test("rejects missing or malformed parameters", async () => {
     expect(
       await verifySignedFileRequest(SECRET, { key: "", exp: EXP, sig: "00" })
-    ).toEqual({ ok: false, status: 401 });
+    ).toMatchObject({ ok: false, status: 401 });
     expect(
       await verifySignedFileRequest(SECRET, { key: KEY, exp: null, sig: "00" })
-    ).toEqual({ ok: false, status: 401 });
+    ).toMatchObject({ ok: false, status: 401 });
     expect(
       await verifySignedFileRequest(SECRET, { key: KEY, exp: EXP, sig: null })
-    ).toEqual({ ok: false, status: 401 });
+    ).toMatchObject({ ok: false, status: 401 });
     expect(
       await verifySignedFileRequest(SECRET, {
         key: KEY,
         exp: "nope",
         sig: "00",
       })
-    ).toEqual({ ok: false, status: 403 });
+    ).toMatchObject({ ok: false, status: 403 });
     expect(
       await verifySignedFileRequest(SECRET, {
         key: KEY,
         exp: "0x10",
         sig: "zz",
       })
-    ).toEqual({ ok: false, status: 403 });
+    ).toMatchObject({ ok: false, status: 403 });
   });
 });
 

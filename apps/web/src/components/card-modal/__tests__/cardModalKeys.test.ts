@@ -43,7 +43,7 @@ describe("cardModalKeyAction", () => {
     ["p", "pin"],
     ["P", "pin"],
     ["e", "archive"],
-    ["t", "focusTags"],
+    ["t", "addTags"],
     ["n", "focusNotes"],
     ["d", "done"],
     ["o", "open"],
@@ -51,13 +51,13 @@ describe("cardModalKeyAction", () => {
     ["r", "toggleReader"],
     ["h", "highlight"],
     ["H", "highlight"],
-    ["Delete", "delete"],
+    ["Delete", "moveToTrash"],
   ])("%s does %s", (key, action) => {
     expect(press(key, plain)).toBe(action as never);
   });
 
   test("Backspace deletes only on a Mac, where it is the Delete key", () => {
-    expect(press("Backspace", plain, {}, true)).toBe("delete");
+    expect(press("Backspace", plain, {}, true)).toBe("moveToTrash");
     expect(press("Backspace", plain, {}, false)).toBeNull();
   });
 

@@ -10,11 +10,6 @@ import {
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
-  fetchVideoCaptions,
-  hasCaptionSource,
-  type VideoCaptions,
-} from "@teak/convex/workflows/steps/captions/index";
-import {
   AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,
   isScannedPdf,
@@ -30,6 +25,11 @@ import {
   isAiProviderCapacityError,
   saveCardAi,
 } from "./aiMetadata";
+import {
+  fetchVideoCaptions,
+  hasCaptionSource,
+  type VideoCaptions,
+} from "./captions/index";
 import {
   type CardDoc,
   type CardJob,

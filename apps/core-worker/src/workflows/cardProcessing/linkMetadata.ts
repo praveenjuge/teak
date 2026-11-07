@@ -1,22 +1,10 @@
 import { internal } from "@teak/convex/_generated/api";
 import {
-  type InstagramPostMedia,
-  isInstagramPostUrl,
-} from "@teak/convex/linkMetadata/instagram";
-import { extractInstagramMediaFromHtml } from "@teak/convex/linkMetadata/instagramHtml";
-import {
   buildErrorPreview,
   buildSuccessPreview,
   parseLinkPreview,
 } from "@teak/convex/linkMetadata/parsing";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import {
-  fetchSocialPostMetadata,
-  mapOpenGraphSocialPost,
-  type SocialPostMedia,
-  type SocialPostMetadata,
-  toSocialPostPreviewFields,
-} from "@teak/convex/linkMetadata/socialPost";
 import { assertUrlIsSafe, SsrfError } from "@teak/convex/linkMetadata/ssrf";
 import type {
   LinkPreviewMediaItem,
@@ -25,13 +13,8 @@ import type {
 } from "@teak/convex/linkMetadata/types";
 import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import {
-  fetchXStatusMetadata,
-  isXStatusUrl,
-} from "@teak/convex/linkMetadata/x";
-import {
   type FilesLinkPageResult,
   type FilesRemoteAssetKind,
-  type FilesRemoteAssetResult,
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
@@ -45,6 +28,20 @@ import {
   objectKey,
 } from "./context";
 import { archiveRawMetadata } from "./rawMetadata";
+import { fetchSpotifyTitle } from "./remote/spotify";
+import {
+  type InstagramPostMedia,
+  isInstagramPostUrl,
+} from "./social/instagram";
+import { extractInstagramMediaFromHtml } from "./social/instagramHtml";
+import {
+  fetchSocialPostMetadata,
+  mapOpenGraphSocialPost,
+  type SocialPostMedia,
+  type SocialPostMetadata,
+  toSocialPostPreviewFields,
+} from "./social/socialPost";
+import { fetchXStatusMetadata, isXStatusUrl } from "./social/x";
 
 export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
@@ -124,7 +121,7 @@ export const gunzipBase64 = async (value: string): Promise<string> => {
 };
 
 export const fetchLinkPageForCard = (job: CardJob, url: string) =>
-  job.deps.filesOp<FilesLinkPageResult>({
+  job.deps.filesOp({
     op: "fetch-link-page",
     params: {
       ...(job.refresh ? { fresh: true } : {}),
@@ -171,7 +168,7 @@ const storeRemoteAsset = async (
   const key = objectKey(loaded, { cardId: job.cardId, role });
   try {
     await ensureObjectOwnership(job, loaded.card.userId, key);
-    const outcome = await job.deps.filesOp<FilesRemoteAssetResult>({
+    const outcome = await job.deps.filesOp({
       op: "store-remote-asset",
       params: {
         destinationKey: key,
@@ -631,7 +628,12 @@ export const fetchLinkMetadata = async (
       });
     }
 
-    const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const scraped = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    const spotifyTitle = await fetchSpotifyTitle(normalizedUrl, scraped.title, {
+      pinnedFetch: job.deps.pinnedFetch,
+      resolveDns: job.deps.resolveDns,
+    });
+    const parsed = spotifyTitle ? { ...scraped, title: spotifyTitle } : scraped;
     const openGraphPost = mapOpenGraphSocialPost(normalizedUrl, parsed);
     if (openGraphPost) {
       return await saveSocialPost(openGraphPost, pageUrl);

@@ -1,11 +1,13 @@
 import type { ServerEventCatalog } from "@teak/convex/shared/analytics";
-import {
-  createPostHogBatch,
-  type PostHogBatch,
-} from "@teak/convex/shared/posthog";
-import packageJson from "../../package.json";
+import type { PostHogBatch } from "@teak/convex/shared/posthog";
+import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
 import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
-import { reportBackgroundError, type TelemetryEnvVars } from "../telemetry";
+import {
+  createWorkerBatch,
+  reportBackgroundError,
+  type TelemetryEnvVars,
+  workerEventProperties,
+} from "../telemetry";
 
 // PostHog events from workflow steps and queue consumers. One isolate runs
 // many steps at once, so nothing here lives at module level: each step makes
@@ -25,26 +27,13 @@ export const createWorkflowTelemetry = (
   env: TelemetryEnvVars,
   options: { fetch?: typeof fetch } = {}
 ): WorkflowTelemetry => {
-  const batch: PostHogBatch = createPostHogBatch({
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-    lib: "teak-files-worker",
-    libVersion: packageJson.version,
-    platform: "node:javascript",
-    token: env.POSTHOG_PROJECT_TOKEN,
-  });
+  const batch: PostHogBatch = createWorkerBatch(env, options);
   return {
     flush: async () => {
       await batch.flush();
     },
     record: (event, properties) => {
-      batch.capture({
-        event,
-        properties: {
-          ...properties,
-          $app_version: packageJson.version,
-          surface: "files-worker",
-        },
-      });
+      batch.capture({ event, properties: workerEventProperties(properties) });
     },
   };
 };
@@ -124,7 +113,12 @@ export const emitCardProcessingCompleted = (
     return Promise.resolve();
   });
 
+/** An op error is judged by its code; anything else by its message. */
 export const isRetryableBackgroundError = (error: unknown): boolean => {
+  const code = filesOpErrorCode(error);
+  if (code) {
+    return isTransientFilesOpCode(code);
+  }
   const message = error instanceof Error ? error.message : String(error);
   return /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b|stale_processing_revision|card_missing/iu.test(
     message

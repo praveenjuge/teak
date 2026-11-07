@@ -8,8 +8,6 @@ import {
   type FilesEmbedUpsertResult,
   type FilesVectorDeleteParams,
   type FilesVectorDeleteResult,
-  type FilesVectorGetParams,
-  type FilesVectorGetResult,
   type FilesVectorQueryParams,
   type FilesVectorQueryResult,
   type FilesVectorSimilarParams,
@@ -22,11 +20,9 @@ import {
   VECTOR_TYPE_METADATA_KEY,
   vectorShardBinding,
 } from "@teak/files-protocol";
-import { OpFailure } from "../opFailure";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
-import { aiRunOptions } from "./aiGateway";
-import { meteredAiRun } from "./aiUsage";
-import { isCapacityError, MetadataCapacityError } from "./textMetadata";
+import { runWorkersAi } from "./workersAi";
 
 // Vectorize answers a burst of writes with 429 (`VECTOR_UPSERT_ERROR (code =
 // 40041): Too Many Requests`). It is load, not a fault: answer RATE_LIMITED
@@ -84,14 +80,14 @@ const isBoundedString = (value: unknown, maxBytes: number): value is string =>
 
 const parseShard = (value: unknown): number => {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new Error("invalid_vector_shard");
+    throw new InvalidOpInput("invalid_vector_shard");
   }
   return value;
 };
 
 const parseNamespace = (value: unknown): string => {
   if (!isBoundedString(value, VECTOR_NAMESPACE_MAX_BYTES)) {
-    throw new Error("invalid_vector_namespace");
+    throw new InvalidOpInput("invalid_vector_namespace");
   }
   return value;
 };
@@ -103,7 +99,7 @@ const parseIds = (value: unknown, max: number): string[] => {
     value.length > max ||
     !value.every((id) => isBoundedString(id, VECTOR_ID_MAX_BYTES))
   ) {
-    throw new Error("invalid_vector_ids");
+    throw new InvalidOpInput("invalid_vector_ids");
   }
   return Array.from(new Set(value as string[]));
 };
@@ -117,7 +113,7 @@ export const parseEmbedUpsertParams = (
     items.length === 0 ||
     items.length > EMBED_UPSERT_MAX_ITEMS
   ) {
-    throw new Error("invalid_embed_items");
+    throw new InvalidOpInput("invalid_embed_items");
   }
   const parsed = items.map((item) => {
     const { id, text, type } = (item ?? {}) as Record<string, unknown>;
@@ -128,12 +124,12 @@ export const parseEmbedUpsertParams = (
       text.length > MAX_ITEM_TEXT_CHARS ||
       !(type === undefined || isVectorCardType(type))
     ) {
-      throw new Error("invalid_embed_items");
+      throw new InvalidOpInput("invalid_embed_items");
     }
     return type === undefined ? { id, text } : { id, text, type };
   });
   if (new Set(parsed.map((item) => item.id)).size !== parsed.length) {
-    throw new Error("invalid_embed_items");
+    throw new InvalidOpInput("invalid_embed_items");
   }
   return {
     items: parsed,
@@ -160,7 +156,7 @@ export const parseVectorQueryParams = (
     text.length > VECTOR_QUERY_MAX_CHARS ||
     !(type === undefined || isVectorCardType(type))
   ) {
-    throw new Error("invalid_vector_query");
+    throw new InvalidOpInput("invalid_vector_query");
   }
   if (
     typeof topK !== "number" ||
@@ -168,7 +164,7 @@ export const parseVectorQueryParams = (
     topK < 1 ||
     topK > VECTOR_QUERY_MAX_TOP_K
   ) {
-    throw new Error("invalid_vector_query");
+    throw new InvalidOpInput("invalid_vector_query");
   }
   return {
     namespace: parseNamespace(params.namespace),
@@ -186,7 +182,7 @@ const parseTopK = (value: unknown): number => {
     value < 1 ||
     value > VECTOR_QUERY_MAX_TOP_K
   ) {
-    throw new Error("invalid_vector_query");
+    throw new InvalidOpInput("invalid_vector_query");
   }
   return value;
 };
@@ -195,7 +191,7 @@ export const parseVectorSimilarParams = (
   params: Record<string, unknown>
 ): FilesVectorSimilarParams => {
   if (!isBoundedString(params.id, VECTOR_ID_MAX_BYTES)) {
-    throw new Error("invalid_vector_ids");
+    throw new InvalidOpInput("invalid_vector_ids");
   }
   return {
     id: params.id,
@@ -210,33 +206,21 @@ const indexForShard = (env: FilesOpsEnv, shard: number): Vectorize => {
     vectorShardBinding(shard)
   ];
   if (!index) {
-    throw new Error("invalid_vector_shard");
+    throw new InvalidOpInput("invalid_vector_shard");
   }
   return index;
 };
 
 const embed = async (env: FilesOpsEnv, texts: string[]) => {
-  const ai = env.AI;
-  if (!ai) {
+  if (!env.AI) {
     throw new Error("ai_unavailable");
   }
-  let response: unknown;
-  try {
-    response = await meteredAiRun(
-      env,
-      {
-        functionId: "teak.ai.embedding",
-        isCapacity: isCapacityError,
-        model: CARD_EMBEDDING_MODEL,
-      },
-      () => ai.run(CARD_EMBEDDING_MODEL, { text: texts }, aiRunOptions(env))
-    );
-  } catch (error) {
-    if (isCapacityError(error)) {
-      throw new MetadataCapacityError({ validationRetryCount: 0 });
-    }
-    throw error;
-  }
+  const response = await runWorkersAi(env, {
+    capacityRetries: 0,
+    functionId: "teak.ai.embedding",
+    input: { text: texts },
+    model: CARD_EMBEDDING_MODEL,
+  });
   const data = (response as { data?: unknown } | null)?.data;
   if (
     !Array.isArray(data) ||
@@ -285,19 +269,6 @@ export const vectorDelete = async (
     indexForShard(env, shard).deleteByIds(ids)
   );
   return { mutationId: mutation.mutationId };
-};
-
-export const vectorGet = async (
-  env: FilesOpsEnv,
-  { ids, shard }: FilesVectorGetParams
-): Promise<FilesVectorGetResult> => {
-  const found = await indexForShard(env, shard).getByIds(ids);
-  return {
-    vectors: found.map((vector) => ({
-      id: vector.id,
-      namespace: vector.namespace ?? null,
-    })),
-  };
 };
 
 export const vectorSimilar = async (

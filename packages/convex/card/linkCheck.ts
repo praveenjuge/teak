@@ -13,16 +13,16 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser, requireSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import {
   getSafeUrlHostname,
   sanitizeExternalUrl,
 } from "../shared/utils/safeUrl";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 
 // The dead-link fallback. Opening a link card that has an archived copy goes
@@ -337,7 +337,7 @@ type CheckAnswer = Omit<FilesLinkCheckResult, "reason"> & { reason: string };
 
 const askWorker = async (url: string): Promise<CheckAnswer> => {
   try {
-    const answer = await callFilesWorkerJson<FilesLinkCheckResult>({
+    const answer = await callCoreWorkerOp({
       op: "check-link",
       params: { url },
       timeoutMs: LINK_CHECK_WORKER_TIMEOUT_MS,
@@ -401,7 +401,7 @@ export const checkCardLinkFor = async (
   if (state.cached) {
     return await cached(state.cached);
   }
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     return original("unsure", "unconfigured");
   }
   const claim = await ctx.runMutation(internal.card.linkCheck.claimLinkCheck, {

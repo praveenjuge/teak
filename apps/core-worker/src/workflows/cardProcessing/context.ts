@@ -1,9 +1,9 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { DnsResolver, PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
-import { PODCAST_LOOKUP_MAX_BYTES } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
 import {
   buildCardObjectKey,
+  type CardRunStage,
   FILES_UPLOAD_MAX_BYTES,
   filesUserKeyRoot,
 } from "@teak/files-protocol";
@@ -14,15 +14,16 @@ import {
   createContainerStreamingFetch,
   createDohResolver,
 } from "../../media/pinnedHop";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
+import { PODCAST_LOOKUP_MAX_BYTES } from "./podcastFeed/resolveEnclosure";
 
 export interface CardProcessingDeps {
   aiGate: AiGateReader;
   convex: ConvexRpc;
-  filesOp: FilesOpCaller;
+  filesOp: OpCaller;
   pinnedFetch: PinnedFetch;
   podcastFetch: { episode: PinnedFetch; feed: PinnedFetch };
   resolveDns: DnsResolver;
@@ -77,16 +78,9 @@ export const loadCard = (job: CardJob): Promise<LoadedCard | null> =>
     cardId: job.cardId,
   }) as Promise<LoadedCard | null>;
 
-export type StageKey =
-  | "categorize"
-  | "classify"
-  | "metadata"
-  | "renderables"
-  | "screenshot";
-
 export const markInProgress = async (
   job: CardJob,
-  stages: StageKey[]
+  stages: CardRunStage[]
 ): Promise<void> => {
   await job.deps.convex.mutation(
     internal.card.processingRpc.markStagesInProgress,

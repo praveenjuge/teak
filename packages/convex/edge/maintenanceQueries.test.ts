@@ -1,13 +1,10 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
+import { insertTestCard } from "../__tests__/helpers/cards.test-utils";
 import { queuedObjectDeletions } from "../__tests__/helpers/objectDeletions.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { syncCardSearch } from "../card/searchSync";
-import schema from "../schema";
-
-const modules = import.meta.glob("../**/*.ts");
+import { type Backend, newBackend } from "./helpers.testUtils";
 
 const insertCard = async (
   ctx: MutationCtx,
@@ -22,19 +19,20 @@ const insertCard = async (
     ...overrides,
   });
 
-// A card saved through the app: its search sync sets `aiPending`.
-const saveCard = async (
-  ctx: MutationCtx,
-  overrides: Partial<Doc<"cards">> = {}
-) => {
-  const cardId = await insertCard(ctx, overrides);
-  await syncCardSearch(ctx, cardId);
-  return cardId;
-};
+// A card saved through the app, with `aiPending` set.
+const saveCard = (ctx: MutationCtx, overrides: Partial<Doc<"cards">> = {}) =>
+  insertTestCard(ctx, {
+    content: "Card",
+    createdAt: Date.now(),
+    type: "text",
+    updatedAt: Date.now(),
+    userId: "maintenance-test-user",
+    ...overrides,
+  });
 
 describe("maintenance queries", () => {
   test("AI backfill returns only old active cards missing every AI field", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const old = Date.now() - 10 * 60 * 1000;
     const ids = await t.run(async (ctx) => ({
       activeFalse: await saveCard(ctx, {
@@ -68,7 +66,7 @@ describe("maintenance queries", () => {
   });
 
   test("AI backfill stays capped at fifty cards", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const old = Date.now() - 10 * 60 * 1000;
     await t.run(async (ctx) => {
       for (let index = 0; index < 60; index += 1) {
@@ -85,7 +83,7 @@ describe("maintenance queries", () => {
   });
 
   test("card cleanup returns only deleted cards inside the age range", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cutoff = Date.now();
     const ids = await t.run(async (ctx) => ({
       active: await insertCard(ctx, { deletedAt: 1 }),
@@ -115,7 +113,7 @@ describe("orphan sweep references", () => {
   ] as const;
 
   test("pages every source one row at a time to every key rows still hold", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       const now = Date.now();
       for (const [index, extra] of [
@@ -194,7 +192,7 @@ describe("orphan sweep references", () => {
 
 describe("trash cleanup", () => {
   test("hard-deletes a card past retention, keeps a tombstone and queues its objects", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const cutoff = Date.now();
     const fileKey = "users/maintenance/cards/old/file/a.png";
     const thumbnailKey = "users/maintenance/cards/old/thumbnail/a.webp";
@@ -234,7 +232,7 @@ describe("trash cleanup", () => {
 
 describe("export jobs", () => {
   test("starting an export queues its run and records the instance", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const started = await t.mutation(internal.dataExport.startExportForUser, {
       userId: "export-user",
     });
@@ -257,7 +255,7 @@ describe("export jobs", () => {
   });
 
   test("a running job gets the archive key its run writes to", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await t.run((ctx) =>
       ctx.db.insert("exportJobs", {
         createdAt: 1,
@@ -285,7 +283,7 @@ describe("export jobs", () => {
   });
 
   test("an archive that finishes after a cancel is queued for deletion, not offered", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const artifactKey = "exports/0123456789abcdef/job-2026-10-16.zip";
     const jobId = await t.run((ctx) =>
       ctx.db.insert("exportJobs", {
@@ -322,7 +320,7 @@ describe("export jobs", () => {
 });
 
 describe("export snapshot", () => {
-  const seedExport = async (t: ReturnType<typeof convexTest>) =>
+  const seedExport = async (t: Backend) =>
     await t.run(async (ctx) => {
       const userId = "export-user";
       const jobId = await ctx.db.insert("exportJobs", {
@@ -371,10 +369,7 @@ describe("export snapshot", () => {
       return { cards, jobId };
     });
 
-  const snapshotIds = async (
-    t: ReturnType<typeof convexTest>,
-    jobId: Id<"exportJobs">
-  ) => {
+  const snapshotIds = async (t: Backend, jobId: Id<"exportJobs">) => {
     const ids: Id<"cards">[] = [];
     let addedBytes = 0;
     let cursor: string | null = null;
@@ -399,7 +394,7 @@ describe("export snapshot", () => {
   };
 
   test("an export snapshots its owner's live cards newest first without writing a row", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const { cards, jobId } = await seedExport(t);
 
     const snapshot = await snapshotIds(t, jobId);
@@ -414,7 +409,7 @@ describe("export snapshot", () => {
   });
 
   test("cards read by id match what the row snapshot reads", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const { jobId } = await seedExport(t);
     const { ids } = await snapshotIds(t, jobId);
     const byId = await t.query(internal.dataExport.getExportCardsByIds, {
@@ -450,7 +445,7 @@ describe("export snapshot", () => {
   });
 
   test("a card's highlights are read on their own, a bounded batch at a time", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const { cards, jobId } = await seedExport(t);
     // Rows near the document size limit, so two cards' worth pass one read.
     const long = (letter: string) => letter.repeat(900_000);
@@ -515,7 +510,7 @@ describe("export snapshot", () => {
   });
 
   test("cards read by id leave out ones deleted since and other accounts' cards", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const { cards, jobId } = await seedExport(t);
     await t.run(async (ctx) => {
       await ctx.db.patch(cards.link, { content: "edited", isDeleted: true });

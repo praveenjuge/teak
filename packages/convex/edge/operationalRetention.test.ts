@@ -1,10 +1,8 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { RETENTION_SCAN_LEASE_MS } from "../operationalRetention";
-import schema from "../schema";
+import { type Backend, newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const now = Date.parse("2026-09-30T10:00:00Z");
 beforeEach(() => {
   vi.useFakeTimers();
@@ -14,7 +12,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const seedRequests = async (t: ReturnType<typeof convexTest>) =>
+const seedRequests = async (t: Backend) =>
   t.run(async (ctx) => {
     for (const [keyHash, state, expiresAt] of [
       ["expired-completed", "completed", now - 1],
@@ -39,16 +37,14 @@ const seedRequests = async (t: ReturnType<typeof convexTest>) =>
   });
 
 test("dry run retains every record and identifies only expired requests", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   const before = await t.run((ctx) =>
     ctx.db.query("apiIdempotencyKeys").collect()
   );
   const report = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    {
-      kind: "idempotency",
-    }
+    {}
   );
   expect(report).toMatchObject({
     examined: 2,
@@ -62,12 +58,11 @@ test("dry run retains every record and identifies only expired requests", async 
 });
 
 test("cleanup deletes expired requests, including lapsed reservations, and keeps live response replay", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   const report = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
     {
-      kind: "idempotency",
       dryRun: false,
     }
   );
@@ -94,7 +89,7 @@ test("cleanup deletes expired requests, including lapsed reservations, and keeps
 });
 
 test("renewing an expired request before cleanup preserves its reservation", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   await t.mutation(internal.idempotency.beginIdempotencyRequestForUser, {
     userId: "customer",
@@ -105,7 +100,7 @@ test("renewing an expired request before cleanup preserves its reservation", asy
   });
   const report = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false }
+    { dryRun: false }
   );
   expect(report.deleted).toBe(1);
   expect(
@@ -116,7 +111,7 @@ test("renewing an expired request before cleanup preserves its reservation", asy
 });
 
 test("the hourly cron's cleanup deletes only expired records", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   expect(
     await t.mutation(internal.operationalRetention.startIdempotencyCleanup, {})
@@ -129,7 +124,7 @@ test("the hourly cron's cleanup deletes only expired records", async () => {
 });
 
 test("an hourly cron run during a scan joins it instead of starting another", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     for (let i = 0; i < 101; i++) {
       await ctx.db.insert("apiIdempotencyKeys", {
@@ -162,11 +157,10 @@ test("an hourly cron run during a scan joins it instead of starting another", as
 });
 
 test("the cutoff guard rejects unsafe cleanup", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   await expect(
     t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-      kind: "idempotency",
       cutoff: now + 60_000,
     })
   ).rejects.toThrow("unexpired");
@@ -176,7 +170,7 @@ test("the cutoff guard rejects unsafe cleanup", async () => {
 });
 
 test("lapsed reservations on the first page are deleted and the scan continues to later pages", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     for (let i = 0; i < 102; i++) {
       await ctx.db.insert("apiIdempotencyKeys", {
@@ -196,7 +190,7 @@ test("lapsed reservations on the first page are deleted and the scan continues t
   });
   const first = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false, remainingBatches: 1 }
+    { dryRun: false, remainingBatches: 1 }
   );
   expect(first).toMatchObject({
     expiredPending: 100,
@@ -211,7 +205,7 @@ test("lapsed reservations on the first page are deleted and the scan continues t
 });
 
 test("scheduled bursts carry their cursor past more than 2000 expired reservations", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     for (let i = 0; i < 2002; i++) {
       await ctx.db.insert("apiIdempotencyKeys", {
@@ -230,7 +224,6 @@ test("scheduled bursts carry their cursor past more than 2000 expired reservatio
     }
   });
   await t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-    kind: "idempotency",
     dryRun: false,
   });
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
@@ -241,7 +234,7 @@ test("scheduled bursts carry their cursor past more than 2000 expired reservatio
 });
 
 test("operational cleanup leaves complete customer cards unchanged", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await seedRequests(t);
   await t.run((ctx) =>
     ctx.db.insert("cards", {
@@ -258,14 +251,13 @@ test("operational cleanup leaves complete customer cards unchanged", async () =>
   );
   const before = await t.run((ctx) => ctx.db.query("cards").collect());
   await t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-    kind: "idempotency",
     dryRun: false,
   });
   expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual(before);
 });
 
 test("overlapping cron requests skip active scans and stale recovery fences old jobs", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run(async (ctx) => {
     for (let i = 0; i < 101; i++) {
       await ctx.db.insert("apiIdempotencyKeys", {
@@ -285,14 +277,14 @@ test("overlapping cron requests skip active scans and stale recovery fences old 
   });
   const first = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false, remainingBatches: 1 }
+    { dryRun: false, remainingBatches: 1 }
   );
   const [state] = await t.run((ctx) =>
     ctx.db.query("operationalRetentionStates").collect()
   );
   const overlap = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false }
+    { dryRun: false }
   );
   expect(overlap).toMatchObject({
     skipped: true,
@@ -302,7 +294,7 @@ test("overlapping cron requests skip active scans and stale recovery fences old 
   vi.setSystemTime(now + RETENTION_SCAN_LEASE_MS + 1);
   const recovered = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false }
+    { dryRun: false }
   );
   expect(recovered).toMatchObject({
     deleted: 1,
@@ -312,7 +304,7 @@ test("overlapping cron requests skip active scans and stale recovery fences old 
   });
   const oldJob = await t.mutation(
     internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "idempotency", dryRun: false, runId: state._id }
+    { dryRun: false, runId: state._id }
   );
   expect(oldJob).toMatchObject({ skipped: true, examined: 0 });
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());

@@ -1,7 +1,7 @@
 /**
  * The state file a running stack records, and the process helpers that start
  * and stop one. `bun run dev` (scripts/dev/dev-stack.ts) and the E2E suite's stack
- * (packages/tests/src/stack) share them, so each refuses to start on the
+ * (scripts/dev/local-stack) share them, so each refuses to start on the
  * other's ports and either can be stopped after a crash.
  *
  * The e2e CLI loads this file under Node (packages/tests/src/helpers/env.ts),
@@ -135,6 +135,8 @@ const commands = ():
 const STACK_OWNERS = [
   "scripts/dev/dev-main.ts",
   "scripts/dev/dev.ts",
+  "scripts/dev/local-stack/run.ts",
+  // The e2e suite runs the stack in its own process.
   "run-local-suite.ts",
 ];
 const STACK_MEMBERS = ["convex", "next"];
@@ -157,6 +159,26 @@ export const isStackRunning = (state: StackState): boolean => {
         STACK_OWNERS.some((owner) => entry.command.includes(owner))
     )
   );
+};
+
+export type StackPhase = "gone" | "ready" | "starting" | "stopped";
+
+/**
+ * The one reading of the stack that every status check shares (`bun run dev
+ * --status`, both doctors, the native apps' E2E sessions): nothing recorded,
+ * recorded but its owner is gone, or alive and starting or ready.
+ */
+export const currentStack = (
+  root: string
+): { phase: StackPhase; state: StackState | null } => {
+  const state = readStackState(root);
+  if (!state) {
+    return { phase: "stopped", state: null };
+  }
+  if (!isStackRunning(state)) {
+    return { phase: "gone", state };
+  }
+  return { phase: state.ready ? "ready" : "starting", state };
 };
 
 // The backend and web app's process group, if any of its members is still a

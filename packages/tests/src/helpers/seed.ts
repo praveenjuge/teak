@@ -8,7 +8,7 @@ const CONVEX_DIR = new URL("../../../convex/", import.meta.url).pathname;
  * does from packages/convex. While the stack runs, packages/convex/.env.local
  * selects its local backend; a cloud deploy key is never passed on, so this
  * can only reach the local anonymous backend (as the stack's own Convex CLI
- * calls do, `src/stack/backend.ts`).
+ * calls do, `scripts/dev/local-stack/backend.ts`).
  */
 export const seedScenario = async (
   email: string,

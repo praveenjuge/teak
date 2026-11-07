@@ -1,6 +1,6 @@
 import { env } from "../_generated/server";
 import { POSTHOG_UI_HOST, posthogProjectId } from "../shared/posthog";
-import { POSTHOG_DELETION_ERROR_PREFIX } from "./stages";
+import { accountDeletionFailure } from "./stages";
 
 const POSTHOG_DELETION_TIMEOUT_MS = 30_000;
 
@@ -11,8 +11,8 @@ const STEPS_AFTER_PERSON_DELETED = new Set([
   "publish_clickhouse_tombstone",
 ]);
 
-const fail = (code: string): never => {
-  throw new Error(`${POSTHOG_DELETION_ERROR_PREFIX}${code}`);
+const fail = (detail: string): never => {
+  throw accountDeletionFailure("deletion_posthog_failed", detail);
 };
 
 // Once the person is gone, PostHog matches nothing and answers 202 again, and

@@ -14,42 +14,34 @@ import {
 import { attachFileUrls } from "../card/queryUtils";
 import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
-  cardHasTag,
-  cardUrlHost,
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+} from "../card/visualFilters";
+import { searchModeValidator } from "../schema/validators/cards";
+import {
+  type CardSearchFilter,
   expressionTextReader,
+  matchesCardSearch,
   resolveExpressionFolders,
-} from "../card/searchPlanner";
+} from "../search/searchPlanner";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
   searchCardsByExactTag,
   searchCardsByOcrText,
-} from "../card/searchReads";
-import { buildCardSearchText } from "../card/searchSync";
-import {
-  isSimilarAnchorAvailable,
-  loadSimilarCards,
-} from "../card/similarSearch";
-import {
-  doesCardMatchVisualFilters,
-  normalizeVisualFilterArgs,
-} from "../card/visualFilters";
-import { searchModeValidator } from "../schema";
+} from "../search/searchReads";
 import {
   type SemanticRanking,
   semanticRankingValidator,
 } from "../search/semanticCache";
+import {
+  isSimilarAnchorAvailable,
+  loadSimilarCards,
+} from "../search/similarSearch";
 import type { TeakUserId } from "../securitySessions";
 import { clampPublicApiLimit } from "../shared/publicApiLimits";
+import { expressionRevealTags } from "../shared/search/expression";
 import {
-  expressionRevealTags,
-  matchesExpression,
-} from "../shared/search/expression";
-import {
-  matchesDoneState,
-  matchesImageText,
-  matchesPriceBounds,
-  matchesSearchPhrases,
   type PriceBound,
   parseSearchQuery,
   type SearchExpression,
@@ -66,7 +58,7 @@ import {
   type SearchMode,
 } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
-import { isCardHidden } from "../shared/tags";
+import { tagKey } from "../shared/tags";
 import {
   type ApiCursor,
   encodeCursor,
@@ -130,10 +122,9 @@ export const normalizeSearchText = (value?: string): string | undefined => {
   return trimmed ? trimmed : undefined;
 };
 
-export const normalizeTag = (value?: string): string | undefined => {
-  const trimmed = value?.trim().toLowerCase();
-  return trimmed ? trimmed : undefined;
-};
+/** A tag filter's key (`tagKey`), or undefined for none. */
+export const normalizeTag = (value?: string): string | undefined =>
+  (value && tagKey(value)) || undefined;
 
 export const normalizeSort = (value?: ApiCardSort): ApiCardSort =>
   value === "oldest" ? "oldest" : "newest";
@@ -221,136 +212,58 @@ const readTextFor = (ctx: QueryCtx, options: SearchOptions) => {
   return reader;
 };
 
+// One filter for each search's options: what matchesCardSearch checks.
+const searchFilters = new WeakMap<SearchOptions, CardSearchFilter>();
+const searchFilterOf = (options: SearchOptions): CardSearchFilter => {
+  let filter = searchFilters.get(options);
+  if (!filter) {
+    const revealTags = options.revealTags ?? [];
+    filter = {
+      archivedInTrash: options.archivedInTrash === true,
+      done: options.done === true,
+      expression: options.expression,
+      expressionFolders: options.expressionFolders,
+      favoritesOnly: options.favorited === true,
+      folderIds: [
+        ...(options.folderId ? [options.folderId] : []),
+        ...(options.folderIds ?? []),
+      ],
+      ocrTexts: options.ocrTexts ?? [],
+      phrases: options.phrases ?? [],
+      pinned: options.pinned === true,
+      prices: options.prices ?? [],
+      revealedByTags: options.includeHidden === true && revealTags.length === 0,
+      revealTags,
+      sites: options.sites ?? [],
+      tags: [...(options.tag ? [options.tag] : []), ...(options.tags ?? [])],
+      todo: options.todo === true,
+      types: options.type ? [options.type] : options.types,
+    };
+    searchFilters.set(options, filter);
+  }
+  return filter;
+};
+
+/**
+ * Whether a card belongs in an API listing: the search's qualifiers as app
+ * search checks them (`matchesCardSearch`), and the filters only the API
+ * takes (`favorited=false`, the saved-date range, the archived and Trash
+ * scope, and visual filters).
+ */
 export const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions,
   searchableText?: string
 ): boolean => {
-  if (
-    isCardHidden(card) &&
-    !(options.revealTags
-      ? options.revealTags.some((tag) => cardHasTag(card, tag))
-      : options.includeHidden)
-  ) {
+  if (!matchesCardSearch(card, searchFilterOf(options), searchableText)) {
     return false;
   }
-  if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
+  if (options.favorited === false && card.isFavorited === true) {
     return false;
   }
-  if (options.type && card.type !== options.type) {
-    return false;
-  }
-  if (options.types && !options.types.includes(card.type)) {
-    return false;
-  }
-
-  if (
-    options.favorited !== undefined &&
-    Boolean(card.isFavorited) !== options.favorited
-  ) {
-    return false;
-  }
-
-  if (options.pinned && card.pinPosition === undefined) {
-    return false;
-  }
-
   if (!matchesSavedAt(savedAtOf(card), options)) {
     return false;
   }
-
-  const requiredTags = [
-    ...(options.tag ? [options.tag] : []),
-    ...(options.tags ?? []),
-  ];
-  if (requiredTags.length > 0) {
-    const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])];
-    const tagSet = new Set(tags.map((tag) => tag.trim().toLowerCase()));
-    if (!requiredTags.every((tag) => tagSet.has(tag))) {
-      return false;
-    }
-  }
-
-  if (
-    options.folderIds?.some(
-      (folderId) => !(card.folderIds ?? []).includes(folderId)
-    )
-  ) {
-    return false;
-  }
-
-  if (options.sites?.length) {
-    const host = cardUrlHost(card);
-    if (!(host && options.sites.includes(host))) {
-      return false;
-    }
-  }
-
-  if (
-    options.prices?.length &&
-    !matchesPriceBounds(
-      card.metadata?.linkCategory?.price?.amount,
-      options.prices
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    options.ocrTexts?.length &&
-    !matchesImageText(card.aiOcrText, options.ocrTexts)
-  ) {
-    return false;
-  }
-
-  if (
-    (options.done || options.todo) &&
-    (card.type !== "link" ||
-      !matchesDoneState(card, {
-        done: options.done === true,
-        todo: options.todo === true,
-      }))
-  ) {
-    return false;
-  }
-
-  if (
-    options.phrases?.length &&
-    !matchesSearchPhrases(
-      searchableText ?? buildCardSearchText(card),
-      options.phrases
-    )
-  ) {
-    return false;
-  }
-
-  if (options.archivedInTrash && card.isArchived !== true) {
-    return false;
-  }
-
-  if (options.expression) {
-    const folders = options.expressionFolders;
-    const cardFolders = card.folderIds ?? [];
-    if (
-      !matchesExpression(
-        options.expression,
-        card,
-        searchableText ?? buildCardSearchText(card),
-        {
-          folder: (name) => {
-            const folderId = folders?.get(name);
-            return Boolean(folderId && cardFolders.includes(folderId));
-          },
-          hasTag: (tag) => cardHasTag(card, tag),
-          host: cardUrlHost(card),
-        },
-        isCardHidden(card) && options.revealTags !== undefined
-      )
-    ) {
-      return false;
-    }
-  }
-
   const archived = scopeArchivedMatch(
     cardListScope(options.archived, options.showTrashOnly)
   );

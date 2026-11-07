@@ -1,12 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  buildUploadSigningPayload,
-  FILES_PROTOCOL_VERSION,
-} from "@teak/files-protocol";
+import { buildUploadSigningPayload, hmacSha256Hex } from "@teak/files-protocol";
 import { freezeObject } from "../deletionGate";
 import worker, { type Env } from "../index";
-import { hmacSha256Hex, sha256Hex } from "../lib";
+import { handleOp, opCall, signedOpRequest } from "../test/opsHarness";
 import { FakeBucket, withObjectGates } from "../test/testsupport";
 
 const SECRET = "test-secret";
@@ -71,29 +67,6 @@ const signedUploadRequest = async (
             "content-type": `${contentType}; charset=utf-8`,
             "x-teak-request-id": crypto.randomUUID(),
           },
-  });
-};
-
-const signedOpRequest = async (
-  op: string,
-  params: Record<string, unknown>
-): Promise<Request> => {
-  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const bodySha256 = await sha256Hex(body);
-  return new Request("https://files.teakvault.com/__ops/v1", {
-    body,
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-teak-expires-at": expiresAt,
-      "x-teak-request-id": requestId,
-      "x-teak-signature": await hmacSha256Hex(
-        SECRET,
-        buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
-      ),
-    },
   });
 };
 
@@ -316,12 +289,11 @@ describe("additive files ops", () => {
     bucket.objects.set("users/u1/cards/card-1/file/old", {
       bytes: new Uint8Array([3]),
     });
-    const response = await worker.fetch(
-      await signedOpRequest("cleanup-stale-pending-uploads", {
+    const response = await handleOp(
+      opCall("cleanup-stale-pending-uploads", {
         prefix: "users/",
       }),
-      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
-      { waitUntil: () => undefined } as never
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
@@ -351,12 +323,11 @@ describe("additive files ops", () => {
         { bytes: new Uint8Array([1]) }
       );
     }
-    const response = await worker.fetch(
-      await signedOpRequest("cleanup-stale-pending-uploads", {
+    const response = await handleOp(
+      opCall("cleanup-stale-pending-uploads", {
         prefix: "users/",
       }),
-      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
-      { waitUntil: () => undefined } as never
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env
     );
     expect(response.status).toBe(200);
     const payload = (await response.json()) as {
@@ -372,14 +343,13 @@ describe("additive files ops", () => {
   });
 
   test("rejects cleanup outside the bounded user namespaces", async () => {
-    const response = await worker.fetch(
-      await signedOpRequest("cleanup-stale-pending-uploads", {
+    const response = await handleOp(
+      opCall("cleanup-stale-pending-uploads", {
         pendingCardId: "card-1",
         prefix: "exports/",
         staleBefore: Date.now(),
       }),
-      env(),
-      { waitUntil: () => undefined } as never
+      env()
     );
     expect(response.status).toBe(400);
   });
@@ -473,10 +443,9 @@ describe("additive files ops", () => {
       bytes: new TextEncoder().encode("png-bytes"),
       httpMetadata: { contentType: "image/png" },
     });
-    const present = await worker.fetch(
-      await signedOpRequest("head-object", { key: "users/u1/img.png" }),
-      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
-      { waitUntil: () => undefined } as never
+    const present = await handleOp(
+      opCall("head-object", { key: "users/u1/img.png" }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env
     );
     const payload = (await present.json()) as {
       data: Record<string, unknown>;
@@ -485,10 +454,10 @@ describe("additive files ops", () => {
     expect(payload.data.size).toBe(9);
     expect(payload.data.contentType).toBe("image/png");
 
-    const missing = await worker.fetch(
-      await signedOpRequest("head-object", { key: "users/u1/nope.png" }),
-      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
-      { waitUntil: () => undefined } as never
+    const missing = await handleOp(
+      opCall("head-object", { key: "users/u1/nope.png" }),
+
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env
     );
     const missingPayload = (await missing.json()) as {
       data: Record<string, unknown>;

@@ -6,12 +6,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { AddColorPopover } from "./AddColorPopover";
 
 interface PalettePreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
   /**
    * Hides "Add color" while the palette holds its most colors. An add that is
    * still saving keeps its popover, so a failed save keeps the typed color.

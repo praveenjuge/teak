@@ -1,12 +1,11 @@
 import { NonRetryableError } from "cloudflare:workflows";
 import {
   buildWorkflowRpcSecretPayload,
-  buildWorkflowRpcSigningPayload,
+  hmacSha256Hex,
+  isWorkflowRpcErrorCode,
   normalizeConvexSiteUrl,
   parseConvexSiteUrls,
-  WORKFLOW_RPC_HEADERS,
-  WORKFLOW_RPC_MAX_TTL_SECONDS,
-  WORKFLOW_RPC_PATH,
+  signWorkflowRpcRequest,
   type WorkflowRpcGuard,
   type WorkflowRpcKind,
   type WorkflowRpcResponse,
@@ -18,7 +17,6 @@ import {
   getFunctionName,
 } from "convex/server";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
-import { hmacSha256Hex, sha256Hex } from "./lib";
 
 export interface ConvexRpcEnv {
   CONVEX_SITE_URLS?: string;
@@ -47,18 +45,12 @@ export const workflowRpcSecret = async (
       )
     : null;
 
-const RPC_TTL_SECONDS = Math.min(120, WORKFLOW_RPC_MAX_TTL_SECONDS);
 const RPC_TIMEOUT_MS = 60_000;
 /**
  * Convex lets an action run for 10 minutes; a long one (the vector ledger
  * sweep) must not be abandoned and retried while it is still going.
  */
 const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
-
-const NON_RETRYABLE_CODES = new Set([
-  "card_missing",
-  "stale_processing_revision",
-]);
 
 export class ConvexRpcError extends Error {
   readonly code: string | undefined;
@@ -112,27 +104,16 @@ export const createConvexRpc = (
       name,
       ...(guard ? { guard } : {}),
     });
-    const requestId = crypto.randomUUID();
-    const expiresAt = String(Math.floor(Date.now() / 1000) + RPC_TTL_SECONDS);
-    const signature = await hmacSha256Hex(
+    const signed = await signWorkflowRpcRequest({
+      body,
+      convexSiteUrl: origin,
       secret,
-      buildWorkflowRpcSigningPayload({
-        bodySha256: await sha256Hex(body),
-        convexSiteUrl: origin,
-        expiresAt,
-        requestId,
-      })
-    );
+    });
     let response: Response;
     try {
-      response = await fetcher(`${origin}${WORKFLOW_RPC_PATH}`, {
+      response = await fetcher(signed.url, {
         body,
-        headers: {
-          "content-type": "application/json",
-          [WORKFLOW_RPC_HEADERS.expiresAt]: expiresAt,
-          [WORKFLOW_RPC_HEADERS.requestId]: requestId,
-          [WORKFLOW_RPC_HEADERS.signature]: signature,
-        },
+        headers: signed.headers,
         method: "POST",
         redirect: "manual",
         signal: AbortSignal.timeout(
@@ -162,7 +143,9 @@ export const createConvexRpc = (
       return jsonToConvex(envelope.value as never);
     }
     const { code, data, message } = envelope.error;
-    if (code && NON_RETRYABLE_CODES.has(code)) {
+    // The guarded write refused: the card is gone or newer work replaced
+    // the run, so another try can't land.
+    if (isWorkflowRpcErrorCode(code)) {
       throw new NonRetryableError(`${code}:${name}`);
     }
     throw new ConvexRpcError(message, code, data);

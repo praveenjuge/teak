@@ -1,3 +1,8 @@
+import {
+  buildInboundEmailSigningPayload,
+  hmacSha256Hex,
+  sha256Hex,
+} from "@teak/files-protocol";
 import type { Email } from "postal-mime";
 import type { SelectedAttachment } from "./attachments";
 
@@ -90,36 +95,6 @@ export const buildPayload = (
   v: 1,
 });
 
-const hex = (buffer: ArrayBuffer): string =>
-  Array.from(new Uint8Array(buffer), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-
-export const sha256Hex = async (value: string): Promise<string> =>
-  hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
-
-export const hmacSha256Hex = async (
-  secret: string,
-  value: string
-): Promise<string> => {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    ["sign"]
-  );
-  return hex(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))
-  );
-};
-
-export const signingString = (
-  path: string,
-  timestamp: string,
-  bodySha256: string
-): string => `teak-inbound-email\nv1\n${path}\n${timestamp}\n${bodySha256}`;
-
 export const signedHeaders = async (
   secret: string,
   path: string,
@@ -129,7 +104,7 @@ export const signedHeaders = async (
   const timestamp = String(Math.floor(nowMs / 1000));
   const signature = await hmacSha256Hex(
     secret,
-    signingString(path, timestamp, await sha256Hex(body))
+    buildInboundEmailSigningPayload(path, timestamp, await sha256Hex(body))
   );
   return {
     "content-type": "application/json",

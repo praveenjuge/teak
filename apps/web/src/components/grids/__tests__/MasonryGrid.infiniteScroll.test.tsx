@@ -139,7 +139,6 @@ const gridElement = (props: Record<string, unknown>) => (
     columns={1}
     filteredCards={[]}
     hasMore
-    initialBatchSize={30}
     {...handlers}
     {...props}
   />

@@ -135,7 +135,7 @@ describe("deletePostHogPerson", () => {
     stubPostHog(new Set(["teak_owner"]));
 
     await expect(deletePostHogPerson("teak_owner")).rejects.toThrow(
-      "deletion_posthog_unconfigured"
+      "deletion_posthog_failed:unconfigured"
     );
     expect(requests).toEqual([]);
   });
@@ -148,7 +148,7 @@ describe("deletePostHogPerson", () => {
       );
 
       const error = await rejection(() => deletePostHogPerson("teak_owner"));
-      expect(error.message).toBe(`deletion_posthog_status_${status}`);
+      expect(error.message).toBe(`deletion_posthog_failed:status_${status}`);
       expect(error.message).not.toContain(DELETION_KEY);
     }
   );
@@ -160,7 +160,7 @@ describe("deletePostHogPerson", () => {
       )) as unknown as typeof fetch;
 
     const error = await rejection(() => deletePostHogPerson("teak_owner"));
-    expect(error.message).toBe("deletion_posthog_unreachable");
+    expect(error.message).toBe("deletion_posthog_failed:unreachable");
   });
 
   test("fails for a retry when PostHog could not delete the person", async () => {
@@ -176,7 +176,7 @@ describe("deletePostHogPerson", () => {
     );
 
     await expect(deletePostHogPerson("teak_owner")).rejects.toThrow(
-      "deletion_posthog_incomplete"
+      "deletion_posthog_failed:incomplete"
     );
   });
 

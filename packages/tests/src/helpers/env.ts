@@ -1,11 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { MAIN_SITE_URL } from "../../../../scripts/dev/worktree-env.ts";
+import {
+  PRODUCTION_APP_URL,
+  PRODUCTION_SITE_URL,
+} from "@teak/scripts/dev/production-surfaces";
+import { MAIN_SITE_URL } from "@teak/scripts/dev/worktree-env";
 import {
   readStackState,
   type StackState,
   type StackUrls,
-} from "../../../../scripts/lib/stack-state.ts";
+} from "@teak/scripts/lib/stack-state";
 
 type E2eUrls = Required<StackUrls>;
 
@@ -78,10 +82,10 @@ export const env = {
 };
 
 export const published = {
-  siteUrl: "https://teakvault.com",
-  appUrl: "https://app.teakvault.com",
-  apiUrl: "https://teakvault.com/api",
-  mcpUrl: "https://teakvault.com/mcp",
+  siteUrl: PRODUCTION_SITE_URL,
+  appUrl: PRODUCTION_APP_URL,
+  apiUrl: `${PRODUCTION_SITE_URL}/api`,
+  mcpUrl: `${PRODUCTION_SITE_URL}/mcp`,
 };
 
 export const E2E_PASSWORD = "teak-e2e-Password-1!";

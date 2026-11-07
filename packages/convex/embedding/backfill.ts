@@ -2,8 +2,8 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
-import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
+import { getAccountDeletionState } from "../accountDeletion/gate";
+import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { classifyEmbeddingRow, queueCardEmbedding } from "./state";
 import { buildEmbeddingText } from "./text";
 import { userVectorNamespace } from "./userVectors";
@@ -64,7 +64,7 @@ export const backfillEmbeddings = internalMutation({
   }),
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? true;
-    if (!(dryRun || isFilesWorkerConfigured())) {
+    if (!(dryRun || isCoreWorkerConfigured())) {
       throw new Error("files_worker_not_configured");
     }
     const batchSize = Math.min(

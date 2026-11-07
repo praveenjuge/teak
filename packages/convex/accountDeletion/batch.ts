@@ -1,3 +1,4 @@
+import { sha256Hex } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
@@ -7,7 +8,6 @@ import {
 } from "../accountDeletion";
 import { importStagedPartKeys } from "../import/indexItems";
 import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
-import { sha256Hex } from "../storage/r2Keys";
 
 declare const ownerIndexBrand: unique symbol;
 

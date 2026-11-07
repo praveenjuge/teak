@@ -1,10 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
+import { TEAK_V1_TOOLS } from "../../mcp/catalog";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
 } from "../../mcp/httpServer";
-import { TEAK_V1_TOOLS } from "../../mcp/tools";
 import { mockActionCtx } from "../helpers/convex.test-utils";
 import {
   AUTHKIT_DOMAIN,

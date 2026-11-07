@@ -1,19 +1,20 @@
 import {
   arxivPdfUrl,
+  isArxivHost,
   isArxivPdfUrl,
   parseArxivId,
-} from "@teak/convex/workflows/steps/categorization/remote/arxiv";
+} from "@teak/convex/shared/utils/arxiv";
 import {
   FILES_UPLOAD_MAX_BYTES,
   type FilesLinkedPdfParams,
   type FilesLinkedPdfResult,
+  isValidObjectKey,
 } from "@teak/files-protocol";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput } from "../opFailure";
+import { TEAKBOT_USER_AGENT } from "../userAgent";
 
-const ARXIV_HOSTS = new Set(["arxiv.org", "export.arxiv.org"]);
 const MAX_REDIRECTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 
 export const parseLinkedPdfParams = (
   params: Record<string, unknown>
@@ -23,15 +24,15 @@ export const parseLinkedPdfParams = (
     typeof url !== "string" ||
     !isArxivPdfUrl(url) ||
     typeof destinationKey !== "string" ||
-    !isValidUploadKey(destinationKey)
+    !isValidObjectKey(destinationKey)
   ) {
-    throw new Error("invalid_linked_pdf_params");
+    throw new InvalidOpInput("invalid_linked_pdf_params");
   }
   return { destinationKey, url };
 };
 
 const isAllowedHop = (url: URL) =>
-  url.protocol === "https:" && ARXIV_HOSTS.has(url.hostname.toLowerCase());
+  url.protocol === "https:" && isArxivHost(url.hostname);
 
 const fetchPdf = async (
   url: string,
@@ -41,7 +42,7 @@ const fetchPdf = async (
   let current = new URL(url);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     const response = await fetcher(current.toString(), {
-      headers: { accept: "application/pdf", "user-agent": USER_AGENT },
+      headers: { accept: "application/pdf", "user-agent": TEAKBOT_USER_AGENT },
       redirect: "manual",
       signal,
     });
@@ -92,7 +93,7 @@ export const storeLinkedPdf = async (
   }
   const id = parseArxivId(params.url);
   if (!id) {
-    throw new Error("invalid_linked_pdf_params");
+    throw new InvalidOpInput("invalid_linked_pdf_params");
   }
   let response: Response | FilesLinkedPdfResult;
   try {

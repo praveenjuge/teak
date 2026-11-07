@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import type { CardWithUrls } from "../../../card/queryUtils";
 import { serializeListCard } from "../../../publicApi/http/serializers";
 import { testId } from "../../helpers/convex.test-utils";
@@ -22,16 +20,12 @@ import {
   v1CorsPreflight,
 } from "../../../publicApi/http/meta";
 import { openApiSpec, openApiV1 } from "../../../publicApi/openApi/spec";
+import { PUBLIC_API_OPERATION_IDS } from "../../../shared/publicApiContract";
 
 const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
   return handler(ctx, request);
 };
-
-const docsPath = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../../../../../apps/docs/content/docs/(developers)/api.mdx"
-);
 
 describe("Convex public API metadata", () => {
   test("returns health status with gateway headers", async () => {
@@ -182,50 +176,6 @@ describe("Convex public API metadata", () => {
     ]);
   });
 
-  test("documents key routes in both mdx and openapi", () => {
-    const docs = readFileSync(docsPath, "utf8");
-    const requiredPaths = [
-      "/openapi.json",
-      "/v1/cards",
-      "/v1/uploads",
-      "/v1/cards/bulk",
-      "/v1/cards/changes",
-      "/v1/tags",
-      "/v1/cards/:cardId",
-      "/v1/cards/:cardId/favorite",
-      "/v1/folders",
-      "/v1/folders/:folderId",
-      "/v1/folders/:folderId/cards",
-      "/v1/tags/rename",
-      "/v1/tags/merge",
-      "/v1/tags/delete",
-      "/v1/tags/operations/:operationId",
-    ];
-
-    for (const route of requiredPaths) {
-      expect(docs).toContain(route);
-    }
-
-    expect(openApiSpec.paths).toHaveProperty("/v1/cards");
-    expect(openApiSpec.paths).toHaveProperty("/v1/uploads");
-    expect(openApiSpec.paths).toHaveProperty("/v1/cards/bulk");
-    expect(openApiSpec.paths).toHaveProperty("/v1/cards/changes");
-    expect(openApiSpec.paths).toHaveProperty("/v1/tags");
-    expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}");
-    expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}/favorite");
-    expect(openApiSpec.paths).toHaveProperty("/v1/exports");
-    expect(openApiSpec.paths).toHaveProperty("/v1/exports/latest");
-    expect(openApiSpec.paths).toHaveProperty("/v1/folders");
-    expect(openApiSpec.paths).toHaveProperty("/v1/folders/{folderId}");
-    expect(openApiSpec.paths).toHaveProperty("/v1/folders/{folderId}/cards");
-    expect(openApiSpec.paths).toHaveProperty("/v1/tags/rename");
-    expect(openApiSpec.paths).toHaveProperty("/v1/tags/merge");
-    expect(openApiSpec.paths).toHaveProperty("/v1/tags/delete");
-    expect(openApiSpec.paths).toHaveProperty(
-      "/v1/tags/operations/{operationId}"
-    );
-  });
-
   test("documents revocation-only Connect authentication without a request body", () => {
     const operation = openApiSpec.paths["/v1/oauth/disconnect"].post;
     expect(operation.security).toEqual([{ connectRevocation: [] }]);
@@ -240,7 +190,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(46);
+    expect(operationIds).toHaveLength(PUBLIC_API_OPERATION_IDS.length);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

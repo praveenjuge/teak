@@ -41,7 +41,7 @@ Escalations: `mcp-review@anthropic.com` (connector), `directory@anthropic.com`
   ```
 
 - Every tool has a `title` and `readOnlyHint`/`destructiveHint`
-  (`packages/convex/mcp/protocol.ts`); deletes need `confirm: true`. Tool
+  (`packages/convex/mcp/catalog.ts`); deletes need `confirm: true`. Tool
   names are under 64 characters, and reads and writes are separate tools.
 - The card view (`ui://teak/cards.html`, `packages/mcp-app`) is an MCP App:
   its sandbox origin is derived from the server URL, its CSP allows images

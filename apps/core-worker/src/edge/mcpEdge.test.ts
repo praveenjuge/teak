@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { MCP_CORS_HEADERS, TEAK_V1_TOOLS } from "@teak/convex/mcp/protocol";
 import { handleApiProxyRequest } from "./apiProxy";
 import type { EdgeIdentity } from "./edgeIdentity";
-import { answerMcpAtEdge } from "./mcpEdge";
+import { answerMcpAtEdge, isMcpPathname } from "./mcpEdge";
 
 const USER: EdgeIdentity = { key: "user:teak_owner", source: "api_key" };
 
@@ -23,6 +23,16 @@ const rpc = (id: number | null, method: string, params?: unknown) => ({
   ...(id === null ? {} : { id }),
   method,
   ...(params === undefined ? {} : { params }),
+});
+
+test.each([
+  ["/mcp", true],
+  ["/mcp/", true],
+  ["/mcp/sse", true],
+  ["/mcpx", false],
+  ["/api/mcp", false],
+])("%p is the MCP server's path: %p", (pathname, expected) => {
+  expect(isMcpPathname(pathname)).toBe(expected);
 });
 
 describe("MCP protocol at the edge", () => {

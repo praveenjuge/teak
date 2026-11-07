@@ -1,15 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   ariaKeyShortcut,
-  cardAriaKeyShortcuts,
   keyboardShortcutGroups,
-  openKeyboardShortcuts,
   platformKey,
-  pressRecordAudio,
-  pressUploadFiles,
-  registerRecordAudio,
-  registerShortcutsOpener,
-  registerUploadFiles,
 } from "../keyboardShortcuts";
 
 describe("platformKey", () => {
@@ -41,70 +34,6 @@ describe("ariaKeyShortcut", () => {
   test("names Delete as Backspace on a Mac, the key the card menu answers", () => {
     expect(ariaKeyShortcut(["Delete"], true)).toBe("Backspace");
     expect(ariaKeyShortcut(["Delete"], false)).toBe("Delete");
-  });
-});
-
-describe("cardAriaKeyShortcuts", () => {
-  test("names every key a focused card answers, with the Mac's ⌫ as Backspace", () => {
-    expect(cardAriaKeyShortcuts(false, false)).toBe("Enter F T E X Delete");
-    expect(cardAriaKeyShortcuts(false, true)).toBe("Enter F T E X Backspace");
-  });
-
-  test("a card that copies adds its copy key, per platform", () => {
-    expect(cardAriaKeyShortcuts(false, false, true)).toBe(
-      "Enter F T E X Delete Control+C"
-    );
-    expect(cardAriaKeyShortcuts(false, true, true)).toBe(
-      "Enter F T E X Backspace Meta+C"
-    );
-  });
-
-  test("while cards are selected, a card only toggles itself", () => {
-    expect(cardAriaKeyShortcuts(false, false, true, true)).toBe("Enter X");
-    expect(cardAriaKeyShortcuts(true, true, false, true)).toBe("Enter X");
-  });
-
-  test("a card in Trash only selects and deletes forever", () => {
-    expect(cardAriaKeyShortcuts(true, false)).toBe("Enter X Delete");
-    expect(cardAriaKeyShortcuts(true, false, true)).toBe("Enter X Delete");
-  });
-});
-
-describe("pressUploadFiles", () => {
-  test("runs the latest registered upload, then the one before once it leaves", () => {
-    const toolbar = mock(() => true);
-    const header = mock(() => true);
-    const leaveToolbar = registerUploadFiles(toolbar);
-    const leaveHeader = registerUploadFiles(header);
-
-    expect(pressUploadFiles()).toBe(true);
-    expect(header).toHaveBeenCalledTimes(1);
-    expect(toolbar).not.toHaveBeenCalled();
-
-    leaveHeader();
-    expect(pressUploadFiles()).toBe(true);
-    expect(toolbar).toHaveBeenCalledTimes(1);
-
-    leaveToolbar();
-    expect(pressUploadFiles()).toBe(false);
-  });
-
-  test("reports an upload that can't start now", () => {
-    const leave = registerUploadFiles(() => false);
-    expect(pressUploadFiles()).toBe(false);
-    leave();
-  });
-});
-
-describe("pressRecordAudio", () => {
-  test("runs the latest registered recorder, and reports none", () => {
-    expect(pressRecordAudio()).toBe(false);
-    const record = mock(() => true);
-    const leave = registerRecordAudio(record);
-    expect(pressRecordAudio()).toBe(true);
-    expect(record).toHaveBeenCalledTimes(1);
-    leave();
-    expect(pressRecordAudio()).toBe(false);
   });
 });
 
@@ -156,18 +85,5 @@ describe("the Go to group", () => {
     ]);
     const keys = goTo?.rows.map((row) => row.keys.join(" ")) ?? [];
     expect(new Set(keys).size).toBe(keys.length);
-  });
-});
-
-describe("openKeyboardShortcuts", () => {
-  test("opens the sheet the shell registered, and nothing once it leaves", () => {
-    const open = mock(() => undefined);
-    expect(openKeyboardShortcuts()).toBe(false);
-    const unregister = registerShortcutsOpener(open);
-    expect(openKeyboardShortcuts()).toBe(true);
-    expect(open).toHaveBeenCalledTimes(1);
-    unregister();
-    expect(openKeyboardShortcuts()).toBe(false);
-    expect(open).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,10 +1,11 @@
 {
   "name": "teak",
-  "version": "1.0.92",
+  "version": "1.0.93",
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "scripts"
   ],
   "scripts": {
     "audit:env": "bun --no-env-file run scripts/env/env-audit.ts",
@@ -19,7 +20,7 @@
     "doctor": "bun --no-env-file run scripts/setup/doctor.ts",
     "fix": "ultracite fix",
     "lint": "turbo run lint",
-    "pre-commit": "bun --no-env-file run scripts/repo/check-lockfile.ts && turbo run typecheck lint build --affected",
+    "pre-commit": "bun --no-env-file run scripts/repo/check-lockfile.ts && biome check --staged --no-errors-on-unmatched && turbo run typecheck lint build --affected && turbo run test --affected --filter=@teak/scripts",
     "prepare": "[ -f .git ] || simple-git-hooks || exit 0",
     "publish:raycast": "cd apps/raycast && bun run publish",
     "r2:lifecycle": "bun --no-env-file run scripts/cloudflare/cloudflare-r2-lifecycle.ts",
@@ -28,7 +29,7 @@
     "smoke:web": "bun --no-env-file run scripts/dev/smoke-web-session.ts",
     "start": "turbo run start",
     "sync:cloudflare-dev": "bun --no-env-file run scripts/dev/sync-core-worker-dev-secret.ts",
-    "test": "turbo run test && bun --no-env-file test scripts/ apps/apple/tests/ apps/android/tests/",
+    "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "verify": "turbo run typecheck lint test --affected",
     "verify:all": "turbo run typecheck lint test",
@@ -43,6 +44,9 @@
     },
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "blume": {
+      "undici": "8.12.2"
+    },
     "convex": "1.49.0",
     "convex-helpers": "0.1.128",
     "esbuild": "0.28.2",
@@ -52,12 +56,13 @@
     },
     "playwright-core": "1.63.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "unifont": {
+      "undici": "8.12.2"
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "js-yaml": "5.4.3",
-    "lru-cache": "11.5.3",
     "simple-git-hooks": "^2.13.1",
     "turbo": "^2.11.7",
     "ultracite": "7.12.0"
@@ -71,19 +76,21 @@
     "@radix-ui/react-slot": "^1.5.0",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@workos-inc/node": "12.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "convex": "^1.49.0",
-    "convex-helpers": "^0.1.128",
+    "commander": "^15.0.0",
+    "convex": "1.49.0",
+    "convex-helpers": "0.1.128",
     "fflate": "^0.8.3",
     "htmlparser2": "^12.0.0",
+    "iron-session": "8.0.4",
     "jose": "6.2.14",
     "marked": "17.0.5",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",

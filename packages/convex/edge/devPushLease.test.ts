@@ -1,10 +1,8 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import { LEASE_TTL_MS } from "../devPushLease";
-import schema from "../schema";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const main = { id: "mac:/teak", label: "main on mac" };
 const worktree = { id: "mac:/teak/wt", label: "feature on mac" };
 
@@ -21,14 +19,14 @@ afterEach(() => {
 describe("devPushLease", () => {
   test("refuses any deployment that isn't the shared dev deployment", async () => {
     vi.stubEnv("TEAK_DEV_DEPLOYMENT", undefined);
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await expect(
       t.mutation(internal.devPushLease.acquire, { holder: main, force: false })
     ).rejects.toThrow("TEAK_DEV_DEPLOYMENT");
   });
 
   test("one checkout holds it; another waits until it is released", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await t.mutation(internal.devPushLease.acquire, {
       holder: main,
       force: false,
@@ -52,7 +50,7 @@ describe("devPushLease", () => {
   });
 
   test("a forced takeover ends the old holder's next heartbeat", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.mutation(internal.devPushLease.acquire, {
       holder: main,
       force: false,
@@ -72,7 +70,7 @@ describe("devPushLease", () => {
   });
 
   test("a holder that stops renewing loses it after the TTL", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.mutation(internal.devPushLease.acquire, {
       holder: main,
       force: false,
@@ -94,7 +92,7 @@ describe("devPushLease", () => {
   });
 
   test("a holder whose lease expired untaken can take it back", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.mutation(internal.devPushLease.acquire, {
       holder: main,
       force: false,
@@ -115,7 +113,7 @@ describe("devPushLease", () => {
   });
 
   test("only the holder records what it pushed", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.mutation(internal.devPushLease.acquire, {
       holder: main,
       force: false,

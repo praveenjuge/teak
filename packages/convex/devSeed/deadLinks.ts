@@ -5,7 +5,7 @@ import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
+import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { buildR2ObjectKey } from "../storage/r2";
 
 // `dead-links`: link cards with archived copies whose pages answer 404, 410,
@@ -181,7 +181,7 @@ export const writeStubPageArchives = internalAction({
   returns: v.null(),
   handler: async (_ctx, { archives }) => {
     for (const archive of archives) {
-      await putObjectViaFilesWorker({
+      await putObjectViaCoreWorker({
         body: new TextEncoder().encode(stubArchiveHtml(archive)),
         contentType: "text/html; charset=utf-8",
         key: archive.key,
@@ -209,7 +209,7 @@ export const seedDeadLinks = async (
   if (seeded) {
     return { status: "already_seeded" as const, cards: 0 };
   }
-  await insertCompletedCards(ctx, userId, cards, { ignoreCardLimit: true });
+  await insertCompletedCards(ctx, userId, cards, { hasPremium: true });
   await ctx.scheduler.runAfter(
     0,
     internal.devSeed.deadLinks.writeStubPageArchives,

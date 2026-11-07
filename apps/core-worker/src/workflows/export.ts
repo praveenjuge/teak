@@ -21,6 +21,7 @@ import {
   type ExportableCard,
   serializeCard,
 } from "@teak/convex/export/serialize";
+import type { FilesOpOutcome } from "@teak/files-protocol";
 import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
@@ -28,12 +29,11 @@ import {
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
 import { queueObjectDeletions } from "../queues/objectDeletions";
-import { resolveDeps, settleConvexErrors, type WorkflowDeps } from "./deps";
-import { type FilesOpOutcome, gatedEnv } from "./filesOps";
+import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
   CONVEX_STEP,
   errorMessage,
-  retryConfig,
+  exponentialStep,
   runReported,
   type WorkflowRun,
 } from "./runtime";
@@ -50,7 +50,7 @@ const CARDS_PAGE_SIZE = 100;
 const PER_CARD_JSON_BYTES = 2 * 1024;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
 
-const ARCHIVE_STEP = retryConfig(3, 30_000, "30 minutes");
+const ARCHIVE_STEP = exponentialStep(3, 30_000, "30 minutes");
 
 interface ArchiveCard {
   card: ExportableCard;
@@ -234,9 +234,9 @@ export const buildExportManifest = (args: {
 
 export const runExport = (
   run: WorkflowRun<ExportParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<{ status: ExportOutcome }> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { env, instanceId, step } = run;
   const jobId = run.params.jobId as Id<"exportJobs">;
   const { userId } = run.params;
@@ -368,7 +368,7 @@ export const runExport = (
     const archiveWithout = async (
       omittedCardIds: ReadonlySet<string>
     ): Promise<FilesOpOutcome<BuildExportResult>> => {
-      await gatedEnv(env).BUCKET.put(
+      await env.BUCKET.put(
         manifestKey,
         JSON.stringify(
           buildExportManifest({
@@ -382,12 +382,12 @@ export const runExport = (
         { httpMetadata: { contentType: "application/json" } }
       );
       try {
-        return await ops<BuildExportResult>({
+        return await ops({
           op: "build-export",
           params: { artifactKey, fileName, manifestKey },
         });
       } finally {
-        await Promise.resolve(gatedEnv(env).BUCKET.delete(manifestKey)).catch(
+        await Promise.resolve(env.BUCKET.delete(manifestKey)).catch(
           () => undefined
         );
       }
@@ -402,7 +402,7 @@ export const runExport = (
       );
       outcome = await archiveWithout(missingFileCardIds);
     }
-    if (outcome.kind === "fallback") {
+    if (outcome.kind === "declined") {
       console.warn("[workflows/export] archive declined", {
         code: outcome.code,
         jobId,

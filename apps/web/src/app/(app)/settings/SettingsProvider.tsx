@@ -20,11 +20,11 @@ import type { InboundEmailPanelProps } from "@/components/settings";
 import type { PlanCheckout } from "@/components/settings/PlanSettings";
 import { getPolarPlanIds } from "@/constants/billing";
 import { TOAST_IDS } from "@/constants/toast";
-import { useSettingsController } from "@/hooks";
 import {
   type LanguageSetting,
   useLanguageSetting,
 } from "@/hooks/useLanguageSetting";
+import { useSettingsController } from "@/hooks/useSettingsController";
 import {
   deleteAccountAndLeave,
   LEAVE_AFTER_DELETION_URL,

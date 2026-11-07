@@ -1,60 +1,49 @@
 /**
- * Regenerate after changing these constants in packages/convex/shared:
+ * Regenerate after changing a value in scripts/repo/native-constants.ts or the
+ * `packages/convex/shared` code it reads:
  *   bun --no-env-file run apps/android/scripts/shared-constants.ts --write
  */
 import { resolve } from "node:path";
+import type { SearchSuggestionHint } from "../../../packages/convex/shared/search/suggestionHints";
 import {
-  MAX_BULK_CARD_IDS,
-  MAX_BULK_TAGS,
-} from "../../../packages/convex/card/bulkActions";
-import {
-  CARD_LINK_TITLE_MAX_LENGTH,
-  MAX_CARD_LINKS,
-} from "../../../packages/convex/shared/cardLinks";
-import {
-  CARD_TYPE_LABELS,
-  COLOR_HUE_BUCKETS,
-  COLOR_HUE_LABELS,
-  cardTypes,
-  FREE_TIER_LIMIT,
-  MAX_FILES_PER_UPLOAD,
-  SIGNUPS_PAUSED_MESSAGE,
-} from "../../../packages/convex/shared/constants";
-import { MAX_FILE_SIZE } from "../../../packages/convex/shared/fileFormats";
-import { FOLDER_ERROR_MESSAGES } from "../../../packages/convex/shared/folders";
-import {
-  ACTIONABLE_LINK_CATEGORIES,
-  LINK_CATEGORY_DONE_VERB,
-} from "../../../packages/convex/shared/linkCategories";
-import { SEARCH_TOKEN_TRIM_CHARACTERS } from "../../../packages/convex/shared/search/constants";
-import { SEARCH_QUALIFIER_KEYS } from "../../../packages/convex/shared/search/qualifiers";
-import {
-  SEARCH_EXCLUDE_HINTS,
-  SEARCH_IS_OPTIONS,
-  SEARCH_OR_HINT,
-  SEARCH_QUALIFIER_HINTS,
-  SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
-  type SearchSuggestionHint,
-} from "../../../packages/convex/shared/search/suggestionHints";
-import {
-  HIDDEN_TAG_KEYS,
-  MAX_TAG_KEY_LENGTH,
-  MAX_TAG_NAME_LENGTH,
-  TAG_ERROR_MESSAGES,
-} from "../../../packages/convex/shared/tags";
-import { VECTOR_QUERY_MAX_CHARS } from "../../../packages/files-protocol/src/embeddings";
-import {
-  LOCALE_NAMES,
-  SUPPORTED_LOCALES,
-} from "../../../packages/i18n/src/locales";
+  buildNativeConstants,
+  type NativeConstants,
+} from "../../../scripts/repo/native-constants";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
   "../core/model/src/main/kotlin/com/praveenjuge/teak/core/model/SharedConstants.kt"
 );
 
+/** Kotlin names that don't follow from the manifest key. */
+const KOTLIN_NAMES: Record<string, string> = {
+  "limits.freeTierCards": "FREE_TIER_LIMIT",
+  "messages.signupsPaused": "SIGNUPS_PAUSED_MESSAGE",
+  colorHues: "COLOR_HUE_BUCKETS",
+  "searchSuggestionHints.qualifiers": "SEARCH_QUALIFIER_HINTS",
+  "searchSuggestionHints.exclude": "SEARCH_EXCLUDE_HINTS",
+  "searchSuggestionHints.or": "SEARCH_OR_HINT",
+  "searchSuggestionHints.isOptions": "SEARCH_IS_OPTIONS",
+  "searchSuggestionHints.groups": "SEARCH_SUGGESTION_GROUPS",
+  locales: "LOCALE_NAMES",
+};
+
+/** Byte counts the app compares with file sizes, which are `Long`. */
+const LONG_VALUES = new Set(["limits.maxFileSize"]);
+
+const GROUPS = new Set(["limits", "messages", "searchSuggestionHints"]);
+
+const screamingSnake = (key: string) =>
+  key.replaceAll(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase();
+
 const kotlinString = (value: string) =>
   JSON.stringify(value).replaceAll("$", "\\$");
+
+const kotlinOptionalString = (value: string | undefined) =>
+  value === undefined ? "null" : kotlinString(value);
+
+const kotlinStrings = (values: readonly string[]) =>
+  `listOf(${values.map(kotlinString).join(", ")})`;
 
 const kotlinList = (values: readonly string[]) =>
   `listOf(\n${values.map((value) => `    ${kotlinString(value)},`).join("\n")}\n)`;
@@ -66,85 +55,125 @@ const kotlinMap = (record: Record<string, string>) =>
     )
     .join("\n")}\n)`;
 
+const kotlinListMap = (record: Record<string, readonly string[]>) =>
+  `mapOf(\n${Object.entries(record)
+    .map(
+      ([key, value]) => `    ${kotlinString(key)} to ${kotlinStrings(value)},`
+    )
+    .join("\n")}\n)`;
+
 const kotlinHint = (hint: SearchSuggestionHint) =>
   `SearchHint(id = ${kotlinString(hint.id)}, group = ${kotlinString(hint.group)}, key = ${kotlinString(hint.key)}, insert = ${kotlinString(hint.insert)}, messageKey = ${kotlinString(hint.messageKey)})`;
 
 const kotlinHints = (hints: readonly SearchSuggestionHint[]) =>
   `listOf(\n${hints.map((hint) => `    ${kotlinHint(hint)},`).join("\n")}\n)`;
 
-const kotlinIsOptions = () =>
-  `listOf(\n${SEARCH_IS_OPTIONS.map(
-    (option) =>
-      `    SearchIsOption(value = ${kotlinString(option.value)}, words = listOf(${option.words.map(kotlinString).join(", ")}), messageKey = ${kotlinString(option.messageKey)}),`
-  ).join("\n")}\n)`;
+const kotlinIsOptions = (
+  options: NativeConstants["searchSuggestionHints"]["isOptions"]
+) =>
+  `listOf(\n${options
+    .map(
+      (option) =>
+        `    SearchIsOption(value = ${kotlinString(option.value)}, words = ${kotlinStrings(option.words)}, messageKey = ${kotlinString(option.messageKey)}),`
+    )
+    .join("\n")}\n)`;
+
+const kotlinFileFormats = (formats: NativeConstants["fileFormats"]) =>
+  `listOf(\n${formats
+    .map(
+      (format) =>
+        `    FileFormatSpec(id = ${kotlinString(format.id)}, cardType = ${kotlinString(format.cardType)}, extension = ${kotlinString(format.extension)}, kind = ${kotlinString(format.kind)}, language = ${kotlinOptionalString(format.language)}, mimeType = ${kotlinString(format.mimeType)}, mimeTypes = ${kotlinStrings(format.mimeTypes)}, preview = ${kotlinString(format.preview)}, suffixes = ${kotlinStrings(format.suffixes)}, fileNames = ${format.fileNames ? kotlinStrings(format.fileNames) : "null"}),`
+    )
+    .join("\n")}\n)`;
+
+const isStringRecord = (value: object): value is Record<string, string> =>
+  Object.values(value).every((entry) => typeof entry === "string");
+
+const isListRecord = (
+  value: object
+): value is Record<string, readonly string[]> =>
+  Object.values(value).every(
+    (entry) =>
+      Array.isArray(entry) && entry.every((item) => typeof item === "string")
+  );
+
+/** One Kotlin declaration for a manifest value, chosen by the value's shape. */
+const declaration = (path: string, value: unknown): string => {
+  const name =
+    KOTLIN_NAMES[path] ?? screamingSnake(path.split(".").at(-1) ?? path);
+  if (typeof value === "number") {
+    return LONG_VALUES.has(path)
+      ? `const val ${name}: Long = ${value}L`
+      : `const val ${name} = ${value}`;
+  }
+  if (typeof value === "string") {
+    return `const val ${name} = ${kotlinString(value)}`;
+  }
+  switch (path) {
+    case "searchSuggestionHints.qualifiers":
+    case "searchSuggestionHints.exclude":
+      return `val ${name}: List<SearchHint> = ${kotlinHints(value as SearchSuggestionHint[])}`;
+    case "searchSuggestionHints.or":
+      return `val ${name}: SearchHint = ${kotlinHint(value as SearchSuggestionHint)}`;
+    case "searchSuggestionHints.isOptions":
+      return `val ${name}: List<SearchIsOption> = ${kotlinIsOptions(value as NativeConstants["searchSuggestionHints"]["isOptions"])}`;
+    case "locales":
+      return `val ${name}: Map<String, String> = ${kotlinMap(
+        Object.fromEntries(
+          (value as NativeConstants["locales"]).map((locale) => [
+            locale.id,
+            locale.name,
+          ])
+        )
+      )}`;
+    case "fileFormats":
+      return `val ${name}: List<FileFormatSpec> = ${kotlinFileFormats(value as NativeConstants["fileFormats"])}`;
+    default:
+      break;
+  }
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+    return `val ${name}: List<String> = ${kotlinList(value)}`;
+  }
+  if (value && typeof value === "object" && isStringRecord(value)) {
+    return `val ${name}: Map<String, String> = ${kotlinMap(value)}`;
+  }
+  if (value && typeof value === "object" && isListRecord(value)) {
+    return `val ${name}: Map<String, List<String>> = ${kotlinListMap(value)}`;
+  }
+  throw new Error(`No Kotlin form for ${path}`);
+};
+
+const declarations = (constants: NativeConstants) =>
+  Object.entries(constants).flatMap(([key, value]) =>
+    GROUPS.has(key)
+      ? Object.entries(value as Record<string, unknown>).map(([inner, entry]) =>
+          declaration(`${key}.${inner}`, entry)
+        )
+      : [declaration(key, value)]
+  );
+
+const FILE_FORMAT_SPEC = `/** One entry of the backend's file format registry (\`FILE_FORMATS\` in packages/convex/shared/fileFormats.ts). */
+data class FileFormatSpec(
+    val id: String,
+    val cardType: String,
+    val extension: String,
+    val kind: String,
+    val language: String?,
+    val mimeType: String,
+    val mimeTypes: List<String>,
+    val preview: String,
+    val suffixes: List<String>,
+    val fileNames: List<String>?,
+)`;
 
 export const renderSharedConstants = () =>
   [
+    "// Generated by apps/android/scripts/shared-constants.ts from scripts/repo/native-constants.ts. Do not edit.",
     "package com.praveenjuge.teak.core.model",
     "",
-    `const val FREE_TIER_LIMIT = ${FREE_TIER_LIMIT}`,
+    FILE_FORMAT_SPEC,
     "",
-    `const val MAX_FILE_SIZE: Long = ${MAX_FILE_SIZE}L`,
-    "",
-    `const val MAX_FILES_PER_UPLOAD = ${MAX_FILES_PER_UPLOAD}`,
-    "",
-    `const val SIGNUPS_PAUSED_MESSAGE = ${kotlinString(SIGNUPS_PAUSED_MESSAGE)}`,
-    "",
-    `val CARD_TYPES: List<String> = ${kotlinList(cardTypes)}`,
-    "",
-    `val CARD_TYPE_LABELS: Map<String, String> = ${kotlinMap(CARD_TYPE_LABELS)}`,
-    "",
-    `val COLOR_HUE_BUCKETS: List<String> = ${kotlinList(COLOR_HUE_BUCKETS)}`,
-    "",
-    `val COLOR_HUE_LABELS: Map<String, String> = ${kotlinMap(COLOR_HUE_LABELS)}`,
-    "",
-    `const val MAX_TAG_NAME_LENGTH = ${MAX_TAG_NAME_LENGTH}`,
-    "",
-    `val TAG_ERROR_MESSAGES: Map<String, String> = ${kotlinMap(TAG_ERROR_MESSAGES)}`,
-    "",
-    "/** The server's folder errors by code, sent in English with a general code such as `INVALID_INPUT`. */",
-    `val FOLDER_ERROR_MESSAGES: Map<String, String> = ${kotlinMap(FOLDER_ERROR_MESSAGES)}`,
-    "",
-    `val HIDDEN_TAG_KEYS: List<String> = ${kotlinList(HIDDEN_TAG_KEYS)}`,
-    "",
-    `val LINK_CATEGORY_DONE_VERBS: Map<String, String> = ${kotlinMap(LINK_CATEGORY_DONE_VERB)}`,
-    "",
-    `val ACTIONABLE_LINK_CATEGORIES: List<String> = ${kotlinList([...ACTIONABLE_LINK_CATEGORIES].sort())}`,
-    "",
-    `const val MAX_TAG_KEY_LENGTH = ${MAX_TAG_KEY_LENGTH}`,
-    "",
-    `const val MAX_BULK_CARD_IDS = ${MAX_BULK_CARD_IDS}`,
-    "",
-    `const val MAX_BULK_TAGS = ${MAX_BULK_TAGS}`,
-    "",
-    `const val SEMANTIC_QUERY_MAX_CHARS = ${VECTOR_QUERY_MAX_CHARS}`,
-    "",
-    `const val CARD_LINK_TITLE_MAX_LENGTH = ${CARD_LINK_TITLE_MAX_LENGTH}`,
-    "",
-    `const val MAX_CARD_LINKS = ${MAX_CARD_LINKS}`,
-    "",
-    `const val SEARCH_TOKEN_TRIM_CHARACTERS = ${kotlinString(SEARCH_TOKEN_TRIM_CHARACTERS)}`,
-    "",
-    `val SEARCH_QUALIFIER_KEYS: List<String> = ${kotlinList(SEARCH_QUALIFIER_KEYS)}`,
-    "",
-    "/** The search field's hints, from `packages/convex/shared/search/suggestionHints.ts`. */",
-    `val SEARCH_QUALIFIER_HINTS: List<SearchHint> = ${kotlinHints(SEARCH_QUALIFIER_HINTS)}`,
-    "",
-    `val SEARCH_EXCLUDE_HINTS: List<SearchHint> = ${kotlinHints(SEARCH_EXCLUDE_HINTS)}`,
-    "",
-    `val SEARCH_OR_HINT: SearchHint = ${kotlinHint(SEARCH_OR_HINT)}`,
-    "",
-    `val SEARCH_IS_OPTIONS: List<SearchIsOption> = ${kotlinIsOptions()}`,
-    "",
-    `val SEARCH_SUGGESTION_GROUPS: Map<String, String> = ${kotlinMap(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS)}`,
-    "",
-    "/** Teak's languages, in the order the Language setting lists them, each in its own name. */",
-    `val LOCALE_NAMES: Map<String, String> = ${kotlinMap(
-      Object.fromEntries(
-        SUPPORTED_LOCALES.map((locale) => [locale, LOCALE_NAMES[locale].native])
-      )
-    )}`,
-    "",
+    ...declarations(buildNativeConstants()).flatMap((line) => [line, ""]),
   ].join("\n");
 
 if (import.meta.main) {

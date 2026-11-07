@@ -1,17 +1,10 @@
 import { v } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import { internalQuery, type QueryCtx } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
 const AI_BACKFILL_GRACE_MS = 5 * 60 * 1000;
-
-export const cardNeedsAiMetadata = (
-  card: Pick<Doc<"cards">, "aiSummary" | "aiTags" | "aiTranscriptCharCount">
-): boolean =>
-  card.aiSummary === undefined &&
-  card.aiTags === undefined &&
-  card.aiTranscriptCharCount === undefined;
 
 export const getCardForAI = internalQuery({
   args: { cardId: v.id("cards") },
@@ -76,15 +69,4 @@ export const findCardsMissingAiCandidates = async (
 export const findCardsMissingAi = internalQuery({
   args: {},
   handler: (ctx) => findCardsMissingAiCandidates(ctx),
-});
-
-export const getCardForVerification = internalQuery({
-  args: { cardId: v.id("cards"), userId: v.string() },
-  handler: async (ctx, { cardId, userId }) => {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card || card.userId !== userId) {
-      return null;
-    }
-    return { exists: true };
-  },
 });

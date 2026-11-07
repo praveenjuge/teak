@@ -3,63 +3,25 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { patchCardWithSearchSync } from "./card/searchSync";
-import { queueObjectDeletion } from "./storage/r2";
+import { patchCard } from "./card/cardWrites";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 import { getR2KeyPrefix } from "./storage/r2Keys";
 import {
   assertArchivedRawReference,
   serializeArchivableRaw,
 } from "./storage/rawMetadata";
 
-export * from "./linkMetadata/instagram";
-export { extractInstagramMediaFromHtml } from "./linkMetadata/instagramHtml";
-export {
-  buildDebugRaw,
-  buildErrorPreview,
-  buildSuccessPreview,
-  findAttributeValue,
-  firstFromSources,
-  getSelectorValue,
-  parseLinkPreview,
-  sanitizeImageUrl,
-  sanitizeText,
-  sanitizeUrl,
-  toSelectorMap,
-} from "./linkMetadata/parsing";
-export * from "./linkMetadata/selectors";
-export * from "./linkMetadata/types";
-export { normalizeUrl } from "./linkMetadata/url";
-
-export const getFullCardForMetadataHandler = async (
-  ctx: QueryCtx,
-  { cardId }: { cardId: Id<"cards"> }
-) => await ctx.db.get("cards", cardId);
-
-export const getFullCardForMetadata = internalQuery({
-  args: { cardId: v.id("cards") },
-  handler: getFullCardForMetadataHandler,
-});
-
 const commitCardStorageSwap = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  patch: Parameters<typeof patchCardWithSearchSync>[2],
+  patch: Parameters<typeof patchCard>[2],
   storage: { introduced: string[]; replaced: string[] }
 ): Promise<boolean> => {
-  const committed = await patchCardWithSearchSync(ctx, cardId, patch);
+  const committed = await patchCard(ctx, cardId, patch);
   const orphans = committed ? storage.replaced : storage.introduced;
-  await Promise.all(
-    orphans.map(async (key) => {
-      try {
-        await queueObjectDeletion(ctx, key);
-      } catch (error) {
-        console.error(
-          `[linkMetadata] Failed to delete storage ${key} for card ${cardId}:`,
-          error
-        );
-      }
-    })
-  );
+  for (const key of orphans) {
+    await queueObjectDeletion(ctx, key);
+  }
   return committed;
 };
 
@@ -122,7 +84,7 @@ export const getCardForScreenshot = internalQuery({
 
 type CardMetadata = NonNullable<Doc<"cards">["metadata"]>;
 type StoredLinkPreview = NonNullable<CardMetadata["linkPreview"]>;
-type CardPatch = Parameters<typeof patchCardWithSearchSync>[2];
+type CardPatch = Parameters<typeof patchCard>[2];
 
 const collectMediaStorageRefs = (
   mediaItems: StoredLinkPreview["media"] | undefined
@@ -172,7 +134,7 @@ export const updateCardMetadataHandler = async (
         error: linkPreview?.error,
       }
     );
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       metadataStatus: "completed",
       updatedAt: Date.now(),
     });

@@ -10,16 +10,16 @@ import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
 import { Button } from "@/components/ui/button";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { FileTextPreview } from "./FileTextPreview";
 import { MEDIA_LOADING_CLASS } from "./ImagePreview";
 
 interface DocumentPreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
 }
 
 const previewFactLabels = (
-  card: CardWithUrls,
+  card: ClientCard,
   t: TeakTranslator<"cardPreviews.document.facts">
 ): string[] => {
   const preview = card.fileMetadata?.preview;

@@ -7,11 +7,13 @@ import {
   type EdgeIdentityResult,
   parseEdgeIdentityLookup,
   parseEdgeRateLimitAttestation,
+  SIGNED_REQUEST_HEADERS,
+  sha256Hex,
+  verifySignature,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { env, httpAction, internalQuery } from "./_generated/server";
-import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 
 export const lookup = internalQuery({
   args: {
@@ -50,53 +52,24 @@ const json = (status: number, body: unknown): Response =>
     },
   });
 
-const isCurrentExpiry = (expiresAt: string, maxTtlSeconds: number): boolean => {
-  const expiry = Number(expiresAt);
-  const now = Math.floor(Date.now() / 1000);
-  return (
-    Number.isSafeInteger(expiry) &&
-    String(expiry) === expiresAt &&
-    expiry >= now &&
-    expiry <= now + maxTtlSeconds
-  );
-};
-
-const signatureMatches = async (
-  secret: string,
-  signature: string,
-  payload: string
-): Promise<boolean> => {
-  const expected = await hmacSha256Hex(secret, payload);
-  const [given, wanted] = await Promise.all([
-    hmacSha256Hex(secret, `compare\n${signature}`),
-    hmacSha256Hex(secret, `compare\n${expected}`),
-  ]);
-  return given === wanted;
-};
-
 const hasValidSignature = async (
   request: Request,
   body: ArrayBuffer,
   secret: string
 ): Promise<boolean> => {
-  const requestId = request.headers.get("x-teak-request-id");
-  const expiresAt = request.headers.get("x-teak-expires-at");
-  const signature = request.headers.get("x-teak-signature");
-  if (!(requestId && expiresAt && signature)) {
+  const requestId = request.headers.get(SIGNED_REQUEST_HEADERS.requestId);
+  if (!requestId) {
     return false;
   }
-  if (!isCurrentExpiry(expiresAt, EDGE_IDENTITY_MAX_TTL_SECONDS)) {
-    return false;
-  }
-  return await signatureMatches(
-    secret,
-    signature,
-    buildEdgeIdentitySigningPayload({
-      bodySha256: await sha256Hex(body),
-      expiresAt,
-      requestId,
-    })
-  );
+  const bodySha256 = await sha256Hex(body);
+  const check = await verifySignature(secret, {
+    expiresAt: request.headers.get(SIGNED_REQUEST_HEADERS.expiresAt),
+    maxTtlSeconds: EDGE_IDENTITY_MAX_TTL_SECONDS,
+    payload: (expiresAt) =>
+      buildEdgeIdentitySigningPayload({ bodySha256, expiresAt, requestId }),
+    signature: request.headers.get(SIGNED_REQUEST_HEADERS.signature),
+  });
+  return check.ok;
 };
 
 export const hasEdgeRateLimitAttestation = async (
@@ -110,19 +83,15 @@ export const hasEdgeRateLimitAttestation = async (
   if (!(secret && authorization && attestation)) {
     return false;
   }
-  if (
-    !isCurrentExpiry(attestation.expiresAt, EDGE_RATE_LIMIT_MAX_TTL_SECONDS)
-  ) {
-    return false;
-  }
-  return await signatureMatches(
-    secret,
-    attestation.signature,
-    buildEdgeRateLimitSigningPayload({
-      credentialSha256: await sha256Hex(authorization),
-      expiresAt: attestation.expiresAt,
-    })
-  );
+  const credentialSha256 = await sha256Hex(authorization);
+  const check = await verifySignature(secret, {
+    expiresAt: attestation.expiresAt,
+    maxTtlSeconds: EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
+    payload: (expiresAt) =>
+      buildEdgeRateLimitSigningPayload({ credentialSha256, expiresAt }),
+    signature: attestation.signature,
+  });
+  return check.ok;
 };
 
 export const edgeIdentityV1 = httpAction(async (ctx, request) => {

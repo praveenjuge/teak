@@ -1,6 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { paletteEditing } from "@/hooks/paletteColors";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
+import { paletteEditing } from "@/lib/paletteColors";
 import { PalettePreview } from "../card-previews/PalettePreview";
 
 export function PaletteStage({

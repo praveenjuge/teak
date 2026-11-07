@@ -1,7 +1,8 @@
 import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
+import { TeakApiError, type TeakClient } from "teak-sdk";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
-import { oauthRequest } from "./oauthAuth";
+import { inExtensionWords, isSignedOut, teakClient } from "./oauthAuth";
 import { type PageSnapshot, uploadPageSnapshot } from "./pageSnapshot";
 
 export type SaveSource =
@@ -25,10 +26,12 @@ export interface SaveToTeakInput {
   sourceUrl?: string;
 }
 export interface SaveToTeakDependencies {
+  /** The Teak API to save through; the signed-in user's by default. */
+  client?: TeakClient;
+  /** Downloads a file to save; the browser's fetch by default. */
   fetchImpl?: typeof fetch;
   onPageSnapshotUploaded?: (pageSnapshotKey: string) => Promise<void>;
   pageSnapshot?: PageSnapshot | null;
-  request?: typeof oauthRequest;
 }
 const isHttpUrl = (value: string) =>
   value.startsWith("http://") || value.startsWith("https://");
@@ -71,32 +74,30 @@ export const textSource = ({
   return title ? { sourceTitle: title, sourceUrl: url } : { sourceUrl: url };
 };
 
-export async function restResult(
-  response: Response | null
-): Promise<TeakSaveResponse> {
-  if (!response) {
+/** A failed save as the popup and context menu show it. */
+export const saveFailure = (
+  error: unknown,
+  fallback = "Failed to save content"
+): TeakSaveResponse => {
+  if (isSignedOut(error)) {
     return { status: "unauthenticated" };
   }
-  const payload: unknown = await response.json();
-  const body: Record<string, unknown> =
-    typeof payload === "object" && payload !== null
-      ? (payload as Record<string, unknown>)
-      : {};
-  if (!response.ok) {
-    return {
-      status: "error",
-      code: typeof body.code === "string" ? body.code : undefined,
-      message:
-        typeof body.error === "string" ? body.error : "Could not save content.",
-    };
-  }
-  if (typeof body.cardId !== "string") {
-    throw new Error("Invalid save response.");
-  }
-  return body.resaved === true
-    ? { status: "duplicate", cardId: body.cardId }
-    : { status: "saved", cardId: body.cardId };
-}
+  const failure = inExtensionWords(error);
+  return {
+    status: "error",
+    ...(error instanceof TeakApiError ? { code: error.code } : {}),
+    message: failure instanceof Error ? failure.message : fallback,
+  };
+};
+
+/** A created card as a save result: a link already in Teak is a duplicate. */
+export const savedResult = (created: {
+  cardId: string;
+  resaved?: true;
+}): TeakSaveResponse =>
+  created.resaved
+    ? { status: "duplicate", cardId: created.cardId }
+    : { status: "saved", cardId: created.cardId };
 
 export async function saveToTeak(
   input: SaveToTeakInput,
@@ -120,39 +121,27 @@ export async function saveToTeak(
       code: "UNSUPPORTED_HOST",
     };
   }
-  const request = dependencies.request ?? oauthRequest;
+  const client = dependencies.client ?? teakClient();
   try {
     const content = parsedUrl ? parsedUrl.toString() : input.content;
     let pageSnapshotKey = parsedUrl ? input.pageSnapshotKey : undefined;
     if (parsedUrl && !pageSnapshotKey && dependencies.pageSnapshot) {
       pageSnapshotKey =
-        (await uploadPageSnapshot(dependencies.pageSnapshot, {
-          fetchImpl: dependencies.fetchImpl,
-          request,
-        })) ?? undefined;
+        (await uploadPageSnapshot(dependencies.pageSnapshot, { client })) ??
+        undefined;
       if (pageSnapshotKey) {
         await dependencies.onPageSnapshotUploaded?.(pageSnapshotKey);
       }
     }
-    return await restResult(
-      await request("/v1/cards", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": input.idempotencyKey ?? crypto.randomUUID(),
-        },
-        body: JSON.stringify(
-          parsedUrl
-            ? { url: content, ...(pageSnapshotKey ? { pageSnapshotKey } : {}) }
-            : { content, cardType: "text", ...textSource(input) }
-        ),
-      })
+    return savedResult(
+      await client.cards.create(
+        parsedUrl
+          ? { url: content, ...(pageSnapshotKey ? { pageSnapshotKey } : {}) }
+          : { content, cardType: "text", ...textSource(input) },
+        { idempotencyKey: input.idempotencyKey ?? crypto.randomUUID() }
+      )
     );
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to save content",
-    };
+    return saveFailure(error);
   }
 }

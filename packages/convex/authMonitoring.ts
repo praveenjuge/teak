@@ -1,8 +1,8 @@
+import { sha256Hex } from "@teak/files-protocol";
 import {
   ignoreTelemetryError,
   ignoreTelemetryErrorAsync,
 } from "./shared/telemetry";
-import { sha256Hex } from "./storage/r2Keys";
 
 const REASON_PATTERN = /[^a-z0-9_]+/gu;
 

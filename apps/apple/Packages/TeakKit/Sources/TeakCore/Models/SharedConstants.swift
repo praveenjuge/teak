@@ -8,6 +8,12 @@ public struct SharedConstants: Decodable, Sendable {
         public let maxFileNameLength: Int
         public let markdownContentMaxBytes: Int
         public let maxTagNameLength: Int
+        public let maxTagKeyLength: Int
+        public let maxBulkCardIds: Int
+        public let maxBulkTags: Int
+        public let cardLinkTitleMaxLength: Int
+        public let maxCardLinks: Int
+        public let semanticQueryMaxChars: Int
     }
 
     public struct Messages: Decodable, Sendable {
@@ -38,6 +44,7 @@ public struct SharedConstants: Decodable, Sendable {
 
     public let cardTypes: [String]
     public let cardTypeLabels: [String: String]
+    public let cardTypeAliases: [String: String]
     public let limits: Limits
     public let messages: Messages
     public let cardErrorMessages: [String: String]
@@ -46,25 +53,63 @@ public struct SharedConstants: Decodable, Sendable {
     public let hiddenTagKeys: [String]
     public let linkCategoryDoneVerbs: [String: String]
     public let actionableLinkCategories: [String]
+    public let bulkCardActions: [String]
     public let visualStyles: [String]
     public let visualStyleLabels: [String: String]
     public let visualStyleAliases: [String: String]
     public let colorHues: [String]
     public let colorHueLabels: [String: String]
     public let colorHueAliases: [String: String]
+    public let colorHueSwatches: [String: String]
     public let genericMimeTypes: [String]
+    public let cardLinkTokenPattern: String
+    public let searchQualifierKeys: [String]
+    public let searchIsWords: [String: [String]]
+    public let searchTokenTrimCharacters: String
     public let searchSuggestionHints: SearchSuggestionHints
     public let locales: [AppLanguage.Option]
     public let fileFormats: [FileFormat]
 
-    public static let shared: SharedConstants = {
-        guard let url = Bundle.module.url(forResource: "SharedConstants", withExtension: "json"),
-              let data = try? Data(contentsOf: url),
-              let constants = try? JSONDecoder().decode(SharedConstants.self, from: data)
-        else {
-            fatalError("SharedConstants.json is missing or invalid; regenerate it with apps/apple/scripts/shared-constants.ts")
+    public enum LoadError: Error, CustomStringConvertible {
+        case missing
+        case unreadable(any Error)
+        case invalid(any Error)
+
+        public var description: String {
+            switch self {
+            case .missing: "SharedConstants.json isn't in TeakCore's resources"
+            case let .unreadable(error): "SharedConstants.json can't be read: \(error)"
+            case let .invalid(error):
+                "SharedConstants.json doesn't match SharedConstants; regenerate it with apps/apple/scripts/shared-constants.ts --write: \(error)"
+            }
         }
-        return constants
+    }
+
+    public static func decode(_ data: Data) throws -> SharedConstants {
+        do {
+            return try JSONDecoder().decode(SharedConstants.self, from: data)
+        } catch {
+            throw LoadError.invalid(error)
+        }
+    }
+
+    static func load(from bundle: Bundle = .module) throws -> SharedConstants {
+        guard let url = bundle.url(forResource: "SharedConstants", withExtension: "json") else { throw LoadError.missing }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            throw LoadError.unreadable(error)
+        }
+        return try decode(data)
+    }
+
+    public static let shared: SharedConstants = {
+        do {
+            return try load()
+        } catch {
+            fatalError("\(error)")
+        }
     }()
 }
 

@@ -27,7 +27,7 @@ This directory is the maintained source for verifying Teak's user-facing behavio
 
 ## Feature entry contract
 
-Each feature file starts with an H1 title and one paragraph describing the user-visible behavior, then exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with <harness>`, `Gotchas`. `scripts/repo/verify-feature-map.test.ts` checks the shape. Keep implementation details out; name only user paths, stable handles, required state, commands and observable proof.
+Each feature file starts with an H1 title and one paragraph describing the user-visible behavior, then exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with <harness>`, `Gotchas`. `scripts/repo/verify-feature-map.test.ts` checks the shape, and that the list below names every feature file once by its H1 title. Keep implementation details out; name only user paths, stable handles, required state, commands and observable proof.
 
 ## Features
 
@@ -35,6 +35,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Capture](./capture.md) covers the composer (text, link, quote, palette), the Focus editor, the "New" menu, uploads and audio recording.
 - [Find](./find.md) covers search, qualifiers and chips, the View menu, sidebar views, tags and folders, the command palette, and empty states.
 - [Card actions](./card-actions.md) covers the card dialog (notes, tags, folders), favorites, archive, Trash, restore, delete forever, and bulk selection.
+- [Card tiles in the grid](./card-tiles.md) covers how each card type looks in the grid: the one tile shape and border, frameless images and videos, link covers and the name line under links, the shared badge for price, length and file type, and the marks, hover, selection, focus and processing states on them.
 - [Palette colors](./palette-colors.md) covers adding and removing a palette's colors in the card dialog (picker, hex field, Remove with Undo, the 12-color and one-color limits), color search after a change, and `addColors`/`removeColors` in the API, MCP, SDK and CLI.
 - [Settings](./settings.md) covers the Settings pages (Account, Plan, Appearance, Integrations, Security, Import & export), their nav and `G S` shortcut, theme, devices, API keys, the plan and usage, and delete account.
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
@@ -57,8 +58,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Errors and resilience](./errors.md) covers failed reads, saves and media: in-app error pages, the sidebar folders error, Tags' "Couldn't load your tags.", a failed recording kept to retry or download, fresh links for expired media, bulk Delete forever keeping failed cards selected, sign-out failures, offline notices, account deletion and the palette's theme toggle.
 - [Folder rules](./folder-rules.md) covers a manual folder's rules in its Edit folder dialog: "Add a rule", auto-tags on existing and new members, auto-file by search after AI tags, the one-sentence run toast with Undo, "Undo last run", the hidden-tag warning, the `like:`/`mood:` rejection, and no rule markers in the sidebar or header.
 - [Docs site](./docs.md) covers the sidebar's groups and order, page rendering in light, dark and 390px, agent-only text kept to the `.md` mirrors, and link checks.
-
-- [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
+- [Apple app (iPhone, iPad, Mac)](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
 - [Android app](./android.md) covers the Android app on the phone and tablet emulators against the local E2E stack: archive, folders, tags, Revisit, done toggles, link pills, search chips and the share sheet's tags and note.
 - [Browser extension](./extension.md) covers signing the Chrome extension in, the Alt+Shift+S save shortcut and its icon states, and the "Already in Teak" badge, in Chromium under a virtual display.
 - [Installed web app](./web-install.md) covers installing the web app, the manifest and icons, and the share target: shared text filling the composer, shared files uploading, and a share made while signed out.

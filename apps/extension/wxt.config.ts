@@ -30,7 +30,8 @@ export default defineConfig({
   // Firefox gets no Chrome `key` or object `author` (it accepts only a
   // string), and declares the data it sends for its install prompt.
   manifest: ({ browser }) => ({
-    // From `public/_locales/<locale>/messages.json`, in the browser's language.
+    // From `public/_locales/<locale>/messages.json`, in the browser's language,
+    // generated from packages/i18n by scripts/repo/extension-locales.ts.
     name: "__MSG_extName__",
     description: "__MSG_extDescription__",
     default_locale: "en",
@@ -65,7 +66,8 @@ export default defineConfig({
     commands: {
       [SAVE_PAGE_COMMAND]: {
         suggested_key: { default: "Alt+Shift+S", mac: "Alt+Shift+S" },
-        description: "Save this page to Teak",
+        // From `public/_locales`, like the name and description.
+        description: "__MSG_saveCommand__",
       },
     },
     action: {

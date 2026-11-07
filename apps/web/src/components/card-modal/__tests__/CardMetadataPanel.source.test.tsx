@@ -1,6 +1,6 @@
 import { expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CardModalCard } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
 
 const realFolders = await import("../../../hooks/useFolders");
 mock.module("../../../hooks/useFolders", () => ({
@@ -10,7 +10,7 @@ mock.module("../../../hooks/useFolders", () => ({
 
 const { CardMetadataPanel } = await import("../CardMetadataPanel");
 
-const textCard = (extra: Partial<CardModalCard> = {}) =>
+const textCard = (extra: Partial<ClientCard> = {}) =>
   ({
     _id: "card_1",
     _creationTime: 0,
@@ -21,13 +21,13 @@ const textCard = (extra: Partial<CardModalCard> = {}) =>
     updatedAt: 0,
     userId: "user_1",
     ...extra,
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
-const render = (card: CardModalCard) =>
+const render = (card: ClientCard) =>
   renderToStaticMarkup(
     <CardMetadataPanel
       card={card}
-      getCurrentValue={(field) => card[field as keyof CardModalCard] as never}
+      getCurrentValue={(field) => card[field as keyof ClientCard] as never}
       onCommit={() => undefined}
       onNotesChange={() => undefined}
       tags={{

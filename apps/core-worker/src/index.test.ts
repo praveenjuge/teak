@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   buildFileSigningPayload,
-  buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
   FILES_PROTOCOL_VERSION,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { hmacSha256Hex, sha256Hex } from "./lib";
+import { handleOp, opCall, signedOpRequest } from "./test/opsHarness";
 import {
   FakeBucket,
   fakeHttpEtag,
@@ -48,37 +48,6 @@ const signedUrl = async (
     url.searchParams.set("cd", params.cd);
   }
   return url.toString();
-};
-
-const signedOpRequest = async (
-  op:
-    | "analyze-image"
-    | "complete-multipart"
-    | "freeze-object"
-    | "create-multipart"
-    | "finalize-upload"
-    | "inspect"
-    | "list-objects",
-  params: Record<string, unknown>,
-  method = "POST"
-): Promise<Request> => {
-  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const bodySha256 = await sha256Hex(body);
-  return new Request("https://files.teakvault.com/__ops/v1", {
-    body,
-    method,
-    headers: {
-      "content-type": "application/json",
-      "x-teak-expires-at": expiresAt,
-      "x-teak-request-id": requestId,
-      "x-teak-signature": await hmacSha256Hex(
-        SECRET,
-        buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
-      ),
-    },
-  });
 };
 
 describe("core worker handler", () => {
@@ -224,13 +193,13 @@ describe("core worker handler", () => {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
 
-    const pageOneResponse = await worker.fetch(
-      await signedOpRequest("list-objects", {
+    const pageOneResponse = await handleOp(
+      opCall("list-objects", {
         limit: 2,
         prefix: "users/u1/",
       }),
-      envWithBucket,
-      { waitUntil: () => undefined } as never
+
+      envWithBucket
     );
     expect(pageOneResponse.status).toBe(200);
     const pageOne = (await pageOneResponse.json()) as {
@@ -249,14 +218,14 @@ describe("core worker handler", () => {
     expect(pageOne.data.truncated).toBe(true);
     expect(pageOne.data.cursor).toBeTruthy();
 
-    const pageTwoResponse = await worker.fetch(
-      await signedOpRequest("list-objects", {
+    const pageTwoResponse = await handleOp(
+      opCall("list-objects", {
         cursor: pageOne.data.cursor as string,
         limit: 2,
         prefix: "users/u1/",
       }),
-      envWithBucket,
-      { waitUntil: () => undefined } as never
+
+      envWithBucket
     );
     const pageTwo = (await pageTwoResponse.json()) as {
       data: { objects: Array<{ key: string }>; truncated: boolean };
@@ -268,22 +237,20 @@ describe("core worker handler", () => {
   });
 
   test("rejects list-objects with a non-users prefix", async () => {
-    const response = await worker.fetch(
-      await signedOpRequest("list-objects", { prefix: "exports/" }),
-      env(),
-      { waitUntil: () => undefined } as never
+    const response = await handleOp(
+      opCall("list-objects", { prefix: "exports/" }),
+      env()
     );
     expect(response.status).toBe(400);
   });
 
   test("returns a controlled fallback for missing image-analysis sources", async () => {
     const env_ = env();
-    const response = await worker.fetch(
-      await signedOpRequest("analyze-image", {
+    const response = await handleOp(
+      opCall("analyze-image", {
         sourceKey: "users/u1/cards/missing/file.jpg",
       }),
-      env_,
-      { waitUntil: () => undefined } as never
+      env_
     );
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({
@@ -295,6 +262,33 @@ describe("core worker handler", () => {
       ok: false,
       version: FILES_PROTOCOL_VERSION,
     });
+  });
+
+  test("the network route runs only the ops Convex calls", async () => {
+    const internalOnly = await worker.fetch(
+      await signedOpRequest("fetch-link-page", {
+        selectors: ["title"],
+        url: "https://site.example/",
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(internalOnly.status).toBe(400);
+    expect(await internalOnly.json()).toMatchObject({
+      error: { code: "UNSUPPORTED" },
+      ok: false,
+    });
+    const network = await worker.fetch(
+      await signedOpRequest("capabilities", {}),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(network.status).toBe(200);
+    const { data } = (await network.json()) as {
+      data: { operations: string[] };
+    };
+    expect(data.operations).toContain("dispatch");
+    expect(data.operations).not.toContain("fetch-link-page");
   });
 
   test("returns typed errors for wrong internal API methods", async () => {
@@ -480,11 +474,7 @@ describe("core worker handler", () => {
     expect((await put(tampered, 1)).status).toBe(403);
     expect((await put(url, 1)).status).toBe(413);
     expect((await put(url, size)).status).toBe(204);
-    const frozen = await worker.fetch(
-      await signedOpRequest("freeze-object", { key }),
-      env_,
-      { waitUntil: () => undefined } as never
-    );
+    const frozen = await handleOp(opCall("freeze-object", { key }), env_);
     expect(frozen.status).toBe(200);
     expect((await put(url, size)).status).toBe(409);
   });

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { parseArguments, readJson, required } from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
 
 export const reviewStates = new Set([
@@ -12,38 +13,56 @@ export const reviewStates = new Set([
   "READY_FOR_SALE",
 ]);
 
-function required(value, label) {
-  const normalized = String(value ?? "").trim();
-  if (!normalized) {
-    throw new Error(`Missing ${label}.`);
+export const rejectedStates = new Set([
+  "DEVELOPER_REJECTED",
+  "INVALID_BINARY",
+  "METADATA_REJECTED",
+  "REJECTED",
+]);
+
+/**
+ * Where an App Store version stands while apple-release.yml waits for it:
+ * submitted (waiting for review or later), rejected, or still on its way.
+ */
+export function releasePhase(state: string): "pending" | "rejected" | "review" {
+  const normalized = state.trim().toUpperCase();
+  if (reviewStates.has(normalized)) {
+    return "review";
   }
-  return normalized;
+  return rejectedStates.has(normalized) ? "rejected" : "pending";
 }
 
-function parseArguments(args) {
-  const values = {};
-  for (let index = 0; index < args.length; index += 2) {
-    const flag = args[index];
-    const value = args[index + 1];
-    if (!(flag?.startsWith("--") && value !== undefined)) {
-      throw new Error(`Invalid argument near ${flag ?? "end of command"}.`);
-    }
-    values[flag.slice(2)] = value;
-  }
-  return values;
+/** An App Store Connect API resource as `asc --output json` prints it. */
+export interface AscResource {
+  attributes?: Record<string, string | undefined>;
+  id?: string;
+  relationships?: Record<string, { data?: { id?: string } } | undefined>;
+  type?: string;
 }
 
-function readJson(path, label) {
-  try {
-    return JSON.parse(fs.readFileSync(path, "utf8"));
-  } catch (error) {
-    throw new Error(`Could not read ${label}: ${error.message}`);
-  }
+export interface AscDocument extends AscResource {
+  data?: AscResource | AscResource[];
+  included?: AscResource[];
 }
 
-function versionRecord(payload) {
-  const row = payload?.data?.[0] ?? payload?.data ?? payload;
-  const attributes = row?.attributes ?? row ?? {};
+interface ExpectedRelease {
+  buildId?: string;
+  buildNumber?: string;
+  platform?: string;
+  submissionId?: string;
+  version?: string;
+  versionId?: string;
+}
+
+const firstRow = (payload: AscDocument | undefined): AscResource | undefined =>
+  (Array.isArray(payload?.data) ? payload.data[0] : payload?.data) ?? payload;
+
+function versionRecord(payload: AscDocument | undefined) {
+  const row = firstRow(payload);
+  const attributes: Record<string, string | undefined> =
+    row?.attributes ??
+    (row as Record<string, string | undefined> | undefined) ??
+    {};
   return {
     id: row?.id ?? attributes.id,
     version: attributes.versionString ?? attributes.version,
@@ -56,7 +75,7 @@ function versionRecord(payload) {
     buildId:
       attributes.buildId ??
       row?.relationships?.build?.data?.id ??
-      payload?.included?.find?.((item) => item.type === "builds")?.id,
+      payload?.included?.find((item) => item.type === "builds")?.id,
     buildNumber: attributes.buildNumber ?? attributes.buildVersion,
     submissionId:
       attributes.submissionId ??
@@ -64,9 +83,9 @@ function versionRecord(payload) {
   };
 }
 
-function buildRecord(payload) {
-  const row = payload?.data ?? payload;
-  const preReleaseVersion = payload?.included?.find?.(
+function buildRecord(payload: AscDocument | undefined) {
+  const row = firstRow(payload);
+  const preReleaseVersion = payload?.included?.find(
     (item) => item.type === "preReleaseVersions"
   );
   return {
@@ -78,8 +97,8 @@ function buildRecord(payload) {
   };
 }
 
-function submissionRecord(payload) {
-  const row = payload?.data ?? payload;
+function submissionRecord(payload: AscDocument | undefined) {
+  const row = firstRow(payload);
   return {
     id: row?.id,
     state: row?.attributes?.state,
@@ -88,7 +107,7 @@ function submissionRecord(payload) {
   };
 }
 
-function same(actual, expected, label) {
+function same(actual: unknown, expected: unknown, label: string) {
   if (required(actual, label) !== required(expected, `expected ${label}`)) {
     throw new Error(
       `${label} mismatch: received ${actual}, expected ${expected}.`
@@ -102,6 +121,12 @@ export function verifyReleaseProof({
   build,
   submission,
   expected,
+}: {
+  build: AscDocument;
+  expected: ExpectedRelease;
+  submission: AscDocument;
+  versionList: AscDocument;
+  versionView: AscDocument;
 }) {
   const version = required(expected.version, "expected version");
   parseVersion(version);
@@ -196,18 +221,24 @@ export function verifyReleaseProof({
   };
 }
 
+export type ReleaseProof = ReturnType<typeof verifyReleaseProof>;
+
 function main() {
   const [command, ...args] = process.argv.slice(2);
+  if (command === "phase") {
+    console.log(releasePhase(args[0] ?? ""));
+    return;
+  }
   if (command !== "verify") {
-    throw new Error("Expected verify command.");
+    throw new Error("Expected the verify or phase command.");
   }
   const values = parseArguments(args);
   const proof = verifyReleaseProof({
-    versionList: readJson(values["version-list"], "version list"),
-    versionView: readJson(values["version-view"], "version view"),
-    build: readJson(values.build, "exact build"),
-    submission: readJson(values.submission, "exact submission"),
-    expected: readJson(values.expected, "expected release"),
+    versionList: readJson<AscDocument>(values["version-list"], "version list"),
+    versionView: readJson<AscDocument>(values["version-view"], "version view"),
+    build: readJson<AscDocument>(values.build, "exact build"),
+    submission: readJson<AscDocument>(values.submission, "exact submission"),
+    expected: readJson<ExpectedRelease>(values.expected, "expected release"),
   });
   const output = `${JSON.stringify(proof, null, 2)}\n`;
   if (values.output) {

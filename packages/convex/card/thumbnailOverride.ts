@@ -1,3 +1,4 @@
+import type { FilesFinalizeImageResult } from "@teak/files-protocol";
 import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -9,13 +10,14 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import type { thumbnailOverrideValidator } from "../schema";
+import { rateLimiter } from "../rateLimiter";
+import type { thumbnailOverrideValidator } from "../schema/validators/cards";
 import {
   requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   THUMBNAIL_ERROR_MESSAGES,
   THUMBNAIL_MAX_BYTES,
@@ -23,11 +25,11 @@ import {
   toThumbnailMimeType,
 } from "../shared/thumbnails";
 import {
-  buildSignedWorkerUploadUrl,
-  callFilesWorkerJson,
-  type FilesWorkerFinalizeImageResult,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+  signedUploadUrl,
+} from "../storage/coreWorkerClient";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import {
   ensureObjectOwnership,
   registerOwnedObject,
@@ -36,9 +38,8 @@ import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
-  queueObjectDeletion,
 } from "../storage/r2";
-import { patchCardWithSearchSync } from "./searchSync";
+import { patchCard } from "./cardWrites";
 
 export const THUMBNAIL_ROLE = "thumbnail-override";
 export const THUMBNAIL_PENDING_ROLE = "thumbnail-override-pending";
@@ -170,7 +171,7 @@ export const createThumbnailUploadUrlHandler = async (
   if (!(await registerOwnedObject(ctx, userId, key))) {
     throw new Error("account_storage_write_denied");
   }
-  const signed = await buildSignedWorkerUploadUrl({
+  const signed = await signedUploadUrl({
     contentType,
     key,
     size: args.fileSize,
@@ -230,7 +231,7 @@ const changeThumbnail = async (
   const changeId = crypto.randomUUID();
   const deleteAfter = now + THUMBNAIL_UNDO_WINDOW_MS;
   const previous = card.thumbnailOverride ?? null;
-  const patched = await patchCardWithSearchSync(ctx, card._id, {
+  const patched = await patchCard(ctx, card._id, {
     thumbnailOverride: next,
     previousThumbnailOverride: { override: previous, changeId, deleteAfter },
     thumbnailChangeId: changeId,
@@ -284,7 +285,7 @@ export const applyThumbnailOverride = internalMutation({
 });
 
 const refuseDecodedImage = (
-  facts: FilesWorkerFinalizeImageResult
+  facts: FilesFinalizeImageResult
 ): readonly [string, string] | null => {
   if (!toThumbnailMimeType(facts.decodedFormat)) {
     return ["UNSUPPORTED_TYPE", THUMBNAIL_ERROR_MESSAGES.unsupported];
@@ -299,7 +300,7 @@ const refuseDecodedImage = (
 };
 
 const deleteFinalizedObject = (key: string) =>
-  callFilesWorkerJson({ op: "delete-object", params: { key } }).catch(
+  callCoreWorkerOp({ op: "delete-object", params: { key } }).catch(
     () => undefined
   );
 
@@ -311,7 +312,7 @@ export const setThumbnailForUser = async (
   if (!isPendingThumbnailKeyFor(userId, cardId, fileKey)) {
     fail("NOT_FOUND", "Upload not found");
   }
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   await ctx.runMutation(
@@ -327,7 +328,7 @@ export const setThumbnailForUser = async (
     role: THUMBNAIL_ROLE,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callFilesWorkerJson<FilesWorkerFinalizeImageResult>({
+  const outcome = await callCoreWorkerOp({
     op: "finalize-image-upload",
     params: { destinationKey, sourceKey: fileKey },
     declineCodes: ["CONFLICT"],
@@ -445,7 +446,7 @@ export const undoThumbnailChangeHandler = async (
     return expired;
   }
   const newer = card.thumbnailOverride;
-  const patched = await patchCardWithSearchSync(ctx, cardId, {
+  const patched = await patchCard(ctx, cardId, {
     thumbnailOverride: previous.override ?? undefined,
     previousThumbnailOverride: undefined,
     thumbnailChangeId: undefined,
@@ -494,7 +495,7 @@ export const deleteReplacedThumbnail = internalMutation({
     }
     await queueObjectDeletion(ctx, storageKey);
     if (card && kept?.override?.storageKey === storageKey) {
-      await patchCardWithSearchSync(ctx, cardId, {
+      await patchCard(ctx, cardId, {
         previousThumbnailOverride: undefined,
       });
     }

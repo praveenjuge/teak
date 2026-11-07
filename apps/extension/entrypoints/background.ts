@@ -19,8 +19,8 @@ import {
   beginOAuthSignIn,
   getOAuthState,
   initializeAuth,
-  oauthRequest,
   signOutOAuth,
+  teakClient,
 } from "../lib/oauthAuth";
 import {
   buildSuggestions,
@@ -141,8 +141,7 @@ function runPendingSave(
         save = (await getPendingSave(save.id)) ?? save;
       }
       const ownerId = save.ownerId;
-      const request = (path: string, init?: RequestInit) =>
-        oauthRequest(path, init, ownerId);
+      const client = teakClient({ ownerId });
       if (save.kind === "content") {
         const contentSave = save;
         return saveToTeak(
@@ -153,7 +152,7 @@ function runPendingSave(
               await updatePendingSave(contentSave);
             },
             pageSnapshot,
-            request,
+            client,
           }
         );
       }
@@ -167,7 +166,7 @@ function runPendingSave(
               idempotencyKey: save.id,
               source: "context-menu",
             },
-            { request }
+            { client }
           );
         }
         if ("status" in file) {
@@ -189,7 +188,7 @@ function runPendingSave(
       return saveFileToTeak(
         { ...fileSave.input, idempotencyKey: fileSave.id },
         {
-          request,
+          client,
           onUploaded: async (uploaded) => {
             fileSave.input.uploaded = uploaded;
             if (keepsFile) {
@@ -475,7 +474,7 @@ export default defineBackground(() => {
       owner: getCaptureOwner,
       paint: (tabId, saved) => setTabBadge(tabId, saved ? "saved" : "none"),
       recentRequests: () => apiRequestsInLastMinute(),
-      request: (path) => oauthRequest(path),
+      client: () => teakClient({ retries: 0 }),
       storage: chrome.storage.session,
     });
     savedPages = checks;
@@ -557,7 +556,7 @@ export default defineBackground(() => {
       });
     const search = createOmniboxSearch({
       search: (text, signal) =>
-        searchOmnibox(text, signal, (path, init) => oauthRequest(path, init)),
+        searchOmnibox(text, signal, teakClient({ retries: 0 })),
       show: (text, outcome) => {
         signedOut = stillSignedOut(signedOut, outcome);
         showDefault(outcome);

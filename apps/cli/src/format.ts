@@ -1,6 +1,7 @@
 import { formatLinkPrice } from "@teak/convex/shared/price";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import type { Card, CardLinkRef, CardLinks } from "teak-sdk";
+import { plainOutput } from "./mode";
 
 const relativeAge = (ms: number) => {
   const minutes = Math.max(1, Math.floor(ms / 60_000));
@@ -14,19 +15,34 @@ const relativeAge = (ms: number) => {
   return `${Math.floor(hours / 24)}d`;
 };
 
-export const formatCardLine = (
-  card:
-    | Card
-    | {
-        content?: string;
-        createdAt: number;
-        id: string;
-        isHidden?: boolean;
-        tags?: string[];
-        type: string;
-      }
-) => {
+type CardLineInput =
+  | Card
+  | {
+      content?: string;
+      createdAt: number;
+      id: string;
+      isHidden?: boolean;
+      tags?: string[];
+      type: string;
+    };
+
+/**
+ * One card per line. For a person: id, type, a 54-character snippet, up to
+ * four tags and its age, aligned. For a pipe (`plain`): the same fields in
+ * full, tab-separated, with the creation time in ISO UTC, so `cut -f` works.
+ */
+export const formatCardLine = (card: CardLineInput, plain = false) => {
   const text = (card.content || "").replace(/\s+/g, " ").trim();
+  if (plain) {
+    return [
+      card.id,
+      card.type,
+      text,
+      (card.tags || []).join(","),
+      new Date(card.createdAt).toISOString(),
+      card.isHidden ? "hidden" : "",
+    ].join("\t");
+  }
   const snippet =
     text.length > 54
       ? `${text.slice(0, 53)}...`
@@ -39,6 +55,10 @@ export const formatCardLine = (
   const hidden = card.isHidden ? "  hidden" : "";
   return `${card.id}  ${card.type.padEnd(8)}  ${snippet}  ${tags}  ${age}${hidden}`.trim();
 };
+
+/** Card lines in the shape stdout needs: aligned for a terminal, tabs for a pipe. */
+export const formatCardLines = (cards: CardLineInput[]) =>
+  cards.map((card) => formatCardLine(card, plainOutput())).join("\n");
 
 const TRANSCRIPT_PREVIEW_CHARS = 600;
 

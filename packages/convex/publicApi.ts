@@ -6,12 +6,11 @@ import {
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
+import { applyCardAction, normalizeBulkTags } from "./card/bulkActions";
 import {
-  applyCardAction,
-  type BulkCardAction,
-  normalizeBulkTags,
-} from "./card/bulkActions";
-import { createCardForUserHandler } from "./card/createCard";
+  apiCardSourceValidator,
+  createCardForUserHandler,
+} from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
 import {
   archivedFilterValidator,
@@ -20,14 +19,18 @@ import {
   cardListScope,
 } from "./card/listQuery";
 import { readPinnedCards } from "./card/pins";
+import { queueCardProcessing } from "./card/processingRuns";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
-import { resolveFolderNames } from "./card/searchPlanner";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
 import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
+import {
+  isInvalidCursorError,
+  isRateLimitContentionError,
+} from "./convexFailures";
 import {
   decodeChangesCursor,
   decodeCursor,
@@ -40,13 +43,6 @@ import {
   matchAnchorOf,
   type ShuffleApiCursor,
 } from "./publicApi/cursors";
-import {
-  explainCardTypeMismatch,
-  explainInvalidTags,
-  explainOversizedText,
-  isRateLimitContentionError,
-  parseStringArray,
-} from "./publicApi/http/shared";
 import {
   apiCardSortValidator,
   isAfterMatchAnchor,
@@ -66,12 +62,22 @@ import {
   similarityOption,
 } from "./publicApi/search";
 import {
+  explainCardTypeMismatch,
+  explainInvalidTags,
+  explainOversizedText,
+  parseStringArray,
+} from "./publicApi/validation";
+import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { cardTypeValidator } from "./schema";
+import { rateLimiter } from "./rateLimiter";
+import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
+import { resolveFolderNames } from "./search/searchPlanner";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import type { BulkCardAction } from "./shared/bulkCardActions";
+import { bulkItemProblem } from "./shared/bulkItems";
 import {
   explainInvalidCardSource,
   normalizeCardSource,
@@ -81,14 +87,12 @@ import {
   clampPublicApiLimit,
   PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
 } from "./shared/publicApiLimits";
-import { rateLimiter } from "./shared/rateLimits";
 import {
   isShuffleSeed,
   shuffleBySeed,
   shuffleRank,
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
-import { queueCardProcessing } from "./workflowDispatch";
 
 const pageInfoValidator = v.object({
   nextCursor: v.union(v.string(), v.null()),
@@ -112,11 +116,6 @@ const changesResultValidator = v.object({
   items: v.array(cardReturnValidator),
   deletedIds: v.array(v.id("cards")),
   pageInfo: pageInfoValidator,
-});
-
-const tagSummaryValidator = v.object({
-  name: v.string(),
-  count: v.number(),
 });
 
 const bulkResultValidator = v.object({
@@ -451,8 +450,8 @@ export const shuffleCardsPageForUser = internalQuery({
         numItems: limit,
         maximumRowsRead: SHUFFLE_WALK_SCAN,
       });
-    } catch {
-      throw invalidCursorError();
+    } catch (error) {
+      throw isInvalidCursorError(error) ? invalidCursorError() : error;
     }
     const kept = await Promise.all(
       result.cards.map((card) =>
@@ -596,119 +595,6 @@ export const pinnedCardsPageForUser = internalQuery({
   },
 });
 
-const MAX_TAG_ROWS_READ = 8000;
-// Most distinct tags one listing counts. Each is two index lookups, and a
-// function may only make so many, so a vault of many small tags stops here
-// (GET /v1/tags then answers from the background tag summary).
-const MAX_TAGS_READ = 500;
-
-export const listTagsForUser = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  returns: v.object({
-    items: v.array(tagSummaryValidator),
-    isComplete: v.boolean(),
-  }),
-  handler: async (ctx, args) => {
-    const userId = await requireTeakUserId(ctx, args.userId);
-    const counts: { name: string; count: number }[] = [];
-    let budget = MAX_TAG_ROWS_READ;
-    let tagsLeft = MAX_TAGS_READ;
-    let isComplete = true;
-    let previousTag: string | undefined;
-
-    while (isComplete) {
-      if (tagsLeft <= 0) {
-        const more = await ctx.db
-          .query("cardSearchTags")
-          .withIndex("by_user_tag_deleted_saved", (query) =>
-            previousTag === undefined
-              ? query.eq("userId", userId)
-              : query.eq("userId", userId).gt("tag", previousTag)
-          )
-          .first();
-        isComplete = more === null;
-        break;
-      }
-      tagsLeft -= 1;
-      const afterTag = previousTag;
-      const next = await ctx.db
-        .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_saved", (query) =>
-          afterTag === undefined
-            ? query.eq("userId", userId)
-            : query.eq("userId", userId).gt("tag", afterTag)
-        )
-        .first();
-      if (!next) {
-        break;
-      }
-      budget -= 1;
-      previousTag = next.tag;
-
-      let count = 0;
-      const activeRows = ctx.db
-        .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_archived_saved", (query) =>
-          query
-            .eq("userId", userId)
-            .eq("tag", next.tag)
-            .eq("isDeleted", undefined)
-            .eq("isArchived", undefined)
-        );
-      for await (const _row of activeRows) {
-        if (budget <= 0) {
-          isComplete = false;
-          break;
-        }
-        budget -= 1;
-        count += 1;
-      }
-      if (count > 0) {
-        counts.push({ name: next.tag, count });
-      }
-      if (budget <= 0) {
-        isComplete = false;
-      }
-    }
-
-    return {
-      items: counts.sort((left, right) => {
-        if (left.count === right.count) {
-          return left.name.localeCompare(right.name);
-        }
-        return right.count - left.count;
-      }),
-      isComplete,
-    };
-  },
-});
-
-export const getFreshTagSummaryForUser = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  returns: v.union(v.object({ items: v.array(tagSummaryValidator) }), v.null()),
-  handler: async (ctx, args) => {
-    const userId = await requireTeakUserId(ctx, args.userId);
-    const summary = await ctx.db
-      .query("userTagSummaries")
-      .withIndex("by_userId", (query) => query.eq("userId", userId))
-      .first();
-    if (!summary?.isComplete) {
-      return null;
-    }
-    const pendingRefresh = await ctx.db
-      .query("tagSummaryRefreshes")
-      .withIndex("by_userId", (query) => query.eq("userId", userId))
-      .first();
-    return pendingRefresh
-      ? null
-      : { items: summary.items.map(({ name, count }) => ({ name, count })) };
-  },
-});
-
 export const listCardChangesForUser = internalQuery({
   args: {
     userId: v.string(),
@@ -735,8 +621,8 @@ export const listCardChangesForUser = internalQuery({
           )
           .order("asc")
           .paginate({ cursor: decoded.cursor, numItems: limit });
-      } catch {
-        throw invalidCursorError();
+      } catch (error) {
+        throw isInvalidCursorError(error) ? invalidCursorError() : error;
       }
       activeCards = page.page.filter((card) => !card.isDeleted);
       for (const card of page.page) {
@@ -860,58 +746,12 @@ const bulkCardSource = (payload: Record<string, unknown>) => ({
   sourceUrl: payload.sourceUrl as string | undefined,
 });
 
-const BULK_CREATE_FIELDS = new Set([
-  "content",
-  "url",
-  "notes",
-  "tags",
-  "cardType",
-  "pageSnapshotKey",
-  "sourceUrl",
-  "sourceTitle",
-]);
-const BULK_UPDATE_FIELDS = new Set([
-  "cardId",
-  "content",
-  "url",
-  "notes",
-  "tags",
-]);
-
-/** Fails a field the item's operation doesn't take, as POST and PATCH do. */
-const assertKnownBulkFields = (
-  payload: Record<string, unknown>,
-  allowed: ReadonlySet<string>
-) => {
-  const unknownKey = Object.keys(payload).find((key) => !allowed.has(key));
-  if (unknownKey !== undefined) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: `Unknown field \`${unknownKey}\``,
-    });
-  }
-};
-
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
-  assertKnownBulkFields(payload, BULK_CREATE_FIELDS);
   const content =
     typeof payload.content === "string" ? payload.content : undefined;
   const url = typeof payload.url === "string" ? payload.url.trim() : undefined;
   const type =
     typeof payload.cardType === "string" ? payload.cardType : undefined;
-
-  if (content === undefined && !url) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each create item must include `content` or `url`",
-    });
-  }
-  if (type !== "text" && !url && !content?.trim()) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each create item must include `content` or `url`",
-    });
-  }
 
   if (type && !cardTypes.includes(type as CardType)) {
     throw new ConvexError({
@@ -975,19 +815,6 @@ const assertBulkUpdatePayload = (
   payload: Record<string, unknown>,
   card: Doc<"cards">
 ) => {
-  assertKnownBulkFields(payload, BULK_UPDATE_FIELDS);
-  const edits =
-    typeof payload.content === "string" ||
-    typeof payload.url === "string" ||
-    typeof payload.notes === "string" ||
-    payload.notes === null ||
-    Array.isArray(payload.tags);
-  if (!edits) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each update item must include content, url, notes or tags",
-    });
-  }
   if (
     payload.url !== undefined &&
     !(typeof payload.url === "string" && isSafeExternalUrl(payload.url.trim()))
@@ -1013,18 +840,11 @@ const assertBulkUpdatePayload = (
   }
 };
 
-const assertBulkFavoritePayload = (payload: Record<string, unknown>) => {
-  if (typeof payload.isFavorited !== "boolean") {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Each favorite item must include `isFavorited` as a boolean",
-    });
-  }
-};
-
 export const executeBulkCardsForUser = internalMutation({
   args: {
     userId: v.string(),
+    /** The client that sent the bulk create, for analytics; `api` when not given. */
+    cardSource: v.optional(apiCardSourceValidator),
     operation: v.union(
       v.literal("create"),
       v.literal("update"),
@@ -1054,11 +874,9 @@ export const executeBulkCardsForUser = internalMutation({
 
     for (const [index, item] of args.items.entries()) {
       try {
-        if (!item || typeof item !== "object" || Array.isArray(item)) {
-          throw new ConvexError({
-            code: "INVALID_INPUT",
-            message: "Each bulk item must be an object",
-          });
+        const problem = bulkItemProblem(args.operation, item);
+        if (problem) {
+          throw new ConvexError({ code: "INVALID_INPUT", message: problem });
         }
 
         const payload = item as Record<string, unknown>;
@@ -1092,7 +910,7 @@ export const executeBulkCardsForUser = internalMutation({
                   tags: bulkItemTags(payload),
                   type: requestedType,
                 },
-                { source: "api" }
+                { source: args.cardSource ?? "api" }
               );
 
             results.push({
@@ -1180,7 +998,6 @@ export const executeBulkCardsForUser = internalMutation({
 
             let action = args.operation as BulkCardAction;
             if (args.operation === "favorite") {
-              assertBulkFavoritePayload(payload);
               action = payload.isFavorited ? "favorite" : "unfavorite";
             }
             const tags =

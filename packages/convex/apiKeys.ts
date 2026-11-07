@@ -1,3 +1,4 @@
+import { sha256Hex } from "@teak/files-protocol";
 import { ApiKeys, type KeyMetadata } from "@vllnt/convex-api-keys";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
@@ -13,13 +14,16 @@ import {
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
-import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
+import { rateLimiter } from "./rateLimiter";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  resolveStoredUserId,
+} from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
-import { rateLimiter } from "./shared/rateLimits";
-import { sha256Hex } from "./storage/r2Keys";
+import { API_KEY_NAME_MAX_LENGTH } from "./shared/apiKeyName";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
-export const API_KEY_NAME_MAX_LENGTH = 64;
 
 /** A key's name on one line within 64 characters, or the default. */
 export const cleanApiKeyName = (name: string | undefined): string =>
@@ -264,12 +268,11 @@ export const listUserApiKeys = query({
   args: {},
   returns: v.array(listedApiKeyValidator),
   handler: async (ctx) => {
-    let ownerId: string;
-    try {
-      ownerId = await requireSessionUserId(ctx);
-    } catch {
+    const session = await getSessionUser(ctx);
+    if (!session) {
       return [];
     }
+    const ownerId = session.teakUserId;
 
     const componentKeys = await getComponentKeysForOwner(ctx, ownerId);
     return componentKeys

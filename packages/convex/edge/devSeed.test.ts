@@ -1,9 +1,6 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { searchCardsByDocument } from "../card/searchReads";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
 import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";
@@ -70,22 +67,23 @@ import {
   tags2000ScenarioCard,
 } from "../devSeed/volumeScenarios";
 import { readFolderCardCount } from "../folder/folderRows";
-import schema from "../schema";
+import { searchCardsByDocument } from "../search/searchReads";
+import { readAccountLocale } from "../settings/preferences";
 import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
 import { LINK_CATEGORIES } from "../shared/linkCategories";
+import { buildRawSelectorMap } from "../shared/linkCategory/enrichment";
+import { getRawAttribute } from "../shared/linkCategory/providers/common";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
 import { filterLocalCards } from "../shared/search/localSearch";
-import { buildRawSelectorMap } from "../workflows/steps/categorization/enrichment";
-import { findFeedUrl } from "../workflows/steps/podcast/resolveEnclosure";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "teak_dev",
@@ -194,7 +192,7 @@ describe("pruning cloud dev accounts", () => {
   const CLOUD_EMAIL = "dev+cloud-0a1b2c3d-main@example.org";
 
   const withOwner = async (email: string, workosUserId: string) => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await ctx.db.insert("users", {
         teakUserId: `teak_${workosUserId}`,
@@ -1288,9 +1286,10 @@ describe("devSeed folder packs", () => {
     expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
     const rssOnly = byTitle("An episode found through its show's RSS feed");
     expect(
-      findFeedUrl(
+      getRawAttribute(
         buildRawSelectorMap(rssOnly?.metadata?.linkPreview?.raw),
-        rssOnly?.url ?? ""
+        "link[rel='alternate'][type='application/rss+xml']",
+        "href"
       )
     ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
@@ -1356,9 +1355,9 @@ describe("devSeed folder packs", () => {
       })
     ).toEqual({ status: "seeded", cards: 0 });
     expect(
-      await t.query(internal.settings.preferences.getPreferencesForUser, {
-        userId: "teak_dev",
-      })
+      await t.run(async (ctx) => ({
+        locale: await readAccountLocale(ctx, "teak_dev"),
+      }))
     ).toEqual({ locale: "de" });
   });
 
@@ -2029,7 +2028,6 @@ describe("devSeed reader packs", () => {
       })
     );
     const t = await setup();
-    rateLimiterTest.register(t, "rateLimiterV2");
     const seed = (scenario: string) =>
       t.mutation(internal.devSeed.seedScenario, {
         workosUserId: WORKOS_USER_ID,

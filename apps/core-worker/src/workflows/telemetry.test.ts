@@ -109,7 +109,7 @@ describe("reportedStep", () => {
   });
 
   test.each([
-    "files_worker_ai: rate limit reached 429",
+    "files_worker_error:AI_CAPACITY:429:r",
     "stale_processing_revision:card/processingRpc:markStagesInProgress",
     "workflow:linkMetadata:retryable:{}",
   ])("keeps %s quiet: a retry or the backfill owns it", async (message) => {

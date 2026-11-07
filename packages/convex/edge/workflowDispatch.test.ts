@@ -1,9 +1,11 @@
-import type { DispatchItem } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
+import { type DispatchItem, verifyDispatchProof } from "@teak/files-protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import schema from "../schema";
+import { queueAccountDeletionWorkflow } from "../accountDeletion/workflowRun";
+import { queueExportWorkflow } from "../export/workflowRun";
+import { queueImportWorkflow } from "../import/workflowRun";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import {
   queueCardOutcome,
@@ -13,18 +15,15 @@ import {
 import {
   CLAIM_PAGE,
   claimRetryDelayMs,
-  DEAD_LETTER_RETRY_MS,
   DISPATCH_RETENTION_MS,
-  enqueueObjectDeletion,
-  FLUSH_JITTER_MS,
   MAX_DISPATCH_ATTEMPTS,
-  queueAccountDeletionWorkflow,
-  queueExportWorkflow,
-  queueImportWorkflow,
-  signDispatch,
 } from "../workflowDispatch";
+import {
+  DEAD_LETTER_RETRY_MS,
+  FLUSH_JITTER_MS,
+} from "../workflowDispatch/outbox";
+import { type Backend, newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
 
@@ -40,13 +39,13 @@ afterEach(() => {
 
 const fileKey = (index: number) => `users/u1/cards/c1/file/${index}.png`;
 
-const rows = (t: ReturnType<typeof convexTest>) =>
+const rows = (t: Backend) =>
   t.run((ctx) => ctx.db.query("workflowDispatches").collect());
 
-const scheduledJobs = (t: ReturnType<typeof convexTest>) =>
+const scheduledJobs = (t: Backend) =>
   t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
 
-const reportedFailures = async (t: ReturnType<typeof convexTest>) =>
+const reportedFailures = async (t: Backend) =>
   (await scheduledJobs(t))
     .filter((job) => job.name === "telemetry/alerts:reportBackgroundFailure")
     .map((job) => job.args[0] as { message: string });
@@ -66,7 +65,7 @@ const capturePostHog = () => {
   return () => batches.flat();
 };
 
-const sentAtMaxAttempts = (t: ReturnType<typeof convexTest>) =>
+const sentAtMaxAttempts = (t: Backend) =>
   t.run(async (ctx) => {
     const [row] = await ctx.db.query("workflowDispatches").collect();
     await ctx.db.patch("workflowDispatches", row!._id, {
@@ -77,7 +76,7 @@ const sentAtMaxAttempts = (t: ReturnType<typeof convexTest>) =>
     return row!._id;
   });
 
-const insertExportJob = (t: ReturnType<typeof convexTest>, status: string) =>
+const insertExportJob = (t: Backend, status: string) =>
   t.run((ctx) =>
     ctx.db.insert("exportJobs", {
       createdAt: NOW,
@@ -87,7 +86,7 @@ const insertExportJob = (t: ReturnType<typeof convexTest>, status: string) =>
     })
   );
 
-const insertImportJob = (t: ReturnType<typeof convexTest>, status: string) =>
+const insertImportJob = (t: Backend, status: string) =>
   t.run((ctx) =>
     ctx.db.insert("importJobs", {
       createdAt: NOW,
@@ -108,30 +107,51 @@ const insertImportJob = (t: ReturnType<typeof convexTest>, status: string) =>
     })
   );
 
-describe("enqueueObjectDeletion", () => {
-  test("queues namespaced keys in batches the Worker accepts", async () => {
-    const t = convexTest(schema, modules);
+describe("queueObjectDeletion", () => {
+  test("queues keys in batches the Worker accepts, skipping blanks and repeats", async () => {
+    const t = newBackend();
     const keys = [
       ...Array.from({ length: 250 }, (_, index) => fileKey(index)),
       fileKey(0),
       "",
-      "not-a-teak-key",
+      undefined,
     ];
-    const queued = await t.run((ctx) => enqueueObjectDeletion(ctx, keys));
+    const queued = await t.run((ctx) => queueObjectDeletion(ctx, keys));
     expect(queued).toBe(250);
     const queuedRows = await rows(t);
     expect(queuedRows.map((row) => row.keys?.length)).toEqual([100, 100, 50]);
     expect(queuedRows.every((row) => row.state === "pending")).toBe(true);
   });
+
+  test("refuses a key outside this deployment's namespace and queues none", async () => {
+    const t = newBackend();
+    await expect(
+      t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1), "not-a-teak-key"]))
+    ).rejects.toThrow("invalid_storage_key_namespace");
+    expect(await rows(t)).toEqual([]);
+  });
+
+  test("the action entry point follows the same rule", async () => {
+    const t = newBackend();
+    await t.mutation(internal.storage.objectDeletion.enqueue, {
+      keys: [fileKey(1), "", fileKey(1)],
+    });
+    expect((await rows(t)).map((row) => row.keys)).toEqual([[fileKey(1)]]);
+    await expect(
+      t.mutation(internal.storage.objectDeletion.enqueue, {
+        keys: ["not-a-teak-key"],
+      })
+    ).rejects.toThrow("invalid_storage_key_namespace");
+  });
 });
 
 describe("claim", () => {
   test("hands over due rows as dispatch items and marks them sent", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, jobId, "user-1");
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
     });
     const claimed = await t.mutation(internal.workflowDispatch.claim, {});
     const items = claimed.map(
@@ -152,7 +172,7 @@ describe("claim", () => {
   });
 
   test("leaves rows that are not due yet", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) =>
       ctx.db.insert("workflowDispatches", {
         createdAt: NOW,
@@ -169,8 +189,8 @@ describe("claim", () => {
 
 describe("release", () => {
   test("puts rows the Worker refused back to pending with a delay", async () => {
-    const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    const t = newBackend();
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     const [claimed] = await t.mutation(internal.workflowDispatch.claim, {});
     await t.mutation(internal.workflowDispatch.release, {
       error: "queue_failed",
@@ -183,7 +203,7 @@ describe("release", () => {
   });
 
   test("gives up after the last attempt and fails the job it owned", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     const dispatchId = await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, jobId, "user-1");
@@ -205,7 +225,7 @@ describe("release", () => {
   });
 
   test("reports a row it gives up on", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
     const dispatchId = await sentAtMaxAttempts(t);
@@ -219,8 +239,8 @@ describe("release", () => {
   });
 
   test("queues the keys of a deletion it gives up on again after a long wait", async () => {
-    const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
+    const t = newBackend();
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
     const dispatchId = await sentAtMaxAttempts(t);
     await t.mutation(internal.workflowDispatch.release, {
       error: "worker_down",
@@ -243,12 +263,12 @@ describe("release", () => {
 });
 
 describe("complete", () => {
-  const sendAll = async (t: ReturnType<typeof convexTest>) => {
+  const sendAll = async (t: Backend) => {
     await t.mutation(internal.workflowDispatch.claim, {});
   };
 
   test("marks a run done when it reports success", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertImportJob(t, "importing");
     await t.run((ctx) => queueImportWorkflow(ctx, jobId));
     await sendAll(t);
@@ -263,7 +283,7 @@ describe("complete", () => {
   });
 
   test("fails an export that is still running when its run errors", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "running");
     await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
     await sendAll(t);
@@ -280,7 +300,7 @@ describe("complete", () => {
   });
 
   test("leaves an export that already finished alone", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "ready");
     await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
     await sendAll(t);
@@ -293,7 +313,7 @@ describe("complete", () => {
   });
 
   test("fails an import that is still active when its run errors", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertImportJob(t, "importing");
     await t.run((ctx) => queueImportWorkflow(ctx, jobId));
     await sendAll(t);
@@ -307,7 +327,7 @@ describe("complete", () => {
   });
 
   test("deletes the items an import staged in R2 when its run errors", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertImportJob(t, "importing");
     await t.run((ctx) =>
       ctx.db.patch("importJobs", jobId, {
@@ -333,8 +353,35 @@ describe("complete", () => {
     ]);
   });
 
+  test("deletes an import's staged items even when the job can't be finished", async () => {
+    const t = newBackend();
+    const jobId = await insertImportJob(t, "importing");
+    await t.run(async (ctx) => {
+      await ctx.db.patch("importJobs", jobId, {
+        stagedItems: { pages: 1, parts: 1, cursor: null, part: 1, offset: 0 },
+      });
+      // The account is being deleted, so finishing the job refuses.
+      await ctx.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: 0,
+        startedAt: NOW,
+        userId: "user-1",
+      });
+    });
+    await t.run((ctx) => queueImportWorkflow(ctx, jobId));
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: `import-${jobId}`,
+      status: "errored",
+    });
+    const prefix = buildR2UserPrefix("user-1");
+    expect(
+      (await rows(t)).filter((row) => row.kind === "deleteObjects")
+    ).toMatchObject([{ keys: [`${prefix}/imports/${jobId}/staged/1.json`] }]);
+  });
+
   test("starts the next account deletion attempt when a run errors", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stateId = await t.run((ctx) =>
       ctx.db.insert("accountDeletionStates", {
         generation: 1,
@@ -357,7 +404,7 @@ describe("complete", () => {
   });
 
   const insertDeletionState = (
-    t: ReturnType<typeof convexTest>,
+    t: Backend,
     fields: { failureCode?: string } = {}
   ) =>
     t.run((ctx) =>
@@ -370,7 +417,7 @@ describe("complete", () => {
       })
     );
 
-  const failNextDeletionRun = async (t: ReturnType<typeof convexTest>) => {
+  const failNextDeletionRun = async (t: Backend) => {
     const next = (await rows(t)).find((row) => row.state === "pending");
     vi.setSystemTime(next!.notBefore);
     await sendAll(t);
@@ -381,7 +428,7 @@ describe("complete", () => {
   };
 
   test("waits longer after each failed account deletion attempt, up to a cap", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stateId = await insertDeletionState(t);
     await t.run((ctx) =>
       queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
@@ -410,7 +457,7 @@ describe("complete", () => {
   });
 
   test("stops and reports an account deletion only an operator can unblock", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stateId = await insertDeletionState(t, {
       failureCode: "account_deletion_stage_3_storage_source_changed",
     });
@@ -425,7 +472,7 @@ describe("complete", () => {
   });
 
   test("an operator's retry starts the stopped account deletion again", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stateId = await insertDeletionState(t, {
       failureCode: "account_deletion_stage_3_storage_source_changed",
     });
@@ -440,7 +487,7 @@ describe("complete", () => {
   });
 
   test("a run that fails after an operator's retry leaves one attempt going", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const stateId = await insertDeletionState(t);
     await t.run((ctx) =>
       queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
@@ -461,7 +508,7 @@ describe("complete", () => {
   });
 
   test("sends a run again when its hand-over was lost", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
     await sendAll(t);
@@ -476,7 +523,7 @@ describe("complete", () => {
   });
 
   test("ignores a run Convex never dispatched", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.mutation(internal.workflowDispatch.complete, {
       instanceId: "card-cleanup-2026-10-16-abc",
       status: "complete",
@@ -487,7 +534,7 @@ describe("complete", () => {
 
 describe("reconcile helpers", () => {
   test("lists only runs silent for longer than their kind allows", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       for (const [kind, instanceId, sentAgo] of [
         ["export", "export-old", 3 * HOUR_MS],
@@ -511,7 +558,7 @@ describe("reconcile helpers", () => {
   });
 
   const insertSent = (
-    t: ReturnType<typeof convexTest>,
+    t: Backend,
     rowsToInsert: ReadonlyArray<readonly ["export" | "import", string, number]>
   ) =>
     t.run(async (ctx) => {
@@ -528,13 +575,13 @@ describe("reconcile helpers", () => {
       }
     });
 
-  const staleIds = async (t: ReturnType<typeof convexTest>, limit: number) =>
+  const staleIds = async (t: Backend, limit: number) =>
     (await t.query(internal.workflowDispatch.listStale, { limit })).map(
       (row: { instanceId: string }) => row.instanceId
     );
 
   test("runs too young for their kind do not crowd out stale ones", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await insertSent(t, [
       ["import", "import-1", 5 * HOUR_MS],
       ["import", "import-2", 5 * HOUR_MS],
@@ -544,7 +591,7 @@ describe("reconcile helpers", () => {
   });
 
   test("runs the reconcile found still running wait behind unchecked ones", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await insertSent(t, [
       ["export", "export-a", 5 * HOUR_MS],
       ["export", "export-b", 4 * HOUR_MS],
@@ -563,7 +610,7 @@ describe("reconcile helpers", () => {
   });
 
   test("a run sent again is unchecked again", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
     await t.mutation(internal.workflowDispatch.claim, {});
@@ -583,7 +630,7 @@ describe("reconcile helpers", () => {
   });
 
   test("deletes finished rows past retention and settles old deletions", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await ctx.db.insert("workflowDispatches", {
         createdAt: NOW - DISPATCH_RETENTION_MS - HOUR_MS,
@@ -621,18 +668,18 @@ describe("reconcile helpers", () => {
 
 describe("flush", () => {
   test("leaves rows pending when no Core Worker is configured", async () => {
-    const t = convexTest(schema, modules);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    const t = newBackend();
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
   });
 
   test("reports rows it cannot send while no Core Worker is configured", async () => {
     const sentEvents = capturePostHog();
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.action(internal.workflowDispatch.flush, {});
     expect(sentEvents()).toEqual([]);
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect(sentEvents()).toMatchObject([
       {
@@ -684,10 +731,10 @@ describe("flush", () => {
         );
       })
     );
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
       await queueExportWorkflow(ctx, jobId, "user-1");
     });
     await t.action(internal.workflowDispatch.flush, {});
@@ -695,16 +742,17 @@ describe("flush", () => {
     expect(sent[0]?.items.length).toBeLessThanOrEqual(CLAIM_PAGE);
     const params = sent[0];
     expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
-    expect(params?.signature).toBe(
-      (
-        await signDispatch(
-          "deployment-rpc-secret",
-          "https://session-tests.convex.site",
-          params?.items ?? [],
-          (Number(params?.expiresAt) - 120) * 1000
-        )
-      ).signature
-    );
+    expect(
+      await verifyDispatchProof(
+        "deployment-rpc-secret",
+        "https://session-tests.convex.site",
+        {
+          expiresAt: params?.expiresAt,
+          items: params?.items,
+          signature: params?.signature,
+        }
+      )
+    ).toBe(true);
     const states = Object.fromEntries(
       (await rows(t)).map((row) => [row.kind, row.state])
     );
@@ -742,7 +790,7 @@ describe("flush", () => {
         );
       })
     );
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const total = CLAIM_PAGE * 2 + 1;
     for (let i = 0; i < total; i += 1) {
       await insertExportJob(t, "pending");
@@ -779,7 +827,7 @@ describe("claim retry", () => {
 });
 
 describe("flush scheduling", () => {
-  const flushes = async (t: ReturnType<typeof convexTest>) =>
+  const flushes = async (t: Backend) =>
     (await scheduledJobs(t)).filter(
       (job) => job.name === "workflowDispatch:flush"
     ).length;
@@ -788,29 +836,29 @@ describe("flush scheduling", () => {
     // Regression: coalescing saves onto one flush read the due range every
     // concurrent save writes into, so parallel saves conflicted until one
     // ran out of OCC retries and the request failed with a 503.
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await insertExportJob(t, "pending");
     const second = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
     await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(1)]));
     expect(await flushes(t)).toBe(3);
   });
 
   test("saves inside one mutation share one flush", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await insertExportJob(t, "pending");
     const second = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, first, "user-1");
       await queueExportWorkflow(ctx, second, "user-1");
-      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+      await queueObjectDeletion(ctx, [fileKey(1)]);
     });
     expect(await flushes(t)).toBe(1);
   });
 
   test("a save after the last flush claimed everything gets its own flush", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await insertExportJob(t, "pending");
     const second = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
@@ -822,7 +870,7 @@ describe("flush scheduling", () => {
   test("a save's flush starts inside the jitter window", async () => {
     // Parallel saves each schedule a flush; jitter spreads their claim calls
     // out so claims stop conflicting with each other on the due range.
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
     const [job] = (await scheduledJobs(t)).filter(
@@ -834,7 +882,7 @@ describe("flush scheduling", () => {
   });
 
   test("a row left waiting does not hold back the next save", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) =>
       ctx.db.insert("workflowDispatches", {
         createdAt: NOW - HOUR_MS,
@@ -845,7 +893,7 @@ describe("flush scheduling", () => {
         state: "pending",
       })
     );
-    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(2)]));
+    await t.run((ctx) => queueObjectDeletion(ctx, [fileKey(2)]));
     expect(await flushes(t)).toBe(1);
   });
 
@@ -853,7 +901,7 @@ describe("flush scheduling", () => {
     vi.stubEnv("FILES_BASE", "https://files.test");
     vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
     vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const first = await insertExportJob(t, "pending");
     const second = await insertExportJob(t, "pending");
     let calls = 0;
@@ -884,7 +932,7 @@ describe("flush scheduling", () => {
 });
 
 describe("dispatch health", () => {
-  const seed = (t: ReturnType<typeof convexTest>) =>
+  const seed = (t: Backend) =>
     t.run(async (ctx) => {
       const base = { key: "k", kind: "export" as const };
       await ctx.db.insert("workflowDispatches", {
@@ -929,7 +977,7 @@ describe("dispatch health", () => {
     });
 
   test("counts rows by state with the oldest of each", async () => {
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await seed(t);
     expect(await t.query(internal.workflowDispatch.dispatchHealth, {})).toEqual(
       {
@@ -954,7 +1002,7 @@ describe("dispatch health", () => {
 
   test("the watchdog reports rows the Worker stopped taking or checking", async () => {
     const sentEvents = capturePostHog();
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.action(internal.telemetry.crons.workflowDispatchWatchdog, {});
     expect(sentEvents()).toEqual([]);
     await seed(t);
@@ -986,7 +1034,7 @@ describe("analytics events", () => {
     vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
   };
 
-  const scheduledNames = (t: ReturnType<typeof convexTest>) =>
+  const scheduledNames = (t: Backend) =>
     t.run(async (ctx) =>
       (await ctx.db.system.query("_scheduled_functions").collect()).map(
         (job) => job.name
@@ -995,7 +1043,7 @@ describe("analytics events", () => {
 
   test("queues nothing while PostHog capture is off", async () => {
     workerConfigured();
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run((ctx) => queueUserCreated(ctx, signUp));
     expect(await rows(t)).toEqual([]);
     expect(await scheduledNames(t)).toEqual([]);
@@ -1004,7 +1052,7 @@ describe("analytics events", () => {
   test("rides the flush the same change already scheduled", async () => {
     workerConfigured();
     vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, jobId, "user-1");
@@ -1028,7 +1076,7 @@ describe("analytics events", () => {
     workerConfigured();
     vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
     vi.stubEnv("CONVEX_GIT_COMMIT_SHA", "abc123def4567890");
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     await t.run(async (ctx) => {
       await queueUserCreated(ctx, signUp);
       await queueCardProcessingFailed(ctx, {
@@ -1083,7 +1131,7 @@ describe("analytics events", () => {
         return Promise.reject(new Error("worker_down"));
       })
     );
-    const t = convexTest(schema, modules);
+    const t = newBackend();
     const jobId = await insertExportJob(t, "pending");
     await t.run(async (ctx) => {
       await queueExportWorkflow(ctx, jobId, "user-1");

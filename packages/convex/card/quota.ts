@@ -1,31 +1,24 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
-import { polar } from "../billing";
-import { readBillingDisabled } from "../env";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
+import { readCardEntitlement, type SubscriptionLookup } from "../billing/polar";
+import { rateLimiter } from "../rateLimiter";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
-import { isApprovedActiveSubscription } from "../shared/polarPlans";
-import { rateLimiter } from "../shared/rateLimits";
 import { ensureCardUsageShards, getCardUsageSnapshot } from "./cardUsage";
 
 export interface CardQuotaDeps {
-  getSubscription: (
-    ctx: MutationCtx,
-    args: { userId: string }
-  ) => Promise<{ productId?: string; status?: string } | null | undefined>;
+  getSubscription?: SubscriptionLookup;
 }
 
 interface CardCreationDeps extends CardQuotaDeps {
   rateLimiter: Pick<typeof rateLimiter, "limit">;
 }
 
-const defaultQuotaDeps: CardQuotaDeps = {
-  getSubscription: (ctx, args) => polar.getCurrentSubscription(ctx, args),
-};
+const defaultQuotaDeps: CardQuotaDeps = {};
 
 const defaultCardCreationDeps: CardCreationDeps = {
   ...defaultQuotaDeps,
@@ -88,18 +81,7 @@ export const getCardQuotaEntitlement = async (
   deps: CardQuotaDeps = defaultQuotaDeps
 ) => {
   await assertAccountNotDeleting(ctx, userId);
-  if (readBillingDisabled()) {
-    return true;
-  }
-  let hasPremium = false;
-  try {
-    hasPremium = isApprovedActiveSubscription(
-      await deps.getSubscription(ctx, { userId })
-    );
-  } catch {
-    hasPremium = false;
-  }
-  return hasPremium;
+  return await readCardEntitlement(ctx, userId, deps.getSubscription);
 };
 
 export const authorizeCardCreation = async (

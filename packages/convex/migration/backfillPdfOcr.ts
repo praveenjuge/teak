@@ -1,8 +1,4 @@
-import {
-  FILES_UPLOAD_MAX_BYTES,
-  type FilesInspectResult,
-  isScannedPdf,
-} from "@teak/files-protocol";
+import { FILES_UPLOAD_MAX_BYTES, isScannedPdf } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -11,11 +7,11 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { patchCard } from "../card/cardWrites";
+import { queueCardProcessing } from "../card/processingRuns";
 import { inferFileFormat } from "../shared/fileFormats";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
-import { queueCardProcessing } from "../workflowDispatch";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import {
   ocrBackfillArgs,
   ocrBackfillReturns,
@@ -104,7 +100,7 @@ export const finishPdfOcrCheck = internalMutation({
         await queueCardProcessing(ctx, cardId, { metadataOnly: true })
       );
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       ocrCheckedAt: Date.now(),
     });
   },
@@ -134,7 +130,7 @@ export const backfillPdfOcrCard = internalAction({
     }
     let scanned: boolean;
     try {
-      const outcome = await callFilesWorkerJson<FilesInspectResult>({
+      const outcome = await callCoreWorkerOp({
         op: "inspect",
         params: {
           formatId: "pdf",

@@ -114,25 +114,12 @@ export const addCard = async (
         "--source-url and --source-title are for text and links, not files"
       );
     }
-    const { fileName, fileSize, mimeType } = uploadFile;
-    const upload = await api.uploads.create({
-      fileName,
-      fileSize,
-      mimeType,
-    });
-    const uploaded = await api.uploads.putFile(
-      upload.uploadUrl,
-      readFileSync(candidate),
-      mimeType
-    );
-    return api.cards.create(
+    return api.cards.createFromFile(
       {
+        bytes: readFileSync(candidate),
         cardType,
-        fileKey: upload.fileKey,
-        fileEtag: uploaded.fileEtag,
-        fileName,
-        fileSize,
-        mimeType,
+        fileName: uploadFile.fileName,
+        mimeType: uploadFile.mimeType,
         notes: options.notes,
         source: "cli",
         tags,

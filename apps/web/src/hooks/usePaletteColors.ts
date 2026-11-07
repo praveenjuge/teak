@@ -1,16 +1,14 @@
-import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   normalizeHexColor,
   paletteColorFromHex,
 } from "@teak/convex/shared/utils/colorUtils";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
-import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
-import { editPaletteColors, type PaletteField } from "./paletteColors";
+import type { PaletteField } from "../lib/paletteColors";
+import { useUpdateCardField } from "./useCardMutations";
 
 export interface PaletteColorsControl {
   addColor: (hex: string) => Promise<boolean>;
@@ -22,20 +20,7 @@ export function usePaletteColors(
 ): PaletteColorsControl {
   const t = useTranslations("cardPreviews.palette");
   const tc = useTranslations("common");
-  const updateCardField = useMutation(
-    api.cards.updateCardField
-  ).withOptimisticUpdate((localStore, args) => {
-    const hex = typeof args.value === "string" ? args.value : "";
-    if (!(args.field === "addColor" || args.field === "removeColor")) {
-      return;
-    }
-    const field = args.field;
-    updateCardInSearchQueries(localStore, args.cardId, (card) => ({
-      ...card,
-      colors: editPaletteColors(card.colors, field, hex),
-      updatedAt: Date.now(),
-    }));
-  });
+  const updateCardField = useUpdateCardField();
 
   const write = useCallback(
     async (field: PaletteField, value: string) => {

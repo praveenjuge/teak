@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
 import { isFrameworkAlias } from "./env-aliases.ts";
@@ -79,10 +79,16 @@ const SKIP_DIRS = new Set([
   ".state",
   ".tmp",
   ".convex",
+  ".wrangler",
+  ".gradle",
+  ".wxt",
+  ".blume",
+  ".idea",
   "_generated",
-  "ios",
-  "android",
 ]);
+
+// Other checkouts inside this one (Claude Code worktrees).
+const SKIP_PATHS = new Set([".claude/worktrees"]);
 
 const META_FILES = new Set([
   "scripts/env/env-contract.ts",
@@ -95,7 +101,15 @@ const DOC_EXTENSIONS = new Set([".md", ".mdx", ".txt"]);
 
 export const listScannedFiles = (root: string): string[] => {
   const out: string[] = [];
+  // statSync follows symlinks (the skills links under .claude), so remember
+  // each real directory to stop a link that points back up from looping.
+  const seen = new Set<string>();
   const walk = (dir: string): void => {
+    const real = realpathSync(dir);
+    if (seen.has(real)) {
+      return;
+    }
+    seen.add(real);
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       const rel = relative(root, full);
@@ -104,9 +118,7 @@ export const listScannedFiles = (root: string): string[] => {
       }
       const stat = statSync(full);
       if (stat.isDirectory()) {
-        if (!(SKIP_DIRS.has(entry) || entry.startsWith("."))) {
-          walk(full);
-        } else if (entry === ".github") {
+        if (!(SKIP_DIRS.has(entry) || SKIP_PATHS.has(rel))) {
           walk(full);
         }
         continue;
@@ -268,6 +280,9 @@ export interface TurboDecl {
   path: string;
 }
 
+export const isTurboConfig = (path: string): boolean =>
+  /(?:^|\/)turbo\.jsonc?$/.test(path);
+
 export const extractTurboDecls = (
   content: string,
   path: string
@@ -278,9 +293,13 @@ export const extractTurboDecls = (
     tasks?: Record<string, { env?: string[]; passThroughEnv?: string[] }>;
   };
   try {
-    parsed = JSON.parse(content);
-  } catch {
-    return [];
+    // Turbo reads comments and trailing commas in both turbo.json and
+    // turbo.jsonc. A file it can't parse would hide its env declarations.
+    parsed = Bun.JSONC.parse(content) as typeof parsed;
+  } catch (error) {
+    throw new Error(
+      `Could not parse ${path}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
   const decls: TurboDecl[] = [];
   for (const name of parsed.globalEnv ?? []) {
@@ -300,11 +319,69 @@ export const extractTurboDecls = (
   return decls;
 };
 
+/** Where the `[` or `{` of the first `"key": [` or `"key": {` starts, or -1. */
+const wranglerValueStart = (content: string, key: string): number => {
+  const quoted = `"${key}"`;
+  for (
+    let at = content.indexOf(quoted);
+    at !== -1;
+    at = content.indexOf(quoted, at + 1)
+  ) {
+    let index = at + quoted.length;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] !== ":") {
+      continue;
+    }
+    index += 1;
+    while (/\s/u.test(content[index] ?? "")) {
+      index += 1;
+    }
+    if (content[index] === "[" || content[index] === "{") {
+      return index;
+    }
+  }
+  return -1;
+};
+
+/** The `[...]` or `{...}` value of the first `"key":` in a Wrangler config. */
+const wranglerBlock = (content: string, key: string): string => {
+  const open = wranglerValueStart(content, key);
+  if (open === -1) {
+    return "";
+  }
+  let depth = 0;
+  for (let index = open; index < content.length; index += 1) {
+    const char = content[index];
+    if (char === "[" || char === "{") {
+      depth += 1;
+    } else if (char === "]" || char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return content.slice(open, index + 1);
+      }
+    }
+  }
+  return "";
+};
+
+const BINDING_NAME = /"name"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
+
 export const extractWranglerDecls = (content: string): string[] => {
   const names: string[] = [];
   const bindingRe = /"binding"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
   for (const match of content.matchAll(bindingRe)) {
     names.push(match[1]);
+  }
+  // Durable Object and rate limit bindings are named by "name".
+  for (const block of [
+    wranglerBlock(wranglerBlock(content, "durable_objects"), "bindings"),
+    wranglerBlock(content, "ratelimits"),
+  ]) {
+    for (const match of block.matchAll(BINDING_NAME)) {
+      names.push(match[1]);
+    }
   }
   const varsMatch = /"vars"\s*:\s*\{([^}]*)\}/.exec(content);
   if (varsMatch) {
@@ -394,7 +471,7 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
     if (DOC_EXTENSIONS.has(ext)) {
       continue;
     }
-    if (path.endsWith("turbo.json")) {
+    if (isTurboConfig(path)) {
       for (const decl of extractTurboDecls(content, path)) {
         if (decl.name.includes("*")) {
           findings.push({

@@ -1,6 +1,6 @@
 {
   "name": "@teak/core-worker",
-  "version": "1.0.92",
+  "version": "1.0.93",
   "private": true,
   "scripts": {
     "cf-typegen": "wrangler types",
@@ -36,7 +36,6 @@
     "@types/turndown": "^5.0.6",
     "jose": "catalog:",
     "probe-image-size": "7.4.0",
-    "undici": "^7.30.1",
     "wrangler": "catalog:"
   }
 }

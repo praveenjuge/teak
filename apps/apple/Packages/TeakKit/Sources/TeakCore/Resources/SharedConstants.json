@@ -19,13 +19,37 @@
     "palette": "Palette",
     "quote": "Quote"
   },
+  "cardTypeAliases": {
+    "bookmark": "link",
+    "clip": "video",
+    "color": "palette",
+    "colour": "palette",
+    "doc": "document",
+    "memo": "audio",
+    "movie": "video",
+    "note": "text",
+    "pdf": "document",
+    "photo": "image",
+    "pic": "image",
+    "picture": "image",
+    "recording": "audio",
+    "url": "link",
+    "voice": "audio",
+    "website": "link"
+  },
   "limits": {
     "freeTierCards": 200,
     "maxFileSize": 104857600,
     "maxFilesPerUpload": 20,
     "maxFileNameLength": 240,
     "markdownContentMaxBytes": 524288,
-    "maxTagNameLength": 64
+    "maxTagNameLength": 64,
+    "maxTagKeyLength": 256,
+    "maxBulkCardIds": 100,
+    "maxBulkTags": 20,
+    "cardLinkTitleMaxLength": 200,
+    "maxCardLinks": 500,
+    "semanticQueryMaxChars": 500
   },
   "messages": {
     "signupsPaused": "New sign-ups are paused right now. Please try again later."
@@ -110,6 +134,19 @@
     "product",
     "recipe",
     "tv"
+  ],
+  "bulkCardActions": [
+    "favorite",
+    "unfavorite",
+    "archive",
+    "unarchive",
+    "addTags",
+    "removeTags",
+    "delete",
+    "restore",
+    "addToFolder",
+    "removeFromFolder",
+    "moveToFolder"
   ],
   "visualStyles": [
     "abstract",
@@ -265,12 +302,67 @@
     "violet": "purple",
     "yellow": "yellow"
   },
+  "colorHueSwatches": {
+    "red": "#EF4444",
+    "orange": "#F97316",
+    "yellow": "#EAB308",
+    "green": "#22C55E",
+    "teal": "#14B8A6",
+    "cyan": "#06B6D4",
+    "blue": "#3B82F6",
+    "purple": "#A855F7",
+    "pink": "#EC4899",
+    "brown": "#92400E",
+    "neutral": "#737373"
+  },
   "genericMimeTypes": [
     "",
     "application/binary",
     "application/octet-stream",
     "binary/octet-stream"
   ],
+  "cardLinkTokenPattern": "\\[\\[([^\\]|\\n]{0,200})\\|teak:([a-z0-9]{16,64})\\]\\]",
+  "searchQualifierKeys": [
+    "tag",
+    "type",
+    "is",
+    "site",
+    "folder",
+    "like",
+    "mood",
+    "price",
+    "text"
+  ],
+  "searchIsWords": {
+    "fav": [
+      "fav",
+      "favs",
+      "favorite",
+      "favorites",
+      "favourite",
+      "favourites",
+      "starred"
+    ],
+    "archived": [
+      "archived",
+      "archive"
+    ],
+    "done": [
+      "done",
+      "completed",
+      "finished"
+    ],
+    "todo": [
+      "todo",
+      "to-do"
+    ],
+    "pinned": [
+      "pinned",
+      "pin",
+      "pins"
+    ]
+  },
+  "searchTokenTrimCharacters": ",.;:!?()[]{}\"'",
   "searchSuggestionHints": {
     "qualifiers": [
       {

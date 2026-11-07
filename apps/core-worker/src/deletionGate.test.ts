@@ -2,6 +2,7 @@ import { describe, expect, setSystemTime, test } from "bun:test";
 import {
   freezeObject,
   gatedBucket,
+  gatedEnv,
   ObjectDeletionGate,
   objectIsFrozen,
   WRITE_LEASE_MS,
@@ -572,5 +573,21 @@ describe("gate calls while Cloudflare restarts the object", () => {
       );
       expect(gates.calls()).toBe(1);
     }
+  });
+});
+
+describe("gatedEnv", () => {
+  test("gates an env's bucket once, however often it is called", async () => {
+    const bucket = new FakeBucket();
+    const env = withObjectGates({ BUCKET: bucket as unknown as R2Bucket });
+    const gated = gatedEnv(env);
+    expect(gated.BUCKET).not.toBe(env.BUCKET);
+    expect(gatedEnv(gated)).toBe(gated);
+
+    expect(await freezeObject(env, "users/u1/a.txt")).toBe(true);
+    await expect(gated.BUCKET.put("users/u1/a.txt", "late")).rejects.toThrow(
+      "Object writes are blocked"
+    );
+    expect(bucket.objects.has("users/u1/a.txt")).toBe(false);
   });
 });

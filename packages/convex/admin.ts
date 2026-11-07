@@ -11,6 +11,11 @@ import {
   query,
 } from "./_generated/server";
 import {
+  activationWindowEnded,
+  isActivated,
+  savedCardsFirstWeek,
+} from "./admin/activation";
+import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
@@ -34,17 +39,17 @@ import {
   writeAdminSettings,
   writeAudit,
 } from "./adminAccess";
-import { readHasPremium } from "./auth";
+import { readHasPremium } from "./billing/polar";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
-import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
+import { patchCard } from "./card/cardWrites";
+import { isOnboardingCard } from "./card/defaultCards";
+import { queueCardProcessing } from "./card/processingRuns";
 import { stagePending } from "./card/processingStatus";
-import { patchCardWithSearchSync } from "./card/searchSync";
 import { clearCardTranscript } from "./card/textContents";
-import { adminOverviewFields } from "./schema";
+import { adminOverviewFields } from "./schema/validators/admin";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
-import { queueObjectDeletion } from "./storage/r2";
-import { queueCardProcessing } from "./workflowDispatch";
+import { queueObjectDeletion } from "./storage/objectDeletion";
 
 // Before the Core Worker has stored an overview, `getOverview` counts at
 // most this many cards itself.
@@ -412,23 +417,15 @@ export const activityUsersPage = internalQuery({
 
 export const countActivatedUsers = internalQuery({
   args: {
+    now: v.number(),
     users: v.array(v.object({ teakUserId: v.string(), createdAt: v.number() })),
   },
-  handler: async (ctx, { users }): Promise<number> => {
-    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
+  handler: async (ctx, { now, users }): Promise<number> => {
     let activated = 0;
     for (const user of users) {
-      const firstWeek = await ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .gte("createdAt", user.createdAt)
-            .lt("createdAt", user.createdAt + windowMs)
-        )
-        .take(ACTIVATION_CARD_THRESHOLD + ONBOARDING_CARDS.length);
-      const saved = firstWeek.filter((card) => !isOnboardingCard(card));
-      if (saved.length >= ACTIVATION_CARD_THRESHOLD) {
+      if (
+        isActivated(user.createdAt, await savedCardsFirstWeek(ctx, user), now)
+      ) {
         activated += 1;
       }
     }
@@ -472,9 +469,8 @@ export const getActivity = action({
         ctx.runQuery(internal.admin.activityUsersPage, { since, cursor })
     );
 
-    const windowMs = ACTIVATION_WINDOW_DAYS * DAY_MS;
     const eligible = users.rows.filter(
-      (user) => !user.deleted && user.createdAt <= now - windowMs
+      (user) => !user.deleted && activationWindowEnded(user.createdAt, now)
     );
     const cohort = eligible.slice(0, ACTIVATION_COHORT_LIMIT);
     let activated = 0;
@@ -484,7 +480,7 @@ export const getActivity = action({
         .map(({ teakUserId, createdAt }) => ({ teakUserId, createdAt }));
       const count: number = await ctx.runQuery(
         internal.admin.countActivatedUsers,
-        { users: batch }
+        { now, users: batch }
       );
       activated += count;
     }
@@ -597,28 +593,10 @@ export const resetCardProcessingState = internalMutation({
       throw new Error(`Card ${cardId} not found`);
     }
 
-    let clearedThumbnail = false;
-    if (card.thumbnailKey) {
-      try {
-        await queueObjectDeletion(ctx, card.thumbnailKey);
-      } catch (error) {
-        console.error("[admin] Failed to delete thumbnail during refresh", {
-          cardId,
-          thumbnailKey: card.thumbnailKey,
-          error,
-        });
-      }
-      clearedThumbnail = true;
-    }
-    if (card.scrubKey) {
-      try {
-        await queueObjectDeletion(ctx, card.scrubKey);
-      } catch (error) {
-        console.error("[admin] Failed to delete scrub sprite during refresh", {
-          cardId,
-          scrubKey: card.scrubKey,
-          error,
-        });
+    const clearedThumbnail = Boolean(card.thumbnailKey);
+    for (const key of [card.thumbnailKey, card.scrubKey]) {
+      if (key) {
+        await queueObjectDeletion(ctx, key);
       }
     }
     const { scrub: _scrub, ...fileMetadata } = card.fileMetadata ?? {};
@@ -629,7 +607,7 @@ export const resetCardProcessingState = internalMutation({
       classify: stagePending(),
     };
 
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       thumbnailKey: undefined,
       scrubKey: undefined,
       ...(card.fileMetadata ? { fileMetadata } : {}),

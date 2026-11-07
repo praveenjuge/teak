@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from "react";
+import { cardDialogStage } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
 
 type Stage = "media" | "reading" | "note" | "compact";
@@ -24,19 +25,11 @@ export function isShortNote(card?: FramedCard | null): boolean {
 }
 
 function stageFor(card?: FramedCard | null, shortNote?: boolean): Stage {
-  const type = card?.type;
-  if (
-    type === "image" ||
-    type === "video" ||
-    type === "document" ||
-    type === "link"
-  ) {
-    return "media";
-  }
-  if (type === "text") {
+  const stage = cardDialogStage(card?.type);
+  if (stage === "text") {
     return (shortNote ?? isShortNote(card)) ? "note" : "reading";
   }
-  return "compact";
+  return stage;
 }
 
 /**
@@ -105,3 +98,20 @@ export const CARD_MODAL_SURFACE_CLASS =
 
 export const CARD_MODAL_OVERLAY_CLASS =
   "data-[state=open]:duration-150 data-[state=closed]:!animate-none";
+
+/**
+ * The dialog's `transform-origin` as it opens from a card at `origin`, kept
+ * on screen for a card scrolled partly out of view.
+ */
+export function openOriginStyle(
+  origin: { x: number; y: number } | undefined,
+  viewport: { height: number; width: number }
+): string | undefined {
+  if (!origin || viewport.width <= 0 || viewport.height <= 0) {
+    return;
+  }
+  const clamp = (value: number) => Math.min(100, Math.max(0, value));
+  const x = clamp((origin.x / viewport.width) * 100);
+  const y = clamp((origin.y / viewport.height) * 100);
+  return `${x.toFixed(1)}% ${y.toFixed(1)}%`;
+}

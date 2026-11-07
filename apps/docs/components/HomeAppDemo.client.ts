@@ -254,8 +254,18 @@ export function mountHomeAppDemo(root: HTMLElement) {
       "demo-heart absolute top-3 right-3 z-10 text-destructive"
     );
     heart.append(icon("heart"));
-    const body = el("span", "block rounded-2xl border bg-card p-4");
-    body.append(el("span", "line-clamp-2 font-medium", content));
+    // The same tile as a server-rendered note (HomeAppDemo.astro).
+    const body = el(
+      "span",
+      "relative flex aspect-[4/3] w-full flex-col overflow-hidden rounded-2xl border bg-card p-4"
+    );
+    body.append(
+      el(
+        "span",
+        "min-h-0 flex-1 overflow-hidden text-[13.5px] leading-relaxed font-medium [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]",
+        content
+      )
+    );
     button.append(heart, body);
     item.append(button);
     noteItem.after(item);

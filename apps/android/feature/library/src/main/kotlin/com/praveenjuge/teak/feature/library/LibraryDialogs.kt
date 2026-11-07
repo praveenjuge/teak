@@ -31,30 +31,15 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
+import com.praveenjuge.teak.core.model.BulkTags
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.Folder
-import com.praveenjuge.teak.core.model.MAX_BULK_TAGS
-import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.UiText
-
-/** Tags typed as "design, inspiration", or why they can't be added. */
-internal data class BulkTags(val tags: List<String>, val error: UiText? = null) {
-    val canAdd: Boolean get() = error == null && tags.isNotEmpty()
-}
-
-internal fun parseBulkTags(text: String): BulkTags {
-    val tags = text.split(',').map(CardEdit::normalizeTag).filter(String::isNotEmpty).distinct()
-    return when {
-        tags.any { it.length > MAX_TAG_NAME_LENGTH } -> BulkTags(tags, UiText.of("errors.tags.NAME_TOO_LONG", MAX_TAG_NAME_LENGTH))
-        tags.size > MAX_BULK_TAGS -> BulkTags(tags, UiText.of("native.bulk.tooManyTags", MAX_BULK_TAGS))
-        else -> BulkTags(tags)
-    }
-}
 
 @Composable
 internal fun AddTagsDialog(count: Int, onAdd: (List<String>) -> Unit, onDismiss: () -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
-    val parsed = parseBulkTags(text)
+    val parsed = BulkTags.parse(text)
     val error = parsed.error?.resolve()
     val submit = { if (parsed.canAdd) onAdd(parsed.tags) }
     AlertDialog(

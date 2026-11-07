@@ -1,3 +1,4 @@
+import { LOCAL_STACK } from "@teak/scripts/dev/local-stack/config";
 import { apiFetch } from "../helpers/api";
 import { clientFor, createAccount, gotoApp } from "../helpers/app";
 import {
@@ -7,7 +8,6 @@ import {
   type Surface,
   test,
 } from "../helpers/test";
-import { LOCAL_STACK } from "../stack/config";
 import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
 const enterSearch = async (screen: Screen, query: string) => {

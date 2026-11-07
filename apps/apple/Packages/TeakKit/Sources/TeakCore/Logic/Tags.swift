@@ -100,7 +100,7 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
     case favorite, unfavorite, archive, unarchive, addTags, removeTags, delete, restore, addToFolder
 
     /// The backend takes at most this many cards per call.
-    public static let chunkSize = 100
+    public static let chunkSize: Int = SharedConstants.shared.limits.maxBulkCardIds
 
     public static func cards(_ count: Int) -> String { tr("native.common.cardCount", count: count) }
 
@@ -155,6 +155,29 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
 
     public static func chunks(_ ids: [String]) -> [[String]] {
         stride(from: 0, to: ids.count, by: chunkSize).map { Array(ids[$0..<min($0 + chunkSize, ids.count)]) }
+    }
+}
+
+/// Tags typed for many cards at once ("design, inspiration"), or why they
+/// can't be added: `cards:bulkUpdateCards` takes at most `maxBulkTags`.
+/// Android's `BulkTags` reads the same fixture rows.
+public struct BulkTags: Hashable, Sendable {
+    public let tags: [String]
+    public let error: String?
+
+    public var canAdd: Bool { error == nil && !tags.isEmpty }
+
+    public static var maxTags: Int { SharedConstants.shared.limits.maxBulkTags }
+
+    public static func parse(_ text: String) -> BulkTags {
+        let tags = CardEdit.adding(text, to: [])
+        if tags.contains(where: { $0.utf16.count > TagOperations.maxNameLength }) {
+            return BulkTags(tags: tags, error: TagOperations.message("NAME_TOO_LONG"))
+        }
+        if tags.count > maxTags {
+            return BulkTags(tags: tags, error: tr("native.bulk.tooManyTags", String(maxTags)))
+        }
+        return BulkTags(tags: tags, error: nil)
     }
 }
 

@@ -14,7 +14,7 @@ mock.module("convex/react", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { GridVideoPreview, scrubFrameIndex } = await import(
+const { GridVideoPreview, scrubFrameIndex, scrubSpriteStyle } = await import(
   "../GridVideoPreview"
 );
 
@@ -123,13 +123,13 @@ describe("GridVideoPreview scrubbing", () => {
     const first = sprite(container);
     expect(first).not.toBeNull();
     expect(first?.style.width).toBe("1000%");
-    expect(first?.style.transform).toBe("translateX(-0%)");
+    expect(first?.style.left).toBe("0%");
 
     await pointer(surface, "pointermove", "mouse", 200);
-    expect(sprite(container)?.style.transform).toBe("translateX(-50%)");
+    expect(sprite(container)?.style.left).toBe("-500%");
 
     await pointer(surface, "pointermove", "mouse", 299);
-    expect(sprite(container)?.style.transform).toBe("translateX(-90%)");
+    expect(sprite(container)?.style.left).toBe("-900%");
   });
 
   test("leaving resets to the first frame and hides the sprite", async () => {
@@ -145,7 +145,7 @@ describe("GridVideoPreview scrubbing", () => {
     await pointer(surface, "pointerout", "mouse");
 
     expect(sprite(container)?.className).toContain("opacity-0");
-    expect(sprite(container)?.style.transform).toBe("translateX(-0%)");
+    expect(sprite(container)?.style.left).toBe("0%");
   });
 
   test("falls back to hover video without scrub data", async () => {
@@ -157,5 +157,24 @@ describe("GridVideoPreview scrubbing", () => {
     await pointer(surface, "pointerover", "mouse");
 
     expect(sprite(container)).toBeNull();
+  });
+
+  test("crops a frame of another shape than the tile around its center", () => {
+    const portrait = { frames: 4, frameHeight: 160, frameWidth: 90 };
+    expect(scrubSpriteStyle(0, portrait, 3 / 4)).toEqual({
+      height: "133.3333%",
+      left: "0%",
+      top: "-16.6667%",
+      width: "400%",
+    });
+    expect(scrubSpriteStyle(2, portrait, 3 / 4).left).toBe("-200%");
+
+    const panorama = { frames: 4, frameHeight: 100, frameWidth: 300 };
+    expect(scrubSpriteStyle(1, panorama, 16 / 9)).toEqual({
+      height: "100%",
+      left: "-203.125%",
+      top: "0%",
+      width: "675%",
+    });
   });
 });

@@ -4,11 +4,6 @@ import {
   type LinkCategoryMetadata,
 } from "@teak/convex/shared";
 import {
-  fetchRemoteDetails,
-  type RemoteDetails,
-  remoteSourceFor,
-} from "@teak/convex/workflows/steps/categorization/remote/index";
-import {
   applyLinkCategoryDecision,
   type CategorizationContextCard,
   type CategoryClassificationResult,
@@ -21,7 +16,7 @@ import {
   readLinkCategoryReply,
   remoteLookupInput,
   type StructuredDataResult,
-} from "@teak/convex/workflows/steps/categorization/rules";
+} from "@teak/convex/shared/linkCategory/rules";
 import {
   type CardJob,
   guardOf,
@@ -36,6 +31,11 @@ import {
   storeLinkPreviewImage,
 } from "./linkMetadata";
 import { archiveRawMetadata, hydrateArchivedMetadata } from "./rawMetadata";
+import {
+  fetchRemoteDetails,
+  type RemoteDetails,
+  remoteSourceFor,
+} from "./remote/index";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;

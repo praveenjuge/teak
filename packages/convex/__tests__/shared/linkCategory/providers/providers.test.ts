@@ -1,0 +1,887 @@
+import { describe, expect, it } from "bun:test";
+import { enrichAmazon } from "../../../../shared/linkCategory/providers/amazon";
+import type { RawSelectorMap } from "../../../../shared/linkCategory/providers/common";
+import {
+  formatCountString,
+  formatDate,
+  formatRating,
+  getRawAttribute,
+  getRawText,
+  normalizeWhitespace,
+} from "../../../../shared/linkCategory/providers/common";
+import { enrichDribbble } from "../../../../shared/linkCategory/providers/dribbble";
+import { enrichGithub } from "../../../../shared/linkCategory/providers/github";
+import { enrichGoodreads } from "../../../../shared/linkCategory/providers/goodreads";
+import { enrichImdb } from "../../../../shared/linkCategory/providers/imdb";
+import { enrichProvider } from "../../../../shared/linkCategory/providers/index";
+import {
+  enrichYoutube,
+  formatVideoLength,
+} from "../../../../shared/linkCategory/providers/youtube";
+
+const createMap = (
+  entries: [
+    string,
+    { text?: string; attributes?: Array<{ name?: string; value?: string }> },
+  ][]
+): RawSelectorMap => new Map(entries);
+
+describe("enrichAmazon", () => {
+  it("should return null when no data found", () => {
+    const map = createMap([]);
+    expect(enrichAmazon(map)).toBeNull();
+  });
+
+  it("should extract price from #priceblock_ourprice", () => {
+    const map = createMap([["#priceblock_ourprice", { text: "$19.99" }]]);
+    const result = enrichAmazon(map);
+
+    expect(result).not.toBeNull();
+    expect(result?.facts).toHaveLength(1);
+    expect(result?.facts?.[0]).toEqual({ label: "Price", value: "$19.99" });
+    expect(result?.raw?.price).toBe("$19.99");
+  });
+
+  it("should extract price from #priceblock_dealprice", () => {
+    const map = createMap([["#priceblock_dealprice", { text: "$14.99" }]]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$14.99");
+  });
+
+  it("should extract price from .a-price .a-offscreen", () => {
+    const map = createMap([[".a-price .a-offscreen", { text: "$29.99" }]]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$29.99");
+  });
+
+  it("should extract price from meta[name='price']", () => {
+    const map = createMap([
+      [
+        "meta[name='price']",
+        { attributes: [{ name: "content", value: "$39.99" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$39.99");
+  });
+
+  it("should extract price from meta[property='og:price:amount']", () => {
+    const map = createMap([
+      [
+        "meta[property='og:price:amount']",
+        { attributes: [{ name: "content", value: "49.99" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("49.99");
+  });
+
+  it("should combine price and currency", () => {
+    const map = createMap([
+      ["#priceblock_ourprice", { text: "19.99" }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("19.99 USD");
+  });
+
+  it("should handle price with currency", () => {
+    const map = createMap([
+      ["#priceblock_ourprice", { text: "$19.99" }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$19.99 USD");
+  });
+
+  it("should handle currency only", () => {
+    const map = createMap([
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "EUR" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("EUR");
+  });
+
+  it("should trim whitespace from price", () => {
+    const map = createMap([["#priceblock_ourprice", { text: "  $19.99  " }]]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$19.99");
+  });
+
+  it("should prioritize price sources in order", () => {
+    const map = createMap([
+      ["#priceblock_ourprice", { text: "$10.00" }],
+      ["#priceblock_dealprice", { text: "$5.00" }],
+      [".a-price .a-offscreen", { text: "$15.00" }],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.facts?.[0]?.value).toBe("$10.00");
+  });
+
+  it("should include raw data in result", () => {
+    const map = createMap([
+      ["#priceblock_ourprice", { text: "$19.99" }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+
+    expect(result?.raw).toEqual({
+      price: "$19.99",
+      currency: "USD",
+    });
+  });
+
+  it.each<
+    [
+      store: string,
+      priceText: string,
+      ogPriceCurrency: string | undefined,
+      expected: { amount: number; currency: string },
+    ]
+  >([
+    ["amazon.com", "$24.99", undefined, { amount: 24.99, currency: "USD" }],
+    ["amazon.de", "1.299,00 €", "EUR", { amount: 1299, currency: "EUR" }],
+    [
+      "amazon.co.jp",
+      "￥1,299,999",
+      undefined,
+      { amount: 1_299_999, currency: "JPY" },
+    ],
+    ["amazon.in", "₹2,499.00", "INR", { amount: 2499, currency: "INR" }],
+    ["amazon.ca", "$15.00", "CAD", { amount: 15, currency: "CAD" }],
+  ])(
+    "returns the structured price on %s",
+    (_store, priceText, ogPriceCurrency, expected) => {
+      const map = createMap([
+        [".a-price .a-offscreen", { text: priceText }],
+        ...(ogPriceCurrency
+          ? [
+              [
+                "meta[property='og:price:currency']",
+                { attributes: [{ name: "content", value: ogPriceCurrency }] },
+              ] as [string, { attributes: { name: string; value: string }[] }],
+            ]
+          : []),
+      ]);
+      expect(enrichAmazon(map)?.price).toEqual(expected);
+    }
+  );
+
+  it("has no structured price when the text has no amount", () => {
+    const map = createMap([
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+    expect(result?.facts?.[0]?.value).toBe("USD");
+    expect(result?.price).toBeUndefined();
+  });
+});
+
+describe("enrichGithub", () => {
+  it("should return null when no data found", () => {
+    const map = createMap([]);
+    expect(enrichGithub(map)).toBeNull();
+  });
+
+  it("should extract stars count", () => {
+    const map = createMap([["a[href$='/stargazers']", { text: "1,234" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts).toHaveLength(1);
+    expect(result?.facts?.[0]).toEqual({ label: "Stars", value: "1,234" });
+    expect(result?.raw?.stars).toBe("1,234");
+  });
+
+  it("should extract forks count", () => {
+    const map = createMap([["a[href$='/network/members']", { text: "567" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]).toEqual({ label: "Forks", value: "567" });
+  });
+
+  it("should extract watchers count", () => {
+    const map = createMap([["a[href$='/watchers']", { text: "89" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]).toEqual({ label: "Watchers", value: "89" });
+  });
+
+  it("should extract programming language", () => {
+    const map = createMap([
+      ["span[itemprop='programmingLanguage']", { text: "TypeScript" }],
+    ]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]).toEqual({
+      label: "Language",
+      value: "TypeScript",
+    });
+  });
+
+  it("should extract and clean updated time", () => {
+    const map = createMap([["relative-time", { text: "on 3 days ago" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]).toEqual({
+      label: "Updated",
+      value: "3 days ago",
+    });
+  });
+
+  it("should handle updated time without 'on' prefix", () => {
+    const map = createMap([["relative-time", { text: "2 days ago" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]).toEqual({
+      label: "Updated",
+      value: "2 days ago",
+    });
+  });
+
+  it("should extract all available data", () => {
+    const map = createMap([
+      ["a[href$='/stargazers']", { text: "5.2k" }],
+      ["a[href$='/network/members']", { text: "1.1k" }],
+      ["a[href$='/watchers']", { text: "234" }],
+      ["span[itemprop='programmingLanguage']", { text: "JavaScript" }],
+      ["relative-time", { text: "on yesterday" }],
+    ]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts).toHaveLength(5);
+    expect(result?.raw).toEqual({
+      stars: "5,200",
+      forks: "1,100",
+      watchers: "234",
+      language: "JavaScript",
+      updated: "on yesterday",
+    });
+  });
+
+  it("should format k suffix counts", () => {
+    const map = createMap([["a[href$='/stargazers']", { text: "1.5k" }]]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]?.value).toBe("1,500");
+  });
+
+  it("should trim whitespace", () => {
+    const map = createMap([
+      ["span[itemprop='programmingLanguage']", { text: "  Python  " }],
+    ]);
+    const result = enrichGithub(map);
+
+    expect(result?.facts?.[0]?.value).toBe("Python");
+  });
+});
+
+describe("enrichGoodreads", () => {
+  it("should return null when no data found", () => {
+    const map = createMap([]);
+    expect(enrichGoodreads(map)).toBeNull();
+  });
+
+  it("should extract average rating", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4.5" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts).toHaveLength(1);
+    expect(result?.facts?.[0]).toEqual({
+      label: "Average rating",
+      value: "4.50 / 5",
+    });
+    expect(result?.raw?.ratingAverage).toBe("4.50");
+  });
+
+  it("should extract rating count", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "10,500" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts?.[0]).toEqual({ label: "Ratings", value: "10,500" });
+  });
+
+  it("should extract ISBN", () => {
+    const map = createMap([
+      [
+        "meta[property='books:isbn']",
+        { attributes: [{ name: "content", value: "978-3-16-148410-0" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts?.[0]).toEqual({
+      label: "ISBN",
+      value: "978-3-16-148410-0",
+    });
+  });
+
+  it("should extract all available data", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4.23" }] },
+      ],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "125k" }] },
+      ],
+      [
+        "meta[property='books:isbn']",
+        { attributes: [{ name: "content", value: "1234567890" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts).toHaveLength(3);
+    expect(result?.raw).toEqual({
+      ratingAverage: "4.23",
+      ratingCount: "125,000",
+      isbn: "1234567890",
+    });
+  });
+
+  it("should format rating with 2 decimal places", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts?.[0]?.value).toBe("4.00 / 5");
+  });
+
+  it("should format k suffix counts", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "2.5k" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts?.[0]?.value).toBe("2,500");
+  });
+
+  it("should handle only rating and count", () => {
+    const map = createMap([
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "3.8" }] },
+      ],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "500" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+
+    expect(result?.facts).toHaveLength(2);
+    expect(result?.raw?.isbn).toBeNull();
+  });
+});
+
+describe("enrichImdb", () => {
+  it("should return null when no data found", () => {
+    const map = createMap([]);
+    expect(enrichImdb(map)).toBeNull();
+  });
+
+  it("should extract rating from meta tag", () => {
+    const map = createMap([
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.5" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts).toHaveLength(1);
+    expect(result?.facts?.[0]).toEqual({
+      label: "IMDb rating",
+      value: "8.50 / 10",
+    });
+    expect(result?.raw?.rating).toBe("8.50");
+  });
+
+  it("should extract rating from text content", () => {
+    const map = createMap([
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "9.2" },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]?.value).toBe("9.20 / 10");
+  });
+
+  it("should extract votes count", () => {
+    const map = createMap([
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "1.5M" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]).toEqual({ label: "Votes", value: "1,500,000" });
+  });
+
+  it("should extract runtime", () => {
+    const map = createMap([
+      ["span[data-testid='title-techspec_runtime'] span", { text: "2h 30m" }],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]).toEqual({ label: "Runtime", value: "2h 30m" });
+  });
+
+  it("should extract and format release date", () => {
+    const map = createMap([
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "2023-12-25" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]?.label).toBe("Released");
+    expect(result?.facts?.[0]?.value).toBeDefined();
+    expect(result?.facts?.[0]?.value).toContain("Dec");
+  });
+
+  it("should return undefined for invalid date", () => {
+    const map = createMap([
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "invalid-date" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    const releasedFact = result?.facts?.find((f) => f.label === "Released");
+    expect(releasedFact).toBeUndefined();
+  });
+
+  it("should extract all available data", () => {
+    const map = createMap([
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.7" }] },
+      ],
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "500K" }] },
+      ],
+      ["span[data-testid='title-techspec_runtime'] span", { text: "2h 15m" }],
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "2023-01-15" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts).toHaveLength(4);
+    expect(result?.raw).toEqual({
+      rating: "8.70",
+      votes: "500,000",
+      runtime: "2h 15m",
+      releaseDate: "2023-01-15",
+    });
+  });
+
+  it("should prioritize meta rating over text content", () => {
+    const map = createMap([
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.0" }] },
+      ],
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "9.0" },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]?.value).toBe("8.00 / 10");
+  });
+
+  it("should use text content when meta rating is missing", () => {
+    const map = createMap([
+      [
+        "span[data-testid='hero-rating-bar__aggregate-rating__score']",
+        { text: "7.8" },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]?.value).toBe("7.80 / 10");
+  });
+
+  it("should format various vote formats", () => {
+    const map = createMap([
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "1,234" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+
+    expect(result?.facts?.[0]?.value).toBe("1,234");
+  });
+});
+
+describe("categorization providers common", () => {
+  it("normalizeWhitespace", () => {
+    expect(normalizeWhitespace("  hello  world  ")).toBe("hello world");
+    expect(normalizeWhitespace("")).toBeUndefined();
+    expect(normalizeWhitespace(undefined)).toBeUndefined();
+  });
+
+  it("getRawText", () => {
+    const map = new Map([["#id", { text: "  Some Text  " }]]);
+    expect(getRawText(map, "#id")).toBe("Some Text");
+    expect(getRawText(map, "#missing")).toBeUndefined();
+  });
+
+  it("getRawAttribute", () => {
+    const map = new Map([
+      ["meta", { attributes: [{ name: "content", value: "  value  " }] }],
+    ]);
+    expect(getRawAttribute(map, "meta", "content")).toBe("value");
+    expect(getRawAttribute(map, "meta", "missing")).toBeUndefined();
+    expect(getRawAttribute(map, "missing", "content")).toBeUndefined();
+
+    const map2 = new Map([
+      [
+        "meta",
+        {
+          attributes: [
+            { name: "Content", value: "upper" },
+            { name: "other", value: "other" },
+          ],
+        },
+      ],
+    ]);
+    expect(getRawAttribute(map2, "meta", "content")).toBe("upper");
+
+    const map3 = new Map([["meta", { text: "just text" }]]);
+    expect(getRawAttribute(map3, "meta", "content")).toBeUndefined();
+  });
+
+  it("formatCountString", () => {
+    expect(formatCountString("1,234")).toBe("1,234");
+    expect(formatCountString("1.2k")).toBe("1,200");
+    expect(formatCountString("1.5m")).toBe("1,500,000");
+    expect(formatCountString("not a number")).toBe("not a number");
+  });
+
+  it("formatRating", () => {
+    expect(formatRating("4.567")).toBe("4.57");
+    expect(formatRating("5")).toBe("5.00");
+    expect(formatRating("not numeric")).toBe("not numeric");
+    expect(formatRating(undefined)).toBeUndefined();
+  });
+
+  it("formatDate", () => {
+    expect(formatDate("2023-12-21T12:00:00")).toBe("Dec 21, 2023");
+    expect(formatDate("invalid date")).toBeUndefined();
+    expect(formatDate(undefined)).toBeUndefined();
+  });
+});
+
+describe("enrichAmazon", () => {
+  it("extracts price and currency", () => {
+    const map = new Map([
+      [".a-price .a-offscreen", { text: "$10.00" }],
+      [
+        "meta[property='og:price:currency']",
+        { attributes: [{ name: "content", value: "USD" }] },
+      ],
+    ]);
+    const result = enrichAmazon(map);
+    expect(result!.facts).toContainEqual({
+      label: "Price",
+      value: "$10.00 USD",
+    });
+    expect(result!.raw!.price).toBe("$10.00");
+    expect(result!.raw!.currency).toBe("USD");
+  });
+
+  it("handles price only", () => {
+    const map = new Map([[".a-price .a-offscreen", { text: "$10.00" }]]);
+    const result = enrichAmazon(map);
+    expect(result!.facts).toContainEqual({ label: "Price", value: "$10.00" });
+  });
+
+  it("returns null if no price or currency", () => {
+    const map = new Map();
+    expect(enrichAmazon(map)).toBeNull();
+  });
+});
+
+describe("enrichGithub", () => {
+  it("extracts stats and language", () => {
+    const map = new Map([
+      ["a[href$='/stargazers']", { text: "1.2k" }],
+      ["span[itemprop='programmingLanguage']", { text: "TypeScript" }],
+      ["relative-time", { text: "on Oct 10, 2023" }],
+    ]);
+    const result = enrichGithub(map);
+    expect(result!.facts).toContainEqual({ label: "Stars", value: "1,200" });
+    expect(result!.facts).toContainEqual({
+      label: "Language",
+      value: "TypeScript",
+    });
+    expect(result!.facts).toContainEqual({
+      label: "Updated",
+      value: "Oct 10, 2023",
+    });
+  });
+
+  it("returns null if no facts", () => {
+    expect(enrichGithub(new Map())).toBeNull();
+  });
+});
+
+describe("enrichGoodreads", () => {
+  it("extracts rating and count", () => {
+    const map = new Map([
+      [
+        "meta[property='books:rating:average']",
+        { attributes: [{ name: "content", value: "4.2" }] },
+      ],
+      [
+        "meta[property='books:rating:count']",
+        { attributes: [{ name: "content", value: "100" }] },
+      ],
+    ]);
+    const result = enrichGoodreads(map);
+    expect(result!.facts).toContainEqual({
+      label: "Average rating",
+      value: "4.20 / 5",
+    });
+    expect(result!.facts).toContainEqual({ label: "Ratings", value: "100" });
+  });
+
+  it("returns null if no facts", () => {
+    expect(enrichGoodreads(new Map())).toBeNull();
+  });
+});
+
+describe("enrichImdb", () => {
+  it("extracts rating and votes", () => {
+    const map = new Map([
+      [
+        "meta[name='imdb:rating']",
+        { attributes: [{ name: "content", value: "8.5" }] },
+      ],
+      [
+        "meta[name='imdb:votes']",
+        { attributes: [{ name: "content", value: "100k" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+    expect(result!.facts).toContainEqual({
+      label: "IMDb rating",
+      value: "8.50 / 10",
+    });
+    expect(result!.facts).toContainEqual({ label: "Votes", value: "100,000" });
+  });
+
+  it("extracts runtime and released", () => {
+    const map = new Map([
+      ["span[data-testid='title-techspec_runtime'] span", { text: "2h 30m" }],
+      [
+        "meta[property='video:release_date']",
+        { attributes: [{ name: "content", value: "2023-12-21T12:00:00" }] },
+      ],
+    ]);
+    const result = enrichImdb(map);
+    expect(result!.facts).toContainEqual({ label: "Runtime", value: "2h 30m" });
+    expect(result!.facts).toContainEqual({
+      label: "Released",
+      value: "Dec 21, 2023",
+    });
+  });
+
+  it("returns null if no facts", () => {
+    expect(enrichImdb(new Map())).toBeNull();
+  });
+});
+
+describe("enrichDribbble", () => {
+  it("extracts stats and tags", () => {
+    const map = new Map([
+      ["[data-testid='shot-likes-count']", { text: "50" }],
+      [
+        "meta[name='keywords']",
+        { attributes: [{ name: "content", value: "design, ui, ux" }] },
+      ],
+      [
+        "meta[name='author']",
+        { attributes: [{ name: "content", value: "Designer Name" }] },
+      ],
+    ]);
+    const result = enrichDribbble(map);
+    expect(result!.facts).toContainEqual({ label: "Likes", value: "50" });
+    expect(result!.facts).toContainEqual({
+      label: "Designer",
+      value: "Designer Name",
+    });
+    expect(result!.facts).toContainEqual({
+      label: "Tags",
+      value: "design, ui, ux",
+    });
+    expect(result!.raw!.keywords).toContain("ui");
+  });
+
+  it("extracts stats from twitter meta", () => {
+    const map = new Map([
+      [
+        "meta[name='twitter:label1']",
+        { attributes: [{ name: "content", value: "Likes" }] },
+      ],
+      [
+        "meta[name='twitter:data1']",
+        { attributes: [{ name: "content", value: "100" }] },
+      ],
+      [
+        "meta[name='twitter:label2']",
+        { attributes: [{ name: "content", value: "Views" }] },
+      ],
+      [
+        "meta[name='twitter:data2']",
+        { attributes: [{ name: "content", value: "1k" }] },
+      ],
+    ]);
+    const result = enrichDribbble(map);
+    expect(result!.facts).toContainEqual({ label: "Likes", value: "100" });
+    expect(result!.facts).toContainEqual({ label: "Views", value: "1,000" });
+  });
+
+  it("extracts designer from og:title", () => {
+    const map = new Map([
+      [
+        "meta[property='og:title']",
+        {
+          attributes: [
+            { name: "content", value: "Shot Title by John Doe on Dribbble" },
+          ],
+        },
+      ],
+    ]);
+    const result = enrichDribbble(map);
+    expect(result!.facts).toContainEqual({
+      label: "Designer",
+      value: "John Doe",
+    });
+  });
+
+  it("returns null if no enrichment", () => {
+    expect(enrichDribbble(new Map())).toBeNull();
+  });
+});
+
+describe("enrichYoutube", () => {
+  const watchPage = (entries: Record<string, string>): RawSelectorMap =>
+    createMap(
+      Object.entries(entries).map(([selector, value]) => [
+        selector,
+        { attributes: [{ name: "content", value }] },
+      ])
+    );
+
+  it("reads the channel, length and upload date", () => {
+    const result = enrichYoutube(
+      watchPage({
+        "link[itemprop='name']": "Example Channel",
+        "meta[itemprop='duration']": "PT3M34S",
+        "meta[itemprop='uploadDate']": "2009-10-24T23:57:33-07:00",
+      })
+    );
+
+    expect(result?.facts).toEqual([
+      { label: "Channel", value: "Example Channel" },
+      { label: "Length", value: "3m 34s" },
+      { label: "Uploaded", value: "Oct 24, 2009" },
+    ]);
+  });
+
+  it.each([
+    ["PT63M3S", "1h 3m 3s"],
+    ["PT1H0M5S", "1h 5s"],
+    ["PT10H0M0S", "10h"],
+    ["PT45S", "45s"],
+    ["P1DT2H", "26h"],
+    ["PT0M0S", undefined],
+    ["3:34", undefined],
+  ])("formats %s as %p", (iso, expected) => {
+    expect(formatVideoLength(iso)).toBe(expected);
+  });
+
+  it("a page without the microdata gives nothing", () => {
+    expect(enrichYoutube(createMap([]))).toBeNull();
+  });
+
+  it("applies to videos, films and courses, not to articles", () => {
+    const page = watchPage({ "link[itemprop='name']": "Example Channel" });
+    expect(enrichProvider("youtube", "tv", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "movie", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "course", page)?.facts).toHaveLength(1);
+    expect(enrichProvider("youtube", "article", page)).toBeNull();
+  });
+});
+
+describe("enrichProvider", () => {
+  const stars = createMap([["a[href$='/stargazers']", { text: "1,234" }]]);
+
+  it.each(["software", "repo"] as const)(
+    "adds GitHub's facts to a %s link",
+    (category) => {
+      expect(enrichProvider("github", category, stars)?.facts).toEqual([
+        { label: "Stars", value: "1,234" },
+      ]);
+    }
+  );
+
+  it("skips GitHub's facts for a confident category it doesn't serve", () => {
+    expect(enrichProvider("github", "article", stars)).toBeNull();
+  });
+});

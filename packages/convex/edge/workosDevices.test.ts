@@ -1,15 +1,12 @@
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
-import schema from "../schema";
 import {
   getWorkosBootstrapIdentity,
   readWorkosSessionIdentity,
 } from "../securitySessions";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const claims = {
   subject: "user_OWNER",
   issuer: "https://api.workos.com/user_management/client_DEVICES",
@@ -154,8 +151,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 async function setup(overrides = {}, owner = {}) {
-  const t = convexTest(schema, modules);
-  rateLimiterTest.register(t, "rateLimiterV2");
+  const t = newBackend();
   const row = await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "owner",

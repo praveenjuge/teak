@@ -1,14 +1,16 @@
 import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
+  checkSignedExpiry,
   FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
   type FilesImageRendition,
+  hmacSha256Hex,
   isFilesImageRendition,
+  verifyHmacHex,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "../deletionGate";
 import type { Env } from "../index";
-import { hmacSha256Hex, verifyHmacPayload } from "../lib";
 import { throughImagesBinding } from "./imagesBinding";
 import { renderSvgToPng } from "./wasm";
 
@@ -125,18 +127,9 @@ const parseSourcePath = (pathname: string): string | null => {
   return key && !key.includes("\0") ? key : null;
 };
 
-const isExpiredOrInvalid = (expiresAt: string | null, now: number): boolean => {
-  if (!expiresAt) {
-    return true;
-  }
-  const expiry = Number.parseInt(expiresAt, 10);
-  return (
-    !Number.isSafeInteger(expiry) ||
-    String(expiry) !== expiresAt ||
-    expiry < now ||
-    expiry > now + IMAGE_URL_MAX_TTL_SECONDS
-  );
-};
+const isExpiredOrInvalid = (expiresAt: string | null, now: number): boolean =>
+  !expiresAt ||
+  checkSignedExpiry(expiresAt, IMAGE_URL_MAX_TTL_SECONDS, now) !== "valid";
 
 export const preferredFormat = (
   accept: string | null
@@ -297,7 +290,7 @@ const validateOuterSignature = async (
   if (!expiresAt) {
     return 401;
   }
-  const valid = await verifyHmacPayload(
+  const valid = await verifyHmacHex(
     env.FILES_SIGNING_SECRET,
     buildImageSigningPayload({ expiresAt, key, rendition }),
     signature
@@ -323,7 +316,7 @@ export const handleImageSourceRequest = async (
   if (isExpiredOrInvalid(expiresAt, now)) {
     return new Response(null, { status: 403 });
   }
-  const valid = await verifyHmacPayload(
+  const valid = await verifyHmacHex(
     env.FILES_SIGNING_SECRET,
     buildImageSourceSigningPayload({ expiresAt, key }),
     signature

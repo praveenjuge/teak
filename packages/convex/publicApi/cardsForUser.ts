@@ -1,6 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
-import { createCardForUserHandler } from "../card/createCard";
+import {
+  apiCardSourceValidator,
+  createCardForUserHandler,
+} from "../card/createCard";
 import { getCardForUserHandler } from "../card/getCard";
 import { cardReturnValidator } from "../card/getCards";
 import {
@@ -14,14 +17,14 @@ import {
   updateCardFieldsForUserHandler,
 } from "../card/updateCard";
 import { setCardFoldersForUser } from "../folder/membership";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { requireTeakUserId } from "../securitySessions";
 import {
   explainInvalidCardSource,
   normalizeCardSource,
 } from "../shared/cardSource";
 import { isCardHidden } from "../shared/tags";
-import { explainCardTypeMismatch, explainInvalidTags } from "./http/shared";
+import { explainCardTypeMismatch, explainInvalidTags } from "./validation";
 
 const quickSaveResultValidator = v.object({
   status: v.literal("created"),
@@ -43,6 +46,8 @@ const createCardForUserArgs = {
   sourceTitle: v.optional(v.string()),
   /** The extension's page snapshot; ignored unless it is the caller's. */
   pageSnapshotKey: v.optional(v.string()),
+  /** The client that saved it, for analytics; `api` when not given. */
+  cardSource: v.optional(apiCardSourceValidator),
 } as const;
 
 const patchCardForUserArgs = {
@@ -144,7 +149,7 @@ export const quickSaveForUser = internalMutation({
       ctx,
       userId,
       createArgs,
-      { source: "raycast" }
+      { source: args.cardSource ?? "api" }
     );
     const card = await getCardForUserHandler(ctx, userId, cardId);
 

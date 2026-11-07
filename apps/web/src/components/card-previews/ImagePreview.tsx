@@ -1,11 +1,11 @@
 import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
-import type { CardWithUrls } from "@/hooks/useCardModal";
+import type { ClientCard } from "@/lib/cardTypes";
 import { cn } from "@/lib/utils";
 
 interface ImagePreviewProps {
-  card: CardWithUrls;
+  card: ClientCard;
 }
 
 const TALL_IMAGE_RATIO = 1.5;
@@ -15,7 +15,7 @@ const TALL_IMAGE_RATIO = 1.5;
  * description of it, then its file name. "Image" only when there is none.
  */
 export const imageAltText = (
-  card: Pick<CardWithUrls, "aiSummary" | "content" | "fileMetadata">,
+  card: Pick<ClientCard, "aiSummary" | "content" | "fileMetadata">,
   fallback: string
 ): string =>
   [card.content, card.aiSummary, card.fileMetadata?.fileName]

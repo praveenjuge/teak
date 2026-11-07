@@ -1,8 +1,8 @@
 ---
 title: "November 2026"
-description: Teak for Android on Google Play, pinned cards, folders that tag and file cards for you, a calmer card view, Settings and extension popup, and quicker capture on the Mac.
+description: Teak for Android on Google Play, pinned cards, folders that tag and file cards for you, cards that line up in the grid, a calmer card view, Settings and extension popup, quicker capture on the Mac, and a clearer command line.
 type: changelog
-date: "2026-11-05"
+date: "2026-11-06"
 changelog:
   category: Product updates
 ---
@@ -22,6 +22,13 @@ changelog:
 
 - Give a folder rules: tags that every card put in it gets, or a search whose matching cards Teak files into it automatically. See [Folder rules](/docs/features#folder-rules).
 - Saving a rule applies it to the cards you already have, with **Undo**.
+
+## Cards that line up
+
+- On the web, notes, quotes, links, palettes, voice memos and documents are now tiles of the same size, so the grid reads in even rows, while photos and videos keep their own shape. See [Grid](/docs/features#grid).
+- A link shows its picture with its site's icon and title underneath. A link without a picture gets a cover with its title, so it no longer shrinks to a thin strip.
+- Quotes are set in a serif that sizes itself to the quote, and long notes fade out instead of stopping mid-line.
+- Prices, video and recording lengths, and file types share one label in the corner of the card.
 
 ## A calmer card view
 
@@ -57,6 +64,19 @@ changelog:
 - Teak no longer writes a summary or tags for a link whose page couldn't be reached.
 - **Security** lists every signed-in device, this one first, and **Sign out other devices** signs out the rest.
 - Keyboard focus is easier to see, and a **Skip to content** link comes first.
+- **Undo** after archiving a pinned card or moving it to Trash pins it again, in its old place in the row.
+- Spotify links are named after their album, track, playlist or show, not "Spotify – Web Player".
+
+## A clearer command line
+
+- Errors in the CLI name what wasn't found, give the request ID to quote to support, and say what to run next. With `--json` an error is one line of JSON, even for a mistyped option. See [CLI](/docs/cli#output-format).
+- `unfav`, `unpin` and `todo` undo `fav`, `pin` and `done`, and `rm` means delete in every group: `teak tags remove` takes a tag off a card, and `teak folders delete` and `teak highlights delete` sit beside their `rm` shortcuts. The old `tags rm`, `--remove` and `--undo` still work and say their new names.
+- `--dry-run` on `teak tags rename`, `merge` and `delete` says how many cards in your library have the tag, and on `teak cards bulk` checks each item's fields without sending them. `teak tags delete` names that count before it asks.
+- `--created-after`, `--created-before` and `cards changes --since` take dates and ages like `2026-01-01` or `3d`. `-n` limits a listing, `--next` continues it, and `--all` stops at 10,000 cards.
+- `--fields id,url` trims JSON output, `teak completion bash`, `zsh` or `fish` adds tab completion, and every command's `--help` has examples, with the exit codes in `teak --help`.
+- `--wait` gives up after 10 minutes, or `--timeout`, and says how to check on the work. Commands that act on several cards say how many failed and print the command that retries them.
+- In CI or a coding agent's shell the CLI never prompts or opens a browser, so a delete needs `--yes` there.
+- **If a script reads the CLI's text output:** piped into another command, card lines and `teak tags` are now tab-separated with every field in full and ISO times, and the next page is printed as `Next page: --next <cursor>`. Use `cut -f` or `--json`. `teak login` prints its link and result on stderr.
 
 ## For developers and self-hosters
 

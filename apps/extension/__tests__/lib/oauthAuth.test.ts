@@ -119,6 +119,25 @@ const load = () =>
   import(`../../lib/oauthAuth.ts?test=${crypto.randomUUID()}`) as Promise<
     typeof import("../../lib/oauthAuth")
   >;
+type Auth = Awaited<ReturnType<typeof load>>;
+const DUPLICATE_PATH = "/v1/cards/duplicate?url=https%3A%2F%2Fexample.com%2F";
+/**
+ * One API request as the signed-in user, through the SDK: "sent" when it
+ * went through, null when there is no usable sign-in.
+ */
+const send = async (auth: Auth) => {
+  try {
+    await auth
+      .teakClient({ retries: 0 })
+      .cards.duplicate("https://example.com/");
+    return "sent";
+  } catch (error) {
+    if (auth.isSignedOut(error)) {
+      return null;
+    }
+    throw auth.inExtensionWords(error);
+  }
+};
 const tokenResponse = (access = accessToken, refresh = refreshToken) =>
   Response.json({
     access_token: access,
@@ -438,14 +457,10 @@ describe("Chrome OAuth background credentials", () => {
       }) as unknown as typeof fetch
     );
     const auth = await load();
-    await Promise.all([
-      auth.oauthRequest("/v1/cards"),
-      auth.oauthRequest("/v1/cards"),
-      auth.oauthRequest("/v1/cards"),
-    ]);
+    await Promise.all([send(auth), send(auth), send(auth)]);
     expect(refreshes).toBe(1);
     const restarted = await load();
-    await restarted.oauthRequest("/v1/cards");
+    await send(restarted);
     expect(refreshes).toBe(1);
     expect(webAuth).not.toHaveBeenCalled();
   });
@@ -462,21 +477,21 @@ describe("Chrome OAuth background credentials", () => {
       ) as unknown as typeof fetch
     );
     const auth = await load();
-    await expect(auth.oauthRequest("/v1/cards")).rejects.toThrow("try again");
+    await expect(send(auth)).rejects.toThrow("try again");
     expect(storage[tokenKey]).toBeDefined();
     globalThis.fetch = withDiscovery(
       mock(async () =>
         Response.json({ error: "invalid_grant" }, { status: 400 })
       ) as unknown as typeof fetch
     );
-    expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+    expect(await send(auth)).toBeNull();
     expect(storage[tokenKey]).toBeUndefined();
   });
   test("an old request's 401 cannot clear a newly refreshed credential", async () => {
     storage[tokenKey] = {
       accessToken,
       refreshToken,
-      expiresAt: Date.now() + 60_000,
+      expiresAt: Date.now() + 3_600_000,
       ...workosBinding,
     };
     let finish: ((response: Response) => void) | undefined;
@@ -484,8 +499,13 @@ describe("Chrome OAuth background credentials", () => {
     const ready = new Promise<void>((resolve) => {
       started = resolve;
     });
+    const sentWith: (string | null)[] = [];
     globalThis.fetch = withDiscovery(
-      mock(() => {
+      mock((_input: RequestInfo | URL, init?: RequestInit) => {
+        sentWith.push(new Headers(init?.headers).get("Authorization"));
+        if (sentWith.length > 1) {
+          return Promise.resolve(Response.json({ cardId: null }));
+        }
         started?.();
         return new Promise<Response>((resolve) => {
           finish = resolve;
@@ -493,16 +513,21 @@ describe("Chrome OAuth background credentials", () => {
       }) as unknown as typeof fetch
     );
     const auth = await load();
-    const request = auth.oauthRequest("/v1/cards");
+    const request = send(auth);
     await ready;
     storage[tokenKey] = {
       accessToken: "b".repeat(32),
       refreshToken: "s".repeat(32),
-      expiresAt: Date.now() + 60_000,
+      expiresAt: Date.now() + 3_600_000,
       ...workosBinding,
     };
     finish?.(new Response(null, { status: 401 }));
-    expect(await request).toBeNull();
+    // The 401 was for the old token: the request goes again with the new one.
+    expect(await request).toBe("sent");
+    expect(sentWith).toEqual([
+      `Bearer ${accessToken}`,
+      `Bearer ${"b".repeat(32)}`,
+    ]);
     expect(storage[tokenKey]).toMatchObject({ accessToken: "b".repeat(32) });
   });
 });
@@ -580,7 +605,7 @@ test("a fresh token is sent without discovering the auth server", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
     ...workosBinding,
   };
   const requested: string[] = [];
@@ -592,39 +617,62 @@ test("a fresh token is sent without discovering the auth server", async () => {
     return await Promise.resolve(Response.json({ cardId: "card" }));
   }) as typeof fetch);
   const auth = await load();
-  await auth.oauthRequest("/v1/cards");
-  await auth.oauthRequest("/v1/cards");
+  await send(auth);
+  await send(auth);
   expect(requested).toEqual([
-    "https://test.convex.site/v1/cards",
-    "https://test.convex.site/v1/cards",
+    `https://test.convex.site${DUPLICATE_PATH}`,
+    `https://test.convex.site${DUPLICATE_PATH}`,
   ]);
 });
 
-test("a fresh token rejected by the API clears it and checks the provider again", async () => {
+test("a fresh token the API rejects is refreshed, and the request sent again", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
     ...workosBinding,
   };
   const requested: string[] = [];
-  const network = withDiscovery(
-    (async () =>
-      await Promise.resolve(
-        new Response(null, { status: 401 })
-      )) as unknown as typeof fetch
-  );
-  globalThis.fetch = ((input, init) => {
-    requested.push(String(input));
-    return network(input, init);
-  }) as typeof fetch;
+  globalThis.fetch = withDiscovery(((input, init) => {
+    const url = String(input);
+    requested.push(url);
+    if (url.endsWith("/oauth2/token")) {
+      return Promise.resolve(
+        tokenResponse("renewed-access", "renewed-refresh")
+      );
+    }
+    return Promise.resolve(
+      new Headers(init?.headers).get("Authorization") ===
+        `Bearer ${accessToken}`
+        ? new Response(null, { status: 401 })
+        : Response.json({ cardId: null })
+    );
+  }) as typeof fetch);
   const auth = await load();
-  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(await send(auth)).toBe("sent");
+  expect(storage[tokenKey]).toMatchObject({
+    accessToken: "renewed-access",
+    refreshToken: "renewed-refresh",
+  });
+  expect(requested.filter((url) => url.includes("/v1/cards"))).toHaveLength(2);
+});
+
+test("a rejected token whose refresh Teak refuses signs out", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 3_600_000,
+    ...workosBinding,
+  };
+  globalThis.fetch = withDiscovery(((input) =>
+    Promise.resolve(
+      String(input).endsWith("/oauth2/token")
+        ? Response.json({ error: "invalid_grant" }, { status: 400 })
+        : new Response(null, { status: 401 })
+    )) as typeof fetch);
+  const auth = await load();
+  expect(await send(auth)).toBeNull();
   expect(storage[tokenKey]).toBeUndefined();
-  expect(requested).toEqual([
-    "https://test.convex.site/v1/cards",
-    "https://teakvault.com/.well-known/teak-oauth-clients.json",
-  ]);
 });
 
 test("a credential from another client registration is never refreshed or sent once it expires", async () => {
@@ -640,9 +688,11 @@ test("a credential from another client registration is never refreshed or sent o
   const network = mock(async () => tokenResponse());
   globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
   const auth = await load();
-  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  const saved = storage[tokenKey];
+  expect(await send(auth)).toBeNull();
   expect(network).not.toHaveBeenCalled();
-  expect(storage[tokenKey]).toBeUndefined();
+  // Kept, so signing out can still disconnect it.
+  expect(storage[tokenKey]).toEqual(saved);
   expect(await getCaptureOwner()).toBe("original-owner");
 });
 
@@ -662,7 +712,7 @@ test.each([
     storage[tokenKey] = {
       accessToken,
       refreshToken,
-      expiresAt: Date.now() + 60_000,
+      expiresAt: Date.now() + 3_600_000,
       ...bindingFields,
     };
     storage.teakOAuthOwner = "legacy-owner";
@@ -682,12 +732,12 @@ test("development cannot read or clear production credentials", async () => {
   const production = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
   };
   storage[tokenKey] = production;
   storage.teakOAuthOwner = "production-owner";
   const auth = await load();
-  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(await send(auth)).toBeNull();
   expect(await getCaptureOwner()).toBeUndefined();
   await auth.signOutOAuth();
   expect(storage[tokenKey]).toBe(production);
@@ -698,7 +748,7 @@ test("a caller's abort signal cancels its request", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
     ...workosBinding,
   };
   globalThis.fetch = withDiscovery(((_input, init) => {
@@ -709,9 +759,9 @@ test("a caller's abort signal cancels its request", async () => {
   }) as typeof fetch);
   const auth = await load();
   const controller = new AbortController();
-  const request = auth.oauthRequest("/v1/cards?q=design", {
-    signal: controller.signal,
-  });
+  const request = auth
+    .teakClient()
+    .cards.list({ query: "design" }, { signal: controller.signal });
   await new Promise((resolve) => setTimeout(resolve, 10));
   controller.abort();
   await expect(request).rejects.toThrow();
@@ -721,7 +771,7 @@ test("a network failure reads the same in every browser", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
     ...workosBinding,
   };
   for (const message of [
@@ -733,7 +783,7 @@ test("a network failure reads the same in every browser", async () => {
     for (const transport of [withDiscovery(offline), offline]) {
       globalThis.fetch = transport;
       const auth = await load();
-      await expect(auth.oauthRequest("/v1/me")).rejects.toThrow(
+      await expect(send(auth)).rejects.toThrow(
         "Couldn't reach Teak. Check your connection and try again."
       );
     }
@@ -766,36 +816,15 @@ test("a successful refresh reuses discovery and a rejected refresh fetches it ag
     return network(input, init);
   }) as typeof fetch;
   const auth = await load();
-  expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
+  expect(await send(auth)).not.toBeNull();
   expect(discoveryFetches).toBe(1);
   storage[tokenKey] = {
     ...(storage[tokenKey] as object),
     expiresAt: Date.now() - 1,
   };
   refreshStatus = 400;
-  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(await send(auth)).toBeNull();
   expect(discoveryFetches).toBe(2);
-});
-
-test("rejects foreign API paths before reading or sending credentials", async () => {
-  storage[tokenKey] = {
-    accessToken,
-    refreshToken,
-    expiresAt: Date.now() + 60_000,
-  };
-  const network = mock(async () => tokenResponse());
-  globalThis.fetch = network as unknown as typeof fetch;
-  const auth = await load();
-  for (const path of [
-    "https://attacker.example/v1/cards",
-    "//attacker.example/v1/cards",
-    "/\\attacker.example/v1/cards",
-  ]) {
-    await expect(auth.oauthRequest(path)).rejects.toThrow(
-      "Invalid Teak API path"
-    );
-  }
-  expect(network).not.toHaveBeenCalled();
 });
 
 test("unsafe discovery stops before the browser flow or token transmission", async () => {
@@ -860,7 +889,7 @@ test("sign-out during refresh disconnects the rotated credential and never sends
     return Promise.reject(new Error("Credential escaped after sign-out"));
   }) as typeof fetch);
   const auth = await load();
-  const request = auth.oauthRequest("/v1/cards");
+  const request = send(auth);
   await started;
   const signOut = auth.signOutOAuth();
   finishRefresh?.(tokenResponse("rotated-access", "rotated-refresh"));
@@ -870,7 +899,7 @@ test("sign-out during refresh disconnects the rotated credential and never sends
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("a discovery outage during sign-out preserves the rotated refresh credential", async () => {
+test("a sign-out Teak doesn't confirm keeps the rotated refresh credential", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
@@ -887,16 +916,16 @@ test("a discovery outage during sign-out preserves the rotated refresh credentia
   }) as typeof fetch);
   globalThis.fetch = network;
   const auth = await load();
-  expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
+  expect(await send(auth)).not.toBeNull();
   expect(storage[tokenKey]).toMatchObject({
     accessToken: "rotated-access",
     refreshToken: "rotated-refresh",
   });
   globalThis.fetch = ((input, init) =>
-    String(input).includes("/.well-known/")
-      ? Promise.reject(new Error("Metadata unavailable"))
+    String(input).includes("/oauth/disconnect")
+      ? Promise.reject(new TypeError("Failed to fetch"))
       : network(input, init)) as typeof fetch;
-  await expect(auth.signOutOAuth()).rejects.toThrow("Metadata unavailable");
+  await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
   expect(storage[tokenKey]).toMatchObject({ refreshToken: "rotated-refresh" });
 });
 
@@ -904,7 +933,7 @@ test("sign-out while reading saved credentials prevents a nonexpired token from 
   storage[tokenKey] = {
     accessToken,
     refreshToken,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 3_600_000,
     ...workosBinding,
   };
   let release: (() => void) | undefined;
@@ -933,7 +962,7 @@ test("sign-out while reading saved credentials prevents a nonexpired token from 
   );
   globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
   const auth = await load();
-  const request = auth.oauthRequest("/v1/cards");
+  const request = send(auth);
   await started;
   const signOut = auth.signOutOAuth();
   release?.();
@@ -963,9 +992,9 @@ test("refresh failures rediscover a client registration change before the next r
     return Promise.resolve(new Response(null, { status: 503 }));
   }) as typeof fetch);
   const auth = await load();
-  await expect(auth.oauthRequest("/v1/cards")).rejects.toThrow("try again");
+  await expect(send(auth)).rejects.toThrow("try again");
   expect(storage[tokenKey]).toBeDefined();
-  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(await send(auth)).toBeNull();
   expect(attempts).toBe(1);
 });
 

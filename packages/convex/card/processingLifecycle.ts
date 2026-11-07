@@ -1,27 +1,19 @@
+import { cardTypeStages } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { CardType } from "../schema";
+import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import type { Id } from "../shared/types";
 import { queueCardProcessingFailed } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
   type ProcessingStatus,
-  shouldRunArchiveStage,
   stageFailed,
   stagePending,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 import { clearCardTranscript } from "./textContents";
-
-export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [
-  "classify",
-  "categorize",
-  "metadata",
-  "renderables",
-  "screenshot",
-];
 
 export const initializeCardProcessingState = async (
   ctx: MutationCtx,
@@ -33,12 +25,12 @@ export const initializeCardProcessingState = async (
     return false;
   }
   const now = Date.now();
-  const cardType = (card.type ?? "text") as CardType;
+  const cardType = card.type;
   const awaitingLinkMetadata =
     cardType === "link" &&
     (options.refresh === true ||
       card.metadata?.linkPreview?.status !== "success");
-  await patchCardWithSearchSync(ctx, cardId, {
+  await patchCard(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,
     aiLanguage: undefined,
@@ -46,14 +38,12 @@ export const initializeCardProcessingState = async (
     aiOcrText: undefined,
     ocrCheckedAt: undefined,
     aiBackfillAttempts: undefined,
-    processingStatus: {
-      ...buildInitialProcessingStatus({
-        now,
-        cardType,
-        classificationStatus: card.processingStatus?.classify ?? stagePending(),
-      }),
-      ...archiveStageAfterReset(card, cardType, options),
-    },
+    processingStatus: buildInitialProcessingStatus({
+      archive: archiveStageAfterReset(card, cardType, options),
+      cardType,
+      classificationStatus: card.processingStatus?.classify ?? stagePending(),
+      now,
+    }),
     metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
     updatedAt: now,
   });
@@ -74,7 +64,7 @@ const archiveStageAfterReset = (
   // froze them both.
   if (
     options.refresh === true &&
-    shouldRunArchiveStage(cardType) &&
+    cardTypeStages(cardType).archive &&
     pageArchiveSkipReason(card, { refresh: true }) !== "frozen"
   ) {
     return { archive: stagePending(), article: stagePending() };
@@ -87,7 +77,7 @@ const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);
 
 export const markUnfinishedCardStagesFailed = async (
   ctx: MutationCtx,
-  context: { cardId: Id<"cards">; stages: ProcessingStageKey[] },
+  context: { cardId: Id<"cards">; stages: readonly ProcessingStageKey[] },
   error: string
 ): Promise<boolean> => {
   const card = await ctx.db.get("cards", context.cardId);
@@ -106,7 +96,7 @@ export const markUnfinishedCardStagesFailed = async (
   if (Object.keys(failedStages).length === 0) {
     return false;
   }
-  await patchCardWithSearchSync(ctx, context.cardId, {
+  await patchCard(ctx, context.cardId, {
     processingStatus: { ...current, ...failedStages },
     updatedAt: now,
   });

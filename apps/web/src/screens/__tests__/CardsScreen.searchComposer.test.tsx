@@ -1,4 +1,5 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
+import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -67,7 +68,6 @@ const renderLibrary = async (query: string) => {
         onOpenCard={() => undefined}
         searchUrlState={{ q: query, sort: "newest" }}
         selectedCardId={null}
-        upgradeUrl="/settings"
         view="all"
       />
     );

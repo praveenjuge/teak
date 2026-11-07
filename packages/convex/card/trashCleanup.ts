@@ -2,8 +2,9 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { deleteCardFolderRuleRows } from "../folder/rules";
 import { recordCardTombstone } from "../publicApiTombstones";
-import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
-import { syncCardSearch } from "./searchSync";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { cardStorageObjectKeys } from "../storage/r2";
+import { onCardChanged } from "./onCardChanged";
 
 const LOG_PREFIX = "[card/trashCleanup]";
 
@@ -71,7 +72,7 @@ export const cleanupDeletedCard = internalMutation({
       await ctx.db.delete("cards", cardId);
       await deleteCardFolderRuleRows(ctx, cardId);
       await recordCardTombstone(ctx, { cardId, userId: card.userId });
-      await syncCardSearch(ctx, cardId, card.userId, card);
+      await onCardChanged(ctx, cardId, card.userId, card);
       deleted = true;
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to delete card record`, {

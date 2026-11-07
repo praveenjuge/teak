@@ -11,13 +11,8 @@ import {
   articleSkipReason,
   articleTextObjectKey,
 } from "@teak/convex/shared/article";
-import {
-  type FilesExtractArticleResult,
-  filesCardKeyPrefix,
-} from "@teak/files-protocol";
+import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import { sha256Hex } from "../../lib";
-import { gatedEnv } from "../filesOps";
 import type { StepConfig } from "../runtime";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata } from "./aiMetadata";
@@ -99,11 +94,11 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   }
   const archive = card.pageArchive as NonNullable<typeof card.pageArchive>;
   await markStage(job, "in_progress");
-  const outcome = await job.deps.filesOp<FilesExtractArticleResult>({
+  const outcome = await job.deps.filesOp({
     op: "extract-article",
     params: { archiveKey: archive.storageKey, pageUrl: archive.sourceUrl },
   });
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     throw new Error(`extract_article_unavailable:${outcome.code}`);
   }
   const result = outcome.data;
@@ -146,7 +141,7 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   const stored = new Set(
     current ? [current.textKey, ...current.imageKeys] : []
   );
-  const bucket = gatedEnv(job.env).BUCKET;
+  const bucket = job.env.BUCKET;
   for (const image of images) {
     if (!stored.has(image.key)) {
       await ensureObjectOwnership(job, card.userId, image.key);
@@ -216,7 +211,7 @@ export const summarizeArticle = async (
       if (gate !== "allowed") {
         return { reason: `ai_${gate}`, status: "skipped" };
       }
-      const object = await gatedEnv(job.env).BUCKET.get(article.textKey);
+      const object = await job.env.BUCKET.get(article.textKey);
       if (!object) {
         return { reason: "article_missing", status: "skipped" };
       }

@@ -23,6 +23,13 @@ describe("GridDocumentPreview", () => {
     expect(unsized).toContain("aspect-ratio:0.75");
   });
 
+  test("keeps a page taller than 3:4 at 3:4, so its top stays in the tile", () => {
+    const receipt = renderToStaticMarkup(
+      <GridDocumentPreview height={900} thumbnailUrl={thumbnail} width={300} />
+    );
+    expect(receipt).toContain("aspect-ratio:0.75");
+  });
+
   test("lazy-loads thumbnails below the fold and prioritizes those above it", () => {
     const lazy = renderToStaticMarkup(
       <GridDocumentPreview thumbnailUrl={thumbnail} />

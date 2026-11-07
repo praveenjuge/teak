@@ -71,15 +71,9 @@ export const cardMatchesQualifier = (
         case "pinned":
           return card.pinPosition !== undefined;
         case "done":
-          return (
-            card.type === "link" &&
-            matchesDoneState(card, { done: true, todo: false })
-          );
+          return matchesDoneState(card, { done: true, todo: false });
         default:
-          return (
-            card.type === "link" &&
-            matchesDoneState(card, { done: false, todo: true })
-          );
+          return matchesDoneState(card, { done: false, todo: true });
       }
     case "price": {
       const bound = parsePriceBound(qualifier.value);

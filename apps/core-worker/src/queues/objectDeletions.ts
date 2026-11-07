@@ -1,8 +1,11 @@
-import { parseCardObjectKey } from "@teak/files-protocol";
-import { DELETE_OBJECTS_MAX_KEYS } from "../ops";
-import { isValidUploadKey } from "../storage/upload";
+import {
+  isValidObjectKey,
+  MAX_DISPATCH_DELETE_KEYS,
+  parseCardObjectKey,
+} from "@teak/files-protocol";
+
 import { reportBackgroundError } from "../telemetry";
-import type { FilesOpCaller } from "../workflows/deps";
+import type { OpCaller } from "../workflows/deps";
 import type { ObjectDeletionMessage } from "../workflows/dispatch";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
@@ -26,16 +29,16 @@ const messageKeys = (body: unknown): string[] | null => {
 export const queueObjectDeletions = async (
   env: BackgroundEnv,
   keys: readonly (string | undefined)[],
-  ops: FilesOpCaller = (spec) => callFilesOp(env, spec)
+  ops: OpCaller = (spec) => callFilesOp(env, spec)
 ): Promise<number> => {
   const usable = [
     ...new Set(
       keys.filter(
-        (key): key is string => Boolean(key) && isValidUploadKey(key as string)
+        (key): key is string => Boolean(key) && isValidObjectKey(key as string)
       )
     ),
   ];
-  const batches = chunk(usable, DELETE_OBJECTS_MAX_KEYS);
+  const batches = chunk(usable, MAX_DISPATCH_DELETE_KEYS);
   if (env.OBJECT_DELETIONS) {
     const failed = await sendInBatches(
       env.OBJECT_DELETIONS,
@@ -62,11 +65,11 @@ export const queueObjectDeletions = async (
 export const handleObjectDeletionBatch = async (
   batch: MessageBatch<unknown>,
   env: BackgroundEnv,
-  ops: FilesOpCaller = (spec) => callFilesOp(env, spec)
+  ops: OpCaller = (spec) => callFilesOp(env, spec)
 ): Promise<void> => {
   for (const message of batch.messages) {
     const keys = messageKeys(message.body);
-    const usable = keys?.filter(isValidUploadKey) ?? [];
+    const usable = keys?.filter(isValidObjectKey) ?? [];
     if (!keys || usable.length < keys.length) {
       console.error("[queues/object-deletions] skipped invalid keys", {
         id: message.id,
@@ -76,7 +79,7 @@ export const handleObjectDeletionBatch = async (
     try {
       for (const keyBatch of chunk(
         [...new Set(usable)],
-        DELETE_OBJECTS_MAX_KEYS
+        MAX_DISPATCH_DELETE_KEYS
       )) {
         const outcome = await ops({
           op: "delete-objects",

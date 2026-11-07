@@ -12,6 +12,7 @@ import {
   textMetadataAnswer,
 } from "../test/cardProcessingKit";
 import { createFakeConvex, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
+import { opError } from "../test/opsHarness";
 import { FakeBucket } from "../test/testsupport";
 import type { CardProcessingDeps } from "../workflows/cardProcessing/context";
 import {
@@ -175,7 +176,7 @@ describe("handleAiBackfillBatch", () => {
       card,
       {
         "generate-text-metadata": {
-          throws: new Error("files_worker_ai: rate limit reached 429"),
+          throws: opError("AI_CAPACITY", { status: 429 }),
         },
       },
       [message()],

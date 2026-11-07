@@ -127,10 +127,9 @@ class ConvexCardsRepository @Inject constructor(
     override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
         val args = buildMap<String, Any?> {
             put("paginationOpts", mapOf("numItems" to numItems, "cursor" to cursor))
-            putAll(query.filters.toSearchArgs())
+            putAll(query.filters.toSearchArgs(query.search))
             query.folderId?.let { put("folderId", it) }
             query.range?.let { put("createdAtRange", mapOf("start" to it.start, "end" to it.endExclusive)) }
-            if (query.search.isNotBlank()) put("searchQuery", query.search.trim())
         }
         return combine(convex.subscribe(ConvexFunctions.searchCardSummaries, args), outbox.pendingEdits) { result, pending ->
             result.map { page -> page.withPending(pending, query.filters) }
@@ -216,7 +215,7 @@ class ConvexCardsRepository @Inject constructor(
             val args = buildMap<String, Any?> {
                 put("cardIds", batch)
                 put("action", action.wireName)
-                if (action == BulkAction.AddTags) put("tags", tags)
+                if (action == BulkAction.AddTags || action == BulkAction.RemoveTags) put("tags", tags)
                 folderId?.let { put("folderId", it) }
             }
             val result = try {
@@ -351,5 +350,5 @@ private fun BulkAction.perCardChange(): CardFieldChange? = when (this) {
     BulkAction.Unarchive -> CardFieldChange.Archive(false)
     BulkAction.Delete -> CardFieldChange.MoveToTrash
     BulkAction.Restore -> CardFieldChange.Restore
-    BulkAction.AddTags, BulkAction.AddToFolder -> null
+    BulkAction.AddTags, BulkAction.RemoveTags, BulkAction.AddToFolder -> null
 }

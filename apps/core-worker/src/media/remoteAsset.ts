@@ -7,6 +7,7 @@ import {
   type FilesRemoteAssetSkipReason,
   isRemoteAssetContentTypeAllowed,
   isRemoteAssetPageUrl,
+  isValidObjectKey,
 } from "@teak/files-protocol";
 import {
   FETCHER_HEADERS,
@@ -15,7 +16,7 @@ import {
   FETCHER_PROTOCOL,
   type FetcherRequest,
 } from "../../fetcher/src/protocol";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput } from "../opFailure";
 import { MediaRenderer } from "./mediaRenderer";
 import { RendererUnavailable, rendererInstanceOrder } from "./rendererClient";
 
@@ -58,13 +59,13 @@ export const parseRemoteAssetParams = (
     !url ||
     url.length > FILES_REMOTE_ASSET_MAX_URL_LENGTH ||
     typeof destinationKey !== "string" ||
-    !isValidUploadKey(destinationKey) ||
+    !isValidObjectKey(destinationKey) ||
     (fallbackContentType !== undefined &&
       (typeof fallbackContentType !== "string" ||
         fallbackContentType.length > MAX_CONTENT_TYPE_LENGTH)) ||
     !(pageUrl === undefined || isRemoteAssetPageUrl(pageUrl))
   ) {
-    throw new Error("invalid_remote_asset_params");
+    throw new InvalidOpInput("invalid_remote_asset_params");
   }
   return {
     destinationKey,

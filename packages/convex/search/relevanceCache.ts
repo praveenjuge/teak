@@ -5,15 +5,19 @@ import {
   internalQuery,
   type QueryCtx,
 } from "../_generated/server";
-import { createAccountDeletionGate } from "../accountDeletion";
+import { createAccountDeletionGate } from "../accountDeletion/gate";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
   type RelevanceScore,
   relevanceSearchKey,
 } from "../shared/search/relevance";
+import {
+  deleteExpiredResults,
+  findCachedResult,
+  writeCachedResult,
+} from "./resultCache";
 
 export const RELEVANCE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CLEANUP_BATCH = 500;
 const MAX_SCORES_PER_SEARCH = RELEVANCE_CANDIDATE_LIMIT * 8;
 
 export const relevanceScoreValidator = v.object({
@@ -23,12 +27,7 @@ export const relevanceScoreValidator = v.object({
 });
 
 const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
-  ctx.db
-    .query("searchRelevanceResults")
-    .withIndex("by_userId_and_key", (q) =>
-      q.eq("userId", userId).eq("key", key)
-    )
-    .first();
+  findCachedResult(ctx, "searchRelevanceResults", userId, key);
 
 export const readRelevanceScores = async (
   ctx: QueryCtx,
@@ -75,18 +74,13 @@ export const storeScores = internalMutation({
       ...fresh.values(),
       ...(existing?.scores ?? []).filter((entry) => !fresh.has(entry.cardId)),
     ].slice(0, MAX_SCORES_PER_SEARCH);
-    const row = {
+    await writeCachedResult(ctx, "searchRelevanceResults", existing, {
       userId,
       key,
       scores: merged,
       createdAt: existing?.createdAt ?? now,
       expiresAt: now + RELEVANCE_CACHE_TTL_MS,
-    };
-    if (existing) {
-      await ctx.db.replace("searchRelevanceResults", existing._id, row);
-    } else {
-      await ctx.db.insert("searchRelevanceResults", row);
-    }
+    });
     return true;
   },
 });
@@ -94,17 +88,5 @@ export const storeScores = internalMutation({
 export const cleanupExpired = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
-  handler: async (ctx) => {
-    const expired = await ctx.db
-      .query("searchRelevanceResults")
-      .withIndex("by_expiresAt", (q) => q.lt("expiresAt", Date.now()))
-      .take(CLEANUP_BATCH);
-    for (const entry of expired) {
-      await ctx.db.delete("searchRelevanceResults", entry._id);
-    }
-    return {
-      deleted: expired.length,
-      hasMore: expired.length === CLEANUP_BATCH,
-    };
-  },
+  handler: (ctx) => deleteExpiredResults(ctx, "searchRelevanceResults"),
 });

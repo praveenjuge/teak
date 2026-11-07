@@ -16,6 +16,15 @@ class CardEditTest {
     )
 
     @Test
+    fun `a quote can't be saved without its words, as on Apple`() {
+        val quote = card.copy(type = CardType.Quote, content = "Be kind")
+        val problem = CardEditProblem(UiText.of("native.card.edit.quoteEmptyTitle"), UiText.of("native.card.edit.quoteEmptyMessage"))
+        assertEquals(problem, CardEdit.validationError(quote, CardEdit.draftFor(quote).copy(editableContent = " \n ")))
+        assertNull(CardEdit.validationError(quote, CardEdit.draftFor(quote)))
+        assertNull(CardEdit.validationError(card, CardEdit.draftFor(card).copy(editableContent = "")))
+    }
+
+    @Test
     fun `an untouched form saves nothing`() {
         assertEquals(emptyList(), CardEdit.changes(card, CardEdit.draftFor(card)))
     }

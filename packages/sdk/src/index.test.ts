@@ -21,6 +21,34 @@ describe("teak-sdk", () => {
     ).toBe("q=hi&tag=ux&sort=oldest&limit=100");
   });
 
+  test("an empty id rejects with INVALID_INPUT and sends nothing", async () => {
+    const urls: string[] = [];
+    const client = createTeakClient({
+      fetch: ((input: unknown) => {
+        urls.push(String(input));
+        return Promise.resolve(Response.json({}));
+      }) as typeof fetch,
+      tokenProvider: { getAccessToken: () => "token" },
+    });
+    const calls = [
+      () => client.cards.get(""),
+      () => client.folders.getRuleRun("folder_1", ""),
+      () => client.highlights.delete(""),
+    ];
+    for (const call of calls) {
+      let pending: Promise<unknown> | undefined;
+      expect(() => {
+        pending = call();
+      }).not.toThrow();
+      const error = (await pending?.catch((caught: unknown) => caught)) as
+        | TeakApiError
+        | undefined;
+      expect(error?.name).toBe("TeakApiError");
+      expect(error?.code).toBe("INVALID_INPUT");
+    }
+    expect(urls).toEqual([]);
+  });
+
   test("asks for best-match order", () => {
     expect(buildCardsSearchParams({ query: "x", sort: "relevance" })).toBe(
       "q=x&sort=relevance&limit=50"

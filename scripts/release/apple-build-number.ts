@@ -4,7 +4,13 @@ import { fileURLToPath } from "node:url";
 
 const positiveIntegerPattern = /^[1-9]\d*$/;
 
-export function nextAppleBuildNumber(...buildsPerPlatform) {
+interface AppleBuildsResponse {
+  data?: { attributes?: { version?: unknown } }[];
+}
+
+export function nextAppleBuildNumber(
+  ...buildsPerPlatform: AppleBuildsResponse[]
+) {
   if (
     buildsPerPlatform.length === 0 ||
     !buildsPerPlatform.every(
@@ -15,7 +21,9 @@ export function nextAppleBuildNumber(...buildsPerPlatform) {
   }
 
   let maximum = 0n;
-  for (const build of buildsPerPlatform.flatMap((response) => response.data)) {
+  for (const build of buildsPerPlatform.flatMap(
+    (response) => response.data ?? []
+  )) {
     const value = String(build?.attributes?.version ?? "");
     if (!positiveIntegerPattern.test(value)) {
       throw new Error(`Unsafe App Store build number: ${value || "missing"}.`);

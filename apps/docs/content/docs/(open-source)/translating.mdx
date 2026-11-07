@@ -24,6 +24,7 @@ The web app (`apps/web`), the browser extension (`apps/extension`), the card vie
 | Server error messages | `errors.*` keys, `apps/web/src/lib/serverErrors.ts`, `hooks/useServerErrors.ts` |
 | The native apps' catalogs (the `native`, `apple` and `android` namespaces) | `packages/i18n/messages/native/<locale>.json` |
 | Generated native files | Apple: `TeakCore/Resources/Localizable.xcstrings`, `Teak/Resources/InfoPlist.xcstrings`, the Safari extension's `_locales`. Android: `core/i18n/src/main/res/values*/strings.xml`, `locales_config.xml` |
+| The browser extension's manifest text (name, description, shortcut name) | `extension.manifest.*` keys, generated into `apps/extension/public/_locales` by `bun --no-env-file run scripts/repo/extension-locales.ts --write`; `scripts/repo/extension-locales.test.ts` fails when they drift |
 
 The signed-in web app gets its locale from the `teak-locale` cookie (read in `AuthenticatedAppProvider`), which mirrors the account's Language setting. Without a provider, for example in tests or a screen outside the app shell, components render English.
 

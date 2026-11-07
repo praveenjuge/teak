@@ -2,7 +2,14 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "env": ["SITE_URL"]
+      "env": ["SITE_URL"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/android/core/data/src/main/kotlin/com/praveenjuge/teak/core/data/convex/ConvexFunctions.kt",
+        "$TURBO_ROOT$/apps/apple/Packages/TeakKit/Sources/TeakCore/Backend/ConvexFunctions.swift",
+        "$TURBO_ROOT$/apps/core-worker/assets/onboarding/**",
+        "$TURBO_ROOT$/apps/core-worker/src/**"
+      ]
     }
   }
 }

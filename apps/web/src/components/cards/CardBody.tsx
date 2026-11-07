@@ -5,7 +5,12 @@ import {
 import { useTranslations } from "@teak/i18n/react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
-import { CARD_SURFACE, readableTextOn, splitNotePreview } from "./cardDisplay";
+import {
+  CARD_TILE,
+  quoteSizeClass,
+  readableTextOn,
+  splitNotePreview,
+} from "./cardDisplay";
 import {
   AudioCardBody,
   DocumentCardBody,
@@ -54,7 +59,7 @@ export function CardBody({
     case "video":
       return <VideoCardBody card={card} isPriority={isPriority} />;
     case "audio":
-      return <AudioCardBody card={card} />;
+      return <AudioCardBody card={card} textInsets={textInsets} />;
     case "document":
       return <DocumentCardBody card={card} isPriority={isPriority} />;
     case "palette":
@@ -80,67 +85,86 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   const t = useTranslations("cards.body");
   if (!(headingText || bodyText)) {
     return (
-      <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
-        <p className="text-muted-foreground italic leading-relaxed">
+      <div className={cn(CARD_TILE, "flex flex-col p-4", textInsets)}>
+        <p className="flex flex-1 items-center justify-center text-muted-foreground italic">
           {t("emptyNote")}
         </p>
         <SourceFooter sourceUrl={card.sourceUrl} />
       </div>
     );
   }
+  const isShort = !headingText && (bodyText?.length ?? 0) <= SHORT_NOTE;
   return (
-    <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
-      {headingText ? (
-        <>
-          <p
-            className="line-clamp-2 break-words font-semibold leading-snug"
-            dir="auto"
-          >
-            {headingText}
-          </p>
-          <p
-            className="line-clamp-5 break-words text-muted-foreground text-sm leading-relaxed"
-            dir="auto"
-          >
-            {bodyText}
-          </p>
-        </>
-      ) : (
+    <div className={cn(CARD_TILE, "flex flex-col p-4 pb-3", textInsets)}>
+      {isShort ? (
         <p
-          className="line-clamp-6 break-words font-medium leading-relaxed"
+          className="flex flex-1 items-center text-balance break-words font-semibold text-lg leading-snug tracking-[-0.01em]"
           dir="auto"
         >
           {bodyText}
         </p>
+      ) : (
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]">
+          {headingText ? (
+            <p
+              className="break-words font-semibold text-[15px] leading-snug"
+              dir="auto"
+            >
+              {headingText}
+            </p>
+          ) : null}
+          <p
+            className={cn(
+              "whitespace-pre-line break-words text-[13.5px] leading-relaxed",
+              headingText ? "text-muted-foreground" : "font-medium"
+            )}
+            dir="auto"
+          >
+            {bodyText}
+          </p>
+        </div>
       )}
       <SourceFooter sourceUrl={card.sourceUrl} />
     </div>
   );
 }
 
+/** A note this short and without a heading line is set large. */
+const SHORT_NOTE = 80;
+
 function SourceFooter({ sourceUrl }: { sourceUrl?: string }) {
   const host = normalizeUrlHost(sourceUrl);
   return host ? (
-    <p className="truncate pt-1 text-muted-foreground text-xs" dir="ltr">
+    <p className="truncate pt-1.5 text-muted-foreground text-xs" dir="ltr">
       {hostForDisplay(host)}
     </p>
   ) : null;
 }
 
 function QuoteCardBody({ card, textInsets }: TextBodyProps) {
+  const quote = markdownToPlainText(card.content);
   return (
-    <figure className={cn(CARD_SURFACE, "relative px-5 pt-8 pb-5", textInsets)}>
+    <figure
+      className={cn(
+        CARD_TILE,
+        "m-0 flex flex-col justify-center px-4 pt-4 pb-3",
+        textInsets
+      )}
+    >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-3 left-4 select-none font-serif text-4xl text-muted-foreground/35 leading-none"
+        className="pointer-events-none h-5 select-none font-serif text-[42px] text-primary leading-[0.6]"
       >
         &ldquo;
       </span>
       <blockquote
-        className="line-clamp-6 text-pretty break-words font-medium italic leading-relaxed"
+        className={cn(
+          "line-clamp-5 text-pretty break-words font-serif leading-[1.22] tracking-[-0.01em]",
+          quoteSizeClass(quote)
+        )}
         dir="auto"
       >
-        {markdownToPlainText(card.content)}
+        {quote}
       </blockquote>
       {card.sourceUrl ? (
         <figcaption>
@@ -153,7 +177,12 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
 
 function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
   return (
-    <div className={cn(CARD_SURFACE, "flex h-20 overflow-hidden")}>
+    <div
+      className={cn(
+        CARD_TILE,
+        "flex border-black/5 bg-transparent dark:border-white/10"
+      )}
+    >
       {colors.slice(0, 12).map((color, index) => (
         <div
           className="group/swatch flex min-w-0 flex-1 items-end justify-center overflow-hidden pb-2 transition-[flex-grow] duration-300 ease-out hover:flex-[2.6] motion-reduce:transition-none"
@@ -176,8 +205,8 @@ function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
 
 function PlainCardBody({ card, textInsets }: TextBodyProps) {
   return (
-    <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
-      <p className="line-clamp-4 break-words font-medium" dir="auto">
+    <div className={cn(CARD_TILE, "p-4", textInsets)}>
+      <p className="line-clamp-5 break-words font-medium" dir="auto">
         {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
       </p>
     </div>

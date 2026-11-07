@@ -22,5 +22,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: ./.github/actions/setup-bun
+
+      # The script imports nothing installed, so it needs no bun install.
       - name: Smoke API and MCP URLs
-        run: bash scripts/dev/smoke-urls.sh
+        run: bun --no-env-file scripts/dev/smoke-urls.ts

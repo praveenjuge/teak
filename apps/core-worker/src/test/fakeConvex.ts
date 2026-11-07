@@ -11,6 +11,7 @@ export const TEST_RPC_ROOT_SECRET = "test-workflow-rpc-root-secret";
 
 export const fakeConvexEnv = {
   CONVEX_SITE_URLS: TEST_CONVEX_SITE_URL,
+  FILES_PUBLIC_ORIGIN: "https://files.teakvault.com",
   FILES_SIGNING_SECRET: TEST_SIGNING_SECRET,
   WORKFLOW_RPC_ROOT_SECRET: TEST_RPC_ROOT_SECRET,
 };

@@ -1,14 +1,14 @@
-import { Polar, type WebhookEventHandlers } from "@convex-dev/polar";
-import { Polar as PolarBilling } from "@polar-sh/sdk";
+import type { WebhookEventHandlers } from "@convex-dev/polar";
+import type { Polar as PolarApi } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import {
   type ActionCtx,
   action,
-  env,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { polar, polarCustomerOwnerId, requirePolarApi } from "./billing/polar";
 import { readBillingDisabled, readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
@@ -50,24 +50,6 @@ export const getUserInfo = query({
   handler: getUserInfoHandler,
 });
 
-export const polarUserInfoProvider = async (
-  ctx: Pick<ActionCtx, "runQuery">
-): Promise<{ userId: string; email: string; name?: string }> => {
-  const user = await ctx.runQuery(api.billing.getUserInfo);
-  if (!user?.email) {
-    throw new ConvexError("User not found");
-  }
-
-  return {
-    userId: user.teakUserId,
-    email: user.email,
-  };
-};
-
-export const polar = new Polar(components.polar, {
-  getUserInfo: polarUserInfoProvider,
-});
-
 // Polar's sandbox refuses customer emails whose domain can't receive mail, and
 // the shared dev deployment's seeded accounts sign in on reserved domains
 // (dev+<machine>-<checkout>@example.org; WorkOS claims example.com for its
@@ -94,17 +76,6 @@ const polarCustomerIdentity = (
   };
 };
 
-// Polar calls run inside actions; a hung request would otherwise hold the
-// action until Convex kills it.
-const POLAR_TIMEOUT_MS = 15_000;
-
-const polarClient = () =>
-  new PolarBilling({
-    accessToken: env.POLAR_ACCESS_TOKEN ?? "",
-    server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-    timeoutMs: POLAR_TIMEOUT_MS,
-  });
-
 /**
  * Returns the Polar customer Teak maps to this user, creating one if there is
  * none. Two checkouts at once can both create one; the component keeps the
@@ -113,7 +84,7 @@ const polarClient = () =>
  */
 const ensurePolarCustomer = async (
   ctx: ActionCtx,
-  polar: PolarBilling,
+  polarClient: PolarApi,
   user: { teakUserId: string; email: string }
 ): Promise<string> => {
   const existing = await ctx.runQuery(
@@ -123,7 +94,7 @@ const ensurePolarCustomer = async (
   if (existing?.id) {
     return existing.id;
   }
-  const created = await polar.customers.create(
+  const created = await polarClient.customers.create(
     polarCustomerIdentity(user, readIsDevDeployment())
   );
   if (!created.id) {
@@ -140,12 +111,14 @@ const ensurePolarCustomer = async (
     throw new Error("Customer not stored");
   }
   if (stored.id !== created.id) {
-    await polar.customers.delete({ id: created.id }).catch((error: unknown) =>
-      captureBackendException(error, {
-        distinctId: user.teakUserId,
-        properties: { operation: "billing", stage: "duplicate_customer" },
-      })
-    );
+    await polarClient.customers
+      .delete({ id: created.id })
+      .catch((error: unknown) =>
+        captureBackendException(error, {
+          distinctId: user.teakUserId,
+          properties: { operation: "billing", stage: "duplicate_customer" },
+        })
+      );
   }
   return stored.id;
 };
@@ -162,10 +135,10 @@ export const createCheckoutLinkHandler = async (
     if (!isApprovedPolarProductId(args.productId)) {
       throw new ConvexError("Invalid product");
     }
-    const polar = polarClient();
-    const customerId = await ensurePolarCustomer(ctx, polar, user);
+    const polarClient = requirePolarApi();
+    const customerId = await ensurePolarCustomer(ctx, polarClient, user);
 
-    const checkout = await polar.checkouts.create({
+    const checkout = await polarClient.checkouts.create({
       products: [args.productId],
       allowDiscountCodes: true,
       customerId,
@@ -199,7 +172,7 @@ export const createCustomerPortalHandler = async (ctx: ActionCtx) => {
       throw new ConvexError("No active subscription found");
     }
 
-    const result = await polarClient().customerSessions.create({
+    const result = await requirePolarApi().customerSessions.create({
       customerId: subscription.customerId,
     });
 
@@ -244,7 +217,10 @@ export const closeBillingCustomer = async (
     return;
   }
   try {
-    await polarClient().customers.delete({ id: customer.id, anonymize: true });
+    await requirePolarApi().customers.delete({
+      id: customer.id,
+      anonymize: true,
+    });
   } catch (error) {
     if (!isPolarNotFound(error)) {
       throw error;
@@ -252,37 +228,18 @@ export const closeBillingCustomer = async (
   }
 };
 
-interface PolarSubscriptionEvent {
-  data: {
-    customer: {
-      externalId?: string | null;
-      metadata: Record<string, unknown>;
-    };
-  };
-}
-
-const subscriptionOwner = (
-  event: PolarSubscriptionEvent
-): string | undefined => {
-  const { customer } = event.data;
-  const fromMetadata = customer.metadata.userId;
-  return typeof fromMetadata === "string"
-    ? fromMetadata
-    : (customer.externalId ?? undefined);
-};
-
 export const polarWebhookEvents: WebhookEventHandlers = {
   "subscription.created": (_ctx, event) =>
     captureBackendEvent(
       "checkout_completed",
-      subscriptionOwner(event),
+      polarCustomerOwnerId(event.data.customer),
       {},
       { set: { plan: "pro" } }
     ),
   "subscription.revoked": (_ctx, event) =>
     captureBackendEvent(
       "subscription_ended",
-      subscriptionOwner(event),
+      polarCustomerOwnerId(event.data.customer),
       {},
       { set: { plan: "free" } }
     ),

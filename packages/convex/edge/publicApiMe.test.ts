@@ -1,15 +1,12 @@
 import polarTest from "@convex-dev/polar/test";
-import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
-import schema from "../schema";
+import { newBackend, workosClaims, workosIdentity } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const OWNER = "permanent-owner";
 
 beforeEach(() => {
@@ -20,19 +17,12 @@ afterEach(() => {
 });
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  const client = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_boundary",
-    email_verified: true,
-    external_id: OWNER,
-  });
+  const client = t.withIdentity(workosIdentity(workosUserId, OWNER));
   const key = await client.mutation(api.apiKeys.createUserApiKey, {
     name: "Boundary proof",
   });
@@ -84,15 +74,14 @@ test("me reads the email and name sign-in stored on the owner row without exposi
   expect(unchanged.data).toMatchObject({ email: `${OWNER}@example.test` });
   expect(unchanged.data).not.toHaveProperty("name");
   await t
-    .withIdentity({
-      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-      subject: workosUserId,
-      sid: "session_profile",
-      email_verified: true,
-      email: "updated@example.test",
-      first_name: "Identity",
-      last_name: "Boundary",
-    })
+    .withIdentity(
+      workosClaims(workosUserId, {
+        sid: "session_profile",
+        email: "updated@example.test",
+        first_name: "Identity",
+        last_name: "Boundary",
+      })
+    )
     .mutation(api.workosBootstrap.ensureUser, {});
   const response = await request();
   expect(response.status).toBe(200);
@@ -112,13 +101,7 @@ test("me reads the email and name sign-in stored on the owner row without exposi
 
 test("me reports the language chosen in Settings, and English for a code it doesn't support", async () => {
   const { t, workosUserId, request } = await setup();
-  const owner = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_settings",
-    email_verified: true,
-    external_id: OWNER,
-  });
+  const owner = t.withIdentity(workosIdentity(workosUserId, OWNER));
   await owner.mutation(api.settings.preferences.setLocale, { locale: "pt-BR" });
   expect((await (await request()).json()).data.locale).toBe("pt-BR");
 
@@ -246,9 +229,8 @@ test("revoking a key clears its cached validation", async () => {
 });
 
 test("an account created at sign-in can mint a key and read me", async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
-  rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
   await t.run((ctx) =>
@@ -260,13 +242,12 @@ test("an account created at sign-in can mint a key and read me", async () => {
       workosUserId: "user_EARLY",
     })
   );
-  const client = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: "user_EARLY",
-    sid: "session_early",
-    email_verified: true,
-    email: "early@example.com",
-  });
+  const client = t.withIdentity(
+    workosClaims("user_EARLY", {
+      sid: "session_early",
+      email: "early@example.com",
+    })
+  );
   const key = await client.mutation(api.apiKeys.createUserApiKey, {});
   const response = await t.fetch("/v1/me", {
     headers: { Authorization: `Bearer ${key.key}` },
@@ -274,5 +255,32 @@ test("an account created at sign-in can mint a key and read me", async () => {
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
     data: { id: "teak_early", email: "early@example.com" },
+  });
+});
+
+test("an MCP card id that is also a route word names a card, not the route", async () => {
+  const { t, key } = await setup();
+  const response = await t.fetch("/mcp", {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "teak_v1_get_card", arguments: { cardId: "changes" } },
+    }),
+  });
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as {
+    result: { isError?: boolean; structuredContent: Record<string, unknown> };
+  };
+  expect(body.result.isError).toBe(true);
+  expect(body.result.structuredContent).toMatchObject({
+    code: "NOT_FOUND",
+    status: 404,
   });
 });

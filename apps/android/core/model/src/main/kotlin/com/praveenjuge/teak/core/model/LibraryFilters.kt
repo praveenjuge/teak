@@ -44,21 +44,31 @@ data class LibraryFilters(
 
     /**
      * The search a smart folder saves, matching Apple: types, favorites and archive as qualifiers,
-     * then the typed [search]. Colors aren't saved, and Trash can't be a smart folder.
+     * then the typed [search] less its style, color and hex words, which search as filters a smart folder
+     * can't hold. Colors aren't saved, and Trash can't be a smart folder.
      */
     fun smartFolderQuery(search: String): String? {
         if (trashOnly) return null
         val parts = types.map { SearchQuery.format(SearchQualifier.Type(it)) }.toMutableList()
         if (favoritesOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Favorite))
         if (archivedOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Archived))
-        search.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
+        SearchFacets.split(search).text.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
         // An OR in the search is grouped, so the filters apply to both sides.
         return SearchQuery.join(parts).takeIf { it.isNotEmpty() }
     }
 
-    fun toSearchArgs(): Map<String, Any> = buildMap {
+    /**
+     * `cards:searchCardSummaries` arguments for these filters and [search]: the words naming a style, a
+     * color or a hex color filter as `styleFilters`, `hueFilters` and `hexFilters`, as Apple and the web send them.
+     */
+    fun toSearchArgs(search: String = ""): Map<String, Any> = buildMap {
+        val facets = SearchFacets.split(search)
+        val hues = (listOfNotNull(hue?.wireName) + facets.hues).distinct()
         if (favoritesOnly) put("favoritesOnly", true)
-        hue?.let { put("hueFilters", listOf(it.wireName)) }
+        if (hues.isNotEmpty()) put("hueFilters", hues)
+        if (facets.styles.isNotEmpty()) put("styleFilters", facets.styles)
+        if (facets.hexes.isNotEmpty()) put("hexFilters", facets.hexes)
+        if (facets.text.isNotEmpty()) put("searchQuery", facets.text)
         if (trashOnly) put("showTrashOnly", true)
         if (archivedOnly) put("showArchivedOnly", true)
         if (types.isNotEmpty()) put("types", types.map { it.wireName })

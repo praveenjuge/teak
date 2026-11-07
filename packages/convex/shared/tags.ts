@@ -46,6 +46,9 @@ export const explainInvalidTagName = (name: string): string | null => {
 // The extension caps a card's tags at the same number; imports keep 50.
 export const MAX_CARD_TAGS = 100;
 
+/** Most tags one bulk add or remove names. */
+export const MAX_BULK_TAGS = 20;
+
 export const CARD_TAG_ERROR_MESSAGES = {
   TAG_TOO_LONG: `Each tag must be at most ${MAX_TAG_NAME_LENGTH} characters`,
   TOO_MANY_TAGS: `A card can have at most ${MAX_CARD_TAGS} tags`,

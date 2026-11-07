@@ -4,8 +4,8 @@ import { buildDebugRaw } from "@teak/convex/linkMetadata/parsing";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
 import type { FilesOp } from "@teak/files-protocol";
+import { sha256Hex } from "@teak/files-protocol";
 import { createFetcherHandler } from "../../../fetcher/src/handler";
-import { sha256Hex } from "../../lib";
 import { createContainerPinnedFetch } from "../../media/pinnedHop";
 import {
   CARD_ID,
@@ -21,7 +21,7 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
-import type { FilesOpCaller } from "../deps";
+import type { OpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import {
   fetchLinkMetadata,
@@ -36,13 +36,7 @@ const URL_ = "https://example.com/article";
 
 const socialFixture = (name: string): unknown =>
   JSON.parse(
-    readFileSync(
-      new URL(
-        `../../../../../packages/convex/__tests__/linkMetadata/fixtures/social/${name}`,
-        import.meta.url
-      ),
-      "utf8"
-    )
+    readFileSync(new URL(`./social/fixtures/${name}`, import.meta.url), "utf8")
   );
 
 const gzipBase64 = async (text: string) => {
@@ -545,7 +539,7 @@ describe("link metadata", () => {
           throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:r"),
         },
       ],
-      ["declining", { fallback: "UNSUPPORTED" as const }],
+      ["declining", { declined: "UNSUPPORTED" as const }],
     ])("retries when the op is %s", async (_name, answer) => {
       const { fetch } = setup(linkCard(), { "fetch-link-page": answer });
       await expect(fetch()).rejects.toThrow(
@@ -832,7 +826,7 @@ describe("link page cache on refresh", () => {
       } as unknown as KVNamespace,
     });
     const fakes = createFakeOps({});
-    const ops: FilesOpCaller = (spec) =>
+    const ops: OpCaller = (spec) =>
       spec.op === ("fetch-link-page" satisfies FilesOp)
         ? callFilesOp(env, spec)
         : fakes.ops(spec);

@@ -4,13 +4,14 @@ import {
   type FilesLinkPageParams,
   type FilesLinkPageResult,
   type FilesScrapeResult,
+  sha256Hex,
 } from "@teak/files-protocol";
 import {
   FETCHER_PAGE_PATH,
   type FetcherPageRequest,
   type FetcherPageResponse,
 } from "../../fetcher/src/protocol";
-import { sha256Hex } from "../lib";
+import { InvalidOpInput } from "../opFailure";
 import { validScrapeSelectors } from "./browserRender";
 import { postToFetcher, type RemoteAssetEnv } from "./remoteAsset";
 import { RendererUnavailable } from "./rendererClient";
@@ -46,7 +47,7 @@ export const parseLinkPageParams = (
     !url ||
     url.length > FILES_LINK_PAGE_MAX_URL_LENGTH
   ) {
-    throw new Error("invalid_link_page_params");
+    throw new InvalidOpInput("invalid_link_page_params");
   }
   return {
     ...(params.fresh === true ? { fresh: true } : {}),

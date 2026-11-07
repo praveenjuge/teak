@@ -1,18 +1,12 @@
-import type {
-  FilesVectorQueryResult,
-  FilesVectorSimilarResult,
-} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, action, internalQuery } from "../_generated/server";
-import { expandFolderSearch } from "../card/searchPlanner";
-import { isSimilarAnchorAvailable } from "../card/similarSearch";
 import {
   readUserVectorShard,
   userVectorNamespace,
 } from "../embedding/userVectors";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import {
   SEMANTIC_TOP_K,
@@ -20,17 +14,17 @@ import {
   semanticRequestFor,
 } from "../shared/search/semantic";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
+import { expandFolderSearch } from "./searchPlanner";
 import {
   type SemanticEntry,
   type SemanticRanking,
   semanticSearchKey,
 } from "./semanticCache";
-
-export const API_SEMANTIC_TIMEOUT_MS = 1500;
-const GRID_SEMANTIC_TIMEOUT_MS = 5000;
+import { isSimilarAnchorAvailable } from "./similarSearch";
+import { API_SEARCH_TIMEOUT_MS, GRID_SEMANTIC_TIMEOUT_MS } from "./timeouts";
 
 export type SemanticOutcome =
   | "ok"
@@ -62,7 +56,7 @@ const askVectorService = async (
   timeoutMs: number
 ): Promise<{ matches: { id: string; score: number }[]; found: boolean }> => {
   if (request.kind === "like") {
-    const result = await callFilesWorkerJson<FilesVectorSimilarResult>({
+    const result = await callCoreWorkerOp({
       op: "vector-similar",
       params: { ...vectors, id: request.cardId, topK: SEMANTIC_TOP_K },
       timeoutMs,
@@ -72,7 +66,7 @@ const askVectorService = async (
     }
     return result.data;
   }
-  const result = await callFilesWorkerJson<FilesVectorQueryResult>({
+  const result = await callCoreWorkerOp({
     op: "vector-query",
     params: {
       ...vectors,
@@ -92,7 +86,7 @@ export const fetchSemanticRanking = async (
   ctx: ActionCtx,
   userId: string,
   request: SemanticRequest | null,
-  { timeoutMs = API_SEMANTIC_TIMEOUT_MS }: { timeoutMs?: number } = {}
+  { timeoutMs = API_SEARCH_TIMEOUT_MS }: { timeoutMs?: number } = {}
 ): Promise<{
   outcome: SemanticOutcome;
   ranking: SemanticRanking | null;
@@ -111,7 +105,7 @@ export const fetchSemanticRanking = async (
     return { outcome: "anchor_unavailable", ranking: null };
   }
   const namespace = userVectorNamespace(userId);
-  if (!(namespace && isFilesWorkerConfigured())) {
+  if (!(namespace && isCoreWorkerConfigured())) {
     return { outcome: "unavailable", ranking: null };
   }
   const key = await semanticSearchKey(request.cacheText);

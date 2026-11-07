@@ -1,15 +1,14 @@
 import { v } from "convex/values";
 import { type QueryCtx, query } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
-import { polar } from "./billing";
+import { readCardEntitlement } from "./billing/polar";
 import { getActiveCardCount } from "./card/cardUsage";
-import { readBillingDisabled } from "./env";
+import { readWorkosClientId } from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
 import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
-import { isApprovedActiveSubscription } from "./shared/polarPlans";
 
 export const getAuthUserHandler = async (ctx: QueryCtx) =>
   (await getSessionProfile(ctx))?.user ?? null;
@@ -41,28 +40,9 @@ export const getAuthMode = query({
     primary: "workos",
     signupsDisabled: await readSignupsPaused(ctx),
     accountChangesPaused: false,
-    ...(process.env.WORKOS_CLIENT_ID
-      ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
-      : {}),
+    ...(readWorkosClientId() ? { authKitClientId: readWorkosClientId() } : {}),
   }),
 });
-
-export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
-  try {
-    const subscription = await polar.getCurrentSubscription(ctx, { userId });
-    return isApprovedActiveSubscription(subscription);
-  } catch {
-    return false;
-  }
-};
-
-// What the account may do: Pro with an active subscription, or for everyone
-// while billing is off. readHasPremium stays the real subscription.
-export const readCardEntitlement = async (
-  ctx: QueryCtx,
-  userId: string
-): Promise<boolean> =>
-  readBillingDisabled() || (await readHasPremium(ctx, userId));
 
 export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   const profile = await getSessionProfile(ctx);

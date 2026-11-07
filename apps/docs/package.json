@@ -1,6 +1,6 @@
 {
   "name": "@teak/docs",
-  "version": "1.0.92",
+  "version": "1.0.93",
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "audit:live": "blume audit --url https://teakvault.com --fail-on error",
@@ -14,7 +14,7 @@
     "lint": "biome check blume.config.ts lib middleware.ts scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
-    "test": "bun test lib --coverage --dots",
+    "test": "bun test lib scripts --coverage --dots",
     "typecheck": "bun run generate && blume check --strict && blume validate --strict",
     "validate": "bun run generate && blume validate --strict"
   },

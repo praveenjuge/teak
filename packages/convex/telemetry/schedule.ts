@@ -2,8 +2,8 @@ import type { MutationCtx } from "../_generated/server";
 import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
 import type { PostHogProperties } from "../shared/posthog";
 import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
-import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
-import { queueAnalyticsEvent } from "../workflowDispatch";
+import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
+import { queueAnalyticsEvent } from "../workflowDispatch/outbox";
 import { type InboundEmailEventArgs, recordInboundEmailEvent } from "./events";
 import { backendAppVersion, isBackendCaptureEnabled } from "./posthog";
 
@@ -21,7 +21,7 @@ export const queueBackendEvent = async <Name extends ServerEventName>(
   options: { set?: PostHogProperties } = {}
 ): Promise<void> => {
   // A deployment without a Core Worker could never send the row.
-  if (!(isBackendCaptureEnabled() && isFilesWorkerConfigured())) {
+  if (!(isBackendCaptureEnabled() && isCoreWorkerConfigured())) {
     return;
   }
   const appVersion = backendAppVersion();

@@ -11,14 +11,15 @@ import { useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
+import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import { useGlobalFileDrop } from "@/hooks";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
+import { NEW_NOTE_COMPOSER_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
+import { useCanCreateCard } from "../../hooks/useCanCreateCard";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
 import { readComposerDraft, storeComposerDraft } from "../../lib/composerDraft";
@@ -112,8 +113,6 @@ export interface AddCardFormProps {
   onFocus?: () => void;
   onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
-  onUpgrade?: () => void;
-  upgradeUrl?: string;
 }
 
 export function AddCardForm({
@@ -123,8 +122,6 @@ export function AddCardForm({
   draftContentRef,
   onFocus,
   onOpenCard,
-  onUpgrade,
-  upgradeUrl = SETTINGS_PLAN_HREF,
 }: AddCardFormProps) {
   const t = useTranslations("forms.addCard");
   const tPaste = useTranslations("forms.pasteLinks");
@@ -181,9 +178,8 @@ export function AddCardForm({
   } = useFocusMode(content);
 
   const globalFileDrop = useGlobalFileDrop();
-  const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
-  const canCreateCard =
-    canCreateCardProp ?? cardCreationStatus?.canCreateCard ?? true;
+  const accountCanCreateCard = useCanCreateCard();
+  const canCreateCard = canCreateCardProp ?? accountCanCreateCard ?? true;
   const basePlaceholderText = canCreateCard
     ? t("placeholder")
     : t("upgradePlaceholder");
@@ -200,10 +196,7 @@ export function AddCardForm({
   const cardLinks = useCardLinkEditor({ onOpenCard, value: content });
   const hasShownBlockedToastRef = useRef<boolean>(false);
 
-  const { handleUpgrade, showUpgradeToast } = useUpgradeAction(
-    onUpgrade,
-    upgradeUrl
-  );
+  const { handleUpgrade, showUpgradeToast } = useUpgradeAction();
 
   const pasteJobs = useLinkPasteJobs();
   const pasteInProgress = pasteJobs.length > 0;
@@ -221,7 +214,7 @@ export function AddCardForm({
   );
 
   useEffect(() => {
-    if (cardCreationStatus?.canCreateCard === false) {
+    if (accountCanCreateCard === false) {
       // Wait for a paste to finish, so its toast can say it first.
       if (!(hasShownBlockedToastRef.current || pasteInProgress)) {
         showUpgradeToast();
@@ -231,14 +224,9 @@ export function AddCardForm({
     }
 
     hasShownBlockedToastRef.current = false;
-  }, [cardCreationStatus?.canCreateCard, pasteInProgress, showUpgradeToast]);
+  }, [accountCanCreateCard, pasteInProgress, showUpgradeToast]);
 
-  const { saveNote } = useSaveNote({
-    onOpenCard,
-    onSuccess,
-    onUpgrade,
-    upgradeUrl,
-  });
+  const { saveNote } = useSaveNote({ onOpenCard, onSuccess });
   const startLinkPaste = useMutation(api.card.pasteLinks.startLinkPaste);
 
   const resetDraft = () => {
@@ -362,7 +350,7 @@ export function AddCardForm({
       />
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-        data-new-note-composer=""
+        {...{ [NEW_NOTE_COMPOSER_ATTRIBUTE]: "" }}
         onFocus={onFocus}
       >
         {!hasContent && (
@@ -375,7 +363,7 @@ export function AddCardForm({
           <form
             className="relative flex min-h-36 flex-1 flex-col"
             data-card-creation-status={
-              cardCreationStatus === undefined ? "loading" : "ready"
+              accountCanCreateCard === undefined ? "loading" : "ready"
             }
             onSubmit={handleTextSubmit}
           >

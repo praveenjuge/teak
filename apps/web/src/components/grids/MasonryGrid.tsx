@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
 import { useTranslations } from "@teak/i18n/react";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
@@ -16,30 +17,38 @@ import { toast } from "sonner";
 import type { CardWithUrls } from "@/components/cards";
 import { Card } from "@/components/cards";
 import { Spinner } from "@/components/ui/spinner";
+import type {
+  CardGridSource,
+  GridCardAction,
+} from "../../hooks/useCardActions";
 import { useHydrated } from "../../hooks/useHydrated";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
-  type BulkCardAction,
   type BulkFolderTarget,
   collectCardLinks,
 } from "../../lib/bulkCardActions";
+import type {
+  CardActionId,
+  CardView,
+  SelectionAction,
+} from "../../lib/cardActions";
+import type { CardGridLayout } from "../../lib/cardDensity";
 import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
-import { type GridCardKeyAction, gridKeyAction } from "../../lib/gridKeys";
+import { gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
-import { allFavorited, isOptimisticCard, type PinTarget } from "../cards/types";
+import {
+  allFavorited,
+  type CardOpenOrigin,
+  isOptimisticCard,
+} from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,
   EditLinkDialog,
   FolderPickerDialog,
 } from "../lazyDialogs";
-import {
-  BulkActionBar,
-  type BulkBarAction,
-  type BulkBarFolder,
-  type BulkBarView,
-} from "../selection/BulkActionBar";
+import { BulkActionBar, type BulkBarFolder } from "../selection/BulkActionBar";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { FirstPaintGrid } from "./FirstPaintGrid";
 import {
@@ -71,6 +80,7 @@ type MasonryColumns =
     };
 
 const DEFAULT_BATCH_SIZE = 24;
+const COPY_LINKS_TOAST_ID = "copy-links";
 const MEASURING_STYLE = {
   insetInline: 0,
   opacity: 0,
@@ -80,7 +90,8 @@ const MEASURING_STYLE = {
 } as const;
 
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
-const DEFAULT_ROOT_MARGIN = "200px 0px";
+/** How far below the screen the next cards start to load. */
+const LOAD_MORE_ROOT_MARGIN = "200px 0px";
 const PRIORITY_CARD_COUNT = 10;
 
 // antd animates items in and out. Its motion forgets it has mounted while
@@ -111,23 +122,24 @@ export interface MasonryGridHandle {
   returnFocusTo: (cardId: string) => boolean;
 }
 
+const DEFAULT_LAYOUT: CardGridLayout = {
+  gutter: GRID_GUTTER,
+  maxColumns: MAX_COLUMNS,
+  minColumnWidth: MIN_COLUMN_WIDTH,
+};
+
 export interface MasonryGridProps {
   addCardForm?: ReactNode;
   addToFolder?: BulkBarFolder;
+  /** Cards shown at first, and how many more each scroll to the end shows. */
   batchSize?: number;
   columns?: MasonryColumns;
   filteredCards: Doc<"cards">[];
   folder?: BulkBarFolder;
-  gutter?: number;
   hasMore?: boolean;
-  initialBatchSize?: number;
   isLoadingMore?: boolean;
-  loadMoreRootMargin?: string;
-  /** The most columns a wide grid shows. */
-  maxColumns?: number;
-  /** The narrowest a column may get before the grid drops one. */
-  minColumnWidth?: number;
-  onAddTags?: (cardId: string) => void;
+  /** The gap, the most columns and the narrowest column: the card density. */
+  layout?: CardGridLayout;
   onAddToFolderDone?: (added: boolean) => void;
   onBulkAction?: (
     action: BulkCardAction,
@@ -138,26 +150,26 @@ export interface MasonryGridProps {
       tags?: string[];
     }
   ) => Promise<{ failedIds: string[] }>;
-  onCardClick: (card: CardWithUrls & Record<string, unknown>) => void;
+  /** A card action from a card's menu (`grid`) or its key (`shortcut`). */
+  onCardAction?: (
+    action: GridCardAction,
+    card: Doc<"cards">,
+    source: CardGridSource
+  ) => void;
+  onCardClick: (
+    card: CardWithUrls & Record<string, unknown>,
+    origin?: CardOpenOrigin
+  ) => void;
   onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
-  onDeleteCard: (cardId: string) => Promise<boolean>;
-  onLoadMore?: () => void;
-  onPermanentDeleteCard?: (cardId: string) => void;
-  /** Deletes several cards in Trash forever, from the selection bar. */
-  onPermanentDeleteCards?: (
+  /** Deletes cards in Trash forever, once the person has confirmed. */
+  onDeleteForever?: (
     cardIds: string[]
   ) => Promise<{ failedIds: readonly string[] }>;
-  onRestoreCard?: (cardId: string) => void;
-  onToggleArchive?: (cardId: string, archive: boolean) => void;
-  onToggleFavorite?: (cardId: string) => void;
-  onTogglePin?: (card: PinTarget, source?: "grid" | "shortcut") => void;
+  onLoadMore?: () => void;
   ref?: Ref<MasonryGridHandle>;
   resetKey?: string | number | boolean;
   showAddForm?: boolean;
-  showArchivedOnly?: boolean;
-  showBulkActions?: boolean;
-  showTrashOnly?: boolean;
-  toastIdPrefix?: string;
+  view?: CardView;
 }
 
 export const MasonryGrid = memo(function MasonryGrid({
@@ -165,40 +177,28 @@ export const MasonryGrid = memo(function MasonryGrid({
   folder,
   onAddToFolderDone,
   filteredCards,
-  showTrashOnly = false,
-  showArchivedOnly = false,
+  view = "library",
   showAddForm = false,
-  showBulkActions = true,
   addCardForm,
+  onCardAction,
   onCardClick,
-  onDeleteCard,
   onBulkAction,
-  onRestoreCard,
-  onPermanentDeleteCard,
-  onPermanentDeleteCards,
-  onToggleArchive,
-  onToggleFavorite,
-  onTogglePin,
-  onAddTags,
+  onDeleteForever,
   onCopyImage,
   ref,
-  initialBatchSize = DEFAULT_BATCH_SIZE,
   batchSize = DEFAULT_BATCH_SIZE,
   resetKey,
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
-  loadMoreRootMargin = DEFAULT_ROOT_MARGIN,
   columns,
-  gutter = GRID_GUTTER,
-  maxColumns = MAX_COLUMNS,
-  minColumnWidth = MIN_COLUMN_WIDTH,
-  toastIdPrefix = "masonry",
+  layout = DEFAULT_LAYOUT,
 }: MasonryGridProps) {
+  const { gutter, maxColumns, minColumnWidth } = layout;
   const t = useTranslations("grids.masonry");
   const tDialog = useTranslations("cards.deleteForeverDialog");
-  const resolvedResetKey = resetKey ?? showTrashOnly;
-  const normalizedInitialBatchSize = Math.max(1, initialBatchSize);
+  const inTrash = view === "trash";
+  const resolvedResetKey = resetKey ?? inTrash;
   const normalizedBatchSize = Math.max(1, batchSize);
 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -226,7 +226,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
   }, [addToFolderId]);
   const [visibleCount, setVisibleCount] = useState(() =>
-    Math.min(normalizedInitialBatchSize, filteredCards.length)
+    Math.min(normalizedBatchSize, filteredCards.length)
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -268,7 +268,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   const normalizedBatchSizeRef = useRef(normalizedBatchSize);
   const onLoadMoreRef = useRef(onLoadMore);
   const hasMoreRef = useRef(hasMore);
-  const loadMoreRootMarginRef = useRef(loadMoreRootMargin);
 
   useEffect(() => {
     normalizedBatchSizeRef.current = normalizedBatchSize;
@@ -279,9 +278,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   useEffect(() => {
     hasMoreRef.current = hasMore;
   }, [hasMore]);
-  useEffect(() => {
-    loadMoreRootMarginRef.current = loadMoreRootMargin;
-  }, [loadMoreRootMargin]);
 
   useEffect(() => {
     const didReset = resetKeyRef.current !== resolvedResetKey;
@@ -300,10 +296,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         return 0;
       }
 
-      const initialCount = Math.min(
-        normalizedInitialBatchSize,
-        filteredCards.length
-      );
+      const initialCount = Math.min(normalizedBatchSize, filteredCards.length);
 
       if (didReset || prev === 0) {
         return initialCount;
@@ -311,7 +304,7 @@ export const MasonryGrid = memo(function MasonryGrid({
 
       return Math.min(prev, filteredCards.length);
     });
-  }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
+  }, [resolvedResetKey, filteredCards.length, normalizedBatchSize]);
 
   // A finished page clears the request even when it showed no new cards: a
   // search merges cached cards with the server's pages, so a page of cards
@@ -363,7 +356,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onLoadMoreRef.current?.();
         }
       },
-      { root: null, rootMargin: loadMoreRootMarginRef.current, threshold: 0 }
+      { root: null, rootMargin: LOAD_MORE_ROOT_MARGIN, threshold: 0 }
     );
 
     observer.observe(sentinel);
@@ -571,23 +564,39 @@ export const MasonryGrid = memo(function MasonryGrid({
   }, [addToFolder, exitSelectionMode, onAddToFolderDone]);
 
   const handleCardClick = useCallback(
-    (card: CardWithUrls & Record<string, unknown>) => {
+    (card: CardWithUrls & Record<string, unknown>, origin?: CardOpenOrigin) => {
       if (isSelectionMode) {
         toggleCardSelection(card._id);
       } else {
         openedFromGridRef.current = true;
-        onCardClick(card);
+        onCardClick(card, origin);
       }
     },
     [isSelectionMode, onCardClick, toggleCardSelection]
   );
 
-  let bulkView: BulkBarView = "library";
-  if (showTrashOnly) {
-    bulkView = "trash";
-  } else if (showArchivedOnly) {
-    bulkView = "archive";
-  }
+  const runCardAction = useCallback(
+    (action: CardActionId, card: Doc<"cards">, source: CardGridSource) => {
+      if (action === "select") {
+        if (isSelectionMode) {
+          toggleCardSelection(card._id);
+        } else {
+          enterSelectionMode(card._id);
+        }
+      } else if (action === "deleteForever") {
+        setPendingPermanentDeleteId(card._id);
+      } else if (action !== "done" && action !== "copy") {
+        // A card copies itself (`onCopyImage`); done belongs to the open card.
+        onCardAction?.(action, card, source);
+      }
+    },
+    [enterSelectionMode, isSelectionMode, onCardAction, toggleCardSelection]
+  );
+  const handleMenuAction = useCallback(
+    (action: CardActionId, card: CardWithUrls & Record<string, unknown>) =>
+      runCardAction(action, card as unknown as Doc<"cards">, "grid"),
+    [runCardAction]
+  );
 
   const foldersCardFolderIds = useMemo(
     () =>
@@ -671,7 +680,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   const pickFolder = useCallback(
     (picked: FolderSummary) => {
       if (folderPickerMode === "move") {
-        runBulk("moveToFolder", {
+        void runBulk("moveToFolder", {
           folder: {
             folderId: picked._id,
             folderName: picked.name,
@@ -679,29 +688,24 @@ export const MasonryGrid = memo(function MasonryGrid({
               ? { fromFolderId: folder.id, fromFolderName: folder.name }
               : {}),
           },
-        }).catch(() => undefined);
+        });
         return;
       }
-      runBulk("addToFolder", {
+      void runBulk("addToFolder", {
         folder: { folderId: picked._id, folderName: picked.name },
-      }).catch(() => undefined);
+      });
     },
     [folder, folderPickerMode, runBulk]
   );
 
   const bulkDeleteForever = useBulkDeleteForever((cardIds) => {
     exitSelectionMode();
-    if (onPermanentDeleteCards) {
-      return onPermanentDeleteCards(cardIds);
-    }
-    for (const cardId of cardIds) {
-      onPermanentDeleteCard?.(cardId);
-    }
+    return onDeleteForever?.(cardIds);
   }, enterSelectionMode);
   const requestBulkDeleteForever = bulkDeleteForever.request;
 
   const handleBulkAction = useCallback(
-    (action: BulkBarAction) => {
+    (action: SelectionAction) => {
       if (action === "deleteForever") {
         requestBulkDeleteForever(Array.from(selectedCardIds));
         return;
@@ -711,9 +715,9 @@ export const MasonryGrid = memo(function MasonryGrid({
         return;
       }
       if (action === "addToFolder" && addToFolder) {
-        runBulk("addToFolder", {
+        void runBulk("addToFolder", {
           folder: { folderId: addToFolder.id, folderName: addToFolder.name },
-        }).catch(() => undefined);
+        });
         return;
       }
       if (action === "addToFolder" || action === "moveToFolder") {
@@ -722,18 +726,16 @@ export const MasonryGrid = memo(function MasonryGrid({
       }
       if (action === "removeFromFolder") {
         if (folder) {
-          runBulk("removeFromFolder", {
+          void runBulk("removeFromFolder", {
             folder: { folderId: folder.id, folderName: folder.name },
-          }).catch(() => undefined);
+          });
         }
         return;
       }
       if (action === "copyLinks") {
         const links = collectCardLinks(selectedCards);
         if (links.length === 0) {
-          toast(t("noLinks"), {
-            id: `${toastIdPrefix}-copy-links`,
-          });
+          toast(t("noLinks"), { id: COPY_LINKS_TOAST_ID });
           return;
         }
         void copyText(
@@ -742,11 +744,11 @@ export const MasonryGrid = memo(function MasonryGrid({
             copied: t("copiedLinks", { count: links.length }),
             failed: t("copyLinksFailed"),
           },
-          `${toastIdPrefix}-copy-links`
+          COPY_LINKS_TOAST_ID
         );
         return;
       }
-      runBulk(action).catch(() => undefined);
+      void runBulk(action);
     },
     [
       addToFolder,
@@ -756,24 +758,15 @@ export const MasonryGrid = memo(function MasonryGrid({
       selectedCardIds,
       selectedCards,
       t,
-      toastIdPrefix,
     ]
-  );
-
-  const requestPermanentDelete = useMemo(
-    () =>
-      onPermanentDeleteCard
-        ? (cardId: string) => setPendingPermanentDeleteId(cardId)
-        : undefined,
-    [onPermanentDeleteCard]
   );
 
   const confirmPermanentDelete = useCallback(() => {
     if (pendingPermanentDeleteId) {
-      onPermanentDeleteCard?.(pendingPermanentDeleteId);
+      void onDeleteForever?.([pendingPermanentDeleteId]);
     }
     setPendingPermanentDeleteId(null);
-  }, [onPermanentDeleteCard, pendingPermanentDeleteId]);
+  }, [onDeleteForever, pendingPermanentDeleteId]);
 
   // "Remove from this folder" on one card, while its manual folder is open.
   const removeCardFromFolder = useMemo(() => {
@@ -782,17 +775,17 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
     // The item only shows on cards in this folder, which is all Undo needs.
     return (cardId: string) => {
-      onBulkAction("removeFromFolder", [cardId], {
+      void onBulkAction("removeFromFolder", [cardId], {
         folder: { folderId: folder.id, folderName: folder.name },
         priorFolderIds: new Map([[cardId, [folder.id]]]),
-      }).catch(() => undefined);
+      });
     };
   }, [folder, onBulkAction]);
 
   const masonryItems = useMemo(() => {
     const items: MasonryItem[] = [];
 
-    if (showAddForm && !showTrashOnly && addCardForm) {
+    if (showAddForm && !inTrash && addCardForm) {
       items.push({ key: "add-form", data: "add-form" });
     }
 
@@ -804,7 +797,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
 
     return items;
-  }, [visibleCards, showTrashOnly, showAddForm, addCardForm]);
+  }, [visibleCards, inTrash, showAddForm, addCardForm]);
 
   const renderItem = useCallback(
     ({ data }: Pick<MasonryItem, "data">) => {
@@ -820,14 +813,11 @@ export const MasonryGrid = memo(function MasonryGrid({
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
           isTabStop={card._id === tabStopId}
-          onAddTags={onAddTags}
+          onAction={handleMenuAction}
           onClick={handleCardClick}
           onCopyImage={onCopyImage}
-          onDelete={onDeleteCard}
           onEditFolders={setFoldersCardId}
           onEditLink={setEditLinkCardId}
-          onEnterSelectionMode={enterSelectionMode}
-          onPermanentDelete={requestPermanentDelete}
           onRemoveFromFolder={
             removeCardFromFolder &&
             !card.isDeleted &&
@@ -836,32 +826,19 @@ export const MasonryGrid = memo(function MasonryGrid({
               ? removeCardFromFolder
               : undefined
           }
-          onRestore={onRestoreCard}
-          onToggleArchive={onToggleArchive}
-          onToggleFavorite={onToggleFavorite}
-          onTogglePin={onTogglePin}
-          onToggleSelection={toggleCardSelection}
         />
       );
     },
     [
       addCardForm,
       handleCardClick,
-      onDeleteCard,
-      onRestoreCard,
-      requestPermanentDelete,
+      handleMenuAction,
       removeCardFromFolder,
       folder,
-      onToggleArchive,
-      onToggleFavorite,
-      onTogglePin,
-      onAddTags,
       onCopyImage,
       isSelectionMode,
       selectedCardIds,
-      enterSelectionMode,
       tabStopId,
-      toggleCardSelection,
     ]
   );
 
@@ -885,6 +862,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     ) {
       return;
     }
+    const card = visibleCards.find((candidate) => candidate._id === cardId);
     const action = gridKeyAction(
       event.key.length === 1 ? event.key.toLowerCase() : event.key,
       {
@@ -893,8 +871,9 @@ export const MasonryGrid = memo(function MasonryGrid({
         hasSelection:
           isSelectionMode && selectedCardIds.size > 0 && Boolean(onBulkAction),
         isSelectionMode,
-        view: bulkView,
-      }
+        view,
+      },
+      card ?? {}
     );
     if (action?.type === "move") {
       event.preventDefault();
@@ -925,11 +904,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       }
       return;
     }
-    if (!action || event.repeat) {
-      return;
-    }
-    const card = visibleCards.find((candidate) => candidate._id === cardId);
-    if (!card) {
+    if (!(action && card) || event.repeat) {
       return;
     }
     if (action.type === "blocked") {
@@ -941,42 +916,13 @@ export const MasonryGrid = memo(function MasonryGrid({
       event.preventDefault();
       cancelSelection();
     } else {
-      runCardKeyAction(event, action.action, card);
-    }
-  };
-
-  const runCardKeyAction = (
-    event: KeyboardEvent<HTMLDivElement>,
-    action: GridCardKeyAction,
-    card: Doc<"cards">
-  ) => {
-    const handlers: Record<GridCardKeyAction, (() => void) | undefined> = {
-      addTags: onAddTags && (() => onAddTags(card._id)),
-      archive:
-        onToggleArchive && (() => onToggleArchive(card._id, !card.isArchived)),
-      delete: () => {
-        onDeleteCard(card._id).catch(() => undefined);
-      },
-      deleteForever: () => requestPermanentDelete?.(card._id),
-      favorite: onToggleFavorite && (() => onToggleFavorite(card._id)),
-      pin: onTogglePin && (() => onTogglePin(card, "shortcut")),
-      select: () => {
-        if (isSelectionMode) {
-          toggleCardSelection(card._id);
-        } else {
-          enterSelectionMode(card._id);
-        }
-      },
-    };
-    const run = handlers[action];
-    if (run) {
       event.preventDefault();
-      run();
+      runCardAction(action.action, card, "shortcut");
     }
   };
 
   const bulkActionBar: ReactNode =
-    showBulkActions && onBulkAction && isSelectionMode ? (
+    onBulkAction && isSelectionMode ? (
       <BulkActionBar
         addToFolder={addToFolder}
         allFavorited={allSelectedFavorited}
@@ -985,7 +931,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         onAction={handleBulkAction}
         onCancel={cancelSelection}
         selectedCount={selectedCardIds.size}
-        view={bulkView}
+        view={view}
       />
     ) : null;
 
@@ -1044,7 +990,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         }}
         onSubmit={(tags) => {
           const action = tagsDialogMode === "remove" ? "removeTags" : "addTags";
-          runBulk(action, { tags }).catch(() => undefined);
+          void runBulk(action, { tags });
         }}
         open={tagsDialogMode !== null}
         selectedCount={selectedCardIds.size}

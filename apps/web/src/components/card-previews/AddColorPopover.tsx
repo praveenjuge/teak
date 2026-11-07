@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { paletteHasColor } from "@/hooks/paletteColors";
+import { paletteHasColor } from "@/lib/paletteColors";
 
 const DEFAULT_PICKER_HEX = "#FF5500";
 
@@ -64,7 +64,7 @@ export function AddColorPopover({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (canAdd && hex) {
-      save(hex).catch(() => undefined);
+      void save(hex);
     }
   };
 

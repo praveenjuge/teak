@@ -136,6 +136,7 @@ enum class BulkAction(val wireName: String) {
     Archive("archive"),
     Unarchive("unarchive"),
     AddTags("addTags"),
+    RemoveTags("removeTags"),
     Delete("delete"),
     Restore("restore"),
     AddToFolder("addToFolder"),

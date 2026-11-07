@@ -1,38 +1,13 @@
-import { isTypingTarget } from "../../hooks/useKeyboardShortcuts";
-import { isApplePlatform } from "../../lib/platform";
+import { type CardActionId, cardActionsForKey } from "../../lib/cardActions";
+import {
+  DIALOG_KEYS,
+  type DialogKeyAction,
+  OPEN_CARD_LINK_KEYS,
+} from "../../lib/cardDialogKeys";
+import { isTypingTarget, OPEN_OVERLAYS } from "../../lib/keyboardShortcuts";
+import { isApplePlatform, isModKey } from "../../lib/platform";
 
-export type CardModalKeyAction =
-  | "previous"
-  | "next"
-  | "favorite"
-  | "pin"
-  | "archive"
-  | "delete"
-  | "focusTags"
-  | "focusNotes"
-  | "done"
-  | "open"
-  | "copy"
-  | "toggleReader"
-  | "highlight";
-
-const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
-  ArrowLeft: "previous",
-  ArrowRight: "next",
-  k: "previous",
-  j: "next",
-  f: "favorite",
-  p: "pin",
-  e: "archive",
-  t: "focusTags",
-  n: "focusNotes",
-  d: "done",
-  o: "open",
-  c: "copy",
-  r: "toggleReader",
-  h: "highlight",
-  Delete: "delete",
-};
+export type CardModalKeyAction = DialogKeyAction | CardActionId;
 
 /**
  * On Apple platforms Backspace is the Delete key (⌫). ⌘↵ (Ctrl+Enter
@@ -55,10 +30,8 @@ export function cardModalKeyAction(
     return null;
   }
   if (
-    event.key === "Enter" &&
-    (apple
-      ? event.metaKey && !event.ctrlKey
-      : event.ctrlKey && !event.metaKey) &&
+    event.key === OPEN_CARD_LINK_KEYS[1] &&
+    isModKey(event, apple) &&
     !(event.altKey || event.shiftKey || event.repeat)
   ) {
     return "open";
@@ -72,12 +45,9 @@ export function cardModalKeyAction(
   ) {
     return null;
   }
-  const action =
-    apple && event.key === "Backspace"
-      ? "delete"
-      : KEY_ACTIONS[
-          event.key.length === 1 ? event.key.toLowerCase() : event.key
-        ];
+  const action: CardModalKeyAction | undefined =
+    cardActionsForKey(event.key, "dialog", apple).at(0) ??
+    DIALOG_KEYS[event.key.length === 1 ? event.key.toLowerCase() : event.key];
   if (!action) {
     return null;
   }
@@ -87,12 +57,7 @@ export function cardModalKeyAction(
   return action;
 }
 
-const OTHER_OVERLAYS = [
-  "[role='dialog'][data-state='open']",
-  "[role='alertdialog'][data-state='open']",
-  "[role='menu'][data-state='open']",
-  "[role='listbox'][data-state='open']",
-].join(", ");
+const OTHER_OVERLAYS = OPEN_OVERLAYS.join(", ");
 
 /**
  * Whether Escape should close the card dialog although a tooltip is open. A

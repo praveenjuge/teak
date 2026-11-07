@@ -1,26 +1,15 @@
 import {
-  buildWorkflowRpcSigningPayload,
-  WORKFLOW_RPC_HEADERS,
+  signWorkflowRpcRequest,
   WORKFLOW_RPC_PATH,
+  WORKFLOW_RPC_TTL_SECONDS,
   type WorkflowRpcResponse,
 } from "@teak/files-protocol";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import schema from "../schema";
-import { hmacSha256Hex } from "../storage/r2Keys";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const SECRET = "workflow-rpc-test-secret";
 const FILES_SECRET = "files-signing-test-secret";
 const SITE_URL = "https://prod-deployment.convex.site";
-
-const sha256Hex = async (text: string): Promise<string> =>
-  Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
-    ),
-    (byte) => byte.toString(16).padStart(2, "0")
-  ).join("");
 
 const signedRequest = async (
   payload: unknown,
@@ -31,33 +20,24 @@ const signedRequest = async (
   } = {}
 ): Promise<RequestInit> => {
   const body = JSON.stringify(payload);
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(
-    Math.floor(Date.now() / 1000) + (options.expiresInSeconds ?? 60)
-  );
-  const signature = await hmacSha256Hex(
-    options.secret ?? SECRET,
-    buildWorkflowRpcSigningPayload({
-      bodySha256: await sha256Hex(body),
+  // Signing "now" is moved so the request expires when the test asks.
+  const nowSeconds =
+    Math.floor(Date.now() / 1000) +
+    (options.expiresInSeconds ?? 60) -
+    WORKFLOW_RPC_TTL_SECONDS;
+  const { headers } = await signWorkflowRpcRequest(
+    {
+      body,
       convexSiteUrl: options.convexSiteUrl ?? SITE_URL,
-      expiresAt,
-      requestId,
-    })
-  );
-  return {
-    body,
-    headers: {
-      "Content-Type": "application/json",
-      [WORKFLOW_RPC_HEADERS.expiresAt]: expiresAt,
-      [WORKFLOW_RPC_HEADERS.requestId]: requestId,
-      [WORKFLOW_RPC_HEADERS.signature]: signature,
+      secret: options.secret ?? SECRET,
     },
-    method: "POST",
-  };
+    nowSeconds
+  );
+  return { body, headers, method: "POST" };
 };
 
 const setup = async () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const { cardId, dispatchId } = await t.run(async (ctx) => {
     const now = Date.now();
     const cardId = await ctx.db.insert("cards", {

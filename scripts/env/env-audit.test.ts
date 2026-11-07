@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   auditFiles,
   extractCodeUses,
@@ -8,7 +16,10 @@ import {
   extractTurboDecls,
   extractWorkflowEnvKeys,
   extractWorkflowRefs,
+  extractWranglerDecls,
   findSecretDiagnostics,
+  isTurboConfig,
+  listScannedFiles,
 } from "./env-audit.ts";
 
 describe("env-audit extractors", () => {
@@ -70,6 +81,23 @@ describe("env-audit extractors", () => {
     ]);
   });
 
+  test("turbo.jsonc declarations are read, comments and all", () => {
+    const decls = extractTurboDecls(
+      '{\n  // shared\n  "globalEnv": ["A_ONE"],\n  "tasks": { "build": { "env": ["B_TWO",] } },\n}',
+      "apps/x/turbo.jsonc"
+    );
+    expect(decls.map((decl) => decl.name).sort()).toEqual(["A_ONE", "B_TWO"]);
+    expect(isTurboConfig("apps/x/turbo.jsonc")).toBe(true);
+    expect(isTurboConfig("turbo.json")).toBe(true);
+    expect(isTurboConfig("apps/x/not-turbo.json")).toBe(false);
+  });
+
+  test("a Turbo config that doesn't parse fails the audit", () => {
+    expect(() => extractTurboDecls('{"globalEnv": [', "turbo.json")).toThrow(
+      "Could not parse turbo.json"
+    );
+  });
+
   test("turbo declarations include env and passThroughEnv", () => {
     const decls = extractTurboDecls(
       JSON.stringify({
@@ -82,6 +110,28 @@ describe("env-audit extractors", () => {
       "A_ONE",
       "B_TWO",
       "C_THREE",
+    ]);
+  });
+
+  test("wrangler declarations include bindings named by name, not other names", () => {
+    const config = `{
+      "name": "core-worker",
+      // A comment
+      "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "teak-files" }],
+      "ratelimits": [{ "name": "API_LIMITER", "namespace_id": "1001" }],
+      "durable_objects": {
+        "bindings": [{ "name": "OBJECT_GATES", "class_name": "Gate" }]
+      },
+      "containers": [{ "class_name": "Gate", "name": "teak-gate" }],
+      "workflows": [{ "name": "teak-run", "binding": "RUNS", "class_name": "Run" }],
+      "vars": { "MAX_BODY_BYTES": "1" }
+    }`;
+    expect(extractWranglerDecls(config).sort()).toEqual([
+      "API_LIMITER",
+      "BUCKET",
+      "MAX_BODY_BYTES",
+      "OBJECT_GATES",
+      "RUNS",
     ]);
   });
 
@@ -301,5 +351,39 @@ describe("turbo env scoping", () => {
         expect(decl.name).not.toContain("*");
       }
     }
+  });
+});
+
+describe("env-audit file walk", () => {
+  test("scans hooks, setup and native apps, and skips build output and nested checkouts", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-env-audit-"));
+    for (const file of [
+      ".agents/hooks/session-start.sh",
+      ".github/workflows/ci.yml",
+      "apps/android/scripts/e2e-session.ts",
+      "apps/web/src/a.ts",
+      "apps/android/app/build/generated.json",
+      "apps/web/.next/server.js",
+      ".claude/worktrees/other/apps/web/src/a.ts",
+      "node_modules/x/index.js",
+      ".agents/.state/stack.json",
+    ]) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), "");
+    }
+    expect(listScannedFiles(root)).toEqual([
+      ".agents/hooks/session-start.sh",
+      ".github/workflows/ci.yml",
+      "apps/android/scripts/e2e-session.ts",
+      "apps/web/src/a.ts",
+    ]);
+  });
+
+  test("a directory link that points back up is walked once", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-env-audit-"));
+    mkdirSync(join(root, "apps/web/src"), { recursive: true });
+    writeFileSync(join(root, "apps/web/src/a.ts"), "");
+    symlinkSync(root, join(root, "apps/web/src/loop"));
+    expect(listScannedFiles(root)).toEqual(["apps/web/src/a.ts"]);
   });
 });

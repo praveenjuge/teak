@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { workspaceDirectories } from "../repo/workspaces.ts";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const appleSafariManifest =
@@ -17,7 +18,7 @@ export const appleVersionSources = [
 ];
 const appleMarketingVersionPattern = /(MARKETING_VERSION(?:: | = ))([^;\s]+)/g;
 
-export function parseVersion(value) {
+export function parseVersion(value: string): number[] {
   const match = semverPattern.exec(value);
   if (!match) {
     throw new Error(
@@ -27,7 +28,7 @@ export function parseVersion(value) {
   return match.slice(1).map(Number);
 }
 
-export function assertPatchBump(previous, next) {
+export function assertPatchBump(previous: string, next: string) {
   const [previousMajor, previousMinor, previousPatch] = parseVersion(previous);
   const [nextMajor, nextMinor, nextPatch] = parseVersion(next);
   if (
@@ -41,50 +42,45 @@ export function assertPatchBump(previous, next) {
   }
 }
 
-export function packageFiles(repoRoot) {
-  const files = ["package.json"];
-  for (const directory of ["apps", "packages"]) {
-    const parent = path.join(repoRoot, directory);
-    for (const entry of fs.readdirSync(parent, { withFileTypes: true })) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-      const relative = `${directory}/${entry.name}/package.json`;
-      if (fs.existsSync(path.join(repoRoot, relative))) {
-        files.push(relative);
-      }
-    }
-  }
-  return files.sort();
+export function packageFiles(repoRoot: string): string[] {
+  return [
+    "package.json",
+    ...workspaceDirectories(repoRoot).map(
+      (directory) => `${directory}/package.json`
+    ),
+  ].sort();
 }
 
-export function npmLockFiles(repoRoot) {
+export function npmLockFiles(repoRoot: string): string[] {
   return packageFiles(repoRoot)
     .map((relative) => path.join(path.dirname(relative), "package-lock.json"))
     .filter((relative) => fs.existsSync(path.join(repoRoot, relative)))
     .sort();
 }
 
-export function releaseManifestFiles(repoRoot) {
+export function releaseManifestFiles(repoRoot: string): string[] {
   const files = packageFiles(repoRoot);
   files.push(appleSafariManifest, mcpServerManifest, claudePluginManifest);
   return files.sort();
 }
 
-export function appleMarketingVersions(contents) {
+export function appleMarketingVersions(contents: string): string[] {
   return [...contents.matchAll(appleMarketingVersionPattern)].map(
     (match) => match[2]
   );
 }
 
-export function replaceAppleMarketingVersions(contents, version) {
+export function replaceAppleMarketingVersions(
+  contents: string,
+  version: string
+): string {
   return contents.replace(
     appleMarketingVersionPattern,
-    (_match, prefix) => `${prefix}${version}`
+    (_match: string, prefix: string) => `${prefix}${version}`
   );
 }
 
-export function assertLockstep(repoRoot, expectedVersion) {
+export function assertLockstep(repoRoot: string, expectedVersion: string) {
   parseVersion(expectedVersion);
   const mismatches: string[] = [];
   for (const relative of releaseManifestFiles(repoRoot)) {

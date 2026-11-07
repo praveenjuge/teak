@@ -11,9 +11,12 @@ const writes: unknown[] = [];
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,
-  useMutation: () => (args: unknown) => {
-    writes.push(args);
-    return Promise.resolve(null);
+  useMutation: () => {
+    const write = (args: unknown) => {
+      writes.push(args);
+      return Promise.resolve(null);
+    };
+    return Object.assign(write, { withOptimisticUpdate: () => write });
   },
 }));
 const toasts: string[] = [];

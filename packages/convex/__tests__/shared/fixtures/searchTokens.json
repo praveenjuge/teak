@@ -1,0 +1,165 @@
+{
+  "$comment": "classifySearchToken rows (packages/convex/shared/search/tokenization.ts): the words a search turns into style, color and hex filters on the web, Apple and Android.",
+  "classify": [
+    {
+      "token": "Minimalist",
+      "kind": "style",
+      "value": "minimal"
+    },
+    {
+      "token": "minimal",
+      "kind": "style",
+      "value": "minimal"
+    },
+    {
+      "token": "hand-drawn",
+      "kind": "style",
+      "value": "hand-drawn"
+    },
+    {
+      "token": "Hand_Drawn",
+      "kind": "style",
+      "value": "hand-drawn"
+    },
+    {
+      "token": "handdrawn",
+      "kind": "style",
+      "value": "hand-drawn"
+    },
+    {
+      "token": "3D",
+      "kind": "style",
+      "value": "3d"
+    },
+    {
+      "token": "black-and-white",
+      "kind": "style",
+      "value": "monochrome"
+    },
+    {
+      "token": "monochrome",
+      "kind": "style",
+      "value": "monochrome"
+    },
+    {
+      "token": "(retro)",
+      "kind": "style",
+      "value": "retro"
+    },
+    {
+      "token": "\"pastel\"",
+      "kind": "style",
+      "value": "pastel"
+    },
+    {
+      "token": "sci-fi",
+      "kind": "style",
+      "value": "futuristic"
+    },
+    {
+      "token": "cyberpunk",
+      "kind": "style",
+      "value": "futuristic"
+    },
+    {
+      "token": "blue",
+      "kind": "hue",
+      "value": "blue"
+    },
+    {
+      "token": "Blue,",
+      "kind": "hue",
+      "value": "blue"
+    },
+    {
+      "token": "grey",
+      "kind": "hue",
+      "value": "neutral"
+    },
+    {
+      "token": "teal",
+      "kind": "hue",
+      "value": "teal"
+    },
+    {
+      "token": "#fff",
+      "kind": "hex",
+      "value": "#FFFFFF"
+    },
+    {
+      "token": "#FFF.",
+      "kind": "hex",
+      "value": "#FFFFFF"
+    },
+    {
+      "token": "#3b82f6",
+      "kind": "hex",
+      "value": "#3B82F6"
+    },
+    {
+      "token": "3b82f6",
+      "kind": "hex",
+      "value": "#3B82F6"
+    },
+    {
+      "token": "3B82F6,",
+      "kind": "hex",
+      "value": "#3B82F6"
+    },
+    {
+      "token": "abcdef",
+      "kind": "hex",
+      "value": "#ABCDEF"
+    },
+    {
+      "token": "#ffff",
+      "kind": "hex",
+      "value": "#FFFFFF"
+    },
+    {
+      "token": "#3b82f680",
+      "kind": "hex",
+      "value": "#3B82F6"
+    },
+    {
+      "token": "navy",
+      "kind": "keyword",
+      "value": "navy"
+    },
+    {
+      "token": "fff",
+      "kind": "keyword",
+      "value": "fff"
+    },
+    {
+      "token": "abc",
+      "kind": "keyword",
+      "value": "abc"
+    },
+    {
+      "token": "#gg0000",
+      "kind": "keyword",
+      "value": "#gg0000"
+    },
+    {
+      "token": "#12",
+      "kind": "keyword",
+      "value": "#12"
+    },
+    {
+      "token": "design",
+      "kind": "keyword",
+      "value": "design"
+    },
+    {
+      "token": "Design!",
+      "kind": "keyword",
+      "value": "design"
+    },
+    {
+      "token": "turquoise",
+      "kind": "keyword",
+      "value": "turquoise"
+    }
+  ]
+}

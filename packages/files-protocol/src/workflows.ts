@@ -6,12 +6,6 @@ export const WORKFLOW_RPC_MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 export const MAX_DAILY_USAGE_ROWS = 200;
 
-export const WORKFLOW_RPC_HEADERS = {
-  expiresAt: "x-teak-expires-at",
-  requestId: "x-teak-request-id",
-  signature: "x-teak-signature",
-} as const;
-
 export const buildWorkflowRpcSecretPayload = (convexSiteUrl: string): string =>
   ["workflow-rpc-secret", "1", convexSiteUrl].join("\n");
 
@@ -63,15 +57,26 @@ export interface WorkflowRpcRequest {
   name: string;
 }
 
+/**
+ * Why Convex refused a guarded write: the card is gone, or a newer run
+ * replaced this one. Another try can't land either.
+ */
 export const WORKFLOW_RPC_ERROR_CODES = [
   "card_missing",
   "stale_processing_revision",
 ] as const;
 export type WorkflowRpcErrorCode = (typeof WORKFLOW_RPC_ERROR_CODES)[number];
 
+export const isWorkflowRpcErrorCode = (
+  value: unknown
+): value is WorkflowRpcErrorCode =>
+  typeof value === "string" &&
+  (WORKFLOW_RPC_ERROR_CODES as readonly string[]).includes(value);
+
 export type WorkflowRpcResponse =
   | { ok: true; value: unknown }
   | {
+      /** A `ConvexError`'s code: a `WorkflowRpcErrorCode` or the function's own. */
       error: { code?: string; data?: unknown; message: string };
       ok: false;
     };
@@ -128,6 +133,17 @@ export const WORKFLOW_NAMES = [
   "maintenance",
 ] as const;
 export type WorkflowName = (typeof WORKFLOW_NAMES)[number];
+
+/** The Worker binding each workflow runs under, in every Wrangler config. */
+export const WORKFLOW_BINDINGS = {
+  "account-deletion": "ACCOUNT_DELETION",
+  "card-processing": "CARD_PROCESSING",
+  export: "EXPORTS",
+  import: "IMPORTS",
+  maintenance: "MAINTENANCE",
+} as const satisfies Record<WorkflowName, string>;
+export type WorkflowBindingName =
+  (typeof WORKFLOW_BINDINGS)[keyof typeof WORKFLOW_BINDINGS];
 
 export const isWorkflowName = (value: unknown): value is WorkflowName =>
   typeof value === "string" &&

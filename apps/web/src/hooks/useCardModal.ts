@@ -1,43 +1,15 @@
 import { api } from "@teak/convex";
-import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { captureEvent } from "@teak/convex/shared/analytics";
-import { doneActionLabel } from "@teak/convex/shared/linkCategories";
-import {
-  explainInvalidCardTags,
-  isCardHidden,
-  isHiddenTagList,
-} from "@teak/convex/shared/tags";
+import type { Id } from "@teak/convex/_generated/dataModel";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";
-import { useConvex, useMutation } from "convex/react";
+import { useConvex } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { ClientCard } from "@/lib/cardTypes";
 import { openCardLink } from "@/lib/openCardLink";
-import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
-import { applyCardFieldUpdate } from "../lib/cardQueryOptimisticUpdates";
-import { cardActionFailedMessage } from "./cardActions";
-import { useServerErrors } from "./useServerErrors";
+import { useUpdateCardField } from "./useCardMutations";
 import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
-
-export type CardWithUrls = Doc<"cards"> & {
-  detailUrl?: string;
-  fileUrl?: string;
-  thumbnailUrl?: string;
-  screenshotUrl?: string;
-  linkPreviewMedia?: Array<{
-    contentType?: string;
-    height?: number;
-    posterContentType?: string;
-    posterHeight?: number;
-    posterUrl?: string;
-    posterWidth?: number;
-    type: "image" | "video";
-    url: string;
-    width?: number;
-  }>;
-  linkPreviewImageUrl?: string;
-  hasThumbnailOverride?: true;
-};
 
 export type TextField =
   | "content"
@@ -46,25 +18,13 @@ export type TextField =
   | "aiSummary"
   | "metadataTitle";
 
-interface PendingChanges {
-  aiSummary?: string;
-  content?: string;
-  isFavorited?: boolean;
-  metadataTitle?: string;
-  notes?: string;
-  url?: string;
-}
+type PendingChanges = Partial<Record<TextField, string>>;
 
 export type CardSaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
-export interface CardModalConfig {
-  onCardUpdate?: (card: CardWithUrls) => void;
-  onError?: (error: Error, operation: string) => void;
+export interface CardModalOptions {
+  card?: ClientCard | null;
   onOpenLink?: (url: string) => void;
-}
-
-export interface CardModalOptions extends CardModalConfig {
-  card?: CardWithUrls | null;
 }
 
 /**
@@ -79,8 +39,7 @@ export function getUnsavedUpdates(
   pending: PendingChanges,
   saved: PendingChanges
 ): { field: TextField; value: string }[] {
-  return (Object.keys(pending) as (keyof PendingChanges)[])
-    .filter((key): key is TextField => key !== "isFavorited")
+  return (Object.keys(pending) as TextField[])
     .map((field) => ({ field, value: pending[field] }))
     .filter(
       (update): update is { field: TextField; value: string } =>
@@ -91,28 +50,15 @@ export function getUnsavedUpdates(
     );
 }
 
-/** Tags compare as the server stores them: trimmed, ignoring case. */
 /** How long "Saved" shows after edits are written. */
 const SAVED_CONFIRMATION_MS = 2000;
-
-const tagKey = (tag: string) => tag.trim().toLowerCase();
 
 export function useCardModal(
   cardId: string | null,
   options: CardModalOptions = {}
 ) {
-  const { card: cardData = null, ...config } = options;
+  const { card = null, onOpenLink } = options;
   const t = useTranslations("hooks.cardActions");
-  const tc = useTranslations("common");
-  const serverErrors = useServerErrors();
-  const [tagInput, setTagInputValue] = useState("");
-  // Why the last tag typed wasn't added, shown under the tag field until the
-  // text changes.
-  const [tagError, setTagError] = useState<string | null>(null);
-  const setTagInput = useCallback((value: string) => {
-    setTagInputValue(value);
-    setTagError(null);
-  }, []);
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
@@ -132,36 +78,24 @@ export function useCardModal(
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
-  const [pendingDone, setPendingDone] = useState<Record<string, boolean>>({});
-  const doneInFlight = useRef(new Set<string>());
 
   if (editsCardId !== cardId) {
     setEditsCardId(cardId);
     setPendingChanges({});
     setSavedValues({});
-    setTagInputValue("");
-    setTagError(null);
     setIsSaved(false);
     setSaveFailed(false);
   }
 
-  const notifyError = useCallback(
-    (error: Error, operation: string) => {
-      toast.error(cardActionFailedMessage(operation, t));
-      config.onError?.(error, operation);
+  const notifySaveFailed = useCallback(
+    (error: unknown) => {
+      captureClientException(error, { operation: "card.update" });
+      toast.error(t("failed.saveChanges"));
     },
-    [config.onError, t]
+    [t]
   );
 
-  const card = cardData;
-
-  const updateCardField = useMutation(
-    api.cards.updateCardField
-  ).withOptimisticUpdate((localStore, args) => {
-    applyCardFieldUpdate(localStore, args);
-  });
-
-  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
+  const updateCardField = useUpdateCardField();
   const convex = useConvex();
 
   const unsavedUpdates = useMemo(
@@ -200,7 +134,7 @@ export function useCardModal(
           field,
           value,
         })
-          .catch((error) => notifyError(error as Error, "save changes"))
+          .catch(notifySaveFailed)
           .finally(() => setSavesInFlight((count) => count - 1));
       }
     },
@@ -271,50 +205,29 @@ export function useCardModal(
         }, SAVED_CONFIRMATION_MS);
         return true;
       } catch (error) {
-        console.error("Failed to save changes:", error);
         if (isStillOpen()) {
           setSaveFailed(true);
         }
-        notifyError(error as Error, "save changes");
+        notifySaveFailed(error);
         return false;
       } finally {
         setSavesInFlight((count) => count - 1);
       }
     },
-    [cardId, unsavedUpdates, updateCardField, notifyError, stopSavedTimer, t]
+    [
+      cardId,
+      unsavedUpdates,
+      updateCardField,
+      notifySaveFailed,
+      stopSavedTimer,
+      t,
+    ]
   );
 
   const saveBeforeLeaving = useCallback(() => {
     void saveChanges({ silent: true });
   }, [saveChanges]);
   useWarnBeforeUnload(hasUnsavedChanges || isSaving, saveBeforeLeaving);
-
-  const updateField = useCallback(
-    async (
-      field: "tags" | "isFavorited" | "removeAiTag",
-      value?: boolean | string[],
-      tagToRemove?: string
-    ) => {
-      if (!cardId) {
-        return false;
-      }
-
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field,
-          value,
-          tagToRemove,
-        });
-        return true;
-      } catch (error) {
-        console.error(`Failed to update ${field}:`, error);
-        notifyError(error as Error, `update ${field}`);
-        return false;
-      }
-    },
-    [cardId, updateCardField, notifyError]
-  );
 
   const updateContent = useCallback((content: string) => {
     setPendingChanges((prev) => ({ ...prev, content }));
@@ -328,297 +241,18 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, metadataTitle }));
   }, []);
 
-  // The state on screen, which a quick second press toggles from. Each press
-  // toggles on the server too, so the shown state holds until every press
-  // in flight has settled, rather than flicking back as the first one does.
-  const shownFavorite = useRef<boolean | undefined>(undefined);
-  shownFavorite.current =
-    pendingChanges.isFavorited ?? Boolean(card?.isFavorited);
-  const favoritesInFlight = useRef(0);
-
-  const toggleFavorite = useCallback(() => {
-    if (!card) {
-      return;
-    }
-
-    const newFavoriteState = !shownFavorite.current;
-    shownFavorite.current = newFavoriteState;
-    const previousCard = card;
-    const updatedCard = {
-      ...card,
-      isFavorited: newFavoriteState,
-      updatedAt: Date.now(),
-    };
-    config.onCardUpdate?.(updatedCard);
-    setPendingChanges((prev) => ({ ...prev, isFavorited: newFavoriteState }));
-    favoritesInFlight.current += 1;
-    void updateField("isFavorited").then((didUpdate) => {
-      favoritesInFlight.current -= 1;
-      if (!didUpdate) {
-        config.onCardUpdate?.(previousCard);
-      }
-      if (favoritesInFlight.current === 0) {
-        setPendingChanges((prev) => ({ ...prev, isFavorited: undefined }));
-      }
-    });
-  }, [card, config.onCardUpdate, updateField]);
-
-  const setDone = useCallback(
-    async (done: boolean, { isUndo = false } = {}) => {
-      if (
-        !(cardId && card?.type === "link") ||
-        doneInFlight.current.has(cardId)
-      ) {
-        return;
-      }
-      const category = card.metadata?.linkCategory?.category;
-      const verb = doneActionLabel(category);
-      doneInFlight.current.add(cardId);
-      setPendingDone((pending) => ({ ...pending, [cardId]: done }));
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: done ? "done" : "undone",
-        });
-        captureEvent("card_done_toggled", {
-          category: category ?? "none",
-          done,
-          source: "panel",
-        });
-        if (!isUndo) {
-          toast.success(t(done ? "markedDone" : "markedNotDone", { verb }), {
-            duration: UNDO_TOAST_DURATION_MS,
-            action: {
-              label: tc("undo"),
-              onClick: () => {
-                void setDone(!done, { isUndo: true });
-              },
-            },
-          });
-        }
-      } catch (error) {
-        console.error("Failed to update done state:", error);
-        toast.error(t("doneUpdateFailed"));
-        config.onError?.(error as Error, "update done state");
-      } finally {
-        doneInFlight.current.delete(cardId);
-        setPendingDone((pending) => {
-          const { [cardId]: _settled, ...rest } = pending;
-          return rest;
-        });
-      }
-    },
-    [card, cardId, config.onError, t, tc, updateCardField]
-  );
-
-  const toggleDone = useCallback(() => {
-    if (!card) {
-      return;
-    }
-    const isDone = pendingDone[card._id] ?? card.completedAt !== undefined;
-    void setDone(!isDone);
-  }, [card, pendingDone, setDone]);
-
-  const removeAiTag = useCallback(
-    (tagToRemove: string) => {
-      void updateField("removeAiTag", undefined, tagToRemove);
-    },
-    [updateField]
-  );
-
-  // The tags the card has once the writes on their way land. A second edit
-  // before the card catches up builds on the first, so quick edits all stick.
-  const tagWrites = useRef<{
-    cardId: string | null;
-    pending?: string[];
-    seen?: string[];
-  }>({ cardId });
-  if (
-    tagWrites.current.cardId !== cardId ||
-    tagWrites.current.seen !== card?.tags
-  ) {
-    tagWrites.current = { cardId, seen: card?.tags };
-  }
-  const currentTags = useCallback(
-    () => tagWrites.current.pending ?? tagWrites.current.seen ?? [],
-    []
-  );
-  const writeTags = useCallback(
-    async (tags: string[]) => {
-      tagWrites.current.pending = tags;
-      const didUpdate = await updateField("tags", tags);
-      if (!didUpdate && tagWrites.current.pending === tags) {
-        tagWrites.current.pending = undefined;
-      }
-      return didUpdate;
-    },
-    [updateField]
-  );
-
-  const acceptAiTag = useCallback(
-    (tag: string) => {
-      const tags = currentTags();
-      if (!tags.some((existing) => tagKey(existing) === tagKey(tag))) {
-        void writeTags([...tags, tag]);
-      }
-    },
-    [currentTags, writeTags]
-  );
-
-  const addTag = useCallback(() => {
-    const tag = tagKey(tagInput);
-    if (!tag) {
-      return;
-    }
-    const tags = currentTags();
-    const existing = tags.find((current) => tagKey(current) === tag);
-    if (existing) {
-      setTagInput("");
-      toast(t("alreadyTagged", { tag: existing }));
-      return;
-    }
-    const newTags = [...tags, tag];
-    const invalid = explainInvalidCardTags(newTags, tags);
-    if (invalid) {
-      setTagError(serverErrors.byEnglishMessage(invalid));
-      return;
-    }
-    const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
-    setTagInput("");
-    void writeTags(newTags).then((didUpdate) => {
-      if (didUpdate && hides && isHiddenTagList([tag])) {
-        toast(t("hiddenByTag", { tag }), {
-          duration: UNDO_TOAST_DURATION_MS,
-          action: {
-            label: tc("undo"),
-            onClick: () => {
-              const without = (tags: string[]) =>
-                tags.filter((current) => current !== tag);
-              if (tagWrites.current.cardId === cardId) {
-                void writeTags(without(currentTags()));
-              } else {
-                // Another card is open now; this one's tags aren't tracked.
-                void updateField("tags", without(newTags));
-              }
-            },
-          },
-        });
-      }
-    });
-  }, [
-    card,
-    cardId,
-    currentTags,
-    serverErrors,
-    setTagInput,
-    t,
-    tagInput,
-    tc,
-    updateField,
-    writeTags,
-  ]);
-
-  const removeTag = useCallback(
-    (tagToRemove: string) => {
-      // A full card has room again, so the reason the typed tag wasn't
-      // added no longer holds; Enter says so again if it still applies.
-      setTagError(null);
-      void writeTags(currentTags().filter((tag) => tag !== tagToRemove));
-    },
-    [currentTags, writeTags]
-  );
-
-  // The card whose delete is in flight: a second Delete on it is ignored,
-  // while a card stepped to meanwhile can still be deleted.
-  const deletingIdRef = useRef<string | null>(null);
-  const handleDelete = useCallback(
-    async (onClose?: () => void) => {
-      if (!cardId || deletingIdRef.current === cardId) {
-        return;
-      }
-      deletingIdRef.current = cardId;
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "delete",
-        });
-        const deletedId = cardId;
-        toast.success(t("cardDeleted"), {
-          duration: UNDO_TOAST_DURATION_MS,
-          action: {
-            label: tc("undo"),
-            onClick: () => {
-              updateCardField({
-                cardId: deletedId as Id<"cards">,
-                field: "restore",
-              }).catch(() => toast.error(t("restoreFailed")));
-            },
-          },
-        });
-        if (openCardIdRef.current === deletedId) {
-          onClose?.();
-        }
-      } catch (error) {
-        console.error("Failed to delete card:", error);
-        toast.error(t("deleteFailed"));
-      } finally {
-        if (deletingIdRef.current === cardId) {
-          deletingIdRef.current = null;
-        }
-      }
-    },
-    [cardId, t, tc, updateCardField]
-  );
-
-  const handleRestore = useCallback(
-    async (onClose?: () => void) => {
-      if (!cardId) {
-        return;
-      }
-      try {
-        await updateCardField({
-          cardId: cardId as Id<"cards">,
-          field: "restore",
-        });
-        toast.success(t("cardRestored"));
-        onClose?.();
-      } catch (error) {
-        console.error("Failed to restore card:", error);
-        toast.error(t("restoreFailed"));
-      }
-    },
-    [cardId, t, updateCardField]
-  );
-
-  const handlePermanentDelete = useCallback(
-    async (onClose?: () => void) => {
-      if (!cardId) {
-        return;
-      }
-      try {
-        await permanentDeleteCard({ id: cardId as Id<"cards"> });
-        toast.success(t("cardPermanentlyDeleted"));
-        onClose?.();
-      } catch (error) {
-        console.error("Failed to permanently delete card:", error);
-        toast.error(t("permanentDeleteFailed"));
-      }
-    },
-    [cardId, permanentDeleteCard, t]
-  );
-
   const openLink = useCallback(() => {
     const safeUrl = sanitizeExternalUrl(card?.url);
     if (safeUrl && card) {
-      if (config.onOpenLink) {
-        config.onOpenLink(safeUrl);
+      if (onOpenLink) {
+        onOpenLink(safeUrl);
       } else if (typeof window !== "undefined") {
         openCardLink(card);
       }
     } else if (card?.url) {
       toast.error(t("unsafeLink"));
     }
-  }, [card, config.onOpenLink, t]);
+  }, [card, onOpenLink, t]);
 
   const hasFileObject = Boolean(card?.fileKey);
 
@@ -646,18 +280,12 @@ export function useCardModal(
       link.click();
       link.remove();
     } catch (error) {
-      console.error("Failed to download file:", error);
-      notifyError(error as Error, "download file");
+      captureClientException(error, { operation: "card.download" });
+      toast.error(t("failed.downloadFile"));
     } finally {
       setIsDownloading(false);
     }
-  }, [
-    hasFileObject,
-    card?.fileMetadata?.fileName,
-    cardId,
-    convex,
-    notifyError,
-  ]);
+  }, [hasFileObject, card?.fileMetadata?.fileName, cardId, convex, t]);
 
   let saveState: CardSaveState = "idle";
   if (isSaving) {
@@ -678,42 +306,11 @@ export function useCardModal(
     [card, pendingChanges]
   );
 
-  const cardWithOptimisticUpdates = useMemo(() => {
-    if (!card) {
-      return null;
-    }
-    let completedAt = card.completedAt;
-    const pending = pendingDone[card._id];
-    if (pending !== undefined) {
-      completedAt = pending ? (card.completedAt ?? Date.now()) : undefined;
-    }
-    return {
-      ...card,
-      completedAt,
-      isFavorited:
-        pendingChanges.isFavorited === undefined
-          ? card.isFavorited
-          : pendingChanges.isFavorited,
-    } satisfies CardWithUrls;
-  }, [card, pendingChanges.isFavorited, pendingDone]);
-
   return {
-    card: cardWithOptimisticUpdates,
-    tagInput,
-    setTagInput,
-    tagError,
+    card,
     updateContent,
     updateNotes,
     updateTitle,
-    toggleFavorite,
-    toggleDone,
-    removeAiTag,
-    acceptAiTag,
-    addTag,
-    removeTag,
-    handleDelete,
-    handleRestore,
-    handlePermanentDelete,
     openLink,
     downloadFile,
     saveChanges,

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { syncCardSearchTagsBatchHandler } from "./searchSync";
+import { syncCardSearchTagsBatchHandler } from "./onCardChanged";
 
 export const syncCardSearchTagsBatch = internalMutation({
   args: {

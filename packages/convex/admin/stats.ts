@@ -1,19 +1,11 @@
+import { AI_PIPELINE_STAGES } from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
-import type {
-  ProcessingStageKey,
-  ProcessingStatus,
-} from "../card/processingStatus";
+import type { ProcessingStatus } from "../card/processingStatus";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;
 export const ACTIVATION_WINDOW_DAYS = 7;
 const OVERDUE_RETRY_MS = 60 * 60 * 1000;
-const STAGE_KEYS: ProcessingStageKey[] = [
-  "classify",
-  "categorize",
-  "metadata",
-  "renderables",
-];
 
 export interface DailyActivity {
   aiRuns: number;
@@ -34,7 +26,7 @@ export const toActivityRow = (
   card: Pick<Doc<"cards">, "createdAt" | "fileMetadata" | "processingStatus">
 ): ActivityRow => {
   const aiCompletedAt: number[] = [];
-  for (const stage of STAGE_KEYS) {
+  for (const stage of AI_PIPELINE_STAGES) {
     const status = card.processingStatus?.[stage];
     if (status?.status === "completed" && status.completedAt !== undefined) {
       aiCompletedAt.push(status.completedAt);
@@ -328,12 +320,6 @@ export function summarizeSubscriptions(subscriptions: SubscriptionLike[]) {
       .sort((a, b) => b.count - a.count),
   };
 }
-
-export const growthPercent = (
-  current: number,
-  previous: number
-): number | null =>
-  previous > 0 ? ((current - previous) / previous) * 100 : null;
 
 export const startOfUtcWeek = (timestamp: number) => {
   const day = startOfUtcDay(timestamp);
@@ -712,7 +698,7 @@ export const snapshotBilling = (
 };
 
 type MetadataStatus = "pending" | "completed" | "failed";
-type OverviewStage = "classify" | "categorize" | "metadata" | "renderables";
+type OverviewStage = (typeof AI_PIPELINE_STAGES)[number];
 
 export interface OverviewCardRow {
   cardId: Id<"cards">;
@@ -806,12 +792,6 @@ export interface AdminOverview {
   };
 }
 
-const OVERVIEW_STAGES: OverviewStage[] = [
-  "classify",
-  "categorize",
-  "metadata",
-  "renderables",
-];
 const MAX_MISSING_CARDS = 50;
 
 /**
@@ -830,7 +810,7 @@ export const createOverviewTally = (now: number) => {
     unset: 0,
   };
   const stageSummaries = {} as Record<OverviewStage, StageSummary>;
-  for (const stage of OVERVIEW_STAGES) {
+  for (const stage of AI_PIPELINE_STAGES) {
     stageSummaries[stage] = { pending: 0, inProgress: 0, failed: 0 };
   }
   let totalCards = 0;
@@ -851,7 +831,7 @@ export const createOverviewTally = (now: number) => {
     }
     let hasFailure = false;
     let isRunning = false;
-    for (const stage of OVERVIEW_STAGES) {
+    for (const stage of AI_PIPELINE_STAGES) {
       const status = processing[stage]?.status;
       if (status === "failed") {
         stageSummaries[stage].failed += 1;

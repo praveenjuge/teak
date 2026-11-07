@@ -2,9 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { getAccountDeletionState } from "../accountDeletion";
+import { getAccountDeletionState } from "../accountDeletion/gate";
 import { markCardForEmbedding } from "../embedding/state";
-import { r2KeyValidator } from "../schema";
+import { r2KeyValidator } from "../schema/validators/cards";
 import {
   ARTICLE_FAILURE_REASONS,
   ARTICLE_IMAGE_ROLE,
@@ -16,8 +16,10 @@ import {
   isArticleObjectKey,
   readingMinutes,
 } from "../shared/article";
-import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import { searchPrefix } from "./documentTextFormat";
 import {
   mergeProcessingStages,
@@ -25,7 +27,6 @@ import {
   stageFailed,
   stageInProgress,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 import { getArticleTextRow } from "./textContents";
 
 type ReadyArticle = Extract<
@@ -132,7 +133,7 @@ export const saveArticleTextHandler = async (
       [args.textKey, ...args.article.imageKeys],
       articleKeys(current)
     );
-    await patchCardWithSearchSync(ctx, card._id, {
+    await patchCard(ctx, card._id, {
       processingStatus: mergeProcessingStages(card.processingStatus, {
         article: stageCompleted(Date.now()),
       }),
@@ -172,7 +173,7 @@ export const saveArticleTextHandler = async (
     [args.textKey, ...imageKeys]
   );
   const wordCount = Math.max(0, Math.round(args.article.wordCount));
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     article: {
       status: "ready",
       textKey: args.textKey,
@@ -246,7 +247,7 @@ export const recordNoArticle = internalMutation({
     }
     const previous = readyArticle(card);
     if (previous && articleSkipReason(card) === "frozen") {
-      await patchCardWithSearchSync(ctx, card._id, {
+      await patchCard(ctx, card._id, {
         processingStatus: mergeProcessingStages(card.processingStatus, {
           article: stageCompleted(Date.now()),
         }),
@@ -258,7 +259,7 @@ export const recordNoArticle = internalMutation({
       await queueReplacedKeys(ctx, articleKeys(previous), []);
     }
     const now = Date.now();
-    await patchCardWithSearchSync(ctx, card._id, {
+    await patchCard(ctx, card._id, {
       ...(previous ? clearedArticleText(card) : {}),
       article: { status: "none", extractedAt: now },
       processingStatus: mergeProcessingStages(card.processingStatus, {
@@ -307,7 +308,7 @@ export const markArticleStage = internalMutation({
     } else if (status === "failed") {
       stage = stageFailed(now, reason ?? "extract_error", current);
     }
-    await patchCardWithSearchSync(ctx, cardId, {
+    await patchCard(ctx, cardId, {
       processingStatus: mergeProcessingStages(card.processingStatus, {
         article: stage,
       }),
@@ -337,7 +338,7 @@ export const saveArticleSummary = internalMutation({
     if (card.aiSummary === summary) {
       return true;
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       aiSummary: summary,
       updatedAt: Date.now(),
     });

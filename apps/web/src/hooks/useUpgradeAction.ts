@@ -1,32 +1,43 @@
 import { useTranslations } from "@teak/i18n/react";
+import { useRouter } from "next/navigation";
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { type ExternalToast, toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
+import { isCardLimitError, isRateLimitError } from "@/lib/cardErrors";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
+
+export type CreateFailureKind = "cardLimit" | "rateLimited";
+
+export interface CreateFailureToast extends ExternalToast {
+  /** Said after the reason, such as which files were skipped. */
+  note?: string;
+}
+
+const withNote = (message: string, note?: string) =>
+  note ? `${message} ${note}` : message;
 
 /**
- * Opening the plan page (or the caller's own upgrade flow), and the
- * "card limit reached" toast whose Upgrade button does it.
+ * Opening the plan page, and what a card that wasn't made says when a limit
+ * stopped it: the free card limit (with an Upgrade button) or too many cards
+ * made at once. Every way of making a card (the composer, uploads,
+ * recordings, Save PDF) says these the same way.
  */
-export function useUpgradeAction(
-  onUpgrade: (() => void) | undefined,
-  upgradeUrl: string | undefined
-) {
+export function useUpgradeAction() {
+  const router = useRouter();
   const tLimits = useTranslations("forms.limits");
 
   const handleUpgrade = useCallback(() => {
-    if (onUpgrade) {
-      onUpgrade();
-      return;
-    }
-    if (upgradeUrl && typeof window !== "undefined") {
-      window.location.assign(upgradeUrl);
-    }
-  }, [onUpgrade, upgradeUrl]);
+    router.push(SETTINGS_PLAN_HREF);
+  }, [router]);
 
   const showUpgradeToast = useCallback(
-    (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(tLimits("cardLimitReached"), {
+    (
+      toastId: string | number = TOAST_IDS.cardLimit,
+      { note, ...options }: CreateFailureToast = {}
+    ) => {
+      toast.error(withNote(tLimits("cardLimitReached"), note), {
         ...MANUAL_CLOSE_TOAST_OPTIONS,
+        ...options,
         action: { label: tLimits("upgrade"), onClick: handleUpgrade },
         id: toastId,
       });
@@ -34,5 +45,27 @@ export function useUpgradeAction(
     [handleUpgrade, tLimits]
   );
 
-  return { handleUpgrade, showUpgradeToast };
+  /**
+   * Says why a card wasn't made when a limit stopped it, and returns which
+   * limit; `null`, with nothing shown, for any other failure.
+   */
+  const showCreateFailure = useCallback(
+    (
+      failure: unknown,
+      { id, note, ...options }: CreateFailureToast = {}
+    ): CreateFailureKind | null => {
+      if (isCardLimitError(failure)) {
+        showUpgradeToast(id, { note, ...options });
+        return "cardLimit";
+      }
+      if (isRateLimitError(failure)) {
+        toast.error(withNote(tLimits("rateLimited"), note), { ...options, id });
+        return "rateLimited";
+      }
+      return null;
+    },
+    [showUpgradeToast, tLimits]
+  );
+
+  return { handleUpgrade, showCreateFailure, showUpgradeToast };
 }

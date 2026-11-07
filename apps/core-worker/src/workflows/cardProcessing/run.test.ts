@@ -15,6 +15,7 @@ import {
 } from "../../test/cardProcessingKit";
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import { createFakeStep } from "../../test/fakeStep";
+import { opError } from "../../test/opsHarness";
 import { FakeBucket } from "../../test/testsupport";
 import type { CardProcessingDeps } from "./context";
 import { AI_CAPACITY_RETRIES, runCardProcessing } from "./run";
@@ -328,6 +329,7 @@ describe("card processing", () => {
       card,
       {
         "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "delete-object": { data: { deleted: true } },
         "extract-image-text": { data: { text: "" } },
         "fetch-link-page": {
           data: {
@@ -513,7 +515,7 @@ describe("card processing", () => {
     const { run } = setup(card, {
       "capture-screenshot": { data: { height: 900, width: 1440 } },
       "extract-image-text": {
-        throws: new Error("files_worker_ai: rate limit reached 429"),
+        throws: opError("AI_CAPACITY", { status: 429 }),
       },
       "fetch-link-page": await linkPage(),
       "generate-link-metadata": textMetadataAnswer(["article"]),
@@ -581,7 +583,7 @@ describe("card processing", () => {
       card,
       {
         "capture-screenshot": { data: { height: 900, width: 1440 } },
-        "fetch-link-page": { fallback: "RENDERER_UNAVAILABLE" },
+        "fetch-link-page": { declined: "RENDERER_UNAVAILABLE" },
         "generate-link-metadata": textMetadataAnswer(["article"]),
       },
       { refresh: true }
@@ -603,7 +605,7 @@ describe("card processing", () => {
   test("an automatic run that can't read the page fails as before", async () => {
     const card = linkCard();
     const { fakeStep, run } = setup(card, {
-      "fetch-link-page": { fallback: "RENDERER_UNAVAILABLE" },
+      "fetch-link-page": { declined: "RENDERER_UNAVAILABLE" },
       "generate-link-metadata": textMetadataAnswer(["article"]),
     });
 
@@ -1028,7 +1030,7 @@ describe("card processing", () => {
       "generate-text-metadata": () => {
         calls += 1;
         return calls <= 2
-          ? { throws: new Error("files_worker_ai: rate limit reached 429") }
+          ? { throws: opError("AI_CAPACITY", { status: 429 }) }
           : textMetadataAnswer(["busy"]);
       },
     });
@@ -1048,7 +1050,7 @@ describe("card processing", () => {
     const card = makeCard({ content: "Still busy" });
     const { fakeStep, run } = setup(card, {
       "generate-text-metadata": {
-        throws: new Error("files_worker_ai: rate limit reached 429"),
+        throws: opError("AI_CAPACITY", { status: 429 }),
       },
     });
 
@@ -1066,7 +1068,7 @@ describe("card processing", () => {
     const card = makeCard({ content: "Odd output" });
     const { fakeStep, run } = setup(card, {
       "generate-text-metadata": {
-        throws: new Error("files_worker_ai: failed to validate JSON"),
+        throws: opError("AI_INVALID_OUTPUT", { status: 502 }),
       },
     });
 

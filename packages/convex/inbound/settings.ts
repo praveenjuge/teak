@@ -1,3 +1,4 @@
+import { inboundEmailDomain, inboundSaveAddress } from "@teak/files-protocol";
 import { ConvexError, v } from "convex/values";
 import {
   env,
@@ -6,17 +7,12 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
+import { rateLimiter } from "../rateLimiter";
 import { getSessionUser, requireSessionUser } from "../securitySessions";
-import { rateLimiter } from "../shared/rateLimits";
 import { queueInboundEmailEvent } from "../telemetry/schedule";
 
-const DEFAULT_INBOUND_EMAIL_DOMAIN = "in.teakvault.com";
-
-export const inboundEmailDomain = (): string =>
-  (env.INBOUND_EMAIL_DOMAIN ?? "").trim().toLowerCase() ||
-  DEFAULT_INBOUND_EMAIL_DOMAIN;
-
-export const inboundEmailAddress = (): string => `save@${inboundEmailDomain()}`;
+export const inboundEmailAddress = (): string =>
+  inboundSaveAddress(inboundEmailDomain(env.INBOUND_EMAIL_DOMAIN));
 
 export const readInboundSettings = (
   ctx: QueryCtx | MutationCtx,

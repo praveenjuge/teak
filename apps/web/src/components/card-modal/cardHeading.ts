@@ -4,10 +4,8 @@ import {
   type TeakTranslator,
 } from "@teak/i18n";
 import { englishTranslator, US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
-import {
-  type LinkTitleTranslator,
-  resolveLinkTitle,
-} from "../../lib/linkTitle";
+import { cardTitle, isFileCardType } from "../../lib/cardTypes";
+import type { LinkTitleTranslator } from "../../lib/linkTitle";
 import {
   type CardTypesTranslator,
   cardTypeLabel,
@@ -48,33 +46,10 @@ export function getCardHeading(
 } {
   const typeLabel = cardTypeLabel(card.type, types);
   if (card.type === "link") {
-    const preview =
-      card.metadata?.linkPreview?.status === "success"
-        ? card.metadata.linkPreview
-        : undefined;
-    return {
-      editable: true,
-      title: resolveLinkTitle(
-        {
-          metadataTitle: card.metadataTitle,
-          metadataTitleEdited: card.metadataTitleEdited,
-          previewTitle: preview?.title,
-          url: card.url,
-        },
-        link
-      ),
-    };
+    return { editable: true, title: cardTitle(card, link) };
   }
-  if (
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "audio" ||
-    card.type === "document"
-  ) {
-    return {
-      editable: false,
-      title: card.metadataTitle || card.fileMetadata?.fileName || typeLabel,
-    };
+  if (isFileCardType(card.type)) {
+    return { editable: false, title: cardTitle(card, link) || typeLabel };
   }
   return {
     editable: false,

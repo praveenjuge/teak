@@ -2,8 +2,9 @@ import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import {
   addressKey,
   type EdgeIdentity,
@@ -11,6 +12,7 @@ import {
   type EdgeIdentityEnv,
   resolveEdgeIdentity,
 } from "./edgeIdentity";
+import { isMcpPathname } from "./mcpEdge";
 
 export interface RateLimiter {
   limit: (options: { key: string }) => Promise<{ success: boolean }>;
@@ -42,10 +44,8 @@ export type EdgeRateLimitOutcome =
       identity?: Extract<EdgeIdentity, { key: `user:${string}` }>;
     };
 
-const isMcpPath = (request: Request): boolean => {
-  const { pathname } = new URL(request.url);
-  return pathname === "/mcp" || pathname.startsWith("/mcp/");
-};
+const isMcpPath = (request: Request): boolean =>
+  isMcpPathname(new URL(request.url).pathname);
 
 const peekBody = async <T>(
   request: Request,

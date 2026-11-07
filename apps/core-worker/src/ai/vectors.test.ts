@@ -3,8 +3,9 @@ import {
   buildFilesOpSigningPayload,
   CARD_EMBEDDING_MODEL,
   FILES_PROTOCOL_VERSION,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "../lib";
 import { type FilesOpsEnv, handleInternalOp } from "../ops";
 
 const SECRET = "test-secret";
@@ -341,7 +342,7 @@ describe("embed-upsert", () => {
   });
 });
 
-describe("vector-delete, vector-get and vector-query", () => {
+describe("vector-delete and vector-query", () => {
   test("deletes each id once", async () => {
     const { deletes, env } = fakes();
     const { body } = await runOp(env, "vector-delete", {
@@ -350,17 +351,6 @@ describe("vector-delete, vector-get and vector-query", () => {
     });
     expect(body.data).toEqual({ mutationId: "m-delete" });
     expect(deletes).toEqual([["card_1", "card_2"]]);
-  });
-
-  test("reports which ids have a vector, and in which namespace", async () => {
-    const { env } = fakes();
-    const { body } = await runOp(env, "vector-get", {
-      ids: ["card_1", "card_9"],
-      shard: 0,
-    });
-    expect(body.data).toEqual({
-      vectors: [{ id: "card_1", namespace: NAMESPACE }],
-    });
   });
 
   test("embeds the query with the query prompt and searches only the user's namespace", async () => {
@@ -544,11 +534,6 @@ describe("vector-delete, vector-get and vector-query", () => {
       "vector-delete",
       { ids: Array.from({ length: 1001 }, (_, i) => `c${i}`), shard: 0 },
     ],
-    [
-      "vector-get",
-      { ids: Array.from({ length: 101 }, (_, i) => `c${i}`), shard: 0 },
-    ],
-    ["vector-get", { ids: ["x".repeat(65)], shard: 0 }],
     ["vector-query", { namespace: NAMESPACE, shard: 0, text: "a", topK: 101 }],
     ["vector-query", { shard: 0, text: "a", topK: 10 }],
     [

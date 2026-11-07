@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import { assertR2KeyInNamespace } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
@@ -38,7 +38,7 @@ async function abortImportUpload(key: string, uploadId?: string) {
     return;
   }
   assertR2KeyInNamespace(key);
-  const result = await callFilesWorkerJson({
+  const result = await callCoreWorkerOp({
     op: "abort-multipart",
     params: { key, uploadId },
   });

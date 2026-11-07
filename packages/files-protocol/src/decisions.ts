@@ -63,6 +63,12 @@ export const RELEVANCE_MAX_SCORE = RELEVANCE_LEVELS.length - 1;
 export const CARD_TYPE_DECISION_TYPES = ["text", "quote", "palette"] as const;
 export type CardTypeDecisionType = (typeof CARD_TYPE_DECISION_TYPES)[number];
 
+export const isCardTypeDecisionType = (
+  value: unknown
+): value is CardTypeDecisionType =>
+  typeof value === "string" &&
+  (CARD_TYPE_DECISION_TYPES as readonly string[]).includes(value);
+
 export interface FilesDecisionUsage {
   inputTokens: number;
   outputTokens: number;
@@ -213,11 +219,7 @@ export const readCardTypeDecision = (
     return null;
   }
   const { confidence, type } = decision as Record<string, unknown>;
-  if (
-    typeof type !== "string" ||
-    !(CARD_TYPE_DECISION_TYPES as readonly string[]).includes(type) ||
-    !isFiniteProbability(confidence)
-  ) {
+  if (!(isCardTypeDecisionType(type) && isFiniteProbability(confidence))) {
     return null;
   }
   return {

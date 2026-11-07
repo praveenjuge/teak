@@ -89,6 +89,23 @@ export function movedIds(
   return next;
 }
 
+/**
+ * The pinned row once Undo brings back pins that archiving or trashing took
+ * away: pins made since stay first, then the row in its earlier order.
+ */
+export function restoredPinOrder(
+  current: readonly string[],
+  before: readonly string[],
+  restored: readonly string[]
+): string[] {
+  const earlier = new Set(before);
+  const pinnedNow = new Set([...current, ...restored]);
+  return [
+    ...current.filter((id) => !earlier.has(id)),
+    ...before.filter((id) => pinnedNow.has(id)),
+  ];
+}
+
 export const isPinLimitError = (error: unknown): boolean =>
   error instanceof ConvexError &&
   (error.data as { code?: unknown } | null)?.code ===

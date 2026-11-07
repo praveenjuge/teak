@@ -15,6 +15,50 @@ const { ImagePreview } = await import("../ImagePreview");
 const { VideoPreview } = await import("../VideoPreview");
 
 describe("file text previews", () => {
+  test.each([
+    ["javascript", "const value = 1;"],
+    ["js", "const value = 1;"],
+    ["jsx", "const element = <Button />;"],
+    ["typescript", "const value: number = 1;"],
+    ["ts", "const value: number = 1;"],
+    ["tsx", "const element: Node = <Button />;"],
+    ["html", "<strong>Text</strong>"],
+    ["markup", "<strong>Text</strong>"],
+    ["mdx", "<Component />"],
+    ["css", "body { color: red; }"],
+    ["json", '{"value": 1}'],
+    ["markdown", "# Heading"],
+  ])("highlights the supported %s language", (language, code) => {
+    const markup = renderToStaticMarkup(
+      <SourceCodePreview code={code} language={language} />
+    );
+
+    expect(markup).toContain("<span");
+    expect(markup).not.toContain("<Button");
+    expect(markup).not.toContain("<Component");
+    expect(markup).not.toContain("<strong>");
+  });
+
+  test.each([
+    undefined,
+    "text",
+    "plain",
+    "unknown-language",
+    "__proto__",
+    "constructor",
+    "toString",
+  ])("renders %s source as inert plain text", (language) => {
+    const markup = renderToStaticMarkup(
+      <SourceCodePreview
+        code={"<script>alert(1)</script>\n"}
+        language={language}
+      />
+    );
+
+    expect(markup).not.toContain("<script>");
+    expect(markup).toContain("&lt;script&gt;alert(1)&lt;/script&gt;\n");
+  });
+
   test("escapes source code instead of executing markup", () => {
     const markup = renderToStaticMarkup(
       <SourceCodePreview

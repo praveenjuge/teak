@@ -10,6 +10,11 @@ import {
   validateFileName,
   validateUploadFile,
 } from "../../shared/fileFormats";
+import { loadFixture } from "./loadFixture.test-utils";
+
+const fileNames = loadFixture<{ invalid: string[]; valid: string[] }>(
+  "fileNames"
+);
 
 const REQUIRED_FILE_NAMES = [
   "data.json",
@@ -227,16 +232,13 @@ describe("file format registry", () => {
     });
   }
 
-  for (const fileName of [
-    "../secret.json",
-    "..\\secret.json",
-    "bad\u0000.json",
-    "..",
-  ]) {
-    test(`rejects dangerous filename ${fileName}`, () => {
-      expect(() => validateFileName(fileName)).toThrow("safe characters");
-    });
-  }
+  test.each(fileNames.invalid)("refuses the file name %p", (fileName) => {
+    expect(() => validateFileName(fileName)).toThrow("safe characters");
+  });
+
+  test.each(fileNames.valid)("takes the file name %p", (fileName) => {
+    expect(validateFileName(fileName)).toBe(fileName.trim());
+  });
 
   test("enforces the 100MB boundary", () => {
     expect(MAX_FILE_SIZE).toBe(100 * 1024 * 1024);

@@ -5,6 +5,7 @@ import {
   inPinOrder,
   isPinLimitError,
   movedIds,
+  restoredPinOrder,
   showsPinnedStrip,
   withPinnedFirst,
 } from "../pinnedCards";
@@ -77,6 +78,29 @@ describe("pin order", () => {
     expect(movedIds(["a", "b", "c", "d"], 0, 2)).toEqual(["b", "c", "a", "d"]);
     expect(movedIds(["a", "b", "c", "d"], 3, 0)).toEqual(["d", "a", "b", "c"]);
     expect(movedIds(["a", "b"], 5, 0)).toEqual(["a", "b"]);
+  });
+});
+
+describe("restoredPinOrder", () => {
+  test("puts an archived pin back where it was", () => {
+    expect(restoredPinOrder(["a", "c"], ["a", "b", "c"], ["b"])).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  test("keeps pins made since first", () => {
+    expect(restoredPinOrder(["d", "a"], ["a", "b", "c"], ["b", "c"])).toEqual([
+      "d",
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  test("leaves out pins removed since", () => {
+    expect(restoredPinOrder(["c"], ["a", "b", "c"], ["b"])).toEqual(["b", "c"]);
   });
 });
 

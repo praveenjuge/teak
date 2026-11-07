@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { HomePageClient } from "../../HomePageClient";
+import { LibraryScreen } from "@/screens/LibraryScreen";
 
 export const metadata: Metadata = { title: "Favorites" };
 
 export const instant = false;
 
 export default function FavoritesPage() {
-  return <HomePageClient view="favorites" />;
+  return <LibraryScreen view="favorites" />;
 }

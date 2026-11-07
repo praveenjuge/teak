@@ -1,5 +1,8 @@
 import { internal } from "@teak/convex/_generated/api";
-import { isWorkflowName } from "@teak/files-protocol";
+import {
+  isWorkflowName,
+  WORKFLOW_INSTANCE_MISSING,
+} from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import {
   isMissingInstance,
@@ -32,7 +35,7 @@ const endingOf = async (
     instance = await binding.get(instanceId);
   } catch (error) {
     if (isMissingInstance(error)) {
-      return { error: "instance_missing", status: "errored" };
+      return { error: WORKFLOW_INSTANCE_MISSING, status: "errored" };
     }
     throw error;
   }

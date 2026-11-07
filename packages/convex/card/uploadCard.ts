@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { type CardType, cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
+import type { CardType } from "../shared/constants";
 import {
   type FileFormat,
   FileFormatValidationError,
@@ -17,7 +18,7 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "../shared/markdown";
-import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
+import { signedUploadUrl } from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import {
   buildR2ObjectKey,
@@ -25,15 +26,13 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { queueCardOutcome } from "../telemetry/schedule";
-import { queueCardProcessing } from "../workflowDispatch";
-import { insertCountedCard } from "./cardUsage";
+import { insertCard } from "./cardWrites";
+import { queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
-import { syncCardSearch } from "./searchSync";
-import { newShuffleKey } from "./shuffle";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
   new ConvexError({
@@ -112,7 +111,7 @@ export const uploadAndCreateCard = mutation({
         fileName: _args.fileName,
       });
       await ensureObjectOwnership(ctx, user.teakUserId, key);
-      const signed = await buildSignedWorkerUploadUrl({
+      const signed = await signedUploadUrl({
         contentType: _args.fileType || "application/octet-stream",
         key,
         size: _args.fileSize,
@@ -289,11 +288,10 @@ export const createUploadedCardForUser = async (
     ...fileFacts,
   };
 
-  const cardId = await insertCountedCard(
+  const cardId = await insertCard(
     ctx,
     {
       userId: args.userId,
-      shuffleKey: newShuffleKey(),
       content: args.content || "",
       type: cardType,
       fileKey: args.fileKey,
@@ -314,7 +312,6 @@ export const createUploadedCardForUser = async (
     },
     { hasPremium }
   );
-  await syncCardSearch(ctx, cardId, args.userId);
 
   await queueCardProcessing(ctx, cardId, { reset: true });
 

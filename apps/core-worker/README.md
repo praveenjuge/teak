@@ -217,9 +217,31 @@ authenticates every tool call.
 ## Internal ops
 
 Besides downloads, the worker accepts body-bound, short-lived signed `POST`
-requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
-`@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
-Operation request bodies are limited to 1 MiB before signature verification.
+requests at `/__ops/v1`; `HEAD` and `GET` can never execute an operation.
+Operation request bodies are limited to 1 MiB (`FILES_OP_MAX_BODY_BYTES`)
+before signature verification.
+
+`@teak/files-protocol` holds the whole boundary, and both sides call it:
+
+- `src/signing.ts` has a sign and a verify function for each signed request:
+  ops (`signFilesOpRequest` / `verifyFilesOpRequest`), single-file and
+  multipart part upload URLs, workflow RPC and dispatch proofs, with the one
+  HMAC, constant-time compare, expiry check, error envelope, header names and
+  limits they share.
+- `FILES_NETWORK_OPS` are the ops Convex calls; the network route refuses
+  every other op with `UNSUPPORTED`. `FILES_WORKER_OPS` run only in process,
+  from the Worker's own workflows, queues and crons (`callFilesOp`).
+- `readFilesOpOutcome` (`src/outcome.ts`) reads an op's answer the same way
+  in Convex and in the Worker: a result, a decline (`NOT_FOUND`,
+  `PAYLOAD_TOO_LARGE`, `UNSUPPORTED` and any codes the caller lists), or a
+  thrown `FilesOpError`. Its message is
+  `files_worker_error:<CODE>:<status>:<requestId>`, so `filesOpErrorCode`
+  still reads the code after the error crossed a workflow step; AI capacity
+  and invalid AI output are told by their code (`AI_CAPACITY`,
+  `AI_INVALID_OUTPUT`), never by the provider's text.
+- An op refuses bad parameters by throwing `InvalidOpInput`
+  (`src/opFailure.ts`), which answers `INVALID_INPUT`; anything unexpected
+  answers a retryable `INTERNAL` and is reported.
 
 - `op=analyze-image` — reads intrinsic dimensions and a bounded color sample
   through Cloudflare transformations; SVG input is rasterized with resvg.
@@ -235,12 +257,11 @@ Operation request bodies are limited to 1 MiB before signature verification.
   caller's `maxBytes` (≤100 MiB), reads at most the first 50 pages, and
   returns at most 512 KiB characters of text; oversized, corrupt, and
   password-protected PDFs return empty text, and an unavailable renderer
-  answers RENDERER_UNAVAILABLE so Convex retries. Convex treats an older
-  Worker's INVALID_INPUT for `pdf` as "no text" rather than failing card
-  processing.
+  answers RENDERER_UNAVAILABLE so Convex retries.
 - `create-multipart`, `complete-multipart`, and `abort-multipart` coordinate
   resumable browser uploads. Signed `PUT /__uploads/v1/...` URLs accept only
-  an exact upload id, object key, and part number.
+  an exact upload id, object key, and part number, up to
+  `FILES_MULTIPART_MAX_PARTS` parts; Convex refuses to sign past it too.
 - `finalize-upload` streams validated pending objects into their permanent
   key, `finalize-image-upload` decode-verifies image uploads first (decoded
   format, dimensions, and size are returned as trusted facts to Convex), and
@@ -249,10 +270,10 @@ Operation request bodies are limited to 1 MiB before signature verification.
 - `delete-object` removes one object; `delete-objects` accepts at most 100
   keys per batch and treats missing objects as success. Durable deletion is
   orchestrated by the Convex object-cleanup workflow.
-- `head-object` returns existence, size, ETag, and content type for a key —
-  used to check an import's source before reading it.
-- `list-objects` pages objects under a `users/` (prod) or `dev/users/`
-  (dev) prefix (limit ≤1000, opaque cursor) — used by the weekly
+- `head-object` (in process) returns existence, size, ETag, and content
+  type for a key — used to check an import's source before reading it.
+- `list-objects` (in process) pages objects under a `users/` (prod) or
+  `dev/users/` (dev) prefix (limit ≤1000, opaque cursor) — used by the weekly
   orphaned-object reconciliation report. `cleanup-stale-pending-uploads`
   deletes pending uploads older than a day under one of those prefixes, ten
   list pages a call; the weekly cron's backstop sweep runs it in-process.
@@ -295,13 +316,13 @@ Rendering never falls back to another renderer. Each op answers:
 
 The ops:
 
-- `capture-screenshot` and `scrape-html` take HTML that Convex already fetched
-  through its DNS-pinned SSRF guard, gzip-compressed and base64-encoded
+- `capture-screenshot` takes HTML gzip-compressed and base64-encoded
   (`htmlGzipBase64`, ≤2 MiB inflated) so 2 MiB pages fit the 1 MiB op body.
   Pages run offline on Browser Run: request interception aborts every request,
   and WebSocket, EventSource and `sendBeacon` are disabled before the HTML
-  loads. The screenshot is a 1280×720 JPEG; a scrape returns attributes, text
-  and inner HTML per selector (≤128 selectors, ≤100 elements each).
+  loads. The screenshot is a 1280×720 JPEG. `fetch-link-page` scrapes a page
+  the same way (attributes, text and inner HTML per selector, ≤128 selectors,
+  ≤100 elements each).
   `capture-screenshot` takes a link's saved copy instead when it has a full
   one (`archiveKey`, read from the bucket, ≤24 MiB): its styles, fonts and
   images are inline, so the offline render looks like the page. A missing
@@ -530,7 +551,7 @@ else UTF-8), so non-UTF-8 sites no longer get garbled titles.
 
 When the static HTML matches nothing, as on pages that build their tags in
 script, the Worker renders the same HTML offline on Browser Run
-(`src/media/linkPage.ts`), as Convex did with a second `scrape-html` call; a failed
+(`src/media/linkPage.ts`); a failed
 or unavailable browser keeps the static result. The result carries the
 selectors, the page's URL after redirects, the charset, which pass produced
 them (`static` or `browser`), and the decoded page as gzipped UTF-8 for
@@ -564,7 +585,7 @@ read or write that fails falls back to fetching. Without the binding
 
 Deterministic tests cover signed routes, pagination, source replacement, ZIP64
 reads beyond 4 GiB, unsafe entries, actual decompression limits, Markdown
-outcomes, and binding input/output limits. `packages/convex/edge/importConsolidation.test.ts`
+outcomes, and binding input/output limits. `packages/convex/edge/import/consolidation.test.ts`
 checks real Convex mutation state for deduplication, action replay, cancellation,
 and rejected source changes using the edge test runtime.
 
@@ -599,15 +620,13 @@ cosine, a string metadata index on `type`), which holds card embeddings for
 semantic search, one namespace per user. `capabilities` reports `vectors` when it is bound. The model, prompts and
 shard layout are in `apps/docs/content/docs/(open-source)/architecture.mdx`, "Search by meaning in detail".
 
-Four signed ops read and write the index (`src/ai/vectors.ts`):
+Four signed ops Convex calls read and write the index (`src/ai/vectors.ts`):
 
 - `embed-upsert` embeds up to 32 card texts with the document prompt and
   upserts them into one namespace, each with its card's `type` as metadata.
   Workers AI capacity errors answer `AI_CAPACITY` (429); a vector of the
   wrong size is never written.
 - `vector-delete` deletes up to 1,000 ids.
-- `vector-get` reports which of up to 100 ids have a vector, and in which
-  namespace.
 - `vector-query` embeds a query of up to 500 characters with the query prompt
   and returns the top matches (at most 100) in one namespace, ids and scores
   only. With `type` it returns cards of that type, plus close vectors written
@@ -815,9 +834,11 @@ The hourly rollup (`src/ai/aiUsageRollup.ts`) queries the Analytics Engine SQL A
 for today and yesterday (UTC), per deployment, weighting every sum by
 `_sample_interval`, and sets each user's absolute totals for the day with
 `adminUsage:replaceDailyUsage`, at most 200 users a call. A repeated run writes
-the same numbers again. It needs the `ANALYTICS_ACCOUNT_ID` and
-`AI_USAGE_DATASET` vars and the `ANALYTICS_API_TOKEN` secret; without the
-token it is skipped and records no heartbeat. The `admin-daily-snapshot`
+the same numbers again. It needs the `ANALYTICS_ACCOUNT_ID` var and the
+`ANALYTICS_API_TOKEN` secret, and reads the dataset the `AI_USAGE` binding
+writes: `AI_USAGE_DATASET`, set only where it isn't `teak_ai_usage` (the
+development Worker); `src/deployment.test.ts` checks the two agree. Without
+the token it is skipped and records no heartbeat. The `admin-daily-snapshot`
 runs at 02:00 UTC, after the 00:15 and 01:15 rollups have finalized yesterday.
 
 ## Export archive lifecycle

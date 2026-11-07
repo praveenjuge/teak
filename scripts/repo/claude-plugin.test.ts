@@ -20,7 +20,7 @@ const pluginTexts = () => {
 
 describe("Claude plugin (plugins/teak)", () => {
   test("names only tools the MCP server has", () => {
-    const tools = new Set(TEAK_V1_TOOLS.map((tool) => tool.name));
+    const tools = new Set<string>(TEAK_V1_TOOLS.map((tool) => tool.name));
     for (const { file, text } of pluginTexts()) {
       for (const [name] of text.matchAll(/teak_v1_[a-z_]+/gu)) {
         expect({ file, name, known: tools.has(name) }).toEqual({
@@ -30,6 +30,22 @@ describe("Claude plugin (plugins/teak)", () => {
         });
       }
     }
+  });
+
+  test("the MCP docs page documents exactly the server's tools", () => {
+    const page = readFileSync(
+      join(root, "apps/docs/content/docs/(developers)/mcp.mdx"),
+      "utf8"
+    );
+    const tools = page.slice(page.indexOf("## Available Tools"));
+    const named = new Set(
+      [...tools.matchAll(/`(teak_v1_[a-z_]+|search|fetch)`/gu)].map(
+        ([, name]) => name
+      )
+    );
+    expect([...named].sort()).toEqual(
+      TEAK_V1_TOOLS.map((tool) => tool.name).sort()
+    );
   });
 
   test("connects to the same MCP server the registry and docs list", () => {

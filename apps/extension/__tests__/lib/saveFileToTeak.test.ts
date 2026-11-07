@@ -1,31 +1,39 @@
 import { describe, expect, mock, test } from "bun:test";
 import { readResponseBlobWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
+import type { TeakClient } from "teak-sdk";
 import {
   isSafeDownloadableAssetUrl,
   saveAssetUrlToTeak,
   saveFileToTeak,
 } from "../../lib/saveFileToTeak";
+import { apiClient, apiUpload } from "../helpers/teakClient";
 
 const createDependencies = () => {
   const request = mock((path: string, _init?: RequestInit) =>
     Promise.resolve(
       Response.json(
         path === "/v1/uploads"
-          ? {
-              fileKey: "users/u/cards/pending/file/key",
-              uploadUrl: "https://upload.example/file",
-            }
-          : { cardId: "card_1" }
+          ? apiUpload(
+              "users/u/cards/pending/file/key",
+              "https://upload.example/file"
+            )
+          : { cardId: "card_1", status: "created" }
       )
     )
   );
-  const fetchImpl = mock(() =>
-    Promise.resolve(
-      new Response(null, { headers: { ETag: '"upload-etag"' }, status: 200 })
-    )
-  ) as unknown as typeof fetch;
-  return { dependencies: { request, fetchImpl }, request };
+  const dependencies: { client?: TeakClient; fetchImpl: typeof fetch } = {
+    fetchImpl: mock(() =>
+      Promise.resolve(
+        new Response(null, { headers: { ETag: '"upload-etag"' }, status: 200 })
+      )
+    ) as unknown as typeof fetch,
+  };
+  // Uploads and asset downloads both go through whatever fetchImpl is now.
+  dependencies.client = apiClient(request, (input, init) =>
+    dependencies.fetchImpl(input, init)
+  );
+  return { dependencies, request };
 };
 
 describe("extension file saving", () => {

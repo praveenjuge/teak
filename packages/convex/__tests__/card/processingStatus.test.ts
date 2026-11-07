@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   buildInitialProcessingStatus,
   type ProcessingStatus,
-  shouldRunCategorizeStage,
-  shouldRunRenderablesStage,
   stageCompleted,
   stageFailed,
   stageInProgress,
@@ -175,115 +173,70 @@ describe("withStageStatus", () => {
   });
 });
 
-describe("shouldRunRenderablesStage", () => {
-  it("should return true for image type", () => {
-    expect(shouldRunRenderablesStage("image")).toBe(true);
-  });
-
-  it("should return true for video type", () => {
-    expect(shouldRunRenderablesStage("video")).toBe(true);
-  });
-
-  it("should return true for document type", () => {
-    expect(shouldRunRenderablesStage("document")).toBe(true);
-  });
-
-  it("should return false for text type", () => {
-    expect(shouldRunRenderablesStage("text")).toBe(false);
-  });
-
-  it("should return false for link type", () => {
-    expect(shouldRunRenderablesStage("link")).toBe(false);
-  });
-
-  it("should return false for audio type", () => {
-    expect(shouldRunRenderablesStage("audio")).toBe(false);
-  });
-
-  it("should return false for palette type", () => {
-    expect(shouldRunRenderablesStage("palette")).toBe(false);
-  });
-
-  it("should return false for quote type", () => {
-    expect(shouldRunRenderablesStage("quote")).toBe(false);
-  });
-});
-
-describe("shouldRunCategorizeStage", () => {
-  it("should return true for link type", () => {
-    expect(shouldRunCategorizeStage("link")).toBe(true);
-  });
-
-  it("should return false for text type", () => {
-    expect(shouldRunCategorizeStage("text")).toBe(false);
-  });
-
-  it("should return false for image type", () => {
-    expect(shouldRunCategorizeStage("image")).toBe(false);
-  });
-
-  it("should return false for video type", () => {
-    expect(shouldRunCategorizeStage("video")).toBe(false);
-  });
-
-  it("should return false for audio type", () => {
-    expect(shouldRunCategorizeStage("audio")).toBe(false);
-  });
-
-  it("should return false for document type", () => {
-    expect(shouldRunCategorizeStage("document")).toBe(false);
-  });
-
-  it("should return false for palette type", () => {
-    expect(shouldRunCategorizeStage("palette")).toBe(false);
-  });
-
-  it("should return false for quote type", () => {
-    expect(shouldRunCategorizeStage("quote")).toBe(false);
-  });
-});
-
 describe("buildInitialProcessingStatus", () => {
   const now = Date.now();
+  const statuses = (status: ProcessingStatus) =>
+    Object.fromEntries(
+      Object.entries(status).map(([stage, value]) => [stage, value?.status])
+    );
 
-  it("should build initial status for link card type", () => {
-    const result = buildInitialProcessingStatus({ now, cardType: "link" });
+  it.each([
+    [
+      "link",
+      {
+        archive: "pending",
+        article: "pending",
+        categorize: "pending",
+        metadata: "pending",
+        renderables: "completed",
+      },
+    ],
+    [
+      "image",
+      { categorize: "completed", metadata: "pending", renderables: "pending" },
+    ],
+    [
+      "video",
+      { categorize: "completed", metadata: "pending", renderables: "pending" },
+    ],
+    [
+      "document",
+      { categorize: "completed", metadata: "pending", renderables: "pending" },
+    ],
+    [
+      "text",
+      {
+        categorize: "completed",
+        metadata: "pending",
+        renderables: "completed",
+      },
+    ],
+    [
+      "palette",
+      {
+        categorize: "completed",
+        metadata: "pending",
+        renderables: "completed",
+      },
+    ],
+  ] as const)(
+    "a new %s card starts with the stages it runs",
+    (cardType, expected) => {
+      expect(statuses(buildInitialProcessingStatus({ now, cardType }))).toEqual(
+        expected
+      );
+    }
+  );
 
-    expect(result.categorize?.status).toBe("pending");
-    expect(result.metadata?.status).toBe("pending");
-    expect(result.renderables?.status).toBe("completed");
-  });
-
-  it("should build initial status for image card type", () => {
-    const result = buildInitialProcessingStatus({ now, cardType: "image" });
-
-    expect(result.categorize?.status).toBe("completed");
-    expect(result.metadata?.status).toBe("pending");
-    expect(result.renderables?.status).toBe("pending");
-  });
-
-  it("should build initial status for video card type", () => {
-    const result = buildInitialProcessingStatus({ now, cardType: "video" });
-
-    expect(result.categorize?.status).toBe("completed");
-    expect(result.metadata?.status).toBe("pending");
-    expect(result.renderables?.status).toBe("pending");
-  });
-
-  it("should build initial status for document card type", () => {
-    const result = buildInitialProcessingStatus({ now, cardType: "document" });
-
-    expect(result.categorize?.status).toBe("completed");
-    expect(result.metadata?.status).toBe("pending");
-    expect(result.renderables?.status).toBe("pending");
-  });
-
-  it("should build initial status for text card type", () => {
-    const result = buildInitialProcessingStatus({ now, cardType: "text" });
-
-    expect(result.categorize?.status).toBe("completed");
-    expect(result.metadata?.status).toBe("pending");
-    expect(result.renderables?.status).toBe("completed");
+  it("keeps a link's archive and article as the caller says, for a reset", () => {
+    const archived = stageCompleted(now);
+    const result = buildInitialProcessingStatus({
+      archive: { archive: archived },
+      cardType: "link",
+      now,
+    });
+    expect(result.archive).toEqual(archived);
+    expect(result.article).toBeUndefined();
   });
 
   it("should include classification status when provided", () => {
@@ -301,56 +254,6 @@ describe("buildInitialProcessingStatus", () => {
     const result = buildInitialProcessingStatus({ now, cardType: "link" });
 
     expect(result.classify).toBeUndefined();
-  });
-
-  it("should set metadata to completed when metadataStageNeeded is false", () => {
-    const result = buildInitialProcessingStatus({
-      now,
-      cardType: "link",
-      metadataStageNeeded: false,
-    });
-
-    expect(result.metadata?.status).toBe("completed");
-  });
-
-  it("should override categorize stage when categorizeStageOverride is true", () => {
-    const result = buildInitialProcessingStatus({
-      now,
-      cardType: "text",
-      categorizeStageOverride: true,
-    });
-
-    expect(result.categorize?.status).toBe("pending");
-  });
-
-  it("should override categorize stage when categorizeStageOverride is false", () => {
-    const result = buildInitialProcessingStatus({
-      now,
-      cardType: "link",
-      categorizeStageOverride: false,
-    });
-
-    expect(result.categorize?.status).toBe("completed");
-  });
-
-  it("should override renderables stage when renderablesStageOverride is true", () => {
-    const result = buildInitialProcessingStatus({
-      now,
-      cardType: "text",
-      renderablesStageOverride: true,
-    });
-
-    expect(result.renderables?.status).toBe("pending");
-  });
-
-  it("should override renderables stage when renderablesStageOverride is false", () => {
-    const result = buildInitialProcessingStatus({
-      now,
-      cardType: "image",
-      renderablesStageOverride: false,
-    });
-
-    expect(result.renderables?.status).toBe("completed");
   });
 
   it("should set confidence to 1 for completed stages", () => {

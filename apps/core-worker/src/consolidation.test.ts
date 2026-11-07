@@ -1,31 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildFilesOpSigningPayload, type FilesOp } from "@teak/files-protocol";
 import { strToU8, zipSync } from "fflate";
-import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
+import { handleOp, opCall, signedOpRequest } from "./test/opsHarness";
 import { FakeBucket } from "./test/testsupport";
 
-async function request(op: FilesOp, params: Record<string, unknown>) {
-  const body = JSON.stringify({ version: 1, op, params });
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600),
-    requestId = "test";
-  return new Request("http://localhost/__ops/v1", {
-    method: "POST",
-    body,
-    headers: {
-      "x-teak-request-id": requestId,
-      "x-teak-expires-at": expiresAt,
-      "x-teak-signature": await hmacSha256Hex(
-        "test-secret",
-        buildFilesOpSigningPayload({
-          bodySha256: await sha256Hex(body),
-          expiresAt,
-          requestId,
-        })
-      ),
-    },
-  });
-}
 const envFor = (bucket: FakeBucket): FilesOpsEnv => ({
   BUCKET: bucket as unknown as R2Bucket,
   FILES_SIGNING_SECRET: "test-secret",
@@ -39,8 +17,8 @@ describe("signed file operations", () => {
       "manifest.json": strToU8('{"version":1,"cards":[}'),
     });
     bucket.objects.set(key, { bytes });
-    const response = await handleInternalOp(
-      await request("index-import-source", {
+    const response = await handleOp(
+      opCall("index-import-source", {
         sourceKey: key,
         mode: "archive",
         expectedSize: bytes.length,
@@ -65,8 +43,8 @@ describe("signed file operations", () => {
       { level: 0 }
     );
     bucket.objects.set(key, { bytes });
-    const indexed = await handleInternalOp(
-      await request("index-import-source", {
+    const indexed = await handleOp(
+      opCall("index-import-source", {
         sourceKey: key,
         mode: "archive",
         expectedSize: bytes.length,
@@ -84,8 +62,8 @@ describe("signed file operations", () => {
         file: { path: "files/a.txt", uncompressedSize: 5 },
       },
     ]);
-    const extracted = await handleInternalOp(
-      await request("extract-import-files", {
+    const extracted = await handleOp(
+      opCall("extract-import-files", {
         archiveKey: key,
         sourceEtag: page.data.sourceEtag,
         entries: [
@@ -101,8 +79,8 @@ describe("signed file operations", () => {
     expect(bucket.storedBytes("users/u/import-job/item/file/a.txt")).toEqual(
       strToU8("Hello")
     );
-    const changed = await handleInternalOp(
-      await request("read-import-markdown", {
+    const changed = await handleOp(
+      opCall("read-import-markdown", {
         sourceKey: key,
         sourceEtag: '"old"',
         path: "files/a.txt",
@@ -131,7 +109,7 @@ describe("signed file operations", () => {
     expect(
       (
         await handleInternalOp(
-          await request("abort-multipart", {
+          await signedOpRequest("abort-multipart", {
             key: "users/u/imports/job/source",
             uploadId: "gone",
           }),
@@ -145,7 +123,7 @@ describe("signed file operations", () => {
     expect(
       (
         await handleInternalOp(
-          await request("abort-multipart", {
+          await signedOpRequest("abort-multipart", {
             key: "users/u/imports/job/source",
             uploadId: "gone",
           }),

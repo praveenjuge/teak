@@ -1,32 +1,87 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ConvexError } from "convex/values";
-import { createCardV1, createUploadV1 } from "../../../publicApi/http/routes";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { mapConvexErrorToResponse } from "../../../publicApi/http/shared";
 import { MAX_FILE_SIZE } from "../../../shared/constants";
 import {
   buildAuthorizedMutationMock,
-  buildAuthorizedMutationMockWithIdempotencySkip,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
 
 describe("publicApiHttp create endpoints", () => {
-  test("createCardV1 returns 405 for non-POST methods", async () => {
+  test.each([
+    [new Error("lookup failed"), 500, "INTERNAL_ERROR"],
+    [
+      new ConvexError({ code: "NOT_FOUND", message: "Card not found" }),
+      404,
+      "NOT_FOUND",
+    ],
+  ])(
+    "a card lookup that throws %p answers the API's JSON error",
+    async (failure, status, code) => {
+      const errorSpy = spyOn(console, "error").mockImplementation(
+        () => undefined
+      );
+      try {
+        const response = await runHandler(
+          publicApiV1,
+          {
+            runMutation: buildAuthorizedMutationMock(),
+            runQuery: mock().mockRejectedValue(failure),
+          },
+          new Request("https://example.com/v1/cards/card_1", {
+            headers: {
+              Authorization:
+                "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            },
+          })
+        );
+        expect(response.status).toBe(status);
+        expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+        expect(await response.json()).toMatchObject({ code });
+      } finally {
+        errorSpy.mockRestore();
+      }
+    }
+  );
+
+  test("PATCH /v1/cards/changes is 405 for that path, not a card update", async () => {
+    const runMutation = mock();
     const response = await runHandler(
-      createCardV1,
-      { runMutation: mock(), runQuery: mock() },
-      new Request("https://example.com/v1/cards", {
-        method: "GET",
+      publicApiV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/changes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{not json",
       })
     );
 
     expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET, OPTIONS");
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
+  test("a method /v1/cards doesn't serve is 405 with Allow, before any auth", async () => {
+    const runMutation = mock();
+    const response = await runHandler(
+      publicApiV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "DELETE",
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET, POST, OPTIONS");
     const payload = await response.json();
     expect(payload.code).toBe("METHOD_NOT_ALLOWED");
+    expect(runMutation).not.toHaveBeenCalled();
   });
 
   test("createCardV1 returns 401 without bearer token", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: mock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -53,7 +108,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -100,7 +155,7 @@ describe("publicApiHttp create endpoints", () => {
     const runAfter = mock().mockResolvedValue(null);
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock(), scheduler: { runAfter } },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -116,8 +171,9 @@ describe("publicApiHttp create endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ cardId: "card_1" });
-    expect(completions).toHaveLength(3);
+    expect(completions).toHaveLength(1);
     expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(runAfter.mock.calls[0][0]).toBe(0);
     expect(runAfter.mock.calls[0][2]).toMatchObject({
       responseBody: { cardId: "card_1" },
       responseStatus: 200,
@@ -146,7 +202,7 @@ describe("publicApiHttp create endpoints", () => {
       )
     );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -182,7 +238,7 @@ describe("publicApiHttp create endpoints", () => {
   test("createCardV1 refuses an unsafe sourceUrl before saving", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -211,7 +267,7 @@ describe("publicApiHttp create endpoints", () => {
       )
     );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -240,7 +296,7 @@ describe("publicApiHttp create endpoints", () => {
       rateLimit: { ok: false, retryAt: Date.now() + 30_000 },
     });
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -281,7 +337,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -306,7 +362,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -331,7 +387,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -355,7 +411,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -377,7 +433,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = mock().mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -412,7 +468,7 @@ describe("publicApiHttp create endpoints", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -437,7 +493,7 @@ describe("publicApiHttp create endpoints", () => {
     const runMutation = buildAuthorizedMutationMock();
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -465,7 +521,7 @@ describe("publicApiHttp create endpoints", () => {
     });
 
     const response = await runHandler(
-      createUploadV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/uploads", {
         method: "POST",
@@ -523,7 +579,7 @@ describe("publicApiHttp create endpoints", () => {
         new ConvexError({ code: scenario.code, message: scenario.message })
       );
       const response = await runHandler(
-        createUploadV1,
+        publicApiV1,
         { runMutation, runQuery: mock() },
         new Request("https://example.com/v1/uploads", {
           method: "POST",
@@ -545,14 +601,14 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 finalizes fileKey uploads through the canonical action", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_file",
     });
     const runQuery = mock();
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -594,14 +650,13 @@ describe("publicApiHttp create endpoints", () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const content =
       "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\nhttps://example.com  ";
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_text",
-        status: "created",
-      });
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      cardId: "card_text",
+      status: "created",
+    });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -623,11 +678,10 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 only allows whitespace content for explicit text cards", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const textMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        cardId: "card_text",
-        status: "created",
-      });
+    const textMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      cardId: "card_text",
+      status: "created",
+    });
     const request = (cardType: "quote" | "text") =>
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -639,14 +693,14 @@ describe("publicApiHttp create endpoints", () => {
       });
 
     const textResponse = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: textMutation, runQuery: mock() },
       request("text")
     );
     const quoteResponse = await runHandler(
-      createCardV1,
+      publicApiV1,
       {
-        runMutation: buildAuthorizedMutationMockWithIdempotencySkip(),
+        runMutation: buildAuthorizedMutationMock(),
         runQuery: mock(),
       },
       request("quote")
@@ -662,16 +716,15 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 preserves stable text-size errors", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
-        new ConvexError({
-          code: "CONTENT_TOO_LARGE",
-          message:
-            "Text card content must not exceed 512 KiB when encoded as UTF-8.",
-        })
-      );
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "CONTENT_TOO_LARGE",
+        message:
+          "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      })
+    );
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -695,14 +748,14 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 infers an uploaded file type when cardType is omitted", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_source",
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -730,7 +783,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when direct metadata omits size", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -739,7 +792,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -768,7 +821,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValue(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -777,7 +830,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -806,14 +859,14 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 accepts a successful canonical upload finalization", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockResolvedValueOnce({
       success: true,
       cardId: "card_file",
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -837,7 +890,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when stored metadata differs", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "INVALID_INPUT",
@@ -846,7 +899,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -874,7 +927,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 reports stored MIME mismatches consistently", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "TYPE_MISMATCH",
@@ -883,7 +936,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -911,7 +964,7 @@ describe("publicApiHttp create endpoints", () => {
 
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const runMutation = buildAuthorizedMutationMockWithIdempotencySkip();
+    const runMutation = buildAuthorizedMutationMock();
     const runAction = mock().mockRejectedValueOnce(
       new ConvexError({
         code: "FILE_TOO_LARGE",
@@ -920,7 +973,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runAction, runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",

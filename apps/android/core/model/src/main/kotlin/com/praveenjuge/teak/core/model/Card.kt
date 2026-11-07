@@ -17,6 +17,10 @@ enum class CardType {
 
     val wireName: String get() = name.lowercase()
 
+    companion object {
+        fun fromWire(value: String): CardType? = entries.firstOrNull { it.wireName == value }
+    }
+
     val labelText: UiText
         get() = when (this) {
             Text -> UiText.of("cards.types.text")
@@ -247,21 +251,28 @@ data class AuthMode(
 
 private val WORKOS_CLIENT_ID = Regex("^client_[A-Za-z0-9]{1,128}$")
 
-enum class ColorHue(val hex: Long) {
-    Red(0xFFEF4444),
-    Orange(0xFFF97316),
-    Yellow(0xFFEAB308),
-    Green(0xFF22C55E),
-    Teal(0xFF14B8A6),
-    Cyan(0xFF06B6D4),
-    Blue(0xFF3B82F6),
-    Purple(0xFFA855F7),
-    Pink(0xFFEC4899),
-    Brown(0xFF92400E),
-    Neutral(0xFF737373),
+enum class ColorHue {
+    Red,
+    Orange,
+    Yellow,
+    Green,
+    Teal,
+    Cyan,
+    Blue,
+    Purple,
+    Pink,
+    Brown,
+    Neutral,
     ;
 
     val wireName: String get() = name.lowercase()
+
+    /** The swatch's 0xAARRGGBB color, from the generated `COLOR_HUE_SWATCHES`. */
+    val hex: Long get() = parseHexArgb(COLOR_HUE_SWATCHES.getValue(wireName)) ?: error("No swatch for $wireName")
+
+    companion object {
+        fun fromWire(value: String): ColorHue? = entries.firstOrNull { it.wireName == value }
+    }
 
     val labelText: UiText
         get() = when (this) {

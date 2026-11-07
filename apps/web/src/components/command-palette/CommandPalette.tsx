@@ -5,28 +5,23 @@ import { useTranslations } from "@teak/i18n/react";
 import { defaultFilter } from "cmdk";
 import { useQueries } from "convex-helpers/react/cache/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Download,
-  FileText,
-  FolderSearch,
-  Hash,
-  Import,
-  Keyboard,
-  LogOut,
-  Search,
-  Settings,
-  Shuffle,
-  SunMoon,
-  Trash,
-  Upload,
-  type VadivamIcon,
-} from "vadivam-react";
+import { FolderSearch, Search } from "vadivam-react";
 import { useBillingEnabled } from "../../hooks/useBillingEnabled";
 import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController";
 import { useFolders } from "../../hooks/useFolders";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import {
-  type CommandPaletteActionId,
+  APP_ACTIONS,
+  type AppActionId,
+  appActionKeys,
+  GO_TO,
+  GO_TO_TARGETS,
+  type GoToTarget,
+  goToKeys,
+  isLibraryViewTarget,
+} from "../../lib/appCommands";
+import { cardTypeIcon } from "../../lib/cardTypes";
+import {
   PALETTE_CARD_LIMIT,
   PALETTE_MIN_CARD_QUERY_LENGTH,
   type PaletteCard,
@@ -40,26 +35,15 @@ import {
   type FolderSummary,
   folderPath,
 } from "../../lib/folders";
-import {
-  GO_TO_SETTINGS_KEY,
-  GO_TO_TAGS_KEY,
-  GO_TO_VIEW_KEYS,
-} from "../../lib/keyboardShortcuts";
-import {
-  LIBRARY_VIEW_PATHS,
-  LIBRARY_VIEWS,
-  libraryViewLabel,
-} from "../../lib/libraryViews";
+import { libraryViewLabel } from "../../lib/libraryViews";
 import {
   SETTINGS_SECTION_KEYWORDS,
   SETTINGS_SECTIONS,
   type SettingsSection,
   visibleSettingsSections,
 } from "../../lib/settingsSections";
-import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
-import { LIBRARY_VIEW_ICONS } from "../sidebar/AppSidebar";
 import {
   CommandDialog,
   CommandEmpty,
@@ -74,25 +58,13 @@ export type CommandPaletteCommand =
   | { kind: "navigate"; href: string }
   | { kind: "card"; cardId: string }
   | { kind: "search"; query: string }
-  | { kind: "action"; id: CommandPaletteActionId };
+  | { kind: "action"; id: AppActionId };
 
 export type PaletteCardsState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error" }
   | { status: "ready"; cards: PaletteCard[] };
-
-const ACTION_ICONS: Record<CommandPaletteActionId, VadivamIcon> = {
-  "new-note": FileText,
-  upload: Upload,
-  import: Import,
-  export: Download,
-  "toggle-theme": SunMoon,
-  shuffle: Shuffle,
-  shortcuts: Keyboard,
-  "empty-trash": Trash,
-  "sign-out": LogOut,
-};
 
 // Key hints mean nothing on a touch screen without a keyboard.
 export const SHORTCUT_HINT_CLASS = "ml-auto pointer-coarse:hidden";
@@ -140,6 +112,10 @@ export function CommandPaletteResults({
   const tViews = useTranslations("lib.libraryViews");
   const tSettingsNav = useTranslations("settings.nav");
   const trimmed = query.trim();
+  const placeLabel = (target: GoToTarget) =>
+    isLibraryViewTarget(target)
+      ? libraryViewLabel(target, tViews)
+      : t(`views.${target}`);
   return (
     <>
       {/* cmdk doesn't count the server's card rows. Once a query is long
@@ -150,66 +126,26 @@ export function CommandPaletteResults({
         </CommandEmpty>
       )}
       <CommandGroup heading={t("groups.navigate")}>
-        {LIBRARY_VIEWS.map((view) => {
-          const Icon = LIBRARY_VIEW_ICONS[view];
-          const label = libraryViewLabel(view, tViews);
+        {GO_TO_TARGETS.map((target) => {
+          const { href, icon: Icon, keywords } = GO_TO[target];
+          const label = placeLabel(target);
           return (
             <CommandItem
-              key={view}
-              keywords={[label, "go to", "view"]}
-              onSelect={() =>
-                onSelect({ kind: "navigate", href: LIBRARY_VIEW_PATHS[view] })
-              }
-              value={`view:${view}`}
+              key={target}
+              keywords={[label, ...keywords]}
+              onSelect={() => onSelect({ kind: "navigate", href })}
+              value={`view:${target}`}
             >
               <Icon />
               <span className="truncate">{label}</span>
               <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
                 <ShortcutHint
-                  row={{
-                    keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
-                    label,
-                    sequence: true,
-                  }}
+                  row={{ keys: goToKeys(target), label, sequence: true }}
                 />
               </span>
             </CommandItem>
           );
         })}
-        <CommandItem
-          keywords={[t("views.tags"), "labels"]}
-          onSelect={() => onSelect({ kind: "navigate", href: "/tags" })}
-          value="view:tags"
-        >
-          <Hash />
-          <span>{t("views.tags")}</span>
-          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
-            <ShortcutHint
-              row={{
-                keys: ["G", GO_TO_TAGS_KEY.toUpperCase()],
-                label: t("views.tags"),
-                sequence: true,
-              }}
-            />
-          </span>
-        </CommandItem>
-        <CommandItem
-          keywords={[t("views.settings"), "account", "preferences", "billing"]}
-          onSelect={() => onSelect({ kind: "navigate", href: "/settings" })}
-          value="view:settings"
-        >
-          <Settings />
-          <span>{t("views.settings")}</span>
-          <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
-            <ShortcutHint
-              row={{
-                keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
-                label: t("views.settings"),
-                sequence: true,
-              }}
-            />
-          </span>
-        </CommandItem>
       </CommandGroup>
       {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH && (
         <CommandGroup forceMount heading={t("groups.cards")}>
@@ -217,21 +153,26 @@ export function CommandPaletteResults({
         </CommandGroup>
       )}
       <CommandGroup heading={t("groups.actions")}>
-        {paletteActions(pathname).map((action) => {
-          const Icon = ACTION_ICONS[action.id];
-          const label = t(`actions.${action.labelKey}`);
+        {paletteActions(pathname).map((id) => {
+          const entry = APP_ACTIONS[id].palette;
+          if (!entry) {
+            return null;
+          }
+          const { icon: Icon } = entry;
+          const label = t(`actions.${entry.label}`);
+          const keys = appActionKeys(id);
           return (
             <CommandItem
-              key={action.id}
-              keywords={[label, ...action.keywords]}
-              onSelect={() => onSelect({ kind: "action", id: action.id })}
-              value={`action:${action.id}`}
+              key={id}
+              keywords={[label, ...entry.keywords]}
+              onSelect={() => onSelect({ kind: "action", id })}
+              value={`action:${id}`}
             >
               <Icon />
               <span className="truncate">{label}</span>
-              {action.keys ? (
+              {keys.length > 0 ? (
                 <span aria-hidden="true" className={SHORTCUT_HINT_CLASS}>
-                  <ShortcutHint row={{ keys: action.keys, label }} />
+                  <ShortcutHint row={{ keys, label }} />
                 </span>
               ) : null}
             </CommandItem>
@@ -337,7 +278,7 @@ function PaletteCardRows({
   return (
     <>
       {cards.cards.map((card) => {
-        const Icon = getCardTypeIconComponent(card.type);
+        const Icon = cardTypeIcon(card.type);
         const title = paletteCardTitle(card, t, tLinkTitle);
         const host = paletteCardHost(card);
         return (

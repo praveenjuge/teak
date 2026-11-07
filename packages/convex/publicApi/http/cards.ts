@@ -9,12 +9,11 @@ import {
 } from "../../card/documentText";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
-import {
-  API_RELEVANCE_TIMEOUT_MS,
-  ensureRelevanceScores,
-} from "../../search/relevanceActions";
+import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
+import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
+import { parsePublicApiBody } from "../../shared/publicApiBodies";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -23,27 +22,11 @@ import {
 import { tryResolveObjectUrl } from "../../storage/fileUrls";
 import { captureBackendEvent } from "../../telemetry/posthog";
 import { relevanceCursorRanked } from "../cursors";
-import {
-  completeIdempotencyResponse,
-  type IdempotencyState,
-  maybeHandleIdempotency,
-  releaseReservationKeepingOriginalError,
-  withAuthorizedUser,
-} from "./auth";
-import {
-  parseCreatePayload,
-  parsePatchPayload,
-  validateFavoritePayload,
-  validatePinPayload,
-  validateThumbnailSetPayload,
-  validateThumbnailUploadPayload,
-  validateUploadPayload,
-} from "./payloads";
-import {
-  parseCardRoute,
-  parseCardsQueryOptions,
-  parseIncludeSet,
-} from "./routeParsing";
+import { parseOptionalString } from "../validation";
+import { respondIdempotently } from "./auth";
+import { noContent, type PublicApiCall, queryOf } from "./operation";
+import { parseCreatePayload, parsePatchPayload } from "./payloads";
+import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
 import {
   buildCreateCardResponse,
   serializeCard,
@@ -56,33 +39,18 @@ import {
   MAX_LIMIT,
   MAX_QUERY_SCAN,
   mapConvexErrorToResponse,
-  parseJsonBody,
   parseLimit,
-  parseOptionalString,
   parseTimestampQuery,
 } from "./shared";
 
 const MAX_SHUFFLE_READS = 4;
 
-import type { WorkosResource } from "../../workos/tokens";
-
 const handleCreateCardRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { cardSource, ctx, request, userId } = call;
 
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
-
+  const payload = call.body;
   const parsedCreate = parseCreatePayload(payload);
   if ("error" in parsedCreate) {
     return errorResponse(
@@ -93,153 +61,106 @@ const handleCreateCardRequest = async (
   }
   const createPayload = parsedCreate.payload;
 
-  let idempotencyState: IdempotencyState | null = null;
-  let operationCommitted = false;
-
-  try {
-    const idempotency = await maybeHandleIdempotency(ctx, {
-      method: "POST",
+  return await respondIdempotently(
+    ctx,
+    {
+      failureMessage: "Failed to save card",
       path: "/v1/cards",
       request,
       requestBody: createPayload,
-      userId: auth.validated.userId,
-    });
-    if (idempotency instanceof Response) {
-      return idempotency;
-    }
-    if (idempotency.replayed) {
-      return idempotency.replayed;
-    }
-    idempotencyState = idempotency;
-
-    const result = createPayload.fileKey
-      ? await ctx
-          .runAction(
-            internal["card/uploadCardAction"].finalizeUploadedCardForUser,
+      userId,
+    },
+    async (committed) => {
+      const result = createPayload.fileKey
+        ? await ctx
+            .runAction(
+              internal["card/uploadCardAction"].finalizeUploadedCardForUser,
+              {
+                cardType: createPayload.cardType,
+                content: createPayload.content,
+                fileEtag: createPayload.fileEtag,
+                fileKey: createPayload.fileKey,
+                fileName: createPayload.fileName,
+                fileSize: createPayload.fileSize,
+                fileType: createPayload.mimeType,
+                cardSource,
+                notes:
+                  createPayload.notes === null
+                    ? undefined
+                    : createPayload.notes,
+                tags: createPayload.tags,
+                userId,
+              }
+            )
+            .then((uploaded: { cardId?: string; success: boolean }) => {
+              if (!(uploaded.success && uploaded.cardId)) {
+                throw new ConvexError({
+                  code: "INVALID_INPUT",
+                  message: "Uploaded file could not be finalized",
+                });
+              }
+              return {
+                cardId: uploaded.cardId,
+                status: "created" as const,
+              };
+            })
+        : await ctx.runMutation(
+            internal.publicApi.cardsForUser.quickSaveForUser,
             {
               cardType: createPayload.cardType,
               content: createPayload.content,
-              fileEtag: createPayload.fileEtag,
-              fileKey: createPayload.fileKey,
-              fileName: createPayload.fileName,
-              fileSize: createPayload.fileSize,
-              fileType: createPayload.mimeType,
               notes:
                 createPayload.notes === null ? undefined : createPayload.notes,
+              ...(createPayload.pageSnapshotKey
+                ? { pageSnapshotKey: createPayload.pageSnapshotKey }
+                : {}),
+              cardSource,
+              source: createPayload.source,
+              sourceTitle: createPayload.sourceTitle,
+              sourceUrl: createPayload.sourceUrl,
               tags: createPayload.tags,
-              userId: auth.validated.userId,
+              url: createPayload.url,
+              userId,
             }
-          )
-          .then((uploaded: { cardId?: string; success: boolean }) => {
-            if (!(uploaded.success && uploaded.cardId)) {
-              throw new ConvexError({
-                code: "INVALID_INPUT",
-                message: "Uploaded file could not be finalized",
-              });
-            }
-            return {
-              cardId: uploaded.cardId,
-              status: "created" as const,
-            };
-          })
-      : await ctx.runMutation(
-          internal.publicApi.cardsForUser.quickSaveForUser,
-          {
-            cardType: createPayload.cardType,
-            content: createPayload.content,
-            notes:
-              createPayload.notes === null ? undefined : createPayload.notes,
-            ...(createPayload.pageSnapshotKey
-              ? { pageSnapshotKey: createPayload.pageSnapshotKey }
-              : {}),
-            source: createPayload.source,
-            sourceTitle: createPayload.sourceTitle,
-            sourceUrl: createPayload.sourceUrl,
-            tags: createPayload.tags,
-            url: createPayload.url,
-            userId: auth.validated.userId,
-          }
-        );
-    operationCommitted = true;
-    const responseBody = buildCreateCardResponse(
-      result,
-      request.url,
-      "card" in result && result.card
-        ? await loadCardLinks(ctx, auth.validated.userId, result.card._id)
-        : undefined
-    );
-    await completeIdempotencyResponse(ctx, {
-      keyHash: idempotencyState.keyHash,
-      leaseToken: idempotencyState.leaseToken,
-      requestHash: idempotencyState.requestHash,
-      responseBody,
-      responseStatus: 200,
-      userId: auth.validated.userId,
-    });
-
-    return json(200, responseBody);
-  } catch (error) {
-    if (idempotencyState?.reserved && !operationCommitted) {
-      await releaseReservationKeepingOriginalError(ctx, {
-        keyHash: idempotencyState.keyHash,
-        leaseToken: idempotencyState.leaseToken,
-        requestHash: idempotencyState.requestHash,
-        userId: auth.validated.userId,
-      });
+          );
+      committed();
+      return buildCreateCardResponse(
+        result,
+        request.url,
+        "card" in result && result.card
+          ? await loadCardLinks(ctx, userId, result.card._id)
+          : undefined
+      );
     }
-    return mapConvexErrorToResponse(error, "Failed to save card");
-  }
+  );
 };
 
 const handleCreateUploadRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { ctx, userId } = call;
 
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
+  const payload = call.body;
+  const parsedUploadPayload = parsePublicApiBody("createUpload", payload);
+  if ("error" in parsedUploadPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUploadPayload.error);
   }
+  const uploadPayload = parsedUploadPayload.body;
 
-  const uploadPayload = validateUploadPayload(payload);
-  if (!uploadPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include only valid fields: fileName, mimeType, fileSize"
-    );
-  }
-
-  try {
-    const result = await ctx.runMutation(
-      internal.publicApiUploads.generateUploadUrlForUser,
-      {
-        ...uploadPayload,
-        userId: auth.validated.userId,
-      }
-    );
-    return json(200, result);
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to prepare upload");
-  }
+  const result = await ctx.runMutation(
+    internal.publicApiUploads.generateUploadUrlForUser,
+    {
+      ...uploadPayload,
+      userId,
+    }
+  );
+  return json(200, result);
 };
 
 const handleCardsListRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { ctx, request, userId } = call;
 
   let options = parseCardsQueryOptions(request);
   if (options instanceof Response) {
@@ -257,291 +178,274 @@ const handleCardsListRequest = async (
     );
   }
 
-  try {
-    let folderId: string | undefined;
-    if (options.folder) {
-      const folder = await ctx.runQuery(
-        internal.publicApiFolders.getFolderForApi,
-        { userId: auth.validated.userId, folderId: options.folder }
+  let folderId: string | undefined;
+  if (options.folder) {
+    const folder = await ctx.runQuery(
+      internal.publicApiFolders.getFolderForUser,
+      { userId, folderId: options.folder }
+    );
+    if (!folder) {
+      return errorResponse(404, "NOT_FOUND", "Folder not found");
+    }
+    if (folder.kind === "smart") {
+      const url = new URL(request.url);
+      const combined = combineSearchQueries(
+        folder.query ?? "",
+        url.searchParams.get("q") ?? ""
       );
-      if (!folder) {
-        return errorResponse(404, "NOT_FOUND", "Folder not found");
+      if (combined === null) {
+        return json(200, {
+          items: [],
+          pageInfo: { hasMore: false, nextCursor: null },
+        });
       }
-      if (folder.kind === "smart") {
-        const url = new URL(request.url);
-        const combined = combineSearchQueries(
-          folder.query ?? "",
-          url.searchParams.get("q") ?? ""
-        );
-        if (combined === null) {
-          return json(200, {
-            items: [],
-            pageInfo: { hasMore: false, nextCursor: null },
-          });
-        }
-        url.searchParams.set("q", combined);
-        url.searchParams.delete("folder");
-        const smartOptions = parseCardsQueryOptions(new Request(url));
-        if (smartOptions instanceof Response) {
-          return smartOptions;
-        }
-        options = smartOptions;
-      } else {
-        folderId = folder._id;
+      url.searchParams.set("q", combined);
+      url.searchParams.delete("folder");
+      const smartOptions = parseCardsQueryOptions(new Request(url));
+      if (smartOptions instanceof Response) {
+        return smartOptions;
       }
+      options = smartOptions;
+    } else {
+      folderId = folder._id;
     }
-    if (options.matchesNothing) {
-      return json(200, {
-        items: [],
-        pageInfo: { hasMore: false, nextCursor: null },
-      });
-    }
-    const { similarity } = options;
-    const semantic =
-      similarity || (options.searchQuery && options.mode !== "keyword")
-        ? await fetchSemanticRanking(
-            ctx,
-            auth.validated.userId,
-            options.semantic
-          )
-        : null;
-    if (similarity && semantic?.outcome === "rate_limited") {
-      return errorResponse(
-        429,
-        "RATE_LIMITED",
-        "Too many searches. Try again in a minute."
-      );
-    }
-    if (similarity && semantic?.outcome === "unavailable") {
-      return errorResponse(
-        503,
-        "SERVICE_UNAVAILABLE",
-        "Similar search is unavailable right now. Try again later."
-      );
-    }
-    if (similarity && !semantic?.ranking) {
-      return json(200, {
-        items: [],
-        pageInfo: { hasMore: false, nextCursor: null },
-        searchMode: "semantic",
-        similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
-      });
-    }
-    const semanticRanking = semantic?.ranking ?? undefined;
-    const queryArgs = {
-      archived: options.archived,
-      folderId,
-      showTrashOnly: options.showTrashOnly,
-      styleFilters: options.styleFilters,
-      hueFilters: options.hueFilters,
-      hexFilters: options.hexFilters,
-      createdAfter: options.createdAfter,
-      createdBefore: options.createdBefore,
-      cursor: options.cursor,
-      favorited: options.favoritesOnly ? true : undefined,
-      pinned: options.pinnedOnly ? true : undefined,
-      sort: options.sort === "relevance" ? undefined : options.sort,
-      type: options.type,
-      types: options.types,
-      userId: auth.validated.userId,
-      ...options.qualifiers,
-      ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
-      ...(similarity ? { similarity } : {}),
-    };
-    let cardsPage: {
-      items: CardWithUrls[];
-      pageInfo: { hasMore: boolean; nextCursor: string | null };
-    };
-    const bestMatchText =
-      options.sort === "relevance" && options.semantic?.kind === "text"
-        ? options.semantic.text
-        : "";
-    const bestMatch = Boolean(options.searchQuery && bestMatchText);
-    let relevanceRanked: boolean | undefined;
+  }
+  if (options.matchesNothing) {
+    return json(200, {
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+  }
+  const { similarity } = options;
+  const semantic =
+    similarity || (options.searchQuery && options.mode !== "keyword")
+      ? await fetchSemanticRanking(ctx, userId, options.semantic)
+      : null;
+  if (similarity && semantic?.outcome === "rate_limited") {
+    return errorResponse(
+      429,
+      "RATE_LIMITED",
+      "Too many searches. Try again in a minute."
+    );
+  }
+  if (similarity && semantic?.outcome === "unavailable") {
+    return errorResponse(
+      503,
+      "SERVICE_UNAVAILABLE",
+      "Similar search is unavailable right now. Try again later."
+    );
+  }
+  if (similarity && !semantic?.ranking) {
+    return json(200, {
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+      searchMode: "semantic",
+      similarity: semantic?.outcome === "pending" ? "pending" : "unavailable",
+    });
+  }
+  const semanticRanking = semantic?.ranking ?? undefined;
+  const queryArgs = {
+    archived: options.archived,
+    folderId,
+    showTrashOnly: options.showTrashOnly,
+    styleFilters: options.styleFilters,
+    hueFilters: options.hueFilters,
+    hexFilters: options.hexFilters,
+    createdAfter: options.createdAfter,
+    createdBefore: options.createdBefore,
+    cursor: options.cursor,
+    favorited: options.favoritesOnly ? true : undefined,
+    pinned: options.pinnedOnly ? true : undefined,
+    sort: options.sort === "relevance" ? undefined : options.sort,
+    type: options.type,
+    types: options.types,
+    userId,
+    ...options.qualifiers,
+    ...(semanticRanking ? { semanticRanking, mode: options.mode } : {}),
+    ...(similarity ? { similarity } : {}),
+  };
+  let cardsPage: {
+    items: CardWithUrls[];
+    pageInfo: { hasMore: boolean; nextCursor: string | null };
+  };
+  const bestMatchText =
+    options.sort === "relevance" && options.semantic?.kind === "text"
+      ? options.semantic.text
+      : "";
+  const bestMatch = Boolean(options.searchQuery && bestMatchText);
+  let relevanceRanked: boolean | undefined;
 
-    const pinnedInOrder =
-      options.pinnedOnly &&
-      !(
-        options.searchQuery ||
-        options.tag ||
-        options.qualifiers?.ocrTexts?.length ||
-        similarity ||
-        options.sort === "shuffle"
-      );
-    if (pinnedInOrder) {
-      cardsPage = await ctx.runQuery(
-        internal.publicApi.pinnedCardsPageForUser,
-        {
-          userId: queryArgs.userId,
-          showTrashOnly: queryArgs.showTrashOnly,
-          archived: queryArgs.archived,
-          folderId: queryArgs.folderId,
-          styleFilters: queryArgs.styleFilters,
-          hueFilters: queryArgs.hueFilters,
-          hexFilters: queryArgs.hexFilters,
-          type: queryArgs.type,
-          types: queryArgs.types,
-          favorited: queryArgs.favorited,
-          createdAfter: queryArgs.createdAfter,
-          createdBefore: queryArgs.createdBefore,
-          tags: queryArgs.tags,
-          sites: queryArgs.sites,
-          phrases: queryArgs.phrases,
-          prices: queryArgs.prices,
-          done: queryArgs.done,
-          todo: queryArgs.todo,
-          folderNames: queryArgs.folderNames,
-          expression: queryArgs.expression,
-        }
-      );
-    } else if (
-      options.sort === "shuffle" &&
-      options.shuffleSeed !== undefined
-    ) {
-      const items: CardWithUrls[] = [];
-      let cursor = options.cursor;
-      let hasMore = true;
-      for (
-        let read = 0;
-        read < MAX_SHUFFLE_READS && items.length < options.limit && hasMore;
-        read++
-      ) {
-        const page = await ctx.runQuery(
-          internal.publicApi.shuffleCardsPageForUser,
-          {
-            ...queryArgs,
-            sort: undefined,
-            cursor,
-            limit: options.limit - items.length,
-            searchQuery: options.searchQuery,
-            shuffleSeed: options.shuffleSeed,
-            tag: options.tag,
-          }
-        );
-        items.push(...page.items);
-        cursor = page.pageInfo.nextCursor ?? undefined;
-        hasMore = page.pageInfo.hasMore;
-      }
-      cardsPage = {
-        items,
-        pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
-      };
-    } else if (
+  const pinnedInOrder =
+    options.pinnedOnly &&
+    !(
       options.searchQuery ||
       options.tag ||
       options.qualifiers?.ocrTexts?.length ||
-      similarity
+      similarity ||
+      options.sort === "shuffle"
+    );
+  if (pinnedInOrder) {
+    cardsPage = await ctx.runQuery(internal.publicApi.pinnedCardsPageForUser, {
+      userId: queryArgs.userId,
+      showTrashOnly: queryArgs.showTrashOnly,
+      archived: queryArgs.archived,
+      folderId: queryArgs.folderId,
+      styleFilters: queryArgs.styleFilters,
+      hueFilters: queryArgs.hueFilters,
+      hexFilters: queryArgs.hexFilters,
+      type: queryArgs.type,
+      types: queryArgs.types,
+      favorited: queryArgs.favorited,
+      createdAfter: queryArgs.createdAfter,
+      createdBefore: queryArgs.createdBefore,
+      tags: queryArgs.tags,
+      sites: queryArgs.sites,
+      phrases: queryArgs.phrases,
+      prices: queryArgs.prices,
+      done: queryArgs.done,
+      todo: queryArgs.todo,
+      folderNames: queryArgs.folderNames,
+      expression: queryArgs.expression,
+    });
+  } else if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
+    const items: CardWithUrls[] = [];
+    let cursor = options.cursor;
+    let hasMore = true;
+    for (
+      let read = 0;
+      read < MAX_SHUFFLE_READS && items.length < options.limit && hasMore;
+      read++
     ) {
-      const relevance = bestMatch
-        ? await relevanceForPage(ctx, {
-            cursor: options.cursor,
-            spentToken: semantic?.spentToken === true,
-            text: bestMatchText,
-            userId: auth.validated.userId,
-            candidateArgs: {
-              ...queryArgs,
-              cursor: undefined,
-              limit: RELEVANCE_CANDIDATE_LIMIT,
-              searchQuery: options.searchQuery,
-              tag: options.tag,
-              relevance: {},
-            },
-          })
-        : undefined;
-      relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
-      cardsPage = await ctx.runQuery(
-        internal.publicApi.searchCardsPageForUser,
+      const page = await ctx.runQuery(
+        internal.publicApi.shuffleCardsPageForUser,
         {
           ...queryArgs,
-          limit: options.limit,
+          sort: undefined,
+          cursor,
+          limit: options.limit - items.length,
           searchQuery: options.searchQuery,
+          shuffleSeed: options.shuffleSeed,
           tag: options.tag,
-          ...(relevance ? { relevance } : {}),
         }
       );
-    } else {
-      const items: CardWithUrls[] = [];
-      let cursor = options.cursor;
-      let nextCursor: string | null = null;
-      let scannedRows = 0;
-      let hasMore = false;
-
-      while (scannedRows < MAX_QUERY_SCAN) {
-        const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
-        const scanPage = await ctx.runQuery(
-          internal.publicApi.scanCardsPageForUser,
-          {
+      items.push(...page.items);
+      cursor = page.pageInfo.nextCursor ?? undefined;
+      hasMore = page.pageInfo.hasMore;
+    }
+    cardsPage = {
+      items,
+      pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
+    };
+  } else if (
+    options.searchQuery ||
+    options.tag ||
+    options.qualifiers?.ocrTexts?.length ||
+    similarity
+  ) {
+    const relevance = bestMatch
+      ? await relevanceForPage(ctx, {
+          cursor: options.cursor,
+          spentToken: semantic?.spentToken === true,
+          text: bestMatchText,
+          userId,
+          candidateArgs: {
             ...queryArgs,
-            cursor,
-            scanLimit,
-          }
-        );
-        const rowsRead = Math.max(
-          0,
-          Math.min(scanLimit, Number(scanPage.scannedRows) || 0)
-        );
-        scannedRows += rowsRead;
+            cursor: undefined,
+            limit: RELEVANCE_CANDIDATE_LIMIT,
+            searchQuery: options.searchQuery,
+            tag: options.tag,
+            relevance: {},
+          },
+        })
+      : undefined;
+    relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
+    cardsPage = await ctx.runQuery(internal.publicApi.searchCardsPageForUser, {
+      ...queryArgs,
+      limit: options.limit,
+      searchQuery: options.searchQuery,
+      tag: options.tag,
+      ...(relevance ? { relevance } : {}),
+    });
+  } else {
+    const items: CardWithUrls[] = [];
+    let cursor = options.cursor;
+    let nextCursor: string | null = null;
+    let scannedRows = 0;
+    let hasMore = false;
 
-        for (const [index, card] of scanPage.items.entries()) {
-          if (items.length === options.limit) {
-            hasMore = true;
-            break;
-          }
-
-          items.push(card);
-          nextCursor = scanPage.itemCursors[index] ?? null;
+    while (scannedRows < MAX_QUERY_SCAN) {
+      const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
+      const scanPage = await ctx.runQuery(
+        internal.publicApi.scanCardsPageForUser,
+        {
+          ...queryArgs,
+          cursor,
+          scanLimit,
         }
+      );
+      const rowsRead = Math.max(
+        0,
+        Math.min(scanLimit, Number(scanPage.scannedRows) || 0)
+      );
+      scannedRows += rowsRead;
 
-        if (hasMore) {
-          break;
-        }
-
-        cursor = scanPage.nextCursor ?? undefined;
-        if (!cursor) {
-          nextCursor = null;
-          break;
-        }
-
+      for (const [index, card] of scanPage.items.entries()) {
         if (items.length === options.limit) {
-          nextCursor = cursor;
-        }
-
-        if (rowsRead === 0) {
           hasMore = true;
-          nextCursor = cursor;
           break;
         }
+
+        items.push(card);
+        nextCursor = scanPage.itemCursors[index] ?? null;
       }
 
-      if (!hasMore && scannedRows >= MAX_QUERY_SCAN && cursor) {
-        hasMore = true;
+      if (hasMore) {
+        break;
+      }
+
+      cursor = scanPage.nextCursor ?? undefined;
+      if (!cursor) {
+        nextCursor = null;
+        break;
+      }
+
+      if (items.length === options.limit) {
         nextCursor = cursor;
       }
 
-      cardsPage = {
-        items,
-        pageInfo: {
-          hasMore,
-          nextCursor: hasMore ? nextCursor : null,
-        },
-      };
+      if (rowsRead === 0) {
+        hasMore = true;
+        nextCursor = cursor;
+        break;
+      }
     }
 
-    const items = include.has("processing")
-      ? await withTranscripts(ctx, auth.validated.userId, cardsPage.items)
-      : cardsPage.items;
-    return json(200, {
-      items: items.map((card) => serializeListCard(card, request.url, include)),
-      pageInfo: cardsPage.pageInfo,
-      ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
-      ...(options.hasQuery && !similarity
-        ? { searchMode: semanticRanking ? options.mode : "keyword" }
-        : {}),
-      ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
-    });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch cards");
+    if (!hasMore && scannedRows >= MAX_QUERY_SCAN && cursor) {
+      hasMore = true;
+      nextCursor = cursor;
+    }
+
+    cardsPage = {
+      items,
+      pageInfo: {
+        hasMore,
+        nextCursor: hasMore ? nextCursor : null,
+      },
+    };
   }
+
+  const items = include.has("processing")
+    ? await withTranscripts(ctx, userId, cardsPage.items)
+    : cardsPage.items;
+  return json(200, {
+    items: items.map((card) => serializeListCard(card, request.url, include)),
+    pageInfo: cardsPage.pageInfo,
+    ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
+    ...(options.hasQuery && !similarity
+      ? { searchMode: semanticRanking ? options.mode : "keyword" }
+      : {}),
+    ...(relevanceRanked === undefined ? {} : { relevanceRanked }),
+  });
 };
 
 export const relevanceForPage = async (
@@ -572,7 +476,7 @@ export const relevanceForPage = async (
     candidates: candidates.items,
     spentToken,
     text,
-    timeoutMs: API_RELEVANCE_TIMEOUT_MS,
+    timeoutMs: API_SEARCH_TIMEOUT_MS,
     userId,
   });
   if (pinned === true) {
@@ -679,7 +583,14 @@ const withSignedArticleImages = async (
   imageKeys: readonly string[]
 ): Promise<string> => {
   const urls = await Promise.all(
-    imageKeys.map((key) => tryResolveObjectUrl(key).catch(() => undefined))
+    imageKeys.map((key) =>
+      tryResolveObjectUrl(key).catch((error: unknown) => {
+        // The article still reads without the image; its token stays a link.
+        console.warn("[publicApi] article image unavailable", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      })
+    )
   );
   return replaceArticleImageTokens(
     markdown,
@@ -759,483 +670,335 @@ const thumbnailErrorResponse = (error: unknown, fallbackMessage: string) => {
   return mapConvexErrorToResponse(error, fallbackMessage);
 };
 
-const handleThumbnailRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  {
+/**
+ * Resolves the `{cardId}` of a card operation to the caller's card, or
+ * answers 404. Most operations see only cards outside Trash; the ones that
+ * work on a card in Trash pass `includeDeleted`.
+ */
+const loadCard = async (
+  call: PublicApiCall,
+  options: {
+    includeDeleted?: boolean;
+    /** Checked once the id is known, before the card is read. */
+    precheck?: () => Response | null;
+  } = {}
+): Promise<{ card: CardWithUrls; cardId: Id<"cards"> } | Response> => {
+  const cardId = await resolveCardId(call.ctx, call.params.cardId);
+  if (!cardId) {
+    return errorResponse(404, "NOT_FOUND", "Card not found");
+  }
+  const refused = options.precheck?.();
+  if (refused) {
+    return refused;
+  }
+  const card = await ensureCardExistsForUser(
+    call.ctx,
+    call.userId,
     cardId,
-    operation,
-    userId,
-  }: {
-    cardId: Id<"cards">;
-    operation: "thumbnail-reset" | "thumbnail-set" | "thumbnail-upload";
-    userId: string;
-  }
-): Promise<Response> => {
-  const respondWithCard = async () => {
-    const card = await ensureCardExistsForUser(ctx, userId, cardId, true);
-    return card
-      ? json(200, await serializeCardWithLinks(ctx, userId, card, request.url))
-      : errorResponse(404, "NOT_FOUND", "Card not found");
-  };
+    options.includeDeleted
+  );
+  return card
+    ? { card, cardId: cardId as Id<"cards"> }
+    : errorResponse(404, "NOT_FOUND", "Card not found");
+};
 
-  if (operation === "thumbnail-reset") {
-    try {
-      const result = await ctx.runMutation(
-        internal.card.thumbnailOverride.resetLinkThumbnailForUser,
-        { cardId, userId }
-      );
-      if (result.changeId) {
-        await captureBackendEvent("card_thumbnail_reset", userId, {});
-      }
-      return await respondWithCard();
-    } catch (error) {
-      return thumbnailErrorResponse(error, "Failed to reset the image");
-    }
-  }
+const cardResponse = async (call: PublicApiCall, card: CardWithUrls) =>
+  json(
+    200,
+    await serializeCardWithLinks(call.ctx, call.userId, card, call.request.url)
+  );
 
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
+const handleGetCardRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call);
+  return loaded instanceof Response
+    ? loaded
+    : await cardResponse(call, loaded.card);
+};
 
-  if (operation === "thumbnail-upload") {
-    const upload = validateThumbnailUploadPayload(payload);
-    if (!upload) {
-      return errorResponse(
-        400,
-        "INVALID_INPUT",
-        "Body must include only mimeType and fileSize"
-      );
-    }
-    try {
-      return json(
-        200,
-        await ctx.runMutation(
-          internal.card.thumbnailOverride.createThumbnailUploadUrlForUser,
-          { ...upload, cardId, userId }
-        )
-      );
-    } catch (error) {
-      return thumbnailErrorResponse(error, "Failed to prepare the upload");
-    }
+const handleCardContentRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call);
+  if (loaded instanceof Response) {
+    return loaded;
   }
+  const parsed = parseContentKind(call.request);
+  if ("error" in parsed) {
+    return parsed.error;
+  }
+  return await cardContentResponse(
+    call.ctx,
+    call.userId,
+    loaded.cardId,
+    parsed.kind
+  );
+};
 
-  const thumbnail = validateThumbnailSetPayload(payload);
-  if (!thumbnail) {
-    return errorResponse(400, "INVALID_INPUT", "Body must include fileKey");
+const thumbnailCardResponse = async (
+  call: PublicApiCall,
+  cardId: Id<"cards">
+) => {
+  const card = await ensureCardExistsForUser(
+    call.ctx,
+    call.userId,
+    cardId,
+    true
+  );
+  return card
+    ? await cardResponse(call, card)
+    : errorResponse(404, "NOT_FOUND", "Card not found");
+};
+
+const handleResetThumbnailRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  if (loaded instanceof Response) {
+    return loaded;
   }
   try {
-    await ctx.runAction(
-      internal.card.thumbnailOverride.setLinkThumbnailForUser,
-      { cardId, fileKey: thumbnail.fileKey, userId }
+    const result = await call.ctx.runMutation(
+      internal.card.thumbnailOverride.resetLinkThumbnailForUser,
+      { cardId: loaded.cardId, userId: call.userId }
     );
-    await captureBackendEvent("card_thumbnail_replaced", userId, {
+    if (result.changeId) {
+      await captureBackendEvent("card_thumbnail_reset", call.userId, {});
+    }
+    return await thumbnailCardResponse(call, loaded.cardId);
+  } catch (error) {
+    return thumbnailErrorResponse(error, "Failed to reset the image");
+  }
+};
+
+const handleThumbnailUploadRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+  const parsedUpload = parsePublicApiBody("createThumbnailUpload", call.body);
+  if ("error" in parsedUpload) {
+    return errorResponse(400, "INVALID_INPUT", parsedUpload.error);
+  }
+  const upload = parsedUpload.body;
+  try {
+    return json(
+      200,
+      await call.ctx.runMutation(
+        internal.card.thumbnailOverride.createThumbnailUploadUrlForUser,
+        { ...upload, cardId: loaded.cardId, userId: call.userId }
+      )
+    );
+  } catch (error) {
+    return thumbnailErrorResponse(error, "Failed to prepare the upload");
+  }
+};
+
+const handleSetThumbnailRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+  const parsedThumbnail = parsePublicApiBody("setCardThumbnail", call.body);
+  if ("error" in parsedThumbnail) {
+    return errorResponse(400, "INVALID_INPUT", parsedThumbnail.error);
+  }
+  const thumbnail = parsedThumbnail.body;
+  try {
+    await call.ctx.runAction(
+      internal.card.thumbnailOverride.setLinkThumbnailForUser,
+      { cardId: loaded.cardId, fileKey: thumbnail.fileKey, userId: call.userId }
+    );
+    await captureBackendEvent("card_thumbnail_replaced", call.userId, {
       source: "api",
     });
-    return await respondWithCard();
+    return await thumbnailCardResponse(call, loaded.cardId);
   } catch (error) {
     return thumbnailErrorResponse(error, "Failed to replace the image");
   }
 };
 
-const OPERATIONS_THAT_SEE_TRASHED_CARDS: ReadonlySet<string> = new Set([
-  "done",
-  "refresh",
-  "restore",
-  "save-pdf",
-  "thumbnail-reset",
-  "thumbnail-set",
-  "thumbnail-upload",
-  "undone",
-]);
-
-const handleCardsByIdV1Request = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response> => {
-  const route = parseCardRoute(request);
-  if (!route) {
-    return errorResponse(404, "NOT_FOUND", "Card route not found");
+const handleRefreshCardRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  if (loaded instanceof Response) {
+    return loaded;
   }
-
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
-
-  const normalizedCardId = await resolveCardId(ctx, route.cardId);
-  if (!normalizedCardId) {
-    return errorResponse(404, "NOT_FOUND", "Card not found");
-  }
-
-  const permanent = new URL(request.url).searchParams.get("permanent");
-  if (
-    route.operation === "delete" &&
-    permanent !== null &&
-    !["true", "false"].includes(permanent)
-  ) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Query parameter `permanent` must be `true` or `false`"
-    );
-  }
-  const currentCard = await ensureCardExistsForUser(
-    ctx,
-    auth.validated.userId,
-    normalizedCardId,
-    OPERATIONS_THAT_SEE_TRASHED_CARDS.has(route.operation) ||
-      (route.operation === "delete" && permanent === "true")
+  const result = await call.ctx.runMutation(
+    internal["card/updateCard"].reprocessCardForUser,
+    { cardId: loaded.cardId, userId: call.userId }
   );
-  if (!currentCard) {
-    return errorResponse(404, "NOT_FOUND", "Card not found");
-  }
+  return json(202, {
+    cardId: result.cardId,
+    requestedAt: result.requestedAt,
+    status: "queued",
+  });
+};
 
-  if (route.operation === "get") {
-    return json(
-      200,
-      await serializeCardWithLinks(
-        ctx,
-        auth.validated.userId,
-        currentCard,
-        request.url
-      )
-    );
-  }
-
-  if (
-    route.operation === "thumbnail-upload" ||
-    route.operation === "thumbnail-set" ||
-    route.operation === "thumbnail-reset"
-  ) {
-    return await handleThumbnailRequest(ctx, request, {
-      cardId: normalizedCardId as Id<"cards">,
-      operation: route.operation,
-      userId: auth.validated.userId,
-    });
-  }
-
-  if (route.operation === "content") {
-    const parsed = parseContentKind(request);
-    if ("error" in parsed) {
-      return parsed.error;
+const setDone =
+  (done: boolean) =>
+  async (call: PublicApiCall): Promise<Response> => {
+    const loaded = await loadCard(call, { includeDeleted: true });
+    if (loaded instanceof Response) {
+      return loaded;
     }
-    return await cardContentResponse(
-      ctx,
-      auth.validated.userId,
-      normalizedCardId as Id<"cards">,
-      parsed.kind
+    const result = await call.ctx.runMutation(
+      internal.publicApi.cardsForUser.setCardDoneForUser,
+      { cardId: loaded.cardId, done, userId: call.userId }
     );
-  }
+    if (!result) {
+      return errorResponse(404, "NOT_FOUND", "Card not found");
+    }
+    if (result.changed) {
+      await captureBackendEvent("card_done_toggled", call.userId, {
+        category: result.card.metadata?.linkCategory?.category ?? "none",
+        done,
+        source: "api",
+      });
+    }
+    return await cardResponse(call, result.card);
+  };
 
-  if (
-    route.operation === "delete" &&
-    permanent === "true" &&
-    !currentCard.isDeleted
-  ) {
+const handleSaveCardPdfRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  return loaded instanceof Response
+    ? loaded
+    : await handleSavePdfRequest(call.ctx, call.userId, loaded.cardId);
+};
+
+const handleRestoreCardRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call, { includeDeleted: true });
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+  await call.ctx.runMutation(internal["card/deleteCard"].restoreCardForUser, {
+    cardId: loaded.cardId,
+    userId: call.userId,
+  });
+  return noContent();
+};
+
+const handleDeleteCardRequest = async (call: PublicApiCall) => {
+  const permanentParam = queryOf(call).get("permanent");
+  const permanent = permanentParam === "true";
+  const loaded = await loadCard(call, {
+    includeDeleted: permanent,
+    precheck: () =>
+      permanentParam !== null && !["true", "false"].includes(permanentParam)
+        ? errorResponse(
+            400,
+            "INVALID_INPUT",
+            "Query parameter `permanent` must be `true` or `false`"
+          )
+        : null,
+  });
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+  if (permanent && !loaded.card.isDeleted) {
     return errorResponse(
       409,
       "NOT_IN_TRASH",
       "Move the card to Trash before deleting it permanently"
     );
   }
-
-  if (route.operation === "refresh") {
-    try {
-      const result = await ctx.runMutation(
-        internal["card/updateCard"].reprocessCardForUser,
-        {
-          cardId: normalizedCardId as Id<"cards">,
-          userId: auth.validated.userId,
-        }
-      );
-      return json(202, {
-        cardId: result.cardId,
-        requestedAt: result.requestedAt,
-        status: "queued",
-      });
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to refresh card");
-    }
-  }
-
-  if (route.operation === "done" || route.operation === "undone") {
-    const done = route.operation === "done";
-    try {
-      const result = await ctx.runMutation(
-        internal.publicApi.cardsForUser.setCardDoneForUser,
-        {
-          cardId: normalizedCardId as Id<"cards">,
-          done,
-          userId: auth.validated.userId,
-        }
-      );
-      if (!result) {
-        return errorResponse(404, "NOT_FOUND", "Card not found");
-      }
-      if (result.changed) {
-        await captureBackendEvent("card_done_toggled", auth.validated.userId, {
-          category: result.card.metadata?.linkCategory?.category ?? "none",
-          done,
-          source: "api",
-        });
-      }
-      return json(
-        200,
-        await serializeCardWithLinks(
-          ctx,
-          auth.validated.userId,
-          result.card,
-          request.url
-        )
-      );
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to update done state");
-    }
-  }
-
-  if (route.operation === "save-pdf") {
-    return await handleSavePdfRequest(
-      ctx,
-      auth.validated.userId,
-      normalizedCardId as Id<"cards">
-    );
-  }
-
-  if (route.operation === "delete" || route.operation === "restore") {
-    try {
-      let mutation = internal.publicApi.cardsForUser.softDeleteCardForUser;
-      if (route.operation === "restore") {
-        mutation = internal["card/deleteCard"].restoreCardForUser;
-      } else if (permanent === "true") {
-        mutation = internal["card/deleteCard"].permanentDeleteCardForUser;
-      }
-      await ctx.runMutation(mutation, {
-        cardId: normalizedCardId,
-        userId: auth.validated.userId,
-      });
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      });
-    } catch (error) {
-      return mapConvexErrorToResponse(
-        error,
-        route.operation === "restore"
-          ? "Failed to restore card"
-          : "Failed to delete card"
-      );
-    }
-  }
-
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
-
-  if (route.operation === "patch") {
-    const parsedPatch = parsePatchPayload(payload);
-    if ("error" in parsedPatch) {
-      return errorResponse(
-        400,
-        parsedPatch.code ?? "INVALID_INPUT",
-        parsedPatch.error
-      );
-    }
-    const patchPayload = parsedPatch.payload;
-    if (
-      patchPayload.content !== undefined &&
-      currentCard.type !== "text" &&
-      !patchPayload.content.trim()
-    ) {
-      return errorResponse(
-        400,
-        "INVALID_INPUT",
-        "Text content cannot be empty for this card type"
-      );
-    }
-
-    try {
-      const updated = await ctx.runMutation(
-        internal.publicApi.cardsForUser.patchCardForUser,
-        {
-          ...patchPayload,
-          cardId: normalizedCardId,
-          userId: auth.validated.userId,
-        }
-      );
-
-      if (!updated) {
-        return errorResponse(404, "NOT_FOUND", "Card not found");
-      }
-
-      return json(
-        200,
-        await serializeCardWithLinks(
-          ctx,
-          auth.validated.userId,
-          updated,
-          request.url
-        )
-      );
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to update card");
-    }
-  }
-
-  if (route.operation === "pin") {
-    const pinPayload = validatePinPayload(payload);
-    if (!pinPayload) {
-      return errorResponse(
-        400,
-        "INVALID_INPUT",
-        "Body must include `isPinned` as a boolean"
-      );
-    }
-    try {
-      const result = await ctx.runMutation(
-        internal.publicApi.cardsForUser.setCardPinnedForUser,
-        {
-          cardId: normalizedCardId as Id<"cards">,
-          isPinned: pinPayload.isPinned,
-          userId: auth.validated.userId,
-        }
-      );
-      if (!result) {
-        return errorResponse(404, "NOT_FOUND", "Card not found");
-      }
-      if (result.changed) {
-        await captureBackendEvent("card_pin_toggled", auth.validated.userId, {
-          pinned: pinPayload.isPinned,
-          source: "api",
-        });
-      }
-      return json(
-        200,
-        await serializeCardWithLinks(
-          ctx,
-          auth.validated.userId,
-          result.card,
-          request.url
-        )
-      );
-    } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to update pin");
-    }
-  }
-
-  const favoritePayload = validateFavoritePayload(payload);
-  if (route.operation === "favorite") {
-    if (!favoritePayload) {
-      return errorResponse(
-        400,
-        "INVALID_INPUT",
-        "Body must include `isFavorited` as a boolean"
-      );
-    }
-
-    try {
-      const updated = await ctx.runMutation(
-        internal.publicApi.cardsForUser.setCardFavoriteForUser,
-        {
-          cardId: normalizedCardId,
-          isFavorited: favoritePayload.isFavorited,
-          userId: auth.validated.userId,
-        }
-      );
-
-      if (!updated) {
-        return errorResponse(404, "NOT_FOUND", "Card not found");
-      }
-
-      return json(
-        200,
-        await serializeCardWithLinks(
-          ctx,
-          auth.validated.userId,
-          updated,
-          request.url
-        )
-      );
-    } catch (error) {
-      return mapConvexErrorToResponse(
-        error,
-        "Failed to update favorite status"
-      );
-    }
-  }
-
-  return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  await call.ctx.runMutation(
+    permanent
+      ? internal["card/deleteCard"].permanentDeleteCardForUser
+      : internal.publicApi.cardsForUser.softDeleteCardForUser,
+    { cardId: loaded.cardId, userId: call.userId }
+  );
+  return noContent();
 };
 
-const handleTagsRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
+const handleUpdateCardRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call);
+  if (loaded instanceof Response) {
+    return loaded;
   }
+  const parsedPatch = parsePatchPayload(call.body);
+  if ("error" in parsedPatch) {
+    return errorResponse(
+      400,
+      parsedPatch.code ?? "INVALID_INPUT",
+      parsedPatch.error
+    );
+  }
+  const patchPayload = parsedPatch.payload;
+  if (
+    patchPayload.content !== undefined &&
+    loaded.card.type !== "text" &&
+    !patchPayload.content.trim()
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Text content cannot be empty for this card type"
+    );
+  }
+  const updated = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.patchCardForUser,
+    { ...patchPayload, cardId: loaded.cardId, userId: call.userId }
+  );
+  return updated
+    ? await cardResponse(call, updated)
+    : errorResponse(404, "NOT_FOUND", "Card not found");
+};
 
-  try {
-    const userId = auth.validated.userId;
-    const fresh = await ctx.runQuery(
-      internal.publicApi.getFreshTagSummaryForUser,
-      { userId }
-    );
-    if (fresh) {
-      return json(200, { items: fresh.items, isComplete: true });
-    }
-    const tags = await ctx.runQuery(internal.publicApi.listTagsForUser, {
-      userId,
-    });
-    if (tags.isComplete) {
-      return json(200, { items: tags.items, isComplete: true });
-    }
-    const summary = await ctx.runQuery(
-      internal.tag.tagSummary.getTagSummaryForUser,
-      { userId }
-    );
-    if (summary) {
-      return json(200, {
-        // The API lists tags by key; the casing a tag was typed in isn't
-        // part of its contract.
-        items: summary.items.map(
-          ({ name, count }: { name: string; count: number }) => ({
-            name,
-            count,
-          })
-        ),
-        isComplete: summary.isComplete,
-      });
-    }
-    await ctx.runMutation(internal.tag.tagSummary.requestTagSummaryForUser, {
-      userId,
-    });
-    return json(200, { items: tags.items, isComplete: false });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch tags");
+const handleSetPinnedRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call);
+  if (loaded instanceof Response) {
+    return loaded;
   }
+  const parsedPinPayload = parsePublicApiBody("setCardPinned", call.body);
+  if ("error" in parsedPinPayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedPinPayload.error);
+  }
+  const pinPayload = parsedPinPayload.body;
+  const result = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.setCardPinnedForUser,
+    {
+      cardId: loaded.cardId,
+      isPinned: pinPayload.isPinned,
+      userId: call.userId,
+    }
+  );
+  if (!result) {
+    return errorResponse(404, "NOT_FOUND", "Card not found");
+  }
+  if (result.changed) {
+    await captureBackendEvent("card_pin_toggled", call.userId, {
+      pinned: pinPayload.isPinned,
+      source: "api",
+    });
+  }
+  return await cardResponse(call, result.card);
+};
+
+const handleSetFavoriteRequest = async (call: PublicApiCall) => {
+  const loaded = await loadCard(call);
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+  const parsedFavoritePayload = parsePublicApiBody(
+    "setCardFavorite",
+    call.body
+  );
+  if ("error" in parsedFavoritePayload) {
+    return errorResponse(400, "INVALID_INPUT", parsedFavoritePayload.error);
+  }
+  const favoritePayload = parsedFavoritePayload.body;
+  const updated = await call.ctx.runMutation(
+    internal.publicApi.cardsForUser.setCardFavoriteForUser,
+    {
+      cardId: loaded.cardId,
+      isFavorited: favoritePayload.isFavorited,
+      userId: call.userId,
+    }
+  );
+  return updated
+    ? await cardResponse(call, updated)
+    : errorResponse(404, "NOT_FOUND", "Card not found");
 };
 
 const handleCardChangesRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { ctx, request, userId } = call;
 
   const { searchParams } = new URL(request.url);
   const since = parseTimestampQuery(searchParams.get("since"));
@@ -1251,30 +1014,22 @@ const handleCardChangesRequest = async (
     return limit;
   }
 
-  try {
-    const changes = await ctx.runQuery(
-      internal.publicApi.listCardChangesForUser,
-      {
-        cursor: parseOptionalString(searchParams.get("cursor")),
-        limit,
-        since,
-        userId: auth.validated.userId,
-      }
-    );
+  const changes = await ctx.runQuery(
+    internal.publicApi.listCardChangesForUser,
+    {
+      cursor: parseOptionalString(searchParams.get("cursor")),
+      limit,
+      since,
+      userId,
+    }
+  );
 
-    const items = await withTranscripts<CardWithUrls>(
-      ctx,
-      auth.validated.userId,
-      changes.items
-    );
-    return json(200, {
-      deletedIds: changes.deletedIds,
-      items: items.map((card) => serializeCard(card, request.url)),
-      pageInfo: changes.pageInfo,
-    });
-  } catch (error) {
-    return mapConvexErrorToResponse(error, "Failed to fetch card changes");
-  }
+  const items = await withTranscripts<CardWithUrls>(ctx, userId, changes.items);
+  return json(200, {
+    deletedIds: changes.deletedIds,
+    items: items.map((card) => serializeCard(card, request.url)),
+    pageInfo: changes.pageInfo,
+  });
 };
 
 const BULK_OPERATIONS = new Set([
@@ -1290,22 +1045,11 @@ const BULK_OPERATIONS = new Set([
 ]);
 
 const handleBulkCardsRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
+  call: PublicApiCall
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request, { resource });
-  if ("error" in auth) {
-    return auth.error;
-  }
+  const { cardSource, ctx, request, userId } = call;
 
-  let payload: unknown;
-  try {
-    payload = await parseJsonBody(request);
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
-  }
-
+  const payload = call.body;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return errorResponse(
       400,
@@ -1357,63 +1101,42 @@ const handleBulkCardsRequest = async (
     );
   }
 
-  let idempotencyState: IdempotencyState | null = null;
-  let operationCommitted = false;
-
-  try {
-    const idempotency = await maybeHandleIdempotency(ctx, {
-      method: "POST",
+  return await respondIdempotently(
+    ctx,
+    {
+      failureMessage: "Failed to execute bulk operation",
       path: "/v1/cards/bulk",
       request,
       requestBody: { items, operation },
-      userId: auth.validated.userId,
-    });
-    if (idempotency instanceof Response) {
-      return idempotency;
-    }
-    if (idempotency.replayed) {
-      return idempotency.replayed;
-    }
-    idempotencyState = idempotency;
-
-    const result = await ctx.runMutation(
-      internal.publicApi.executeBulkCardsForUser,
-      {
+      userId,
+    },
+    () =>
+      ctx.runMutation(internal.publicApi.executeBulkCardsForUser, {
+        cardSource,
         items,
         operation,
-        userId: auth.validated.userId,
-      }
-    );
-    operationCommitted = true;
-    await completeIdempotencyResponse(ctx, {
-      keyHash: idempotencyState.keyHash,
-      leaseToken: idempotencyState.leaseToken,
-      requestHash: idempotencyState.requestHash,
-      responseBody: result,
-      responseStatus: 200,
-      userId: auth.validated.userId,
-    });
-
-    return json(200, result);
-  } catch (error) {
-    if (idempotencyState?.reserved && !operationCommitted) {
-      await releaseReservationKeepingOriginalError(ctx, {
-        keyHash: idempotencyState.keyHash,
-        leaseToken: idempotencyState.leaseToken,
-        requestHash: idempotencyState.requestHash,
-        userId: auth.validated.userId,
-      });
-    }
-    return mapConvexErrorToResponse(error, "Failed to execute bulk operation");
-  }
+        userId,
+      })
+  );
 };
 
 export {
   handleBulkCardsRequest,
   handleCardChangesRequest,
-  handleCardsByIdV1Request,
+  handleCardContentRequest,
   handleCardsListRequest,
   handleCreateCardRequest,
   handleCreateUploadRequest,
-  handleTagsRequest,
+  handleDeleteCardRequest,
+  handleGetCardRequest,
+  handleRefreshCardRequest,
+  handleResetThumbnailRequest,
+  handleRestoreCardRequest,
+  handleSaveCardPdfRequest,
+  handleSetFavoriteRequest,
+  handleSetPinnedRequest,
+  handleSetThumbnailRequest,
+  handleThumbnailUploadRequest,
+  handleUpdateCardRequest,
+  setDone,
 };

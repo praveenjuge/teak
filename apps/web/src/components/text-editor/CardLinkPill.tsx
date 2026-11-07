@@ -8,8 +8,9 @@ import type { NodeViewProps } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { createContext, useContext } from "react";
 import { Unlink } from "vadivam-react";
+import { cardHref } from "@/lib/libraryUrl";
+import { cardTypeIcon } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
-import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { CardLinkNode } from "./CardLinkNode";
 import type { CardLinkTarget } from "./types";
 
@@ -59,7 +60,7 @@ function CardLinkPill({ node, selected }: NodeViewProps) {
     targets,
     t
   );
-  const Icon = missing ? Unlink : getCardTypeIconComponent(type);
+  const Icon = missing ? Unlink : cardTypeIcon(type);
   const canOpen = !missing && Boolean(onOpenCard);
   const pillClass = cn(PILL_CLASS, selected && "ring-2 ring-ring/50");
   const label = (
@@ -81,7 +82,7 @@ function CardLinkPill({ node, selected }: NodeViewProps) {
         <a
           className={cn(pillClass, OPEN_PILL_CLASS)}
           contentEditable={false}
-          href={`?card=${encodeURIComponent(cardId)}`}
+          href={cardHref(cardId)}
           onClick={(event) => {
             event.preventDefault();
             onOpenCard?.(cardId);

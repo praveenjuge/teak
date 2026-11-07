@@ -178,7 +178,8 @@ const login = async (
       timeout: 10_000,
     }
   );
-  const urlReader = (json ? child.stderr : child.stdout).getReader();
+  // The sign-in link is status, not the answer: it's always on stderr.
+  const urlReader = child.stderr.getReader();
   let urlText = "";
   while (!urlText.includes("\n")) {
     const chunk = await urlReader.read();
@@ -230,12 +231,12 @@ const login = async (
     }
     rest += new TextDecoder().decode(chunk.value);
   }
-  const other = await new Response(json ? child.stdout : child.stderr).text();
+  const stdout = await new Response(child.stdout).text();
   return {
     code: await child.exited,
     callbackStatus: response.status,
-    stdout: json ? other : urlText + rest,
-    stderr: json ? urlText + rest : other,
+    stdout,
+    stderr: urlText + rest,
   };
 };
 beforeEach(() => {

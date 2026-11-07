@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { connect, createServer } from "node:net";
 import { join, resolve } from "node:path";
+import deployments from "../deployments.json" with { type: "json" };
 import { runCommand } from "./proc.ts";
 
 export interface WorktreePorts {
@@ -25,19 +26,14 @@ export interface WorktreePorts {
   web: number;
 }
 
-export const MAIN_PORTS = {
-  web: 3000,
-  convex: 3210,
-  convexSite: 3211,
-  emulator: 4100,
-  emulatorUpstream: 4101,
-  coreWorker: 4102,
-  coreWorkerInspector: 4103,
-  docs: 3001,
-  extension: 3003,
-} as const;
+// The main checkout's ports are deployment facts (scripts/deployments.json).
+// Files that can't import them, such as package.json scripts and docs, are
+// checked against them in scripts/repo/deployment-facts.test.ts.
+export const MAIN_PORTS: Readonly<
+  Omit<WorktreePorts, "namespace" | "namespaced" | "siteUrl">
+> = deployments.mainCheckoutPorts;
 
-export const MAIN_SITE_URL = "http://localhost:3000";
+export const MAIN_SITE_URL = `http://localhost:${MAIN_PORTS.web}`;
 
 const SLOT_COUNT = 40;
 const SLOT_STRIDE = 100;
@@ -109,6 +105,18 @@ export const isUsableSlot = (slot: number): boolean =>
   slot >= 0 &&
   slot < SLOT_COUNT &&
   stackPorts(slotPorts(slot)).every((port) => !RESERVED_PORTS.has(port));
+
+/**
+ * Every web origin a checkout can run on: the main checkout's and each slot a
+ * worktree can lease. WorkOS staging allows exactly these
+ * (`authKit.dev.configure.corsOrigins` in packages/convex/convex.json).
+ */
+export const webOrigins = (): string[] => [
+  MAIN_SITE_URL,
+  ...Array.from({ length: SLOT_COUNT }, (_, slot) => slot)
+    .filter(isUsableSlot)
+    .map((slot) => slotPorts(slot).siteUrl),
+];
 
 export const pickSlot = async (
   root: string,

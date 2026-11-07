@@ -16,6 +16,8 @@ import {
 import { createContainerPinnedFetch } from "./media/pinnedHop";
 import type { RemoteAssetEnv } from "./media/remoteAsset";
 import { RendererUnavailable } from "./media/rendererClient";
+import { InvalidOpInput } from "./opFailure";
+import { TEAKBOT_USER_AGENT } from "./userAgent";
 
 // The `check-link` op: is a saved link's page still there? It answers `dead`
 // only for a 404 or 410 after redirects, or a domain that no longer exists.
@@ -27,7 +29,6 @@ const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const DNS_TYPES = { A: 1, AAAA: 28 } as const;
 /** DoH `Status` for a name that does not exist. */
 const NXDOMAIN = 3;
-const USER_AGENT = "TeakBot/1.0 (+https://teakvault.com)";
 /** A GET only needs the headers; the hop reads at most one byte past this. */
 const GET_MAX_BYTES = 1;
 
@@ -41,7 +42,7 @@ export const parseLinkCheckParams = (
     url.length > FILES_LINK_CHECK_MAX_URL_LENGTH ||
     !/^https?:\/\//iu.test(url)
   ) {
-    throw new Error("invalid_link_check_params");
+    throw new InvalidOpInput("invalid_link_check_params");
   }
   return { url };
 };
@@ -199,7 +200,7 @@ const followLink = async (
     }
     const send = (method: "GET" | "HEAD") =>
       hop(current, host.addresses, {
-        headers: { accept: "*/*", "user-agent": USER_AGENT },
+        headers: { accept: "*/*", "user-agent": TEAKBOT_USER_AGENT },
         method,
         redirect: "manual",
         signal,

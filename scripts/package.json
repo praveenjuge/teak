@@ -1,0 +1,33 @@
+{
+  "name": "@teak/scripts",
+  "version": "1.0.93",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "test": "bun --no-env-file test ./ ../apps/apple/tests ../apps/android/tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@teak/convex": "workspace:*",
+    "@teak/files-protocol": "workspace:*",
+    "@teak/i18n": "workspace:*",
+    "@workos-inc/node": "catalog:",
+    "@workos/emulate": "0.14.0",
+    "commander": "catalog:",
+    "convex": "catalog:",
+    "iron-session": "catalog:",
+    "playwright-core": "1.63.0",
+    "prettier": "3.8.1",
+    "teak-sdk": "workspace:*",
+    "wrangler": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

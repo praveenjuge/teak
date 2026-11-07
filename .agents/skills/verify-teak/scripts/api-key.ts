@@ -27,10 +27,7 @@ import { dirname, join } from "node:path";
 import { WorkOS } from "@workos-inc/node";
 import { api } from "../../../../packages/convex/_generated/api.js";
 import { loadTargetEnv } from "../../../../scripts/env/env-loader.ts";
-import {
-  isStackRunning,
-  readStackState,
-} from "../../../../scripts/lib/stack-state.ts";
+import { currentStack } from "../../../../scripts/lib/stack-state.ts";
 import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import { describeWorkosError } from "../../../../scripts/lib/workos-test-session.ts";
 import { readDevWorkosApiKey } from "../../../../scripts/setup/setup-workos.ts";
@@ -44,8 +41,8 @@ const fail = (message: string): never => {
 };
 
 const signIn = async () => {
-  const state = readStackState(ROOT);
-  if (!(state && isStackRunning(state) && state.ready)) {
+  const { phase, state } = currentStack(ROOT);
+  if (!(state && phase === "ready")) {
     return fail(
       "the dev stack isn't running; start it with `bun run dev --detach`"
     );

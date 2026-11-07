@@ -1,3 +1,4 @@
+import { sha256Hex } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -26,10 +27,9 @@ import {
 } from "../shared/article";
 import { PAGE_ARCHIVE_ROLE } from "../shared/pageArchive";
 import { codePointLength } from "../shared/utils/codePoints";
-import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
+import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { registerOwnedObject } from "../storage/ownership";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
-import { sha256Hex } from "../storage/r2Keys";
 import { SCENARIO_MARKER } from "./helpers";
 import { stubArchiveHtml } from "./pageArchives";
 
@@ -283,7 +283,7 @@ export const seedReaderMix = async (
     ctx,
     userId,
     READER_MIX.map(({ card }) => card),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const archives: Array<{
     key: string;
@@ -363,7 +363,7 @@ export const writeReaderMixObjects = internalAction({
   returns: v.null(),
   handler: async (ctx, { archives, articles, userId }) => {
     for (const archive of archives) {
-      await putObjectViaFilesWorker({
+      await putObjectViaCoreWorker({
         body: encoder.encode(stubArchiveHtml(archive.kind, archive.url)),
         contentType: "text/html",
         key: archive.key,
@@ -396,7 +396,7 @@ export const writeReaderMixObjects = internalAction({
           key,
           userId,
         });
-        await putObjectViaFilesWorker({
+        await putObjectViaCoreWorker({
           body: encoder.encode(svg),
           contentType: "image/svg+xml",
           key,
@@ -407,7 +407,7 @@ export const writeReaderMixObjects = internalAction({
         key: textKey,
         userId,
       });
-      await putObjectViaFilesWorker({
+      await putObjectViaCoreWorker({
         body: encoder.encode(markdown),
         contentType: "text/markdown; charset=utf-8",
         key: textKey,
@@ -507,7 +507,7 @@ export const seedReaderSearchPage = async (
       type: "link" as const,
       url: url(index),
     })),
-    { ignoreCardLimit: true }
+    { hasPremium: true }
   );
   const prefix = buildR2UserPrefix(userId);
   for (const [offset, cardId] of ids.entries()) {

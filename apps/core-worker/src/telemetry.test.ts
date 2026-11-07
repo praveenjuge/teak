@@ -1,39 +1,13 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import {
-  buildFilesOpSigningPayload,
-  FILES_PROTOCOL_VERSION,
-} from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { hmacSha256Hex, sha256Hex } from "./lib";
+import { TEST_SECRET as SECRET, signedOpRequest } from "./test/opsHarness";
 import { withObjectGates } from "./test/testsupport";
 
-const SECRET = "test-secret";
-
-const signedOpRequest = async (sourceKey: string): Promise<Request> => {
-  const body = JSON.stringify({
-    op: "analyze-image",
-    params: { sourceKey },
-    version: FILES_PROTOCOL_VERSION,
+const finalizeRequest = (sourceKey: string): Promise<Request> =>
+  signedOpRequest("finalize-upload", {
+    destinationKey: "users/9f8a/cards/c123/file/final.png",
+    sourceKey,
   });
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const requestId = crypto.randomUUID();
-  return new Request("https://files.teakvault.com/__ops/v1", {
-    body,
-    method: "POST",
-    headers: {
-      "x-teak-expires-at": expiresAt,
-      "x-teak-request-id": requestId,
-      "x-teak-signature": await hmacSha256Hex(
-        SECRET,
-        buildFilesOpSigningPayload({
-          bodySha256: await sha256Hex(body),
-          expiresAt,
-          requestId,
-        })
-      ),
-    },
-  });
-};
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -56,7 +30,7 @@ const failingOp = async (token?: string) => {
     POSTHOG_PROJECT_TOKEN: token,
   }) as unknown as Env;
   const response = await worker.fetch(
-    await signedOpRequest("users/9f8a/cards/c123/file/photo.png"),
+    await finalizeRequest("users/9f8a/cards/c123/file/photo.png"),
     env_,
     { waitUntil: (promise: Promise<unknown>) => pending.push(promise) } as never
   );
@@ -78,7 +52,7 @@ describe("core worker error reporting", () => {
         properties: {
           $lib: "teak-files-worker",
           "card.id": "c123",
-          "files.op": "analyze-image",
+          "files.op": "finalize-upload",
           "object.role": "file",
         },
       },
@@ -93,11 +67,11 @@ describe("core worker error reporting", () => {
 
   test("expected op rejections stay unreported client-style statuses", async () => {
     const env_ = withObjectGates({
-      BUCKET: { head: () => Promise.resolve(null) },
+      BUCKET: { get: () => Promise.resolve(null) },
       FILES_SIGNING_SECRET: SECRET,
     }) as unknown as Env;
     const response = await worker.fetch(
-      await signedOpRequest("users/9f8a/cards/c123/file/gone.png"),
+      await finalizeRequest("users/9f8a/cards/c123/file/gone.png"),
       env_,
       { waitUntil: () => undefined } as never
     );

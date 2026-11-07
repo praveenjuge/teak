@@ -11,9 +11,9 @@ import {
   type TeakUserId,
 } from "../securitySessions";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import type { LinkedPdfClaim } from "./linkedPdfs";
 
@@ -55,7 +55,7 @@ export const saveLinkedPdfFor = async (
   cardId: string,
   source: "api" | "web"
 ): Promise<SavedLinkedPdf> => {
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     return fail("SERVICE_UNAVAILABLE");
   }
   const claim: LinkedPdfClaim = await ctx.runMutation(
@@ -67,7 +67,7 @@ export const saveLinkedPdfFor = async (
   }
   try {
     await ensureObjectOwnership(ctx, userId, claim.fileKey);
-    const outcome = await callFilesWorkerJson<FilesLinkedPdfResult>({
+    const outcome = await callCoreWorkerOp({
       op: "store-linked-pdf",
       params: { destinationKey: claim.fileKey, url: claim.pdfUrl },
     }).catch(() => fail("SERVICE_UNAVAILABLE"));

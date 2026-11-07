@@ -1,6 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { renderToStaticMarkup } from "react-dom/server";
+
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
+const { GridVideoPreview } = await import("../GridVideoPreview");
 
 const source = readFileSync(
   join(import.meta.dir, "../GridVideoPreview.tsx"),
@@ -8,11 +17,19 @@ const source = readFileSync(
 );
 
 describe("GridVideoPreview", () => {
-  test("reserves aspect ratio from width/height with a 16:9 fallback", () => {
-    expect(source).toContain(
-      "const aspectRatio = width && height ? width / height : 16 / 9"
-    );
-    expect(source).toContain("style={{ aspectRatio }}");
+  test("keeps a video's own shape between 3:4 and 16:9, with a 16:9 fallback", () => {
+    const shape = (width?: number, height?: number) =>
+      renderToStaticMarkup(
+        <GridVideoPreview
+          height={height}
+          thumbnailUrl="https://files.teakvault.com/still.jpg"
+          width={width}
+        />
+      ).match(/aspect-ratio:([0-9.]+)/)?.[1];
+    expect(Number(shape(800, 600))).toBeCloseTo(4 / 3);
+    expect(Number(shape(400, 1200))).toBeCloseTo(3 / 4);
+    expect(Number(shape(3000, 500))).toBeCloseTo(16 / 9);
+    expect(Number(shape())).toBeCloseTo(16 / 9);
   });
 
   test("defers every video mount until hover", () => {
@@ -31,8 +48,15 @@ describe("GridVideoPreview", () => {
     expect(source).toContain('alt={t("gifPreview")}');
   });
 
-  test("shows a play overlay while idle and hides it while hovering", () => {
-    expect(source).toContain("function PlayOverlay()");
-    expect(source).toContain("{isHovering ? null : <PlayOverlay />}");
+  test("shows its length in the play badge while idle", () => {
+    const markup = renderToStaticMarkup(
+      <GridVideoPreview
+        durationLabel="0:42"
+        thumbnailUrl="https://files.teakvault.com/still.jpg"
+      />
+    );
+    expect(markup).toMatch(
+      /bottom-2\.5 left-2\.5[^>]*><svg[\s\S]*?<\/svg>0:42</
+    );
   });
 });

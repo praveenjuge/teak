@@ -1,5 +1,5 @@
 import { useTranslations } from "@teak/i18n/react";
-import { CARD_SURFACE } from "../cardDisplay";
+import { MEDIA_SURFACE, mediaAspectRatio } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridImagePreviewProps {
@@ -28,9 +28,9 @@ export function GridImagePreview({
   const t = useTranslations("cards.previews");
   return (
     <div
-      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
+      className={MEDIA_SURFACE}
       style={{
-        aspectRatio: width && height ? width / height : 4 / 3,
+        aspectRatio: mediaAspectRatio(width, height, 4 / 3),
         backgroundColor: placeholderColor,
       }}
     >

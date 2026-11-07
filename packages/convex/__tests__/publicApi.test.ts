@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import type { ValidatedRateLimitKey } from "../publicApi";
 import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+} from "./helpers/r2Mock.test-utils";
 import {
   withMappedOwner,
   withSearchSyncDb,
 } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 const buildBaseCard = (overrides: Record<string, unknown> = {}) => ({
   _creationTime: 1,
@@ -350,6 +354,39 @@ describe("publicApi", () => {
     expect(result.pageInfo).toEqual({ hasMore: false, nextCursor: null });
   });
 
+  test.each([
+    [
+      "lets a read failure through instead of calling the cursor invalid",
+      new Error("Too many documents read in a single function execution"),
+      "Too many documents read",
+    ],
+    [
+      "calls the cursor invalid when Convex can't read it",
+      new Error("InvalidCursor: Failed to parse cursor"),
+      "Query parameter `cursor` is invalid",
+    ],
+  ])("listCardChangesForUser %s", async (_name, failure, message) => {
+    const module = await import("../publicApi");
+    const handler =
+      (module.listCardChangesForUser as any).handler ??
+      module.listCardChangesForUser;
+    const ctx = {
+      db: withSearchSyncDb({
+        query: mock(() => ({
+          withIndex: mock().mockReturnValue({
+            order: mock().mockReturnValue({
+              paginate: mock().mockRejectedValue(failure),
+            }),
+          }),
+        })),
+      }),
+    } as any;
+
+    await expect(
+      handler(withMappedOwner(ctx), { limit: 50, since: 0, userId: "user_1" })
+    ).rejects.toThrow(message);
+  });
+
   test("executeBulkCardsForUser rejects batches over the item limit", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
@@ -408,7 +445,7 @@ describe("publicApi", () => {
   });
 
   test("executeBulkCardsForUser preserves explicit text and enforces its byte limit", async () => {
-    const billingModule = await import("../billing");
+    const billingModule = await import("../billing/polar");
     const originalGetSubscription = billingModule.polar.getCurrentSubscription;
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
 

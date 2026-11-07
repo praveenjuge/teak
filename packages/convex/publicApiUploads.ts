@@ -8,8 +8,9 @@ import {
   completeEmailAttachment,
   emailAttachmentClaimValidator,
 } from "./inbound/attachmentClaims";
-import { type CardType, cardTypeValidator } from "./schema";
+import { cardTypeValidator } from "./schema/validators/cards";
 import { requireTeakUserId } from "./securitySessions";
+import type { CardType } from "./shared/constants";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -23,7 +24,7 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "./shared/markdown";
-import { buildSignedWorkerUploadUrl } from "./storage/filesWorkerClient";
+import { signedUploadUrl } from "./storage/coreWorkerClient";
 import { ensureObjectOwnership } from "./storage/ownership";
 import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
@@ -102,7 +103,7 @@ export const signPendingUpload = async (args: {
   key: string;
   mimeType: string;
 }) => {
-  const signed = await buildSignedWorkerUploadUrl({
+  const signed = await signedUploadUrl({
     contentType: args.mimeType || "application/octet-stream",
     key: args.key,
     size: args.fileSize,

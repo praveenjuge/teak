@@ -327,8 +327,6 @@ export const CARD_ERROR_MESSAGES: Record<CardErrorCode, string> = {
   TYPE_MISMATCH: "Uploaded file does not match the selected type.",
 } as const;
 
-export const CARD_TYPES = [...cardTypes] as readonly CardType[];
-
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
   text: "Text",
   link: "Link",
@@ -340,19 +338,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
   quote: "Quote",
 } as const;
 
-export const CARD_TYPE_ICONS: Record<CardType, string> = {
-  text: "FileText",
-  link: "Link",
-  image: "Image",
-  video: "Video",
-  audio: "Volume2",
-  document: "File",
-  palette: "Palette",
-  quote: "Quote",
-} as const;
-
 export interface CardTypeConfig {
-  icon: string;
   label: string;
   searchLabel: string;
 }
@@ -360,52 +346,40 @@ export interface CardTypeConfig {
 export const CARD_TYPE_REGISTRY: Record<CardType, CardTypeConfig> = {
   text: {
     label: "Text",
-    icon: "FileText",
     searchLabel: "Text",
   },
   link: {
     label: "Link",
-    icon: "Link",
     searchLabel: "Links",
   },
   image: {
     label: "Image",
-    icon: "Image",
     searchLabel: "Images",
   },
   video: {
     label: "Video",
-    icon: "Video",
     searchLabel: "Videos",
   },
   audio: {
     label: "Audio",
-    icon: "Volume2",
     searchLabel: "Audio",
   },
   document: {
     label: "Document",
-    icon: "File",
     searchLabel: "Documents",
   },
   palette: {
     label: "Palette",
-    icon: "Palette",
     searchLabel: "Palettes",
   },
   quote: {
     label: "Quote",
-    icon: "Quote",
     searchLabel: "Quotes",
   },
 } as const;
 
 export function getCardTypeConfig(cardType: CardType): CardTypeConfig {
   return CARD_TYPE_REGISTRY[cardType];
-}
-
-export function getCardTypeIcon(cardType: CardType): string {
-  return CARD_TYPE_REGISTRY[cardType].icon;
 }
 
 export function getCardTypeLabel(cardType: CardType): string {

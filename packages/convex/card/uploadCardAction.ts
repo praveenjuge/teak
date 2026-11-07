@@ -1,11 +1,12 @@
 "use node";
 
+import type { FilesFinalizeImageResult } from "@teak/files-protocol";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
 import type { EmailAttachmentClaim } from "../inbound/attachmentClaims";
-import { cardTypeValidator } from "../schema";
+import { cardTypeValidator } from "../schema/validators/cards";
 import {
   getSessionUser,
   requireTeakUserId,
@@ -25,13 +26,15 @@ import {
   MARKDOWN_CONTENT_MAX_BYTES,
 } from "../shared/markdown";
 import {
-  callFilesWorkerJson,
-  type FilesWorkerFinalizeImageResult,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
-import { clientCardSourceValidator } from "./createCard";
+import {
+  apiCardSourceValidator,
+  clientCardSourceValidator,
+} from "./createCard";
 
 const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
@@ -81,15 +84,6 @@ interface FinalizeArgs {
   notes?: string | null;
   source?: CardCreationSource;
   tags?: string[];
-}
-
-interface FinalizedUpload {
-  content?: string;
-  destinationKey: string;
-  sourceEtag: string;
-  storedEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
 }
 
 const throwUploadError = (code: string, message: string): never => {
@@ -173,7 +167,7 @@ export const finalizeForUser = async (
   userId: TeakUserId,
   args: FinalizeArgs
 ): Promise<{ success: true; cardId: Id<"cards"> }> => {
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   const validated = validateFinalizeUpload(userId, args);
@@ -187,9 +181,7 @@ export const finalizeForUser = async (
     objectId: args.destinationObjectId,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
-  const outcome = await callFilesWorkerJson<
-    FinalizedUpload | FilesWorkerFinalizeImageResult
-  >({
+  const outcome = await callCoreWorkerOp({
     op: isImageUpload ? "finalize-image-upload" : "finalize-upload",
     params: {
       destinationKey,
@@ -211,7 +203,7 @@ export const finalizeForUser = async (
   const finalized = outcome.data;
   const trustedImageFacts =
     isImageUpload && "decodedFormat" in finalized
-      ? (finalized as FilesWorkerFinalizeImageResult)
+      ? (finalized as FilesFinalizeImageResult)
       : null;
   const storedMimeType = normalizeMimeType(outcome.data.storedMimeType);
   const verifiedMimeType = normalizeMimeType(
@@ -233,7 +225,7 @@ export const finalizeForUser = async (
       );
     }
   } catch (error) {
-    await callFilesWorkerJson({
+    await callCoreWorkerOp({
       op: "delete-object",
       params: { key: destinationKey },
     }).catch(() => undefined);
@@ -299,7 +291,7 @@ export const finalizeForUser = async (
       error instanceof ConvexError &&
       (error.data as { code?: string }).code === "IN_PROGRESS";
     if (!claimLost) {
-      await callFilesWorkerJson({
+      await callCoreWorkerOp({
         op: "delete-object",
         params: { key: destinationKey },
       }).catch(() => undefined);
@@ -309,12 +301,17 @@ export const finalizeForUser = async (
 };
 
 export const finalizeUploadedCardForUser = internalAction({
-  args: { ...finalizeArgs, userId: v.string() },
+  args: {
+    ...finalizeArgs,
+    /** The client that uploaded it, for analytics; `api` when not given. */
+    cardSource: v.optional(apiCardSourceValidator),
+    userId: v.string(),
+  },
   returns: finalizeResult,
-  handler: async (ctx, { userId, ...args }) =>
+  handler: async (ctx, { cardSource, userId, ...args }) =>
     finalizeForUser(ctx, await requireTeakUserId(ctx, userId), {
       ...args,
-      source: "api",
+      source: cardSource ?? "api",
     }),
 });
 

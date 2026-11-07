@@ -1,3 +1,4 @@
+import { sha256Hex } from "@teak/files-protocol";
 import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import {
@@ -5,13 +6,16 @@ import {
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "../../authMonitoring";
+import {
+  isOptimisticConcurrencyError,
+  isRateLimitContentionError,
+} from "../../convexFailures";
 import { hasEdgeRateLimitAttestation } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
 import type { TeakUserId } from "../../securitySessions";
 import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
 import { ignoreTelemetryError } from "../../shared/telemetry";
-import { sha256Hex } from "../../storage/r2Keys";
 import {
   verifyWorkosConnectTokenSignature,
   type WorkosConnectPrincipal,
@@ -21,16 +25,15 @@ import {
   type ConsentAuthorization,
   isConsentSeenRecently,
 } from "../../workosConsents";
+import { parseOptionalString } from "../validation";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
   type AuthResult,
   errorResponse,
-  isOptimisticConcurrencyError,
-  isRateLimitContentionError,
   json,
+  mapConvexErrorToResponse,
   parseBearerToken,
-  parseOptionalString,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
@@ -150,9 +153,9 @@ const maybeHandleIdempotency = async (
   }
 };
 
-const IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS = [50, 250];
-const IDEMPOTENCY_COMPLETE_FALLBACK_DELAY_MS = 1000;
-
+// Storing the answer can fail after the write it answers went through. The
+// caller still gets its answer, and the scheduler stores it, so a retry with
+// the same key replays it instead of waiting out the lease.
 const completeIdempotencyResponse = async (
   ctx: ActionCtx,
   args: {
@@ -177,30 +180,18 @@ const completeIdempotencyResponse = async (
     userId: args.userId,
   };
   const reference = internal.idempotency.completeIdempotencyRequestForUser;
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      await ctx.runMutation(reference, completion);
-      return;
-    } catch (error) {
-      const delay: number | undefined =
-        IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS[attempt];
-      if (delay === undefined) {
-        console.error("[idempotency] Completion failed; scheduling retry", {
-          error,
-          keyHash: args.keyHash,
-        });
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
+  try {
+    await ctx.runMutation(reference, completion);
+    return;
+  } catch (error) {
+    console.error("[idempotency] Completion failed; scheduling it", {
+      error,
+      keyHash: args.keyHash,
+    });
   }
 
   try {
-    await ctx.scheduler.runAfter(
-      IDEMPOTENCY_COMPLETE_FALLBACK_DELAY_MS,
-      reference,
-      completion
-    );
+    await ctx.scheduler.runAfter(0, reference, completion);
   } catch (error) {
     console.error("[idempotency] Could not schedule completion", {
       error,
@@ -232,6 +223,65 @@ const releaseReservationKeepingOriginalError = async (
       error,
       keyHash: args.keyHash,
     });
+  }
+};
+
+/**
+ * Runs a write under the request's `Idempotency-Key`, when it has one: a
+ * repeat replays the stored answer, and a failure before the write commits
+ * frees the key for a retry. `run` calls `committed` once the write is in.
+ */
+const respondIdempotently = async (
+  ctx: ActionCtx,
+  args: {
+    failureMessage: string;
+    path: string;
+    request: Request;
+    requestBody: unknown;
+    userId: string;
+  },
+  run: (committed: () => void) => Promise<unknown>
+): Promise<Response> => {
+  let state: IdempotencyState | null = null;
+  let operationCommitted = false;
+  try {
+    const idempotency = await maybeHandleIdempotency(ctx, {
+      method: "POST",
+      path: args.path,
+      request: args.request,
+      requestBody: args.requestBody,
+      userId: args.userId,
+    });
+    if (idempotency instanceof Response) {
+      return idempotency;
+    }
+    if (idempotency.replayed) {
+      return idempotency.replayed;
+    }
+    state = idempotency;
+    const responseBody = await run(() => {
+      operationCommitted = true;
+    });
+    operationCommitted = true;
+    await completeIdempotencyResponse(ctx, {
+      keyHash: state.keyHash,
+      leaseToken: state.leaseToken,
+      requestHash: state.requestHash,
+      responseBody,
+      responseStatus: 200,
+      userId: args.userId,
+    });
+    return json(200, responseBody);
+  } catch (error) {
+    if (state?.reserved && !operationCommitted) {
+      await releaseReservationKeepingOriginalError(ctx, {
+        keyHash: state.keyHash,
+        leaseToken: state.leaseToken,
+        requestHash: state.requestHash,
+        userId: args.userId,
+      });
+    }
+    return mapConvexErrorToResponse(error, args.failureMessage);
   }
 };
 
@@ -444,6 +494,7 @@ const authorizeBearer = async (
           validated = {
             userId: owner.teakUserId as TeakUserId,
             access: "full_access",
+            clientId: principal.clientId,
             source: "oauth",
             keyId: principal.consentId,
             rateLimitKey: `workos:${principal.clientId}:${owner.teakUserId}`,
@@ -539,10 +590,7 @@ const validatePublicApiBearer = async (
 
 export {
   classifyBearerCredential,
-  completeIdempotencyResponse,
-  type IdempotencyState,
-  maybeHandleIdempotency,
-  releaseReservationKeepingOriginalError,
+  respondIdempotently,
   trackIdempotency,
   validatePublicApiBearer,
   withAuthorizedUser,

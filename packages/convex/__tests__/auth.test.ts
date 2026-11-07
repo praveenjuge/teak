@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { noop } from "./helpers/convex.test-utils";
-import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+import {
+  objectDeletionMockModuleFactory,
+  r2MockModuleFactory,
+} from "./helpers/r2Mock.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
+mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
 let ensureCardCreationAllowed: any;
 let deleteAccountDataHandler: any;
@@ -56,10 +60,10 @@ describe("auth", () => {
     CARD_ERROR_CODES = constantsModule.CARD_ERROR_CODES;
     FREE_TIER_LIMIT = constantsModule.FREE_TIER_LIMIT;
 
-    const billingModule = await import("../billing");
+    const billingModule = await import("../billing/polar");
     polar = billingModule.polar;
 
-    const rateLimitsModule = await import("../shared/rateLimits");
+    const rateLimitsModule = await import("../rateLimiter");
     rateLimiter = rateLimitsModule.rateLimiter;
   });
 

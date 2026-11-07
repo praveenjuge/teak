@@ -16,6 +16,7 @@ import {
   searchUrl,
   stillSignedOut,
 } from "../../lib/omnibox";
+import { apiClient } from "../helpers/teakClient";
 
 const APP = "https://app.teakvault.com";
 const t = createTeakTranslator("en", englishMessages, "extension.omnibox");
@@ -363,9 +364,14 @@ describe("searchOmnibox", () => {
 
   test("asks for five keyword matches with their content", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ items: [card()] })
+      Response.json({
+        items: [card()],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
     );
-    expect(await searchOmnibox(" #design ", signal, request)).toEqual({
+    expect(
+      await searchOmnibox(" #design ", signal, apiClient(request))
+    ).toEqual({
       kind: "results",
       cards: [card()],
     });
@@ -375,14 +381,33 @@ describe("searchOmnibox", () => {
     expect(url.searchParams.get("limit")).toBe("5");
     expect(url.searchParams.get("include")).toBe("content");
     expect(url.searchParams.get("mode")).toBe("keyword");
-    expect(request.mock.calls[0]?.[1]?.signal).toBe(signal);
+  });
+
+  test("stops when the caller's signal aborts", async () => {
+    const controller = new AbortController();
+    const request = (_path: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError"))
+        );
+      });
+    const search = searchOmnibox(
+      "design",
+      controller.signal,
+      apiClient(request)
+    );
+    controller.abort();
+    await expect(search).rejects.toThrow();
   });
 
   test("cuts a very long query", async () => {
     const request = mock(async (_path: string, _init?: RequestInit) =>
-      Response.json({ items: [] })
+      Response.json({
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
     );
-    await searchOmnibox("🧪".repeat(800), signal, request);
+    await searchOmnibox("🧪".repeat(800), signal, apiClient(request));
     const q = new URL(request.mock.calls[0]?.[0] ?? "", APP).searchParams.get(
       "q"
     );
@@ -390,7 +415,15 @@ describe("searchOmnibox", () => {
   });
 
   test.each<[string, () => Promise<Response | null>, OmniboxOutcome]>([
-    ["no matches", async () => Response.json({ items: [] }), { kind: "empty" }],
+    [
+      "no matches",
+      async () =>
+        Response.json({
+          items: [],
+          pageInfo: { hasMore: false, nextCursor: null },
+        }),
+      { kind: "empty" },
+    ],
     ["signed out", async () => null, { kind: "signedOut" }],
     [
       "429",
@@ -405,7 +438,9 @@ describe("searchOmnibox", () => {
       { kind: "error" },
     ],
   ])("%s", async (_label, request, outcome) => {
-    expect(await searchOmnibox("design", signal, request)).toEqual(outcome);
+    expect(await searchOmnibox("design", signal, apiClient(request))).toEqual(
+      outcome
+    );
   });
 });
 

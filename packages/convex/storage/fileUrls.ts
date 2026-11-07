@@ -4,14 +4,11 @@ import {
   FILES_IMAGE_PATH,
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
   type FilesImageRendition,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
 import { env } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
-import {
-  assertR2KeyInNamespace,
-  hmacSha256Hex,
-  isR2KeyInNamespace,
-} from "./r2Keys";
+import { assertR2KeyInNamespace, isR2KeyInNamespace } from "./r2Keys";
 
 const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
 

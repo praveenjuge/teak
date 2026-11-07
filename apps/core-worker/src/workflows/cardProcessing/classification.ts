@@ -1,8 +1,9 @@
 import { internal } from "@teak/convex/_generated/api";
 import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
+import { isBareLinkContent } from "@teak/convex/shared/utils/bareLink";
 import {
-  CARD_TYPE_DECISION_TYPES,
+  isCardTypeDecisionType,
   readCardTypeDecision,
 } from "@teak/files-protocol";
 import {
@@ -23,13 +24,13 @@ import { runDecision } from "./decisions";
 
 const MAX_PALETTE_COLORS = 12;
 
+/**
+ * What the card turned out to be. The stages it runs next come from its
+ * type (`cardTypeStages`).
+ */
 export interface CompletedClassification {
   confidence: number;
   mode: "completed";
-  needsLinkMetadata: boolean;
-  shouldCategorize: boolean;
-  shouldGenerateMetadata: boolean;
-  shouldGenerateRenderables: boolean;
   type: CardType;
 }
 
@@ -45,15 +46,13 @@ const reviewTextCardType = async (
   const rules: { type: CardType; confidence: number } = heuristicQuote
     ? { type: "quote", confidence: 0.95 }
     : deterministicClassify(card);
-  if (!(CARD_TYPE_DECISION_TYPES as readonly string[]).includes(rules.type)) {
+  const rulesType = rules.type;
+  if (!isCardTypeDecisionType(rulesType)) {
     return rules;
   }
   const result = await runDecision(job, {
     op: "decide-card-type",
-    params: {
-      content: card.content,
-      rulesType: rules.type,
-    },
+    params: { content: card.content, rulesType },
     read: readCardTypeDecision,
     userId: card.userId,
   });
@@ -107,17 +106,8 @@ const recordClassification = (
 
 const completed = (
   type: CardType,
-  confidence: number,
-  needsLinkMetadata = false
-): CompletedClassification => ({
-  confidence,
-  mode: "completed",
-  needsLinkMetadata,
-  shouldCategorize: type === "link",
-  shouldGenerateMetadata: true,
-  shouldGenerateRenderables: ["image", "video", "document"].includes(type),
-  type,
-});
+  confidence: number
+): CompletedClassification => ({ confidence, mode: "completed", type });
 
 interface Classification {
   recorded: { confidence: number; type?: CardType };
@@ -154,12 +144,14 @@ const decideClassification = async (
   const { type: resultType, confidence: resultConfidence } =
     reviewed ?? deterministicClassify(card);
 
-  const trimmedContent =
-    typeof card.content === "string" ? card.content.trim() : "";
+  // The same test the save made: text that is only the link, in any form.
   const urlOnlyCard =
     !!card.url &&
     !card.fileKey &&
-    (trimmedContent.length === 0 || trimmedContent === card.url);
+    isBareLinkContent(
+      typeof card.content === "string" ? card.content : "",
+      card.url
+    );
 
   const normalizedType: CardType =
     urlOnlyCard && resultType !== "link" ? "link" : resultType;
@@ -174,12 +166,7 @@ const decideClassification = async (
     recorded: shouldUpdateType
       ? { confidence: normalizedConfidence, type: normalizedType }
       : { confidence: normalizedConfidence },
-    result: completed(
-      normalizedType,
-      normalizedConfidence,
-      normalizedType === "link" &&
-        card.metadata?.linkPreview?.status !== "success"
-    ),
+    result: completed(normalizedType, normalizedConfidence),
   };
 };
 

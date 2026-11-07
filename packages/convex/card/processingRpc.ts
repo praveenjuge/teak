@@ -1,12 +1,13 @@
+import { CARD_RUN_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { getR2KeyPrefix } from "../storage/r2Keys";
+import { patchCard } from "./cardWrites";
 import {
   mergeProcessingStages,
   type ProcessingStatus,
   stageInProgress,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchSync";
 
 export const getCardForProcessing = internalQuery({
   args: { cardId: v.id("cards") },
@@ -16,12 +17,9 @@ export const getCardForProcessing = internalQuery({
   },
 });
 
+// The stages a run marks in progress, as files-protocol lists them.
 const stageKeyValidator = v.union(
-  v.literal("classify"),
-  v.literal("categorize"),
-  v.literal("metadata"),
-  v.literal("renderables"),
-  v.literal("screenshot")
+  ...CARD_RUN_STAGES.map((stage) => v.literal(stage))
 );
 
 export const markStagesInProgress = internalMutation({
@@ -38,7 +36,7 @@ export const markStagesInProgress = internalMutation({
     for (const stage of stages) {
       updates[stage] = stageInProgress(now, current?.[stage]);
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       processingStatus: mergeProcessingStages(current, updates),
     });
   },

@@ -1,7 +1,3 @@
-import type {
-  FilesEmbedUpsertResult,
-  FilesVectorDeleteResult,
-} from "@teak/files-protocol";
 import {
   EMBED_UPSERT_MAX_ITEMS,
   VECTOR_DELETE_MAX_IDS,
@@ -10,11 +6,11 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, internalAction } from "../_generated/server";
-import type { CardType } from "../schema";
+import type { CardType } from "../shared/constants";
 import {
-  callFilesWorkerJson,
-  isFilesWorkerConfigured,
-} from "../storage/filesWorkerClient";
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "../storage/coreWorkerClient";
 import { captureBackendException } from "../telemetry/posthog";
 import { MAX_VECTOR_DELETE_ATTEMPTS } from "./state";
 import { embeddingHash } from "./text";
@@ -27,7 +23,7 @@ const errorMessage = (error: unknown) =>
 
 const deleteVectorIdsOnWorker = async (shard: number, ids: string[]) => {
   for (let start = 0; start < ids.length; start += VECTOR_DELETE_MAX_IDS) {
-    const outcome = await callFilesWorkerJson<FilesVectorDeleteResult>({
+    const outcome = await callCoreWorkerOp({
       op: "vector-delete",
       params: { ids: ids.slice(start, start + VECTOR_DELETE_MAX_IDS), shard },
     });
@@ -57,7 +53,7 @@ export const embedDue = internalAction({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
   handler: async (ctx, { cardIds }) => {
-    if (!isFilesWorkerConfigured()) {
+    if (!isCoreWorkerConfigured()) {
       return null;
     }
     const { claimed, later } = await ctx.runMutation(
@@ -171,7 +167,7 @@ const embedBatch = async (
       internal.vectorShards.assignVectorShard,
       { userId }
     );
-    const outcome = await callFilesWorkerJson<FilesEmbedUpsertResult>({
+    const outcome = await callCoreWorkerOp({
       op: "embed-upsert",
       params: {
         items: items.map(({ row }) => ({
@@ -215,7 +211,7 @@ export const deleteVectors = internalAction({
       return null;
     }
     try {
-      if (isFilesWorkerConfigured()) {
+      if (isCoreWorkerConfigured()) {
         const byShard = new Map<number, string[]>();
         for (const row of rows) {
           byShard.set(row.shard, [
@@ -268,7 +264,7 @@ export const deleteVectorIds = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, { attempt, ids, shard, userId }) => {
-    if (!isFilesWorkerConfigured()) {
+    if (!isCoreWorkerConfigured()) {
       return null;
     }
     try {

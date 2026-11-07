@@ -1,8 +1,4 @@
-import {
-  type FilesImageTextResult,
-  linkOcrSourceKeys,
-  normalizeImageOcrText,
-} from "@teak/files-protocol";
+import { linkOcrSourceKeys, normalizeImageOcrText } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import {
@@ -10,8 +6,8 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { patchCardWithSearchSync } from "../card/searchSync";
-import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { patchCard } from "../card/cardWrites";
+import { callCoreWorkerOp } from "../storage/coreWorkerClient";
 import {
   ocrBackfillArgs,
   ocrBackfillReturns,
@@ -78,7 +74,7 @@ export const storeLinkOcr = internalMutation({
     ) {
       return false;
     }
-    return await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCard(ctx, cardId, {
       aiOcrText: aiOcrText || undefined,
       ocrCheckedAt: Date.now(),
     });
@@ -110,7 +106,7 @@ export const backfillLinkOcrCard = internalAction({
     const texts: string[] = [];
     try {
       for (const sourceKey of candidate.sourceKeys) {
-        const outcome = await callFilesWorkerJson<FilesImageTextResult>({
+        const outcome = await callCoreWorkerOp({
           op: "extract-image-text",
           params: { sourceKey },
         });

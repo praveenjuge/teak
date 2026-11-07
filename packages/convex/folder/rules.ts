@@ -9,13 +9,10 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
-import { resolveSearch } from "../card/searchPlanner";
-import {
-  buildCardSearchText,
-  patchCardWithSearchSync,
-} from "../card/searchSync";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { patchCard } from "../card/cardWrites";
 import { readCardSearchTexts } from "../card/textContents";
+import { resolveSearch } from "../search/searchPlanner";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
@@ -25,13 +22,14 @@ import {
   MAX_FOLDERS_PER_CARD,
 } from "../shared/folders";
 import { parseSearchQuery } from "../shared/search/qualifiers";
+import { buildCardSearchText } from "../shared/search/searchText";
 import {
   explainInvalidTagName,
   MAX_CARD_TAGS,
   normalizeTagList,
   tagKey,
 } from "../shared/tags";
-import { normalizeSmartFolderQuery, requireFolderForUser } from "./folders";
+import { normalizeSmartFolderQuery, requireFolderForUser } from "./lookup";
 
 /**
  * Each card a batch changes can read about 2 MiB: its own row, its text rows
@@ -457,7 +455,7 @@ export const applyAutoFileRulesToCard = async (
   if (!result.folderIds) {
     return [];
   }
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     folderIds: result.folderIds,
     ...(result.tags ? { tags: result.tags } : {}),
     updatedAt: Date.now(),
@@ -668,7 +666,7 @@ export const runFolderRuleBatchHandler = async (
       );
       const addedTags = result.added.get(folder._id) ?? [];
       if (result.tags && addedTags.length > 0) {
-        await patchCardWithSearchSync(ctx, card._id, {
+        await patchCard(ctx, card._id, {
           tags: result.tags,
           updatedAt: now,
         });
@@ -728,7 +726,7 @@ export const runFolderRuleBatchHandler = async (
       const next = [...current, folder._id];
       const result = await autoTagsForJoinedFolders(ctx, card, next, current);
       const addedTags = result.added.get(folder._id) ?? [];
-      await patchCardWithSearchSync(ctx, card._id, {
+      await patchCard(ctx, card._id, {
         folderIds: next,
         ...(result.tags ? { tags: result.tags } : {}),
         updatedAt: now,
@@ -868,7 +866,7 @@ export const undoFolderRuleBatchHandler = async (
     const tagsChanged = tags.length !== (card.tags ?? []).length;
     const foldersChanged = folderIds.length !== (card.folderIds ?? []).length;
     if (tagsChanged || foldersChanged) {
-      await patchCardWithSearchSync(ctx, card._id, {
+      await patchCard(ctx, card._id, {
         ...(tagsChanged ? { tags: tags.length > 0 ? tags : undefined } : {}),
         ...(foldersChanged
           ? { folderIds: folderIds.length > 0 ? folderIds : undefined }

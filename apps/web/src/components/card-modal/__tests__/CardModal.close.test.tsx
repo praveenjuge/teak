@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardModalCard } from "../types";
+import type { ClientCard } from "@/lib/cardTypes";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -37,10 +37,10 @@ const paletteCard = (id: string, hex: string) =>
     type: "palette",
     updatedAt: 0,
     userId: "user_1",
-  }) as unknown as CardModalCard;
+  }) as unknown as ClientCard;
 
 function renderModal(props: {
-  card: CardModalCard | null;
+  card: ClientCard | null;
   onCancel: () => void;
   open: boolean;
 }) {
@@ -50,13 +50,11 @@ function renderModal(props: {
       cardId={props.card?._id ?? null}
       downloadFile={() => undefined}
       getCurrentValue={() => undefined}
-      handleDelete={async () => undefined}
-      handlePermanentDelete={async () => undefined}
-      handleRestore={async () => undefined}
       hasUnsavedChanges={false}
       onCancel={props.onCancel}
       open={props.open}
       openLink={() => undefined}
+      runAction={async () => true}
       saveChanges={async () => true}
       saveState="idle"
       tags={{
@@ -66,7 +64,6 @@ function renderModal(props: {
         setTagInput: () => undefined,
         tagInput: "",
       }}
-      toggleFavorite={() => undefined}
       updateContent={() => undefined}
       updateNotes={() => undefined}
       updateTitle={() => undefined}

@@ -1,14 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { patchCardWithSearchSync } from "../card/searchSync";
+import { patchCard } from "../card/cardWrites";
 import { requireSessionUserId, type TeakUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
   MAX_FOLDER_CARD_IDS,
   MAX_FOLDERS_PER_CARD,
 } from "../shared/folders";
-import { requireFolderForUser } from "./folders";
+import { requireFolderForUser } from "./lookup";
 import { autoTagsForJoinedFolders } from "./rules";
 
 const cardNotFound = () =>
@@ -59,7 +59,7 @@ const writeCardFolders = async (
     throw folderLimit();
   }
   const { tags } = await autoTagsForJoinedFolders(ctx, card, next);
-  return await patchCardWithSearchSync(ctx, card._id, {
+  return await patchCard(ctx, card._id, {
     folderIds: next.length > 0 ? next : undefined,
     ...(tags ? { tags } : {}),
     updatedAt: Date.now(),

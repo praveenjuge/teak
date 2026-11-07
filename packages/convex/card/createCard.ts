@@ -1,43 +1,39 @@
-import {
-  buildColorFacets,
-  extractPaletteColors,
-  MAX_PALETTE_COLORS,
-} from "@teak/convex/shared/utils/colorUtils";
 import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { autoTagsForJoinedFolders } from "../folder/rules";
-import { type CardType, cardTypeValidator, colorValidator } from "../schema";
+import { cardTypeValidator, colorValidator } from "../schema/validators/cards";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
+import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
+import { isBareLinkContent } from "../shared/utils/bareLink";
+import {
+  buildColorFacets,
+  extractPaletteColors,
+  MAX_PALETTE_COLORS,
+} from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
-import { normalizeUrlHost } from "../shared/utils/urlHost";
-import { urlKey } from "../shared/utils/urlKey";
-import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
-import { queueCardProcessing } from "../workflowDispatch";
-import { insertCountedCard } from "./cardUsage";
+import { insertCard, patchCard } from "./cardWrites";
 import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
-import { withHiddenFlag } from "./hiddenCards";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
-import { isCardRunInFlight } from "./processingRuns";
+import { isCardRunInFlight, queueCardProcessing } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   mergeProcessingStages,
-  shouldRunArchiveStage,
   stageCompleted,
   stagePending,
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { patchCardWithSearchSync, syncCardSearch } from "./searchSync";
-import { newShuffleKey } from "./shuffle";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
 
@@ -47,6 +43,16 @@ export const clientCardSourceValidator = v.union(
   v.literal("apple"),
   v.literal("android")
 );
+
+/** The client behind a public API save: see `publicApi/http/callerSource`. */
+export const apiCardSourceValidator = v.union(
+  v.literal("api"),
+  v.literal("mcp"),
+  v.literal("cli"),
+  v.literal("raycast"),
+  v.literal("extension")
+);
+export type ApiCardSource = Infer<typeof apiCardSourceValidator>;
 
 const createCardArgs = {
   content: v.string(),
@@ -173,21 +179,6 @@ export const trashedDuplicateValidator = v.optional(
   v.union(v.literal("report"), v.literal("restore"))
 );
 export type TrashedDuplicate = Infer<typeof trashedDuplicateValidator>;
-
-export const isBareLinkContent = (content: string, url: string): boolean => {
-  const trimmed = content.trim();
-  if (!trimmed || trimmed === url) {
-    return true;
-  }
-  const extracted = extractUrlFromContent(trimmed);
-  if (!extracted.url || extracted.cleanedContent !== extracted.url) {
-    return false;
-  }
-  return (
-    extracted.url === url ||
-    (urlKey(extracted.url) ?? extracted.url) === (urlKey(url) ?? url)
-  );
-};
 
 export const resolveCreatedCardType = ({
   providedType,
@@ -367,7 +358,6 @@ export const createCardForUserHandler = async (
     type: cardType,
     url: finalUrl,
     ...cardSource,
-    urlHost: normalizeUrlHost(finalUrl ?? cardSource.sourceUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
     tags,
@@ -378,16 +368,11 @@ export const createCardForUserHandler = async (
     colors: resolvedColors,
     colorHexes,
     colorHues,
-    processingStatus: {
-      ...buildInitialProcessingStatus({
-        now,
-        cardType,
-        classificationStatus,
-      }),
-      ...(shouldRunArchiveStage(cardType)
-        ? { archive: stagePending(), article: stagePending() }
-        : {}),
-    },
+    processingStatus: buildInitialProcessingStatus({
+      now,
+      cardType,
+      classificationStatus,
+    }),
     ...(pageSnapshotKey
       ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
       : {}),
@@ -401,7 +386,6 @@ export const createCardForUserHandler = async (
           ),
         }),
     updatedAt: now,
-    shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
     ...(cardType === "link" &&
       options.importedVisibleFields?.completedAt !== undefined && {
@@ -416,21 +400,25 @@ export const createCardForUserHandler = async (
     ...(cardType === "link" && { metadataStatus: "pending" as const }),
   };
 
-  const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
-  const folderIds = await options.resolveFolderIds?.();
-  if (folderIds?.length) {
-    const inserted = await ctx.db.get("cards", cardId);
-    const { tags } = inserted
-      ? await autoTagsForJoinedFolders(ctx, inserted, folderIds, [])
-      : { tags: undefined };
-    await ctx.db.patch(
-      "cards",
-      cardId,
-      withHiddenFlag({ folderIds, ...(tags ? { tags } : {}) })
-    );
-  }
-  await syncCardSearch(ctx, cardId, userId);
-
+  const { resolveFolderIds } = options;
+  const cardId = await insertCard(ctx, cardData, {
+    hasPremium,
+    finish: resolveFolderIds
+      ? async (inserted) => {
+          const folderIds = await resolveFolderIds();
+          if (!folderIds.length) {
+            return;
+          }
+          const { tags } = await autoTagsForJoinedFolders(
+            ctx,
+            inserted,
+            folderIds,
+            []
+          );
+          return { folderIds, ...(tags ? { tags } : {}) };
+        }
+      : undefined,
+  });
   await queueCardProcessing(ctx, cardId);
 
   await queueCardOutcome(ctx, {
@@ -446,7 +434,7 @@ export const createCardForUserHandler = async (
 
 /**
  * Moves a saved card to the top of "Newest first" and back from Archive. The
- * search sync carries the new `savedAt` to its folder and tag rows. Nothing
+ * change hook carries the new `savedAt` to its folder and tag rows. Nothing
  * else changes, and the card isn't processed again, except that a page the
  * extension sent replaces the saved copy (unless the card has highlights):
  * at once, unless a run is in flight, which picks the page up when it ends. Stages a run left pending, like AI
@@ -482,7 +470,7 @@ const resaveCard = async (
     snapshot !== null &&
     pageArchiveSkipReason({ ...card, ...snapshot }) === null &&
     !(await isCardRunInFlight(ctx, card));
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     savedAt: now,
     updatedAt: now,
     ...(wasArchived ? { isArchived: undefined, archivedAt: undefined } : {}),

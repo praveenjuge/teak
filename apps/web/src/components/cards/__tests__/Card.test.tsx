@@ -101,7 +101,16 @@ mock.module("../previews/GridVideoPreview", () => ({
     }),
 }));
 
-const { Card, resolveImageCopyUrl } = await import("../Card");
+const { Card } = await import("../Card");
+
+// What the Pinned row offers: no selection.
+const STRIP_ACTIONS = new Set([
+  "favorite",
+  "pin",
+  "addTags",
+  "archive",
+  "moveToTrash",
+] as const);
 
 const createLinkCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_123",
@@ -116,58 +125,22 @@ const createLinkCard = (overrides?: Record<string, unknown>) => ({
 });
 
 describe("Cards/Card", () => {
-  test("mints the original image URL only when copying", async () => {
-    const refresh = mock().mockResolvedValue({
-      url: "https://files.teakvault.com/original.jpg",
-    });
-    await expect(
-      resolveImageCopyUrl({
-        cardId: "card_123",
-        fallbackUrl: "https://files.teakvault.com/grid.jpg",
-        fileKey: "original-key",
-        refresh,
-      })
-    ).resolves.toBe("https://files.teakvault.com/original.jpg");
-    expect(refresh).toHaveBeenCalledWith({
-      cardId: "card_123",
-      key: "original-key",
-    });
-  });
-
-  test("does not substitute a preview if refreshing the original URL fails", async () => {
-    await expect(
-      resolveImageCopyUrl({
-        cardId: "card_123",
-        fallbackUrl: "https://files.teakvault.com/grid.jpg",
-        fileKey: "original-key",
-        refresh: mock().mockRejectedValue(new Error("refresh failed")),
-      })
-    ).rejects.toThrow("refresh failed");
-  });
-
   test("a card tells screen readers the keys it answers", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
+      <Card card={createLinkCard() as any} />
     );
     expect(markup).toContain(
-      'aria-keyshortcuts="Enter F T E X Delete Control+C"'
+      'aria-keyshortcuts="Enter F P T E Delete X Control+C"'
     );
     const trashed = renderToStaticMarkup(
-      <Card
-        card={createLinkCard({ isDeleted: true }) as any}
-        onToggleArchive={() => undefined}
-      />
+      <Card card={createLinkCard({ isDeleted: true }) as any} />
     );
-    expect(trashed).toContain('aria-keyshortcuts="Enter X Delete"');
+    expect(trashed).toContain('aria-keyshortcuts="Enter Delete X"');
   });
 
   test("its menu shows the key for each action a key also does", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={createLinkCard() as any}
-        onEnterSelectionMode={() => undefined}
-        onToggleArchive={() => undefined}
-      />
+      <Card card={createLinkCard() as any} />
     );
     for (const [label, key] of [
       ["Add tags…", "T"],
@@ -211,13 +184,7 @@ describe("Cards/Card", () => {
 
   test("in selection mode, its menu shows only keys that act on this card", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={createLinkCard() as any}
-        isSelected
-        isSelectionMode
-        onToggleArchive={() => undefined}
-        onToggleSelection={() => undefined}
-      />
+      <Card card={createLinkCard() as any} isSelected isSelectionMode />
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
     expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
@@ -400,7 +367,7 @@ describe("Cards/Card", () => {
 
     expect(markup).toContain('src="https://example.com/screenshot.jpg"');
     expect(markup).not.toContain("unsized.jpg");
-    expect(markup).toContain("aspect-ratio:1.3333333333333333");
+    expect(markup).toContain("aspect-[4/3]");
   });
 
   test("falls back to an unsized screenshot when the link has no other image", () => {
@@ -459,7 +426,7 @@ describe("Cards/Card", () => {
     const items = [
       ...trashed.matchAll(/role="menuitem">(?:<svg.*?<\/svg>)?([^<]*)/g),
     ].map((match) => match[1]);
-    expect(items).toEqual(["Restore", "Delete forever"]);
+    expect(items).toEqual(["Select", "Restore", "Delete forever"]);
   });
 
   test("shows an empty note as Empty note", () => {
@@ -489,7 +456,7 @@ describe("Cards/Card", () => {
     expect(markup).not.toContain("&amp;lt;");
   });
 
-  test("shows the words saved with a link, without the URL", () => {
+  test("keeps a link to its name in the grid, leaving the words saved with it for the card", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -503,10 +470,11 @@ describe("Cards/Card", () => {
         }
       />
     );
-    expect(markup).toContain(">Read this later</p>");
+    expect(markup).toContain(">Example</p>");
+    expect(markup).not.toContain("Read this");
   });
 
-  test("shows nothing extra for a link saved on its own", () => {
+  test("shows a link's name, not its description or URL", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -525,7 +493,8 @@ describe("Cards/Card", () => {
       />
     );
     expect(markup).not.toContain("https://example.com/a</p>");
-    expect(markup).toContain(">A site</p>");
+    expect(markup).not.toContain("A site");
+    expect(markup).toContain(">Example</p>");
   });
 
   test("offers Delete forever only for a card in Trash", () => {
@@ -653,14 +622,19 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain("Free");
   });
 
-  test("puts the price beside the title when the tile has no image", () => {
+  test("keeps the price badge on a link's cover when it has no image", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={pricedLink({ amount: 24.99, currency: "USD" }, false) as any}
       />
     );
     expect(markup).not.toContain("og.jpg");
-    expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
+    expect(markup).toContain(">Desk lamp</p>");
+    // The cover keeps room under the site name, so the badge never covers it.
+    expect(markup).toMatch(/class="[^"]*aspect-\[4\/3\][^"]*pb-11/);
+    expect(markup).toMatch(
+      /<span class="[^"]*bottom-2\.5 left-2\.5[^"]*">\$24\.99<\/span>/
+    );
   });
 
   test.each([
@@ -696,10 +670,7 @@ describe("Cards/Card redesign", () => {
 
   test("offers open, favorite and more actions on an active card", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview() as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview() as any} />
     );
     expect(markup).toContain('aria-label="Open link"');
     expect(markup).toContain('aria-label="Favorite"');
@@ -709,10 +680,7 @@ describe("Cards/Card redesign", () => {
 
   test("leaves only More actions and Select on a card in Trash", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview({ isDeleted: true }) as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview({ isDeleted: true }) as any} />
     );
     expect(markup).toContain('aria-label="More actions"');
     expect(markup).not.toContain('aria-label="Favorite"');
@@ -741,10 +709,7 @@ describe("Cards/Card redesign", () => {
 
   test("keeps More on screen for touch, which can't hover, and leaves the rest to it", () => {
     const markup = renderToStaticMarkup(
-      <Card
-        card={linkWithPreview() as any}
-        onEnterSelectionMode={() => undefined}
-      />
+      <Card card={linkWithPreview() as any} />
     );
     const button = (label: string) =>
       markup.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0];
@@ -810,13 +775,13 @@ describe("Cards/Card redesign", () => {
 
   test("offers no Select where cards can't be selected, like the Pinned row", () => {
     const markup = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
+      <Card actions={STRIP_ACTIONS} card={createLinkCard() as any} />
     );
     expect(markup).not.toContain("Select<kbd>X</kbd>");
     expect(markup).toContain("Pin to top<kbd>P</kbd>");
   });
 
-  test("offers no pin on an archived card, or without a pin handler", () => {
+  test("offers no pin on an archived card, or where pins aren't offered", () => {
     const archived = renderToStaticMarkup(
       <Card
         card={createLinkCard({ isArchived: true }) as any}
@@ -832,7 +797,7 @@ describe("Cards/Card redesign", () => {
     );
     expect(trashed).not.toContain("Pin to top");
     const noHandler = renderToStaticMarkup(
-      <Card card={createLinkCard() as any} />
+      <Card actions={new Set(["favorite"])} card={createLinkCard() as any} />
     );
     expect(noHandler).not.toContain("Pin to top");
   });
@@ -894,7 +859,7 @@ describe("Cards/Card redesign", () => {
     expect(markup).toContain("1:24");
   });
 
-  test("shows a text-only social post with its author", () => {
+  test("shows a text-only social post's words on its cover", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -916,6 +881,6 @@ describe("Cards/Card redesign", () => {
       />
     );
     expect(markup).toContain(">It was the butler and the cook.<");
-    expect(markup).toContain("Eugen Rochko (@Gargron@mastodon.social)");
+    expect(markup).toContain(">mastodon.social<");
   });
 });

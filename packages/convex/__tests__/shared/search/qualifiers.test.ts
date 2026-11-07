@@ -13,6 +13,11 @@ import {
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
 import { semanticQueryText } from "../../../shared/search/semantic";
+import { loadFixture } from "../loadFixture.test-utils";
+
+const { fields } = loadFixture<{
+  fields: { expected: unknown; field: string; input: string }[];
+}>("searchQualifiers");
 
 describe("parseSearchQuery", () => {
   test("reads every qualifier, phrases and words", () => {
@@ -32,73 +37,7 @@ describe("parseSearchQuery", () => {
     });
   });
 
-  test.each([
-    ["#Design", "tags", ["design"]],
-    ["TAG:Design", "tags", ["design"]],
-    ['tag:"Design Systems"', "tags", ["design systems"]],
-    ["#fff", "tags", []],
-    ["#fff", "terms", ["#fff"]],
-    ["#3B82F6,", "terms", ["#3B82F6,"]],
-    ["#bad", "terms", ["#bad"]],
-    ["tag:bad", "tags", ["bad"]],
-    ["#design-ops", "tags", ["design-ops"]],
-    ["#", "terms", []],
-    ["type:links", "types", ["link"]],
-    ["Type:IMAGE", "types", ["image"]],
-    ["type:banana", "terms", ["type:banana"]],
-    ["type:note", "types", ["text"]],
-    ["type:Notes", "types", ["text"]],
-    ["type:pdf", "types", ["document"]],
-    ["type:docs", "types", ["document"]],
-    ["type:photos", "types", ["image"]],
-    ["type:picture", "types", ["image"]],
-    ["type:colours", "types", ["palette"]],
-    ["type:color", "types", ["palette"]],
-    ["type:voice", "types", ["audio"]],
-    ["type:memos", "types", ["audio"]],
-    ["type:url", "types", ["link"]],
-    ["type:bookmarks", "types", ["link"]],
-    ["type:quotes", "types", ["quote"]],
-    ["type:movie", "types", ["video"]],
-    ["type:constructor", "terms", ["type:constructor"]],
-    ["type:", "terms", []],
-    ["is:fav", "favorite", true],
-    ["is:favourites", "favorite", true],
-    ["is:starred", "favorite", true],
-    ["is:archived", "archived", true],
-    ["is:done", "done", true],
-    ["is:Completed", "done", true],
-    ["is:finished", "done", true],
-    ["is:todo", "todo", true],
-    ["is:to-do", "todo", true],
-    ["is:nope", "terms", ["is:nope"]],
-    ["site:www.Example.com", "sites", ["example.com"]],
-    ["site:https://example.com/path:8080", "sites", ["example.com"]],
-    ["site:example.com:8080", "sites", ["example.com"]],
-    ["site:例え.jp", "sites", ["xn--r8jz45g.jp"]],
-    ["site:mailto:x@y.z", "terms", ["site:mailto:x@y.z"]],
-    ["site:[::1]", "sites", ["[::1]"]],
-    ["site:[2001:db8::1],", "sites", ["[2001:db8::1]"]],
-    ["site:http://[::1]:8080/x", "sites", ["[::1]"]],
-    ['folder:"Reading list"', "folders", ["reading list"]],
-    ["folder:Inbox,", "folders", ["inbox"]],
-    ["foo:bar", "terms", ["foo:bar"]],
-    ["https://github.com", "terms", ["https://github.com"]],
-    ['"unbalanced phrase', "phrases", ["unbalanced phrase"]],
-    ["“smart quotes”", "phrases", ["smart quotes"]],
-    ['""', "phrases", []],
-    ["tag:a tag:A #a", "tags", ["a"]],
-    ["site:a.com site:b.com", "sites", ["a.com", "b.com"]],
-    ["🎨 #🎨", "tags", ["🎨"]],
-    ["text:4411", "ocrTexts", ["4411"]],
-    ['TEXT:"Total  Due"', "ocrTexts", ["Total Due"]],
-    ["text:Total text:total", "ocrTexts", ["Total"]],
-    ["text:a text:b", "ocrTexts", ["a", "b"]],
-    ["text:", "terms", []],
-    ['text:"  "', "ocrTexts", []],
-    ["text:4411", "text", ""],
-    ["text:東京駅", "ocrTexts", ["東京駅"]],
-  ])("%s → %s %p", (input: string, field: string, expected: unknown) => {
+  test.each(fields)("$input → $field", ({ input, field, expected }) => {
     expect(parseSearchQuery(input)[field as "tags"]).toEqual(
       expected as string[]
     );
@@ -413,7 +352,9 @@ describe("is:done and is:todo", () => {
   const link = (category: string | undefined, completedAt?: number) => ({
     completedAt,
     metadata: category ? { linkCategory: { category } } : undefined,
+    type: "link",
   });
+  const note = (completedAt?: number) => ({ completedAt, type: "text" });
 
   test.each([
     ["a done film", link("movie", 1), { done: true }, true],
@@ -424,6 +365,9 @@ describe("is:done and is:todo", () => {
     ["a done repository", link("repo", 1), { done: true }, true],
     ["a link with no category yet", link(undefined), { todo: true }, false],
     ["anything", link("movie"), {}, true],
+    ["a note brought in done", note(1), { done: true }, false],
+    ["a note brought in done", note(1), {}, true],
+    ["a note never done", note(), { todo: true }, false],
   ])("%s with %j", (_name, card, query, matches) => {
     expect(matchesDoneState(card, { done: false, todo: false, ...query })).toBe(
       matches

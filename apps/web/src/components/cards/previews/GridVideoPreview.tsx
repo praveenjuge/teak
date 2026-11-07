@@ -2,12 +2,13 @@ import { useTranslations } from "@teak/i18n/react";
 import type { PointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "vadivam-react";
-import { CARD_SURFACE } from "../cardDisplay";
+import { CARD_BADGE, MEDIA_SURFACE, mediaAspectRatio } from "../cardDisplay";
 import type { ScrubMetadata } from "../types";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridVideoPreviewProps {
   cardId?: string;
+  durationLabel?: string;
   height?: number;
   isGif?: boolean;
   isPriority?: boolean;
@@ -21,10 +22,11 @@ interface GridVideoPreviewProps {
   width?: number;
 }
 
-function PlayOverlay() {
+function PlayOverlay({ durationLabel }: { durationLabel?: string }) {
   return (
-    <div className="pointer-events-none absolute bottom-2.5 left-2.5 flex size-7 items-center justify-center rounded-full bg-black/45 text-white ring-1 ring-white/15 backdrop-blur-md">
-      <Play className="size-3.5 translate-x-px fill-current" />
+    <div className={CARD_BADGE}>
+      <Play aria-hidden="true" className="size-2.5 fill-current" />
+      {durationLabel}
     </div>
   );
 }
@@ -41,6 +43,31 @@ export function scrubFrameIndex(
   return Math.min(count - 1, Math.max(0, Math.floor((x / width) * count)));
 }
 
+/**
+ * Places the scrub sprite so the current frame covers the tile the way the
+ * still does: a frame of another shape than the tile (a 9:16 recording in a
+ * 3:4 tile) is cropped around its center, never stretched.
+ */
+export function scrubSpriteStyle(
+  frame: number,
+  scrub: ScrubMetadata,
+  tileRatio: number
+): { height: string; left: string; top: string; width: string } {
+  const frameRatio =
+    scrub.frameWidth > 0 && scrub.frameHeight > 0
+      ? scrub.frameWidth / scrub.frameHeight
+      : tileRatio;
+  const frameWidth = Math.max(frameRatio / tileRatio, 1) * 100;
+  const frameHeight = Math.max(tileRatio / frameRatio, 1) * 100;
+  const round = (value: number) => `${Number(value.toFixed(4))}%`;
+  return {
+    height: round(frameHeight),
+    left: round(-(frame * frameWidth + (frameWidth - 100) / 2)),
+    top: round(-(frameHeight - 100) / 2),
+    width: round(scrub.frames * frameWidth),
+  };
+}
+
 function isValidScrub(scrub?: ScrubMetadata): scrub is ScrubMetadata {
   return !!scrub && Number.isFinite(scrub.frames) && scrub.frames >= 1;
 }
@@ -48,6 +75,7 @@ function isValidScrub(scrub?: ScrubMetadata): scrub is ScrubMetadata {
 function ScrubPreview({
   aspectRatio,
   cardId,
+  durationLabel,
   isPriority,
   scrub,
   scrubKey,
@@ -57,6 +85,7 @@ function ScrubPreview({
 }: {
   aspectRatio: number;
   cardId?: string;
+  durationLabel?: string;
   isPriority?: boolean;
   scrub: ScrubMetadata;
   scrubKey?: string;
@@ -80,7 +109,7 @@ function ScrubPreview({
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
+      className={MEDIA_SURFACE}
       onPointerEnter={(event) => {
         if (event.pointerType !== "mouse") {
           return;
@@ -121,20 +150,17 @@ function ScrubPreview({
         <ResilientMediaImage
           alt=""
           cardId={cardId}
-          className={`pointer-events-none absolute top-0 left-0 h-full max-w-none ${showSprite ? "" : "opacity-0"}`}
+          className={`pointer-events-none absolute max-w-none ${showSprite ? "" : "opacity-0"}`}
           decoding="async"
           draggable={false}
           onLoad={() => setIsSpriteLoaded(true)}
           src={scrubUrl}
           storageKey={scrubKey}
-          style={{
-            transform: `translateX(-${(frame / scrub.frames) * 100}%)`,
-            width: `${scrub.frames * 100}%`,
-          }}
+          style={scrubSpriteStyle(frame, scrub, aspectRatio)}
         />
       ) : null}
 
-      {isScrubbing ? null : <PlayOverlay />}
+      {isScrubbing ? null : <PlayOverlay durationLabel={durationLabel} />}
     </div>
   );
 }
@@ -150,6 +176,7 @@ export const HOVER_VIDEO_RELEASE_MS = 2000;
 function HoverVideoPreview({
   aspectRatio,
   cardId,
+  durationLabel,
   isPriority,
   thumbnailKey,
   thumbnailUrl,
@@ -161,6 +188,7 @@ function HoverVideoPreview({
   thumbnailKey?: string;
   thumbnailUrl?: string;
   videoUrl: string;
+  durationLabel?: string;
 }) {
   const t = useTranslations("cards.previews");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -194,7 +222,7 @@ function HoverVideoPreview({
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     <div
-      className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
+      className={MEDIA_SURFACE}
       onMouseEnter={() => {
         if (prefersReducedMotion()) {
           return;
@@ -258,13 +286,14 @@ function HoverVideoPreview({
         </video>
       ) : null}
 
-      {isHovering ? null : <PlayOverlay />}
+      {isHovering ? null : <PlayOverlay durationLabel={durationLabel} />}
     </div>
   );
 }
 
 export function GridVideoPreview({
   cardId,
+  durationLabel,
   height,
   isGif,
   isPriority,
@@ -278,14 +307,11 @@ export function GridVideoPreview({
   width,
 }: GridVideoPreviewProps) {
   const t = useTranslations("cards.previews");
-  const aspectRatio = width && height ? width / height : 16 / 9;
+  const aspectRatio = mediaAspectRatio(width, height, 16 / 9);
 
   if (isGif && videoUrl) {
     return (
-      <div
-        className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
-        style={{ aspectRatio }}
-      >
+      <div className={MEDIA_SURFACE} style={{ aspectRatio }}>
         <ResilientMediaImage
           alt={t("gifPreview")}
           cardId={cardId}
@@ -307,6 +333,7 @@ export function GridVideoPreview({
       <ScrubPreview
         aspectRatio={aspectRatio}
         cardId={cardId}
+        durationLabel={durationLabel}
         isPriority={isPriority}
         scrub={scrub}
         scrubKey={scrubKey}
@@ -322,6 +349,7 @@ export function GridVideoPreview({
       <HoverVideoPreview
         aspectRatio={aspectRatio}
         cardId={cardId}
+        durationLabel={durationLabel}
         isPriority={isPriority}
         thumbnailKey={thumbnailKey}
         thumbnailUrl={thumbnailUrl}
@@ -332,10 +360,7 @@ export function GridVideoPreview({
 
   if (thumbnailUrl) {
     return (
-      <div
-        className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
-        style={{ aspectRatio }}
-      >
+      <div className={MEDIA_SURFACE} style={{ aspectRatio }}>
         <ResilientMediaImage
           alt={t("videoThumbnail")}
           cardId={cardId}
@@ -347,14 +372,14 @@ export function GridVideoPreview({
           storageKey={thumbnailKey}
           style={{ objectFit: "cover" }}
         />
-        <PlayOverlay />
+        <PlayOverlay durationLabel={durationLabel} />
       </div>
     );
   }
 
   return (
     <div
-      className={`relative flex h-full w-full items-center justify-center overflow-hidden ${CARD_SURFACE} bg-black text-white`}
+      className={`${MEDIA_SURFACE} flex items-center justify-center bg-black text-white`}
       style={{ aspectRatio }}
     >
       <Play className="size-6 text-white" />

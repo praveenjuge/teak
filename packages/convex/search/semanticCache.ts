@@ -1,4 +1,4 @@
-import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
+import { CARD_EMBEDDING_VERSION, sha256Hex } from "@teak/files-protocol";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -7,11 +7,14 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { SEMANTIC_TOP_K } from "../shared/search/semantic";
-import { sha256Hex } from "../storage/r2Keys";
+import {
+  deleteExpiredResults,
+  findCachedResult,
+  writeCachedResult,
+} from "./resultCache";
 
 export const SEMANTIC_CACHE_TTL_MS = 10 * 60 * 1000;
 export const SEMANTIC_PENDING_TTL_MS = 15 * 1000;
-const CLEANUP_BATCH = 500;
 
 export const semanticRankingValidator = v.array(
   v.object({ cardId: v.id("cards"), score: v.number() })
@@ -31,12 +34,7 @@ export const semanticSearchKey = (text: string): Promise<string> =>
   sha256Hex(`${CARD_EMBEDDING_VERSION}\n${text}`);
 
 const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
-  ctx.db
-    .query("semanticSearchResults")
-    .withIndex("by_userId_and_key", (q) =>
-      q.eq("userId", userId).eq("key", key)
-    )
-    .first();
+  findCachedResult(ctx, "semanticSearchResults", userId, key);
 
 export const readSemanticEntry = async (
   ctx: QueryCtx,
@@ -90,21 +88,20 @@ export const storeRanking = internalMutation({
       }
     }
     const now = Date.now();
-    const entry = {
-      userId,
-      key,
-      ...(pending ? { status: "pending" as const } : {}),
-      ranking: pending ? [] : ranking,
-      createdAt: now,
-      expiresAt:
-        now + (pending ? SEMANTIC_PENDING_TTL_MS : SEMANTIC_CACHE_TTL_MS),
-    };
-    const existing = await findEntry(ctx, userId, key);
-    if (existing) {
-      await ctx.db.replace("semanticSearchResults", existing._id, entry);
-    } else {
-      await ctx.db.insert("semanticSearchResults", entry);
-    }
+    await writeCachedResult(
+      ctx,
+      "semanticSearchResults",
+      await findEntry(ctx, userId, key),
+      {
+        userId,
+        key,
+        ...(pending ? { status: "pending" as const } : {}),
+        ranking: pending ? [] : ranking,
+        createdAt: now,
+        expiresAt:
+          now + (pending ? SEMANTIC_PENDING_TTL_MS : SEMANTIC_CACHE_TTL_MS),
+      }
+    );
     return ranking;
   },
 });
@@ -112,17 +109,5 @@ export const storeRanking = internalMutation({
 export const cleanupExpired = internalMutation({
   args: {},
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
-  handler: async (ctx) => {
-    const expired = await ctx.db
-      .query("semanticSearchResults")
-      .withIndex("by_expiresAt", (q) => q.lt("expiresAt", Date.now()))
-      .take(CLEANUP_BATCH);
-    for (const entry of expired) {
-      await ctx.db.delete("semanticSearchResults", entry._id);
-    }
-    return {
-      deleted: expired.length,
-      hasMore: expired.length === CLEANUP_BATCH,
-    };
-  },
+  handler: (ctx) => deleteExpiredResults(ctx, "semanticSearchResults"),
 });

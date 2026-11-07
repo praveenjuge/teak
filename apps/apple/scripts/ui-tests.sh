@@ -4,12 +4,9 @@
 #   apps/apple/scripts/ui-tests.sh ios|ipad|mac [extra xcodebuild args]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-state="../../.agents/.state/stack.json"
-if ! grep -q '"mode": "e2e"' "$state" 2>/dev/null || ! grep -q '"ready": true' "$state"; then
-  echo "Start the E2E stack first: bun run --cwd packages/tests e2e:stack" >&2
-  exit 1
-fi
-url() { python3 -c "import json,sys; print(json.load(open('$state'))['urls'][sys.argv[1]])" "$1"; }
+# Fails with "Start the E2E stack first" unless this checkout's E2E stack is ready.
+runner_env="$(bun --no-env-file run scripts/e2e-session.ts --runner-env)"
+eval "$runner_env"
 case "${1:-ios}" in
   ios) destination="platform=iOS Simulator,name=${TEAK_IPHONE:-iPhone 17 Pro}" ;;
   ipad) destination="platform=iOS Simulator,name=${TEAK_IPAD:-iPad Pro 13-inch (M5)}" ;;
@@ -17,8 +14,5 @@ case "${1:-ios}" in
   *) echo "Usage: $0 ios|ipad|mac" >&2; exit 2 ;;
 esac
 shift || true
-export TEST_RUNNER_TEAK_E2E_CONVEX_URL="$(url convexUrl)"
-export TEST_RUNNER_TEAK_E2E_EMULATOR_URL="$(url emulatorOrigin)"
-export TEST_RUNNER_TEAK_E2E_WEB_URL="$(url appOrigin)"
 exec xcodebuild test -project Teak.xcodeproj -scheme Teak -destination "$destination" \
   -derivedDataPath "${TEAK_DERIVED_DATA:-build/DerivedData}" -allowProvisioningUpdates "$@"

@@ -1,10 +1,11 @@
+import { AI_PIPELINE_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { components } from "./_generated/api";
 import { internalQuery, query } from "./_generated/server";
 import { DAY_MS, startOfUtcWeek, utcDay } from "./admin/stats";
 import { ensureAdmin, readUserFlags } from "./adminAccess";
 import { daysAgoDate } from "./adminUsage";
-import { readHasPremium } from "./auth";
+import { readHasPremium } from "./billing/polar";
 import { isOnboardingCard } from "./card/defaultCards";
 
 const CARD_SCAN_LIMIT = 2000;
@@ -14,7 +15,6 @@ const USAGE_DAYS_LIMIT = 400;
 const JOBS_LIMIT = 5;
 const AUDIT_LIMIT = 20;
 const ACTIVITY_WEEKS = 12;
-const STAGES = ["classify", "categorize", "metadata", "renderables"] as const;
 
 export const emailsFor = internalQuery({
   args: { teakUserIds: v.array(v.string()) },
@@ -97,7 +97,7 @@ export const getUserDetail = query({
       archived += card.isArchived ? 1 : 0;
       favorited += card.isFavorited ? 1 : 0;
       storageBytes += card.fileMetadata?.fileSize ?? 0;
-      const statuses = STAGES.map(
+      const statuses = AI_PIPELINE_STAGES.map(
         (stage) => card.processingStatus?.[stage]?.status
       );
       if (statuses.includes("failed")) {
@@ -201,7 +201,7 @@ export const getUserDetail = query({
           createdAt: card._creationTime,
           isDeleted: card.isDeleted === true,
           metadataStatus: card.metadataStatus ?? null,
-          failedStages: STAGES.filter(
+          failedStages: AI_PIPELINE_STAGES.filter(
             (stage) => card.processingStatus?.[stage]?.status === "failed"
           ),
           fileSize: card.fileMetadata?.fileSize ?? null,

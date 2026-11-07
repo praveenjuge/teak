@@ -1,10 +1,9 @@
 import polarTest from "@convex-dev/polar/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
-import schema from "../schema";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
+import { newBackend, workosIdentity } from "./helpers.testUtils";
 
 const polarSdk = vi.hoisted(() => {
   const undeliverable = /(^|\.)(example\.(com|net|org)|test)$/;
@@ -39,21 +38,13 @@ vi.mock("@polar-sh/sdk", () => ({
   },
 }));
 
-const modules = import.meta.glob("../**/*.ts");
 const OWNER = "teak_devowner";
 
 async function setup(email: string) {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
   const workosUserId = await seedWorkosOwner(t, OWNER);
-  const client = t.withIdentity({
-    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
-    subject: workosUserId,
-    sid: "session_checkout",
-    email,
-    email_verified: true,
-    external_id: OWNER,
-  });
+  const client = t.withIdentity(workosIdentity(workosUserId, OWNER, { email }));
   return { t, client };
 }
 
@@ -107,6 +98,8 @@ const syncSubscription = (
   });
 
 beforeEach(() => {
+  // A deployment that sells plans has a Polar token.
+  vi.stubEnv("POLAR_ACCESS_TOKEN", "polar_test_token");
   polarSdk.customersCreate.mockClear();
   polarSdk.customersDelete.mockClear();
   polarSdk.checkoutsCreate.mockClear();

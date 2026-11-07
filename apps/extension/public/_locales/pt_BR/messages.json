@@ -6,5 +6,9 @@
   "extDescription": {
     "message": "Seu centro de conhecimento pessoal. Salve, organize e redescubra conteúdo da web sem esforço.",
     "description": "The extension's description in the browser's extension list and store."
+  },
+  "saveCommand": {
+    "message": "Salvar esta página no Teak",
+    "description": "The keyboard shortcut's name in the browser's extension shortcuts settings."
   }
 }

@@ -3,8 +3,18 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
-import type { LibraryView } from "./libraryViews";
-import { isApplePlatform } from "./platform";
+import {
+  type AppActionId,
+  appActionKeys,
+  GO_TO,
+  GO_TO_TARGETS,
+  goToKeys,
+  keyName,
+} from "./appCommands";
+import { type CardActionId, cardActionKeyName } from "./cardActions";
+import { dialogKeyName, OPEN_CARD_LINK_KEYS } from "./cardDialogKeys";
+import type { GoToViewOptions, LibraryView } from "./libraryViews";
+import { isApplePlatform, isModKey } from "./platform";
 
 type ShortcutsTranslator = TeakTranslator<"shortcuts">;
 type ShortcutGroupId = keyof (typeof englishMessages)["shortcuts"]["groups"];
@@ -36,17 +46,18 @@ type ShortcutRowDefinition = Omit<ShortcutRow, "id" | "label"> & {
   id: ShortcutRowId;
 };
 
-export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
-  all: "e",
-  favorites: "f",
-  archive: "a",
-  trash: "t",
+export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
+export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
+
+/** Revisit's own keys, besides ← (archive), → (keep), Space and Escape. */
+export const REVISIT_KEYS = { archive: "a", keep: "k", undo: "z" } as const;
+
+const appKey = (id: AppActionId) => appActionKeys(id);
+
+const cardKey = (id: CardActionId) => {
+  const name = cardActionKeyName(id);
+  return name ? [name] : [];
 };
-
-export const GO_TO_SETTINGS_KEY = "s";
-
-/** `G T` is Trash, so Tags takes `G L`, as Gmail's go to label does. */
-export const GO_TO_TAGS_KEY = "l";
 
 // Keys and search syntax stay as typed; titles and labels are translated.
 const SHORTCUT_GROUPS: {
@@ -59,13 +70,13 @@ const SHORTCUT_GROUPS: {
       { id: "moveBetweenCards", keys: ["←", "↑", "→", "↓"] },
       { id: "nextOrPreviousCard", keys: ["J", "K"] },
       { id: "openCard", keys: ["Enter"] },
-      { id: "favorite", keys: ["F"] },
-      { id: "pin", keys: ["P"] },
+      { id: "favorite", keys: cardKey("favorite") },
+      { id: "pin", keys: cardKey("pin") },
       { id: "movePinned", keys: ["Alt ←", "Alt →"] },
-      { id: "addTags", keys: ["T"] },
-      { id: "archive", keys: ["E"] },
-      { id: "moveToTrash", keys: ["Delete"] },
-      { id: "select", keys: ["X"] },
+      { id: "addTags", keys: cardKey("addTags") },
+      { id: "archive", keys: cardKey("archive") },
+      { id: "moveToTrash", keys: cardKey("moveToTrash") },
+      { id: "select", keys: cardKey("select") },
       { id: "copy", keys: ["Mod", "C"], combo: true },
       { id: "clearSelection", keys: ["Esc"] },
     ],
@@ -74,31 +85,41 @@ const SHORTCUT_GROUPS: {
     id: "openCard",
     rows: [
       { id: "previousOrNextCard", keys: ["←", "→"] },
-      { id: "favorite", keys: ["F"] },
-      { id: "pin", keys: ["P"] },
-      { id: "addTag", keys: ["T"] },
-      { id: "writeNote", keys: ["N"] },
-      { id: "focusNote", keys: ["Mod", "E"], combo: true },
-      { id: "openOrDownload", keys: ["O"] },
-      { id: "openLink", keys: ["Mod", "Enter"], combo: true },
-      { id: "markLinkDone", keys: ["D"] },
-      { id: "copyLinkOrText", keys: ["C"] },
-      { id: "readOrPreview", keys: ["R"] },
-      { id: "highlightSelection", keys: ["H"] },
-      { id: "archive", keys: ["E"] },
-      { id: "moveToTrash", keys: ["Delete"] },
+      { id: "favorite", keys: cardKey("favorite") },
+      { id: "pin", keys: cardKey("pin") },
+      { id: "addTag", keys: cardKey("addTags") },
+      { id: "writeNote", keys: [dialogKeyName("focusNotes")] },
+      { id: "focusNote", keys: [...FOCUS_NOTE_KEYS], combo: true },
+      { id: "openOrDownload", keys: [dialogKeyName("open")] },
+      { id: "openLink", keys: [...OPEN_CARD_LINK_KEYS], combo: true },
+      { id: "markLinkDone", keys: cardKey("done") },
+      { id: "copy", keys: cardKey("copy") },
+      { id: "readOrPreview", keys: [dialogKeyName("toggleReader")] },
+      { id: "highlightSelection", keys: [dialogKeyName("highlight")] },
+      { id: "archive", keys: cardKey("archive") },
+      { id: "moveToTrash", keys: cardKey("moveToTrash") },
+    ],
+  },
+  {
+    id: "revisit",
+    rows: [
+      {
+        id: "revisitArchive",
+        keys: ["←", keyName(REVISIT_KEYS.archive)],
+      },
+      { id: "revisitKeep", keys: ["→", keyName(REVISIT_KEYS.keep)] },
+      { id: "revisitDetails", keys: ["Space"] },
+      { id: "revisitUndo", keys: [keyName(REVISIT_KEYS.undo)] },
+      { id: "revisitLeave", keys: ["Esc"] },
     ],
   },
   {
     id: "goTo",
-    rows: [
-      { id: "goToEverything", keys: ["G", "E"], sequence: true },
-      { id: "goToFavorites", keys: ["G", "F"], sequence: true },
-      { id: "goToArchive", keys: ["G", "A"], sequence: true },
-      { id: "goToTrash", keys: ["G", "T"], sequence: true },
-      { id: "goToTags", keys: ["G", "L"], sequence: true },
-      { id: "goToSettings", keys: ["G", "S"], sequence: true },
-    ],
+    rows: GO_TO_TARGETS.map((target) => ({
+      id: GO_TO[target].listRow,
+      keys: goToKeys(target),
+      sequence: true,
+    })),
   },
   {
     id: "search",
@@ -118,13 +139,14 @@ const SHORTCUT_GROUPS: {
   {
     id: "anywhere",
     rows: [
-      { id: "commandPalette", keys: ["Mod", "K"], combo: true },
-      { id: "search", keys: ["/"] },
-      { id: "newNote", keys: ["N"] },
-      { id: "uploadFiles", keys: ["U"] },
-      { id: "recordAudio", keys: ["R"] },
+      { id: "commandPalette", keys: appKey("commandPalette"), combo: true },
+      { id: "search", keys: appKey("search") },
+      { id: "newNote", keys: appKey("newNote") },
+      { id: "uploadFiles", keys: appKey("uploadFiles") },
+      { id: "recordAudio", keys: appKey("recordAudio") },
+      // Sonner's own key for its notifications.
       { id: "notifications", keys: ["Alt", "T"], combo: true },
-      { id: "keyboardShortcuts", keys: ["?"] },
+      { id: "keyboardShortcuts", keys: appKey("keyboardShortcuts") },
     ],
   },
 ];
@@ -180,9 +202,6 @@ export function ariaKeyShortcut(
     .join("+");
 }
 
-export const SAVE_NOTE_KEYS = ["Mod", "Enter"] as const;
-export const FOCUS_NOTE_KEYS = ["Mod", "E"] as const;
-
 export function isFocusNoteKey(
   event: Pick<
     KeyboardEvent,
@@ -193,74 +212,50 @@ export function isFocusNoteKey(
   if (event.key.toLowerCase() !== "e" || event.altKey || event.shiftKey) {
     return false;
   }
-  return apple
-    ? event.metaKey && !event.ctrlKey
-    : event.ctrlKey && !event.metaKey;
+  return isModKey(event, apple);
 }
 
-export interface MenuShortcut {
-  keys: string;
-  label: string;
-}
+export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
 
-/** The browser calls the Mac's Delete key (⌫) Backspace. */
-export function cardMenuShortcuts(apple = isApplePlatform()) {
-  const letter = (key: string): MenuShortcut => ({ keys: key, label: key });
-  return {
-    addTags: letter("T"),
-    archive: letter("E"),
-    copy: apple
-      ? { keys: "Meta+C", label: "⌘C" }
-      : { keys: "Control+C", label: "Ctrl+C" },
-    delete: apple
-      ? { keys: "Backspace", label: "⌫" }
-      : { keys: "Delete", label: "Del" },
-    favorite: letter("F"),
-    pin: letter("P"),
-    select: letter("X"),
-  } satisfies Record<string, MenuShortcut>;
-}
+export const CARD_DIALOG_ATTRIBUTE = "data-card-dialog";
 
-/**
- * What a focused card in the grid answers, for its `aria-keyshortcuts`: the
- * card's menu items are hidden until hover, so this is how a screen reader
- * learns them, copy included when the card can be copied. A card in Trash
- * only selects and deletes forever.
- */
-export function cardAriaKeyShortcuts(
-  inTrash: boolean,
-  apple = isApplePlatform(),
-  canCopy = false,
-  selecting = false
-): string {
-  const {
-    addTags,
-    archive,
-    copy,
-    delete: remove,
-    favorite,
-    select,
-  } = cardMenuShortcuts(apple);
-  // While cards are selected, F, T, E and Delete act on the selection (the
-  // bar's buttons), so the focused card only toggles itself.
-  if (selecting) {
-    return ["Enter", select.keys].join(" ");
+const TYPING_ROLES = new Set([
+  "combobox",
+  "searchbox",
+  "spinbutton",
+  "textbox",
+]);
+
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
   }
-  const keys = inTrash
-    ? ["Enter", select.keys, remove.keys]
-    : [
-        "Enter",
-        favorite.keys,
-        addTags.keys,
-        archive.keys,
-        select.keys,
-        remove.keys,
-      ];
-  // Text, links and images copy with ⌘C (Ctrl+C), as their menu shows.
-  if (canCopy && !inTrash) {
-    keys.push(copy.keys);
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    return true;
   }
-  return keys.join(" ");
+  if (target.closest("[contenteditable]:not([contenteditable='false'])")) {
+    return true;
+  }
+  const role = target.getAttribute("role");
+  return role !== null && TYPING_ROLES.has(role);
+}
+
+/** Anything open over the page that takes keys: a dialog, a menu, a list. */
+export const OPEN_OVERLAYS = [
+  "[role='dialog'][data-state='open']",
+  "[role='alertdialog'][data-state='open']",
+  "[role='menu'][data-state='open']",
+  "[role='listbox'][data-state='open']",
+] as const;
+
+/** An open overlay, the shortcuts list aside: shortcuts work over that. */
+export const OVERLAY_SELECTOR = OPEN_OVERLAYS.map(
+  (selector) => `${selector}:not([${SHORTCUTS_DIALOG_ATTRIBUTE}])`
+).join(", ");
+
+export function isOverlayOpen(root: ParentNode = document): boolean {
+  return root.querySelector(OVERLAY_SELECTOR) !== null;
 }
 
 export const LIBRARY_SEARCH_ATTRIBUTE = "data-library-search";
@@ -294,55 +289,16 @@ export function focusNewNoteComposer(): boolean {
   return true;
 }
 
-const uploadFilesHandlers: Array<() => boolean> = [];
-
-export function registerUploadFiles(handler: () => boolean): () => void {
-  uploadFilesHandlers.push(handler);
-  return () => {
-    const index = uploadFilesHandlers.lastIndexOf(handler);
-    if (index >= 0) {
-      uploadFilesHandlers.splice(index, 1);
-    }
-  };
-}
-
-export function pressUploadFiles(): boolean {
-  return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
-}
-
-const recordAudioHandlers: Array<() => boolean> = [];
-
-export function registerRecordAudio(handler: () => boolean): () => void {
-  recordAudioHandlers.push(handler);
-  return () => {
-    const index = recordAudioHandlers.lastIndexOf(handler);
-    if (index >= 0) {
-      recordAudioHandlers.splice(index, 1);
-    }
-  };
-}
-
-export function pressRecordAudio(): boolean {
-  return recordAudioHandlers[recordAudioHandlers.length - 1]?.() ?? false;
-}
-
-let shortcutsOpener: (() => void) | null = null;
-
-export function registerShortcutsOpener(open: () => void): () => void {
-  shortcutsOpener = open;
-  return () => {
-    if (shortcutsOpener === open) {
-      shortcutsOpener = null;
-    }
-  };
-}
-
-export function openKeyboardShortcuts(): boolean {
-  if (!shortcutsOpener) {
-    return false;
+/**
+ * New note, from N, the palette or the New menu: the composer on screen,
+ * or Everything's, which takes focus once it shows.
+ */
+export function startNewNote(
+  goToView: (view: LibraryView, options?: GoToViewOptions) => void
+) {
+  if (!focusNewNoteComposer()) {
+    goToView("all", { focusComposer: true });
   }
-  shortcutsOpener();
-  return true;
 }
 
 /**

@@ -2,23 +2,23 @@ import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { useTranslations } from "@teak/i18n/react";
 import { CircleCheck } from "vadivam-react";
-import { linkNoteText } from "../../lib/markdownToPlainText";
+import { getDisplayHostname } from "@/lib/displayHost";
 import { cn } from "../../lib/utils";
-import { CARD_SURFACE, getDisplayHostname } from "./cardDisplay";
-import { type LinkCardImage, successfulLinkPreview } from "./linkCardImage";
+import { CARD_BADGE, CARD_TILE } from "./cardDisplay";
+import type { LinkCardImage } from "./linkCardImage";
 import { ResilientMediaImage } from "./previews/ResilientMediaImage";
 import { SiteFavicon } from "./SiteFavicon";
 import type { CardWithUrls } from "./types";
 
 const URL_SCHEME_REGEX = /^https?:\/\/(www\.)?/;
 
-const tileAspectRatio = ({
-  width,
-  height,
-}: {
-  height: number;
-  width: number;
-}) => Math.min(Math.max(width / height, 0.5), 3);
+/**
+ * A page screenshot or banner much wider than the tile keeps its top left,
+ * where a page's name and heading start, instead of losing both edges.
+ */
+const WIDE_IMAGE = 1.4;
+const isWide = ({ size }: LinkCardImage) =>
+  Boolean(size && size.height > 0 && size.width / size.height > WIDE_IMAGE);
 
 export function LinkCardBody({
   card,
@@ -41,15 +41,8 @@ export function LinkCardBody({
   const priceLabel = isLinkPrice(storedPrice)
     ? formatLinkPrice(storedPrice)
     : undefined;
-  const favicon = hostname && (
-    <SiteFavicon className="size-4" hostname={hostname} />
-  );
-  const note = linkNoteText(card.content, { title });
-  const noteText = note ? (
-    <p className="line-clamp-3 break-words text-sm leading-relaxed" dir="auto">
-      {note}
-    </p>
-  ) : null;
+  const titleIsUrl = title === card.url;
+  const displayTitle = titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title;
   const doneMark = card.completedAt !== undefined && (
     <CircleCheck
       aria-label={t("markedAs", {
@@ -60,24 +53,17 @@ export function LinkCardBody({
     />
   );
 
-  if (image) {
-    return (
-      <div className={cn(CARD_SURFACE, "overflow-hidden")}>
-        <div
-          className={cn(
-            "relative w-full overflow-hidden border-b bg-muted",
-            !image.size && "h-32 min-h-32"
-          )}
-          style={
-            image.size
-              ? { aspectRatio: tileAspectRatio(image.size) }
-              : undefined
-          }
-        >
+  return (
+    <div>
+      {image ? (
+        <div className={CARD_TILE}>
           <ResilientMediaImage
             alt={title}
             cardId={card._id}
-            className="h-full w-full object-cover object-top"
+            className={cn(
+              "h-full w-full object-cover",
+              isWide(image) ? "object-left-top" : "object-top"
+            )}
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
             loading={isPriority ? "eager" : "lazy"}
@@ -85,55 +71,57 @@ export function LinkCardBody({
             src={image.src}
             storageKey={image.storageKey}
           />
-          {priceLabel ? (
-            <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/75 px-2 py-0.5 font-medium text-foreground text-xs tabular-nums shadow-sm ring-1 ring-foreground/10 backdrop-blur-md">
-              {priceLabel}
-            </span>
+          {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            CARD_TILE,
+            "flex flex-col p-4",
+            priceLabel && "pb-11",
+            textInsets
+          )}
+        >
+          {hostname ? (
+            <SiteFavicon
+              className="size-[22px] rounded-md"
+              hostname={hostname}
+            />
           ) : null}
-        </div>
-        <div className="space-y-1.5 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            {favicon}
-            <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
-              {title}
+          <div className="mt-auto min-w-0">
+            <p
+              className={cn(
+                "text-balance break-words font-serif text-[21px] leading-[1.12] tracking-[-0.015em]",
+                priceLabel ? "line-clamp-2" : "line-clamp-3"
+              )}
+              dir="auto"
+            >
+              {displayTitle}
             </p>
-            {doneMark}
+            {hostname ? (
+              <p
+                className="mt-2 truncate text-muted-foreground text-xs"
+                dir="ltr"
+              >
+                {hostname}
+              </p>
+            ) : null}
           </div>
-          {noteText}
+          {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
         </div>
-      </div>
-    );
-  }
-
-  const titleIsUrl = title === card.url;
-  const displayTitle = titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title;
-  const description =
-    successfulLinkPreview(card)?.description ||
-    card.metadataDescription ||
-    card.aiSummary;
-  return (
-    <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
-      <div className="flex min-w-0 items-center gap-2">
-        {favicon}
-        <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
+      )}
+      <div className="mt-2.5 flex min-w-0 items-center gap-2 px-0.5">
+        {hostname ? (
+          <SiteFavicon className="size-4 rounded" hostname={hostname} />
+        ) : null}
+        <p
+          className="min-w-0 flex-1 truncate font-medium text-[13px] leading-snug"
+          dir="auto"
+        >
           {displayTitle}
         </p>
         {doneMark}
-        {priceLabel ? (
-          <span className="ml-auto max-w-[45%] shrink-0 truncate text-muted-foreground text-sm tabular-nums">
-            {priceLabel}
-          </span>
-        ) : null}
       </div>
-      {noteText}
-      {description && !titleIsUrl && (
-        <p
-          className="line-clamp-2 break-words text-muted-foreground text-sm leading-relaxed"
-          dir="auto"
-        >
-          {description}
-        </p>
-      )}
     </div>
   );
 }

@@ -3,15 +3,7 @@ import {
   MAX_SOURCE_URL_LENGTH,
 } from "../../shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "../../shared/cardTitle";
-import {
-  FOLDER_COLORS,
-  MAX_FOLDER_AUTO_TAGS,
-  MAX_FOLDER_CARD_IDS,
-  MAX_FOLDER_NAME_LENGTH,
-  MAX_FOLDER_RULES,
-  MAX_FOLDERS_PER_CARD,
-  MAX_SMART_FOLDER_QUERY_LENGTH,
-} from "../../shared/folders";
+import { FOLDER_COLORS, MAX_FOLDERS_PER_CARD } from "../../shared/folders";
 import {
   HIGHLIGHT_SOURCES,
   MAX_HIGHLIGHT_NOTE_CHARS,
@@ -19,23 +11,16 @@ import {
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../../shared/highlights/constants";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
+import { THUMBNAIL_TYPES_DESCRIPTION } from "../../shared/publicApiBodies";
+import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
-import { TAG_OPERATION_COUNT_LIMIT } from "../../shared/tags";
+import {
+  MAX_TAG_NAME_LENGTH,
+  TAG_OPERATION_COUNT_LIMIT,
+} from "../../shared/tags";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
-import { MAX_TAG_LENGTH } from "../http/shared";
-
-export const CARD_TYPES = [
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-] as const;
-export const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;
+import { requestBodySchema } from "./requestBodies";
 export const apiKeySecurity = [{ bearerAuth: [] }];
 export const folderIdParameters = [
   {
@@ -51,8 +36,6 @@ export const cardIdParameter = {
   required: true,
   schema: { type: "string" },
 } as const;
-export const THUMBNAIL_TYPES_DESCRIPTION =
-  "JPEG, PNG, WebP, GIF (its first frame) or AVIF. SVG and HEIC are refused.";
 export const apiErrorContent = {
   "application/json": { schema: { $ref: "#/components/schemas/ApiError" } },
 } as const;
@@ -86,7 +69,7 @@ export const thumbnailErrorResponses = {
   },
 } as const;
 const tagListSchema = {
-  items: { maxLength: MAX_TAG_LENGTH, type: "string" },
+  items: { maxLength: MAX_TAG_NAME_LENGTH, type: "string" },
   type: "array",
 } as const;
 
@@ -475,7 +458,7 @@ export const components = {
         cardType: {
           description:
             "Optional explicit card type. Text content is stored as raw Markdown without normalization. When omitted, Teak keeps automatic URL, quote, and palette classification. Uploaded file types are inferred from fileName and mimeType. image, video, audio, and document need an uploaded file (fileKey); palette needs at least one readable color in content, notes, or tags.",
-          enum: CARD_TYPES,
+          enum: PUBLIC_API_CARD_TYPES,
           type: "string",
         },
         content: {
@@ -545,27 +528,10 @@ export const components = {
       required: ["appUrl", "cardId", "status"],
       type: "object",
     },
-    CreateUploadRequest: {
-      properties: {
-        fileName: { type: "string" },
-        fileSize: { type: "number" },
-        mimeType: { type: "string" },
-      },
-      required: ["fileName", "fileSize", "mimeType"],
-      type: "object",
-    },
-    CreatePageSnapshotUploadRequest: {
-      additionalProperties: false,
-      properties: {
-        bytes: {
-          description:
-            "The gzipped page's exact size in bytes; at most 20971520 (20 MiB).",
-          type: "integer",
-        },
-      },
-      required: ["bytes"],
-      type: "object",
-    },
+    CreateUploadRequest: requestBodySchema("createUpload"),
+    CreatePageSnapshotUploadRequest: requestBodySchema(
+      "createPageSnapshotUpload"
+    ),
     CreateUploadResponse: {
       properties: {
         expiresIn: { type: "number" },
@@ -582,7 +548,7 @@ export const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
-          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, pageSnapshotKey, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
+          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, pageSnapshotKey, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_NAME_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
           maxItems: PUBLIC_API_MAX_BULK_ITEMS,
           type: "array",
@@ -926,90 +892,9 @@ export const components = {
       ],
       type: "object",
     },
-    FolderCreateRequest: {
-      properties: {
-        name: {
-          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case.`,
-          type: "string",
-        },
-        color: {
-          description: "A palette color.",
-          enum: [...FOLDER_COLORS],
-          type: "string",
-        },
-        kind: {
-          description:
-            "`smart` saves a search as a folder and needs `query`. Defaults to `manual`.",
-          enum: ["manual", "smart"],
-          type: "string",
-        },
-        query: {
-          description: `A smart folder's search, with the qualifiers \`q\` accepts; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters. A \`folder:\` must name one of your manual folders.`,
-          type: "string",
-        },
-        autoTags: {
-          description: `Tags every card that joins this manual folder gets, at most ${MAX_FOLDER_AUTO_TAGS}. An empty array clears them. Up to ${MAX_FOLDER_RULES} folders per account can have rules.`,
-          items: { type: "string" },
-          maxItems: MAX_FOLDER_AUTO_TAGS,
-          type: "array",
-        },
-        autoFileQuery: {
-          description: `A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters, or null to clear it.`,
-          type: ["string", "null"],
-        },
-        autoFileEnabled: {
-          description: "False pauses the auto-file search without clearing it.",
-          type: "boolean",
-        },
-      },
-      required: ["name"],
-      type: "object",
-    },
-    FolderUpdateRequest: {
-      minProperties: 1,
-      properties: {
-        name: {
-          description: `1 to ${MAX_FOLDER_NAME_LENGTH} characters, unique per account ignoring case.`,
-          type: "string",
-        },
-        color: {
-          description: "A palette color, or null to clear it.",
-          enum: [...FOLDER_COLORS, null],
-          type: ["string", "null"],
-        },
-        query: {
-          description: `A smart folder's new search (at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters). Manual folders have none.`,
-          type: "string",
-        },
-        autoTags: {
-          description: `Tags every card that joins this manual folder gets, at most ${MAX_FOLDER_AUTO_TAGS}. An empty array clears them. Up to ${MAX_FOLDER_RULES} folders per account can have rules.`,
-          items: { type: "string" },
-          maxItems: MAX_FOLDER_AUTO_TAGS,
-          type: "array",
-        },
-        autoFileQuery: {
-          description: `A search, with the qualifiers \`q\` accepts except \`like:\` and \`mood:\`, that files matching cards into this manual folder; at most ${MAX_SMART_FOLDER_QUERY_LENGTH} characters, or null to clear it.`,
-          type: ["string", "null"],
-        },
-        autoFileEnabled: {
-          description: "False pauses the auto-file search without clearing it.",
-          type: "boolean",
-        },
-      },
-      type: "object",
-    },
-    FolderCardsRequest: {
-      properties: {
-        cardIds: {
-          items: { type: "string" },
-          maxItems: MAX_FOLDER_CARD_IDS,
-          minItems: 1,
-          type: "array",
-        },
-      },
-      required: ["cardIds"],
-      type: "object",
-    },
+    FolderCreateRequest: requestBodySchema("createFolder"),
+    FolderUpdateRequest: requestBodySchema("updateFolder"),
+    FolderCardsRequest: requestBodySchema("addCardsToFolder"),
     FolderCardsResult: {
       properties: {
         updatedIds: { items: { type: "string" }, type: "array" },
@@ -1118,25 +1003,8 @@ export const components = {
       required: ["id", "status", "createdAt", "updatedAt", "downloadUrl"],
       type: "object",
     },
-    PinRequest: {
-      properties: {
-        isPinned: { type: "boolean" },
-      },
-      required: ["isPinned"],
-      type: "object",
-    },
-    PinOrderRequest: {
-      properties: {
-        cardIds: {
-          description: `Every pinned card's id exactly once, first to last. At most ${MAX_PINNED_CARDS}.`,
-          items: { type: "string" },
-          maxItems: MAX_PINNED_CARDS,
-          type: "array",
-        },
-      },
-      required: ["cardIds"],
-      type: "object",
-    },
+    PinRequest: requestBodySchema("setCardPinned"),
+    PinOrderRequest: requestBodySchema("reorderPinnedCards"),
     PinnedCardsResponse: {
       properties: {
         items: {
@@ -1147,13 +1015,7 @@ export const components = {
       required: ["items"],
       type: "object",
     },
-    FavoriteRequest: {
-      properties: {
-        isFavorited: { type: "boolean" },
-      },
-      required: ["isFavorited"],
-      type: "object",
-    },
+    FavoriteRequest: requestBodySchema("setCardFavorite"),
     SavedPdf: {
       properties: {
         cardId: {

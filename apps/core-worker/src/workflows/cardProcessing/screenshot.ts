@@ -8,6 +8,7 @@ import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import type {
   FilesCaptureScreenshotParams,
   FilesCaptureScreenshotResult,
+  FilesOpOutcome,
 } from "@teak/files-protocol";
 import type { StepConfig } from "../runtime";
 import {
@@ -91,11 +92,9 @@ const recordStage = (job: CardJob, screenshot: ProcessingStageStatus) =>
 const render = async (
   job: CardJob,
   params: FilesCaptureScreenshotParams
-): Promise<
-  Awaited<ReturnType<typeof job.deps.filesOp<FilesCaptureScreenshotResult>>>
-> => {
+): Promise<FilesOpOutcome<FilesCaptureScreenshotResult>> => {
   try {
-    return await job.deps.filesOp<FilesCaptureScreenshotResult>({
+    return await job.deps.filesOp({
       op: "capture-screenshot",
       params,
     });
@@ -233,7 +232,7 @@ const capture = async (
     destinationKey: screenshotKey,
     htmlGzipBase64: page.data.htmlGzipBase64,
   });
-  if (outcome.kind === "fallback") {
+  if (outcome.kind === "declined") {
     return {
       reason: `declined:${outcome.code.toLowerCase()}:${outcome.message}`.slice(
         0,

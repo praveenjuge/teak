@@ -93,6 +93,15 @@ jobs:
             echo "tag_commit=$GITHUB_SHA"
           } >> "$GITHUB_OUTPUT"
 
+      # The one place a version's GitHub Release is created; the release
+      # workflows only upload their assets to it.
+      - name: Create GitHub Release
+        if: steps.tag.outputs.release_ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+        run: node scripts/release/github-release.ts create "$GITHUB_REPOSITORY" "$TAG_NAME"
+
   release:
     name: Release / ${{ matrix.name }}
     needs: tag-version

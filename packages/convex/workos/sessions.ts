@@ -1,6 +1,6 @@
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
-import { workosRequest, workosUserPath } from "../shared/workosClient";
 import { WORKOS_SESSION_CURSOR, WORKOS_SESSION_ID } from "../shared/workosIds";
+import { workosRequest, workosUserPath } from "./client";
 
 export interface WorkosSession {
   createdAt: number;
@@ -63,12 +63,10 @@ const parseSession = (value: unknown, workosUserId: string): WorkosSession => {
 
 export async function listWorkosSessions(
   workosUserId: string,
-  apiKey: string,
   options: { after?: string; limit: number }
 ): Promise<{ after: string | null; sessions: WorkosSession[] }> {
   const response = await workosRequest(
     workosUserPath(workosUserId, "/sessions"),
-    apiKey,
     {
       query: {
         limit: String(options.limit),
@@ -109,15 +107,11 @@ export async function listWorkosSessions(
   };
 }
 
-export async function revokeWorkosSession(sessionId: string, apiKey: string) {
-  const response = await workosRequest(
-    "/user_management/sessions/revoke",
-    apiKey,
-    {
-      method: "POST",
-      body: { session_id: sessionId },
-    }
-  );
+export async function revokeWorkosSession(sessionId: string) {
+  const response = await workosRequest("/user_management/sessions/revoke", {
+    method: "POST",
+    body: { session_id: sessionId },
+  });
   if (!response.ok && response.status !== 404) {
     throw new Error(`workos_session_revoke_${response.status}`);
   }

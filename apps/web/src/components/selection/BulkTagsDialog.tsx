@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { MAX_BULK_TAGS, MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
-const MAX_TAGS = 20;
-
-export const parseTagInput = (value: string): string[] => {
-  const seen = new Set<string>();
-  const tags: string[] = [];
-  for (const raw of value.split(",")) {
-    const tag = raw.trim();
-    if (tag && !seen.has(tag.toLowerCase())) {
-      seen.add(tag.toLowerCase());
-      tags.push(tag);
-    }
-  }
-  return tags;
-};
+import { explainInvalidTagEdit, parseTagList } from "@/lib/cardTags";
 
 interface BulkTagsDialogProps {
   mode: "add" | "remove";
@@ -57,13 +43,13 @@ export function BulkTagsDialog({
     }
   }, [open]);
 
-  const tags = parseTagInput([...picked, input].join(","));
-  const tooLong = tags.find((tag) => tag.length > MAX_TAG_NAME_LENGTH);
+  const tags = parseTagList([...picked, input].join(","));
+  const invalid = explainInvalidTagEdit(tags, mode);
   let problem: string | null = null;
-  if (tooLong) {
+  if (invalid?.kind === "tooLong") {
     problem = t("tagTooLong", { max: MAX_TAG_NAME_LENGTH });
-  } else if (tags.length > MAX_TAGS) {
-    problem = t("tooManyTags", { max: MAX_TAGS });
+  } else if (invalid?.kind === "tooMany") {
+    problem = t("tooManyTags", { max: MAX_BULK_TAGS });
   }
   const canSubmit = tags.length > 0 && !problem;
 

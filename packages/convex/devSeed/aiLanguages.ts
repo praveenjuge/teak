@@ -1,9 +1,9 @@
 import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 import type { DevScenarioCardDef } from "../card/defaultCards";
-import { normalizeCardSearchTag } from "../card/searchSync";
-import { readIsDevDeployment } from "../env";
-import { isWorkosProductionApi, workosApiBase } from "../shared/workosApi";
+import { readIsDevDeployment, readWorkosApiBase } from "../env";
+import { tagKey } from "../shared/tags";
+import { isWorkosProductionApi } from "../shared/workosApi";
 import { link, SCENARIO_MARKER } from "./helpers";
 
 export const AI_LANGUAGES_SCENARIO = "ai-languages";
@@ -166,7 +166,7 @@ export const report = internalQuery({
     })
   ),
   handler: async (ctx, { workosUserId }) => {
-    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
+    if (!readIsDevDeployment() && isWorkosProductionApi(readWorkosApiBase())) {
       throw new Error(
         "The AI language report runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );
@@ -183,7 +183,7 @@ export const report = internalQuery({
       .withIndex("by_user_tag_deleted_saved", (q) =>
         q
           .eq("userId", owner.teakUserId)
-          .eq("tag", normalizeCardSearchTag(AI_LANGUAGES_TAG))
+          .eq("tag", tagKey(AI_LANGUAGES_TAG))
           .eq("isDeleted", undefined)
       )
       .take(MAX_REPORT_CARDS);

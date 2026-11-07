@@ -12,6 +12,7 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
+import { opError } from "../../test/opsHarness";
 import { extractPaletteFromImage, generateRenderables } from "./renderables";
 
 const BUSY = new Error("files_worker_error:RENDERER_UNAVAILABLE:503:r");
@@ -123,7 +124,7 @@ describe("renderables", () => {
     test("fails the stage when the image cannot be analyzed", async () => {
       const { card, run } = setup(
         { fileKey: "users/x/cards/c/file/a.png", type: "image" },
-        { "analyze-image": { fallback: "UNSUPPORTED" } }
+        { "analyze-image": { declined: "UNSUPPORTED" } }
       );
       expect((await run("image")).success).toBe(false);
       expect(card?.processingStatus?.renderables).toMatchObject({
@@ -133,10 +134,7 @@ describe("renderables", () => {
     });
 
     test("an R2 hiccup reading the image retries the step instead of failing the stage", async () => {
-      const hiccup = Object.assign(
-        new Error("files_worker_error:INTERNAL:500:r"),
-        { retryable: true }
-      );
+      const hiccup = opError("INTERNAL", { retryable: true });
       const { card, run } = setup(
         { fileKey: "users/x/cards/c/file/a.png", type: "image" },
         { "analyze-image": { throws: hiccup } }
@@ -249,8 +247,8 @@ describe("renderables", () => {
 
     test("fails without a retry when the renderer cannot decode the video", async () => {
       const { card, fakes, run } = setup(video, {
-        "extract-video-frame": { fallback: "UNSUPPORTED", message: "codec" },
-        "probe-media": { fallback: "UNSUPPORTED" },
+        "extract-video-frame": { declined: "UNSUPPORTED", message: "codec" },
+        "probe-media": { declined: "UNSUPPORTED" },
       });
       expect((await run("video")).success).toBe(false);
       expect(card?.processingStatus?.renderables).toMatchObject({
@@ -312,7 +310,7 @@ describe("renderables", () => {
     test("a GIF the renderer declines succeeds without colors", async () => {
       const { colors, run } = setup(
         { ...video, fileMetadata: { fileName: "a.gif" } },
-        { "extract-animation-palette": { fallback: "UNSUPPORTED" } }
+        { "extract-animation-palette": { declined: "UNSUPPORTED" } }
       );
       expect((await run("video")).success).toBe(true);
       expect(colors()).toEqual([]);
@@ -354,7 +352,7 @@ describe("renderables", () => {
     test("fails without a retry for an encrypted or corrupt PDF", async () => {
       const { card, run } = setup(pdf, {
         "render-pdf-thumbnail": {
-          fallback: "UNSUPPORTED",
+          declined: "UNSUPPORTED",
           message: "encrypted",
         },
       });
@@ -423,7 +421,7 @@ describe("renderables", () => {
     test("a card deleted before the save reports no failure", async () => {
       const { run } = setup(
         { fileKey: "users/x/cards/c/file/a.png", type: "image" },
-        { "analyze-image": { fallback: "UNSUPPORTED" } },
+        { "analyze-image": { declined: "UNSUPPORTED" } },
         { "ai/mutations:updateCardProcessing": () => false }
       );
       expect(await run("image")).toEqual({

@@ -13,18 +13,16 @@ import {
   r2KeyValidator,
 } from "./schema/validators/cards";
 import {
+  workflowDispatchKindValidator,
+  workflowDispatchParamsValidator,
+} from "./schema/validators/dispatch";
+import {
   exportJobItemValidator,
   exportJobValidator,
   fileUploadSessionValidator,
   importJobItemValidator,
   importJobValidator,
 } from "./schema/validators/jobs";
-
-export * from "./schema/validators/admin";
-export * from "./schema/validators/apiIdempotency";
-export * from "./schema/validators/cards";
-export * from "./schema/validators/jobs";
-export type { CardType } from "./shared/constants";
 
 export default defineSchema({
   users: defineTable({
@@ -163,18 +161,10 @@ export default defineSchema({
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
     .index("by_user_urlkey_deleted", ["userId", "urlKey", "isDeleted"]),
   workflowDispatches: defineTable({
-    kind: v.union(
-      v.literal("cardProcessing"),
-      v.literal("export"),
-      v.literal("import"),
-      v.literal("accountDeletion"),
-      v.literal("maintenance"),
-      v.literal("deleteObjects"),
-      v.literal("analyticsEvent")
-    ),
+    kind: workflowDispatchKindValidator,
     key: v.string(),
     instanceId: v.optional(v.string()),
-    params: v.optional(v.any()),
+    params: v.optional(workflowDispatchParamsValidator),
     keys: v.optional(v.array(v.string())),
     state: v.union(
       v.literal("pending"),

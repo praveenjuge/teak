@@ -68,7 +68,9 @@ test("public docs describe expanded file support and optional card types", async
   await expect(body).toContainText(/cardType.*optional/i);
 
   await app.open("/docs/cli/");
-  await expect(body).toContainText(/same formats and limits/i);
+  await expect(body).toContainText(
+    /Structured Markdown always stays a text card/i
+  );
 
   await app.open("/docs/mcp/");
   await expect(body).toContainText(

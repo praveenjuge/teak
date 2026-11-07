@@ -8,17 +8,18 @@
 
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import {
-  type MutationCtx,
-  mutation,
-  type QueryCtx,
-  query,
-} from "../_generated/server";
-import { assertAccountNotDeleting } from "../accountDeletion";
+import { type MutationCtx, type QueryCtx, query } from "../_generated/server";
+import { assertAccountNotDeleting } from "../accountDeletion/gate";
+import { patchCard } from "../card/cardWrites";
 import { isCardRunInFlight } from "../card/processingRuns";
-import { patchCardWithSearchSync } from "../card/searchSync";
-import { highlightValidator } from "../schema";
-import { getSessionUser, requireSessionUserId } from "../securitySessions";
+import {
+  type OwnerSurface,
+  ownerMutation,
+  sessionMutation,
+} from "../ownerOperation";
+import { rateLimiter } from "../rateLimiter";
+import { highlightValidator } from "../schema/validators/cards";
+import { getSessionUser } from "../securitySessions";
 import {
   type HighlightSpan,
   spansOverlap,
@@ -33,8 +34,8 @@ import {
   MAX_HIGHLIGHT_QUOTE_CHARS,
   MAX_HIGHLIGHTS_PER_CARD,
 } from "../shared/highlights/constants";
-import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { queueObjectDeletion } from "../storage/r2";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
+import { queueObjectDeletion } from "../storage/objectDeletion";
 import { queueBackendEvent } from "../telemetry/schedule";
 
 /** The server's messages; the web app shows its own words for each code. */
@@ -138,7 +139,7 @@ const recordCount = async (
   if (dropSnapshot) {
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
   }
-  await patchCardWithSearchSync(ctx, card._id, {
+  await patchCard(ctx, card._id, {
     hasHighlights: count > 0 ? true : undefined,
     highlightCount: count > 0 ? count : undefined,
     ...(dropSnapshot
@@ -363,7 +364,7 @@ export const createHighlightForUser = async (
     }
     const now = Date.now();
     await ctx.db.patch("highlights", same._id, { note, updatedAt: now });
-    await patchCardWithSearchSync(ctx, card._id, { updatedAt: now });
+    await patchCard(ctx, card._id, { updatedAt: now });
     await queueBackendEvent(ctx, "highlight_note_saved", userId, {
       cleared: false,
       source,
@@ -438,7 +439,7 @@ export const updateHighlightNoteForUser = async (
   await ctx.db.patch("highlights", row._id, { note, updatedAt: now });
   const card = await ctx.db.get("cards", row.cardId);
   if (card) {
-    await patchCardWithSearchSync(ctx, card._id, { updatedAt: now });
+    await patchCard(ctx, card._id, { updatedAt: now });
   }
   await queueBackendEvent(ctx, "highlight_note_saved", userId, {
     cleared: note === undefined,
@@ -615,57 +616,75 @@ export const listForCard = query({
   },
 });
 
-const createResultValidator = v.object({
+export const createResultValidator = v.object({
   created: v.boolean(),
   highlight: highlightReturnValidator,
   merged: v.boolean(),
 });
 
-export const create = mutation({
-  args: {
-    cardId: v.id("cards"),
-    articleKey: v.string(),
-    quote: v.string(),
-    prefix: v.optional(v.string()),
-    suffix: v.optional(v.string()),
-    start: v.number(),
-    end: v.number(),
-    note: v.optional(v.string()),
-  },
-  returns: createResultValidator,
-  handler: async (ctx, args) =>
-    createHighlightForUser(
-      ctx,
-      await requireSessionUserId(ctx),
-      args,
-      "reader"
-    ),
-});
+const highlightIdOf = (
+  ctx: Pick<QueryCtx, "db">,
+  id: string
+): Id<"highlights"> => {
+  const highlightId = ctx.db.normalizeId("highlights", id);
+  if (!highlightId) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: HIGHLIGHT_ERROR_MESSAGES.NOT_FOUND,
+    });
+  }
+  return highlightId;
+};
 
-export const updateNote = mutation({
-  args: {
-    highlightId: v.id("highlights"),
-    note: v.union(v.string(), v.null()),
-  },
-  returns: highlightReturnValidator,
-  handler: async (ctx, { highlightId, note }) =>
-    updateHighlightNoteForUser(
-      ctx,
-      await requireSessionUserId(ctx),
-      highlightId,
-      note,
-      "reader"
-    ),
-});
+// The reader in the apps, or the public API and MCP.
+const sourceOf = (surface: OwnerSurface) =>
+  surface === "api" ? ("api" as const) : ("reader" as const);
 
-export const remove = mutation({
-  args: { highlightId: v.id("highlights") },
-  returns: highlightReturnValidator,
-  handler: async (ctx, { highlightId }) =>
-    removeHighlightForUser(
-      ctx,
-      await requireSessionUserId(ctx),
-      highlightId,
-      "reader"
-    ),
-});
+/**
+ * What a person can do to their highlights, once for every surface: the
+ * app's functions below, and the public API's in `publicApiHighlights`.
+ */
+export const highlightOwnerOperations = {
+  create: ownerMutation({
+    args: {
+      cardId: v.id("cards"),
+      articleKey: v.string(),
+      quote: v.string(),
+      prefix: v.optional(v.string()),
+      suffix: v.optional(v.string()),
+      start: v.number(),
+      end: v.number(),
+      note: v.optional(v.string()),
+    },
+    returns: createResultValidator,
+    handler: (ctx, ownerId, args, surface) =>
+      createHighlightForUser(ctx, ownerId, args, sourceOf(surface)),
+  }),
+  updateNote: ownerMutation({
+    args: { highlightId: v.string(), note: v.union(v.string(), v.null()) },
+    returns: highlightReturnValidator,
+    handler: (ctx, ownerId, { highlightId, note }, surface) =>
+      updateHighlightNoteForUser(
+        ctx,
+        ownerId,
+        highlightIdOf(ctx, highlightId),
+        note,
+        sourceOf(surface)
+      ),
+  }),
+  remove: ownerMutation({
+    args: { highlightId: v.string() },
+    returns: highlightReturnValidator,
+    handler: (ctx, ownerId, { highlightId }, surface) =>
+      removeHighlightForUser(
+        ctx,
+        ownerId,
+        highlightIdOf(ctx, highlightId),
+        sourceOf(surface)
+      ),
+  }),
+};
+
+export const create = sessionMutation(highlightOwnerOperations.create);
+export const updateNote = sessionMutation(highlightOwnerOperations.updateNote);
+export const remove = sessionMutation(highlightOwnerOperations.remove);

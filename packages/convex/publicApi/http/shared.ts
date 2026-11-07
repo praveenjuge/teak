@@ -1,15 +1,10 @@
 import { ConvexError } from "convex/values";
-import { MAX_CARD_TITLE_LENGTH } from "../../shared/cardTitle";
-import {
-  MARKDOWN_CONTENT_MAX_BYTES,
-  MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
-  markdownContentByteLength,
-} from "../../shared/markdown";
+import { convexFailureKind } from "../../convexFailures";
+import type { PublicApiErrorCode } from "../../shared/publicApiContract";
 import {
   PUBLIC_API_DEFAULT_LIMIT,
   PUBLIC_API_MAX_LIMIT,
 } from "../../shared/publicApiLimits";
-import { extractPaletteColors } from "../../shared/utils/colorUtils";
 import { json } from "./meta";
 
 export {
@@ -20,60 +15,12 @@ export { json } from "./meta";
 
 const MAX_QUERY_SCAN = 400;
 
-const CARD_TYPES = new Set([
-  "text",
-  "link",
-  "image",
-  "video",
-  "audio",
-  "document",
-  "palette",
-  "quote",
-]);
-const CARD_SORTS = new Set(["newest", "oldest", "relevance", "shuffle"]);
-const ARCHIVED_FILTERS = new Set(["exclude", "only", "include"]);
-const MAX_TAG_LENGTH = 64;
-const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
-
-export const PUBLIC_API_ERROR_CODES = [
-  "BAD_REQUEST",
-  "CARD_LIMIT_REACHED",
-  "CONFLICT",
-  "CONTENT_TOO_LARGE",
-  "FILE_TOO_LARGE",
-  "FOLDER_LIMIT",
-  "FORBIDDEN",
-  "HIGHLIGHT_LIMIT",
-  "IN_PROGRESS",
-  "INTERNAL_ERROR",
-  "INVALID_API_KEY",
-  "INVALID_INPUT",
-  "INVALID_STORAGE_KEY",
-  "INVALID_UTF8",
-  "LIMIT_REACHED",
-  "METHOD_NOT_ALLOWED",
-  "NOT_FOUND",
-  "NO_ARTICLE",
-  "NO_CONTENT",
-  "NOT_IN_TRASH",
-  "PAGE_SNAPSHOT_TOO_LARGE",
-  "PIN_LIMIT_REACHED",
-  "QUOTE_NOT_FOUND",
-  "TAG_EXISTS",
-  "TAG_OPERATION_RUNNING",
-  "RATE_LIMITED",
-  "RULE_LIMIT",
-  "SERVICE_UNAVAILABLE",
-  "SMART_FOLDER",
-  "TYPE_MISMATCH",
-  "UNAUTHORIZED",
-  "UNSUPPORTED_TYPE",
-] as const;
-
-type ErrorCode = (typeof PUBLIC_API_ERROR_CODES)[number];
+type ErrorCode = PublicApiErrorCode;
 
 interface AuthorizedUser {
   access: "full_access";
+  /** The WorkOS Connect client an OAuth token was issued to. */
+  clientId?: string;
   keyId: string;
   rateLimitKey: string;
   source: "component" | "oauth";
@@ -141,16 +88,6 @@ interface CreateUploadPayload {
   mimeType: string;
 }
 type QueryValue = boolean | number | string | readonly string[] | undefined;
-export interface PublicApiOperation {
-  body?: unknown;
-  headers?: HeadersInit;
-  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
-  origin?: string;
-  path: string;
-  query?: Record<string, QueryValue>;
-}
-
-type CardListInclude = "content" | "metadata" | "processing";
 
 const errorResponse = (
   status: number,
@@ -221,48 +158,6 @@ const parseLimit = (raw: string | null): number | Response => {
   }
 
   return Math.min(parsed, PUBLIC_API_MAX_LIMIT);
-};
-
-const parseJsonBody = async (request: Request): Promise<unknown> => {
-  try {
-    return await request.json();
-  } catch {
-    throw new ConvexError({
-      code: "BAD_REQUEST",
-      message: "Invalid JSON body",
-    });
-  }
-};
-
-const errorMessageOf = (error: unknown): string | undefined => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-};
-
-const OCC_FAILURE_TEXT =
-  "changed while this mutation was being run and on every subsequent retry";
-
-const isOptimisticConcurrencyError = (error: unknown): boolean =>
-  errorMessageOf(error)?.includes(OCC_FAILURE_TEXT) ?? false;
-
-const isRateLimitContentionError = (error: unknown): boolean => {
-  const message = errorMessageOf(error);
-  return Boolean(
-    message?.includes('"rateLimits" table') &&
-      message.includes(OCC_FAILURE_TEXT)
-  );
 };
 
 const RATE_LIMITED_ERROR = (retryAt?: number, limit?: number): Response =>
@@ -359,121 +254,14 @@ const mapConvexErrorToResponse = (
     });
   }
 
-  if (isRateLimitContentionError(error)) {
-    return RATE_LIMIT_CONTENTION_ERROR();
+  switch (convexFailureKind(error)) {
+    case "rateLimitContention":
+      return RATE_LIMIT_CONTENTION_ERROR();
+    case "writeConflict":
+      return SERVICE_BUSY_ERROR();
+    default:
+      return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);
   }
-  if (isOptimisticConcurrencyError(error)) {
-    return SERVICE_BUSY_ERROR();
-  }
-
-  return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);
-};
-
-const truncateCardTitle = (value: unknown): unknown => {
-  if (typeof value !== "string") {
-    return value;
-  }
-  let title = value.trim();
-  if (title.length > MAX_CARD_TITLE_LENGTH) {
-    title = title.slice(0, MAX_CARD_TITLE_LENGTH);
-    if (/[\uD800-\uDBFF]$/.test(title)) {
-      title = title.slice(0, -1);
-    }
-    title = title.trimEnd();
-  }
-  return title;
-};
-
-const explainInvalidTags = (tags: readonly string[] | undefined) => {
-  const tooLong = tags?.find((tag) => tag.trim().length > MAX_TAG_LENGTH);
-  return tooLong === undefined
-    ? null
-    : `Each tag must be at most ${MAX_TAG_LENGTH} characters`;
-};
-
-const NOTES_MAX_BYTES = 256 * 1024;
-
-const exceedsBytes = (value: unknown, limit: number): boolean =>
-  typeof value === "string" &&
-  // UTF-8 takes at most 3 bytes per UTF-16 unit, so short text skips the
-  // encode.
-  value.length * 3 > limit &&
-  markdownContentByteLength(value) > limit;
-
-/**
- * Content keeps the 512 KiB a text card's content has, on every card type, and
- * notes get 256 KiB. Together they stay well inside Convex's 1 MiB document,
- * so a card that passes can be stored next to its other fields instead of
- * failing with an internal error.
- */
-const explainOversizedText = (fields: {
-  content?: unknown;
-  notes?: unknown;
-}): string | null => {
-  if (exceedsBytes(fields.content, MARKDOWN_CONTENT_MAX_BYTES)) {
-    // The message text cards have always answered with.
-    return MARKDOWN_CONTENT_TOO_LARGE_MESSAGE;
-  }
-  if (exceedsBytes(fields.notes, NOTES_MAX_BYTES)) {
-    return "Notes must not exceed 256 KiB when encoded as UTF-8.";
-  }
-  return null;
-};
-
-const explainCardTypeMismatch = (args: {
-  cardType?: string;
-  content?: string;
-  notes?: string | null;
-  tags?: readonly string[];
-}): string | null => {
-  if (!args.cardType) {
-    return null;
-  }
-  if (FILE_CARD_TYPES.has(args.cardType)) {
-    return `\`cardType\` \`${args.cardType}\` needs an uploaded file. Upload it with POST /v1/uploads first.`;
-  }
-  if (args.cardType === "palette") {
-    const paletteText = [args.content, args.notes, args.tags?.join(" ")]
-      .filter(Boolean)
-      .join("\n");
-    if (extractPaletteColors(paletteText, 1).length === 0) {
-      return "A `palette` card needs at least one color, such as #ff5500";
-    }
-  }
-  return null;
-};
-
-const parseOptionalString = (value: unknown): string | undefined => {
-  if (typeof value !== "string") {
-    return;
-  }
-
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-};
-
-const parseOptionalNullableString = (
-  value: unknown
-): string | null | undefined => {
-  if (value === null) {
-    return null;
-  }
-
-  return parseOptionalString(value);
-};
-
-const parseStringArray = (value: unknown): string[] | undefined => {
-  if (
-    !(Array.isArray(value) && value.every((entry) => typeof entry === "string"))
-  ) {
-    return;
-  }
-
-  const normalized = Array.from(
-    new Set(value.map((entry) => entry.trim()).filter(Boolean))
-  );
-
-  return normalized.length > 0 ? normalized : [];
 };
 
 const parseBooleanQuery = (value: string | null): boolean | undefined => {
@@ -503,38 +291,23 @@ const parseTimestampQuery = (value: string | null): number | undefined => {
 };
 
 export {
-  ARCHIVED_FILTERS,
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
   type AuthResult,
   buildRateLimitHeaders,
-  CARD_SORTS,
-  CARD_TYPES,
-  type CardListInclude,
   type CardsQueryOptions,
   type CreateCardPayload,
   type CreateUploadPayload,
   type ErrorCode,
   errorResponse,
-  explainCardTypeMismatch,
-  explainInvalidTags,
-  explainOversizedText,
-  isOptimisticConcurrencyError,
-  isRateLimitContentionError,
   MAX_QUERY_SCAN,
-  MAX_TAG_LENGTH,
   mapConvexErrorToResponse,
   parseBearerToken,
   parseBooleanQuery,
-  parseJsonBody,
   parseLimit,
-  parseOptionalNullableString,
-  parseOptionalString,
-  parseStringArray,
   parseTimestampQuery,
   type QueryValue,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
-  truncateCardTitle,
 };

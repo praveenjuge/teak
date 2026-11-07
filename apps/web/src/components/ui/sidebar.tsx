@@ -6,7 +6,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { PanelLeftIcon } from "vadivam-react";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {
   clampSidebarWidth,
   SIDEBAR_COOKIE_NAME,
@@ -213,15 +212,17 @@ function Sidebar({
   collapsible = "offcanvas",
   className,
   children,
+  onMobileCloseAutoFocus,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
+  /** Where focus goes when the phone's sheet closes. */
+  onMobileCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations("ui");
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
-  const returnFocus = useReturnFocus(isMobile && openMobile);
 
   if (collapsible === "none") {
     return (
@@ -246,7 +247,7 @@ function Sidebar({
           data-mobile="true"
           data-sidebar="sidebar"
           data-slot="sidebar"
-          onCloseAutoFocus={(event) => returnFocus(event)}
+          onCloseAutoFocus={onMobileCloseAutoFocus}
           onOpenAutoFocus={(event) => {
             // Start on the current page's link (Radix skips links).
             const current = (

@@ -2,18 +2,13 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import {
-  buildFilesOpSigningPayload,
-  FILES_PROTOCOL_VERSION,
-} from "@teak/files-protocol";
-import { hmacSha256Hex, sha256Hex } from "./lib";
-import {
   captureHtmlScreenshot,
   decodeHtmlParam,
   MAX_RENDER_HTML_BYTES,
   scrapeHtml,
 } from "./media/browserRender";
-import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { launchLocalChrome, localChromeLease } from "./test/chromeTestSupport";
+import { runOp } from "./test/opsHarness";
 import { FakeBucket } from "./test/testsupport";
 
 const fixture = (name: string) =>
@@ -172,40 +167,7 @@ describe("decodeHtmlParam", () => {
   );
 });
 
-const SECRET = "test-secret";
-const callOp = async (
-  env: Partial<FilesOpsEnv>,
-  op: string,
-  params: Record<string, unknown>
-) => {
-  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
-  const requestId = crypto.randomUUID();
-  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
-  const bodySha256 = await sha256Hex(body);
-  const response = await handleInternalOp(
-    new Request("https://files.teakvault.com/__ops/v1", {
-      body,
-      headers: {
-        "x-teak-expires-at": expiresAt,
-        "x-teak-request-id": requestId,
-        "x-teak-signature": await hmacSha256Hex(
-          SECRET,
-          buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
-        ),
-      },
-      method: "POST",
-    }),
-    { FILES_SIGNING_SECRET: SECRET, ...env } as FilesOpsEnv
-  );
-  return {
-    body: (await response.json()) as {
-      data?: Record<string, unknown>;
-      error?: { code: string; message: string };
-    },
-    status: response.status,
-  };
-};
-
+const _SECRET = "test-secret";
 describe("rendering operations", () => {
   const source = "users/u/cards/c/file/clip.mp4";
   const destination = "users/u/cards/c/thumbnail/frame.jpg";
@@ -219,10 +181,6 @@ describe("rendering operations", () => {
       "capture-screenshot",
       { destinationKey: destination, htmlGzipBase64: gzipBase64("<p>x</p>") },
     ],
-    [
-      "scrape-html",
-      { htmlGzipBase64: gzipBase64("<p>x</p>"), selectors: ["p"] },
-    ],
     ["extract-video-frame", { sourceKey: source, destinationKey: destination }],
   ])(
     "%s answers RENDERER_UNAVAILABLE when its binding is missing, so Convex retries",
@@ -230,7 +188,7 @@ describe("rendering operations", () => {
       const bucket = new FakeBucket();
       await bucket.put(source, fixture("fixture.mp4"));
       await bucket.put("users/u/cards/c/file/a.pdf", fixture("fixture.pdf"));
-      const { body, status } = await callOp(
+      const { body, status } = await runOp(
         { BUCKET: bucket as never },
         op,
         params
@@ -246,10 +204,6 @@ describe("rendering operations", () => {
       "capture-screenshot",
       { destinationKey: destination, htmlGzipBase64: gzipBase64("<p>x</p>") },
     ],
-    [
-      "scrape-html",
-      { htmlGzipBase64: gzipBase64("<p>x</p>"), selectors: ["p"] },
-    ],
   ])(
     "%s answers RENDERER_UNAVAILABLE when Browser Run refuses a new browser",
     async (op, params) => {
@@ -262,7 +216,7 @@ describe("rendering operations", () => {
             })
           ),
       };
-      const { body, status } = await callOp(
+      const { body, status } = await runOp(
         { BROWSER: browserRun, BUCKET: bucket as never } as never,
         op,
         params
@@ -299,7 +253,7 @@ describe("rendering operations", () => {
           return Promise.resolve(new Response("unexpected", { status: 500 }));
         },
       };
-      const { body, status } = await callOp(
+      const { body, status } = await runOp(
         { BROWSER: browserRun, BUCKET: bucket as never } as never,
         "capture-screenshot",
         { archiveKey, destinationKey: destination }
@@ -318,7 +272,7 @@ describe("rendering operations", () => {
   ])("refuses a destination in %s", async (_name, destinationKey) => {
     const bucket = new FakeBucket();
     await bucket.put(source, fixture("fixture.mp4"));
-    const { body, status } = await callOp(
+    const { body, status } = await runOp(
       { BUCKET: bucket as never },
       "extract-video-frame",
       { destinationKey, sourceKey: source }

@@ -12,15 +12,24 @@ const asCardErrorCode = (code: unknown): CardErrorCode | null =>
     : null;
 
 /**
- * The card error a call failed with: a Convex error's `data.code`, or the
- * `code` of an error the client made itself. `null` for anything else.
+ * The card error a call failed with: a Convex error's `data.code`, the
+ * `code` of an error the client made itself, or a failed upload's
+ * `errorCode`. `null` for anything else.
  */
 export function cardErrorCode(error: unknown): CardErrorCode | null {
   if (!error || typeof error !== "object") {
     return null;
   }
-  const { code, data } = error as { code?: unknown; data?: { code?: unknown } };
-  return asCardErrorCode(code) ?? asCardErrorCode(data?.code);
+  const { code, data, errorCode } = error as {
+    code?: unknown;
+    data?: { code?: unknown };
+    errorCode?: unknown;
+  };
+  return (
+    asCardErrorCode(code) ??
+    asCardErrorCode(data?.code) ??
+    asCardErrorCode(errorCode)
+  );
 }
 
 export const isCardLimitError = (error: unknown): boolean =>

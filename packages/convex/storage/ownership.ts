@@ -4,11 +4,10 @@ import type { Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
   internalMutation,
-  internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { accountDeletionOwnsRows } from "../accountDeletion";
-import { isFilesWorkerConfigured } from "./filesWorkerClient";
+import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { isCoreWorkerConfigured } from "./coreWorkerClient";
 import { assertR2KeyInNamespace } from "./r2Keys";
 
 const accountClosedOrClosing = async (ctx: MutationCtx, userId: string) => {
@@ -73,14 +72,6 @@ export const registerObjects = internalMutation({
     return true;
   },
 });
-export const getObjectsPage = internalQuery({
-  args: { userId: v.string() },
-  handler: (ctx, { userId }) =>
-    ctx.db
-      .query("accountStorageObjects")
-      .withIndex("by_userId_and_key", (q) => q.eq("userId", userId))
-      .take(100),
-});
 
 export const ensureObjectOwnership = async (
   ctx: Pick<ActionCtx, "runMutation">,
@@ -88,7 +79,7 @@ export const ensureObjectOwnership = async (
   key: string,
   exportJobId?: Id<"exportJobs">
 ) => {
-  if (!isFilesWorkerConfigured()) {
+  if (!isCoreWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   if (

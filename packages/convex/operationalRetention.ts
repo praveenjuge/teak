@@ -4,10 +4,10 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 
 const MAX_BATCHES = 20;
 export const RETENTION_SCAN_LEASE_MS = 15 * 60 * 1000;
-const kindValidator = v.literal("idempotency");
+// Retention cleans one kind of record; its state row is keyed by it.
+const RETENTION_KIND = "idempotency";
 
 const cleanupArgs = v.object({
-  kind: kindValidator,
   cutoff: v.optional(v.number()),
   cursor: v.optional(v.union(v.string(), v.null())),
   dryRun: v.optional(v.boolean()),
@@ -36,8 +36,7 @@ export const cleanupExpiredRecords = internalMutation({
 export const startIdempotencyCleanup = internalMutation({
   args: {},
   returns: cleanupReport,
-  handler: (ctx) =>
-    cleanUpExpiredRecords(ctx, { kind: "idempotency", dryRun: false }),
+  handler: (ctx) => cleanUpExpiredRecords(ctx, { dryRun: false }),
 });
 
 const cleanUpExpiredRecords = async (
@@ -63,7 +62,7 @@ const cleanUpExpiredRecords = async (
   if (!dryRun) {
     const state = await ctx.db
       .query("operationalRetentionStates")
-      .withIndex("by_kind", (q) => q.eq("kind", args.kind))
+      .withIndex("by_kind", (q) => q.eq("kind", RETENTION_KIND))
       .unique();
     if (
       (runId && state?._id !== runId) ||
@@ -92,7 +91,7 @@ const cleanUpExpiredRecords = async (
     }
     if (!runId) {
       runId = await ctx.db.insert("operationalRetentionStates", {
-        kind: args.kind,
+        kind: RETENTION_KIND,
         cutoff,
         cursor,
         updatedAt: Date.now(),
@@ -138,7 +137,6 @@ const cleanUpExpiredRecords = async (
       remainingBatches > 1 ? 1000 : 5 * 60 * 1000,
       internal.operationalRetention.cleanupExpiredRecords,
       {
-        kind: args.kind,
         runId,
         cutoff,
         cursor: continueCursor,

@@ -1,13 +1,14 @@
+import { cardTypeStages } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { patchCard } from "../../card/cardWrites";
 import {
   mergeProcessingStages,
   stageCompleted,
   stagePending,
 } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import { patchCardWithSearchSync } from "../../card/searchSync";
-import type { CardType } from "../../schema";
+import type { CardType } from "../../shared/constants";
 
 export const recordClassification = internalMutation({
   args: {
@@ -26,7 +27,7 @@ export const recordClassification = internalMutation({
 
     if (type === undefined) {
       if (card.processingStatus?.classify?.status !== "completed") {
-        await patchCardWithSearchSync(ctx, cardId, {
+        await patchCard(ctx, cardId, {
           processingStatus: mergeProcessingStages(card.processingStatus, {
             classify: stageCompleted(now, confidence),
           }),
@@ -35,13 +36,12 @@ export const recordClassification = internalMutation({
       return null;
     }
 
+    const stages = cardTypeStages(type);
     const updatedProcessing = mergeProcessingStages(card.processingStatus, {
       classify: stageCompleted(now, confidence),
-      categorize: type === "link" ? stagePending() : stageCompleted(now, 1),
+      categorize: stages.categorize ? stagePending() : stageCompleted(now, 1),
       metadata: stagePending(),
-      renderables: ["image", "video", "document"].includes(type)
-        ? stagePending()
-        : stageCompleted(now, 1),
+      renderables: stages.renderables ? stagePending() : stageCompleted(now, 1),
     });
 
     const patchData: Record<string, unknown> = {
@@ -63,7 +63,7 @@ export const recordClassification = internalMutation({
       }
     }
 
-    await patchCardWithSearchSync(ctx, cardId, patchData);
+    await patchCard(ctx, cardId, patchData);
 
     return null;
   },

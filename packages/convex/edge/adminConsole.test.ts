@@ -1,11 +1,10 @@
 import polarTest from "@convex-dev/polar/test";
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
-import { ensureCardUsageShards, insertCountedCard } from "../card/cardUsage";
-import schema from "../schema";
+import { ensureCardUsageShards } from "../card/cardUsage";
+import { insertCard } from "../card/cardWrites";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 const clientId = "client_ADMIN";
 const adminClaims = {
   issuer: `https://api.workos.com/user_management/${clientId}`,
@@ -20,7 +19,7 @@ const adminClaims = {
 };
 
 const setup = () => {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   polarTest.register(t);
   return t;
 };
@@ -160,7 +159,7 @@ describe("account list", () => {
     await t.run(async (ctx) => {
       await ensureCardUsageShards(ctx, "teak_customer", false);
       for (const content of ["one", "two", "three"]) {
-        await insertCountedCard(ctx, {
+        await insertCard(ctx, {
           userId: "teak_customer",
           type: "text",
           content,

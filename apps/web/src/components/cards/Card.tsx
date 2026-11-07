@@ -1,7 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
-import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
   createTeakTranslator,
   englishMessages,
@@ -12,8 +9,6 @@ import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { memo, use, useRef } from "react";
 import {
-  Archive,
-  ArchiveRestore,
   ArrowUpRight,
   Check,
   Copy,
@@ -25,12 +20,7 @@ import {
   LoaderCircle,
   Pencil,
   Pin,
-  PinOff,
   RefreshCw,
-  RotateCcw,
-  SquareCheckBig,
-  Tag,
-  Trash,
 } from "vadivam-react";
 import { CardContent, Card as UICard } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -53,18 +43,43 @@ import {
 import { openCardLink } from "@/lib/openCardLink";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
-import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
+import {
+  actsWhileSelecting,
+  type CardActionId,
+  cardActionAvailable,
+  cardActionKeyName,
+  cardActionLabel,
+  cardActionShortcut,
+  cardAriaKeyShortcuts,
+  copyCardShortcut,
+  GRID_CARD_ACTIONS,
+} from "../../lib/cardActions";
+import {
+  cardCopyKind,
+  cardCopyText,
+  resolveImageCopyUrl,
+} from "../../lib/cardCopy";
+import {
+  cardFileFormat,
+  cardTitle,
+  linkCardTitle as linkTitleOf,
+  showsPictureTile,
+} from "../../lib/cardTypes";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
-import { focusedCardShortcuts } from "../../lib/gridKeys";
-import { cardAriaKeyShortcuts } from "../../lib/keyboardShortcuts";
-import { resolveLinkTitle } from "../../lib/linkTitle";
-import { markdownToPlainText } from "../../lib/markdownToPlainText";
+import { isCopyCardKey } from "../../lib/gridKeys";
+import type { LinkTitleTranslator } from "../../lib/linkTitle";
+import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import {
+  CardActionIcon,
+  cardActionIcon,
+  cardActionIconClass,
+} from "./CardActionIcon";
 import { CardBody } from "./CardBody";
 import {
   CardMenuEntries,
@@ -72,44 +87,11 @@ import {
   QuickActionButton,
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
-import { successfulLinkPreview, useLinkCardImage } from "./linkCardImage";
+import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
-
-export async function resolveImageCopyUrl({
-  cardId,
-  fallbackUrl,
-  fileKey,
-  refresh,
-}: {
-  cardId: string;
-  fallbackUrl: string;
-  fileKey?: string;
-  refresh: (args: {
-    cardId: Id<"cards">;
-    key: string;
-  }) => Promise<{ url: string }>;
-}): Promise<string> {
-  if (!fileKey) {
-    return fallbackUrl;
-  }
-  const { url } = await refresh({
-    cardId: cardId as Id<"cards">,
-    key: fileKey,
-  });
-  return url;
-}
-
-export function cardCopyText(
-  card: Pick<CardWithUrls, "content" | "type" | "url">
-): string {
-  if (card.type === "text") {
-    return cardLinkTokensToText(card.content ?? "");
-  }
-  return card.type === "link" ? (card.url ?? "") : "";
-}
 
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
@@ -124,24 +106,19 @@ const englishAccessibleLabel: AccessibleLabelTranslator = createTeakTranslator(
 export function getCardAccessibleLabel(
   card: Pick<
     CardWithUrls,
-    "content" | "fileMetadata" | "metadataTitle" | "type" | "url"
+    | "content"
+    | "fileMetadata"
+    | "metadata"
+    | "metadataTitle"
+    | "metadataTitleEdited"
+    | "type"
+    | "url"
   >,
-  linkTitle?: string,
-  t: AccessibleLabelTranslator = englishAccessibleLabel
+  t: AccessibleLabelTranslator = englishAccessibleLabel,
+  linkTitle?: LinkTitleTranslator
 ): string {
   const type = card.type || "card";
-  const isFileCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "audio" ||
-    card.type === "document";
-  const title =
-    (card.type === "link" ? linkTitle || card.metadataTitle || card.url : "") ||
-    (isFileCard ? card.fileMetadata?.fileName : "") ||
-    markdownToPlainText(card.content) ||
-    card.metadataTitle ||
-    card.fileMetadata?.fileName ||
-    "";
+  const title = cardTitle(card, linkTitle);
   if (!title) {
     return t("untitled", { type });
   }
@@ -153,15 +130,10 @@ export function getCardAccessibleLabel(
 }
 
 export const Card = memo(function Card({
+  actions = GRID_CARD_ACTIONS,
   card,
+  onAction,
   onClick,
-  onDelete,
-  onRestore,
-  onPermanentDelete,
-  onToggleFavorite,
-  onTogglePin,
-  onToggleArchive,
-  onAddTags,
   onEditFolders,
   onEditLink,
   onCopyImage,
@@ -170,9 +142,7 @@ export const Card = memo(function Card({
   isPriority = false,
   isTabStop = true,
   nativeDrag = true,
-  onEnterSelectionMode,
   onRemoveFromFolder,
-  onToggleSelection,
 }: CardProps) {
   const t = useTranslations("cards");
   const tLabel = useTranslations("cards.accessibleLabel");
@@ -185,11 +155,7 @@ export const Card = memo(function Card({
   const isOptimistic = isOptimisticCard(card._id);
   const isFirstPaintCopy = use(FirstPaintCopyContext);
   const cardRef = useRef<HTMLDivElement>(null);
-  const fileName = card.fileMetadata?.fileName;
-  const fileFormat =
-    card.type === "document" && fileName
-      ? inferFileFormat({ fileName, mimeType: card.fileMetadata?.mimeType })
-      : null;
+  const fileFormat = card.type === "document" ? cardFileFormat(card) : null;
 
   const prefetchDocumentPreview = () => {
     if (
@@ -221,18 +187,15 @@ export const Card = memo(function Card({
     if (isOptimistic) {
       return;
     }
-    if (cardRef.current && !isSelectionMode) {
-      rememberCardOpenOrigin(card._id, cardRef.current.getBoundingClientRect());
-    }
-    onClick?.(card);
+    const rect = cardRef.current?.getBoundingClientRect();
+    onClick?.(
+      card,
+      rect && {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      }
+    );
   };
-
-  const canCopy =
-    !card.isDeleted &&
-    (card.type === "text" ||
-      card.type === "link" ||
-      (card.type === "image" &&
-        card.fileMetadata?.mimeType !== "image/svg+xml"));
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) {
@@ -245,9 +208,7 @@ export const Card = memo(function Card({
     }
     if (
       canCopy &&
-      (event.metaKey || event.ctrlKey) &&
-      !(event.altKey || event.shiftKey || event.repeat) &&
-      event.key.toLowerCase() === "c" &&
+      isCopyCardKey(event, apple) &&
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
@@ -255,46 +216,13 @@ export const Card = memo(function Card({
     }
   };
 
-  const handleDelete = () => {
-    if (isOptimistic) {
-      return;
+  const offers = (action: CardActionId) =>
+    actions.has(action) && cardActionAvailable(action, card);
+  const canCopy = offers("copy");
+  const runAction = (action: CardActionId) => {
+    if (!isOptimistic) {
+      onAction?.(action, card);
     }
-    onDelete?.(card._id);
-  };
-
-  const handleRestore = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onRestore?.(card._id);
-  };
-
-  const handlePermanentDelete = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onPermanentDelete?.(card._id);
-  };
-
-  const handleToggleFavorite = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onToggleFavorite?.(card._id);
-  };
-
-  const handleTogglePin = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onTogglePin?.(card);
-  };
-
-  const handleToggleArchive = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onToggleArchive?.(card._id, !card.isArchived);
   };
 
   const handleReprocess = () => {
@@ -304,20 +232,13 @@ export const Card = memo(function Card({
     void reprocess(card._id);
   };
 
-  const handleAddTags = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onAddTags?.(card._id);
-  };
-
   // Runs straight from the click or key press: the clipboard write has to
   // start before any await (see copyCardContentToClipboard).
   const handleCopyImage = () => {
     if (isOptimistic) {
       return;
     }
-    if (card.type === "image") {
+    if (cardCopyKind(card) === "image") {
       const url = resolveImageCopyUrl({
         cardId: card._id,
         fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
@@ -337,30 +258,14 @@ export const Card = memo(function Card({
     openCardLink(card);
   };
 
-  const handleSelect = () => {
-    if (isOptimistic) {
-      return;
-    }
-    onEnterSelectionMode?.(card._id);
-  };
-
-  const linkCardTitle = resolveLinkTitle(
-    {
-      metadataTitle: card.metadataTitle,
-      metadataTitleEdited: card.metadataTitleEdited,
-      previewTitle: successfulLinkPreview(card)?.title,
-      url: card.url,
-    },
-    tLinkTitle
-  );
+  const linkCardTitle = linkTitleOf(card, tLinkTitle);
   const { image: linkImage, onImageError: handleLinkImageError } =
     useLinkCardImage(card);
 
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
   const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  const pinned = card.pinPosition !== undefined;
-  const showPinMark = pinned && !isOptimistic;
+  const showPinMark = card.pinPosition !== undefined && !isOptimistic;
   const showQuickActions = !(isOptimistic || isSelectionMode);
   // Text makes room for the heart and pin marks, and on touch screens for
   // the More button that keeps showing beside them.
@@ -383,32 +288,35 @@ export const Card = memo(function Card({
     event.dataTransfer.effectAllowed = "copy";
   };
 
-  const copyLinkOrImageLabel =
-    card.type === "link" ? t("menu.copyLink") : t("menu.copyImage");
-  const copyMenuLabel =
-    card.type === "text" ? t("menu.copyText") : copyLinkOrImageLabel;
+  const copyLabel = cardActionLabel("copy", card);
+  const copyMenuLabel = copyLabel ? t(`menu.${copyLabel}`) : "";
 
-  const shortcuts = focusedCardShortcuts(Boolean(isSelectionMode));
-  const selectItem: CardMenuEntry = isSelectionMode
-    ? {
-        icon: SquareCheckBig,
-        id: "select",
-        label: isSelected ? t("menu.deselect") : t("menu.select"),
-        onSelect: () => onToggleSelection?.(card._id),
-        shortcut: shortcuts.select,
-      }
-    : {
-        icon: SquareCheckBig,
-        id: "select",
-        label: t("menu.select"),
-        onSelect: handleSelect,
-        shortcut: shortcuts.select,
-      };
-  // Trash selects cards too, for "Delete forever" and "Restore" in bulk.
-  // The Pinned row has no selection, so its cards offer no Select.
-  const canSelect = Boolean(
-    isSelectionMode ? onToggleSelection : onEnterSelectionMode
-  );
+  // While cards are selected, F, T, E and Delete act on the selection, so
+  // only the keys that still act on this card show.
+  const shortcutFor = (action: CardActionId) =>
+    isSelectionMode && !actsWhileSelecting(action)
+      ? undefined
+      : cardActionShortcut(action, apple);
+  const actionEntry = (action: CardActionId): CardMenuEntry[] => {
+    if (!offers(action)) {
+      return [];
+    }
+    const label =
+      action === "select" && isSelectionMode && isSelected
+        ? "deselect"
+        : cardActionLabel(action, card);
+    return [
+      {
+        destructive: action === "deleteForever",
+        icon: cardActionIcon(action, card),
+        iconClassName: cardActionIconClass(action, card),
+        id: action,
+        label: label ? t(`menu.${label}`) : "",
+        onSelect: () => runAction(action),
+        shortcut: shortcutFor(action),
+      },
+    ];
+  };
   const menuItems: CardMenuEntry[] = [
     ...(card.url && !card.isDeleted
       ? [
@@ -427,101 +335,66 @@ export const Card = memo(function Card({
             id: "copy",
             label: copyMenuLabel,
             onSelect: handleCopyImage,
-            shortcut: shortcuts.copy,
+            shortcut: copyCardShortcut(apple),
+          },
+        ]
+      : []),
+    ...actionEntry("select"),
+    ...actionEntry("restore"),
+    ...(offers("deleteForever")
+      ? [
+          { separator: "before-delete-forever" },
+          ...actionEntry("deleteForever"),
+        ]
+      : []),
+    ...actionEntry("addTags"),
+    ...(onEditFolders && !card.isDeleted
+      ? [
+          {
+            icon: FolderIcon,
+            id: "folders",
+            label: t("menu.folders"),
+            onSelect: () => {
+              if (!isOptimistic) {
+                onEditFolders(card._id);
+              }
+            },
+          },
+        ]
+      : []),
+    ...(onRemoveFromFolder && !card.isDeleted
+      ? [
+          {
+            icon: FolderMinus,
+            id: "removeFromFolder",
+            label: t("menu.removeFromFolder"),
+            onSelect: () => {
+              if (!isOptimistic) {
+                onRemoveFromFolder(card._id);
+              }
+            },
+          },
+        ]
+      : []),
+    ...actionEntry("favorite"),
+    ...actionEntry("pin"),
+    ...(onEditLink && !card.isDeleted && card.type === "link" && card.url
+      ? [
+          {
+            icon: Pencil,
+            id: "editLink",
+            label: t("menu.editLink"),
+            onSelect: () => {
+              if (!isOptimistic) {
+                onEditLink(card._id);
+              }
+            },
           },
         ]
       : []),
     ...(card.isDeleted
-      ? [
-          ...(canSelect ? [selectItem] : []),
-          {
-            icon: RotateCcw,
-            id: "restore",
-            label: t("menu.restore"),
-            onSelect: handleRestore,
-          },
-          { separator: "before-delete-forever" },
-          {
-            destructive: true,
-            icon: Trash,
-            id: "deleteForever",
-            label: t("menu.deleteForever"),
-            onSelect: handlePermanentDelete,
-            shortcut: shortcuts.delete,
-          },
-        ]
+      ? []
       : [
-          ...(canSelect ? [selectItem] : []),
-          {
-            icon: Tag,
-            id: "addTags",
-            label: t("menu.addTags"),
-            onSelect: handleAddTags,
-            shortcut: shortcuts.addTags,
-          },
-          ...(onEditFolders
-            ? [
-                {
-                  icon: FolderIcon,
-                  id: "folders",
-                  label: t("menu.folders"),
-                  onSelect: () => {
-                    if (!isOptimistic) {
-                      onEditFolders(card._id);
-                    }
-                  },
-                },
-              ]
-            : []),
-          ...(onRemoveFromFolder
-            ? [
-                {
-                  icon: FolderMinus,
-                  id: "removeFromFolder",
-                  label: t("menu.removeFromFolder"),
-                  onSelect: () => {
-                    if (!isOptimistic) {
-                      onRemoveFromFolder(card._id);
-                    }
-                  },
-                },
-              ]
-            : []),
-          {
-            icon: Heart,
-            iconClassName: card.isFavorited
-              ? "fill-destructive text-destructive"
-              : undefined,
-            id: "favorite",
-            label: card.isFavorited ? t("menu.unfavorite") : t("menu.favorite"),
-            onSelect: handleToggleFavorite,
-            shortcut: shortcuts.favorite,
-          },
-          ...(onTogglePin && !card.isArchived
-            ? [
-                {
-                  icon: pinned ? PinOff : Pin,
-                  id: "pin",
-                  label: pinned ? t("menu.unpin") : t("menu.pin"),
-                  onSelect: handleTogglePin,
-                  shortcut: shortcuts.pin,
-                },
-              ]
-            : []),
-          ...(onEditLink && card.type === "link" && card.url
-            ? [
-                {
-                  icon: Pencil,
-                  id: "editLink",
-                  label: t("menu.editLink"),
-                  onSelect: () => {
-                    if (!isOptimistic) {
-                      onEditLink(card._id);
-                    }
-                  },
-                },
-              ]
-            : []),
           {
             disabled: reprocessingCardId === card._id,
             icon: RefreshCw,
@@ -529,63 +402,46 @@ export const Card = memo(function Card({
             label: t("menu.refreshDetails"),
             onSelect: handleReprocess,
           },
-          ...(onToggleArchive
-            ? [
-                {
-                  icon: card.isArchived ? ArchiveRestore : Archive,
-                  id: "archive",
-                  label: card.isArchived
-                    ? t("menu.unarchive")
-                    : t("menu.archive"),
-                  onSelect: handleToggleArchive,
-                  shortcut: shortcuts.archive,
-                },
-              ]
-            : []),
-          { separator: "before-delete" },
-          {
-            icon: Trash,
-            id: "delete",
-            label: t("menu.moveToTrash"),
-            onSelect: handleDelete,
-            shortcut: shortcuts.delete,
-          },
         ]),
+    ...actionEntry("archive"),
+    ...(offers("moveToTrash")
+      ? [{ separator: "before-delete" }, ...actionEntry("moveToTrash")]
+      : []),
   ];
 
   const showHoverSelect =
-    !(isOptimistic || isSelectionMode) && Boolean(onEnterSelectionMode);
+    !(isOptimistic || isSelectionMode) && offers("select");
   const isMediaCard =
-    card.type === "image" ||
-    card.type === "video" ||
-    card.type === "document" ||
+    showsPictureTile(card.type) ||
     (card.type === "link" && Boolean(linkImage)) ||
     (card.type === "palette" && Boolean(card.colors?.length));
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
-        <div className="group/card relative" data-card-shell="">
+        <div
+          className="group/card relative"
+          data-card-shell=""
+          data-selected={isSelected || undefined}
+        >
           <UICard
             aria-disabled={isOptimistic || undefined}
             aria-keyshortcuts={
               isOptimistic
                 ? undefined
-                : cardAriaKeyShortcuts(
-                    Boolean(card.isDeleted),
+                : cardAriaKeyShortcuts(card, actions, {
                     apple,
-                    canCopy,
-                    Boolean(isSelectionMode)
-                  )
+                    selecting: Boolean(isSelectionMode),
+                  })
             }
-            aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
+            aria-label={getCardAccessibleLabel(card, tLabel, tLinkTitle)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
-              "relative scroll-my-20 overflow-hidden rounded-2xl border-0 bg-transparent p-0 outline-none contain-content focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              // The focus and selection rings sit on the tile itself (see
+              // CARD_SURFACE), so a link's name line stays outside them.
+              "relative scroll-my-20 rounded-2xl border-0 bg-transparent p-0 outline-none contain-layout contain-style",
               isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
-              card.isDeleted && "opacity-60",
-              isSelected &&
-                "ring-2 ring-primary ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-primary"
+              card.isDeleted && "opacity-60"
             )}
             data-card-id={
               isOptimistic || isFirstPaintCopy ? undefined : card._id
@@ -640,12 +496,16 @@ export const Card = memo(function Card({
           )}
 
           {showHoverSelect ? (
-            <ShortcutTooltip keys={["X"]} label={t("menu.select")} side="top">
+            <ShortcutTooltip
+              keys={[cardActionKeyName("select") ?? ""]}
+              label={t("menu.select")}
+              side="top"
+            >
               <button
-                aria-keyshortcuts="X"
+                aria-keyshortcuts={cardActionShortcut("select", apple)?.keys}
                 aria-label={t("menu.select")}
                 className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100"
-                onClick={handleSelect}
+                onClick={() => runAction("select")}
                 tabIndex={-1}
                 type="button"
               >
@@ -705,21 +565,17 @@ export const Card = memo(function Card({
                   <ArrowUpRight />
                 </QuickActionButton>
               )}
-              {!card.isDeleted && (
+              {offers("favorite") && (
                 <QuickActionButton
                   className="pointer-coarse:hidden"
-                  label={
-                    card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")
-                  }
-                  onClick={handleToggleFavorite}
+                  label={t(
+                    `menu.${cardActionLabel("favorite", card) ?? "favorite"}`
+                  )}
+                  onClick={() => runAction("favorite")}
                   pressed={Boolean(card.isFavorited)}
-                  shortcut={["F"]}
+                  shortcut={[cardActionKeyName("favorite") ?? ""]}
                 >
-                  <Heart
-                    className={cn(
-                      card.isFavorited && "fill-destructive text-destructive"
-                    )}
-                  />
+                  <CardActionIcon action="favorite" card={card} />
                 </QuickActionButton>
               )}
               <DropdownMenu modal={false}>
@@ -728,7 +584,11 @@ export const Card = memo(function Card({
                     <Ellipsis />
                   </QuickActionButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-48"
+                  onKeyDown={runMenuItemShortcut}
+                >
                   <CardMenuEntries
                     entries={menuItems}
                     Item={DropdownMenuItem}
@@ -742,7 +602,7 @@ export const Card = memo(function Card({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-48">
+      <ContextMenuContent className="w-48" onKeyDown={runMenuItemShortcut}>
         <CardMenuEntries
           entries={menuItems}
           Item={ContextMenuItem}

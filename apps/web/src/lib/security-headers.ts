@@ -1,3 +1,4 @@
+import { DEFAULT_TEAK_DEV_CONVEX_URL } from "@teak/convex/devUrls";
 import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
 import { readConvexUrl } from "./public-env";
 
@@ -6,7 +7,7 @@ const TEAK_R2_STORAGE_ORIGIN =
 const TEAK_R2_UPLOAD_ORIGIN =
   "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_FILES_ORIGIN = TEAK_FILES_ORIGINS.production;
-const TEAK_DEV_CONVEX_ORIGIN = "https://reminiscent-kangaroo-59.convex.cloud";
+const TEAK_DEV_CONVEX_ORIGIN = DEFAULT_TEAK_DEV_CONVEX_URL;
 export const TEAK_DEV_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",

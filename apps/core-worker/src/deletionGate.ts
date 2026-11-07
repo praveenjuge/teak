@@ -1,4 +1,6 @@
+import { InvalidOpInput } from "./opFailure";
 import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
+import { retryingReads } from "./storage/r2Retry";
 
 export interface DeletionGateEnv {
   BUCKET: R2Bucket;
@@ -81,7 +83,7 @@ const decode = (value: WireValue): unknown => {
         value[1].map(([key, item]) => [key, decode(item)])
       );
     default:
-      throw new Error("invalid_object_gate_wire_value");
+      throw new InvalidOpInput("invalid_object_gate_wire_value");
   }
 };
 const serialize = (value: unknown): string => JSON.stringify(encode(value));
@@ -464,6 +466,24 @@ export async function freezeObject(
   }
   return ((await response.json()) as { frozen: boolean }).frozen === true;
 }
+
+const gatedBuckets = new WeakSet<R2Bucket>();
+
+/**
+ * The env every request, run, queue batch and cron runs with: reads retried
+ * on R2's transient errors and writes fenced by the deletion gate. The
+ * Worker's entry points (`index.ts`, `workflows/entrypoints.ts`) gate it
+ * once, so no caller wraps the bucket itself; gating it again changes
+ * nothing. Without OBJECT_GATES (some tests) the bucket stays as it is.
+ */
+export const gatedEnv = <Env extends DeletionGateEnv>(env: Env): Env => {
+  if (!env.OBJECT_GATES || gatedBuckets.has(env.BUCKET)) {
+    return env;
+  }
+  const bucket = gatedBucket({ ...env, BUCKET: retryingReads(env.BUCKET) });
+  gatedBuckets.add(bucket);
+  return { ...env, BUCKET: bucket };
+};
 
 // Rollout must provision OBJECT_GATES and drain unfenced historical writers
 // before account deletion is enabled; code cannot check the drain.

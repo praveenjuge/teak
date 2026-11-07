@@ -75,8 +75,19 @@ data class CardEditDraft(
     val aiTags: List<String>,
 )
 
+/** Why a draft can't be saved, as an alert's title and message. */
+data class CardEditProblem(val title: UiText, val message: UiText)
+
 object CardEdit {
     fun normalizeTag(value: String): String = value.trim().lowercase()
+
+    /** A quote needs its words. Apple's `CardEdit.validationError` is the same rule. */
+    fun validationError(card: Card, draft: CardEditDraft?): CardEditProblem? =
+        if (card.type == CardType.Quote && draft?.editableContent.isNullOrBlank()) {
+            CardEditProblem(UiText.of("native.card.edit.quoteEmptyTitle"), UiText.of("native.card.edit.quoteEmptyMessage"))
+        } else {
+            null
+        }
 
     fun canEditContent(type: CardType): Boolean = type == CardType.Text || type == CardType.Quote
 

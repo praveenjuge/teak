@@ -30,8 +30,8 @@ import { textCardRulesType } from "../../apps/core-worker/src/workflows/cardProc
 import { resolveCreatedCardType } from "../../packages/convex/card/createCard";
 import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
+import { CLEF_REVIEWED_REASONS } from "../../packages/convex/shared/linkCategory/rules";
 import { resolveLinkCategory } from "../../packages/convex/shared/utils/linkCategoryResolver";
-import { CLEF_REVIEWED_REASONS } from "../../packages/convex/workflows/steps/categorization/rules";
 import {
   CLEF_INPUT_USD_PER_MILLION,
   CLEF_MODEL_IDS,

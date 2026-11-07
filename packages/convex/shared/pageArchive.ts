@@ -1,16 +1,15 @@
-const MIB = 1024 * 1024;
+import { FILES_ARCHIVE_PAGE_FAILURES } from "@teak/files-protocol";
 
-export const PAGE_ARCHIVE_ROLE = "page-archive";
-export const PAGE_SNAPSHOT_ROLE = "page-snapshot";
-export const PAGE_SNAPSHOT_MAX_BYTES = 20 * MIB;
-export const PAGE_SNAPSHOT_MAX_RAW_BYTES = 60 * MIB;
+export {
+  PAGE_ARCHIVE_ROLE,
+  PAGE_SNAPSHOT_MAX_BYTES,
+  PAGE_SNAPSHOT_MAX_RAW_BYTES,
+  PAGE_SNAPSHOT_ROLE,
+} from "@teak/files-protocol";
 
+/** What the Worker reports, plus `archive_error` for a run that broke. */
 export const PAGE_ARCHIVE_FAILURE_REASONS = [
-  "blocked_url",
-  "too_large",
-  "http_error",
-  "not_html",
-  "unreachable",
+  ...FILES_ARCHIVE_PAGE_FAILURES,
   "archive_error",
 ] as const;
 

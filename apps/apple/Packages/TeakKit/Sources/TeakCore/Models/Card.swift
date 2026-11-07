@@ -527,18 +527,6 @@ public struct ColorHue: Hashable, Sendable, Identifiable {
     public static var all: [ColorHue] { SharedConstants.shared.colorHues.compactMap(ColorHue.init) }
 
     public var hex: String {
-        switch id {
-        case "red": "#EF4444"
-        case "orange": "#F97316"
-        case "yellow": "#EAB308"
-        case "green": "#22C55E"
-        case "teal": "#14B8A6"
-        case "cyan": "#06B6D4"
-        case "blue": "#3B82F6"
-        case "purple": "#A855F7"
-        case "pink": "#EC4899"
-        case "brown": "#92400E"
-        default: "#737373"
-        }
+        SharedConstants.shared.colorHueSwatches[id] ?? SharedConstants.shared.colorHueSwatches["neutral"] ?? "#737373"
     }
 }

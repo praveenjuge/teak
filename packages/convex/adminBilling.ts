@@ -1,12 +1,7 @@
-import { Polar as PolarBilling } from "@polar-sh/sdk";
+import type { Polar as PolarApi } from "@polar-sh/sdk";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
-import {
-  type ActionCtx,
-  action,
-  env,
-  internalQuery,
-} from "./_generated/server";
+import { type ActionCtx, action, internalQuery } from "./_generated/server";
 import {
   DAY_MS,
   monthlyAmount,
@@ -16,7 +11,11 @@ import {
 } from "./admin/stats";
 import { ensureAdmin } from "./adminAccess";
 import { daysAgoDate, type UsageByUser } from "./adminUsage";
-import { readHasPremium } from "./auth";
+import {
+  polarApi,
+  polarCustomerOwnerId,
+  readHasPremium,
+} from "./billing/polar";
 
 const SUBSCRIPTION_LIMIT = 5000;
 const CHURN_WINDOW_DAYS = 90;
@@ -41,25 +40,12 @@ export interface PolarSubscription extends SubscriptionLike {
   startedAt: Date | null;
 }
 
-export const createPolarClient = () =>
-  env.POLAR_ACCESS_TOKEN
-    ? new PolarBilling({
-        accessToken: env.POLAR_ACCESS_TOKEN,
-        server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-      })
-    : null;
-
 export const subscriptionOwnerId = (
   subscription: Pick<PolarSubscription, "customer">
-): string | undefined => {
-  const fromMetadata = subscription.customer.metadata.userId;
-  return typeof fromMetadata === "string"
-    ? fromMetadata
-    : (subscription.customer.externalId ?? undefined);
-};
+): string | undefined => polarCustomerOwnerId(subscription.customer);
 
 export const listPolarSubscriptions = async (
-  polar: PolarBilling,
+  polar: PolarApi,
   request: { active: boolean; canceledAtAfter?: Date }
 ): Promise<{ items: PolarSubscription[]; isComplete: boolean }> => {
   const items: PolarSubscription[] = [];
@@ -75,7 +61,7 @@ export const listPolarSubscriptions = async (
 
 export const readCustomerSubscriptions = async (
   ctx: Pick<ActionCtx, "runQuery">,
-  polar: PolarBilling
+  polar: PolarApi
 ): Promise<{
   subscriptions: PolarSubscription[];
   internalIds: Set<string>;
@@ -158,7 +144,7 @@ export const getRevenue = action({
   args: {},
   handler: async (ctx): Promise<RevenueResult> => {
     await ensureAdmin(ctx);
-    const polar = createPolarClient();
+    const polar = polarApi();
     if (!polar) {
       return { configured: false as const, fetchedAt: Date.now() };
     }

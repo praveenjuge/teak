@@ -1,26 +1,29 @@
 import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
+import { useCopyCardImage } from "@/hooks/useCardClipboard";
 import { useCardHighlights } from "@/hooks/useCardHighlights";
-import { useBulkCardActions } from "../../hooks/useBulkCardActions";
+import type { ClientCard } from "@/lib/cardTypes";
+import {
+  type RunnableCardActionId,
+  useCardActions,
+} from "../../hooks/useCardActions";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
+import { useCardTagEditor } from "../../hooks/useCardTagEditor";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { usePaletteColors } from "../../hooks/usePaletteColors";
-import { usePinActions } from "../../hooks/usePinnedCards";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
-import type { CardModalCard } from "./types";
 
 export interface ConnectedCardModalProps {
-  card?: CardModalCard | null;
+  card?: ClientCard | null;
   cardId: string | null;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
-  onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
   onMoreLikeThis?: (cardId: string) => void;
   onNext?: () => void;
@@ -28,6 +31,7 @@ export interface ConnectedCardModalProps {
   onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
+  openOrigin?: { x: number; y: number };
   returnFocus?: (cardId: string) => boolean;
 }
 
@@ -37,13 +41,13 @@ export function ConnectedCardModal({
   open,
   onCancel,
   onCardTypeClick,
-  onCardUpdate,
   onInvalidCard,
   onNext,
   onOpenCard,
   onPrevious,
   onTagClick,
   onMoreLikeThis,
+  openOrigin,
   returnFocus,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -61,21 +65,9 @@ export function ConnectedCardModal({
 
   const {
     card,
-    tagInput,
-    setTagInput,
-    tagError,
     updateContent,
     updateNotes,
     updateTitle,
-    toggleFavorite,
-    toggleDone,
-    addTag,
-    removeTag,
-    removeAiTag,
-    acceptAiTag,
-    handleDelete,
-    handleRestore,
-    handlePermanentDelete,
     openLink,
     downloadFile,
     saveChanges,
@@ -83,10 +75,8 @@ export function ConnectedCardModal({
     hasUnsavedChanges,
     getCurrentValue,
     isDownloading,
-  } = useCardModal(cardId, {
-    card: resolvedCard,
-    onCardUpdate,
-  });
+  } = useCardModal(cardId, { card: resolvedCard });
+  const tagEditor = useCardTagEditor(card);
 
   const cardLinks = useCardLinkEditor({
     currentCardId: card?._id,
@@ -112,22 +102,13 @@ export function ConnectedCardModal({
   const paletteColors = usePaletteColors(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
-  const runBulkAction = useBulkCardActions("card-modal");
-  const toggleArchive = useCallback(() => {
-    if (!card) {
-      return;
-    }
-    runBulkAction(card.isArchived ? "unarchive" : "archive", [card._id]).catch(
-      () => undefined
-    );
-  }, [card, runBulkAction]);
-
-  const { togglePin: togglePinAction } = usePinActions();
-  const togglePin = useCallback(() => {
-    if (card) {
-      togglePinAction(card, "dialog").catch(() => undefined);
-    }
-  }, [card, togglePinAction]);
+  const copyCardImage = useCopyCardImage();
+  const actions = useCardActions();
+  const runAction = useCallback(
+    (action: RunnableCardActionId) =>
+      card ? actions.run(action, card, "dialog") : Promise.resolve(false),
+    [actions, card]
+  );
 
   useEffect(() => {
     if (
@@ -158,11 +139,9 @@ export function ConnectedCardModal({
       card={card}
       cardId={cardId}
       cardLinks={card?.type === "text" ? cardLinks : undefined}
+      copyImage={card ? () => copyCardImage(card) : undefined}
       downloadFile={downloadFile}
       getCurrentValue={getCurrentValue}
-      handleDelete={handleDelete}
-      handlePermanentDelete={handlePermanentDelete}
-      handleRestore={handleRestore}
       hasUnsavedChanges={hasUnsavedChanges}
       highlights={card?.type === "link" ? highlights : undefined}
       isDownloading={isDownloading}
@@ -184,8 +163,10 @@ export function ConnectedCardModal({
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}
+      openOrigin={openOrigin}
       paletteColors={card?.type === "palette" ? paletteColors : undefined}
       returnFocus={returnFocus}
+      runAction={runAction}
       saveChanges={saveChanges}
       savePdf={
         card?.type === "link" && card.metadata?.linkCategory?.pdfUrl
@@ -197,18 +178,14 @@ export function ConnectedCardModal({
       }
       saveState={saveState}
       tags={{
-        acceptAiTag,
-        addTag,
-        removeAiTag,
-        removeTag,
-        setTagInput,
-        tagError,
-        tagInput,
+        acceptAiTag: tagEditor.acceptAiTag,
+        addTag: tagEditor.addTag,
+        removeAiTag: tagEditor.removeAiTag,
+        removeTag: tagEditor.removeTag,
+        setTagInput: tagEditor.setInput,
+        tagError: tagEditor.error,
+        tagInput: tagEditor.input,
       }}
-      toggleArchive={toggleArchive}
-      toggleDone={toggleDone}
-      toggleFavorite={toggleFavorite}
-      togglePin={card?.isArchived ? undefined : togglePin}
       updateContent={updateContent}
       updateNotes={updateNotes}
       updateTitle={updateTitle}

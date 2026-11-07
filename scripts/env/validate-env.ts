@@ -2,6 +2,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readWorkosWebConfig } from "../../apps/web/src/lib/workos-config";
+import {
+  LOCAL_CONVEX_SITE_URL,
+  LOCAL_CONVEX_URL,
+} from "../setup/setup-derived-env.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
@@ -93,7 +97,7 @@ export const validateWebEnvContent = (
       issues.push({
         key,
         problem: "invalid-url",
-        hint: `${key} must be an http(s) URL (received "${value}"). Expected local defaults http://127.0.0.1:3210 / http://127.0.0.1:3211.`,
+        hint: `${key} must be an http(s) URL (received "${value}"). Expected local defaults ${LOCAL_CONVEX_URL} / ${LOCAL_CONVEX_SITE_URL}.`,
       });
     }
   }

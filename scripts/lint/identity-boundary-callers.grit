@@ -6,5 +6,5 @@ or {
   `internal.workosUsers.linkWorkosUser` as $match,
   `internal.workosConsents.authorizeConnectConsent` as $match
 } where {
-  register_diagnostic(span=$match, message="Call WorkOS identity boundaries only from the adapters that verify their caller: securitySessions.ts, workosBootstrap.ts and publicApi/http/auth.ts.", severity="error")
+  register_diagnostic(span=$match, message="Call WorkOS identity boundaries only from the adapters that verify their caller. biome.jsonc lists them, as the files this rule leaves out.", severity="error")
 }

@@ -1,9 +1,24 @@
 package com.praveenjuge.teak.core.model
 
+import kotlinx.serialization.Serializable
 import org.junit.Test
 import kotlin.test.assertEquals
 
+/** Runs the rows in `linkDetection.json`, which `packages/convex/__tests__/shared/utils/linkDetection.test.ts` runs too. */
 class LinkDetectionTest {
+    @Serializable
+    private data class Row(val content: String, val url: String?, val cleanedContent: String)
+
+    @Serializable
+    private data class Rows(val extract: List<Row>)
+
+    @Test
+    fun `extracts the URL the web would`() {
+        for (row in Fixtures.load<Rows>("linkDetection").extract) {
+            assertEquals(row.url to row.cleanedContent, LinkDetection.extractUrl(row.content), row.content)
+        }
+    }
+
     @Test
     fun `a bare URL becomes a link card with markdown escapes undone`() {
         assertEquals(

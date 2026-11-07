@@ -7,7 +7,7 @@ import {
   normalizeHueFilters,
   normalizeVisualStyleFilters,
 } from "../constants";
-import { isCardHidden, isHiddenTagList } from "../tags";
+import { isCardHidden, isHiddenTagList, tagKey } from "../tags";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
@@ -108,11 +108,7 @@ const tagKeysCache = new WeakMap<Doc<"cards">, Set<string>>();
 const buildTagKeys = (card: Doc<"cards">) => {
   let keys = tagKeysCache.get(card);
   if (keys === undefined) {
-    keys = new Set(
-      [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
-        cardTag.trim().toLowerCase()
-      )
-    );
+    keys = new Set([...(card.tags ?? []), ...(card.aiTags ?? [])].map(tagKey));
     tagKeysCache.set(card, keys);
   }
   return keys;
@@ -181,9 +177,7 @@ export const filterLocalCards = (
 ) => {
   const parsed = parseSearchQuery(searchTerms);
   const terms = tokenizeSearchQuery(parsed.terms.join(" "));
-  const tagKeys = [tag?.trim().toLowerCase() ?? "", ...parsed.tags].filter(
-    Boolean
-  );
+  const tagKeys = [tagKey(tag ?? ""), ...parsed.tags].filter(Boolean);
   const revealsHidden = isHiddenTagList(tagKeys);
   const { expression } = parsed;
   const revealTags = revealsHidden ? [] : expressionRevealTags(expression);
@@ -205,9 +199,7 @@ export const filterLocalCards = (
         isCardHidden(card) &&
         !(
           revealsHidden ||
-          revealTags.some((revealTag) =>
-            cardTags.has(revealTag.trim().toLowerCase())
-          )
+          revealTags.some((revealTag) => cardTags.has(tagKey(revealTag)))
         )
       ) {
         return false;
@@ -240,10 +232,7 @@ export const filterLocalCards = (
       ) {
         return false;
       }
-      if (
-        (parsed.done || parsed.todo) &&
-        !(card.type === "link" && matchesDoneState(card, parsed))
-      ) {
+      if (!matchesDoneState(card, parsed)) {
         return false;
       }
       if (
@@ -259,7 +248,7 @@ export const filterLocalCards = (
         return false;
       }
 
-      if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+      if (!tagKeys.every((key) => cardTags.has(key))) {
         return false;
       }
 
@@ -326,7 +315,7 @@ export const filterLocalCards = (
                 fieldText,
                 {
                   folder: () => false,
-                  hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),
+                  hasTag: (tag) => cardTags.has(tagKey(tag)),
                   host,
                 },
                 isCardHidden(card) && !revealsHidden

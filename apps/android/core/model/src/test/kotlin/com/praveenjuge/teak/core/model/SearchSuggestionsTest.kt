@@ -45,7 +45,7 @@ class SearchSuggestionsTest {
 
     @Test
     fun `values complete after a key`() {
-        assertEquals(listOf("is:fav", "is:archived", "is:done", "is:todo"), inserts("is:"))
+        assertEquals(listOf("is:fav", "is:archived", "is:done", "is:todo", "is:pinned"), inserts("is:"))
         assertEquals(listOf("is:archived"), inserts("is:arch"))
         assertEquals(listOf("type:image"), inserts("type:im"))
         assertEquals(UiText.of("search.suggestions.isOptions.archived"), SearchSuggestions.build("is:arch").single().label)

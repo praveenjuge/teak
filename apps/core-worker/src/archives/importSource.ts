@@ -1,6 +1,3 @@
-import type { ParsedBookmarkItem } from "@teak/convex/import/bookmarks";
-import { ImportLimitExceeded } from "@teak/convex/import/sourceItems";
-import { parseImportSource } from "@teak/convex/import/sources";
 import {
   IMPORT_FAILURE,
   isImportMode,
@@ -17,18 +14,22 @@ import {
   type FilesImportIndexResult,
   type FilesImportMarkdownParams,
   type FilesImportMarkdownResult,
+  isValidObjectKey,
 } from "@teak/files-protocol";
-import { OpFailure } from "../opFailure";
-import { isValidUploadKey } from "../storage/upload";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import { readImportJson } from "./importJson";
 import { indexOmnivoreZip, isZipSource } from "./importOmnivore";
+import type { ParsedBookmarkItem } from "./sources/bookmarks";
+import { ImportLimitExceeded } from "./sources/sourceItems";
+import { parseImportSource } from "./sources/sources";
 import {
   ArchiveEntryTooLargeError,
   readZipDirectory,
   readZipEntry,
 } from "./zip";
 
-export const INVALID_MISSING_URL_COLUMN = `invalid_${IMPORT_FAILURE.MISSING_URL_COLUMN}`;
+export const INVALID_MISSING_URL_COLUMN =
+  `invalid_${IMPORT_FAILURE.MISSING_URL_COLUMN}` as const;
 
 export function importIndexFailureClass(message: string): string {
   if (message === INVALID_MISSING_URL_COLUMN) {
@@ -44,7 +45,7 @@ export async function indexImportSource(
   input: unknown
 ): Promise<FilesImportIndexResult> {
   if (!input || typeof input !== "object") {
-    throw new Error("invalid_import_params");
+    throw new InvalidOpInput("invalid_import_params");
   }
   const params = input as FilesImportIndexParams;
   const { sourceKey, mode, expectedSize, sourceEtag } = params;
@@ -52,7 +53,7 @@ export async function indexImportSource(
   if (
     !(
       typeof sourceKey === "string" &&
-      isValidUploadKey(sourceKey) &&
+      isValidObjectKey(sourceKey) &&
       isImportMode(mode) &&
       Number.isSafeInteger(expectedSize)
     ) ||
@@ -64,7 +65,7 @@ export async function indexImportSource(
     (sourceEtag !== undefined &&
       (typeof sourceEtag !== "string" || sourceEtag.length > 255))
   ) {
-    throw new Error("invalid_import_params");
+    throw new InvalidOpInput("invalid_import_params");
   }
   const meta = await bucket.head(sourceKey);
   if (!meta) {
@@ -82,7 +83,7 @@ export async function indexImportSource(
       (entry) => entry.name === "manifest.json"
     );
     if (!manifestEntry) {
-      throw new Error("invalid_archive_missing_manifest");
+      throw new InvalidOpInput("invalid_archive_missing_manifest");
     }
     let page = await readImportJson(
       bucket,
@@ -92,14 +93,14 @@ export async function indexImportSource(
       cursor
     );
     if (page.version !== 1) {
-      throw new Error("invalid_archive_version");
+      throw new InvalidOpInput("invalid_archive_version");
     }
     if (!page.hasCards) {
       const cardsEntry = directory.entries.find(
         (entry) => entry.name === "cards.json"
       );
       if (!cardsEntry) {
-        throw new Error("invalid_archive_missing_cards");
+        throw new InvalidOpInput("invalid_archive_missing_cards");
       }
       page = await readImportJson(
         bucket,
@@ -109,7 +110,7 @@ export async function indexImportSource(
         cursor
       );
       if (!page.hasCards) {
-        throw new Error("invalid_archive_missing_cards");
+        throw new InvalidOpInput("invalid_archive_missing_cards");
       }
     }
     return {
@@ -145,18 +146,18 @@ export async function indexImportSource(
     parsed = parseImportSource(mode, text);
   } catch (error) {
     if (error instanceof ImportLimitExceeded) {
-      throw new Error("invalid_bookmark_count", { cause: error });
+      throw new InvalidOpInput("invalid_bookmark_count", { cause: error });
     }
     if (
       error instanceof Error &&
       error.message === IMPORT_FAILURE.MISSING_URL_COLUMN
     ) {
-      throw new Error(INVALID_MISSING_URL_COLUMN, { cause: error });
+      throw new InvalidOpInput(INVALID_MISSING_URL_COLUMN, { cause: error });
     }
-    throw new Error("invalid_import_source", { cause: error });
+    throw new InvalidOpInput("invalid_import_source", { cause: error });
   }
   if (parsed.length > 10_000) {
-    throw new Error("invalid_bookmark_count");
+    throw new InvalidOpInput("invalid_bookmark_count");
   }
   const items: FilesImportIndexResult["items"] = [];
   let bytes = 0;
@@ -194,18 +195,18 @@ export async function readImportMarkdown(
   input: unknown
 ): Promise<FilesImportMarkdownResult> {
   if (!input || typeof input !== "object") {
-    throw new Error("invalid_markdown_params");
+    throw new InvalidOpInput("invalid_markdown_params");
   }
   const params = input as FilesImportMarkdownParams;
   if (
     typeof params.sourceKey !== "string" ||
-    !isValidUploadKey(params.sourceKey) ||
+    !isValidObjectKey(params.sourceKey) ||
     typeof params.path !== "string" ||
     typeof params.sourceEtag !== "string" ||
     !params.sourceEtag ||
     params.sourceEtag.length > 255
   ) {
-    throw new Error("invalid_markdown_params");
+    throw new InvalidOpInput("invalid_markdown_params");
   }
   const directory = await readZipDirectory(
     bucket,
@@ -214,7 +215,7 @@ export async function readImportMarkdown(
   );
   const entry = directory.entries.find((item) => item.name === params.path);
   if (!entry) {
-    throw new Error("invalid_archive_entry");
+    throw new InvalidOpInput("invalid_archive_entry");
   }
   try {
     const bytes = await readZipEntry(

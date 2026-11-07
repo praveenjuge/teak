@@ -11,6 +11,7 @@ import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
 } from "./workos/authorizedApps";
+import { isWorkosApiConfigured } from "./workos/client";
 import { resolveOwner } from "./workosIdentity";
 
 const principalValidator = {
@@ -144,11 +145,11 @@ export const sessionConsent = internalQuery({
   },
 });
 
-async function findApp(workosUserId: string, clientId: string, apiKey: string) {
+async function findApp(workosUserId: string, clientId: string) {
   let after: string | undefined;
   let found: string | undefined;
   for (let page = 0; page < MAX_APP_PAGES; page++) {
-    const result = await listAuthorizedAppsPage(workosUserId, apiKey, {
+    const result = await listAuthorizedAppsPage(workosUserId, {
       after,
       limit: 100,
       timeoutMs: 10_000,
@@ -183,8 +184,7 @@ export async function disconnectApplication(
     tokenExpiresAt?: number;
   }
 ): Promise<DisconnectStatus> {
-  const apiKey = process.env.WORKOS_API_KEY;
-  if (!apiKey) {
+  if (!isWorkosApiConfigured()) {
     return 503;
   }
   const checked = await ctx.runMutation(
@@ -205,13 +205,9 @@ export async function disconnectApplication(
     return 401;
   }
   try {
-    const appId = await findApp(
-      principal.workosUserId,
-      principal.clientId,
-      apiKey
-    );
+    const appId = await findApp(principal.workosUserId, principal.clientId);
     if (appId) {
-      await deleteAuthorizedApp(principal.workosUserId, appId, apiKey, 10_000);
+      await deleteAuthorizedApp(principal.workosUserId, appId, 10_000);
     }
   } catch {
     return 503;

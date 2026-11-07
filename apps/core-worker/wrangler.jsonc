@@ -211,15 +211,13 @@
     "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site",
     "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app",
     // The Convex deployments whose background work this Worker runs; the
-    // first is primary. Development shares this Worker until the storage
-    // switch, so its deployment is listed too. Remove it in the same change
-    // that deploys development/wrangler.jsonc: two Workers serving one
-    // deployment would both run its crons, and each would reconcile runs
-    // that live in the other's workflows as missing.
+    // first is primary. Development has its own Worker
+    // (development/wrangler.jsonc) and is never listed here: two Workers
+    // serving one deployment would both run its crons, and each would
+    // reconcile runs that live in the other's workflows as missing.
     "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site",
     "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
-    "AI_USAGE_DATASET": "teak_ai_usage",
     // Save by email: Email Routing's catch-all rule for this domain sends
     // every message here, and only save@ (and save+anything@) is accepted.
     "INBOUND_EMAIL_DOMAIN": "in.teakvault.com",

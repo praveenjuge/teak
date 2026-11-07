@@ -1,6 +1,6 @@
 {
   "name": "@teak/tests",
-  "version": "1.0.92",
+  "version": "1.0.93",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,16 +16,16 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
+    "@teak/scripts": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "node-html-parser": "^9.0.1",
+    "htmlparser2": "catalog:",
     "teak-sdk": "workspace:*"
   },
   "devDependencies": {
     "@e2e-dev/github": "0.4.0",
     "@e2e-dev/web": "0.14.0",
     "@types/bun": "catalog:",
-    "@workos/emulate": "0.14.0",
     "axe-core": "^4.14.0",
     "convex": "catalog:",
     "e2e": "0.19.0",

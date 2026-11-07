@@ -1,5 +1,7 @@
+import { AI_PIPELINE_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import {
+  fieldsFor,
   metadataStatusValidator,
   processingStatusValidator,
   stageSummaryValidator,
@@ -29,12 +31,9 @@ export const adminOverviewFields = {
     missingAiMetadata: v.number(),
     pendingEnrichment: v.number(),
     failedCards: v.number(),
-    stageSummaries: v.object({
-      classify: stageSummaryValidator,
-      categorize: stageSummaryValidator,
-      metadata: stageSummaryValidator,
-      renderables: stageSummaryValidator,
-    }),
+    stageSummaries: v.object(
+      fieldsFor(AI_PIPELINE_STAGES, stageSummaryValidator)
+    ),
     missingCards: v.array(
       v.object({
         cardId: v.id("cards"),

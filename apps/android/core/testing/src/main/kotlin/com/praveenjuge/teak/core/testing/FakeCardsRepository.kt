@@ -103,7 +103,7 @@ class FakeCardsRepository : CardsRepository {
         val failed = ids.filter { it in failingIds }
         val updated = ids - failed.toSet()
         val detail = when (action) {
-            BulkAction.AddTags -> ":${tags.joinToString(",")}"
+            BulkAction.AddTags, BulkAction.RemoveTags -> ":${tags.joinToString(",")}"
             BulkAction.AddToFolder -> ":$folderId"
             else -> ""
         }

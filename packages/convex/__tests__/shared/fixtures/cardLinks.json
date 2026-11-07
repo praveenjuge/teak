@@ -1,0 +1,173 @@
+{
+  "$comment": "Card link rows for packages/convex/shared/cardLinks.ts and its ports: Apple's CardLinks, Android's CardLinks and Raycast's generated copy.",
+  "parseIds": [
+    {
+      "name": "one link",
+      "markdown": "See [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]].",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "order kept, duplicates dropped",
+      "markdown": "[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] then [[A|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] and [[B again|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": [
+        "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+        "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
+      ]
+    },
+    {
+      "name": "an empty title",
+      "markdown": "[[|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "inline code",
+      "markdown": "`[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]`",
+      "ids": []
+    },
+    {
+      "name": "double-backtick code",
+      "markdown": "`` a [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] ``",
+      "ids": []
+    },
+    {
+      "name": "a fenced block",
+      "markdown": "```\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\n```\n[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a tilde fence",
+      "markdown": "~~~md\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\n~~~",
+      "ids": []
+    },
+    {
+      "name": "a fenced block with CRLF line endings",
+      "markdown": "```\r\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\r\n```\r\n[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a fence line with an info string inside a block",
+      "markdown": "```\n```js\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\n```",
+      "ids": []
+    },
+    {
+      "name": "an indented block",
+      "markdown": "Intro\n\n    [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": []
+    },
+    {
+      "name": "a list item's indented paragraph",
+      "markdown": "- Item\n\n    [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "an ordered item's indented continuation",
+      "markdown": "1. Item\n    [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a nested item's indented paragraph",
+      "markdown": "- Outer\n    - Inner\n\n      [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "an indented block inside a list item",
+      "markdown": "- Item\n\n      [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": []
+    },
+    {
+      "name": "an indented block after a list ends",
+      "markdown": "- Item\n\nParagraph\n\n    [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": []
+    },
+    {
+      "name": "an unclosed backtick",
+      "markdown": "`oops [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "no id",
+      "markdown": "[[x|teak:]]",
+      "ids": []
+    },
+    {
+      "name": "no prefix",
+      "markdown": "[[x]]",
+      "ids": []
+    },
+    {
+      "name": "an uppercase id",
+      "markdown": "[[x|teak:K17A8M9X2P3Q4R5S]]",
+      "ids": []
+    },
+    {
+      "name": "a too-short id",
+      "markdown": "[[x|teak:abc]]",
+      "ids": []
+    },
+    {
+      "name": "a pipe in the title",
+      "markdown": "[[a|b|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": []
+    },
+    {
+      "name": "a newline in the title",
+      "markdown": "[[a\nb|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": []
+    }
+  ],
+  "formatToken": [
+    {
+      "name": "characters the grammar can't hold",
+      "title": "a | b ]] c\nd",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[a b c d|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    },
+    {
+      "name": "an empty title",
+      "title": "   ",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[Card|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    },
+    {
+      "name": "a short title",
+      "title": "Reading list",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[Reading list|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    },
+    {
+      "name": "an emoji at the cut kept whole",
+      "title": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc👩‍👩‍👧‍👦dddddddddddddddddddddddddddddd",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc👩‍👩‍👧‍👦ddd…|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    },
+    {
+      "name": "an emoji at the cut dropped whole",
+      "title": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc👩‍👩‍👧‍👦dddddddddddddddddddddddddddddd",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc…|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    },
+    {
+      "name": "not split at a surrogate",
+      "title": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc😀😀",
+      "id": "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b",
+      "token": "[[cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc…|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]"
+    }
+  ],
+  "tokensToText": [
+    {
+      "name": "each link as its stored title, leaving code alone",
+      "markdown": "Read [[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] and `[[Raw|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]`",
+      "text": "Read Plan and `[[Raw|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]`"
+    },
+    {
+      "name": "backticks in a title",
+      "markdown": "See [[Use `foo`|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]].",
+      "text": "See Use `foo`."
+    },
+    {
+      "name": "no links",
+      "markdown": "plain [[x]] text",
+      "text": "plain [[x]] text"
+    }
+  ]
+}

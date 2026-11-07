@@ -123,7 +123,7 @@ Drag the sidebar's edge to resize it (double-click to reset), or collapse it to 
 
 ### Grid
 
-Cards show in a masonry grid. Links show their site's icon, notes show their first line as a heading, and audio shows its length. Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`); on touch screens the **⋯** menu always shows.
+Cards show in a masonry grid. Notes, quotes, links, palettes, voice memos and documents are tiles of one size; photos and videos keep their own shape. A note shows its first line as a heading, a quote is set large or small to fit, and a link shows its picture with its site's icon and title under it (a link without a picture shows its title on the tile instead). A price, a video's or recording's length, and a document's file type sit in the tile's bottom corner. Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`); on touch screens the **⋯** menu always shows.
 
 Click a card to open it. The details beside it show where it's from and its type (click the type to see every card of that type), its title (click a link's title to rename it), and one main button: **Open** for a link or **Download** for a file. Next to it are **Favorite**, the [done button](#read-watch-and-buy) for a link, **Copy**, **Folder** and **More** (`⋯`): Save PDF, More like this, Refresh details, Pin to top, Archive and Move to Trash. These stay pinned while you scroll.
 
@@ -141,7 +141,7 @@ Pin up to 12 cards to keep them at the top of **Everything**: choose **Pin to to
 
 - The row shows only on **Everything** with no search or filter and the **Newest** order. Elsewhere a pinned card stays where it ranks, with a pin in its corner.
 - Search `is:pinned` to list them.
-- Archiving a card or moving it to Trash unpins it. Favorites and pins are separate.
+- Archiving a card or moving it to Trash unpins it; **Undo** on that toast pins it again in its old place. Favorites and pins are separate.
 - Pin on the web, or with `PATCH /v1/cards/:cardId/pin` and `isPinned: true` in the [API](/docs/api#pinned-cards), MCP, SDK or CLI. The Mac, iPhone, iPad and Android apps can search `is:pinned` but don't pin or show the row.
 
 ## Notes
@@ -332,7 +332,7 @@ With a card open:
 | `F`, `P`, `T`, `E`, `Delete` | As in the grid |
 | `N` | Write a note |
 | `O` or `⌘Enter` | Open the link, or download the file |
-| `C` | Copy the link or text |
+| `C` | Copy the text, link or image |
 | `D` | Mark a link done |
 | `R` | Switch between **Preview** and **Read** |
 | `H` | Highlight the selected text in **Read** |
@@ -407,7 +407,7 @@ Teak shows what a page says about itself:
 - **Wikipedia:** the short description, last edit date, lead image and whether it's a disambiguation page.
 - **arXiv:** authors, publish date, subject and DOI. **Save PDF** saves the paper's PDF as its own document card (it counts toward your card limit); saving it again opens the card you have.
 - **YouTube:** channel, length and upload date.
-- **Spotify and Apple Music:** artist, kind (track, album, playlist or episode) and cover art.
+- **Spotify and Apple Music:** name, artist, kind (track, album, playlist or episode) and cover art.
 - **Books:** a page with its ISBN in its data (as on Goodreads), or an Amazon book link with a 10-digit ISBN, gets its author, page count, publisher, date and cover from Open Library.
 - **Social posts:** posts from X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn and Substack Notes keep their text, author and date. Bluesky, Mastodon and Reddit posts keep up to 10 photos and a video when one is offered as a file. Private, deleted and login-only posts are saved like any page.
 

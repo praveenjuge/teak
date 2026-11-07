@@ -11,6 +11,9 @@
       ],
       "outputs": ["dist/**"]
     },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.agents/skills/**"]
+    },
     "dev": {
       "passThroughEnv": ["DOCS_PORT", "TEAK_DEV_API_URL"]
     }

@@ -103,9 +103,7 @@ jobs:
         with:
           node-version-file: package.json
       - name: Set up Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
+        uses: ./.github/actions/setup-bun
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
         with:
@@ -1104,18 +1102,19 @@ jobs:
           while [ "$SECONDS" -lt "$deadline" ]; do
             asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json > "$RUNNER_TEMP/apple-$SLUG-final-version.json"
             final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/apple-$SLUG-final-version.json")"
-            case "$final_state" in
-              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+            final_phase="$(node scripts/release/apple-release-proof.ts phase "$final_state")"
+            case "$final_phase" in
+              review)
                 break
                 ;;
-              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+              rejected)
                 echo "$LABEL $VERSION entered terminal state $final_state." >&2
                 exit 1
                 ;;
             esac
             sleep 30
           done
-          if ! [[ "$final_state" =~ ^(WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)$ ]]; then
+          if [ "${final_phase:-}" != "review" ]; then
             echo "Timed out waiting for $LABEL $VERSION to reach WAITING_FOR_REVIEW." >&2
             exit 1
           fi
@@ -1159,15 +1158,8 @@ jobs:
             --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             "${prior_args[@]}"
 
-          for attempt in 1 2 3 4 5 6; do
-            if gh release view "v$VERSION" > /dev/null 2>&1; then break; fi
-            gh release create "v$VERSION" --verify-tag --title "v$VERSION" --generate-notes > /dev/null 2>&1 || true
-            if [ "$attempt" -eq 6 ]; then
-              echo "Could not resolve GitHub Release v$VERSION." >&2
-              exit 1
-            fi
-            sleep 10
-          done
+          # Version Tag creates the release with the tag.
+          node scripts/release/github-release.ts wait "$GITHUB_REPOSITORY" "v$VERSION"
           gh release upload "v$VERSION" "$RUNNER_TEMP/$MANIFEST_NAME" --clobber
           {
             echo "- Review submission: $submission_id"

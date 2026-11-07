@@ -22,23 +22,24 @@ import type {
   FilesImportIndexResult,
   FilesImportMarkdownResult,
 } from "@teak/files-protocol";
+import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
 import { importIndexFailureClass } from "../archives/importSource";
-import { sha256Hex } from "../lib";
+import { InvalidOpInput } from "../opFailure";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
 import {
   isTransientError,
-  resolveDeps,
+  type OpDeps,
+  resolveOpDeps,
   settleConvexErrors,
-  type WorkflowDeps,
   withinBudget,
 } from "./deps";
-import { gatedEnv, isRetryableFilesError } from "./filesOps";
+import { isRetryableFilesError } from "./filesOps";
 import {
   CONVEX_STEP,
   errorMessage,
-  retryConfig,
+  exponentialStep,
   runReported,
   type StepConfig,
   type StepContext,
@@ -96,7 +97,7 @@ const IMPORT_STEP: StepConfig = {
   },
   timeout: "10 minutes",
 };
-const FINALIZE_STEP = retryConfig(3, 500);
+const FINALIZE_STEP = exponentialStep(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
 export const STAGED_PART_BYTES = 8 * 1024 * 1024;
@@ -154,12 +155,12 @@ const withoutStatus = <T extends { status: string }>({
 
 export const runImport = (
   run: WorkflowRun<ImportParams>,
-  deps: WorkflowDeps = {}
+  deps: OpDeps = {}
 ): Promise<{ status: ImportOutcome }> => {
-  const { convex, ops } = resolveDeps(run, deps);
+  const { convex, ops } = resolveOpDeps(run, deps);
   const { env, step } = run;
   const jobId = run.params.jobId as Id<"importJobs">;
-  const bucket = () => gatedEnv(env).BUCKET;
+  const bucket = () => env.BUCKET;
 
   const loadJob = () =>
     convex.query(internal.dataImport.getWorkflowJob, { jobId });
@@ -191,7 +192,7 @@ export const runImport = (
     if (job.sourceEtag) {
       return job.sourceEtag;
     }
-    const head = await ops<{ etag?: string; exists: boolean; size?: number }>({
+    const head = await ops({
       op: "head-object",
       params: { key: job.sourceKey },
     });
@@ -212,8 +213,8 @@ export const runImport = (
     cursor: number,
     sourceEtag: string
   ): Promise<FilesImportIndexResult> => {
-    const outcome = await ops<FilesImportIndexResult>({
-      fallbackCodes: ["INVALID_INPUT"],
+    const outcome = await ops({
+      declineCodes: ["INVALID_INPUT"],
       op: "index-import-source",
       params: {
         cursor,
@@ -237,7 +238,7 @@ export const runImport = (
     sourceEtag: string,
     path: string
   ): Promise<FilesImportMarkdownResult> => {
-    const outcome = await ops<FilesImportMarkdownResult>({
+    const outcome = await ops({
       op: "read-import-markdown",
       params: { path, sourceEtag, sourceKey: job.sourceKey },
     });
@@ -264,7 +265,7 @@ export const runImport = (
       throw new Error("source_changed");
     }
     if (page.nextCursor !== null && page.nextCursor <= cursor) {
-      throw new Error("invalid_import_cursor");
+      throw new InvalidOpInput("invalid_import_cursor");
     }
     const seen = new Set<string>();
     const items: ImportIndexItem[] = page.items.map((raw) => {
@@ -488,7 +489,7 @@ export const runImport = (
           markdown: false,
         });
         if (read.nextCursor === null) {
-          throw new Error("invalid_import_cursor");
+          throw new InvalidOpInput("invalid_import_cursor");
         }
         urls.push(...(await Promise.all([...read.seen].map(seenHash))));
         cursor = read.nextCursor;
@@ -513,9 +514,7 @@ export const runImport = (
       for (const entry of needed.values()) {
         await ensureOwned(job.userId, entry.destinationKey);
       }
-      const outcome = await ops<
-        Array<{ destinationKey: string; path: string }>
-      >({
+      const outcome = await ops({
         op: "extract-import-files",
         params: {
           archiveKey: job.sourceKey,

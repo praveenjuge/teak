@@ -1,6 +1,6 @@
 {
   "name": "@teak/mcp-app",
-  "version": "1.0.92",
+  "version": "1.0.93",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,11 +17,13 @@
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/core": "2.4.0",
     "@modelcontextprotocol/ext-apps": "2.0.4",
+    "@teak/convex": "workspace:*",
     "@types/bun": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "teak-sdk": "workspace:*",
     "typescript": "catalog:",
     "vite": "8.2.4",
     "vite-plugin-singlefile": "2.3.4",

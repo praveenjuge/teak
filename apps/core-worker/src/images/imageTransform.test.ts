@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
+  hmacSha256Hex,
 } from "@teak/files-protocol";
 import type { Env } from "../index";
-import { hmacSha256Hex } from "../lib";
 import { FakeBucket, makePng, withObjectGates } from "../test/testsupport";
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 

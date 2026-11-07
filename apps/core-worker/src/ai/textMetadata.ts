@@ -10,70 +10,25 @@ import {
   TEXT_METADATA_MODEL_ID,
   validationRetryPrompt,
 } from "@teak/files-protocol";
+import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
-import { aiRunOptions } from "./aiGateway";
-import { meteredAiRun } from "./aiUsage";
+import { runWorkersAi } from "./workersAi";
 
-export class MetadataCapacityError extends Error {
-  readonly aiFacts: FilesAiGenerationFacts;
-  constructor(aiFacts: FilesAiGenerationFacts) {
-    super("workers_ai_capacity_exhausted");
-    this.aiFacts = aiFacts;
-  }
-}
 /** Provider errors can echo the request, so this one carries none of theirs. */
 export class WorkersAiProviderFailed extends Error {
   constructor() {
     super("workers_ai_provider_failed");
   }
 }
-export class MetadataValidationError extends Error {
-  readonly aiFacts: FilesAiGenerationFacts;
-  constructor(aiFacts: FilesAiGenerationFacts) {
-    super("workers_ai_invalid_metadata_output");
-    this.aiFacts = aiFacts;
-  }
-}
+
+const invalidOutput = (aiFacts: FilesAiGenerationFacts): OpFailure =>
+  new OpFailure("ai_invalid_output", {
+    aiFacts,
+    message: "workers_ai_invalid_metadata_output",
+  });
+
 const VALIDATION_ERROR =
   /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
-const CAPACITY_ERROR =
-  /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|429|3040)\b|capacity temporarily exceeded/iu;
-
-const numericErrorFact = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && /^\d+$/.test(value)) {
-    return Number(value);
-  }
-  return undefined;
-};
-
-export const isCapacityError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
-  if (error && typeof error === "object") {
-    const facts = error as {
-      status?: unknown;
-      statusCode?: unknown;
-      code?: unknown;
-    };
-    const status = numericErrorFact(facts.status ?? facts.statusCode);
-    const code = numericErrorFact(facts.code);
-    if (status === 429 || code === 3040 || code === 3036) {
-      return true;
-    }
-    if (code !== undefined) {
-      return false;
-    }
-    if (/\b(?:3040|3036)\b/u.test(message)) {
-      return true;
-    }
-    if (status !== undefined && status >= 400 && status < 500) {
-      return false;
-    }
-  }
-  return CAPACITY_ERROR.test(message);
-};
 
 const responseText = (response: unknown): string | null => {
   if (typeof response === "string") {
@@ -102,11 +57,7 @@ export const generateTextMetadataForOp = async (
     prompt.length > MAX_AI_METADATA_INPUT_CHARS ||
     Object.keys(params).some((key) => key !== "prompt")
   ) {
-    throw new Error("invalid_metadata_params");
-  }
-  const ai = env.AI;
-  if (!ai) {
-    throw new Error("workers_ai_not_configured");
+    throw new InvalidOpInput("invalid_metadata_params");
   }
   const system =
     op === "generate-text-metadata"
@@ -121,41 +72,34 @@ export const generateTextMetadataForOp = async (
     facts.validationRetryCount = attempt;
     let response: unknown;
     try {
-      response = await meteredAiRun(
-        env,
-        {
-          functionId:
-            op === "generate-text-metadata"
-              ? "teak.ai.metadata.text"
-              : "teak.ai.metadata.link",
-          isCapacity: isCapacityError,
-          model: TEXT_METADATA_MODEL_ID,
-        },
-        () =>
-          ai.run(
-            TEXT_METADATA_MODEL_ID,
+      response = await runWorkersAi(env, {
+        aiFacts: facts,
+        capacityRetries: 0,
+        functionId:
+          op === "generate-text-metadata"
+            ? "teak.ai.metadata.text"
+            : "teak.ai.metadata.link",
+        input: {
+          max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
+          messages: [
+            { role: "system", content: system },
             {
-              max_tokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-              messages: [
-                { role: "system", content: system },
-                {
-                  role: "user",
-                  content: validationRetryPrompt(prompt, attempt),
-                },
-              ],
-              response_format: { type: "json_object" },
+              role: "user",
+              content: validationRetryPrompt(prompt, attempt),
             },
-            aiRunOptions(env)
-          )
-      );
+          ],
+          response_format: { type: "json_object" },
+        },
+        model: TEXT_METADATA_MODEL_ID,
+      });
     } catch (error) {
-      if (isCapacityError(error)) {
-        throw new MetadataCapacityError(facts);
+      if (error instanceof OpFailure) {
+        throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
       if (VALIDATION_ERROR.test(message)) {
         if (attempt >= MAX_AI_METADATA_VALIDATION_RETRIES) {
-          throw new MetadataValidationError(facts);
+          throw invalidOutput(facts);
         }
         continue;
       }
@@ -191,5 +135,5 @@ export const generateTextMetadataForOp = async (
       return { ...result, ...facts };
     }
   }
-  throw new MetadataValidationError(facts);
+  throw invalidOutput(facts);
 };

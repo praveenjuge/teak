@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 import { IMPORT_PART_BYTES, IMPORT_UPLOAD_TTL_MS } from "./import/constants";
-import { importModeValidator } from "./schema";
+import { importModeValidator } from "./schema/validators/jobs";
 import { requireSessionUserId } from "./securitySessions";
 import {
   IMPORT_SOURCES,
@@ -15,9 +15,9 @@ import {
   importMaxBytes,
 } from "./shared/importSources";
 import {
-  buildSignedMultipartPartUrl,
-  callFilesWorkerJson,
-} from "./storage/filesWorkerClient";
+  callCoreWorkerOp,
+  signedMultipartPartUrl,
+} from "./storage/coreWorkerClient";
 import { getR2Url } from "./storage/fileUrls";
 import { buildR2ObjectKey } from "./storage/r2";
 
@@ -96,7 +96,7 @@ async function signMissingParts(args: {
     if (uploaded.has(partNumber)) {
       continue;
     }
-    const url = await buildSignedMultipartPartUrl({
+    const url = await signedMultipartPartUrl({
       key: args.key,
       uploadId: args.uploadId,
       partNumber,
@@ -137,7 +137,7 @@ export const createImportUpload = action({
       }
     );
     try {
-      const creation = await callFilesWorkerJson<{ uploadId: string }>({
+      const creation = await callCoreWorkerOp({
         op: "create-multipart",
         params: {
           key: sourceKey,
@@ -261,7 +261,7 @@ export const completeImportUpload = action({
       { jobId, userId, uploadId: job.uploadId }
     );
     try {
-      const completion = await callFilesWorkerJson<{ size: number }>({
+      const completion = await callCoreWorkerOp({
         op: "complete-multipart",
         params: {
           key: job.sourceKey,
@@ -277,7 +277,7 @@ export const completeImportUpload = action({
             token: claim,
           })
         ) {
-          await callFilesWorkerJson({
+          await callCoreWorkerOp({
             op: "delete-objects",
             params: { keys: [job.sourceKey] },
           });
@@ -311,7 +311,7 @@ export const cancelImport = action({
       return { canceled: false };
     }
     if (state.uploadId) {
-      const result = await callFilesWorkerJson({
+      const result = await callCoreWorkerOp({
         op: "abort-multipart",
         params: { key: state.sourceKey, uploadId: state.uploadId },
       });

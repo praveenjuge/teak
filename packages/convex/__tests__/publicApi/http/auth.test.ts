@@ -11,23 +11,18 @@ import {
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_HEADER,
+  hmacSha256Hex,
+  sha256Hex,
 } from "@teak/files-protocol";
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { internal } from "../../../_generated/api";
 import { withAuthorizedUser } from "../../../publicApi/http/auth";
-import {
-  bulkCardsV1,
-  cardByIdV1,
-  changesCardsV1,
-  createCardV1,
-  listCardsV1,
-} from "../../../publicApi/http/routes";
-import { hmacSha256Hex, sha256Hex } from "../../../storage/r2Keys";
+import { publicApiV1 } from "../../../publicApi/http/router";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
-  buildAuthorizedMutationMockWithIdempotencySkip,
   runHandler,
 } from "../../helpers/publicApiHttp.test-utils";
 
@@ -46,7 +41,7 @@ describe("publicApiHttp auth and validation", () => {
     });
 
     const response = await runHandler(
-      cardByIdV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards/card_123/favorite", {
         method: "PATCH",
@@ -70,7 +65,7 @@ describe("publicApiHttp auth and validation", () => {
   test("static card routes authorize with the bearer API key", async () => {
     const cases = [
       {
-        handler: listCardsV1,
+        handler: publicApiV1,
         method: "GET",
         path: "/v1/cards",
         query: mock().mockResolvedValue({
@@ -85,21 +80,18 @@ describe("publicApiHttp auth and validation", () => {
           items: [{ cardId: "card_1", isFavorited: true }],
           operation: "favorite",
         },
-        handler: bulkCardsV1,
+        handler: publicApiV1,
         method: "POST",
-        mutation:
-          buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce(
-            {
-              operation: "favorite",
-              results: [{ cardId: "card_1", index: 0, status: "success" }],
-              summary: { failed: 0, succeeded: 1, total: 1 },
-            }
-          ),
+        mutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+          operation: "favorite",
+          results: [{ cardId: "card_1", index: 0, status: "success" }],
+          summary: { failed: 0, succeeded: 1, total: 1 },
+        }),
         path: "/v1/cards/bulk",
         query: mock(),
       },
       {
-        handler: changesCardsV1,
+        handler: publicApiV1,
         method: "GET",
         path: "/v1/cards/changes",
         queryString: "?since=1&limit=10",
@@ -148,7 +140,7 @@ describe("publicApiHttp auth and validation", () => {
     });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -171,7 +163,7 @@ describe("publicApiHttp auth and validation", () => {
       .mockResolvedValueOnce({ ok: true });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -191,7 +183,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for malformed JSON", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -211,7 +203,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for empty content", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -231,7 +223,7 @@ describe("publicApiHttp auth and validation", () => {
 
   test("createCardV1 returns 400 for unsafe url scheme", async () => {
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -250,16 +242,15 @@ describe("publicApiHttp auth and validation", () => {
   });
 
   test("createCardV1 maps ConvexError payload to stable code", async () => {
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockRejectedValueOnce(
-        new ConvexError({
-          code: "INVALID_INPUT",
-          message: "Content cannot be empty",
-        })
-      );
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Content cannot be empty",
+      })
+    );
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -283,14 +274,13 @@ describe("publicApiHttp auth and validation", () => {
   test("createCardV1 returns created payload", async () => {
     const previousSiteUrl = process.env.SITE_URL;
     process.env.SITE_URL = "https://app.teakvault.com";
-    const runMutation =
-      buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
-        status: "created",
-        cardId: "card_9",
-      });
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      status: "created",
+      cardId: "card_9",
+    });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -342,7 +332,7 @@ describe("publicApiHttp auth and validation", () => {
       });
 
     const response = await runHandler(
-      createCardV1,
+      publicApiV1,
       { runMutation, runQuery: mock() },
       new Request("https://example.com/v1/cards", {
         method: "POST",
@@ -456,7 +446,10 @@ describe("Connect consent checks", () => {
       mutations: () => calls(ctx.runMutation),
     };
   };
-  const read = ["workosConsents:readConnectConsent", principal];
+  const read = [
+    getFunctionName(internal.workosConsents.readConnectConsent),
+    principal,
+  ];
 
   test("a charged request for a recently seen consent only reads", async () => {
     const b = backend({
@@ -503,7 +496,7 @@ describe("Connect consent checks", () => {
       expect(auth).toMatchObject({ validated: { userId: "owner_1" } });
       expect(b.mutations()).toEqual([
         [
-          "workosConsents:authorizeConnectConsent",
+          getFunctionName(internal.workosConsents.authorizeConnectConsent),
           { ...principal, chargeRateLimit: false },
         ],
       ]);
@@ -524,7 +517,7 @@ describe("Connect consent checks", () => {
     expect(b.queries()).toEqual([]);
     expect(b.mutations()).toEqual([
       [
-        "workosConsents:authorizeConnectConsent",
+        getFunctionName(internal.workosConsents.authorizeConnectConsent),
         { ...principal, chargeRateLimit: true },
       ],
     ]);

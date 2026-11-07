@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { documentTextObjectKey } from "@teak/convex/card/documentTextFormat";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { type FilesOp, filesCardKeyPrefix } from "@teak/files-protocol";
-import { freezeObject } from "../../deletionGate";
-import { sha256Hex } from "../../lib";
+import {
+  type FilesOp,
+  filesCardKeyPrefix,
+  sha256Hex,
+} from "@teak/files-protocol";
+import { freezeObject, gatedEnv } from "../../deletionGate";
 import {
   CARD_ID,
   createCardConvex,
@@ -104,7 +107,7 @@ describe("recordMediaFacts", () => {
   });
 
   test.each([
-    ["an unknown container", { fallback: "UNSUPPORTED" } as OpAnswer],
+    ["an unknown container", { declined: "UNSUPPORTED" } as OpAnswer],
     [
       "a malformed answer",
       { data: { durationSeconds: "12", width: -1 } } as OpAnswer,
@@ -192,7 +195,7 @@ describe("audio transcription", () => {
   test("audio the renderer can't decode gives no result and no facts", async () => {
     const { factWrites, job } = setup(
       {},
-      { "process-audio": { fallback: "UNSUPPORTED_TYPE" } }
+      { "process-audio": { declined: "UNSUPPORTED_TYPE" } }
     );
 
     expect(
@@ -229,7 +232,7 @@ describe("document text", () => {
   });
 
   test("a document the op declines has no text", async () => {
-    const { job } = setup({}, { inspect: { fallback: "PAYLOAD_TOO_LARGE" } });
+    const { job } = setup({}, { inspect: { declined: "PAYLOAD_TOO_LARGE" } });
     expect(
       await extractFileTextForKey(job, "users/u/cards/c/file/a.pdf", pdf, {})
     ).toEqual({ text: "" });
@@ -259,7 +262,7 @@ describe("document text", () => {
 
   test("a document's text is not written once account deletion has locked its key", async () => {
     const bucket = new FakeBucket();
-    const env = withObjectGates(testEnv({ BUCKET: bucket as never }));
+    const env = gatedEnv(withObjectGates(testEnv({ BUCKET: bucket as never })));
     const card = makeCard({});
     const convex = createCardConvex(card);
     const job = testJob(

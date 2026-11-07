@@ -23,7 +23,7 @@
  */
 
 import { CLOUDFLARE_ACCOUNT_ID } from "../dev/core-worker-dev-boundary";
-import { cloudflareClient } from "./cloudflare-waf";
+import { cloudflareClient } from "./cloudflare-client";
 
 export const R2_RULE_PREFIX = "teak-";
 const DAY_SECONDS = 24 * 60 * 60;

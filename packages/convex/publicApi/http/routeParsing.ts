@@ -1,10 +1,17 @@
-import { narrowTypesForQuery } from "../../card/searchPlanner";
 import { normalizeVisualFilterArgs } from "../../card/visualFilters";
-import type { CardType } from "../../schema";
+import { narrowTypesForQuery } from "../../search/searchPlanner";
+import type { CardType } from "../../shared/constants";
 import {
   normalizeColorHueBucket,
   normalizeVisualStyle,
 } from "../../shared/constants";
+import {
+  ARCHIVED_FILTERS,
+  CARD_LIST_INCLUDES,
+  type CardListInclude,
+  PUBLIC_API_CARD_SORTS,
+  PUBLIC_API_CARD_TYPES,
+} from "../../shared/publicApiContract";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../../shared/search/constants";
 import { expressionWantsArchived } from "../../shared/search/expression";
 import {
@@ -15,18 +22,18 @@ import {
 } from "../../shared/search/qualifiers";
 import { isSearchMode, semanticRequestFor } from "../../shared/search/semantic";
 import { parseShuffleSeed } from "../../shared/search/shuffle";
+import { tagKey } from "../../shared/tags";
+import { parseOptionalString } from "../validation";
 import {
-  ARCHIVED_FILTERS,
-  CARD_SORTS,
-  CARD_TYPES,
-  type CardListInclude,
   type CardsQueryOptions,
   errorResponse,
   parseBooleanQuery,
   parseLimit,
-  parseOptionalString,
   parseTimestampQuery,
 } from "./shared";
+
+const isOneOf = (values: readonly string[], value: string) =>
+  values.includes(value);
 
 export const parseIncludeSet = (
   value: string | null
@@ -35,11 +42,7 @@ export const parseIncludeSet = (
     return new Set();
   }
 
-  const allowed = new Set<CardListInclude>([
-    "content",
-    "metadata",
-    "processing",
-  ]);
+  const allowed = new Set<string>(CARD_LIST_INCLUDES);
   const requested = new Set<CardListInclude>();
 
   for (const token of value.split(",")) {
@@ -98,7 +101,7 @@ export const parseCardsQueryOptions = (
   const archived = parseOptionalString(searchParams.get("archived"));
   if (
     searchParams.has("archived") &&
-    !(archived && ARCHIVED_FILTERS.has(archived))
+    !(archived && isOneOf(ARCHIVED_FILTERS, archived))
   ) {
     return errorResponse(
       400,
@@ -145,7 +148,7 @@ export const parseCardsQueryOptions = (
     );
   }
 
-  if (uniqueTypes.some((type) => !CARD_TYPES.has(type))) {
+  if (uniqueTypes.some((type) => !isOneOf(PUBLIC_API_CARD_TYPES, type))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
@@ -153,7 +156,7 @@ export const parseCardsQueryOptions = (
     );
   }
 
-  if (sort && !CARD_SORTS.has(sort)) {
+  if (sort && !isOneOf(PUBLIC_API_CARD_SORTS, sort)) {
     return errorResponse(
       400,
       "INVALID_INPUT",
@@ -259,7 +262,7 @@ export const parseCardsQueryOptions = (
   const tags = [
     ...new Set(
       [tag, ...parsed.tags]
-        .map((value) => value?.trim().toLowerCase())
+        .map((value) => (value ? tagKey(value) : ""))
         .filter((value): value is string => Boolean(value))
     ),
   ];
@@ -311,151 +314,4 @@ export const parseCardsQueryOptions = (
     type: resolvedTypes.length === 1 ? resolvedTypes[0] : undefined,
     types: resolvedTypes.length > 1 ? resolvedTypes : undefined,
   };
-};
-
-export const parseCardRoute = (
-  request: Request
-): {
-  cardId: string;
-  operation:
-    | "content"
-    | "delete"
-    | "done"
-    | "favorite"
-    | "get"
-    | "patch"
-    | "pin"
-    | "refresh"
-    | "restore"
-    | "save-pdf"
-    | "thumbnail-reset"
-    | "thumbnail-set"
-    | "thumbnail-upload"
-    | "undone";
-} | null => {
-  const { pathname } = new URL(request.url);
-  const segments = pathname.split("/").filter(Boolean);
-
-  if (segments.length < 3 || segments[0] !== "v1" || segments[1] !== "cards") {
-    return null;
-  }
-
-  const cardId = segments[2];
-  if (!cardId) {
-    return null;
-  }
-
-  if (request.method === "GET" && segments.length === 3) {
-    return { cardId, operation: "get" };
-  }
-
-  if (
-    request.method === "GET" &&
-    segments.length === 4 &&
-    segments[3] === "content"
-  ) {
-    return { cardId, operation: "content" };
-  }
-
-  if (request.method === "DELETE" && segments.length === 3) {
-    return { cardId, operation: "delete" };
-  }
-
-  if (segments.length === 4 && segments[3] === "done") {
-    if (request.method === "POST") {
-      return { cardId, operation: "done" };
-    }
-    if (request.method === "DELETE") {
-      return { cardId, operation: "undone" };
-    }
-    return null;
-  }
-
-  if (segments.length === 4 && segments[3] === "thumbnail") {
-    if (request.method === "PUT") {
-      return { cardId, operation: "thumbnail-set" };
-    }
-    if (request.method === "DELETE") {
-      return { cardId, operation: "thumbnail-reset" };
-    }
-    return null;
-  }
-
-  if (
-    request.method === "POST" &&
-    segments.length === 5 &&
-    segments[3] === "thumbnail" &&
-    segments[4] === "upload"
-  ) {
-    return { cardId, operation: "thumbnail-upload" };
-  }
-
-  if (
-    request.method === "POST" &&
-    segments.length === 4 &&
-    segments[3] === "restore"
-  ) {
-    return { cardId, operation: "restore" };
-  }
-
-  if (
-    request.method === "POST" &&
-    segments.length === 4 &&
-    segments[3] === "refresh"
-  ) {
-    return { cardId, operation: "refresh" };
-  }
-
-  if (
-    request.method === "POST" &&
-    segments.length === 4 &&
-    segments[3] === "save-pdf"
-  ) {
-    return { cardId, operation: "save-pdf" };
-  }
-
-  if (request.method !== "PATCH") {
-    return null;
-  }
-
-  if (segments.length === 3) {
-    return { cardId, operation: "patch" };
-  }
-
-  if (segments.length === 4 && segments[3] === "favorite") {
-    return { cardId, operation: "favorite" };
-  }
-
-  if (segments.length === 4 && segments[3] === "pin") {
-    return { cardId, operation: "pin" };
-  }
-
-  return null;
-};
-
-export type FolderRoute =
-  | { folderId: string; kind: "folder" | "cards" }
-  | { folderId: string; kind: "ruleRun" | "undoRuleRun"; runId: string };
-
-export const parseFolderRoute = (request: Request): FolderRoute | null => {
-  const segments = new URL(request.url).pathname.split("/").filter(Boolean);
-  if (segments[0] !== "v1" || segments[1] !== "folders" || !segments[2]) {
-    return null;
-  }
-  const folderId = segments[2];
-  if (segments.length === 3) {
-    return { folderId, kind: "folder" };
-  }
-  if (segments.length === 4 && segments[3] === "cards") {
-    return { folderId, kind: "cards" };
-  }
-  if (segments[3] === "rule-runs" && segments[4]) {
-    if (segments.length === 5) {
-      return { folderId, kind: "ruleRun", runId: segments[4] };
-    }
-    if (segments.length === 6 && segments[5] === "undo") {
-      return { folderId, kind: "undoRuleRun", runId: segments[4] };
-    }
-  }
-  return null;
 };

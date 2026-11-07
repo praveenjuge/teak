@@ -1,4 +1,10 @@
-import { callFilesOp, type FilesOpOutcome } from "../workflows/filesOps";
+import {
+  FILES_PENDING_UPLOAD_STALE_AFTER_MS,
+  FILES_USER_KEY_ROOTS,
+  type FilesOpOutcome,
+  isPendingUploadKey,
+} from "@teak/files-protocol";
+import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 
 export interface R2EventNotification {
@@ -15,8 +21,6 @@ export interface PendingUploadCheck {
   uploadedAt: number;
 }
 
-export const PENDING_UPLOAD_SEGMENT = "/cards/upload-pending-v2/";
-export const PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 /** Queues delays a message by at most 12 hours. */
 export const MAX_QUEUE_DELAY_SECONDS = 12 * 60 * 60;
 
@@ -25,12 +29,6 @@ const CREATE_ACTIONS = new Set([
   "CopyObject",
   "PutObject",
 ]);
-const USER_PREFIXES = ["users/", "dev/users/"] as const;
-
-export const isPendingUploadKey = (key: string): boolean =>
-  USER_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
-  key.includes(PENDING_UPLOAD_SEGMENT) &&
-  !key.split("/").includes("..");
 
 export const pendingUploadOf = (
   body: unknown
@@ -64,7 +62,7 @@ export const recheckDelaySeconds = (uploadedAt: number, now: number): number =>
     MAX_QUEUE_DELAY_SECONDS,
     Math.max(
       1,
-      Math.ceil((uploadedAt + PENDING_UPLOAD_STALE_AFTER_MS - now) / 1000)
+      Math.ceil((uploadedAt + FILES_PENDING_UPLOAD_STALE_AFTER_MS - now) / 1000)
     )
   );
 
@@ -74,7 +72,10 @@ const deleteIfStale = async (
   now: number
 ): Promise<boolean> => {
   const head = await bucket.head(key);
-  if (!head || head.uploaded.getTime() > now - PENDING_UPLOAD_STALE_AFTER_MS) {
+  if (
+    !head ||
+    head.uploaded.getTime() > now - FILES_PENDING_UPLOAD_STALE_AFTER_MS
+  ) {
     return false;
   }
   await bucket.delete(key);
@@ -92,7 +93,7 @@ export const handleR2EventsBatch = async (
     const pending = pendingUploadOf(message.body);
     if (!pending) {
       message.ack();
-    } else if (pending.uploadedAt + PENDING_UPLOAD_STALE_AFTER_MS > now) {
+    } else if (pending.uploadedAt + FILES_PENDING_UPLOAD_STALE_AFTER_MS > now) {
       later.push({
         body: { kind: "pending-upload-check", ...pending },
         message,
@@ -156,7 +157,7 @@ export const sweepStalePendingUploads = async (
   const clock = deps.clock ?? Date.now;
   const deadline = clock() + (deps.budgetMs ?? SWEEP_BUDGET_MS);
   let deleted = 0;
-  for (const prefix of USER_PREFIXES) {
+  for (const prefix of FILES_USER_KEY_ROOTS) {
     let cursor: string | null = null;
     do {
       if (clock() >= deadline) {

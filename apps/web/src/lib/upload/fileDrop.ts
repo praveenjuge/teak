@@ -10,8 +10,6 @@ import type { TeakTranslator } from "@teak/i18n";
 import { englishTranslator } from "../englishTranslators";
 import { CARD_DRAG_TYPE } from "../folders";
 
-export type DropRejectionReason = "folder" | "offline" | "empty" | "over-limit";
-
 export interface ExtractFilesResult {
   files: File[];
   rejectedFolder: boolean;

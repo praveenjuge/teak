@@ -1,9 +1,7 @@
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
-import schema from "../schema";
+import { newBackend } from "./helpers.testUtils";
 
-const modules = import.meta.glob("../**/*.ts");
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("WORKOS_CLIENT_ID", "client_DELETE");
@@ -14,7 +12,7 @@ afterEach(() => {
 });
 
 async function fixture({ stage = 6 } = {}) {
-  const t = convexTest(schema, modules);
+  const t = newBackend();
   const ids = await t.run(async (ctx) => {
     const ownerId = await ctx.db.insert("users", {
       teakUserId: "owner",

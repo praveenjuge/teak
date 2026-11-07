@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
@@ -55,7 +56,15 @@ mock.module("@/components/ui/dialog", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { AddCardProvider } = await import("../AddCardActions");
-const { pressRecordAudio } = await import("../../../lib/keyboardShortcuts");
+const { LibraryCommandsProvider, useRunLibraryCommand } = await import(
+  "@/components/providers/LibraryCommandsProvider"
+);
+let runCommand: ReturnType<typeof useRunLibraryCommand> = () => false;
+function CommandProbe() {
+  runCommand = useRunLibraryCommand();
+  return null;
+}
+const pressRecordAudio = () => runCommand("recordAudio");
 
 let root: Root | undefined;
 let grantMicrophone: (() => void) | undefined;
@@ -98,9 +107,12 @@ beforeEach(async () => {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <AddCardProvider>
-        <span />
-      </AddCardProvider>
+      <LibraryCommandsProvider>
+        <CommandProbe />
+        <AddCardProvider>
+          <span />
+        </AddCardProvider>
+      </LibraryCommandsProvider>
     )
   );
 });

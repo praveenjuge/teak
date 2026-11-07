@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import type { LinkCategoryMetadata } from "@teak/convex/shared";
-import { parseStructuredData } from "@teak/convex/workflows/steps/categorization/rules";
+import { parseStructuredData } from "@teak/convex/shared/linkCategory/rules";
 import type { FilesOp } from "@teak/files-protocol";
-import { sha256Hex } from "../../lib";
+import { sha256Hex } from "@teak/files-protocol";
 import {
   CARD_ID,
   createCardConvex,
@@ -153,7 +153,7 @@ describe("categorization", () => {
           },
           url: "https://github.com/microsoft/vscode",
         },
-        { "fetch-link-page": { fallback: "NOT_FOUND" } }
+        { "fetch-link-page": { declined: "NOT_FOUND" } }
       );
       expect((await run()).category).toBe("repo");
       expect(saved()?.sourceUrl).toBe("https://github.com/microsoft/vscode");
@@ -176,7 +176,7 @@ describe("categorization", () => {
           },
           url: "https://social.example.org/@alice/112233445566",
         },
-        { "fetch-link-page": { fallback: "NOT_FOUND" } }
+        { "fetch-link-page": { declined: "NOT_FOUND" } }
       );
       expect((await run()).category).toBe("social_post");
     });
@@ -231,7 +231,7 @@ describe("categorization", () => {
             url: WIKIPEDIA_ARTICLE,
           },
           {
-            "fetch-link-page": { fallback: "NOT_FOUND" },
+            "fetch-link-page": { declined: "NOT_FOUND" },
             "store-remote-asset": {
               data: {
                 contentType: "image/png",
@@ -281,7 +281,7 @@ describe("categorization", () => {
             },
             url: WIKIPEDIA_ARTICLE,
           },
-          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          { "fetch-link-page": { declined: "NOT_FOUND" } },
           undefined,
           { network: () => wikipedia() }
         );
@@ -304,7 +304,7 @@ describe("categorization", () => {
             metadata: { linkPreview: { status: "success" } },
             url: WIKIPEDIA_ARTICLE,
           },
-          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          { "fetch-link-page": { declined: "NOT_FOUND" } },
           undefined,
           { network: () => new Response("down", { status: 503 }) }
         );
@@ -322,7 +322,7 @@ describe("categorization", () => {
             metadata: { linkPreview: { status: "success" } },
             url: "https://arxiv.org/abs/1706.03762",
           },
-          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          { "fetch-link-page": { declined: "NOT_FOUND" } },
           undefined,
           { arxivSlot: null, network: () => undefined }
         );
@@ -338,7 +338,7 @@ describe("categorization", () => {
             metadata: { linkPreview: { status: "success" } },
             url: "https://example.com/blog/post",
           },
-          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          { "fetch-link-page": { declined: "NOT_FOUND" } },
           undefined,
           { network: () => undefined }
         );
@@ -374,7 +374,7 @@ describe("categorization", () => {
           { metadata: soupPreview, url: "https://example.com/soup" },
           {
             "decide-link-category": decision,
-            "fetch-link-page": { fallback: "NOT_FOUND" },
+            "fetch-link-page": { declined: "NOT_FOUND" },
           },
           undefined,
           options
@@ -422,7 +422,7 @@ describe("categorization", () => {
           { url: "https://github.com/microsoft/vscode" },
           {
             "decide-link-category": decided("article"),
-            "fetch-link-page": { fallback: "NOT_FOUND" },
+            "fetch-link-page": { declined: "NOT_FOUND" },
           }
         );
         expect((await run()).category).toBe("repo");
@@ -480,7 +480,7 @@ describe("categorization", () => {
     });
 
     test.each([
-      ["the op declines", { fallback: "NOT_FOUND" as const }],
+      ["the op declines", { declined: "NOT_FOUND" as const }],
       ["the page failed", { data: { fetched: false, reason: "http_error" } }],
       ["the op throws", { throws: new Error("files_worker_error:X:500:r") }],
     ])("categorizes without JSON-LD when %s", async (_name, answer) => {
@@ -556,7 +556,7 @@ describe("categorization", () => {
             },
             url: "https://example.com/post",
           },
-          { "fetch-link-page": { fallback: "NOT_FOUND" } }
+          { "fetch-link-page": { declined: "NOT_FOUND" } }
         );
         expect((await run()).mode).toBe("categorized");
         expect(fakes.opsCalled().includes("fetch-link-page")).toBe(reads);

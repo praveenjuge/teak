@@ -6,12 +6,22 @@ export {
   validateOAuthUrl,
 } from "./authDiscovery";
 export {
+  ACCESS_TOKEN_REFRESH_MARGIN_MS,
   type CredentialBinding,
+  createOAuthSession,
   isRefreshTokenDead,
   isWorkosCredential,
   matchesBinding,
+  type OAuthAuthorize,
+  type OAuthCredentialStore,
+  type OAuthCredentials,
+  type OAuthFailure,
+  type OAuthSession,
+  OAuthSessionError,
+  type OAuthSessionOptions,
+  type OAuthSignOutResult,
   refreshAndSave,
-} from "./oauthCredentials";
+} from "./oauthSession";
 export {
   type ConnectTokenResult,
   type ConnectTokens,
@@ -25,65 +35,80 @@ export {
 } from "./workosConnect";
 
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
-import type {
-  FileKind,
-  FilePreviewFacts,
+import {
+  type FileKind,
+  type FilePreviewFacts,
+  inferFileFormat,
+  isGenericMimeType,
+  MAX_FILE_SIZE,
+  mimeTypeForFileName,
+  validateFileName,
 } from "@teak/convex/shared/fileFormats";
 
 import type { FOLDER_COLORS } from "@teak/convex/shared/folders";
+import {
+  type CARD_CONTENT_KINDS,
+  CARD_LIST_PARAM_NAMES,
+  CARD_LIST_PARAMS,
+  type CardListParam,
+  type CardListParamSpec,
+  type ArchivedFilter as ContractArchivedFilter,
+  type BulkCardOperation as ContractBulkCardOperation,
+  type SearchMode as ContractSearchMode,
+  PUBLIC_API_CARD_SORTS,
+  PUBLIC_API_DEFAULT_LIMIT,
+  PUBLIC_API_MAX_LIMIT,
+  type PublicApiOperationId,
+  publicApiOperationSpec,
+  publicApiPath,
+  publicApiPathParams,
+} from "@teak/convex/shared/publicApiContract";
+import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
+import { errorFromResponse, isObject, TeakApiError } from "./errors";
+import { type WaitOptions, waitFor } from "./waitFor";
 
+export {
+  cardLinkTokensToText,
+  formatCardLinkToken,
+  parseCardLinkIds,
+} from "@teak/convex/shared/cardLinks";
 export type { CardType } from "@teak/convex/shared/constants";
+export {
+  CARD_LIST_PARAMS,
+  type CardListParam,
+  type CardListParamSpec,
+  SEARCH_QUERY_HELP,
+} from "@teak/convex/shared/publicApiContract";
+export {
+  /** Tags that keep a card out of lists until a search names one. */
+  HIDDEN_TAG_KEYS,
+  /** How long a tag change may go without progress before Teak gives up on it. */
+  TAG_OPERATION_STALL_MS,
+} from "@teak/convex/shared/tags";
+export {
+  AUTH_ERROR_CODES,
+  ERROR_CODES,
+  errorKindFor,
+  TeakApiError,
+  type TeakApiErrorCode,
+  type TeakErrorKind,
+  teakErrorKind,
+} from "./errors";
+export {
+  DEFAULT_WAIT_TIMEOUT_MS,
+  type WaitOptions,
+  waitFor,
+} from "./waitFor";
 
 export const CARD_TYPES = cardTypes;
-export const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;
-export const ERROR_CODES = [
-  "AUTH_REQUIRED",
-  "BAD_REQUEST",
-  "CARD_LIMIT_REACHED",
-  "CONFIG_ERROR",
-  "CONFLICT",
-  "CONTENT_TOO_LARGE",
-  "FILE_TOO_LARGE",
-  "FOLDER_LIMIT",
-  "FORBIDDEN",
-  "HIGHLIGHT_LIMIT",
-  "IN_PROGRESS",
-  "INTERNAL_ERROR",
-  "INVALID_API_KEY",
-  "INVALID_INPUT",
-  "INVALID_STORAGE_KEY",
-  "INVALID_UTF8",
-  "LIMIT_REACHED",
-  "METHOD_NOT_ALLOWED",
-  "NETWORK_ERROR",
-  "NOT_FOUND",
-  "NO_ARTICLE",
-  "NO_CONTENT",
-  "NOT_IN_TRASH",
-  "PAGE_SNAPSHOT_TOO_LARGE",
-  "PARSE_ERROR",
-  "PIN_LIMIT_REACHED",
-  "QUOTE_NOT_FOUND",
-  "RATE_LIMITED",
-  "RULE_LIMIT",
-  "REQUEST_FAILED",
-  "SERVICE_UNAVAILABLE",
-  "SMART_FOLDER",
-  "TAG_EXISTS",
-  "TAG_OPERATION_RUNNING",
-  "TIMEOUT",
-  "TYPE_MISMATCH",
-  "UNAUTHORIZED",
-  "UNSUPPORTED_TYPE",
-] as const;
-
+/** @deprecated Read `CARD_LIST_PARAMS.sort.values`; this stays for older callers. */
+export const CARD_SORTS = PUBLIC_API_CARD_SORTS;
 export type CardSort = (typeof CARD_SORTS)[number];
 /**
  * How a search finds cards: `hybrid` (the API's default) matches words and
  * meaning, `keyword` words only, `semantic` meaning only.
  */
-export type SearchMode = "hybrid" | "keyword" | "semantic";
-export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
+export type SearchMode = ContractSearchMode;
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
   getAccessToken: () => Promise<string | null> | string | null;
@@ -136,12 +161,19 @@ export interface Card {
   createdAt: number;
   detailUrl: string | null;
   fileExtension: string | null;
+  /**
+   * An image or video file's height in pixels, or null. Servers that
+   * predate it leave it out.
+   */
+  fileHeight?: number | null;
   fileKind: FileKind | null;
   fileLanguage: string | null;
   fileName: string | null;
   filePreview: FilePreviewFacts | null;
   fileSize: number | null;
   fileUrl: string | null;
+  /** An image or video file's width in pixels, or null. */
+  fileWidth?: number | null;
   /** Ids of the folders the card is in. */
   folderIds: string[];
   /**
@@ -172,6 +204,10 @@ export interface Card {
    */
   linkCategory?: string | null;
   linkFacts: Array<{ label: string; value: string }>;
+  /** The link's favicon, or null. Servers that predate it leave it out. */
+  linkFaviconUrl?: string | null;
+  /** The page's own description, or null. */
+  linkPreviewDescription?: string | null;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
     type: "image" | "video";
@@ -184,6 +220,8 @@ export interface Card {
     posterWidth?: number;
     posterHeight?: number;
   }>;
+  /** The page's own title, or null. */
+  linkPreviewTitle?: string | null;
   /**
    * A product link's price: `amount` in the page's currency, `currency` an
    * ISO 4217 code or null. Null for cards without a price.
@@ -508,6 +546,34 @@ export interface LatestExport {
 export interface RequestOptions {
   /** Makes a retried create or bulk request safe to repeat. */
   idempotencyKey?: string;
+  /** Cancels the request; it rejects with a TIMEOUT `TeakApiError`. */
+  signal?: AbortSignal;
+}
+/** A file upload that finished, kept to create its card again without re-uploading. */
+export interface UploadedFile {
+  fileEtag?: string;
+  fileKey: string;
+}
+/** A file to save as a card with `cards.createFromFile`. */
+export interface CreateCardFromFileInput
+  extends Omit<
+    CreateCardInput,
+    | "fileEtag"
+    | "fileKey"
+    | "fileName"
+    | "fileSize"
+    | "mimeType"
+    | "pageSnapshotKey"
+    | "url"
+  > {
+  bytes: Blob | ArrayBuffer | ArrayBufferView;
+  fileName: string;
+  /** Its MIME type; read from a Blob or the file name when left out. */
+  mimeType?: string;
+  /** Called once the bytes are uploaded, before the card is created. */
+  onUploaded?: (uploaded: UploadedFile) => unknown;
+  /** An earlier attempt's finished upload: the card is created from it. */
+  uploaded?: UploadedFile;
 }
 export interface CreateUploadInput {
   fileName: string;
@@ -558,7 +624,7 @@ export interface SavedPdf {
   created: boolean;
 }
 /** The kinds of stored text a card can have. */
-export type CardContentKind = "article" | "document" | "transcript" | "content";
+export type CardContentKind = (typeof CARD_CONTENT_KINDS)[number];
 
 /** A card's full stored text (GET /v1/cards/:id/content). */
 export interface CardContent {
@@ -576,89 +642,50 @@ export interface CardContent {
   /** The document is longer than Teak keeps. */
   truncated: boolean;
 }
-export type BulkCardsOperation =
-  | "create"
-  | "update"
-  | "favorite"
-  | "delete"
-  | "archive"
-  | "unarchive"
-  | "addTags"
-  | "removeTags"
-  | "restore";
+export type BulkCardsOperation = ContractBulkCardOperation;
+/** One bulk item's outcome; `index` is its place in the items sent. */
+export type BulkCardResult =
+  | {
+      cardId: string;
+      index: number;
+      /** A create that found the link already saved. */
+      resaved?: true;
+      status: "success";
+      wasArchived?: true;
+    }
+  | { code: string; error: string; index: number; status: "error" };
 export interface BulkCardsResponse {
   /** The `cardId` of every item that failed, to retry just those. */
   failedIds: string[];
   operation: BulkCardsOperation;
-  results: unknown[];
+  results: BulkCardResult[];
   summary: { failed: number; succeeded: number; total: number };
 }
 /** Archived cards outside Trash: left out by default. */
-export type ArchivedFilter = "exclude" | "only" | "include";
-
-export class TeakApiError extends Error {
-  code: TeakApiErrorCode;
-  requestId?: string;
-  retryAt?: number;
-  status?: number;
-
-  constructor(
-    code: TeakApiErrorCode,
-    message?: string,
-    init?: { requestId?: string; retryAt?: number; status?: number }
-  ) {
-    super(message || defaultErrorMessage(code));
-    this.name = "TeakApiError";
-    this.code = code;
-    this.requestId = init?.requestId;
-    this.retryAt = init?.retryAt;
-    this.status = init?.status;
-  }
-}
+export type ArchivedFilter = ContractArchivedFilter;
 
 export const staticTokenProvider = (token: string): TokenProvider => ({
   getAccessToken: () => token,
 });
 
-const defaultErrorMessage = (code: TeakApiErrorCode) => {
-  switch (code) {
-    case "AUTH_REQUIRED":
-    case "INVALID_API_KEY":
-    case "UNAUTHORIZED":
-      return "Authentication is required. Run `teak login` or set TEAK_API_KEY.";
-    case "RATE_LIMITED":
-      return "Too many requests. Wait a moment and try again.";
-    case "NETWORK_ERROR":
-      return "Unable to reach Teak.";
-    case "SERVICE_UNAVAILABLE":
-      return "Teak is busy. Try again in a moment.";
-    case "TIMEOUT":
-      return "The Teak request timed out.";
-    case "NOT_FOUND":
-      return "Teak could not find that resource.";
-    default:
-      return "The Teak request failed.";
-  }
-};
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value && typeof value === "object" && !Array.isArray(value));
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
-const codeFrom = (
-  value: unknown,
-  fallback: TeakApiErrorCode
-): TeakApiErrorCode =>
-  typeof value === "string" &&
-  (ERROR_CODES as readonly string[]).includes(value)
-    ? (value as TeakApiErrorCode)
-    : fallback;
-
+/**
+ * A page size the API takes: a whole number from 1 to its maximum.
+ * @deprecated `buildCardsSearchParams` and the client clamp `limit`
+ * themselves; this stays for older callers.
+ */
 export const normalizeLimit = (limit?: number): number => {
   if (!Number.isFinite(limit)) {
-    return 50;
+    return PUBLIC_API_DEFAULT_LIMIT;
   }
-  return Math.max(1, Math.min(Math.trunc(limit ?? 50), 100));
+  return Math.max(
+    1,
+    Math.min(
+      Math.trunc(limit ?? PUBLIC_API_DEFAULT_LIMIT),
+      PUBLIC_API_MAX_LIMIT
+    )
+  );
 };
 
 const byteLengthForBody = (bytes: BodyInit): number | null => {
@@ -684,16 +711,22 @@ const asList = (value?: string | readonly string[]): readonly string[] => {
   return typeof value === "string" ? [value] : [];
 };
 
-export const buildCardsSearchParams = (input: {
+/**
+ * The filters `cards.list` and its siblings take: the API's card list
+ * parameters (`CARD_LIST_PARAMS` in the public contract), with `q` named
+ * `query`.
+ */
+export interface CardListInput {
   archived?: ArchivedFilter;
-  /** Only cards in this folder id. */
-  folder?: string;
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favorited?: boolean;
+  /** Only cards in this folder id. */
+  folder?: string;
   hex?: string | readonly string[];
   hue?: string | readonly string[];
+  /** Comma-separated: `content`, `metadata`, `processing`. */
   include?: string;
   limit?: number;
   /** How `query` finds cards; the API defaults to `hybrid`. */
@@ -704,13 +737,9 @@ export const buildCardsSearchParams = (input: {
    */
   pinned?: boolean;
   /**
-   * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
-   * `is:fav`, `is:archived`, `is:pinned`, `site:github.com`, `folder:"Reading list"`,
-   * `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"total due"` (only
-   * the words Teak read in images, video thumbnails, link previews and scanned
-   * PDFs) and `"quoted phrases"`. A `-` leaves cards out (`design -figma`,
-   * `-tag:old`), uppercase `OR` matches either side and parentheses group:
-   * `(site:github.com OR site:gitlab.com) -is:archived`.
+   * Search text with qualifiers such as `tag:design`, `type:link`,
+   * `is:done`, `site:github.com`, `-tag:old` and `a OR b`;
+   * `SEARCH_QUERY_HELP` lists every one.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
@@ -722,61 +751,45 @@ export const buildCardsSearchParams = (input: {
   tag?: string;
   trashed?: boolean;
   type?: CardType | string | readonly (CardType | string)[];
-}) => {
-  const search = new URLSearchParams();
-  if (input.query?.trim()) {
-    search.set("q", input.query.trim());
+}
+
+/** One parameter's values as the query string writes them. */
+const paramValues = (
+  input: CardListInput,
+  param: CardListParam
+): readonly string[] => {
+  const spec: CardListParamSpec = CARD_LIST_PARAMS[param];
+  if (param === "limit") {
+    return [String(normalizeLimit(input.limit))];
   }
-  for (const name of ["type", "style", "hue", "hex"] as const) {
-    for (const value of asList(input[name])) {
-      if (value.trim()) {
-        search.append(name, value.trim());
-      }
+  // A seed means nothing without the order it seeds.
+  if (param === "shuffleSeed" && input.sort !== "shuffle") {
+    return [];
+  }
+  const value: unknown = param === "q" ? input.query : input[param];
+  switch (spec.kind) {
+    case "boolean":
+      return value === true ? ["true"] : [];
+    case "integer":
+    case "timestamp":
+      return typeof value === "number" ? [String(value)] : [];
+    default:
+      // Text and enums: trimmed, blank ones and the API's default left out.
+      return asList(value as string | readonly string[] | undefined)
+        .filter((entry) => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== "" && entry !== spec.default)
+        .slice(0, spec.repeatable ? undefined : 1);
+  }
+};
+
+export const buildCardsSearchParams = (input: CardListInput) => {
+  const search = new URLSearchParams();
+  for (const param of CARD_LIST_PARAM_NAMES) {
+    for (const value of paramValues(input, param)) {
+      search.append(param, value);
     }
   }
-  if (input.tag?.trim()) {
-    search.set("tag", input.tag.trim());
-  }
-  if (input.folder?.trim()) {
-    search.set("folder", input.folder.trim());
-  }
-  if (input.cursor?.trim()) {
-    search.set("cursor", input.cursor.trim());
-  }
-  if (input.include?.trim()) {
-    search.set("include", input.include.trim());
-  }
-  if (input.favorited) {
-    search.set("favorited", "true");
-  }
-  if (input.pinned) {
-    search.set("pinned", "true");
-  }
-  if (input.trashed) {
-    search.set("trashed", "true");
-  }
-  if (input.archived === "only" || input.archived === "include") {
-    search.set("archived", input.archived);
-  }
-  if (input.similarTo?.trim()) {
-    search.set("similarTo", input.similarTo.trim());
-  }
-  if (input.mode === "keyword" || input.mode === "semantic") {
-    search.set("mode", input.mode);
-  }
-  if (input.sort && input.sort !== "newest") {
-    search.set("sort", input.sort);
-  }
-  if (input.sort === "shuffle" && typeof input.shuffleSeed === "number") {
-    search.set("shuffleSeed", String(input.shuffleSeed));
-  }
-  if (typeof input.createdAfter === "number") {
-    search.set("createdAfter", String(input.createdAfter));
-  }
-  if (typeof input.createdBefore === "number") {
-    search.set("createdBefore", String(input.createdBefore));
-  }
-  search.set("limit", String(normalizeLimit(input.limit)));
   return search.toString();
 };
 
@@ -1041,64 +1054,6 @@ const MAX_RETRY_WAIT_MS = 5000;
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const codeForStatus = (status: number): TeakApiErrorCode => {
-  switch (status) {
-    case 401:
-      return "UNAUTHORIZED";
-    case 403:
-      return "FORBIDDEN";
-    case 404:
-      return "NOT_FOUND";
-    case 429:
-      return "RATE_LIMITED";
-    case 503:
-      return "SERVICE_UNAVAILABLE";
-    default:
-      return status >= 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED";
-  }
-};
-
-const retryAtFromHeader = (value: string | null): number | undefined => {
-  if (!value?.trim()) {
-    return;
-  }
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Date.now() + seconds * 1000;
-  }
-  const date = Date.parse(value);
-  return Number.isNaN(date) ? undefined : date;
-};
-
-const errorFromResponse = (response: Response, text: string) => {
-  let payload: unknown = null;
-  try {
-    payload = text.trim() ? JSON.parse(text) : null;
-  } catch {
-    payload = null;
-  }
-  const object = isObject(payload) ? payload : {};
-  const message =
-    typeof object.error === "string" && object.error ? object.error : undefined;
-  const code = codeFrom(object.code, codeForStatus(response.status));
-  const generic = code === "INTERNAL_ERROR" || code === "REQUEST_FAILED";
-  return new TeakApiError(
-    code,
-    message ??
-      (generic
-        ? `The Teak request failed with HTTP ${response.status}.`
-        : undefined),
-    {
-      requestId: response.headers.get("x-request-id") ?? undefined,
-      retryAt:
-        typeof object.retryAt === "number"
-          ? object.retryAt
-          : retryAtFromHeader(response.headers.get("retry-after")),
-      status: response.status,
-    }
-  );
-};
-
 /**
  * Reads are always safe to send again, and so is a write that carries an
  * Idempotency-Key: the API answers its replay with the first result.
@@ -1152,15 +1107,24 @@ export const createTeakClient = (options: {
   ): Promise<{ response: Response; text: string }> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const caller = init.signal;
+    const cancel = () => controller.abort();
+    if (caller?.aborted) {
+      cancel();
+    }
+    caller?.addEventListener("abort", cancel, { once: true });
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    headers.set("User-Agent", options.userAgent || "teak-cli");
+    headers.set("User-Agent", options.userAgent || "teak-sdk");
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
     try {
       let response: Response;
       try {
+        if (controller.signal.aborted) {
+          throw new DOMException("The request was cancelled.", "AbortError");
+        }
         response = await fetchImpl(`${baseUrl}${path}`, {
           ...init,
           headers,
@@ -1180,6 +1144,7 @@ export const createTeakClient = (options: {
       return { response, text };
     } finally {
       clearTimeout(timeout);
+      caller?.removeEventListener("abort", cancel);
     }
   };
   const request = async <T>(
@@ -1232,20 +1197,51 @@ export const createTeakClient = (options: {
       await sleep(delay);
     }
   };
-  const qs = (params: Parameters<typeof buildCardsSearchParams>[0]) =>
-    buildCardsSearchParams(params);
+  const qs = (params: CardListInput) => buildCardsSearchParams(params);
+  /** Calls an operation by id with its path parameters, query and body. */
+  const call = <T>(
+    operationId: PublicApiOperationId,
+    input: {
+      body?: unknown;
+      headers?: HeadersInit;
+      params?: Record<string, string>;
+      query?: string;
+      signal?: AbortSignal;
+    },
+    parser: (payload: unknown) => T
+  ): Promise<T> => {
+    const missing = publicApiPathParams(operationId).find(
+      (name) => !input.params?.[name]
+    );
+    if (missing) {
+      return Promise.reject(
+        new TeakApiError("INVALID_INPUT", `${missing} is required.`)
+      );
+    }
+    return request(
+      `${publicApiPath(operationId, input.params)}${input.query ? `?${input.query}` : ""}`,
+      {
+        ...(input.body === undefined
+          ? {}
+          : { body: JSON.stringify(input.body) }),
+        ...(input.headers ? { headers: input.headers } : {}),
+        method: publicApiOperationSpec(operationId).method,
+        ...(input.signal ? { signal: input.signal } : {}),
+      },
+      parser
+    );
+  };
+  const card = (cardId: string) => ({ params: { cardId } });
   const idempotency = (requestOptions?: RequestOptions): HeadersInit =>
     requestOptions?.idempotencyKey
       ? { "Idempotency-Key": requestOptions.idempotencyKey }
       : {};
-  const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
-  const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
-  const highlightPath = (id: string) =>
-    `/v1/highlights/${encodeURIComponent(id)}`;
+  /** Sends bytes to a signed upload URL; `signal` cancels the upload. */
   const putFile = async (
     uploadUrl: string,
     bytes: BodyInit,
-    mimeType: string
+    mimeType: string,
+    putOptions?: { signal?: AbortSignal }
   ) => {
     const headers = new Headers({ "Content-Type": mimeType });
     const byteLength = byteLengthForBody(bytes);
@@ -1256,6 +1252,9 @@ export const createTeakClient = (options: {
       body: bytes,
       headers,
       method: "PUT",
+      ...(putOptions?.signal ? { signal: putOptions.signal } : {}),
+    }).catch(() => {
+      throw new TeakApiError("NETWORK_ERROR");
     });
     if (!response.ok) {
       throw new TeakApiError(
@@ -1269,18 +1268,133 @@ export const createTeakClient = (options: {
   const createThumbnailUpload = (
     id: string,
     input: CreateThumbnailUploadInput
+  ) => call("createThumbnailUpload", { ...card(id), body: input }, asUpload);
+  const applyThumbnail = (id: string, fileKey: string) =>
+    call("setCardThumbnail", { ...card(id), body: { fileKey } }, asCard);
+  const createCard = (
+    input: CreateCardInput,
+    requestOptions?: RequestOptions
   ) =>
-    request(
-      `${cardPath(id)}/thumbnail/upload`,
-      { body: JSON.stringify(input), method: "POST" },
+    call(
+      "createCard",
+      {
+        body: input,
+        headers: idempotency(requestOptions),
+        signal: requestOptions?.signal,
+      },
+      asCreate
+    );
+  const createUpload = (
+    input: CreateUploadInput,
+    requestOptions?: RequestOptions
+  ) =>
+    call(
+      "createUpload",
+      { body: input, signal: requestOptions?.signal },
       asUpload
     );
-  const applyThumbnail = (id: string, fileKey: string) =>
-    request(
-      `${cardPath(id)}/thumbnail`,
-      { body: JSON.stringify({ fileKey }), method: "PUT" },
-      asCard
+  const listCards = (input: CardListInput, requestOptions?: RequestOptions) =>
+    call(
+      "listCards",
+      { query: qs(input), signal: requestOptions?.signal },
+      asPage
     );
+  const tagOperation = (id: string) =>
+    call("getTagOperation", { params: { operationId: id } }, asTagOperation);
+  const getRuleRun = (id: string, runId: string) =>
+    call(
+      "getFolderRuleRun",
+      { params: { folderId: id, runId } },
+      asFolderRuleRun
+    );
+  const latestExport = () => call("getLatestExport", {}, asLatestExport);
+  const createFromFile = async (
+    input: CreateCardFromFileInput,
+    requestOptions?: RequestOptions
+  ) => {
+    const {
+      bytes,
+      fileName: rawName,
+      mimeType: declared,
+      onUploaded,
+      uploaded: earlier,
+      ...fields
+    } = input;
+    let fileName: string;
+    try {
+      fileName = validateFileName(rawName);
+    } catch (error) {
+      throw new TeakApiError(
+        "INVALID_INPUT",
+        error instanceof Error ? error.message : "Invalid file name."
+      );
+    }
+    const fileSize = byteLengthForBody(bytes as BodyInit) ?? 0;
+    if (fileSize < 1 || fileSize > MAX_FILE_SIZE) {
+      throw new TeakApiError(
+        "FILE_TOO_LARGE",
+        `File must be between 1 byte and ${MAX_FILE_SIZE} bytes`
+      );
+    }
+    const typed =
+      declared ||
+      (typeof Blob !== "undefined" && bytes instanceof Blob
+        ? bytes.type
+        : "") ||
+      mimeTypeForFileName(fileName);
+    const format = inferFileFormat({ fileName, mimeType: typed });
+    if (!format) {
+      throw new TeakApiError("UNSUPPORTED_TYPE", "Unsupported file type");
+    }
+    const mimeType = isGenericMimeType(typed) ? format.mimeType : typed;
+    let uploaded = earlier;
+    if (!uploaded) {
+      const signal = requestOptions?.signal;
+      const upload = await createUpload(
+        { fileName, fileSize, mimeType },
+        { signal }
+      );
+      const { fileEtag } = await putFile(
+        upload.uploadUrl,
+        bytes as BodyInit,
+        mimeType,
+        { signal }
+      );
+      uploaded = { fileKey: upload.fileKey, ...(fileEtag ? { fileEtag } : {}) };
+      await onUploaded?.(uploaded);
+    }
+    return createCard(
+      {
+        ...fields,
+        cardType: fields.cardType ?? format.cardType,
+        fileKey: uploaded.fileKey,
+        ...(uploaded.fileEtag ? { fileEtag: uploaded.fileEtag } : {}),
+        fileName,
+        fileSize,
+        mimeType,
+      },
+      requestOptions
+    );
+  };
+  /**
+   * Every page of a listing, first to last, following `nextCursor`. Stop
+   * iterating to stop fetching. `list` picks the listing (`cards.search`,
+   * `cards.favorites`...); `cards.list` by default.
+   */
+  async function* pages(
+    input: CardListInput = {},
+    list: (page: CardListInput) => Promise<CardsPage> = listCards
+  ): AsyncGenerator<CardsPage> {
+    let cursor = input.cursor;
+    for (;;) {
+      const page = await list(cursor ? { ...input, cursor } : input);
+      yield page;
+      if (!page.pageInfo.nextCursor) {
+        return;
+      }
+      cursor = page.pageInfo.nextCursor;
+    }
+  }
   return {
     cards: {
       bulk: (
@@ -1288,34 +1402,31 @@ export const createTeakClient = (options: {
         items: unknown[],
         requestOptions?: RequestOptions
       ) =>
-        request(
-          "/v1/cards/bulk",
+        call(
+          "bulkCards",
           {
-            body: JSON.stringify({ items, operation }),
+            body: { items, operation },
             headers: idempotency(requestOptions),
-            method: "POST",
+            signal: requestOptions?.signal,
           },
           (v) => v as BulkCardsResponse
         ),
       changes: (input: { cursor?: string; limit?: number; since: number }) => {
         const search = new URLSearchParams(qs(input));
         search.set("since", String(input.since));
-        return request(
-          `/v1/cards/changes?${search.toString()}`,
-          { method: "GET" },
+        return call(
+          "listCardChanges",
+          { query: search.toString() },
           (v) => v as CardChangesResponse
         );
       },
-      create: (input: CreateCardInput, requestOptions?: RequestOptions) =>
-        request(
-          "/v1/cards",
-          {
-            body: JSON.stringify(input),
-            headers: idempotency(requestOptions),
-            method: "POST",
-          },
-          asCreate
-        ),
+      create: createCard,
+      /**
+       * Saves a file as a card: checks it is a type and size Teak takes,
+       * uploads it, then creates the card. Pass `uploaded` (from
+       * `onUploaded`) to retry only the create.
+       */
+      createFromFile,
       /**
        * The card's full stored text: document text, transcript, or a text
        * card's content. `{ kind: "article" }` reads a link's article as
@@ -1323,44 +1434,56 @@ export const createTeakClient = (options: {
        * NO_CONTENT when the card has none (of that kind).
        */
       content: (id: string, contentOptions?: { kind?: CardContentKind }) =>
-        request(
-          `${cardPath(id)}/content${
-            contentOptions?.kind
-              ? `?kind=${encodeURIComponent(contentOptions.kind)}`
-              : ""
-          }`,
-          { method: "GET" },
+        call(
+          "getCardContent",
+          {
+            ...card(id),
+            query: contentOptions?.kind
+              ? new URLSearchParams({ kind: contentOptions.kind }).toString()
+              : undefined,
+          },
           asCardContent
         ),
       /** Moves the card to Trash, or deletes it for good with `permanent`. */
       delete: (id: string, deleteOptions?: { permanent?: boolean }) =>
-        request(
-          `${cardPath(id)}${deleteOptions?.permanent ? "?permanent=true" : ""}`,
-          { method: "DELETE" },
+        call(
+          "deleteCard",
+          {
+            ...card(id),
+            query: deleteOptions?.permanent ? "permanent=true" : undefined,
+          },
           () => null
         ),
       /** The ID of a saved card with exactly this URL, or null. */
       duplicate: (url: string) =>
-        request(
-          `/v1/cards/duplicate?${new URLSearchParams({ url }).toString()}`,
-          { method: "GET" },
+        call(
+          "findDuplicateCard",
+          { query: new URLSearchParams({ url }).toString() },
           (v) => (isObject(v) && typeof v.cardId === "string" ? v.cardId : null)
         ),
       favorites: (input: Parameters<typeof qs>[0] = {}) =>
-        request(
-          `/v1/cards?${qs({ include: "content,metadata", ...input, favorited: true })}`,
-          { method: "GET" },
+        call(
+          "listCards",
+          {
+            query: qs({
+              include: "content,metadata",
+              ...input,
+              favorited: true,
+            }),
+          },
           asPage
         ),
-      get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
+      get: (id: string) => call("getCard", card(id), asCard),
       /**
        * The cards pinned to the top of the library, first to last (at most
        * 12). Takes the `list` filters.
        */
       pinned: (input: Parameters<typeof qs>[0] = {}) =>
-        request(
-          `/v1/cards?${qs({ include: "content,metadata", ...input, pinned: true })}`,
-          { method: "GET" },
+        call(
+          "listCards",
+          {
+            query: qs({ include: "content,metadata", ...input, pinned: true }),
+          },
           asPage
         ),
       /**
@@ -1368,14 +1491,10 @@ export const createTeakClient = (options: {
        * once, first to last; returns the pinned cards in that order.
        */
       reorderPinned: (cardIds: readonly string[]) =>
-        request(
-          "/v1/cards/pinned/order",
-          { body: JSON.stringify({ cardIds }), method: "PUT" },
-          asPinnedCards
-        ),
+        call("reorderPinnedCards", { body: { cardIds } }, asPinnedCards),
       /** Cards this card links to with `[[…]]`, and cards linking to it. */
       links: (id: string) =>
-        request(cardPath(id), { method: "GET" }, (value): CardLinks => {
+        call("getCard", card(id), (value): CardLinks => {
           const card = asCard(value);
           return {
             backlinks: card.backlinks ?? [],
@@ -1384,44 +1503,41 @@ export const createTeakClient = (options: {
             linksTruncated: card.linksTruncated === true,
           };
         }),
-      list: (input: Parameters<typeof qs>[0] = {}) =>
-        request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
+      list: (input: CardListInput = {}, requestOptions?: RequestOptions) =>
+        listCards(input, requestOptions),
+      pages,
       /**
        * A signed URL for a link card's new image; `setThumbnail` with bytes
        * does this for you.
        */
       createThumbnailUpload,
       /** Refreshes summary, tags and link preview; it finishes in the background. */
-      refresh: (id: string) =>
-        request(`${cardPath(id)}/refresh`, { method: "POST" }, asRefresh),
+      refresh: (id: string) => call("refreshCard", card(id), asRefresh),
       /**
        * Goes back to the image Teak found for a link card and deletes the one
        * that replaced it. Changes nothing when the card has its own image.
        */
       resetThumbnail: (id: string) =>
-        request(`${cardPath(id)}/thumbnail`, { method: "DELETE" }, asCard),
-      restore: (id: string) =>
-        request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
+        call("resetCardThumbnail", card(id), asCard),
+      restore: (id: string) => call("restoreCard", card(id), () => null),
       /** The cards closest in meaning to one card; never the card itself. */
       similar: (id: string, input: Parameters<typeof qs>[0] = {}) =>
-        request(
-          `/v1/cards?${qs({ include: "content,metadata", ...input, similarTo: id })}`,
-          { method: "GET" },
+        call(
+          "listCards",
+          {
+            query: qs({ include: "content,metadata", ...input, similarTo: id }),
+          },
           asPage
         ),
       search: (input: Parameters<typeof qs>[0] = {}) =>
-        request(
-          `/v1/cards?${qs({ include: "content,metadata", ...input })}`,
-          { method: "GET" },
+        call(
+          "listCards",
+          { query: qs({ include: "content,metadata", ...input }) },
           asPage
         ),
       /** Archives the card (hidden from the library, not deleted) or returns it. */
       setArchived: (id: string, isArchived: boolean) =>
-        request(
-          cardPath(id),
-          { body: JSON.stringify({ isArchived }), method: "PATCH" },
-          asCard
-        ),
+        call("updateCard", { ...card(id), body: { isArchived } }, asCard),
       /**
        * Replaces a link card's image: uploads `bytes` (JPEG, PNG, WebP, GIF or
        * AVIF, under 20 MB) and applies them. Pass `{ fileKey }` instead to
@@ -1454,50 +1570,37 @@ export const createTeakClient = (options: {
        * Saves an arXiv link's paper as its own document card. Saving the same
        * link again returns that card with `created: false`.
        */
-      savePdf: (id: string) =>
-        request(`${cardPath(id)}/save-pdf`, { method: "POST" }, asSavedPdf),
+      savePdf: (id: string) => call("saveCardPdf", card(id), asSavedPdf),
       /**
        * Marks a link card read, watched, bought or done (`done: true`), or
        * not; repeating a call changes nothing. Only link cards can be marked.
        */
       setDone: (id: string, done: boolean) =>
-        request(
-          `${cardPath(id)}/done`,
-          { method: done ? "POST" : "DELETE" },
-          asCard
-        ),
+        call(done ? "markCardDone" : "unmarkCardDone", card(id), asCard),
       /**
        * Pins a card to the top of the library (a new pin goes first), or
        * unpins it. Pinning past 12 cards fails with `PIN_LIMIT_REACHED`.
        */
       setPinned: (id: string, isPinned: boolean) =>
-        request(
-          `${cardPath(id)}/pin`,
-          { body: JSON.stringify({ isPinned }), method: "PATCH" },
-          asCard
-        ),
+        call("setCardPinned", { ...card(id), body: { isPinned } }, asCard),
       setFavorite: (id: string, isFavorited: boolean) =>
-        request(
-          `${cardPath(id)}/favorite`,
-          { body: JSON.stringify({ isFavorited }), method: "PATCH" },
-          asCard
-        ),
+        call("setCardFavorite", { ...card(id), body: { isFavorited } }, asCard),
       update: (id: string, input: UpdateCardInput) =>
-        request(
-          cardPath(id),
-          { body: JSON.stringify(input), method: "PATCH" },
-          asCard
-        ),
+        call("updateCard", { ...card(id), body: input }, asCard),
     },
     exports: {
-      latest: () =>
-        request("/v1/exports/latest", { method: "GET" }, asLatestExport),
+      latest: latestExport,
+      /** Waits for a running export to finish; returns the latest export. */
+      waitFor: (options: WaitOptions<LatestExport> = {}) =>
+        waitFor(latestExport(), {
+          ...options,
+          refresh: latestExport,
+          running: (latest) =>
+            latest.job?.status === "pending" ||
+            latest.job?.status === "running",
+        }),
       start: () =>
-        request(
-          "/v1/exports",
-          { method: "POST" },
-          (v) => (v as { job: ExportJob }).job
-        ),
+        call("startExport", {}, (v) => (v as { job: ExportJob }).job),
     },
     folders: {
       /**
@@ -1505,9 +1608,9 @@ export const createTeakClient = (options: {
        * are. A smart folder refuses cards (409 SMART_FOLDER).
        */
       addCards: (id: string, cardIds: string[]) =>
-        request(
-          `${folderPath(id)}/cards`,
-          { body: JSON.stringify({ cardIds }), method: "POST" },
+        call(
+          "addCardsToFolder",
+          { params: { folderId: id }, body: { cardIds } },
           asFolderCards
         ),
       /**
@@ -1522,29 +1625,32 @@ export const createTeakClient = (options: {
               name: string;
             } & FolderRulesInput)
           | { color?: FolderColor; kind: "smart"; name: string; query: string }
-      ) =>
-        request(
-          "/v1/folders",
-          { body: JSON.stringify(input), method: "POST" },
-          asFolder
-        ),
+      ) => call("createFolder", { body: input }, asFolder),
       /** Deletes the folder; its cards are kept. */
       delete: (id: string) =>
-        request(folderPath(id), { method: "DELETE" }, () => null),
-      get: (id: string) => request(folderPath(id), { method: "GET" }, asFolder),
+        call("deleteFolder", { params: { folderId: id } }, () => null),
+      get: (id: string) =>
+        call("getFolder", { params: { folderId: id } }, asFolder),
       /** How far a rule run has got, and whether it can still be undone. */
-      getRuleRun: (id: string, runId: string) =>
-        request(
-          `${folderPath(id)}/rule-runs/${encodeURIComponent(runId)}`,
-          { method: "GET" },
-          asFolderRuleRun
-        ),
+      getRuleRun,
+      /** Waits for a rule run (or its undo) to finish; returns it. */
+      waitForRuleRun: (
+        id: string,
+        run: FolderRuleRun,
+        options: WaitOptions<FolderRuleRun> = {}
+      ) =>
+        waitFor(run, {
+          ...options,
+          refresh: (current) => getRuleRun(id, current.id),
+          running: (current) =>
+            current.status === "running" || current.status === "undoing",
+        }),
       /** Every folder, sorted by name. */
-      list: () => request("/v1/folders", { method: "GET" }, asFolders),
+      list: () => call("listFolders", {}, asFolders),
       removeCards: (id: string, cardIds: string[]) =>
-        request(
-          `${folderPath(id)}/cards`,
-          { body: JSON.stringify({ cardIds }), method: "DELETE" },
+        call(
+          "removeCardsFromFolder",
+          { params: { folderId: id }, body: { cardIds } },
           asFolderCards
         ),
       /**
@@ -1552,9 +1658,9 @@ export const createTeakClient = (options: {
        * day of the run. The rules stay and won't redo it.
        */
       undoRuleRun: (id: string, runId: string) =>
-        request(
-          `${folderPath(id)}/rule-runs/${encodeURIComponent(runId)}/undo`,
-          { method: "POST" },
+        call(
+          "undoFolderRuleRun",
+          { params: { folderId: id, runId } },
           asFolderRuleRun
         ),
       /**
@@ -1571,9 +1677,9 @@ export const createTeakClient = (options: {
           query?: string;
         } & FolderRulesInput
       ) =>
-        request(
-          folderPath(id),
-          { body: JSON.stringify(input), method: "PATCH" },
+        call(
+          "updateFolder",
+          { params: { folderId: id }, body: input },
           asFolder
         ),
     },
@@ -1585,63 +1691,58 @@ export const createTeakClient = (options: {
        * article, 422 QUOTE_NOT_FOUND, 409 HIGHLIGHT_LIMIT past 200.
        */
       create: (cardId: string, input: CreateHighlightInput) =>
-        request(
-          `${cardPath(cardId)}/highlights`,
-          { body: JSON.stringify(input), method: "POST" },
-          asHighlight
-        ),
+        call("createHighlight", { ...card(cardId), body: input }, asHighlight),
       /** Removes a highlight and its note. */
       delete: (id: string) =>
-        request(highlightPath(id), { method: "DELETE" }, () => null),
+        call("deleteHighlight", { params: { highlightId: id } }, () => null),
       /** A card's highlights, in the order they appear in its article. */
       list: (cardId: string) =>
-        request(
-          `${cardPath(cardId)}/highlights`,
-          { method: "GET" },
-          asHighlights
-        ),
+        call("listHighlights", card(cardId), asHighlights),
       /** Writes or changes a highlight's note; `note: null` clears it. */
       update: (id: string, input: { note: string | null }) =>
-        request(
-          highlightPath(id),
-          { body: JSON.stringify(input), method: "PATCH" },
+        call(
+          "updateHighlight",
+          { params: { highlightId: id }, body: input },
           asHighlight
         ),
     },
-    me: () => request("/v1/me", { method: "GET" }, asMe),
+    me: () => call("getMe", {}, asMe),
     tags: {
       /**
        * Deletes a tag from every card, including cards in Trash and Archive.
        * It finishes in the background; poll with `operation`.
        */
       delete: (tag: string) =>
-        request(
-          "/v1/tags/delete",
-          { body: JSON.stringify({ tag }), method: "POST" },
-          asTagOperation
-        ),
-      list: () => request("/v1/tags", { method: "GET" }, asTags),
+        call("deleteTag", { body: { tag } }, asTagOperation),
+      list: () => call("listTags", {}, asTags),
       /** Replaces `from` with `into` on every card; it finishes in the background. */
       merge: (from: string, into: string) =>
-        request(
-          "/v1/tags/merge",
-          { body: JSON.stringify({ from, into }), method: "POST" },
-          asTagOperation
-        ),
+        call("mergeTags", { body: { from, into } }, asTagOperation),
       /** A tag change's progress. */
-      operation: (id: string) =>
-        request(
-          `/v1/tags/operations/${encodeURIComponent(id)}`,
-          { method: "GET" },
-          asTagOperation
-        ),
+      operation: tagOperation,
+      /**
+       * Waits for a tag change to finish. One that made no progress for
+       * as long as Teak allows comes back `failed`, as Teak gives up on it.
+       */
+      waitFor: async (
+        operation: TagOperation,
+        options: WaitOptions<TagOperation> = {}
+      ) => {
+        const stalled = (current: TagOperation) =>
+          Date.now() - current.updatedAt > TAG_OPERATION_STALL_MS;
+        const last = await waitFor(operation, {
+          ...options,
+          refresh: (current) => tagOperation(current.id),
+          running: (current) =>
+            current.status === "running" && !stalled(current),
+        });
+        return last.status === "running"
+          ? { ...last, status: "failed" as const }
+          : last;
+      },
       /** Renames a tag on every card; it finishes in the background. */
       rename: (from: string, to: string) =>
-        request(
-          "/v1/tags/rename",
-          { body: JSON.stringify({ from, to }), method: "POST" },
-          asTagOperation
-        ),
+        call("renameTag", { body: { from, to } }, asTagOperation),
     },
     pageSnapshots: {
       /**
@@ -1649,20 +1750,18 @@ export const createTeakClient = (options: {
        * it with `Content-Type: application/gzip`, then pass the `fileKey`
        * to `cards.create` as `pageSnapshotKey`.
        */
-      createUpload: (input: CreatePageSnapshotUploadInput) =>
-        request(
-          "/v1/page-snapshots/upload",
-          { body: JSON.stringify(input), method: "POST" },
+      createUpload: (
+        input: CreatePageSnapshotUploadInput,
+        requestOptions?: RequestOptions
+      ) =>
+        call(
+          "createPageSnapshotUpload",
+          { body: input, signal: requestOptions?.signal },
           asUpload
         ),
     },
     uploads: {
-      create: (input: CreateUploadInput) =>
-        request(
-          "/v1/uploads",
-          { body: JSON.stringify(input), method: "POST" },
-          asUpload
-        ),
+      create: createUpload,
       putFile,
     },
   };
@@ -1683,4 +1782,5 @@ export const parseTags = (value: string | undefined): string[] | undefined =>
       );
 export const isCardType = (value: string): value is CardType =>
   (CARD_TYPES as readonly string[]).includes(value);
+/** @deprecated Nothing in the SDK needs it any more; it stays for older callers. */
 export const isStringList = isStringArray;
