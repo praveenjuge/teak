@@ -66,6 +66,12 @@ test("folder rules tag a folder's cards with Undo, and file new matching cards",
     "A kestrel hovering over the meadow"
   );
   await screen.getByRole("link", "Birds").click();
+
+  // The new card shows on Everything too, so its text can match before
+  // the folder page loads; wait for the folder's own search box first.
+  await expect(screen.getByRole("combobox", "Search Birds")).toBeVisible({
+    timeout: 30_000,
+  });
   const filed = screen.getByText("A kestrel hovering over the meadow", {
     exact: false,
     visible: true,
