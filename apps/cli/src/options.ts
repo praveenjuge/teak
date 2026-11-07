@@ -218,7 +218,9 @@ const tagFilter = (options: Record<string, unknown>) => {
   const anyTag = `(${tags
     .map((value) => formatSearchQualifier({ key: "tag", value }))
     .join(" OR ")})`;
-  return { query: query ? `${query} ${anyTag}` : anyTag, tag: undefined };
+  // Grouped, so the tags hold for every branch of a search with OR in it:
+  // a space binds tighter than OR, and `a OR b (tags)` would tag only b.
+  return { query: query ? `(${query}) ${anyTag}` : anyTag, tag: undefined };
 };
 
 export const queryOptions = (

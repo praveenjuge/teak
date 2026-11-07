@@ -494,7 +494,10 @@ export const downloadCard = async (
   if (!card.fileUrl) {
     throw new InvalidArgumentError("This card has no file to download");
   }
-  const target = output || path.basename(card.fileName || `${card.id}.bin`);
+  // Only an explicit -o - means stdout: a file that is itself named "-"
+  // saves as ./-.
+  const name = path.basename(card.fileName || `${card.id}.bin`);
+  const target = output || (name === "-" ? `.${path.sep}-` : name);
   if (target !== "-") {
     refuseExisting(target, options.force);
   }

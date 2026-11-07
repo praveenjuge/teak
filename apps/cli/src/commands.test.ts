@@ -2611,7 +2611,12 @@ describe("teak CLI guidelines", () => {
     await teak("ls", "-q", "fonts", "--tag", "design", "--tag", "web type");
     const params = new URL(`http://x${requests.at(-1)?.path}`).searchParams;
     expect(params.get("tag")).toBeNull();
-    expect(params.get("q")).toBe('fonts (tag:design OR tag:"web type")');
+    expect(params.get("q")).toBe('(fonts) (tag:design OR tag:"web type")');
+    // The tags hold for every branch of a search with OR in it.
+    await teak("search", "alpha OR beta", "--tag", "red", "--tag", "blue");
+    expect(
+      new URL(`http://x${requests.at(-1)?.path}`).searchParams.get("q")
+    ).toBe("(alpha OR beta) (tag:red OR tag:blue)");
   });
 
   test("download -o - writes the file to stdout, and -o json is refused", async () => {
@@ -2635,6 +2640,25 @@ describe("teak CLI guidelines", () => {
     expect(named.code).toBe(EXIT.usage);
     expect(named.stderr).toContain("add --json");
     expect(requests).toHaveLength(0);
+  });
+
+  test('a file named "-" saves as ./-, never to stdout', async () => {
+    routes.set("GET /v1/cards/card_d", () =>
+      json(
+        card("card_d", {
+          fileName: "-",
+          fileUrl: `${server.url}files/dash`,
+        })
+      )
+    );
+    routes.set("GET /files/dash", () => new Response("dash-bytes"));
+    const target = join(workDirectory, "-");
+    rmSync(target, { force: true });
+    const result = await teak("--json", "download", "card_d");
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ path: "./-" });
+    expect(readFileSync(target, "utf8")).toBe("dash-bytes");
+    rmSync(target, { force: true });
   });
 
   test("a saved file appears whole, with no partial file left beside it", async () => {
