@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
+import { InvalidArgumentError } from "commander";
 import {
   createOAuthSession,
   createTeakClient,
@@ -29,7 +30,8 @@ import {
   formatErrorText,
   isUsage,
 } from "./errors";
-import { isInteractive } from "./mode";
+import { isInteractive, marksStderr } from "./mode";
+import { terminalText } from "./terminal";
 
 const readPackageVersion = () => {
   try {
@@ -80,7 +82,7 @@ export const readJson = <T>(value: string): T | null => {
   }
 };
 
-const configDir = () =>
+export const configDir = () =>
   path.join(
     process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config"),
     "teak"
@@ -400,20 +402,90 @@ export const selectFields = (value: unknown, fields?: string[]): unknown => {
   return pickFields(value, fields);
 };
 
+// The records `--fields` picks keys from: a listing's items, an array's
+// elements, or one result.
+const fieldRecords = (value: unknown): Record<string, unknown>[] => {
+  const records = (list: unknown[]) =>
+    list.filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === "object" && !Array.isArray(item)
+    );
+  if (Array.isArray(value)) {
+    return records(value);
+  }
+  const record = value as Record<string, unknown> | null;
+  if (record && typeof record === "object" && Array.isArray(record.items)) {
+    return records(record.items);
+  }
+  return record && typeof record === "object" ? [record] : [];
+};
+
+/** The `--fields` names no record in the result has, and the ones it does. */
+export const unknownFields = (value: unknown, fields: string[]) => {
+  const records = fieldRecords(value);
+  if (records.length === 0) {
+    return { known: [], unknown: [] };
+  }
+  const known = [...new Set(records.flatMap((item) => Object.keys(item)))];
+  return {
+    known: known.sort(),
+    unknown: fields.filter((field) => !known.includes(field)),
+  };
+};
+
+// Set once the command is known: a read can refuse an unknown --fields name
+// before it prints, while a change has already happened by then.
+let commandChangesData = false;
+export const setCommandChangesData = (changes: boolean) => {
+  commandChangesData = changes;
+};
+
+const checkFields = (value: unknown, fields: string[]) => {
+  const { known, unknown } = unknownFields(value, fields);
+  if (unknown.length === 0) {
+    return;
+  }
+  const names = unknown.map((field) => `"${field}"`).join(", ");
+  const message = `unknown field${unknown.length === 1 ? "" : "s"} ${names}; fields here: ${known.join(", ")}`;
+  if (!commandChangesData) {
+    throw new InvalidArgumentError(message);
+  }
+  // The change went through, so the result still prints; the warning is one
+  // JSON line like every other message in --json mode.
+  process.stderr.write(
+    `${JSON.stringify({ warning: { fields: known, message: `${message}. The change was made.`, reason: "unknown_fields", unknownFields: unknown } })}\n`
+  );
+};
+
 export const write = (value: unknown, options: GlobalOptions) => {
   if (options.json) {
+    if (options.fields?.length) {
+      checkFields(value, options.fields);
+    }
     process.stdout.write(
       `${JSON.stringify(selectFields(value, options.fields), null, 2)}\n`
     );
     return;
   }
-  process.stdout.write(`${String(value)}\n`);
+  process.stdout.write(`${terminalText(String(value))}\n`);
 };
 
 /** Status for a person, never the answer: it goes to stderr. */
 export const writeStatus = (text: string, options: GlobalOptions) => {
   if (!options.json) {
-    process.stderr.write(`${text}\n`);
+    process.stderr.write(`${terminalText(text)}\n`);
+  }
+};
+
+/**
+ * A warning on stderr: something worked but needs attention. Marked with !
+ * for a person, "Warning:" in a log, and left out of --json output.
+ */
+export const warn = (text: string, options: { json?: boolean }) => {
+  if (!options.json) {
+    process.stderr.write(
+      `${marksStderr() ? "! " : "Warning: "}${terminalText(text)}\n`
+    );
   }
 };
 
@@ -455,8 +527,51 @@ export const writeError = (
     apiUrl: apiBaseUrl(options),
   });
   process.stderr.write(
-    `${options.json ? JSON.stringify({ error: report }) : formatErrorText(report)}\n`
+    `${options.json ? JSON.stringify({ error: report }) : `${marksStderr() ? "✗ " : ""}${terminalText(formatErrorText(report))}`}\n`
   );
+};
+
+// What is still true if the command is stopped now: a wait leaves its job
+// running on Teak, and says how to check on it.
+let interruptNote: string | undefined;
+let progressShown = false;
+
+/** Runs a wait; Ctrl+C during it says the job keeps going and how to check. */
+export const whileWaiting = async <T>(
+  note: string,
+  work: () => Promise<T>
+): Promise<T> => {
+  interruptNote = note;
+  try {
+    return await work();
+  } finally {
+    interruptNote = undefined;
+  }
+};
+
+/** A progress line is on stderr and must be cleared before anything else prints. */
+export const setProgressShown = (shown: boolean) => {
+  progressShown = shown;
+};
+
+/**
+ * What to say when the command is stopped: a wait's note, or for a change
+ * that may already have reached Teak, that its outcome isn't known.
+ */
+export const interruptedNext = () => {
+  if (interruptNote) {
+    return interruptNote;
+  }
+  return commandChangesData
+    ? "A change already sent may still finish; check before running the command again."
+    : undefined;
+};
+
+export const clearProgress = () => {
+  if (progressShown) {
+    process.stderr.write("\r\x1b[K");
+    progressShown = false;
+  }
 };
 
 export const exitCodeFor = (error: unknown) => {

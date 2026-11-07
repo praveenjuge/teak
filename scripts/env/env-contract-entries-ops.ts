@@ -50,6 +50,15 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "shell"],
     required: false,
   }),
+  spec("TEAK_NO_UPDATE_CHECK", {
+    owners: ["teak-cli"],
+    targets: ["cli"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "boolean",
+    providers: ["shell"],
+    required: false,
+  }),
   spec("BUCKET", {
     owners: ["@teak/core-worker"],
     targets: ["core-worker"],

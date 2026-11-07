@@ -4,11 +4,13 @@ import {
   MAX_SHUFFLE_SEED,
   SEARCH_QUERY_HELP,
 } from "@teak/convex/shared/publicApiContract";
+import { formatSearchQualifier } from "@teak/convex/shared/search/qualifiers";
 import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
 import { parsePaletteHex } from "@teak/convex/shared/utils/colorUtils";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { type Command, InvalidArgumentError, Option } from "commander";
 import type { CardListInput, CardSort, CardType, SearchMode } from "teak-sdk";
+import { warn } from "./runtime";
 
 const CARD_TYPES = CARD_LIST_PARAMS.type.values;
 const CARD_SORTS = CARD_LIST_PARAMS.sort.values;
@@ -195,14 +197,31 @@ export const cursorOption = (options: Record<string, unknown>) => {
   if (typeof options.cursor !== "string") {
     return;
   }
-  if (options.json !== true) {
-    process.stderr.write("Warning: --cursor is now --next\n");
-  }
+  warn("--cursor is now --next", { json: options.json === true });
   return options.cursor;
 };
 
 const strings = (value: unknown): string[] | undefined =>
   Array.isArray(value) && value.length > 0 ? value : undefined;
+
+/**
+ * `--tag` once is the API's exact tag filter. Repeated, it matches any of the
+ * tags, so the tags join the search as `(tag:a OR tag:b)`, which the API
+ * reads the same way everywhere.
+ */
+const tagFilter = (options: Record<string, unknown>) => {
+  const tags = strings(options.tag) ?? [];
+  const query = typeof options.query === "string" ? options.query : undefined;
+  if (tags.length < 2) {
+    return { query, tag: tags[0] };
+  }
+  const anyTag = `(${tags
+    .map((value) => formatSearchQualifier({ key: "tag", value }))
+    .join(" OR ")})`;
+  // Grouped, so the tags hold for every branch of a search with OR in it:
+  // a space binds tighter than OR, and `a OR b (tags)` would tag only b.
+  return { query: query ? `(${query}) ${anyTag}` : anyTag, tag: undefined };
+};
 
 export const queryOptions = (
   options: Record<string, unknown>
@@ -231,13 +250,12 @@ export const queryOptions = (
         : undefined,
     similarTo:
       typeof options.similarTo === "string" ? options.similarTo : undefined,
-    query: typeof options.query === "string" ? options.query : undefined,
+    ...tagFilter(options),
     sort,
     ...(sort === "shuffle" && typeof options.seed === "number"
       ? { shuffleSeed: options.seed }
       : {}),
     style: strings(options.style),
-    tag: typeof options.tag === "string" ? options.tag : undefined,
     trashed: options.trashed === true,
     archived: options.archived === true ? ("only" as const) : undefined,
     type: strings(options.type),
@@ -272,7 +290,11 @@ export const CARD_LIST_FLAGS: Record<CardListParam, ListFlag> = {
     help: "card type; repeat to match any of several",
     parse: repeatable(parseType),
   },
-  tag: { flags: "--tag <tag>", help: "exact tag" },
+  tag: {
+    flags: "--tag <tag>",
+    help: "exact tag; repeat to match any of several",
+    parse: repeatable((value: string) => value.trim()),
+  },
   favorited: { flags: "--favorited", help: "favorites only" },
   pinned: {
     flags: "--pinned",
@@ -365,4 +387,34 @@ export const withListOptions = (command: Command) => {
       "-a, --all",
       `follow every page, up to ${MAX_ALL_CARDS.toLocaleString("en-US")} cards`
     );
+};
+
+// Commander stops at the first bad value. Each parser here records its
+// problem and lets parsing go on, and the root preAction hook reports them all
+// before any request.
+export const collectInputProblems = (
+  command: Command,
+  inputProblems: string[]
+) => {
+  for (const option of command.options) {
+    const parse = option.parseArg;
+    if (parse) {
+      option.parseArg = ((value: string, previous: unknown) => {
+        try {
+          return parse(value, previous);
+        } catch (error) {
+          if (!(error instanceof InvalidArgumentError)) {
+            throw error;
+          }
+          inputProblems.push(
+            `option '${option.flags}' argument '${value}' is invalid. ${error.message}`
+          );
+          return previous;
+        }
+      }) as typeof option.parseArg;
+    }
+  }
+  for (const child of command.commands) {
+    collectInputProblems(child, inputProblems);
+  }
 };

@@ -76,6 +76,12 @@ changelog:
 - `--fields id,url` trims JSON output, `teak completion bash`, `zsh` or `fish` adds tab completion, and every command's `--help` has examples, with the exit codes in `teak --help`.
 - `--wait` gives up after 10 minutes, or `--timeout`, and says how to check on the work. Commands that act on several cards say how many failed and print the command that retries them.
 - In CI or a coding agent's shell the CLI never prompts or opens a browser, so a delete needs `--yes` there.
+- Text from a saved page can no longer send escape sequences to your terminal: the CLI prints it as plain text.
+- Every error has a `reason`, such as `confirmation_required` or `login_required`, for scripts and agents to act on, and a command line with several bad values names them all at once. Ctrl+C during `--wait` says the work keeps going and how to check on it.
+- `teak help --search "<words>"` finds a command by what it does, and `teak help --json` lists every command and option as data.
+- `--tag` repeats to match any of several tags, `-o -` sends a download or export to standard output, `--api-key -` reads the key from standard input, and `-v` prints the version. A download appears whole or not at all.
+- Listings in a terminal have a header row, and once a day the CLI says when a newer version is out (`TEAK_NO_UPDATE_CHECK=1` turns that off).
+- **If a script deletes folders or highlights:** `teak folders delete` and `teak highlights delete` can't be undone, so they now ask first, and need `--yes` in scripts. A `--fields` name that a result doesn't have is now an error that lists the names it does have.
 - **If a script reads the CLI's text output:** piped into another command, card lines and `teak tags` are now tab-separated with every field in full and ISO times, and the next page is printed as `Next page: --next <cursor>`. Use `cut -f` or `--json`. `teak login` prints its link and result on stderr.
 
 ## For developers and self-hosters

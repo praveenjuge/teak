@@ -33,9 +33,63 @@ export interface ErrorReport {
   code: string;
   message: string;
   next?: string;
+  /** Every bad value, when a command was given more than one. */
+  problems?: string[];
+  /** What kind of failure, for a script or agent to branch on. */
+  reason: ErrorReason;
   requestId?: string;
   retryAt?: number;
   status?: number;
+}
+
+/**
+ * Why a command failed, one stable word a script can branch on without
+ * reading the message. `code` stays the API's or the CLI's own code.
+ */
+export const ERROR_REASONS = [
+  "cancelled",
+  "confirmation_required",
+  "conflict",
+  "config",
+  "forbidden",
+  "invalid_input",
+  "invalid_usage",
+  "limit_reached",
+  "login_failed",
+  "login_required",
+  "missing_input",
+  "network",
+  "not_found",
+  "rate_limited",
+  "server",
+  "timed_out",
+  "unavailable",
+  "unknown",
+] as const;
+
+export type ErrorReason = (typeof ERROR_REASONS)[number];
+
+/** A destructive command ran where no one can answer its (y/N) question. */
+export class ConfirmationRequiredError extends InvalidArgumentError {}
+
+/** Several bad values at once, reported together. */
+export class InputProblemsError extends InvalidArgumentError {
+  problems: string[];
+
+  constructor(problems: string[]) {
+    super(problems.join("\n"));
+    this.problems = problems;
+  }
+}
+
+/** Ctrl+C or a signal stopped the command; `next` says what is still true. */
+export class InterruptedError extends Error {
+  next?: string;
+
+  constructor(next?: string) {
+    super("Stopped.");
+    this.next = next;
+  }
 }
 
 /** What went wrong signing in, in the CLI's words; the next step follows. */
@@ -86,11 +140,16 @@ export const nextStepFor = (
   error: unknown,
   context: ErrorContext
 ): string | undefined => {
-  if (error instanceof CliError && error.next) {
+  if (
+    (error instanceof CliError || error instanceof InterruptedError) &&
+    error.next
+  ) {
     return error.next;
   }
   if (isUsage(error)) {
-    return `See the options with: ${helpCommand(context.command)}`;
+    return context.command
+      ? `See the options with: ${helpCommand(context.command)}`
+      : "Add --help to the command to see its options.";
   }
   if (!(error instanceof TeakApiError)) {
     return;
@@ -136,7 +195,53 @@ const codeFor = (error: unknown) => {
   if (error instanceof TeakApiError) {
     return error.code;
   }
+  if (error instanceof InterruptedError) {
+    return "CANCELLED";
+  }
   return isUsage(error) ? "USAGE" : "REQUEST_FAILED";
+};
+
+// Commander's codes for a required argument or value that wasn't given.
+const MISSING_INPUT_CODES = new Set([
+  "commander.missingArgument",
+  "commander.missingMandatoryOptionValue",
+  "commander.optionMissingArgument",
+]);
+
+const REASON_BY_KIND: Record<TeakApiError["kind"], ErrorReason> = {
+  auth: "login_required",
+  config: "config",
+  conflict: "conflict",
+  forbidden: "forbidden",
+  invalid: "invalid_input",
+  limit: "limit_reached",
+  network: "network",
+  not_found: "not_found",
+  rate_limited: "rate_limited",
+  server: "server",
+  unavailable: "unavailable",
+};
+
+export const reasonFor = (error: unknown): ErrorReason => {
+  if (error instanceof InterruptedError) {
+    return "cancelled";
+  }
+  if (error instanceof ConfirmationRequiredError) {
+    return "confirmation_required";
+  }
+  if (error instanceof CommanderError && MISSING_INPUT_CODES.has(error.code)) {
+    return "missing_input";
+  }
+  if (isUsage(error)) {
+    return "invalid_usage";
+  }
+  if (error instanceof OAuthSessionError) {
+    return "login_failed";
+  }
+  if (error instanceof TeakApiError) {
+    return error.code === "TIMEOUT" ? "timed_out" : REASON_BY_KIND[error.kind];
+  }
+  return "unknown";
 };
 
 export const describeError = (
@@ -154,7 +259,11 @@ export const describeError = (
   return {
     code: codeFor(error),
     message,
+    reason: reasonFor(error),
     ...(next ? { next } : {}),
+    ...(error instanceof InputProblemsError && error.problems.length > 1
+      ? { problems: error.problems }
+      : {}),
     ...(api?.requestId ? { requestId: api.requestId } : {}),
     ...(api?.retryAt ? { retryAt: api.retryAt } : {}),
     ...(api?.status ? { status: api.status } : {}),

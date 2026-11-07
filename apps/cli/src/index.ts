@@ -24,10 +24,17 @@ import {
   parseTags,
   TeakApiError,
 } from "teak-sdk";
-import { addCard, readStdin } from "./files";
-import { formatCardLines, formatCreated, formatDetail } from "./format";
+import { InputProblemsError, InterruptedError } from "./errors";
+import { addCard, readApiKey, readStdin } from "./files";
+import {
+  formatCardLines,
+  formatCardTable,
+  formatCreated,
+  formatDetail,
+} from "./format";
 import {
   addExamples,
+  answerHelp,
   commandPath,
   completionScript,
   completions,
@@ -69,8 +76,10 @@ import {
   updateFolder,
   whoami,
 } from "./library";
-import { plainOutput } from "./mode";
+import { canPrompt, plainOutput } from "./mode";
+import { CLI_OPERATIONS } from "./operations";
 import {
+  collectInputProblems,
   collectPaletteColor,
   cursorOption,
   DEFAULT_WAIT_TIMEOUT_MS,
@@ -87,21 +96,26 @@ import {
 } from "./options";
 import {
   type ClientOptions,
+  clearProgress,
   client,
   EXIT,
   exitCodeFor,
   type GlobalOptions,
+  interruptedNext,
   login,
   logout,
   readCredentials,
   readJson,
+  setCommandChangesData,
   VERSION,
+  warn,
   write,
   writeError,
   writeList,
   writeStatus,
   writeTip,
 } from "./runtime";
+import { startUpdateCheck } from "./update";
 
 export { getUploadFileInfo, mimeFor } from "./files";
 export { formatCardLine } from "./format";
@@ -122,10 +136,16 @@ export const listingJson = <T extends object>(
 ): T | (T & { seed: number }) =>
   seed === undefined ? page : { ...page, seed };
 
+// Only search text someone typed can miss meaning search; repeated --tag
+// filters join the search too, but have no meaning to look for.
 const meaningSearchSkipped = (
   page: CardsPage,
   options: Record<string, unknown>
-) => page.searchMode === "keyword" && options.mode !== "keyword";
+) =>
+  page.searchMode === "keyword" &&
+  options.mode !== "keyword" &&
+  typeof options.query === "string" &&
+  options.query.trim() !== "";
 
 const relevanceUnscored = (page: CardsPage, options: Record<string, unknown>) =>
   options.sort === "relevance" && page.relevanceRanked === false;
@@ -227,7 +247,7 @@ const writeCards = async (
       options
     );
   } else if (page.items.length > 0) {
-    write(formatCardLines(page.items), options);
+    write(formatCardTable(page.items), options);
   } else if (!page.similarity || page.similarity === "ok") {
     // A similar-cards listing that isn't ready says why below instead.
     writeList([], emptyListingMessage(mode, options), options);
@@ -378,23 +398,13 @@ const wantsJson = (argv = process.argv) => {
   return (end === -1 ? argv : argv.slice(0, end)).includes("--json");
 };
 
-// Commander's own usage errors: with --json, one JSON line like every other
-// error; otherwise its message, with a hint for some commands.
+// Commander's own usage errors: its message, with a hint for some commands.
+// With --json, run() writes the error as one JSON line instead.
 const usageOutput = (hint: (message: string) => string = (m) => m) => ({
   outputError: (message: string, writeErr: (text: string) => void) => {
-    if (wantsJson()) {
-      writeErr(
-        `${JSON.stringify({
-          error: {
-            code: "USAGE",
-            message: message.replace(/^error: /, "").trim(),
-            next: "Add --help to the command to see its options.",
-          },
-        })}\n`
-      );
-      return;
+    if (!wantsJson()) {
+      writeErr(hint(message));
     }
-    writeErr(hint(message));
   },
 });
 
@@ -416,10 +426,12 @@ export const program = new Command()
   .description("Command line client for Teak")
   .exitOverride()
   .configureOutput(usageOutput())
-  .version(VERSION)
+  .version(VERSION, "-v, --version", "print the version")
+  // -V was the version flag before -v; it still works, unlisted.
+  .addOption(new Option("-V", "old name of --version").hideHelp())
   .option(
     "--api-key <key>",
-    "Teak API key (prefer TEAK_API_KEY: a flag is visible to other processes)"
+    "Teak API key, or - to read it from stdin (or set TEAK_API_KEY; a key in a flag is visible to other processes)"
   )
   // No default here: TEAK_API_URL is read where the URL is used, so
   // options.apiUrl is set only when someone passed --api-url.
@@ -431,14 +443,40 @@ export const program = new Command()
     parseFields
   );
 
+program.on("option:V", () => {
+  process.stdout.write(`${VERSION}\n`);
+  process.exit(0);
+});
+
 // The command that's running, for errors that name what it was given.
 let activeCommand: Command | undefined;
 
-program.hook("preAction", (_root, actionCommand) => {
+// Every bad value on the command line, reported together before anything
+// runs (see collectInputProblems).
+const inputProblems: string[] = [];
+
+/** The `teak cards` command a path names: `rm` is `cards delete`. */
+const canonicalPath = (path: string) =>
+  SHORTCUTS[path] ? `cards ${SHORTCUTS[path]}` : path;
+
+/** Whether a command can change the library: it calls more than reads. */
+export const changesData = (path: string) =>
+  (CLI_OPERATIONS[canonicalPath(path)] ?? []).some(
+    (operation) => !/^(get|list|find)/.test(operation)
+  );
+
+program.hook("preAction", async (_root, actionCommand) => {
   activeCommand = actionCommand;
+  setCommandChangesData(changesData(commandPath(actionCommand)));
   const options = program.opts();
   if (options.fields && !options.json) {
-    throw new InvalidArgumentError("--fields works with --json");
+    inputProblems.push("--fields works with --json");
+  }
+  if (inputProblems.length > 0) {
+    throw new InputProblemsError([...inputProblems]);
+  }
+  if (options.apiKey === "-") {
+    program.setOptionValue("apiKey", await readApiKey(canPrompt()));
   }
 });
 
@@ -449,9 +487,7 @@ const globals = <T extends object>(options: T) => ({
 
 /** A renamed command or flag: still works, says its new name to a person. */
 const warnDeprecated = (message: string) => {
-  if (!wantsJson()) {
-    process.stderr.write(`Warning: ${message}\n`);
-  }
+  warn(message, { json: wantsJson() });
 };
 
 const withWaitOptions = (command: Command, wait: string) =>
@@ -533,7 +569,7 @@ const searchBuilder: Build = (parent, name) =>
   withListOptions(
     parent
       .command(name)
-      .argument("[query]")
+      .argument("[query]", "search text, the same as --query")
       .description(
         "Search cards, e.g. 'site:github.com tag:design' or \"design -tag:old\""
       )
@@ -546,7 +582,7 @@ const similarBuilder: Build = (parent, name) =>
   withListOptions(
     parent
       .command(name)
-      .argument("<id>")
+      .argument("<id>", "a card id")
       .description("List the cards closest in meaning to a card")
   ).action(async (id, options) =>
     writeCards(globals({ ...options, similarTo: id }), "similar")
@@ -580,7 +616,7 @@ const deleteBuilder: Build = (parent, name) =>
   withDeleteOptions(
     parent
       .command(name)
-      .argument("<ids...>")
+      .argument("<ids...>", "card ids")
       .description("Move cards to Trash, or delete them forever")
   ).action(async (ids, options) => deleteCards(ids, globals(options)));
 
@@ -592,7 +628,7 @@ const idsBuilder =
   (parent, name) =>
     parent
       .command(name)
-      .argument("<ids...>")
+      .argument("<ids...>", "card ids")
       .description(description)
       .action(async (ids) => {
         await run(ids, program.opts());
@@ -606,7 +642,7 @@ const idBuilder =
   (parent, name) =>
     parent
       .command(name)
-      .argument("<id>")
+      .argument("<id>", "a card id")
       .description(description)
       .action(async (id) => {
         await run(id, program.opts());
@@ -615,7 +651,7 @@ const idBuilder =
 const contentBuilder: Build = (parent, name) =>
   parent
     .command(name)
-    .argument("<id>")
+    .argument("<id>", "a card id")
     .description(
       "Print a card's text: its document's text or its transcript, or a link's article with --kind article"
     )
@@ -629,11 +665,11 @@ const contentBuilder: Build = (parent, name) =>
 const downloadBuilder: Build = (parent, name) =>
   parent
     .command(name)
-    .argument("<id>")
+    .argument("<id>", "a card id")
     .description("Save a card's original file")
     .option(
       "-o, --output <PATH>",
-      "where to save it; defaults to its file name"
+      "where to save it, or - for stdout; defaults to its file name"
     )
     .option("--force", "replace an existing file")
     .action(async (id, options) => downloadCard(id, globals(options)));
@@ -650,7 +686,7 @@ const toggleBuilder =
   (parent, name) => {
     const command = parent
       .command(name)
-      .argument("<id>")
+      .argument("<id>", "a card id")
       .description(input.description);
     const { oldFlag } = input;
     if (oldFlag) {
@@ -807,7 +843,7 @@ pins
 cardCommand("trash");
 cards
   .command("get")
-  .argument("<id>")
+  .argument("<id>", "a card id")
   .description("Show a card's details")
   .action(async (id) => {
     const options = program.opts();
@@ -817,7 +853,7 @@ cards
 cardCommand("create");
 cards
   .command("update")
-  .argument("<id>")
+  .argument("<id>", "a card id")
   .description(
     "Change a card's content, title, notes, link, tags, or palette colors"
   )
@@ -868,7 +904,7 @@ cardCommand("archive");
 cardCommand("unarchive");
 cards
   .command("duplicate")
-  .argument("<url>")
+  .argument("<url>", "the link to look for")
   .description(
     "Print the id of the card that saves this link (ignoring http/https, www., a trailing slash, a #fragment (but not a #/ or #! route) and utm_*, fbclid and gclid parameters); exits not found when none does"
   )
@@ -885,7 +921,7 @@ cardCommand("done");
 cardCommand("todo");
 cards
   .command("save-pdf")
-  .argument("<id>")
+  .argument("<id>", "an arXiv link card's id")
   .description("Save an arXiv link's paper as a document card")
   .action(async (id, options) => {
     await savePdf(id, globals(options));
@@ -1015,7 +1051,7 @@ cards
     } else {
       writeList(
         [
-          ...(result.items.length ? [formatCardLines(result.items)] : []),
+          ...(result.items.length ? [formatCardTable(result.items)] : []),
           ...result.deletedIds.map((id) => `deleted ${id}`),
         ],
         "No changes since then.",
@@ -1027,7 +1063,7 @@ cards
 
 const tags = program
   .command("tags")
-  .description("List tags")
+  .description("List tags, and add, remove, rename, merge or delete them")
   .action(async () => {
     await listTags(program.opts());
   });
@@ -1038,14 +1074,14 @@ tags
 tags
   .command("add")
   .description("Add tags to a card")
-  .argument("<id>")
-  .argument("<tags...>")
+  .argument("<id>", "a card id")
+  .argument("<tags...>", "the tags to add")
   .action(async (id, names) => editTags(id, names, "add", program.opts()));
 tags
   .command("remove")
   .description("Remove tags from a card, including tags Teak added")
-  .argument("<id>")
-  .argument("<tags...>")
+  .argument("<id>", "a card id")
+  .argument("<tags...>", "the tags to remove")
   .action(async (id, names) => editTags(id, names, "remove", program.opts()));
 // `tags rm` was `tags remove`. Everywhere else rm deletes, so it's no longer
 // listed; it still works and says so.
@@ -1089,7 +1125,7 @@ withWaitOptions(
 withWaitOptions(
   tags
     .command("delete")
-    .argument("<tag>")
+    .argument("<tag>", "the tag to remove from every card")
     .description("Remove a tag from every card; the cards are kept")
     .option(
       "--dry-run",
@@ -1103,7 +1139,7 @@ withWaitOptions(
 withWaitOptions(
   tags
     .command("status")
-    .argument("<operationId>")
+    .argument("<operationId>", "the id tags rename, merge or delete printed")
     .description("Show how far a tag rename, merge, or delete got"),
   "wait until it finishes"
 ).action(async (id, options) => tagOperationStatus(id, globals(options)));
@@ -1215,7 +1251,8 @@ folders
   .alias("rm")
   .argument("<folders...>", "folder names or ids")
   .description("Delete folders; their cards are kept")
-  .action(async (refs) => deleteFolders(refs, program.opts()));
+  .option("-y, --yes", "don't ask for confirmation")
+  .action(async (refs, options) => deleteFolders(refs, globals(options)));
 folders
   .command("add")
   .argument("<folder>", "folder name or id")
@@ -1239,14 +1276,14 @@ const highlights = program
 highlights
   .command("list")
   .alias("ls")
-  .argument("<cardId>")
+  .argument("<cardId>", "a link card's id")
   .description(
     "List a link's highlights in article order, with their ids and notes"
   )
   .action(async (cardId) => listHighlights(cardId, program.opts()));
 highlights
   .command("add")
-  .argument("<cardId>")
+  .argument("<cardId>", "a link card's id")
   .argument("<quote>", "text from the link's saved article")
   .description(
     "Highlight a passage of a link's saved article, found by its text (the first match unless --prefix or --suffix points at another)"
@@ -1271,13 +1308,17 @@ highlights
   .alias("rm")
   .argument("<ids...>", "highlight ids")
   .description("Delete highlights and their notes")
-  .action(async (ids) => removeHighlights(ids, program.opts()));
+  .option("-y, --yes", "don't ask for confirmation")
+  .action(async (ids, options) => removeHighlights(ids, globals(options)));
 
 const exportCommand = withWaitOptions(
   program
     .command("export")
     .description("Export every card and original file as a ZIP")
-    .option("-o, --output <PATH>", "wait, then save the ZIP here")
+    .option(
+      "-o, --output <PATH>",
+      "wait, then save the ZIP here, or - for stdout"
+    )
     .option("--force", "replace an existing file"),
   "wait until the export is ready"
 ).action(async (options) => startExport(globals(options)));
@@ -1288,7 +1329,7 @@ exportCommand
 exportCommand
   .command("download")
   .description("Save the latest ready export")
-  .option("-o, --output <PATH>", "where to save the ZIP")
+  .option("-o, --output <PATH>", "where to save the ZIP, or - for stdout")
   .option("--force", "replace an existing file")
   .action(async (_options, command: Command) =>
     downloadExport(command.optsWithGlobals())
@@ -1319,6 +1360,8 @@ addExamples(
   )
 );
 
+collectInputProblems(program, inputProblems);
+
 // For errors: the command that ran and, when its first argument takes ids,
 // what it was given.
 const errorContext = () => {
@@ -1334,33 +1377,71 @@ const errorContext = () => {
   return { command: commandPath(activeCommand), ...(ids ? { ids } : {}) };
 };
 
-export const run = (argv = process.argv) => {
+const SIGNAL_EXIT_CODES: Partial<Record<NodeJS.Signals, number>> = {
+  SIGHUP: 129,
+  SIGINT: 130,
+  SIGTERM: 143,
+};
+
+// Ctrl+C (or a terminal closing) stops the command with what is still true:
+// a wait's job keeps going on Teak, and a change already sent may finish.
+const stopOnSignals = (json: boolean) => {
+  for (const [signal, code] of Object.entries(SIGNAL_EXIT_CODES)) {
+    process.once(signal as NodeJS.Signals, () => {
+      clearProgress();
+      writeError(new InterruptedError(interruptedNext()), {
+        ...program.opts(),
+        json,
+      });
+      process.exit(code);
+    });
+  }
+};
+
+export const run = async (argv = process.argv) => {
   // Shell completion asks what comes next; it runs no command.
   if (argv[2] === "__complete") {
     const candidates = completions(program, argv.slice(3));
     if (candidates.length > 0) {
       process.stdout.write(`${candidates.join("\n")}\n`);
     }
-    return Promise.resolve();
+    return;
   }
-  return program.parseAsync(argv).catch((error) => {
-    if (typeof error?.exitCode === "number" && error.exitCode === 0) {
-      process.exit(0);
+  const json = wantsJson(argv);
+  inputProblems.length = 0;
+  try {
+    if (answerHelp(program, argv, SHORTCUTS)) {
+      return;
     }
-    // Commander already printed what was wrong with the flags or arguments.
+    stopOnSignals(json);
+    const notice = startUpdateCheck(json);
+    await program.parseAsync(argv);
+    const text = await notice;
+    if (text) {
+      process.stderr.write(`${text}\n`);
+    }
+  } catch (error) {
     if (
       error instanceof CommanderError &&
       !(error instanceof InvalidArgumentError)
     ) {
+      if (error.exitCode === 0) {
+        process.exit(0);
+      }
+      // Commander already printed what was wrong, unless --json asked for
+      // one JSON line instead.
+      if (json) {
+        writeError(error, { ...program.opts(), json }, errorContext());
+      }
       process.exit(EXIT.usage);
     }
     const options = {
       ...program.opts(),
-      json: program.opts().json === true || wantsJson(argv),
+      json: program.opts().json === true || json,
     };
     writeError(error, options, errorContext());
     process.exit(exitCodeFor(error));
-  });
+  }
 };
 
 if (

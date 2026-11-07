@@ -1,4 +1,5 @@
-import type { Command } from "commander";
+import { type Command, InvalidArgumentError } from "commander";
+import { write } from "./runtime";
 
 // One to three examples per command, keyed by its canonical path. Each one
 // parses against the command tree (help.test.ts), so an example can't drift.
@@ -144,7 +145,7 @@ export const EXIT_CODES = [
   ["3", "not signed in, or the API key was refused"],
   ["4", "not found"],
   ["5", "rate limited"],
-  ["130", "stopped with Ctrl+C"],
+  ["130", "stopped with Ctrl+C (143 when terminated, 129 on hangup)"],
 ] as const;
 
 const ENVIRONMENT = [
@@ -155,6 +156,10 @@ const ENVIRONMENT = [
     "how long one request may take (default 10000)",
   ],
   ["CI, CLAUDECODE, AI_AGENT…", "never prompt or open a browser"],
+  [
+    "TEAK_NO_UPDATE_CHECK",
+    "don't ask npm once a day whether a newer teak-cli is out",
+  ],
 ] as const;
 
 const table = (rows: readonly (readonly [string, string])[]) => {
@@ -175,6 +180,8 @@ export const rootHelpFooter = () =>
     ...table(ENVIRONMENT),
     "",
     "Add --json to any command for one JSON document on stdout, and --fields to keep only some keys.",
+    'With --json, an error is one line on stderr: {"error":{"code","reason","message","next"}}.',
+    'Find a command by what it does: teak help --search "<WORDS>". Help as JSON: teak help --json',
   ].join("\n");
 
 export const commandPath = (command: Command) => {
@@ -290,4 +297,219 @@ export const completionScript = (shell: (typeof SHELLS)[number]) => {
     "# teak completion for fish. Save as ~/.config/fish/completions/teak.fish",
     "complete -c teak -f -a '(teak __complete (commandline -opc)[2..-1] (commandline -ct) 2>/dev/null)'",
   ].join("\n");
+};
+
+export interface CommandDescription {
+  aliases: string[];
+  arguments: {
+    description: string;
+    name: string;
+    required: boolean;
+    variadic: boolean;
+  }[];
+  command: string;
+  commands: CommandDescription[];
+  description: string;
+  examples: string[];
+  options: {
+    description: string;
+    flags: string;
+    long: string | null;
+    short: string | null;
+    value: string | null;
+  }[];
+}
+
+const visibleChildren = (command: Command) =>
+  command
+    .createHelp()
+    .visibleCommands(command)
+    .filter((child) => child.name() !== "help");
+
+/**
+ * A command and everything under it, from the same metadata `--help` prints:
+ * what `teak help --json` and `teak <command> --help --json` show.
+ */
+export const describeCommand = (
+  command: Command,
+  shortcuts: Record<string, string> = {}
+): CommandDescription => {
+  const help = command.createHelp();
+  const path = commandPath(command);
+  return {
+    command: `teak${path ? ` ${path}` : ""}`,
+    description: command.description(),
+    aliases: command.aliases(),
+    arguments: command.registeredArguments.map((argument) => ({
+      description: argument.description,
+      name: argument.name(),
+      required: argument.required,
+      variadic: argument.variadic,
+    })),
+    options: help.visibleOptions(command).map((option) => ({
+      description: option.description,
+      flags: option.flags,
+      long: option.long ?? null,
+      short: option.short ?? null,
+      value: /<[^>]+>|\[[^\]]+\]/.exec(option.flags)?.[0] ?? null,
+    })),
+    examples: EXAMPLES[shortcuts[path] ?? path] ?? [],
+    commands: visibleChildren(command).map((child) =>
+      describeCommand(child, shortcuts)
+    ),
+  };
+};
+
+/** The whole CLI as data: every command, the exit codes and the environment. */
+export const describeCli = (
+  root: Command,
+  shortcuts: Record<string, string> = {}
+) => ({
+  ...describeCommand(root, shortcuts),
+  environment: Object.fromEntries(ENVIRONMENT),
+  exitCodes: Object.fromEntries(EXIT_CODES),
+});
+
+export interface CommandMatch {
+  command: string;
+  description: string;
+  /** The top-level shortcut that runs the same command, such as `teak rm`. */
+  shortcut?: string;
+}
+
+/**
+ * The commands that do what some words describe, best match first: each word
+ * is looked for at the start of a word in a command's name, aliases,
+ * description, options and examples. Shortcuts show beside the command they
+ * run, not as commands of their own.
+ */
+export const searchCommands = (
+  root: Command,
+  query: string,
+  shortcuts: Record<string, string> = {}
+): CommandMatch[] => {
+  const words = query
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const shortcutFor = Object.fromEntries(
+    Object.entries(shortcuts).map(([shortcut, name]) => [
+      `cards ${name}`,
+      shortcut,
+    ])
+  );
+  const matches: (CommandMatch & { depth: number; score: number })[] = [];
+  const visit = (command: Command) => {
+    for (const child of visibleChildren(command)) {
+      const path = commandPath(child);
+      if (shortcuts[path]) {
+        continue;
+      }
+      const options = child.createHelp().visibleOptions(child);
+      const text = [
+        path,
+        ...child.aliases(),
+        child.description(),
+        ...(EXAMPLES[path] ?? []),
+        ...options.map((option) => `${option.flags} ${option.description}`),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .split(/[^a-z0-9]+/);
+      // A word in the command's own name counts double.
+      const name = path.split(/[^a-z0-9]+/);
+      const score = words.reduce(
+        (total, word) =>
+          total +
+          (text.some((token) => token.startsWith(word)) ? 1 : 0) +
+          (name.some((token) => token.startsWith(word)) ? 1 : 0),
+        0
+      );
+      if (score > 0) {
+        const shortcut = shortcutFor[path];
+        matches.push({
+          command: `teak ${path}`,
+          depth: path.split(" ").length,
+          description: child.description(),
+          score,
+          ...(shortcut ? { shortcut: `teak ${shortcut}` } : {}),
+        });
+      }
+      visit(child);
+    }
+  };
+  visit(root);
+  return matches
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.depth - b.depth ||
+        a.command.localeCompare(b.command)
+    )
+    .slice(0, 8)
+    .map(({ depth: _depth, score: _score, ...match }) => match);
+};
+
+const beforeDoubleDash = (words: string[]) => {
+  const end = words.indexOf("--");
+  return end === -1 ? words : words.slice(0, end);
+};
+
+/**
+ * `teak help --json`, `teak <command> --help --json` and `teak help --search
+ * <words>`: help as data, and commands found by what they do. Like --help,
+ * they read no credentials and make no request. Returns false for anything
+ * else, which Commander handles.
+ */
+export const answerHelp = (
+  root: Command,
+  argv: string[],
+  shortcuts: Record<string, string> = {}
+) => {
+  const words = beforeDoubleDash(argv.slice(2));
+  const json = words.includes("--json");
+  const asksHelp = words[0] === "help";
+  const positional = (list: string[]) =>
+    list.filter((word) => !word.startsWith("-"));
+  const searchAt = words.indexOf("--search");
+  if (asksHelp && searchAt !== -1) {
+    const query = positional(words.slice(searchAt + 1)).join(" ");
+    if (!query) {
+      throw new InvalidArgumentError(
+        'say what you want to do: teak help --search "move to trash"'
+      );
+    }
+    const matches = searchCommands(root, query, shortcuts);
+    if (json) {
+      write({ query, results: matches }, { json: true });
+    } else if (matches.length === 0) {
+      process.stderr.write(
+        "No commands match. See every command with: teak --help\n"
+      );
+    } else {
+      const label = (match: (typeof matches)[number]) =>
+        match.shortcut ? `${match.command} (${match.shortcut})` : match.command;
+      const width = Math.max(...matches.map((match) => label(match).length));
+      write(
+        matches
+          .map((match) => `${label(match).padEnd(width)}  ${match.description}`)
+          .join("\n"),
+        {}
+      );
+    }
+    return true;
+  }
+  const asksFlag = words.includes("--help") || words.includes("-h");
+  if (!(json && (asksHelp || asksFlag))) {
+    return false;
+  }
+  const names = positional(asksHelp ? words.slice(1) : words);
+  const { command } = findCommand(root, names);
+  write(
+    command === root
+      ? describeCli(root, shortcuts)
+      : describeCommand(command, shortcuts),
+    { json: true }
+  );
+  return true;
 };
