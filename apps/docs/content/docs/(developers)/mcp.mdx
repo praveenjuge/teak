@@ -176,6 +176,7 @@ type CardFilters = {
 **Save and edit cards**
 
 - `teak_v1_create_card`: text or URL fields, or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`, plus `sourceUrl`, `sourceTitle` and `idempotencyKey` ([Create behavior](/docs/api#create-behavior)). Pass the upload PUT's `ETag` header as `fileEtag`. Output: `{ status: "created", cardId, appUrl, card?, resaved?, wasArchived? }`. Saving a link that's already in Teak re-saves that card ([Saving a link again](/docs/api#saving-a-link-again)) and its text reads "Already in Teak, moved to the top".
+  `cardType` is optional. Set `cardType: "text"` and Teak stores raw Markdown exactly, even when it looks like a URL, quote, or color; automatic URL, quote, and palette detection remains when the type is omitted.
 - `teak_v1_create_upload`: `{ fileName, mimeType, fileSize }` → `{ uploadUrl, fileKey, method: "PUT", maxFileSize, expiresIn }` ([Upload files](/docs/api#upload-files)).
 - `teak_v1_update_card`: `{ cardId, content?, url?, notes?, tags?, metadataTitle?, removeAiTags?, addColors?, removeColors? }` → the updated card ([Edit a card](/docs/api#edit-a-card)).
 - `teak_v1_set_card_favorite`: `{ cardId, isFavorited }` → the updated card.
