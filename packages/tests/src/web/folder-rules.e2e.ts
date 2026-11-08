@@ -66,10 +66,12 @@ test("folder rules tag a folder's cards with Undo, and file new matching cards",
     "A kestrel hovering over the meadow"
   );
   await screen.getByRole("link", "Birds").click();
-  const filed = screen.getByText("A kestrel hovering over the meadow", {
-    exact: false,
-    visible: true,
-  });
+  // The card is a button named by its type and text; clicking the bare text
+  // can resolve to a hidden copy of it while the list settles.
+  const filed = screen.getByRole(
+    "button",
+    "Text: A kestrel hovering over the meadow"
+  );
   await expect(filed).toBeVisible({ timeout: 90_000 });
   await filed.click();
   await expect(
