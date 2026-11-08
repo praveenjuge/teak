@@ -136,6 +136,33 @@ describe("Cron Triggers", () => {
     }
   });
 
+  test("the development profile runs hourly tasks every six hours and the AI backfill daily", async () => {
+    const devEnv = env({ CRON_PROFILE: "development" });
+    const hourly = setup();
+    await hourly.run("45 * * * *", devEnv);
+    await hourly.run("15 * * * *", devEnv);
+    await hourly.run("0 */6 * * *", devEnv);
+    expect(hourly.calls).toEqual([]);
+    expect(hourly.heartbeats(PROD)).toEqual([]);
+
+    const sixHourly = setup();
+    await sixHourly.run("45 */6 * * *", devEnv);
+    await sixHourly.run("15 */6 * * *", devEnv);
+    expect(sixHourly.calls).toContain("reconcile");
+    expect(sixHourly.heartbeats(PROD)).toEqual(
+      expect.arrayContaining([
+        `${CRONS.cleanupExpiredIdempotency.name} started`,
+        `${CRONS.aiUsageRollup.name} started`,
+      ])
+    );
+
+    const daily = setup();
+    await daily.run(CRONS.adminDailySnapshot.schedule, devEnv);
+    expect(daily.calls).toEqual(
+      expect.arrayContaining([`ai-backfill ${PROD}`, `ai-backfill ${DEV}`])
+    );
+  });
+
   test("a trigger no task is scheduled on runs nothing", async () => {
     const { calls, heartbeats, run } = setup();
     await run("7 7 7 7 *");

@@ -3,7 +3,9 @@ import {
   CRONS,
   type CronHandler,
   type CronTask,
+  cronProfile,
   cronTasksOn,
+  scheduleFor,
 } from "@teak/convex/cronSchedules";
 import type { MaintenanceTask } from "@teak/files-protocol";
 import { type AiUsageRollupEnv, rollUpAiUsage } from "../ai/aiUsageRollup";
@@ -20,7 +22,10 @@ import {
 } from "./hourlyCleanup";
 import { reconcileWorkflows } from "./workflowReconcile";
 
-export type CronEnv = AiUsageRollupEnv;
+export interface CronEnv extends AiUsageRollupEnv {
+  /** `development` on the development Worker; see `CronProfile`. */
+  CRON_PROFILE?: string;
+}
 
 export interface CronDeps {
   convex?: (convexSiteUrl: string) => ConvexRpc;
@@ -205,8 +210,9 @@ export const handleScheduled = async (
     sweepStalePendingUploads: () =>
       sweepPendingUploads(env, ctx, convexFor, deps),
   };
+  const profile = cronProfile(env.CRON_PROFILE);
   const due = cronTasksOn("cloudflare").filter(
-    (task) => CRONS[task].schedule === controller.cron
+    (task) => scheduleFor(task, profile) === controller.cron
   ) as CloudflareCronTask[];
   if (due.length === 0) {
     console.error("[cron] no task", { cron: controller.cron });

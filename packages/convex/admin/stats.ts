@@ -539,7 +539,6 @@ export const autoInternalUserIds = (users: MetricsUserRow[]): string[] =>
     .map((user) => user.teakUserId);
 
 const SNAPSHOT_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TOP_STORAGE = 20;
 
 export const snapshotDay = (date: string | undefined, now: number) => {
   const day = date ?? utcDay(now - DAY_MS);
@@ -566,16 +565,29 @@ export interface SnapshotCounts {
   aiCostUsd: number;
   cardsSaved: number;
   signups: number;
-  storageBytes: number;
   storageBytesAdded: number;
-  topStorage: Array<{ bytes: number; teakUserId: string }>;
-  totalCards: number;
 }
 
+/** The days, newest first, whose savers count toward 28-day active savers. */
+export const ACTIVE_SAVER_DAYS = 28;
+
 /**
- * Counts one day's snapshot from users, cards and AI usage, leaving internal
- * accounts out. Cards are counted as they arrive, so a scan never has to hold
- * them all.
+ * Savers stored for one day. Convex refuses an array argument over 8192
+ * values before the handler runs, so the Core Worker trims a day to this
+ * before sending it and marks the day truncated.
+ */
+export const MAX_DAY_SAVERS = 8000;
+
+/** `day` and the `count - 1` UTC days before it, newest first. */
+export const precedingDays = (day: string, count: number): string[] => {
+  const start = Date.parse(`${day}T00:00:00.000Z`);
+  return Array.from({ length: count }, (_, i) => utcDay(start - i * DAY_MS));
+};
+
+/**
+ * Counts one day's snapshot from users, that day's cards, the savers of the
+ * days before it and AI usage, leaving internal accounts out. Only the day's
+ * own cards are read, so the snapshot never scans every card.
  */
 export const createSnapshotTally = ({
   dayEnd,
@@ -588,16 +600,21 @@ export const createSnapshotTally = ({
 }) => {
   let accounts = 0;
   let signups = 0;
-  let totalCards = 0;
   let cardsSaved = 0;
-  let storageBytes = 0;
   let storageBytesAdded = 0;
   let aiCostUsd = 0;
   let aiCalls = 0;
   const savers1d = new Set<string>();
   const savers7d = new Set<string>();
   const savers28d = new Set<string>();
-  const storageByUser = new Map<string, number>();
+  const addSaver = (userId: string, dayStartMs: number) => {
+    if (dayStartMs >= dayEnd - 7 * DAY_MS) {
+      savers7d.add(userId);
+    }
+    if (dayStartMs >= dayEnd - ACTIVE_SAVER_DAYS * DAY_MS) {
+      savers28d.add(userId);
+    }
+  };
   return {
     addUser(user: MetricsUserRow) {
       if (internalIds.has(user.teakUserId)) {
@@ -610,30 +627,30 @@ export const createSnapshotTally = ({
         signups += 1;
       }
     },
+    /** A card saved on the snapshot's day; any other card is ignored. */
     addCard(card: MetricsCardRow) {
-      if (internalIds.has(card.userId) || card.createdAt >= dayEnd) {
+      if (
+        internalIds.has(card.userId) ||
+        card.createdAt < dayStart ||
+        card.createdAt >= dayEnd
+      ) {
         return;
       }
-      if (!card.deleted) {
-        totalCards += 1;
-        storageBytes += card.fileSize;
-        if (card.fileSize > 0) {
-          storageByUser.set(
-            card.userId,
-            (storageByUser.get(card.userId) ?? 0) + card.fileSize
-          );
+      cardsSaved += 1;
+      storageBytesAdded += card.fileSize;
+      savers1d.add(card.userId);
+      addSaver(card.userId, dayStart);
+    },
+    /** Who saved a card on an earlier day (`adminDailySavers`). */
+    addSaverDay(day: string, userIds: readonly string[]) {
+      const dayStartMs = Date.parse(`${day}T00:00:00.000Z`);
+      if (dayStartMs >= dayStart) {
+        return;
+      }
+      for (const userId of userIds) {
+        if (!internalIds.has(userId)) {
+          addSaver(userId, dayStartMs);
         }
-      }
-      if (card.createdAt >= dayStart) {
-        cardsSaved += 1;
-        storageBytesAdded += card.fileSize;
-        savers1d.add(card.userId);
-      }
-      if (card.createdAt >= dayEnd - 7 * DAY_MS) {
-        savers7d.add(card.userId);
-      }
-      if (card.createdAt >= dayEnd - 28 * DAY_MS) {
-        savers28d.add(card.userId);
       }
     },
     addUsage(row: { calls: number; costUsd: number; userId: string }) {
@@ -647,18 +664,12 @@ export const createSnapshotTally = ({
         accounts,
         signups,
         cardsSaved,
-        totalCards,
         activeSavers1d: savers1d.size,
         activeSavers7d: savers7d.size,
         activeSavers28d: savers28d.size,
-        storageBytes,
         storageBytesAdded,
         aiCostUsd,
         aiCalls,
-        topStorage: [...storageByUser.entries()]
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, TOP_STORAGE)
-          .map(([teakUserId, bytes]) => ({ teakUserId, bytes })),
       };
     },
   };
@@ -747,13 +758,6 @@ export const toOverviewCardRow = (
   hasAiTranscript: card.aiTranscriptCharCount !== undefined,
   ...(card.metadataStatus ? { metadataStatus: card.metadataStatus } : {}),
   ...(card.processingStatus ? { processingStatus: card.processingStatus } : {}),
-});
-
-export const toMetricsCardRow = (card: OverviewCardRow): MetricsCardRow => ({
-  userId: card.userId,
-  createdAt: card.creationTime,
-  deleted: card.deleted,
-  fileSize: card.fileSize,
 });
 
 export interface StageSummary {

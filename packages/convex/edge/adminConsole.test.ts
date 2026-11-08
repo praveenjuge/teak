@@ -1,6 +1,7 @@
 import polarTest from "@convex-dev/polar/test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
+import { DAY_MS, utcDay } from "../admin/stats";
 import { ensureCardUsageShards } from "../card/cardUsage";
 import { insertCard } from "../card/cardWrites";
 import { newBackend } from "./helpers.testUtils";
@@ -430,7 +431,7 @@ describe("daily snapshots", () => {
 });
 
 describe("overview", () => {
-  test("is counted live until the Core Worker stores one, then read from the stored row", async () => {
+  test("is counted live with no stored row, then read from the stored row", async () => {
     const t = setup();
     await seedAdmin(t);
     await seedCustomer(t);
@@ -451,14 +452,9 @@ describe("overview", () => {
       totals: { ...live.totals, totalCards: 1234 },
       isApproximate: true,
     };
-    await t.mutation(internal.admin.writeOverview, {
-      includeOnboarding: false,
-      overview: stored,
-    });
-    await t.mutation(internal.admin.writeOverview, {
-      includeOnboarding: false,
-      overview: { ...stored, generatedAt: 4000 },
-    });
+    await t.run((ctx) =>
+      ctx.db.insert("adminOverviews", { includeOnboarding: false, ...stored })
+    );
 
     expect(await asAdmin(t).query(api.admin.getOverview, {})).toEqual(stored);
     const withOnboarding = await asAdmin(t).query(api.admin.getOverview, {
@@ -469,10 +465,12 @@ describe("overview", () => {
       asCustomer(t).query(api.admin.getOverview, {})
     ).rejects.toThrow("Unauthorized");
   });
+});
 
-  test("the Core Worker's card page carries what the snapshot counts too", async () => {
+describe("daily snapshot reads", () => {
+  test("the card page reads only the window it is given, leaving onboarding cards out", async () => {
     const t = setup();
-    const cardId = await privateCard(t);
+    await privateCard(t);
     await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "teak_customer",
@@ -480,35 +478,107 @@ describe("overview", () => {
         content: "",
         onboarding: "coral-lily",
         fileMetadata: { fileName: "lily.webp", fileSize: 2048 },
-        isDeleted: true,
         createdAt: 2,
         updatedAt: 2,
       })
     );
-    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    const later = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "teak_reader",
+        type: "image",
+        content: "",
+        fileMetadata: { fileName: "a.webp", fileSize: 300 },
+        isDeleted: true,
+        createdAt: 3,
+        updatedAt: 3,
+      })
+    );
+    const laterCreation = (await t.run((ctx) => ctx.db.get("cards", later)))
+      ?._creationTime as number;
 
-    const page = await t.query(internal.admin.overviewCardsPage, {
+    const all = await t.query(internal.adminMetrics.cardsPage, {
       cursor: null,
     });
+    const fromLater = await t.query(internal.adminMetrics.cardsPage, {
+      cursor: null,
+      since: laterCreation,
+    });
+    const beforeLater = await t.query(internal.adminMetrics.cardsPage, {
+      cursor: null,
+      until: laterCreation,
+    });
 
-    expect(page.isDone).toBe(true);
-    expect(page.rows).toEqual([
-      expect.objectContaining({
-        cardId,
-        createdAt: 1,
-        creationTime: card?._creationTime,
-        deleted: false,
-        fileSize: 0,
-        onboarding: false,
-        userId: "teak_customer",
-      }),
-      expect.objectContaining({
-        createdAt: 2,
-        deleted: true,
-        fileSize: 2048,
-        onboarding: true,
-      }),
+    expect(all.rows.map((row: { userId: string }) => row.userId)).toEqual([
+      "teak_customer",
+      "teak_reader",
     ]);
+    expect(fromLater.rows).toEqual([
+      {
+        userId: "teak_reader",
+        createdAt: laterCreation,
+        deleted: true,
+        fileSize: 300,
+      },
+    ]);
+    expect(
+      beforeLater.rows.map((row: { userId: string }) => row.userId)
+    ).toEqual(["teak_customer"]);
+  });
+
+  test("saver days are stored once per day, deduplicated and pruned after 35 days", async () => {
+    const t = setup();
+    const today = utcDay(Date.now());
+    const old = utcDay(Date.now() - 40 * DAY_MS);
+    await t.run((ctx) =>
+      ctx.db.insert("adminDailySavers", { date: old, userIds: ["ancient"] })
+    );
+
+    await t.mutation(internal.adminMetrics.writeDaySavers, {
+      date: today,
+      userIds: ["a", "b", "a"],
+    });
+    expect(
+      await t.query(internal.adminMetrics.daySavers, {
+        since: today,
+        until: utcDay(Date.now() + DAY_MS),
+      })
+    ).toEqual([{ date: today, userIds: ["a", "b"], isTruncated: false }]);
+    await t.mutation(internal.adminMetrics.writeDaySavers, {
+      date: today,
+      userIds: ["c"],
+    });
+
+    expect(
+      await t.query(internal.adminMetrics.daySavers, {
+        since: old,
+        until: utcDay(Date.now() + DAY_MS),
+      })
+    ).toEqual([{ date: today, userIds: ["c"], isTruncated: false }]);
+    await t.mutation(internal.adminMetrics.writeDaySavers, {
+      date: today,
+      userIds: Array.from({ length: 8001 }, (_, i) => `u${i}`),
+    });
+    const [stored] = await t.query(internal.adminMetrics.daySavers, {
+      since: today,
+      until: utcDay(Date.now() + DAY_MS),
+    });
+    expect(stored?.userIds).toHaveLength(8000);
+    expect(stored?.isTruncated).toBe(true);
+
+    await t.mutation(internal.adminMetrics.writeDaySavers, {
+      date: today,
+      userIds: ["kept"],
+      isTruncated: true,
+    });
+    const [trimmed] = await t.query(internal.adminMetrics.daySavers, {
+      since: today,
+      until: utcDay(Date.now() + DAY_MS),
+    });
+    expect(trimmed).toEqual({
+      date: today,
+      userIds: ["kept"],
+      isTruncated: true,
+    });
   });
 });
 
@@ -544,6 +614,34 @@ describe("cron heartbeats", () => {
       consecutiveFailures: 0,
     });
     expect(healthy?.lastError).toBeUndefined();
+  });
+
+  test("the dev deployment judges a task by its development cadence", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await t.run((ctx) =>
+      ctx.db.insert("cronHeartbeats", {
+        name: "reconcile-workflows",
+        lastStatus: "succeeded",
+        lastStartedAt: Date.now() - 3 * 60 * 60 * 1000,
+        lastSucceededAt: Date.now() - 3 * 60 * 60 * 1000,
+        consecutiveFailures: 0,
+      })
+    );
+    const reconcile = async () =>
+      (await asAdmin(t).query(api.adminHealth.getHealth, {})).crons.find(
+        (cron: { name: string }) => cron.name === "reconcile-workflows"
+      );
+
+    expect(await reconcile()).toMatchObject({
+      health: "late",
+      expectedEveryMs: 60 * 60 * 1000,
+    });
+    vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+    expect(await reconcile()).toMatchObject({
+      health: "ok",
+      expectedEveryMs: 6 * 60 * 60 * 1000,
+    });
   });
 });
 

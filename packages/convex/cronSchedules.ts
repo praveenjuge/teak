@@ -4,6 +4,14 @@ const DAY_MS = 24 * HOUR_MS;
 
 export type CronRuntime = "cloudflare" | "convex";
 
+/**
+ * Which schedules the Core Worker runs. The development Worker (its
+ * `CRON_PROFILE` var) runs the hourly tasks every six hours and the AI
+ * backfill daily, so the shared dev deployment isn't billed for production's
+ * cadence; production and self-hosted Workers keep `schedule`.
+ */
+export type CronProfile = "development" | "production";
+
 export const CRONS = {
   // Runs on Convex so a broken link to the Core Worker is still noticed.
   workflowDispatchWatchdog: {
@@ -32,24 +40,32 @@ export const CRONS = {
     name: "cleanup-expired-idempotency",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "45 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
   cleanupAbandonedImportUploads: {
     name: "cleanup-abandoned-import-uploads",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "45 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
   cleanupExpiredUploadSessions: {
     name: "cleanup-expired-upload-sessions",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "45 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
   cleanupSemanticSearchCache: {
     name: "cleanup-semantic-search-cache",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "45 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
   cleanupInboundEmailReceipts: {
@@ -82,6 +98,8 @@ export const CRONS = {
     name: "ai-metadata-backfill",
     schedule: "0 */6 * * *",
     everyMs: 6 * HOUR_MS,
+    devSchedule: "0 2 * * *",
+    devEveryMs: DAY_MS,
     runsOn: "cloudflare",
   },
   sweepOrphanedObjects: {
@@ -100,17 +118,28 @@ export const CRONS = {
     name: "ai-usage-rollup",
     schedule: "15 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "15 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
   reconcileWorkflows: {
     name: "reconcile-workflows",
     schedule: "45 * * * *",
     everyMs: HOUR_MS,
+    devSchedule: "45 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
     runsOn: "cloudflare",
   },
 } as const satisfies Record<
   string,
-  { everyMs: number; name: string; runsOn: CronRuntime; schedule: string }
+  {
+    devEveryMs?: number;
+    devSchedule?: string;
+    everyMs: number;
+    name: string;
+    runsOn: CronRuntime;
+    schedule: string;
+  }
 >;
 
 export type CronTask = keyof typeof CRONS;
@@ -125,3 +154,25 @@ export const cronTasksOn = (runtime: CronRuntime): CronTask[] =>
   (Object.keys(CRONS) as CronTask[]).filter(
     (task) => CRONS[task].runsOn === runtime
   );
+
+type CronSpec = (typeof CRONS)[CronTask] & {
+  devEveryMs?: number;
+  devSchedule?: string;
+};
+
+export const cronProfile = (value: string | undefined): CronProfile =>
+  value === "development" ? "development" : "production";
+
+export const scheduleFor = (task: CronTask, profile: CronProfile): string => {
+  const spec: CronSpec = CRONS[task];
+  return profile === "development"
+    ? (spec.devSchedule ?? spec.schedule)
+    : spec.schedule;
+};
+
+export const everyMsFor = (task: CronTask, profile: CronProfile): number => {
+  const spec: CronSpec = CRONS[task];
+  return profile === "development"
+    ? (spec.devEveryMs ?? spec.everyMs)
+    : spec.everyMs;
+};

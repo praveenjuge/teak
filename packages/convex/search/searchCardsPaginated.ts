@@ -58,6 +58,7 @@ import {
   similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
+import type { ExpandedSearchReport } from "./readMeter";
 import { readRelevanceScores } from "./relevanceCache";
 import {
   expandFolderSearch,
@@ -133,7 +134,11 @@ type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
 export const searchCardsPaginatedHandler = async (
   ctx: QueryCtx,
   args: SearchCardsPaginatedArgs,
-  options: { gridOnly?: boolean; summariesOnly?: boolean } = {}
+  options: {
+    gridOnly?: boolean;
+    reportSearch?: ExpandedSearchReport;
+    summariesOnly?: boolean;
+  } = {}
 ) => {
   let attachUrls = attachFileUrls;
   if (options.summariesOnly) {
@@ -167,6 +172,7 @@ export const searchCardsPaginatedHandler = async (
   if (!view) {
     return emptyPage;
   }
+  options.reportSearch?.(view.searchQuery, view.folderId);
   const parsed = parseSearchQuery(view.searchQuery);
   const resolved = await resolveSearch(ctx, user.teakUserId, parsed, {
     archived: args.showArchivedOnly ? "only" : "exclude",

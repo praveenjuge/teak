@@ -9,6 +9,7 @@ import {
   DAY_MS,
   monthlyAmount,
   monthlyPolarFee,
+  precedingDays,
   type SubscriptionLike,
   snapshotBilling,
   snapshotDay,
@@ -465,7 +466,7 @@ describe("daily snapshot", () => {
     );
   });
 
-  test("counts the day from users, cards and usage, leaving internal accounts out", () => {
+  test("counts the day from users, its own cards, earlier savers and usage, leaving internal accounts out", () => {
     const { dayStart, dayEnd } = snapshotDay("2026-10-18", now);
     const tally = createSnapshotTally({
       dayStart,
@@ -496,14 +497,23 @@ describe("daily snapshot", () => {
     ) => ({ createdAt, deleted, fileSize, userId });
     for (const row of [
       card("old", day("2026-10-18"), 300),
-      card("new", day("2026-10-18"), 20),
-      card("old", day("2026-10-14"), 0, true),
-      card("gone", day("2026-09-25"), 5),
+      card("new", day("2026-10-18"), 20, true),
+      // Outside the day: the stored saver days count these.
+      card("old", day("2026-10-14"), 50),
       card("later", day("2026-10-19", 1), 1000),
       card("staff", day("2026-10-18"), 4000),
     ]) {
       tally.addCard(row);
     }
+    tally.addSaverDay("2026-10-14", ["old", "staff", "weekly"]);
+    // The oldest day in each window counts; the day before it doesn't.
+    tally.addSaverDay("2026-10-12", ["weekEdge"]);
+    tally.addSaverDay("2026-10-11", ["pastWeek"]);
+    tally.addSaverDay("2026-09-25", ["gone", "weekly"]);
+    tally.addSaverDay("2026-09-21", ["monthEdge"]);
+    // Older than 28 days, and the snapshot's own day: neither counts.
+    tally.addSaverDay("2026-09-20", ["ancient"]);
+    tally.addSaverDay("2026-10-18", ["sameDay"]);
     tally.addUsage({ calls: 3, costUsd: 0.25, userId: "old" });
     tally.addUsage({ calls: 50, costUsd: 9, userId: "staff" });
 
@@ -511,20 +521,22 @@ describe("daily snapshot", () => {
       accounts: 2,
       signups: 1,
       cardsSaved: 2,
-      totalCards: 3,
       activeSavers1d: 2,
-      activeSavers7d: 2,
-      activeSavers28d: 3,
-      storageBytes: 325,
+      activeSavers7d: 4,
+      activeSavers28d: 7,
       storageBytesAdded: 320,
       aiCostUsd: 0.25,
       aiCalls: 3,
-      topStorage: [
-        { teakUserId: "old", bytes: 300 },
-        { teakUserId: "new", bytes: 20 },
-        { teakUserId: "gone", bytes: 5 },
-      ],
     });
+  });
+
+  test("lists a day and the days before it, newest first", () => {
+    expect(precedingDays("2026-03-02", 4)).toEqual([
+      "2026-03-02",
+      "2026-03-01",
+      "2026-02-28",
+      "2026-02-27",
+    ]);
   });
 
   test("records billing in USD when any subscription is in USD", () => {

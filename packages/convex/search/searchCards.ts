@@ -20,6 +20,7 @@ import {
 import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
+import { withReadMeter } from "./readMeter";
 import {
   createdAtRangeValidator,
   searchCardsPaginatedArgsValidator,
@@ -204,5 +205,10 @@ export const searchCardsPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,
   returns: paginationResultValidator,
   handler: (ctx, args) =>
-    searchCardsPaginatedHandler(ctx, args, { gridOnly: true }),
+    withReadMeter(ctx, args, (metered, reportSearch) =>
+      searchCardsPaginatedHandler(metered, args, {
+        gridOnly: true,
+        reportSearch,
+      })
+    ),
 });
