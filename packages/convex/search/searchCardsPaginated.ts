@@ -41,7 +41,11 @@ import {
   searchModeValidator,
 } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
-import { clampPageSize, clampSearchOffset } from "../shared/search/constants";
+import {
+  clampPageSize,
+  clampSearchOffset,
+  resolveQuickSearchCommand,
+} from "../shared/search/constants";
 import {
   hasSearchQualifiers,
   parseSearchQuery,
@@ -63,6 +67,7 @@ import { readRelevanceScores } from "./relevanceCache";
 import {
   expandFolderSearch,
   expressionTextReader,
+  quickCommandList,
   resolveSearch,
 } from "./searchPlanner";
 import {
@@ -336,78 +341,36 @@ export const searchCardsPaginatedHandler = async (
   }
 
   if (searchQuery || resolved.ocrText) {
-    const query = searchQuery.toLowerCase();
-    const quickCommand = !(
+    const command =
       folderId ||
       tag ||
       hasSearchQualifiers(parsed) ||
       parsed.phrases.length > 0 ||
       parsed.expression
-    );
-
-    if (
-      quickCommand &&
-      ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-    ) {
+        ? null
+        : resolveQuickSearchCommand(searchQuery);
+    if (command) {
+      const view = quickCommandList(command, favoritesOnly);
+      const keepFiltered = (cards: Doc<"cards">[]) =>
+        applyCardLevelFilters(cards, {
+          types,
+          favoritesOnly: view.favoritesOnly,
+          createdAtRange,
+          visualFilters,
+        });
       if (shuffle) {
-        return shuffleWalkPage({ favoritesOnly: true }, (cards) =>
-          applyCardLevelFilters(cards, {
-            types,
-            favoritesOnly: true,
-            createdAtRange,
-            visualFilters,
-          })
-        );
+        return shuffleWalkPage(view.list, keepFiltered);
       }
-      const favorites = await buildCardListQuery(ctx, {
+      const listed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        favoritesOnly: true,
+        ...view.list,
       })
         .order(order)
         .paginate(paginationOpts);
-      const filteredFavorites = applyCardLevelFilters(favorites.page, {
-        types,
-        favoritesOnly: true,
-        createdAtRange,
-        visualFilters,
-      });
-      const favoritesWithUrls = await attachListUrls(ctx, filteredFavorites);
+      const withUrls = await attachListUrls(ctx, keepFiltered(listed.page));
       return {
-        ...favorites,
-        page: applyQuoteFormattingToList(favoritesWithUrls),
-      };
-    }
-
-    if (
-      quickCommand &&
-      ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
-    ) {
-      if (shuffle) {
-        return shuffleWalkPage({ scope: "trash" }, (cards) =>
-          applyCardLevelFilters(cards, {
-            types,
-            favoritesOnly,
-            createdAtRange,
-            visualFilters,
-          })
-        );
-      }
-      const trashed = await buildCardListQuery(ctx, {
-        userId: user.teakUserId,
-        scope: "trash",
-      })
-        .order(order)
-        .paginate(paginationOpts);
-      const filteredTrashed = applyCardLevelFilters(trashed.page, {
-        types,
-        favoritesOnly,
-        createdAtRange,
-        visualFilters,
-      });
-      const trashedWithUrls = await attachListUrls(ctx, filteredTrashed);
-      return {
-        ...trashed,
-        page: applyQuoteFormattingToList(trashedWithUrls),
+        ...listed,
+        page: applyQuoteFormattingToList(withUrls),
       };
     }
 

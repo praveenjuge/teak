@@ -2,8 +2,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { SEARCH_PREFIX_MAX_BYTES } from "../card/documentTextFormat";
 import { revealsHidden } from "../card/hiddenCards";
-import type { ArchivedFilter } from "../card/listQuery";
+import type { ArchivedFilter, CardListScope } from "../card/listQuery";
 import type { CardType } from "../shared/constants";
+import type { SearchQuickCommand } from "../shared/search/constants";
 import {
   expressionFolderNames,
   expressionHasWords,
@@ -25,6 +26,23 @@ import { buildCardSearchText } from "../shared/search/searchText";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { isCardHidden, tagKey } from "../shared/tags";
 import { cardUrlHost } from "../shared/utils/urlHost";
+
+export interface QuickCommandList {
+  favoritesOnly: boolean | undefined;
+  list: { favoritesOnly?: true; scope?: CardListScope };
+}
+
+/**
+ * The list a bare quick command (`favorites`, `trash`, `archive`) opens in
+ * place of a text search, and whether its cards must be favourites.
+ */
+export const quickCommandList = (
+  command: NonNullable<SearchQuickCommand>,
+  favoritesOnly: boolean | undefined
+): QuickCommandList =>
+  command === "favorites"
+    ? { list: { favoritesOnly: true }, favoritesOnly: true }
+    : { list: { scope: command }, favoritesOnly };
 
 export interface SearchViewFilters {
   archived: ArchivedFilter;

@@ -416,6 +416,24 @@ describe("search qualifiers", () => {
     expect(await search("trash site:github.com")).toEqual([]);
   });
 
+  test("every quick command local search knows opens its view on the server too", async () => {
+    const { insert, search, owner } = await setup();
+    await seedLibrary(insert);
+    expect(await search("favorite")).toEqual(["Blog post about design"]);
+    expect(await search("archive")).toEqual(["Archived GitHub design"]);
+    expect(await search("Archived")).toEqual(["Archived GitHub design"]);
+    const unpaginated = async (searchQuery: string) =>
+      (await owner.query(api.cards.searchCards, { searchQuery })).map(
+        (item: { content: string }) => item.content
+      );
+    expect(await unpaginated("favorite")).toEqual(["Blog post about design"]);
+    expect(await unpaginated("archive")).toEqual(["Archived GitHub design"]);
+    expect(await unpaginated("trashed")).toEqual([
+      "Trashed archived design",
+      "Trashed GitHub design",
+    ]);
+  });
+
   test("unknown qualifiers and hex colors search as text", async () => {
     const { insert, search } = await setup();
     await insert({ content: "color #fff swatch" });

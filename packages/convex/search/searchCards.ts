@@ -19,13 +19,17 @@ import {
 } from "../card/visualFilters";
 import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
-import { clampSearchLimit } from "../shared/search/constants";
+import {
+  clampSearchLimit,
+  resolveQuickSearchCommand,
+} from "../shared/search/constants";
 import { withReadMeter } from "./readMeter";
 import {
   createdAtRangeValidator,
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
 } from "./searchCardsPaginated";
+import { quickCommandList } from "./searchPlanner";
 import { searchCardsByDocument } from "./searchReads";
 
 // The search queries the apps call as `cards:searchCards` and
@@ -88,45 +92,23 @@ export const searchCards = query({
     });
 
     if (searchQuery?.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-
-      if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-      ) {
-        const favorites = await takeCardList(
+      const command = resolveQuickSearchCommand(searchQuery);
+      if (command) {
+        const view = quickCommandList(command, favoritesOnly);
+        const listed = await takeCardList(
           ctx,
-          { userId: user.teakUserId, favoritesOnly: true },
+          { userId: user.teakUserId, ...view.list },
           order,
           limit
         );
-        const filteredFavorites = applyCardLevelFilters(
-          keepVisible(favorites),
-          {
-            types,
-            favoritesOnly: true,
-            createdAtRange,
-            visualFilters,
-          }
-        ).slice(0, limit);
-        const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
-        return applyQuoteFormattingToList(favoritesWithUrls);
-      }
-
-      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        const trashed = await takeCardList(
-          ctx,
-          { userId: user.teakUserId, scope: "trash" },
-          order,
-          limit
-        );
-        const filteredTrashed = applyCardLevelFilters(keepVisible(trashed), {
+        const filtered = applyCardLevelFilters(keepVisible(listed), {
           types,
-          favoritesOnly,
+          favoritesOnly: view.favoritesOnly,
           createdAtRange,
           visualFilters,
         }).slice(0, limit);
-        const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
-        return applyQuoteFormattingToList(trashedWithUrls);
+        const withUrls = await attachFileUrls(ctx, filtered);
+        return applyQuoteFormattingToList(withUrls);
       }
 
       const uniqueResults = await searchCardsByDocument(ctx, {
