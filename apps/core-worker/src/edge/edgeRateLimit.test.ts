@@ -365,8 +365,23 @@ describe("requests without a known user", () => {
       request("/api/v1/cards", { key: STRANGER_KEY })
     );
 
-    // Charged here, so Convex skips its shared invalid-credential bucket.
+    // Charged here, so Convex skips its shared invalid-credential bucket; it
+    // is signed as an unknown-credential charge, never as the owner's limit.
     expect(first).toEqual({ attestation: expect.any(String) });
+    const [expiresAt = "", signature] = (
+      "attestation" in first ? (first.attestation ?? "") : ""
+    ).split(".");
+    const signed = async (charge: "owner" | "unknown_credential") =>
+      await hmacSha256Hex(
+        SECRET,
+        buildEdgeRateLimitSigningPayload({
+          charge,
+          credentialSha256: await sha256Hex(`Bearer ${STRANGER_KEY}`),
+          expiresAt,
+        })
+      );
+    expect(signature).toBe(await signed("unknown_credential"));
+    expect(signature).not.toBe(await signed("owner"));
     expect(shared.unknown.keys).toEqual([`ip:${CLIENT_IP}`, `ip:${CLIENT_IP}`]);
     expect(shared.api.keys).toEqual([]);
     const response = "response" in second ? second.response : null;

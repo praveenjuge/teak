@@ -23,7 +23,11 @@ const sha256Hex = async (text: string): Promise<string> =>
 
 const attestation = async (
   authorization: string,
-  options: { expiresInSeconds?: number; secret?: string } = {}
+  options: {
+    charge?: "owner" | "unknown_credential";
+    expiresInSeconds?: number;
+    secret?: string;
+  } = {}
 ): Promise<string> => {
   const expiresAt = String(
     Math.floor(Date.now() / 1000) + (options.expiresInSeconds ?? 30)
@@ -31,6 +35,7 @@ const attestation = async (
   const signature = await hmacSha256Hex(
     options.secret ?? SECRET,
     buildEdgeRateLimitSigningPayload({
+      charge: options.charge,
       credentialSha256: await sha256Hex(authorization),
       expiresAt,
     })
@@ -166,9 +171,52 @@ test("a made-up key the edge charged answers 401, not the shared bucket's 429", 
 
   const attested = junk(capacity * 3 + 1);
   const response = await me(attested, {
-    [EDGE_RATE_LIMIT_HEADER]: await attestation(attested),
+    [EDGE_RATE_LIMIT_HEADER]: await attestation(attested, {
+      charge: "unknown_credential",
+    }),
   });
   expect(response.status).toBe(401);
+}, 120_000);
+
+test("a valid key the edge charged as unknown is still held to its owner's limit", async () => {
+  // A key the edge hasn't learned yet (its first minute) is charged by
+  // address, so that attestation must not stand in for the owner's limit.
+  const { authorization, t } = await exhaustedKey();
+  const unknownCharge = await attestation(authorization, {
+    charge: "unknown_credential",
+  });
+  const rest = await t.fetch("/v1/me", {
+    headers: {
+      Authorization: authorization,
+      [EDGE_RATE_LIMIT_HEADER]: unknownCharge,
+    },
+  });
+  expect(rest.status).toBe(429);
+
+  const mcp = await t.fetch("/mcp", {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      Authorization: authorization,
+      "Content-Type": "application/json",
+      "MCP-Protocol-Version": "2025-06-18",
+      [EDGE_RATE_LIMIT_HEADER]: unknownCharge,
+    },
+    body: JSON.stringify(
+      [1, 2].map((id) => ({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "teak_v1_get_me", arguments: {} },
+      }))
+    ),
+  });
+  const calls = (await mcp.json()) as {
+    result?: { structuredContent?: { status?: number } };
+  }[];
+  expect(calls.map((call) => call.result?.structuredContent?.status)).toEqual([
+    429, 429,
+  ]);
 }, 120_000);
 
 test("revoking a key schedules a purge of its edge identity entry", async () => {

@@ -10,7 +10,7 @@ import {
   isOptimisticConcurrencyError,
   isRateLimitContentionError,
 } from "../../convexFailures";
-import { hasEdgeRateLimitAttestation } from "../../edgeIdentity";
+import { edgeRateLimitCharge } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
 import type { TeakUserId } from "../../securitySessions";
 import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
@@ -431,11 +431,14 @@ const authorizeBearer = async (
   request: Request,
   options: AuthOptions
 ): Promise<Decision> => {
-  // The Core Worker attests a request it has charged: a known credential
-  // against its owner's limit, an unknown one against the invalid-credential
-  // limit. Neither is charged again here.
-  const edgeCharged = await hasEdgeRateLimitAttestation(request);
-  const chargeRateLimit = (options.chargeRateLimit ?? true) && !edgeCharged;
+  // The Core Worker attests a request it has charged, and to which limit. An
+  // owner charge covers `publicApiRequests`; any charge covers the shared
+  // invalid-credential bucket. A credential the edge didn't know may still be
+  // valid, so its owner's limit is charged here as usual.
+  const edgeCharge = await edgeRateLimitCharge(request);
+  const edgeCharged = edgeCharge !== null;
+  const chargeRateLimit =
+    (options.chargeRateLimit ?? true) && edgeCharge !== "owner";
   const token = parseBearerToken(request);
   if (!token) {
     return decide(
@@ -623,7 +626,7 @@ const authorizeMcpRequest = async (
   }
   return {
     validated: auth.validated,
-    chargeEachCall: !(await hasEdgeRateLimitAttestation(request)),
+    chargeEachCall: (await edgeRateLimitCharge(request)) !== "owner",
   };
 };
 

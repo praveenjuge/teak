@@ -93,13 +93,32 @@ export const EDGE_RATE_LIMIT_HEADER = "x-teak-edge-rate-limit" as const;
 
 export const EDGE_RATE_LIMIT_MAX_TTL_SECONDS = 60;
 
+/**
+ * Which edge limit an attested request was charged to: its owner's
+ * (`API_REQUEST_LIMITER`), or the unknown-credential limit by address. Only
+ * an owner charge covers Convex's per-user `publicApiRequests`; an unknown
+ * credential can still turn out valid (a key the edge hasn't learned yet), so
+ * that attestation only covers the shared invalid-credential bucket.
+ */
+export type EdgeRateLimitCharge = "owner" | "unknown_credential";
+
 export const buildEdgeRateLimitSigningPayload = ({
+  charge = "owner",
   credentialSha256,
   expiresAt,
 }: {
+  charge?: EdgeRateLimitCharge;
   credentialSha256: string;
   expiresAt: string;
-}): string => ["edge-rate-limit", "1", expiresAt, credentialSha256].join("\n");
+}): string =>
+  [
+    charge === "owner"
+      ? "edge-rate-limit"
+      : "edge-rate-limit-unknown-credential",
+    "1",
+    expiresAt,
+    credentialSha256,
+  ].join("\n");
 
 export const parseEdgeRateLimitAttestation = (
   value: string | null

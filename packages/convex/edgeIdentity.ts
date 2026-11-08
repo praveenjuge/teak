@@ -5,6 +5,7 @@ import {
   EDGE_RATE_LIMIT_HEADER,
   EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
   type EdgeIdentityResult,
+  type EdgeRateLimitCharge,
   parseEdgeIdentityLookup,
   parseEdgeRateLimitAttestation,
   SIGNED_REQUEST_HEADERS,
@@ -106,26 +107,40 @@ const hasValidSignature = async (
   return check.ok;
 };
 
-export const hasEdgeRateLimitAttestation = async (
+/**
+ * Which edge limit the Core Worker says it charged this request to (see
+ * `EdgeRateLimitCharge`), or null when the request carries no valid
+ * attestation for its own credential.
+ */
+export const edgeRateLimitCharge = async (
   request: Request
-): Promise<boolean> => {
+): Promise<EdgeRateLimitCharge | null> => {
   const secret = env.FILES_SIGNING_SECRET;
   const authorization = request.headers.get("authorization");
   const attestation = parseEdgeRateLimitAttestation(
     request.headers.get(EDGE_RATE_LIMIT_HEADER)
   );
   if (!(secret && authorization && attestation)) {
-    return false;
+    return null;
   }
   const credentialSha256 = await sha256Hex(authorization);
-  const check = await verifySignature(secret, {
-    expiresAt: attestation.expiresAt,
-    maxTtlSeconds: EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
-    payload: (expiresAt) =>
-      buildEdgeRateLimitSigningPayload({ credentialSha256, expiresAt }),
-    signature: attestation.signature,
-  });
-  return check.ok;
+  for (const charge of ["owner", "unknown_credential"] as const) {
+    const check = await verifySignature(secret, {
+      expiresAt: attestation.expiresAt,
+      maxTtlSeconds: EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
+      payload: (expiresAt) =>
+        buildEdgeRateLimitSigningPayload({
+          charge,
+          credentialSha256,
+          expiresAt,
+        }),
+      signature: attestation.signature,
+    });
+    if (check.ok) {
+      return charge;
+    }
+  }
+  return null;
 };
 
 export const edgeIdentityV1 = httpAction(async (ctx, request) => {

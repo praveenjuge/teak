@@ -180,13 +180,15 @@ status, and reserves -32000 to -32099.
 
 A known user's request within the limit is forwarded with
 `x-teak-edge-rate-limit`: an expiry and an HMAC (files signing secret) over
-the SHA-256 of its `Authorization` value. Convex
-(`hasEdgeRateLimitAttestation` in `packages/convex/edgeIdentity.ts`) then
-skips the `publicApiRequests` charge and its database write, and checks a key
-it validated in the last ten minutes with a read-only query instead of a
+the SHA-256 of its `Authorization` value, signed as an owner charge. Convex
+(`edgeRateLimitCharge` in `packages/convex/edgeIdentity.ts`) then skips the
+`publicApiRequests` charge and its database write, and checks a key it
+validated in the last ten minutes with a read-only query instead of a
 mutation. An unknown credential the edge has charged (its lookup, or
-`UNKNOWN_CREDENTIAL_LIMITER`) is attested too, so Convex answers it 401
-without charging its shared `invalidApiAuth` bucket again. The MCP endpoint
+`UNKNOWN_CREDENTIAL_LIMITER`) is attested over a separate
+`unknown_credential` payload: Convex skips its shared `invalidApiAuth`
+bucket for it, but a key the edge just hadn't learned yet (its first minute)
+is still charged to its owner's limit, per tool call on MCP. The MCP endpoint
 checks a request's bearer once and runs its tool calls as that user.
 Everything else is charged by Convex as before: requests without the
 attestation (including any that reach `convex.site` directly), JSON-RPC
