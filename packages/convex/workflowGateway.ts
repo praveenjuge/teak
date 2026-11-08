@@ -4,7 +4,6 @@ import {
   parseWorkflowRpcRequest,
   verifyWorkflowRpcRequest,
   WORKFLOW_RPC_MAX_BODY_BYTES,
-  type WorkflowRpcBatchOp,
   type WorkflowRpcBatchRequest,
   type WorkflowRpcErrorCode,
   type WorkflowRpcRequest,
@@ -84,13 +83,19 @@ const failedOp = (error: unknown, batchIndex: number): ConvexError<Value> => {
   } as Value);
 };
 
+/** An op whose args are already Convex values (decoded by the HTTP action). */
+interface DecodedOp {
+  args: Record<string, Value>;
+  kind: "mutation" | "query";
+  name: string;
+}
+
 const runOps = async (
   ctx: Pick<MutationCtx, "runMutation" | "runQuery">,
-  ops: WorkflowRpcBatchOp[]
+  ops: DecodedOp[]
 ): Promise<unknown[]> => {
   const values: unknown[] = [];
-  for (const [index, op] of ops.entries()) {
-    const args = jsonToConvex(op.args as never) as Record<string, Value>;
+  for (const [index, { args, ...op }] of ops.entries()) {
     try {
       values.push(
         (op.kind === "query"
@@ -121,7 +126,7 @@ export const runBatch = internalMutation({
     if (guard) {
       await checkGuard(ctx, guard);
     }
-    return await runOps(ctx, ops as WorkflowRpcBatchOp[]);
+    return await runOps(ctx, ops as DecodedOp[]);
   },
 });
 
@@ -131,12 +136,12 @@ export const runQueryBatch = internalQuery({
   returns: v.array(v.any()),
   handler: async (ctx, { ops }) => {
     const values: unknown[] = [];
-    for (const [index, op] of (ops as WorkflowRpcBatchOp[]).entries()) {
+    for (const [index, op] of (ops as DecodedOp[]).entries()) {
       try {
         values.push(
           (await ctx.runQuery(
             makeFunctionReference<"query">(op.name),
-            jsonToConvex(op.args as never) as Record<string, Value>
+            op.args
           )) ?? null
         );
       } catch (error) {
@@ -198,17 +203,28 @@ export const runWorkflowRpcBatch = async (
   ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   batch: WorkflowRpcBatchRequest
 ): Promise<WorkflowRpcResponse> => {
+  // Decoded here, so a bigint or bytes arg reaches Convex as a value, and a
+  // malformed one is named by its index.
+  const ops: DecodedOp[] = [];
+  for (const [index, op] of batch.ops.entries()) {
+    try {
+      ops.push({
+        args: jsonToConvex(op.args as never) as Record<string, Value>,
+        kind: op.kind,
+        name: op.name,
+      });
+    } catch (error) {
+      return { error: { ...describeError(error), index }, ok: false };
+    }
+  }
   try {
-    const writes =
-      batch.guard || batch.ops.some((op) => op.kind === "mutation");
+    const writes = batch.guard || ops.some((op) => op.kind === "mutation");
     const values = writes
       ? await ctx.runMutation(internal.workflowGateway.runBatch, {
-          ops: batch.ops,
+          ops,
           ...(batch.guard ? { guard: batch.guard } : {}),
         })
-      : await ctx.runQuery(internal.workflowGateway.runQueryBatch, {
-          ops: batch.ops,
-        });
+      : await ctx.runQuery(internal.workflowGateway.runQueryBatch, { ops });
     return {
       ok: true,
       value: (values as unknown[]).map((value) =>
@@ -294,6 +310,17 @@ export const workflowRpcV1 = httpAction(async (ctx, request) => {
       }
       if (!batch.guard && requiresWorkflowRpcGuard(op.name, op.args)) {
         return json(403, { error: "guard_required" });
+      }
+      // The guard checks one card's revision, so a write in its batch may
+      // only touch that card.
+      const target = (op.args as { cardId?: unknown } | null)?.cardId;
+      if (
+        batch.guard &&
+        op.kind === "mutation" &&
+        target !== undefined &&
+        target !== batch.guard.cardId
+      ) {
+        return json(403, { error: "guard_mismatch" });
       }
     }
     return json(200, await runWorkflowRpcBatch(ctx, batch));

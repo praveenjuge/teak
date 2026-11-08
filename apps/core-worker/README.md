@@ -690,7 +690,8 @@ A call runs one function, or a batch of up to 16 queries and mutations
 a batch in order in one transaction: a mutation when any op writes or a guard
 is given (the guard checked once, before the first op), else a query. A
 failed op rolls back the ones before it and refuses the batch, naming its
-index. Card steps use batches to cut calls: each step reads the card and marks
+index. A guarded batch may only write to the guard's card (403
+`guard_mismatch`), and the Worker refuses to send more than 16 ops. Card steps use batches to cut calls: each step reads the card and marks
 its stage in progress in one call (`loadAndMark`), the link fetch reads its
 three facts in one, uploads register their keys together, and the screenshot
 is saved with its stage's completion. A link's preview and category aren't

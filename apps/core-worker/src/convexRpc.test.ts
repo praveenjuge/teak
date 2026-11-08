@@ -4,6 +4,7 @@ import { verifyWorkflowRpcRequest } from "@teak/files-protocol";
 import {
   allowedConvexSiteUrl,
   batchOp,
+  ConvexRpcError,
   createConvexRpc,
   workflowRpcSecret,
 } from "./convexRpc";
@@ -223,11 +224,13 @@ describe("ConvexRpc.batch", () => {
 
   test("runs the ops one by one, the guard on each write, when Convex predates batches", async () => {
     const fake = createFakeConvex(handlers, { batches: false });
-    const rpc = createConvexRpc(
-      fakeConvexEnv,
-      TEST_CONVEX_SITE_URL,
-      fake.fetcher
-    );
+    // Every HTTP call, the refused batch included.
+    let sent = 0;
+    const counting = ((...request: Parameters<typeof fetch>) => {
+      sent += 1;
+      return fake.fetcher(...request);
+    }) as typeof fetch;
+    const rpc = createConvexRpc(fakeConvexEnv, TEST_CONVEX_SITE_URL, counting);
     expect(await rpc.batch(ops, { guard })).toEqual([
       { keyPrefix: "p/" },
       null,
@@ -237,9 +240,45 @@ describe("ConvexRpc.batch", () => {
       "card/processingRpc:markStagesInProgress",
     ]);
     expect(fake.calls.map((call) => call.guard)).toEqual([undefined, guard]);
+    expect(sent).toBe(3);
     // It remembers: the next batch doesn't try first.
     await rpc.batch(ops, { guard });
-    expect(fake.requests).toHaveLength(4);
+    expect(sent).toBe(5);
+  });
+
+  test("refuses a batch longer than Convex takes, without sending it", async () => {
+    const fake = createFakeConvex(handlers);
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      fake.fetcher
+    );
+    const tooMany = Array.from({ length: 17 }, () => ops[0]);
+    await expect(rpc.batch(tooMany, { guard })).rejects.toThrow(
+      "convex_rpc_batch_size:17"
+    );
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  test("an ordinary failure keeps its message and names its op", async () => {
+    const fake = createFakeConvex({
+      ...handlers,
+      "card/processingRpc:markStagesInProgress": () => {
+        throw new FakeConvexError("no such stage", "invalid_stage");
+      },
+    });
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      fake.fetcher
+    );
+    const error = (await rpc
+      .batch(ops, { guard })
+      .catch((caught) => caught)) as ConvexRpcError;
+    expect(error).toBeInstanceOf(ConvexRpcError);
+    expect(error.message).toBe("no such stage");
+    expect(error.code).toBe("invalid_stage");
+    expect(error.operation).toEndWith("#1");
   });
 
   test("names the op that failed, and a stale guard is final", async () => {

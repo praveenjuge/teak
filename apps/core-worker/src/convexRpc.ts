@@ -6,6 +6,7 @@ import {
   normalizeConvexSiteUrl,
   parseConvexSiteUrls,
   signWorkflowRpcRequest,
+  WORKFLOW_RPC_MAX_BATCH_OPS,
   type WorkflowRpcGuard,
   type WorkflowRpcKind,
   type WorkflowRpcResponse,
@@ -55,11 +56,19 @@ const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
 export class ConvexRpcError extends Error {
   readonly code: string | undefined;
   readonly data: unknown;
-  constructor(message: string, code?: string, data?: unknown) {
+  /** In a batch, the op that failed: `batch(…)#<index>`. */
+  readonly operation: string | undefined;
+  constructor(
+    message: string,
+    code?: string,
+    data?: unknown,
+    operation?: string
+  ) {
     super(message);
     this.name = "ConvexRpcError";
     this.code = code;
     this.data = data;
+    this.operation = operation;
   }
 }
 
@@ -191,7 +200,12 @@ export const createConvexRpc = (
     if (isWorkflowRpcErrorCode(code)) {
       throw new NonRetryableError(`${code}:${failed}`);
     }
-    throw new ConvexRpcError(message, code, data);
+    throw new ConvexRpcError(
+      message,
+      code,
+      data,
+      index === undefined ? undefined : failed
+    );
   };
 
   const call = async (
@@ -238,6 +252,13 @@ export const createConvexRpc = (
     ops: readonly BatchOp[],
     guard?: WorkflowRpcGuard
   ): Promise<unknown[]> => {
+    // Convex refuses a longer batch, which would look like one from before
+    // batches and send the writes one by one, outside one transaction.
+    if (ops.length === 0 || ops.length > WORKFLOW_RPC_MAX_BATCH_OPS) {
+      throw new NonRetryableError(
+        `convex_rpc_batch_size:${String(ops.length)}`
+      );
+    }
     if (batchesUnsupported) {
       return await runOneByOne(ops, guard);
     }

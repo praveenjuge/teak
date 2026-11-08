@@ -347,6 +347,43 @@ describe("workflow RPC gateway", () => {
       expect(await dispatchState(t, dispatchId)).toBe("sent");
     });
 
+    test("refuses a guarded write to a card other than the guard's", async () => {
+      const { cardId, t } = await setup();
+      const other = await t.run((ctx) =>
+        ctx.db.insert("cards", {
+          content: "Other",
+          createdAt: Date.now(),
+          processingRev: 1,
+          type: "text",
+          updatedAt: Date.now(),
+          userId: "user-1",
+        })
+      );
+      const response = await send(t, {
+        guard: { cardId, rev: 2 },
+        kind: "batch",
+        ops: [markOp(cardId), markOp(other)],
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "guard_mismatch" });
+      const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+      expect(card?.processingStatus?.metadata).toBeUndefined();
+    });
+
+    test("names the op whose args can't be decoded", async () => {
+      const { cardId, t } = await setup();
+      const response = await send(t, {
+        kind: "batch",
+        ops: [
+          readOp(cardId),
+          { ...readOp(cardId), args: { cardId: { $bytes: 5 } } },
+        ],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(body.ok).toBe(false);
+      expect(!body.ok && body.error.index).toBe(1);
+    });
+
     test("refuses a card processing write in a batch without a guard", async () => {
       const { cardId, t } = await setup();
       const response = await send(t, {
