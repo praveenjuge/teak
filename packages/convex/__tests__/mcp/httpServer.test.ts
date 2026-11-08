@@ -655,6 +655,51 @@ describe("Convex MCP endpoint", () => {
     expect(backend.charges()).toBe(0);
   });
 
+  test("a key revoked part-way through a batch stops the calls after it", async () => {
+    let checks = 0;
+    const runMutation = mock(
+      (_reference: unknown, args: Record<string, unknown>) => {
+        if (!args.token) {
+          return Promise.resolve({ ok: true });
+        }
+        checks += 1;
+        // Valid for the gate and the first call; revoked before the second.
+        return Promise.resolve(
+          checks <= 2
+            ? {
+                keyId: "key_1",
+                userId: "user_1",
+                access: "full_access",
+                source: "component",
+                rateLimitKey: "component:key_1",
+                rateLimit: { ok: true },
+              }
+            : null
+        );
+      }
+    );
+    const runQuery = mock(
+      (_reference: unknown, args: Record<string, unknown>) =>
+        Promise.resolve(
+          args.teakUserId
+            ? { id: "user_1", email: "owner@example.com", locale: "en" }
+            : { ok: false }
+        )
+    );
+
+    const response = await handleMcpV1Request(
+      mockActionCtx(withMappedOwner({ runMutation, runQuery })),
+      mcpRequest([getMe(1), getMe(2)])
+    );
+
+    const [first, second] = (await response.json()) as JsonRpcSuccess[];
+    expect(first?.result.isError).not.toBe(true);
+    expect(second?.result).toMatchObject({
+      isError: true,
+      structuredContent: { status: 401 },
+    });
+  });
+
   test("answers an unknown tool with JSON-RPC invalid params", async () => {
     const response = await handleMcpV1Request(
       authorizedCtx(),
