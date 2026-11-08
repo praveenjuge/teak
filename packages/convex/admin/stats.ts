@@ -571,6 +571,13 @@ export interface SnapshotCounts {
 /** The days, newest first, whose savers count toward 28-day active savers. */
 export const ACTIVE_SAVER_DAYS = 28;
 
+/**
+ * Savers stored for one day. Convex refuses an array argument over 8192
+ * values before the handler runs, so the Core Worker trims a day to this
+ * before sending it and marks the day truncated.
+ */
+export const MAX_DAY_SAVERS = 8000;
+
 /** `day` and the `count - 1` UTC days before it, newest first. */
 export const precedingDays = (day: string, count: number): string[] => {
   const start = Date.parse(`${day}T00:00:00.000Z`);

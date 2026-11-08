@@ -491,6 +491,37 @@ describe("admin snapshot", () => {
     });
   });
 
+  test("a day with more savers than a Convex argument holds is sent trimmed and marked truncated", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const dayStart = Date.parse(`${day}T00:00:00.000Z`);
+    const savers = Object.fromEntries(
+      daysBefore(day, 27).map((date) => [date, []])
+    );
+    const { test, written } = snapshotRun(
+      { date: day },
+      {
+        savers,
+        handlers: {
+          "adminMetrics:cardsPage": cardsBetween(
+            Array.from({ length: 8200 }, (_, i) =>
+              metricsCard(`u${i}`, dayStart + i)
+            )
+          ),
+        },
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    const [sent] = test
+      .callsTo("adminMetrics:writeDaySavers")
+      .map(({ args }) => args);
+    expect(sent?.userIds).toHaveLength(8000);
+    expect(sent?.isTruncated).toBe(true);
+    // The day itself is counted from every card read.
+    expect(written[0]?.activeSavers1d).toBe(8200);
+  });
+
   test("an admin's request for an older day has no billing and reports back to its dispatch row", async () => {
     const day = utcDay(Date.now() - 5 * DAY_MS);
     const { test, written } = snapshotRun({

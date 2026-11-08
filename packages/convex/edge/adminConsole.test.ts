@@ -558,6 +558,21 @@ describe("daily snapshot reads", () => {
     });
     expect(stored?.userIds).toHaveLength(8000);
     expect(stored?.isTruncated).toBe(true);
+
+    await t.mutation(internal.adminMetrics.writeDaySavers, {
+      date: today,
+      userIds: ["kept"],
+      isTruncated: true,
+    });
+    const [trimmed] = await t.query(internal.adminMetrics.daySavers, {
+      since: today,
+      until: utcDay(Date.now() + DAY_MS),
+    });
+    expect(trimmed).toEqual({
+      date: today,
+      userIds: ["kept"],
+      isTruncated: true,
+    });
   });
 });
 

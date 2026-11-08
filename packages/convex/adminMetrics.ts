@@ -22,6 +22,7 @@ import {
   type CohortMember,
   DAY_MS,
   type FunnelMember,
+  MAX_DAY_SAVERS,
   type MetricsCardRow,
   type MetricsUserRow,
   type SnapshotBilling,
@@ -257,8 +258,6 @@ const snapshotValidator = v.object({
 // Saver days kept past the 28 the snapshot reads, so an admin can still
 // re-capture a recent day without rescanning its cards.
 const SAVER_DAYS_KEPT = 35;
-// Convex arrays hold at most 8192 values.
-const MAX_DAY_SAVERS = 8000;
 const PRUNE_BATCH = 10;
 
 export const daySavers = internalQuery({
@@ -285,18 +284,25 @@ export const daySavers = internalQuery({
 
 /**
  * Stores who saved a card on `date` (the Core Worker counts them from that
- * day's cards) and prunes days older than `SAVER_DAYS_KEPT`. Writing the
- * same day again replaces it, so a retried snapshot step is harmless.
+ * day's cards, trimmed to `MAX_DAY_SAVERS` with `isTruncated` set when it
+ * had more) and prunes days older than `SAVER_DAYS_KEPT`. Writing the same
+ * day again replaces it, so a retried snapshot step is harmless.
  */
 export const writeDaySavers = internalMutation({
-  args: { date: v.string(), userIds: v.array(v.string()) },
+  args: {
+    date: v.string(),
+    userIds: v.array(v.string()),
+    isTruncated: v.optional(v.boolean()),
+  },
   returns: v.null(),
-  handler: async (ctx, { date, userIds }) => {
+  handler: async (ctx, { date, userIds, isTruncated }) => {
     const unique = [...new Set(userIds)];
     const row = {
       date,
       userIds: unique.slice(0, MAX_DAY_SAVERS),
-      ...(unique.length > MAX_DAY_SAVERS ? { isTruncated: true as const } : {}),
+      ...(isTruncated || unique.length > MAX_DAY_SAVERS
+        ? { isTruncated: true as const }
+        : {}),
     };
     const existing = await ctx.db
       .query("adminDailySavers")

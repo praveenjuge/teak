@@ -5,6 +5,7 @@ import {
   autoInternalUserIds,
   createSnapshotTally,
   DAY_MS,
+  MAX_DAY_SAVERS,
   type MetricsCardRow,
   type MetricsUserRow,
   precedingDays,
@@ -373,6 +374,23 @@ interface SaverDay {
   userIds: string[];
 }
 
+/**
+ * Stores one day's savers, trimmed to what a Convex argument can hold; a
+ * trimmed day is stored as truncated and counted from what was kept.
+ */
+const storeDaySavers = async (
+  convex: ConvexRpc,
+  date: string,
+  userIds: string[]
+): Promise<void> => {
+  const isTruncated = userIds.length > MAX_DAY_SAVERS;
+  await convex.mutation(internal.adminMetrics.writeDaySavers, {
+    date,
+    userIds: userIds.slice(0, MAX_DAY_SAVERS),
+    ...(isTruncated ? { isTruncated } : {}),
+  });
+};
+
 /** Who saved a card in `[since, until)`, and whether every page was read. */
 const readSavers = async (
   convex: ConvexRpc,
@@ -431,10 +449,7 @@ const countSnapshot = async (
   );
   let saversComplete = today.isComplete;
   if (today.isComplete) {
-    await convex.mutation(internal.adminMetrics.writeDaySavers, {
-      date: window.day,
-      userIds: today.userIds,
-    });
+    await storeDaySavers(convex, window.day, today.userIds);
   }
 
   const earlierDays = precedingDays(window.day, ACTIVE_SAVER_DAYS).slice(1);
@@ -449,11 +464,9 @@ const countSnapshot = async (
       const dayStart = Date.parse(`${day}T00:00:00.000Z`);
       const read = await readSavers(convex, dayStart, dayStart + DAY_MS);
       if (read.isComplete) {
-        await convex.mutation(internal.adminMetrics.writeDaySavers, {
-          date: day,
-          userIds: read.userIds,
-        });
+        await storeDaySavers(convex, day, read.userIds);
       }
+      // This run counts everyone it read; only later runs see a trimmed day.
       row = { date: day, userIds: read.userIds, isTruncated: !read.isComplete };
     }
     saversComplete &&= !row.isTruncated;

@@ -104,6 +104,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "AI Gateway that every Workers AI call goes through, set as a Wrangler var per Worker. Unset calls Workers AI directly.",
   }),
+  spec("CRON_PROFILE", {
+    owners: ["@teak/core-worker"],
+    targets: ["core-worker"],
+    profiles: ["preview", "production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    note: "Which Cron Trigger schedules the Worker runs: `development` on the development Worker (hourly tasks every six hours, `devSchedule` in packages/convex/cronSchedules.ts). Unset runs production's schedules.",
+  }),
   spec("LINK_FETCHER", {
     owners: ["@teak/core-worker"],
     targets: ["core-worker"],
