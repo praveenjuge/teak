@@ -1,14 +1,15 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
+  ACTIVE_SAVER_DAYS,
   autoInternalUserIds,
-  createOverviewTally,
   createSnapshotTally,
+  DAY_MS,
+  type MetricsCardRow,
   type MetricsUserRow,
-  type OverviewCardRow,
+  precedingDays,
   snapshotDay,
   snapshotTakesBilling,
-  toMetricsCardRow,
 } from "@teak/convex/admin/stats";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
@@ -59,8 +60,8 @@ const MAX_SWEEP_LIST_PAGES = 2000;
 const SWEEP_REFERENCE_PAGE_SIZE = 100;
 const MAX_SWEEP_REFERENCE_PAGES = 4000;
 const SWEEP_STEP = exponentialStep(3, 60_000, "30 minutes");
-// The admin metrics scans read at most 400 pages of 500 cards, as the Convex
-// action they replaced did; a longer scan marks its result approximate.
+// Each admin metrics scan (the users, or one day's cards) reads at most 400
+// pages; a longer scan marks its result approximate.
 const MAX_METRICS_PAGES = 400;
 const FLAG_BATCH = 200;
 const METRICS_STEP = exponentialStep(3, 60_000, "30 minutes");
@@ -366,15 +367,42 @@ const visitPages = async <T>(
   return false;
 };
 
+interface SaverDay {
+  date: string;
+  isTruncated: boolean;
+  userIds: string[];
+}
+
+/** Who saved a card in `[since, until)`, and whether every page was read. */
+const readSavers = async (
+  convex: ConvexRpc,
+  since: number,
+  until: number,
+  visit: (card: MetricsCardRow) => void = () => undefined
+) => {
+  const userIds = new Set<string>();
+  const isComplete = await visitPages<MetricsCardRow>(
+    (cursor) =>
+      convex.query(internal.adminMetrics.cardsPage, { cursor, since, until }),
+    (rows) => {
+      for (const card of rows) {
+        userIds.add(card.userId);
+        visit(card);
+      }
+    }
+  );
+  return { isComplete, userIds: [...userIds] };
+};
+
 /**
- * Counts the day's snapshot and `admin:getOverview`'s result (with and
- * without onboarding cards) from one scan of every card, so the overview
- * reads nothing more from Convex. The snapshot leaves onboarding cards out.
+ * Counts the day's snapshot from the users, the day's own cards and the
+ * stored savers of the 27 days before it (`adminDailySavers`), so it never
+ * scans every card. A day with no stored savers is read from its cards once
+ * and stored. The cards read leave onboarding cards out.
  */
 const countSnapshot = async (
   convex: ConvexRpc,
-  window: ReturnType<typeof snapshotDay>,
-  now: number
+  window: ReturnType<typeof snapshotDay>
 ) => {
   const users: MetricsUserRow[] = [];
   const usersComplete = await visitPages<MetricsUserRow>(
@@ -394,25 +422,44 @@ const countSnapshot = async (
   for (const user of users) {
     tally.addUser(user);
   }
-  const withOnboarding = createOverviewTally(now);
-  const withoutOnboarding = createOverviewTally(now);
-  const cardsComplete = await visitPages<OverviewCardRow>(
-    (cursor) => convex.query(internal.admin.overviewCardsPage, { cursor }),
-    (rows) => {
-      for (const card of rows) {
-        if (!card.onboarding) {
-          tally.addCard(toMetricsCardRow(card));
-        }
-        if (internalIds.has(card.userId)) {
-          continue;
-        }
-        withOnboarding.add(card);
-        if (!card.onboarding) {
-          withoutOnboarding.add(card);
-        }
-      }
-    }
+
+  const today = await readSavers(
+    convex,
+    window.dayStart,
+    window.dayEnd,
+    (card) => tally.addCard(card)
   );
+  let saversComplete = today.isComplete;
+  if (today.isComplete) {
+    await convex.mutation(internal.adminMetrics.writeDaySavers, {
+      date: window.day,
+      userIds: today.userIds,
+    });
+  }
+
+  const earlierDays = precedingDays(window.day, ACTIVE_SAVER_DAYS).slice(1);
+  const storedRows: SaverDay[] = await convex.query(
+    internal.adminMetrics.daySavers,
+    { since: earlierDays.at(-1) ?? window.day, until: window.day }
+  );
+  const stored = new Map(storedRows.map((row) => [row.date, row]));
+  for (const day of earlierDays) {
+    let row = stored.get(day);
+    if (!row) {
+      const dayStart = Date.parse(`${day}T00:00:00.000Z`);
+      const read = await readSavers(convex, dayStart, dayStart + DAY_MS);
+      if (read.isComplete) {
+        await convex.mutation(internal.adminMetrics.writeDaySavers, {
+          date: day,
+          userIds: read.userIds,
+        });
+      }
+      row = { date: day, userIds: read.userIds, isTruncated: !read.isComplete };
+    }
+    saversComplete &&= !row.isTruncated;
+    tally.addSaverDay(day, row.userIds);
+  }
+
   for (const row of await convex.query(internal.adminUsage.usageForDay, {
     date: window.day,
   })) {
@@ -420,40 +467,22 @@ const countSnapshot = async (
   }
   return {
     counts: tally.counts(),
-    isComplete: usersComplete && cardsComplete,
-    overviews: [
-      {
-        includeOnboarding: true,
-        overview: withOnboarding.finish(!(usersComplete && cardsComplete)),
-      },
-      {
-        includeOnboarding: false,
-        overview: withoutOnboarding.finish(!(usersComplete && cardsComplete)),
-      },
-    ],
+    isComplete: usersComplete && saversComplete,
   };
 };
 
 /**
- * The day's `adminDailyMetrics` row, and the current `adminOverviews` rows
- * from the same scan. Billing comes from Convex (Polar). An admin's capture
- * of any day refreshes the overview too, since the scan is already done.
+ * The day's `adminDailyMetrics` row. Billing comes from Convex (Polar).
  */
 const captureSnapshot = async ({ convex, run }: TaskContext) => {
   const { step } = run;
   const now = await step.do("now", async () => Promise.resolve(Date.now()));
   const window = snapshotDay(run.params.date, now);
-  const { counts, isComplete, overviews } = await step.do(
+  const { counts, isComplete } = await step.do(
     "count snapshot",
     METRICS_STEP,
-    () => countSnapshot(convex, window, now)
+    () => countSnapshot(convex, window)
   );
-  await step.do("write overview", CONVEX_STEP, async () => {
-    for (const overview of overviews) {
-      await convex.mutation(internal.admin.writeOverview, overview);
-    }
-    return null;
-  });
   const billing = snapshotTakesBilling(window.dayEnd, now)
     ? await step.do("read billing", BILLING_STEP, () =>
         convex.action(internal.adminMetrics.readSnapshotBilling, {})

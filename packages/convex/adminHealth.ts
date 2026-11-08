@@ -7,7 +7,8 @@ import {
   summarizeSignupDomains,
 } from "./admin/stats";
 import { ensureAdmin, readInternalUserIds } from "./adminAccess";
-import { CRONS } from "./cronSchedules";
+import { CRONS, type CronTask, everyMsFor } from "./cronSchedules";
+import { readIsDevDeployment } from "./env";
 import { POSTHOG_UI_HOST, posthogProjectId } from "./shared/posthog";
 import { readDispatchHealth } from "./workflowDispatch";
 
@@ -92,7 +93,13 @@ export const getHealth = query({
       lastSucceededAt: number | null;
       lastError: string | null;
       consecutiveFailures: number;
-    }> = Object.values(CRONS).map(({ name, everyMs }) => {
+    }> = (Object.keys(CRONS) as CronTask[]).map((task) => {
+      const { name } = CRONS[task];
+      // The development Worker runs its tasks on the development profile.
+      const everyMs = everyMsFor(
+        task,
+        readIsDevDeployment() ? "development" : "production"
+      );
       const row = byName.get(name);
       return {
         name,

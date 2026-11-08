@@ -935,11 +935,13 @@ export default defineSchema({
     accounts: v.number(),
     signups: v.number(),
     cardsSaved: v.number(),
-    totalCards: v.number(),
+    // Totals from the full card scan the snapshot no longer runs; only rows
+    // written before it stopped have them.
+    totalCards: v.optional(v.number()),
     activeSavers1d: v.number(),
     activeSavers7d: v.number(),
     activeSavers28d: v.number(),
-    storageBytes: v.number(),
+    storageBytes: v.optional(v.number()),
     storageBytesAdded: v.number(),
     aiCostUsd: v.number(),
     aiCalls: v.number(),
@@ -955,10 +957,19 @@ export default defineSchema({
         canceling: v.number(),
       })
     ),
-    topStorage: v.array(
-      v.object({ teakUserId: v.string(), bytes: v.number() })
+    topStorage: v.optional(
+      v.array(v.object({ teakUserId: v.string(), bytes: v.number() }))
     ),
     isApproximate: v.boolean(),
+  }).index("by_date", ["date"]),
+  // Who saved a (non-onboarding) card on each UTC day, so the daily snapshot
+  // counts 7- and 28-day active savers from one day of cards. Opaque Teak
+  // user IDs only, with no user key field: rows are pruned after 35 days
+  // (`adminMetrics:writeDaySavers`) rather than by account deletion.
+  adminDailySavers: defineTable({
+    date: v.string(),
+    userIds: v.array(v.string()),
+    isTruncated: v.optional(v.literal(true)),
   }).index("by_date", ["date"]),
   adminOverviews: defineTable({
     includeOnboarding: v.boolean(),

@@ -86,11 +86,15 @@ export const cardsPage = internalQuery({
   args: {
     cursor: v.union(v.string(), v.null()),
     since: v.optional(v.number()),
+    until: v.optional(v.number()),
   },
-  handler: async (ctx, { cursor, since }): Promise<Page<CardRow>> => {
+  handler: async (ctx, { cursor, since, until }): Promise<Page<CardRow>> => {
     const result = await ctx.db
       .query("cards")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since ?? 0))
+      .withIndex("by_creation_time", (q) => {
+        const from = q.gte("_creationTime", since ?? 0);
+        return until === undefined ? from : from.lt("_creationTime", until);
+      })
       .paginate({ cursor, numItems: CARD_PAGE, maximumBytesRead: PAGE_BYTES });
     return {
       rows: result.page
@@ -233,17 +237,86 @@ const snapshotValidator = v.object({
   accounts: v.number(),
   signups: v.number(),
   cardsSaved: v.number(),
-  totalCards: v.number(),
   activeSavers1d: v.number(),
   activeSavers7d: v.number(),
   activeSavers28d: v.number(),
-  storageBytes: v.number(),
   storageBytesAdded: v.number(),
   aiCostUsd: v.number(),
   aiCalls: v.number(),
   billing: v.optional(billingValidator),
-  topStorage: v.array(v.object({ teakUserId: v.string(), bytes: v.number() })),
+  // Totals a Core Worker from before the snapshot stopped scanning every
+  // card may still send; see `.agents/records/sunset.md`.
+  totalCards: v.optional(v.number()),
+  storageBytes: v.optional(v.number()),
+  topStorage: v.optional(
+    v.array(v.object({ teakUserId: v.string(), bytes: v.number() }))
+  ),
   isApproximate: v.boolean(),
+});
+
+// Saver days kept past the 28 the snapshot reads, so an admin can still
+// re-capture a recent day without rescanning its cards.
+const SAVER_DAYS_KEPT = 35;
+// Convex arrays hold at most 8192 values.
+const MAX_DAY_SAVERS = 8000;
+const PRUNE_BATCH = 10;
+
+export const daySavers = internalQuery({
+  args: { since: v.string(), until: v.string() },
+  returns: v.array(
+    v.object({
+      date: v.string(),
+      userIds: v.array(v.string()),
+      isTruncated: v.boolean(),
+    })
+  ),
+  handler: async (ctx, { since, until }) => {
+    const rows = await ctx.db
+      .query("adminDailySavers")
+      .withIndex("by_date", (q) => q.gte("date", since).lt("date", until))
+      .take(SAVER_DAYS_KEPT);
+    return rows.map((row) => ({
+      date: row.date,
+      userIds: row.userIds,
+      isTruncated: row.isTruncated === true,
+    }));
+  },
+});
+
+/**
+ * Stores who saved a card on `date` (the Core Worker counts them from that
+ * day's cards) and prunes days older than `SAVER_DAYS_KEPT`. Writing the
+ * same day again replaces it, so a retried snapshot step is harmless.
+ */
+export const writeDaySavers = internalMutation({
+  args: { date: v.string(), userIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { date, userIds }) => {
+    const unique = [...new Set(userIds)];
+    const row = {
+      date,
+      userIds: unique.slice(0, MAX_DAY_SAVERS),
+      ...(unique.length > MAX_DAY_SAVERS ? { isTruncated: true as const } : {}),
+    };
+    const existing = await ctx.db
+      .query("adminDailySavers")
+      .withIndex("by_date", (q) => q.eq("date", date))
+      .unique();
+    if (existing) {
+      await ctx.db.replace("adminDailySavers", existing._id, row);
+    } else {
+      await ctx.db.insert("adminDailySavers", row);
+    }
+    const cutoff = utcDay(startOfUtcDay(Date.now()) - SAVER_DAYS_KEPT * DAY_MS);
+    const stale = await ctx.db
+      .query("adminDailySavers")
+      .withIndex("by_date", (q) => q.lt("date", cutoff))
+      .take(PRUNE_BATCH);
+    for (const old of stale) {
+      await ctx.db.delete("adminDailySavers", old._id);
+    }
+    return null;
+  },
 });
 
 export const writeSnapshot = internalMutation({

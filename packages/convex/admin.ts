@@ -22,7 +22,6 @@ import {
   type AdminOverview,
   createOverviewTally,
   DAY_MS,
-  type OverviewCardRow,
   startOfUtcDay,
   summarizeAccounts,
   summarizeDailyActivity,
@@ -46,16 +45,13 @@ import { isOnboardingCard } from "./card/defaultCards";
 import { queueCardProcessing } from "./card/processingRuns";
 import { stagePending } from "./card/processingStatus";
 import { clearCardTranscript } from "./card/textContents";
-import { adminOverviewFields } from "./schema/validators/admin";
 import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/objectDeletion";
 
-// Before the Core Worker has stored an overview, `getOverview` counts at
-// most this many cards itself.
+// With no stored overview, `getOverview` counts at most this many cards
+// itself.
 const ADMIN_OVERVIEW_LIMIT = 10_000;
-const OVERVIEW_CARD_PAGE = 500;
-const OVERVIEW_PAGE_BYTES = 4 * 1024 * 1024;
 const ADMIN_LIST_LIMIT = 200;
 const MAX_ACTIVITY_DAYS = 90;
 const ACTIVATION_COHORT_LIMIT = 1000;
@@ -139,11 +135,10 @@ export const getAccess = query({
   handler: async (ctx) => ({ allowed: (await readAdminActor(ctx)) !== null }),
 });
 
-// The Core Worker counts the overview once a day in the same card scan as
-// the daily snapshot (`admin-snapshot` maintenance task) and stores it, so
-// an open admin page no longer re-reads the cards on every card write. Until
-// the first count lands, the overview is counted here from at most
-// ADMIN_OVERVIEW_LIMIT cards.
+// The overview the daily snapshot last stored, from before it stopped
+// scanning every card (nothing in the apps reads it any more; see
+// `.agents/records/sunset.md`). With no stored row, it is counted here from
+// at most ADMIN_OVERVIEW_LIMIT cards.
 export const getOverview = query({
   args: {
     includeOnboarding: v.optional(v.boolean()),
@@ -179,56 +174,6 @@ export const getOverview = query({
       }
     }
     return tally.finish(allCards.length === ADMIN_OVERVIEW_LIMIT);
-  },
-});
-
-export const overviewCardsPage = internalQuery({
-  args: { cursor: v.union(v.string(), v.null()) },
-  handler: async (
-    ctx,
-    { cursor }
-  ): Promise<{
-    continueCursor: string;
-    isDone: boolean;
-    rows: OverviewCardRow[];
-  }> => {
-    const result = await ctx.db.query("cards").paginate({
-      cursor,
-      numItems: OVERVIEW_CARD_PAGE,
-      maximumBytesRead: OVERVIEW_PAGE_BYTES,
-    });
-    return {
-      rows: result.page.map((card) =>
-        toOverviewCardRow(card, isOnboardingCard(card))
-      ),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
-  },
-});
-
-export const writeOverview = internalMutation({
-  args: {
-    includeOnboarding: v.boolean(),
-    overview: v.object(adminOverviewFields),
-  },
-  returns: v.null(),
-  handler: async (ctx, { includeOnboarding, overview }) => {
-    const existing = await ctx.db
-      .query("adminOverviews")
-      .withIndex("by_includeOnboarding", (q) =>
-        q.eq("includeOnboarding", includeOnboarding)
-      )
-      .unique();
-    if (!existing) {
-      await ctx.db.insert("adminOverviews", { includeOnboarding, ...overview });
-    } else if (existing.generatedAt <= overview.generatedAt) {
-      await ctx.db.replace("adminOverviews", existing._id, {
-        includeOnboarding,
-        ...overview,
-      });
-    }
-    return null;
   },
 });
 

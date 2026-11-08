@@ -281,59 +281,65 @@ const pages =
     };
   };
 
-const card = (
-  cardId: string,
-  userId: string,
-  creationTime: number,
-  extra: Record<string, unknown> = {}
-) => ({
-  cardId,
-  createdAt: creationTime,
-  creationTime,
+const metricsCard = (userId: string, createdAt: number, fileSize = 0) => ({
+  createdAt,
   deleted: false,
-  fileSize: 0,
-  hasAiSummary: true,
-  hasAiTags: true,
-  hasAiTranscript: false,
-  onboarding: false,
-  type: "text",
+  fileSize,
   userId,
-  ...extra,
 });
 
-interface StoredOverview {
-  includeOnboarding: boolean;
-  overview: {
-    aiPipeline: { failedCards: number; missingCards: unknown[] };
-    cardsByType: Record<string, number>;
-    generatedAt: number;
-    isApproximate: boolean;
-    totals: { totalCards: number; uniqueUsers: number };
-  };
-}
+type MetricsCard = ReturnType<typeof metricsCard>;
+
+/** `adminMetrics:cardsPage` over `cards`, honoring its `since`/`until`. */
+const cardsBetween =
+  (cards: MetricsCard[]) =>
+  ({ since, until }: Record<string, unknown>) => ({
+    rows: cards.filter(
+      (card) =>
+        card.createdAt >= (since as number) &&
+        (until === undefined || card.createdAt < (until as number))
+    ),
+    isDone: true,
+    continueCursor: "end",
+  });
+
+const daysBefore = (day: string, count: number) => {
+  const start = Date.parse(`${day}T00:00:00.000Z`);
+  return Array.from({ length: count }, (_, i) =>
+    utcDay(start - (i + 1) * DAY_MS)
+  );
+};
 
 const snapshotRun = (
   params: Omit<MaintenanceParams, "task">,
-  handlers: Parameters<typeof createTestRun>[1]["handlers"] = {}
+  {
+    handlers = {},
+    savers = {},
+  }: {
+    handlers?: Parameters<typeof createTestRun>[1]["handlers"];
+    savers?: Record<string, string[]>;
+  } = {}
 ) => {
   const flagged: string[][] = [];
   const written: Record<string, unknown>[] = [];
-  const overviews: StoredOverview[] = [];
+  const storedSavers = new Map(Object.entries(savers));
   const test = createTestRun(
     { task: "admin-snapshot", ...params },
     {
       handlers: {
-        "admin:overviewCardsPage": pages(),
-        "admin:writeOverview": (args) => {
-          overviews.push(args as unknown as StoredOverview);
-          return null;
-        },
         "adminAccess:flagAutoInternalAccounts": ({ teakUserIds }) => {
           flagged.push(teakUserIds as string[]);
           return (teakUserIds as string[]).length;
         },
         "adminAccess:listInternalUserIds": () => ["qa", "staff"],
         "adminHealth:recordCronRun": () => null,
+        "adminMetrics:cardsPage": cardsBetween([]),
+        "adminMetrics:daySavers": ({ since, until }) =>
+          [...storedSavers.entries()]
+            .filter(
+              ([date]) => date >= (since as string) && date < (until as string)
+            )
+            .map(([date, userIds]) => ({ date, userIds, isTruncated: false })),
         "adminMetrics:readSnapshotBilling": () => ({
           billing: {
             canceling: 0,
@@ -348,6 +354,10 @@ const snapshotRun = (
           isComplete: true,
         }),
         "adminMetrics:usersPage": pages(),
+        "adminMetrics:writeDaySavers": ({ date, userIds }) => {
+          storedSavers.set(date as string, userIds as string[]);
+          return null;
+        },
         "adminMetrics:writeSnapshot": ({ snapshot }) => {
           written.push(snapshot as Record<string, unknown>);
           return null;
@@ -357,14 +367,16 @@ const snapshotRun = (
       },
     }
   );
-  const stored = (includeOnboarding: boolean) =>
-    overviews.find((row) => row.includeOnboarding === includeOnboarding)
-      ?.overview;
-  return { flagged, overviews, stored, test, written };
+  return { flagged, storedSavers, test, written };
 };
 
+const cardWindows = (test: ReturnType<typeof createTestRun>) =>
+  test
+    .callsTo("adminMetrics:cardsPage")
+    .map(({ args }) => (args.until as number) - (args.since as number));
+
 describe("admin snapshot", () => {
-  test("pages every user and card, flags internal accounts and writes the day", async () => {
+  test("reads the users, the day's cards and the earlier savers, flags internal accounts and writes the day", async () => {
     const day = utcDay(Date.now() - DAY_MS);
     const dayStart = Date.parse(`${day}T00:00:00.000Z`);
     const user = (teakUserId: string, email: string, createdAt: number) => ({
@@ -374,44 +386,39 @@ describe("admin snapshot", () => {
       isAdmin: false,
       teakUserId,
     });
-    const { flagged, test, written } = snapshotRun(
+    const threeDaysBefore = utcDay(dayStart - 3 * DAY_MS);
+    const twentyDaysBefore = utcDay(dayStart - 20 * DAY_MS);
+    const { flagged, storedSavers, test, written } = snapshotRun(
       { date: day },
       {
-        "admin:overviewCardsPage": pages(
-          [
-            card("c1", "reader", dayStart + 3_600_000, { fileSize: 100 }),
-            card("c2", "new", dayStart - 3 * DAY_MS),
-            card("c3", "new", dayStart + 7_200_000, {
-              fileSize: 5000,
-              onboarding: true,
-            }),
+        savers: {
+          [threeDaysBefore]: ["new"],
+          [twentyDaysBefore]: ["new", "staff"],
+        },
+        handlers: {
+          "adminMetrics:cardsPage": cardsBetween([
+            metricsCard("reader", dayStart + 3_600_000, 100),
+            metricsCard("qa", dayStart + 60_000, 999),
+            metricsCard("reader", dayStart + DAY_MS + 60_000, 7),
+          ]),
+          "adminMetrics:usersPage": pages(
+            [
+              user("reader", "reader@gmail.com", dayStart - 10 * DAY_MS),
+              user("new", "new@gmail.com", dayStart + 60_000),
+            ],
+            [
+              user("qa", "e2e-bot@gmail.com", dayStart - DAY_MS),
+              {
+                ...user("gone", "gone@gmail.com", dayStart - DAY_MS),
+                deleted: true,
+              },
+            ]
+          ),
+          "adminUsage:usageForDay": () => [
+            { calls: 2, costUsd: 0.5, userId: "reader" },
+            { calls: 9, costUsd: 3, userId: "qa" },
           ],
-          [
-            card("c4", "qa", dayStart + 60_000, { fileSize: 999 }),
-            card("c5", "reader", dayStart + DAY_MS + 60_000, { fileSize: 7 }),
-            card("c6", "new", dayStart - 20 * DAY_MS, {
-              deleted: true,
-              fileSize: 50,
-            }),
-          ]
-        ),
-        "adminMetrics:usersPage": pages(
-          [
-            user("reader", "reader@gmail.com", dayStart - 10 * DAY_MS),
-            user("new", "new@gmail.com", dayStart + 60_000),
-          ],
-          [
-            user("qa", "e2e-bot@gmail.com", dayStart - DAY_MS),
-            {
-              ...user("gone", "gone@gmail.com", dayStart - DAY_MS),
-              deleted: true,
-            },
-          ]
-        ),
-        "adminUsage:usageForDay": () => [
-          { calls: 2, costUsd: 0.5, userId: "reader" },
-          { calls: 9, costUsd: 3, userId: "qa" },
-        ],
+        },
       }
     );
 
@@ -422,7 +429,11 @@ describe("admin snapshot", () => {
 
     expect(flagged).toEqual([["qa"]]);
     expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(2);
-    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(2);
+    // The day, plus each of the 25 earlier days with no stored savers; every
+    // read is one day of cards, never the whole table.
+    expect(cardWindows(test)).toEqual(new Array(26).fill(DAY_MS));
+    expect(storedSavers.get(day)).toEqual(["reader", "qa"]);
+    expect(storedSavers.size).toBe(28);
     expect(written).toEqual([
       {
         accounts: 2,
@@ -446,10 +457,7 @@ describe("admin snapshot", () => {
         date: day,
         isApproximate: false,
         signups: 1,
-        storageBytes: 100,
         storageBytesAdded: 100,
-        topStorage: [{ bytes: 100, teakUserId: "reader" }],
-        totalCards: 2,
       },
     ]);
     expect(heartbeats(test.calls)).toEqual([
@@ -458,71 +466,34 @@ describe("admin snapshot", () => {
     ]);
   });
 
-  test("one run stores the snapshot and both overviews from a single card scan", async () => {
-    const now = Date.now();
-    const { overviews, stored, test, written } = snapshotRun(
-      { date: utcDay(now - DAY_MS) },
-      {
-        "admin:overviewCardsPage": pages(
-          [
-            card("c1", "reader", now - DAY_MS),
-            card("c2", "reader", now - DAY_MS, { onboarding: true }),
-            card("c3", "staff", now - DAY_MS),
-          ],
-          [
-            card("c4", "writer", now - DAY_MS, {
-              hasAiSummary: false,
-              hasAiTags: false,
-              metadataStatus: "pending",
-              processingStatus: { classify: { status: "failed" } },
-              type: "link",
-            }),
-          ]
-        ),
-      }
+  test("with the earlier days stored, a run reads only its own day of cards", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const savers = Object.fromEntries(
+      daysBefore(day, 27).map((date) => [date, ["reader"]])
     );
+    const { test, written } = snapshotRun({ date: day }, { savers });
 
     await runMaintenance(test.run, { convex: test.convex });
 
     expect(
-      test.calls
-        .map((call) => call.name)
-        .filter((name) => /cards?page/iu.test(name))
-    ).toEqual(["admin:overviewCardsPage", "admin:overviewCardsPage"]);
-    expect(written).toHaveLength(1);
-    expect(written[0]?.totalCards).toBe(2);
-    expect(overviews.map((row) => row.includeOnboarding).sort()).toEqual([
-      false,
-      true,
+      test.callsTo("adminMetrics:cardsPage").map(({ args }) => args)
+    ).toEqual([
+      {
+        cursor: null,
+        since: Date.parse(`${day}T00:00:00.000Z`),
+        until: Date.parse(`${day}T00:00:00.000Z`) + DAY_MS,
+      },
     ]);
-    expect(stored(true)?.totals).toMatchObject({
-      totalCards: 3,
-      uniqueUsers: 2,
+    expect(written[0]).toMatchObject({
+      activeSavers1d: 0,
+      activeSavers7d: 1,
+      activeSavers28d: 1,
     });
-    expect(stored(true)?.cardsByType).toEqual({ link: 1, text: 2 });
-    expect(stored(false)?.totals).toMatchObject({
-      totalCards: 2,
-      uniqueUsers: 2,
-    });
-    expect(stored(false)?.aiPipeline.failedCards).toBe(1);
-    expect(stored(false)?.aiPipeline.missingCards).toEqual([
-      expect.objectContaining({
-        cardId: "c4",
-        reasons: [
-          "AI metadata missing",
-          "AI summary missing",
-          "AI tags missing",
-          "Link metadata still pending",
-        ],
-      }),
-    ]);
-    expect(stored(false)?.isApproximate).toBe(false);
-    expect(stored(true)?.generatedAt).toBe(written[0]?.capturedAt as number);
   });
 
-  test("an admin's request for an older day has no billing, refreshes the overview and reports back to its dispatch row", async () => {
+  test("an admin's request for an older day has no billing and reports back to its dispatch row", async () => {
     const day = utcDay(Date.now() - 5 * DAY_MS);
-    const { overviews, test, written } = snapshotRun({
+    const { test, written } = snapshotRun({
       date: day,
       dispatched: true,
     });
@@ -533,40 +504,47 @@ describe("admin snapshot", () => {
     expect(written).toHaveLength(1);
     expect(written[0]?.date).toBe(day);
     expect(written[0]).not.toHaveProperty("billing");
-    expect(overviews).toHaveLength(2);
     expect(heartbeats(test.calls)).toEqual([]);
     expect(completionReports(test.callsTo)).toEqual(["complete"]);
   });
 
-  test("a scan cut short marks the day and the overview approximate", async () => {
-    const { stored, test, written } = snapshotRun(
-      { date: utcDay(Date.now() - DAY_MS) },
+  test("a day's card read cut short marks the snapshot approximate and stores no savers for it", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const savers = Object.fromEntries(
+      daysBefore(day, 27).map((date) => [date, []])
+    );
+    const { storedSavers, test, written } = snapshotRun(
+      { date: day },
       {
-        "admin:overviewCardsPage": ({ cursor }) => ({
-          rows: [],
-          isDone: false,
-          continueCursor: `${String(cursor)}+`,
-        }),
+        savers,
+        handlers: {
+          "adminMetrics:cardsPage": ({ cursor }) => ({
+            rows: [],
+            isDone: false,
+            continueCursor: `${String(cursor)}+`,
+          }),
+        },
       }
     );
 
     await runMaintenance(test.run, { convex: test.convex });
 
-    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(400);
+    expect(test.callsTo("adminMetrics:cardsPage")).toHaveLength(400);
+    expect(storedSavers.has(day)).toBe(false);
     expect(written[0]?.isApproximate).toBe(true);
-    expect(stored(true)?.isApproximate).toBe(true);
-    expect(stored(false)?.isApproximate).toBe(true);
   });
 
-  test("a user scan cut short marks the overview approximate too", async () => {
-    const { stored, test, written } = snapshotRun(
+  test("a user scan cut short marks the snapshot approximate", async () => {
+    const { test, written } = snapshotRun(
       { date: utcDay(Date.now() - DAY_MS) },
       {
-        "adminMetrics:usersPage": ({ cursor }) => ({
-          rows: [],
-          isDone: false,
-          continueCursor: `${String(cursor)}+`,
-        }),
+        handlers: {
+          "adminMetrics:usersPage": ({ cursor }) => ({
+            rows: [],
+            isDone: false,
+            continueCursor: `${String(cursor)}+`,
+          }),
+        },
       }
     );
 
@@ -574,7 +552,5 @@ describe("admin snapshot", () => {
 
     expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(400);
     expect(written[0]?.isApproximate).toBe(true);
-    expect(stored(true)?.isApproximate).toBe(true);
-    expect(stored(false)?.isApproximate).toBe(true);
   });
 });

@@ -717,7 +717,12 @@ Explorer shows each run's steps, logs and stored objects
 `src/scheduled/cron.ts` runs the background tasks that used to be Convex crons; Convex
 keeps the table logic in internal functions the Worker calls. The
 schedules live in `packages/convex/cronSchedules.ts` (`runsOn: "cloudflare"`)
-and must equal `triggers.crons` in both Wrangler configs; a Convex test checks.
+and must equal `triggers.crons` in each Wrangler config for its profile; a
+repository test checks. The development Worker sets `CRON_PROFILE` to
+`development` and runs each task's `devSchedule` where it has one: the hourly
+tasks every six hours (`15 */6 * * *`, `45 */6 * * *`) and the AI metadata
+backfill daily at 02:00, so the shared dev deployment isn't billed for
+production's cadence. The admin health view judges dev tasks by `devEveryMs`.
 This Worker serves every deployment in `CONVEX_SITE_URLS`, so each task runs
 once per deployment, and one deployment's failure neither stops another nor
 goes unreported (PostHog, with the deployment). Tasks the handler runs itself
@@ -727,7 +732,7 @@ health view lists them beside Convex's own crons.
 
 | Cron (UTC) | Task |
 | --- | --- |
-| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot and the admin overview (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
+| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
 | `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow |
 | `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
 | `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
@@ -773,30 +778,35 @@ fails for another reason is tried again the next hour. It then prunes finished d
 
 ## Admin metrics
 
-The admin console's daily snapshot and overview are counted here, so Convex
-no longer pages every user and card in an action or a reactive query. One
-maintenance workflow task, `admin-snapshot`, counts both from a single scan of
-every card over the workflow RPC gateway, at most 400 pages of 500 cards; a
-longer scan is stored as approximate. The counting code is shared with Convex
+The admin console's daily snapshot is counted here, so Convex no longer pages
+every user and card in an action or a reactive query. One maintenance
+workflow task, `admin-snapshot`, counts it over the workflow RPC gateway
+without reading every card; each scan reads at most 400 pages, and a longer
+one is stored as approximate. The counting code is shared with Convex
 (`packages/convex/admin/stats.ts`).
 
-- It pages `adminMetrics:usersPage`, flags internal accounts
-  (`adminAccess:flagAutoInternalAccounts`), then pages `admin:overviewCardsPage`
-  once. Each row carries what both counts need.
-- It stores `admin:getOverview`'s result with and without onboarding cards in
-  `adminOverviews` (`admin:writeOverview`). `getOverview` returns the stored
-  row, with `generatedAt` set to when it was counted, so the overview can be
-  up to a day old. Before the first count it counts up to 10,000 cards itself,
-  as it used to.
+- It pages `adminMetrics:usersPage` and flags internal accounts
+  (`adminAccess:flagAutoInternalAccounts`).
+- It reads only the day's cards (`adminMetrics:cardsPage` with `since` and
+  `until`), for the cards saved, the bytes added and the day's savers, and
+  stores the day's savers (`adminMetrics:writeDaySavers`, kept 35 days).
+  Seven- and 28-day active savers come from the stored savers of the days
+  before (`adminMetrics:daySavers`); a day with none stored is read from its
+  cards once and stored, so the first run reads 28 days and later runs one.
 - It writes one UTC day's `adminDailyMetrics` row (yesterday from the 02:00
   cron), leaving onboarding cards out. It reads the day's AI usage and asks
   Convex for the billing line (`adminMetrics:readSnapshotBilling`, which calls
   Polar; the Worker holds no Polar token) when the day is yesterday or today.
+  Total cards, total storage and the top storage users are no longer counted:
+  only rows written before have them.
+- The admin overview (`admin:getOverview`) is no longer refreshed: it returns
+  the last stored `adminOverviews` row, or counts up to 10,000 cards itself
+  when there is none. Nothing in the apps reads it.
 
 An admin's "capture snapshot" (`adminMetrics:captureSnapshot`) queues the same
 task through the outbox with the day as a param, so the row lands a little
-after the action returns. That run refreshes the overview too, and reports to
-its dispatch row instead of the cron's heartbeat.
+after the action returns. That run reports to its dispatch row instead of the
+cron's heartbeat.
 
 `capabilities` lists the tasks in `maintenanceTasks`, and Backend Deploy waits
 for all of them.

@@ -1,6 +1,6 @@
 # Convex cost maintenance
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-08
 
 How to run Convex maintenance on Teak's own deployments without losing
 customer data, and which work already moved off Convex to keep its bill down.
@@ -78,6 +78,28 @@ workflow history older than seven days; keep active and unknown histories.
 No blanket R2 lifecycle deletion is safe. Legacy desktop codes, inactive
 component tables and revoked API keys stay report-only.
 
+## The shared dev deployment
+
+Dev (`reminiscent-kangaroo-59`) is billed on the same team as production and
+used about as much in October 2026, so it runs a lighter schedule:
+
+- The development Core Worker runs the hourly crons every six hours and the
+  AI backfill daily (`CRON_PROFILE=development`, `devSchedule` in
+  `packages/convex/cronSchedules.ts`).
+- Usage warnings on the dev deployment, set by the owner from
+  `packages/convex` (integer thresholds; a monthly one can't be below what is
+  already used). Convex sends no warning emails for development deployments,
+  so check them in the dashboard during the monthly review:
+
+```bash
+bunx convex deployment usage-limits list --deployment reminiscent-kangaroo-59
+bunx convex deployment usage-limits set --deployment reminiscent-kangaroo-59 --metric databaseIoGb --window month --type warning --limit <n>
+```
+
+  Set one each for `databaseIoGb`, `functionCalls`, `dataEgressGb` and
+  `searchQueryGb` (`usage-limits set --help` lists them all; storage has no
+  limit). Never `--type disable` on a deployment people work on.
+
 ## What already moved off Convex
 
 So a change doesn't move it back:
@@ -100,8 +122,10 @@ So a change doesn't move it back:
   into `aiUsageDaily`. The AI gate is cached for 60 seconds in the Worker
   (`apps/core-worker/src/ai/aiGate.ts`), so an admin's AI pause takes up to a
   minute to reach running work.
-- **Admin metrics** are counted in the Worker's daily snapshot;
-  `admin:getOverview` reads one stored row, up to a day old.
+- **Admin metrics** are counted in the Worker's daily snapshot from the
+  day's own cards and stored per-day savers (`adminDailySavers`), never a
+  scan of every card; total cards, total storage and the overview are no
+  longer counted (`admin:getOverview` returns its last stored row).
 - **Analytics events from mutations** ride the workflow dispatch outbox to
   the Core Worker, which sends them to PostHog.
 - **MCP session traffic** (`initialize`, `tools/list`, `ping`) is answered at

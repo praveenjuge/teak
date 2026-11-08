@@ -44,6 +44,7 @@ const PRODUCTION_COPIES: Record<string, number> = {
 };
 
 const DEVELOPMENT_COPIES: Record<string, number> = {
+  ".agents/runbooks/convex-costs.md": 3,
   ".agents/skills/verify-teak/SKILL.md": 2,
   ".agents/skills/verify-teak/features/api-cli-mcp.md": 4,
   ".agents/skills/verify-teak/features/claude-connector.md": 2,

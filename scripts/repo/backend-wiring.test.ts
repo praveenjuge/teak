@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CRONS, cronTasksOn } from "@teak/convex/cronSchedules";
+import {
+  cronProfile,
+  cronTasksOn,
+  scheduleFor,
+} from "@teak/convex/cronSchedules";
 import { V1_ENDPOINTS } from "@teak/convex/publicApi/http/meta";
 
 // Checks that the backend's own definitions match files in other workspaces:
@@ -13,28 +17,39 @@ const ROOT = join(import.meta.dir, "../..");
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
 describe("Core Worker Cron Triggers", () => {
-  const triggerCrons = (file: string): string[] =>
-    (
-      Bun.JSONC.parse(read(file)) as {
-        triggers?: { crons?: string[] };
-      }
-    ).triggers?.crons ?? [];
+  const config = (file: string) =>
+    Bun.JSONC.parse(read(file)) as {
+      triggers?: { crons?: string[] };
+      vars?: { CRON_PROFILE?: string };
+    };
 
   test.each([
     "apps/core-worker/wrangler.jsonc",
     "apps/core-worker/development/wrangler.jsonc",
     "apps/core-worker/self-host/wrangler.jsonc",
   ])(
-    "the Cloudflare tasks' schedules are exactly the Cron Triggers in %s",
+    "the Cloudflare tasks' schedules for its profile are exactly the Cron Triggers in %s",
     (file) => {
+      const { triggers, vars } = config(file);
+      const profile = cronProfile(vars?.CRON_PROFILE);
       const schedules = new Set(
-        cronTasksOn("cloudflare").map((task) => CRONS[task].schedule)
+        cronTasksOn("cloudflare").map((task) => scheduleFor(task, profile))
       );
-      expect([...new Set(triggerCrons(file))].sort()).toEqual(
+      expect([...new Set(triggers?.crons ?? [])].sort()).toEqual(
         [...schedules].sort()
       );
     }
   );
+
+  test("only the development Worker runs the development profile", () => {
+    expect(
+      [
+        "apps/core-worker/wrangler.jsonc",
+        "apps/core-worker/development/wrangler.jsonc",
+        "apps/core-worker/self-host/wrangler.jsonc",
+      ].map((file) => cronProfile(config(file).vars?.CRON_PROFILE))
+    ).toEqual(["production", "development", "production"]);
+  });
 });
 
 test("the API page documents every /v1 method and path", () => {
