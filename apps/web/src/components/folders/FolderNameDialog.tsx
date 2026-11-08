@@ -37,11 +37,11 @@ import {
   type FolderColor,
   type FolderSummary,
   folderColorLabel,
-  folderErrorMessage,
   hasFolderNamed,
   suggestSmartFolderName,
 } from "../../lib/folders";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
+import { convexErrorData } from "../../lib/serverErrors";
 import { cn } from "../../lib/utils";
 import { FolderRulesFields, useFolderRulesForm } from "./FolderRulesFields";
 
@@ -165,10 +165,8 @@ export function FolderNameDialog({
       }
     } catch (caught) {
       setServerError(
-        folderErrorMessage(
-          caught,
-          isRename ? t("saveFailed") : t("createFailed")
-        )
+        convexErrorData(caught).message ??
+          (isRename ? t("saveFailed") : t("createFailed"))
       );
     }
   });

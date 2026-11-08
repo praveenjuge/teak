@@ -1,13 +1,8 @@
 import type { CardType } from "@teak/convex/shared/constants";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { APP_ACTION_IDS, APP_ACTIONS, appActionKey } from "./appCommands";
 import { cardTitle } from "./cardTypes";
 import { getDisplayHostname } from "./displayHost";
-import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { isOverlayOpen } from "./keyboardShortcuts";
 import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
@@ -19,12 +14,6 @@ import {
 import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform, isModKey } from "./platform";
 import { librarySearchHref } from "./searchUrlState";
-
-const englishPalette = createTeakTranslator(
-  "en",
-  englishMessages,
-  "commandPalette"
-);
 
 export const PALETTE_MIN_CARD_QUERY_LENGTH = 2;
 export const PALETTE_CARD_LIMIT = 8;
@@ -164,8 +153,8 @@ const MAX_PALETTE_TITLE_LENGTH = 300;
 
 export function paletteCardTitle(
   card: PaletteCard,
-  t: TeakTranslator<"commandPalette"> = englishPalette,
-  linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
+  t: TeakTranslator<"commandPalette">,
+  linkTitle: LinkTitleTranslator
 ): string {
   return (cardTitle(card, linkTitle) || t("cards.untitled")).slice(
     0,

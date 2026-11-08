@@ -1,5 +1,5 @@
 import type { TeakTranslator } from "@teak/i18n";
-import { englishTranslator, US_ENGLISH_LOCALE } from "./englishTranslators";
+import { US_ENGLISH_LOCALE } from "./englishTranslators";
 
 export interface ImageExif {
   exposureTime?: number;
@@ -125,11 +125,9 @@ const formatTakenAt = (
 
 export type ExifTranslator = TeakTranslator<"lib.exif">;
 
-const englishExif: ExifTranslator = englishTranslator("lib.exif");
-
 export function formatExifFields(
-  exif?: ImageExif | null,
-  t: ExifTranslator = englishExif,
+  exif: ImageExif | null | undefined,
+  t: ExifTranslator,
   locale: string | undefined = US_ENGLISH_LOCALE
 ): ExifField[] {
   if (!exif) {

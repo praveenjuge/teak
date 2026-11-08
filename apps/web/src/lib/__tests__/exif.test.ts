@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { formatCamera, formatExifFields, formatExposureTime } from "../exif";
+import { englishTranslator } from "../englishTranslators";
+import {
+  formatCamera,
+  formatExifFields as formatExifFieldsIn,
+  formatExposureTime,
+} from "../exif";
+
+const formatExifFields = (exif: Parameters<typeof formatExifFieldsIn>[0]) =>
+  formatExifFieldsIn(exif, englishTranslator("lib.exif"));
 
 // ICU versions join a date and a time with ", " or " at " (Bun on macOS uses
 // the system's); either is right, so compare with one join.

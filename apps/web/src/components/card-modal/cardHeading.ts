@@ -1,8 +1,4 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { englishTranslator, US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { cardTitle, isFileCardType } from "../../lib/cardTypes";
 import type { LinkTitleTranslator } from "../../lib/linkTitle";
@@ -14,11 +10,8 @@ import {
 
 export type CardHeadingTranslator = TeakTranslator<"cardModal.heading">;
 
-const englishHeading: CardHeadingTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cardModal.heading"
-);
+const englishHeading: CardHeadingTranslator =
+  englishTranslator("cardModal.heading");
 
 interface HeadingSource {
   fileMetadata?: { fileName?: string };

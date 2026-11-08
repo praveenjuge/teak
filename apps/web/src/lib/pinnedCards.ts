@@ -1,8 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { PIN_ERROR_CODES } from "@teak/convex/shared/pins";
-import { ConvexError } from "convex/values";
 import type { CardsSearchQueryArgs } from "./cardsSearchState";
 import type { LibraryView } from "./libraryViews";
+import { convexErrorData } from "./serverErrors";
 
 /**
  * The pinned strip shows on the plain library: the All view with no search,
@@ -107,6 +107,4 @@ export function restoredPinOrder(
 }
 
 export const isPinLimitError = (error: unknown): boolean =>
-  error instanceof ConvexError &&
-  (error.data as { code?: unknown } | null)?.code ===
-    PIN_ERROR_CODES.PIN_LIMIT_REACHED;
+  convexErrorData(error).code === PIN_ERROR_CODES.PIN_LIMIT_REACHED;

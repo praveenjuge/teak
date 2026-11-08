@@ -14,13 +14,8 @@ import {
   MAX_FOLDER_NAME_LENGTH,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
-import { ConvexError } from "convex/values";
-import { englishErrors, englishTranslator } from "./englishTranslators";
-import { type ErrorsTranslator, translateServerMessage } from "./serverErrors";
 
 export type FoldersTranslator = TeakTranslator<"lib.folders">;
-
-const englishFolders: FoldersTranslator = englishTranslator("lib.folders");
 
 export interface FolderSummary {
   _id: Id<"folders">;
@@ -82,10 +77,8 @@ export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
   pink: "text-pink-500 fill-pink-500/15",
 };
 
-export const folderColorLabel = (
-  color: FolderColor,
-  t: FoldersTranslator = englishFolders
-) => t(`colors.${color}`);
+export const folderColorLabel = (color: FolderColor, t: FoldersTranslator) =>
+  t(`colors.${color}`);
 
 export const CARD_DRAG_TYPE = "application/x-teak-card";
 
@@ -133,20 +126,6 @@ export const hasFolderNamed = (
   );
 };
 
-export const folderErrorMessage = (
-  error: unknown,
-  fallback: string,
-  t: ErrorsTranslator = englishErrors
-) => {
-  if (error instanceof ConvexError) {
-    const message = (error.data as { message?: unknown } | undefined)?.message;
-    if (typeof message === "string") {
-      return translateServerMessage(t, message);
-    }
-  }
-  return fallback;
-};
-
 export interface SmartFolderSearchContext {
   folder?: Pick<FolderSummary, "kind" | "name" | "query"> | null;
   tag?: string;
@@ -190,7 +169,7 @@ const capitalize = (text: string) =>
 
 export const suggestSmartFolderName = (
   query: string,
-  t: FoldersTranslator = englishFolders
+  t: FoldersTranslator
 ): string => {
   const parsed = parseSearchQuery(query);
   const parts = [

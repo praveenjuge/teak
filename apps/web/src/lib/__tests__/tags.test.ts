@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishTranslator } from "../englishTranslators";
 import {
   applyTagOperationToSummary,
   explainTagNameInput,
@@ -10,6 +11,9 @@ import {
   tagOperationTitle,
   tagsPageUrl,
 } from "../tags";
+
+const tagsT = englishTranslator("lib.tags");
+const errorsT = englishTranslator("errors");
 
 const items = [
   { name: "design", count: 5 },
@@ -135,39 +139,47 @@ describe("isTagOperationStalled", () => {
 
 describe("tag operation copy", () => {
   test("titles and progress for each state", () => {
-    expect(tagOperationTitle(operation())).toBe(
+    expect(tagOperationTitle(operation(), tagsT)).toBe(
       "Renaming “design” to “Design Systems”…"
     );
-    expect(tagOperationDescription(operation())).toBe(
+    expect(tagOperationDescription(operation(), tagsT)).toBe(
       "120 of 300 cards changed"
     );
     expect(
-      tagOperationTitle(operation({ kind: "merge", status: "completed" }))
+      tagOperationTitle(
+        operation({ kind: "merge", status: "completed" }),
+        tagsT
+      )
     ).toBe("Merged “design” into “Design Systems”");
     expect(
       tagOperationTitle(
-        operation({ status: "completed", to: "  Verify-NAVX-T1 " })
+        operation({ status: "completed", to: "  Verify-NAVX-T1 " }),
+        tagsT
       )
     ).toBe("Renamed “design” to “Verify-NAVX-T1”");
     expect(
-      tagOperationDescription(operation({ status: "completed", changed: 1 }))
+      tagOperationDescription(
+        operation({ status: "completed", changed: 1 }),
+        tagsT
+      )
     ).toBe("1 card changed");
-    expect(tagOperationTitle(operation({ status: "failed" }))).toBe(
+    expect(tagOperationTitle(operation({ status: "failed" }), tagsT)).toBe(
       "Couldn't finish renaming. 120 of 300 cards changed."
     );
     expect(
       tagOperationTitle(
-        operation({ kind: "delete", to: undefined, status: "completed" })
+        operation({ kind: "delete", to: undefined, status: "completed" }),
+        tagsT
       )
     ).toBe("Deleted “design”");
   });
 
   test("new names must be 1 to 64 characters", () => {
-    expect(explainTagNameInput("  ")).toBe("Name the tag");
-    expect(explainTagNameInput("x".repeat(65))).toBe(
+    expect(explainTagNameInput("  ", errorsT)).toBe("Name the tag");
+    expect(explainTagNameInput("x".repeat(65), errorsT)).toBe(
       "Tags can be at most 64 characters"
     );
-    expect(explainTagNameInput("ok")).toBeNull();
+    expect(explainTagNameInput("ok", errorsT)).toBeNull();
   });
 });
 

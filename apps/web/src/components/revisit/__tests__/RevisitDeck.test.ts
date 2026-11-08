@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -66,7 +67,7 @@ describe("the shortcuts list's Revisit group", () => {
   };
 
   test("lists every key the deck answers, each doing what its row says", () => {
-    const revisit = keyboardShortcutGroups().find(
+    const revisit = keyboardShortcutGroups(englishTranslator("shortcuts")).find(
       (group) => group.id === "revisit"
     );
     const listed = revisit?.rows.flatMap((row) =>

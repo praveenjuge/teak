@@ -4,18 +4,11 @@ import {
   sanitizeExternalUrl,
 } from "@teak/convex/shared/utils/safeUrl";
 import { urlKey } from "@teak/convex/shared/utils/urlKey";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { Marked, type Token, type Tokens } from "marked";
+import { englishTranslator } from "@/lib/englishTranslators";
 
-const englishTextEditor = createTeakTranslator(
-  "en",
-  englishMessages,
-  "textEditor"
-);
+const englishTextEditor = englishTranslator("textEditor");
 
 const lexer = new Marked({ gfm: true });
 

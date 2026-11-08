@@ -1,11 +1,7 @@
 import type { TeakTranslator } from "@teak/i18n";
 import { toast } from "sonner";
-import { englishTranslator } from "./englishTranslators";
 
 export type ClipboardTranslator = TeakTranslator<"lib.clipboard">;
-
-const englishClipboard: ClipboardTranslator =
-  englishTranslator("lib.clipboard");
 
 export interface CopyTextMessages {
   copied: string;
@@ -37,7 +33,7 @@ export async function copyText(
 
 export async function copyColorHexToClipboard(
   hex: string,
-  t: ClipboardTranslator = englishClipboard
+  t: ClipboardTranslator
 ) {
   await copyText(hex, {
     copied: t("copiedColor", { hex }),

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishTranslator } from "../../englishTranslators";
 import {
   capBatchForQueue,
   dataTransferHasFiles,
@@ -13,6 +14,8 @@ import {
   uploadAcceptAttribute,
   uploadFailureKind,
 } from "../fileDrop";
+
+const uploadT = englishTranslator("lib.upload");
 
 function makeFile(name: string, type = "text/plain"): File {
   return new File([name], name, { type });
@@ -231,7 +234,7 @@ describe("summarizeBatchResults / formatPartialFailureMessage", () => {
     ]);
     expect(summary.successCount).toBe(3);
     expect(summary.firstFailure?.file).toBe("video.mov");
-    expect(formatPartialFailureMessage(summary)).toBe(
+    expect(formatPartialFailureMessage(summary, uploadT)).toBe(
       "Uploaded 3 of 5 files. Couldn't upload: video.mov and doc.pdf."
     );
   });
@@ -254,7 +257,7 @@ describe("summarizeBatchResults / formatPartialFailureMessage", () => {
         errorCode: "INVALID_INPUT",
       },
     ]);
-    const message = formatPartialFailureMessage(summary);
+    const message = formatPartialFailureMessage(summary, uploadT);
     expect(message).toBe(
       "Uploaded 3 of 5 files. Empty file, nothing to save: x-empty.txt. Teak can't save this type of file: notes.exe."
     );
@@ -280,11 +283,13 @@ describe("upload failures", () => {
   });
 
   test("names up to three files, then says how many more", () => {
-    expect(formatFileNames(["a.txt"])).toBe("a.txt");
-    expect(formatFileNames(["a.txt", "b.txt"])).toBe("a.txt and b.txt");
-    expect(formatFileNames(["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"])).toBe(
-      "a.txt, b.txt, c.txt, and 2 more"
+    expect(formatFileNames(["a.txt"], uploadT)).toBe("a.txt");
+    expect(formatFileNames(["a.txt", "b.txt"], uploadT)).toBe(
+      "a.txt and b.txt"
     );
+    expect(
+      formatFileNames(["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"], uploadT)
+    ).toBe("a.txt, b.txt, c.txt, and 2 more");
   });
 
   test("groups files by what went wrong", () => {
@@ -294,16 +299,19 @@ describe("upload failures", () => {
       success: false as const,
     });
     expect(
-      describeUploadFailures([
-        empty("a.txt"),
-        {
-          error: "x",
-          errorCode: "FILE_TOO_LARGE",
-          file: "big.mov",
-          success: false,
-        },
-        empty("b.txt"),
-      ])
+      describeUploadFailures(
+        [
+          empty("a.txt"),
+          {
+            error: "x",
+            errorCode: "FILE_TOO_LARGE",
+            file: "big.mov",
+            success: false,
+          },
+          empty("b.txt"),
+        ],
+        uploadT
+      )
     ).toBe(
       "Empty files, nothing to save: a.txt and b.txt. Larger than 100 MB: big.mov."
     );
@@ -311,16 +319,22 @@ describe("upload failures", () => {
 
   test("keeps an unknown reason when the files share it, and drops it otherwise", () => {
     expect(
-      describeUploadFailures([
-        { error: "Network down", file: "a.txt", success: false },
-        { error: "Network down", file: "b.txt", success: false },
-      ])
+      describeUploadFailures(
+        [
+          { error: "Network down", file: "a.txt", success: false },
+          { error: "Network down", file: "b.txt", success: false },
+        ],
+        uploadT
+      )
     ).toBe("a.txt and b.txt: Network down");
     expect(
-      describeUploadFailures([
-        { error: "Network down", file: "a.txt", success: false },
-        { error: "Timed out", file: "b.txt", success: false },
-      ])
+      describeUploadFailures(
+        [
+          { error: "Network down", file: "a.txt", success: false },
+          { error: "Timed out", file: "b.txt", success: false },
+        ],
+        uploadT
+      )
     ).toBe("Couldn't upload: a.txt and b.txt.");
   });
 });
@@ -353,15 +367,15 @@ describe("uploadAcceptAttribute", () => {
 
 describe("formatSkippedNote", () => {
   test("says how many files were skipped and what the limit is", () => {
-    expect(formatSkippedNote(5, 20)).toBe(
+    expect(formatSkippedNote(5, 20, uploadT)).toBe(
       "5 files were skipped. You can upload up to 20 at a time."
     );
-    expect(formatSkippedNote(1, 20)).toBe(
+    expect(formatSkippedNote(1, 20, uploadT)).toBe(
       "1 file was skipped. You can upload up to 20 at a time."
     );
   });
 
   test("is empty when nothing was skipped", () => {
-    expect(formatSkippedNote(0, 20)).toBe("");
+    expect(formatSkippedNote(0, 20, uploadT)).toBe("");
   });
 });

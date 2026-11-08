@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { englishTranslator } from "../englishTranslators";
+
 const toastSuccess = mock();
 const toastError = mock();
 
@@ -41,7 +43,10 @@ describe("copyColorHexToClipboard", () => {
     const writeText = mock((_text: string) => Promise.resolve());
     setClipboard(writeText);
 
-    await copyColorHexToClipboard("#112233");
+    await copyColorHexToClipboard(
+      "#112233",
+      englishTranslator("lib.clipboard")
+    );
 
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(writeText).toHaveBeenCalledWith("#112233");
@@ -54,7 +59,10 @@ describe("copyColorHexToClipboard", () => {
     );
     setClipboard(writeText);
 
-    await copyColorHexToClipboard("#112233");
+    await copyColorHexToClipboard(
+      "#112233",
+      englishTranslator("lib.clipboard")
+    );
 
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(toastError).toHaveBeenCalledWith("Failed to copy");

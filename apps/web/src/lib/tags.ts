@@ -6,13 +6,7 @@ import {
   tagKey,
 } from "@teak/convex/shared/tags";
 import type { TeakTranslator } from "@teak/i18n";
-import { ConvexError } from "convex/values";
-import { englishErrors, englishTranslator } from "./englishTranslators";
-import {
-  type ErrorsTranslator,
-  translateErrorKey,
-  translateServerMessage,
-} from "./serverErrors";
+import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
@@ -52,33 +46,9 @@ export const TAG_OPERATION_OVERLAY_MS = 2 * 60_000;
 
 export type TagsTranslator = TeakTranslator<"lib.tags">;
 
-const englishTags: TagsTranslator = englishTranslator("lib.tags");
-
-export const tagErrorMessage = (
-  error: unknown,
-  fallback: string,
-  t: ErrorsTranslator = englishErrors
-) => {
-  if (error instanceof ConvexError) {
-    const message = (error.data as { message?: unknown } | undefined)?.message;
-    if (typeof message === "string") {
-      return translateServerMessage(t, message);
-    }
-  }
-  return fallback;
-};
-
-export const tagErrorCode = (error: unknown): string | undefined => {
-  if (error instanceof ConvexError) {
-    const code = (error.data as { code?: unknown } | undefined)?.code;
-    return typeof code === "string" ? code : undefined;
-  }
-  return undefined;
-};
-
 export const tagOperationTitle = (
   operation: TagOperationView,
-  t: TagsTranslator = englishTags
+  t: TagsTranslator
 ) => {
   // Tags shows a renamed or merged tag as it was typed, so the toast does too.
   const values = { from: operation.from, to: (operation.to ?? "").trim() };
@@ -96,7 +66,7 @@ export const tagOperationTitle = (
 
 export const tagOperationDescription = (
   operation: TagOperationView,
-  t: TagsTranslator = englishTags
+  t: TagsTranslator
 ) => {
   if (operation.status === "completed") {
     return t("changedDescription", { count: operation.changed });
@@ -160,7 +130,7 @@ export const applyTagOperationToSummary = (
 
 export const explainTagNameInput = (
   name: string,
-  t: ErrorsTranslator = englishErrors
+  t: ErrorsTranslator
 ): string | null => {
   const trimmed = name.trim();
   if (!trimmed) {

@@ -1,9 +1,5 @@
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { Dices, FolderSearch, Layers, SlidersHorizontal } from "vadivam-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { CARD_DENSITIES, type CardDensity } from "../../lib/cardDensity";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import type { LibrarySort } from "../../lib/searchUrlState";
@@ -33,7 +30,7 @@ import {
   englishCardTypes,
 } from "../cards/cardTypeLabel";
 
-const englishSearch = createTeakTranslator("en", englishMessages, "search");
+const englishSearch = englishTranslator("search");
 
 interface ViewMenuProps {
   activeTypes: readonly CardType[];

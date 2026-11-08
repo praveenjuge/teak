@@ -7,7 +7,6 @@ import {
   MAX_FILE_SIZE,
 } from "@teak/convex/shared/fileFormats";
 import type { TeakTranslator } from "@teak/i18n";
-import { englishTranslator } from "../englishTranslators";
 import { CARD_DRAG_TYPE } from "../folders";
 
 export interface ExtractFilesResult {
@@ -181,8 +180,6 @@ export function summarizeBatchResults(
 
 export type UploadMessagesTranslator = TeakTranslator<"lib.upload">;
 
-const englishUpload: UploadMessagesTranslator = englishTranslator("lib.upload");
-
 export type UploadFailureKind =
   | "empty"
   | "mismatch"
@@ -227,7 +224,7 @@ const NAMED_FILES = 3;
 /** "a.txt, b.txt, c.txt and 2 more", in the reader's language. */
 export function formatFileNames(
   names: string[],
-  t: UploadMessagesTranslator = englishUpload,
+  t: UploadMessagesTranslator,
   locale?: string
 ): string {
   const shown = names.slice(0, NAMED_FILES);
@@ -253,7 +250,7 @@ const maxFileSizeLabel = (locale?: string) =>
  */
 export function describeUploadFailures(
   failures: UploadMultipleFilesResultItem[],
-  t: UploadMessagesTranslator = englishUpload,
+  t: UploadMessagesTranslator,
   locale?: string
 ): string {
   const groups = new Map<UploadFailureKind, UploadMultipleFilesResultItem[]>();
@@ -295,7 +292,7 @@ export function describeUploadFailures(
 
 export function formatPartialFailureMessage(
   summary: BatchSummary,
-  t: UploadMessagesTranslator = englishUpload,
+  t: UploadMessagesTranslator,
   locale?: string
 ): string {
   const { failures, successCount, total } = summary;
@@ -330,7 +327,7 @@ export function uploadAcceptAttribute(): string {
 export function formatSkippedNote(
   skippedCount: number,
   maxFiles: number,
-  t: UploadMessagesTranslator = englishUpload
+  t: UploadMessagesTranslator
 ): string {
   if (skippedCount <= 0) {
     return "";

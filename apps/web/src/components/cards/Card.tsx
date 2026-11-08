@@ -1,9 +1,5 @@
 import { api } from "@teak/convex";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
@@ -40,6 +36,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { openCardLink } from "@/lib/openCardLink";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
@@ -97,9 +94,7 @@ const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
 type AccessibleLabelTranslator = TeakTranslator<"cards.accessibleLabel">;
 
-const englishAccessibleLabel: AccessibleLabelTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
+const englishAccessibleLabel: AccessibleLabelTranslator = englishTranslator(
   "cards.accessibleLabel"
 );
 
