@@ -181,17 +181,12 @@ const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
 // never expire on their own.
 const API_KEY_AUTH_CACHE_TTL_MS = 10 * 60_000;
 
-// Forgets a key's cached validations here and, through the Core Worker, at
-// the edge; every path that revokes a key (revoke, rotate, revoke all,
-// account deletion) comes through here.
-const forgetApiKeyAuth = async (
+// Every cached validation is deleted through here, so the edge forgets the
+// token too (through the Core Worker) whichever path drops it.
+const deleteApiKeyAuthRows = async (
   ctx: MutationCtx,
-  keyId: string
+  rows: Doc<"apiKeyAuthCache">[]
 ): Promise<void> => {
-  const rows = await ctx.db
-    .query("apiKeyAuthCache")
-    .withIndex("by_keyId", (q) => q.eq("keyId", keyId))
-    .take(LIST_LIMIT);
   for (const row of rows) {
     await ctx.db.delete("apiKeyAuthCache", row._id);
   }
@@ -200,6 +195,21 @@ const forgetApiKeyAuth = async (
       keys: rows.map((row) => edgeIdentityKeyForToken(row.tokenHash)),
     });
   }
+};
+
+// Forgets a key's cached validations; every path that revokes a key (revoke,
+// rotate, revoke all, account deletion) comes through here.
+const forgetApiKeyAuth = async (
+  ctx: MutationCtx,
+  keyId: string
+): Promise<void> => {
+  await deleteApiKeyAuthRows(
+    ctx,
+    await ctx.db
+      .query("apiKeyAuthCache")
+      .withIndex("by_keyId", (q) => q.eq("keyId", keyId))
+      .take(LIST_LIMIT)
+  );
 };
 
 const revokeComponentKey = async (
@@ -485,9 +495,7 @@ const validateCachedComponentApiKey = async (
 
   const validated = await validateComponentApiKey(ctx, token);
   if (!validated) {
-    if (cached) {
-      await ctx.db.delete("apiKeyAuthCache", cached._id);
-    }
+    await deleteApiKeyAuthRows(ctx, cached ? [cached] : []);
     return null;
   }
   const entry = {

@@ -32,17 +32,38 @@ import {
  * once. Convex refuses them on its own either way; the cache's five-minute
  * expiry is the backstop if this fails.
  */
+const PURGE_ATTEMPTS = 3;
+
 export const purgeEdgeIdentity = internalAction({
-  args: { keys: v.array(v.string()) },
+  args: { keys: v.array(v.string()), attempt: v.optional(v.number()) },
   returns: v.null(),
-  handler: async (_ctx, { keys }) => {
+  handler: async (ctx, { keys, attempt = 1 }) => {
     if (keys.length === 0 || !isCoreWorkerConfigured()) {
       return null;
     }
-    const outcome = await callCoreWorkerOp({
-      op: "purge-edge-identity",
-      params: { keys },
-    });
+    let outcome: Awaited<
+      ReturnType<typeof callCoreWorkerOp<"purge-edge-identity">>
+    >;
+    try {
+      outcome = await callCoreWorkerOp({
+        op: "purge-edge-identity",
+        params: { keys },
+      });
+    } catch (error) {
+      // A network failure or a Worker error: try again shortly, a few times.
+      if (attempt < PURGE_ATTEMPTS) {
+        await ctx.scheduler.runAfter(
+          2 ** attempt * 1000,
+          internal.edgeIdentity.purgeEdgeIdentity,
+          { keys, attempt: attempt + 1 }
+        );
+      } else {
+        console.warn("[edgeIdentity] purge failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return null;
+    }
     if (outcome.kind !== "ok") {
       console.warn("[edgeIdentity] purge declined", { code: outcome.code });
     }

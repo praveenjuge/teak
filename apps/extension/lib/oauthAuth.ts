@@ -11,7 +11,7 @@ import {
 } from "teak-sdk";
 import {
   captureOwnerKey,
-  legacyTeakSite,
+  convexSite,
   siteStorageKey,
   teakSite,
 } from "./captureOwner";
@@ -232,7 +232,7 @@ async function writeCredentials(credentials: Credentials | null) {
 // is bound to it; it moves to the API URL, whose tokens are the same, so the
 // move to teakvault.com/api signs nobody out (.agents/records/sunset.md).
 const savedOrigin = (siteUrl: string) =>
-  siteUrl === legacyTeakSite() ? teakSite() : siteUrl;
+  siteUrl === convexSite() ? teakSite() : siteUrl;
 
 // The saved shape stays as it was, so an update signs nobody out.
 const fromSaved = (saved: Credentials | null): OAuthCredentials | null =>

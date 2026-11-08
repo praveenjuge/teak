@@ -9,10 +9,14 @@ const baseUrl = (url: string) => {
 /** The Teak API base URL: an origin, or an origin and a path such as `/api`. */
 export const teakSite = () => baseUrl(getApiUrl());
 
-/** The Convex site URL, which sign-ins saved before `teakSite` moved are bound to. */
-export const legacyTeakSite = () => baseUrl(getConvexSiteUrl());
+/**
+ * The deployment's Convex site URL: it names development storage, so a dev
+ * build pointed at another API URL still finds its sign-in, and sign-ins
+ * saved before `teakSite` moved to the API URL are bound to it.
+ */
+export const convexSite = () => baseUrl(getConvexSiteUrl());
 export const siteStorageKey = (name: string) =>
-  import.meta.env.DEV ? `${name}:${teakSite()}` : name;
+  import.meta.env.DEV ? `${name}:${convexSite()}` : name;
 export const captureOwnerKey = () => siteStorageKey("teakOAuthOwner");
 
 export async function getCaptureOwner(): Promise<string | undefined> {

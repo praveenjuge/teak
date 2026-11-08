@@ -129,8 +129,8 @@ So a change doesn't move it back:
 - **Analytics events from mutations** ride the workflow dispatch outbox to
   the Core Worker, which sends them to PostHog.
 - **MCP session traffic** (`initialize`, `tools/list`, `ping`) is answered at
-  the edge for a known user; only tool calls reach Convex, which checks the
-  request's bearer once for all of them.
+  the edge for a known user; only tool calls reach Convex, and a single tool
+  call reuses the endpoint's check of the bearer instead of checking it twice.
 - **API auth and abuse limits.** Requests the edge has charged (known users,
   and unknown credentials) skip Convex's `publicApiRequests` and
   `invalidApiAuth` writes, and an API key validated in the last ten minutes is

@@ -588,11 +588,11 @@ describe("Convex MCP endpoint", () => {
     expect(payload[2]?.result.tools).toHaveLength(TEAK_V1_TOOLS.length);
   });
 
-  test("a batch of tool calls checks its bearer once and charges each call", async () => {
-    const calls: Record<string, unknown>[] = [];
+  const meBackend = () => {
+    const mutations: Record<string, unknown>[] = [];
     const runMutation = mock(
       (_reference: unknown, args: Record<string, unknown>) => {
-        calls.push(args);
+        mutations.push(args);
         return Promise.resolve(
           args.token
             ? {
@@ -601,31 +601,58 @@ describe("Convex MCP endpoint", () => {
                 access: "full_access",
                 source: "component",
                 rateLimitKey: "component:key_1",
+                rateLimit: { ok: true },
               }
             : { ok: true }
         );
       }
     );
-    const getMe = (id: number) => ({
-      jsonrpc: "2.0",
-      id,
-      method: "tools/call",
-      params: { name: "teak_v1_get_me", arguments: {} },
+    const runQuery = mock().mockResolvedValue({
+      id: "user_1",
+      email: "owner@example.com",
+      locale: "en",
     });
+    return {
+      ctx: mockActionCtx(withMappedOwner({ runMutation, runQuery })),
+      keyChecks: () => mutations.filter((args) => args.token).length,
+      charges: () => mutations.filter((args) => args.rateLimitKey).length,
+    };
+  };
+  const getMe = (id: number) => ({
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: { name: "teak_v1_get_me", arguments: {} },
+  });
+  const succeeded = async (response: Response) =>
+    ([await response.json()].flat() as JsonRpcSuccess[]).map(
+      (row) => row.result.isError !== true
+    );
 
-    await handleMcpV1Request(
-      mockActionCtx(withMappedOwner({ runMutation, runQuery: mock() })),
+  test("a single tool call runs on the gate's check of its bearer", async () => {
+    const backend = meBackend();
+    const response = await handleMcpV1Request(
+      backend.ctx,
+      mcpRequest(getMe(1))
+    );
+
+    expect(await succeeded(response)).toEqual([true]);
+    // One key check; the edge didn't charge the request, so the call is.
+    expect(backend.keyChecks()).toBe(1);
+    expect(backend.charges()).toBe(1);
+  });
+
+  test("a batch checks the bearer again for each tool call", async () => {
+    const backend = meBackend();
+    const response = await handleMcpV1Request(
+      backend.ctx,
       mcpRequest([getMe(1), getMe(2), getMe(3)])
     );
 
-    // One key check for the request; the edge didn't charge it, so each
-    // tool call is charged against the key's limit instead.
-    expect(calls.filter((args) => args.token)).toHaveLength(1);
-    expect(calls.filter((args) => args.rateLimitKey)).toEqual([
-      { rateLimitKey: "component:key_1" },
-      { rateLimitKey: "component:key_1" },
-      { rateLimitKey: "component:key_1" },
-    ]);
+    expect(await succeeded(response)).toEqual([true, true, true]);
+    // The gate, then each call, so a key revoked mid-batch stops the rest.
+    expect(backend.keyChecks()).toBe(4);
+    expect(backend.charges()).toBe(0);
   });
 
   test("answers an unknown tool with JSON-RPC invalid params", async () => {

@@ -649,6 +649,29 @@ test("with an API URL, requests go through it and count toward the badge's budge
   expect(apiRequestsInLastMinute()).toBe(before + 1);
 });
 
+test("a development build pointed at another API URL keeps its saved sign-in", async () => {
+  process.env.DEV = "true";
+  process.env.VITE_PUBLIC_API_URL = "https://teak.example.com/api";
+  const devKey = `${tokenKey}:https://test.convex.site`;
+  storage[devKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 3_600_000,
+    ...workosBinding,
+    issuer: "https://auth.dev.test.workos.com",
+    clientId: "client_dev_chrome",
+  };
+  globalThis.fetch = withDiscovery((() =>
+    Promise.resolve(
+      Response.json({ cardId: "card" })
+    )) as unknown as typeof fetch);
+  const auth = await load();
+
+  // Storage is still named after the deployment's Convex site URL.
+  expect(await send(auth)).toBe("sent");
+  expect(storage[devKey]).toBeDefined();
+});
+
 test("a refreshed sign-in saved for the Convex site URL is saved again for the API URL", async () => {
   process.env.VITE_PUBLIC_API_URL = "https://teak.example.com/api";
   storage[tokenKey] = {

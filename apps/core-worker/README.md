@@ -188,8 +188,10 @@ mutation. An unknown credential the edge has charged (its lookup, or
 `UNKNOWN_CREDENTIAL_LIMITER`) is attested over a separate
 `unknown_credential` payload: Convex skips its shared `invalidApiAuth`
 bucket for it, but a key the edge just hadn't learned yet (its first minute)
-is still charged to its owner's limit, per tool call on MCP. The MCP endpoint
-checks a request's bearer once and runs its tool calls as that user.
+is still charged to its owner's limit, per tool call on MCP. A single-message
+MCP request runs its tool call on the endpoint's own check of the bearer; in
+a batch each tool call checks it again, so a key revoked mid-batch stops the
+calls after it.
 Everything else is charged by Convex as before: requests without the
 attestation (including any that reach `convex.site` directly), JSON-RPC
 batches, whose tool calls Convex charges one by one, and requests sent while

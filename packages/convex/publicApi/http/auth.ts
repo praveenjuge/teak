@@ -630,11 +630,10 @@ const authorizeMcpRequest = async (
   };
 };
 
-/** Charges one call by an already authorized user; a Response refuses it. */
-const chargeAuthorizedCall = async (
+const refuseCall = async (
   ctx: ActionCtx,
   validated: AuthorizedUser
-): Promise<Response | null> => {
+): Promise<Decision | null> => {
   let limit: { ok: boolean; retryAt?: number };
   try {
     limit = await ctx.runMutation(internal.publicApi.chargeApiRequest, {
@@ -642,19 +641,52 @@ const chargeAuthorizedCall = async (
     });
   } catch (error) {
     if (isRateLimitContentionError(error)) {
-      return RATE_LIMIT_CONTENTION_ERROR();
+      return decide(
+        { error: RATE_LIMIT_CONTENTION_ERROR() },
+        "rate_limit_contention"
+      );
     }
     if (isOptimisticConcurrencyError(error)) {
-      return SERVICE_BUSY_ERROR();
+      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
     }
-    return AUTH_INTERNAL_ERROR();
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
   return limit.ok
     ? null
-    : RATE_LIMITED_ERROR(
-        limit.retryAt,
-        RATE_LIMIT_CONFIG.publicApiRequests.capacity
+    : decide(
+        {
+          error: RATE_LIMITED_ERROR(
+            limit.retryAt,
+            RATE_LIMIT_CONFIG.publicApiRequests.capacity
+          ),
+        },
+        "rate_limited"
       );
+};
+
+/**
+ * Charges one call by an already authorized user; a Response refuses it,
+ * and is logged as that call's auth outcome like any other refusal.
+ */
+const chargeAuthorizedCall = async (
+  ctx: ActionCtx,
+  request: Request,
+  validated: AuthorizedUser
+): Promise<Response | null> => {
+  const refused = await refuseCall(ctx, validated);
+  if (!refused) {
+    return null;
+  }
+  if ("error" in refused.result) {
+    recordAuthOutcome(
+      request,
+      { resource: "mcp" },
+      refused.reason,
+      refused.result.error.status
+    );
+    return refused.result.error;
+  }
+  return null;
 };
 
 export {

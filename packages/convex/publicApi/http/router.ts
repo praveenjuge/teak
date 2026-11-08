@@ -163,7 +163,7 @@ const authorizeRun = async (
   }
   const { chargeEachCall, validated } = run.authorized;
   const refused = chargeEachCall
-    ? await chargeAuthorizedCall(ctx, validated)
+    ? await chargeAuthorizedCall(ctx, run.request, validated)
     : null;
   return refused ? { error: refused } : { validated };
 };

@@ -11,6 +11,7 @@ import { type FunctionReference, getFunctionName } from "convex/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { internal } from "../../../_generated/api";
 import {
+  chargeAuthorizedCall,
   validatePublicApiBearer,
   withAuthorizedUser,
 } from "../../../publicApi/http/auth";
@@ -206,6 +207,34 @@ describe("public API auth outcomes", () => {
         getFunctionName(ref as FunctionReference<"query">)
       )
     ).toEqual([READ_KEY]);
+  });
+
+  test("an MCP tool call refused by its own charge is logged as rate limited", async () => {
+    const refused = await chargeAuthorizedCall(
+      mockActionCtx({
+        runMutation: mock().mockResolvedValue({ ok: false, retryAt: 1 }),
+        runQuery: mock(),
+      }),
+      request(API_KEY, "/mcp"),
+      {
+        access: "full_access",
+        keyId: "key_1",
+        rateLimitKey: "component:key_1",
+        source: "component",
+        userId: "user_1" as never,
+      }
+    );
+
+    expect(refused?.status).toBe(429);
+    expect(outcomes()).toEqual([
+      {
+        surface: "mcp",
+        check: "request",
+        status: 429,
+        credential: "api_key",
+        reason: "rate_limited",
+      },
+    ]);
   });
 
   test("the MCP transport gate is logged once as a gate check", async () => {

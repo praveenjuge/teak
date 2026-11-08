@@ -125,7 +125,7 @@ const isJsonRpcId = (id: unknown): id is number | string =>
 const handleJsonRpcMessage = async (
   ctx: ActionCtx,
   request: Request,
-  authorized: AuthorizedCaller,
+  authorized: AuthorizedCaller | undefined,
   message: unknown
 ): Promise<JsonObject | null> => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
@@ -263,14 +263,13 @@ const handleMcpPost = async (
   // limit is refused by the API like any other, so a card's own limit (say,
   // refreshing it twice in a minute) doesn't fail the calls after it.
   const messages = Array.isArray(body) ? body : [body];
+  // A single message runs as the user the gate just checked. In a batch each
+  // tool call checks the credential again, so revoking a key part-way
+  // through stops the calls after it.
+  const caller = messages.length === 1 ? authorized : undefined;
   const responses: JsonObject[] = [];
   for (const message of messages) {
-    const response = await handleJsonRpcMessage(
-      ctx,
-      request,
-      authorized,
-      message
-    );
+    const response = await handleJsonRpcMessage(ctx, request, caller, message);
     if (response) {
       responses.push(response);
     }
