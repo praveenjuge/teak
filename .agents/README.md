@@ -89,8 +89,9 @@ folders the installer adds; the drift test fails while they're there.
 - Refactoring: `untangle-codebase`, from `caldoai/skills`
   (`npx skills add caldoai/skills -s untangle-codebase -a codex -y`). Type
   `/untangle-codebase [area]` to run it; agents never load it on their own.
-  It refactors a whole codebase (or the area you name) so pieces that change
-  together live together, keeping a decision log as it goes. It ends when
+  It refactors the whole codebase so pieces that change together live
+  together, starting from the area or concern you name, if any (the area is
+  where it looks first, not a boundary), and keeps a decision log as it goes. It ends when
   subagents find nothing left worth fixing, so expect a long, large change.
 
 ## Agents
