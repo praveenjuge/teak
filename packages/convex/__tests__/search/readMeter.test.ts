@@ -45,16 +45,20 @@ describe("search read meter", () => {
     const log = logged();
     const ctx = { db: fakeDb() } as unknown as QueryCtx;
 
-    const result = await withReadMeter(ctx, "text", async (metered) => {
-      const db = metered.db as unknown as ReturnType<typeof fakeDb>;
-      await db.query().withIndex().take(2);
-      await db.query().order().paginate();
-      await db.get("c");
-      for await (const _row of db.query()) {
-        // read every row
+    const result = await withReadMeter(
+      ctx,
+      { searchQuery: "design" },
+      async (metered) => {
+        const db = metered.db as unknown as ReturnType<typeof fakeDb>;
+        await db.query().withIndex().take(2);
+        await db.query().order().paginate();
+        await db.get("c");
+        for await (const _row of db.query()) {
+          // read every row
+        }
+        return "done";
       }
-      return "done";
-    });
+    );
 
     expect(result).toBe("done");
     expect(log.lines()).toEqual([
@@ -68,12 +72,35 @@ describe("search read meter", () => {
     const ctx = { db: fakeDb() } as unknown as QueryCtx;
 
     await expect(
-      withReadMeter(ctx, "list", () => Promise.reject(new Error("too broad")))
+      withReadMeter(ctx, {}, () => Promise.reject(new Error("too broad")))
     ).rejects.toThrow("too broad");
     expect(log.lines()).toEqual([
       { branch: "list", returnedDocs: 0, returnedBytes: 0 },
     ]);
   });
+
+  test.each([
+    ["design", undefined, "text"],
+    ["mood:calm", undefined, "like"],
+    ["", "f1", "folder"],
+  ] as const)(
+    "a smart folder's merged query %p (folder %p) logs as %s",
+    async (searchQuery, folderId, branch) => {
+      const log = logged();
+      const ctx = { db: fakeDb() } as unknown as QueryCtx;
+
+      await withReadMeter(
+        ctx,
+        { folderId: "smart" },
+        (_metered, reportSearch) => {
+          reportSearch(searchQuery, folderId);
+          return Promise.resolve(null);
+        }
+      );
+
+      expect(log.lines()[0].branch).toBe(branch);
+    }
+  );
 
   test.each([
     [{ searchQuery: " mood:calm" }, "like"],

@@ -24,13 +24,15 @@ export type SearchBranch =
  * words or `text:` read the search indexes, `like:` and `mood:` read the
  * meaning ranking, and qualifiers alone (`tag:ui`) read ordinary indexes.
  */
-export const searchBranch = (args: {
+interface BranchArgs {
   folderId?: string;
   folderQuery?: string;
   searchQuery?: string;
   sort?: string;
   tag?: string;
-}): SearchBranch => {
+}
+
+export const searchBranch = (args: BranchArgs): SearchBranch => {
   const parsed = parseSearchQuery(args.searchQuery ?? "");
   if (parsed.similarity) {
     return "like";
@@ -127,18 +129,39 @@ const metered = <T extends object>(target: T, meter: Meter): T =>
     },
   });
 
+/** Reports the search after a smart folder's saved query is merged in. */
+export type ExpandedSearchReport = (
+  searchQuery: string,
+  folderId: string | undefined
+) => void;
+
 /**
  * Runs `read` with a database that counts what it reads, then logs one line
- * with the branch, the documents and their approximate size.
+ * with the branch, the documents and their approximate size. The branch
+ * starts from the arguments and is set again from the search `read`
+ * reports once a smart folder's saved query is merged in, since only then
+ * does the handler know which branch it takes.
  */
 export const withReadMeter = async <T>(
   ctx: QueryCtx,
-  branch: SearchBranch,
-  read: (ctx: QueryCtx) => Promise<T>
+  args: BranchArgs,
+  read: (ctx: QueryCtx, reportSearch: ExpandedSearchReport) => Promise<T>
 ): Promise<T> => {
   const meter: Meter = { bytes: 0, docs: 0 };
+  let branch = searchBranch(args);
+  const reportSearch: ExpandedSearchReport = (searchQuery, folderId) => {
+    branch = searchBranch({
+      searchQuery,
+      folderId,
+      sort: args.sort,
+      tag: args.tag,
+    });
+  };
   try {
-    return await read(ctx.db ? { ...ctx, db: metered(ctx.db, meter) } : ctx);
+    return await read(
+      ctx.db ? { ...ctx, db: metered(ctx.db, meter) } : ctx,
+      reportSearch
+    );
   } finally {
     console.log(
       "[search/readMeter]",

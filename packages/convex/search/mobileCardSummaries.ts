@@ -3,7 +3,7 @@ import { query } from "../_generated/server";
 import { cardDisplayTitle, cardPreviewText } from "../card/displayTitle";
 import { type CardWithUrls, linkPreviewImageFields } from "../card/queryUtils";
 import { cardTypeValidator } from "../schema/validators/cards";
-import { searchBranch, withReadMeter } from "./readMeter";
+import { withReadMeter } from "./readMeter";
 import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
@@ -96,8 +96,11 @@ export const searchMobileCardSummariesPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,
   returns: paginationResultValidator,
   handler: async (ctx, args) => {
-    const result = await withReadMeter(ctx, searchBranch(args), (metered) =>
-      searchCardsPaginatedHandler(metered, args, { summariesOnly: true })
+    const result = await withReadMeter(ctx, args, (metered, reportSearch) =>
+      searchCardsPaginatedHandler(metered, args, {
+        summariesOnly: true,
+        reportSearch,
+      })
     );
 
     return {
