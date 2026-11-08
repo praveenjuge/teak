@@ -2,6 +2,7 @@ import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import {
   buildEdgeRateLimitSigningPayload,
   EDGE_RATE_LIMIT_MAX_TTL_SECONDS,
+  type EdgeRateLimitCharge,
   hmacSha256Hex,
   sha256Hex,
 } from "@teak/files-protocol";
@@ -203,7 +204,8 @@ const rateLimitedResponse = async (
 
 const attestationFor = async (
   request: Request,
-  secret: string
+  secret: string,
+  charge: EdgeRateLimitCharge = "owner"
 ): Promise<string | null> => {
   const authorization = request.headers.get("authorization");
   if (!(authorization && secret)) {
@@ -215,6 +217,7 @@ const attestationFor = async (
   const signature = await hmacSha256Hex(
     secret,
     buildEdgeRateLimitSigningPayload({
+      charge,
       credentialSha256: await sha256Hex(authorization),
       expiresAt,
     })
@@ -268,8 +271,18 @@ export const applyEdgeRateLimit = async (
   }
   const unknownCredential =
     !isKnownUser(identity) && request.headers.has("authorization");
+  // An unknown credential this edge has charged (its lookup, or the
+  // unknown-credential limiter below) is attested as such, so Convex skips
+  // its shared invalid-credential bucket but still charges the owner's limit,
+  // per tool call, if the credential turns out valid.
   if (identity.source === "address" && identity.lookup === "charged") {
-    return { attestation: null };
+    return {
+      attestation: await attestationFor(
+        request,
+        env.FILES_SIGNING_SECRET,
+        "unknown_credential"
+      ),
+    };
   }
   const limiter = unknownCredential
     ? env.UNKNOWN_CREDENTIAL_LIMITER
@@ -296,7 +309,15 @@ export const applyEdgeRateLimit = async (
   }
 
   if (!isKnownUser(identity)) {
-    return { attestation: null };
+    return {
+      attestation: unknownCredential
+        ? await attestationFor(
+            request,
+            env.FILES_SIGNING_SECRET,
+            "unknown_credential"
+          )
+        : null,
+    };
   }
   const charged = isTeakUser(identity) ? { identity } : {};
   if (isMcpPath(request) && (await mayBeJsonArrayBody(request))) {

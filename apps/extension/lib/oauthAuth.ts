@@ -9,7 +9,12 @@ import {
   TeakApiError,
   type TeakClient,
 } from "teak-sdk";
-import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
+import {
+  captureOwnerKey,
+  convexSite,
+  siteStorageKey,
+  teakSite,
+} from "./captureOwner";
 import { rememberAccountLocale } from "./locale";
 import { isPrivateSession } from "./privateSession";
 import { recordApiRequest } from "./requestBudget";
@@ -223,13 +228,19 @@ async function writeCredentials(credentials: Credentials | null) {
   });
 }
 
+// A sign-in saved while the extension called the Convex site URL directly
+// is bound to it; it moves to the API URL, whose tokens are the same, so the
+// move to teakvault.com/api signs nobody out (.agents/records/sunset.md).
+const savedOrigin = (siteUrl: string) =>
+  siteUrl === convexSite() ? teakSite() : siteUrl;
+
 // The saved shape stays as it was, so an update signs nobody out.
 const fromSaved = (saved: Credentials | null): OAuthCredentials | null =>
   saved && {
     accessToken: saved.accessToken,
     expiresAt: saved.expiresAt,
     refreshToken: saved.refreshToken,
-    ...(saved.siteUrl ? { origin: saved.siteUrl } : {}),
+    ...(saved.siteUrl ? { origin: savedOrigin(saved.siteUrl) } : {}),
     ...(saved.issuer ? { issuer: saved.issuer } : {}),
     ...(saved.clientId ? { clientId: saved.clientId } : {}),
     ...(saved.userId ? { ownerId: saved.userId } : {}),
@@ -268,7 +279,8 @@ const oauthSession = (): OAuthSession => {
 // cookies and redirects out of them.
 const teakFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.origin === teakSite()) {
+  const base = teakSite();
+  if (url.href === base || url.href.startsWith(`${base}/`)) {
     recordApiRequest();
   }
   return fetch(input, { ...init, credentials: "omit", redirect: "error" });

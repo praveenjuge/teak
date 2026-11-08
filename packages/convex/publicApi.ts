@@ -1127,6 +1127,18 @@ export async function limitApiRequests(
   }
 }
 
+/**
+ * Charges one public API request against an already validated caller's
+ * limit: an MCP tool call the Core Worker didn't charge, whose bearer the
+ * MCP endpoint already checked.
+ */
+export const chargeApiRequest = internalMutation({
+  args: { rateLimitKey: v.string() },
+  returns: rateLimitResultValidator,
+  handler: (ctx, { rateLimitKey }) =>
+    limitApiRequests(ctx, `key:${rateLimitKey}` as ValidatedRateLimitKey),
+});
+
 export const consumeInvalidApiAuthLimit = internalMutation({
   args: {},
   returns: rateLimitResultValidator,

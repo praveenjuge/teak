@@ -6,6 +6,15 @@ export const getConvexSiteUrl = (): string => {
   return url;
 };
 
+/**
+ * Where the extension calls the Teak API: `VITE_PUBLIC_API_URL` when the
+ * build sets it (production builds use https://teakvault.com/api, the edge
+ * proxy that answers and rate-limits at Cloudflare), else the deployment's
+ * Convex site URL, as development and self-hosted builds do.
+ */
+export const getApiUrl = (): string =>
+  import.meta.env.VITE_PUBLIC_API_URL?.trim() || getConvexSiteUrl();
+
 export const missingBuildEnvError = (
   env: Record<string, string | undefined>
 ): string | null =>

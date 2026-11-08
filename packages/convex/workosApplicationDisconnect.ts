@@ -1,3 +1,4 @@
+import { edgeIdentityKeyForWorkosUser } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import {
@@ -121,6 +122,10 @@ export const revoke = internalMutation({
         disconnectCompletedAt: now,
       });
     }
+    // The edge no longer answers this user's MCP session requests as theirs.
+    await ctx.scheduler.runAfter(0, internal.edgeIdentity.purgeEdgeIdentity, {
+      keys: [edgeIdentityKeyForWorkosUser(args.workosUserId)],
+    });
     return null;
   },
 });

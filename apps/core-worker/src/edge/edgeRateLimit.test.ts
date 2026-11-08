@@ -354,7 +354,7 @@ describe("a known user", () => {
 });
 
 describe("requests without a known user", () => {
-  test("an unknown credential is limited per address on the stricter limiter, unattested", async () => {
+  test("an unknown credential is limited per address on the stricter limiter, and attested once charged", async () => {
     const shared = env({ unknown: new FakeLimiter(1) });
     const first = await limit(
       shared,
@@ -365,7 +365,23 @@ describe("requests without a known user", () => {
       request("/api/v1/cards", { key: STRANGER_KEY })
     );
 
-    expect(first).toEqual({ attestation: null });
+    // Charged here, so Convex skips its shared invalid-credential bucket; it
+    // is signed as an unknown-credential charge, never as the owner's limit.
+    expect(first).toEqual({ attestation: expect.any(String) });
+    const [expiresAt = "", signature] = (
+      "attestation" in first ? (first.attestation ?? "") : ""
+    ).split(".");
+    const signed = async (charge: "owner" | "unknown_credential") =>
+      await hmacSha256Hex(
+        SECRET,
+        buildEdgeRateLimitSigningPayload({
+          charge,
+          credentialSha256: await sha256Hex(`Bearer ${STRANGER_KEY}`),
+          expiresAt,
+        })
+      );
+    expect(signature).toBe(await signed("unknown_credential"));
+    expect(signature).not.toBe(await signed("owner"));
     expect(shared.unknown.keys).toEqual([`ip:${CLIENT_IP}`, `ip:${CLIENT_IP}`]);
     expect(shared.api.keys).toEqual([]);
     const response = "response" in second ? second.response : null;
@@ -500,6 +516,15 @@ describe("when the edge cannot limit", () => {
       expect(outcome).toEqual({ attestation: null });
     }
   );
+
+  test("an unknown credential the edge couldn't charge goes through unattested", async () => {
+    const shared = env({ unknown: new FakeLimiter(5, true) });
+    const outcome = await limit(
+      shared,
+      request("/api/v1/cards", { key: STRANGER_KEY })
+    );
+    expect(outcome).toEqual({ attestation: null });
+  });
 
   test("preflights are never charged", async () => {
     const shared = env();

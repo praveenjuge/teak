@@ -10,7 +10,7 @@ import {
   isOptimisticConcurrencyError,
   isRateLimitContentionError,
 } from "../../convexFailures";
-import { hasEdgeRateLimitAttestation } from "../../edgeIdentity";
+import { edgeRateLimitCharge } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
 import type { TeakUserId } from "../../securitySessions";
 import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
@@ -412,14 +412,33 @@ const authorizeConnectConsent = async (
   );
 };
 
+// A token's API key, read-only when it validated recently and nothing has to
+// be charged here; else the mutation that validates (and charges) it.
+const validateApiKey = async (
+  ctx: ActionCtx,
+  token: string,
+  chargeRateLimit: boolean
+) =>
+  (!chargeRateLimit &&
+    (await ctx.runQuery(internal.apiKeys.readValidatedApiKey, { token }))) ||
+  (await ctx.runMutation(internal.apiKeys.validateUserApiKey, {
+    token,
+    chargeRateLimit,
+  }));
+
 const authorizeBearer = async (
   ctx: ActionCtx,
   request: Request,
   options: AuthOptions
 ): Promise<Decision> => {
+  // The Core Worker attests a request it has charged, and to which limit. An
+  // owner charge covers `publicApiRequests`; any charge covers the shared
+  // invalid-credential bucket. A credential the edge didn't know may still be
+  // valid, so its owner's limit is charged here as usual.
+  const edgeCharge = await edgeRateLimitCharge(request);
+  const edgeCharged = edgeCharge !== null;
   const chargeRateLimit =
-    (options.chargeRateLimit ?? true) &&
-    !(await hasEdgeRateLimitAttestation(request));
+    (options.chargeRateLimit ?? true) && edgeCharge !== "owner";
   const token = parseBearerToken(request);
   if (!token) {
     return decide(
@@ -439,7 +458,7 @@ const authorizeBearer = async (
     !isApiKey && token.length <= 16_384 && token.split(".").length === 3;
 
   if (!(isApiKey || isConnectToken)) {
-    const limited = await enforceInvalidAuthLimit(ctx);
+    const limited = edgeCharged ? null : await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
     }
@@ -508,10 +527,7 @@ const authorizeBearer = async (
         rejection = tokenExpired ? "expired_token" : "invalid_token";
       }
     } else {
-      const credential = await ctx.runMutation(
-        internal.apiKeys.validateUserApiKey,
-        { token, chargeRateLimit }
-      );
+      const credential = await validateApiKey(ctx, token, chargeRateLimit);
       if (credential) {
         const { rateLimit: charged, ...key } = credential;
         rateLimit = charged;
@@ -539,7 +555,8 @@ const authorizeBearer = async (
     // bucket with junk.
     const issuerSigned =
       rejection === "expired_token" || rejection.startsWith("owner_");
-    const limited = issuerSigned ? null : await enforceInvalidAuthLimit(ctx);
+    const limited =
+      issuerSigned || edgeCharged ? null : await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
     }
@@ -588,7 +605,93 @@ const validatePublicApiBearer = async (
   return "error" in auth ? auth.error : null;
 };
 
+/**
+ * The MCP endpoint's one check of a request's bearer. Its tool calls run as
+ * the user it returns; `chargeEachCall` says whether each must still be
+ * charged against the owner's limit, because the Core Worker didn't charge
+ * the request (a direct call, or a JSON-RPC batch).
+ */
+const authorizeMcpRequest = async (
+  ctx: ActionCtx,
+  request: Request
+): Promise<
+  { error: Response } | { chargeEachCall: boolean; validated: AuthorizedUser }
+> => {
+  const auth = await withAuthorizedUser(ctx, request, {
+    chargeRateLimit: false,
+    resource: "mcp",
+  });
+  if ("error" in auth) {
+    return auth;
+  }
+  return {
+    validated: auth.validated,
+    chargeEachCall: (await edgeRateLimitCharge(request)) !== "owner",
+  };
+};
+
+const refuseCall = async (
+  ctx: ActionCtx,
+  validated: AuthorizedUser
+): Promise<Decision | null> => {
+  let limit: { ok: boolean; retryAt?: number };
+  try {
+    limit = await ctx.runMutation(internal.publicApi.chargeApiRequest, {
+      rateLimitKey: validated.rateLimitKey,
+    });
+  } catch (error) {
+    if (isRateLimitContentionError(error)) {
+      return decide(
+        { error: RATE_LIMIT_CONTENTION_ERROR() },
+        "rate_limit_contention"
+      );
+    }
+    if (isOptimisticConcurrencyError(error)) {
+      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
+    }
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+  }
+  return limit.ok
+    ? null
+    : decide(
+        {
+          error: RATE_LIMITED_ERROR(
+            limit.retryAt,
+            RATE_LIMIT_CONFIG.publicApiRequests.capacity
+          ),
+        },
+        "rate_limited"
+      );
+};
+
+/**
+ * Charges one call by an already authorized user; a Response refuses it,
+ * and is logged as that call's auth outcome like any other refusal.
+ */
+const chargeAuthorizedCall = async (
+  ctx: ActionCtx,
+  request: Request,
+  validated: AuthorizedUser
+): Promise<Response | null> => {
+  const refused = await refuseCall(ctx, validated);
+  if (!refused) {
+    return null;
+  }
+  if ("error" in refused.result) {
+    recordAuthOutcome(
+      request,
+      { resource: "mcp" },
+      refused.reason,
+      refused.result.error.status
+    );
+    return refused.result.error;
+  }
+  return null;
+};
+
 export {
+  authorizeMcpRequest,
+  chargeAuthorizedCall,
   classifyBearerCredential,
   respondIdempotently,
   trackIdempotency,

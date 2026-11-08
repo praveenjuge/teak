@@ -486,14 +486,21 @@ describe("Convex MCP endpoint", () => {
     const response = await handleMcpV1Request(
       mockActionCtx(
         withMappedOwner({
-          runMutation: mock().mockResolvedValue({
-            keyId: "key_1",
-            userId: "user_1",
-            access: "full_access",
-            source: "component",
-            rateLimitKey: "component:key_1",
-            rateLimit: { ok: true },
-          }),
+          runMutation: mock((_reference: unknown, args: { token?: string }) =>
+            Promise.resolve(
+              args.token
+                ? {
+                    keyId: "key_1",
+                    userId: "user_1",
+                    access: "full_access",
+                    source: "component",
+                    rateLimitKey: "component:key_1",
+                    rateLimit: { ok: true },
+                  }
+                : // The per-call charge of a request the edge didn't charge.
+                  { ok: true }
+            )
+          ),
           runQuery: mock().mockRejectedValue(new Error("transient")),
         })
       ),
@@ -533,16 +540,26 @@ describe("Convex MCP endpoint", () => {
     const response = await handleMcpV1Request(
       mockActionCtx(
         withMappedOwner({
-          runMutation: mock((_reference: unknown, args: { token?: string }) =>
-            args.token
-              ? Promise.resolve(credential)
-              : Promise.reject(
-                  new ConvexError({
-                    code: "RATE_LIMITED",
-                    message: "This card was refreshed a moment ago",
-                    retryAt: Date.now() + 30_000,
-                  })
-                )
+          runMutation: mock(
+            (
+              _reference: unknown,
+              args: { rateLimitKey?: string; token?: string }
+            ) => {
+              if (args.token) {
+                return Promise.resolve(credential);
+              }
+              // The request wasn't charged at the edge, so each tool call is.
+              if (args.rateLimitKey) {
+                return Promise.resolve({ ok: true });
+              }
+              return Promise.reject(
+                new ConvexError({
+                  code: "RATE_LIMITED",
+                  message: "This card was refreshed a moment ago",
+                  retryAt: Date.now() + 30_000,
+                })
+              );
+            }
           ),
           runQuery: mock().mockResolvedValue({
             _id: "card_1",
@@ -569,6 +586,118 @@ describe("Convex MCP endpoint", () => {
     expect(payload[0]?.result.structuredContent).toMatchObject({ status: 429 });
     expect(payload[1]).toEqual({ jsonrpc: "2.0", id: 2, result: {} });
     expect(payload[2]?.result.tools).toHaveLength(TEAK_V1_TOOLS.length);
+  });
+
+  const meBackend = () => {
+    const mutations: Record<string, unknown>[] = [];
+    const runMutation = mock(
+      (_reference: unknown, args: Record<string, unknown>) => {
+        mutations.push(args);
+        return Promise.resolve(
+          args.token
+            ? {
+                keyId: "key_1",
+                userId: "user_1",
+                access: "full_access",
+                source: "component",
+                rateLimitKey: "component:key_1",
+                rateLimit: { ok: true },
+              }
+            : { ok: true }
+        );
+      }
+    );
+    const runQuery = mock().mockResolvedValue({
+      id: "user_1",
+      email: "owner@example.com",
+      locale: "en",
+    });
+    return {
+      ctx: mockActionCtx(withMappedOwner({ runMutation, runQuery })),
+      keyChecks: () => mutations.filter((args) => args.token).length,
+      charges: () => mutations.filter((args) => args.rateLimitKey).length,
+    };
+  };
+  const getMe = (id: number) => ({
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: { name: "teak_v1_get_me", arguments: {} },
+  });
+  const succeeded = async (response: Response) =>
+    ([await response.json()].flat() as JsonRpcSuccess[]).map(
+      (row) => row.result.isError !== true
+    );
+
+  test("a single tool call runs on the gate's check of its bearer", async () => {
+    const backend = meBackend();
+    const response = await handleMcpV1Request(
+      backend.ctx,
+      mcpRequest(getMe(1))
+    );
+
+    expect(await succeeded(response)).toEqual([true]);
+    // One key check; the edge didn't charge the request, so the call is.
+    expect(backend.keyChecks()).toBe(1);
+    expect(backend.charges()).toBe(1);
+  });
+
+  test("a batch checks the bearer again for each tool call", async () => {
+    const backend = meBackend();
+    const response = await handleMcpV1Request(
+      backend.ctx,
+      mcpRequest([getMe(1), getMe(2), getMe(3)])
+    );
+
+    expect(await succeeded(response)).toEqual([true, true, true]);
+    // The gate, then each call, so a key revoked mid-batch stops the rest.
+    expect(backend.keyChecks()).toBe(4);
+    expect(backend.charges()).toBe(0);
+  });
+
+  test("a key revoked part-way through a batch stops the calls after it", async () => {
+    let checks = 0;
+    const runMutation = mock(
+      (_reference: unknown, args: Record<string, unknown>) => {
+        if (!args.token) {
+          return Promise.resolve({ ok: true });
+        }
+        checks += 1;
+        // Valid for the gate and the first call; revoked before the second.
+        return Promise.resolve(
+          checks <= 2
+            ? {
+                keyId: "key_1",
+                userId: "user_1",
+                access: "full_access",
+                source: "component",
+                rateLimitKey: "component:key_1",
+                rateLimit: { ok: true },
+              }
+            : null
+        );
+      }
+    );
+    const runQuery = mock(
+      (_reference: unknown, args: Record<string, unknown>) =>
+        Promise.resolve(
+          args.teakUserId
+            ? { id: "user_1", email: "owner@example.com", locale: "en" }
+            : { ok: false }
+        )
+    );
+
+    const response = await handleMcpV1Request(
+      mockActionCtx(withMappedOwner({ runMutation, runQuery })),
+      mcpRequest([getMe(1), getMe(2)])
+    );
+
+    const [first, second] = (await response.json()) as JsonRpcSuccess[];
+    expect(first?.result.isError).not.toBe(true);
+    expect(second?.result).toMatchObject({
+      isError: true,
+      structuredContent: { status: 401 },
+    });
   });
 
   test("answers an unknown tool with JSON-RPC invalid params", async () => {

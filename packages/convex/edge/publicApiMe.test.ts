@@ -192,7 +192,7 @@ test("requests in quick succession reuse one key validation", async () => {
       apiKeys.getUsage(ctx, { keyId: keyRow.keyId, ownerId: OWNER })
     );
     expect(usage.total).toBe(1);
-    vi.advanceTimersByTime(61_000);
+    vi.advanceTimersByTime(10 * 60_000 + 1000);
     expect((await request()).status).toBe(200);
     const refreshed = await t.run((ctx) =>
       apiKeys.getUsage(ctx, { keyId: keyRow.keyId, ownerId: OWNER })

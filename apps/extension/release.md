@@ -55,6 +55,7 @@ The Firefox build comes from the same source as Chrome (`bun run zip:firefox`). 
    ```bash
    VITE_PUBLIC_CONVEX_URL=https://uncommon-ladybug-882.convex.cloud \
    VITE_PUBLIC_CONVEX_SITE_URL=https://uncommon-ladybug-882.convex.site \
+   VITE_PUBLIC_API_URL=https://teakvault.com/api \
    bun run --cwd apps/extension zip:firefox
    ```
 
@@ -71,7 +72,7 @@ The Firefox build comes from the same source as Chrome (`bun run zip:firefox`). 
 >
 > To build: install the Bun and Node versions pinned in the root `package.json` (`packageManager` and `engines.node`), then from the zip's root run
 > `bun install --frozen-lockfile`, then
-> `VITE_PUBLIC_CONVEX_URL=https://uncommon-ladybug-882.convex.cloud VITE_PUBLIC_CONVEX_SITE_URL=https://uncommon-ladybug-882.convex.site bun run --cwd apps/extension build:firefox`.
+> `VITE_PUBLIC_CONVEX_URL=https://uncommon-ladybug-882.convex.cloud VITE_PUBLIC_CONVEX_SITE_URL=https://uncommon-ladybug-882.convex.site VITE_PUBLIC_API_URL=https://teakvault.com/api bun run --cwd apps/extension build:firefox`.
 > The output in `apps/extension/.output/firefox-mv3` matches the uploaded package file for file.
 >
 > The same steps are public at https://teakvault.com/docs/extension#build-from-source.

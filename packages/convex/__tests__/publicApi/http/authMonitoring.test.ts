@@ -11,6 +11,7 @@ import { type FunctionReference, getFunctionName } from "convex/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { internal } from "../../../_generated/api";
 import {
+  chargeAuthorizedCall,
   validatePublicApiBearer,
   withAuthorizedUser,
 } from "../../../publicApi/http/auth";
@@ -173,6 +174,67 @@ describe("public API auth outcomes", () => {
       status: 429,
       reason: "rate_limited",
     });
+  });
+
+  test("a recently validated key is checked read-only when nothing is charged here", async () => {
+    const READ_KEY = getFunctionName(internal.apiKeys.readValidatedApiKey);
+    const runMutation = mock(() =>
+      Promise.reject(new Error("no mutation expected"))
+    );
+    const runQuery = mock((ref: FunctionReference<"query">) =>
+      Promise.resolve(
+        getFunctionName(ref) === READ_KEY
+          ? {
+              keyId: "key_1",
+              userId: "user_1",
+              access: "full_access",
+              rateLimitKey: "component:key_1",
+            }
+          : null
+      )
+    );
+
+    const error = await validatePublicApiBearer(
+      mockActionCtx({ runMutation, runQuery }),
+      request(API_KEY, "/mcp"),
+      "mcp"
+    );
+
+    expect(error).toBeNull();
+    expect(runMutation).not.toHaveBeenCalled();
+    expect(
+      runQuery.mock.calls.map(([ref]) =>
+        getFunctionName(ref as FunctionReference<"query">)
+      )
+    ).toEqual([READ_KEY]);
+  });
+
+  test("an MCP tool call refused by its own charge is logged as rate limited", async () => {
+    const refused = await chargeAuthorizedCall(
+      mockActionCtx({
+        runMutation: mock().mockResolvedValue({ ok: false, retryAt: 1 }),
+        runQuery: mock(),
+      }),
+      request(API_KEY, "/mcp"),
+      {
+        access: "full_access",
+        keyId: "key_1",
+        rateLimitKey: "component:key_1",
+        source: "component",
+        userId: "user_1" as never,
+      }
+    );
+
+    expect(refused?.status).toBe(429);
+    expect(outcomes()).toEqual([
+      {
+        surface: "mcp",
+        check: "request",
+        status: 429,
+        credential: "api_key",
+        reason: "rate_limited",
+      },
+    ]);
   });
 
   test("the MCP transport gate is logged once as a gate check", async () => {

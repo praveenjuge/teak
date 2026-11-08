@@ -13,6 +13,10 @@ import type {
   FilesVisualStylesDecisionResult,
 } from "./decisions";
 import type {
+  FilesEdgeIdentityPurgeParams,
+  FilesEdgeIdentityPurgeResult,
+} from "./edgeIdentity";
+import type {
   FilesEmbedUpsertParams,
   FilesEmbedUpsertResult,
   FilesVectorDeleteParams,
@@ -298,6 +302,10 @@ export const FILES_OP_SPECS = {
     FilesFinalizeUploadResult
   >(),
   inspect: networkOp<FilesInspectParams, FilesInspectResult>(),
+  "purge-edge-identity": networkOp<
+    FilesEdgeIdentityPurgeParams,
+    FilesEdgeIdentityPurgeResult
+  >(),
   "score-relevance": networkOp<FilesRelevanceParams, FilesRelevanceResult>(),
   "store-linked-pdf": networkOp<FilesLinkedPdfParams, FilesLinkedPdfResult>(
     150_000

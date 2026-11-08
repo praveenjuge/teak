@@ -141,6 +141,11 @@ export const answerIdentityQuery = (
           : { status: "denied", reason: "deleted_user" },
     };
   }
+  // The public API's read-only API-key check: a miss, so the key is
+  // validated by the `validateUserApiKey` mutation each test mocks.
+  if (name === getFunctionName(internal.apiKeys.readValidatedApiKey)) {
+    return { handled: true, value: null };
+  }
   if (name === getFunctionName(internal.workosIdentity.resolveWorkosOwner)) {
     return {
       handled: true,

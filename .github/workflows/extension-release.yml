@@ -67,6 +67,7 @@ jobs:
         env:
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+          VITE_PUBLIC_API_URL: https://teakvault.com/api
           WXT_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
         run: bun run zip
 
@@ -242,6 +243,7 @@ jobs:
         env:
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+          VITE_PUBLIC_API_URL: https://teakvault.com/api
         run: bun run zip:firefox
 
       - name: Locate built ZIPs

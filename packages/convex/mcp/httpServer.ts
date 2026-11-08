@@ -1,6 +1,6 @@
 import { type ActionCtx, env, httpAction } from "../_generated/server";
 import { readWorkosResources } from "../env";
-import { validatePublicApiBearer } from "../publicApi/http/auth";
+import { authorizeMcpRequest } from "../publicApi/http/auth";
 import {
   buildProtectedResourceMetadata,
   DISCOVERY_CACHE_CONTROL,
@@ -8,7 +8,10 @@ import {
   json,
   withPublicApiGatewayHeaders,
 } from "../publicApi/http/meta";
-import { executePublicApiOperation } from "../publicApi/http/router";
+import {
+  type AuthorizedCaller,
+  executePublicApiOperation,
+} from "../publicApi/http/router";
 import { TEAK_FILES_ORIGINS } from "../shared/filesOrigins";
 import { withBackendTelemetryScope } from "../telemetry/posthog";
 import { TEAK_APP_HTML } from "./appHtml.generated";
@@ -122,6 +125,7 @@ const isJsonRpcId = (id: unknown): id is number | string =>
 const handleJsonRpcMessage = async (
   ctx: ActionCtx,
   request: Request,
+  authorized: AuthorizedCaller | undefined,
   message: unknown
 ): Promise<JsonObject | null> => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
@@ -181,6 +185,7 @@ const handleJsonRpcMessage = async (
         request,
         (call) =>
           executePublicApiOperation(ctx, call, {
+            authorized,
             origin: new URL(request.url).origin,
             resource: "mcp",
           })
@@ -215,7 +220,8 @@ const handleJsonRpcMessage = async (
 
 const handleMcpPost = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  authorized: AuthorizedCaller
 ): Promise<Response> => {
   const accept = request.headers.get("accept") ?? "*/*";
   if (
@@ -257,9 +263,13 @@ const handleMcpPost = async (
   // limit is refused by the API like any other, so a card's own limit (say,
   // refreshing it twice in a minute) doesn't fail the calls after it.
   const messages = Array.isArray(body) ? body : [body];
+  // A single message runs as the user the gate just checked. In a batch each
+  // tool call checks the credential again, so revoking a key part-way
+  // through stops the calls after it.
+  const caller = messages.length === 1 ? authorized : undefined;
   const responses: JsonObject[] = [];
   for (const message of messages) {
-    const response = await handleJsonRpcMessage(ctx, request, message);
+    const response = await handleJsonRpcMessage(ctx, request, caller, message);
     if (response) {
       responses.push(response);
     }
@@ -273,18 +283,22 @@ const handleMcpPost = async (
   return json(200, Array.isArray(body) ? responses : responses[0]);
 };
 
-const validateMcpBearer = async (
+// The request's bearer is checked once, here; its tool calls run as the user
+// this returns instead of checking it again each.
+const authorizeMcpBearer = async (
   ctx: ActionCtx,
   request: Request
-): Promise<Response | null> => {
-  const authError = await validatePublicApiBearer(ctx, request, "mcp");
-  if (authError) {
-    return authError.status === 401
-      ? withAuthChallenge(authError, request.url)
-      : withMcpCors(authError);
+): Promise<{ error: Response } | AuthorizedCaller> => {
+  const auth = await authorizeMcpRequest(ctx, request);
+  if ("error" in auth) {
+    return {
+      error:
+        auth.error.status === 401
+          ? withAuthChallenge(auth.error, request.url)
+          : withMcpCors(auth.error),
+    };
   }
-
-  return null;
+  return auth;
 };
 
 export const handleMcpV1Request = async (
@@ -295,9 +309,9 @@ export const handleMcpV1Request = async (
     return corsPreflight();
   }
 
-  const authError = await validateMcpBearer(ctx, request);
-  if (authError) {
-    return authError;
+  const authorized = await authorizeMcpBearer(ctx, request);
+  if ("error" in authorized) {
+    return authorized.error;
   }
 
   if (request.method !== "POST") {
@@ -311,7 +325,9 @@ export const handleMcpV1Request = async (
   try {
     // One PostHog flush for the whole request instead of one per tool call.
     return withMcpCors(
-      await withBackendTelemetryScope({}, () => handleMcpPost(ctx, request))
+      await withBackendTelemetryScope({}, () =>
+        handleMcpPost(ctx, request, authorized)
+      )
     );
   } catch {
     return withMcpCors(

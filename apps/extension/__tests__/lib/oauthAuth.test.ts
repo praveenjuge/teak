@@ -9,6 +9,7 @@ const originalEnv = {
   BROWSER: process.env.BROWSER,
   DEV: process.env.DEV,
   TEAK_DEV_APP_URL: process.env.TEAK_DEV_APP_URL,
+  VITE_PUBLIC_API_URL: process.env.VITE_PUBLIC_API_URL,
   VITE_PUBLIC_CONVEX_SITE_URL: process.env.VITE_PUBLIC_CONVEX_SITE_URL,
 };
 let environment: "alpha" | "beta" = "alpha";
@@ -623,6 +624,76 @@ test("a fresh token is sent without discovering the auth server", async () => {
     `https://test.convex.site${DUPLICATE_PATH}`,
     `https://test.convex.site${DUPLICATE_PATH}`,
   ]);
+});
+
+test("with an API URL, requests go through it and count toward the badge's budget", async () => {
+  process.env.VITE_PUBLIC_API_URL = "https://teak.example.com/api/";
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 3_600_000,
+    ...workosBinding,
+  };
+  const requested: string[] = [];
+  globalThis.fetch = withDiscovery((async (input) => {
+    requested.push(String(input));
+    return await Promise.resolve(Response.json({ cardId: "card" }));
+  }) as typeof fetch);
+  const { apiRequestsInLastMinute } = await import("../../lib/requestBudget");
+  const before = apiRequestsInLastMinute();
+  const auth = await load();
+
+  // Saved while the extension called the Convex site URL, and still used.
+  expect(await send(auth)).toBe("sent");
+  expect(requested).toEqual([`https://teak.example.com/api${DUPLICATE_PATH}`]);
+  expect(apiRequestsInLastMinute()).toBe(before + 1);
+});
+
+test("a development build pointed at another API URL keeps its saved sign-in", async () => {
+  process.env.DEV = "true";
+  process.env.VITE_PUBLIC_API_URL = "https://teak.example.com/api";
+  const devKey = `${tokenKey}:https://test.convex.site`;
+  storage[devKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() + 3_600_000,
+    ...workosBinding,
+    issuer: "https://auth.dev.test.workos.com",
+    clientId: "client_dev_chrome",
+  };
+  globalThis.fetch = withDiscovery((() =>
+    Promise.resolve(
+      Response.json({ cardId: "card" })
+    )) as unknown as typeof fetch);
+  const auth = await load();
+
+  // Storage is still named after the deployment's Convex site URL.
+  expect(await send(auth)).toBe("sent");
+  expect(storage[devKey]).toBeDefined();
+});
+
+test("a refreshed sign-in saved for the Convex site URL is saved again for the API URL", async () => {
+  process.env.VITE_PUBLIC_API_URL = "https://teak.example.com/api";
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
+    ...workosBinding,
+  };
+  globalThis.fetch = withDiscovery(((input) =>
+    Promise.resolve(
+      String(input).endsWith("/oauth2/token")
+        ? tokenResponse()
+        : Response.json({ cardId: "card" })
+    )) as typeof fetch);
+  const auth = await load();
+
+  expect(await send(auth)).toBe("sent");
+  expect(storage[tokenKey]).toMatchObject({
+    siteUrl: "https://teak.example.com/api",
+    issuer: workosBinding.issuer,
+    clientId: workosBinding.clientId,
+  });
 });
 
 test("a fresh token the API rejects is refreshed, and the request sent again", async () => {
