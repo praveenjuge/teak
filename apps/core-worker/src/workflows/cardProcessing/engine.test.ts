@@ -43,11 +43,42 @@ const refuse = (code: string): Response =>
     ok: false,
   } satisfies WorkflowRpcResponse);
 
+// A batch is answered op by op, each op seen by `answer` as its own call
+// (with the batch's guard on its mutations), as the real gateway runs them.
+const answerBatch = async (batch: {
+  guard?: RpcCall["guard"];
+  ops: RpcCall[];
+}): Promise<Response> => {
+  const values: unknown[] = [];
+  for (const [index, op] of batch.ops.entries()) {
+    const call = {
+      ...op,
+      ...(batch.guard && op.kind === "mutation" ? { guard: batch.guard } : {}),
+    };
+    calls.push(call);
+    const reply = (await answer(call).json()) as WorkflowRpcResponse;
+    if (!reply.ok) {
+      return Response.json({
+        error: { ...reply.error, index },
+        ok: false,
+      } satisfies WorkflowRpcResponse);
+    }
+    values.push(reply.value);
+  }
+  return ok(values);
+};
+
 const convex = Bun.serve({
   hostname: "127.0.0.1",
   port: 0,
   async fetch(request) {
-    const call = (await request.json()) as RpcCall;
+    const body = (await request.json()) as
+      | RpcCall
+      | { guard?: RpcCall["guard"]; kind: "batch"; ops: RpcCall[] };
+    if (body.kind === "batch" && "ops" in body) {
+      return await answerBatch(body);
+    }
+    const call = body as RpcCall;
     calls.push(call);
     return answer(call);
   },

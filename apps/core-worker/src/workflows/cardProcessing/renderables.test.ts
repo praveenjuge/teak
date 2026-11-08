@@ -152,12 +152,10 @@ describe("renderables", () => {
         type: "image",
       });
       const convex = createCardConvex(card);
-      const outage = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { name: string };
-        return body.name.endsWith(":updateCardFileMetadata")
+      const outage = (async (input: RequestInfo | URL, init?: RequestInit) =>
+        String(init?.body).includes(":updateCardFileMetadata")
           ? new Response("unavailable", { status: 503 })
-          : await convex.fetcher(input, init);
-      }) as typeof fetch;
+          : await convex.fetcher(input, init)) as typeof fetch;
       const fakes = createFakeOps({
         "analyze-image": {
           data: { height: 40, palette: ["#aa0000"], width: 40 },

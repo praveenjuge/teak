@@ -76,8 +76,11 @@ export const isWorkflowRpcErrorCode = (
 export type WorkflowRpcResponse =
   | { ok: true; value: unknown }
   | {
-      /** A `ConvexError`'s code: a `WorkflowRpcErrorCode` or the function's own. */
-      error: { code?: string; data?: unknown; message: string };
+      /**
+       * A `ConvexError`'s code: a `WorkflowRpcErrorCode` or the function's
+       * own. In a batch, `index` names the op that failed.
+       */
+      error: { code?: string; data?: unknown; index?: number; message: string };
       ok: false;
     };
 
@@ -123,6 +126,84 @@ export const parseWorkflowRpcRequest = (
     };
   }
   return { args, kind: kind as WorkflowRpcKind, name };
+};
+
+/** One query or mutation in a batch. */
+export interface WorkflowRpcBatchOp {
+  /** Convex JSON (`convexToJson`) of the function's arguments. */
+  args: unknown;
+  kind: "mutation" | "query";
+  /** `path/to/module:export`, as `getFunctionName` gives it. */
+  name: string;
+}
+
+/**
+ * Several queries and mutations in one signed call: Convex runs them in
+ * order in one transaction (a mutation when any op writes or a guard is
+ * given, else a query), checking the guard once before the first. One that
+ * fails rolls the earlier writes back and refuses the whole batch, naming its
+ * index. The value is an array with each op's result.
+ */
+export interface WorkflowRpcBatchRequest {
+  guard?: WorkflowRpcGuard;
+  kind: "batch";
+  ops: WorkflowRpcBatchOp[];
+}
+
+export const WORKFLOW_RPC_MAX_BATCH_OPS = 16;
+
+const parseGuard = (guard: unknown): WorkflowRpcGuard | null => {
+  if (!guard || typeof guard !== "object" || Array.isArray(guard)) {
+    return null;
+  }
+  const { cardId, rev } = guard as Record<string, unknown>;
+  return typeof cardId === "string" &&
+    cardId &&
+    typeof rev === "number" &&
+    Number.isSafeInteger(rev) &&
+    rev >= 0
+    ? { cardId, rev }
+    : null;
+};
+
+export const parseWorkflowRpcBatchRequest = (
+  value: unknown
+): WorkflowRpcBatchRequest | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const { guard, kind, ops } = value as Record<string, unknown>;
+  if (
+    kind !== "batch" ||
+    !Array.isArray(ops) ||
+    ops.length === 0 ||
+    ops.length > WORKFLOW_RPC_MAX_BATCH_OPS
+  ) {
+    return null;
+  }
+  const parsedOps: WorkflowRpcBatchOp[] = [];
+  for (const op of ops) {
+    if (!op || typeof op !== "object" || Array.isArray(op)) {
+      return null;
+    }
+    const { args, kind: opKind, name } = op as Record<string, unknown>;
+    if (
+      (opKind !== "query" && opKind !== "mutation") ||
+      typeof name !== "string" ||
+      !FUNCTION_NAME.test(name) ||
+      args === undefined
+    ) {
+      return null;
+    }
+    parsedOps.push({ args, kind: opKind, name });
+  }
+  if (guard === undefined) {
+    return { kind: "batch", ops: parsedOps };
+  }
+  const parsedGuard = parseGuard(guard);
+  return parsedGuard
+    ? { guard: parsedGuard, kind: "batch", ops: parsedOps }
+    : null;
 };
 
 export const WORKFLOW_NAMES = [

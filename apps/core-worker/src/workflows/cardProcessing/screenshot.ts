@@ -10,13 +10,13 @@ import type {
   FilesCaptureScreenshotResult,
   FilesOpOutcome,
 } from "@teak/files-protocol";
+import { batchOp } from "../../convexRpc";
 import type { StepConfig } from "../runtime";
 import {
   type CardJob,
   ensureObjectOwnership,
   guardOf,
-  loadCard,
-  markInProgress,
+  type LoadedCard,
   objectKey,
 } from "./context";
 import { fetchLinkPageForCard } from "./linkMetadata";
@@ -118,18 +118,24 @@ const save = async (
   screenshotKey: string,
   { height, storedBytes, width }: FilesCaptureScreenshotResult
 ): Promise<ScreenshotOutcome> => {
-  await job.deps.convex.mutation(
-    internal.linkMetadata.updateCardScreenshot,
-    {
-      cardId: job.cardId,
-      // How much the page shows: a near-blank page's JPEG is tiny, and its
-      // tile uses the text layout instead (`isLowDetailScreenshot`).
-      screenshotBytes: storedBytes,
-      screenshotHeight: height,
-      screenshotStorageKey: screenshotKey,
-      screenshotUpdatedAt: Date.now(),
-      screenshotWidth: width,
-    },
+  // The screenshot and its stage's completion land in one write.
+  await job.deps.convex.batch(
+    [
+      batchOp.mutation(internal.linkMetadata.updateCardScreenshot, {
+        cardId: job.cardId,
+        // How much the page shows: a near-blank page's JPEG is tiny, and its
+        // tile uses the text layout instead (`isLowDetailScreenshot`).
+        screenshotBytes: storedBytes,
+        screenshotHeight: height,
+        screenshotStorageKey: screenshotKey,
+        screenshotUpdatedAt: Date.now(),
+        screenshotWidth: width,
+      }),
+      batchOp.mutation(internal.ai.mutations.updateCardProcessing, {
+        cardId: job.cardId,
+        processingStatus: { screenshot: stageCompleted(Date.now()) },
+      }),
+    ],
     guardOf(job)
   );
   return { status: "captured" };
@@ -137,9 +143,9 @@ const save = async (
 
 const screenshotTarget = async (
   job: CardJob,
-  userId: string
+  userId: string,
+  loaded: LoadedCard | null
 ): Promise<string | null> => {
-  const loaded = await loadCard(job);
   if (!loaded) {
     return null;
   }
@@ -148,14 +154,34 @@ const screenshotTarget = async (
   return key;
 };
 
+/**
+ * Marks the stage in progress and reads what the capture needs, in one
+ * call: the screenshot facts and the card, for its object key.
+ */
+const markAndRead = async (job: CardJob) => {
+  const [, card, loaded] = await job.deps.convex.batch(
+    [
+      batchOp.mutation(internal.card.processingRpc.markStagesInProgress, {
+        cardId: job.cardId,
+        stages: ["screenshot"],
+      }),
+      batchOp.query(internal.linkMetadata.getCardForScreenshot, {
+        cardId: job.cardId,
+      }),
+      batchOp.query(internal.card.processingRpc.getCardForProcessing, {
+        cardId: job.cardId,
+      }),
+    ],
+    guardOf(job)
+  );
+  return { card, loaded: loaded as LoadedCard | null };
+};
+
 const capture = async (
   job: CardJob,
-  attempt: number
+  attempt: number,
+  { card, loaded }: Awaited<ReturnType<typeof markAndRead>>
 ): Promise<ScreenshotOutcome> => {
-  const card = await job.deps.convex.query(
-    internal.linkMetadata.getCardForScreenshot,
-    { cardId: job.cardId }
-  );
   if (card?.type !== "link" || !card.url) {
     return { status: "skipped" };
   }
@@ -171,7 +197,7 @@ const capture = async (
   // fetched page would render without them, since the renderer is offline.
   let screenshotKey: string | null = null;
   if (card.archiveKey) {
-    screenshotKey = await screenshotTarget(job, card.userId);
+    screenshotKey = await screenshotTarget(job, card.userId, loaded);
     if (!screenshotKey) {
       return { status: "skipped" };
     }
@@ -224,7 +250,7 @@ const capture = async (
     };
   }
 
-  screenshotKey ??= await screenshotTarget(job, card.userId);
+  screenshotKey ??= await screenshotTarget(job, card.userId, loaded);
   if (!screenshotKey) {
     return { status: "skipped" };
   }
@@ -249,10 +275,10 @@ export const captureScreenshotStep = async (
   attempt: number,
   options: { lastAttempt?: boolean } = {}
 ): Promise<ScreenshotOutcome> => {
-  await markInProgress(job, ["screenshot"]);
+  const reads = await markAndRead(job);
   let outcome: ScreenshotOutcome;
   try {
-    outcome = await capture(job, attempt);
+    outcome = await capture(job, attempt, reads);
   } catch (error) {
     const retryable = parseScreenshotRetryableError(error);
     if (!retryable) {
@@ -276,7 +302,7 @@ export const captureScreenshotStep = async (
   }
   if (outcome.status === "failed") {
     await recordStage(job, stageFailed(Date.now(), outcome.reason));
-  } else {
+  } else if (outcome.status === "skipped") {
     await recordStage(job, stageCompleted(Date.now()));
   }
   return outcome;

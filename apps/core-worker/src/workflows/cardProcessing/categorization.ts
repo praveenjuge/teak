@@ -19,10 +19,11 @@ import {
 } from "@teak/convex/shared/linkCategory/rules";
 import {
   type CardJob,
+  fitsHeld,
   guardOf,
+  type HeldWrite,
   type LoadedCard,
-  loadCard,
-  markInProgress,
+  loadAndMark,
 } from "./context";
 import { runDecision } from "./decisions";
 import {
@@ -156,13 +157,20 @@ const storeSiteImage = async (
 export interface CategorizationResult {
   category: string;
   confidence: number;
+  /** The category's write, for the next step to make (`hold`). */
+  held?: HeldWrite[];
   mode: "categorized" | "missing";
 }
 
+/**
+ * Categorizes the link, first making the writes the step before it held.
+ * With `hold`, a category write that fits is returned for the next step.
+ */
 export const categorizeLink = async (
-  job: CardJob
+  job: CardJob,
+  options: { held?: readonly HeldWrite[]; hold?: boolean } = {}
 ): Promise<CategorizationResult> => {
-  const loaded = await loadCard(job);
+  const loaded = await loadAndMark(job, ["categorize"], options.held);
   if (!loaded) {
     return { category: "other", confidence: 0, mode: "missing" };
   }
@@ -172,7 +180,6 @@ export const categorizeLink = async (
       `Card ${job.cardId} is not a link card (type: ${card.type})`
     );
   }
-  await markInProgress(job, ["categorize"]);
   const refresh = job.refresh === true;
 
   const contextCard = projectCategorizationSnapshot(
@@ -197,9 +204,8 @@ export const categorizeLink = async (
     metadata: LinkCategoryMetadata,
     previewImage?: Awaited<ReturnType<typeof storeSiteImage>>
   ) => {
-    await job.deps.convex.mutation(
-      internal.workflows.steps.categorization.mutations.updateCategorization,
-      {
+    const write: HeldWrite = {
+      args: {
         cardId: job.cardId,
         metadata: await archiveRawMetadata(
           job,
@@ -209,11 +215,20 @@ export const categorizeLink = async (
         ),
         ...(previewImage ? { previewImage } : {}),
       },
-      guardOf(job)
-    );
+      kind: "categorization",
+    };
+    const held = options.hold === true && fitsHeld(write);
+    if (!held) {
+      await job.deps.convex.mutation(
+        internal.workflows.steps.categorization.mutations.updateCategorization,
+        write.args,
+        guardOf(job)
+      );
+    }
     return {
       category: metadata.category,
       confidence: metadata.confidence ?? LINK_CATEGORY_DEFAULT_CONFIDENCE,
+      ...(held ? { held: [write] } : {}),
       mode: "categorized" as const,
     };
   };

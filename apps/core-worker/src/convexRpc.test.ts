@@ -3,6 +3,7 @@ import { internal } from "@teak/convex/_generated/api";
 import { verifyWorkflowRpcRequest } from "@teak/files-protocol";
 import {
   allowedConvexSiteUrl,
+  batchOp,
   createConvexRpc,
   workflowRpcSecret,
 } from "./convexRpc";
@@ -186,6 +187,80 @@ describe("createConvexRpc", () => {
       rpc.query(internal.workflowDispatch.listStale, {})
     ).rejects.toMatchObject({ name: "NonRetryableError" });
     expect(called).toBe(false);
+  });
+});
+
+describe("ConvexRpc.batch", () => {
+  const CARD = "jd7f2kz9m8w6y1v3h4n5q0r8s2t6u4x1";
+  const guard = { cardId: CARD, rev: 3 };
+  const ops = [
+    batchOp.query(internal.card.processingRpc.getCardForProcessing, {
+      cardId: CARD as never,
+    }),
+    batchOp.mutation(internal.card.processingRpc.markStagesInProgress, {
+      cardId: CARD as never,
+      stages: ["metadata"],
+    }),
+  ] as const;
+  const handlers = {
+    "card/processingRpc:getCardForProcessing": () => ({ keyPrefix: "p/" }),
+    "card/processingRpc:markStagesInProgress": () => null,
+  };
+
+  test("sends the ops in one call and answers each op's value", async () => {
+    const fake = createFakeConvex(handlers);
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      fake.fetcher
+    );
+    expect(await rpc.batch(ops, { guard })).toEqual([
+      { keyPrefix: "p/" },
+      null,
+    ]);
+    expect(fake.requests).toHaveLength(1);
+  });
+
+  test("runs the ops one by one, the guard on each write, when Convex predates batches", async () => {
+    const fake = createFakeConvex(handlers, { batches: false });
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      fake.fetcher
+    );
+    expect(await rpc.batch(ops, { guard })).toEqual([
+      { keyPrefix: "p/" },
+      null,
+    ]);
+    expect(fake.requests).toEqual([
+      "card/processingRpc:getCardForProcessing",
+      "card/processingRpc:markStagesInProgress",
+    ]);
+    expect(fake.calls.map((call) => call.guard)).toEqual([undefined, guard]);
+    // It remembers: the next batch doesn't try first.
+    await rpc.batch(ops, { guard });
+    expect(fake.requests).toHaveLength(4);
+  });
+
+  test("names the op that failed, and a stale guard is final", async () => {
+    const fake = createFakeConvex({
+      ...handlers,
+      "card/processingRpc:markStagesInProgress": () => {
+        throw new FakeConvexError(
+          "stale_processing_revision",
+          "stale_processing_revision"
+        );
+      },
+    });
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      fake.fetcher
+    );
+    const error = await rpc.batch(ops, { guard }).catch((caught) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).name).toBe("NonRetryableError");
+    expect((error as Error).message).toContain("#1");
   });
 });
 

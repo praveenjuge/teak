@@ -159,6 +159,9 @@ describe("card processing", () => {
       mode: "completed",
     });
     expect(reported(convex)).toEqual(["complete"]);
+    // One call loads, then each stage reads the card and marks itself in
+    // progress in a single call.
+    expect(convex.requests).toHaveLength(7);
   });
 
   test("a Japanese note: its language is saved and is in the run's facts", async () => {
@@ -239,7 +242,6 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "extract article",
-      "store link preview image",
       "report complete",
     ]);
     const screenshotKey = (
@@ -356,6 +358,84 @@ describe("card processing", () => {
     return { card, ...ctx };
   };
 
+  test("a link run makes 21 Convex calls, the preview and category riding in the next step's first call", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const { convex, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "A good article" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    await run();
+
+    expect(convex.requests).toHaveLength(21);
+    // Written first thing by the step after, before it reads the card back.
+    expect(convex.requests).toContain(
+      "batch(linkMetadata:updateCardMetadata,card/processingRpc:getCardForProcessing,card/processingRpc:markStagesInProgress)"
+    );
+    expect(convex.requests).toContain(
+      "batch(workflows/steps/categorization/mutations:updateCategorization,card/processingRpc:getCardForProcessing,card/processingRpc:markStagesInProgress)"
+    );
+    expect(card.metadata?.linkPreview?.title).toBe("A good article");
+    expect(card.metadata?.linkCategory).toBeDefined();
+    expect(card.metadataStatus).toBe("completed");
+  });
+
+  test("a preview image the host refused is tried again at the end of the run", async () => {
+    const html = PAGE_HTML.replace(
+      "</head>",
+      '<meta property="og:image" content="https://example.com/cover.jpg"></head>'
+    );
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const page = await linkPage();
+    const { fakeStep, ops, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": {
+        data: {
+          ...page.data,
+          htmlGzipBase64: await gzipBase64(html),
+          selectors: buildSelectorResultsFromHtml(html, SCRAPE_ELEMENTS),
+        },
+      },
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+      "store-remote-asset": { declined: "UNSUPPORTED" },
+    });
+
+    await run();
+
+    expect(card.metadata?.linkPreview?.imageUrl).toBe(
+      "https://example.com/cover.jpg"
+    );
+    expect(fakeStep.names()).toContain("store link preview image");
+    expect(
+      ops.opsCalled().filter((op) => op === "store-remote-asset").length
+    ).toBeGreaterThan(1);
+  });
+
   test("a podcast link's transcript comes after the run has completed", async () => {
     const { card, convex, fakeStep, run } = await podcastRun();
 
@@ -378,7 +458,6 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "extract article",
-      "store link preview image",
       "report complete",
     ]);
     expect(
@@ -712,6 +791,7 @@ describe("card processing", () => {
     });
 
     await run();
+    expect(convex.requests).toHaveLength(9);
 
     expect(fakeStep.names()).toEqual([
       "load card",
@@ -1220,12 +1300,11 @@ describe("archive page", () => {
 
     await run();
 
-    expect(fakeStep.names().slice(-6)).toEqual([
+    expect(fakeStep.names().slice(-5)).toEqual([
       "archive page",
       "capture screenshot",
       "read link image text",
       "extract article",
-      "store link preview image",
       "report complete",
     ]);
     const [call] = archiveCalls(ops);
@@ -1419,13 +1498,12 @@ describe("archive page", () => {
         .filter((delay) => delay.name === "archive page")
         .map((delay) => delay.delay)
     ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
-    expect(fakeStep.names().slice(-7)).toEqual([
+    expect(fakeStep.names().slice(-6)).toEqual([
       "archive page",
       "mark archive failed",
       "capture screenshot",
       "read link image text",
       "extract article",
-      "store link preview image",
       "report complete",
     ]);
     expect(card.processingStatus?.archive).toMatchObject({

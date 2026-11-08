@@ -37,13 +37,14 @@ import {
   type CardProcessingDeps,
   createCardProcessingDeps,
   guardOf,
+  type HeldWrite,
   loadCard,
-  markInProgress,
 } from "./context";
 import {
   fetchLinkMetadata,
   keepPreviewAfterFailedRefresh,
   parseLinkMetadataRetryableError,
+  readLinkFetch,
   retryLinkPreviewImage,
 } from "./linkMetadata";
 import { readLinkImageText } from "./linkText";
@@ -290,9 +291,13 @@ const processCard = async (
     return completedResult(classified, cardType, metadata, null);
   }
 
+  // The preview and the category aren't written by their own steps: each
+  // rides in the next step's first call, before it reads the card.
+  let held: HeldWrite[] = [];
+  let previewImageDone = false;
   if (cardType === "link") {
     try {
-      await step.do(
+      const fetched = await step.do(
         "fetch link metadata",
         LINK_METADATA_STEP,
         reported(
@@ -300,14 +305,17 @@ const processCard = async (
           "link_metadata",
           stepAttempts(LINK_METADATA_STEP),
           async () => {
-            const card = (await loadCard(job))?.card;
+            const reads = await readLinkFetch(job);
+            const card = reads.loaded?.card;
             if (!card?.url || card.metadataStatus !== "pending") {
               return { status: "skipped" as const };
             }
-            return await fetchLinkMetadata(job);
+            return await fetchLinkMetadata(job, reads, { hold: true });
           }
         )
       );
+      held = fetched.held ?? [];
+      previewImageDone = fetched.previewImageDone === true;
     } catch (error) {
       const failure = job.refresh
         ? parseLinkMetadataRetryableError(error)
@@ -330,9 +338,10 @@ const processCard = async (
         "card.categorization",
         "categorization",
         stepAttempts(CATEGORIZE_STEP),
-        () => categorizeLink(job)
+        () => categorizeLink(job, { held, hold: true })
       )
     );
+    held = categorized.held ?? [];
     if (categorized.mode === "missing") {
       return { mode: "skipped", reason: "card_missing" };
     }
@@ -373,7 +382,8 @@ const processCard = async (
     }
   };
 
-  const runMetadata = () => runMetadataStep(job, step, reported, cardType);
+  const runMetadata = () =>
+    runMetadataStep(job, step, reported, cardType, held);
 
   let metadata: MetadataResult | null = null;
   let renderables: RenderablesResult | null = null;
@@ -448,6 +458,8 @@ const processCard = async (
     await archivePageStep(job, step);
     await linkScreenshotSteps(job, step, reported, metadata);
     await articleSteps(job, step);
+  }
+  if (cardType === "link" && !previewImageDone) {
     await step
       .do("store link preview image", PREVIEW_IMAGE_STEP, () =>
         retryLinkPreviewImage(job)
@@ -690,7 +702,8 @@ const runMetadataStep = (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
   reported: Reported,
-  cardType: string
+  cardType: string,
+  held: readonly HeldWrite[] = []
 ): Promise<MetadataResult> =>
   step.do(
     "generate metadata",
@@ -701,11 +714,12 @@ const runMetadataStep = (
       AI_CAPACITY_RETRIES + 1,
       async (ctx) => {
         try {
-          await markInProgress(job, ["metadata"]);
           return await withWorkflowTelemetry(job.env, (telemetry) =>
             generateCardMetadata(job, telemetry, cardType, {
               capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
+              held,
               lastAttempt: ctx.attempt >= METADATA_ATTEMPTS,
+              markInProgress: true,
               restorePendingOnDefer: true,
             })
           );

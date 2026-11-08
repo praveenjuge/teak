@@ -11,7 +11,9 @@ import {
   isWorkflowInstanceId,
   normalizeConvexSiteUrl,
   parseConvexSiteUrls,
+  parseWorkflowRpcBatchRequest,
   parseWorkflowRpcRequest,
+  WORKFLOW_RPC_MAX_BATCH_OPS,
 } from "./workflows";
 
 const CARD_ID = "jd7f2kz9m8w6y1v3h4n5q0r8s2t6u4x1";
@@ -68,6 +70,56 @@ describe("parseWorkflowRpcRequest", () => {
     ["an array", [{ args: {}, kind: "query", name: "a:b" }]],
   ])("rejects %s", (_label, value) => {
     expect(parseWorkflowRpcRequest(value)).toBeNull();
+  });
+});
+
+describe("parseWorkflowRpcBatchRequest", () => {
+  const op = {
+    args: { cardId: CARD_ID },
+    kind: "query" as const,
+    name: "a/b:c",
+  };
+
+  test("accepts queries and mutations in order, with a guard", () => {
+    expect(
+      parseWorkflowRpcBatchRequest({
+        guard: { cardId: CARD_ID, rev: 2 },
+        kind: "batch",
+        ops: [op, { ...op, kind: "mutation", name: "a/b:d" }],
+      })
+    ).toEqual({
+      guard: { cardId: CARD_ID, rev: 2 },
+      kind: "batch",
+      ops: [op, { ...op, kind: "mutation", name: "a/b:d" }],
+    });
+  });
+
+  test("leaves a single call to parseWorkflowRpcRequest", () => {
+    expect(parseWorkflowRpcBatchRequest(op)).toBeNull();
+  });
+
+  test.each([
+    ["no ops", { kind: "batch", ops: [] }],
+    [
+      "too many ops",
+      {
+        kind: "batch",
+        ops: Array.from({ length: WORKFLOW_RPC_MAX_BATCH_OPS + 1 }, () => op),
+      },
+    ],
+    ["an action", { kind: "batch", ops: [{ ...op, kind: "action" }] }],
+    [
+      "an op without args",
+      { kind: "batch", ops: [{ kind: "query", name: "a:b" }] },
+    ],
+    ["a bad name", { kind: "batch", ops: [{ ...op, name: "nope" }] }],
+    [
+      "a negative revision",
+      { guard: { cardId: CARD_ID, rev: -1 }, kind: "batch", ops: [op] },
+    ],
+    ["a guard without a card", { guard: { rev: 1 }, kind: "batch", ops: [op] }],
+  ])("rejects %s", (_label, value) => {
+    expect(parseWorkflowRpcBatchRequest(value)).toBeNull();
   });
 });
 
