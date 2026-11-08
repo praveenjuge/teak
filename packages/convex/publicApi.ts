@@ -75,6 +75,7 @@ import { rateLimiter } from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
+import { searchTooBroad } from "./search/searchReads";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import type { BulkCardAction } from "./shared/bulkCardActions";
 import { bulkItemProblem } from "./shared/bulkItems";
@@ -224,10 +225,7 @@ export const searchCardsPageForUser = internalQuery({
       pageItems = remaining.slice(0, limit);
       hasMore = remaining.length > limit;
       if (!(hasMore || args.cursor) && result.hitScanBudget) {
-        throw new ConvexError({
-          code: "INVALID_INPUT",
-          message: "Search is too broad. Add a type or date filter.",
-        });
+        throw searchTooBroad();
       }
     } else {
       const result = await searchCardsByTag(

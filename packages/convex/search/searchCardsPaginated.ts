@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { ConvexError, type Infer, v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { keepVisible } from "../card/hiddenCards";
@@ -71,6 +71,7 @@ import {
   resolveSearch,
 } from "./searchPlanner";
 import {
+  isSearchTooBroad,
   loadSemanticMatches,
   type SearchCandidate,
   searchCandidateOf,
@@ -89,9 +90,6 @@ export const createdAtRangeValidator = v.object({
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
 const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
-const isSearchTooBroadError = (error: unknown): boolean =>
-  error instanceof ConvexError &&
-  (error.data as { code?: unknown } | undefined)?.code === "INVALID_INPUT";
 const FOLDER_FILTER_SCAN_BATCH = 200;
 const SHUFFLE_ROW_LIMIT = 2000;
 const SHUFFLE_WALK_SCAN_LIMIT = 400;
@@ -466,7 +464,7 @@ export const searchCardsPaginatedHandler = async (
           });
         }
       } catch (error) {
-        if (!isSearchTooBroadError(error)) {
+        if (!isSearchTooBroad(error)) {
           throw error;
         }
         candidates = await searchCandidatesByDocument(ctx, {
@@ -578,7 +576,7 @@ export const searchCardsPaginatedHandler = async (
         });
       }
     } catch (error) {
-      if (!isSearchTooBroadError(error)) {
+      if (!isSearchTooBroad(error)) {
         throw error;
       }
       searchResults = await readKeywordMatches({

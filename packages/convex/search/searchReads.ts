@@ -15,6 +15,23 @@ import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 
+const SEARCH_TOO_BROAD = "search_too_broad";
+
+/**
+ * Clients see `INVALID_INPUT` and the message; `reason` lets a search that
+ * can retry with a wider read tell this error from any other bad input.
+ */
+export const searchTooBroad = () =>
+  new ConvexError({
+    code: "INVALID_INPUT",
+    message: "Search is too broad. Add a type or date filter.",
+    reason: SEARCH_TOO_BROAD,
+  });
+
+export const isSearchTooBroad = (error: unknown): boolean =>
+  error instanceof ConvexError &&
+  (error.data as { reason?: unknown } | undefined)?.reason === SEARCH_TOO_BROAD;
+
 interface SavedAtRange {
   gte: (
     field: "cardSavedAt",
@@ -127,10 +144,7 @@ export const searchCardsByExactTag = async (
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
   for await (const document of tagQuery) {
     if (scanBudget.remaining <= 0) {
-      throw new ConvexError({
-        code: "INVALID_INPUT",
-        message: "Search is too broad. Add a type or date filter.",
-      });
+      throw searchTooBroad();
     }
     scanBudget.remaining -= 1;
     if (
@@ -174,12 +188,6 @@ interface DocumentSearchArgs {
   urlHost?: string;
   userId: string;
 }
-
-const searchTooBroad = () =>
-  new ConvexError({
-    code: "INVALID_INPUT",
-    message: "Search is too broad. Add a type or date filter.",
-  });
 
 type SearchDocumentFilter = SearchFilterFinalizer<
   Doc<"cardSearchDocuments">,

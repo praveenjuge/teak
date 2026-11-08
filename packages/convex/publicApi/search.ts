@@ -29,6 +29,7 @@ import {
   searchCardsByDocument,
   searchCardsByExactTag,
   searchCardsByOcrText,
+  searchTooBroad,
 } from "../search/searchReads";
 import {
   type SemanticRanking,
@@ -853,10 +854,7 @@ export const relevancePage = async (
   const pageItems = ordered.slice(offset, offset + limit);
   const hasMore = ordered.length > offset + limit;
   if (!(hasMore || hasCursor) && result.hitScanBudget) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Search is too broad. Add a type or date filter.",
-    });
+    throw searchTooBroad();
   }
   const nextCursor = hasMore
     ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
