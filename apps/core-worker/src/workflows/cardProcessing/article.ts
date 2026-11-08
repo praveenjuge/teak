@@ -18,7 +18,7 @@ import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata } from "./aiMetadata";
 import {
   type CardJob,
-  ensureObjectOwnership,
+  ensureObjectsOwnership,
   guardOf,
   loadCard,
 } from "./context";
@@ -142,16 +142,21 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
     current ? [current.textKey, ...current.imageKeys] : []
   );
   const bucket = job.env.BUCKET;
+  await ensureObjectsOwnership(
+    job,
+    card.userId,
+    [...images.map((image) => image.key), textKey].filter(
+      (key) => !stored.has(key)
+    )
+  );
   for (const image of images) {
     if (!stored.has(image.key)) {
-      await ensureObjectOwnership(job, card.userId, image.key);
       await bucket.put(image.key, image.body, {
         httpMetadata: { contentType: "image/webp" },
       });
     }
   }
   if (!stored.has(textKey)) {
-    await ensureObjectOwnership(job, card.userId, textKey);
     await bucket.put(textKey, result.markdown, {
       httpMetadata: { contentType: "text/markdown; charset=utf-8" },
     });

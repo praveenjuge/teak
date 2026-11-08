@@ -679,11 +679,26 @@ so PostHog keeps one copy. `capabilities` lists the item types the op takes in
 
 Steps read and write Convex through one signed endpoint,
 `POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
-`packages/convex/workflowGateway.ts`), which runs one function from
-`packages/convex/workflows/rpcAllowlist.ts` per call. Every card-processing
-write carries the run's processing revision and lands only while the card is
-still on it, so an edit (which bumps the revision and stops the older run)
-can never be overwritten by the run it replaced.
+`packages/convex/workflowGateway.ts`), which runs functions from
+`packages/convex/workflows/rpcAllowlist.ts`. Every card-processing write
+carries the run's processing revision and lands only while the card is still
+on it, so an edit (which bumps the revision and stops the older run) can never
+be overwritten by the run it replaced.
+
+A call runs one function, or a batch of up to 16 queries and mutations
+(`ConvexRpc.batch`, with `batchOp.query` and `batchOp.mutation`). Convex runs
+a batch in order in one transaction: a mutation when any op writes or a guard
+is given (the guard checked once, before the first op), else a query. A
+failed op rolls back the ones before it and refuses the batch, naming its
+index. A guarded batch may only write to the guard's card (403
+`guard_mismatch`), and the Worker refuses to send more than 16 ops. Card steps use batches to cut calls: each step reads the card and marks
+its stage in progress in one call (`loadAndMark`), the link fetch reads its
+three facts in one, uploads register their keys together, and the screenshot
+is saved with its stage's completion. A link's preview and category aren't
+written by their own steps: each is a `HeldWrite` in the step's result, made
+first thing in the next step's opening batch, before it reads the card back
+(a held write over 12 KiB is made at once instead). A Convex that predates
+batches answers them 400, and the Worker then runs that run's ops one by one.
 
 A link's raw scrape and its category's raw provider data (1 KiB to 512 KiB of
 JSON) go to R2 from the step, not through Convex

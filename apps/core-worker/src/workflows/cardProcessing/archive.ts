@@ -6,14 +6,9 @@ import {
   type PageArchiveSkip,
   pageArchiveSkipReason,
 } from "@teak/convex/shared/pageArchive";
+import { batchOp } from "../../convexRpc";
 import type { StepConfig } from "../runtime";
-import {
-  type CardJob,
-  ensureObjectOwnership,
-  guardOf,
-  loadCard,
-  objectKey,
-} from "./context";
+import { type CardJob, guardOf, loadCard, objectKey } from "./context";
 
 /**
  * Three retries, 30 seconds apart: what fails here is a busy or missing
@@ -88,15 +83,29 @@ export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
   const url = card.url as string;
   const snapshotKey = card.pendingPageSnapshotKey;
   const startedAt = Date.now();
-  await markStage(job, { status: "in_progress" });
-
   const destinationKey = objectKey(loaded, {
     cardId: job.cardId,
     fileName: "archive.html",
     objectId: `r${job.rev}`,
     role: PAGE_ARCHIVE_ROLE,
   });
-  await ensureObjectOwnership(job, card.userId, destinationKey);
+  // The stage's in-progress mark and the copy's registration, in one call.
+  const [, registered] = await job.deps.convex.batch(
+    [
+      batchOp.mutation(
+        internal.workflows.steps.archive.mutations.markPageArchiveStage,
+        { cardId: job.cardId, status: "in_progress" }
+      ),
+      batchOp.mutation(internal.storage.ownership.registerObject, {
+        key: destinationKey,
+        userId: card.userId,
+      }),
+    ],
+    guardOf(job)
+  );
+  if (!registered) {
+    throw new Error("account_storage_write_denied");
+  }
   const outcome = await job.deps.filesOp({
     op: "archive-page",
     params: {

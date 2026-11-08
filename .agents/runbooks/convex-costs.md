@@ -126,6 +126,11 @@ So a change doesn't move it back:
   day's own cards and stored per-day savers (`adminDailySavers`), never a
   scan of every card; total cards, total storage and the overview are no
   longer counted (`admin:getOverview` returns its last stored row).
+- **Card processing calls.** A step's Convex calls go through one batch
+  where they can (`ConvexRpc.batch`, `apps/core-worker/README.md`): a link
+  run makes about 21 gateway calls (33 before), an image 9 (12) and a note 7
+  (9). `run.test.ts` keeps those budgets; a change that adds calls should
+  batch them or raise the budget on purpose.
 - **Analytics events from mutations** ride the workflow dispatch outbox to
   the Core Worker, which sends them to PostHog.
 - **MCP session traffic** (`initialize`, `tools/list`, `ping`) is answered at

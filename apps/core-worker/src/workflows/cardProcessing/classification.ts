@@ -13,13 +13,7 @@ import {
   extractCardColors,
   toDbColor,
 } from "./classificationRules";
-import {
-  type CardDoc,
-  type CardJob,
-  guardOf,
-  loadCard,
-  markInProgress,
-} from "./context";
+import { type CardDoc, type CardJob, guardOf, loadAndMark } from "./context";
 import { runDecision } from "./decisions";
 
 const MAX_PALETTE_COLORS = 12;
@@ -173,11 +167,10 @@ const decideClassification = async (
 export const classifyCard = async (
   job: CardJob
 ): Promise<ClassificationResult> => {
-  const loaded = await loadCard(job);
+  const loaded = await loadAndMark(job, ["classify"]);
   if (!loaded) {
     return { mode: "skipped" };
   }
-  await markInProgress(job, ["classify"]);
   const { recorded, result } = await decideClassification(job, loaded.card);
   await recordClassification(job, recorded);
   if (recorded.type) {

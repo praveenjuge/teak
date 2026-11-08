@@ -18,11 +18,14 @@ import {
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
+import { batchOp } from "../../convexRpc";
 import { isTransientError } from "../deps";
 import {
   type CardJob,
   ensureObjectOwnership,
+  fitsHeld,
   guardOf,
+  type HeldWrite,
   type LoadedCard,
   loadCard,
   objectKey,
@@ -108,6 +111,10 @@ export const keepPreviewAfterFailedRefresh = async (
 
 export interface LinkMetadataResult {
   errorType?: string;
+  /** The preview's write, for the next step to make (`hold`). */
+  held?: HeldWrite[];
+  /** The held preview has no image left to store. */
+  previewImageDone?: true;
   status: "failed" | "skipped" | "success";
 }
 
@@ -428,14 +435,66 @@ export const isDefinitiveHttpClientError = (status: number | undefined) =>
 const scrapeHttpStatus = (payload: ScrapeResponse): number | undefined =>
   payload.errors?.find((error) => typeof error?.code === "number")?.code;
 
+/** What the link fetch reads before it starts, in one call and snapshot. */
+export const readLinkFetch = async (job: CardJob) => {
+  const [loaded, card, paused] = await job.deps.convex.batch([
+    batchOp.query(internal.card.processingRpc.getCardForProcessing, {
+      cardId: job.cardId,
+    }),
+    batchOp.query(internal.linkMetadata.getCardForLinkFetch, {
+      cardId: job.cardId,
+    }),
+    batchOp.query(internal.adminAccess.isLinkFetchPaused, {}),
+  ]);
+  return { card, loaded: loaded as LoadedCard | null, paused: paused === true };
+};
+
+export type LinkFetchReads = Awaited<ReturnType<typeof readLinkFetch>>;
+
+/**
+ * Fetches the link's preview and saves it. With `hold`, a preview that fits
+ * is returned for the next step to write instead (`HeldWrite`).
+ */
 export const fetchLinkMetadata = async (
-  job: CardJob
+  job: CardJob,
+  reads?: LinkFetchReads,
+  options: { hold?: boolean } = {}
+): Promise<LinkMetadataResult> => {
+  const held: HeldWrite[] = [];
+  const result = await fetchAndSave(job, reads, options.hold ? held : null);
+  if (held.length === 0) {
+    return result;
+  }
+  return {
+    ...result,
+    held,
+    ...(held.every(storesNoPreviewImage) ? { previewImageDone: true } : {}),
+  };
+};
+
+/**
+ * A preview whose image is already stored, or that has none: "store link
+ * preview image" would find nothing to do.
+ */
+const storesNoPreviewImage = (write: HeldWrite) => {
+  if (write.kind !== "link_metadata") {
+    return false;
+  }
+  const preview = write.args.linkPreview as LinkPreviewMetadata | undefined;
+  return (
+    preview?.status === "success" &&
+    (!preview.imageUrl || Boolean(preview.imageStorageKey))
+  );
+};
+
+const fetchAndSave = async (
+  job: CardJob,
+  reads: LinkFetchReads | undefined,
+  hold: HeldWrite[] | null
 ): Promise<LinkMetadataResult> => {
   const { convex } = job.deps;
-  const card = await convex.query(internal.linkMetadata.getCardForLinkFetch, {
-    cardId: job.cardId,
-  });
-  let loaded: LoadedCard | null = null;
+  const { card, paused, ...read } = reads ?? (await readLinkFetch(job));
+  let loaded: LoadedCard | null = read.loaded;
   const owner = async (): Promise<LoadedCard> => {
     loaded ??= await loadCard(job);
     if (!loaded) {
@@ -456,9 +515,8 @@ export const fetchLinkMetadata = async (
     linkPreview: LinkPreviewMetadata,
     status: "completed" | "failed"
   ) => {
-    await convex.mutation(
-      internal.linkMetadata.updateCardMetadata,
-      {
+    const write: HeldWrite = {
+      args: {
         cardId: job.cardId,
         linkPreview:
           linkPreview.raw === undefined
@@ -472,6 +530,15 @@ export const fetchLinkMetadata = async (
         ...(job.refresh ? { refresh: true } : {}),
         status,
       },
+      kind: "link_metadata",
+    };
+    if (hold && fitsHeld(write)) {
+      hold.push(write);
+      return;
+    }
+    await convex.mutation(
+      internal.linkMetadata.updateCardMetadata,
+      write.args,
       guardOf(job)
     );
   };
@@ -518,9 +585,7 @@ export const fetchLinkMetadata = async (
 
   const normalizedUrl = normalizeUrl(card.url);
 
-  if (
-    (await convex.query(internal.adminAccess.isLinkFetchPaused, {})) === true
-  ) {
+  if (paused) {
     return await fail(
       normalizedUrl,
       "fetching_paused",

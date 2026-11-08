@@ -244,6 +244,157 @@ describe("workflow RPC gateway", () => {
     expect(((await response.json()) as WorkflowRpcResponse).ok).toBe(true);
   });
 
+  describe("batches", () => {
+    const markOp = (cardId: string, stages: string[] = ["metadata"]) => ({
+      args: { cardId, stages },
+      kind: "mutation",
+      name: "card/processingRpc:markStagesInProgress",
+    });
+    const readOp = (cardId: string) => ({
+      args: { cardId },
+      kind: "query",
+      name: "card/processingRpc:getCardForProcessing",
+    });
+    const send = async (
+      t: Awaited<ReturnType<typeof setup>>["t"],
+      body: unknown
+    ) => await t.fetch(WORKFLOW_RPC_PATH, await signedRequest(body));
+    const dispatchState = (
+      t: Awaited<ReturnType<typeof setup>>["t"],
+      dispatchId: Awaited<ReturnType<typeof setup>>["dispatchId"]
+    ) =>
+      t.run(
+        async (ctx) =>
+          (await ctx.db.get("workflowDispatches", dispatchId))?.state
+      );
+
+    test("runs every op in order and answers each one's value", async () => {
+      const { cardId, dispatchId, t } = await setup();
+      const response = await send(t, {
+        guard: { cardId, rev: 2 },
+        kind: "batch",
+        ops: [markOp(cardId), readOp(cardId), completeCall(`card-${cardId}-2`)],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(body.ok).toBe(true);
+      const values = (body.ok ? body.value : []) as Array<{
+        card?: { processingStatus?: { metadata?: { status: string } } };
+      } | null>;
+      expect(values).toHaveLength(3);
+      // The read sees the write before it, in the same transaction.
+      expect(values[1]?.card?.processingStatus?.metadata?.status).toBe(
+        "in_progress"
+      );
+      expect(await dispatchState(t, dispatchId)).toBe("done");
+    });
+
+    test("a replaced revision applies none of the batch", async () => {
+      const { cardId, dispatchId, t } = await setup();
+      const response = await send(t, {
+        guard: { cardId, rev: 1 },
+        kind: "batch",
+        ops: [markOp(cardId), completeCall(`card-${cardId}-2`)],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(!body.ok && body.error.code).toBe("stale_processing_revision");
+      expect(await dispatchState(t, dispatchId)).toBe("sent");
+      const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+      expect(card?.processingStatus?.metadata).toBeUndefined();
+    });
+
+    test("an op that fails rolls back the ones before it and is named", async () => {
+      const { cardId, dispatchId, t } = await setup();
+      const response = await send(t, {
+        guard: { cardId, rev: 2 },
+        kind: "batch",
+        ops: [
+          completeCall(`card-${cardId}-2`),
+          markOp(cardId, ["not_a_stage"]),
+        ],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(body.ok).toBe(false);
+      expect(!body.ok && body.error.index).toBe(1);
+      expect(await dispatchState(t, dispatchId)).toBe("sent");
+    });
+
+    test("reads alone run as a query, without a guard", async () => {
+      const { cardId, t } = await setup();
+      const response = await send(t, {
+        kind: "batch",
+        ops: [
+          readOp(cardId),
+          { args: {}, kind: "query", name: "adminAccess:isLinkFetchPaused" },
+        ],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(body.ok).toBe(true);
+      expect((body.ok ? body.value : []) as unknown[]).toHaveLength(2);
+    });
+
+    test("refuses the batch when any op is outside the allowlist", async () => {
+      const { cardId, dispatchId, t } = await setup();
+      const response = await send(t, {
+        guard: { cardId, rev: 2 },
+        kind: "batch",
+        ops: [
+          completeCall(`card-${cardId}-2`),
+          { args: {}, kind: "mutation", name: "cards:deleteCard" },
+        ],
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "function_not_allowed" });
+      expect(await dispatchState(t, dispatchId)).toBe("sent");
+    });
+
+    test("refuses a guarded write to a card other than the guard's", async () => {
+      const { cardId, t } = await setup();
+      const other = await t.run((ctx) =>
+        ctx.db.insert("cards", {
+          content: "Other",
+          createdAt: Date.now(),
+          processingRev: 1,
+          type: "text",
+          updatedAt: Date.now(),
+          userId: "user-1",
+        })
+      );
+      const response = await send(t, {
+        guard: { cardId, rev: 2 },
+        kind: "batch",
+        ops: [markOp(cardId), markOp(other)],
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "guard_mismatch" });
+      const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+      expect(card?.processingStatus?.metadata).toBeUndefined();
+    });
+
+    test("names the op whose args can't be decoded", async () => {
+      const { cardId, t } = await setup();
+      const response = await send(t, {
+        kind: "batch",
+        ops: [
+          readOp(cardId),
+          { ...readOp(cardId), args: { cardId: { $bytes: 5 } } },
+        ],
+      });
+      const body = (await response.json()) as WorkflowRpcResponse;
+      expect(body.ok).toBe(false);
+      expect(!body.ok && body.error.index).toBe(1);
+    });
+
+    test("refuses a card processing write in a batch without a guard", async () => {
+      const { cardId, t } = await setup();
+      const response = await send(t, {
+        kind: "batch",
+        ops: [readOp(cardId), markOp(cardId)],
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: "guard_required" });
+    });
+  });
+
   test("lets a run forget a podcast file it deleted without a guard, but not record one", async () => {
     const { cardId, t } = await setup();
     const call = (stored: boolean) => ({

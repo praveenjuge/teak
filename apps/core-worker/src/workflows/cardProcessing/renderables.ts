@@ -12,15 +12,17 @@ import type {
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
+import { batchOp } from "../../convexRpc";
 import { isTransientError } from "../deps";
 import { isRetryableFilesError } from "../filesOps";
 import {
   type CardJob,
   ensureObjectOwnership,
+  ensureObjectsOwnership,
   guardOf,
   type LoadedCard,
+  loadAndMark,
   loadCard,
-  markInProgress,
   objectKey,
 } from "./context";
 import { buildFilePreviewFactsForKey, recordMediaFacts } from "./files";
@@ -91,22 +93,35 @@ const analyzeImage = async (
         success: false,
       };
     }
-    await job.deps.convex.mutation(
-      internal.workflows.steps.renderables.mutations.updateCardFileMetadata,
-      {
-        cardId: job.cardId,
-        height: outcome.data.height,
-        width: outcome.data.width,
-        ...(outcome.data.exif ? { exif: outcome.data.exif } : {}),
-      },
+    // The size, EXIF and colors land in one write.
+    const withColors =
+      outcome.data.palette.length > 0 &&
+      !hasKnownTinyImageDimensions(outcome.data);
+    await job.deps.convex.batch(
+      [
+        batchOp.mutation(
+          internal.workflows.steps.renderables.mutations.updateCardFileMetadata,
+          {
+            cardId: job.cardId,
+            height: outcome.data.height,
+            width: outcome.data.width,
+            ...(outcome.data.exif ? { exif: outcome.data.exif } : {}),
+          }
+        ),
+        ...(withColors
+          ? [
+              batchOp.mutation(
+                internal.workflows.aiMetadata.mutations.updateCardColors,
+                {
+                  cardId: job.cardId,
+                  colors: outcome.data.palette.map((hex) => ({ hex })),
+                }
+              ),
+            ]
+          : []),
+      ],
       guardOf(job)
     );
-    if (
-      outcome.data.palette.length > 0 &&
-      !hasKnownTinyImageDimensions(outcome.data)
-    ) {
-      await updateColors(job, outcome.data.palette);
-    }
     return { generated: false, success: true };
   } catch (error) {
     rethrowStale(error);
@@ -143,8 +158,7 @@ const generateVideoThumbnail = async (
   });
   const scrubKey =
     card.scrubKey ?? objectKey(loaded, { cardId: job.cardId, role: "scrub" });
-  await ensureObjectOwnership(job, card.userId, thumbnailKey);
-  await ensureObjectOwnership(job, card.userId, scrubKey);
+  await ensureObjectsOwnership(job, card.userId, [thumbnailKey, scrubKey]);
   let outcome: RenderingOutcome<FilesVideoFrameResult>;
   try {
     outcome = await runRendering(job, "extract-video-frame", {
@@ -353,11 +367,10 @@ export const generateRenderables = async (
   job: CardJob,
   cardType: string
 ): Promise<RenderablesResult> => {
-  const loaded = await loadCard(job);
+  const loaded = await loadAndMark(job, ["renderables"]);
   if (!loaded) {
     return { mode: "skipped", success: true, thumbnailGenerated: false };
   }
-  await markInProgress(job, ["renderables"]);
   const { card } = loaded;
 
   let thumbnailGenerated = false;

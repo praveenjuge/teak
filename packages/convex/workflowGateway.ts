@@ -1,8 +1,10 @@
 import {
   normalizeConvexSiteUrl,
+  parseWorkflowRpcBatchRequest,
   parseWorkflowRpcRequest,
   verifyWorkflowRpcRequest,
   WORKFLOW_RPC_MAX_BODY_BYTES,
+  type WorkflowRpcBatchRequest,
   type WorkflowRpcErrorCode,
   type WorkflowRpcRequest,
   type WorkflowRpcResponse,
@@ -21,6 +23,9 @@ import {
   env,
   httpAction,
   internalMutation,
+  internalQuery,
+  type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import {
   isWorkflowRpcFunction,
@@ -40,6 +45,113 @@ const refuse = (code: WorkflowRpcErrorCode): never => {
   throw new ConvexError({ code });
 };
 
+const checkGuard = async (
+  ctx: QueryCtx,
+  { cardId, rev }: { cardId: string; rev: number }
+): Promise<void> => {
+  const id = ctx.db.normalizeId("cards", cardId);
+  const card = id ? await ctx.db.get("cards", id) : null;
+  if (!card) {
+    refuse("card_missing");
+  }
+  if ((card?.processingRev ?? 0) !== rev) {
+    refuse("stale_processing_revision");
+  }
+};
+
+interface FailedBatchOp {
+  batchIndex: number;
+  code?: string;
+  data?: Value;
+  message: string;
+}
+
+const isFailedBatchOp = (data: unknown): data is FailedBatchOp =>
+  Boolean(data) &&
+  typeof data === "object" &&
+  typeof (data as { batchIndex?: unknown }).batchIndex === "number";
+
+// An error crosses `runMutation` only as a ConvexError's data, so a failed
+// op's code, data and message travel there with its index.
+const failedOp = (error: unknown, batchIndex: number): ConvexError<Value> => {
+  const described = describeError(error);
+  return new ConvexError({
+    batchIndex,
+    message: described.message,
+    ...(described.code ? { code: described.code } : {}),
+    ...(described.data === undefined ? {} : { data: described.data as Value }),
+  } as Value);
+};
+
+/** An op whose args are already Convex values (decoded by the HTTP action). */
+interface DecodedOp {
+  args: Record<string, Value>;
+  kind: "mutation" | "query";
+  name: string;
+}
+
+const runOps = async (
+  ctx: Pick<MutationCtx, "runMutation" | "runQuery">,
+  ops: DecodedOp[]
+): Promise<unknown[]> => {
+  const values: unknown[] = [];
+  for (const [index, { args, ...op }] of ops.entries()) {
+    try {
+      values.push(
+        (op.kind === "query"
+          ? await ctx.runQuery(makeFunctionReference<"query">(op.name), args)
+          : await ctx.runMutation(
+              makeFunctionReference<"mutation">(op.name),
+              args
+            )) ?? null
+      );
+    } catch (error) {
+      throw failedOp(error, index);
+    }
+  }
+  return values;
+};
+
+/**
+ * A batch with a write or a guard: one transaction, the guard checked once
+ * before the first op, so a stale run applies none of it.
+ */
+export const runBatch = internalMutation({
+  args: {
+    guard: v.optional(v.object({ cardId: v.string(), rev: v.number() })),
+    ops: v.array(v.any()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, { guard, ops }) => {
+    if (guard) {
+      await checkGuard(ctx, guard);
+    }
+    return await runOps(ctx, ops as DecodedOp[]);
+  },
+});
+
+/** A batch of reads only, as one query: the reads see one snapshot. */
+export const runQueryBatch = internalQuery({
+  args: { ops: v.array(v.any()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, { ops }) => {
+    const values: unknown[] = [];
+    for (const [index, op] of (ops as DecodedOp[]).entries()) {
+      try {
+        values.push(
+          (await ctx.runQuery(
+            makeFunctionReference<"query">(op.name),
+            op.args
+          )) ?? null
+        );
+      } catch (error) {
+        throw failedOp(error, index);
+      }
+    }
+    return values;
+  },
+});
+
 export const runGuarded = internalMutation({
   args: {
     args: v.any(),
@@ -49,23 +161,27 @@ export const runGuarded = internalMutation({
   },
   returns: v.any(),
   handler: async (ctx, { args, cardId, name, rev }) => {
-    const id = ctx.db.normalizeId("cards", cardId);
-    const card = id ? await ctx.db.get("cards", id) : null;
-    if (!card) {
-      return refuse("card_missing");
-    }
-    if ((card.processingRev ?? 0) !== rev) {
-      return refuse("stale_processing_revision");
-    }
+    await checkGuard(ctx, { cardId, rev });
     return await ctx.runMutation(makeFunctionReference<"mutation">(name), args);
   },
 });
 
-const describeError = (
-  error: unknown
-): { code?: string; data?: unknown; message: string } => {
+function describeError(error: unknown): {
+  code?: string;
+  data?: unknown;
+  index?: number;
+  message: string;
+} {
   if (error instanceof ConvexError) {
     const data = error.data as unknown;
+    if (isFailedBatchOp(data)) {
+      return {
+        ...(data.code ? { code: data.code } : {}),
+        ...(data.data === undefined ? {} : { data: data.data }),
+        index: data.batchIndex,
+        message: data.message,
+      };
+    }
     let code: string | undefined;
     if (data && typeof data === "object" && "code" in data) {
       code = String((data as { code: unknown }).code);
@@ -81,6 +197,43 @@ const describeError = (
   return {
     message: error instanceof Error ? error.message : String(error),
   };
+}
+
+export const runWorkflowRpcBatch = async (
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  batch: WorkflowRpcBatchRequest
+): Promise<WorkflowRpcResponse> => {
+  // Decoded here, so a bigint or bytes arg reaches Convex as a value, and a
+  // malformed one is named by its index.
+  const ops: DecodedOp[] = [];
+  for (const [index, op] of batch.ops.entries()) {
+    try {
+      ops.push({
+        args: jsonToConvex(op.args as never) as Record<string, Value>,
+        kind: op.kind,
+        name: op.name,
+      });
+    } catch (error) {
+      return { error: { ...describeError(error), index }, ok: false };
+    }
+  }
+  try {
+    const writes = batch.guard || ops.some((op) => op.kind === "mutation");
+    const values = writes
+      ? await ctx.runMutation(internal.workflowGateway.runBatch, {
+          ops,
+          ...(batch.guard ? { guard: batch.guard } : {}),
+        })
+      : await ctx.runQuery(internal.workflowGateway.runQueryBatch, { ops });
+    return {
+      ok: true,
+      value: (values as unknown[]).map((value) =>
+        convexToJson((value ?? null) as Value)
+      ),
+    };
+  } catch (error) {
+    return { error: describeError(error), ok: false };
+  }
 };
 
 export const runWorkflowRpc = async (
@@ -148,6 +301,29 @@ export const workflowRpcV1 = httpAction(async (ctx, request) => {
     parsed = JSON.parse(new TextDecoder().decode(body));
   } catch {
     parsed = null;
+  }
+  const batch = parseWorkflowRpcBatchRequest(parsed);
+  if (batch) {
+    for (const op of batch.ops) {
+      if (!isWorkflowRpcFunction(op.name)) {
+        return json(403, { error: "function_not_allowed" });
+      }
+      if (!batch.guard && requiresWorkflowRpcGuard(op.name, op.args)) {
+        return json(403, { error: "guard_required" });
+      }
+      // The guard checks one card's revision, so a write in its batch may
+      // only touch that card.
+      const target = (op.args as { cardId?: unknown } | null)?.cardId;
+      if (
+        batch.guard &&
+        op.kind === "mutation" &&
+        target !== undefined &&
+        target !== batch.guard.cardId
+      ) {
+        return json(403, { error: "guard_mismatch" });
+      }
+    }
+    return json(200, await runWorkflowRpcBatch(ctx, batch));
   }
   const rpc = parseWorkflowRpcRequest(parsed);
   if (!rpc) {

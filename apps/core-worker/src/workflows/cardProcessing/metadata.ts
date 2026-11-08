@@ -34,7 +34,9 @@ import {
   type CardDoc,
   type CardJob,
   guardOf,
+  type HeldWrite,
   type LoadedCard,
+  loadAndMark,
   loadCard,
 } from "./context";
 import {
@@ -186,7 +188,11 @@ const nothing = (mode: MetadataResult["mode"]): MetadataResult => ({
 
 export interface MetadataOptions {
   capacity: "defer" | "retry";
+  /** Writes the steps before held, made first, in the call that reads. */
+  held?: readonly HeldWrite[];
   lastAttempt?: boolean;
+  /** Mark the metadata stage in progress, in the same call as the read. */
+  markInProgress?: boolean;
   restorePendingOnDefer: boolean;
 }
 
@@ -493,7 +499,14 @@ export const generateCardMetadata = async (
   cardType: string | undefined,
   options: MetadataOptions
 ): Promise<MetadataResult> => {
-  const loaded = await loadCard(job);
+  const loaded =
+    options.markInProgress || options.held?.length
+      ? await loadAndMark(
+          job,
+          options.markInProgress ? ["metadata"] : [],
+          options.held
+        )
+      : await loadCard(job);
   if (!loaded) {
     return nothing("skipped");
   }

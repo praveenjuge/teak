@@ -6,9 +6,11 @@ import {
   type CardRunStage,
   FILES_UPLOAD_MAX_BYTES,
   filesUserKeyRoot,
+  WORKFLOW_RPC_MAX_BATCH_OPS,
 } from "@teak/files-protocol";
+import type { FunctionArgs } from "convex/server";
 import { type AiGateReader, createAiGateReader } from "../../ai/aiGate";
-import { type ConvexRpc, createConvexRpc } from "../../convexRpc";
+import { batchOp, type ConvexRpc, createConvexRpc } from "../../convexRpc";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
@@ -78,6 +80,80 @@ export const loadCard = (job: CardJob): Promise<LoadedCard | null> =>
     cardId: job.cardId,
   }) as Promise<LoadedCard | null>;
 
+const isCardMissing = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).includes(
+    "card_missing"
+  );
+
+/**
+ * A write a step hands to the next step instead of making its own call: the
+ * next step makes it first thing, in the batch that reads the card, so the
+ * card reads it back. Kept in the step's result, so a replay still has it.
+ */
+export type HeldWrite =
+  | {
+      args: FunctionArgs<typeof internal.linkMetadata.updateCardMetadata>;
+      kind: "link_metadata";
+    }
+  | {
+      args: FunctionArgs<
+        typeof internal.workflows.steps.categorization.mutations.updateCategorization
+      >;
+      kind: "categorization";
+    };
+
+/** Step results stay small; a bigger write is made at once instead. */
+export const HELD_WRITE_MAX_BYTES = 12 * 1024;
+
+export const fitsHeld = (write: HeldWrite) =>
+  new TextEncoder().encode(JSON.stringify(write)).byteLength <=
+  HELD_WRITE_MAX_BYTES;
+
+const heldOp = (write: HeldWrite) =>
+  write.kind === "link_metadata"
+    ? batchOp.mutation(internal.linkMetadata.updateCardMetadata, write.args)
+    : batchOp.mutation(
+        internal.workflows.steps.categorization.mutations.updateCategorization,
+        write.args
+      );
+
+/**
+ * The card, with `stages` marked in progress in the same call and
+ * transaction, after the writes an earlier step held; null when the card is
+ * gone. A newer run's revision still throws, as any guarded write does.
+ */
+export const loadAndMark = async (
+  job: CardJob,
+  stages: CardRunStage[],
+  held: readonly HeldWrite[] = []
+): Promise<LoadedCard | null> => {
+  try {
+    const results = await job.deps.convex.batch(
+      [
+        ...held.map(heldOp),
+        batchOp.query(internal.card.processingRpc.getCardForProcessing, {
+          cardId: job.cardId,
+        }),
+        ...(stages.length > 0
+          ? [
+              batchOp.mutation(
+                internal.card.processingRpc.markStagesInProgress,
+                { cardId: job.cardId, stages }
+              ),
+            ]
+          : []),
+      ],
+      guardOf(job)
+    );
+    return results[held.length] as LoadedCard | null;
+  } catch (error) {
+    if (isCardMissing(error)) {
+      return null;
+    }
+    throw error;
+  }
+};
+
 export const markInProgress = async (
   job: CardJob,
   stages: CardRunStage[]
@@ -107,12 +183,49 @@ export const ensureObjectOwnership = async (
   userId: string,
   key: string
 ): Promise<void> => {
-  const registered = await job.deps.convex.mutation(
-    internal.storage.ownership.registerObject,
-    { key, userId },
-    guardOf(job)
-  );
-  if (!registered) {
-    throw new Error("account_storage_write_denied");
+  await ensureObjectsOwnership(job, userId, [key]);
+};
+
+/**
+ * Registers the keys a step is about to upload, all in one call, before
+ * any upload: an account being deleted refuses them, and deletion finds
+ * every object registered here.
+ */
+export const ensureObjectsOwnership = async (
+  job: CardJob,
+  userId: string,
+  keys: readonly string[]
+): Promise<void> => {
+  if (keys.length === 0) {
+    return;
+  }
+  const unique = [...new Set(keys)];
+  for (
+    let start = 0;
+    start < unique.length;
+    start += WORKFLOW_RPC_MAX_BATCH_OPS
+  ) {
+    const chunk = unique.slice(start, start + WORKFLOW_RPC_MAX_BATCH_OPS);
+    const registered =
+      chunk.length === 1
+        ? [
+            await job.deps.convex.mutation(
+              internal.storage.ownership.registerObject,
+              { key: chunk[0] as string, userId },
+              guardOf(job)
+            ),
+          ]
+        : await job.deps.convex.batch(
+            chunk.map((key) =>
+              batchOp.mutation(internal.storage.ownership.registerObject, {
+                key,
+                userId,
+              })
+            ),
+            guardOf(job)
+          );
+    if (!registered.every(Boolean)) {
+      throw new Error("account_storage_write_denied");
+    }
   }
 };
