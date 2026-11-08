@@ -13,7 +13,7 @@ import {
   testEnv,
   textMetadataAnswer,
 } from "../../test/cardProcessingKit";
-import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
+import { FakeConvexError, TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import { createFakeStep } from "../../test/fakeStep";
 import { opError } from "../../test/opsHarness";
 import { FakeBucket } from "../../test/testsupport";
@@ -1244,6 +1244,30 @@ describe("card processing", () => {
 
     await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable");
     expect(reported(convex)).toEqual(["errored"]);
+  });
+});
+
+describe("errored runs", () => {
+  test("a batch op that fails is named in the run's report", async () => {
+    const card = makeCard({ content: "Notes about typography" });
+    const { convex, run } = setup(
+      card,
+      { "generate-text-metadata": textMetadataAnswer(["type"]) },
+      {
+        handlers: {
+          "card/processingRpc:markStagesInProgress": () => {
+            throw new FakeConvexError("no such stage", "invalid_stage");
+          },
+        },
+      }
+    );
+
+    await expect(run()).rejects.toThrow("no such stage");
+    const report = convex.callsTo("workflowDispatch:complete").at(-1)?.args;
+    expect(report?.status).toBe("errored");
+    expect(report?.error).toContain(
+      "[batch op card/processingRpc:markStagesInProgress#1]"
+    );
   });
 });
 

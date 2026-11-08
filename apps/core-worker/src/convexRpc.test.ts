@@ -260,7 +260,7 @@ describe("ConvexRpc.batch", () => {
     expect(fake.requests).toHaveLength(0);
   });
 
-  test("an ordinary failure keeps its message and names its op", async () => {
+  test("an ordinary failure keeps its message and code, and names its op", async () => {
     const fake = createFakeConvex({
       ...handlers,
       "card/processingRpc:markStagesInProgress": () => {
@@ -276,9 +276,11 @@ describe("ConvexRpc.batch", () => {
       .batch(ops, { guard })
       .catch((caught) => caught)) as ConvexRpcError;
     expect(error).toBeInstanceOf(ConvexRpcError);
-    expect(error.message).toBe("no such stage");
+    expect(error.message).toBe(
+      "no such stage [batch op card/processingRpc:markStagesInProgress#1]"
+    );
     expect(error.code).toBe("invalid_stage");
-    expect(error.operation).toEndWith("#1");
+    expect(error.operation).toBe("card/processingRpc:markStagesInProgress#1");
   });
 
   test("names the op that failed, and a stale guard is final", async () => {

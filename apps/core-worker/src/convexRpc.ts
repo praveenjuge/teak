@@ -56,7 +56,7 @@ const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
 export class ConvexRpcError extends Error {
   readonly code: string | undefined;
   readonly data: unknown;
-  /** In a batch, the op that failed: `batch(…)#<index>`. */
+  /** In a batch, the op that failed: `<function>#<index>`. */
   readonly operation: string | undefined;
   constructor(
     message: string,
@@ -200,12 +200,13 @@ export const createConvexRpc = (
     if (isWorkflowRpcErrorCode(code)) {
       throw new NonRetryableError(`${code}:${failed}`);
     }
-    throw new ConvexRpcError(
-      message,
-      code,
-      data,
-      index === undefined ? undefined : failed
-    );
+    if (index === undefined) {
+      throw new ConvexRpcError(message, code, data);
+    }
+    // Named in the message too: a Workflow step rethrows only the message,
+    // and that is what the run's report carries.
+    const op = `${(payload.ops as Array<{ name: string }>)[index]?.name ?? label}#${String(index)}`;
+    throw new ConvexRpcError(`${message} [batch op ${op}]`, code, data, op);
   };
 
   const call = async (
