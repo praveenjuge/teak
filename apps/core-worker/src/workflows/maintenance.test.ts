@@ -491,6 +491,81 @@ describe("admin snapshot", () => {
     });
   });
 
+  test("a stored day that was truncated makes the snapshot approximate", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const [first, ...rest] = daysBefore(day, 27);
+    const { test, written } = snapshotRun(
+      { date: day },
+      {
+        savers: Object.fromEntries(rest.map((date) => [date, []])),
+        handlers: {
+          "adminMetrics:daySavers": () => [
+            { date: first, userIds: ["reader"], isTruncated: true },
+            ...rest.map((date) => ({ date, userIds: [], isTruncated: false })),
+          ],
+        },
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(written[0]).toMatchObject({
+      activeSavers7d: 1,
+      isApproximate: true,
+    });
+  });
+
+  test("a capture of today counts it but never stores the unfinished day", async () => {
+    const day = utcDay(Date.now());
+    const savers = Object.fromEntries(
+      daysBefore(day, 27).map((date) => [date, []])
+    );
+    const { storedSavers, test, written } = snapshotRun(
+      { date: day, dispatched: true },
+      {
+        savers,
+        handlers: {
+          "adminMetrics:cardsPage": cardsBetween([
+            metricsCard("reader", Date.parse(`${day}T00:00:01.000Z`)),
+          ]),
+        },
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(written[0]?.activeSavers1d).toBe(1);
+    expect(storedSavers.has(day)).toBe(false);
+    expect(test.callsTo("adminMetrics:writeDaySavers")).toEqual([]);
+  });
+
+  test("missing days share one page budget, and running out marks the snapshot approximate", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const dayStart = Date.parse(`${day}T00:00:00.000Z`);
+    const { test, written } = snapshotRun(
+      { date: day },
+      {
+        handlers: {
+          // The day itself reads in one page; every earlier day never ends.
+          "adminMetrics:cardsPage": ({ cursor, since }) =>
+            since === dayStart
+              ? { rows: [], isDone: true, continueCursor: "end" }
+              : {
+                  rows: [],
+                  isDone: false,
+                  continueCursor: `${String(cursor)}+`,
+                },
+        },
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("adminMetrics:cardsPage")).toHaveLength(1 + 400);
+    expect(test.callsTo("adminMetrics:writeDaySavers")).toHaveLength(1);
+    expect(written[0]?.isApproximate).toBe(true);
+  });
+
   test("a day with more savers than a Convex argument holds is sent trimmed and marked truncated", async () => {
     const day = utcDay(Date.now() - DAY_MS);
     const dayStart = Date.parse(`${day}T00:00:00.000Z`);

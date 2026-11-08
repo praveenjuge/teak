@@ -506,7 +506,11 @@ describe("daily snapshot", () => {
       tally.addCard(row);
     }
     tally.addSaverDay("2026-10-14", ["old", "staff", "weekly"]);
+    // The oldest day in each window counts; the day before it doesn't.
+    tally.addSaverDay("2026-10-12", ["weekEdge"]);
+    tally.addSaverDay("2026-10-11", ["pastWeek"]);
     tally.addSaverDay("2026-09-25", ["gone", "weekly"]);
+    tally.addSaverDay("2026-09-21", ["monthEdge"]);
     // Older than 28 days, and the snapshot's own day: neither counts.
     tally.addSaverDay("2026-09-20", ["ancient"]);
     tally.addSaverDay("2026-10-18", ["sameDay"]);
@@ -518,8 +522,8 @@ describe("daily snapshot", () => {
       signups: 1,
       cardsSaved: 2,
       activeSavers1d: 2,
-      activeSavers7d: 3,
-      activeSavers28d: 4,
+      activeSavers7d: 4,
+      activeSavers28d: 7,
       storageBytesAdded: 320,
       aiCostUsd: 0.25,
       aiCalls: 3,

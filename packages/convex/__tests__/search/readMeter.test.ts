@@ -5,7 +5,11 @@ import { searchBranch, withReadMeter } from "../../search/readMeter";
 const doc = (id: string, text = "") => ({ _id: id, text });
 
 const fakeDb = () => {
-  const rows = [doc("a", "x".repeat(100)), doc("b"), doc("c")];
+  const rows = [
+    doc("a", "x".repeat(100)),
+    doc("b"),
+    { ...doc("c"), metadata: { size: 12n } },
+  ];
   const query = {
     withIndex: () => query,
     order: () => query,
@@ -54,9 +58,9 @@ describe("search read meter", () => {
 
     expect(result).toBe("done");
     expect(log.lines()).toEqual([
-      { branch: "text", docs: 9, bytes: expect.any(Number) },
+      { branch: "text", returnedDocs: 9, returnedBytes: expect.any(Number) },
     ]);
-    expect(log.lines()[0].bytes).toBeGreaterThan(300);
+    expect(log.lines()[0].returnedBytes).toBeGreaterThan(300);
   });
 
   test("still logs when the search throws", async () => {
@@ -66,13 +70,17 @@ describe("search read meter", () => {
     await expect(
       withReadMeter(ctx, "list", () => Promise.reject(new Error("too broad")))
     ).rejects.toThrow("too broad");
-    expect(log.lines()).toEqual([{ branch: "list", docs: 0, bytes: 0 }]);
+    expect(log.lines()).toEqual([
+      { branch: "list", returnedDocs: 0, returnedBytes: 0 },
+    ]);
   });
 
   test.each([
-    [{ searchQuery: "like:abc" }, "like"],
     [{ searchQuery: " mood:calm" }, "like"],
     [{ searchQuery: "design" }, "text"],
+    [{ searchQuery: "text:receipt" }, "text"],
+    [{ searchQuery: "tag:ui" }, "tag"],
+    [{ searchQuery: "folder:Inbox" }, "folder"],
     [{ searchQuery: "  ", tag: "ui" }, "tag"],
     [{ folderId: "f1" }, "folder"],
     [{ folderQuery: "Inbox" }, "folder"],

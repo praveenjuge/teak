@@ -537,6 +537,12 @@ describe("daily snapshot reads", () => {
       date: today,
       userIds: ["a", "b", "a"],
     });
+    expect(
+      await t.query(internal.adminMetrics.daySavers, {
+        since: today,
+        until: utcDay(Date.now() + DAY_MS),
+      })
+    ).toEqual([{ date: today, userIds: ["a", "b"], isTruncated: false }]);
     await t.mutation(internal.adminMetrics.writeDaySavers, {
       date: today,
       userIds: ["c"],

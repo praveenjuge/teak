@@ -1,10 +1,14 @@
 import type { QueryCtx } from "../_generated/server";
+import { parseSearchQuery } from "../shared/search/qualifiers";
 
 /**
- * Temporary: measures how much each branch of the paginated card search
- * reads, so the decision to move keyword search to the Core Worker rests on
+ * Temporary: measures what each branch of the paginated card search reads,
+ * so the decision to move keyword search to the Core Worker rests on
  * production numbers (`bunx convex logs --prod | grep search/readMeter`).
- * Remove it once that decision is made.
+ * It counts the documents the database hands back (`returnedDocs`,
+ * `returnedBytes`), not rows a filter skipped, so it shows each branch's
+ * share; the Convex usage page stays the source for total I/O. Remove it
+ * once that decision is made.
  */
 
 export type SearchBranch =
@@ -15,8 +19,11 @@ export type SearchBranch =
   | "tag"
   | "text";
 
-const LIKE_QUERY = /^(like|mood):/i;
-
+/**
+ * The branch the search handler takes, from the same parse it runs: free
+ * words or `text:` read the search indexes, `like:` and `mood:` read the
+ * meaning ranking, and qualifiers alone (`tag:ui`) read ordinary indexes.
+ */
 export const searchBranch = (args: {
   folderId?: string;
   folderQuery?: string;
@@ -24,17 +31,17 @@ export const searchBranch = (args: {
   sort?: string;
   tag?: string;
 }): SearchBranch => {
-  const query = args.searchQuery?.trim() ?? "";
-  if (LIKE_QUERY.test(query)) {
+  const parsed = parseSearchQuery(args.searchQuery ?? "");
+  if (parsed.similarity) {
     return "like";
   }
-  if (query) {
+  if (parsed.text.trim() || parsed.ocrTexts.length > 0) {
     return "text";
   }
-  if (args.tag) {
+  if (args.tag || parsed.tags.length > 0) {
     return "tag";
   }
-  if (args.folderId || args.folderQuery) {
+  if (args.folderId || args.folderQuery || parsed.folders.length > 0) {
     return "folder";
   }
   return args.sort === "shuffle" ? "shuffle" : "list";
@@ -45,10 +52,18 @@ interface Meter {
   docs: number;
 }
 
+// Convex documents may hold int64 values, which JSON.stringify refuses.
+const sizeReplacer = (_key: string, value: unknown) =>
+  typeof value === "bigint" ? value.toString() : value;
+
 const countDoc = (meter: Meter, doc: unknown) => {
   if (doc && typeof doc === "object") {
     meter.docs += 1;
-    meter.bytes += JSON.stringify(doc).length;
+    try {
+      meter.bytes += JSON.stringify(doc, sizeReplacer).length;
+    } catch {
+      // Sizing is best effort; it never fails the search.
+    }
   }
 };
 
@@ -125,6 +140,13 @@ export const withReadMeter = async <T>(
   try {
     return await read(ctx.db ? { ...ctx, db: metered(ctx.db, meter) } : ctx);
   } finally {
-    console.log("[search/readMeter]", JSON.stringify({ branch, ...meter }));
+    console.log(
+      "[search/readMeter]",
+      JSON.stringify({
+        branch,
+        returnedDocs: meter.docs,
+        returnedBytes: meter.bytes,
+      })
+    );
   }
 };

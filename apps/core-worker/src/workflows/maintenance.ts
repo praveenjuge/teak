@@ -352,20 +352,22 @@ interface Page<T> {
   rows: T[];
 }
 
+/** Reads at most `maxPages` pages; says whether it reached the end. */
 const visitPages = async <T>(
   readPage: (cursor: string | null) => Promise<Page<T>>,
-  visit: (rows: T[]) => void
-): Promise<boolean> => {
+  visit: (rows: T[]) => void,
+  maxPages = MAX_METRICS_PAGES
+): Promise<{ isComplete: boolean; pages: number }> => {
   let cursor: string | null = null;
-  for (let page = 0; page < MAX_METRICS_PAGES; page += 1) {
+  for (let page = 0; page < maxPages; page += 1) {
     const result: Page<T> = await readPage(cursor);
     visit(result.rows);
     if (result.isDone) {
-      return true;
+      return { isComplete: true, pages: page + 1 };
     }
     cursor = result.continueCursor;
   }
-  return false;
+  return { isComplete: false, pages: maxPages };
 };
 
 interface SaverDay {
@@ -391,15 +393,21 @@ const storeDaySavers = async (
   });
 };
 
-/** Who saved a card in `[since, until)`, and whether every page was read. */
+/**
+ * Who saved a card in `[since, until)`, whether every page was read, and how
+ * many pages that took.
+ */
 const readSavers = async (
   convex: ConvexRpc,
   since: number,
   until: number,
-  visit: (card: MetricsCardRow) => void = () => undefined
+  {
+    maxPages,
+    visit = () => undefined,
+  }: { maxPages?: number; visit?: (card: MetricsCardRow) => void } = {}
 ) => {
   const userIds = new Set<string>();
-  const isComplete = await visitPages<MetricsCardRow>(
+  const read = await visitPages<MetricsCardRow>(
     (cursor) =>
       convex.query(internal.adminMetrics.cardsPage, { cursor, since, until }),
     (rows) => {
@@ -407,23 +415,28 @@ const readSavers = async (
         userIds.add(card.userId);
         visit(card);
       }
-    }
+    },
+    maxPages
   );
-  return { isComplete, userIds: [...userIds] };
+  return { ...read, userIds: [...userIds] };
 };
 
 /**
  * Counts the day's snapshot from the users, the day's own cards and the
  * stored savers of the 27 days before it (`adminDailySavers`), so it never
  * scans every card. A day with no stored savers is read from its cards once
- * and stored. The cards read leave onboarding cards out.
+ * and stored; together those reads share one budget of `MAX_METRICS_PAGES`
+ * pages, past which the snapshot is approximate. Only a UTC day that has
+ * ended is stored, so a capture of today never leaves a partial day behind.
+ * The cards read leave onboarding cards out.
  */
 const countSnapshot = async (
   convex: ConvexRpc,
-  window: ReturnType<typeof snapshotDay>
+  window: ReturnType<typeof snapshotDay>,
+  now: number
 ) => {
   const users: MetricsUserRow[] = [];
-  const usersComplete = await visitPages<MetricsUserRow>(
+  const { isComplete: usersComplete } = await visitPages<MetricsUserRow>(
     (cursor) => convex.query(internal.adminMetrics.usersPage, { cursor }),
     (rows) => users.push(...rows)
   );
@@ -441,14 +454,11 @@ const countSnapshot = async (
     tally.addUser(user);
   }
 
-  const today = await readSavers(
-    convex,
-    window.dayStart,
-    window.dayEnd,
-    (card) => tally.addCard(card)
-  );
+  const today = await readSavers(convex, window.dayStart, window.dayEnd, {
+    visit: (card) => tally.addCard(card),
+  });
   let saversComplete = today.isComplete;
-  if (today.isComplete) {
+  if (today.isComplete && window.dayEnd <= now) {
     await storeDaySavers(convex, window.day, today.userIds);
   }
 
@@ -458,11 +468,18 @@ const countSnapshot = async (
     { since: earlierDays.at(-1) ?? window.day, until: window.day }
   );
   const stored = new Map(storedRows.map((row) => [row.date, row]));
+  let pagesLeft = MAX_METRICS_PAGES;
   for (const day of earlierDays) {
     let row = stored.get(day);
+    if (!row && pagesLeft === 0) {
+      row = { date: day, userIds: [], isTruncated: true };
+    }
     if (!row) {
       const dayStart = Date.parse(`${day}T00:00:00.000Z`);
-      const read = await readSavers(convex, dayStart, dayStart + DAY_MS);
+      const read = await readSavers(convex, dayStart, dayStart + DAY_MS, {
+        maxPages: pagesLeft,
+      });
+      pagesLeft -= read.pages;
       if (read.isComplete) {
         await storeDaySavers(convex, day, read.userIds);
       }
@@ -494,7 +511,7 @@ const captureSnapshot = async ({ convex, run }: TaskContext) => {
   const { counts, isComplete } = await step.do(
     "count snapshot",
     METRICS_STEP,
-    () => countSnapshot(convex, window)
+    () => countSnapshot(convex, window, now)
   );
   const billing = snapshotTakesBilling(window.dayEnd, now)
     ? await step.do("read billing", BILLING_STEP, () =>
