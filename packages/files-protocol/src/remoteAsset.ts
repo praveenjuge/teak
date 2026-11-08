@@ -24,14 +24,23 @@ export interface FilesRemoteAssetParams {
   url: string;
 }
 
+export const FILES_REMOTE_ASSET_SKIP_REASONS = [
+  "blocked_url",
+  "empty",
+  "fetch_failed",
+  "http_error",
+  "invalid_image",
+  "too_large",
+  "unsupported_type",
+] as const;
+
 export type FilesRemoteAssetSkipReason =
-  | "blocked_url"
-  | "empty"
-  | "fetch_failed"
-  | "http_error"
-  | "invalid_image"
-  | "too_large"
-  | "unsupported_type";
+  (typeof FILES_REMOTE_ASSET_SKIP_REASONS)[number];
+
+export const isRemoteAssetSkipReason = (
+  value: unknown
+): value is FilesRemoteAssetSkipReason =>
+  (FILES_REMOTE_ASSET_SKIP_REASONS as readonly unknown[]).includes(value);
 
 export type FilesRemoteAssetResult =
   | {

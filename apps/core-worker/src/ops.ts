@@ -78,6 +78,7 @@ import {
   type AcquireBrowser,
   createBrowserAcquirer,
 } from "./media/browserSessions";
+import { RendererUnavailable } from "./media/containerPool";
 import { parseLinkedPdfParams, storeLinkedPdf } from "./media/linkedPdf";
 import { fetchLinkPage, parseLinkPageParams } from "./media/linkPage";
 import {
@@ -90,10 +91,7 @@ import {
 } from "./media/mediaJobs";
 import { ocrPdfPages } from "./media/pdfOcr";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./media/remoteAsset";
-import {
-  checkRendererHealth,
-  RendererUnavailable,
-} from "./media/rendererClient";
+import { checkRendererHealth } from "./media/rendererClient";
 import { InvalidOpInput, OpFailure } from "./opFailure";
 import {
   derivedKeyParams,

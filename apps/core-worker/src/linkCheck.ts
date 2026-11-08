@@ -13,9 +13,9 @@ import {
   type FilesLinkCheckReason,
   type FilesLinkCheckResult,
 } from "@teak/files-protocol";
+import { RendererUnavailable } from "./media/containerPool";
+import type { LinkFetcherEnv } from "./media/linkFetcher";
 import { createContainerPinnedFetch } from "./media/pinnedHop";
-import type { RemoteAssetEnv } from "./media/remoteAsset";
-import { RendererUnavailable } from "./media/rendererClient";
 import { InvalidOpInput } from "./opFailure";
 import { TEAKBOT_USER_AGENT } from "./userAgent";
 
@@ -271,7 +271,7 @@ export const checkLink = async (
 };
 
 export const checkLinkOp = (
-  env: Pick<RemoteAssetEnv, "LINK_FETCHER" | "LINK_FETCHER_INSTANCES">,
+  env: LinkFetcherEnv,
   params: Record<string, unknown>
 ): Promise<FilesLinkCheckResult> =>
   checkLink(parseLinkCheckParams(params), {

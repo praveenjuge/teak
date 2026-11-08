@@ -1,5 +1,9 @@
 export const RENDERER_PROTOCOL = 1;
 export const RENDERER_PORT = 8080;
+/**
+ * Must equal FILES_UPLOAD_MAX_BYTES (checked in rendererClient.test.ts): the
+ * image builds from container/ alone, so it can't import it.
+ */
 export const RENDERER_MAX_INPUT_BYTES = 100 * 1024 * 1024;
 export const MAX_UTF8_BYTES_PER_CHAR = 4;
 

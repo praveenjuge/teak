@@ -5,14 +5,13 @@ import {
   safeFetch,
 } from "../../../../packages/convex/linkMetadata/ssrf";
 import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
-import { FILES_LINK_PAGE_MAX_URL_LENGTH } from "../../../../packages/files-protocol/src/linkPage";
+import {
+  FILES_LINK_PAGE_MAX_URL_LENGTH,
+  type FilesLinkPageFailureReason,
+} from "../../../../packages/files-protocol/src/linkPage";
 import { FILES_SCRAPE_LIMITS } from "../../../../packages/files-protocol/src/rendering";
 import type { FetchAssetDeps } from "./fetchAsset";
-import type {
-  FetcherPageFailureReason,
-  FetcherPageRequest,
-  FetcherPageResponse,
-} from "./protocol";
+import type { FetcherPageRequest, FetcherPageResponse } from "./protocol";
 
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const MAX_CONTENT_TYPE_LENGTH = 255;
@@ -99,14 +98,14 @@ export type FetchPageOutcome =
   | {
       contentType?: string;
       ok: false;
-      reason: FetcherPageFailureReason;
+      reason: FilesLinkPageFailureReason;
       status?: number;
     };
 
 const HTML_TYPE_REGEX = /text\/html|application\/xhtml\+xml/i;
 
 const fail = (
-  reason: FetcherPageFailureReason,
+  reason: FilesLinkPageFailureReason,
   extra: { contentType?: string; status?: number } = {}
 ): FetchPageOutcome => ({ ok: false, reason, ...extra });
 

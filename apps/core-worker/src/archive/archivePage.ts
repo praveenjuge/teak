@@ -22,13 +22,14 @@ import {
   type FetcherRequest,
 } from "../../fetcher/src/protocol";
 import { IMAGES_BINDING_MAX_INPUT_BYTES } from "../images/imagesBinding";
+import { RendererUnavailable } from "../media/containerPool";
+import { postToFetcher } from "../media/linkFetcher";
 import { fetchLinkPage, type LinkPageEnv } from "../media/linkPage";
 import {
   createContainerPinnedFetch,
   createDohResolver,
 } from "../media/pinnedHop";
-import { postToFetcher, type RemoteAssetEnv } from "../media/remoteAsset";
-import { RendererUnavailable } from "../media/rendererClient";
+import type { RemoteAssetEnv } from "../media/remoteAsset";
 import { InvalidOpInput } from "../opFailure";
 import { TEAKBOT_USER_AGENT } from "../userAgent";
 import {

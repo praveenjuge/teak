@@ -11,11 +11,8 @@ import {
   FETCHER_STREAM_PATH,
   type FetcherHopRequest,
 } from "../../fetcher/src/protocol";
-import {
-  FETCHER_START_ALLOWANCE_MS,
-  postToFetcher,
-  type RemoteAssetEnv,
-} from "./remoteAsset";
+import { CONTAINER_START_ALLOWANCE_MS } from "./containerPool";
+import { type LinkFetcherEnv, postToFetcher } from "./linkFetcher";
 
 // A Worker's own `fetch` cannot pin a connection to an address.
 
@@ -116,14 +113,9 @@ const abortable = <T>(
   });
 };
 
-type FetcherEnv = Pick<
-  RemoteAssetEnv,
-  "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
->;
-
 const containerHop =
   (
-    env: FetcherEnv,
+    env: LinkFetcherEnv,
     mode:
       | { maxBytes: number; stream: false; timeoutMs?: number }
       | { maxBytes: number; stream: true; timeoutMs: number }
@@ -147,7 +139,7 @@ const containerHop =
             FETCHER_STREAM_PATH,
             request,
             Math.random,
-            timeoutMs + FETCHER_START_ALLOWANCE_MS
+            timeoutMs + CONTAINER_START_ALLOWANCE_MS
           )
         : postToFetcher(env, FETCHER_HOP_PATH, request),
       init.signal
@@ -201,7 +193,7 @@ const containerHop =
  * come back. `timeoutMs` is the Container's limit for the hop.
  */
 export const createContainerPinnedFetch = (
-  env: FetcherEnv,
+  env: LinkFetcherEnv,
   options: { maxBytes?: number; timeoutMs?: number } = {}
 ): PinnedFetch =>
   containerHop(env, {
@@ -216,6 +208,6 @@ export const createContainerPinnedFetch = (
  * `timeoutMs` bounds the whole hop, body included.
  */
 export const createContainerStreamingFetch = (
-  env: FetcherEnv,
+  env: LinkFetcherEnv,
   options: { maxBytes: number; timeoutMs: number }
 ): PinnedFetch => containerHop(env, { ...options, stream: true });

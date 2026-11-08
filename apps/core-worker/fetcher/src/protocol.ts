@@ -1,4 +1,5 @@
 import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/src/remoteAsset";
+import { FILES_UPLOAD_MAX_BYTES } from "../../../../packages/files-protocol/src/storage";
 
 export const FETCHER_PORT = 8080;
 export const FETCHER_PROTOCOL = 3;
@@ -42,13 +43,6 @@ export interface FetcherPageRequest {
   url: string;
 }
 
-export type FetcherPageFailureReason =
-  | "blocked_url"
-  | "fetch_failed"
-  | "http_error"
-  | "too_large"
-  | "unsupported_type";
-
 /** A 200 from FETCHER_PAGE_PATH. Failures are 422 `{error, reason, ...}`. */
 export interface FetcherPageResponse {
   /**
@@ -73,7 +67,8 @@ export const FETCHER_HOP_REQUEST_HEADERS = ["accept", "user-agent"] as const;
 /** The most bytes a hop returns, plus one so the caller can tell it was cut. */
 export const FETCHER_HOP_MAX_BYTES = 4 * 1024 * 1024;
 export const FETCHER_HOP_MAX_TIMEOUT_MS = 30_000;
-export const FETCHER_STREAM_MAX_BYTES = 100 * 1024 * 1024;
+/** A streamed hop carries a file the Worker then stores, so the same cap. */
+export const FETCHER_STREAM_MAX_BYTES = FILES_UPLOAD_MAX_BYTES;
 export const FETCHER_STREAM_MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**

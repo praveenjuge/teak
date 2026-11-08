@@ -391,9 +391,10 @@ Run's local mode runs a real Chrome under `wrangler dev`, and the tests in
 comment in `container/src/server.ts` is the HTTP contract. The Worker reaches
 it through the `MediaRenderer` Durable Object (`src/media/mediaRenderer.ts`), which
 starts the Container with `enableInternet: false`, waits for `/health`, and
-forwards jobs. `src/media/rendererClient.ts` picks a random instance from
-`renderer-0` to `renderer-<MEDIA_RENDERER_INSTANCES - 1>`, moves to the next
-on `busy`, and checks the manifest and every output (JPEG, PNG and MP3
+forwards jobs. `src/media/containerPool.ts`, shared with the link fetcher,
+picks a random instance from `renderer-0` to
+`renderer-<MEDIA_RENDERER_INSTANCES - 1>` and moves to the next on `busy`;
+`src/media/rendererClient.ts` checks the manifest and every output (JPEG, PNG and MP3
 signatures, size caps) before anything is stored. The Container has no R2
 access: the Worker streams the R2 body in with a `FixedLengthStream` and
 stores every output.
@@ -499,7 +500,7 @@ through the old functions until they finish (`.agents/records/sunset.md`).
 and posters of social posts, and stores them in R2, so their bytes no longer
 pass through Convex. Convex names the URL, the kind (`image` or `video`) and the
 destination key; the Worker forwards the download to the link fetcher
-Container (`LINK_FETCHER`, `src/media/remoteAsset.ts`) and writes what comes back.
+Container (`LINK_FETCHER`, `src/media/linkFetcher.ts`) and writes what comes back.
 
 The fetcher (`fetcher/`) is the only Container with internet access. It is a
 Bun binary (compiled like the renderer), not a Worker, because the policy
