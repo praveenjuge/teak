@@ -86,6 +86,12 @@ folders the installer adds; the drift test fails while they're there.
   `comment-sicko` agent over the current diff (or the paths you name). It
   deletes comments the code already says and flags the symbols that need a
   rename, type, test or lint rule instead of prose.
+- Refactoring: `untangle-codebase`, from `caldoai/skills`
+  (`npx skills add caldoai/skills -s untangle-codebase -a codex -y`). Type
+  `/untangle-codebase [area]` to run it; agents never load it on their own.
+  It refactors a whole codebase (or the area you name) so pieces that change
+  together live together, keeping a decision log as it goes. It ends when
+  subagents find nothing left worth fixing, so expect a long, large change.
 
 ## Agents
 

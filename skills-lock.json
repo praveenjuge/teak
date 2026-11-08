@@ -89,6 +89,12 @@
       "sourceType": "github",
       "computedHash": "3cb96bbf386ec392fcc27d5f5973657cf00b06464958ee5d07a79b8601ac7f82"
     },
+    "untangle-codebase": {
+      "source": "caldoai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/untangle-codebase/SKILL.md",
+      "computedHash": "d5e9e1c4a1f30f34c0120dea773d0170004d6c19ef5e8f236c35773bd6c5bdbc"
+    },
     "workers-best-practices": {
       "source": "cloudflare/skills",
       "sourceType": "github",
