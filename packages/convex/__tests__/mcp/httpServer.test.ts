@@ -486,14 +486,21 @@ describe("Convex MCP endpoint", () => {
     const response = await handleMcpV1Request(
       mockActionCtx(
         withMappedOwner({
-          runMutation: mock().mockResolvedValue({
-            keyId: "key_1",
-            userId: "user_1",
-            access: "full_access",
-            source: "component",
-            rateLimitKey: "component:key_1",
-            rateLimit: { ok: true },
-          }),
+          runMutation: mock((_reference: unknown, args: { token?: string }) =>
+            Promise.resolve(
+              args.token
+                ? {
+                    keyId: "key_1",
+                    userId: "user_1",
+                    access: "full_access",
+                    source: "component",
+                    rateLimitKey: "component:key_1",
+                    rateLimit: { ok: true },
+                  }
+                : // The per-call charge of a request the edge didn't charge.
+                  { ok: true }
+            )
+          ),
           runQuery: mock().mockRejectedValue(new Error("transient")),
         })
       ),
@@ -533,16 +540,26 @@ describe("Convex MCP endpoint", () => {
     const response = await handleMcpV1Request(
       mockActionCtx(
         withMappedOwner({
-          runMutation: mock((_reference: unknown, args: { token?: string }) =>
-            args.token
-              ? Promise.resolve(credential)
-              : Promise.reject(
-                  new ConvexError({
-                    code: "RATE_LIMITED",
-                    message: "This card was refreshed a moment ago",
-                    retryAt: Date.now() + 30_000,
-                  })
-                )
+          runMutation: mock(
+            (
+              _reference: unknown,
+              args: { rateLimitKey?: string; token?: string }
+            ) => {
+              if (args.token) {
+                return Promise.resolve(credential);
+              }
+              // The request wasn't charged at the edge, so each tool call is.
+              if (args.rateLimitKey) {
+                return Promise.resolve({ ok: true });
+              }
+              return Promise.reject(
+                new ConvexError({
+                  code: "RATE_LIMITED",
+                  message: "This card was refreshed a moment ago",
+                  retryAt: Date.now() + 30_000,
+                })
+              );
+            }
           ),
           runQuery: mock().mockResolvedValue({
             _id: "card_1",
@@ -569,6 +586,46 @@ describe("Convex MCP endpoint", () => {
     expect(payload[0]?.result.structuredContent).toMatchObject({ status: 429 });
     expect(payload[1]).toEqual({ jsonrpc: "2.0", id: 2, result: {} });
     expect(payload[2]?.result.tools).toHaveLength(TEAK_V1_TOOLS.length);
+  });
+
+  test("a batch of tool calls checks its bearer once and charges each call", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const runMutation = mock(
+      (_reference: unknown, args: Record<string, unknown>) => {
+        calls.push(args);
+        return Promise.resolve(
+          args.token
+            ? {
+                keyId: "key_1",
+                userId: "user_1",
+                access: "full_access",
+                source: "component",
+                rateLimitKey: "component:key_1",
+              }
+            : { ok: true }
+        );
+      }
+    );
+    const getMe = (id: number) => ({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: { name: "teak_v1_get_me", arguments: {} },
+    });
+
+    await handleMcpV1Request(
+      mockActionCtx(withMappedOwner({ runMutation, runQuery: mock() })),
+      mcpRequest([getMe(1), getMe(2), getMe(3)])
+    );
+
+    // One key check for the request; the edge didn't charge it, so each
+    // tool call is charged against the key's limit instead.
+    expect(calls.filter((args) => args.token)).toHaveLength(1);
+    expect(calls.filter((args) => args.rateLimitKey)).toEqual([
+      { rateLimitKey: "component:key_1" },
+      { rateLimitKey: "component:key_1" },
+      { rateLimitKey: "component:key_1" },
+    ]);
   });
 
   test("answers an unknown tool with JSON-RPC invalid params", async () => {

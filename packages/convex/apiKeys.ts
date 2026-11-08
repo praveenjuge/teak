@@ -1,9 +1,11 @@
-import { sha256Hex } from "@teak/files-protocol";
+import { edgeIdentityKeyForToken, sha256Hex } from "@teak/files-protocol";
 import { ApiKeys, type KeyMetadata } from "@vllnt/convex-api-keys";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import {
   internalMutation,
+  internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
@@ -32,6 +34,13 @@ export const cleanApiKeyName = (name: string | undefined): string =>
     .join("")
     .trim() || API_KEY_NAME_DEFAULT;
 const API_KEY_ACCESS = "full_access" as const;
+
+interface ValidatedApiKey {
+  access: typeof API_KEY_ACCESS;
+  keyId: string;
+  rateLimitKey: string;
+  userId: string;
+}
 const COMPONENT_ENV = "live";
 const COMPONENT_SCOPES = [API_KEY_ACCESS];
 const LIST_LIMIT = 100;
@@ -166,9 +175,15 @@ const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
 // The key component writes a usage counter on every validation, and that
 // shared counter conflicts when one key sends many requests at once. For this
 // long after a key validates, requests with the same token skip that write and
-// only re-check, read-only, that the key is still active.
-const API_KEY_AUTH_CACHE_TTL_MS = 60_000;
+// only re-check, read-only, that the key is still active. Revoking, rotating
+// or deleting a key deletes its rows here and the re-check reads the active
+// list, so a revoked key fails on its next request whatever the window; keys
+// never expire on their own.
+const API_KEY_AUTH_CACHE_TTL_MS = 10 * 60_000;
 
+// Forgets a key's cached validations here and, through the Core Worker, at
+// the edge; every path that revokes a key (revoke, rotate, revoke all,
+// account deletion) comes through here.
 const forgetApiKeyAuth = async (
   ctx: MutationCtx,
   keyId: string
@@ -179,6 +194,11 @@ const forgetApiKeyAuth = async (
     .take(LIST_LIMIT);
   for (const row of rows) {
     await ctx.db.delete("apiKeyAuthCache", row._id);
+  }
+  if (rows.length > 0) {
+    await ctx.scheduler.runAfter(0, internal.edgeIdentity.purgeEdgeIdentity, {
+      keys: rows.map((row) => edgeIdentityKeyForToken(row.tokenHash)),
+    });
   }
 };
 
@@ -382,34 +402,86 @@ export const rotateUserApiKey = mutation({
   },
 });
 
+type CachedApiKeyCheck =
+  | { status: "valid"; key: ValidatedApiKey }
+  | { status: "invalid" }
+  | { status: "unknown"; cached: Doc<"apiKeyAuthCache"> | null };
+
+/**
+ * The read-only half of validating a key: a token validated in the last
+ * `API_KEY_AUTH_CACHE_TTL_MS` whose key is still active is valid without
+ * writing anything. `unknown` means the key component has to decide.
+ */
+const checkCachedApiKey = async (
+  ctx: QueryCtx | MutationCtx,
+  tokenHash: string,
+  now: number
+): Promise<CachedApiKeyCheck> => {
+  const cached = await ctx.db
+    .query("apiKeyAuthCache")
+    .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+    .first();
+  if (!cached || now - cached.verifiedAt >= API_KEY_AUTH_CACHE_TTL_MS) {
+    return { status: "unknown", cached };
+  }
+  const activeKeys = await listComponentKeysByStatus(
+    ctx,
+    cached.userId,
+    "active"
+  );
+  if (!activeKeys.some((key) => key.keyId === cached.keyId)) {
+    return { status: "unknown", cached };
+  }
+  if (!(await resolveStoredUserId(ctx, cached.userId))) {
+    return { status: "invalid" };
+  }
+  return {
+    status: "valid",
+    key: {
+      keyId: cached.keyId,
+      userId: cached.userId,
+      access: API_KEY_ACCESS,
+      rateLimitKey: cached.rateLimitKey,
+    },
+  };
+};
+
+/**
+ * A key validated recently, checked without a write: the public API's path
+ * for requests the Core Worker has already rate-limited. `null` means the
+ * caller validates with `validateUserApiKey`.
+ */
+export const readValidatedApiKey = internalQuery({
+  args: { token: v.string() },
+  returns: validatedApiKeyValidator,
+  handler: async (ctx, args) => {
+    const token = args.token.trim();
+    if (getApiKeyFormat(token) !== "component") {
+      return null;
+    }
+    const check = await checkCachedApiKey(
+      ctx,
+      await sha256Hex(token),
+      Date.now()
+    );
+    return check.status === "valid" ? check.key : null;
+  },
+});
+
 const validateCachedComponentApiKey = async (
   ctx: MutationCtx,
   token: string
 ) => {
   const tokenHash = await sha256Hex(token);
   const now = Date.now();
-  const cached = await ctx.db
-    .query("apiKeyAuthCache")
-    .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
-    .first();
-  if (cached && now - cached.verifiedAt < API_KEY_AUTH_CACHE_TTL_MS) {
-    const activeKeys = await listComponentKeysByStatus(
-      ctx,
-      cached.userId,
-      "active"
-    );
-    if (activeKeys.some((key) => key.keyId === cached.keyId)) {
-      if (!(await resolveStoredUserId(ctx, cached.userId))) {
-        return null;
-      }
-      return {
-        keyId: cached.keyId,
-        userId: cached.userId,
-        access: API_KEY_ACCESS,
-        rateLimitKey: cached.rateLimitKey,
-      };
-    }
+  const check = await checkCachedApiKey(ctx, tokenHash, now);
+  if (check.status === "valid") {
+    return check.key;
   }
+  if (check.status === "invalid") {
+    return null;
+  }
+  const { cached } = check;
 
   const validated = await validateComponentApiKey(ctx, token);
   if (!validated) {

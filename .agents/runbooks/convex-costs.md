@@ -129,7 +129,14 @@ So a change doesn't move it back:
 - **Analytics events from mutations** ride the workflow dispatch outbox to
   the Core Worker, which sends them to PostHog.
 - **MCP session traffic** (`initialize`, `tools/list`, `ping`) is answered at
-  the edge for a known user; only tool calls reach Convex.
+  the edge for a known user; only tool calls reach Convex, which checks the
+  request's bearer once for all of them.
+- **API auth and abuse limits.** Requests the edge has charged (known users,
+  and unknown credentials) skip Convex's `publicApiRequests` and
+  `invalidApiAuth` writes, and an API key validated in the last ten minutes is
+  checked with a read-only query. The browser extension calls
+  `teakvault.com/api` (`VITE_PUBLIC_API_URL`) rather than `convex.site`, so its
+  requests are edge-charged too.
 - **Save by email** costs one `findSender` query per email that passes DMARC
   and one `ingestEmail` mutation only for accounts that turned it on;
   attachment bytes never pass through Convex.

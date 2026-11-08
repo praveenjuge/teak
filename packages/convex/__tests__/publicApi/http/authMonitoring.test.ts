@@ -175,6 +175,39 @@ describe("public API auth outcomes", () => {
     });
   });
 
+  test("a recently validated key is checked read-only when nothing is charged here", async () => {
+    const READ_KEY = getFunctionName(internal.apiKeys.readValidatedApiKey);
+    const runMutation = mock(() =>
+      Promise.reject(new Error("no mutation expected"))
+    );
+    const runQuery = mock((ref: FunctionReference<"query">) =>
+      Promise.resolve(
+        getFunctionName(ref) === READ_KEY
+          ? {
+              keyId: "key_1",
+              userId: "user_1",
+              access: "full_access",
+              rateLimitKey: "component:key_1",
+            }
+          : null
+      )
+    );
+
+    const error = await validatePublicApiBearer(
+      mockActionCtx({ runMutation, runQuery }),
+      request(API_KEY, "/mcp"),
+      "mcp"
+    );
+
+    expect(error).toBeNull();
+    expect(runMutation).not.toHaveBeenCalled();
+    expect(
+      runQuery.mock.calls.map(([ref]) =>
+        getFunctionName(ref as FunctionReference<"query">)
+      )
+    ).toEqual([READ_KEY]);
+  });
+
   test("the MCP transport gate is logged once as a gate check", async () => {
     const error = await validatePublicApiBearer(
       backend({ [VALIDATE_KEY]: VALID_KEY }),

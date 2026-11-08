@@ -153,9 +153,12 @@ a read-only lookup signed with the shared files signing secret over its own
 SHA-256 digest, never the key; Convex knows a key by the digest its validation
 caches in `apiKeyAuthCache`. Answers are cached in the `EDGE_IDENTITY` KV
 namespace for five minutes, or a minute for an unknown credential, so a new
-key is recognized within a minute and a revoked one stops counting against its
-owner's edge limit within five. A failed lookup, or a failed KV read, is not
-cached.
+key is recognized within a minute. Revoking, rotating or deleting a key, an
+account deletion, and disconnecting an OAuth app ask the Worker to forget the
+entries at once (the `purge-edge-identity` op, which accepts only `key:` and
+`workos:` entries and does nothing where `EDGE_IDENTITY` isn't bound); the
+five-minute expiry is the backstop if that call fails. A failed lookup, or a
+failed KV read, is not cached.
 
 ### Edge rate limits
 
@@ -179,11 +182,16 @@ A known user's request within the limit is forwarded with
 `x-teak-edge-rate-limit`: an expiry and an HMAC (files signing secret) over
 the SHA-256 of its `Authorization` value. Convex
 (`hasEdgeRateLimitAttestation` in `packages/convex/edgeIdentity.ts`) then
-skips the `publicApiRequests` charge and its database write; MCP tool calls
-forward the header with the same `Authorization`. Everything else is charged
-by Convex as before: requests without the attestation (including any that
-reach `convex.site` directly), JSON-RPC batches, which Convex charges per
-call, and requests sent while a limiter is unavailable. A client's own
+skips the `publicApiRequests` charge and its database write, and checks a key
+it validated in the last ten minutes with a read-only query instead of a
+mutation. An unknown credential the edge has charged (its lookup, or
+`UNKNOWN_CREDENTIAL_LIMITER`) is attested too, so Convex answers it 401
+without charging its shared `invalidApiAuth` bucket again. The MCP endpoint
+checks a request's bearer once and runs its tool calls as that user.
+Everything else is charged by Convex as before: requests without the
+attestation (including any that reach `convex.site` directly), JSON-RPC
+batches, whose tool calls Convex charges one by one, and requests sent while
+a limiter is unavailable. A client's own
 `x-teak-edge-rate-limit` header is always dropped. Card creation, reprocess
 and API key creation limits stay in Convex: they count cards rather than
 requests, defer edits rather than refusing them, or never pass the edge.
@@ -210,9 +218,10 @@ unchanged: a tool call (alone or in a batch), an unknown method or invalid
 message, a body Convex would refuse (wrong `Accept`
 or `Content-Type`, unparseable, over 64 KiB, more than 100 messages), and every
 request without a known user, so an unknown credential still gets Convex's 401
-with `WWW-Authenticate`. The identity cache can trail a revoked key by up to
-five minutes; these answers carry nothing about the account, and Convex still
-authenticates every tool call.
+with `WWW-Authenticate`. A revoked key's identity entry is purged at once,
+and should that purge fail it expires within five minutes; these answers
+carry nothing about the account, and Convex still authenticates every request
+that runs a tool.
 
 ## Internal ops
 

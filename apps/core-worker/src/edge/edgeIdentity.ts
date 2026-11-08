@@ -6,6 +6,8 @@ import {
   EDGE_IDENTITY_MAX_TTL_SECONDS,
   EDGE_IDENTITY_PATH,
   type EdgeIdentityLookup,
+  edgeIdentityKeyForToken,
+  edgeIdentityKeyForWorkosUser,
   hmacSha256Hex,
   SIGNED_REQUEST_HEADERS,
   sha256Hex,
@@ -210,7 +212,7 @@ export const resolveEdgeIdentity = async (
 
   if (getApiKeyFormat(token) === "component") {
     const tokenHash = await sha256Hex(token.trim());
-    const cacheKey = `key:${tokenHash}`;
+    const cacheKey = edgeIdentityKeyForToken(tokenHash);
     let owner = await readCachedOwner(env, cacheKey);
     let charge: "charged" | "refused" | "uncharged" = "uncharged";
     if (owner.kind === "unavailable") {
@@ -245,7 +247,7 @@ export const resolveEdgeIdentity = async (
     return addressIdentity(request);
   }
   const { workosUserId } = principal;
-  const cacheKey = `workos:${workosUserId}`;
+  const cacheKey = edgeIdentityKeyForWorkosUser(workosUserId);
   let owner = await readCachedOwner(env, cacheKey);
   if (owner.kind === "unavailable") {
     owner = await lookupAndCacheOwner(

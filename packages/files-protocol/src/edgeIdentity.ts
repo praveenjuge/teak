@@ -40,6 +40,36 @@ export const parseEdgeIdentityLookup = (
   return null;
 };
 
+/** The edge identity cache's entry for an API key, by its token's hash. */
+export const edgeIdentityKeyForToken = (tokenHash: string) =>
+  `key:${tokenHash}` as const;
+
+/** The edge identity cache's entry for a WorkOS user. */
+export const edgeIdentityKeyForWorkosUser = (workosUserId: string) =>
+  `workos:${workosUserId}` as const;
+
+export const EDGE_IDENTITY_PURGE_MAX_KEYS = 100;
+
+/** `purge-edge-identity`: cache entries Convex asks the Core Worker to forget. */
+export interface FilesEdgeIdentityPurgeParams {
+  keys: string[];
+}
+
+export interface FilesEdgeIdentityPurgeResult {
+  purged: number;
+}
+
+const PURGEABLE_KEY = /^(key:[0-9a-f]{64}|workos:user_[0-9A-Za-z]{1,64})$/u;
+
+/** The keys of a purge, or null when any isn't an edge identity entry. */
+export const parseEdgeIdentityPurgeKeys = (value: unknown): string[] | null =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= EDGE_IDENTITY_PURGE_MAX_KEYS &&
+  value.every((key) => typeof key === "string" && PURGEABLE_KEY.test(key))
+    ? (value as string[])
+    : null;
+
 export const buildEdgeIdentitySigningPayload = ({
   bodySha256,
   expiresAt,

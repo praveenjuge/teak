@@ -10,7 +10,7 @@ import {
   publicApiPath,
 } from "../../shared/publicApiContract";
 import type { WorkosResource } from "../../workos/tokens";
-import { withAuthorizedUser } from "./auth";
+import { chargeAuthorizedCall, withAuthorizedUser } from "./auth";
 import { cardSourceForCaller } from "./callerSource";
 import {
   handleBulkCardsRequest,
@@ -56,7 +56,12 @@ import { unroutedV1Response, withPublicApiGatewayHeaders } from "./meta";
 import type { PublicApiHandler } from "./operation";
 import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
 import { handlePinnedOrderRequest } from "./pins";
-import { errorResponse, mapConvexErrorToResponse } from "./shared";
+import {
+  type AuthorizedUser,
+  type AuthResult,
+  errorResponse,
+  mapConvexErrorToResponse,
+} from "./shared";
 import {
   handleGetTagOperationRequest,
   handleTagsRequest,
@@ -130,7 +135,15 @@ const isGated = (id: PublicApiOperationId): id is GatedOperationId =>
 const readsBody = (id: PublicApiOperationId): boolean =>
   (PUBLIC_API_OPERATIONS[id] as PublicApiOperationSpec).body === true;
 
+/** A caller the MCP endpoint already authorized for the whole request. */
+export interface AuthorizedCaller {
+  /** Whether each call must still be charged against the owner's limit. */
+  chargeEachCall: boolean;
+  validated: AuthorizedUser;
+}
+
 interface OperationRun {
+  authorized?: AuthorizedCaller;
   /** A body already parsed (an MCP tool's arguments); else the request's. */
   body?: { value: unknown };
   operationId: GatedOperationId;
@@ -139,13 +152,27 @@ interface OperationRun {
   resource: WorkosResource;
 }
 
+const authorizeRun = async (
+  ctx: ActionCtx,
+  run: OperationRun
+): Promise<AuthResult> => {
+  if (!run.authorized) {
+    return await withAuthorizedUser(ctx, run.request, {
+      resource: run.resource,
+    });
+  }
+  const { chargeEachCall, validated } = run.authorized;
+  const refused = chargeEachCall
+    ? await chargeAuthorizedCall(ctx, validated)
+    : null;
+  return refused ? { error: refused } : { validated };
+};
+
 const runOperation = async (
   ctx: ActionCtx,
   run: OperationRun
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, run.request, {
-    resource: run.resource,
-  });
+  const auth = await authorizeRun(ctx, run);
   if ("error" in auth) {
     return auth.error;
   }
@@ -239,12 +266,18 @@ const requestFor = (call: PublicApiOperationCall, origin: string): Request => {
 export const executePublicApiOperation = (
   ctx: ActionCtx,
   call: PublicApiOperationCall,
-  options: { origin: string; resource: WorkosResource }
+  options: {
+    /** The caller the MCP endpoint authorized; else the call authorizes. */
+    authorized?: AuthorizedCaller;
+    origin: string;
+    resource: WorkosResource;
+  }
 ): Promise<Response> => {
   if (!isGated(call.operationId)) {
     return Promise.resolve(errorResponse(404, "NOT_FOUND", "Route not found"));
   }
   return runOperation(ctx, {
+    authorized: options.authorized,
     body: readsBody(call.operationId) ? { value: call.body } : undefined,
     operationId: call.operationId,
     params: call.params ?? {},

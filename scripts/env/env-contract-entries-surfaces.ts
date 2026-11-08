@@ -228,6 +228,17 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: true,
     requiredIn: ["local", "preview", "production"],
   }),
+  spec("VITE_PUBLIC_API_URL", {
+    classification: "public-config",
+    owners: ["@teak/extension"],
+    targets: ["extension"],
+    profiles: ["production"],
+    secret: false,
+    validation: "url",
+    providers: ["workflow"],
+    required: false,
+    note: "Where the extension calls the Teak API (https://teakvault.com/api for Teak's own builds, through the edge proxy). Unset, it calls VITE_PUBLIC_CONVEX_SITE_URL directly.",
+  }),
   spec("WXT_POSTHOG_PROJECT_TOKEN", {
     classification: "public-config",
     owners: ["@teak/extension"],

@@ -23,6 +23,7 @@ import {
   isFilesOp,
   MAINTENANCE_TASKS,
   PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES,
+  parseEdgeIdentityPurgeKeys,
   SIGNED_REQUEST_HEADERS,
   VECTOR_DELETE_MAX_IDS,
   verifyFilesOpRequest,
@@ -152,6 +153,7 @@ export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
+  EDGE_IDENTITY?: KVNamespace;
   FILES_PUBLIC_ORIGIN?: string;
   FILES_SIGNING_SECRET: string;
   IMAGES?: ImagesBinding;
@@ -417,6 +419,21 @@ const OP_HANDLERS: { [Op in FilesOp]: OpHandler<Op> } = {
     ),
   "finalize-upload": (params, { env }) => finalizeUpload(env, params),
   inspect,
+  // Revoked credentials' edge cache entries, so the edge stops treating them
+  // as their owner's at once instead of after the cache's five minutes. The
+  // development Worker has no edge cache and purges nothing.
+  "purge-edge-identity": async (params, { env }) => {
+    const keys = parseEdgeIdentityPurgeKeys(params.keys);
+    if (!keys) {
+      throw new InvalidOpInput("invalid_purge_keys");
+    }
+    const kv = env.EDGE_IDENTITY;
+    if (!kv) {
+      return { purged: 0 };
+    }
+    await Promise.all(keys.map((key) => kv.delete(key)));
+    return { purged: keys.length };
+  },
   "score-relevance": (params, { env }) => scoreRelevance(env, params),
   "store-linked-pdf": (params, { env }) =>
     storeLinkedPdf(env, parseLinkedPdfParams(params)),

@@ -13,7 +13,41 @@ import {
 } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { env, httpAction, internalQuery } from "./_generated/server";
+import {
+  env,
+  httpAction,
+  internalAction,
+  internalQuery,
+} from "./_generated/server";
+import {
+  callCoreWorkerOp,
+  isCoreWorkerConfigured,
+} from "./storage/coreWorkerClient";
+
+/**
+ * Asks the Core Worker to forget revoked credentials' edge identity cache
+ * entries (`key:<token hash>`, `workos:<WorkOS user ID>`), so the edge stops
+ * charging them to their owner and answering their MCP session requests at
+ * once. Convex refuses them on its own either way; the cache's five-minute
+ * expiry is the backstop if this fails.
+ */
+export const purgeEdgeIdentity = internalAction({
+  args: { keys: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (_ctx, { keys }) => {
+    if (keys.length === 0 || !isCoreWorkerConfigured()) {
+      return null;
+    }
+    const outcome = await callCoreWorkerOp({
+      op: "purge-edge-identity",
+      params: { keys },
+    });
+    if (outcome.kind !== "ok") {
+      console.warn("[edgeIdentity] purge declined", { code: outcome.code });
+    }
+    return null;
+  },
+});
 
 export const lookup = internalQuery({
   args: {

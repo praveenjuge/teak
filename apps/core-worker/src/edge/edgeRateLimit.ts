@@ -268,8 +268,13 @@ export const applyEdgeRateLimit = async (
   }
   const unknownCredential =
     !isKnownUser(identity) && request.headers.has("authorization");
+  // An unknown credential this edge has charged (its lookup, or the
+  // unknown-credential limiter below) is attested too, so Convex doesn't
+  // charge its shared invalid-credential bucket for it a second time.
   if (identity.source === "address" && identity.lookup === "charged") {
-    return { attestation: null };
+    return {
+      attestation: await attestationFor(request, env.FILES_SIGNING_SECRET),
+    };
   }
   const limiter = unknownCredential
     ? env.UNKNOWN_CREDENTIAL_LIMITER
@@ -296,7 +301,11 @@ export const applyEdgeRateLimit = async (
   }
 
   if (!isKnownUser(identity)) {
-    return { attestation: null };
+    return {
+      attestation: unknownCredential
+        ? await attestationFor(request, env.FILES_SIGNING_SECRET)
+        : null,
+    };
   }
   const charged = isTeakUser(identity) ? { identity } : {};
   if (isMcpPath(request) && (await mayBeJsonArrayBody(request))) {

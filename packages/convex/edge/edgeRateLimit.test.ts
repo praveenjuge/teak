@@ -144,3 +144,55 @@ test("MCP tool calls carry the attestation to the operation they run", async () 
   });
   expect(attested.result?.isError).not.toBe(true);
 }, 120_000);
+
+test("a made-up key the edge charged answers 401, not the shared bucket's 429", async () => {
+  const t = newBackend();
+  polarTest.register(t);
+  apiKeysTest.register(t);
+  counterTest.register(t, "apiKeys/shardedCounter");
+  const junk = (index: number) =>
+    `Bearer teak_sk_live_${"x".repeat(8)}_${String(index).padStart(32, "0")}`;
+  const me = (authorization: string, headers: Record<string, string> = {}) =>
+    t.fetch("/v1/me", {
+      headers: { Authorization: authorization, ...headers },
+    });
+
+  // Spend every shard of the shared bucket (the clock is frozen).
+  const { capacity } = RATE_LIMIT_CONFIG.invalidApiAuth;
+  for (let index = 0; index < capacity * 3; index += 1) {
+    await me(junk(index));
+  }
+  expect((await me(junk(capacity * 3))).status).toBe(429);
+
+  const attested = junk(capacity * 3 + 1);
+  const response = await me(attested, {
+    [EDGE_RATE_LIMIT_HEADER]: await attestation(attested),
+  });
+  expect(response.status).toBe(401);
+}, 120_000);
+
+test("revoking a key schedules a purge of its edge identity entry", async () => {
+  const t = newBackend();
+  polarTest.register(t);
+  apiKeysTest.register(t);
+  counterTest.register(t, "apiKeys/shardedCounter");
+  const client = await signIn(t, "edge-purge-owner");
+  const { id, key } = await client.mutation(api.apiKeys.createUserApiKey, {
+    name: "Purged",
+  });
+  expect(
+    (await t.fetch("/v1/me", { headers: { Authorization: `Bearer ${key}` } }))
+      .status
+  ).toBe(200);
+
+  await client.mutation(api.apiKeys.revokeUserApiKey, { keyId: id });
+
+  const purges = await t.run(async (ctx) =>
+    (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+      (job) => job.name === "edgeIdentity:purgeEdgeIdentity"
+    )
+  );
+  expect(purges.map((job) => job.args[0])).toEqual([
+    { keys: [`key:${await sha256Hex(key)}`] },
+  ]);
+});
