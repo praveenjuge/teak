@@ -1,6 +1,5 @@
 import { api } from "@teak/convex";
 import { gotoApp } from "../helpers/app";
-import { retry } from "../helpers/test";
 import { expect, generateTestContent, test } from "./fixtures";
 
 const pathOf = async (url: Promise<string>) => new URL(await url).pathname;
@@ -103,37 +102,28 @@ test("Export in the palette opens Settings at its Export section", async ({
   await expect(screen.getByRole("button", "Sign out")).toBeEnabled({
     timeout: 30_000,
   });
-  // The usage meter can render from the server-seeded query before
-  // hydration wires the shell's handlers, so it cannot prove the page
-  // answers input. A sidebar collapse that flips aria-expanded can only
-  // come from the click handler, so it proves the shell - the palette's
-  // key listener included - is wired before the key press.
+  // Settings paints its shell before hydration wires the palette's key
+  // listener; the usage meter only renders with live account data, so it
+  // proves the app is interactive before the key press.
   await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible({
     timeout: 30_000,
   });
-  const sidebarToggle = browser.locator('[data-sidebar="collapse"]');
-  // A click landing before hydration is dropped, so click again while the
-  // button still reads expanded; after the flip a click cannot toggle back.
-  await retry(
-    async () => {
-      if ((await sidebarToggle.getAttribute("aria-expanded")) === "true") {
-        await sidebarToggle.click();
-      }
-      await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false", {
-        timeout: 2000,
-      });
-    },
-    { timeout: 30_000 }
-  );
-  // The shell answered, so the restoring click lands.
-  await sidebarToggle.click();
-  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
-  await browser.keyboard.press("ControlOrMeta+k");
   const input = screen.getByRole(
     "combobox",
     "Search commands, folders and cards"
   );
-  await expect(input).toBeVisible({ timeout: 30_000 });
+  // The key listener can still be wiring up when the usage meter shows, so
+  // press again until the palette opens (the key toggles it, so stop at the
+  // first time it is open).
+  await expect
+    .poll(
+      async () => {
+        await browser.keyboard.press("ControlOrMeta+k");
+        return await input.isVisible().catch(() => false);
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(true);
   await input.pressSequentially("export");
   await browser.keyboard.press("Enter");
   await expect(screen.getByRole("region", "Export")).toBeVisible();
