@@ -1,20 +1,10 @@
-import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import * as objectDeletion from "../../storage/objectDeletion";
+import { describe, expect, mock, test } from "bun:test";
+import { permanentDeleteCard } from "../../card/deleteCard";
 import { withTestSession } from "../helpers/session.test-utils";
 
-const deleteObjectMock = spyOn(
-  objectDeletion,
-  "queueObjectDeletion"
-).mockResolvedValue(0);
-
+// What a permanent delete removes and queues is covered against the real
+// database in edge/card/emptyTrash.test.ts.
 describe("card/deleteCard.ts", () => {
-  let permanentDeleteCard: any;
-
-  beforeEach(async () => {
-    permanentDeleteCard = (await import("../../card/deleteCard"))
-      .permanentDeleteCard;
-  });
-
   test("throws when unauthenticated", async () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
@@ -22,63 +12,6 @@ describe("card/deleteCard.ts", () => {
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await expect(handler(ctx, { id: "c1" })).rejects.toThrow(
       "User must be authenticated"
-    );
-  });
-
-  test("deletes files and card", async () => {
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      db: {
-        get: mock()
-          .mockResolvedValueOnce({
-            _id: "c1",
-            userId: "u1",
-            type: "image",
-            fileKey: "f1",
-            previewKey: "p1",
-            thumbnailKey: "t1",
-          })
-          .mockResolvedValue(null),
-        delete: mock().mockResolvedValue(null),
-        patch: mock().mockResolvedValue(null),
-        insert: mock().mockResolvedValue("sync_1"),
-        replace: mock().mockResolvedValue(null),
-        query: mock().mockImplementation((table: string) => ({
-          withIndex: mock().mockReturnValue({
-            take: mock().mockResolvedValue([]),
-            unique: mock().mockResolvedValue(
-              {
-                cardSearchDocuments: {
-                  _id: "searchdoc_1",
-                  cardId: "c1",
-                  userId: "u1",
-                },
-                cardSearchTagSyncStates: {
-                  _id: "syncstate_1",
-                  cardId: "c1",
-                  generation: 1,
-                },
-              }[table] ?? {
-                _id: "usage_1",
-                activeCardCount: 1,
-                isSaturated: false,
-              }
-            ),
-          }),
-        })),
-      },
-      scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any);
-
-    const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
-    await handler(ctx, { id: "c1" });
-    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "f1");
-    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
-    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
-    expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
-    expect(ctx.db.delete).toHaveBeenCalledWith(
-      "cardSearchDocuments",
-      "searchdoc_1"
     );
   });
 });
