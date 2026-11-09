@@ -12,10 +12,7 @@ import {
   scopeArchivedMatch,
 } from "../card/listQuery";
 import { finishCards } from "../card/queryUtils";
-import {
-  doesCardMatchVisualFilters,
-  normalizeVisualFilterArgs,
-} from "../card/visualFilters";
+import { normalizeVisualFilterArgs } from "../card/visualFilters";
 import { searchModeValidator } from "../schema/validators/cards";
 import {
   type CardSearchFilter,
@@ -58,6 +55,7 @@ import {
   type SearchMode,
 } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
+import { matchesVisualFilters } from "../shared/search/visualFilters";
 import { tagKey } from "../shared/tags";
 import {
   type ApiCursor,
@@ -276,7 +274,7 @@ export const matchesStructuredFilters = (
 
   return (
     Boolean(card.isDeleted) === Boolean(options.showTrashOnly) &&
-    doesCardMatchVisualFilters(card, normalizeVisualFilterArgs(options))
+    matchesVisualFilters(card, normalizeVisualFilterArgs(options))
   );
 };
 

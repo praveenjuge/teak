@@ -305,6 +305,7 @@ import type * as shared_search_shuffle from "../shared/search/shuffle.js";
 import type * as shared_search_sort from "../shared/search/sort.js";
 import type * as shared_search_suggestionHints from "../shared/search/suggestionHints.js";
 import type * as shared_search_tokenization from "../shared/search/tokenization.js";
+import type * as shared_search_visualFilters from "../shared/search/visualFilters.js";
 import type * as shared_sessionHint from "../shared/sessionHint.js";
 import type * as shared_tags from "../shared/tags.js";
 import type * as shared_telemetry from "../shared/telemetry.js";
@@ -673,6 +674,7 @@ declare const fullApi: ApiFromModules<{
   "shared/search/sort": typeof shared_search_sort;
   "shared/search/suggestionHints": typeof shared_search_suggestionHints;
   "shared/search/tokenization": typeof shared_search_tokenization;
+  "shared/search/visualFilters": typeof shared_search_visualFilters;
   "shared/sessionHint": typeof shared_sessionHint;
   "shared/tags": typeof shared_tags;
   "shared/telemetry": typeof shared_telemetry;

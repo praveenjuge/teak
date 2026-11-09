@@ -30,7 +30,6 @@ import {
 } from "../card/shuffle";
 import {
   applyCardLevelFilters,
-  doesCardMatchVisualFilters,
   normalizeVisualFilterArgs,
   visualFilterTypes,
 } from "../card/visualFilters";
@@ -60,6 +59,7 @@ import {
   similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
+import { matchesVisualFilters } from "../shared/search/visualFilters";
 import type { ExpandedSearchReport } from "./readMeter";
 import { readRelevanceScores } from "./relevanceCache";
 import {
@@ -313,7 +313,7 @@ export const searchCardsPaginatedHandler = async (
         inView(card) &&
         resolved.matches(card, searchableText) &&
         isSavedAtInRange(savedAtOf(card), createdAtRange) &&
-        doesCardMatchVisualFilters(card, visualFilters),
+        matchesVisualFilters(card, visualFilters),
       text: parsed.text,
       readText: readExpressionText,
     });
@@ -373,7 +373,7 @@ export const searchCardsPaginatedHandler = async (
       resolved.matches(card, searchableText) &&
       isSavedAtInRange(savedAtOf(card), createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
-      doesCardMatchVisualFilters(card, visualFilters);
+      matchesVisualFilters(card, visualFilters);
     const searchArgs = {
       userId: user.teakUserId,
       searchQuery,

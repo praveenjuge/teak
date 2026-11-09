@@ -1,12 +1,7 @@
 import type { Doc } from "../../_generated/dataModel";
 import { cardLinkTokensToText } from "../cardLinks";
 import type { CardType } from "../constants";
-import {
-  isColorCardType,
-  isVisualStyleCardType,
-  normalizeHueFilters,
-  normalizeVisualStyleFilters,
-} from "../constants";
+import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
 import { isCardHidden, isHiddenTagList, tagKey } from "../tags";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
@@ -34,6 +29,7 @@ import {
   savedAtOf,
 } from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
+import { matchesVisualFilters } from "./visualFilters";
 
 export interface LocalSearchFilters {
   createdAtRange?: CreatedAtRange;
@@ -112,50 +108,6 @@ const buildTagKeys = (card: Doc<"cards">) => {
     tagKeysCache.set(card, keys);
   }
   return keys;
-};
-
-const matchesVisualFilters = (
-  card: Doc<"cards">,
-  filters: {
-    styleFilters: string[];
-    hueFilters: string[];
-    hexFilters: string[];
-  }
-) => {
-  if (filters.styleFilters.length > 0) {
-    if (!isVisualStyleCardType(card.type)) {
-      return false;
-    }
-
-    const styleSet = new Set(card.visualStyles ?? []);
-    if (!filters.styleFilters.some((style) => styleSet.has(style))) {
-      return false;
-    }
-  }
-
-  if (filters.hueFilters.length > 0) {
-    if (!isColorCardType(card.type)) {
-      return false;
-    }
-
-    const hueSet = new Set(card.colorHues ?? []);
-    if (!filters.hueFilters.some((hue) => hueSet.has(hue))) {
-      return false;
-    }
-  }
-
-  if (filters.hexFilters.length > 0) {
-    if (!isColorCardType(card.type)) {
-      return false;
-    }
-
-    const hexSet = new Set(card.colorHexes ?? []);
-    if (!filters.hexFilters.some((hex) => hexSet.has(hex))) {
-      return false;
-    }
-  }
-
-  return true;
 };
 
 export const filterLocalCards = (
