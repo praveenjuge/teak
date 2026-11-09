@@ -108,12 +108,22 @@ test("Export in the palette opens Settings at its Export section", async ({
   await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible({
     timeout: 30_000,
   });
-  await browser.keyboard.press("ControlOrMeta+k");
   const input = screen.getByRole(
     "combobox",
     "Search commands, folders and cards"
   );
-  await expect(input).toBeVisible({ timeout: 30_000 });
+  // The key listener can still be wiring up when the usage meter shows, so
+  // press again until the palette opens (the key toggles it, so stop at the
+  // first time it is open).
+  await expect
+    .poll(
+      async () => {
+        await browser.keyboard.press("ControlOrMeta+k");
+        return await input.isVisible().catch(() => false);
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(true);
   await input.pressSequentially("export");
   await browser.keyboard.press("Enter");
   await expect(screen.getByRole("region", "Export")).toBeVisible();
