@@ -1,7 +1,10 @@
 import { DEFAULT_TEAK_DEV_API_URL } from "@teak/convex/devUrls";
+import {
+  ORGANIZATION_LOGO,
+  ORGANIZATION_SAME_AS,
+} from "@teak/convex/shared/organization";
 import { defineConfig } from "blume";
 import { openapi } from "blume/reference";
-import { ORGANIZATION_LOGO, ORGANIZATION_SAME_AS } from "./lib/jsonld";
 
 const devConvexSite =
   process.env.TEAK_DEV_API_URL?.trim() || DEFAULT_TEAK_DEV_API_URL;

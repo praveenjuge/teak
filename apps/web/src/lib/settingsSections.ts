@@ -84,7 +84,7 @@ export const NO_SETTINGS_DATA: SettingsData = {
   sessions: false,
 };
 
-const ALL_SETTINGS_DATA: SettingsData = {
+export const ALL_SETTINGS_DATA: SettingsData = {
   apiKeys: true,
   exportState: true,
   sessions: true,

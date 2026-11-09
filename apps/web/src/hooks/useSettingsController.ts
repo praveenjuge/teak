@@ -15,7 +15,7 @@ import type { ConnectionTarget } from "../components/settings/SecurityConnection
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
-import type { SettingsData } from "../lib/settingsSections";
+import { ALL_SETTINGS_DATA, type SettingsData } from "../lib/settingsSections";
 import { useDeviceSessions } from "./useDeviceSessions";
 import { useServerErrors } from "./useServerErrors";
 
@@ -29,14 +29,8 @@ interface UseSettingsControllerOptions {
   onSignOut: () => Promise<void> | void;
 }
 
-const LOAD_EVERYTHING: SettingsData = {
-  apiKeys: true,
-  exportState: true,
-  sessions: true,
-};
-
 export function useSettingsController({
-  load = LOAD_EVERYTHING,
+  load = ALL_SETTINGS_DATA,
   onDeleteAccount,
   onDownloadFile,
   onOpenExternal,

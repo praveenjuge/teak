@@ -1,16 +1,16 @@
-export const SITE_URL = "https://teakvault.com";
-export const SITE_NAME = "Teak";
+import {
+  ORGANIZATION_ID,
+  ORGANIZATION_LOGO,
+  ORGANIZATION_SAME_AS,
+  SITE_NAME,
+  SITE_URL,
+} from "@teak/convex/shared/organization";
+
 export const SITE_DESCRIPTION =
   "Teak is a personal knowledge hub for saving, finding, and syncing cards across web, desktop, mobile, and agents.";
-export const ORGANIZATION_LOGO = "/icon.png";
-export const ORGANIZATION_SAME_AS = [
-  "https://github.com/praveenjuge/teak",
-  "https://x.com/praveenjuge",
-];
 
 // Blume's seo.organization and WebSite nodes use these ids on docs pages, so
 // marketing pages reference the same entities instead of duplicating them.
-export const ORGANIZATION_ID = `${SITE_URL}#organization`;
 const WEBSITE_ID = `${SITE_URL}#website`;
 
 export function buildPageSchemas(opts: {

@@ -28,6 +28,18 @@ export interface QuerySeed {
 }
 
 /**
+ * A paginated query's first page exactly as convex-helpers' cached
+ * `usePaginatedQuery` asks for it: its page id is always 0.
+ */
+export const firstPageArgs = <Args extends object>(
+  args: Args,
+  numItems: number
+) => ({ ...args, paginationOpts: { cursor: null, id: 0, numItems } });
+
+/** How many cards the library's first page holds. */
+export const LIBRARY_PAGE_SIZE = SEARCH_DEFAULT_CARD_LIMIT;
+
+/**
  * Names one query call whatever order its arguments' keys were built in, so
  * the server's seed matches the hook that asks for the same function and args.
  */
@@ -96,17 +108,10 @@ export function firstLoadQueries(
   if (cardsArgs) {
     queries.push({
       query: api.cards.searchCardsPaginated,
-      // The first page exactly as the cached usePaginatedQuery
-      // (convex-helpers) asks for it; its page id is always 0.
-      args: {
-        ...cardsArgs,
-        ...(folderId ? { folderId } : {}),
-        paginationOpts: {
-          cursor: null,
-          id: 0,
-          numItems: SEARCH_DEFAULT_CARD_LIMIT,
-        },
-      },
+      args: firstPageArgs(
+        { ...cardsArgs, ...(folderId ? { folderId } : {}) },
+        LIBRARY_PAGE_SIZE
+      ),
     });
   }
   return queries;

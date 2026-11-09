@@ -22,7 +22,11 @@ import {
   useEffect,
   useState,
 } from "react";
-import { type QuerySeed, querySeedKey } from "./firstLoadQueries";
+import {
+  firstPageArgs,
+  type QuerySeed,
+  querySeedKey,
+} from "./firstLoadQueries";
 
 // Every screen reads Convex through these hooks: the cached hooks from
 // convex-helpers, which fall back to the result the server fetched for the
@@ -113,19 +117,14 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
   options: { customPagination?: boolean; initialNumItems: number }
 ): UsePaginatedQueryReturnType<Query> {
   const live = useCachedPaginatedQuery(query, args, options);
-  // The first page exactly as the cached hook asks for it: its id is always 0.
   const key = useSeedKey(
     query,
     args === "skip"
       ? "skip"
-      : {
-          ...(args as Record<string, Value>),
-          paginationOpts: {
-            cursor: null,
-            id: 0,
-            numItems: options.initialNumItems,
-          },
-        }
+      : (firstPageArgs(
+          args as Record<string, Value>,
+          options.initialNumItems
+        ) as Record<string, Value>)
   );
   const firstPage = useSeed(key, live.status !== "LoadingFirstPage") as
     | PaginationResult<UsePaginatedQueryReturnType<Query>["results"][number]>

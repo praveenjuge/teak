@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { ORGANIZATION_ID, SITE_URL } from "@teak/convex/shared/organization";
 import { AUDIENCE_PAGES, buildAudiencePageSchemas } from "./audience-pages";
-import {
-  buildPageSchemas,
-  ORGANIZATION_ID,
-  SITE_DESCRIPTION,
-  SITE_URL,
-} from "./jsonld";
+import { buildPageSchemas, SITE_DESCRIPTION } from "./jsonld";
 
 interface SchemaNode {
   "@type": string;
