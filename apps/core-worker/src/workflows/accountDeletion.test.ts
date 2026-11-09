@@ -364,6 +364,32 @@ describe("runAccountDeletion", () => {
     ]);
   });
 
+  test("waits while Workflows reports an export's state as unknown", async () => {
+    const backend = deletionBackend({
+      stage: ACCOUNT_DATA,
+      workflowIds: ["export-job-1"],
+    });
+    let polls = 0;
+    const exports = {
+      get: () =>
+        Promise.resolve({
+          status: () => {
+            polls += 1;
+            return Promise.resolve({
+              status: polls < 2 ? "unknown" : "complete",
+            });
+          },
+        }),
+    };
+    const test = setup(backend, { env: { EXPORTS: exports } });
+
+    await runAccountDeletion(test.run, { convex: test.convex, ops: test.ops });
+
+    expect(
+      test.steps.records.find((record) => record.name === "prepare writers 2")
+    ).toMatchObject({ attempts: 2, outcome: "ok" });
+  });
+
   test("retries the writers step when Workflows can't say whether an export is running", async () => {
     const backend = deletionBackend({
       stage: ACCOUNT_DATA,

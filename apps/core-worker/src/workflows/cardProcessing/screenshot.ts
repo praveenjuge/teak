@@ -11,6 +11,7 @@ import type {
 } from "@teak/files-protocol";
 import { batchOp } from "../../convexRpc";
 import { normalizeUrl } from "../../linkPreview/url";
+import { decodeStepError, encodeStepError } from "../errors";
 import type { StepConfig } from "../runtime";
 import {
   type CardJob,
@@ -37,28 +38,13 @@ export const SCREENSHOT_RETRY_POLICY: Record<
 };
 
 const throwRetryable = (info: ScreenshotRetryableError): never => {
-  throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+  throw encodeStepError(SCREENSHOT_RETRYABLE_PREFIX, info);
 };
 
 export const parseScreenshotRetryableError = (
   error: unknown
-): ScreenshotRetryableError | null => {
-  if (
-    !(
-      error instanceof Error &&
-      error.message.startsWith(SCREENSHOT_RETRYABLE_PREFIX)
-    )
-  ) {
-    return null;
-  }
-  try {
-    return JSON.parse(
-      error.message.slice(SCREENSHOT_RETRYABLE_PREFIX.length)
-    ) as ScreenshotRetryableError;
-  } catch {
-    return null;
-  }
-};
+): ScreenshotRetryableError | null =>
+  decodeStepError(SCREENSHOT_RETRYABLE_PREFIX, error);
 
 export const SCREENSHOT_STEP: StepConfig = {
   retries: {

@@ -356,15 +356,5 @@ export interface DispatchResult {
   results: DispatchItemResult[];
 }
 
-export type WorkflowInstanceState =
-  | "complete"
-  | "errored"
-  | "paused"
-  | "queued"
-  | "running"
-  | "terminated"
-  | "unknown"
-  | "waiting"
-  | "waitingForPause";
-
+/** How a run reports its end to `workflowDispatch.complete`. */
 export type WorkflowCompletionStatus = "complete" | "errored";

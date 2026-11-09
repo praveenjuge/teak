@@ -18,6 +18,7 @@ import {
   getFunctionName,
 } from "convex/server";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
+import { errorMessage } from "./errors";
 
 export interface ConvexRpcEnv {
   CONVEX_SITE_URLS?: string;
@@ -52,6 +53,12 @@ const RPC_TIMEOUT_MS = 60_000;
  * sweep) must not be abandoned and retried while it is still going.
  */
 const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
+
+const CONVEX_RPC_UNAVAILABLE = "convex_rpc_unavailable";
+
+/** Convex didn't answer, or answered with a server error: worth another try. */
+export const isConvexRpcUnavailable = (error: unknown): boolean =>
+  error instanceof Error && error.message.startsWith(CONVEX_RPC_UNAVAILABLE);
 
 export class ConvexRpcError extends Error {
   readonly code: string | undefined;
@@ -168,7 +175,7 @@ export const createConvexRpc = (
       });
     } catch (error) {
       throw new Error(
-        `convex_rpc_unavailable:${label}:${error instanceof Error ? error.message : String(error)}`
+        `${CONVEX_RPC_UNAVAILABLE}:${label}:${errorMessage(error)}`
       );
     }
     if (response.status === 401 || response.status === 403) {
@@ -187,7 +194,7 @@ export const createConvexRpc = (
       .catch(() => null)) as WorkflowRpcResponse | null;
     if (!(response.ok && envelope)) {
       throw new Error(
-        `convex_rpc_unavailable:${label}:${String(response.status)}`
+        `${CONVEX_RPC_UNAVAILABLE}:${label}:${String(response.status)}`
       );
     }
     if (envelope.ok) {

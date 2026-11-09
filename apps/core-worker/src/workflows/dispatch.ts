@@ -21,6 +21,7 @@ import {
 import { InvalidOpInput } from "../opFailure";
 import { sendInBatches } from "../queues/sendBatch";
 import { sendBackendEvents, type TelemetryEnvVars } from "../telemetry";
+import { isFinishedState } from "./instanceStatus";
 
 export interface ObjectDeletionMessage {
   keys: string[];
@@ -37,12 +38,6 @@ export const workflowBinding = (
   env: WorkflowBindingsEnv,
   name: WorkflowName
 ): Workflow | undefined => env[WORKFLOW_BINDINGS[name]];
-
-/** Workflows' `get` throws for an ID it has no instance for. */
-export const isMissingInstance = (error: unknown): boolean =>
-  /not[\s._-]?found|does not exist/iu.test(
-    error instanceof Error ? error.message : String(error)
-  );
 
 /** createBatch reports an ID that already exists, or repeats, with these. */
 export const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
@@ -183,11 +178,7 @@ const terminateInstances = async (binding: Workflow, ids: string[]) => {
     ids.map(async (id) => {
       const instance = await binding.get(id);
       const { status } = await instance.status();
-      if (
-        status !== "complete" &&
-        status !== "errored" &&
-        status !== "terminated"
-      ) {
+      if (!isFinishedState(status)) {
         await instance.terminate();
       }
     })

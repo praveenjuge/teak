@@ -5,10 +5,13 @@ import {
 } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import {
-  isMissingInstance,
   type WorkflowBindingsEnv,
   workflowBinding,
 } from "../workflows/dispatch";
+import {
+  isFinishedState,
+  readInstanceStatus,
+} from "../workflows/instanceStatus";
 
 const STALE_PAGE = 200;
 const MAX_PRUNE_PAGES = 10;
@@ -30,28 +33,17 @@ const endingOf = async (
   binding: Workflow,
   instanceId: string
 ): Promise<Ending> => {
-  let instance: WorkflowInstance;
-  try {
-    instance = await binding.get(instanceId);
-  } catch (error) {
-    if (isMissingInstance(error)) {
-      return { error: WORKFLOW_INSTANCE_MISSING, status: "errored" };
-    }
-    throw error;
+  const instance = await readInstanceStatus(binding, instanceId);
+  if (!instance) {
+    return { error: WORKFLOW_INSTANCE_MISSING, status: "errored" };
   }
-  const { error, status } = await instance.status();
-  switch (status) {
-    case "complete":
-      return { status: "complete" };
-    case "errored":
-    case "terminated":
-      return {
-        error: (error?.message || status).slice(0, 300),
-        status: "errored",
-      };
-    default:
-      return { status: "running" };
+  const { error, status } = instance;
+  if (!isFinishedState(status)) {
+    return { status: "running" };
   }
+  return status === "complete"
+    ? { status: "complete" }
+    : { error: (error?.message || status).slice(0, 300), status: "errored" };
 };
 
 export const reconcileWorkflows = async (

@@ -25,11 +25,12 @@ import type {
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
 import { importIndexFailureClass } from "../archives/importSource";
+import { isConvexRpcUnavailable } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { InvalidOpInput } from "../opFailure";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
 import {
-  isTransientError,
   type OpDeps,
   resolveOpDeps,
   settleConvexErrors,
@@ -38,7 +39,6 @@ import {
 import { isRetryableFilesError } from "./filesOps";
 import {
   CONVEX_STEP,
-  errorMessage,
   exponentialStep,
   runReported,
   type StepConfig,
@@ -175,7 +175,8 @@ export const runImport = (
       return run();
     };
   const shouldRetry = (error: unknown) =>
-    isTransientError(error) || (isRetryableFilesError(error) && !lastAttempt);
+    isConvexRpcUnavailable(error) ||
+    (isRetryableFilesError(error) && !lastAttempt);
 
   const ensureOwned = async (userId: string, key: string) => {
     if (

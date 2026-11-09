@@ -2,12 +2,14 @@ import type { ServerEventCatalog } from "@teak/convex/shared/analytics";
 import type { PostHogBatch } from "@teak/convex/shared/posthog";
 import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
 import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
+import { errorMessage } from "../errors";
 import {
   createWorkerBatch,
   reportBackgroundError,
   type TelemetryEnvVars,
   workerEventProperties,
 } from "../telemetry";
+import { isSuperseded } from "./errors";
 
 // PostHog events from workflow steps and queue consumers. One isolate runs
 // many steps at once, so nothing here lives at module level: each step makes
@@ -119,9 +121,11 @@ export const isRetryableBackgroundError = (error: unknown): boolean => {
   if (code) {
     return isTransientFilesOpCode(code);
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b|stale_processing_revision|card_missing/iu.test(
-    message
+  return (
+    isSuperseded(error) ||
+    /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b/iu.test(
+      errorMessage(error)
+    )
   );
 };
 

@@ -28,11 +28,11 @@ import {
 } from "@teak/files-protocol";
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
   CONVEX_STEP,
-  errorMessage,
   exponentialStep,
   runReported,
   type WorkflowRun,

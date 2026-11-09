@@ -24,6 +24,7 @@ import type {
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionArgs } from "convex/server";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { reportBackgroundError } from "../telemetry";
 import {
   type OpCaller,
@@ -35,7 +36,6 @@ import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
 import {
   type BackgroundEnv,
   CONVEX_STEP,
-  errorMessage,
   exponentialStep,
   runReported,
   type WorkflowRun,

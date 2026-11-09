@@ -6,7 +6,7 @@ import {
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
 import { assertUrlIsSafe, SsrfError } from "@teak/files-protocol/ssrf";
-import { batchOp } from "../../convexRpc";
+import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
 import {
   buildErrorPreview,
   buildSuccessPreview,
@@ -19,7 +19,7 @@ import type {
   ScrapeResponse,
 } from "../../linkPreview/types";
 import { normalizeUrl } from "../../linkPreview/url";
-import { isTransientError } from "../deps";
+import { decodeStepError, encodeStepError } from "../errors";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -57,7 +57,7 @@ interface LinkMetadataRetryableError {
 }
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
-  throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+  throw encodeStepError(LINK_METADATA_RETRYABLE_PREFIX, info);
 };
 
 const errorFields = (error: unknown): { message?: string; name?: string } => {
@@ -73,21 +73,8 @@ const errorFields = (error: unknown): { message?: string; name?: string } => {
 
 export const parseLinkMetadataRetryableError = (
   error: unknown
-): LinkMetadataRetryableError | null => {
-  const message = error instanceof Error ? error.message : String(error);
-  const start = message.indexOf(LINK_METADATA_RETRYABLE_PREFIX);
-  if (start === -1) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(
-      message.slice(start + LINK_METADATA_RETRYABLE_PREFIX.length)
-    ) as LinkMetadataRetryableError;
-    return parsed && typeof parsed.type === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-};
+): LinkMetadataRetryableError | null =>
+  decodeStepError(LINK_METADATA_RETRYABLE_PREFIX, error);
 
 export const keepPreviewAfterFailedRefresh = async (
   job: CardJob,
@@ -760,7 +747,7 @@ const fetchAndSave = async (
     const { message, name } = errorFields(error);
     // A Convex call that didn't reach Convex says nothing about the link.
     if (
-      isTransientError(error) ||
+      isConvexRpcUnavailable(error) ||
       message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX) ||
       name === "NonRetryableError"
     ) {

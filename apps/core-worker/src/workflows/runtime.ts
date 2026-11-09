@@ -1,8 +1,12 @@
 import type { WorkflowStepConfig } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
-import type { WorkflowOriginParams } from "@teak/files-protocol";
+import type {
+  WorkflowCompletionStatus,
+  WorkflowOriginParams,
+} from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import type { FilesOpsEnv } from "../ops";
 import type { TelemetryEnvVars } from "../telemetry";
 
@@ -72,15 +76,12 @@ export const NO_RETRY = (
   timeout: StepConfig["timeout"] = "10 minutes"
 ): StepConfig => ({ retries: { delay: 0, limit: 0 }, timeout });
 
-export const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 export const runReported = async <T>(
   run: WorkflowRun<unknown>,
   body: () => Promise<T>,
   convex: ConvexRpc = convexFor(run.env, run.params)
 ): Promise<T> => {
-  const report = async (status: "complete" | "errored", error?: string) => {
+  const report = async (status: WorkflowCompletionStatus, error?: string) => {
     try {
       await run.step.do(
         `report ${status}`,

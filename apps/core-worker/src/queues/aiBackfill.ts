@@ -11,8 +11,8 @@ import {
 import { readLinkImageText } from "../workflows/cardProcessing/linkText";
 import { generateCardMetadata } from "../workflows/cardProcessing/metadata";
 import { transcribePodcastEpisode } from "../workflows/cardProcessing/podcast";
-import { isSuperseded } from "../workflows/cardProcessing/run";
 import { captureScreenshotStep } from "../workflows/cardProcessing/screenshot";
+import { isSuperseded } from "../workflows/errors";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { withWorkflowTelemetry } from "../workflows/telemetry";
 

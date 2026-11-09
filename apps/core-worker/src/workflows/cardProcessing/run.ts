@@ -7,6 +7,7 @@ import {
   type CardProcessingParams,
   cardTypeStages,
 } from "@teak/files-protocol";
+import { isSuperseded, supersededReason } from "../errors";
 import {
   CONVEX_STEP,
   exponentialStep,
@@ -90,20 +91,6 @@ export const METADATA_STEP: StepConfig = {
   timeout: "15 minutes",
 };
 
-// A NonRetryableError thrown inside a step reaches the workflow as a plain
-// Error whose message starts with "NonRetryableError: " (engine.test.ts).
-const NON_RETRYABLE_PREFIX = /^NonRetryableError:\s*/u;
-
-export const isSuperseded = (error: unknown): boolean => {
-  const message = (
-    error instanceof Error ? error.message : String(error)
-  ).replace(NON_RETRYABLE_PREFIX, "");
-  return (
-    message.startsWith("stale_processing_revision") ||
-    message.startsWith("card_missing")
-  );
-};
-
 const rethrowSuperseded = (error: unknown): void => {
   if (isSuperseded(error)) {
     throw error;
@@ -181,9 +168,10 @@ export const runCardProcessing = (
         if (isSuperseded(error)) {
           return {
             mode: "skipped",
-            reason: String(error).includes("card_missing")
-              ? "card_missing"
-              : "superseded",
+            reason:
+              supersededReason(error) === "card_missing"
+                ? "card_missing"
+                : "superseded",
           };
         }
         throw error;

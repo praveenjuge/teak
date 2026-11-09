@@ -17,7 +17,8 @@ import {
   settleConvexErrors,
   withinBudget,
 } from "./deps";
-import { isMissingInstance, workflowBinding } from "./dispatch";
+import { workflowBinding } from "./dispatch";
+import { isFinishedState, readInstanceStatus } from "./instanceStatus";
 import {
   CONVEX_STEP,
   runReported,
@@ -44,14 +45,6 @@ const STAGE_STEP: StepConfig = {
 };
 
 const ACCOUNT_DATA = accountDeletionStage("accountData");
-const ACTIVE_RUN_STATUSES = new Set([
-  "paused",
-  "queued",
-  "running",
-  "waiting",
-  "waitingForPause",
-]);
-
 interface DeletionBinding {
   generation: number;
   stateId: Id<"accountDeletionStates">;
@@ -137,15 +130,8 @@ export const runAccountDeletion = (
     if (!workflows) {
       return false;
     }
-    try {
-      const { status } = await (await workflows.get(instanceId)).status();
-      return ACTIVE_RUN_STATUSES.has(status);
-    } catch (error) {
-      if (isMissingInstance(error)) {
-        return false;
-      }
-      throw error;
-    }
+    const instance = await readInstanceStatus(workflows, instanceId);
+    return instance !== null && !isFinishedState(instance.status);
   };
 
   const prepareWritersPage = async (): Promise<boolean> => {
