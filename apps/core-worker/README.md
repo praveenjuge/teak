@@ -507,10 +507,11 @@ Bun binary (compiled like the renderer), not a Worker, because the policy
 depends on a pinned connection that the Workers runtime cannot make: the
 [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
 implements neither `lookup` nor `createConnection`, and `resolveOverride` only
-reaches hosts in the zone. Inside the Container the SSRF guard Convex used
-runs unchanged, bundled by path rather than copied:
+reaches hosts in the zone. Inside the Container the same SSRF guard the
+Worker and Convex use runs unchanged, bundled from `packages/files-protocol`
+(the image copies only that package's `src`):
 
-- `packages/convex/linkMetadata/ssrf.ts`: http(s) only, standard ports, no
+- `packages/files-protocol/src/ssrf.ts`: http(s) only, standard ports, no
   credentials, every resolved address public, every redirect hop rechecked;
 - `fetcher/src/pinnedFetch.ts`: the connection goes to the addresses that
   were checked, so DNS rebinding between the check and the connection cannot
@@ -556,9 +557,9 @@ repository root (`image_build_context`) so it can bundle those files;
 (`POST /fetch-page`, `fetcher/src/fetchPage.ts`) and returns its preview
 metadata. Convex names the URL and the scrape selectors; the Container fetches
 the page with Convex's policy, the browser user agent and a 2 MiB limit,
-decodes it, and matches the selectors with Convex's own parser
-(`packages/convex/linkMetadata/staticHtml.ts`, also bundled by path), so the
-selector results are the ones Convex computed itself. Unlike Convex, it
+decodes it, and matches the selectors with the shared parser
+(`packages/files-protocol/src/staticHtml.ts`), so the selector results are the
+ones the Worker would compute itself. Unlike Convex, it
 decodes the page with the charset the page declares (a byte order mark, then
 the `Content-Type` charset, then a `<meta>` charset in the first 1024 bytes,
 else UTF-8), so non-UTF-8 sites no longer get garbled titles.

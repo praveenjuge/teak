@@ -1,24 +1,24 @@
 import { internal } from "@teak/convex/_generated/api";
 import {
-  buildErrorPreview,
-  buildSuccessPreview,
-  parseLinkPreview,
-} from "@teak/convex/linkMetadata/parsing";
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import { assertUrlIsSafe, SsrfError } from "@teak/convex/linkMetadata/ssrf";
-import type {
-  LinkPreviewMediaItem,
-  LinkPreviewMetadata,
-  ScrapeResponse,
-} from "@teak/convex/linkMetadata/types";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
-import {
   type FilesLinkPageResult,
   type FilesRemoteAssetKind,
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
+import { assertUrlIsSafe, SsrfError } from "@teak/files-protocol/ssrf";
 import { batchOp } from "../../convexRpc";
+import {
+  buildErrorPreview,
+  buildSuccessPreview,
+  parseLinkPreview,
+} from "../../linkPreview/parsing";
+import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
+import type {
+  LinkPreviewMediaItem,
+  LinkPreviewMetadata,
+  ScrapeResponse,
+} from "../../linkPreview/types";
+import { normalizeUrl } from "../../linkPreview/url";
 import { isTransientError } from "../deps";
 import {
   type CardJob,

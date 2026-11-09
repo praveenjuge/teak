@@ -1,8 +1,8 @@
 import type {
-  ScrapeAttribute,
-  ScrapeResultItem,
-  ScrapeSelectorResult,
-} from "./types";
+  FilesScrapeAttribute,
+  FilesScrapeResultItem,
+  FilesScrapeSelectorResult,
+} from "./rendering";
 
 const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
 // `meta` or `link` with one or more `[attr='value']` conditions, like
@@ -40,8 +40,8 @@ export const decodeHtmlEntities = (value: string): string =>
     }
   );
 
-const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
-  const attributes: ScrapeAttribute[] = [];
+const extractTagAttributes = (tag: string): FilesScrapeAttribute[] => {
+  const attributes: FilesScrapeAttribute[] = [];
   const regex = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
   let match: RegExpExecArray | null = regex.exec(tag);
   while (match !== null) {
@@ -59,9 +59,9 @@ const extractTagAttributes = (tag: string): ScrapeAttribute[] => {
 export const buildSelectorResultsFromHtml = (
   html: string,
   selectors: { selector: string }[]
-): ScrapeSelectorResult[] => {
-  const metaTags: ScrapeResultItem[] = [];
-  const linkTags: ScrapeResultItem[] = [];
+): FilesScrapeSelectorResult[] => {
+  const metaTags: FilesScrapeResultItem[] = [];
+  const linkTags: FilesScrapeResultItem[] = [];
 
   const metaRegex = /<meta\b[^>]*>/gi;
   let match: RegExpExecArray | null = metaRegex.exec(html);

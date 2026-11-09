@@ -1,9 +1,9 @@
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import {
   type DnsResolver,
   type PinnedFetch,
   safeFetch,
-} from "@teak/convex/linkMetadata/ssrf";
-import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
+} from "@teak/files-protocol/ssrf";
 import { FETCHER_STREAM_MAX_TIMEOUT_MS } from "../../../fetcher/src/protocol";
 import { ObjectWriteBlockedError } from "../../deletionGate";
 import { TEAKBOT_USER_AGENT } from "../../userAgent";

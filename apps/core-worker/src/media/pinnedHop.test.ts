@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { SsrfError, safeFetch } from "@teak/convex/linkMetadata/ssrf";
+import { SsrfError, safeFetch } from "@teak/files-protocol/ssrf";
 import { createContainerNetwork } from "../test/cardProcessingKit";
 import {
   createContainerPinnedFetch,

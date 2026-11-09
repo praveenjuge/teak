@@ -1,11 +1,11 @@
-import { sanitizeText } from "@teak/convex/linkMetadata/parsing";
+import type { LinkCategoryDetail } from "@teak/convex/shared";
 import {
   type DnsResolver,
   type PinnedFetch,
   readBodyWithLimit,
   safeFetch,
-} from "@teak/convex/linkMetadata/ssrf";
-import type { LinkCategoryDetail } from "@teak/convex/shared";
+} from "@teak/files-protocol/ssrf";
+import { sanitizeText } from "../../../linkPreview/parsing";
 import { TEAKBOT_USER_AGENT } from "../../../userAgent";
 
 /** How the Worker reaches another site: pinned to a checked address. */

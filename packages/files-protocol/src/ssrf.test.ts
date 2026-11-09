@@ -9,7 +9,7 @@ import {
   readBodyWithLimit,
   SsrfError,
   safeFetch,
-} from "../../../convex/linkMetadata/ssrf";
+} from "./ssrf";
 
 const resolveTo =
   (...addresses: string[]): DnsResolver =>

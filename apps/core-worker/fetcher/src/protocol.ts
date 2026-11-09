@@ -1,4 +1,5 @@
 import type { FilesRemoteAssetKind } from "../../../../packages/files-protocol/src/remoteAsset";
+import type { FilesScrapeResult } from "../../../../packages/files-protocol/src/rendering";
 import { FILES_UPLOAD_MAX_BYTES } from "../../../../packages/files-protocol/src/storage";
 
 export const FETCHER_PORT = 8080;
@@ -53,14 +54,7 @@ export interface FetcherPageResponse {
   charset: string;
   html: string;
   pageUrl: string;
-  selectors: Array<{
-    results: Array<{
-      attributes?: Array<{ name: string; value: string }>;
-      html?: string;
-      text?: string;
-    }>;
-    selector: string;
-  }>;
+  selectors: FilesScrapeResult["selectors"];
 }
 
 export const FETCHER_HOP_REQUEST_HEADERS = ["accept", "user-agent"] as const;

@@ -3,7 +3,7 @@ import {
   type PinnedFetch,
   SAFE_FETCH_TIMEOUT_MS,
   SsrfError,
-} from "@teak/convex/linkMetadata/ssrf";
+} from "@teak/files-protocol/ssrf";
 import {
   FETCHER_HOP_PATH,
   FETCHER_HOP_REQUEST_HEADERS,

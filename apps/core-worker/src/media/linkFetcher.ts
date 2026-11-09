@@ -1,4 +1,4 @@
-import { SAFE_FETCH_MAX_DURATION_MS } from "@teak/convex/linkMetadata/ssrf";
+import { SAFE_FETCH_MAX_DURATION_MS } from "@teak/files-protocol/ssrf";
 import {
   CONTAINER_START_ALLOWANCE_MS,
   containerPoolSize,

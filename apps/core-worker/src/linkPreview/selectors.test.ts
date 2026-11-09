@@ -6,7 +6,7 @@ import {
   SCRAPE_ELEMENTS,
   SPOTIFY_SOURCES,
   TITLE_SOURCES,
-} from "../../../convex/linkMetadata/selectors";
+} from "./selectors";
 
 describe("linkMetadata selectors", () => {
   test("includes expected title/description selectors", () => {

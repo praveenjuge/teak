@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
-import { AI_METADATA_PROMPT_VERSION, type FilesOp } from "@teak/files-protocol";
+import {
+  AI_METADATA_PROMPT_VERSION,
+  buildSelectorResultsFromHtml,
+  type FilesOp,
+} from "@teak/files-protocol";
+import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
 import {
   CARD_ID,
   createCardConvex,

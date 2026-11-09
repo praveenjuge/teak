@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildSelectorResultsFromHtml } from "../../linkMetadata/staticHtml";
+import { buildSelectorResultsFromHtml } from "./staticHtml";
 
 const titleOf = (html: string) =>
   buildSelectorResultsFromHtml(html, [{ selector: "head > title" }])[0]

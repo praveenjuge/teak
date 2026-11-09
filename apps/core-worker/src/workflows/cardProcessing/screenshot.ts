@@ -4,13 +4,13 @@ import {
   stageCompleted,
   stageFailed,
 } from "@teak/convex/card/processingStatus";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import type {
   FilesCaptureScreenshotParams,
   FilesCaptureScreenshotResult,
   FilesOpOutcome,
 } from "@teak/files-protocol";
 import { batchOp } from "../../convexRpc";
+import { normalizeUrl } from "../../linkPreview/url";
 import type { StepConfig } from "../runtime";
 import {
   type CardJob,

@@ -1,11 +1,4 @@
 import {
-  type DnsResolver,
-  type PinnedFetch,
-  readBodyWithLimit,
-  SsrfError,
-  safeFetch,
-} from "../../../../packages/convex/linkMetadata/ssrf";
-import {
   FILES_REMOTE_ASSET_MAX_BYTES,
   FILES_REMOTE_ASSET_MAX_URL_LENGTH,
   type FilesRemoteAssetSkipReason,
@@ -13,6 +6,13 @@ import {
   isRemoteAssetPageUrl,
   resolveRemoteAssetContentType,
 } from "../../../../packages/files-protocol/src/remoteAsset";
+import {
+  type DnsResolver,
+  type PinnedFetch,
+  readBodyWithLimit,
+  SsrfError,
+  safeFetch,
+} from "../../../../packages/files-protocol/src/ssrf";
 import type { FetcherRequest } from "./protocol";
 import { readRemoteImageDimensions } from "./remoteImageDimensions";
 

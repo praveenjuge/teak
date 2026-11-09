@@ -1,9 +1,3 @@
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import {
-  type DnsResolver,
-  readBodyWithLimit,
-  safeFetch,
-} from "@teak/convex/linkMetadata/ssrf";
 import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesArchivePageParams,
@@ -17,11 +11,17 @@ import {
   parseCardObjectKey,
 } from "@teak/files-protocol";
 import {
+  type DnsResolver,
+  readBodyWithLimit,
+  safeFetch,
+} from "@teak/files-protocol/ssrf";
+import {
   FETCHER_HEADERS,
   FETCHER_PATH,
   type FetcherRequest,
 } from "../../fetcher/src/protocol";
 import { IMAGES_BINDING_MAX_INPUT_BYTES } from "../images/imagesBinding";
+import { SCRAPE_ELEMENTS } from "../linkPreview/selectors";
 import { RendererUnavailable } from "../media/containerPool";
 import { postToFetcher } from "../media/linkFetcher";
 import { fetchLinkPage, type LinkPageEnv } from "../media/linkPage";

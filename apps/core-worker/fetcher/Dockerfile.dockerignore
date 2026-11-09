@@ -5,6 +5,3 @@
 apps/core-worker/fetcher/src/**/*.test.ts
 !packages/files-protocol/src
 packages/files-protocol/src/**/*.test.ts
-!packages/convex/linkMetadata/ssrf.ts
-!packages/convex/linkMetadata/staticHtml.ts
-!packages/convex/linkMetadata/types.ts

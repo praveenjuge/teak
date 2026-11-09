@@ -1,11 +1,4 @@
 import {
-  assertUrlStructureSafe,
-  detectIpVersion,
-  isBlockedIp,
-  type PinnedFetch,
-  SsrfError,
-} from "@teak/convex/linkMetadata/ssrf";
-import {
   FILES_LINK_CHECK_MAX_REDIRECTS,
   FILES_LINK_CHECK_MAX_URL_LENGTH,
   FILES_LINK_CHECK_TIMEOUT_MS,
@@ -13,6 +6,13 @@ import {
   type FilesLinkCheckReason,
   type FilesLinkCheckResult,
 } from "@teak/files-protocol";
+import {
+  assertUrlStructureSafe,
+  detectIpVersion,
+  isBlockedIp,
+  type PinnedFetch,
+  SsrfError,
+} from "@teak/files-protocol/ssrf";
 import { RendererUnavailable } from "./media/containerPool";
 import type { LinkFetcherEnv } from "./media/linkFetcher";
 import { createContainerPinnedFetch } from "./media/pinnedHop";

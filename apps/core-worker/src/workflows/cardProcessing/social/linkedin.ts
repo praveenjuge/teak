@@ -1,4 +1,4 @@
-import { sanitizeText } from "@teak/convex/linkMetadata/parsing";
+import { sanitizeText } from "../../../linkPreview/parsing";
 import type { ParsedLinkPreview, SocialPostMetadata } from "./socialPost";
 import { openGraphSocialPost } from "./socialPostHelpers";
 

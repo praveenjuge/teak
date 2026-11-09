@@ -1,5 +1,4 @@
 import { internal } from "@teak/convex/_generated/api";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import {
   PAGE_ARCHIVE_ROLE,
   type PageArchiveFailureReason,
@@ -7,6 +6,7 @@ import {
   pageArchiveSkipReason,
 } from "@teak/convex/shared/pageArchive";
 import { batchOp } from "../../convexRpc";
+import { normalizeUrl } from "../../linkPreview/url";
 import type { StepConfig } from "../runtime";
 import { type CardJob, guardOf, loadCard, objectKey } from "./context";
 

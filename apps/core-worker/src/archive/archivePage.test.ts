@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
+import type { PinnedFetch } from "@teak/files-protocol/ssrf";
 import { createFetcherHandler } from "../../fetcher/src/handler";
 import { FakeBucket } from "../test/testsupport";
 import { type ArchivePageEnv, runArchivePage } from "./archivePage";

@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import type {
+  FilesScrapeResultItem,
+  FilesScrapeSelectorResult,
+} from "@teak/files-protocol";
 import {
   buildDebugRaw,
   buildErrorPreview,
@@ -11,12 +15,8 @@ import {
   sanitizeText,
   sanitizeUrl,
   toSelectorMap,
-} from "../../linkMetadata/parsing";
-import type {
-  ScrapeResultItem,
-  ScrapeSelectorResult,
-  SelectorSource,
-} from "../../linkMetadata/types";
+} from "./parsing";
+import type { SelectorSource } from "./types";
 
 describe("parsing", () => {
   describe("toSelectorMap", () => {
@@ -25,7 +25,7 @@ describe("parsing", () => {
     });
 
     test("converts results to map", () => {
-      const results: ScrapeSelectorResult[] = [
+      const results: FilesScrapeSelectorResult[] = [
         { selector: "s1", results: [{ text: "t1" }] },
         { selector: "s2", results: [{ text: "t2" }] },
       ];
@@ -43,14 +43,14 @@ describe("parsing", () => {
     });
 
     test("returns attribute value", () => {
-      const item: ScrapeResultItem = {
+      const item: FilesScrapeResultItem = {
         attributes: [{ name: "href", value: "val" }],
       };
       expect(findAttributeValue(item, "href")).toBe("val");
     });
 
     test("is case insensitive for attribute name", () => {
-      const item: ScrapeResultItem = {
+      const item: FilesScrapeResultItem = {
         attributes: [{ name: "HREF", value: "val" }],
       };
       expect(findAttributeValue(item, "href")).toBe("val");
@@ -58,7 +58,7 @@ describe("parsing", () => {
   });
 
   describe("getSelectorValue", () => {
-    const map = new Map<string, ScrapeResultItem[]>();
+    const map = new Map<string, FilesScrapeResultItem[]>();
     map.set("sel1", [{ text: " t1 " }]);
     map.set("sel2", [{ attributes: [{ name: "content", value: " c1 " }] }]);
     map.set("sel3", [{ text: "" }]);
@@ -84,7 +84,7 @@ describe("parsing", () => {
     });
 
     test("skips empty leading results and returns the first with text", () => {
-      const results = new Map<string, ScrapeResultItem[]>([
+      const results = new Map<string, FilesScrapeResultItem[]>([
         ["title", [{ text: "  " }, { text: "Real title" }, { text: "Later" }]],
       ]);
       expect(
@@ -93,7 +93,7 @@ describe("parsing", () => {
     });
 
     test("falls back to html when text is empty", () => {
-      const results = new Map<string, ScrapeResultItem[]>([
+      const results = new Map<string, FilesScrapeResultItem[]>([
         ["title", [{ text: "", html: " <b>Bold</b> " }]],
       ]);
       expect(
@@ -102,7 +102,7 @@ describe("parsing", () => {
     });
 
     test("uses the first result that has the requested attribute", () => {
-      const results = new Map<string, ScrapeResultItem[]>([
+      const results = new Map<string, FilesScrapeResultItem[]>([
         [
           "meta",
           [
@@ -120,7 +120,7 @@ describe("parsing", () => {
   });
 
   describe("firstFromSources", () => {
-    const map = new Map<string, ScrapeResultItem[]>();
+    const map = new Map<string, FilesScrapeResultItem[]>();
     map.set("s1", [{ text: "v1" }]);
     map.set("s2", [{ text: "v2" }]);
 
@@ -233,7 +233,7 @@ describe("parsing", () => {
     });
 
     test("returns simplified structure", () => {
-      const results: ScrapeSelectorResult[] = [
+      const results: FilesScrapeSelectorResult[] = [
         {
           selector: "s1",
           results: [{ text: "t1", html: "h1", attributes: [] }],
@@ -248,7 +248,7 @@ describe("parsing", () => {
 
   describe("parseLinkPreview", () => {
     test("parses basic fields", () => {
-      const _results: ScrapeSelectorResult[] = [
+      const _results: FilesScrapeSelectorResult[] = [
         {
           selector: "og:title",
           results: [{ attributes: [{ name: "content", value: "My Title" }] }],

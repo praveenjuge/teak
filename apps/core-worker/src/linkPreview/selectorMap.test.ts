@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  findAttributeValue,
-  getSelectorValue,
-  toSelectorMap,
-} from "../../../convex/linkMetadata/parsing";
+import { findAttributeValue, getSelectorValue, toSelectorMap } from "./parsing";
 
 describe("parsing selector helpers", () => {
   test("toSelectorMap builds map from results", () => {

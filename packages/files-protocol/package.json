@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./ssrf": "./src/ssrf.ts",
     "./test-vectors": "./src/testVectors.ts"
   },
   "scripts": {

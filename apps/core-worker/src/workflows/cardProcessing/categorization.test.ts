@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import type { LinkCategoryMetadata } from "@teak/convex/shared";
 import { parseStructuredData } from "@teak/convex/shared/linkCategory/rules";
 import type { FilesOp } from "@teak/files-protocol";
 import { sha256Hex } from "@teak/files-protocol";
+import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
 import {
   CARD_ID,
   createCardConvex,

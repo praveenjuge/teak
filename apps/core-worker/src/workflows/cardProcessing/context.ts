@@ -1,6 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { DnsResolver, PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
 import {
   buildCardObjectKey,
   type CardRunStage,
@@ -8,6 +7,7 @@ import {
   filesUserKeyRoot,
   WORKFLOW_RPC_MAX_BATCH_OPS,
 } from "@teak/files-protocol";
+import type { DnsResolver, PinnedFetch } from "@teak/files-protocol/ssrf";
 import type { FunctionArgs } from "convex/server";
 import { type AiGateReader, createAiGateReader } from "../../ai/aiGate";
 import { batchOp, type ConvexRpc, createConvexRpc } from "../../convexRpc";

@@ -1,3 +1,7 @@
+import type {
+  FilesScrapeResultItem,
+  FilesScrapeSelectorResult,
+} from "@teak/files-protocol";
 import {
   AUTHOR_SOURCES,
   CANONICAL_SOURCES,
@@ -12,16 +16,14 @@ import {
 } from "./selectors";
 import {
   type LinkPreviewMetadata,
-  type ScrapeResultItem,
-  type ScrapeSelectorResult,
   type SelectorSource,
   TEAK_SCRAPER_SOURCE,
 } from "./types";
 
 export const toSelectorMap = (
-  results?: ScrapeSelectorResult[]
-): Map<string, ScrapeResultItem[]> => {
-  const map = new Map<string, ScrapeResultItem[]>();
+  results?: FilesScrapeSelectorResult[]
+): Map<string, FilesScrapeResultItem[]> => {
+  const map = new Map<string, FilesScrapeResultItem[]>();
   if (!results) {
     return map;
   }
@@ -32,7 +34,7 @@ export const toSelectorMap = (
 };
 
 export const findAttributeValue = (
-  item: ScrapeResultItem | undefined,
+  item: FilesScrapeResultItem | undefined,
   attribute: string
 ): string | undefined => {
   if (!item?.attributes) {
@@ -46,7 +48,7 @@ export const findAttributeValue = (
 };
 
 export const getSelectorValue = (
-  map: Map<string, ScrapeResultItem[]>,
+  map: Map<string, FilesScrapeResultItem[]>,
   source: SelectorSource
 ): string | undefined => {
   const candidates = map.get(source.selector) ?? [];
@@ -72,7 +74,7 @@ export const getSelectorValue = (
 };
 
 export const firstFromSources = (
-  map: Map<string, ScrapeResultItem[]>,
+  map: Map<string, FilesScrapeResultItem[]>,
   sources: SelectorSource[]
 ): string | undefined => {
   for (const source of sources) {
@@ -155,8 +157,8 @@ export const sanitizeImageUrl = (
 };
 
 export const buildDebugRaw = (
-  results?: ScrapeSelectorResult[]
-): ScrapeSelectorResult[] | undefined => {
+  results?: FilesScrapeSelectorResult[]
+): FilesScrapeSelectorResult[] | undefined => {
   if (!results) {
     return undefined;
   }
@@ -171,7 +173,7 @@ export const buildDebugRaw = (
 
 export const parseLinkPreview = (
   normalizedUrl: string,
-  results?: ScrapeSelectorResult[]
+  results?: FilesScrapeSelectorResult[]
 ) => {
   const selectorMap = toSelectorMap(results);
 

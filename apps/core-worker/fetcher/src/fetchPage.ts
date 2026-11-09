@@ -1,15 +1,15 @@
 import {
-  RedirectError,
-  readBodyWithLimit,
-  SsrfError,
-  safeFetch,
-} from "../../../../packages/convex/linkMetadata/ssrf";
-import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
-import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesLinkPageFailureReason,
 } from "../../../../packages/files-protocol/src/linkPage";
 import { FILES_SCRAPE_LIMITS } from "../../../../packages/files-protocol/src/rendering";
+import {
+  RedirectError,
+  readBodyWithLimit,
+  SsrfError,
+  safeFetch,
+} from "../../../../packages/files-protocol/src/ssrf";
+import { buildSelectorResultsFromHtml } from "../../../../packages/files-protocol/src/staticHtml";
 import type { FetchAssetDeps } from "./fetchAsset";
 import type { FetcherPageRequest, FetcherPageResponse } from "./protocol";
 
