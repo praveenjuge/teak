@@ -1,14 +1,18 @@
 import { authkit, handleAuthkitProxy } from "@workos-inc/authkit-nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { workosEntryRedirect } from "@/lib/auth-entry";
+import { SIGN_IN_ROUTES, signInUrl } from "@/lib/authUrls";
 import { resolveAnalyticsProxyTarget } from "@/lib/posthog-config";
-import { SIGN_IN_ROUTES } from "@/lib/safe-next-path";
 import { syncSessionHint } from "@/lib/session-hint";
+import { SHARE_ACTION_PATH } from "@/lib/share/sharedContent";
 import { readWorkosWebConfig } from "@/lib/workos-config";
 
 // /share takes a POST from the share sheet, which a sign-in redirect would
 // drop; it only redirects on to the library, which then asks for sign-in.
-const publicInfrastructureRoutes = new Set(["/opengraph-image", "/share"]);
+const publicInfrastructureRoutes = new Set([
+  "/opengraph-image",
+  SHARE_ACTION_PATH,
+]);
 
 // Same-origin PostHog proxy. It never sits behind sign-in, and it drops the
 // browser's cookies: Teak's session must not reach a third party, and the
@@ -80,8 +84,9 @@ export default async function proxy(request: NextRequest) {
           return respond(direct);
         }
       }
-      const signIn = new URL("/sign-in", config.origin);
-      signIn.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+      const signIn = signInUrl(config.origin, {
+        next: `${pathname}${request.nextUrl.search}`,
+      });
       return respond(
         handleAuthkitProxy(request, headers, { redirect: signIn })
       );

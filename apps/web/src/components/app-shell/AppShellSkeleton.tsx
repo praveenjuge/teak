@@ -1,5 +1,6 @@
 "use client";
 
+import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,6 +13,7 @@ import {
   libraryViewLabel,
   libraryViewSearchPlaceholder,
 } from "@/lib/libraryViews";
+import { isSettingsPath } from "@/lib/settingsSections";
 import { LibraryPageSkeleton } from "@/screens";
 import { SettingsPageSkeleton } from "../settings/SettingsPageSkeleton";
 
@@ -26,8 +28,8 @@ export function AppShellSkeleton({
   const tViews = useTranslations("lib.libraryViews");
   const pathname = usePathname();
   const view = libraryViewForPath(pathname);
-  const isSettings = pathname.startsWith("/settings");
-  const isTags = pathname === "/tags";
+  const isSettings = isSettingsPath(pathname);
+  const isTags = pathname === TAGS_PATH;
   let title = "";
   if (view) {
     title = libraryViewLabel(view, tViews);

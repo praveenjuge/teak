@@ -1,10 +1,11 @@
 import { SESSION_HINT_COOKIE } from "@teak/convex/shared/sessionHint";
+import { SIGN_IN_PATH, SIGN_UP_PATH } from "@teak/convex/shared/webRoutes";
 
 export const WEB_APP_URL = "https://app.teakvault.com";
 // Link straight to the routes that start AuthKit: `/login` and `/register`
 // only redirect to these.
-export const SIGN_IN_URL = `${WEB_APP_URL}/sign-in`;
-export const SIGN_UP_URL = `${WEB_APP_URL}/sign-up`;
+export const SIGN_IN_URL = `${WEB_APP_URL}${SIGN_IN_PATH}`;
+export const SIGN_UP_URL = `${WEB_APP_URL}${SIGN_UP_PATH}`;
 
 export const SIGN_IN_ORIGINS = [
   WEB_APP_URL,

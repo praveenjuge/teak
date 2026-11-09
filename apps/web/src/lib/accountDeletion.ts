@@ -1,11 +1,12 @@
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
+import { signInPath } from "./authUrls";
 
 /**
  * Where to go when signing out fails after a deletion. A signed-in visit to
  * /sign-in goes straight back to the app; `reauth` skips that and asks for
  * credentials, so the deleted account's session can't carry on.
  */
-export const LEAVE_AFTER_DELETION_URL = "/sign-in?reauth=1";
+export const LEAVE_AFTER_DELETION_URL = signInPath({ reauth: true });
 
 /**
  * Deletes the account, then signs out. Once the deletion has happened a

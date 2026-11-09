@@ -1,4 +1,5 @@
-export const SIGN_IN_ROUTES = new Set(["/sign-in", "/sign-up"]);
+import { SIGN_IN_ROUTES } from "./authUrls";
+import { trimTrailingSlashes } from "./routePath";
 
 // Control characters (including tab/newline) and backslashes can be normalized
 // by URL parsing/navigation into a different host, so reject them outright.
@@ -35,10 +36,7 @@ export function getSafeNextPath(
     return null;
   }
 
-  // With the default `trailingSlash: false`, Next redirects `/sign-in/` (and
-  // `/sign-in//`) to `/sign-in`, so compare without trailing slashes.
-  const route = parsed.pathname.replace(/\/+$/, "");
-  if (SIGN_IN_ROUTES.has(route)) {
+  if (SIGN_IN_ROUTES.has(trimTrailingSlashes(parsed.pathname))) {
     return null;
   }
 

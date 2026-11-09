@@ -1,4 +1,5 @@
-import { CARD_PARAM, searchWithout } from "./libraryUrl";
+import { CARD_PARAM } from "@teak/convex/shared/webRoutes";
+import { searchWithout } from "./libraryUrl";
 import {
   comparableSearch,
   isSameSearchUrlState,

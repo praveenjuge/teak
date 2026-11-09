@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  SHARE_FILES_FIELD,
   SHARE_FILES_MISSING,
   SHARE_TEXT_FIELDS,
   type SharedText,
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   const hadFiles =
     form === null ||
     form
-      .getAll("files")
+      .getAll(SHARE_FILES_FIELD)
       .some((file) => typeof file !== "string" && file.size > 0);
   const path = shareLibraryPath(
     shared,

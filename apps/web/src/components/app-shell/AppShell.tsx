@@ -1,5 +1,6 @@
 "use client";
 
+import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback } from "react";
 import { AddCardActions, AddCardProvider } from "@/components/forms";
@@ -17,6 +18,7 @@ import {
   libraryViewForPath,
   libraryViewHref,
 } from "@/lib/libraryViews";
+import { isSettingsPath } from "@/lib/settingsSections";
 import { IntentLink } from "./IntentLink";
 import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
@@ -86,8 +88,8 @@ export function AppShell({
                 />
               </SidebarFoldersBoundary>
             }
-            isSettingsActive={pathname.startsWith("/settings")}
-            isTagsActive={pathname === "/tags"}
+            isSettingsActive={isSettingsPath(pathname)}
+            isTagsActive={pathname === TAGS_PATH}
             LinkComponent={IntentLink}
           />
           <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>

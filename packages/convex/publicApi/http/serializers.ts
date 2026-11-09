@@ -9,6 +9,7 @@ import { readIsDevDeployment } from "../../env";
 import { isLinkPrice } from "../../shared/price";
 import type { CardListInclude } from "../../shared/publicApiContract";
 import { isCardHidden } from "../../shared/tags";
+import { cardAppUrl } from "../../shared/webRoutes";
 
 const APP_PROD_URL = "https://app.teakvault.com";
 
@@ -46,12 +47,6 @@ export const getAppBaseUrl = (requestUrl: string): string => {
     return resolveTeakDevAppUrl(env);
   }
   return readSelfHostedAppUrl() ?? APP_PROD_URL;
-};
-
-const getCardAppUrl = (requestUrl: string, cardId: string): string => {
-  const appUrl = new URL(getAppBaseUrl(requestUrl));
-  appUrl.searchParams.set("card", cardId);
-  return appUrl.toString();
 };
 
 const serializeLinkPrice = (price: unknown) =>
@@ -130,7 +125,7 @@ export const serializeCard = (
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
-  appUrl: getCardAppUrl(requestUrl, card._id),
+  appUrl: cardAppUrl(getAppBaseUrl(requestUrl), card._id),
   archive: serializeArchive(card),
   article: serializeArticle(card),
   compactUrl: card.compactUrl ?? null,
@@ -182,7 +177,7 @@ export const serializeListCard = (
 ) => {
   const base = {
     aiTags: card.aiTags ?? [],
-    appUrl: getCardAppUrl(requestUrl, card._id),
+    appUrl: cardAppUrl(getAppBaseUrl(requestUrl), card._id),
     completedAt: card.completedAt ?? null,
     createdAt: card.createdAt,
     folderIds: card.folderIds ?? [],
@@ -259,7 +254,7 @@ export const buildCreateCardResponse = (
     ? serializeCard(result.card, requestUrl, links)
     : undefined;
   return {
-    appUrl: getCardAppUrl(requestUrl, result.cardId),
+    appUrl: cardAppUrl(getAppBaseUrl(requestUrl), result.cardId),
     card,
     cardId: result.cardId,
     status: result.status,

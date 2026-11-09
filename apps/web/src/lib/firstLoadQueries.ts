@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import type { FunctionReference } from "convex/server";
 import type { JSONValue } from "convex/values";
 import { initialCardsSearchQueryArgs } from "./cardsSearchState";
@@ -57,7 +58,7 @@ export function firstLoadQueries(
     { query: api.auth.getCardCreationStatus, args: {} },
     { query: api.folders.listFolders, args: {} },
   ];
-  if (url.pathname === "/tags") {
+  if (url.pathname === TAGS_PATH) {
     queries.push({ query: api.tags.listTagSummary, args: {} });
     return queries;
   }

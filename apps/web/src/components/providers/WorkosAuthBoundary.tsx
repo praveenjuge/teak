@@ -16,6 +16,7 @@ import {
 import Loading from "@/app/loading";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
+import { signInPath } from "@/lib/authUrls";
 import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { StatusScreen } from "../StatusScreen";
@@ -35,9 +36,12 @@ const BLOCKED_MESSAGE_KEYS = {
 // back to the same page.
 const signInHere = () =>
   window.location.replace(
-    `/sign-in?renew=1&next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+    signInPath({
+      renew: true,
+      next: window.location.pathname + window.location.search,
+    })
   );
-const signIn = () => window.location.replace("/sign-in?renew=1");
+const signIn = () => window.location.replace(signInPath({ renew: true }));
 
 export function WorkosAuthBoundary({
   children,

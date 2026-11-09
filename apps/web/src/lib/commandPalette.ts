@@ -1,11 +1,12 @@
 import type { CardType } from "@teak/convex/shared/constants";
+import { CARD_PARAM, SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import type { TeakTranslator } from "@teak/i18n";
 import { APP_ACTION_IDS, APP_ACTIONS, appActionKey } from "./appCommands";
 import { cardTitle } from "./cardTypes";
 import { getDisplayHostname } from "./displayHost";
 import { folderIdForPath } from "./folders";
 import { isOverlayOpen } from "./keyboardShortcuts";
-import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
+import { cardHref, libraryHref, searchWithout } from "./libraryUrl";
 import {
   LIBRARY_VIEW_PATHS,
   libraryViewFlags,
@@ -121,7 +122,7 @@ export function parseSettingsDialogParam(
 }
 
 export const settingsDataHref = (tab: SettingsDialogTab) =>
-  `/settings/data#${tab}`;
+  `${SETTINGS_PATHS.data}#${tab}`;
 
 export function paletteCardSearchArgs(
   query: string,
