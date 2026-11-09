@@ -17,13 +17,11 @@ import {
   savedAtOf,
 } from "../card/listQuery";
 import {
-  attachCardSummaryUrls,
-  attachFileUrls,
-  attachGridFileUrls,
+  type AttachCardUrls,
   ensureValidRange,
+  finishCards,
   isSavedAtInRange,
 } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
   decodeShuffleWalkCursor,
   encodeShuffleWalkCursor,
@@ -138,17 +136,10 @@ export const searchCardsPaginatedHandler = async (
   ctx: QueryCtx,
   args: SearchCardsPaginatedArgs,
   options: {
-    gridOnly?: boolean;
+    attach: AttachCardUrls;
     reportSearch?: ExpandedSearchReport;
-    summariesOnly?: boolean;
-  } = {}
-) => {
-  let attachUrls = attachFileUrls;
-  if (options.summariesOnly) {
-    attachUrls = attachCardSummaryUrls;
-  } else if (options.gridOnly) {
-    attachUrls = attachGridFileUrls;
   }
+) => {
   const user = await getSessionUser(ctx);
   if (!user) {
     return { page: [], isDone: true, continueCursor: null };
@@ -192,8 +183,8 @@ export const searchCardsPaginatedHandler = async (
   const scope = cardListScope(archived, showTrashOnly);
   // Every page passes through here, so a hidden card the backfill hasn't
   // flagged yet never reaches the client, whichever read found it.
-  const attachListUrls = (listCtx: QueryCtx, cards: Doc<"cards">[]) =>
-    attachUrls(listCtx, keepVisible(cards, includeHidden));
+  const finishPage = (cards: Doc<"cards">[]) =>
+    finishCards(ctx, keepVisible(cards, includeHidden), options.attach);
   const favoritesOnly = resolved.favoritesOnly || undefined;
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
@@ -239,9 +230,8 @@ export const searchCardsPaginatedHandler = async (
     const pageSize = clampPageSize(paginationOpts.numItems);
     const cards = await load(ordered.slice(offset, offset + pageSize));
     const isDone = ordered.length <= offset + pageSize;
-    const pageWithUrls = await attachListUrls(ctx, cards);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(cards),
       isDone,
       continueCursor: isDone ? null : String(offset + pageSize),
     };
@@ -275,9 +265,8 @@ export const searchCardsPaginatedHandler = async (
       }
     );
     const cards = keep ? await keep(result.cards) : result.cards;
-    const pageWithUrls = await attachListUrls(ctx, cards);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(cards),
       isDone: result.next === null,
       continueCursor: result.next
         ? encodeShuffleWalkCursor(seed, result.next)
@@ -365,10 +354,9 @@ export const searchCardsPaginatedHandler = async (
       })
         .order(order)
         .paginate(paginationOpts);
-      const withUrls = await attachListUrls(ctx, keepFiltered(listed.page));
       return {
         ...listed,
-        page: applyQuoteFormattingToList(withUrls),
+        page: await finishPage(keepFiltered(listed.page)),
       };
     }
 
@@ -425,9 +413,8 @@ export const searchCardsPaginatedHandler = async (
           : [card];
       });
       const isDone = ordered.length <= offset + pageSize;
-      const pageWithUrls = await attachListUrls(ctx, page);
       return {
-        page: applyQuoteFormattingToList(pageWithUrls),
+        page: await finishPage(page),
         isDone,
         continueCursor: isDone ? null : String(offset + pageSize),
       };
@@ -656,9 +643,8 @@ export const searchCardsPaginatedHandler = async (
     const isDone = sortedResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
 
-    const pageWithUrls = await attachListUrls(ctx, page);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(page),
       isDone,
       continueCursor,
     };
@@ -732,10 +718,9 @@ export const searchCardsPaginatedHandler = async (
         rows.page.map((row) => row.cardId)
       )
     );
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -793,10 +778,9 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
     });
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -864,10 +848,9 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
     });
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -884,10 +867,9 @@ export const searchCardsPaginatedHandler = async (
       ctx,
       rows.page.map((row) => row.cardId)
     );
-    const folderCardsWithUrls = await attachListUrls(ctx, folderCards);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(folderCardsWithUrls),
+      page: await finishPage(folderCards),
     };
   }
 
@@ -914,9 +896,8 @@ export const searchCardsPaginatedHandler = async (
   const listed = args.excludePinned
     ? cards.page.filter((card) => card.pinPosition === undefined)
     : cards.page;
-  const cardsWithUrls = await attachListUrls(ctx, listed);
   return {
     ...cards,
-    page: applyQuoteFormattingToList(cardsWithUrls),
+    page: await finishPage(listed),
   };
 };

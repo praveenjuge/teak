@@ -11,8 +11,7 @@ import {
   cardListScope,
   scopeArchivedMatch,
 } from "../card/listQuery";
-import { attachFileUrls } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
+import { finishCards } from "../card/queryUtils";
 import {
   doesCardMatchVisualFilters,
   normalizeVisualFilterArgs,
@@ -859,9 +858,8 @@ export const relevancePage = async (
   const nextCursor = hasMore
     ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
     : null;
-  const cardsWithUrls = await attachFileUrls(ctx, pageItems);
   return {
-    items: applyQuoteFormattingToList(cardsWithUrls),
+    items: await finishCards(ctx, pageItems),
     pageInfo: { nextCursor, hasMore: nextCursor !== null },
   };
 };

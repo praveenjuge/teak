@@ -18,8 +18,7 @@ import {
 } from "../shared/pins";
 import { cardReturnValidator } from "./getCards";
 import { keepVisible } from "./hiddenCards";
-import { attachFileUrls } from "./queryUtils";
-import { applyQuoteFormattingToList } from "./quoteFormatting";
+import { finishCards } from "./queryUtils";
 
 /**
  * A person's pinned cards, first to last. Archiving or trashing a card
@@ -165,6 +164,6 @@ export const getPinnedCards = query({
       return [];
     }
     const cards = keepVisible(await readPinnedCards(ctx, user.teakUserId));
-    return applyQuoteFormattingToList(await attachFileUrls(ctx, cards));
+    return finishCards(ctx, cards);
   },
 });

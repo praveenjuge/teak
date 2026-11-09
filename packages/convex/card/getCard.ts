@@ -5,11 +5,8 @@ import { getSessionUser, type TeakUserId } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
-import { attachCardDetailUrls, omitCardText } from "./queryUtils";
-import {
-  applyQuoteDisplayFormatting,
-  applyQuoteFormattingToList,
-} from "./quoteFormatting";
+import { finishCardDetail, omitCardText } from "./queryUtils";
+import { applyQuoteFormattingToList } from "./quoteFormatting";
 
 export const getCardForUserHandler = async (
   ctx: Pick<QueryCtx, "db">,
@@ -20,7 +17,7 @@ export const getCardForUserHandler = async (
   if (!card || card.userId !== userId) {
     return null;
   }
-  return applyQuoteDisplayFormatting(await attachCardDetailUrls(ctx, card));
+  return finishCardDetail(ctx, card);
 };
 
 export const getCard = query({

@@ -10,8 +10,11 @@ import {
   normalizeCardListSort,
   takeCardList,
 } from "../card/listQuery";
-import { attachFileUrls, ensureValidRange } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
+import {
+  attachGridFileUrls,
+  ensureValidRange,
+  finishCards,
+} from "../card/queryUtils";
 import {
   applyCardLevelFilters,
   findVisualMatches,
@@ -107,8 +110,7 @@ export const searchCards = query({
           createdAtRange,
           visualFilters,
         }).slice(0, limit);
-        const withUrls = await attachFileUrls(ctx, filtered);
-        return applyQuoteFormattingToList(withUrls);
+        return finishCards(ctx, filtered);
       }
 
       const uniqueResults = await searchCardsByDocument(ctx, {
@@ -139,8 +141,7 @@ export const searchCards = query({
         .sort((a, b) => compareCardsBySavedAt(a, b, sort))
         .slice(0, limit);
 
-      const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
-      return applyQuoteFormattingToList(resultsWithUrls);
+      return finishCards(ctx, limitedResults);
     }
 
     if (visualFilters.hasVisualFilters) {
@@ -155,11 +156,7 @@ export const searchCards = query({
         sort,
       });
       const limitedVisualResults = visualResults.slice(0, limit);
-      const visualResultsWithUrls = await attachFileUrls(
-        ctx,
-        limitedVisualResults
-      );
-      return applyQuoteFormattingToList(visualResultsWithUrls);
+      return finishCards(ctx, limitedVisualResults);
     }
 
     const cards = keepVisible(
@@ -178,8 +175,7 @@ export const searchCards = query({
         limit
       )
     );
-    const cardsWithUrls = await attachFileUrls(ctx, cards);
-    return applyQuoteFormattingToList(cardsWithUrls);
+    return finishCards(ctx, cards);
   },
 });
 
@@ -189,7 +185,7 @@ export const searchCardsPaginated = query({
   handler: (ctx, args) =>
     withReadMeter(ctx, args, (metered, reportSearch) =>
       searchCardsPaginatedHandler(metered, args, {
-        gridOnly: true,
+        attach: attachGridFileUrls,
         reportSearch,
       })
     ),
