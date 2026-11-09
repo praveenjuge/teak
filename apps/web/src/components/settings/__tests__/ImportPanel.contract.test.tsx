@@ -52,6 +52,7 @@ const {
   importPanelState,
 } = await import("../ImportPanel");
 const { putParts } = await import("../importUpload");
+const { isAbortError } = await import("../../../lib/upload/transport");
 
 function renderImportPanel() {
   return renderToStaticMarkup(<ImportPanel />);
@@ -404,10 +405,14 @@ describe("ImportPanel", () => {
 
   test("aborts and drains sibling uploads after the first failure", async () => {
     const originalFetch = globalThis.fetch;
+    const siblings: AbortSignal[] = [];
     const uploadFetch = mock(
       (_url: string | URL | Request, init?: RequestInit) => {
         if (String(_url).endsWith("/1")) {
           return Promise.resolve(new Response(null, { status: 500 }));
+        }
+        if (init?.signal) {
+          siblings.push(init.signal);
         }
         return new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener("abort", () => {
@@ -417,7 +422,6 @@ describe("ImportPanel", () => {
       }
     );
     globalThis.fetch = uploadFetch as typeof fetch;
-    const controllers = new Set<AbortController>();
 
     try {
       await expect(
@@ -433,12 +437,61 @@ describe("ImportPanel", () => {
             uploadedParts: [],
           },
           mock(),
-          controllers,
+          new AbortController().signal,
           mock()
         )
       ).rejects.toThrow("Upload part 1 failed (500)");
       expect(uploadFetch).toHaveBeenCalledTimes(5);
-      expect(controllers.size).toBe(0);
+      expect(siblings).toHaveLength(2);
+      expect(siblings.every((signal) => signal.aborted)).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("cancelling stops every part in flight and reads as a cancel", async () => {
+    const originalFetch = globalThis.fetch;
+    const inFlight: AbortSignal[] = [];
+    globalThis.fetch = mock(
+      (_url: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          if (init?.signal) {
+            inFlight.push(init.signal);
+          }
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        })
+    ) as unknown as typeof fetch;
+    const upload = new AbortController();
+    const recordPart = mock(() => Promise.resolve(null));
+
+    try {
+      const sending = putParts(
+        new File([new Uint8Array([1, 2])], "bookmarks.html"),
+        {
+          jobId: "job",
+          partSize: 1,
+          parts: [1, 2].map((partNumber) => ({
+            partNumber,
+            url: `https://uploads.example/${partNumber}`,
+          })),
+          uploadedParts: [],
+        },
+        mock(),
+        upload.signal,
+        recordPart
+      );
+      await Promise.resolve();
+      upload.abort();
+      const error = await sending.then(
+        () => null,
+        (caught: unknown) => caught
+      );
+      expect(isAbortError(error)).toBe(true);
+      expect(inFlight).toHaveLength(2);
+      expect(inFlight.every((signal) => signal.aborted)).toBe(true);
+      expect(recordPart).not.toHaveBeenCalled();
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -452,7 +505,6 @@ describe("ImportPanel", () => {
         new Response(null, { status: 200, headers: { ETag: '"part-1"' } })
       );
     globalThis.fetch = uploadFetch as typeof fetch;
-    const controllers = new Set<AbortController>();
     const onProgress = mock();
     const recordPart = mock(() => Promise.resolve(null));
 
@@ -466,7 +518,7 @@ describe("ImportPanel", () => {
           uploadedParts: [],
         },
         onProgress,
-        controllers,
+        new AbortController().signal,
         recordPart
       );
       expect(uploadFetch).toHaveBeenCalledTimes(2);
@@ -477,7 +529,6 @@ describe("ImportPanel", () => {
       });
       expect(onProgress).toHaveBeenCalledWith(0);
       expect(onProgress).toHaveBeenCalledWith(100);
-      expect(controllers.size).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -501,7 +552,7 @@ describe("ImportPanel", () => {
             uploadedParts: [],
           },
           mock(),
-          new Set<AbortController>(),
+          new AbortController().signal,
           recordPart
         )
       ).rejects.toThrow("Upload part 1 returned no ETag");
@@ -532,7 +583,7 @@ describe("ImportPanel", () => {
             uploadedParts: [1],
           },
           onProgress,
-          new Set<AbortController>(),
+          new AbortController().signal,
           recordPart
         )
       ).rejects.toThrow("offline");

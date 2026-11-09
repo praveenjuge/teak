@@ -32,6 +32,7 @@ import {
   Upload,
   X,
 } from "vadivam-react";
+import { isAbortError } from "@/lib/upload/transport";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { cn } from "../../lib/utils";
@@ -391,11 +392,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const resumeInput = useRef<HTMLInputElement>(null);
-  const controllersRef = useRef<Set<AbortController> | null>(null);
-  if (!controllersRef.current) {
-    controllersRef.current = new Set<AbortController>();
-  }
-  const controllers = controllersRef.current;
+  const uploadRef = useRef<AbortController | null>(null);
   const observedImportIdRef = useRef<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
@@ -429,6 +426,8 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   }, [latest]);
 
   const performUpload = async (file: File, mode: ImportMode) => {
+    const upload = new AbortController();
+    uploadRef.current = upload;
     captureEvent("import_started");
     setTransporting(true);
     setUploadPercent(0);
@@ -450,7 +449,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         })) as UploadPlan;
       }
       observedImportIdRef.current = plan.jobId;
-      await putParts(file, plan, setUploadPercent, controllers, (part) =>
+      await putParts(file, plan, setUploadPercent, upload.signal, (part) =>
         recordPart({ jobId: plan.jobId as never, ...part })
       );
       await completeUpload({ jobId: plan.jobId as never });
@@ -459,9 +458,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         size_bucket: resolveSizeBucket(file.size),
       });
     } catch (error) {
-      const cancelled =
-        error instanceof DOMException && error.name === "AbortError";
-      if (!cancelled) {
+      if (!isAbortError(error)) {
         const errorClass = normalizeErrorClass(error);
         captureEvent("file_upload_failed", {
           bucket: "import",
@@ -517,10 +514,8 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const cancel = async () => {
-    for (const controller of controllers) {
-      controller.abort();
-    }
-    controllers.clear();
+    uploadRef.current?.abort();
+    uploadRef.current = null;
     try {
       if (job) {
         await cancelImport({ jobId: job.id as never });
