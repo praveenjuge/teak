@@ -1,13 +1,12 @@
 import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { stageFailed } from "@teak/convex/card/processingStatus";
 import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
 import {
   type CardProcessingParams,
   cardTypeStages,
 } from "@teak/files-protocol";
-import { isSuperseded, supersededReason } from "../errors";
+import { isSuperseded, rethrowSuperseded, supersededReason } from "../errors";
 import {
   CONVEX_STEP,
   exponentialStep,
@@ -48,19 +47,14 @@ import {
   readLinkFetch,
   retryLinkPreviewImage,
 } from "./linkMetadata";
-import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
-import {
-  findPodcastEpisode,
-  isPodcastLink,
-  transcribeFoundEpisode,
-} from "./podcast";
+import { isPodcastLink } from "./podcast";
 import {
   extractPaletteFromImage,
   generateRenderables,
   type RenderablesResult,
 } from "./renderables";
-import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
+import { linkScreenshotSteps, podcastTranscriptSteps } from "./tail";
 
 // Step names are durable history: never rename one, and add new steps after
 // the existing ones.
@@ -68,8 +62,6 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 const LINK_METADATA_STEP = exponentialStep(5, 5000);
 const CATEGORIZE_STEP = exponentialStep(5, 1200);
 const RENDERABLES_STEP = exponentialStep(4, 5000);
-const PODCAST_STEP = exponentialStep(2, 60_000, "15 minutes");
-const LINK_TEXT_STEP = exponentialStep(3, 30_000, "5 minutes");
 // A busy image host (429 or 5xx) gets about 7½ minutes to come back.
 const PREVIEW_IMAGE_STEP = exponentialStep(5, 30_000, "5 minutes");
 
@@ -89,12 +81,6 @@ export const METADATA_STEP: StepConfig = {
     limit: AI_CAPACITY_RETRIES,
   },
   timeout: "15 minutes",
-};
-
-const rethrowSuperseded = (error: unknown): void => {
-  if (isSuperseded(error)) {
-    throw error;
-  }
 };
 
 interface InitialFacts {
@@ -270,7 +256,7 @@ const processCard = async (
       isPodcastLink(cardType, initial.linkCategory) &&
       metadata.mode === "completed"
     ) {
-      await transcribePodcastStep(job, step, { keepTranscript: true });
+      await podcastTranscriptSteps(job, step, { keepTranscript: true });
     }
     // The metadata just written summarized the page without its article.
     if (initial.hasArticle && metadata.mode === "completed") {
@@ -435,7 +421,7 @@ const processCard = async (
     isPodcastLink(cardType, categorization?.category) &&
     metadata?.mode === "completed"
   ) {
-    await transcribePodcastStep(job, step);
+    await podcastTranscriptSteps(job, step);
   }
 
   // Whether or not AI metadata finished: the page's saved copy (a failure
@@ -444,7 +430,9 @@ const processCard = async (
   // host that keeps refusing holds up nothing else.
   if (cardType === "link") {
     await archivePageStep(job, step);
-    await linkScreenshotSteps(job, step, reported, metadata);
+    if (metadata?.mode === "completed") {
+      await linkScreenshotSteps(job, step);
+    }
     await articleSteps(job, step);
   }
   if (cardType === "link" && !previewImageDone) {
@@ -493,66 +481,6 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
-
-/**
- * "capture screenshot" from the saved copy (so it keeps the page's styles),
- * then "read link image text" from the preview image or that screenshot.
- * They follow the archive; only a superseded run's error escapes.
- */
-const linkScreenshotSteps = async (
-  job: CardJob,
-  step: WorkflowRun<CardProcessingParams>["step"],
-  reported: Reported,
-  metadata: MetadataResult | null
-): Promise<void> => {
-  if (metadata?.mode !== "completed") {
-    return;
-  }
-  await step
-    .do(
-      "capture screenshot",
-      SCREENSHOT_STEP,
-      reported("card.screenshot", "screenshot", 4, (ctx) =>
-        captureScreenshotStep(job, ctx.attempt)
-      )
-    )
-    .catch(async (error: unknown) => {
-      rethrowSuperseded(error);
-      console.error("[cardProcessing] Screenshot failed", {
-        cardId: job.cardId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      await step.do("mark screenshot failed", CONVEX_STEP, async () => {
-        const loaded = await loadCard(job);
-        const status = loaded?.card.processingStatus?.screenshot?.status;
-        if (!loaded || status === "completed" || status === "failed") {
-          return null;
-        }
-        await job.deps.convex.mutation(
-          internal.ai.mutations.updateCardProcessing,
-          {
-            cardId: job.cardId,
-            processingStatus: {
-              screenshot: stageFailed(Date.now(), "screenshot_error"),
-            },
-          },
-          guardOf(job)
-        );
-        return null;
-      });
-      return null;
-    });
-  await step
-    .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
-    .catch((error: unknown) => {
-      rethrowSuperseded(error);
-      console.warn("[cardProcessing] Link image text failed", {
-        cardId: job.cardId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
-    });
-};
 
 /**
  * "archive page", and "mark archive failed" once its retries are spent; only
@@ -654,38 +582,6 @@ const summarizeArticleStep = async (
  * episode is found, and the owner's hourly slot taken, in a step of its own:
  * its result is kept, so retrying the transcription never takes another slot.
  */
-const transcribePodcastStep = async (
-  job: CardJob,
-  step: WorkflowRun<CardProcessingParams>["step"],
-  options: { keepTranscript?: boolean } = {}
-) => {
-  try {
-    const found = await step.do("find podcast episode", PODCAST_STEP, () =>
-      findPodcastEpisode(job, options)
-    );
-    const outcome =
-      "audioUrl" in found
-        ? await step.do("transcribe podcast", PODCAST_STEP, () =>
-            withWorkflowTelemetry(job.env, (telemetry) =>
-              transcribeFoundEpisode(job, telemetry, found, options)
-            )
-          )
-        : found;
-    console.log("[cardProcessing] podcast transcript", {
-      cardId: job.cardId,
-      ...outcome,
-    });
-    return outcome;
-  } catch (error) {
-    rethrowSuperseded(error);
-    console.warn("[cardProcessing] Podcast transcript failed", {
-      cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-};
-
 const runMetadataStep = (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],

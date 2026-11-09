@@ -1,6 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { allowedConvexSiteUrl } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { reportBackgroundError } from "../telemetry";
 import { isAiProviderCapacityError } from "../workflows/cardProcessing/aiMetadata";
 import {
@@ -8,10 +9,12 @@ import {
   type CardProcessingDeps,
   createCardProcessingDeps,
 } from "../workflows/cardProcessing/context";
-import { readLinkImageText } from "../workflows/cardProcessing/linkText";
 import { generateCardMetadata } from "../workflows/cardProcessing/metadata";
-import { transcribePodcastEpisode } from "../workflows/cardProcessing/podcast";
-import { captureScreenshotStep } from "../workflows/cardProcessing/screenshot";
+import {
+  linkScreenshotSteps,
+  onceSteps,
+  podcastTranscriptSteps,
+} from "../workflows/cardProcessing/tail";
 import { isSuperseded } from "../workflows/errors";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { withWorkflowTelemetry } from "../workflows/telemetry";
@@ -65,10 +68,7 @@ export const enqueueAiBackfill = async (
         })
         .catch((releaseError: unknown) => {
           console.error("[aiBackfill] could not release claimed cards", {
-            error:
-              releaseError instanceof Error
-                ? releaseError.message
-                : String(releaseError),
+            error: errorMessage(releaseError),
           });
         });
       throw error;
@@ -114,46 +114,10 @@ const runMessage = async (
     })
   );
   if (result.mode === "completed" && result.cardType === "link") {
-    await captureScreenshotStep(job, 1, { lastAttempt: true }).catch(
-      (error: unknown) => {
-        if (isSuperseded(error)) {
-          return;
-        }
-        console.warn("[aiBackfill] screenshot failed", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    );
-    await readLinkImageText(job).catch((error: unknown) => {
-      if (isSuperseded(error)) {
-        return;
-      }
-      console.warn("[aiBackfill] link image text failed", {
-        cardId: job.cardId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
     // A podcast episode, which card processing left untranscribed while its
-    // AI metadata waited; one attempt, never failing the message.
-    await withWorkflowTelemetry(env, (telemetry) =>
-      transcribePodcastEpisode(job, telemetry, { keepTranscript: true })
-    ).then(
-      (outcome) =>
-        console.log("[aiBackfill] podcast transcript", {
-          cardId: job.cardId,
-          ...outcome,
-        }),
-      (error: unknown) => {
-        if (isSuperseded(error)) {
-          return;
-        }
-        console.warn("[aiBackfill] podcast transcript failed", {
-          cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    );
+    // AI metadata waited, then the screenshot and the text in its images.
+    await podcastTranscriptSteps(job, onceSteps, { keepTranscript: true });
+    await linkScreenshotSteps(job, onceSteps);
   }
 };
 

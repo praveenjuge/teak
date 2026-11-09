@@ -28,6 +28,13 @@ export const supersededReason = (
 export const isSuperseded = (error: unknown): boolean =>
   supersededReason(error) !== null;
 
+/** For a step whose failure is otherwise kept: a superseded run still ends. */
+export const rethrowSuperseded = (error: unknown): void => {
+  if (isSuperseded(error)) {
+    throw error;
+  }
+};
+
 /**
  * Only an error's message crosses a step, so a step that wants its caller or
  * its retry `delay` to know more puts the facts in the message as JSON.
