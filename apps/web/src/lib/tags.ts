@@ -1,38 +1,24 @@
 import {
   MAX_TAG_NAME_LENGTH,
   TAG_OPERATION_STALL_MS,
-  type TagOperationKind,
-  type TagOperationStatus,
   tagKey,
 } from "@teak/convex/shared/tags";
+import type { tagOperationReturnValidator } from "@teak/convex/tag/tagOperations";
+import type { tagSummaryItemValidator } from "@teak/convex/tag/tagSummary";
 import type { TeakTranslator } from "@teak/i18n";
+import type { Infer } from "convex/values";
 import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
-export interface TagSummaryItem {
-  count: number;
-  /** The casing the tag was last typed in, when Teak knows it. */
-  label?: string;
-  name: string;
-}
+// The return shapes come from the functions' `returns` validators, since the
+// generated `api` types every function as `any` and FunctionReturnType can't.
+export type TagSummaryItem = Infer<typeof tagSummaryItemValidator>;
 
-/** How a tag reads in a list: the casing it was typed in, else its key. */
-export const tagDisplayName = (item: TagSummaryItem): string =>
+export const tagDisplayName = (item: Pick<TagSummaryItem, "label" | "name">) =>
   item.label ?? item.name;
 
-export interface TagOperationView {
-  _id: string;
-  changed: number;
-  completedAt?: number;
-  from: string;
-  kind: TagOperationKind;
-  processed: number;
-  status: TagOperationStatus;
-  to?: string;
-  total: number;
-  updatedAt?: number;
-}
+export type TagOperationView = Infer<typeof tagOperationReturnValidator>;
 
 export const isTagOperationStalled = (
   operation: TagOperationView,

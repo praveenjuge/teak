@@ -1,9 +1,11 @@
 "use client";
 
 import { api } from "@teak/convex";
+import type { bootstrapResult } from "@teak/convex/workosBootstrap";
 import { useTranslations } from "@teak/i18n/react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
+import type { Infer } from "convex/values";
 import {
   type ReactNode,
   useCallback,
@@ -20,10 +22,7 @@ import { StatusScreen } from "../StatusScreen";
 import { AuthUnavailable } from "./AuthUnavailable";
 import { PostHogIdentify } from "./PostHogIdentify";
 
-type Bootstrap =
-  | { status: "ok"; teakUserId: string }
-  | { status: "verify_email" | "frozen" }
-  | { status: "quarantined"; reason: string };
+type Bootstrap = Infer<typeof bootstrapResult>;
 
 const BLOCKED_MESSAGE_KEYS = {
   verify_email: "verifyEmail",

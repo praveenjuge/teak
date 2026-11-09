@@ -1,4 +1,4 @@
-import type { Id } from "@teak/convex/_generated/dataModel";
+import type { FolderSummary } from "@teak/convex/folder/folders";
 import {
   combineSearchQueries,
   describePriceBound,
@@ -10,32 +10,14 @@ import {
 import type { CardType } from "@teak/convex/shared/constants";
 import {
   type FolderColor,
-  type FolderKind,
   MAX_FOLDER_NAME_LENGTH,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
 
 export type FoldersTranslator = TeakTranslator<"lib.folders">;
 
-export interface FolderSummary {
-  _id: Id<"folders">;
-  activeCardCount: number;
-  color?: FolderColor;
-  createdAt: number;
-  kind: FolderKind;
-  name: string;
-  query?: string;
-  /** The folder's latest rule run, to follow or undo. */
-  ruleRunId?: Id<"folderRuleRuns">;
-  /** A manual folder's rules; missing on smart folders. */
-  rules?: FolderRules;
-  updatedAt: number;
-}
-
-export interface FolderRules {
-  autoFile: { enabled: boolean; query: string } | null;
-  autoTags: string[];
-}
+// What the folder functions return (their `returns` validator).
+export type { FolderSummary } from "@teak/convex/folder/folders";
 
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]

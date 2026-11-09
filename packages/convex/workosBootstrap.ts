@@ -5,7 +5,7 @@ import { mutation } from "./_generated/server";
 import { getWorkosBootstrapIdentity } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 
-const bootstrapResult = v.union(
+export const bootstrapResult = v.union(
   v.object({ status: v.literal("ok"), teakUserId: v.string() }),
   v.object({ status: v.literal("verify_email") }),
   v.object({ status: v.literal("frozen") }),
