@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
-import { buildInboundEmailSigningPayload } from "@teak/files-protocol";
+import {
+  buildInboundEmailSigningPayload,
+  INBOUND_EMAIL_FIELD_MAX_CHARS,
+  INBOUND_EMAIL_MAX_REQUEST_BYTES,
+} from "@teak/files-protocol";
 import {
   buildPayload,
   cutJsonUtf8,
-  SUBJECT_MAX_CHARS,
+  DEFAULT_MAX_BODY_BYTES,
+  maxBodyBytes,
   signedHeaders,
 } from "./payload";
 
@@ -32,12 +37,49 @@ describe("cutJsonUtf8", () => {
   });
 });
 
+describe("maxBodyBytes", () => {
+  test.each([
+    [undefined, DEFAULT_MAX_BODY_BYTES],
+    ["0", DEFAULT_MAX_BODY_BYTES],
+    ["lots", DEFAULT_MAX_BODY_BYTES],
+    ["2048", 2048],
+  ])("reads %p as %i", (configured, bytes) => {
+    expect(maxBodyBytes(configured)).toBe(bytes);
+  });
+
+  test("a setting too large for Convex's request limit still sends a request it accepts", () => {
+    const attachments = Array.from({ length: 50 }, (_, index) => ({
+      content: new Uint8Array([1]),
+      fileName: `${"n".repeat(200)}.pdf`,
+      index,
+      mimeType: "application/pdf",
+      size: 1,
+    }));
+    const payload = buildPayload(
+      {
+        date: "d".repeat(INBOUND_EMAIL_FIELD_MAX_CHARS),
+        html: "\u0001".repeat(2 * 1024 * 1024),
+        messageId: "m".repeat(INBOUND_EMAIL_FIELD_MAX_CHARS),
+        subject: "\u0001".repeat(INBOUND_EMAIL_FIELD_MAX_CHARS),
+        text: "\u0001".repeat(2 * 1024 * 1024),
+      },
+      "ada.example@gmail.com",
+      attachments,
+      maxBodyBytes(String(8 * 1024 * 1024))
+    );
+    const body = new TextEncoder().encode(JSON.stringify(payload));
+    expect(body.byteLength).toBeLessThanOrEqual(
+      INBOUND_EMAIL_MAX_REQUEST_BYTES
+    );
+  });
+});
+
 describe("buildPayload", () => {
   test("a body of escaped characters still fits the backend's 3 MiB request", () => {
     const payload = buildPayload(
       {
         html: "\\".repeat(1024 * 1024),
-        subject: '"'.repeat(SUBJECT_MAX_CHARS),
+        subject: '"'.repeat(INBOUND_EMAIL_FIELD_MAX_CHARS),
         text: '"'.repeat(1024 * 1024),
       },
       "ada.example@gmail.com",
@@ -55,7 +97,7 @@ describe("buildPayload", () => {
         date: "Tue, 14 Oct 2026 09:30:00 +0000",
         html: "<p>日本語</p>",
         messageId: "<m1@mail.gmail.com>",
-        subject: "s".repeat(SUBJECT_MAX_CHARS + 5),
+        subject: "s".repeat(INBOUND_EMAIL_FIELD_MAX_CHARS + 5),
         text: "plain",
       },
       "ada.example@gmail.com",
@@ -78,7 +120,7 @@ describe("buildPayload", () => {
       from: "ada.example@gmail.com",
       html: "<p>日",
       messageId: "<m1@mail.gmail.com>",
-      subject: "s".repeat(SUBJECT_MAX_CHARS),
+      subject: "s".repeat(INBOUND_EMAIL_FIELD_MAX_CHARS),
       text: "plain",
       v: 1,
     });

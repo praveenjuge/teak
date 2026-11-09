@@ -977,10 +977,12 @@ self-hosting guide (`apps/docs/content/docs/(open-source)/self-hosting.mdx`,
    is refused (`550 5.7.1 This address can't save to Teak`).
 5. **Convex.** The verified sender, subject, Message-ID, date, the text and
    HTML bodies (each cut to `MAX_BODY_BYTES` as encoded in the JSON request,
-   never mid-character, so the request stays under Convex's 3 MiB) and the
+   never mid-character; a larger setting is held to what keeps the request
+   under Convex's 3 MiB, `INBOUND_EMAIL_MAX_BODY_BYTES`) and the
    attachments' names, types and sizes are POSTed to
    `${CONVEX_SITE_URL}/inbound/email`, signed with
-   `EMAIL_INBOUND_SIGNING_SECRET` (`src/email/payload.ts`: HMAC-SHA256 of
+   `EMAIL_INBOUND_SIGNING_SECRET` (paths, headers, limits and the payload
+   type are in `packages/files-protocol/src/inboundEmail.ts`; HMAC-SHA256 of
    `teak-inbound-email\nv1\n<path>\n<timestamp>\n<sha256(body)>`).
    - `200`: accepted. Convex saved the body card, dropped the message
      silently (over the hourly limit or the free card limit), or had already

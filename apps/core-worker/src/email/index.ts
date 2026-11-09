@@ -10,7 +10,7 @@ import {
   isTransientStatus,
   type PlannedUpload,
 } from "./convex";
-import { buildPayload, DEFAULT_MAX_BODY_BYTES } from "./payload";
+import { buildPayload, maxBodyBytes } from "./payload";
 import type { Deps, EmailEnv, InboundMessage } from "./types";
 
 // Save by email. Mail to save@<INBOUND_EMAIL_DOMAIN> from a Teak account's
@@ -51,13 +51,6 @@ export const isAutomated = (message: InboundMessage): boolean => {
       AUTO_PRECEDENCE.has(precedence) &&
       message.headers.has("list-id")
   );
-};
-
-const maxBodyBytes = (env: EmailEnv): number => {
-  const configured = Number(env.MAX_BODY_BYTES);
-  return Number.isSafeInteger(configured) && configured > 0
-    ? configured
-    : DEFAULT_MAX_BODY_BYTES;
 };
 
 const putWithRetries = async (
@@ -194,7 +187,12 @@ export const handleEmail = async (
   const result = await ingestEmail(
     deps,
     target,
-    buildPayload(email, verdict.from, attachments, maxBodyBytes(env))
+    buildPayload(
+      email,
+      verdict.from,
+      attachments,
+      maxBodyBytes(env.MAX_BODY_BYTES)
+    )
   );
   if (result.kind === "unknown_sender") {
     reject("unknown_sender", REJECT_CANT_SAVE);

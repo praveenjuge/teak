@@ -3,6 +3,7 @@ import polarTest from "@convex-dev/polar/test";
 import {
   buildInboundEmailSigningPayload,
   hmacSha256Hex,
+  INBOUND_EMAIL_PATHS,
   sha256Hex,
 } from "@teak/files-protocol";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -10,10 +11,6 @@ import { queuedObjectDeletions } from "../../__tests__/helpers/objectDeletions.t
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../../_generated/api";
 import { accountDeletionStage } from "../../accountDeletion/stages";
-import {
-  INBOUND_ATTACHMENT_PATH,
-  INBOUND_EMAIL_PATH,
-} from "../../inbound/http";
 import { rateLimiter } from "../../rateLimiter";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
 import {
@@ -141,8 +138,8 @@ const setup = async (beforeOwner?: (t: Backend) => Promise<unknown>) => {
     options?: Parameters<typeof signedPost>[2]
   ) => {
     const response = await t.fetch(
-      INBOUND_EMAIL_PATH,
-      await signedPost(INBOUND_EMAIL_PATH, JSON.stringify(body), options)
+      INBOUND_EMAIL_PATHS.email,
+      await signedPost(INBOUND_EMAIL_PATHS.email, JSON.stringify(body), options)
     );
     return {
       body: (await response.json()) as Record<string, any>,
@@ -152,9 +149,9 @@ const setup = async (beforeOwner?: (t: Backend) => Promise<unknown>) => {
   };
   const finalize = async (body: Record<string, unknown>) => {
     const response = await t.fetch(
-      INBOUND_ATTACHMENT_PATH,
+      INBOUND_EMAIL_PATHS.attachments,
       await signedPost(
-        INBOUND_ATTACHMENT_PATH,
+        INBOUND_EMAIL_PATHS.attachments,
         JSON.stringify({ v: 1, ...body })
       )
     );
@@ -570,10 +567,10 @@ describe("POST /inbound/email", () => {
     const { cards, owner, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
     const signed = await signedPost(
-      INBOUND_EMAIL_PATH,
+      INBOUND_EMAIL_PATHS.email,
       JSON.stringify(email())
     );
-    const response = await t.fetch(INBOUND_EMAIL_PATH, {
+    const response = await t.fetch(INBOUND_EMAIL_PATHS.email, {
       ...signed,
       body: JSON.stringify(email({ text: "tampered" })),
     });
@@ -585,8 +582,8 @@ describe("POST /inbound/email", () => {
     const { owner, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
     const response = await t.fetch(
-      INBOUND_EMAIL_PATH,
-      await signedPost(INBOUND_ATTACHMENT_PATH, JSON.stringify(email()))
+      INBOUND_EMAIL_PATHS.email,
+      await signedPost(INBOUND_EMAIL_PATHS.attachments, JSON.stringify(email()))
     );
     expect(response.status).toBe(401);
   });
