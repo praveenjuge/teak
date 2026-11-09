@@ -7,6 +7,10 @@ import {
   tombstoneCardEmbedding,
 } from "../embedding/state";
 import {
+  EMBEDDING_INPUT_FIELDS,
+  embeddingInputsChanged,
+} from "../embedding/text";
+import {
   cardFolderRowsMayChange,
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
@@ -63,6 +67,7 @@ const TAG_ROW_CARD_FIELDS = [
 export const CARD_CHANGE_FIELDS: ReadonlySet<string> = new Set([
   ...CARD_SEARCH_TEXT_FIELDS,
   ...TAG_ROW_CARD_FIELDS,
+  ...EMBEDDING_INPUT_FIELDS,
   "folderIds",
   "url",
   "sourceUrl",
@@ -385,7 +390,8 @@ export const onCardChanged = async (
   }
   if (
     existing?.searchableText !== value.searchableText ||
-    existing.type !== value.type
+    existing.type !== value.type ||
+    (previousCard && embeddingInputsChanged(previousCard, card))
   ) {
     await markCardForEmbedding(ctx, cardId, card.userId);
   }

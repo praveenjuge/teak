@@ -268,6 +268,41 @@ describe("recordNoArticle", () => {
   });
 });
 
+describe("article embedding", () => {
+  test("a new article, and losing it, each queue the link's embedding again", async () => {
+    const { t, insert, save } = await setup();
+    const link = await insert();
+    const embedding = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cardEmbeddings")
+          .withIndex("by_cardId", (q) => q.eq("cardId", link))
+          .unique()
+      );
+    const markEmbedded = () =>
+      t.run(async (ctx) => {
+        const row = await ctx.db
+          .query("cardEmbeddings")
+          .withIndex("by_cardId", (q) => q.eq("cardId", link))
+          .unique();
+        if (row) {
+          await ctx.db.patch("cardEmbeddings", row._id, { dueAt: undefined });
+        }
+      });
+
+    await markEmbedded();
+    await save(link);
+    expect((await embedding())?.dueAt).toEqual(expect.any(Number));
+
+    await markEmbedded();
+    await t.mutation(articleText.recordNoArticle, {
+      cardId: link,
+      wordCount: 40,
+    });
+    expect((await embedding())?.dueAt).toEqual(expect.any(Number));
+  });
+});
+
 describe("saveArticleSummary", () => {
   test("writes only the summary, and only for a card with an article", async () => {
     const { t, insert, save, card } = await setup();
