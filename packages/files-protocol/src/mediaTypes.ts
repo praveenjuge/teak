@@ -22,3 +22,19 @@ export const GENERIC_MEDIA_TYPES: ReadonlySet<string> = new Set([
 export const isGenericMediaType = (
   mediaType: string | null | undefined
 ): boolean => GENERIC_MEDIA_TYPES.has(normalizeMediaType(mediaType));
+
+const IMAGE_TYPES_BY_EXTENSION: Readonly<Record<string, string>> = {
+  avif: "image/avif",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+};
+
+/** The image type of a file extension or format token (`jpg`, `heic`). */
+export const imageTypeForExtension = (extension: string): string | null =>
+  IMAGE_TYPES_BY_EXTENSION[extension.toLowerCase()] ?? null;

@@ -188,6 +188,30 @@ describe("image analysis", () => {
     ).rejects.toThrow("image_dimensions_missing");
   });
 
+  test("treats a .svg file stored without a content type as an SVG, as finalizing does", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set(SVG_KEY, {
+      bytes: new TextEncoder().encode(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="40" height="30" fill="#00ff00"/></svg>`
+      ),
+      httpMetadata: {},
+    });
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: "secret",
+    } as Env;
+
+    const result = await analyzeImage(
+      env,
+      SVG_KEY,
+      "https://files.teakvault.com",
+      () => Promise.resolve(new Response(null, { status: 415 }))
+    );
+
+    expect(result).toMatchObject({ height: 30, width: 40 });
+    expect(result.palette).toContain("#00FF00");
+  });
+
   test("rasterizes SVG sources for original dimensions and palette", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set(SVG_KEY, {

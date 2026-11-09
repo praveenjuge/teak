@@ -26,11 +26,11 @@ const makeEnv = (contentType = "image/png"): Env => {
   });
 };
 
-const makeSvgEnv = (): Env => {
+const makeSvgEnv = (contentType: string | null = "text/xml"): Env => {
   const bucket = new FakeBucket();
   bucket.objects.set(SVG_KEY, {
     bytes: new TextEncoder().encode(SVG),
-    httpMetadata: { contentType: "text/xml" },
+    httpMetadata: contentType ? { contentType } : {},
   });
   return withObjectGates({
     BUCKET: bucket as unknown as R2Bucket,
@@ -191,6 +191,17 @@ describe("Cloudflare image transformations", () => {
     expect(headResponse.headers.get("content-type")).toBe("image/png");
     expect(headResponse.headers.get("content-length")).toBe(String(png.length));
     expect(await headResponse.arrayBuffer()).toHaveLength(0);
+  });
+
+  test("rasterizes a .svg file stored without a content type", async () => {
+    const response = await handleImageRequest(
+      await signedImageRequest("grid", "image/avif", SVG_KEY),
+      makeSvgEnv(null),
+      undefined,
+      NOW
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
   });
 
   test("draws a thin SVG rule one pixel thick, and refuses a sliver too thin to draw", async () => {
