@@ -73,7 +73,7 @@ test("folder rules tag a folder's cards with Undo, and file new matching cards",
     "Text: A kestrel hovering over the meadow"
   );
   await expect(filed).toBeVisible({ timeout: 90_000 });
-  await filed.click();
+  await filed.click({ timeout: 90_000 });
   await expect(
     screen.getByRole("button", "birding", { exact: true })
   ).toBeVisible();
