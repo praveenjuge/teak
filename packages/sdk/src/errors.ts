@@ -94,10 +94,17 @@ const DEFAULT_MESSAGE: Partial<Record<TeakErrorKind, string>> = {
   unavailable: "Teak is busy. Try again in a moment.",
 };
 
-const defaultErrorMessage = (code: TeakApiErrorCode) =>
-  code === "TIMEOUT"
-    ? "The Teak request timed out."
-    : (DEFAULT_MESSAGE[errorKindFor(code)] ?? "The Teak request failed.");
+const defaultErrorMessage = (code: TeakApiErrorCode) => {
+  if (code === "TIMEOUT") {
+    return "The Teak request timed out.";
+  }
+  // No credential at all (never signed in, or the session ended): "again"
+  // would tell a first-time user they had signed in before.
+  if (code === "AUTH_REQUIRED") {
+    return "You are not signed in to Teak.";
+  }
+  return DEFAULT_MESSAGE[errorKindFor(code)] ?? "The Teak request failed.";
+};
 
 export class TeakApiError extends Error {
   code: TeakApiErrorCode;
