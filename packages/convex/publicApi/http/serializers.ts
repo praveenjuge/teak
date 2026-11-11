@@ -1,15 +1,14 @@
 import { env } from "../../_generated/server";
 import type { CardLinks } from "../../card/cardLinks";
 import type { CardWithUrls } from "../../card/queryUtils";
-import {
-  isLocalDevelopmentHostname,
-  resolveTeakDevAppUrl,
-} from "../../devUrls";
+import { resolveTeakDevAppUrl } from "../../devUrls";
 import { readIsDevDeployment } from "../../env";
+import { isLocalDevelopmentHostname } from "../../shared/localHosts";
 import { isLinkPrice } from "../../shared/price";
 import type { CardListInclude } from "../../shared/publicApiContract";
 import { isCardHidden } from "../../shared/tags";
 import { cardAppUrl } from "../../shared/webRoutes";
+import type { TagOperationSummary } from "../../tag/tagOperations";
 
 const APP_PROD_URL = "https://app.teakvault.com";
 
@@ -331,4 +330,19 @@ export const serializeHighlight = (highlight: {
   quote: highlight.quote,
   source: highlight.source,
   updatedAt: highlight.updatedAt,
+});
+
+export const serializeTagOperation = (operation: TagOperationSummary) => ({
+  id: operation._id,
+  kind: operation.kind,
+  from: operation.from,
+  to: operation.to ?? null,
+  status: operation.status,
+  total: operation.total,
+  processed: operation.processed,
+  changed: operation.changed,
+  error: operation.error ?? null,
+  createdAt: operation.createdAt,
+  updatedAt: operation.updatedAt,
+  completedAt: operation.completedAt ?? null,
 });
