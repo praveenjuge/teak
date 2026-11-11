@@ -96,13 +96,74 @@ const acceptedFields = (schema: z.ZodType): string[] => {
   return shape && typeof shape === "object" ? Object.keys(shape) : [];
 };
 
+const EXPECTED_TYPES: Record<string, string> = {
+  array: "a list",
+  boolean: "true or false",
+  int: "a whole number",
+  number: "a number",
+  object: "an object",
+  string: "a string",
+};
+
+const valueAt = (input: unknown, path: readonly PropertyKey[]): unknown => {
+  let value = input;
+  for (const key of path) {
+    if (value === null || typeof value !== "object") {
+      return;
+    }
+    value = (value as Record<PropertyKey, unknown>)[key];
+  }
+  return value;
+};
+
+/**
+ * Says what is wrong with one argument in words an agent can act on:
+ * `cardId` is required, `limit` must be a number. A message that already
+ * names its argument is kept as it is, so the name isn't said twice.
+ */
+const describeArgumentIssue = (
+  issue: z.core.$ZodIssue,
+  input: unknown
+): string => {
+  const path = issue.path.map(String).join(".");
+  if (!path) {
+    return issue.message;
+  }
+  const name = `\`${path}\``;
+  const missing =
+    issue.code === "invalid_type" && valueAt(input, issue.path) === undefined;
+  if (missing) {
+    return `${name} is required`;
+  }
+  if (issue.path.length === 1 && issue.message.includes(name)) {
+    return issue.message;
+  }
+  if (issue.code === "invalid_type") {
+    const expected = EXPECTED_TYPES[issue.expected];
+    if (expected) {
+      return `${name} must be ${expected}`;
+    }
+  }
+  if (
+    (issue.code === "too_big" || issue.code === "too_small") &&
+    (issue.origin === "number" || issue.origin === "int") &&
+    issue.inclusive
+  ) {
+    return issue.code === "too_big"
+      ? `${name} must be ${issue.maximum} or less`
+      : `${name} must be ${issue.minimum} or more`;
+  }
+  return `${path}: ${issue.message}`;
+};
+
 /**
  * Names the argument each problem is in, so `get_card {}` says `cardId` is
- * missing instead of only "expected string", and an unknown argument (say
+ * required instead of only "expected string", and an unknown argument (say
  * `query` on a tool that takes `q`) lists the ones the tool takes.
  */
 const describeIssues = (
   issues: readonly z.core.$ZodIssue[],
+  input: unknown,
   accepted: readonly string[] = []
 ): string => {
   if (issues.length === 0) {
@@ -117,8 +178,7 @@ const describeIssues = (
           : "";
       return `Unknown argument${issue.keys.length === 1 ? "" : "s"} ${keys}${takes}`;
     }
-    const path = issue.path.map(String).join(".");
-    return path ? `${path}: ${issue.message}` : issue.message;
+    return describeArgumentIssue(issue, input);
   });
   const more = issues.length - described.length;
   return more > 0
@@ -183,7 +243,7 @@ const runTool = async (
   const parsed = tool.schema.safeParse(input);
   if (!parsed.success) {
     return validationError(
-      describeIssues(parsed.error.issues, acceptedFields(tool.schema))
+      describeIssues(parsed.error.issues, input, acceptedFields(tool.schema))
     );
   }
   const result = await executeToolCall(
