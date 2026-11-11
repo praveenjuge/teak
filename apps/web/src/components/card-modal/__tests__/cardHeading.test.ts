@@ -1,5 +1,19 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { formatAddedDate, getCardHeading } from "../cardHeading";
+import { englishTranslator } from "@/lib/englishTranslators";
+import {
+  formatAddedDate as formatAddedDateIn,
+  getCardHeading as getCardHeadingIn,
+} from "../cardHeading";
+
+const t = englishTranslator("cardModal.heading");
+const getCardHeading = (card: Parameters<typeof getCardHeadingIn>[0]) =>
+  getCardHeadingIn(card, {
+    link: englishTranslator("lib.linkTitle"),
+    t,
+    types: englishTranslator("cards.types"),
+  });
+const formatAddedDate = (timestamp: number, now: number) =>
+  formatAddedDateIn(timestamp, now, { t });
 
 describe("getCardHeading", () => {
   test("names a link by the title someone set, then the page's title", () => {

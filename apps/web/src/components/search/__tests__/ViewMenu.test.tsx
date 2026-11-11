@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import { englishTranslator } from "@/lib/englishTranslators";
 import type { CardDensity } from "../../../lib/cardDensity";
 import type { LibrarySort } from "../../../lib/searchUrlState";
 
@@ -11,6 +12,17 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ViewMenu, viewMenuLabel } = await import("../ViewMenu");
+
+const englishViewLabel = (
+  types: Parameters<typeof viewMenuLabel>[0],
+  sort: Parameters<typeof viewMenuLabel>[1]
+) =>
+  viewMenuLabel(
+    types,
+    sort,
+    englishTranslator("search"),
+    englishTranslator("cards.types")
+  );
 
 let root: Root | undefined;
 
@@ -123,7 +135,9 @@ describe("Revisit in the View menu", () => {
   });
 
   test("names the deck on the View button", () => {
-    expect(viewMenuLabel([], "revisit")).toBe("View: revisiting");
-    expect(viewMenuLabel(["image"], "revisit")).toBe("View: Image, revisiting");
+    expect(englishViewLabel([], "revisit")).toBe("View: revisiting");
+    expect(englishViewLabel(["image"], "revisit")).toBe(
+      "View: Image, revisiting"
+    );
   });
 });

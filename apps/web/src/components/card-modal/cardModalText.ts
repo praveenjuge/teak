@@ -31,7 +31,7 @@ export function saveStateLabel(
 export function emptiedContentNotice(
   card: ClientCard | null | undefined,
   getCurrentValue: GetCurrentValue,
-  t: CardModalTranslator = englishCardModal
+  t: CardModalTranslator
 ): string | null {
   if (
     !(card && hasEditableText(card.type)) ||

@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/constants";
 import { ConvexError } from "convex/values";
 import { asFetch } from "@/__tests__/helpers/testDoubles";
-import { useFileUploadCore } from "../useFileUploadCore";
+import { useFileUploadCore as useFileUploadCoreIn } from "../useFileUploadCore";
 import {
+  englishUploadTranslators,
   mockFetch,
   mockSetState,
   mockUseEffectCleanups,
 } from "./useFileUploadCore.testSupport";
+
+const useFileUploadCore = (
+  dependencies: Parameters<typeof useFileUploadCoreIn>[0]
+) => useFileUploadCoreIn(dependencies, {}, englishUploadTranslators);
 
 describe("file upload initialization and multipart flow", () => {
   const uploadAndCreateCard = mock();

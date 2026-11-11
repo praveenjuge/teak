@@ -772,7 +772,7 @@ export function CardModal({
       !hasEditableText(card?.type)
   );
   const addedLabel = card
-    ? formatAddedDate(card.createdAt, undefined, {
+    ? formatAddedDate(card.createdAt, Date.now(), {
         locale: dateLocale,
         t: tHeading,
       })

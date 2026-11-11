@@ -1,6 +1,8 @@
 "use client";
 
+import type { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import type { FunctionReturnType } from "convex/server";
 import { type ReactNode, useRef, useState } from "react";
 import { Copy, Mail } from "vadivam-react";
 import { isRateLimitError } from "../../lib/cardErrors";
@@ -11,14 +13,9 @@ import { formatRelativeTime } from "./importExportFormat";
 import { SettingsSection, SettingsTile } from "./SettingsSection";
 import { SettingsSwitch } from "./SettingsSwitch";
 
-/** What `inbound.settings.getMine` returns for the signed-in account. */
-export interface InboundEmailState {
-  address: string;
-  enabled: boolean;
-  lastReceivedAt: number | null;
-  sender: string;
-  senderVerified: boolean;
-}
+export type InboundEmailState = NonNullable<
+  FunctionReturnType<typeof api.inbound.settings.getMine>
+>;
 
 export interface InboundEmailPanelProps {
   onDisable: () => Promise<unknown>;

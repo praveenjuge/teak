@@ -1,5 +1,6 @@
 "use client";
 
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { ExportPanel, type ExportState } from "./ExportPanel";
 import { ImportPanel } from "./ImportPanel";
@@ -8,8 +9,8 @@ import { SettingsPageIntro, SettingsStack } from "./SettingsSection";
 interface DataSettingsProps {
   exportLoading: boolean;
   exportState: ExportState | null | undefined;
-  onCancelExport: (jobId: string) => Promise<void>;
-  onDownloadExport: (jobId: string) => Promise<void>;
+  onCancelExport: (jobId: Id<"exportJobs">) => Promise<void>;
+  onDownloadExport: (jobId: Id<"exportJobs">) => Promise<void>;
   onStartExport: () => Promise<void>;
 }
 

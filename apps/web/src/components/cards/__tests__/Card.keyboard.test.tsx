@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -31,6 +32,13 @@ const copied = async () => {
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { Card, getCardAccessibleLabel } = await import("../Card");
+
+const accessibleLabel = (card: Parameters<typeof getCardAccessibleLabel>[0]) =>
+  getCardAccessibleLabel(
+    card,
+    englishTranslator("cards.accessibleLabel"),
+    englishTranslator("lib.linkTitle")
+  );
 
 let root: Root | undefined;
 
@@ -316,11 +324,11 @@ describe("getCardAccessibleLabel", () => {
     [{ type: "text", content: "Groceries\n- eggs" }, "Text: Groceries"],
     [{ type: "audio", content: "" }, "Audio card"],
   ] as const)("names %p", (card, expected) => {
-    expect(getCardAccessibleLabel(card as any)).toBe(expected);
+    expect(accessibleLabel(card as any)).toBe(expected);
   });
 
   test("clips very long text", () => {
-    const label = getCardAccessibleLabel({
+    const label = accessibleLabel({
       type: "text",
       content: "a".repeat(500),
     } as any);

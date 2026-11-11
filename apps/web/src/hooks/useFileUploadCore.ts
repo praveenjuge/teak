@@ -19,8 +19,8 @@ import type {
 import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
 import {
+  convexErrorData,
   type ErrorsTranslator,
   translateErrorKey,
   translateServerMessage,
@@ -109,33 +109,24 @@ export interface FileUploadDependencies
 export type UploadTranslator = TeakTranslator<"hooks.upload">;
 
 export interface FileUploadTranslators {
-  errors?: ErrorsTranslator;
-  upload?: UploadTranslator;
+  errors: ErrorsTranslator;
+  upload: UploadTranslator;
 }
-
-const englishUpload: UploadTranslator = englishTranslator("hooks.upload");
 
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
 
-// A Convex function's ConvexError keeps its code and message in `data`; its
-// own message is the serialized data, which isn't fit for a toast.
+// A ConvexError's own message is its serialized data, not fit for a toast.
 const toFileUploadError = (
   error: unknown,
   t: UploadTranslator,
   errors: ErrorsTranslator
 ): FileUploadError => {
   if (error instanceof ConvexError) {
-    const data = error.data as { code?: unknown; message?: unknown } | null;
+    const { code, message } = convexErrorData(error);
     return {
-      code:
-        typeof data?.code === "string"
-          ? (data.code as CardErrorCode)
-          : undefined,
-      message:
-        typeof data?.message === "string"
-          ? translateServerMessage(errors, data.message)
-          : t("failed"),
+      code: code as CardErrorCode | undefined,
+      message: message ? translateServerMessage(errors, message) : t("failed"),
     };
   }
   let message = t("failed");
@@ -169,11 +160,9 @@ export function useFileUploadCore(
     prepareMultipartUpload,
     recordMultipartPart,
   }: FileUploadDependencies,
-  config: UnifiedFileUploadConfig = {},
-  translators: FileUploadTranslators = {}
+  config: UnifiedFileUploadConfig,
+  { errors, upload: t }: FileUploadTranslators
 ) {
-  const t = translators.upload ?? englishUpload;
-  const errors = translators.errors ?? englishErrors;
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);

@@ -8,17 +8,14 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { isCardLimitError } from "@/lib/cardErrors";
-import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
 import { type ErrorsTranslator, translateErrorKey } from "@/lib/serverErrors";
 
 export type SavePdfTranslator = TeakTranslator<"hooks.savePdf">;
 
-const englishSavePdf: SavePdfTranslator = englishTranslator("hooks.savePdf");
-
 export const savePdfErrorMessage = (
   error: unknown,
-  t: SavePdfTranslator = englishSavePdf,
-  errors: ErrorsTranslator = englishErrors
+  t: SavePdfTranslator,
+  errors: ErrorsTranslator
 ): string => {
   const code = (error as { data?: { code?: unknown } } | null)?.data?.code;
   switch (code) {

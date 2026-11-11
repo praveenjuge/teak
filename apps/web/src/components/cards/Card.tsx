@@ -34,7 +34,6 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { englishTranslator } from "@/lib/englishTranslators";
 import { openCardLink } from "@/lib/openCardLink";
 import { useCopyCard } from "../../hooks/useCardClipboard";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
@@ -91,10 +90,6 @@ const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
 type AccessibleLabelTranslator = TeakTranslator<"cards.accessibleLabel">;
 
-const englishAccessibleLabel: AccessibleLabelTranslator = englishTranslator(
-  "cards.accessibleLabel"
-);
-
 export function getCardAccessibleLabel(
   card: Pick<
     CardWithUrls,
@@ -106,8 +101,8 @@ export function getCardAccessibleLabel(
     | "type"
     | "url"
   >,
-  t: AccessibleLabelTranslator = englishAccessibleLabel,
-  linkTitle?: LinkTitleTranslator
+  t: AccessibleLabelTranslator,
+  linkTitle: LinkTitleTranslator
 ): string {
   const type = card.type || "card";
   const title = cardTitle(card, linkTitle);

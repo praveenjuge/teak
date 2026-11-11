@@ -20,17 +20,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { englishTranslator } from "@/lib/englishTranslators";
 import { CARD_DENSITIES, type CardDensity } from "../../lib/cardDensity";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
-import {
-  type CardTypesTranslator,
-  englishCardTypes,
-} from "../cards/cardTypeLabel";
-
-const englishSearch = englishTranslator("search");
+import type { CardTypesTranslator } from "../cards/cardTypeLabel";
 
 interface ViewMenuProps {
   activeTypes: readonly CardType[];
@@ -47,9 +41,9 @@ interface ViewMenuProps {
 
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
-  sort: LibrarySort = "newest",
-  t: TeakTranslator<"search"> = englishSearch,
-  types: CardTypesTranslator = englishCardTypes
+  sort: LibrarySort,
+  t: TeakTranslator<"search">,
+  types: CardTypesTranslator
 ): string => {
   const parts = activeTypes.map((type) => types(type));
   if (sort === "oldest") {

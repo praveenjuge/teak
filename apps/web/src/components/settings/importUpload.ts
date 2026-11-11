@@ -1,3 +1,5 @@
+import type { api } from "@teak/convex";
+import type { FunctionReturnType } from "convex/server";
 import {
   getUploadEtag,
   isAbortError,
@@ -8,12 +10,11 @@ import {
 
 const UPLOAD_CONCURRENCY = 3;
 
-export interface UploadPlan {
-  jobId: string;
-  partSize: number;
-  parts: Array<{ partNumber: number; url: string }>;
-  uploadedParts: number[];
-}
+/** The parts still to send, as `createImportUpload` plans them. */
+export type UploadPlan = Omit<
+  FunctionReturnType<typeof api.importUpload.createImportUpload>,
+  "jobId"
+>;
 
 export interface UploadedPart {
   etag: string;

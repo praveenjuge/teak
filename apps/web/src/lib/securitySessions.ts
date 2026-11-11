@@ -1,13 +1,10 @@
-export interface DeviceSession {
-  /** What the session's browser says; absent from older servers. */
-  agent?: { browser?: string; kind: string; os?: string };
-  current: boolean;
-  id: string;
-  lastActiveAt?: number;
-  /** The server's English name, shown when `agent` is missing. */
-  name: string;
-  signedInAt: number;
-}
+import type { api } from "@teak/convex";
+import type { FunctionReturnType } from "convex/server";
+
+/** `name` is the server's English name, shown when `agent` is missing. */
+export type DeviceSession = FunctionReturnType<
+  typeof api.securitySessions.listAuthkitSessions
+>["page"][number];
 
 export interface ConnectionTarget {
   consentId: string;

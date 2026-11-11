@@ -1,4 +1,4 @@
-import type { FolderSummary } from "@teak/convex/folder/folders";
+import type { api } from "@teak/convex";
 import {
   combineSearchQueries,
   describePriceBound,
@@ -17,11 +17,13 @@ import {
   MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
+import type { FunctionReturnType } from "convex/server";
 
 export type FoldersTranslator = TeakTranslator<"lib.folders">;
 
-// What the folder functions return (their `returns` validator).
-export type { FolderSummary } from "@teak/convex/folder/folders";
+export type FolderSummary = FunctionReturnType<
+  typeof api.folders.listFolders
+>[number];
 
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]
