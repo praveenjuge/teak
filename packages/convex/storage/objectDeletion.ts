@@ -47,10 +47,9 @@ export const enqueue = internalMutation({
   },
 });
 
-export const objectDeletionDispatch: DispatchKindSpec<"deleteObjects"> = {
+export const objectDeletionDispatch = {
+  deliveredAfterMs: 60 * 60 * 1000,
   delivery: "delete-objects",
-  // Keys a deletion gave up on are queued again a day later, so a Worker
-  // outage longer than the retries delays a deletion instead of leaking it.
   onFailure: async (ctx, row) => {
     await insertDispatch(ctx, {
       delayMs: DEAD_LETTER_RETRY_MS,
@@ -59,6 +58,4 @@ export const objectDeletionDispatch: DispatchKindSpec<"deleteObjects"> = {
       kind: "deleteObjects",
     });
   },
-  // A sent deletion counts as delivered after this long.
-  staleAfterMs: 60 * 60 * 1000,
-};
+} as const satisfies DispatchKindSpec<"deleteObjects">;

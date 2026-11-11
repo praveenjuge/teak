@@ -416,7 +416,7 @@ export const markDelivered = internalMutation({
     const now = Date.now();
     for (const id of ids) {
       const row = await ctx.db.get("workflowDispatches", id);
-      if (row?.kind === "deleteObjects" && row.state === "sent") {
+      if (row?.state === "sent" && specFor(row).delivery === "delete-objects") {
         await ctx.db.patch("workflowDispatches", id, {
           finishedAt: now,
           state: "done",
@@ -438,20 +438,18 @@ const workflowOf = (row: Doc<"workflowDispatches">) => {
 };
 
 const isStale = (row: Doc<"workflowDispatches">, now: number) => {
-  const staleAfterMs = specFor(row).staleAfterMs;
+  const spec = specFor(row);
   return (
-    workflowOf(row) !== null &&
-    staleAfterMs !== undefined &&
-    (row.sentAt ?? now) < now - staleAfterMs
+    spec.delivery === "workflow" &&
+    row.instanceId !== undefined &&
+    (row.sentAt ?? now) < now - spec.staleAfterMs
   );
 };
 
 /** The shortest silence after which any kind's sent run counts as stale. */
 const SHORTEST_STALE_MS = Math.min(
   ...Object.values(KINDS).flatMap((spec) =>
-    spec.delivery === "workflow" && spec.staleAfterMs !== undefined
-      ? [spec.staleAfterMs]
-      : []
+    spec.delivery === "workflow" ? [spec.staleAfterMs] : []
   )
 );
 
@@ -536,7 +534,8 @@ export const markReconciled = internalMutation({
 
 const HEALTH_SCAN_LIMIT = 500;
 const HEALTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-// A due row this old means no flush is taking rows.
+// A due row this old means no flush is taking rows: the watchdog reports
+// it, and both the watchdog and `pruneFinished` re-arm a flush.
 const PENDING_STALL_MS = 15 * 60 * 1000;
 // The reconcile runs hourly, so a stale run it hasn't looked at for this
 // long means the Core Worker stopped reconciling.
@@ -623,7 +622,7 @@ export const pruneFinished = internalMutation({
     const stuck = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_state_and_notBefore", (q) =>
-        q.eq("state", "pending").lt("notBefore", now - 5 * 60 * 1000)
+        q.eq("state", "pending").lt("notBefore", now - PENDING_STALL_MS)
       )
       .take(100);
     if (stuck.length > 0) {
@@ -631,19 +630,18 @@ export const pruneFinished = internalMutation({
     }
     const sentDeletes = await ctx.db
       .query("workflowDispatches")
-      .withIndex("by_state_and_sentAt", (q) =>
+      .withIndex("by_kind_and_state_and_sentAt", (q) =>
         q
+          .eq("kind", "deleteObjects")
           .eq("state", "sent")
-          .lt("sentAt", now - (KINDS.deleteObjects.staleAfterMs ?? 0))
+          .lt("sentAt", now - objectDeletionDispatch.deliveredAfterMs)
       )
       .take(200);
     for (const row of sentDeletes) {
-      if (row.kind === "deleteObjects") {
-        await ctx.db.patch("workflowDispatches", row._id, {
-          finishedAt: now,
-          state: "done",
-        });
-      }
+      await ctx.db.patch("workflowDispatches", row._id, {
+        finishedAt: now,
+        state: "done",
+      });
     }
     let deleted = 0;
     let hasMore = false;

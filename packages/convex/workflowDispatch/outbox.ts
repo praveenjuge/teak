@@ -41,12 +41,6 @@ export type DispatchKindSpec<Kind extends DispatchKind> = {
     row: DispatchRow<Kind>,
     error: string
   ) => Promise<void>;
-  /**
-   * How long a sent row may stay silent before the Core Worker's reconcile
-   * looks it up (or, for object deletions, before it counts as delivered).
-   * Absent for rows that are gone once claimed.
-   */
-  staleAfterMs?: number;
 } & (
   | {
       delivery: "workflow";
@@ -65,9 +59,21 @@ export type DispatchKindSpec<Kind extends DispatchKind> = {
         ctx: MutationCtx,
         row: DispatchRow<Kind>
       ) => Promise<{ skip: string } | { terminate: string[] }>;
+      /**
+       * How long a sent run may stay silent before the Core Worker's
+       * reconcile looks it up.
+       */
+      staleAfterMs: number;
       workflow: WorkflowName;
     }
-  | { delivery: "delete-objects" }
+  | {
+      /**
+       * How long after it is sent a deletion counts as delivered when the
+       * flush that sent it never heard back.
+       */
+      deliveredAfterMs: number;
+      delivery: "delete-objects";
+    }
   | { delivery: "analytics-event" }
 );
 

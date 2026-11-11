@@ -664,6 +664,36 @@ describe("reconcile helpers", () => {
     expect(result).toEqual({ deleted: 1, hasMore: false, stuckPending: 0 });
     expect((await rows(t)).map((row) => row.state)).toEqual(["done", "done"]);
   });
+
+  test("settles an old deletion behind hundreds of older runs still going", async () => {
+    const t = newBackend();
+    const deletionId = await t.run(async (ctx) => {
+      for (let index = 0; index < 250; index += 1) {
+        await ctx.db.insert("workflowDispatches", {
+          createdAt: NOW - 5 * HOUR_MS,
+          instanceId: `export-${index}`,
+          key: `export:${index}`,
+          kind: "export",
+          notBefore: 0,
+          sentAt: NOW - 5 * HOUR_MS + index,
+          state: "sent",
+        });
+      }
+      return await ctx.db.insert("workflowDispatches", {
+        createdAt: NOW - 2 * HOUR_MS,
+        key: "deleteObjects",
+        kind: "deleteObjects",
+        notBefore: 0,
+        sentAt: NOW - 2 * HOUR_MS,
+        state: "sent",
+      });
+    });
+    await t.mutation(internal.workflowDispatch.pruneFinished, {});
+    const deletion = await t.run((ctx) =>
+      ctx.db.get("workflowDispatches", deletionId)
+    );
+    expect(deletion?.state).toBe("done");
+  });
 });
 
 describe("flush", () => {

@@ -194,6 +194,7 @@ export default defineSchema({
       "sentAt",
     ])
     .index("by_state_and_finishedAt", ["state", "finishedAt"])
+    .index("by_kind_and_state_and_sentAt", ["kind", "state", "sentAt"])
     .index("by_key_and_createdAt", ["key", "createdAt"])
     .index("by_instanceId", ["instanceId"]),
   vaultSetups: defineTable({
