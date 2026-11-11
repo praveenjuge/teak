@@ -13,10 +13,9 @@ import {
 } from "./_generated/server";
 import {
   limitApiRequests,
+  rateLimiter,
   rateLimitResultValidator,
-  type ValidatedRateLimitKey,
-} from "./publicApi";
-import { rateLimiter } from "./rateLimiter";
+} from "./rateLimiter";
 import {
   getSessionUser,
   requireSessionUserId,
@@ -528,10 +527,7 @@ export const validateUserApiKey = internalMutation({
     }
     return {
       ...validated,
-      rateLimit: await limitApiRequests(
-        ctx,
-        `key:${validated.rateLimitKey}` as ValidatedRateLimitKey
-      ),
+      rateLimit: await limitApiRequests(ctx, validated.rateLimitKey),
     };
   },
 });

@@ -26,10 +26,7 @@ import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
-import {
-  isInvalidCursorError,
-  isRateLimitContentionError,
-} from "./convexFailures";
+import { isInvalidCursorError } from "./convexFailures";
 import {
   decodeChangesCursor,
   decodeCursor,
@@ -70,7 +67,11 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { rateLimiter } from "./rateLimiter";
+import {
+  limitApiRequests,
+  limitInvalidApiAuth,
+  rateLimitResultValidator,
+} from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
@@ -1023,54 +1024,6 @@ export const executeBulkCardsForUser = internalMutation({
   },
 });
 
-export const rateLimitResultValidator = v.object({
-  ok: v.boolean(),
-  retryAt: v.optional(v.number()),
-});
-
-const INVALID_API_AUTH_BUCKET_KEY = "public-api-invalid-auth";
-
-const toRateLimitResult = (
-  result: Awaited<ReturnType<typeof rateLimiter.limit>>
-): { ok: boolean; retryAt?: number } => ({
-  ok: result.ok,
-  retryAt:
-    typeof result.retryAfter === "number"
-      ? Date.now() + result.retryAfter
-      : undefined,
-});
-
-export type ValidatedRateLimitKey = string & {
-  readonly __brand: "ValidatedRateLimitKey";
-};
-
-export async function limitApiRequests(
-  ctx: MutationCtx,
-  rateLimitKey: ValidatedRateLimitKey
-): Promise<{ ok: boolean; retryAt?: number }> {
-  const key = rateLimitKey.trim();
-  if (!key) {
-    return { ok: false };
-  }
-
-  try {
-    const result = await rateLimiter.limit(ctx, "publicApiRequests", {
-      key,
-      throws: false,
-    });
-    return toRateLimitResult(result);
-  } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return {
-        ok: false,
-        retryAt: Date.now() + 1000,
-      };
-    }
-
-    throw error;
-  }
-}
-
 /**
  * Charges one public API request against an already validated caller's
  * limit: an MCP tool call the Core Worker didn't charge, whose bearer the
@@ -1079,29 +1032,11 @@ export async function limitApiRequests(
 export const chargeApiRequest = internalMutation({
   args: { rateLimitKey: v.string() },
   returns: rateLimitResultValidator,
-  handler: (ctx, { rateLimitKey }) =>
-    limitApiRequests(ctx, `key:${rateLimitKey}` as ValidatedRateLimitKey),
+  handler: (ctx, { rateLimitKey }) => limitApiRequests(ctx, rateLimitKey),
 });
 
 export const consumeInvalidApiAuthLimit = internalMutation({
   args: {},
   returns: rateLimitResultValidator,
-  handler: async (ctx) => {
-    try {
-      const result = await rateLimiter.limit(ctx, "invalidApiAuth", {
-        key: INVALID_API_AUTH_BUCKET_KEY,
-        throws: false,
-      });
-      return toRateLimitResult(result);
-    } catch (error) {
-      if (isRateLimitContentionError(error)) {
-        return {
-          ok: false,
-          retryAt: Date.now() + 1000,
-        };
-      }
-
-      throw error;
-    }
-  },
+  handler: (ctx) => limitInvalidApiAuth(ctx),
 });

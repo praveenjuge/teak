@@ -11,6 +11,7 @@ import {
 } from "../../convexFailures";
 import { edgeRateLimitCharge } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
+import { workosRateLimitKey } from "../../rateLimiter";
 import type { TeakUserId } from "../../securitySessions";
 import { bearerCredentialKind, parseBearer } from "../../shared/bearer";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
@@ -509,7 +510,10 @@ const authorizeBearer = async (
             clientId: principal.clientId,
             source: "oauth",
             keyId: principal.consentId,
-            rateLimitKey: `workos:${principal.clientId}:${owner.teakUserId}`,
+            rateLimitKey: workosRateLimitKey(
+              principal.clientId,
+              owner.teakUserId
+            ),
           };
         } else {
           rejection = `owner_${owner.reason}`;
