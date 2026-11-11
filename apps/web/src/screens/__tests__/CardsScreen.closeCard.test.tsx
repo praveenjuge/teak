@@ -29,6 +29,9 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 let root: Root | undefined;
 
@@ -77,13 +80,15 @@ test("closing the open card hands the grid the same props, so it skips a re-rend
       root?.render(
         <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
           <ConvexQueryCacheProvider>
-            <CardsScreen
-              onCloseCard={() => undefined}
-              onOpenCard={() => undefined}
-              onSwitchCard={() => undefined}
-              selectedCardId={selectedCardId}
-              view="all"
-            />
+            <ComposerProvider>
+              <CardsScreen
+                onCloseCard={() => undefined}
+                onOpenCard={() => undefined}
+                onSwitchCard={() => undefined}
+                selectedCardId={selectedCardId}
+                view="all"
+              />
+            </ComposerProvider>
           </ConvexQueryCacheProvider>
         </ConvexProviderWithAuth>
       )

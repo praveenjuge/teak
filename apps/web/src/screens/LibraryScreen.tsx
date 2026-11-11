@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useComposerRequests } from "@/components/forms";
 import { SidebarToggle } from "@/components/sidebar";
 import { useCardQueryParamState } from "../hooks/useCardQueryParamState";
 import { useLibraryUrl } from "../hooks/useLibraryUrl";
@@ -18,6 +19,19 @@ export function LibraryScreen({
   view?: LibraryView;
 }) {
   const url = useLibraryUrl({ folderId });
+  const composer = useComposerRequests();
+  const { composerDraft, focusComposer, onFocusComposerHandled } = url;
+  useEffect(() => {
+    if (composerDraft) {
+      composer.addSharedText(composerDraft);
+    }
+  }, [composer, composerDraft]);
+  useEffect(() => {
+    if (focusComposer) {
+      composer.requestFocus();
+      onFocusComposerHandled();
+    }
+  }, [composer, focusComposer, onFocusComposerHandled]);
   const { selectedCardId, openCard, closeCard, switchCard } =
     useCardQueryParamState(url);
   // A read that failed and is tried again keeps the colors and dates picked.
@@ -40,15 +54,12 @@ export function LibraryScreen({
       {(retryKey) => (
         <CardsScreen
           addToFolderId={url.addToFolderId}
-          composerDraft={url.composerDraft}
-          focusComposer={url.focusComposer}
           folderId={folderId}
           headerLeading={headerLeading}
           initialVisualFilters={retryKey ? visualFiltersRef.current : undefined}
           onAddCardsToFolder={url.onAddCardsToFolder}
           onAddToFolderDone={url.onAddToFolderDone}
           onCloseCard={closeCard}
-          onFocusComposerHandled={url.onFocusComposerHandled}
           onNavigateView={url.onNavigateView}
           onOpenCard={openCard}
           onOpenFolder={url.onOpenFolder}

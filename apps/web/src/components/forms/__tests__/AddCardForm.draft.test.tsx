@@ -59,6 +59,7 @@ mock.module("@/components/text-editor", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { AddCardForm } = await import("../AddCardForm");
+const { ComposerProvider } = await import("../ComposerProvider");
 const { composerDraftKey } = await import("../../../lib/composerDraft");
 
 const DRAFT_KEY = composerDraftKey("user_a");
@@ -83,7 +84,13 @@ async function mount() {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<AddCardForm onOpenCard={() => undefined} />));
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm onOpenCard={() => undefined} />
+      </ComposerProvider>
+    )
+  );
 }
 
 const textarea = () =>
@@ -130,6 +137,20 @@ test("keeps the draft through a reload, for the signed-in account", async () => 
   expect(textarea()?.value).toBe("Half a thought");
   // Stored, so closing the tab doesn't need to ask.
   expect(leaveIsBlocked()).toBe(false);
+});
+
+test("keeps the draft when another composer takes the first one's place", async () => {
+  // The empty library's composer gives way to the grid's once a card shows.
+  await mount();
+  await type("Half a thought");
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm key="grid" onOpenCard={() => undefined} />
+      </ComposerProvider>
+    )
+  );
+  expect(textarea()?.value).toBe("Half a thought");
 });
 
 test("forgets the draft once it's saved or emptied", async () => {

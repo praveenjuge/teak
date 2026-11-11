@@ -16,6 +16,9 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 let root: Root | undefined;
 
@@ -82,7 +85,9 @@ const renderLibrary = async (query: string) => {
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <SignedInLibrary />
+          <ComposerProvider>
+            <SignedInLibrary />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )

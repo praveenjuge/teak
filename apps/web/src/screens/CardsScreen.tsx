@@ -122,15 +122,12 @@ const EMPTY_VIEW_COPY: Record<
 
 interface CardsScreenProps {
   addToFolderId?: string;
-  composerDraft?: string;
-  focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
   initialVisualFilters?: CardsVisualFilters;
   onAddCardsToFolder?: (folderId: string) => void;
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onCloseCard: (options?: CloseCardOptions) => void;
-  onFocusComposerHandled?: () => void;
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
   onOpenFolder?: (folderId: string) => void;
@@ -148,8 +145,6 @@ interface CardsScreenProps {
 
 export function CardsScreen({
   addToFolderId,
-  composerDraft,
-  focusComposer = false,
   folderId,
   initialVisualFilters,
   onAddCardsToFolder,
@@ -157,7 +152,6 @@ export function CardsScreen({
   selectedCardId,
   onOpenCard,
   onCloseCard,
-  onFocusComposerHandled,
   onOpenFolder,
   queryRetryKey,
   headerLeading,
@@ -175,27 +169,6 @@ export function CardsScreen({
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
-  const draftContentRef = useRef(composerDraft ?? "");
-  const [composerFocus, setComposerFocus] = useState(() => ({
-    pending: focusComposer,
-    requested: focusComposer,
-  }));
-  if (focusComposer !== composerFocus.requested) {
-    setComposerFocus({
-      pending: focusComposer || composerFocus.pending,
-      requested: focusComposer,
-    });
-  }
-  useEffect(() => {
-    if (focusComposer) {
-      onFocusComposerHandled?.();
-    }
-  }, [focusComposer, onFocusComposerHandled]);
-  const handleComposerFocus = useCallback(() => {
-    setComposerFocus((current) =>
-      current.pending ? { ...current, pending: false } : current
-    );
-  }, []);
   const gridRef = useRef<MasonryGridHandle | null>(null);
   const returnFocusToGrid = useCallback(
     (cardId: string) => gridRef.current?.returnFocusTo(cardId) ?? false,
@@ -627,15 +600,8 @@ export function CardsScreen({
   });
 
   const addCardForm = useMemo(
-    () => (
-      <AddCardForm
-        autoFocus={composerFocus.pending}
-        draftContentRef={draftContentRef}
-        onFocus={handleComposerFocus}
-        onOpenCard={composerHandlers.onOpenCard}
-      />
-    ),
-    [composerFocus.pending, composerHandlers, handleComposerFocus]
+    () => <AddCardForm onOpenCard={composerHandlers.onOpenCard} />,
+    [composerHandlers]
   );
 
   // Everything keeps the plain "Teak" title; every other view names the tab
@@ -766,10 +732,7 @@ export function CardsScreen({
       }
       return (
         <>
-          <AddCardEmptyState
-            draftContentRef={draftContentRef}
-            onFocus={handleComposerFocus}
-          />
+          <AddCardEmptyState onOpenCard={composerHandlers.onOpenCard} />
           {hiddenCardsHint ? (
             <div className="mt-4 text-center">{hiddenCardsHint}</div>
           ) : null}

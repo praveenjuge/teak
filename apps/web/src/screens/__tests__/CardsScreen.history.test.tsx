@@ -16,6 +16,9 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 const { parseSearchUrlState, serializeSearchUrlState } = await import(
   "../../lib/searchUrlState"
 );
@@ -113,7 +116,9 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <SignedInLibrary />
+          <ComposerProvider>
+            <SignedInLibrary />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )
