@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
-import { validateOAuthUrl } from "../shared/oauthUrl";
+import { looksLikeAccessToken } from "../shared/bearer";
+import { isWorkosIssuer } from "../shared/oauthUrl";
 import {
   CONNECT_CONSENT_ID,
   WORKOS_CLIENT_ID,
@@ -89,22 +90,19 @@ async function verifyConnectToken(
   allowExpired: boolean
 ): Promise<WorkosConnectPrincipal | WorkosRevocationPrincipal | null> {
   try {
-    const issuer = validateOAuthUrl(config.issuer);
     if (
-      issuer.protocol !== "https:" ||
-      issuer.origin !== config.issuer ||
-      issuer.username ||
-      issuer.password ||
-      issuer.port ||
-      !config.audience ||
-      token.length > 16_384
+      !(
+        isWorkosIssuer(config.issuer) &&
+        config.audience &&
+        looksLikeAccessToken(token)
+      )
     ) {
       return null;
     }
     if (cachedJwks?.issuer !== config.issuer) {
       cachedJwks = {
         issuer: config.issuer,
-        keys: createRemoteJWKSet(new URL("/oauth2/jwks", issuer), {
+        keys: createRemoteJWKSet(new URL("/oauth2/jwks", config.issuer), {
           [customFetch]: async (url, options) => {
             let response: Response;
             try {

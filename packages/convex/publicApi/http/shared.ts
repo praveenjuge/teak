@@ -120,20 +120,6 @@ const buildRateLimitHeaders = (
   };
 };
 
-const parseBearerToken = (request: Request): string | null => {
-  const authorization = request.headers.get("authorization");
-  if (!authorization) {
-    return null;
-  }
-
-  const [scheme, token] = authorization.trim().split(/\s+/, 2);
-  if (!(scheme && token) || scheme.toLowerCase() !== "bearer") {
-    return null;
-  }
-
-  return token.trim();
-};
-
 const parseStrictNumber = (raw: string): number | undefined => {
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -302,7 +288,6 @@ export {
   errorResponse,
   MAX_QUERY_SCAN,
   mapConvexErrorToResponse,
-  parseBearerToken,
   parseBooleanQuery,
   parseLimit,
   parseTimestampQuery,

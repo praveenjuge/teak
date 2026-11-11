@@ -1,15 +1,15 @@
 import { internal } from "../_generated/api";
 import { httpAction } from "../_generated/server";
 import { findWorkosConnectIssuer, findWorkosResources } from "../env";
-import { PUBLIC_API_CORS_HEADERS } from "../publicApi/http/meta";
+import { MAX_BEARER_LENGTH, parseBearer } from "../shared/bearer";
+import { PUBLIC_API_CORS_HEADERS } from "../shared/publicApiHeaders";
 import { verifyWorkosConnectTokenSignatureForRevocation } from "./tokens";
 
 export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
   const headers = { ...PUBLIC_API_CORS_HEADERS, "Cache-Control": "no-store" };
   const response = (status: number) => new Response(null, { status, headers });
-  const authorization = request.headers.get("authorization");
-  const match = authorization?.match(/^Bearer ([^\s]+)$/i);
-  if (!match || match[1].length > 16_384) {
+  const token = parseBearer(request.headers.get("authorization"));
+  if (!token || token.length > MAX_BEARER_LENGTH) {
     return response(401);
   }
   const issuer = findWorkosConnectIssuer();
@@ -19,7 +19,7 @@ export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
   }
   let unavailable = false;
   const principal = await verifyWorkosConnectTokenSignatureForRevocation(
-    match[1],
+    token,
     {
       issuer,
       audience: resources.api,

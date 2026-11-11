@@ -238,6 +238,7 @@ import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_apiKeyName from "../shared/apiKeyName.js";
 import type * as shared_article from "../shared/article.js";
 import type * as shared_audioWave from "../shared/audioWave.js";
+import type * as shared_bearer from "../shared/bearer.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
 import type * as shared_bulkCardActions from "../shared/bulkCardActions.js";
 import type * as shared_bulkItems from "../shared/bulkItems.js";
@@ -602,6 +603,7 @@ declare const fullApi: ApiFromModules<{
   "shared/apiKeyName": typeof shared_apiKeyName;
   "shared/article": typeof shared_article;
   "shared/audioWave": typeof shared_audioWave;
+  "shared/bearer": typeof shared_bearer;
   "shared/boundedResponse": typeof shared_boundedResponse;
   "shared/bulkCardActions": typeof shared_bulkCardActions;
   "shared/bulkItems": typeof shared_bulkItems;

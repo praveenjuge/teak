@@ -1,4 +1,5 @@
 import { sha256Hex } from "@teak/files-protocol";
+import type { BearerCredentialKind } from "./shared/bearer";
 import {
   ignoreTelemetryError,
   ignoreTelemetryErrorAsync,
@@ -56,12 +57,6 @@ export const logResolverDenial = async (input: {
     });
   });
 
-export type BearerCredentialClass =
-  | "missing"
-  | "api_key"
-  | "workos_connect"
-  | "malformed";
-
 export type PublicApiAuthReason =
   | "ok"
   | "missing_bearer"
@@ -80,7 +75,7 @@ export type PublicApiAuthReason =
 
 export interface PublicApiAuthOutcome {
   check: "gate" | "request";
-  credential: BearerCredentialClass;
+  credential: BearerCredentialKind;
   reason: PublicApiAuthReason;
   status: number;
   surface: "rest" | "mcp";

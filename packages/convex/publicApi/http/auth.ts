@@ -2,7 +2,6 @@ import { sha256Hex } from "@teak/files-protocol";
 import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import {
-  type BearerCredentialClass,
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "../../authMonitoring";
@@ -13,9 +12,8 @@ import {
 import { edgeRateLimitCharge } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
 import type { TeakUserId } from "../../securitySessions";
-import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
+import { bearerCredentialKind, parseBearer } from "../../shared/bearer";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
-import { ignoreTelemetryError } from "../../shared/telemetry";
 import {
   verifyWorkosConnectTokenSignature,
   type WorkosConnectPrincipal,
@@ -33,7 +31,6 @@ import {
   errorResponse,
   json,
   mapConvexErrorToResponse,
-  parseBearerToken,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
@@ -299,6 +296,21 @@ const decide = (result: AuthResult, reason: PublicApiAuthReason): Decision => ({
   reason,
 });
 
+// A limit or credential check that threw: contention on the rate limiter or
+// another write conflict passes in a moment; anything else is ours.
+const decideFromLimitError = (error: unknown): Decision => {
+  if (isRateLimitContentionError(error)) {
+    return decide(
+      { error: RATE_LIMIT_CONTENTION_ERROR() },
+      "rate_limit_contention"
+    );
+  }
+  if (isOptimisticConcurrencyError(error)) {
+    return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
+  }
+  return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+};
+
 const enforceInvalidAuthLimit = async (
   ctx: ActionCtx
 ): Promise<Decision | null> => {
@@ -309,13 +321,7 @@ const enforceInvalidAuthLimit = async (
       {}
     );
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
 
   if (!limit?.ok) {
@@ -333,35 +339,23 @@ const enforceInvalidAuthLimit = async (
   return null;
 };
 
-const classifyBearerCredential = (
-  token: string | null
-): BearerCredentialClass => {
-  if (!token) {
-    return "missing";
-  }
-  if (isWellFormedApiKey(token)) {
-    return "api_key";
-  }
-  return token.length <= 16_384 && token.split(".").length === 3
-    ? "workos_connect"
-    : "malformed";
-};
+const bearerOf = (request: Request): string | null =>
+  parseBearer(request.headers.get("authorization"));
 
 const recordAuthOutcome = (
   request: Request,
   options: AuthOptions,
   reason: PublicApiAuthReason,
   status: number
-): boolean =>
-  ignoreTelemetryError(() => {
-    logPublicApiAuthOutcome({
-      check: options.chargeRateLimit === false ? "gate" : "request",
-      credential: classifyBearerCredential(parseBearerToken(request)),
-      reason,
-      status,
-      surface: options.resource === "mcp" ? "mcp" : "rest",
-    });
+): void => {
+  logPublicApiAuthOutcome({
+    check: options.chargeRateLimit === false ? "gate" : "request",
+    credential: bearerCredentialKind(bearerOf(request)),
+    reason,
+    status,
+    surface: options.resource === "mcp" ? "mcp" : "rest",
   });
+};
 
 const withAuthorizedUser = async (
   ctx: ActionCtx,
@@ -439,7 +433,7 @@ const authorizeBearer = async (
   const edgeCharged = edgeCharge !== null;
   const chargeRateLimit =
     (options.chargeRateLimit ?? true) && edgeCharge !== "owner";
-  const token = parseBearerToken(request);
+  const token = bearerOf(request);
   if (!token) {
     return decide(
       {
@@ -453,11 +447,10 @@ const authorizeBearer = async (
     );
   }
 
-  const isApiKey = isWellFormedApiKey(token);
-  const isConnectToken =
-    !isApiKey && token.length <= 16_384 && token.split(".").length === 3;
+  const credentialKind = bearerCredentialKind(token);
+  const isConnectToken = credentialKind === "workos_connect";
 
-  if (!(isApiKey || isConnectToken)) {
+  if (credentialKind === "malformed") {
     const limited = edgeCharged ? null : await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
@@ -535,16 +528,7 @@ const authorizeBearer = async (
       }
     }
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    if (isOptimisticConcurrencyError(error)) {
-      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
 
   if (!validated) {
@@ -640,16 +624,7 @@ const refuseCall = async (
       rateLimitKey: validated.rateLimitKey,
     });
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    if (isOptimisticConcurrencyError(error)) {
-      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
   return limit.ok
     ? null
@@ -692,7 +667,6 @@ const chargeAuthorizedCall = async (
 export {
   authorizeMcpRequest,
   chargeAuthorizedCall,
-  classifyBearerCredential,
   respondIdempotently,
   trackIdempotency,
   validatePublicApiBearer,
