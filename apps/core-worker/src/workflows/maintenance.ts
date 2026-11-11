@@ -51,6 +51,9 @@ const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
 };
 
 const CARD_CLEANUP_BATCH = 10;
+// Each page re-reads the cards that failed before it, so a run that keeps
+// failing ends here rather than reading past a growing skip list.
+const MAX_FAILED_CARDS = 100;
 const EXPORT_CLEANUP_BATCH = 25;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
 const MAX_PAGES = 1000;
@@ -139,6 +142,9 @@ const cleanUpCards = async ({ convex, run }: TaskContext) => {
       const failedIds: string[] = [];
       let deleted = 0;
       for (;;) {
+        if (skipped.size + failedIds.length >= MAX_FAILED_CARDS) {
+          return { deleted, failedIds, more: false };
+        }
         const limit = CARD_CLEANUP_BATCH + skipped.size + failedIds.length;
         const candidates = await convex.query(
           internal.card.trashCleanup.getCardsPendingCleanup,

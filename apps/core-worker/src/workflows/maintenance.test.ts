@@ -193,6 +193,32 @@ describe("card cleanup", () => {
       .map((call) => call.args.cardId);
     expect(tried).toEqual(stuck.map((card) => card._id));
   });
+
+  test("a run stops once too many cards have failed, so no read grows past a bound", async () => {
+    const stuck = Array.from({ length: 500 }, (_, index) => ({
+      _id: `card-${index}`,
+    }));
+    const limits: number[] = [];
+    const test = setup("card-cleanup", {
+      "card/trashCleanup:cleanupDeletedCard": () => ({ deleted: false }),
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) => {
+        limits.push(limit as number);
+        return stuck.slice(0, limit as number);
+      },
+      "publicApiTombstones:pruneExpiredCardTombstones": () => ({
+        deleted: 0,
+        hasMore: false,
+      }),
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      cleaned: 0,
+    });
+    expect(Math.max(...limits)).toBeLessThanOrEqual(110);
+    expect(
+      test.callsTo("card/trashCleanup:cleanupDeletedCard").length
+    ).toBeLessThanOrEqual(100);
+  });
 });
 
 describe("export cleanup", () => {
