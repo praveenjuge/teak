@@ -24,6 +24,7 @@ import {
   extractPaletteColors,
   MAX_PALETTE_COLORS,
 } from "../shared/utils/colorUtils";
+import { extractUrlFromContent } from "../shared/utils/linkDetection";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
@@ -35,7 +36,6 @@ import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight, queueCardProcessing } from "./processingRuns";
 import { authorizeCardCreation } from "./quota";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
-import { extractUrlFromContent } from "./validationUtils";
 
 // Older app versions send no `source`, so their cards report "unknown".
 export const clientCardSourceValidator = v.union(

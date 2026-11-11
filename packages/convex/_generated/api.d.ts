@@ -82,7 +82,6 @@ import type * as card_trashCleanup from "../card/trashCleanup.js";
 import type * as card_updateCard from "../card/updateCard.js";
 import type * as card_uploadCard from "../card/uploadCard.js";
 import type * as card_uploadCardAction from "../card/uploadCardAction.js";
-import type * as card_validationUtils from "../card/validationUtils.js";
 import type * as card_vaultSetup from "../card/vaultSetup.js";
 import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
@@ -450,7 +449,6 @@ declare const fullApi: ApiFromModules<{
   "card/updateCard": typeof card_updateCard;
   "card/uploadCard": typeof card_uploadCard;
   "card/uploadCardAction": typeof card_uploadCardAction;
-  "card/validationUtils": typeof card_validationUtils;
   "card/vaultSetup": typeof card_vaultSetup;
   "card/visualFilters": typeof card_visualFilters;
   cards: typeof cards;

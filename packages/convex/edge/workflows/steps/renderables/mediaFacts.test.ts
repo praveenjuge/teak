@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { internal } from "../../../../_generated/api";
-import { cardStorageObjectKeys } from "../../../../storage/r2";
+import { cardStorageObjectKeys } from "../../../../storage/cardObjectKeys";
 import { type Backend, newBackend } from "../../../helpers.testUtils";
 
 const insertCard = (

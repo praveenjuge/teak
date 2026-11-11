@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
-import { cardStorageObjectKeys } from "../../storage/r2";
+import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import {
   hydrateArchivedMetadata,
   rawMetadataKey,

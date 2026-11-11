@@ -173,7 +173,7 @@ interface ImageCard {
  * does: the open card copies what the grid copies.
  */
 export function useCopyCardImage() {
-  const refresh = useAction(api.card.getFileUrl.refreshCardMediaUrl);
+  const refresh = useAction(api.cards.refreshCardMediaUrl);
   const { handleCopyImage } = useCardClipboard();
   return useCallback(
     (card: ImageCard) => {

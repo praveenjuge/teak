@@ -6,6 +6,7 @@ import {
   buildImageSigningPayload,
 } from "@teak/files-protocol";
 import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
+import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import { signedOpRequest } from "../../storage/coreWorkerClient";
 import {
   bucketedSignatureExpiry,
@@ -15,7 +16,6 @@ import {
   tryResolveImageUrl,
   tryResolveObjectUrl,
 } from "../../storage/fileUrls";
-import { cardStorageObjectKeys } from "../../storage/r2";
 import { assertR2KeyInNamespace } from "../../storage/r2Keys";
 
 const BASE = "https://files.teakvault.com";

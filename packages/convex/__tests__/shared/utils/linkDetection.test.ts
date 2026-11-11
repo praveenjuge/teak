@@ -17,6 +17,31 @@ describe("extractUrlFromContent", () => {
   });
 });
 
+describe("extractUrlFromContent around text", () => {
+  it.each([
+    [
+      "trims a standalone URL",
+      "  https://example.com  ",
+      { url: "https://example.com", cleanedContent: "https://example.com" },
+    ],
+    [
+      "finds a URL inside text and keeps the text",
+      "Check this https://example.com/page now",
+      {
+        url: "https://example.com/page",
+        cleanedContent: "Check this https://example.com/page now",
+      },
+    ],
+    [
+      "keeps a URL ending in a bracket",
+      "https://example.com/[",
+      { url: "https://example.com/[", cleanedContent: "https://example.com/[" },
+    ],
+  ])("%s", (_label, content, expected) => {
+    expect(extractUrlFromContent(content)).toEqual(expected);
+  });
+});
+
 describe("resolveTextCardInput", () => {
   it("should return text card type when no URL is provided", () => {
     const result = resolveTextCardInput({ content: "Just some text" });
