@@ -129,36 +129,45 @@ const cleanUpCards = async ({ convex, run }: TaskContext) => {
     Promise.resolve(Date.now() - TRASH_RETENTION_MS)
   );
   let cleaned = 0;
+  const skipped = new Set<string>();
   for await (const result of stepPages(
     step,
     "clean up cards",
     CONVEX_STEP,
     async () => {
       const startedAt = Date.now();
+      const failedIds: string[] = [];
       let deleted = 0;
       for (;;) {
+        const limit = CARD_CLEANUP_BATCH + skipped.size + failedIds.length;
         const candidates = await convex.query(
           internal.card.trashCleanup.getCardsPendingCleanup,
-          { limit: CARD_CLEANUP_BATCH, olderThan: cutoff }
+          { limit, olderThan: cutoff }
         );
-        let pageDeleted = 0;
-        for (const candidate of candidates) {
-          pageDeleted += (await cleanUpCard(convex, candidate._id, cutoff))
-            ? 1
-            : 0;
+        const fresh = candidates.filter(
+          (row) => !(skipped.has(row._id) || failedIds.includes(row._id))
+        );
+        for (const candidate of fresh) {
+          if (await cleanUpCard(convex, candidate._id, cutoff)) {
+            deleted += 1;
+          } else {
+            failedIds.push(candidate._id);
+          }
         }
-        deleted += pageDeleted;
-        if (candidates.length < CARD_CLEANUP_BATCH || pageDeleted === 0) {
-          return { deleted, more: false };
+        if (candidates.length < limit || fresh.length === 0) {
+          return { deleted, failedIds, more: false };
         }
         if (!withinBudget(startedAt)) {
-          return { deleted, more: true };
+          return { deleted, failedIds, more: true };
         }
       }
     },
     { maxPages: MAX_PAGES }
   )) {
     cleaned += result.deleted;
+    for (const id of result.failedIds) {
+      skipped.add(id);
+    }
     if (!result.more) {
       break;
     }
