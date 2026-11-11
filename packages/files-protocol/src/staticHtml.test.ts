@@ -90,3 +90,51 @@ describe("buildSelectorResultsFromHtml meta and link selectors", () => {
     ]);
   });
 });
+
+describe("buildSelectorResultsFromHtml on hostile pages", () => {
+  const attributesOf = (html: string) =>
+    buildSelectorResultsFromHtml(html, [{ selector: "meta[name='x']" }])[0]
+      .results[0]?.attributes;
+
+  test.each([
+    ['<meta name="x" content=plain>', "plain"],
+    ["<meta name='x' content='single'>", "single"],
+    ['<meta name="x"content="no space">', "no space"],
+    ['<meta name = "x" content = "spaced">', "spaced"],
+    ['<META NAME="x" CONTENT="upper">', "upper"],
+  ])("reads attributes written as %p", (html, content) => {
+    expect(
+      attributesOf(html)?.find((attr) => attr.name.toLowerCase() === "content")
+        ?.value
+    ).toBe(content);
+  });
+
+  test("drops an attribute whose quote never closes", () => {
+    expect(attributesOf('<meta name="x" content="open>')).toEqual([
+      { name: "name", value: "x" },
+    ]);
+  });
+
+  test.each([
+    ["<title data-x='1'>Hello</title>", "Hello"],
+    ["<TITLE>Upper</TITLE>", "Upper"],
+    ["<title>First</title><title>Second</title>", "First"],
+    ["<title>Never closed", undefined],
+  ])("reads the title of %p", (html, title) => {
+    expect(titleOf(html)).toBe(title);
+  });
+
+  test.each([
+    ["an attribute name", `<meta ${"!".repeat(200_000)}>`],
+    ["an unclosed quote", `<meta ${'a="'.repeat(100_000)}>`],
+    ["an unclosed title", "<title>a".repeat(100_000)],
+    ["a run of unclosed tags", "<meta".repeat(100_000)],
+  ])("reads a page with a huge %s in linear time", (_, html) => {
+    const started = performance.now();
+    buildSelectorResultsFromHtml(html, [
+      { selector: "head > title" },
+      { selector: "meta[name='x']" },
+    ]);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});

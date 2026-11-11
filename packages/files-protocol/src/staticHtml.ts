@@ -4,7 +4,6 @@ import type {
   FilesScrapeSelectorResult,
 } from "./rendering";
 
-const TITLE_TAG_REGEX = /<title[^>]*>([\s\S]*?)<\/title>/i;
 // `meta` or `link` with one or more `[attr='value']` conditions, like
 // `meta[itemprop='duration']` or `link[rel='alternate'][type='...']`.
 const TAG_SELECTOR_REGEX = /^(meta|link)((?:\[[\w:-]+=['"][^'"]+['"]\])+)$/i;
@@ -40,53 +39,113 @@ export const decodeHtmlEntities = (value: string): string =>
     }
   );
 
+const isNameEnd = (char: string) =>
+  char === "=" || char === "/" || char === ">" || /\s/u.test(char);
+
+const skipSpace = (text: string, from: number) => {
+  let index = from;
+  while (index < text.length && /\s/u.test(text[index])) {
+    index += 1;
+  }
+  return index;
+};
+
+const readValue = (
+  tag: string,
+  from: number
+): { end: number; value: string } | null => {
+  const quote = tag[from];
+  if (quote === '"' || quote === "'") {
+    const close = tag.indexOf(quote, from + 1);
+    return close === -1
+      ? null
+      : { end: close + 1, value: tag.slice(from + 1, close) };
+  }
+  let end = from;
+  while (end < tag.length && !/[\s"'>]/u.test(tag[end])) {
+    end += 1;
+  }
+  return end === from ? null : { end, value: tag.slice(from, end) };
+};
+
+// One pass over the tag: an attribute is a name, `=` and a quoted or bare
+// value; anything else is stepped over. Pages are untrusted, so no step may
+// rescan text it has already passed.
 const extractTagAttributes = (tag: string): FilesScrapeAttribute[] => {
   const attributes: FilesScrapeAttribute[] = [];
-  const regex = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
-  let match: RegExpExecArray | null = regex.exec(tag);
-  while (match !== null) {
-    const name = match[1];
-    const rawValue = match[2] ?? match[3] ?? match[4] ?? "";
-    attributes.push({
-      name,
-      value: decodeHtmlEntities(rawValue),
-    });
-    match = regex.exec(tag);
+  let index = 0;
+  while (index < tag.length) {
+    if (isNameEnd(tag[index])) {
+      index += 1;
+      continue;
+    }
+    const nameStart = index;
+    while (index < tag.length && !isNameEnd(tag[index])) {
+      index += 1;
+    }
+    const name = tag.slice(nameStart, index);
+    const equals = skipSpace(tag, index);
+    if (tag[equals] !== "=") {
+      continue;
+    }
+    const value = readValue(tag, skipSpace(tag, equals + 1));
+    if (!value) {
+      continue;
+    }
+    attributes.push({ name, value: decodeHtmlEntities(value.value) });
+    index = value.end;
   }
   return attributes;
+};
+
+const TITLE_OPEN = /<title/i;
+const TITLE_CLOSE = /<\/title>/gi;
+
+const readTitle = (html: string): string | undefined => {
+  const open = html.search(TITLE_OPEN);
+  if (open === -1) {
+    return undefined;
+  }
+  const contentStart = html.indexOf(">", open) + 1;
+  if (contentStart === 0) {
+    return undefined;
+  }
+  TITLE_CLOSE.lastIndex = contentStart;
+  const close = TITLE_CLOSE.exec(html);
+  return close ? html.slice(contentStart, close.index) : undefined;
+};
+
+const readTags = (html: string, start: RegExp): FilesScrapeResultItem[] => {
+  const tags: FilesScrapeResultItem[] = [];
+  let open = start.exec(html);
+  while (open !== null) {
+    const end = html.indexOf(">", open.index);
+    // No `>` after this tag means none after any later one either.
+    if (end === -1) {
+      break;
+    }
+    const attributes = extractTagAttributes(html.slice(open.index, end + 1));
+    if (attributes.length) {
+      tags.push({ attributes });
+    }
+    start.lastIndex = end + 1;
+    open = start.exec(html);
+  }
+  return tags;
 };
 
 export const buildSelectorResultsFromHtml = (
   html: string,
   selectors: { selector: string }[]
 ): FilesScrapeSelectorResult[] => {
-  const metaTags: FilesScrapeResultItem[] = [];
-  const linkTags: FilesScrapeResultItem[] = [];
+  const metaTags = readTags(html, /<meta\b/gi);
+  const linkTags = readTags(html, /<link\b/gi);
 
-  const metaRegex = /<meta\b[^>]*>/gi;
-  let match: RegExpExecArray | null = metaRegex.exec(html);
-  while (match !== null) {
-    const attributes = extractTagAttributes(match[0]);
-    if (attributes.length) {
-      metaTags.push({ attributes });
-    }
-    match = metaRegex.exec(html);
-  }
-
-  const linkRegex = /<link\b[^>]*>/gi;
-  match = linkRegex.exec(html);
-  while (match !== null) {
-    const attributes = extractTagAttributes(match[0]);
-    if (attributes.length) {
-      linkTags.push({ attributes });
-    }
-    match = linkRegex.exec(html);
-  }
-
-  const titleMatch = html.match(TITLE_TAG_REGEX);
-  const titleText = titleMatch
-    ? decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, " ").trim()
-    : undefined;
+  const title = readTitle(html);
+  const titleText =
+    title === undefined
+      ? undefined
+      : decodeHtmlEntities(title).replace(/\s+/g, " ").trim();
 
   return selectors.map(({ selector }) => {
     const normalizedSelector = selector.trim();
