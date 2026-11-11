@@ -36,6 +36,11 @@ test("the library works from the keyboard", async ({
   await search.pressSequentially("g t");
   expect(await pathOf(browser.url())).toBe("/");
   await search.fill("");
+  // Clearing the search re-queries asynchronously; wait for the full list
+  // before the keyboard handoff, or keys land in the stale filtered list.
+  await expect(card(FIRST)).toBeVisible({ timeout: 30_000 });
+  await expect(card(SECOND)).toBeVisible({ timeout: 30_000 });
+  await expect(card(THIRD)).toBeVisible({ timeout: 30_000 });
 
   await browser.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
