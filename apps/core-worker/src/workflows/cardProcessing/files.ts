@@ -3,7 +3,7 @@ import {
   documentTextObjectKey,
   isExtractedTextTruncated,
   searchPrefix,
-} from "@teak/convex/card/documentTextFormat";
+} from "@teak/convex/shared/documentText";
 import type {
   FileFormat,
   FilePreviewFacts,

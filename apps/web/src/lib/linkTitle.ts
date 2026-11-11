@@ -1,3 +1,4 @@
+import { cardOwnTitle } from "@teak/convex/shared/cardTitle";
 import type { TeakTranslator } from "@teak/i18n";
 import { englishTranslator } from "./englishTranslators";
 
@@ -15,11 +16,5 @@ export function resolveLinkTitle(
   },
   t: LinkTitleTranslator = englishLinkTitle
 ): string {
-  return (
-    (card.metadataTitleEdited ? card.metadataTitle : undefined) ||
-    card.previewTitle ||
-    card.metadataTitle ||
-    card.url ||
-    t("fallback")
-  );
+  return cardOwnTitle(card) || card.url || t("fallback");
 }

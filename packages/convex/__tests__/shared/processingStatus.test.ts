@@ -7,7 +7,7 @@ import {
   stageInProgress,
   stagePending,
   withStageStatus,
-} from "../../card/processingStatus";
+} from "../../shared/processingStatus";
 
 describe("stageCompleted", () => {
   it("should create a completed stage status", () => {

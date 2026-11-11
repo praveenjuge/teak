@@ -6,8 +6,8 @@ import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { stageFailed, stagePending } from "../card/processingStatus";
 import { PAGE_ARCHIVE_ROLE } from "../shared/pageArchive";
+import { stageFailed, stagePending } from "../shared/processingStatus";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { registerOwnedObject } from "../storage/ownership";
 import { buildR2ObjectKey } from "../storage/r2";

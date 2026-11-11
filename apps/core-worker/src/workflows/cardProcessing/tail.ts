@@ -1,5 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
-import { stageFailed } from "@teak/convex/card/processingStatus";
+import { stageFailed } from "@teak/convex/shared/processingStatus";
 import { errorMessage } from "../../errors";
 import { rethrowSuperseded } from "../errors";
 import {

@@ -3,7 +3,7 @@ import {
   type ProcessingStageStatus,
   stageCompleted,
   stageFailed,
-} from "@teak/convex/card/processingStatus";
+} from "@teak/convex/shared/processingStatus";
 import type {
   FilesCaptureScreenshotParams,
   FilesCaptureScreenshotResult,

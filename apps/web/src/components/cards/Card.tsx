@@ -148,9 +148,7 @@ export const Card = memo(function Card({
   const tLabel = useTranslations("cards.accessibleLabel");
   const apple = useIsApplePlatform();
   const tLinkTitle = useTranslations("lib.linkTitle");
-  const refreshCardMediaUrl = useAction(
-    api.card.getFileUrl.refreshCardMediaUrl
-  );
+  const refreshCardMediaUrl = useAction(api.cards.refreshCardMediaUrl);
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
   const isFirstPaintCopy = use(FirstPaintCopyContext);

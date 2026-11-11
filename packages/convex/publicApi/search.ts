@@ -11,12 +11,8 @@ import {
   cardListScope,
   scopeArchivedMatch,
 } from "../card/listQuery";
-import { attachFileUrls } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
-import {
-  doesCardMatchVisualFilters,
-  normalizeVisualFilterArgs,
-} from "../card/visualFilters";
+import { finishCards } from "../card/queryUtils";
+import { normalizeVisualFilterArgs } from "../card/visualFilters";
 import { searchModeValidator } from "../schema/validators/cards";
 import {
   type CardSearchFilter,
@@ -29,6 +25,7 @@ import {
   searchCardsByDocument,
   searchCardsByExactTag,
   searchCardsByOcrText,
+  searchTooBroad,
 } from "../search/searchReads";
 import {
   type SemanticRanking,
@@ -58,6 +55,7 @@ import {
   type SearchMode,
 } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
+import { matchesVisualFilters } from "../shared/search/visualFilters";
 import { tagKey } from "../shared/tags";
 import {
   type ApiCursor,
@@ -276,7 +274,7 @@ export const matchesStructuredFilters = (
 
   return (
     Boolean(card.isDeleted) === Boolean(options.showTrashOnly) &&
-    doesCardMatchVisualFilters(card, normalizeVisualFilterArgs(options))
+    matchesVisualFilters(card, normalizeVisualFilterArgs(options))
   );
 };
 
@@ -853,17 +851,13 @@ export const relevancePage = async (
   const pageItems = ordered.slice(offset, offset + limit);
   const hasMore = ordered.length > offset + limit;
   if (!(hasMore || hasCursor) && result.hitScanBudget) {
-    throw new ConvexError({
-      code: "INVALID_INPUT",
-      message: "Search is too broad. Add a type or date filter.",
-    });
+    throw searchTooBroad();
   }
   const nextCursor = hasMore
     ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
     : null;
-  const cardsWithUrls = await attachFileUrls(ctx, pageItems);
   return {
-    items: applyQuoteFormattingToList(cardsWithUrls),
+    items: await finishCards(ctx, pageItems),
     pageInfo: { nextCursor, hasMore: nextCursor !== null },
   };
 };

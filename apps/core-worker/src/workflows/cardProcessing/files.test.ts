@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { documentTextObjectKey } from "@teak/convex/card/documentTextFormat";
+import { documentTextObjectKey } from "@teak/convex/shared/documentText";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { freezeObject, gatedEnv } from "../../deletionGate";

@@ -20,8 +20,7 @@ import {
 } from "./card/listQuery";
 import { readPinnedCards } from "./card/pins";
 import { queueCardProcessing } from "./card/processingRuns";
-import { attachFileUrls } from "./card/queryUtils";
-import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import { finishCards } from "./card/queryUtils";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
 import {
   type CardFieldEdit,
@@ -75,6 +74,7 @@ import { rateLimiter } from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
+import { searchTooBroad } from "./search/searchReads";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import type { BulkCardAction } from "./shared/bulkCardActions";
 import { bulkItemProblem } from "./shared/bulkItems";
@@ -224,10 +224,7 @@ export const searchCardsPageForUser = internalQuery({
       pageItems = remaining.slice(0, limit);
       hasMore = remaining.length > limit;
       if (!(hasMore || args.cursor) && result.hitScanBudget) {
-        throw new ConvexError({
-          code: "INVALID_INPUT",
-          message: "Search is too broad. Add a type or date filter.",
-        });
+        throw searchTooBroad();
       }
     } else {
       const result = await searchCardsByTag(
@@ -246,9 +243,8 @@ export const searchCardsPageForUser = internalQuery({
       hasMore && last
         ? encodeCursor({ mode: "match", anchor: matchAnchorOf(last) })
         : null;
-    const cardsWithUrls = await attachFileUrls(ctx, pageItems);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(ctx, pageItems),
       pageInfo: {
         nextCursor,
         hasMore: nextCursor !== null,
@@ -329,10 +325,9 @@ export const shuffleCardsPageForUser = internalQuery({
       items: Doc<"cards">[],
       next: Exclude<ShuffleApiCursor, { mode: "start" }> | null
     ) => {
-      const cardsWithUrls = await attachFileUrls(ctx, items);
       const nextCursor = next ? encodeShuffleCursor(seed, next) : null;
       return {
-        items: applyQuoteFormattingToList(cardsWithUrls),
+        items: await finishCards(ctx, items),
         pageInfo: { nextCursor, hasMore: nextCursor !== null },
       };
     };
@@ -520,11 +515,9 @@ export const scanCardsPageForUser = internalQuery({
       decodeCursor(args.cursor),
       scanLimit
     );
-    const cardsWithUrls = await attachFileUrls(ctx, page.matches);
-
     return {
       itemCursors: page.itemCursors,
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(ctx, page.matches),
       nextCursor: page.nextCursor,
       scannedRows: page.scannedRows,
     };
@@ -587,9 +580,8 @@ export const pinnedCardsPageForUser = internalQuery({
         items.push(card);
       }
     }
-    const cardsWithUrls = await attachFileUrls(ctx, items);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(ctx, items),
       pageInfo: { nextCursor: null, hasMore: false },
     };
   },
@@ -631,9 +623,8 @@ export const listCardChangesForUser = internalQuery({
         }
       }
       if (!page.isDone) {
-        const cardsWithUrls = await attachFileUrls(ctx, activeCards);
         return {
-          items: applyQuoteFormattingToList(cardsWithUrls),
+          items: await finishCards(ctx, activeCards),
           deletedIds,
           pageInfo: {
             nextCursor: encodeChangesCursor({
@@ -677,9 +668,8 @@ export const listCardChangesForUser = internalQuery({
       }
     }
 
-    const cardsWithUrls = await attachFileUrls(ctx, activeCards);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(ctx, activeCards),
       deletedIds,
       pageInfo: { nextCursor, hasMore },
     };

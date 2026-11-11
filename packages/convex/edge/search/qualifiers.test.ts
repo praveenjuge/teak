@@ -416,6 +416,37 @@ describe("search qualifiers", () => {
     expect(await search("trash site:github.com")).toEqual([]);
   });
 
+  test("every read shows a quote card without its quote marks", async () => {
+    const { insert, search, owner } = await setup();
+    const id = await insert({
+      content: "“Stay hungry, stay foolish”",
+      type: "quote",
+    });
+    expect(await search("")).toEqual(["Stay hungry, stay foolish"]);
+    expect(await search("hungry")).toEqual(["Stay hungry, stay foolish"]);
+    expect((await owner.query(api.cards.getCard, { id }))?.content).toBe(
+      "Stay hungry, stay foolish"
+    );
+  });
+
+  test("every quick command local search knows opens its view on the server too", async () => {
+    const { insert, search, owner } = await setup();
+    await seedLibrary(insert);
+    expect(await search("favorite")).toEqual(["Blog post about design"]);
+    expect(await search("archive")).toEqual(["Archived GitHub design"]);
+    expect(await search("Archived")).toEqual(["Archived GitHub design"]);
+    const unpaginated = async (searchQuery: string) =>
+      (await owner.query(api.cards.searchCards, { searchQuery })).map(
+        (item: { content: string }) => item.content
+      );
+    expect(await unpaginated("favorite")).toEqual(["Blog post about design"]);
+    expect(await unpaginated("archive")).toEqual(["Archived GitHub design"]);
+    expect(await unpaginated("trashed")).toEqual([
+      "Trashed archived design",
+      "Trashed GitHub design",
+    ]);
+  });
+
   test("unknown qualifiers and hex colors search as text", async () => {
     const { insert, search } = await setup();
     await insert({ content: "color #fff swatch" });

@@ -3,12 +3,6 @@ import { internalMutation } from "../../../_generated/server";
 import { patchCard } from "../../../card/cardWrites";
 import { queueCardProcessing } from "../../../card/processingRuns";
 import {
-  mergeProcessingStages,
-  stageCompleted,
-  stageFailed,
-  stageInProgress,
-} from "../../../card/processingStatus";
-import {
   pageArchiveValidator,
   r2KeyValidator,
 } from "../../../schema/validators/cards";
@@ -18,6 +12,12 @@ import {
   pageArchiveSkipReason,
   toPageArchiveFailureReason,
 } from "../../../shared/pageArchive";
+import {
+  mergeProcessingStages,
+  stageCompleted,
+  stageFailed,
+  stageInProgress,
+} from "../../../shared/processingStatus";
 import { queueObjectDeletion } from "../../../storage/objectDeletion";
 import { buildR2UserPrefix } from "../../../storage/r2";
 import { queueBackendEvent } from "../../../telemetry/schedule";

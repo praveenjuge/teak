@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
+import { patchCard } from "../../card/cardWrites";
+import { documentTextKey } from "../../card/documentText";
 import { onCardChanged } from "../../card/onCardChanged";
 import { newBackend } from "../helpers.testUtils";
 
@@ -293,6 +295,60 @@ describe("embedding cards", () => {
     expect(upserts(calls).map((call) => call.params.items)).toEqual([
       [{ id: cardId, text: "Invoice 4411\nTotal due", type: "image" }],
       [{ id: cardId, text: "Invoice 4412\nTotal due", type: "image" }],
+    ]);
+  });
+
+  test("a change to text only the embedding reads, such as a style, re-embeds the card", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "Poster");
+    await runScheduled(t);
+
+    await t.run((ctx) => patchCard(ctx, cardId, { visualStyles: ["minimal"] }));
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "Poster", type: "text" }],
+      [{ id: cardId, text: "Style: minimal\nPoster", type: "text" }],
+    ]);
+  });
+
+  test("re-extracted document text re-embeds the card", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("cards", {
+        content: "",
+        createdAt: Date.now(),
+        fileKey: `users/${USER}/cards/c/file/report.pdf`,
+        type: "document",
+        updatedAt: Date.now(),
+        userId: USER,
+      });
+      await onCardChanged(ctx, id, USER);
+      return id;
+    });
+    const saveText = async (text: string, fill: string) => {
+      const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+      if (!card) {
+        throw new Error("missing card");
+      }
+      await t.mutation(internal.card.documentText.saveDocumentText, {
+        cardId,
+        key: documentTextKey(card, fill.repeat(64)),
+        text,
+        charCount: text.length,
+        truncated: false,
+      });
+      await runScheduled(t);
+    };
+
+    await saveText("First draft", "a");
+    await saveText("Final report", "b");
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "First draft", type: "document" }],
+      [{ id: cardId, text: "Final report", type: "document" }],
     ]);
   });
 

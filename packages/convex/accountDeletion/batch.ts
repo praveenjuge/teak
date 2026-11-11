@@ -7,7 +7,8 @@ import {
   takeOwnedCards,
 } from "../accountDeletion";
 import { importStagedPartKeys } from "../import/indexItems";
-import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
+import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
+import { buildR2UserPrefix } from "../storage/r2";
 
 declare const ownerIndexBrand: unique symbol;
 

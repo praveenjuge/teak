@@ -23,7 +23,7 @@ import type {
 } from "@teak/files-protocol";
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionArgs } from "convex/server";
-import type { ConvexRpc } from "../convexRpc";
+import { type ConvexRpc, isConvexRpcUnavailable } from "../convexRpc";
 import { errorMessage } from "../errors";
 import { reportBackgroundError } from "../telemetry";
 import {
@@ -98,6 +98,31 @@ interface TaskContext {
   run: WorkflowRun<MaintenanceParams>;
 }
 
+// A card whose delete fails rolls back whole and stays in Trash for the next
+// run; one such card must not stop the cards trashed after it.
+const cleanUpCard = async (
+  convex: ConvexRpc,
+  cardId: Id<"cards">,
+  cutoff: number
+): Promise<boolean> => {
+  try {
+    const outcome = await convex.mutation(
+      internal.card.trashCleanup.cleanupDeletedCard,
+      { cardId, cutoff }
+    );
+    return outcome.deleted;
+  } catch (error) {
+    if (isConvexRpcUnavailable(error)) {
+      throw error;
+    }
+    console.error("[maintenance] Trash cleanup failed for a card", {
+      cardId,
+      error: errorMessage(error),
+    });
+    return false;
+  }
+};
+
 const cleanUpCards = async ({ convex, run }: TaskContext) => {
   const { step } = run;
   const cutoff = await step.do("cutoff", async () =>
@@ -118,11 +143,9 @@ const cleanUpCards = async ({ convex, run }: TaskContext) => {
         );
         let pageDeleted = 0;
         for (const candidate of candidates) {
-          const outcome = await convex.mutation(
-            internal.card.trashCleanup.cleanupDeletedCard,
-            { cardId: candidate._id, cutoff }
-          );
-          pageDeleted += outcome.deleted ? 1 : 0;
+          pageDeleted += (await cleanUpCard(convex, candidate._id, cutoff))
+            ? 1
+            : 0;
         }
         deleted += pageDeleted;
         if (candidates.length < CARD_CLEANUP_BATCH || pageDeleted === 0) {

@@ -15,10 +15,8 @@ import {
 } from "../_generated/server";
 import { rateLimiter } from "../rateLimiter";
 import { getSessionUser, requireSessionUser } from "../securitySessions";
-import {
-  getSafeUrlHostname,
-  sanitizeExternalUrl,
-} from "../shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
+import { urlHostForDisplay } from "../shared/utils/urlHost";
 import {
   callCoreWorkerOp,
   isCoreWorkerConfigured,
@@ -143,10 +141,9 @@ export const readLinkCheckState = internalQuery({
       archive: {
         capturedAt: card.pageArchive.capturedAt,
         kind: card.pageArchive.kind,
-        sourceHost: (
-          getSafeUrlHostname(card.pageArchive.sourceUrl) ??
-          getSafeUrlHostname(url)
-        )?.replace(/^www\./u, ""),
+        sourceHost:
+          urlHostForDisplay(card.pageArchive.sourceUrl) ??
+          urlHostForDisplay(url),
         storageKey: card.pageArchive.storageKey,
       },
       cardId: card._id,

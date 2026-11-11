@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
   type MutationCtx,
@@ -12,14 +12,31 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
+import { cardStorageObjectKeys } from "../storage/cardObjectKeys";
 import { queueObjectDeletion } from "../storage/objectDeletion";
-import { cardStorageObjectKeys } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
 } from "./cardUsage";
 import { onCardChanged } from "./onCardChanged";
 import { updateCardFieldForUserHandler } from "./updateCard";
+
+/**
+ * Deletes a card and everything kept for it: its folder-rule rows, derived
+ * rows (through `onCardChanged`) and stored objects, leaving a tombstone for
+ * API sync. The caller keeps the free plan's count. Any failure throws, so
+ * the transaction never commits half a delete.
+ */
+export const deleteCardForever = async (
+  ctx: MutationCtx,
+  card: Doc<"cards">
+) => {
+  await ctx.db.delete("cards", card._id);
+  await deleteCardFolderRuleRows(ctx, card._id);
+  await recordCardTombstone(ctx, { cardId: card._id, userId: card.userId });
+  await onCardChanged(ctx, card._id, card.userId, card);
+  await queueObjectDeletion(ctx, cardStorageObjectKeys(card));
+};
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -65,15 +82,9 @@ export const permanentDeleteCardForUserHandler = async (
     await ensureCardUsageShardsForRemoval(ctx, card.userId);
   }
 
-  await ctx.db.delete("cards", cardId);
-  await deleteCardFolderRuleRows(ctx, cardId);
-  await recordCardTombstone(ctx, { cardId, userId: card.userId });
+  await deleteCardForever(ctx, card);
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);
-  }
-  await onCardChanged(ctx, cardId, card.userId, card);
-  for (const key of cardStorageObjectKeys(card)) {
-    await queueObjectDeletion(ctx, key);
   }
 };
 

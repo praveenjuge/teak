@@ -5,8 +5,6 @@ import type { CardType } from "../shared/constants";
 import {
   COLOR_CARD_TYPES,
   type ColorHueBucket,
-  isColorCardType,
-  isVisualStyleCardType,
   normalizeHueFilters,
   normalizeVisualStyleFilters,
   VISUAL_STYLE_CARD_TYPES,
@@ -18,9 +16,11 @@ import {
   compareCardsBySavedAt,
   savedAtOf,
 } from "../shared/search/sort";
+import { matchesVisualFilters } from "../shared/search/visualFilters";
 import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
 import { type CardListScope, cardListStream } from "./listQuery";
+import { isSavedAtInRange } from "./queryUtils";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -28,9 +28,6 @@ export interface VisualFilterState {
   hueFilters?: ColorHueBucket[];
   styleFilters?: VisualStyle[];
 }
-
-const isSavedAtInRange = (savedAt: number, range?: CreatedAtRange): boolean =>
-  !range || (savedAt >= range.start && savedAt < range.end);
 
 export const normalizeVisualFilterArgs = (args: {
   styleFilters?: string[];
@@ -71,50 +68,6 @@ export const normalizeVisualFilterArgs = (args: {
   };
 };
 
-export const doesCardMatchVisualFilters = (
-  card: Doc<"cards">,
-  visualFilters: VisualFilterState
-): boolean => {
-  if (!visualFilters.hasVisualFilters) {
-    return true;
-  }
-
-  if (visualFilters.styleFilters?.length) {
-    if (!isVisualStyleCardType(card.type)) {
-      return false;
-    }
-
-    const styleSet = new Set(card.visualStyles ?? []);
-    if (!visualFilters.styleFilters.some((style) => styleSet.has(style))) {
-      return false;
-    }
-  }
-
-  if (visualFilters.hueFilters?.length) {
-    if (!isColorCardType(card.type)) {
-      return false;
-    }
-
-    const hueSet = new Set(card.colorHues ?? []);
-    if (!visualFilters.hueFilters.some((hue) => hueSet.has(hue))) {
-      return false;
-    }
-  }
-
-  if (visualFilters.hexFilters?.length) {
-    if (!isColorCardType(card.type)) {
-      return false;
-    }
-
-    const hexSet = new Set(card.colorHexes ?? []);
-    if (!visualFilters.hexFilters.some((hex) => hexSet.has(hex))) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
 export const applyCardLevelFilters = (
   cards: Doc<"cards">[],
   options: {
@@ -137,7 +90,7 @@ export const applyCardLevelFilters = (
       return false;
     }
 
-    return doesCardMatchVisualFilters(card, options.visualFilters);
+    return matchesVisualFilters(card, options.visualFilters);
   });
 
 const visualTypesWithin = (
@@ -211,7 +164,7 @@ export const findVisualMatches = async (
         if (
           (!residual || residual(card)) &&
           (options.includeHidden || !isCardHidden(card)) &&
-          doesCardMatchVisualFilters(card, options.visualFilters)
+          matchesVisualFilters(card, options.visualFilters)
         ) {
           matches.push(card);
         }

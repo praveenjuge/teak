@@ -31,7 +31,7 @@ export function useMediaUrlRecovery({
   resume: (element: HTMLMediaElement) => void;
   src: string | undefined;
 } {
-  const refreshMediaUrl = useAction(api.card.getFileUrl.refreshCardMediaUrl);
+  const refreshMediaUrl = useAction(api.cards.refreshCardMediaUrl);
   const [displaySrc, setDisplaySrc] = useState(src);
   const retried = useRef<boolean>(false);
   const resumeAt = useRef<{ playing: boolean; time: number } | null>(null);

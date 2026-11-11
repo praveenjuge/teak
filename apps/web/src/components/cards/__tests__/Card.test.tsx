@@ -7,8 +7,7 @@ const realConvexReact = await import("convex/react");
 const realCardUi = await import("@/components/ui/card");
 
 const cardApi = {
-  card: { getFileUrl: { refreshCardMediaUrl: {} } },
-  cards: { reprocessCard: {} },
+  cards: { refreshCardMediaUrl: {}, reprocessCard: {} },
 };
 mock.module("@teak/convex", () => ({
   ...realTeakConvex,

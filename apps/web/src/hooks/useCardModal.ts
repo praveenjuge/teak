@@ -266,10 +266,9 @@ export function useCardModal(
       // The signed URL asks the files host for `attachment` under the file's
       // name, so the browser streams it to disk instead of this page holding
       // the whole file in memory first.
-      const downloadUrl = await convex.query(
-        api.card.getFileUrl.getFileDownloadUrl,
-        { cardId: cardId as Id<"cards"> }
-      );
+      const downloadUrl = await convex.query(api.cards.getFileDownloadUrl, {
+        cardId: cardId as Id<"cards">,
+      });
       if (!downloadUrl) {
         throw new Error("This file isn't available to download");
       }

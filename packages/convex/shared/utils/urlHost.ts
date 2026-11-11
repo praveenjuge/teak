@@ -1,3 +1,5 @@
+import { getSafeUrlHostname } from "./safeUrl";
+
 export const normalizeUrlHost = (
   value: string | null | undefined
 ): string | null => {
@@ -137,3 +139,12 @@ export const hostForDisplay = (host: string): string =>
         : label
     )
     .join(".");
+
+/**
+ * The site a link names, as people read it: `theverge.com`, never `www.` or
+ * punycode. Nothing for a missing link or one that isn't http(s).
+ */
+export const urlHostForDisplay = (url: unknown): string | undefined => {
+  const host = normalizeUrlHost(getSafeUrlHostname(url));
+  return host ? hostForDisplay(host) : undefined;
+};

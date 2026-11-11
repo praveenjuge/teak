@@ -3,7 +3,7 @@ export const MAX_CARD_LINKS = 500;
 
 export const CARD_LINK_PATTERN =
   /\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]/;
-const TOKEN_REGEX = /\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]/g;
+const TOKEN_REGEX = new RegExp(CARD_LINK_PATTERN.source, "g");
 const TITLE_UNSAFE_REGEX = /[|\]\r\n]+/g;
 const SPACES_REGEX = /\s+/g;
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;

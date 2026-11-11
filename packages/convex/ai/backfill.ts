@@ -5,7 +5,7 @@ import { accountDeletionOwnsRows } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
 import { cardNeedsAiMetadata } from "../card/derivedFields";
 import { queueCardProcessing } from "../card/processingRuns";
-import { stageFailed } from "../card/processingStatus";
+import { stageFailed } from "../shared/processingStatus";
 import { findCardsMissingAiCandidates } from "./queries";
 
 export const AI_BACKFILL_INTERVAL_HOURS = 6;

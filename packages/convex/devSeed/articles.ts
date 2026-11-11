@@ -12,12 +12,6 @@ import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { searchPrefix } from "../card/documentTextFormat";
-import {
-  stageCompleted,
-  stageFailed,
-  stagePending,
-} from "../card/processingStatus";
 import {
   articleImageObjectKey,
   articlePlainText,
@@ -25,7 +19,13 @@ import {
   countWords,
   readingMinutes,
 } from "../shared/article";
+import { searchPrefix } from "../shared/documentText";
 import { PAGE_ARCHIVE_ROLE } from "../shared/pageArchive";
+import {
+  stageCompleted,
+  stageFailed,
+  stagePending,
+} from "../shared/processingStatus";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { registerOwnedObject } from "../storage/ownership";

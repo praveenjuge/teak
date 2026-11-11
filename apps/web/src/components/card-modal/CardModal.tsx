@@ -1,6 +1,7 @@
 import { opensOnRead } from "@teak/convex/shared/article";
 import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
 import {
@@ -81,7 +82,6 @@ import {
   isFileCardType,
 } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
-import { getDisplayHostname } from "../../lib/displayHost";
 import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
@@ -758,7 +758,7 @@ export function CardModal({
     ? getCardHeading(card, { link: tLinkTitle, t: tHeading, types })
     : null;
   const hostname =
-    card?.type === "link" ? getDisplayHostname(card.url) : undefined;
+    card?.type === "link" ? urlHostForDisplay(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);
   const TypeIcon = cardTypeIcon(card?.type as CardType | undefined);
   const editedTitle = getCurrentValue("metadataTitle");

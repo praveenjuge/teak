@@ -3,7 +3,6 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion/gate";
-import { markCardForEmbedding } from "../embedding/state";
 import { r2KeyValidator } from "../schema/validators/cards";
 import {
   ARTICLE_FAILURE_REASONS,
@@ -16,17 +15,17 @@ import {
   isArticleObjectKey,
   readingMinutes,
 } from "../shared/article";
-import { queueObjectDeletion } from "../storage/objectDeletion";
-import { buildR2UserPrefix } from "../storage/r2";
-import { queueBackendEvent } from "../telemetry/schedule";
-import { patchCard } from "./cardWrites";
-import { searchPrefix } from "./documentTextFormat";
+import { searchPrefix } from "../shared/documentText";
 import {
   mergeProcessingStages,
   stageCompleted,
   stageFailed,
   stageInProgress,
-} from "./processingStatus";
+} from "../shared/processingStatus";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
+import { queueBackendEvent } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import { getArticleTextRow } from "./textContents";
 
 type ReadyArticle = Extract<
@@ -194,8 +193,6 @@ export const saveArticleTextHandler = async (
     }),
     updatedAt: now,
   });
-  // The embedding reads the article's opening; the search text may not change.
-  await markCardForEmbedding(ctx, card._id, card.userId);
   if (card.hasHighlights) {
     await ctx.scheduler.runAfter(
       0,
@@ -267,9 +264,6 @@ export const recordNoArticle = internalMutation({
       }),
       updatedAt: now,
     });
-    if (previous) {
-      await markCardForEmbedding(ctx, card._id, card.userId);
-    }
     await queueBackendEvent(ctx, "article_extracted", card.userId, {
       outcome: "none",
       words_bucket: articleWordsBucket(wordCount ?? 0),

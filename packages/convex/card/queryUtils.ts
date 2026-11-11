@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CreatedAtRange } from "../shared";
+import { applyQuoteFormattingToList } from "../shared/quoteFormatting";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 import { readCardTranscript } from "./textContents";
 
@@ -31,6 +32,23 @@ export type CardWithUrls = Doc<"cards"> & {
   articleUrl?: string;
   articleImageUrls?: string[];
 };
+
+export type AttachCardUrls = (
+  ctx: unknown,
+  cards: Doc<"cards">[]
+) => Promise<CardWithUrls[]>;
+
+/**
+ * The last step of every read that returns cards: signs their file URLs
+ * with `attach` (full, grid or summary), then shows quote cards without
+ * their surrounding quote marks.
+ */
+export const finishCards = async (
+  ctx: unknown,
+  cards: Doc<"cards">[],
+  attach: AttachCardUrls = attachFileUrls
+): Promise<CardWithUrls[]> =>
+  applyQuoteFormattingToList(await attach(ctx, cards));
 
 /**
  * A card without its transcript and image text, which only its detail shows.
@@ -73,11 +91,12 @@ const articleUrls = async (
     : {};
 };
 
-export const attachCardDetailUrls = async (
+/** `finishCards` for one card's detail, with its full text and article. */
+export const finishCardDetail = async (
   ctx: Pick<QueryCtx, "db">,
   card: Doc<"cards">
 ): Promise<CardWithUrls> => {
-  const [withUrls] = await attachFileUrls(ctx, [card]);
+  const [withUrls] = await finishCards(ctx, [card]);
   if (!withUrls) {
     throw new Error("A card's detail is missing");
   }

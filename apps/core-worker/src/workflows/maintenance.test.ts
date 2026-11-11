@@ -122,6 +122,30 @@ describe("card cleanup", () => {
     ]);
   });
 
+  test("a card whose delete fails stays in Trash without holding up the rest", async () => {
+    const trash = ["card-broken", "card-a", "card-b"];
+    const test = setup("card-cleanup", {
+      "card/trashCleanup:cleanupDeletedCard": ({ cardId }) => {
+        if (cardId === "card-broken") {
+          throw new Error("delete failed");
+        }
+        trash.splice(trash.indexOf(cardId as string), 1);
+        return { deleted: true };
+      },
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) =>
+        trash.slice(0, limit as number).map((_id) => ({ _id })),
+      "publicApiTombstones:pruneExpiredCardTombstones": () => ({
+        deleted: 0,
+        hasMore: false,
+      }),
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      cleaned: 2,
+    });
+    expect(trash).toEqual(["card-broken"]);
+  });
+
   test("a page whose cards can't be deleted ends the run instead of looping", async () => {
     const stuck = Array.from({ length: 10 }, (_, index) => ({
       _id: `card-${index}`,

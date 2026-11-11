@@ -1,11 +1,10 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { truncateCardTitle } from "../publicApi/validation";
 import { rateLimiter } from "../rateLimiter";
 import {
   requireSessionUser,
@@ -14,6 +13,13 @@ import {
 } from "../securitySessions";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
+import {
+  buildInitialProcessingStatus,
+  type ProcessingStatus,
+  stagePending,
+  withStageStatus,
+} from "../shared/processingStatus";
+import { normalizeQuoteContent } from "../shared/quoteFormatting";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   explainInvalidCardTags,
@@ -40,14 +46,7 @@ import { patchCard } from "./cardWrites";
 import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
 import { queueCardProcessing } from "./processingRuns";
-import {
-  buildInitialProcessingStatus,
-  type ProcessingStatus,
-  stagePending,
-  withStageStatus,
-} from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
-import { normalizeQuoteContent } from "./quoteFormatting";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -68,25 +67,26 @@ const updateCardFieldValidator = v.union(
   v.literal("undone")
 );
 
+/** The fields `updateCardFields` edits together, in one write. */
+const EDITABLE_CARD_FIELDS = [
+  "content",
+  "url",
+  "notes",
+  "metadataTitle",
+  "tags",
+  "removeAiTag",
+  "addColor",
+  "removeColor",
+] as const satisfies readonly Infer<typeof updateCardFieldValidator>[];
+
+type EditableCardField = (typeof EDITABLE_CARD_FIELDS)[number];
+
+const isEditableCardField = (field: string): field is EditableCardField =>
+  (EDITABLE_CARD_FIELDS as readonly string[]).includes(field);
+
 interface UpdateCardFieldForUserArgs {
   cardId: Id<"cards">;
-  field:
-    | "content"
-    | "url"
-    | "notes"
-    | "metadataTitle"
-    | "tags"
-    | "aiSummary"
-    | "isFavorited"
-    | "removeAiTag"
-    | "addColor"
-    | "removeColor"
-    | "delete"
-    | "restore"
-    | "archive"
-    | "unarchive"
-    | "done"
-    | "undone";
+  field: Infer<typeof updateCardFieldValidator>;
   tagToRemove?: string;
   userId: TeakUserId;
   value?: unknown;
@@ -255,16 +255,6 @@ export const updateCard = mutation({
   },
 });
 
-type EditableCardField =
-  | "content"
-  | "url"
-  | "notes"
-  | "metadataTitle"
-  | "tags"
-  | "removeAiTag"
-  | "addColor"
-  | "removeColor";
-
 export interface CardFieldEdit {
   field: EditableCardField;
   tagToRemove?: string;
@@ -273,17 +263,6 @@ export interface CardFieldEdit {
 
 export const HIGHLIGHTED_URL_MESSAGE =
   "Remove this link's highlights before changing its URL";
-
-const EDITABLE_CARD_FIELDS = new Set<string>([
-  "content",
-  "url",
-  "notes",
-  "metadataTitle",
-  "tags",
-  "removeAiTag",
-  "addColor",
-  "removeColor",
-]);
 
 interface CardEditState {
   card: Doc<"cards">;
@@ -462,7 +441,7 @@ const applyCardFieldEdit = (
     }
 
     case "metadataTitle": {
-      const parsed = parseCardTitle(truncateCardTitle(value));
+      const parsed = parseCardTitle(value);
       if (parsed.kind === "invalid") {
         throw new ConvexError({
           code: "INVALID_INPUT",
@@ -649,13 +628,13 @@ export const updateCardFieldForUserHandler = async (
   { userId, cardId, field, value, tagToRemove }: UpdateCardFieldForUserArgs,
   options: UpdateCardFieldForUserOptions = {}
 ): Promise<UpdateCardFieldForUserResult> => {
-  if (EDITABLE_CARD_FIELDS.has(field)) {
+  if (isEditableCardField(field)) {
     return updateCardFieldsForUserHandler(
       ctx,
       {
         userId,
         cardId,
-        edits: [{ field: field as EditableCardField, value, tagToRemove }],
+        edits: [{ field, value, tagToRemove }],
       },
       options
     );

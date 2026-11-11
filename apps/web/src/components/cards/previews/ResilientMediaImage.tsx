@@ -40,7 +40,7 @@ export function ResilientMediaImage({
   width = 512,
   ...imageProps
 }: ResilientMediaImageProps) {
-  const refreshMediaUrl = useAction(api.card.getFileUrl.refreshCardMediaUrl);
+  const refreshMediaUrl = useAction(api.cards.refreshCardMediaUrl);
   const [displaySrc, setDisplaySrc] = useState(src);
   const [displaySrcSet, setDisplaySrcSet] = useState(srcSet);
   const [retryCount, setRetryCount] = useState(0);

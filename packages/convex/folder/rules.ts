@@ -463,8 +463,6 @@ export const applyAutoFileRulesToCard = async (
   return result.filedFolderIds;
 };
 
-// Rule runs over the existing library.
-
 export const folderRuleRunValidator = v.object({
   _id: v.id("folderRuleRuns"),
   folderId: v.id("folders"),
@@ -897,8 +895,6 @@ export const undoFolderRuleBatch = internalMutation({
   handler: (ctx, { runId }) => undoFolderRuleBatchHandler(ctx, runId),
 });
 
-// Cleanup.
-
 export const FOLDER_RULE_CLEANUP_BATCH_SIZE = 100;
 const FOLDER_RULE_RUN_STALL_MS = 60 * 60 * 1000;
 
@@ -1029,8 +1025,6 @@ export const deleteExpiredFolderRuleRuns = internalMutation({
     return { done: !more };
   },
 });
-
-// Public functions for the web app.
 
 export const FOLDER_RULE_PREVIEW_LIMIT = 500;
 const FOLDER_RULE_PREVIEW_BYTES = 4 * 1024 * 1024;

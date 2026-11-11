@@ -1,8 +1,12 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { cardDisplayTitle, cardPreviewText } from "../card/displayTitle";
-import { type CardWithUrls, linkPreviewImageFields } from "../card/queryUtils";
+import {
+  attachCardSummaryUrls,
+  type CardWithUrls,
+  linkPreviewImageFields,
+} from "../card/queryUtils";
 import { cardTypeValidator } from "../schema/validators/cards";
+import { cardDisplayTitle, cardPreviewText } from "../shared/cardTitle";
 import { withReadMeter } from "./readMeter";
 import {
   searchCardsPaginatedArgsValidator,
@@ -98,7 +102,7 @@ export const searchMobileCardSummariesPaginated = query({
   handler: async (ctx, args) => {
     const result = await withReadMeter(ctx, args, (metered, reportSearch) =>
       searchCardsPaginatedHandler(metered, args, {
-        summariesOnly: true,
+        attach: attachCardSummaryUrls,
         reportSearch,
       })
     );
