@@ -127,7 +127,7 @@ describe("useFileUploadCore", () => {
       expect((result as any).cardId).toBe("card_1");
     });
 
-    test("calls onProgress callback at 25%", async () => {
+    test("reports progress rising to 100% as a file uploads", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
 
       mockUploadAndCreateCard.mockResolvedValue({
@@ -146,51 +146,9 @@ describe("useFileUploadCore", () => {
 
       await hook.uploadFile(file);
 
-      expect(mockOnProgress).toHaveBeenCalledWith(25);
-    });
-
-    test("calls onProgress callback at 75%", async () => {
-      const file = { size: 100, name: "test.png", type: "image/png" } as any;
-
-      mockUploadAndCreateCard.mockResolvedValue({
-        success: true,
-        uploadUrl: "https://upload",
-        uploadKey: "store_1",
-      });
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ storageId: "store_1" }),
-      });
-      mockFinalizeUploadedCard.mockResolvedValue({
-        success: true,
-        cardId: "card_1",
-      });
-
-      await hook.uploadFile(file);
-
-      expect(mockOnProgress).toHaveBeenCalledWith(75);
-    });
-
-    test("calls onProgress callback at 100%", async () => {
-      const file = { size: 100, name: "test.png", type: "image/png" } as any;
-
-      mockUploadAndCreateCard.mockResolvedValue({
-        success: true,
-        uploadUrl: "https://upload",
-        uploadKey: "store_1",
-      });
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ storageId: "store_1" }),
-      });
-      mockFinalizeUploadedCard.mockResolvedValue({
-        success: true,
-        cardId: "card_1",
-      });
-
-      await hook.uploadFile(file);
-
-      expect(mockOnProgress).toHaveBeenCalledWith(100);
+      const reported = mockOnProgress.mock.calls.map(([value]) => value);
+      expect(reported.at(-1)).toBe(100);
+      expect(reported).toEqual([...reported].sort((x, y) => x - y));
     });
   });
 

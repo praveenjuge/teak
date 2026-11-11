@@ -154,7 +154,6 @@ export function useFolderRulesForm(
 
 export type FolderRulesForm = ReturnType<typeof useFolderRulesForm>;
 
-/** The Rules section of the Edit folder dialog. */
 export function FolderRulesFields({
   form,
   onChange,
