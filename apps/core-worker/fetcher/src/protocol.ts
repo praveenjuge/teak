@@ -17,7 +17,10 @@ export const FETCHER_HOP_PATH = "/hop";
  */
 export const FETCHER_STREAM_PATH = "/hop-stream";
 
-/** At most this many downloads at once; the next gets 503 `busy`. */
+/** Must equal CONTAINER_BUSY_STATUS in container/src/protocol.ts. */
+export const FETCHER_BUSY_STATUS = 503;
+
+/** At most this many downloads at once; the next gets FETCHER_BUSY_STATUS. */
 export const FETCHER_MAX_IN_FLIGHT = 4;
 /**
  * Of those, at most this many streamed hops, which hold their slot until the

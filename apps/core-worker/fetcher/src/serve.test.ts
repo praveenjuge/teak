@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createFetcherHandler, MAX_REQUEST_BYTES } from "./handler";
 import { serveFetcher } from "./serve";
 
 const withServer = async (
@@ -36,23 +37,21 @@ describe("serveFetcher", () => {
     );
   });
 
-  test("refuses a request body over 64 KiB", async () => {
-    let called = false;
+  test("a body past the handler's cap gets the handler's answer", async () => {
     await withServer(
-      () => {
-        called = true;
-        return Promise.resolve(new Response("ok"));
-      },
+      createFetcherHandler({
+        pinnedFetch: () => Promise.reject(new Error("not reached")),
+        resolveDns: () => Promise.resolve([]),
+      }),
       async (base) => {
         const response = await fetch(`${base}/fetch`, {
-          body: "x".repeat(64 * 1024 + 1),
+          body: "x".repeat(MAX_REQUEST_BYTES + 1),
           method: "POST",
         });
-        expect(response.status).toBe(413);
+        expect(response.status).toBe(400);
         expect(await response.json()).toEqual({ error: "invalid_request" });
       }
     );
-    expect(called).toBe(false);
   });
 
   test("answers 500 when the handler throws", async () => {
