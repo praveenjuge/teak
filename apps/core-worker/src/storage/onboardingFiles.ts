@@ -8,6 +8,7 @@ import {
   isOnboardingSourceName,
   isValidObjectKey,
 } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput } from "../opFailure";
 
 export interface OnboardingFilesEnv {
@@ -110,10 +111,7 @@ const storeCard = async (
     }
   }
   return {
-    error:
-      failure.reason instanceof Error
-        ? failure.reason.message
-        : String(failure.reason),
+    error: errorMessage(failure.reason),
     onboarding: card.onboarding,
     stored: false,
   };

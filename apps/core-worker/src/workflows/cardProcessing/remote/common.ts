@@ -5,6 +5,7 @@ import {
   readBodyWithLimit,
   safeFetch,
 } from "@teak/files-protocol/ssrf";
+import { errorMessage } from "../../../errors";
 import { sanitizeText } from "../../../linkPreview/parsing";
 import { TEAKBOT_USER_AGENT } from "../../../userAgent";
 
@@ -57,7 +58,7 @@ export const fetchRemoteText = async (
     };
   } catch (error) {
     console.warn("[remote] Site lookup failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return { status: 0, text: null };
   }

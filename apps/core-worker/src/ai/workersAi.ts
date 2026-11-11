@@ -1,4 +1,5 @@
 import type { FilesAiGenerationFacts } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { OpFailure } from "../opFailure";
 import { withRetries } from "../retry";
 import {
@@ -31,7 +32,7 @@ const numericErrorFact = (value: unknown): number | undefined => {
 
 /** Workers AI turned the call away because it, or the account, is busy. */
 export const isCapacityError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   if (error && typeof error === "object") {
     const facts = error as {
       status?: unknown;

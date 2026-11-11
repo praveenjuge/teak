@@ -4,6 +4,7 @@ import {
   type FilesPdfOcrResult,
   normalizeImageOcrText,
 } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import {
   INVALID_IMAGE_OUTPUT,
   readImageText,
@@ -28,7 +29,7 @@ const readPage = async (env: Env, png: Uint8Array): Promise<string> => {
       "teak.ai.ocr.pdf"
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     if (
       message === INVALID_IMAGE_OUTPUT ||
       message === "malformed_workers_ai_response"

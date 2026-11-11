@@ -10,6 +10,7 @@ import type {
   FilesOpOutcome,
 } from "@teak/files-protocol";
 import { batchOp } from "../../convexRpc";
+import { errorMessage } from "../../errors";
 import { normalizeUrl } from "../../linkPreview/url";
 import { decodeStepError, encodeStepError } from "../errors";
 import { computedBackoff } from "../runtime";
@@ -85,10 +86,10 @@ const render = async (
     }
     console.warn("[screenshot] Renderer unavailable", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     return throwRetryable({
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       type: "renderer_unavailable",
     });
   }
@@ -199,7 +200,7 @@ const capture = async (
   try {
     page = await fetchLinkPageForCard(job, normalizeUrl(card.url));
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return throwRetryable({
       message,
       type: message.includes(":RENDERER_UNAVAILABLE:")

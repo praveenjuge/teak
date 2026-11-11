@@ -6,6 +6,7 @@ import {
 } from "@teak/files-protocol/ssrf";
 import { FETCHER_STREAM_MAX_TIMEOUT_MS } from "../../../fetcher/src/protocol";
 import { ObjectWriteBlockedError } from "../../deletionGate";
+import { errorMessage } from "../../errors";
 import { TEAKBOT_USER_AGENT } from "../../userAgent";
 
 /** Tracking redirects stack up in front of episodes; each hop is checked. */
@@ -133,7 +134,7 @@ export const downloadEpisodeToR2 = async (
     await upload.complete(parts);
   } catch (error) {
     console.warn("[podcastAudio] episode download or upload broke", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     await reader.cancel().catch(() => undefined);
     await upload.abort().catch(() => undefined);

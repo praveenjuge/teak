@@ -7,6 +7,7 @@ import {
 } from "@teak/files-protocol";
 import { assertUrlIsSafe, SsrfError } from "@teak/files-protocol/ssrf";
 import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import { errorMessage } from "../../errors";
 import {
   buildErrorPreview,
   buildSuccessPreview,
@@ -204,7 +205,7 @@ const storeRemoteAsset = async (
       throw error;
     }
     console.warn("[linkMetadata] Remote asset fetch error", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     if (retryTransient) {
       throw new Error(`${REMOTE_ASSET_RETRYABLE_PREFIX}error`);
@@ -373,7 +374,7 @@ const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
     }
     page = outcome.data;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[linkMetadata] Link page fetch unavailable", { message });
     return throwRetryable({
       details: { error: message },
@@ -667,14 +668,14 @@ const fetchAndSave = async (
     }
 
     if (!payload.success) {
-      const errorMessage =
+      const scrapeError =
         payload.errors
           ?.map((error) => error?.message)
           .filter(Boolean)
           .join("; ") || "Unknown scrape error";
       throwRetryable({
         details: { fallback: payload.errors },
-        message: errorMessage,
+        message: scrapeError,
         normalizedUrl,
         type: scrapeHttpStatus(payload) === 429 ? "rate_limit" : "scrape_error",
       });

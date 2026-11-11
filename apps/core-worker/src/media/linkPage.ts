@@ -11,6 +11,7 @@ import {
   type FetcherPageRequest,
   type FetcherPageResponse,
 } from "../../fetcher/src/protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput } from "../opFailure";
 import { validScrapeSelectors } from "./browserRender";
 import { RendererUnavailable } from "./containerPool";
@@ -128,7 +129,7 @@ const readCached = async (
     return value?.fetched === true ? value : null;
   } catch (error) {
     console.warn("fetch-link-page: cache read failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }
@@ -145,7 +146,7 @@ const writeCached = async (
     });
   } catch (error) {
     console.warn("fetch-link-page: cache write failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -194,7 +195,7 @@ export const fetchLinkPage = async (
     } catch (error) {
       renderFailed = true;
       console.warn("fetch-link-page: browser scrape failed; keeping static", {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       });
     }
   }

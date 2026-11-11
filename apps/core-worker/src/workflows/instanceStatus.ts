@@ -1,3 +1,5 @@
+import { errorMessage } from "../errors";
+
 type InstanceState = InstanceStatus["status"];
 
 const FINISHED: ReadonlySet<InstanceState> = new Set([
@@ -15,9 +17,7 @@ export const isFinishedState = (state: InstanceState): boolean =>
 
 /** Workflows' `get` throws for an ID it has no instance for. */
 export const isMissingInstance = (error: unknown): boolean =>
-  /not[\s._-]?found|does not exist/iu.test(
-    error instanceof Error ? error.message : String(error)
-  );
+  /not[\s._-]?found|does not exist/iu.test(errorMessage(error));
 
 /** The instance's status, or null when Workflows has no such instance. */
 export const readInstanceStatus = async (

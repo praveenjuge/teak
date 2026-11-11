@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { errorMessage } from "../errors";
 import { estimateWorkersAiCostUsd } from "./aiPricing";
 
 export interface AiUsageContext {
@@ -114,7 +115,7 @@ export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
     });
   } catch (error) {
     console.error("[ai-usage] data point not written", {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
   }
 };

@@ -7,6 +7,7 @@ import {
   verifyUploadUrl,
 } from "@teak/files-protocol";
 import { ObjectWriteBlockedError } from "../deletionGate";
+import { errorMessage } from "../errors";
 
 export interface UploadEnv {
   BUCKET: R2Bucket;
@@ -106,7 +107,7 @@ export const handleSignedUpload = async (
       );
     }
     console.error("[core-worker] upload failed", {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
       key,
     });
     return uploadError(requestId, "INTERNAL", "Upload failed", 500);

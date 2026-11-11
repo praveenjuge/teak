@@ -6,6 +6,7 @@ import {
 } from "@teak/convex/storage/rawMetadataJson";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
+import { errorMessage } from "../../errors";
 import { type CardJob, ensureObjectOwnership } from "./context";
 
 export const rawMetadataKey = (
@@ -114,7 +115,7 @@ export const archiveRawMetadata = async <T extends ArchivablePart>(
     }
     console.warn("[rawMetadata] Archive failed; keeping raw inline", {
       kind,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return part;
   }

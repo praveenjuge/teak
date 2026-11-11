@@ -20,6 +20,7 @@ import {
   VECTOR_TYPE_METADATA_KEY,
   vectorShardBinding,
 } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
 import { withRetries } from "../retry";
@@ -31,9 +32,7 @@ import { runWorkersAi } from "./workersAi";
 const VECTORIZE_RATE_LIMIT = /\b40041\b|too many requests/iu;
 
 const isVectorizeRateLimit = (error: unknown) =>
-  VECTORIZE_RATE_LIMIT.test(
-    error instanceof Error ? error.message : String(error)
-  );
+  VECTORIZE_RATE_LIMIT.test(errorMessage(error));
 
 // Vectorize also fails a write now and then with a 5xx of its own
 // (`VECTOR_UPSERT_ERROR (code = 50139): Internal Server Error`). Upserts and
@@ -44,9 +43,7 @@ const VECTORIZE_WRITE_ATTEMPTS = 3;
 const VECTORIZE_RETRY_DELAY_MS = 100;
 
 const isVectorizeServerError = (error: unknown) =>
-  VECTORIZE_SERVER_ERROR.test(
-    error instanceof Error ? error.message : String(error)
-  );
+  VECTORIZE_SERVER_ERROR.test(errorMessage(error));
 
 const withVectorizeRateLimit = <T>(write: () => Promise<T>) =>
   withRetries(

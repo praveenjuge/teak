@@ -2,6 +2,7 @@ import {
   getRawAttribute,
   type RawSelectorMap,
 } from "@teak/convex/shared/linkCategory/providers/common";
+import { errorMessage } from "../../../errors";
 import {
   fetchRemoteText,
   jsonLdNodes,
@@ -300,7 +301,7 @@ export const resolveEnclosure = async (
     );
   } catch (error) {
     console.warn("[podcast] Audio lookup failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }
