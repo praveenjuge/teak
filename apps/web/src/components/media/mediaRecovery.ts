@@ -1,21 +1,15 @@
-import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
 import {
   type FilesImageRendition,
   parseFilesImagePath,
 } from "@teak/convex/shared/filesImages";
-
-const TEAK_FILES_HOSTS: ReadonlySet<string> = new Set(
-  Object.values(TEAK_FILES_ORIGINS).map((origin) => new URL(origin).hostname)
-);
+import { filesOrigins } from "@/lib/public-env";
 
 const RETRY_PARAM = "teak_retry";
 
-const teakFilesUrl = (url: string): URL | null => {
+const filesUrl = (url: string): URL | null => {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" && TEAK_FILES_HOSTS.has(parsed.hostname)
-      ? parsed
-      : null;
+    return filesOrigins().includes(parsed.origin) ? parsed : null;
   } catch {
     return null;
   }
@@ -27,15 +21,15 @@ export function appendMediaRetryParam(url: string): string {
   return parsed.toString();
 }
 
-/** A Teak files URL that hasn't been refreshed once already. */
+/** A card files URL that hasn't been refreshed once already. */
 export function canRetryMedia(url: string): boolean {
-  const parsed = teakFilesUrl(url);
+  const parsed = filesUrl(url);
   return parsed !== null && !parsed.searchParams.has(RETRY_PARAM);
 }
 
 export function getMediaRenditionFromUrl(
   url: string
 ): FilesImageRendition | undefined {
-  const parsed = teakFilesUrl(url);
+  const parsed = filesUrl(url);
   return parsed ? parseFilesImagePath(parsed.pathname)?.rendition : undefined;
 }
