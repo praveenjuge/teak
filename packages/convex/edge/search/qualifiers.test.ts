@@ -416,6 +416,19 @@ describe("search qualifiers", () => {
     expect(await search("trash site:github.com")).toEqual([]);
   });
 
+  test("every read shows a quote card without its quote marks", async () => {
+    const { insert, search, owner } = await setup();
+    const id = await insert({
+      content: "“Stay hungry, stay foolish”",
+      type: "quote",
+    });
+    expect(await search("")).toEqual(["Stay hungry, stay foolish"]);
+    expect(await search("hungry")).toEqual(["Stay hungry, stay foolish"]);
+    expect((await owner.query(api.cards.getCard, { id }))?.content).toBe(
+      "Stay hungry, stay foolish"
+    );
+  });
+
   test("every quick command local search knows opens its view on the server too", async () => {
     const { insert, search, owner } = await setup();
     await seedLibrary(insert);
