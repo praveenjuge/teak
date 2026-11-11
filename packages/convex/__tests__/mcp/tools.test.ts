@@ -1174,8 +1174,52 @@ describe("MCP tools", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toContain("cardId:");
+    expect(result.content[0]?.text).toBe("INVALID_INPUT: `cardId` is required");
   });
+
+  test.each([
+    [
+      "teak_v1_set_card_archived",
+      { cardId: "card_1" },
+      "`isArchived` is required",
+    ],
+    [
+      "teak_v1_set_card_archived",
+      { cardId: "card_1", isArchived: "yes" },
+      "`isArchived` must be true or false",
+    ],
+    [
+      "teak_v1_set_card_favorite",
+      { cardId: "card_1" },
+      "`isFavorited` is required",
+    ],
+    [
+      "teak_v1_set_card_favorite",
+      { cardId: "card_1", isFavorited: 1 },
+      "`isFavorited` must be true or false",
+    ],
+    ["teak_v1_get_card", { cardId: 7 }, "`cardId` must be a string"],
+    ["teak_v1_search_cards", { limit: "ten" }, "`limit` must be a number"],
+    ["teak_v1_search_cards", { limit: 500 }, "`limit` must be 100 or less"],
+    ["teak_v1_search_cards", { limit: 0 }, "`limit` must be 1 or more"],
+  ])(
+    "%s %j says what is wrong in plain words: %s",
+    async (tool, args, message) => {
+      const executor = mock(async () =>
+        Response.json({})
+      ) as PublicApiToolExecutor;
+      const result = await callTeakV1Tool(
+        tool,
+        args,
+        mcpRequest({ jsonrpc: "2.0", id: 63, method: "tools/call" }),
+        executor
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toBe(`INVALID_INPUT: ${message}`);
+      expect(executor).not.toHaveBeenCalled();
+    }
+  );
 
   test.each([
     ["teak_v1_get_card", { cardId: ".." }],

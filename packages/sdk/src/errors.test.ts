@@ -63,6 +63,11 @@ describe("errors by kind", () => {
     expect(error.code).toBe("AUTH_REQUIRED");
     expect(error.kind).toBe("auth");
     expect(error.message).not.toMatch(/teak login|TEAK_API_KEY|raycast/i);
+    expect(error.message).not.toMatch(/again/i);
+  });
+
+  test("a rejected credential still says to sign in again", () => {
+    expect(new TeakApiError("INVALID_API_KEY").message).toMatch(/again/i);
   });
 
   test("every error code has a kind, and the auth codes are the credential ones", () => {
