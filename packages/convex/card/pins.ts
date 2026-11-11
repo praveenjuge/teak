@@ -163,6 +163,6 @@ export const getPinnedCards = query({
       return [];
     }
     const cards = keepVisible(await readPinnedCards(ctx, user.teakUserId));
-    return finishCards(ctx, cards);
+    return finishCards(cards);
   },
 });

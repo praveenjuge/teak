@@ -50,11 +50,10 @@ const queueReplacedKeys = async (
   kept: string[]
 ) => {
   const keep = new Set(kept);
-  for (const key of new Set(previous)) {
-    if (!keep.has(key)) {
-      await queueObjectDeletion(ctx, key);
-    }
-  }
+  await queueObjectDeletion(
+    ctx,
+    previous.filter((key) => !keep.has(key))
+  );
 };
 
 const clearedArticleText = (card: Doc<"cards">) =>
@@ -114,9 +113,7 @@ export const saveArticleTextHandler = async (
   const card = await ctx.db.get("cards", args.cardId);
   if (!card || (await getAccountDeletionState(ctx, card.userId))) {
     if (!card) {
-      for (const key of [args.textKey, ...args.article.imageKeys]) {
-        await queueObjectDeletion(ctx, key);
-      }
+      await queueObjectDeletion(ctx, [args.textKey, ...args.article.imageKeys]);
     }
     return false;
   }

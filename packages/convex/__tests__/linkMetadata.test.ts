@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { testId } from "./helpers/convex.test-utils";
 import {
   objectDeletionMockModuleFactory,
+  queuedDeletionKeys,
   r2MockModuleFactory,
   r2Mocks,
 } from "./helpers/r2Mock.test-utils";
@@ -88,11 +89,8 @@ describe("linkMetadata", () => {
 
       const [, , patch] = ctx.db.patch.mock.calls[0];
       expect(patch).not.toHaveProperty("thumbnailOverride");
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old_og");
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalledWith(
-        ctx,
-        "chosen_id"
-      );
+      expect(queuedDeletionKeys()).toContain("old_og");
+      expect(queuedDeletionKeys()).not.toContain("chosen_id");
     });
 
     test("records the new screenshot's size", async () => {
@@ -283,18 +281,9 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-        ctx,
-        "old_image"
-      );
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-        ctx,
-        "old_video"
-      );
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-        ctx,
-        "old_poster"
-      );
+      expect(queuedDeletionKeys()).toContain("old_image");
+      expect(queuedDeletionKeys()).toContain("old_video");
+      expect(queuedDeletionKeys()).toContain("old_poster");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -338,10 +327,7 @@ describe("linkMetadata", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalledWith(
-        ctx,
-        "existing_image"
-      );
+      expect(queuedDeletionKeys()).not.toContain("existing_image");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "card_123",
@@ -431,7 +417,7 @@ describe("linkMetadata", () => {
         screenshotUpdatedAt: 2,
       });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old");
+      expect(queuedDeletionKeys()).toContain("old");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -483,7 +469,7 @@ describe("linkMetadata", () => {
         screenshotUpdatedAt: 2,
       });
 
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(queuedDeletionKeys()).toEqual([]);
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -623,7 +609,7 @@ describe("updateCardPreviewImage", () => {
       imageWidth: 1200,
       status: "success",
     });
-    expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+    expect(queuedDeletionKeys()).toEqual([]);
   });
 
   test.each([
@@ -641,10 +627,7 @@ describe("updateCardPreviewImage", () => {
 
     expect(await updateCardPreviewImageHandler(ctx, image)).toBe(false);
     expect(ctx.db.patch).not.toHaveBeenCalled();
-    expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-      ctx,
-      image.imageStorageKey
-    );
+    expect(queuedDeletionKeys()).toContain(image.imageStorageKey);
   });
 });
 
@@ -684,10 +667,7 @@ describe("linkMetadata storage cleanup", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-        ctx,
-        "old_image"
-      );
+      expect(queuedDeletionKeys()).toContain("old_image");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -734,8 +714,7 @@ describe("linkMetadata storage cleanup", () => {
 
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledTimes(1);
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "new_shot");
+      expect(queuedDeletionKeys()).toEqual(["new_shot"]);
     });
 
     test("fenced patch deletes new image and media objects but keeps carried-over references", async () => {
@@ -784,10 +763,11 @@ describe("linkMetadata storage cleanup", () => {
 
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      const deleted = r2Mocks.queueObjectDeletion.mock.calls
-        .map((call: any[]) => call[1])
-        .sort();
-      expect(deleted).toEqual(["new_image", "new_media", "new_poster"]);
+      expect(queuedDeletionKeys().sort()).toEqual([
+        "new_image",
+        "new_media",
+        "new_poster",
+      ]);
     });
 
     test("preserves existing image when new image not provided", async () => {
@@ -817,7 +797,7 @@ describe("linkMetadata storage cleanup", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(queuedDeletionKeys()).toEqual([]);
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -898,10 +878,7 @@ describe("linkMetadata storage cleanup", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
-        ctx,
-        "old_screenshot"
-      );
+      expect(queuedDeletionKeys()).toContain("old_screenshot");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -943,7 +920,7 @@ describe("linkMetadata storage cleanup", () => {
         status: "completed",
       });
 
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(queuedDeletionKeys()).toEqual([]);
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",

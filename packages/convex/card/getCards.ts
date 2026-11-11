@@ -72,7 +72,7 @@ export const getCards = query({
       )
     );
 
-    return await finishCards(ctx, cards);
+    return await finishCards(cards);
   },
 });
 

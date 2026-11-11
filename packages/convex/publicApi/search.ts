@@ -855,7 +855,7 @@ export const relevancePage = async (
     ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
     : null;
   return {
-    items: await finishCards(ctx, pageItems),
+    items: await finishCards(pageItems),
     pageInfo: { nextCursor, hasMore: nextCursor !== null },
   };
 };

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  type AttachCardUrls,
   attachCardSummaryUrls,
   attachFileUrls,
   attachGridFileUrls,
@@ -59,9 +60,9 @@ describe("card/queryUtils.ts", () => {
       "users/customer/card/workflow-artifacts/private.json",
     ];
     const original = structuredClone(storedCard);
-    const [grid] = await attachGridFileUrls({}, [storedCard]);
-    const [detail] = await attachFileUrls({}, [storedCard]);
-    const [summary] = await attachCardSummaryUrls({}, [storedCard]);
+    const [grid] = await attachGridFileUrls([storedCard]);
+    const [detail] = await attachFileUrls([storedCard]);
+    const [summary] = await attachCardSummaryUrls([storedCard]);
 
     expect(grid?.metadata?.linkPreview).toStrictEqual({
       status: "success",
@@ -91,7 +92,7 @@ describe("card/queryUtils.ts", () => {
     const metadata = {
       linkPreview: { status: "success" as const, title: "Preview title" },
     };
-    const [withoutMetadata, preview] = await attachGridFileUrls({}, [
+    const [withoutMetadata, preview] = await attachGridFileUrls([
       card({}),
       card({ metadata }),
     ]);
@@ -104,7 +105,7 @@ describe("card/queryUtils.ts", () => {
     process.env.FILES_SIGNING_SECRET = "test-secret";
     process.env.R2_KEY_PREFIX = "dev/";
 
-    const [legacy, canonical] = await attachFileUrls({} as any, [
+    const [legacy, canonical] = await attachFileUrls([
       card({ _id: "legacy", fileKey: "users/abc/cards/file/old.png" }),
       card({ _id: "canon", fileKey: "dev/users/abc/cards/file/new.png" }),
     ]);
@@ -150,16 +151,16 @@ describe("a link's chosen image", () => {
     ["summaries", attachCardSummaryUrls],
   ])(
     "is the link image for %s",
-    async (_name: string, attach: typeof attachFileUrls) => {
+    async (_name: string, attach: AttachCardUrls) => {
       process.env.FILES_BASE = "https://files.example.com";
       process.env.FILES_SIGNING_SECRET = "test-secret";
       delete process.env.R2_KEY_PREFIX;
 
-      const [withOverride] = await attach({} as any, [link]);
+      const [withOverride] = await attach([link]);
       expect(withOverride?.linkPreviewImageUrl).toContain(chosen);
       expect(withOverride?.hasThumbnailOverride).toBe(true);
 
-      const [scraped] = await attach({} as any, [
+      const [scraped] = await attach([
         { ...link, thumbnailOverride: undefined },
       ]);
       expect(scraped?.linkPreviewImageUrl).toContain(

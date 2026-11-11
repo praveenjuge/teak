@@ -18,10 +18,10 @@ const commitCardStorageSwap = async (
   storage: { introduced: string[]; replaced: string[] }
 ): Promise<boolean> => {
   const committed = await patchCard(ctx, cardId, patch);
-  const orphans = committed ? storage.replaced : storage.introduced;
-  for (const key of orphans) {
-    await queueObjectDeletion(ctx, key);
-  }
+  await queueObjectDeletion(
+    ctx,
+    committed ? storage.replaced : storage.introduced
+  );
   return committed;
 };
 

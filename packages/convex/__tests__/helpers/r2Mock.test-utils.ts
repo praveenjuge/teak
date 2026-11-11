@@ -31,6 +31,12 @@ export const r2Mocks = {
   },
 };
 
+/** Every object key queued for deletion, however the keys were batched. */
+export const queuedDeletionKeys = (): string[] =>
+  r2Mocks.queueObjectDeletion.mock.calls
+    .flatMap((call: unknown[]) => call[1] as string | (string | undefined)[])
+    .filter((key): key is string => Boolean(key));
+
 export const r2MockModuleFactory = () => ({
   PENDING_UPLOAD_CARD_ID,
   cardStorageObjectKeys,

@@ -35,10 +35,7 @@ export type CardWithUrls = Doc<"cards"> & {
   articleImageUrls?: string[];
 };
 
-export type AttachCardUrls = (
-  ctx: unknown,
-  cards: Doc<"cards">[]
-) => Promise<CardWithUrls[]>;
+export type AttachCardUrls = (cards: Doc<"cards">[]) => Promise<CardWithUrls[]>;
 
 /**
  * The last step of every read that returns cards: signs their file URLs
@@ -46,11 +43,9 @@ export type AttachCardUrls = (
  * their surrounding quote marks.
  */
 export const finishCards = async (
-  ctx: unknown,
   cards: Doc<"cards">[],
   attach: AttachCardUrls = attachFileUrls
-): Promise<CardWithUrls[]> =>
-  applyQuoteFormattingToList(await attach(ctx, cards));
+): Promise<CardWithUrls[]> => applyQuoteFormattingToList(await attach(cards));
 
 /**
  * A card without its transcript and image text, which only its detail shows.
@@ -98,7 +93,7 @@ export const finishCardDetail = async (
   ctx: Pick<QueryCtx, "db">,
   card: Doc<"cards">
 ): Promise<CardWithUrls> => {
-  const [withUrls] = await finishCards(ctx, [card]);
+  const [withUrls] = await finishCards([card]);
   if (!withUrls) {
     throw new Error("A card's detail is missing");
   }
@@ -153,7 +148,6 @@ const resolveImageRenditions = async (
 };
 
 export const attachFileUrls = async (
-  _ctx: unknown,
   cards: Doc<"cards">[],
   options: { gridOnly?: boolean } = {}
 ): Promise<CardWithUrls[]> => {
@@ -354,7 +348,6 @@ export const attachFileUrls = async (
 };
 
 export const attachGridFileUrls = (
-  ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const gridCards = cards.map((card) => {
@@ -372,11 +365,10 @@ export const attachGridFileUrls = (
     }
     return { ...card, metadata };
   });
-  return attachFileUrls(ctx, gridCards, { gridOnly: true });
+  return attachFileUrls(gridCards, { gridOnly: true });
 };
 
 export const attachCardSummaryUrls = async (
-  _ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const thumbnailKeys = new Set<string>();

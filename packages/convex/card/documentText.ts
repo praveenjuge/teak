@@ -32,12 +32,6 @@ import {
   readCardTranscript,
 } from "./textContents";
 
-export {
-  isExtractedTextTruncated,
-  SEARCH_PREFIX_MAX_BYTES,
-  searchPrefix,
-} from "../shared/documentText";
-
 const MAX_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 
 const encoder = new TextEncoder();
