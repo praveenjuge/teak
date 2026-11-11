@@ -5,7 +5,7 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import {
   deleteAccountDataHandler,
   type OwnedCardIds,
-} from "../../accountDeletion";
+} from "../../accountDeletion/cards";
 import { onCardChanged } from "../../card/onCardChanged";
 import { readFolderCardCount } from "../../folder/folderRows";
 import {

@@ -1,15 +1,14 @@
 import { sha256Hex } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { importStagedPartKeys } from "../import/indexItems";
+import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
 import {
   deleteAccountDataHandler,
   type OwnedCardIds,
+  type ownerIndexBrand,
   takeOwnedCards,
-} from "../accountDeletion";
-import { importStagedPartKeys } from "../import/indexItems";
-import { buildR2UserPrefix, cardStorageObjectKeys } from "../storage/r2";
-
-declare const ownerIndexBrand: unique symbol;
+} from "./cards";
 
 type DeletionBatchRow =
   | Doc<"cards">

@@ -11,8 +11,11 @@
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as accountDeletion_analytics from "../accountDeletion/analytics.js";
 import type * as accountDeletion_batch from "../accountDeletion/batch.js";
+import type * as accountDeletion_cards from "../accountDeletion/cards.js";
 import type * as accountDeletion_gate from "../accountDeletion/gate.js";
 import type * as accountDeletion_stages from "../accountDeletion/stages.js";
+import type * as accountDeletion_start from "../accountDeletion/start.js";
+import type * as accountDeletion_state from "../accountDeletion/state.js";
 import type * as accountDeletion_tables from "../accountDeletion/tables.js";
 import type * as accountDeletion_workflowRun from "../accountDeletion/workflowRun.js";
 import type * as accountDeletionActions from "../accountDeletionActions.js";
@@ -373,8 +376,11 @@ declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
   "accountDeletion/analytics": typeof accountDeletion_analytics;
   "accountDeletion/batch": typeof accountDeletion_batch;
+  "accountDeletion/cards": typeof accountDeletion_cards;
   "accountDeletion/gate": typeof accountDeletion_gate;
   "accountDeletion/stages": typeof accountDeletion_stages;
+  "accountDeletion/start": typeof accountDeletion_start;
+  "accountDeletion/state": typeof accountDeletion_state;
   "accountDeletion/tables": typeof accountDeletion_tables;
   "accountDeletion/workflowRun": typeof accountDeletion_workflowRun;
   accountDeletionActions: typeof accountDeletionActions;

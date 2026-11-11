@@ -52,7 +52,8 @@ describe("auth", () => {
     const authModule = await import("../auth");
     const accountDeletionModule = await import("../accountDeletion");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
-    deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
+    deleteAccountDataHandler = (await import("../accountDeletion/cards"))
+      .deleteAccountDataHandler;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;
 

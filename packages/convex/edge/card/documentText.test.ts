@@ -3,11 +3,11 @@ import { queuedObjectDeletions } from "../../__tests__/helpers/objectDeletions.t
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
+import { captureDeletionBatch } from "../../accountDeletion/batch";
 import {
   deleteAccountDataHandler,
   type OwnedCardIds,
-} from "../../accountDeletion";
-import { captureDeletionBatch } from "../../accountDeletion/batch";
+} from "../../accountDeletion/cards";
 import { documentTextKey } from "../../card/documentText";
 import { onCardChanged } from "../../card/onCardChanged";
 import {
