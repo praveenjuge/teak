@@ -54,6 +54,14 @@ export const apiCardSourceValidator = v.union(
 );
 export type ApiCardSource = Infer<typeof apiCardSourceValidator>;
 
+/** Who finalized an uploaded file: an app, a public API caller, or email. */
+export const uploadCardSourceValidator = v.union(
+  clientCardSourceValidator,
+  apiCardSourceValidator,
+  v.literal("email")
+);
+export type UploadCardSource = Infer<typeof uploadCardSourceValidator>;
+
 const createCardArgs = {
   content: v.string(),
   type: v.optional(cardTypeValidator),

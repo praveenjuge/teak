@@ -1,5 +1,5 @@
 import type { PaginationResult } from "convex/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type ObjectType, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -132,41 +132,44 @@ const bulkResultValidator = v.object({
   }),
 });
 
+const searchCardsPageArgs = {
+  userId: v.string(),
+  showTrashOnly: v.optional(v.boolean()),
+  archived: v.optional(archivedFilterValidator),
+  folderId: v.optional(v.id("folders")),
+  styleFilters: v.optional(v.array(v.string())),
+  hueFilters: v.optional(v.array(v.string())),
+  hexFilters: v.optional(v.array(v.string())),
+  cursor: v.optional(v.string()),
+  searchQuery: v.optional(v.string()),
+  type: v.optional(cardTypeValidator),
+  types: v.optional(v.array(cardTypeValidator)),
+  tag: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  sites: v.optional(v.array(v.string())),
+  phrases: v.optional(v.array(v.string())),
+  prices: v.optional(v.array(priceBoundValidator)),
+  ocrTexts: v.optional(v.array(v.string())),
+  done: v.optional(v.boolean()),
+  todo: v.optional(v.boolean()),
+  folderNames: v.optional(v.array(v.string())),
+  expression: v.optional(v.string()),
+  archivedInTrash: v.optional(v.boolean()),
+  favorited: v.optional(v.boolean()),
+  pinned: v.optional(v.boolean()),
+  createdAfter: v.optional(v.number()),
+  createdBefore: v.optional(v.number()),
+  sort: v.optional(apiCardSortValidator),
+  limit: v.optional(v.number()),
+  ...semanticSearchArgs,
+  relevance: v.optional(
+    v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
+  ),
+};
+export type SearchCardsPageArgs = ObjectType<typeof searchCardsPageArgs>;
+
 export const searchCardsPageForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    showTrashOnly: v.optional(v.boolean()),
-    archived: v.optional(archivedFilterValidator),
-    folderId: v.optional(v.id("folders")),
-    styleFilters: v.optional(v.array(v.string())),
-    hueFilters: v.optional(v.array(v.string())),
-    hexFilters: v.optional(v.array(v.string())),
-    cursor: v.optional(v.string()),
-    searchQuery: v.optional(v.string()),
-    type: v.optional(cardTypeValidator),
-    types: v.optional(v.array(cardTypeValidator)),
-    tag: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
-    sites: v.optional(v.array(v.string())),
-    phrases: v.optional(v.array(v.string())),
-    prices: v.optional(v.array(priceBoundValidator)),
-    ocrTexts: v.optional(v.array(v.string())),
-    done: v.optional(v.boolean()),
-    todo: v.optional(v.boolean()),
-    folderNames: v.optional(v.array(v.string())),
-    expression: v.optional(v.string()),
-    archivedInTrash: v.optional(v.boolean()),
-    favorited: v.optional(v.boolean()),
-    pinned: v.optional(v.boolean()),
-    createdAfter: v.optional(v.number()),
-    createdBefore: v.optional(v.number()),
-    sort: v.optional(apiCardSortValidator),
-    limit: v.optional(v.number()),
-    ...semanticSearchArgs,
-    relevance: v.optional(
-      v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
-    ),
-  },
+  args: searchCardsPageArgs,
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);

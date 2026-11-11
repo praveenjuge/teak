@@ -400,7 +400,7 @@ describe("OCC contention behavior", () => {
       });
     });
     await expect(
-      t.mutation(internal["card/defaultCards"].createDefaultCardsForUser, {
+      t.mutation(internal.card.defaultCards.createDefaultCardsForUser, {
         userId: "user-deleting",
       })
     ).rejects.toMatchObject({

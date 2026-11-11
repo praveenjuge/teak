@@ -318,7 +318,7 @@ describe("Shuffle of a large tag in the grid", () => {
 describe("GET /v1/cards?sort=shuffle", () => {
   const readApi = async (
     t: Awaited<ReturnType<typeof setup>>["t"],
-    args: Record<string, unknown>,
+    args: { shuffleSeed: number } & Record<string, unknown>,
     limit = 6
   ) => {
     const ids: string[] = [];

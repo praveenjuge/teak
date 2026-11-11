@@ -23,7 +23,7 @@ import {
 } from "../../storage/r2";
 import { newBackend, signIn } from "../helpers.testUtils";
 
-const articleText = (internal as any)["card/articleText"];
+const articleText = internal.card.articleText;
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;
 const LINK = "https://example.com/gardens";
@@ -828,7 +828,7 @@ describe("deleting", () => {
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 1 })
     );
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       cardId,
       userId: "owner",
     });

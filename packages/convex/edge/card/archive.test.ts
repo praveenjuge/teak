@@ -566,9 +566,10 @@ describe("public API archive", () => {
         items: [{ cardId: mine, tags: ["later"] }, { cardId: mine }],
       }
     );
-    expect(
-      tagged.results.map((item: { status: string }) => item.status)
-    ).toEqual(["success", "error"]);
+    expect(tagged.results.map((item) => item.status)).toEqual([
+      "success",
+      "error",
+    ]);
     expect(tagged.failedIds).toEqual([mine]);
   });
 });

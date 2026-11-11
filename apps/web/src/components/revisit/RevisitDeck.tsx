@@ -1,4 +1,5 @@
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -197,7 +198,7 @@ export function RevisitDeck({
   const snapshot = deck.current;
   const live = useQuery(
     api.cards.getCard,
-    snapshot ? { id: snapshot._id } : "skip"
+    snapshot ? { id: snapshot._id as Id<"cards"> } : "skip"
   ) as RevisitCard | null | undefined;
   const card = snapshot && live?._id === snapshot._id ? live : snapshot;
 

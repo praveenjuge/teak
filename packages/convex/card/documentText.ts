@@ -73,7 +73,7 @@ export const storeDocumentText = async (
       signal: AbortSignal.timeout(30_000),
     });
   }
-  await ctx.runMutation(internal["card/documentText"].saveDocumentText, {
+  await ctx.runMutation(internal.card.documentText.saveDocumentText, {
     cardId: card._id,
     key,
     text: searchPrefix(text),

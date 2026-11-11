@@ -12,10 +12,12 @@ const totalsValidator = v.object({
   skippedDeletingAccounts: v.number(),
 });
 
+const pageReturns = backfillReturns(totalsValidator);
+
 export const backfillUrlHost = internalMutation({
   args: backfillArgs(totalsValidator),
-  returns: backfillReturns(totalsValidator),
-  handler: (ctx, args) =>
+  returns: pageReturns,
+  handler: (ctx, args): Promise<typeof pageReturns.type> =>
     runBackfillPage(ctx, args, {
       empty: () => ({
         examined: 0,
@@ -26,7 +28,7 @@ export const backfillUrlHost = internalMutation({
       name: "backfillUrlHost",
       read: (cursor, numItems) =>
         ctx.db.query("cards").paginate({ cursor, numItems }),
-      self: internal["migration/backfillUrlHost"].backfillUrlHost,
+      self: internal.migration.backfillUrlHost.backfillUrlHost,
       visit: async (cards, batch, dryRun) => {
         const accountDeleting = createAccountDeletionGate(ctx);
         for (const card of cards) {

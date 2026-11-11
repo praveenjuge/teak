@@ -243,7 +243,7 @@ export const parseCardsQueryOptions = (
   const parsed = parseSearchQuery(query ?? "");
   // Every requested type was checked against CARD_TYPES above.
   const narrowedTypes = narrowTypesForQuery(parsed, uniqueTypes as CardType[]);
-  const resolvedTypes: string[] = narrowedTypes ?? [];
+  const resolvedTypes = narrowedTypes ?? [];
   let matchesNothing = narrowedTypes === null;
   matchesNothing ||= combinedQuery === null;
   let resolvedArchived = archived as CardsQueryOptions["archived"];

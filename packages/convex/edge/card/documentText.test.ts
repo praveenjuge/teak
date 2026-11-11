@@ -17,7 +17,7 @@ import {
 import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import { newBackend, workosIdentity } from "../helpers.testUtils";
 
-const documentText = (internal as any)["card/documentText"];
+const documentText = internal.card.documentText;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -272,7 +272,7 @@ row ${i}`
     await t.run((ctx) =>
       ctx.db.patch("cards", pdf, { isDeleted: true, deletedAt: 5 })
     );
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       cardId: pdf,
       userId: "owner",
     });

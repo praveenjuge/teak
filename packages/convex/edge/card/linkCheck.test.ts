@@ -467,7 +467,7 @@ describe("deleting", () => {
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 1 })
     );
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       cardId,
       userId: "owner",
     });

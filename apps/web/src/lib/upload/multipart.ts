@@ -1,3 +1,4 @@
+import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   getUploadEtag,
   throwIfAborted,
@@ -7,7 +8,7 @@ import {
 
 export interface MultipartUploadDependencies {
   completeMultipartUpload: (args: {
-    sessionId: string;
+    sessionId: Id<"fileUploadSessions">;
   }) => Promise<{ etag: string; size: number; uploadKey: string }>;
   prepareMultipartUpload: (args: {
     fileLastModified: number;
@@ -18,7 +19,7 @@ export interface MultipartUploadDependencies {
   recordMultipartPart: (args: {
     etag: string;
     partNumber: number;
-    sessionId: string;
+    sessionId: Id<"fileUploadSessions">;
     size: number;
   }) => Promise<unknown>;
 }
@@ -26,7 +27,7 @@ export interface MultipartUploadDependencies {
 interface MultipartUploadSession {
   partSize: number;
   partUrls: Array<{ partNumber: number; uploadUrl: string }>;
-  sessionId: string;
+  sessionId: Id<"fileUploadSessions">;
   uploadedParts: number[];
   uploadKey: string;
 }

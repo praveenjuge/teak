@@ -37,7 +37,7 @@ const runMigration = (
   } = {}
 ) =>
   t.mutation(
-    internal["migration/cancelOrphanedWorkflowCleanupJobs"]
+    internal.migration.cancelOrphanedWorkflowCleanupJobs
       .cancelOrphanedWorkflowCleanupJobs,
     args
   );

@@ -159,7 +159,6 @@ import type * as inbound_emailContent from "../inbound/emailContent.js";
 import type * as inbound_http from "../inbound/http.js";
 import type * as inbound_ingest from "../inbound/ingest.js";
 import type * as inbound_settings from "../inbound/settings.js";
-import type * as index from "../index.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as mcp_appResource from "../mcp/appResource.js";
 import type * as mcp_catalog from "../mcp/catalog.js";
@@ -532,7 +531,6 @@ declare const fullApi: ApiFromModules<{
   "inbound/http": typeof inbound_http;
   "inbound/ingest": typeof inbound_ingest;
   "inbound/settings": typeof inbound_settings;
-  index: typeof index;
   linkMetadata: typeof linkMetadata;
   "mcp/appResource": typeof mcp_appResource;
   "mcp/catalog": typeof mcp_catalog;

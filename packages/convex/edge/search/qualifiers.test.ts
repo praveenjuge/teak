@@ -1626,9 +1626,9 @@ describe("search operators", () => {
       });
     // Without an end, a filtered scan reads a whole batch.
     expect((await page()).page).toHaveLength(30);
-    const split = await page(first.continueCursor);
-    expect(split.page.map((card: { content: string }) => card.content)).toEqual(
-      first.page.map((card: { content: string }) => card.content)
+    const split = await page(first.continueCursor ?? undefined);
+    expect(split.page.map((card) => card.content)).toEqual(
+      first.page.map((card) => card.content)
     );
   });
 

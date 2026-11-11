@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import { clientCardSourceValidator } from "./card/createCard";
+import { uploadCardSourceValidator } from "./card/createCard";
 import { ensureCardQuotaAvailable } from "./card/quota";
 import { createUploadedCardForUser } from "./card/uploadCard";
 import {
@@ -155,9 +155,7 @@ export const finalizeUploadedCardForUser = internalMutation({
     mimeType: v.optional(v.string()),
     notes: v.optional(v.union(v.string(), v.null())),
     emailAttachment: v.optional(emailAttachmentClaimValidator),
-    source: v.optional(
-      v.union(clientCardSourceValidator, v.literal("api"), v.literal("email"))
-    ),
+    source: v.optional(uploadCardSourceValidator),
     storedFileSize: v.number(),
     storedMimeType: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),

@@ -3,6 +3,7 @@ import {
   normalizeCardSource,
 } from "../../shared/cardSource";
 import { parseCardTitle } from "../../shared/cardTitle";
+import { isCardType } from "../../shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "../../shared/folders";
 import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
@@ -102,10 +103,7 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   if (sourceError) {
     return { error: sourceError };
   }
-  if (
-    cardType !== undefined &&
-    !(PUBLIC_API_CARD_TYPES as readonly string[]).includes(cardType)
-  ) {
+  if (cardType !== undefined && !isCardType(cardType)) {
     return {
       error: `\`cardType\` must be one of: ${PUBLIC_API_CARD_TYPES.join(", ")}`,
     };

@@ -210,9 +210,9 @@ describe("parseCreatePayload: sourceUrl and sourceTitle", () => {
       sourceTitle: "t".repeat(500),
       sourceUrl: "https://example.com",
     });
-    expect("payload" in result && result.payload.sourceTitle).toBe(
-      "t".repeat(300)
-    );
+    expect(result).toEqual({
+      payload: expect.objectContaining({ sourceTitle: "t".repeat(300) }),
+    });
   });
 
   test("leaves out a blank title", () => {

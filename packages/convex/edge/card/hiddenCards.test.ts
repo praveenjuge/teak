@@ -73,7 +73,9 @@ const setup = async () => {
   const grid = async (
     args: Record<string, unknown> = {},
     as = owner,
-    query: typeof api.cards.searchCardsPaginated = api.cards
+    query:
+      | typeof api.cards.searchCardsPaginated
+      | typeof api.cards.searchMobileCardSummariesPaginated = api.cards
       .searchCardsPaginated
   ) => {
     await runScheduled();

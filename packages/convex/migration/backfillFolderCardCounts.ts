@@ -11,6 +11,8 @@ const totalsValidator = v.object({
   skippedDeletingAccounts: v.number(),
 });
 
+const pageReturns = backfillReturns(totalsValidator);
+
 /**
  * Copies each folder's stored `activeCardCount` into its `folderCardCounts`
  * base row. Card writes no longer change the stored count, so the copy is
@@ -19,8 +21,8 @@ const totalsValidator = v.object({
  */
 export const backfillFolderCardCounts = internalMutation({
   args: backfillArgs(totalsValidator),
-  returns: backfillReturns(totalsValidator),
-  handler: (ctx, args) =>
+  returns: pageReturns,
+  handler: (ctx, args): Promise<typeof pageReturns.type> =>
     runBackfillPage(ctx, args, {
       empty: () => ({
         examined: 0,
@@ -30,7 +32,7 @@ export const backfillFolderCardCounts = internalMutation({
       name: "backfillFolderCardCounts",
       read: (cursor, numItems) =>
         ctx.db.query("folders").paginate({ cursor, numItems }),
-      self: internal["migration/backfillFolderCardCounts"]
+      self: internal.migration.backfillFolderCardCounts
         .backfillFolderCardCounts,
       visit: async (folders, batch, dryRun) => {
         const accountDeleting = createAccountDeletionGate(ctx);

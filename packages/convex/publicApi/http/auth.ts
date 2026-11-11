@@ -258,7 +258,6 @@ const authorizeBearer = async (
             userId: owner.teakUserId as TeakUserId,
             access: "full_access",
             clientId: principal.clientId,
-            source: "oauth",
             keyId: principal.consentId,
             rateLimitKey: workosRateLimitKey(
               principal.clientId,
