@@ -29,7 +29,6 @@ export const findCachedResult = async <T extends SearchCacheTable>(
     )
     .first()) as Doc<T> | null;
 
-/** Writes a search's cache row over the one it already has, if any. */
 export const writeCachedResult = async <T extends SearchCacheTable>(
   ctx: Pick<MutationCtx, "db">,
   table: T,

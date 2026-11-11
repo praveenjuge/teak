@@ -75,7 +75,6 @@ export const setCardPinnedForUser = async (
       limit: MAX_PINNED_CARDS,
     });
   }
-  // A new pin goes first.
   const first = pins[0]?.pinPosition;
   await ctx.db.patch("cards", cardId, {
     pinPosition: first === undefined ? 0 : first - 1,

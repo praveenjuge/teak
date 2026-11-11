@@ -118,7 +118,6 @@ export const expressionTextReader = (
   };
 };
 
-/** Whether a card has a tag, by its key (`tagKey`). */
 export const cardHasTag = (card: Doc<"cards">, key: string) =>
   [...(card.tags ?? []), ...(card.aiTags ?? [])].some(
     (cardTag) => tagKey(cardTag) === key
