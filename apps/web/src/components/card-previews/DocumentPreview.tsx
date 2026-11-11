@@ -12,6 +12,7 @@ import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import type { ClientCard } from "@/lib/cardTypes";
 import { FileTextPreview } from "./FileTextPreview";
+import { previewsAsText } from "./fileTextPreviewCache";
 import { MEDIA_LOADING_CLASS } from "./ImagePreview";
 
 interface DocumentPreviewProps {
@@ -173,7 +174,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
         ) : null}
       </div>
 
-      {fileUrl && format && ["markdown", "source"].includes(format.preview) ? (
+      {fileUrl && format && previewsAsText(format) ? (
         <FileTextPreview
           fileKey={card.fileKey}
           fileUrl={fileUrl}

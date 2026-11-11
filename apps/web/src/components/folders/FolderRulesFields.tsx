@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { useQuery } from "@/lib/convexQueryHooks";
@@ -60,8 +61,12 @@ export function useFolderRulesForm(
   const [tagInput, setTagInput] = useState("");
   const [query, setQuery] = useState("");
   const [enabled, setEnabled] = useState(true);
-  const [previewQuery, setPreviewQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const canonicalQuery = parseSearchQuery(query).canonical;
+  const [previewQuery, setPreviewQuery] = useDebouncedValue(
+    canonicalQuery,
+    PREVIEW_DELAY_MS
+  );
   const active = open && folder?.kind === "manual";
 
   useEffect(() => {
@@ -76,16 +81,8 @@ export function useFolderRulesForm(
           Boolean(folder.rules?.autoFile)
       );
     }
-  }, [active, folder]);
+  }, [active, folder, setPreviewQuery]);
 
-  const canonicalQuery = parseSearchQuery(query).canonical;
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setPreviewQuery(canonicalQuery),
-      PREVIEW_DELAY_MS
-    );
-    return () => clearTimeout(timer);
-  }, [canonicalQuery]);
   const preview = useQuery(
     api.folders.previewFolderRule,
     active && previewQuery ? { query: previewQuery } : "skip"

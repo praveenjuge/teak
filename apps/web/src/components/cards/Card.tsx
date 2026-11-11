@@ -63,7 +63,11 @@ import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
-import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
+import {
+  prefetchFileTextPreview,
+  previewsAsText,
+  textPreviewKey,
+} from "../card-previews/fileTextPreviewCache";
 import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
@@ -78,6 +82,7 @@ import {
   QuickActionButton,
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
+import { CARD_ID_ATTRIBUTE } from "./cardElement";
 import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
@@ -142,18 +147,15 @@ export const Card = memo(function Card({
   const fileFormat = card.type === "document" ? cardFileFormat(card) : null;
 
   const prefetchDocumentPreview = () => {
-    if (
-      isOptimistic ||
-      !card.fileKey ||
-      !card.fileUrl ||
-      !fileFormat ||
-      !["markdown", "source"].includes(fileFormat.preview)
-    ) {
+    if (isOptimistic || !card.fileUrl || !previewsAsText(fileFormat)) {
       return;
     }
 
     void prefetchFileTextPreview({
-      cacheKey: card.fileKey,
+      cacheKey: textPreviewKey({
+        fileKey: card.fileKey,
+        fileUrl: card.fileUrl,
+      }),
       fileUrl: card.fileUrl,
     }).catch(() => undefined);
   };
@@ -411,9 +413,10 @@ export const Card = memo(function Card({
               isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
               card.isDeleted && "opacity-60"
             )}
-            data-card-id={
-              isOptimistic || isFirstPaintCopy ? undefined : card._id
-            }
+            {...{
+              [CARD_ID_ATTRIBUTE]:
+                isOptimistic || isFirstPaintCopy ? undefined : card._id,
+            }}
             draggable={canDrag}
             onClick={handleClick}
             onDragStart={canDrag ? handleDragStart : undefined}

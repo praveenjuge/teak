@@ -15,7 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import type { CardWithUrls } from "@/components/cards";
-import { Card } from "@/components/cards";
+import { Card, cardElement, cardElements, cardIdOf } from "@/components/cards";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   CardGridSource,
@@ -33,6 +33,7 @@ import type {
   SelectionAction,
 } from "../../lib/cardActions";
 import type { CardGridLayout } from "../../lib/cardDensity";
+import { nearestRemainingCardIds } from "../../lib/cardNeighbors";
 import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { gridKeyAction } from "../../lib/gridKeys";
@@ -97,21 +98,6 @@ const PRIORITY_CARD_COUNT = 10;
 // changing while Settings is open) unmounts every item, the composer
 // included. Without motion the items stay mounted.
 const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
-
-export function neighborOf(
-  cardId: string,
-  order: { current: readonly string[]; previous: readonly string[] }
-): string[] {
-  const index = order.previous.indexOf(cardId);
-  if (index < 0) {
-    return [];
-  }
-  const remaining = new Set(order.current);
-  return [
-    ...order.previous.slice(index + 1),
-    ...order.previous.slice(0, index).reverse(),
-  ].filter((id) => remaining.has(id));
-}
 
 const sameOrder = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, index) => id === b[index]);
@@ -394,7 +380,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       : (navigableIds[0] ?? null);
 
   const focusCard = useCallback((element: HTMLElement) => {
-    const cardId = element.dataset.cardId;
+    const cardId = cardIdOf(element);
     if (cardId) {
       setActiveCardId(cardId);
     }
@@ -409,11 +395,7 @@ export const MasonryGrid = memo(function MasonryGrid({
         document.activeElement === document.body;
       const enterGrid = () => {
         const element =
-          tabStopId === null
-            ? null
-            : gridRef.current?.querySelector<HTMLElement>(
-                `[data-card-id="${CSS.escape(tabStopId)}"]`
-              );
+          tabStopId === null ? null : cardElement(gridRef.current, tabStopId);
         if (element) {
           focusCard(element);
         }
@@ -481,12 +463,9 @@ export const MasonryGrid = memo(function MasonryGrid({
     const focusLeft =
       focused === null ||
       focused === document.body ||
-      (focused instanceof HTMLElement &&
-        focused.dataset.cardId === activeCardId);
+      cardIdOf(focused) === activeCardId;
     if (fallbackId && gridFocusedRef.current && focusLeft) {
-      const element = gridRef.current?.querySelector<HTMLElement>(
-        `[data-card-id="${CSS.escape(fallbackId)}"]`
-      );
+      const element = cardElement(gridRef.current, fallbackId);
       if (element) {
         focusCard(element);
       }
@@ -501,14 +480,11 @@ export const MasonryGrid = memo(function MasonryGrid({
           return false;
         }
         openedFromGridRef.current = false;
-        const findCard = (id: string) =>
-          gridRef.current?.querySelector<HTMLElement>(
-            `[data-card-id="${CSS.escape(id)}"]`
-          ) ?? null;
+        const { current, previous } = cardOrderRef.current;
         const element =
-          findCard(cardId) ??
-          neighborOf(cardId, cardOrderRef.current)
-            .map(findCard)
+          cardElement(gridRef.current, cardId) ??
+          nearestRemainingCardIds(previous, current, cardId)
+            .map((id) => cardElement(gridRef.current, id))
             .find((found) => found !== null);
         if (!element) {
           return false;
@@ -837,7 +813,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   );
 
   const handleGridFocus = useCallback((event: FocusEvent<HTMLDivElement>) => {
-    const cardId = (event.target as HTMLElement).dataset?.cardId;
+    const cardId = cardIdOf(event.target as Element);
     if (cardId) {
       setActiveCardId(cardId);
     }
@@ -845,7 +821,7 @@ export const MasonryGrid = memo(function MasonryGrid({
 
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    const cardId = target.dataset?.cardId;
+    const cardId = cardIdOf(target);
     if (
       !cardId ||
       event.defaultPrevented ||
@@ -871,12 +847,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     );
     if (action?.type === "move") {
       event.preventDefault();
-      const elements = Array.from(
-        gridRef.current?.querySelectorAll<HTMLElement>("[data-card-id]") ?? []
-      );
-      const byId = new Map(
-        elements.map((element) => [element.dataset.cardId, element])
-      );
+      const byId = cardElements(gridRef.current);
       const ordered = navigableIds.flatMap((id) => {
         const element = byId.get(id);
         return element ? [element] : [];

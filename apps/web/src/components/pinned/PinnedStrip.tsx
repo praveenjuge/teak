@@ -26,7 +26,7 @@ import type { CardActionId } from "../../lib/cardActions";
 import { type GridKeyContext, gridKeyAction } from "../../lib/gridKeys";
 import { movedIds } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
-import { Card, type CardWithUrls } from "../cards";
+import { Card, type CardWithUrls, cardElement } from "../cards";
 import type { CardOpenOrigin } from "../cards/types";
 import { CardFoldersDialog, EditLinkDialog } from "../lazyDialogs";
 
@@ -135,11 +135,7 @@ export function PinnedStrip({
         // Reordering moves the card's element in the page, and the browser
         // drops focus from an element it moves: give it back once moved.
         requestAnimationFrame(() =>
-          listRef.current
-            ?.querySelector<HTMLElement>(
-              `[data-card-id="${globalThis.CSS.escape(cardId)}"]`
-            )
-            ?.focus()
+          cardElement(listRef.current, cardId)?.focus()
         );
       }
       return;

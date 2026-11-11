@@ -28,6 +28,9 @@ import {
   timeFilterFromUrl,
 } from "./searchUrlState";
 
+/** How long typing pauses before a search goes to the server. */
+export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
+
 export const semanticSearchText = (
   searchQuery: string,
   folderQuery?: string
