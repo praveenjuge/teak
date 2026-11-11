@@ -318,6 +318,52 @@ describe("webmcp tool registration", () => {
     expect(messages.join("\n")).toContain("teak_search_cards");
   });
 
+  test("every tool refuses what its own schema refuses, naming the field", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    await registerTeakWebMcpTools(modelContext, unusedDeps, {
+      logger: () => undefined,
+    });
+    interface Property {
+      enum?: unknown[];
+      type: string;
+    }
+    const fits = (property: Property) =>
+      property.type === "boolean" ? true : "abc";
+    const misfit = (property: Property) => {
+      if (property.enum) {
+        return "not-a-choice";
+      }
+      return (
+        { array: "a", boolean: "yes", integer: 2.5, string: 42 } as Record<
+          string,
+          unknown
+        >
+      )[property.type];
+    };
+    const signal = new AbortController().signal;
+    for (const tool of registered) {
+      const properties = tool.inputSchema.properties as Record<
+        string,
+        Property
+      >;
+      const required = tool.inputSchema.required ?? [];
+      const valid = Object.fromEntries(
+        required.map((name) => [name, fits(properties[name] as Property)])
+      );
+      for (const [name, property] of Object.entries(properties)) {
+        await expect(
+          tool.execute({ ...valid, [name]: misfit(property) }, { signal })
+        ).rejects.toThrow(`"${name}"`);
+      }
+      for (const name of required) {
+        const { [name]: _missing, ...rest } = valid;
+        await expect(tool.execute(rest, { signal })).rejects.toThrow(
+          `"${name}"`
+        );
+      }
+    }
+  });
+
   test("search execute normalizes input and summarizes results", async () => {
     const { modelContext, registered, unusedDeps } = setup();
     const seen: unknown[] = [];

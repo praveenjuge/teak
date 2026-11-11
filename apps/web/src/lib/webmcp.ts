@@ -118,146 +118,237 @@ export type WebMcpCreateCardType = (typeof WEBMCP_CREATE_CARD_TYPES)[number];
 export const WEBMCP_DEFAULT_LIMIT = 20;
 export const WEBMCP_MAX_LIMIT = 50;
 
-export const WEBMCP_SEARCH_INPUT_SCHEMA: WebMcpToolInputSchema = {
+/**
+ * One input field, written once: its JSON schema and the check `execute` runs
+ * on what an agent sends both come from it.
+ */
+type ToolField =
+  | { kind: "string"; description: string; nonEmpty?: true }
+  | { kind: "integer"; description: string; minimum: number; maximum: number }
+  | { kind: "boolean"; description: string }
+  | { kind: "enum"; description: string; values: readonly string[] }
+  | { kind: "strings"; description: string };
+
+/** A tool's input. With no required field, the whole input may be left out. */
+interface ToolInput {
+  fields: Record<string, ToolField>;
+  required?: readonly string[];
+}
+
+const fieldSchema = (field: ToolField): Record<string, unknown> => {
+  switch (field.kind) {
+    case "string":
+      return {
+        type: "string",
+        ...(field.nonEmpty ? { minLength: 1 } : {}),
+        description: field.description,
+      };
+    case "integer":
+      return {
+        type: "integer",
+        minimum: field.minimum,
+        maximum: field.maximum,
+        description: field.description,
+      };
+    case "boolean":
+      return { type: "boolean", description: field.description };
+    case "enum":
+      return {
+        type: "string",
+        enum: [...field.values],
+        description: field.description,
+      };
+    case "strings":
+      return {
+        type: "array",
+        items: { type: "string" },
+        description: field.description,
+      };
+    default:
+      return field satisfies never;
+  }
+};
+
+const toolInputSchema = ({
+  fields,
+  required,
+}: ToolInput): WebMcpToolInputSchema => ({
   type: "object",
-  properties: {
+  properties: Object.fromEntries(
+    Object.entries(fields).map(([name, field]) => [name, fieldSchema(field)])
+  ),
+  ...(required ? { required: [...required] } : {}),
+  additionalProperties: false,
+});
+
+/** What is wrong with `value` for `field`, or null when it fits. */
+const fieldProblem = (field: ToolField, value: unknown): string | null => {
+  switch (field.kind) {
+    case "string":
+      if (field.nonEmpty) {
+        return typeof value === "string" && value.trim()
+          ? null
+          : "must be a non-empty string";
+      }
+      return typeof value === "string" ? null : "must be a string";
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value)
+        ? null
+        : "must be an integer";
+    case "boolean":
+      return typeof value === "boolean" ? null : "must be a boolean";
+    case "enum":
+      return typeof value === "string" && field.values.includes(value)
+        ? null
+        : `must be one of ${field.values.join(", ")}`;
+    case "strings":
+      return Array.isArray(value) &&
+        value.every((item) => typeof item === "string")
+        ? null
+        : "must be an array of strings";
+    default:
+      return field satisfies never;
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Checks `input` against the tool's fields; later rules are the caller's. */
+const readToolInput = (
+  toolName: string,
+  { fields, required = [] }: ToolInput,
+  input: unknown
+): Record<string, unknown> => {
+  if (input === undefined && required.length === 0) {
+    return {};
+  }
+  if (!isRecord(input)) {
+    throw new Error(`${toolName}: input must be an object`);
+  }
+  for (const [name, field] of Object.entries(fields)) {
+    const value = input[name];
+    if (value === undefined && !required.includes(name)) {
+      continue;
+    }
+    const problem = fieldProblem(field, value);
+    if (problem) {
+      throw new Error(`${toolName}: "${name}" ${problem}`);
+    }
+  }
+  return input;
+};
+
+const CARD_ID_FIELD: ToolField = {
+  kind: "string",
+  nonEmpty: true,
+  description: "The Teak card ID.",
+};
+const LIMIT_FIELD: ToolField = {
+  kind: "integer",
+  minimum: 1,
+  maximum: WEBMCP_MAX_LIMIT,
+  description: "Maximum cards to return. Defaults to 20.",
+};
+const TYPE_FILTER_FIELD: ToolField = {
+  kind: "enum",
+  values: cardTypes,
+  description: "Only return cards of this type.",
+};
+
+const SEARCH_INPUT: ToolInput = {
+  fields: {
     q: {
-      type: "string",
+      kind: "string",
       description: "Keyword query. Omit or leave blank to list recent cards.",
     },
-    limit: {
-      type: "integer",
-      minimum: 1,
-      maximum: WEBMCP_MAX_LIMIT,
-      description: "Maximum cards to return. Defaults to 20.",
-    },
-    type: {
-      type: "string",
-      enum: [...cardTypes],
-      description: "Only return cards of this type.",
-    },
+    limit: LIMIT_FIELD,
+    type: TYPE_FILTER_FIELD,
     favorited: {
-      type: "boolean",
+      kind: "boolean",
       description: "When true, only return favorited cards.",
     },
   },
-  additionalProperties: false,
 };
 
-export const WEBMCP_GET_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
-    cardId: {
-      type: "string",
-      minLength: 1,
-      description: "The Teak card ID.",
-    },
-  },
+const GET_INPUT: ToolInput = {
+  fields: { cardId: CARD_ID_FIELD },
   required: ["cardId"],
-  additionalProperties: false,
 };
 
-export const WEBMCP_CREATE_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
+const CREATE_INPUT: ToolInput = {
+  fields: {
     content: {
-      type: "string",
-      minLength: 1,
+      kind: "string",
+      nonEmpty: true,
       description: "The card content. Required.",
     },
     type: {
-      type: "string",
-      enum: [...WEBMCP_CREATE_CARD_TYPES],
+      kind: "enum",
+      values: WEBMCP_CREATE_CARD_TYPES,
       description: "The card type. Defaults to text.",
     },
-    url: {
-      type: "string",
-      description: "Source URL, used by link cards.",
-    },
+    url: { kind: "string", description: "Source URL, used by link cards." },
     notes: {
-      type: "string",
+      kind: "string",
       description: "Private notes attached to the card.",
     },
-    tags: {
-      type: "array",
-      items: { type: "string" },
-      description: "Tags attached to the card.",
-    },
+    tags: { kind: "strings", description: "Tags attached to the card." },
   },
   required: ["content"],
-  additionalProperties: false,
 };
 
-export const WEBMCP_TAGS_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
-    cardId: {
-      type: "string",
-      minLength: 1,
-      description: "The Teak card ID.",
-    },
+const TAGS_INPUT: ToolInput = {
+  fields: {
+    cardId: CARD_ID_FIELD,
     add: {
-      type: "array",
-      items: { type: "string" },
+      kind: "strings",
       description: "Tags to add. At least one of add or remove is required.",
     },
     remove: {
-      type: "array",
-      items: { type: "string" },
+      kind: "strings",
       description: "Tags to remove, matched exactly.",
     },
   },
   required: ["cardId"],
-  additionalProperties: false,
 };
 
-export const WEBMCP_FAVORITE_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
-    cardId: {
-      type: "string",
-      minLength: 1,
-      description: "The Teak card ID.",
-    },
+const FAVORITE_INPUT: ToolInput = {
+  fields: {
+    cardId: CARD_ID_FIELD,
     favorited: {
-      type: "boolean",
+      kind: "boolean",
       description: "True to favorite the card, false to unfavorite it.",
     },
   },
   required: ["cardId", "favorited"],
-  additionalProperties: false,
 };
 
-export const WEBMCP_RECENT_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
-    limit: {
-      type: "integer",
-      minimum: 1,
-      maximum: WEBMCP_MAX_LIMIT,
-      description: "Maximum cards to return. Defaults to 20.",
-    },
-    type: {
-      type: "string",
-      enum: [...cardTypes],
-      description: "Only return cards of this type.",
+const RECENT_INPUT: ToolInput = {
+  fields: { limit: LIMIT_FIELD, type: TYPE_FILTER_FIELD },
+};
+
+const PIN_INPUT: ToolInput = {
+  fields: {
+    cardId: CARD_ID_FIELD,
+    pinned: {
+      kind: "boolean",
+      description: "True to pin the card to the top, false to unpin it.",
     },
   },
-  additionalProperties: false,
+  required: ["cardId", "pinned"],
 };
+
+export const WEBMCP_SEARCH_INPUT_SCHEMA = toolInputSchema(SEARCH_INPUT);
+export const WEBMCP_GET_INPUT_SCHEMA = toolInputSchema(GET_INPUT);
+export const WEBMCP_CREATE_INPUT_SCHEMA = toolInputSchema(CREATE_INPUT);
+export const WEBMCP_TAGS_INPUT_SCHEMA = toolInputSchema(TAGS_INPUT);
+export const WEBMCP_FAVORITE_INPUT_SCHEMA = toolInputSchema(FAVORITE_INPUT);
+export const WEBMCP_RECENT_INPUT_SCHEMA = toolInputSchema(RECENT_INPUT);
+export const WEBMCP_PIN_INPUT_SCHEMA = toolInputSchema(PIN_INPUT);
 
 const EXCERPT_LENGTH = 280;
 const DETAIL_CONTENT_LENGTH = 8000;
-
-export interface WebMcpSearchArgs {
-  favorited?: boolean;
-  limit: number;
-  q?: string;
-  type?: CardType;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const throwIfAborted = (toolName: string, signal: AbortSignal): void => {
   if (signal.aborted) {
@@ -298,57 +389,41 @@ const withAbort = <T>(
   });
 };
 
-const isCardType = (value: unknown): value is CardType =>
-  typeof value === "string" && (cardTypes as readonly string[]).includes(value);
+const clampLimit = (limit: number | undefined) =>
+  Math.min(Math.max(limit ?? WEBMCP_DEFAULT_LIMIT, 1), WEBMCP_MAX_LIMIT);
+
+const trimmedOrUndefined = (value: string | undefined) =>
+  value?.trim() ? value.trim() : undefined;
+
+const cleanTags = (tags: string[] | undefined): string[] =>
+  (tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+
+export interface WebMcpSearchArgs {
+  favorited?: boolean;
+  limit: number;
+  q?: string;
+  type?: CardType;
+}
 
 export const normalizeSearchToolInput = (input: unknown): WebMcpSearchArgs => {
-  if (input !== undefined && !isRecord(input)) {
-    throw new Error(`${WEBMCP_SEARCH_TOOL_NAME}: input must be an object`);
-  }
-  const record = input ?? {};
-  const { q, limit, type, favorited } = record as Record<string, unknown>;
-
-  if (q !== undefined && typeof q !== "string") {
-    throw new Error(`${WEBMCP_SEARCH_TOOL_NAME}: "q" must be a string`);
-  }
-  if (type !== undefined && !isCardType(type)) {
-    throw new Error(
-      `${WEBMCP_SEARCH_TOOL_NAME}: "type" must be one of ${cardTypes.join(", ")}`
-    );
-  }
-  if (favorited !== undefined && typeof favorited !== "boolean") {
-    throw new Error(
-      `${WEBMCP_SEARCH_TOOL_NAME}: "favorited" must be a boolean`
-    );
-  }
-  if (
-    limit !== undefined &&
-    (typeof limit !== "number" || !Number.isInteger(limit))
-  ) {
-    throw new Error(`${WEBMCP_SEARCH_TOOL_NAME}: "limit" must be an integer`);
-  }
-
+  const { q, limit, type, favorited } = readToolInput(
+    WEBMCP_SEARCH_TOOL_NAME,
+    SEARCH_INPUT,
+    input
+  ) as Partial<WebMcpSearchArgs>;
+  const query = trimmedOrUndefined(q);
   return {
-    ...(typeof q === "string" && q.trim() ? { q: q.trim() } : {}),
-    limit: Math.min(
-      Math.max(limit ?? WEBMCP_DEFAULT_LIMIT, 1),
-      WEBMCP_MAX_LIMIT
-    ),
+    ...(query === undefined ? {} : { q: query }),
+    limit: clampLimit(limit),
     ...(type === undefined ? {} : { type }),
     ...(favorited === undefined ? {} : { favorited }),
   };
 };
 
 export const normalizeGetToolInput = (input: unknown): { cardId: string } => {
-  if (!isRecord(input)) {
-    throw new Error(`${WEBMCP_GET_TOOL_NAME}: input must be an object`);
-  }
-  const { cardId } = input;
-  if (typeof cardId !== "string" || !cardId.trim()) {
-    throw new Error(
-      `${WEBMCP_GET_TOOL_NAME}: "cardId" must be a non-empty string`
-    );
-  }
+  const { cardId } = readToolInput(WEBMCP_GET_TOOL_NAME, GET_INPUT, input) as {
+    cardId: string;
+  };
   return { cardId: cardId.trim() };
 };
 
@@ -360,58 +435,21 @@ export interface WebMcpCreateArgs {
   url?: string;
 }
 
-const isCreateCardType = (value: unknown): value is WebMcpCreateCardType =>
-  typeof value === "string" &&
-  (WEBMCP_CREATE_CARD_TYPES as readonly string[]).includes(value);
-
-const normalizeTagList = (
-  toolName: string,
-  field: string,
-  value: unknown
-): string[] | undefined => {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(value) || value.some((tag) => typeof tag !== "string")) {
-    throw new Error(`${toolName}: "${field}" must be an array of strings`);
-  }
-  const tags = value.map((tag) => tag.trim()).filter(Boolean);
-  return tags.length > 0 ? tags : undefined;
-};
-
 export const normalizeCreateToolInput = (input: unknown): WebMcpCreateArgs => {
-  if (!isRecord(input)) {
-    throw new Error(`${WEBMCP_CREATE_TOOL_NAME}: input must be an object`);
-  }
-  const { content, type, url, notes, tags } = input;
-  if (typeof content !== "string" || !content.trim()) {
-    throw new Error(
-      `${WEBMCP_CREATE_TOOL_NAME}: "content" must be a non-empty string`
-    );
-  }
-  if (type !== undefined && !isCreateCardType(type)) {
-    throw new Error(
-      `${WEBMCP_CREATE_TOOL_NAME}: "type" must be one of ${WEBMCP_CREATE_CARD_TYPES.join(", ")}`
-    );
-  }
-  if (url !== undefined && typeof url !== "string") {
-    throw new Error(`${WEBMCP_CREATE_TOOL_NAME}: "url" must be a string`);
-  }
-  if (notes !== undefined && typeof notes !== "string") {
-    throw new Error(`${WEBMCP_CREATE_TOOL_NAME}: "notes" must be a string`);
-  }
-  const cleanTags = normalizeTagList(WEBMCP_CREATE_TOOL_NAME, "tags", tags);
-  const cleanUrl =
-    typeof url === "string" && url.trim() ? url.trim() : undefined;
-  const cleanNotes =
-    typeof notes === "string" && notes.trim() ? notes.trim() : undefined;
-
+  const { content, type, url, notes, tags } = readToolInput(
+    WEBMCP_CREATE_TOOL_NAME,
+    CREATE_INPUT,
+    input
+  ) as Partial<WebMcpCreateArgs> & { content: string };
+  const cleanUrl = trimmedOrUndefined(url);
+  const cleanNotes = trimmedOrUndefined(notes);
+  const kept = cleanTags(tags);
   return {
     content: content.trim(),
     type: type ?? "text",
     ...(cleanUrl === undefined ? {} : { url: cleanUrl }),
     ...(cleanNotes === undefined ? {} : { notes: cleanNotes }),
-    ...(cleanTags === undefined ? {} : { tags: cleanTags }),
+    ...(kept.length === 0 ? {} : { tags: kept }),
   };
 };
 
@@ -422,18 +460,13 @@ export interface WebMcpTagsArgs {
 }
 
 export const normalizeTagsToolInput = (input: unknown): WebMcpTagsArgs => {
-  if (!isRecord(input)) {
-    throw new Error(`${WEBMCP_TAGS_TOOL_NAME}: input must be an object`);
-  }
-  const { cardId, add, remove } = input;
-  if (typeof cardId !== "string" || !cardId.trim()) {
-    throw new Error(
-      `${WEBMCP_TAGS_TOOL_NAME}: "cardId" must be a non-empty string`
-    );
-  }
-  const cleanAdd = normalizeTagList(WEBMCP_TAGS_TOOL_NAME, "add", add) ?? [];
-  const cleanRemove =
-    normalizeTagList(WEBMCP_TAGS_TOOL_NAME, "remove", remove) ?? [];
+  const { cardId, add, remove } = readToolInput(
+    WEBMCP_TAGS_TOOL_NAME,
+    TAGS_INPUT,
+    input
+  ) as { add?: string[]; cardId: string; remove?: string[] };
+  const cleanAdd = cleanTags(add);
+  const cleanRemove = cleanTags(remove);
   if (cleanAdd.length === 0 && cleanRemove.length === 0) {
     throw new Error(
       `${WEBMCP_TAGS_TOOL_NAME}: at least one of "add" or "remove" must be non-empty`
@@ -455,29 +488,13 @@ export interface WebMcpRecentArgs {
 }
 
 export const normalizeRecentToolInput = (input: unknown): WebMcpRecentArgs => {
-  if (input !== undefined && !isRecord(input)) {
-    throw new Error(`${WEBMCP_RECENT_TOOL_NAME}: input must be an object`);
-  }
-  const record = input ?? {};
-  const { limit, type } = record as Record<string, unknown>;
-
-  if (type !== undefined && !isCardType(type)) {
-    throw new Error(
-      `${WEBMCP_RECENT_TOOL_NAME}: "type" must be one of ${cardTypes.join(", ")}`
-    );
-  }
-  if (
-    limit !== undefined &&
-    (typeof limit !== "number" || !Number.isInteger(limit))
-  ) {
-    throw new Error(`${WEBMCP_RECENT_TOOL_NAME}: "limit" must be an integer`);
-  }
-
+  const { limit, type } = readToolInput(
+    WEBMCP_RECENT_TOOL_NAME,
+    RECENT_INPUT,
+    input
+  ) as Partial<WebMcpRecentArgs>;
   return {
-    limit: Math.min(
-      Math.max(limit ?? WEBMCP_DEFAULT_LIMIT, 1),
-      WEBMCP_MAX_LIMIT
-    ),
+    limit: clampLimit(limit),
     ...(type === undefined ? {} : { type }),
   };
 };
@@ -487,21 +504,15 @@ export interface WebMcpFavoriteArgs {
   favorited: boolean;
 }
 
-export const WEBMCP_PIN_INPUT_SCHEMA: WebMcpToolInputSchema = {
-  type: "object",
-  properties: {
-    cardId: {
-      type: "string",
-      minLength: 1,
-      description: "The Teak card ID.",
-    },
-    pinned: {
-      type: "boolean",
-      description: "True to pin the card to the top, false to unpin it.",
-    },
-  },
-  required: ["cardId", "pinned"],
-  additionalProperties: false,
+export const normalizeFavoriteToolInput = (
+  input: unknown
+): WebMcpFavoriteArgs => {
+  const { cardId, favorited } = readToolInput(
+    WEBMCP_FAVORITE_TOOL_NAME,
+    FAVORITE_INPUT,
+    input
+  ) as unknown as WebMcpFavoriteArgs;
+  return { cardId: cardId.trim(), favorited };
 };
 
 export interface WebMcpPinArgs {
@@ -510,39 +521,12 @@ export interface WebMcpPinArgs {
 }
 
 export const normalizePinToolInput = (input: unknown): WebMcpPinArgs => {
-  if (!isRecord(input)) {
-    throw new Error(`${WEBMCP_PIN_TOOL_NAME}: input must be an object`);
-  }
-  const { cardId, pinned } = input;
-  if (typeof cardId !== "string" || !cardId.trim()) {
-    throw new Error(
-      `${WEBMCP_PIN_TOOL_NAME}: "cardId" must be a non-empty string`
-    );
-  }
-  if (typeof pinned !== "boolean") {
-    throw new Error(`${WEBMCP_PIN_TOOL_NAME}: "pinned" must be a boolean`);
-  }
+  const { cardId, pinned } = readToolInput(
+    WEBMCP_PIN_TOOL_NAME,
+    PIN_INPUT,
+    input
+  ) as unknown as WebMcpPinArgs;
   return { cardId: cardId.trim(), pinned };
-};
-
-export const normalizeFavoriteToolInput = (
-  input: unknown
-): WebMcpFavoriteArgs => {
-  if (!isRecord(input)) {
-    throw new Error(`${WEBMCP_FAVORITE_TOOL_NAME}: input must be an object`);
-  }
-  const { cardId, favorited } = input;
-  if (typeof cardId !== "string" || !cardId.trim()) {
-    throw new Error(
-      `${WEBMCP_FAVORITE_TOOL_NAME}: "cardId" must be a non-empty string`
-    );
-  }
-  if (typeof favorited !== "boolean") {
-    throw new Error(
-      `${WEBMCP_FAVORITE_TOOL_NAME}: "favorited" must be a boolean`
-    );
-  }
-  return { cardId: cardId.trim(), favorited };
 };
 
 export interface WebMcpCardInput {
