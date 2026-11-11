@@ -1,6 +1,6 @@
+import { MAX_IMPORT_FILE_BYTES } from "@teak/files-protocol";
 import { inferFileFormat } from "../shared/fileFormats";
 import { urlKey } from "../shared/utils/urlKey";
-import { MAX_IMPORT_FILE_BYTES } from "./constants";
 import { validateImportCard } from "./validate";
 
 export type ImportIndexItem = ReturnType<typeof normalizeIndexItem>;

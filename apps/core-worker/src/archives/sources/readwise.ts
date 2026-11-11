@@ -1,6 +1,8 @@
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { readCsvTable } from "./csv";
 import {
+  IMPORT_LIMIT_TEXT,
   ImportLimitExceeded,
   linkItem,
   notAnExport,
@@ -8,7 +10,6 @@ import {
 } from "./sourceItems";
 
 const SOURCE = "Readwise Reader";
-const MAX_ITEMS = 10_000;
 const MAX_ROWS = 100_000;
 
 /**
@@ -41,9 +42,9 @@ export function parseReadwiseCsv(csv: string): ParsedBookmarkItem[] {
     if (location === "feed") {
       continue;
     }
-    if (output.length === MAX_ITEMS) {
+    if (output.length === MAX_IMPORT_CARDS) {
       throw new ImportLimitExceeded(
-        "Readwise Reader export exceeds 10,000 items"
+        `Readwise Reader export exceeds ${IMPORT_LIMIT_TEXT} items`
       );
     }
     const tags = parseReaderTags(table.cell(row, "document tags"));

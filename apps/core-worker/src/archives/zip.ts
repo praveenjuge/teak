@@ -1,5 +1,9 @@
 import { isSafeArchivePath } from "@teak/convex/import/validate";
-import { isValidObjectKey } from "@teak/files-protocol";
+import {
+  isValidObjectKey,
+  MAX_IMPORT_ARCHIVE_BYTES,
+  MAX_IMPORT_FILE_BYTES,
+} from "@teak/files-protocol";
 import { Inflate } from "fflate";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 
@@ -44,7 +48,6 @@ interface EocdRecord {
 }
 const EOCD_WINDOW = 22 + 65_535;
 const MAX_DIRECTORY = 32 * 1024 * 1024;
-const MAX_ARCHIVE_BYTES = 5 * 1024 ** 3;
 const MAX_ENTRIES = 20_002;
 const MAX_RATIO = 100;
 const u16 = (b: Uint8Array, i: number) =>
@@ -220,7 +223,7 @@ export async function readZipDirectory(
   if (expectedEtag && meta.httpEtag !== expectedEtag) {
     throw new OpFailure("source_changed");
   }
-  if (meta.size < 22 || meta.size > MAX_ARCHIVE_BYTES) {
+  if (meta.size < 22 || meta.size > MAX_IMPORT_ARCHIVE_BYTES) {
     throw new OpFailure("archive_parse_failed");
   }
   const len = Math.min(meta.size, EOCD_WINDOW),
@@ -297,7 +300,7 @@ export async function readZipDirectory(
     names.add(entry.name);
     expanded += entry.uncompressedSize;
     if (
-      expanded > MAX_ARCHIVE_BYTES ||
+      expanded > MAX_IMPORT_ARCHIVE_BYTES ||
       entry.localHeaderOffset + 30 > cdOffset
     ) {
       throw new InvalidOpInput("invalid_archive_expanded_size");
@@ -516,7 +519,7 @@ export async function extractZipEntries(
       archiveKey,
       directory,
       entry,
-      20 * 1024 * 1024
+      MAX_IMPORT_FILE_BYTES
     );
     await bucket.put(item.destinationKey, bytes, {
       httpMetadata: {

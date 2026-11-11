@@ -42,6 +42,12 @@ export const FILES_IMPORT_MODES = [
   "archive",
 ] as const;
 export type FilesImportMode = (typeof FILES_IMPORT_MODES)[number];
+/** The most cards one import creates, whatever its source. */
+export const MAX_IMPORT_CARDS = 10_000;
+/** The largest single file an import reads, on its own or out of an archive. */
+export const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024;
+/** The largest archive an import opens, packed or unpacked. */
+export const MAX_IMPORT_ARCHIVE_BYTES = 5 * 1024 ** 3;
 export interface FilesImportIndexParams {
   cursor?: number;
   expectedSize: number;

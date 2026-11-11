@@ -3,6 +3,7 @@ import {
   FILES_IMPORT_PAGE_BYTES,
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexItem,
+  MAX_IMPORT_CARDS,
 } from "@teak/files-protocol";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import {
@@ -103,7 +104,7 @@ export async function readImportJson(
       }
       const sourceIndex = total++;
       valueBytes = 0;
-      if (total > 10_000) {
+      if (total > MAX_IMPORT_CARDS) {
         throw new InvalidOpInput("invalid_archive_card_count");
       }
       if (sourceIndex < cursor || full) {

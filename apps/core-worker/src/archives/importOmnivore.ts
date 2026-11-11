@@ -2,6 +2,7 @@ import {
   FILES_IMPORT_PAGE_BYTES,
   FILES_IMPORT_PAGE_ITEMS,
   type FilesImportIndexResult,
+  MAX_IMPORT_CARDS,
 } from "@teak/files-protocol";
 import { InvalidOpInput } from "../opFailure";
 import {
@@ -20,7 +21,6 @@ import {
   type ZipDirectory,
 } from "./zip";
 
-const MAX_ITEMS = 10_000;
 const METADATA_LIMIT = 8 * 1024 * 1024;
 const UTF8_MAX_BYTES_PER_CHARACTER = 4;
 const HIGHLIGHTS_LIMIT = MAX_NOTES_LENGTH * UTF8_MAX_BYTES_PER_CHARACTER;
@@ -117,7 +117,7 @@ export async function indexOmnivoreZip(
   const pageEnd = cursor + FILES_IMPORT_PAGE_ITEMS;
   if (chained) {
     total = files.at(-1)?.end ?? 0;
-    if (total > MAX_ITEMS) {
+    if (total > MAX_IMPORT_CARDS) {
       throw new InvalidOpInput("invalid_bookmark_count");
     }
     const needed = files.filter(
@@ -143,7 +143,7 @@ export async function indexOmnivoreZip(
       (lists[fileIndex] ?? []).map((item) => ({ item, prefix: file.prefix }))
     );
     total = all.length;
-    if (total > MAX_ITEMS) {
+    if (total > MAX_IMPORT_CARDS) {
       throw new InvalidOpInput("invalid_bookmark_count");
     }
     pageItems = all.map((entry, index) => ({ index, ...entry }));

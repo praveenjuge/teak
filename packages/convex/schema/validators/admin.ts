@@ -47,3 +47,34 @@ export const adminOverviewFields = {
   }),
   isApproximate: v.boolean(),
 };
+
+export const snapshotBillingValidator = v.object({
+  currency: v.string(),
+  mrr: v.number(),
+  mrrAtRisk: v.number(),
+  netMrr: v.number(),
+  paying: v.number(),
+  trialing: v.number(),
+  pastDue: v.number(),
+  canceling: v.number(),
+});
+
+/**
+ * An `adminDailyMetrics` row, apart from the retired totals that
+ * `.agents/records/sunset.md` drops from the writer and the table in turn.
+ */
+export const adminDailyMetricFields = {
+  date: v.string(),
+  capturedAt: v.number(),
+  accounts: v.number(),
+  signups: v.number(),
+  cardsSaved: v.number(),
+  activeSavers1d: v.number(),
+  activeSavers7d: v.number(),
+  activeSavers28d: v.number(),
+  storageBytesAdded: v.number(),
+  aiCostUsd: v.number(),
+  aiCalls: v.number(),
+  billing: v.optional(snapshotBillingValidator),
+  isApproximate: v.boolean(),
+};

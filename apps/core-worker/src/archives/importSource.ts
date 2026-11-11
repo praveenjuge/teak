@@ -15,6 +15,8 @@ import {
   type FilesImportMarkdownParams,
   type FilesImportMarkdownResult,
   isValidObjectKey,
+  MAX_IMPORT_CARDS,
+  MAX_IMPORT_FILE_BYTES,
 } from "@teak/files-protocol";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import { readImportJson } from "./importJson";
@@ -60,7 +62,7 @@ export async function indexImportSource(
     expectedSize < 0 ||
     !Number.isSafeInteger(cursor) ||
     cursor < 0 ||
-    cursor > 10_000 ||
+    cursor > MAX_IMPORT_CARDS ||
     (cursor > 0 && !sourceEtag) ||
     (sourceEtag !== undefined &&
       (typeof sourceEtag !== "string" || sourceEtag.length > 255))
@@ -129,7 +131,7 @@ export async function indexImportSource(
   ) {
     return indexOmnivoreZip(bucket, sourceKey, meta.httpEtag, cursor);
   }
-  if (meta.size > 20 * 1024 * 1024) {
+  if (meta.size > MAX_IMPORT_FILE_BYTES) {
     throw new OpFailure("source_too_large");
   }
   const object = await bucket.get(sourceKey);
@@ -156,7 +158,7 @@ export async function indexImportSource(
     }
     throw new InvalidOpInput("invalid_import_source", { cause: error });
   }
-  if (parsed.length > 10_000) {
+  if (parsed.length > MAX_IMPORT_CARDS) {
     throw new InvalidOpInput("invalid_bookmark_count");
   }
   const items: FilesImportIndexResult["items"] = [];

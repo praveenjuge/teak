@@ -1,5 +1,11 @@
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { ImportLimitExceeded, linkItem, notAnExport } from "./sourceItems";
+import {
+  IMPORT_LIMIT_TEXT,
+  ImportLimitExceeded,
+  linkItem,
+  notAnExport,
+} from "./sourceItems";
 
 const MAX_LINE_LABEL = 200;
 
@@ -21,8 +27,10 @@ export function parseOneTabText(
     if (!line) {
       continue;
     }
-    if (output.length >= 10_000) {
-      throw new ImportLimitExceeded(`${source} exceeds 10,000 links`);
+    if (output.length >= MAX_IMPORT_CARDS) {
+      throw new ImportLimitExceeded(
+        `${source} exceeds ${IMPORT_LIMIT_TEXT} links`
+      );
     }
     const separator = line.indexOf(" | ");
     const url = (separator === -1 ? line : line.slice(0, separator)).trim();

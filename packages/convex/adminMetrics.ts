@@ -37,6 +37,10 @@ import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
 import { readCustomerSubscriptions } from "./adminBilling";
 import { polarApi, readHasPremium } from "./billing/polar";
 import { isOnboardingCard } from "./card/defaultCards";
+import {
+  adminDailyMetricFields,
+  snapshotBillingValidator,
+} from "./schema/validators/admin";
 import { queueMaintenanceWorkflow } from "./workflowDispatch/outbox";
 
 const USER_PAGE = 1000;
@@ -173,17 +177,6 @@ const readInternalIds = async (
   return new Set(ids);
 };
 
-const billingValidator = v.object({
-  currency: v.string(),
-  mrr: v.number(),
-  mrrAtRisk: v.number(),
-  netMrr: v.number(),
-  paying: v.number(),
-  trialing: v.number(),
-  pastDue: v.number(),
-  canceling: v.number(),
-});
-
 /**
  * The daily snapshot's billing line. The Core Worker counts everything else
  * (`admin-snapshot` maintenance task); Polar's token stays in Convex.
@@ -191,7 +184,7 @@ const billingValidator = v.object({
 export const readSnapshotBilling = internalAction({
   args: {},
   returns: v.object({
-    billing: v.union(billingValidator, v.null()),
+    billing: v.union(snapshotBillingValidator, v.null()),
     isComplete: v.boolean(),
   }),
   handler: async (
@@ -233,18 +226,7 @@ export const queueSnapshot = internalMutation({
 });
 
 const snapshotValidator = v.object({
-  date: v.string(),
-  capturedAt: v.number(),
-  accounts: v.number(),
-  signups: v.number(),
-  cardsSaved: v.number(),
-  activeSavers1d: v.number(),
-  activeSavers7d: v.number(),
-  activeSavers28d: v.number(),
-  storageBytesAdded: v.number(),
-  aiCostUsd: v.number(),
-  aiCalls: v.number(),
-  billing: v.optional(billingValidator),
+  ...adminDailyMetricFields,
   // Totals a Core Worker from before the snapshot stopped scanning every
   // card may still send; see `.agents/records/sunset.md`.
   totalCards: v.optional(v.number()),
@@ -252,7 +234,6 @@ const snapshotValidator = v.object({
   topStorage: v.optional(
     v.array(v.object({ teakUserId: v.string(), bytes: v.number() }))
   ),
-  isApproximate: v.boolean(),
 });
 
 // Saver days kept past the 28 the snapshot reads, so an admin can still

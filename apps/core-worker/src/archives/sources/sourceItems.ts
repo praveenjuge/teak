@@ -14,6 +14,7 @@ import {
 } from "@teak/convex/shared/highlights/constants";
 import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import type { ParsedBookmarkItem } from "./bookmarks";
 
 export interface SourceLink {
@@ -195,6 +196,9 @@ export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
     },
   };
 }
+
+/** `MAX_IMPORT_CARDS` as the limit errors write it. */
+export const IMPORT_LIMIT_TEXT = MAX_IMPORT_CARDS.toLocaleString("en-US");
 
 export class ImportLimitExceeded extends Error {
   override name = "ImportLimitExceeded";

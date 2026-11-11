@@ -1,21 +1,14 @@
+import { FILES_IMPORT_MODES } from "@teak/files-protocol";
 import { v } from "convex/values";
+import { EXPORT_FAILURE_CLASS, EXPORT_STATUS } from "../../export/constants";
 import { cardTypeValidator, colorValidator, r2KeyValidator } from "./cards";
 
 export const exportStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("running"),
-  v.literal("ready"),
-  v.literal("failed"),
-  v.literal("canceled"),
-  v.literal("expired")
+  ...Object.values(EXPORT_STATUS).map((status) => v.literal(status))
 );
 
 export const exportFailureClassValidator = v.union(
-  v.literal("cap_exceeded"),
-  v.literal("archive_failed"),
-  v.literal("storage_failed"),
-  v.literal("canceled"),
-  v.literal("unknown")
+  ...Object.values(EXPORT_FAILURE_CLASS).map((failure) => v.literal(failure))
 );
 
 export const importStatusValidator = v.union(
@@ -29,18 +22,7 @@ export const importStatusValidator = v.union(
 );
 
 export const importModeValidator = v.union(
-  v.literal("bookmarks"),
-  v.literal("archive"),
-  v.literal("raindrop"),
-  v.literal("pocket"),
-  v.literal("instapaper"),
-  v.literal("readwise"),
-  v.literal("omnivore"),
-  v.literal("linkwarden"),
-  v.literal("mymind"),
-  v.literal("onetab"),
-  v.literal("csv"),
-  v.literal("links")
+  ...FILES_IMPORT_MODES.map((mode) => v.literal(mode))
 );
 
 export const importItemStatusValidator = v.union(
