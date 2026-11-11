@@ -1,7 +1,6 @@
 import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { DAY_MS, utcDay } from "./admin/stats";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
@@ -98,6 +97,3 @@ export const usageForDay = internalQuery({
     }));
   },
 });
-
-export const daysAgoDate = (days: number, now = Date.now()) =>
-  utcDay(now - days * DAY_MS);

@@ -1,7 +1,13 @@
 import type { ImportCardInput } from "@teak/convex/import/validate";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import { Parser } from "htmlparser2";
-import { cleanTags, folderPath, ImportLimitExceeded } from "./sourceItems";
+import {
+  cleanTags,
+  folderPath,
+  IMPORT_LIMIT_TEXT,
+  ImportLimitExceeded,
+} from "./sourceItems";
 
 export interface ParsedBookmarkItem {
   card?: ImportCardInput;
@@ -83,9 +89,9 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
           const folder = folderPath(lists[lists.length - 1]?.folders ?? []);
           // Firefox and Teak write tags as a comma-separated TAGS attribute.
           const tags = cleanTags((anchor.attributes.tags ?? "").split(","));
-          if (output.length >= 10_000) {
+          if (output.length >= MAX_IMPORT_CARDS) {
             throw new ImportLimitExceeded(
-              "Bookmark file exceeds 10,000 bookmarks"
+              `Bookmark file exceeds ${IMPORT_LIMIT_TEXT} bookmarks`
             );
           }
           output.push(

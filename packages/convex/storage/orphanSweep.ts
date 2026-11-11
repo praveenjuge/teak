@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { importStagedPartKeys } from "../import/indexItems";
+import {
+  cardStorageKeysValidator,
+  pickCardStorageKeys,
+} from "./cardObjectKeys";
 import { buildR2UserPrefix } from "./r2";
 import { buildR2ListPrefix } from "./r2Keys";
 
@@ -21,32 +25,7 @@ export const pageSweepCards = internalQuery({
   returns: v.object({
     continueCursor: v.string(),
     isDone: v.boolean(),
-    cards: v.array(
-      v.object({
-        article: v.optional(
-          v.object({
-            status: v.string(),
-            textKey: v.optional(v.string()),
-            imageKeys: v.optional(v.array(v.string())),
-          })
-        ),
-        documentTextKey: v.optional(v.string()),
-        fileKey: v.optional(v.string()),
-        metadata: v.any(),
-        pageArchive: v.optional(v.object({ storageKey: v.string() })),
-        pendingPageSnapshotKey: v.optional(v.string()),
-        previewKey: v.optional(v.string()),
-        previousThumbnailOverride: v.optional(
-          v.object({
-            override: v.union(v.object({ storageKey: v.string() }), v.null()),
-          })
-        ),
-        scrubKey: v.optional(v.string()),
-        thumbnailKey: v.optional(v.string()),
-        thumbnailOverride: v.optional(v.object({ storageKey: v.string() })),
-        workflowArtifactKeys: v.optional(v.array(v.string())),
-      })
-    ),
+    cards: v.array(cardStorageKeysValidator),
   }),
   handler: async (ctx, args) => {
     const page = await ctx.db.query("cards").paginate({
@@ -56,58 +35,7 @@ export const pageSweepCards = internalQuery({
     return {
       continueCursor: page.continueCursor,
       isDone: page.isDone,
-      cards: page.page.map((card) => ({
-        // Every field `cardStorageObjectKeys` reads, or the sweep counts a
-        // live object as an orphan.
-        ...(card.article
-          ? {
-              article:
-                card.article.status === "ready"
-                  ? {
-                      status: card.article.status,
-                      textKey: card.article.textKey,
-                      imageKeys: card.article.imageKeys,
-                    }
-                  : { status: card.article.status },
-            }
-          : {}),
-        documentTextKey: card.documentTextKey,
-        fileKey: card.fileKey,
-        ...(card.pageArchive
-          ? { pageArchive: { storageKey: card.pageArchive.storageKey } }
-          : {}),
-        pendingPageSnapshotKey: card.pendingPageSnapshotKey,
-        workflowArtifactKeys: card.workflowArtifactKeys,
-        metadata:
-          card.metadata && typeof card.metadata === "object"
-            ? {
-                linkPreview: card.metadata.linkPreview,
-                linkCategory: card.metadata.linkCategory,
-              }
-            : {},
-        previewKey: card.previewKey,
-        scrubKey: card.scrubKey,
-        thumbnailKey: card.thumbnailKey,
-        ...(card.thumbnailOverride
-          ? {
-              thumbnailOverride: {
-                storageKey: card.thumbnailOverride.storageKey,
-              },
-            }
-          : {}),
-        ...(card.previousThumbnailOverride
-          ? {
-              previousThumbnailOverride: {
-                override: card.previousThumbnailOverride.override
-                  ? {
-                      storageKey:
-                        card.previousThumbnailOverride.override.storageKey,
-                    }
-                  : null,
-              },
-            }
-          : {}),
-      })),
+      cards: page.page.map(pickCardStorageKeys),
     };
   },
 });

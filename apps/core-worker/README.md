@@ -814,7 +814,7 @@ every user and card in an action or a reactive query. One maintenance
 workflow task, `admin-snapshot`, counts it over the workflow RPC gateway
 without reading every card; each scan reads at most 400 pages, and a longer
 one is stored as approximate. The counting code is shared with Convex
-(`packages/convex/admin/stats.ts`).
+(`packages/convex/admin/snapshot.ts`).
 
 - It pages `adminMetrics:usersPage` and flags internal accounts
   (`adminAccess:flagAutoInternalAccounts`).

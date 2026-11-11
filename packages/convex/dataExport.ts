@@ -28,9 +28,13 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
-import { queueExportWorkflow } from "./export/workflowRun";
+import { failExportJob, queueExportWorkflow } from "./export/workflowRun";
 import { readLiveFolders } from "./folder/folders";
 import { loadCardHighlights } from "./highlight/highlights";
+import {
+  exportFailureClassValidator,
+  exportStatusValidator,
+} from "./schema/validators/jobs";
 import { getSessionUser, requireSessionUserId } from "./securitySessions";
 import { getR2Url } from "./storage/fileUrls";
 import { queueObjectDeletion } from "./storage/objectDeletion";
@@ -39,14 +43,7 @@ const RECENT_JOBS_SCAN = 50;
 
 const exportSummaryValidator = v.object({
   id: v.id("exportJobs"),
-  status: v.union(
-    v.literal("pending"),
-    v.literal("running"),
-    v.literal("ready"),
-    v.literal("failed"),
-    v.literal("canceled"),
-    v.literal("expired")
-  ),
+  status: exportStatusValidator,
   cardCount: v.optional(v.number()),
   filesIncluded: v.optional(v.number()),
   filesOmitted: v.optional(v.number()),
@@ -759,31 +756,11 @@ export const completeExport = internalMutation({
 export const failExport = internalMutation({
   args: {
     jobId: v.id("exportJobs"),
-    failureClass: v.union(
-      v.literal("cap_exceeded"),
-      v.literal("archive_failed"),
-      v.literal("storage_failed"),
-      v.literal("canceled"),
-      v.literal("unknown")
-    ),
+    failureClass: exportFailureClassValidator,
   },
   returns: v.null(),
   handler: async (ctx, { jobId, failureClass }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
-    if (!job) {
-      return null;
-    }
-    const now = Date.now();
-    const status =
-      failureClass === EXPORT_FAILURE_CLASS.CANCELED
-        ? EXPORT_STATUS.CANCELED
-        : EXPORT_STATUS.FAILED;
-    await ctx.db.patch(jobId, {
-      status,
-      failureClass,
-      completedAt: now,
-      updatedAt: now,
-    });
+    await failExportJob(ctx, jobId, failureClass);
     return null;
   },
 });

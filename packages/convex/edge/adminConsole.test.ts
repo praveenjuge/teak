@@ -1,7 +1,7 @@
 import polarTest from "@convex-dev/polar/test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../_generated/api";
-import { DAY_MS, utcDay } from "../admin/stats";
+import { DAY_MS, utcDay } from "../admin/dates";
 import { ensureCardUsageShards } from "../card/cardUsage";
 import { insertCard } from "../card/cardWrites";
 import { newBackend } from "./helpers.testUtils";

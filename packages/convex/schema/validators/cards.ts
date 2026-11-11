@@ -9,6 +9,9 @@ import { FOLDER_COLORS } from "../../shared/folders";
 import { LINK_CATEGORIES } from "../../shared/linkCategories";
 import { SEARCH_MODES } from "../../shared/publicApiContract";
 
+/** An R2 object key. Those a card owns are listed in `storage/cardObjectKeys.ts`. */
+export const r2KeyValidator = v.string();
+
 export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
 
 export type LinkCategory = (typeof linkCategoryLiterals)[number];
@@ -86,7 +89,7 @@ export const linkCategoryMetadataValidator = v.object({
   ),
   pdfUrl: v.optional(v.string()),
   raw: v.optional(v.any()),
-  rawStorageKey: v.optional(v.string()),
+  rawStorageKey: v.optional(r2KeyValidator),
   rawSha256: v.optional(v.string()),
   rawHasStructured: v.optional(v.boolean()),
   rawStructuredFetchedAt: v.optional(v.number()),
@@ -162,8 +165,6 @@ export const fileMetadataValidator = v.optional(
     recordingTimestamp: v.optional(v.number()),
   })
 );
-
-export const r2KeyValidator = v.string();
 
 /**
  * A link's saved copy: one self-contained HTML file (role `page-archive`),
@@ -292,7 +293,7 @@ export const metadataValidator = v.optional(
           })
         ),
         raw: v.optional(v.any()),
-        rawStorageKey: v.optional(v.string()),
+        rawStorageKey: v.optional(r2KeyValidator),
         rawSha256: v.optional(v.string()),
         categoryHint: v.optional(linkCategoryValidator),
       })

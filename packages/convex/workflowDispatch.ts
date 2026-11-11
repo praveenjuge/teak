@@ -63,13 +63,8 @@ export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_DISPATCH_ATTEMPTS = 20;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
-// Parallel flushes conflict with each other in claim (see FLUSH_JITTER_MS
-// in workflowDispatch/outbox). Claim reads only a small page per mutation
-// so conflicting transactions stay short, and a flush whose claim still
-// exhausts Convex's retries reschedules itself with backoff instead of
-// dying. Rows that somehow stay pending past PENDING_STALL_MS are re-armed
-// by the hourly workflowDispatchWatchdog cron, so a failed flush never
-// strands work silently.
+// Claim reads a small page so the claims of parallel flushes, which
+// conflict on the same due rows, stay short (see FLUSH_JITTER_MS).
 export const CLAIM_PAGE = 16;
 const MAX_CLAIM_RETRY_ATTEMPTS = 8;
 
@@ -240,19 +235,14 @@ export const flush = internalAction({
     for (let round = 0; round < 10; round += 1) {
       let claimed: ClaimedItem[];
       try {
-        // A small page keeps each claim mutation short: parallel flushes
-        // conflict on the same due rows, and short conflicting transactions
-        // are what Convex's internal retries recover from reliably.
         claimed = await ctx.runMutation(internal.workflowDispatch.claim, {
           limit: CLAIM_PAGE,
         });
       } catch (caught) {
-        // Parallel flushes conflict with each other in claim. Convex retries
-        // the mutation, but a claim that still exhausts those retries must
-        // not kill the flush: the rows stay pending and would wait for the
-        // next save. Back off and re-run instead; after a run of failures,
-        // report and stop - the hourly watchdog re-arms a flush once rows
-        // pass PENDING_STALL_MS, so stopping here strands nothing.
+        // A claim that exhausted Convex's own OCC retries leaves its rows
+        // pending until the next save, so back off and run again. After a
+        // run of failures stop: the hourly watchdog re-arms a flush once
+        // rows pass PENDING_STALL_MS.
         const delay = claimRetryDelayMs(claimRetry);
         if (delay === null) {
           await captureBackendException(
@@ -416,7 +406,7 @@ export const markDelivered = internalMutation({
     const now = Date.now();
     for (const id of ids) {
       const row = await ctx.db.get("workflowDispatches", id);
-      if (row?.kind === "deleteObjects" && row.state === "sent") {
+      if (row?.state === "sent" && specFor(row).delivery === "delete-objects") {
         await ctx.db.patch("workflowDispatches", id, {
           finishedAt: now,
           state: "done",
@@ -438,20 +428,18 @@ const workflowOf = (row: Doc<"workflowDispatches">) => {
 };
 
 const isStale = (row: Doc<"workflowDispatches">, now: number) => {
-  const staleAfterMs = specFor(row).staleAfterMs;
+  const spec = specFor(row);
   return (
-    workflowOf(row) !== null &&
-    staleAfterMs !== undefined &&
-    (row.sentAt ?? now) < now - staleAfterMs
+    spec.delivery === "workflow" &&
+    row.instanceId !== undefined &&
+    (row.sentAt ?? now) < now - spec.staleAfterMs
   );
 };
 
 /** The shortest silence after which any kind's sent run counts as stale. */
 const SHORTEST_STALE_MS = Math.min(
   ...Object.values(KINDS).flatMap((spec) =>
-    spec.delivery === "workflow" && spec.staleAfterMs !== undefined
-      ? [spec.staleAfterMs]
-      : []
+    spec.delivery === "workflow" ? [spec.staleAfterMs] : []
   )
 );
 
@@ -536,7 +524,8 @@ export const markReconciled = internalMutation({
 
 const HEALTH_SCAN_LIMIT = 500;
 const HEALTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-// A due row this old means no flush is taking rows.
+// A due row this old means no flush is taking rows: the watchdog reports
+// it, and both the watchdog and `pruneFinished` re-arm a flush.
 const PENDING_STALL_MS = 15 * 60 * 1000;
 // The reconcile runs hourly, so a stale run it hasn't looked at for this
 // long means the Core Worker stopped reconciling.
@@ -623,7 +612,7 @@ export const pruneFinished = internalMutation({
     const stuck = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_state_and_notBefore", (q) =>
-        q.eq("state", "pending").lt("notBefore", now - 5 * 60 * 1000)
+        q.eq("state", "pending").lt("notBefore", now - PENDING_STALL_MS)
       )
       .take(100);
     if (stuck.length > 0) {
@@ -631,19 +620,18 @@ export const pruneFinished = internalMutation({
     }
     const sentDeletes = await ctx.db
       .query("workflowDispatches")
-      .withIndex("by_state_and_sentAt", (q) =>
+      .withIndex("by_kind_and_state_and_sentAt", (q) =>
         q
+          .eq("kind", "deleteObjects")
           .eq("state", "sent")
-          .lt("sentAt", now - (KINDS.deleteObjects.staleAfterMs ?? 0))
+          .lt("sentAt", now - objectDeletionDispatch.deliveredAfterMs)
       )
       .take(200);
     for (const row of sentDeletes) {
-      if (row.kind === "deleteObjects") {
-        await ctx.db.patch("workflowDispatches", row._id, {
-          finishedAt: now,
-          state: "done",
-        });
-      }
+      await ctx.db.patch("workflowDispatches", row._id, {
+        finishedAt: now,
+        state: "done",
+      });
     }
     let deleted = 0;
     let hasMore = false;

@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { insertTestCard } from "../../__tests__/helpers/cards.test-utils";
 import { internal } from "../../_generated/api";
-import { DAY_MS } from "../../admin/stats";
+import { DAY_MS } from "../../admin/dates";
 import { newBackend } from "../helpers.testUtils";
 
 // The admin overview and the metrics cohorts count activated users the same

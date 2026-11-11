@@ -8,7 +8,10 @@ import {
   accountDeletionStage,
   deletionFailureReason,
 } from "@teak/convex/accountDeletion/stages";
-import { VECTOR_DELETE_MAX_IDS } from "@teak/files-protocol";
+import {
+  type AccountDeletionParams,
+  VECTOR_DELETE_MAX_IDS,
+} from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import {
   type OpCaller,
@@ -26,11 +29,6 @@ import {
   stepPages,
   type WorkflowRun,
 } from "./runtime";
-
-export interface AccountDeletionParams {
-  generation: number;
-  stateId: string;
-}
 
 const RETRY_CAP_MS = 5 * 60 * 1000;
 

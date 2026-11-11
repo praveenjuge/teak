@@ -6,7 +6,7 @@ import type { ActionCtx } from "../../_generated/server";
 import {
   deleteAccountDataHandler,
   type OwnedCardIds,
-} from "../../accountDeletion";
+} from "../../accountDeletion/cards";
 import { initializeCardProcessingState } from "../../card/processingLifecycle";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";

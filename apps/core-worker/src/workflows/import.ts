@@ -21,6 +21,7 @@ import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import type {
   FilesImportIndexResult,
   FilesImportMarkdownResult,
+  ImportParams,
 } from "@teak/files-protocol";
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
@@ -46,10 +47,6 @@ import {
   stopRun,
   type WorkflowRun,
 } from "./runtime";
-
-export interface ImportParams {
-  jobId: string;
-}
 
 export type ImportOutcome = "canceled" | "completed" | "failed";
 

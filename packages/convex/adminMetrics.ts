@@ -14,34 +14,41 @@ import {
   savedCardsBetween,
   savedCardsFirstWeek,
 } from "./admin/activation";
+import { DAY_MS, startOfUtcDay, startOfUtcWeek, utcDay } from "./admin/dates";
 import {
-  ACTIVATION_CARD_THRESHOLD,
-  ACTIVATION_WINDOW_DAYS,
+  type Page,
+  pageCardsCreated,
+  pageUsersCreated,
+  readAllPages,
+  toPage,
+} from "./admin/pages";
+import {
   autoInternalUserIds,
-  buildRetentionCohorts,
-  type CohortMember,
-  DAY_MS,
-  type FunnelMember,
   MAX_DAY_SAVERS,
   type MetricsCardRow,
   type MetricsUserRow,
+  snapshotDay,
+} from "./admin/snapshot";
+import {
+  ACTIVATION_CARD_THRESHOLD,
+  ACTIVATION_WINDOW_DAYS,
+  buildRetentionCohorts,
+  type CohortMember,
+  type FunnelMember,
   type SnapshotBilling,
   snapshotBilling,
-  snapshotDay,
-  startOfUtcDay,
-  startOfUtcWeek,
   summarizeFunnel,
-  utcDay,
 } from "./admin/stats";
 import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
 import { readCustomerSubscriptions } from "./adminBilling";
 import { polarApi, readHasPremium } from "./billing/polar";
 import { isOnboardingCard } from "./card/defaultCards";
+import {
+  adminDailyMetricFields,
+  snapshotBillingValidator,
+} from "./schema/validators/admin";
 import { queueMaintenanceWorkflow } from "./workflowDispatch/outbox";
 
-const USER_PAGE = 1000;
-const CARD_PAGE = 500;
-const PAGE_BYTES = 4 * 1024 * 1024;
 const MAX_PAGES = 400;
 const FLAG_BATCH = 200;
 const COHORT_WEEKS = 12;
@@ -49,12 +56,6 @@ const COHORT_LIMIT = 3000;
 const COHORT_BATCH = 20;
 const RECENT_SIGNUPS = 50;
 const SNAPSHOT_LIST_LIMIT = 400;
-
-interface Page<T> {
-  continueCursor: string;
-  isDone: boolean;
-  rows: T[];
-}
 
 type UserRow = MetricsUserRow;
 type CardRow = MetricsCardRow;
@@ -65,21 +66,17 @@ export const usersPage = internalQuery({
     since: v.optional(v.number()),
   },
   handler: async (ctx, { cursor, since }): Promise<Page<UserRow>> => {
-    const result = await ctx.db
-      .query("users")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since ?? 0))
-      .paginate({ cursor, numItems: USER_PAGE });
-    return {
-      rows: result.page.map((user) => ({
+    const result = await pageUsersCreated(ctx, cursor, since);
+    return toPage(
+      result,
+      result.page.map((user) => ({
         teakUserId: user.teakUserId,
         email: user.email,
         isAdmin: user.role === "admin",
         createdAt: user._creationTime,
         deleted: user.deletedAt !== undefined,
-      })),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
+      }))
+    );
   },
 });
 
@@ -90,54 +87,33 @@ export const cardsPage = internalQuery({
     until: v.optional(v.number()),
   },
   handler: async (ctx, { cursor, since, until }): Promise<Page<CardRow>> => {
-    const result = await ctx.db
-      .query("cards")
-      .withIndex("by_creation_time", (q) => {
-        const from = q.gte("_creationTime", since ?? 0);
-        return until === undefined ? from : from.lt("_creationTime", until);
-      })
-      .paginate({ cursor, numItems: CARD_PAGE, maximumBytesRead: PAGE_BYTES });
-    return {
-      rows: result.page
+    const result = await pageCardsCreated(ctx, cursor, { since, until });
+    return toPage(
+      result,
+      result.page
         .filter((card) => !isOnboardingCard(card))
         .map((card) => ({
           userId: card.userId,
           createdAt: card._creationTime,
           deleted: card.isDeleted === true,
           fileSize: card.fileMetadata?.fileSize ?? 0,
-        })),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
+        }))
+    );
   },
 });
 
-async function readAll<T>(
-  readPage: (cursor: string | null) => Promise<Page<T>>
-): Promise<{ rows: T[]; isComplete: boolean }> {
-  const rows: T[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const result = await readPage(cursor);
-    rows.push(...result.rows);
-    if (result.isDone) {
-      return { rows, isComplete: true };
-    }
-    cursor = result.continueCursor;
-  }
-  return { rows, isComplete: false };
-}
-
 const readUsers = (ctx: Pick<ActionCtx, "runQuery">, since?: number) =>
-  readAll(
+  readAllPages(
     (cursor): Promise<Page<UserRow>> =>
-      ctx.runQuery(internal.adminMetrics.usersPage, { cursor, since })
+      ctx.runQuery(internal.adminMetrics.usersPage, { cursor, since }),
+    MAX_PAGES
   );
 
 const readCards = (ctx: Pick<ActionCtx, "runQuery">, since?: number) =>
-  readAll(
+  readAllPages(
     (cursor): Promise<Page<CardRow>> =>
-      ctx.runQuery(internal.adminMetrics.cardsPage, { cursor, since })
+      ctx.runQuery(internal.adminMetrics.cardsPage, { cursor, since }),
+    MAX_PAGES
   );
 
 const flagAutoInternal = async (
@@ -173,17 +149,6 @@ const readInternalIds = async (
   return new Set(ids);
 };
 
-const billingValidator = v.object({
-  currency: v.string(),
-  mrr: v.number(),
-  mrrAtRisk: v.number(),
-  netMrr: v.number(),
-  paying: v.number(),
-  trialing: v.number(),
-  pastDue: v.number(),
-  canceling: v.number(),
-});
-
 /**
  * The daily snapshot's billing line. The Core Worker counts everything else
  * (`admin-snapshot` maintenance task); Polar's token stays in Convex.
@@ -191,7 +156,7 @@ const billingValidator = v.object({
 export const readSnapshotBilling = internalAction({
   args: {},
   returns: v.object({
-    billing: v.union(billingValidator, v.null()),
+    billing: v.union(snapshotBillingValidator, v.null()),
     isComplete: v.boolean(),
   }),
   handler: async (
@@ -233,18 +198,7 @@ export const queueSnapshot = internalMutation({
 });
 
 const snapshotValidator = v.object({
-  date: v.string(),
-  capturedAt: v.number(),
-  accounts: v.number(),
-  signups: v.number(),
-  cardsSaved: v.number(),
-  activeSavers1d: v.number(),
-  activeSavers7d: v.number(),
-  activeSavers28d: v.number(),
-  storageBytesAdded: v.number(),
-  aiCostUsd: v.number(),
-  aiCalls: v.number(),
-  billing: v.optional(billingValidator),
+  ...adminDailyMetricFields,
   // Totals a Core Worker from before the snapshot stopped scanning every
   // card may still send; see `.agents/records/sunset.md`.
   totalCards: v.optional(v.number()),
@@ -252,7 +206,6 @@ const snapshotValidator = v.object({
   topStorage: v.optional(
     v.array(v.object({ teakUserId: v.string(), bytes: v.number() }))
   ),
-  isApproximate: v.boolean(),
 });
 
 // Saver days kept past the 28 the snapshot reads, so an admin can still

@@ -1,3 +1,4 @@
+import { MAX_IMPORT_CARDS, MAX_IMPORT_FILE_BYTES } from "@teak/files-protocol";
 import { truncateCardTitle } from "../shared/cardTitle";
 import {
   explainInvalidFolderName,
@@ -13,11 +14,7 @@ import {
 import { IMPORT_SOURCES } from "../shared/importSources";
 import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
-import {
-  type ImportMode,
-  MAX_IMPORT_CARDS,
-  MAX_IMPORT_FILE_BYTES,
-} from "./constants";
+import type { ImportMode } from "./constants";
 
 export const IMPORT_CARD_TYPES = [
   "text",
@@ -355,11 +352,12 @@ export function assertImportCardCount(count: number, mode: ImportMode): void {
   if (count <= MAX_IMPORT_CARDS) {
     return;
   }
+  const limit = MAX_IMPORT_CARDS.toLocaleString("en-US");
   if (mode === "bookmarks") {
-    throw new Error("Bookmark file exceeds 10,000 bookmarks");
+    throw new Error(`Bookmark file exceeds ${limit} bookmarks`);
   }
   if (mode === "archive") {
-    throw new Error("Archive exceeds 10,000 cards");
+    throw new Error(`Archive exceeds ${limit} cards`);
   }
-  throw new Error(`${IMPORT_SOURCES[mode].title} file exceeds 10,000 items`);
+  throw new Error(`${IMPORT_SOURCES[mode].title} file exceeds ${limit} items`);
 }

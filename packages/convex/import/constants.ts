@@ -1,8 +1,5 @@
 export const IMPORT_PART_BYTES = 64 * 1024 * 1024;
 export const IMPORT_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
-export const MAX_ARCHIVE_BYTES = 5 * 1024 * 1024 * 1024;
-export const MAX_IMPORT_CARDS = 10_000;
-export const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024;
 export const IMPORT_CARD_BATCH = 5;
 export const IMPORT_INDEX_BATCH = 100;
 export const IMPORT_FAILURE_SAMPLE_LIMIT = 25;
