@@ -15,14 +15,20 @@ import {
   isActivated,
   savedCardsFirstWeek,
 } from "./admin/activation";
+import { DAY_MS, startOfUtcDay } from "./admin/dates";
+import {
+  type Page,
+  pageCardsCreated,
+  pageUsersCreated,
+  readAllPages,
+  toPage,
+} from "./admin/pages";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
   type AdminOverview,
   createOverviewTally,
-  DAY_MS,
-  startOfUtcDay,
   summarizeAccounts,
   summarizeDailyActivity,
   summarizeDeletionQueue,
@@ -288,19 +294,8 @@ export const listAllUsers = query({
   },
 });
 
-// Activity is read in byte-capped pages from an action, so neither the
-// per-transaction document count nor its byte limit is reached.
-const ACTIVITY_CARD_PAGE = 500;
-const ACTIVITY_USER_PAGE = 1000;
-const ACTIVITY_PAGE_BYTES = 4 * 1024 * 1024;
 const ACTIVITY_MAX_PAGES = 200;
 const ACTIVATION_BATCH_SIZE = 25;
-
-interface ActivityPage<T> {
-  continueCursor: string;
-  isDone: boolean;
-  rows: T[];
-}
 
 interface ActivityUser {
   createdAt: number;
@@ -310,53 +305,35 @@ interface ActivityUser {
 
 export const activityCardsPage = internalQuery({
   args: { since: v.number(), cursor: v.union(v.string(), v.null()) },
-  handler: async (
-    ctx,
-    { since, cursor }
-  ): Promise<ActivityPage<ActivityRow>> => {
-    const result = await ctx.db
-      .query("cards")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
-      .paginate({
-        cursor,
-        numItems: ACTIVITY_CARD_PAGE,
-        maximumBytesRead: ACTIVITY_PAGE_BYTES,
-      });
+  handler: async (ctx, { since, cursor }): Promise<Page<ActivityRow>> => {
+    const result = await pageCardsCreated(ctx, cursor, { since });
     const internalIds = await readInternalUserIds(ctx);
-    return {
-      rows: result.page
+    return toPage(
+      result,
+      result.page
         .filter(
           (card) => !(isOnboardingCard(card) || internalIds.has(card.userId))
         )
-        .map(toActivityRow),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
+        .map(toActivityRow)
+    );
   },
 });
 
 export const activityUsersPage = internalQuery({
   args: { since: v.number(), cursor: v.union(v.string(), v.null()) },
-  handler: async (
-    ctx,
-    { since, cursor }
-  ): Promise<ActivityPage<ActivityUser>> => {
-    const result = await ctx.db
-      .query("users")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
-      .paginate({ cursor, numItems: ACTIVITY_USER_PAGE });
+  handler: async (ctx, { since, cursor }): Promise<Page<ActivityUser>> => {
+    const result = await pageUsersCreated(ctx, cursor, since);
     const internalIds = await readInternalUserIds(ctx);
-    return {
-      rows: result.page
+    return toPage(
+      result,
+      result.page
         .filter((user) => !internalIds.has(user.teakUserId))
         .map((user) => ({
           teakUserId: user.teakUserId,
           createdAt: user._creationTime,
           deleted: user.deletedAt !== undefined,
-        })),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
+        }))
+    );
   },
 });
 
@@ -378,22 +355,6 @@ export const countActivatedUsers = internalQuery({
   },
 });
 
-async function readAllPages<T>(
-  readPage: (cursor: string | null) => Promise<ActivityPage<T>>
-): Promise<{ rows: T[]; isComplete: boolean }> {
-  const rows: T[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < ACTIVITY_MAX_PAGES; page++) {
-    const result = await readPage(cursor);
-    rows.push(...result.rows);
-    if (result.isDone) {
-      return { rows, isComplete: true };
-    }
-    cursor = result.continueCursor;
-  }
-  return { rows, isComplete: false };
-}
-
 export const getActivity = action({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) => {
@@ -406,12 +367,14 @@ export const getActivity = action({
     const since = startOfUtcDay(now) - (span - 1) * DAY_MS;
 
     const cards = await readAllPages(
-      (cursor): Promise<ActivityPage<ActivityRow>> =>
-        ctx.runQuery(internal.admin.activityCardsPage, { since, cursor })
+      (cursor): Promise<Page<ActivityRow>> =>
+        ctx.runQuery(internal.admin.activityCardsPage, { since, cursor }),
+      ACTIVITY_MAX_PAGES
     );
     const users = await readAllPages(
-      (cursor): Promise<ActivityPage<ActivityUser>> =>
-        ctx.runQuery(internal.admin.activityUsersPage, { since, cursor })
+      (cursor): Promise<Page<ActivityUser>> =>
+        ctx.runQuery(internal.admin.activityUsersPage, { since, cursor }),
+      ACTIVITY_MAX_PAGES
     );
 
     const eligible = users.rows.filter(

@@ -1,17 +1,17 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { DAY_MS } from "@teak/convex/admin/dates";
 import {
   ACTIVE_SAVER_DAYS,
   autoInternalUserIds,
   createSnapshotTally,
-  DAY_MS,
   MAX_DAY_SAVERS,
   type MetricsCardRow,
   type MetricsUserRow,
   precedingDays,
   snapshotDay,
   snapshotTakesBilling,
-} from "@teak/convex/admin/stats";
+} from "@teak/convex/admin/snapshot";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";
