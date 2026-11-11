@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatDuration,
-  getFaviconUrl,
   getFileFormatBadge,
   isCardProcessing,
   mediaAspectRatio,
@@ -9,14 +8,6 @@ import {
   readableTextOn,
   splitNotePreview,
 } from "../cardDisplay";
-
-describe("getFaviconUrl", () => {
-  test("sends only the hostname to the favicon service", () => {
-    const url = getFaviconUrl("example.com");
-    expect(url).toContain("domain=example.com");
-    expect(getFaviconUrl(undefined)).toBeUndefined();
-  });
-});
 
 describe("getFileFormatBadge", () => {
   test.each([

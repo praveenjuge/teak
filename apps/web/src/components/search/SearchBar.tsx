@@ -55,7 +55,7 @@ import {
   type LibrarySort,
   MAX_URL_SEARCH_LENGTH,
 } from "../../lib/searchUrlState";
-import { PageHeader } from "../../screens/PageHeader";
+import { PageHeader } from "../app-shell/PageHeader";
 import { QUALIFIER_ICONS } from "./qualifierIcons";
 import {
   buildSearchSuggestions,

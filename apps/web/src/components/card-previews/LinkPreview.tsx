@@ -19,8 +19,7 @@ import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
-import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "../cards/SiteFavicon";
+import { ResilientMediaImage, SiteFavicon } from "../media";
 
 function formatFactValue(value: string, locale: string | undefined) {
   const trimmed = value.trim();

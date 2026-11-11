@@ -1,7 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
 import { useRef } from "react";
-import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
-import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
+import { ResilientMediaImage, useMediaUrlRecovery } from "@/components/media";
 import type { ClientCard } from "@/lib/cardTypes";
 import { isGifCard } from "@/lib/cardTypes";
 

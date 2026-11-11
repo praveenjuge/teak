@@ -26,6 +26,7 @@ import {
   Trash,
   type VadivamIcon,
 } from "vadivam-react";
+import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import type { CardWithUrls } from "@/components/cards";
 import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { VaultSetupState } from "@/components/feedback/VaultSetupState";
@@ -100,7 +101,6 @@ import {
   type SearchFromUrl,
   type SearchUrlChange,
 } from "../lib/searchUrlSync";
-import { PageHeader, PageTitle } from "./PageHeader";
 
 type CardsScreenMessage = keyof Messages["screens"]["cards"];
 

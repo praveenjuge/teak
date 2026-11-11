@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import type { CardHighlight } from "@/hooks/useCardHighlights";
-import type { ClientCard } from "@/lib/cardTypes";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardTagEditor } from "../../hooks/useCardTagEditor";
 import { useFolders } from "../../hooks/useFolders";
@@ -45,7 +45,6 @@ import {
   keyDetailLabels,
 } from "./cardDetails";
 import { PageArchiveRow, pageArchiveRowState } from "./PageArchiveRow";
-import type { GetCurrentValue } from "./types";
 
 /** The card's tag editor (`useCardTagEditor`), and the field it types in. */
 export interface CardTagsControl

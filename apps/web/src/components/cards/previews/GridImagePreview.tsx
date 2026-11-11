@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
+import { ResilientMediaImage } from "../../media";
 import { MEDIA_SURFACE, mediaAspectRatio } from "../cardDisplay";
-import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridImagePreviewProps {
   altText?: string;

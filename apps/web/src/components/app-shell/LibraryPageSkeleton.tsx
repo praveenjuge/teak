@@ -1,9 +1,9 @@
 "use client";
 
 import { Search } from "vadivam-react";
-import { CardsGridSkeleton } from "../components/feedback/CardSkeleton";
-import { searchFieldClassName } from "../components/search/SearchBar";
-import { SidebarToggle } from "../components/sidebar/SidebarToggle";
+import { CardsGridSkeleton } from "../feedback/CardSkeleton";
+import { searchFieldClassName } from "../search";
+import { SidebarToggle } from "../sidebar";
 import { PageHeader, PageTitle } from "./PageHeader";
 
 export function LibraryPageSkeleton({

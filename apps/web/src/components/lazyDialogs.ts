@@ -29,7 +29,7 @@ export const FocusEditor = onDemand(() =>
 );
 
 export const TagManagementModal = onDemand(() =>
-  import("./modals/TagManagementModal").then(
+  import("./tags/TagManagementModal").then(
     (module) => module.TagManagementModal
   )
 );

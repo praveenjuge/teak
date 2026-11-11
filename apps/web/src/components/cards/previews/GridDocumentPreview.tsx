@@ -1,8 +1,8 @@
 import { useTranslations } from "@teak/i18n/react";
 import { File } from "vadivam-react";
 import { cn } from "../../../lib/utils";
+import { ResilientMediaImage } from "../../media";
 import { CARD_BADGE, CARD_TILE } from "../cardDisplay";
-import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridDocumentPreviewProps {
   cardId?: string;

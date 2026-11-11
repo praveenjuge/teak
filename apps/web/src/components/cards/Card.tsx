@@ -68,7 +68,6 @@ import {
   previewsAsText,
   textPreviewKey,
 } from "../card-previews/fileTextPreviewCache";
-import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
   CardActionIcon,
@@ -83,6 +82,7 @@ import {
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
 import { CARD_ID_ATTRIBUTE } from "./cardElement";
+import { FirstPaintCopyContext } from "./firstPaintCopy";
 import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";

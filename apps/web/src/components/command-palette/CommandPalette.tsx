@@ -44,7 +44,7 @@ import {
   visibleSettingsSections,
 } from "../../lib/settingsSections";
 import { FolderDot } from "../folders/FolderDot";
-import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
+import { ShortcutHint } from "../shortcuts";
 import {
   CommandDialog,
   CommandEmpty,

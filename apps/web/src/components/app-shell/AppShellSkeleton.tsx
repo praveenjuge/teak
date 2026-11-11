@@ -14,8 +14,8 @@ import {
   libraryViewSearchPlaceholder,
 } from "@/lib/libraryViews";
 import { isSettingsPath } from "@/lib/settingsSections";
-import { LibraryPageSkeleton } from "@/screens";
 import { SettingsPageSkeleton } from "../settings/SettingsPageSkeleton";
+import { LibraryPageSkeleton } from "./LibraryPageSkeleton";
 
 export function AppShellSkeleton({
   defaultOpen,

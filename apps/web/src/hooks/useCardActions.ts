@@ -10,9 +10,9 @@ import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 import { useTranslations } from "@teak/i18n/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { allFavorited } from "../components/cards/types";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import {
+  allFavorited,
   type BulkFolderTarget,
   type BulkRunResult,
   type BulkUndoStep,

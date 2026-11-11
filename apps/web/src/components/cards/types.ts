@@ -47,7 +47,3 @@ const UUID_REGEX =
 export function isOptimisticCard(cardId: string): boolean {
   return UUID_REGEX.test(cardId);
 }
-
-/** Whether there are cards and every one is a favorite. */
-export const allFavorited = (cards: readonly { isFavorited?: boolean }[]) =>
-  cards.length > 0 && cards.every((card) => card.isFavorited === true);

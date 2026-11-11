@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
-import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
+import { ResilientMediaImage } from "@/components/media";
 import type { ClientCard } from "@/lib/cardTypes";
 import { cn } from "@/lib/utils";
 

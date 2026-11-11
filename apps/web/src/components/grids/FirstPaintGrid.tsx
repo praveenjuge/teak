@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FirstPaintCopyContext } from "./firstPaintCopy";
+import { FirstPaintCopyContext } from "../cards";
 
 /**
  * The grid's cells in plain CSS rows, for the server-rendered page. The

@@ -1,7 +1,7 @@
 import { useTranslations } from "@teak/i18n/react";
 import { useRef, useState } from "react";
 import { Pause, Play, Sparkles } from "vadivam-react";
-import { useMediaUrlRecovery } from "@/components/cards/previews/useMediaUrlRecovery";
+import { useMediaUrlRecovery } from "@/components/media";
 import { Button } from "@/components/ui/button";
 import type { ClientCard } from "@/lib/cardTypes";
 import { formatClockTime } from "@/lib/clockTime";

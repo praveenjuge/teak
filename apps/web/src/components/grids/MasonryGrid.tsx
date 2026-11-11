@@ -26,6 +26,7 @@ import type {
 import { useHydrated } from "../../hooks/useHydrated";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
+  allFavorited,
   type BulkFolderTarget,
   collectCardLinks,
 } from "../../lib/bulkCardActions";
@@ -40,11 +41,7 @@ import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
 import { gridKeyAction } from "../../lib/gridKeys";
 import { nextCardIndex } from "../../lib/gridNavigation";
-import {
-  allFavorited,
-  type CardOpenOrigin,
-  isOptimisticCard,
-} from "../cards/types";
+import { type CardOpenOrigin, isOptimisticCard } from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,

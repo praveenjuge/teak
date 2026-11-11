@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Globe } from "vadivam-react";
-import { cn } from "../../lib/utils";
-import { getFaviconUrl } from "./cardDisplay";
+import { cn } from "@/lib/utils";
+
+export function getFaviconUrl(hostname?: string): string | undefined {
+  return hostname
+    ? `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`
+    : undefined;
+}
 
 export function SiteFavicon({
   className,

@@ -22,8 +22,7 @@ import Markdown, {
 } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "@/components/cards/SiteFavicon";
+import { ResilientMediaImage, SiteFavicon } from "@/components/media";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";

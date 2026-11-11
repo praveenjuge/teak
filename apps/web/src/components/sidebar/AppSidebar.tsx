@@ -21,7 +21,7 @@ import { useReturnFocus } from "../../hooks/useReturnFocus";
 import { GO_TO, type GoToTarget, goToKeys } from "../../lib/appCommands";
 import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
 import { type LibraryView, libraryViewLabel } from "../../lib/libraryViews";
-import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
+import { ShortcutHint } from "../shortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;

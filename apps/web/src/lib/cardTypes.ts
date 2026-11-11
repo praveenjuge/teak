@@ -223,3 +223,8 @@ export const cardTitle = (
     markdownToPlainText(card.content?.trim().split("\n", 1)[0]).trim()
   );
 };
+
+/** The open card's field as it is being edited, ahead of the save. */
+export type GetCurrentValue = (
+  field: "content" | "url" | "notes" | "aiSummary" | "metadataTitle"
+) => string | undefined;
