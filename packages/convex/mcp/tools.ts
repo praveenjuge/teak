@@ -96,22 +96,23 @@ const acceptedFields = (schema: z.ZodType): string[] => {
   return shape && typeof shape === "object" ? Object.keys(shape) : [];
 };
 
-const EXPECTED_TYPES: Record<string, string> = {
-  array: "a list",
-  boolean: "true or false",
-  int: "a whole number",
-  number: "a number",
-  object: "an object",
-  string: "a string",
-};
+const EXPECTED_TYPES = new Map([
+  ["array", "a list"],
+  ["boolean", "true or false"],
+  ["int", "a whole number"],
+  ["number", "a number"],
+  ["object", "an object"],
+  ["string", "a string"],
+]);
 
+/** The argument the caller sent at a path, or undefined when there is none. */
 const valueAt = (input: unknown, path: readonly PropertyKey[]): unknown => {
   let value = input;
   for (const key of path) {
     if (value === null || typeof value !== "object") {
       return;
     }
-    value = (value as Record<PropertyKey, unknown>)[key];
+    value = Reflect.get(value, key);
   }
   return value;
 };
@@ -139,7 +140,7 @@ const describeArgumentIssue = (
     return issue.message;
   }
   if (issue.code === "invalid_type") {
-    const expected = EXPECTED_TYPES[issue.expected];
+    const expected = EXPECTED_TYPES.get(issue.expected);
     if (expected) {
       return `${name} must be ${expected}`;
     }
