@@ -22,6 +22,7 @@ import {
 } from "@teak/files-protocol";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
+import { withRetries } from "../retry";
 import { runWorkersAi } from "./workersAi";
 
 // Vectorize answers a burst of writes with 429 (`VECTOR_UPSERT_ERROR (code =
@@ -47,26 +48,25 @@ const isVectorizeServerError = (error: unknown) =>
     error instanceof Error ? error.message : String(error)
   );
 
-const withVectorizeRateLimit = async <T>(write: () => Promise<T>) => {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await write();
-    } catch (error) {
-      if (isVectorizeRateLimit(error)) {
-        throw new OpFailure("vector_rate_limited", { cause: error });
-      }
-      if (
-        attempt >= VECTORIZE_WRITE_ATTEMPTS ||
-        !isVectorizeServerError(error)
-      ) {
+const withVectorizeRateLimit = <T>(write: () => Promise<T>) =>
+  withRetries(
+    async () => {
+      try {
+        return await write();
+      } catch (error) {
+        if (isVectorizeRateLimit(error)) {
+          throw new OpFailure("vector_rate_limited", { cause: error });
+        }
         throw error;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, VECTORIZE_RETRY_DELAY_MS * attempt)
-      );
+    },
+    {
+      attempts: VECTORIZE_WRITE_ATTEMPTS,
+      delayMs: (attempt) => VECTORIZE_RETRY_DELAY_MS * attempt,
+      isRetryable: (error) =>
+        !(error instanceof OpFailure) && isVectorizeServerError(error),
     }
-  }
-};
+  );
 
 const MAX_ITEM_TEXT_CHARS = 20_000;
 

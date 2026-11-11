@@ -41,8 +41,8 @@ import {
   CONVEX_STEP,
   exponentialStep,
   runReported,
-  type StepConfig,
   type StepContext,
+  stepPages,
   stopRun,
   type WorkflowRun,
 } from "./runtime";
@@ -89,14 +89,7 @@ type BatchOutcome =
   | { delayMs: number; kind: "sleep" };
 
 const IMPORT_RETRY_LIMIT = 5;
-const IMPORT_STEP: StepConfig = {
-  retries: {
-    backoff: "exponential",
-    delay: "10 seconds",
-    limit: IMPORT_RETRY_LIMIT,
-  },
-  timeout: "10 minutes",
-};
+const IMPORT_STEP = exponentialStep(IMPORT_RETRY_LIMIT + 1, 10_000);
 const FINALIZE_STEP = exponentialStep(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
@@ -924,12 +917,12 @@ export const runImport = (
   ): Promise<{ status: ImportOutcome } | null> => {
     if (!staged) {
       let cursor = 0;
-      for (let page = 1; ; page += 1) {
-        const indexed = await step.do(
-          `index page ${page}`,
-          IMPORT_STEP,
-          importStep(() => indexPage(cursor))
-        );
+      for await (const indexed of stepPages(
+        step,
+        "index page",
+        IMPORT_STEP,
+        (_page, ctx) => importStep(() => indexPage(cursor))(ctx)
+      )) {
         if (!indexed.ok) {
           return finalize("failed", indexed.failureClass);
         }
@@ -938,6 +931,7 @@ export const runImport = (
         }
         cursor = indexed.nextCursor;
       }
+      return null;
     }
     let page = staged.pages;
     let cursor = staged.cursor ?? 0;
@@ -957,15 +951,14 @@ export const runImport = (
       cursor = resumed.cursor;
       page -= 1;
     }
-    for (;;) {
-      page += 1;
-      const pageNumber = page;
-      const pageCursor = cursor;
-      const indexed = await step.do(
-        `index page ${pageNumber}`,
-        IMPORT_STEP,
-        importStep(() => indexStagedPage(pageNumber, pageCursor, seen))
-      );
+    for await (const indexed of stepPages(
+      step,
+      "index page",
+      IMPORT_STEP,
+      (pageNumber, ctx) =>
+        importStep(() => indexStagedPage(pageNumber, cursor, seen))(ctx),
+      { firstPage: page + 1 }
+    )) {
       if (!indexed.ok) {
         return finalize("failed", indexed.failureClass);
       }
@@ -977,6 +970,7 @@ export const runImport = (
       }
       cursor = indexed.nextCursor;
     }
+    return null;
   };
 
   const body = async (): Promise<{ status: ImportOutcome }> => {

@@ -13,7 +13,7 @@ import {
 } from "@teak/convex/shared/article";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
-import type { StepConfig } from "../runtime";
+import { exponentialStep, type StepConfig } from "../runtime";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata } from "./aiMetadata";
 import {
@@ -34,10 +34,7 @@ export const EXTRACT_ARTICLE_STEP: StepConfig = {
 };
 
 /** The summary step: the AI provider's capacity is what fails it. */
-export const SUMMARIZE_ARTICLE_STEP: StepConfig = {
-  retries: { backoff: "exponential", delay: "30 seconds", limit: 3 },
-  timeout: "10 minutes",
-};
+export const SUMMARIZE_ARTICLE_STEP = exponentialStep(4, 30_000);
 
 export type ArticleOutcome =
   | { reason: ArticleSkip | "card_missing"; status: "skipped" }

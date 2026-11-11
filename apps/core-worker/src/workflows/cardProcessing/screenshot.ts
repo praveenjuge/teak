@@ -12,7 +12,7 @@ import type {
 import { batchOp } from "../../convexRpc";
 import { normalizeUrl } from "../../linkPreview/url";
 import { decodeStepError, encodeStepError } from "../errors";
-import type { StepConfig } from "../runtime";
+import { computedBackoff } from "../runtime";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -46,23 +46,18 @@ export const parseScreenshotRetryableError = (
 ): ScreenshotRetryableError | null =>
   decodeStepError(SCREENSHOT_RETRYABLE_PREFIX, error);
 
-export const SCREENSHOT_STEP: StepConfig = {
-  retries: {
-    // The function computes the whole wait; Workflows' default exponential
-    // backoff would otherwise scale it again.
-    backoff: "constant",
-    delay: ({ error }) =>
-      SCREENSHOT_RETRY_POLICY[
-        parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"
-      ].delayMs,
-    limit: Math.max(
-      ...Object.values(SCREENSHOT_RETRY_POLICY).map(
-        ({ maxRetries }) => maxRetries
-      )
-    ),
-  },
-  timeout: "5 minutes",
-};
+export const SCREENSHOT_STEP = computedBackoff(
+  ({ error }) =>
+    SCREENSHOT_RETRY_POLICY[
+      parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"
+    ].delayMs,
+  Math.max(
+    ...Object.values(SCREENSHOT_RETRY_POLICY).map(
+      ({ maxRetries }) => maxRetries
+    )
+  ),
+  "5 minutes"
+);
 
 export type ScreenshotOutcome =
   | { status: "captured" | "skipped" }

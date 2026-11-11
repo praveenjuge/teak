@@ -9,10 +9,10 @@ import {
 import { isSuperseded, rethrowSuperseded, supersededReason } from "../errors";
 import {
   CONVEX_STEP,
+  computedBackoff,
   exponentialStep,
   NO_RETRY,
   runReported,
-  type StepConfig,
   stepAttempts,
   type WorkflowRun,
 } from "../runtime";
@@ -69,19 +69,14 @@ const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
 export const AI_CAPACITY_RETRIES = 10;
 
-export const METADATA_STEP: StepConfig = {
-  retries: {
-    // The function computes the whole wait; Workflows' default exponential
-    // backoff would otherwise scale it again.
-    backoff: "constant",
-    delay: ({ ctx, error }) =>
-      isAiProviderCapacityError(error)
-        ? (`${ctx.attempt * 30} seconds` as const)
-        : METADATA_INITIAL_BACKOFF_MS * 2 ** (ctx.attempt - 1),
-    limit: AI_CAPACITY_RETRIES,
-  },
-  timeout: "15 minutes",
-};
+export const METADATA_STEP = computedBackoff(
+  ({ ctx, error }) =>
+    isAiProviderCapacityError(error)
+      ? (`${ctx.attempt * 30} seconds` as const)
+      : METADATA_INITIAL_BACKOFF_MS * 2 ** (ctx.attempt - 1),
+  AI_CAPACITY_RETRIES,
+  "15 minutes"
+);
 
 interface InitialFacts {
   classification: CompletedClassification | null;
