@@ -4,6 +4,7 @@ import type {
   ColorHueBucket,
   VisualStyle,
 } from "@teak/convex/shared/constants";
+import type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
 import { useIntlLocale, useTranslations, useUiLocale } from "@teak/i18n/react";
 import {
   type FormEvent,
@@ -63,7 +64,6 @@ import {
   describeKeywordChip,
   describeQualifierChip,
   type SearchSuggestion,
-  type SearchSuggestionGroup,
   type SearchSuggestionSources,
   searchSuggestionGroupLabel,
 } from "./searchSuggestions";

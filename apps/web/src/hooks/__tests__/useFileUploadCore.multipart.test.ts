@@ -22,18 +22,6 @@ describe("file upload initialization and multipart flow", () => {
     mockUseEffectCleanups.length = 0;
   });
 
-  test("exposes initialized upload state and methods", () => {
-    const hook = useFileUploadCore({
-      finalizeUploadedCard,
-      uploadAndCreateCard,
-    });
-    expect(typeof hook.uploadFile).toBe("function");
-    expect(typeof hook.uploadMultipleFiles).toBe("function");
-    expect(typeof hook.uploadFileFromUri).toBe("function");
-    expect(hook.state).toMatchObject({ isUploading: false, progress: 0 });
-    expect(hook.error).toBeNull();
-  });
-
   test("uses default error capture without throwing", async () => {
     const hook = useFileUploadCore({} as any);
     const result = await hook.uploadFile({

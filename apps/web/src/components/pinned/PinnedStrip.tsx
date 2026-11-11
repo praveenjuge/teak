@@ -26,7 +26,7 @@ import type { CardActionId } from "../../lib/cardActions";
 import { type GridKeyContext, gridKeyAction } from "../../lib/gridKeys";
 import { movedIds } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
-import { Card, type CardWithUrls } from "../cards/Card";
+import { Card, type CardWithUrls } from "../cards";
 import type { CardOpenOrigin } from "../cards/types";
 import { CardFoldersDialog, EditLinkDialog } from "../lazyDialogs";
 

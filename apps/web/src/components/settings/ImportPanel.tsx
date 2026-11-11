@@ -13,6 +13,7 @@ import {
   importMaxBytes,
 } from "@teak/convex/shared/importSources";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
@@ -53,7 +54,6 @@ import {
 import { Spinner } from "../ui/spinner";
 import {
   type FormatTranslator,
-  formatBytes,
   formatRelativeTime,
 } from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";

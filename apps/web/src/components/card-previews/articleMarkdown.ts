@@ -5,7 +5,6 @@ import {
 
 // The server reads an article's text through the same tree changes and
 // schema (`markdownToReaderText`), so highlights' offsets agree.
-export { ARTICLE_SANITIZE_SCHEMA } from "@teak/convex/shared/highlights/articleTree";
 
 /**
  * A rehype plugin, run before sanitizing: each valid `teak-image:<n>`

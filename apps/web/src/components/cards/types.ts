@@ -1,8 +1,6 @@
 import type { CardActionId } from "../../lib/cardActions";
 import type { ClientCard } from "../../lib/cardTypes";
 
-export type { PinTarget } from "../../lib/pinnedCards";
-
 type FileMetadata = NonNullable<ClientCard["fileMetadata"]>;
 
 export type LinkPreviewMetadata = NonNullable<

@@ -141,8 +141,6 @@ import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
 
-export { emptiedContentNotice } from "./cardModalText";
-
 function CardPreview({
   card,
   cardLinks,

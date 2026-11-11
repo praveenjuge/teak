@@ -401,8 +401,6 @@ export function useCardActions() {
   }, [deleteForever, runBulk, setDone, togglePin]);
 }
 
-export type CardActionsRunner = ReturnType<typeof useCardActions>;
-
 /** Where a grid card's action was asked for: its menu, or its key. */
 export type CardGridSource = Extract<CardPinSource, "grid" | "shortcut">;
 

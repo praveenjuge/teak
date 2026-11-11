@@ -2,6 +2,7 @@
 
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
+import { ARTICLE_SANITIZE_SCHEMA } from "@teak/convex/shared/highlights/articleTree";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
@@ -35,7 +36,7 @@ import {
   type HighlightJump,
   type ReaderHighlightControls,
 } from "./ArticleHighlights";
-import { ARTICLE_SANITIZE_SCHEMA, rehypeArticle } from "./articleMarkdown";
+import { rehypeArticle } from "./articleMarkdown";
 import {
   cachedFileTextPreview,
   requestFileTextPreview,

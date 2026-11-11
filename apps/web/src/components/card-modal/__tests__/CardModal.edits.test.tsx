@@ -42,7 +42,8 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { CardModal, emptiedContentNotice } = await import("../CardModal");
+const { CardModal } = await import("../CardModal");
+const { emptiedContentNotice } = await import("../cardModalText");
 
 let root: Root | undefined;
 

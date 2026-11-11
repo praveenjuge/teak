@@ -60,8 +60,6 @@ import {
 } from "./gridColumns";
 import { useBulkDeleteForever, useSelectAllCards } from "./gridSelection";
 
-export { columnsForWidth } from "./gridColumns";
-
 type MasonryCell = "add-form" | { card: Doc<"cards">; isPriority: boolean };
 interface MasonryItem {
   data: MasonryCell;

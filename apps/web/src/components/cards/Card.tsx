@@ -88,8 +88,6 @@ import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
-export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
-
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
 type AccessibleLabelTranslator = TeakTranslator<"cards.accessibleLabel">;

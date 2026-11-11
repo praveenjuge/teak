@@ -41,8 +41,6 @@ export interface SearchSuggestionSources {
   tags?: readonly { count: number; name: string }[];
 }
 
-export type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
-
 const searchMessage = <K extends `search.${string}`>(key: K) =>
   key.slice("search.".length) as K extends `search.${infer Rest}`
     ? Rest
