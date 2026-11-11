@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { englishTranslator } from "../englishTranslators";
 import {
   buildSmartFolderQuery,
   decodeFolderSegment,
@@ -11,6 +12,8 @@ import {
   manualFolders,
   suggestSmartFolderName,
 } from "../folders";
+
+const foldersT = englishTranslator("lib.folders");
 
 const folder = (id: string, name: string): FolderSummary => ({
   _id: id as Id<"folders">,
@@ -124,15 +127,18 @@ describe("smart folder searches", () => {
 
   test("a name reads like the search", () => {
     expect(
-      suggestSmartFolderName('tag:design type:link site:github.com "a b" x')
+      suggestSmartFolderName(
+        'tag:design type:link site:github.com "a b" x',
+        foldersT
+      )
     ).toBe("Design · Links · github.com · “a b” · x");
-    expect(suggestSmartFolderName("is:fav")).toBe("Favorites");
-    expect(suggestSmartFolderName("price:>20 price:<100 type:link")).toBe(
-      "Price over 20 · Price under 100 · Links"
-    );
-    expect(Array.from(suggestSmartFolderName("a".repeat(400)))).toHaveLength(
-      300
-    );
+    expect(suggestSmartFolderName("is:fav", foldersT)).toBe("Favorites");
+    expect(
+      suggestSmartFolderName("price:>20 price:<100 type:link", foldersT)
+    ).toBe("Price over 20 · Price under 100 · Links");
+    expect(
+      Array.from(suggestSmartFolderName("a".repeat(400), foldersT))
+    ).toHaveLength(300);
   });
 
   test("manualFolders leaves out smart folders", () => {

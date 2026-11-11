@@ -1,8 +1,5 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 
 const segmenter =
@@ -47,11 +44,7 @@ export function countWords(markdown: string): number {
   return count;
 }
 
-const englishTextEditor = createTeakTranslator(
-  "en",
-  englishMessages,
-  "textEditor"
-);
+const englishTextEditor = englishTranslator("textEditor");
 
 export const formatWordCount = (
   count: number,

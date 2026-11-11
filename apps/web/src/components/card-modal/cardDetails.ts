@@ -1,8 +1,4 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import {
   englishTranslator,
   US_ENGLISH_LOCALE,
@@ -17,11 +13,8 @@ import { formatBytes } from "../settings/importExportFormat";
 
 export type CardDetailsTranslator = TeakTranslator<"cardModal.details">;
 
-const englishDetails: CardDetailsTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cardModal.details"
-);
+const englishDetails: CardDetailsTranslator =
+  englishTranslator("cardModal.details");
 
 export function formatCardDate(
   timestamp: number,

@@ -1,17 +1,11 @@
 import { isCardType } from "@teak/convex/shared/constants";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 export type CardTypesTranslator = TeakTranslator<"cards.types">;
 
-export const englishCardTypes: CardTypesTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cards.types"
-);
+export const englishCardTypes: CardTypesTranslator =
+  englishTranslator("cards.types");
 
 export function cardTypeLabel(
   type: string | undefined,

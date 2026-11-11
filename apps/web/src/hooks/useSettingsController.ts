@@ -1,18 +1,21 @@
 "use client";
 
 import { api } from "@teak/convex";
+import type { listedApiKeyValidator } from "@teak/convex/apiKeys";
+import type { latestExportValidator } from "@teak/convex/dataExport";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
+import type { Infer } from "convex/values";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ConnectionTarget } from "../components/settings/SecurityConnections";
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
-import type { SettingsData } from "../lib/settingsSections";
+import { ALL_SETTINGS_DATA, type SettingsData } from "../lib/settingsSections";
 import { useDeviceSessions } from "./useDeviceSessions";
 import { useServerErrors } from "./useServerErrors";
 
@@ -26,14 +29,8 @@ interface UseSettingsControllerOptions {
   onSignOut: () => Promise<void> | void;
 }
 
-const LOAD_EVERYTHING: SettingsData = {
-  apiKeys: true,
-  exportState: true,
-  sessions: true,
-};
-
 export function useSettingsController({
-  load = LOAD_EVERYTHING,
+  load = ALL_SETTINGS_DATA,
   onDeleteAccount,
   onDownloadFile,
   onOpenExternal,
@@ -50,16 +47,7 @@ export function useSettingsController({
   const keys = useQuery(
     api.apiKeys.listUserApiKeys,
     load.apiKeys ? {} : "skip"
-  ) as
-    | {
-        id: string;
-        name: string;
-        maskedKey: string;
-        status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
-        createdAt: number;
-        lastUsedAt?: number;
-      }[]
-    | undefined;
+  ) as Infer<typeof listedApiKeyValidator>[] | undefined;
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
@@ -107,35 +95,7 @@ export function useSettingsController({
   const exportState = useQuery(
     api.dataExport.getLatestExport,
     load.exportState ? {} : "skip"
-  ) as
-    | {
-        job: {
-          id: string;
-          status:
-            | "pending"
-            | "running"
-            | "ready"
-            | "failed"
-            | "canceled"
-            | "expired";
-          cardCount?: number;
-          filesIncluded?: number;
-          filesOmitted?: number;
-          artifactBytes?: number;
-          processedCount?: number;
-          stage?: "snapshotting" | "archiving";
-          failureClass?: string;
-          createdAt: number;
-          updatedAt: number;
-          completedAt?: number;
-          expiresAt?: number;
-          downloadAvailable: boolean;
-        } | null;
-        canStartNew: boolean;
-        quotaResetMs: number;
-      }
-    | null
-    | undefined;
+  ) as Infer<typeof latestExportValidator> | null | undefined;
   const startExportMutation = useMutation(api.dataExport.startExport);
   const cancelExportMutation = useMutation(api.dataExport.cancelExport);
   const getExportDownloadUrl = useAction(api.dataExport.getExportDownloadUrl);

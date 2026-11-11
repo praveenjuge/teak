@@ -1,10 +1,10 @@
+import { CARD_PARAM } from "@teak/convex/shared/webRoutes";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { folderPath } from "@/lib/folders";
 import {
   ADD_TO_FOLDER_PARAM,
   addToFolderHref,
-  CARD_PARAM,
   cardHref,
   libraryHref,
   searchWithout,

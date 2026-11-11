@@ -9,7 +9,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth } = await import("convex/react");
-const { ConvexQueryCacheProvider } = await import("@/lib/convexQueryCache");
+const { ConvexQueryCacheProvider } = await import(
+  "convex-helpers/react/cache/provider"
+);
 const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );

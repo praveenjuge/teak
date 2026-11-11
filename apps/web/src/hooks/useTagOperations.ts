@@ -5,16 +5,16 @@ import { useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@/lib/convexQueryHooks";
+import { convexErrorData } from "../lib/serverErrors";
 import {
   isTagOperationStalled,
   TAG_OPERATION_OVERLAY_MS,
   type TagOperationView,
-  tagErrorCode,
-  tagErrorMessage,
   tagOperationDescription,
   tagOperationTitle,
 } from "../lib/tags";
 import { useNow } from "./useNow";
+import { useServerErrors } from "./useServerErrors";
 
 export interface StartTagOperationInput {
   from: string;
@@ -42,7 +42,7 @@ export function useTagOperations(): UseTagOperationsResult {
   const t = useTranslations("hooks.tagOperations");
   const tl = useTranslations("lib.tags");
   const tc = useTranslations("common");
-  const errors = useTranslations("errors");
+  const errors = useServerErrors();
   const startMutation = useMutation(api.tags.startTagOperation);
   const latest: TagOperationView | null | undefined = useQuery(
     api.tags.getLatestTagOperation,
@@ -82,7 +82,7 @@ export function useTagOperations(): UseTagOperationsResult {
       } catch (error) {
         if (
           operation.kind === "rename" &&
-          tagErrorCode(error) === "TAG_EXISTS"
+          convexErrorData(error).code === "TAG_EXISTS"
         ) {
           return await start({ ...input, kind: "merge" });
         }
@@ -136,7 +136,7 @@ export function useTagOperations(): UseTagOperationsResult {
         label: tc("retry"),
         onClick: () => {
           retry(operation).catch((error) =>
-            toast.error(tagErrorMessage(error, t("startFailed"), errors))
+            toast.error(errors.message(error, t("startFailed")))
           );
         },
       },

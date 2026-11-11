@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishTranslator } from "../englishTranslators";
 import {
   firstFile,
   imageFromClipboard,
@@ -8,6 +9,8 @@ import {
 } from "../linkThumbnail";
 
 const MB = 1024 * 1024;
+const errorsT = englishTranslator("errors");
+const thumbnailT = englishTranslator("lib.linkThumbnail");
 
 describe("link image files", () => {
   test.each([
@@ -28,7 +31,7 @@ describe("link image files", () => {
       "Use a JPEG, PNG, WebP, GIF or AVIF image.",
     ],
   ])("%o is refused with %p", (file, problem) => {
-    expect(linkThumbnailFileProblem(file)).toBe(problem);
+    expect(linkThumbnailFileProblem(file, errorsT)).toBe(problem);
   });
 
   test("a drop of several files takes the first", () => {
@@ -67,14 +70,18 @@ describe("link image errors", () => {
     ["RATE_LIMITED", "You've changed a lot of images. Try again in a minute."],
   ])("%s reads as the problem, never the file", (code, message) => {
     expect(
-      linkThumbnailErrorMessage({ data: { code, message: "raw.png failed" } })
+      linkThumbnailErrorMessage(
+        { data: { code, message: "raw.png failed" } },
+        errorsT,
+        thumbnailT
+      )
     ).toBe(message);
   });
 
   test("other errors fall back to a plain message", () => {
-    expect(linkThumbnailErrorMessage(new Error("network"))).toBe(
-      "Couldn't change the image. Try again."
-    );
+    expect(
+      linkThumbnailErrorMessage(new Error("network"), errorsT, thumbnailT)
+    ).toBe("Couldn't change the image. Try again.");
   });
 });
 

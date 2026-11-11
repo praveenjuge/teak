@@ -1,8 +1,4 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import {
   type ChainedCommands,
   type Editor,
@@ -15,14 +11,11 @@ import type { EditorState } from "@tiptap/pm/state";
 import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { findTable, TableMap } from "@tiptap/pm/tables";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 type TextEditorTranslator = TeakTranslator<"textEditor">;
 
-const englishTextEditor = createTeakTranslator(
-  "en",
-  englishMessages,
-  "textEditor"
-);
+const englishTextEditor = englishTranslator("textEditor");
 
 export const MAX_TABLE_COLUMNS = 20;
 export const MAX_TABLE_ROWS = 200;

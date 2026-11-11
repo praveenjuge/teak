@@ -4,25 +4,36 @@ import { POST as share } from "../app/share/route";
 import { GET as worker } from "../app/sw.js/route";
 
 describe("the installed web app", () => {
-  test("its manifest opens the library standalone and takes shares", () => {
-    const app = manifest();
-    expect(app).toMatchObject({
-      name: "Teak",
-      start_url: "/",
-      scope: "/",
-      display: "standalone",
-      share_target: {
-        action: "/share",
-        method: "POST",
-        enctype: "multipart/form-data",
-      },
-    });
-    expect(app.icons?.map((icon) => `${icon.sizes} ${icon.purpose}`)).toEqual([
-      "192x192 any",
-      "512x512 any",
-      "192x192 maskable",
-      "512x512 maskable",
-    ]);
+  test("a share sent the way its manifest describes reaches the composer", async () => {
+    const target = manifest().share_target;
+    if (!target?.params) {
+      throw new Error("the manifest takes no shares");
+    }
+    const { files, ...textParams } = target.params as Record<
+      string,
+      unknown
+    > & {
+      files: { name: string }[];
+    };
+    const form = new FormData();
+    for (const name of Object.values(textParams) as string[]) {
+      form.set(name, `shared ${name}`);
+    }
+    form.append(
+      files[0]?.name ?? "",
+      new File(["png"], "a.png", { type: "image/png" })
+    );
+    const response = await share(
+      new Request(new URL(target.action, "https://teak.test"), {
+        method: target.method,
+        body: form,
+      })
+    );
+    const location = new URL(response.headers.get("location") ?? "");
+    for (const name of Object.values(textParams) as string[]) {
+      expect(location.searchParams.get(name)).toBe(`shared ${name}`);
+    }
+    expect(location.searchParams.get("share")).toBe("missing");
   });
 
   test("/sw.js is a worker allowed to control the whole app", async () => {

@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { Fragment, useMemo } from "react";
 import {
@@ -15,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import {
   keyboardShortcutGroups,
@@ -133,11 +130,8 @@ const KEY_NAMES: Record<string, KeyName> = {
   "↩": "return",
 };
 
-const englishShortcuts: ShortcutsTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "modals.shortcuts"
-);
+const englishShortcuts: ShortcutsTranslator =
+  englishTranslator("modals.shortcuts");
 
 export function shortcutAccessibleLabel(
   row: ShortcutRow,

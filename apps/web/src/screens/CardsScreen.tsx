@@ -44,6 +44,7 @@ import { useVaultSetup } from "@/hooks/useVaultSetup";
 import type { CardsVisualFilters } from "@/lib/cardsSearchState";
 import { clipFolderName } from "@/lib/clipFolderName";
 import { usePaginatedQuery, useQuery } from "@/lib/convexQueryHooks";
+import { LIBRARY_PAGE_SIZE } from "@/lib/firstLoadQueries";
 import {
   LazyConnectedCardModal as ConnectedCardModal,
   preloadCardModal,
@@ -306,7 +307,8 @@ export function CardsScreen({
           ...(relevance.useRelevanceScores ? { useRelevanceScores: true } : {}),
           ...(queryRetryKey ? { retryKey: queryRetryKey } : {}),
         },
-    { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
+    // The seed the server fetched for the first page has this size too.
+    { initialNumItems: LIBRARY_PAGE_SIZE }
   );
   const semanticSearch = useSemanticSearch({
     ...queryArgs,

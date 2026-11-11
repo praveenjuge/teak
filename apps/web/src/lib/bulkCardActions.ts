@@ -5,13 +5,8 @@ import {
 } from "@teak/convex/shared/bulkCardActions";
 import type { TeakTranslator } from "@teak/i18n";
 import { clipFolderName } from "./clipFolderName";
-import { englishTranslator } from "./englishTranslators";
 
 export type BulkCopyTranslator = TeakTranslator<"lib.bulkCardActions">;
-
-const englishBulkCopy: BulkCopyTranslator = englishTranslator(
-  "lib.bulkCardActions"
-);
 
 export interface BulkFolderTarget {
   folderId: string;
@@ -122,22 +117,22 @@ export const bulkActionCopy = {
     action: BulkCardAction,
     done: number,
     total: number,
-    t: BulkCopyTranslator = englishBulkCopy
+    t: BulkCopyTranslator
   ) => t(`progress.${action}`, { done, total }),
   done: (
     action: BulkCardAction,
     count: number,
-    folder?: string,
-    t: BulkCopyTranslator = englishBulkCopy
+    folder: string | undefined,
+    t: BulkCopyTranslator
   ) => doneMessage(action, count, folder, t),
   partial: (
     action: BulkCardAction,
     updated: number,
     failed: number,
-    folder?: string,
-    t: BulkCopyTranslator = englishBulkCopy
+    folder: string | undefined,
+    t: BulkCopyTranslator
   ) => t("partial", { done: doneMessage(action, updated, folder, t), failed }),
-  failed: (action: BulkCardAction, t: BulkCopyTranslator = englishBulkCopy) =>
+  failed: (action: BulkCardAction, t: BulkCopyTranslator) =>
     t(`failed.${action}`),
 };
 

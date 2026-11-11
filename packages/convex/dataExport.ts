@@ -206,7 +206,7 @@ async function readLastSuccessfulAt(
   return findLastSuccessfulAt([...recentJobs, ...readyJobs]);
 }
 
-const latestExportValidator = v.object({
+export const latestExportValidator = v.object({
   job: v.union(v.null(), exportSummaryValidator),
   canStartNew: v.boolean(),
   quotaResetMs: v.number(),

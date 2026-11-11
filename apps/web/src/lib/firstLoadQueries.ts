@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
+import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import type { FunctionReference } from "convex/server";
 import type { JSONValue } from "convex/values";
 import { initialCardsSearchQueryArgs } from "./cardsSearchState";
@@ -25,6 +26,18 @@ export interface QuerySeed {
   name: string;
   value: JSONValue;
 }
+
+/**
+ * A paginated query's first page exactly as convex-helpers' cached
+ * `usePaginatedQuery` asks for it: its page id is always 0.
+ */
+export const firstPageArgs = <Args extends object>(
+  args: Args,
+  numItems: number
+) => ({ ...args, paginationOpts: { cursor: null, id: 0, numItems } });
+
+/** How many cards the library's first page holds. */
+export const LIBRARY_PAGE_SIZE = SEARCH_DEFAULT_CARD_LIMIT;
 
 /**
  * Names one query call whatever order its arguments' keys were built in, so
@@ -57,7 +70,7 @@ export function firstLoadQueries(
     { query: api.auth.getCardCreationStatus, args: {} },
     { query: api.folders.listFolders, args: {} },
   ];
-  if (url.pathname === "/tags") {
+  if (url.pathname === TAGS_PATH) {
     queries.push({ query: api.tags.listTagSummary, args: {} });
     return queries;
   }
@@ -95,17 +108,10 @@ export function firstLoadQueries(
   if (cardsArgs) {
     queries.push({
       query: api.cards.searchCardsPaginated,
-      // The first page exactly as the cached usePaginatedQuery
-      // (convex-helpers) asks for it; its page id is always 0.
-      args: {
-        ...cardsArgs,
-        ...(folderId ? { folderId } : {}),
-        paginationOpts: {
-          cursor: null,
-          id: 0,
-          numItems: SEARCH_DEFAULT_CARD_LIMIT,
-        },
-      },
+      args: firstPageArgs(
+        { ...cardsArgs, ...(folderId ? { folderId } : {}) },
+        LIBRARY_PAGE_SIZE
+      ),
     });
   }
   return queries;

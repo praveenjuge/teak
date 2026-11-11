@@ -7,6 +7,9 @@ import {
   runBulkInChunks,
 } from "../bulkCardActions";
 import { applyBulkActionToCard } from "../cardQueryOptimisticUpdates";
+import { englishTranslator } from "../englishTranslators";
+
+const bulkT = englishTranslator("lib.bulkCardActions");
 
 const card = (overrides: Partial<Doc<"cards">> = {}) =>
   ({
@@ -75,15 +78,19 @@ describe("runBulkInChunks", () => {
 
 describe("bulkActionCopy", () => {
   test("says what happened in counts people can read", () => {
-    expect(bulkActionCopy.progress("archive", 120, 300)).toBe(
+    expect(bulkActionCopy.progress("archive", 120, 300, bulkT)).toBe(
       "Archiving 120 of 300…"
     );
-    expect(bulkActionCopy.done("archive", 1)).toBe("Archived 1 card");
-    expect(bulkActionCopy.partial("archive", 298, 2)).toBe(
+    expect(bulkActionCopy.done("archive", 1, undefined, bulkT)).toBe(
+      "Archived 1 card"
+    );
+    expect(bulkActionCopy.partial("archive", 298, 2, undefined, bulkT)).toBe(
       "Archived 298 cards. 2 couldn't be changed."
     );
-    expect(bulkActionCopy.done("delete", 3)).toBe("Moved 3 cards to Trash");
-    expect(bulkActionCopy.failed("addTags")).toBe(
+    expect(bulkActionCopy.done("delete", 3, undefined, bulkT)).toBe(
+      "Moved 3 cards to Trash"
+    );
+    expect(bulkActionCopy.failed("addTags", bulkT)).toBe(
       "Couldn't add tags to these cards"
     );
   });
@@ -246,16 +253,21 @@ describe("folder bulk actions", () => {
   });
 
   test("toasts name the folder", () => {
-    expect(bulkActionCopy.done("addToFolder", 3, "Reading")).toBe(
+    expect(bulkActionCopy.done("addToFolder", 3, "Reading", bulkT)).toBe(
       "Added 3 cards to Reading"
     );
-    expect(bulkActionCopy.partial("moveToFolder", 2, 1, "Later")).toBe(
+    expect(bulkActionCopy.partial("moveToFolder", 2, 1, "Later", bulkT)).toBe(
       "Moved 2 cards to Later. 1 couldn't be changed."
     );
   });
 
   test("toasts shorten a very long folder name", () => {
-    const message = bulkActionCopy.done("addToFolder", 1, "M".repeat(300));
+    const message = bulkActionCopy.done(
+      "addToFolder",
+      1,
+      "M".repeat(300),
+      bulkT
+    );
     expect(message.length).toBeLessThan(60);
     expect(message.endsWith("…")).toBe(true);
   });

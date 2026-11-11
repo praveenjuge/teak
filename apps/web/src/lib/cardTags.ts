@@ -23,7 +23,6 @@ interface TaggedCard {
 const hasTag = (list: readonly string[], tag: string) =>
   list.some((item) => tagKey(item) === tagKey(tag));
 
-/** A tag as someone types it. */
 export const typedTag = (value: string): string => tagKey(value);
 
 /** Comma-separated tags as one edit names them. */

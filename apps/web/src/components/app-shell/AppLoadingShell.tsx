@@ -6,6 +6,7 @@ import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { LogoMark } from "@/components/LogoMark";
 import { searchFieldClassName } from "@/components/search/SearchBar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isSettingsPath } from "@/lib/settingsSections";
 import { SettingsPageSkeleton } from "../settings/SettingsPageSkeleton";
 
 const NAV_ROWS = ["new", "all", "favorites", "revisit", "archive", "tags"];
@@ -17,7 +18,7 @@ const NAV_ROWS = ["new", "all", "favorites", "revisit", "archive", "tags"];
  * language and nothing swaps from a spinner to a skeleton.
  */
 export function AppLoadingShell() {
-  const isSettings = usePathname().startsWith("/settings");
+  const isSettings = isSettingsPath(usePathname());
   return (
     <div className="flex min-h-svh w-full" data-slot="app-loading-shell">
       {/* The root layout's head script sets the width and the collapsed state

@@ -1,9 +1,10 @@
-import { getSafeNextPath, SIGN_IN_ROUTES } from "./safe-next-path";
-
-// Ask for AuthKit even with a session: `reauth` after a failed callback (it
-// also asks for credentials again), `renew` when the app rejected a session
-// the server still holds, so AuthKit can issue a fresh one.
-const AUTHKIT_REQUIRED = ["reauth", "renew"];
+import {
+  NEXT_PARAM,
+  REAUTH_PARAM,
+  RENEW_PARAM,
+  SIGN_IN_ROUTES,
+} from "./authUrls";
+import { getSafeNextPath } from "./safe-next-path";
 
 export function workosEntryRedirect(
   url: Pick<URL, "origin" | "pathname" | "searchParams">,
@@ -12,10 +13,11 @@ export function workosEntryRedirect(
   // A signed-in visit to sign-in would only bounce through AuthKit and back.
   if (
     !(signedIn && SIGN_IN_ROUTES.has(url.pathname)) ||
-    AUTHKIT_REQUIRED.some((param) => url.searchParams.has(param))
+    url.searchParams.has(REAUTH_PARAM) ||
+    url.searchParams.has(RENEW_PARAM)
   ) {
     return null;
   }
-  const next = getSafeNextPath(url.searchParams.get("next"));
+  const next = getSafeNextPath(url.searchParams.get(NEXT_PARAM));
   return new URL(next ?? "/", url.origin);
 }

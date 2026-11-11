@@ -1,9 +1,12 @@
 "use client";
 
 import { api } from "@teak/convex";
+import type { bootstrapResult } from "@teak/convex/workosBootstrap";
 import { useTranslations } from "@teak/i18n/react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
+import type { Infer } from "convex/values";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import {
   type ReactNode,
   useCallback,
@@ -11,19 +14,16 @@ import {
   useRef,
   useState,
 } from "react";
-import Loading from "@/app/loading";
+import { AppLoading } from "@/components/app-shell/AppLoading";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
-import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
+import { signInPath } from "@/lib/authUrls";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { StatusScreen } from "../StatusScreen";
 import { AuthUnavailable } from "./AuthUnavailable";
 import { PostHogIdentify } from "./PostHogIdentify";
 
-type Bootstrap =
-  | { status: "ok"; teakUserId: string }
-  | { status: "verify_email" | "frozen" }
-  | { status: "quarantined"; reason: string };
+type Bootstrap = Infer<typeof bootstrapResult>;
 
 const BLOCKED_MESSAGE_KEYS = {
   verify_email: "verifyEmail",
@@ -36,13 +36,16 @@ const BLOCKED_MESSAGE_KEYS = {
 // back to the same page.
 const signInHere = () =>
   window.location.replace(
-    `/sign-in?renew=1&next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+    signInPath({
+      renew: true,
+      next: window.location.pathname + window.location.search,
+    })
   );
-const signIn = () => window.location.replace("/sign-in?renew=1");
+const signIn = () => window.location.replace(signInPath({ renew: true }));
 
 export function WorkosAuthBoundary({
   children,
-  loading: loadingState = <Loading />,
+  loading: loadingState = <AppLoading fullscreen />,
 }: {
   children: ReactNode;
   loading?: ReactNode;

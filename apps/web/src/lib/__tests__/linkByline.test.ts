@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { englishTranslator } from "../englishTranslators";
 import { formatLinkByline, formatPublishedDate } from "../linkByline";
 
 const NOW = Date.UTC(2026, 9, 12, 12);
+const bylineT = englishTranslator("lib.linkByline");
 
 describe("formatLinkByline", () => {
   test("joins author, publisher and date", () => {
@@ -13,7 +15,8 @@ describe("formatLinkByline", () => {
           publishedAt: "2024-03-05",
           publisher: "The Daily Paper",
         },
-        NOW
+        NOW,
+        bylineT
       )
     ).toBe("By Jane Doe · The Daily Paper · Mar 5, 2024");
   });
@@ -23,9 +26,9 @@ describe("formatLinkByline", () => {
     ["BBC", "www.bbc.co.uk"],
     ["github", "github.com"],
   ])("leaves out publisher %p that only repeats %p", (publisher, hostname) => {
-    expect(formatLinkByline({ author: "Sam", hostname, publisher }, NOW)).toBe(
-      "By Sam"
-    );
+    expect(
+      formatLinkByline({ author: "Sam", hostname, publisher }, NOW, bylineT)
+    ).toBe("By Sam");
   });
 
   test("leaves out a publisher that repeats the author", () => {
@@ -36,15 +39,16 @@ describe("formatLinkByline", () => {
           hostname: "paulgraham.com",
           publisher: "paul graham",
         },
-        NOW
+        NOW,
+        bylineT
       )
     ).toBe("By Paul Graham");
   });
 
   test("does not double a 'By' the page already wrote", () => {
-    expect(formatLinkByline({ author: "  by   Ada Lovelace " }, NOW)).toBe(
-      "By Ada Lovelace"
-    );
+    expect(
+      formatLinkByline({ author: "  by   Ada Lovelace " }, NOW, bylineT)
+    ).toBe("By Ada Lovelace");
   });
 
   test.each([
@@ -52,23 +56,25 @@ describe("formatLinkByline", () => {
     ["a bare www link", "www.example.com/authors/x"],
     ["whitespace", "   "],
   ])("ignores an author that is %s", (_label, author) => {
-    expect(formatLinkByline({ author }, NOW)).toBeNull();
+    expect(formatLinkByline({ author }, NOW, bylineT)).toBeNull();
   });
 
   test("clips a very long author name", () => {
-    const byline = formatLinkByline({ author: "A".repeat(300) }, NOW);
+    const byline = formatLinkByline({ author: "A".repeat(300) }, NOW, bylineT);
     expect(byline?.length).toBeLessThanOrEqual(84);
     expect(byline?.endsWith("…")).toBe(true);
   });
 
   test("keeps non-Latin names", () => {
     expect(
-      formatLinkByline({ author: "山田太郎", publisher: "مجلة" }, NOW)
+      formatLinkByline({ author: "山田太郎", publisher: "مجلة" }, NOW, bylineT)
     ).toBe("By 山田太郎 · مجلة");
   });
 
   test("returns null when the page named nothing", () => {
-    expect(formatLinkByline({ hostname: "example.com" }, NOW)).toBeNull();
+    expect(
+      formatLinkByline({ hostname: "example.com" }, NOW, bylineT)
+    ).toBeNull();
   });
 });
 

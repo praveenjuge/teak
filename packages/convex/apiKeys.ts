@@ -67,7 +67,7 @@ const apiKeyStatusValidator = v.union(
   v.literal("exhausted")
 );
 
-const listedApiKeyValidator = v.object({
+export const listedApiKeyValidator = v.object({
   id: v.string(),
   name: v.string(),
   keyPrefix: v.string(),

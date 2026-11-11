@@ -23,8 +23,9 @@ import { Label } from "@/components/ui/label";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { type FolderSummary, folderErrorMessage } from "@/lib/folders";
+import type { FolderSummary } from "@/lib/folders";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
+import { convexErrorData } from "@/lib/serverErrors";
 import { cn } from "@/lib/utils";
 
 const PREVIEW_DELAY_MS = 300;
@@ -187,7 +188,7 @@ export function FolderRulesFields({
       await undoRun({ folderId: folder._id, runId: lastRun._id });
       onUndone(lastRun._id);
     } catch (caught) {
-      setUndoError(folderErrorMessage(caught, t("undoFailed")));
+      setUndoError(convexErrorData(caught).message ?? t("undoFailed"));
     }
   });
 

@@ -13,6 +13,7 @@ import {
   softwareApplicationSchema,
   websiteSchema,
 } from "@/lib/jsonld";
+import { filesOrigin } from "@/lib/public-env";
 import {
   SIDEBAR_COOKIE_NAME,
   SIDEBAR_DEFAULT_WIDTH,
@@ -20,6 +21,8 @@ import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_WIDTH_COOKIE_NAME,
 } from "@/lib/sidebarState";
+
+const FILES_ORIGIN = filesOrigin();
 
 const snPro = localFont({
   src: "../styles/fonts/SNPro-VariableRegular.woff2",
@@ -84,8 +87,8 @@ export default function RootLayout({ children }: PropsWithChildren) {
             __html: HTML_LANG_FROM_COOKIE + SIDEBAR_FROM_COOKIE,
           }}
         />
-        <link href="//files.teakvault.com" rel="dns-prefetch" />
-        <link href="https://files.teakvault.com" rel="preconnect" />
+        <link href={FILES_ORIGIN} rel="dns-prefetch" />
+        <link href={FILES_ORIGIN} rel="preconnect" />
         <JsonLd
           schema={[
             organizationSchema,

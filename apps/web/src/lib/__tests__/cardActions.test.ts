@@ -6,6 +6,7 @@ import {
   cardAriaKeyShortcuts,
   selectionShortcut,
 } from "../cardActions";
+import { englishTranslator } from "../englishTranslators";
 import { keyboardShortcutGroups } from "../keyboardShortcuts";
 
 const GRID_WITH_COPY: ReadonlySet<CardActionId> = new Set([
@@ -89,7 +90,9 @@ describe("keyboard shortcuts list", () => {
 
   test("lists the key that runs each card action, in the grid and the open card", () => {
     const link: ActionCard = { type: "link", url: "https://example.com" };
-    for (const group of keyboardShortcutGroups()) {
+    for (const group of keyboardShortcutGroups(
+      englishTranslator("shortcuts")
+    )) {
       if (group.id !== "cards" && group.id !== "openCard") {
         continue;
       }

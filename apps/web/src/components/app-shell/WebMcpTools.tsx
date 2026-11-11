@@ -4,41 +4,7 @@ import { api } from "@teak/convex";
 import { useConvex } from "convex/react";
 import { useEffect } from "react";
 import { useBulkUpdateCards, useSetCardPinned } from "@/hooks/useCardMutations";
-import type { WebMcpToolEventType } from "@/lib/webmcp";
 import { getModelContext } from "@/lib/webmcpContext";
-
-interface TeakWebmcpDebugHandle {
-  events: Partial<Record<WebMcpToolEventType, number>>;
-  tools: string[];
-}
-
-type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
-
-const createDevDebugHandle = (toolNames: readonly string[]) => {
-  if (process.env.NODE_ENV === "production") {
-    return {
-      clear: () => undefined,
-      markRegistered: () => undefined,
-      recordEvent: (_type: WebMcpToolEventType) => undefined,
-    };
-  }
-  const handle: TeakWebmcpDebugHandle = { events: {}, tools: [] };
-  (window as DebugWindow).__teakWebmcp = handle;
-  return {
-    clear: () => {
-      if ((window as DebugWindow).__teakWebmcp === handle) {
-        (window as DebugWindow).__teakWebmcp = undefined;
-      }
-    },
-    markRegistered: () => {
-      handle.tools = [...toolNames];
-    },
-    recordEvent: (type: WebMcpToolEventType) => {
-      console.info(`[webmcp] event: ${type}`);
-      handle.events[type] = (handle.events[type] ?? 0) + 1;
-    },
-  };
-};
 
 export function WebMcpTools() {
   const convex = useConvex();
@@ -54,27 +20,12 @@ export function WebMcpTools() {
       return;
     }
     const controller = new AbortController();
-    let stop = (): void => controller.abort();
     // Only a browser with WebMCP downloads the tools.
     const register = async () => {
-      const {
-        registerTeakWebMcpTools,
-        subscribeWebMcpToolEvents,
-        WEBMCP_TOOL_NAMES,
-      } = await import("@/lib/webmcp");
+      const { registerTeakWebMcpTools } = await import("@/lib/webmcp");
       if (controller.signal.aborted) {
         return;
       }
-      const debug = createDevDebugHandle(WEBMCP_TOOL_NAMES);
-      const unsubscribeEvents = subscribeWebMcpToolEvents(
-        modelContext,
-        debug.recordEvent
-      );
-      stop = () => {
-        unsubscribeEvents();
-        controller.abort();
-        debug.clear();
-      };
       await registerTeakWebMcpTools(
         modelContext,
         {
@@ -100,10 +51,9 @@ export function WebMcpTools() {
         },
         { signal: controller.signal }
       );
-      debug.markRegistered();
     };
-    register().catch(() => stop());
-    return () => stop();
+    register().catch(() => controller.abort());
+    return () => controller.abort();
   }, [bulkUpdateCards, convex, setCardPinned]);
 
   return null;

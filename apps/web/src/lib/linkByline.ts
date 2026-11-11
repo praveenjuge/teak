@@ -1,5 +1,5 @@
 import type { TeakTranslator } from "@teak/i18n";
-import { englishTranslator, US_ENGLISH_LOCALE } from "./englishTranslators";
+import { US_ENGLISH_LOCALE } from "./englishTranslators";
 
 export interface LinkBylineSource {
   author?: string;
@@ -73,13 +73,10 @@ export function formatPublishedDate(
 
 export type LinkBylineTranslator = TeakTranslator<"lib.linkByline">;
 
-const englishLinkByline: LinkBylineTranslator =
-  englishTranslator("lib.linkByline");
-
 export function formatLinkByline(
   source: LinkBylineSource,
-  now = Date.now(),
-  t: LinkBylineTranslator = englishLinkByline,
+  now: number,
+  t: LinkBylineTranslator,
   locale: string | undefined = US_ENGLISH_LOCALE
 ): string | null {
   const author = cleanName(source.author);

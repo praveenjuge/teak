@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Check, Search, Tag } from "vadivam-react";
@@ -19,13 +20,11 @@ import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import type { StartTagOperationInput } from "../../hooks/useTagOperations";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
+import { convexErrorData } from "../../lib/serverErrors";
 import {
   explainTagNameInput,
-  MAX_TAG_NAME_LENGTH,
   type TagSummaryItem,
   tagDisplayName,
-  tagErrorCode,
-  tagKey,
 } from "../../lib/tags";
 import { cn } from "../../lib/utils";
 
@@ -121,7 +120,7 @@ function TagManagerForm({
         onOpenChange(false);
       } catch (caught) {
         setServerError({
-          code: tagErrorCode(caught),
+          code: convexErrorData(caught).code,
           message: errors.message(caught, t("startFailed")),
         });
       }

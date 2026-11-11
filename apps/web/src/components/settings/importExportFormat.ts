@@ -1,18 +1,11 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 export { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 
 export type FormatTranslator = TeakTranslator<"settings.format">;
 
-const englishFormat: FormatTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "settings.format"
-);
+const englishFormat: FormatTranslator = englishTranslator("settings.format");
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;

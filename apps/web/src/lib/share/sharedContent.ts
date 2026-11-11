@@ -7,6 +7,10 @@ import { FOCUS_COMPOSER_PARAM } from "@/lib/libraryViews";
  * from the text fields and queues any files.
  */
 
+/** Where the manifest's `share_target` posts, and the route that answers. */
+export const SHARE_ACTION_PATH = "/share";
+/** The form field the shared files arrive in. */
+export const SHARE_FILES_FIELD = "files";
 /** The text fields a share carries, as the manifest's `share_target` names them. */
 export const SHARE_TEXT_FIELDS = ["title", "text", "url"] as const;
 export type ShareTextField = (typeof SHARE_TEXT_FIELDS)[number];

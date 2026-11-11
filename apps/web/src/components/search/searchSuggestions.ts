@@ -24,11 +24,8 @@ import {
   type SearchSuggestionGroup,
 } from "@teak/convex/shared/search/suggestionHints";
 import { isHiddenTagList } from "@teak/convex/shared/tags";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
 import {
   type CardTypesTranslator,
   englishCardTypes,
@@ -36,7 +33,7 @@ import {
 
 type SearchTranslator = TeakTranslator<"search">;
 
-const englishSearch = createTeakTranslator("en", englishMessages, "search");
+const englishSearch = englishTranslator("search");
 
 export interface SearchSuggestionSources {
   folders?: readonly { name: string }[];
