@@ -1,5 +1,4 @@
 import type { Doc } from "../../_generated/dataModel";
-import { cardLinkTokensToText } from "../cardLinks";
 import type { CardType } from "../constants";
 import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
 import { isCardHidden, isHiddenTagList, tagKey } from "../tags";
@@ -22,6 +21,7 @@ import {
   matchesSearchPhrases,
   parseSearchQuery,
 } from "./qualifiers";
+import { buildCardSearchText } from "./searchText";
 import {
   type CardListSort,
   compareCardsBySavedAt,
@@ -73,27 +73,25 @@ const lacksMatchedText = (card: ListedCard) =>
 export const tokenizeSearchQuery = (query: string) =>
   tokenizeSearchInput(query).map((term) => term.toLowerCase());
 
-const searchableParts = (card: Doc<"cards">) =>
-  [
-    card.content ? cardLinkTokensToText(card.content) : undefined,
-    card.notes,
-    card.aiSummary,
-    card.aiTranscript,
-    card.aiOcrText,
-    card.metadataTitle,
-    card.metadataDescription,
-    ...(card.tags ?? []),
-    ...(card.aiTags ?? []),
-  ].filter(Boolean);
-
 // Cards from a query result are never mutated (an edit arrives as a new
 // object), so each card's text is built once rather than on every keystroke.
+const fieldTextCache = new WeakMap<Doc<"cards">, string>();
 const searchableTextCache = new WeakMap<Doc<"cards">, string>();
+
+/** The server's search text for a card: each field on its own line. */
+const cardFieldText = (card: Doc<"cards">) => {
+  let text = fieldTextCache.get(card);
+  if (text === undefined) {
+    text = buildCardSearchText(card, undefined, card.aiTranscript);
+    fieldTextCache.set(card, text);
+  }
+  return text;
+};
 
 export const buildSearchableText = (card: Doc<"cards">) => {
   let text = searchableTextCache.get(card);
   if (text === undefined) {
-    text = searchableParts(card).join(" ").toLowerCase();
+    text = cardFieldText(card).toLowerCase();
     searchableTextCache.set(card, text);
   }
   return text;
@@ -251,9 +249,8 @@ export const filterLocalCards = (
       }
 
       const searchableText = buildSearchableText(card);
-      // Fields stay on their own lines, as on the server, so a phrase never
-      // spans two of them.
-      const fieldText = searchableParts(card).join("\n");
+      // A phrase never spans two fields, as on the server.
+      const fieldText = cardFieldText(card);
       return (
         terms.every((term) => searchableText.includes(term)) &&
         (parsed.phrases.length === 0 ||
