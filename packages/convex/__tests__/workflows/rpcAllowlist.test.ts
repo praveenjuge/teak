@@ -49,6 +49,7 @@ const workerCalls = () =>
   );
 
 interface RegisteredFunction {
+  exportArgs?: () => string;
   isAction?: boolean;
   isInternal?: boolean;
   isMutation?: boolean;
@@ -61,6 +62,20 @@ const registered = async (name: string) => {
     (await import(join(CONVEX, `${module}.ts`))) as Record<string, unknown>
   )[exportName ?? ""] as RegisteredFunction | undefined;
   return exported;
+};
+
+// Mutations that take one card but are not card-processing writes, so they
+// run whichever processing revision the card is on.
+const UNGUARDED_CARD_WRITES: Record<string, string> = {
+  "card/trashCleanup:cleanupDeletedCard":
+    "deletes a card that has been in the trash past retention",
+};
+
+const takesCardId = (fn: RegisteredFunction | undefined) => {
+  const args = JSON.parse(fn?.exportArgs?.() ?? "{}") as {
+    value?: Record<string, { fieldType: { tableName?: string } }>;
+  };
+  return args.value?.cardId?.fieldType.tableName === "cards";
 };
 
 describe("workflow RPC allowlist", () => {
@@ -84,8 +99,30 @@ describe("workflow RPC allowlist", () => {
     expect(GUARDED_WORKFLOW_RPC_FUNCTIONS.size).toBeGreaterThan(0);
     for (const name of GUARDED_WORKFLOW_RPC_FUNCTIONS) {
       expect(isWorkflowRpcFunction(name)).toBe(true);
-      expect(requiresWorkflowRpcGuard(name, {})).toBe(true);
       expect((await registered(name))?.isMutation).toBe(true);
     }
+  });
+
+  test("guards every allowlisted mutation that writes one card, unless it says why not", async () => {
+    const unguarded: string[] = [];
+    for (const name of WORKFLOW_RPC_FUNCTIONS) {
+      const fn = await registered(name);
+      if (!fn?.isMutation || GUARDED_WORKFLOW_RPC_FUNCTIONS.has(name)) {
+        continue;
+      }
+      if (takesCardId(fn) && !(name in UNGUARDED_CARD_WRITES)) {
+        unguarded.push(name);
+      }
+    }
+    expect(unguarded).toEqual([]);
+    for (const name of Object.keys(UNGUARDED_CARD_WRITES)) {
+      expect(takesCardId(await registered(name))).toBe(true);
+    }
+  });
+
+  test("lets a podcast run forget a deleted audio file without the guard", () => {
+    const trackAudio = "workflows/steps/podcast/mutations:trackPodcastAudio";
+    expect(requiresWorkflowRpcGuard(trackAudio, { stored: true })).toBe(true);
+    expect(requiresWorkflowRpcGuard(trackAudio, { stored: false })).toBe(false);
   });
 });
