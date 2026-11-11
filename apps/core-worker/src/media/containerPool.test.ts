@@ -15,9 +15,9 @@ const poolOf = (
   const instances: string[] = [];
   const namespace = {
     get: (instance: string) => ({
-      fetch: async (_request: Request) => {
+      fetch: (_request: Request) => {
         instances.push(instance);
-        return await answer(instance);
+        return Promise.resolve(answer(instance));
       },
     }),
     idFromName: (name: string) => name,

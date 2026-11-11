@@ -354,7 +354,7 @@ const processCard = async (
   const runMetadata = () =>
     runMetadataStep(job, step, reported, cardType, held);
 
-  let metadata: MetadataResult | null = null;
+  let metadata: MetadataResult;
   let renderables: RenderablesResult | null = null;
   if (cardType === "image" || cardType === "video") {
     renderables = stages.renderables ? await runRenderables() : null;
@@ -402,7 +402,7 @@ const processCard = async (
   await step
     .do("emit completion", NO_RETRY("1 minute"), async () => {
       await emitCardProcessingCompleted(job.env, {
-        ...(metadata?.aiLanguage ? { aiLanguage: metadata.aiLanguage } : {}),
+        ...(metadata.aiLanguage ? { aiLanguage: metadata.aiLanguage } : {}),
         cardType,
         durationMs: Math.max(0, Date.now() - initial.creationTime),
       });
@@ -414,7 +414,7 @@ const processCard = async (
   // stage waits on it, and a miss or an error never fails the card.
   if (
     isPodcastLink(cardType, categorization?.category) &&
-    metadata?.mode === "completed"
+    metadata.mode === "completed"
   ) {
     await podcastTranscriptSteps(job, step);
   }
@@ -425,7 +425,7 @@ const processCard = async (
   // host that keeps refusing holds up nothing else.
   if (cardType === "link") {
     await archivePageStep(job, step);
-    if (metadata?.mode === "completed") {
+    if (metadata.mode === "completed") {
       await linkScreenshotSteps(job, step);
     }
     await articleSteps(job, step);
