@@ -22,6 +22,7 @@ import {
   isScannedPdf,
   parseCardObjectKey,
   parseFilesImagePath,
+  parseFilesImageSourcePath,
   truncateForEmbedding,
   vectorNamespaceForUser,
   vectorShardBinding,
@@ -156,6 +157,21 @@ test.each([
   "/__image-source/v1/u/a.jpg",
 ])("reads no image from %p", (pathname) => {
   expect(parseFilesImagePath(pathname)).toBeNull();
+});
+
+test("reads the key from an image source path", () => {
+  expect(parseFilesImageSourcePath("/__image-source/v1/u%2Fc%2Fa.jpg")).toBe(
+    "u/c/a.jpg"
+  );
+});
+
+test.each([
+  "/__image-source/v1/",
+  "/__image-source/v1/%E0",
+  "/__image-source/v1/a%00b",
+  "/__images/v1/grid/u/a.jpg",
+])("reads no image source from %p", (pathname) => {
+  expect(parseFilesImageSourcePath(pathname)).toBeNull();
 });
 
 test("copies only numeric AI diagnostics", () => {

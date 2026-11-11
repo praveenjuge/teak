@@ -43,6 +43,7 @@ import {
   exponentialStep,
   runReported,
   type StepContext,
+  stepAttempts,
   stepPages,
   stopRun,
   type WorkflowRun,
@@ -85,8 +86,7 @@ type BatchOutcome =
   | { kind: "more" }
   | { delayMs: number; kind: "sleep" };
 
-const IMPORT_RETRY_LIMIT = 5;
-const IMPORT_STEP = exponentialStep(IMPORT_RETRY_LIMIT + 1, 10_000);
+const IMPORT_STEP = exponentialStep(6, 10_000);
 const FINALIZE_STEP = exponentialStep(3, 500);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 const INSERT_BATCH_BYTES = 2 * 1024 * 1024;
@@ -161,7 +161,7 @@ export const runImport = (
   const importStep =
     <T>(run: () => Promise<T>) =>
     (ctx: StepContext): Promise<T> => {
-      lastAttempt = ctx.attempt > IMPORT_RETRY_LIMIT;
+      lastAttempt = ctx.attempt >= stepAttempts(IMPORT_STEP);
       return run();
     };
   const shouldRetry = (error: unknown) =>

@@ -13,7 +13,7 @@ import {
   type PinnedFetch,
   SsrfError,
 } from "@teak/files-protocol/ssrf";
-import { createDohLookup, type DnsLookup } from "./dns";
+import { createDohLookup, DNS_NXDOMAIN, type DnsLookup } from "./dns";
 import { RendererUnavailable } from "./media/containerPool";
 import type { LinkFetcherEnv } from "./media/linkFetcher";
 import { createContainerPinnedFetch } from "./media/pinnedHop";
@@ -26,8 +26,6 @@ import { TEAKBOT_USER_AGENT } from "./userAgent";
 // "dead" would hide a live page behind an old copy. It never reads R2 and
 // never uses Browser Rendering.
 
-/** DoH `Status` for a name that does not exist. */
-const NXDOMAIN = 3;
 /** A GET only needs the headers; the hop reads at most one byte past this. */
 const GET_MAX_BYTES = 1;
 
@@ -66,7 +64,7 @@ const resolveHost = async (
   if (
     answers.every(
       (answer) =>
-        answer.status === "fulfilled" && answer.value.status === NXDOMAIN
+        answer.status === "fulfilled" && answer.value.status === DNS_NXDOMAIN
     )
   ) {
     return { kind: "gone" };

@@ -20,12 +20,14 @@ export const isFilesImageRendition = (
   typeof value === "string" &&
   (FILES_IMAGE_RENDITIONS as readonly string[]).includes(value);
 
-const decodeImageKey = (encoded: string): string => {
+const decodeImageKey = (encoded: string): string | null => {
+  let key: string;
   try {
-    return decodeURIComponent(encoded);
+    key = decodeURIComponent(encoded);
   } catch {
-    return "";
+    return null;
   }
+  return key && !key.includes("\0") ? key : null;
 };
 
 /**
@@ -40,8 +42,17 @@ export const parseFilesImagePath = (
   );
   const rendition = match?.[1];
   const key = decodeImageKey(match?.[2] ?? "");
-  return isFilesImageRendition(rendition) && key && !key.includes("\0")
-    ? { key, rendition }
+  return isFilesImageRendition(rendition) && key ? { key, rendition } : null;
+};
+
+/**
+ * The storage key an image source URL's path asks for
+ * (`/__image-source/v1/<key>`), or null for any other path.
+ */
+export const parseFilesImageSourcePath = (pathname: string): string | null => {
+  const prefix = `${FILES_IMAGE_SOURCE_PATH}/`;
+  return pathname.startsWith(prefix)
+    ? decodeImageKey(pathname.slice(prefix.length))
     : null;
 };
 
