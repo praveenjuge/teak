@@ -4,6 +4,7 @@ import {
   WORKFLOW_INSTANCE_MISSING,
 } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import {
   type WorkflowBindingsEnv,
   workflowBinding,
@@ -75,7 +76,7 @@ export const reconcileWorkflows = async (
       ending = await endingOf(binding, instanceId);
     } catch (error) {
       console.error("[reconcile] instance lookup failed", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         instanceId,
       });
       stillOpen.push(instanceId);
@@ -96,7 +97,7 @@ export const reconcileWorkflows = async (
       // One run Convex can't finish must not stop the others, the pruning
       // or the rotation: it moves to the back and the run reports it below.
       console.error("[reconcile] completion not recorded", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         instanceId,
       });
       unrecorded += 1;
@@ -114,7 +115,7 @@ export const reconcileWorkflows = async (
       })
       .catch((error: unknown) => {
         console.warn("[reconcile] could not record checked runs", {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error),
         });
       });
   }

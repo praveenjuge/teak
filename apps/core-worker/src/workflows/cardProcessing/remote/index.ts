@@ -1,4 +1,5 @@
 import type { RemoteLookupInput } from "@teak/convex/shared/linkCategory/remoteDetails";
+import { errorMessage } from "../../../errors";
 import { readAppleMusicDetails } from "./appleMusic";
 import { fetchArxivDetails } from "./arxiv";
 import type { RemoteDetails, RemoteFetchDeps, RemoteSource } from "./common";
@@ -60,7 +61,7 @@ export const fetchRemoteDetails = async (
     }
   } catch (error) {
     console.warn("[categorization] Site details unavailable", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }

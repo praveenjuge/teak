@@ -1,4 +1,5 @@
 import type { FilesScrapeSelectorResult } from "@teak/files-protocol";
+import { errorMessage } from "../../../errors";
 import type { LinkPreviewMetadata } from "../../../linkPreview/types";
 import type { RemoteFetchDeps } from "../remote/common";
 import { fetchBlueskyPost, isBlueskyPostUrl } from "./bluesky";
@@ -84,7 +85,7 @@ export const fetchSocialPostMetadata = async (
     }
   } catch (error) {
     console.warn("[linkMetadata] Social post lookup failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
   return null;

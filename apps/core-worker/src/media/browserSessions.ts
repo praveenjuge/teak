@@ -3,6 +3,7 @@ import type {
   Browser,
   WorkersLaunchOptions,
 } from "@cloudflare/puppeteer";
+import { errorMessage } from "../errors";
 import { OpFailure } from "../opFailure";
 
 export interface BrowserLease {
@@ -61,7 +62,7 @@ export const createBrowserAcquirer =
       return { browser, release: () => browser.disconnect() };
     } catch (error) {
       console.warn("[core-worker] Browser Run unavailable", {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       });
       throw new OpFailure("browser_unavailable");
     }

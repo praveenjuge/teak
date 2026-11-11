@@ -13,6 +13,7 @@ const HTML = "<html><head><title>Café &amp; co</title></head></html>";
 const page = (
   overrides: Partial<FetcherPageResponse> = {}
 ): FetcherPageResponse => ({
+  cacheable: false,
   charset: "windows-1252",
   html: HTML,
   pageUrl: "https://site.example/final",
@@ -361,11 +362,10 @@ describe("link page cache", () => {
     expect(calls).toHaveLength(2);
   });
 
-  test.each([
-    ["marked no-store or private", page({ cacheable: false })],
-    ["from a fetcher that does not say", page()],
-  ])("never keeps a page %s", async (_label, answer) => {
-    const { calls, env, kv } = setup(() => Response.json(answer));
+  test("never keeps a page marked no-store or private", async () => {
+    const { calls, env, kv } = setup(() =>
+      Response.json(page({ cacheable: false }))
+    );
     await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
     await fetchLinkPage(env, { selectors: SELECTORS, url: URL_ });
     expect(calls).toHaveLength(2);

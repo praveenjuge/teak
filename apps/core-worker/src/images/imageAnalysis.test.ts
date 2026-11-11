@@ -57,6 +57,56 @@ describe("image analysis", () => {
     expect(options[0]).toMatchObject({ format: "png", height: 64, width: 64 });
   });
 
+  test("measures an original replaced after its first read through Image Resizing, not the stale binding read", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set(KEY, {
+      bytes: makePng(40, 30),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const head = bucket.head.bind(bucket);
+    bucket.head = (key: string) => {
+      const metadata = head(key);
+      bucket.objects.set(KEY, {
+        bytes: makePng(80, 60),
+        httpMetadata: { contentType: "image/png" },
+      });
+      return metadata;
+    };
+    let infoCalls = 0;
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: "secret",
+      IMAGES: {
+        info: () => {
+          infoCalls += 1;
+          return Promise.resolve({ height: 30, width: 40 });
+        },
+      } as unknown as ImagesBinding,
+    } as Env;
+    const imageFetch = ((
+      _input: RequestInfo | URL,
+      init?: RequestInit & { cf?: { image?: Record<string, unknown> } }
+    ) =>
+      Promise.resolve(
+        init?.cf?.image?.format === "json"
+          ? Response.json({ original: { height: 60, width: 80 } })
+          : new Response(makePng(64, 48), {
+              headers: { "content-type": "image/png" },
+            })
+      )) as unknown as typeof fetch;
+
+    const result = await analyzeImage(
+      env,
+      KEY,
+      "https://files.teakvault.com",
+      imageFetch,
+      1_800_000_000
+    );
+
+    expect(result).toMatchObject({ height: 60, width: 80 });
+    expect(infoCalls).toBe(0);
+  });
+
   test("uses Cloudflare metadata and a 64px PNG color sample", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set(KEY, {

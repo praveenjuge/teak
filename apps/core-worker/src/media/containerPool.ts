@@ -1,3 +1,4 @@
+import { CONTAINER_BUSY_STATUS } from "../../container/src/protocol";
 import { OpFailure } from "../opFailure";
 import { CONTAINER_READY_TIMEOUT_MS } from "./mediaRenderer";
 
@@ -76,7 +77,7 @@ export interface ContainerPool {
 export interface PoolRequest {
   /** Read once per instance tried, so a stream is opened fresh each time. */
   body: () => Promise<{ body: BodyInit; contentType: string }>;
-  /** Why an instance answered 503; the next instance is tried. */
+  /** Why an instance answered CONTAINER_BUSY_STATUS; the next is tried. */
   busyReason?: (response: Response) => Promise<string>;
   path: string;
   /** Covers starting the Container and reading the response. */
@@ -84,7 +85,7 @@ export interface PoolRequest {
 }
 
 /**
- * Posts to the pool's instances in turn until one isn't busy (503) and
+ * Posts to the pool's instances in turn until one isn't busy and
  * returns its response. Throws `RendererUnavailable` when the binding is
  * missing, a request fails or times out, or every instance is busy.
  */
@@ -120,7 +121,7 @@ export const postToPool = async (
           : `${reasonPrefix}request_failed`
       );
     }
-    if (response.status !== 503) {
+    if (response.status !== CONTAINER_BUSY_STATUS) {
       return response;
     }
     if (request.busyReason) {

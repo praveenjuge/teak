@@ -23,6 +23,7 @@ import type { WorkersAiBinding } from "../ai/aiGateway";
 import { meteredAiRun } from "../ai/aiUsage";
 import { isAudioDecodeError } from "../ai/transcript";
 import { MAX_PDF_TEXT_PAGES, textFacts } from "../archives/inspect";
+import { errorMessage } from "../errors";
 import { OpFailure } from "../opFailure";
 import {
   callRenderer,
@@ -420,7 +421,7 @@ const transcribe = async (
       throw error;
     }
     console.warn("[core-worker] transcription failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return { reason: "transcription_failed", status: "failed" };
   }

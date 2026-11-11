@@ -58,6 +58,7 @@ import {
   runInspect,
 } from "./archives/inspect";
 import { allowedConvexSiteUrl } from "./convexRpc";
+import { errorMessage } from "./errors";
 import { finalizeImageUpload } from "./images/finalizeImage";
 import { analyzeImage } from "./images/imageAnalysis";
 import {
@@ -301,7 +302,7 @@ const generateImageMetadata: OpHandler<"generate-image-metadata"> = async (
       ? decideVisualStylesForImage(env, image, title).catch(
           (error: unknown) => {
             console.warn("[core-worker] visual styles failed", {
-              message: error instanceof Error ? error.message : String(error),
+              message: errorMessage(error),
               requestId,
             });
             return null;

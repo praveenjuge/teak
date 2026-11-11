@@ -10,6 +10,7 @@ import type {
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
 import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import { errorMessage } from "../../errors";
 import type { FilesOp, FilesOpParams, FilesOpResult } from "../../opSpecs";
 import { isRetryableFilesError } from "../filesOps";
 import {
@@ -164,7 +165,7 @@ const generateVideoThumbnail = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/video] Frame extraction failed", {
       cardId: job.cardId,
       error: message,
@@ -232,7 +233,7 @@ const extractAnimationPalette = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/animation] Palette failed", {
       cardId: job.cardId,
       error: message,
@@ -317,7 +318,7 @@ const generatePdfThumbnail = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/pdf] Page render failed", {
       cardId: job.cardId,
       error: message,

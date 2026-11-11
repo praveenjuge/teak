@@ -6,6 +6,7 @@ import {
   validateTextMetadata,
 } from "@teak/files-protocol";
 import { runWorkersAi } from "../ai/workersAi";
+import { errorMessage } from "../errors";
 import type { Env } from "../index";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import {
@@ -215,7 +216,7 @@ const runVisionJson = async <T>(
       }
       return { validationAttempt, value };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (
         validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
         ![INVALID_IMAGE_OUTPUT, "malformed_workers_ai_response"].includes(

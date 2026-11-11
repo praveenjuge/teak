@@ -1,3 +1,4 @@
+import { errorMessage } from "../../../errors";
 import type { RemoteFetchDeps } from "../remote/common";
 import type { VideoCaptions } from "./types";
 import { fetchVimeoCaptions, parseVimeoUrl } from "./vimeo";
@@ -38,7 +39,7 @@ export const fetchVideoCaptions = async (
     });
   } catch (error) {
     console.warn("[captions] no transcript", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       reason: "unreachable",
       site: "vimeo",
     });

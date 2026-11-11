@@ -6,6 +6,7 @@ import {
   type CardProcessingParams,
   cardTypeStages,
 } from "@teak/files-protocol";
+import { errorMessage } from "../../errors";
 import { isSuperseded, rethrowSuperseded, supersededReason } from "../errors";
 import {
   CONVEX_STEP,
@@ -336,7 +337,7 @@ const processCard = async (
       rethrowSuperseded(error);
       console.error("[cardProcessing] Renderables exhausted retries", {
         cardId: job.cardId,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       });
       await step.do("mark renderables failed", CONVEX_STEP, async () => {
         await job.deps.convex.mutation(
@@ -368,7 +369,7 @@ const processCard = async (
           rethrowSuperseded(error);
           console.error("[cardProcessing] Palette extraction failed", {
             cardId: job.cardId,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage(error),
           });
           return null;
         });
@@ -439,7 +440,7 @@ const processCard = async (
         rethrowSuperseded(error);
         console.warn("[cardProcessing] Link preview image not stored", {
           cardId: job.cardId,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error),
         });
         return null;
       });
@@ -496,7 +497,7 @@ const archivePageStep = async (
     rethrowSuperseded(error);
     console.warn("[cardProcessing] Page archive failed", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     await step
       .do("mark archive failed", CONVEX_STEP, () => markArchiveFailed(job))
@@ -527,7 +528,7 @@ const articleSteps = async (
     rethrowSuperseded(error);
     console.warn("[cardProcessing] Article extraction failed", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     await step
       .do("mark article failed", CONVEX_STEP, () => markArticleFailed(job))
@@ -566,7 +567,7 @@ const summarizeArticleStep = async (
     rethrowSuperseded(error);
     console.warn("[cardProcessing] Article summary failed", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     return null;
   }
@@ -608,9 +609,7 @@ const runMetadataStep = (
             ctx.attempt >= METADATA_ATTEMPTS &&
             !(error instanceof Error && error.name === "NonRetryableError")
           ) {
-            throw new NonRetryableError(
-              error instanceof Error ? error.message : String(error)
-            );
+            throw new NonRetryableError(errorMessage(error));
           }
           throw error;
         }

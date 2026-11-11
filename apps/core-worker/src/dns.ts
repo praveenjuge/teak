@@ -6,10 +6,13 @@ import type { DnsResolver } from "@teak/files-protocol/ssrf";
 const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const DOH_TIMEOUT_MS = 5000;
 const DNS_TYPES = { A: 1, AAAA: 28 } as const;
+/** DoH `Status` values (DNS RCODEs). */
+export const DNS_NOERROR = 0;
+export const DNS_NXDOMAIN = 3;
 
 export interface DnsAnswer {
   addresses: string[];
-  /** The DoH response's `Status`: 0 is NOERROR, 3 is NXDOMAIN. */
+  /** The DoH response's `Status`. */
   status: number;
 }
 
@@ -43,7 +46,7 @@ export const createDohLookup =
     }
     // The answer also lists the CNAME chain; only address records count.
     const addresses =
-      body.Status === 0 && Array.isArray(body.Answer)
+      body.Status === DNS_NOERROR && Array.isArray(body.Answer)
         ? body.Answer.filter(
             (answer) =>
               answer.type === DNS_TYPES[type] && typeof answer.data === "string"

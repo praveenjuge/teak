@@ -10,6 +10,7 @@ import {
   TEXT_METADATA_MODEL_ID,
   validationRetryPrompt,
 } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput, OpFailure } from "../opFailure";
 import type { FilesOpsEnv } from "../ops";
 import { runWorkersAi } from "./workersAi";
@@ -96,7 +97,7 @@ export const generateTextMetadataForOp = async (
       if (error instanceof OpFailure) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (VALIDATION_ERROR.test(message)) {
         if (attempt >= MAX_AI_METADATA_VALIDATION_RETRIES) {
           throw invalidOutput(facts);

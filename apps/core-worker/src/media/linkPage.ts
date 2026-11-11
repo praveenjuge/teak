@@ -11,6 +11,7 @@ import {
   type FetcherPageRequest,
   type FetcherPageResponse,
 } from "../../fetcher/src/protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput } from "../opFailure";
 import { validScrapeSelectors } from "./browserRender";
 import { RendererUnavailable } from "./containerPool";
@@ -45,11 +46,7 @@ export const parseLinkPageParams = (
   };
 };
 
-/** An older fetcher image leaves out `cacheable`. */
-type PageResponse = Omit<FetcherPageResponse, "cacheable"> &
-  Partial<Pick<FetcherPageResponse, "cacheable">>;
-
-const isPageResponse = (value: unknown): value is PageResponse => {
+const isPageResponse = (value: unknown): value is FetcherPageResponse => {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -60,7 +57,7 @@ const isPageResponse = (value: unknown): value is PageResponse => {
   return (
     typeof charset === "string" &&
     typeof html === "string" &&
-    (cacheable === undefined || typeof cacheable === "boolean") &&
+    typeof cacheable === "boolean" &&
     typeof pageUrl === "string" &&
     /^https?:\/\//i.test(pageUrl) &&
     Array.isArray(selectors) &&
@@ -128,7 +125,7 @@ const readCached = async (
     return value?.fetched === true ? value : null;
   } catch (error) {
     console.warn("fetch-link-page: cache read failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }
@@ -145,7 +142,7 @@ const writeCached = async (
     });
   } catch (error) {
     console.warn("fetch-link-page: cache write failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -194,7 +191,7 @@ export const fetchLinkPage = async (
     } catch (error) {
       renderFailed = true;
       console.warn("fetch-link-page: browser scrape failed; keeping static", {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       });
     }
   }
@@ -207,8 +204,7 @@ export const fetchLinkPage = async (
     selectors,
     source,
   };
-  // An older fetcher image does not say, so its pages are not kept.
-  if (cache && page.cacheable === true && !renderFailed) {
+  if (cache && page.cacheable && !renderFailed) {
     await writeCached(cache, key, result);
   }
   return result;

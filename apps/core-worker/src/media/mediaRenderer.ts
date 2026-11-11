@@ -1,4 +1,8 @@
-import { RENDERER_PORT, RENDERER_PROTOCOL } from "../../container/src/protocol";
+import {
+  CONTAINER_BUSY_STATUS,
+  RENDERER_PORT,
+  RENDERER_PROTOCOL,
+} from "../../container/src/protocol";
 import { FETCHER_PORT, FETCHER_PROTOCOL } from "../../fetcher/src/protocol";
 
 export const CONTAINER_READY_TIMEOUT_MS = 20_000;
@@ -24,7 +28,10 @@ export interface RendererState {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const rendererUnavailable = (message: string): Response =>
-  Response.json({ error: "unavailable", message }, { status: 503 });
+  Response.json(
+    { error: "unavailable", message },
+    { status: CONTAINER_BUSY_STATUS }
+  );
 
 export class MediaRenderer {
   protected readonly enableInternet: boolean = false;

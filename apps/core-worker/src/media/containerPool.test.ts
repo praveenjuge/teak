@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { FETCHER_BUSY_STATUS } from "../../fetcher/src/protocol";
 import {
   type ContainerPool,
   containerInstanceOrder,
@@ -72,6 +73,17 @@ describe("container pool", () => {
       instance === "fetcher-1"
         ? new Response("ok")
         : new Response(null, { status: 503 })
+    );
+    const response = await postToPool(pool, request, () => 0);
+    expect(await response.text()).toBe("ok");
+    expect(instances).toEqual(["fetcher-0", "fetcher-1"]);
+  });
+
+  test("moves on when the fetcher image answers busy", async () => {
+    const { instances, pool } = poolOf((instance) =>
+      instance === "fetcher-1"
+        ? new Response("ok")
+        : Response.json({ error: "busy" }, { status: FETCHER_BUSY_STATUS })
     );
     const response = await postToPool(pool, request, () => 0);
     expect(await response.text()).toBe("ok");

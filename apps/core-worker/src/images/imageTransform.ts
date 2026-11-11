@@ -6,6 +6,7 @@ import {
   type FilesImageRendition,
   hmacSha256Hex,
   parseFilesImagePath,
+  parseFilesImageSourcePath,
   verifyHmacHex,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "../deletionGate";
@@ -94,23 +95,6 @@ export const buildImageTransformOptions = (
     ...renditionBounds(rendition),
     ...(format ? { format } : {}),
   };
-};
-
-const decodeKey = (encoded: string): string => {
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return "";
-  }
-};
-
-const parseSourcePath = (pathname: string): string | null => {
-  const prefix = `${FILES_IMAGE_SOURCE_PATH}/`;
-  if (!pathname.startsWith(prefix)) {
-    return null;
-  }
-  const key = decodeKey(pathname.slice(prefix.length));
-  return key && !key.includes("\0") ? key : null;
 };
 
 const isExpiredOrInvalid = (expiresAt: string | null, now: number): boolean =>
@@ -285,7 +269,7 @@ export const handleImageSourceRequest = async (
   url = new URL(request.url),
   now = Math.floor(Date.now() / 1000)
 ): Promise<Response> => {
-  const key = parseSourcePath(url.pathname);
+  const key = parseFilesImageSourcePath(url.pathname);
   const via = request.headers.get("via")?.toLowerCase() ?? "";
   const authorization = request.headers.get("authorization") ?? "";
   const match = /^Teak ([0-9]+):([a-f0-9]{64})$/u.exec(authorization);
