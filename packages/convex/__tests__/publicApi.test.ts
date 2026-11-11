@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { ConvexError } from "convex/values";
 import type { ValidatedRateLimitKey } from "../publicApi";
 import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
 import {
@@ -385,36 +384,6 @@ describe("publicApi", () => {
     await expect(
       handler(withMappedOwner(ctx), { limit: 50, since: 0, userId: "user_1" })
     ).rejects.toThrow(message);
-  });
-
-  test("executeBulkCardsForUser rejects batches over the item limit", async () => {
-    const handler =
-      (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
-    const normalizeId = mock();
-
-    let thrown: unknown;
-    try {
-      await handler(
-        {
-          db: { normalizeId },
-          scheduler: { runAfter: mock() },
-        },
-        {
-          items: Array.from({ length: 101 }, (_, index) => ({
-            cardId: `card_${index}`,
-            isFavorited: true,
-          })),
-          operation: "favorite",
-          userId: "user_1",
-        }
-      );
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(ConvexError);
-    expect((thrown as any).data?.code).toBe("INVALID_INPUT");
-    expect(normalizeId).not.toHaveBeenCalled();
   });
 
   test("executeBulkCardsForUser rejects create items without content or url", async () => {

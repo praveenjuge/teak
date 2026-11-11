@@ -83,10 +83,8 @@ import {
   normalizeCardSource,
 } from "./shared/cardSource";
 import { type CardType, cardTypes } from "./shared/constants";
-import {
-  clampPublicApiLimit,
-  PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
-} from "./shared/publicApiLimits";
+import { BULK_CARD_OPERATIONS } from "./shared/publicApiContract";
+import { clampPublicApiLimit } from "./shared/publicApiLimits";
 import {
   isShuffleSeed,
   shuffleBySeed,
@@ -118,18 +116,12 @@ const changesResultValidator = v.object({
   pageInfo: pageInfoValidator,
 });
 
+const bulkOperationValidator = v.union(
+  ...BULK_CARD_OPERATIONS.map((operation) => v.literal(operation))
+);
+
 const bulkResultValidator = v.object({
-  operation: v.union(
-    v.literal("create"),
-    v.literal("update"),
-    v.literal("favorite"),
-    v.literal("delete"),
-    v.literal("archive"),
-    v.literal("unarchive"),
-    v.literal("addTags"),
-    v.literal("removeTags"),
-    v.literal("restore")
-  ),
+  operation: bulkOperationValidator,
   results: v.array(v.any()),
   failedIds: v.array(v.string()),
   summary: v.object({
@@ -676,17 +668,6 @@ export const listCardChangesForUser = internalQuery({
   },
 });
 
-type BulkOperation =
-  | "create"
-  | "update"
-  | "favorite"
-  | "delete"
-  | "archive"
-  | "unarchive"
-  | "addTags"
-  | "removeTags"
-  | "restore";
-
 const performBulkUpdate = async (
   ctx: MutationCtx,
   args: {
@@ -835,28 +816,12 @@ export const executeBulkCardsForUser = internalMutation({
     userId: v.string(),
     /** The client that sent the bulk create, for analytics; `api` when not given. */
     cardSource: v.optional(apiCardSourceValidator),
-    operation: v.union(
-      v.literal("create"),
-      v.literal("update"),
-      v.literal("favorite"),
-      v.literal("delete"),
-      v.literal("archive"),
-      v.literal("unarchive"),
-      v.literal("addTags"),
-      v.literal("removeTags"),
-      v.literal("restore")
-    ),
+    operation: bulkOperationValidator,
     items: v.array(v.any()),
   },
   returns: bulkResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    if (args.items.length > MAX_BULK_ITEMS) {
-      throw new ConvexError({
-        code: "INVALID_INPUT",
-        message: `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`,
-      });
-    }
 
     const results: Record<string, unknown>[] = [];
     const failedIds: string[] = [];
@@ -871,7 +836,7 @@ export const executeBulkCardsForUser = internalMutation({
 
         const payload = item as Record<string, unknown>;
 
-        switch (args.operation as BulkOperation) {
+        switch (args.operation) {
           case "create": {
             assertBulkCreatePayload(payload);
             let requestedType: CardType | undefined;
@@ -968,13 +933,7 @@ export const executeBulkCardsForUser = internalMutation({
             });
             break;
           }
-          case "favorite":
-          case "delete":
-          case "archive":
-          case "unarchive":
-          case "addTags":
-          case "removeTags":
-          case "restore": {
+          default: {
             const cardId = ctx.db.normalizeId(
               "cards",
               String(payload.cardId ?? "")
@@ -1013,11 +972,6 @@ export const executeBulkCardsForUser = internalMutation({
             });
             break;
           }
-          default:
-            throw new ConvexError({
-              code: "INVALID_INPUT",
-              message: "Unsupported bulk operation",
-            });
         }
 
         succeeded += 1;

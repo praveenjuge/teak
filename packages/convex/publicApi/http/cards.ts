@@ -14,6 +14,10 @@ import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
 import { parsePublicApiBody } from "../../shared/publicApiBodies";
+import {
+  BULK_CARD_OPERATIONS,
+  type BulkCardOperation,
+} from "../../shared/publicApiContract";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -1032,17 +1036,8 @@ const handleCardChangesRequest = async (
   });
 };
 
-const BULK_OPERATIONS = new Set([
-  "create",
-  "update",
-  "favorite",
-  "delete",
-  "archive",
-  "unarchive",
-  "addTags",
-  "removeTags",
-  "restore",
-]);
+const isBulkCardOperation = (value: string): value is BulkCardOperation =>
+  (BULK_CARD_OPERATIONS as readonly string[]).includes(value);
 
 const handleBulkCardsRequest = async (
   call: PublicApiCall
@@ -1061,7 +1056,7 @@ const handleBulkCardsRequest = async (
   const source = payload as Record<string, unknown>;
   const operation = parseOptionalString(source.operation);
   const items = Array.isArray(source.items) ? source.items : null;
-  if (!(operation && items && BULK_OPERATIONS.has(operation))) {
+  if (!(operation && items && isBulkCardOperation(operation))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
