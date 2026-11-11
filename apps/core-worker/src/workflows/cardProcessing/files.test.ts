@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { documentTextObjectKey } from "@teak/convex/card/documentTextFormat";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import {
-  type FilesOp,
-  filesCardKeyPrefix,
-  sha256Hex,
-} from "@teak/files-protocol";
+import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { freezeObject, gatedEnv } from "../../deletionGate";
+import type { FilesOp } from "../../opSpecs";
 import {
   CARD_ID,
   createCardConvex,

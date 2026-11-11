@@ -1,5 +1,4 @@
 import {
-  type DnsResolver,
   type PinnedFetch,
   SAFE_FETCH_TIMEOUT_MS,
   SsrfError,
@@ -13,63 +12,6 @@ import {
 } from "../../fetcher/src/protocol";
 import { CONTAINER_START_ALLOWANCE_MS } from "./containerPool";
 import { type LinkFetcherEnv, postToFetcher } from "./linkFetcher";
-
-// A Worker's own `fetch` cannot pin a connection to an address.
-
-const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
-const DOH_TIMEOUT_MS = 5000;
-const DNS_TYPES = { A: 1, AAAA: 28 } as const;
-
-interface DohAnswer {
-  data?: unknown;
-  type?: unknown;
-}
-
-const lookup = async (
-  fetcher: typeof fetch,
-  hostname: string,
-  type: keyof typeof DNS_TYPES
-): Promise<string[]> => {
-  const url = new URL(DOH_ENDPOINT);
-  url.searchParams.set("name", hostname);
-  url.searchParams.set("type", type);
-  const response = await fetcher(url.toString(), {
-    headers: { accept: "application/dns-json" },
-    signal: AbortSignal.timeout(DOH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new Error(`doh_status_${response.status}`);
-  }
-  const body = (await response.json()) as {
-    Answer?: DohAnswer[];
-    Status?: unknown;
-  };
-  // NXDOMAIN and friends: the name has no addresses of this type.
-  if (body.Status !== 0 || !Array.isArray(body.Answer)) {
-    return [];
-  }
-  // The answer also lists the CNAME chain; only address records count.
-  return body.Answer.filter(
-    (answer) =>
-      answer.type === DNS_TYPES[type] && typeof answer.data === "string"
-  ).map((answer) => answer.data as string);
-};
-
-export const createDohResolver =
-  (fetcher: typeof fetch = fetch): DnsResolver =>
-  async (hostname) => {
-    const results = await Promise.allSettled([
-      lookup(fetcher, hostname, "A"),
-      lookup(fetcher, hostname, "AAAA"),
-    ]);
-    if (results.every((result) => result.status === "rejected")) {
-      throw new Error("doh_unavailable");
-    }
-    return results.flatMap((result) =>
-      result.status === "fulfilled" ? result.value : []
-    );
-  };
 
 const DEFAULT_HOP_MAX_BYTES = 1024 * 1024;
 

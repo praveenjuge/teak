@@ -241,9 +241,10 @@ before signature verification.
   multipart part upload URLs, workflow RPC and dispatch proofs, with the one
   HMAC, constant-time compare, expiry check, error envelope, header names and
   limits they share.
-- `FILES_NETWORK_OPS` are the ops Convex calls; the network route refuses
-  every other op with `UNSUPPORTED`. `FILES_WORKER_OPS` run only in process,
-  from the Worker's own workflows, queues and crons (`callFilesOp`).
+- `FILES_NETWORK_OP_SPECS` are the ops Convex calls; the network route refuses
+  every other op with `UNSUPPORTED`. The Worker's own ops are declared in
+  `src/opSpecs.ts`, outside the protocol, and run only in process, from its
+  workflows, queues and crons (`callFilesOp`).
 - `readFilesOpOutcome` (`src/outcome.ts`) reads an op's answer the same way
   in Convex and in the Worker: a result, a decline (`NOT_FOUND`,
   `PAYLOAD_TOO_LARGE`, `UNSUPPORTED` and any codes the caller lists), or a

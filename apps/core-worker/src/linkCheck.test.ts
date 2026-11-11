@@ -6,12 +6,8 @@ import {
   hmacSha256Hex,
   sha256Hex,
 } from "@teak/files-protocol";
-import {
-  checkLink,
-  createDohLookup,
-  type DnsAnswer,
-  type DnsLookup,
-} from "./linkCheck";
+import { createDohLookup, type DnsAnswer, type DnsLookup } from "./dns";
+import { checkLink } from "./linkCheck";
 import { createContainerPinnedFetch } from "./media/pinnedHop";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { createContainerNetwork } from "./test/cardProcessingKit";

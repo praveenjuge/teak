@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import {
   AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,
-  type FilesOp,
   MAX_AI_METADATA_INPUT_CHARS,
   sha256Hex,
 } from "@teak/files-protocol";
+import type { FilesOp } from "../../opSpecs";
 import {
   CARD_ID,
   createCardConvex,

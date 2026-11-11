@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { FilesOp } from "@teak/files-protocol";
 import { freezeObject, gatedEnv } from "../../deletionGate";
+import type { FilesOp } from "../../opSpecs";
 import {
   createCardConvex,
   createFakeOps,

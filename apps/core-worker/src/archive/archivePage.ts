@@ -20,15 +20,13 @@ import {
   FETCHER_PATH,
   type FetcherRequest,
 } from "../../fetcher/src/protocol";
+import { createDohResolver } from "../dns";
 import { IMAGES_BINDING_MAX_INPUT_BYTES } from "../images/imagesBinding";
 import { SCRAPE_ELEMENTS } from "../linkPreview/selectors";
 import { RendererUnavailable } from "../media/containerPool";
 import { postToFetcher } from "../media/linkFetcher";
 import { fetchLinkPage, type LinkPageEnv } from "../media/linkPage";
-import {
-  createContainerPinnedFetch,
-  createDohResolver,
-} from "../media/pinnedHop";
+import { createContainerPinnedFetch } from "../media/pinnedHop";
 import type { RemoteAssetEnv } from "../media/remoteAsset";
 import { InvalidOpInput } from "../opFailure";
 import { TEAKBOT_USER_AGENT } from "../userAgent";

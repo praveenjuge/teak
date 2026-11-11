@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FilesOp } from "@teak/files-protocol";
+import type { FilesOp } from "../../opSpecs";
 import {
   CARD_ID,
   createCardConvex,

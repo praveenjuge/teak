@@ -3,9 +3,9 @@ import {
   type FilesEnvelope,
   type FilesErrorCode,
   type FilesNetworkOp,
+  type FilesNetworkOpParams,
+  type FilesNetworkOpResult,
   type FilesOpOutcome,
-  type FilesOpParams,
-  type FilesOpResult,
   filesOpTimeoutMs,
   nowInSeconds,
   readFilesOpOutcome,
@@ -107,15 +107,15 @@ export const signedOpRequest = async (
 
 /**
  * Runs one op on the Core Worker, its params and result typed by the op's
- * entry in `FILES_OP_SPECS`. Network failures and every answer that is
+ * entry in `FILES_NETWORK_OP_SPECS`. Network failures and every answer that is
  * neither a result nor a decline throw, so the caller's retries apply.
  */
 export const callCoreWorkerOp = async <Op extends FilesNetworkOp>(spec: {
   declineCodes?: readonly FilesErrorCode[];
   op: Op;
-  params: FilesOpParams<Op> & FilesAiUsageAttribution;
+  params: FilesNetworkOpParams<Op> & FilesAiUsageAttribution;
   timeoutMs?: number;
-}): Promise<FilesOpOutcome<FilesOpResult<Op>>> => {
+}): Promise<FilesOpOutcome<FilesNetworkOpResult<Op>>> => {
   const signed = await signedOpRequest({
     op: spec.op,
     params: { ...spec.params },
@@ -135,7 +135,7 @@ export const callCoreWorkerOp = async <Op extends FilesNetworkOp>(spec: {
     );
   }
   const envelope = (await response.json().catch(() => null)) as FilesEnvelope<
-    FilesOpResult<Op>
+    FilesNetworkOpResult<Op>
   > | null;
   return readFilesOpOutcome(envelope, response.status, spec.declineCodes);
 };

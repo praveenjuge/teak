@@ -5,9 +5,7 @@ import {
   FILES_MULTIPART_PART_PATH,
   FILES_MULTIPART_SIZED_URL_MAX_TTL_SECONDS,
   FILES_MULTIPART_URL_MAX_TTL_SECONDS,
-  FILES_NETWORK_OPS,
   FILES_OP_MAX_TTL_SECONDS,
-  FILES_WORKER_OPS,
   FilesOpError,
   filesErrorEnvelope,
   filesOpErrorCode,
@@ -103,11 +101,6 @@ describe("op requests", () => {
     expect(
       await verifyFilesOpRequest(SECRET, headers, signed.body, NOW)
     ).toMatchObject({ code: "AUTH_INVALID", status: 401 });
-  });
-
-  test("Convex calls only network ops; the Worker keeps its own", () => {
-    const network = new Set<string>(FILES_NETWORK_OPS);
-    expect(FILES_WORKER_OPS.filter((op) => network.has(op))).toEqual([]);
   });
 });
 

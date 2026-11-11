@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   AI_METADATA_PROMPT_VERSION,
   buildSelectorResultsFromHtml,
-  type FilesOp,
 } from "@teak/files-protocol";
 import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
+import type { FilesOp } from "../../opSpecs";
 import {
   CARD_ID,
   createCardConvex,

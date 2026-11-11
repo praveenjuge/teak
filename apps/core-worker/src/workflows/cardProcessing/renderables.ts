@@ -6,13 +6,11 @@ import {
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type {
   FilesAnimationPaletteResult,
-  FilesOp,
-  FilesOpParams,
-  FilesOpResult,
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
 import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import type { FilesOp, FilesOpParams, FilesOpResult } from "../../opSpecs";
 import { isRetryableFilesError } from "../filesOps";
 import {
   type CardJob,

@@ -13,14 +13,11 @@ import {
   type FilesAiGenerationFacts,
   type FilesEnvelope,
   type FilesErrorCode,
-  type FilesOp,
   type FilesOpRequest,
-  type FilesOpResult,
   filesErrorEnvelope,
   filesSuccessEnvelope,
   isFilesInspectMode,
   isFilesNetworkOp,
-  isFilesOp,
   MAINTENANCE_TASKS,
   PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES,
   parseEdgeIdentityPurgeKeys,
@@ -102,6 +99,7 @@ import {
   type RawOpParams,
   requiredString,
 } from "./opParams";
+import { type FilesOp, type FilesOpResult, isFilesOp } from "./opSpecs";
 import {
   abortMultipart,
   cleanupStalePendingUploads,
@@ -367,7 +365,7 @@ const processAudioOp: OpHandler<"process-audio"> = async (params, { env }) => {
 };
 
 /**
- * One handler per op in `FILES_OP_SPECS`; the type makes a missing one a
+ * One handler per op in `opSpecs.ts`; the type makes a missing one a
  * compile error.
  */
 const OP_HANDLERS: { [Op in FilesOp]: OpHandler<Op> } = {

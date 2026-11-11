@@ -1,15 +1,6 @@
 import type {
-  FilesExtractArticleParams,
-  FilesExtractArticleResult,
-} from "./article";
-import type {
-  FilesCardTypeDecisionParams,
-  FilesCardTypeDecisionResult,
-  FilesLinkCategoryDecisionParams,
-  FilesLinkCategoryDecisionResult,
   FilesRelevanceParams,
   FilesRelevanceResult,
-  FilesVisualStylesDecisionParams,
   FilesVisualStylesDecisionResult,
 } from "./decisions";
 import type {
@@ -26,21 +17,12 @@ import type {
   FilesVectorSimilarParams,
   FilesVectorSimilarResult,
 } from "./embeddings";
-import type {
-  FilesImportIndexParams,
-  FilesImportIndexResult,
-  FilesImportMarkdownParams,
-  FilesImportMarkdownResult,
-} from "./index";
 import type { FilesInspectParams, FilesInspectResult } from "./inspect";
 import type { FilesLinkCheckParams, FilesLinkCheckResult } from "./linkCheck";
 import type { FilesLinkedPdfParams, FilesLinkedPdfResult } from "./linkedPdf";
-import type { FilesLinkPageParams, FilesLinkPageResult } from "./linkPage";
 import type {
   FilesImageMetadataResult,
   FilesImageTextResult,
-  FilesPdfOcrResult,
-  FilesTextMetadataOpResult,
 } from "./metadata";
 import type {
   FilesStoreOnboardingFilesParams,
@@ -51,27 +33,6 @@ import type {
   FilesFinalizeImageParams,
   FilesFinalizeImageResult,
 } from "./ops";
-import type {
-  FilesArchivePageParams,
-  FilesArchivePageResult,
-} from "./pageArchive";
-import type {
-  FilesRemoteAssetParams,
-  FilesRemoteAssetResult,
-} from "./remoteAsset";
-import type {
-  FilesAnimationPaletteParams,
-  FilesAnimationPaletteResult,
-  FilesCaptureScreenshotParams,
-  FilesCaptureScreenshotResult,
-  FilesMediaProbeResult,
-  FilesPdfThumbnailResult,
-  FilesProcessAudioParams,
-  FilesProcessAudioResult,
-  FilesRenderThumbnailParams,
-  FilesVideoFrameParams,
-  FilesVideoFrameResult,
-} from "./rendering";
 import type { DispatchParams, DispatchResult } from "./workflows";
 
 /** One object, by its key. */
@@ -234,44 +195,30 @@ export interface FilesAiUsageAttribution {
   aiUsage?: { convexSiteUrl: string; userId: string };
 }
 
-interface OpTypes<Params, Result> {
+export interface FilesOpTypes<Params, Result> {
   /** Never set: carries the op's params and result types. */
   readonly types?: (params: Params) => Result;
 }
 
-interface NetworkOpSpec<Params, Result> extends OpTypes<Params, Result> {
-  readonly network: true;
+interface NetworkOpSpec<Params, Result> extends FilesOpTypes<Params, Result> {
   /** How long Convex waits for the answer; `DEFAULT_OP_TIMEOUT_MS` without. */
   readonly timeoutMs?: number;
 }
 
-interface WorkerOpSpec<Params, Result> extends OpTypes<Params, Result> {
-  readonly network: false;
-}
-
-/** An op Convex sends to the Worker over HTTPS, at `FILES_OP_PATH`. */
 const networkOp = <Params, Result>(
   timeoutMs?: number
 ): NetworkOpSpec<Params, Result> =>
-  timeoutMs === undefined ? { network: true } : { network: true, timeoutMs };
-
-/**
- * An op only the Worker's own workflows, queues and crons run, in process.
- * The network route refuses it.
- */
-const workerOp = <Params, Result>(): WorkerOpSpec<Params, Result> => ({
-  network: false,
-});
+  timeoutMs === undefined ? {} : { timeoutMs };
 
 export const DEFAULT_OP_TIMEOUT_MS = 120_000;
 
 /**
- * Every op, declared once: its params, its result, whether Convex may call
- * it over the network, and how long Convex waits for it. The Worker
- * registers one handler per op (`apps/core-worker/src/ops.ts`); Convex and
- * the Worker's workflows call ops typed by this table.
+ * Every op Convex sends to the Worker over HTTPS, at `FILES_OP_PATH`,
+ * declared once: its params, its result and how long Convex waits for it.
+ * The Worker adds the ops only it runs (`apps/core-worker/src/opSpecs.ts`)
+ * and registers one handler per op (`apps/core-worker/src/ops.ts`).
  */
-export const FILES_OP_SPECS = {
+export const FILES_NETWORK_OP_SPECS = {
   capabilities: networkOp<{ checkRenderer?: boolean }, FilesCapabilities>(),
   "abort-multipart": networkOp<
     { key: string; uploadId: string },
@@ -324,129 +271,37 @@ export const FILES_OP_SPECS = {
     FilesVectorSimilarParams,
     FilesVectorSimilarResult
   >(30_000),
-
-  "analyze-image": workerOp<FilesSourceKeyParams, FilesImageAnalysisResult>(),
-  "archive-page": workerOp<FilesArchivePageParams, FilesArchivePageResult>(),
-  "build-export": workerOp<FilesBuildExportParams, FilesBuildExportResult>(),
-  "capture-screenshot": workerOp<
-    FilesCaptureScreenshotParams,
-    FilesCaptureScreenshotResult
-  >(),
-  "cleanup-stale-pending-uploads": workerOp<
-    FilesCleanupPendingUploadsParams,
-    FilesCleanupPendingUploadsResult
-  >(),
-  "decide-card-type": workerOp<
-    FilesCardTypeDecisionParams,
-    FilesCardTypeDecisionResult
-  >(),
-  "decide-link-category": workerOp<
-    FilesLinkCategoryDecisionParams,
-    FilesLinkCategoryDecisionResult
-  >(),
-  "decide-visual-styles": workerOp<
-    FilesVisualStylesDecisionParams,
-    FilesVisualStylesDecisionResult
-  >(),
-  "extract-animation-palette": workerOp<
-    FilesAnimationPaletteParams,
-    FilesAnimationPaletteResult
-  >(),
-  "extract-article": workerOp<
-    FilesExtractArticleParams,
-    FilesExtractArticleResult
-  >(),
-  "extract-import-files": workerOp<
-    FilesExtractImportFilesParams,
-    FilesExtractImportFilesResult
-  >(),
-  "extract-video-frame": workerOp<
-    FilesVideoFrameParams,
-    FilesVideoFrameResult
-  >(),
-  "fetch-link-page": workerOp<FilesLinkPageParams, FilesLinkPageResult>(),
-  "freeze-object": workerOp<FilesObjectKeyParams, { frozen: boolean }>(),
-  "generate-image-metadata": workerOp<
-    FilesImageMetadataParams,
-    FilesImageMetadataOpResult
-  >(),
-  "generate-link-metadata": workerOp<
-    FilesTextMetadataParams,
-    FilesTextMetadataOpResult
-  >(),
-  "generate-text-metadata": workerOp<
-    FilesTextMetadataParams,
-    FilesTextMetadataOpResult
-  >(),
-  "head-object": workerOp<FilesObjectKeyParams, FilesHeadObjectResult>(),
-  "index-import-source": workerOp<
-    FilesImportIndexParams,
-    FilesImportIndexResult
-  >(),
-  "list-objects": workerOp<FilesListObjectsParams, FilesListObjectsResult>(),
-  "ocr-pdf-pages": workerOp<FilesPdfOcrParams, FilesPdfOcrResult>(),
-  "probe-media": workerOp<FilesSourceKeyParams, FilesMediaProbeResult>(),
-  "process-audio": workerOp<FilesProcessAudioParams, FilesProcessAudioResult>(),
-  "read-import-markdown": workerOp<
-    FilesImportMarkdownParams,
-    FilesImportMarkdownResult
-  >(),
-  "render-pdf-thumbnail": workerOp<
-    FilesRenderThumbnailParams,
-    FilesPdfThumbnailResult
-  >(),
-  "store-remote-asset": workerOp<
-    FilesRemoteAssetParams,
-    FilesRemoteAssetResult
-  >(),
 } as const;
 
-type Specs = typeof FILES_OP_SPECS;
+export type FilesNetworkOp = keyof typeof FILES_NETWORK_OP_SPECS;
 
-export type FilesOp = keyof Specs;
+/** What an op of a spec table is sent. */
+export type FilesSpecParams<Spec> =
+  Spec extends FilesOpTypes<infer Params, unknown> ? Params : never;
 
-export type FilesNetworkOp = {
-  [Op in FilesOp]: Specs[Op]["network"] extends true ? Op : never;
-}[FilesOp];
+/** What an op of a spec table answers with. */
+export type FilesSpecResult<Spec> =
+  Spec extends FilesOpTypes<never, infer Result> ? Result : never;
 
-export type FilesWorkerOp = Exclude<FilesOp, FilesNetworkOp>;
-
-/** What an op is sent (for a union of ops, any one of theirs). */
-export type FilesOpParams<Op extends FilesOp> = Op extends FilesOp
-  ? Specs[Op] extends OpTypes<infer Params, unknown>
-    ? Params
-    : never
+/** What a network op is sent (for a union of ops, any one of theirs). */
+export type FilesNetworkOpParams<Op extends FilesNetworkOp> = Op extends unknown
+  ? FilesSpecParams<(typeof FILES_NETWORK_OP_SPECS)[Op]>
   : never;
 
-/** What an op answers with (for a union of ops, any one of theirs). */
-export type FilesOpResult<Op extends FilesOp> = Op extends FilesOp
-  ? Specs[Op] extends OpTypes<never, infer Result>
-    ? Result
-    : never
+/** What a network op answers with (for a union of ops, any one of theirs). */
+export type FilesNetworkOpResult<Op extends FilesNetworkOp> = Op extends unknown
+  ? FilesSpecResult<(typeof FILES_NETWORK_OP_SPECS)[Op]>
   : never;
-export const FILES_OPS = Object.keys(FILES_OP_SPECS) as FilesOp[];
 
-/** Ops Convex sends to the Worker over HTTPS, at `FILES_OP_PATH`. */
-export const FILES_NETWORK_OPS = FILES_OPS.filter(
-  (op) => FILES_OP_SPECS[op].network
+export const FILES_NETWORK_OPS = Object.keys(
+  FILES_NETWORK_OP_SPECS
 ) as FilesNetworkOp[];
 
-/**
- * Ops only the Worker's own workflows, queues and crons run, in process.
- * The network route refuses them.
- */
-export const FILES_WORKER_OPS = FILES_OPS.filter(
-  (op) => !FILES_OP_SPECS[op].network
-) as FilesWorkerOp[];
-
-export const isFilesOp = (value: unknown): value is FilesOp =>
-  typeof value === "string" && (FILES_OPS as readonly string[]).includes(value);
-
 export const isFilesNetworkOp = (value: unknown): value is FilesNetworkOp =>
-  isFilesOp(value) && FILES_OP_SPECS[value].network;
+  (FILES_NETWORK_OPS as readonly unknown[]).includes(value);
 
 /** How long Convex waits for a network op's answer. */
 export const filesOpTimeoutMs = (op: FilesNetworkOp): number => {
-  const spec: { timeoutMs?: number } = FILES_OP_SPECS[op];
+  const spec: { timeoutMs?: number } = FILES_NETWORK_OP_SPECS[op];
   return spec.timeoutMs ?? DEFAULT_OP_TIMEOUT_MS;
 };

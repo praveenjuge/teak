@@ -18,7 +18,7 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
-  isFilesOp,
+  isFilesNetworkOp,
   isPendingUploadKey,
   isScannedPdf,
   parseCardObjectKey,
@@ -57,11 +57,11 @@ describe("files protocol", () => {
     expect(FILES_UPLOAD_MAX_TTL_SECONDS).toBe(900);
   });
 
-  test("accepts only known operations", () => {
-    expect(isFilesOp("analyze-image")).toBe(true);
-    expect(isFilesOp("cleanup-stale-pending-uploads")).toBe(true);
-    expect(isFilesOp("cleanup-stale-pending-upload-page")).toBe(false);
-    expect(isFilesOp("process_image")).toBe(false);
+  test("accepts only the operations Convex may send", () => {
+    expect(isFilesNetworkOp("store-linked-pdf")).toBe(true);
+    expect(isFilesNetworkOp("analyze-image")).toBe(false);
+    expect(isFilesNetworkOp("process_image")).toBe(false);
+    expect(isFilesNetworkOp("toString")).toBe(false);
   });
 
   test("accepts pdf as an inspect mode alongside the existing modes", () => {

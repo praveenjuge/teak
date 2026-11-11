@@ -11,10 +11,10 @@ import type { DnsResolver, PinnedFetch } from "@teak/files-protocol/ssrf";
 import type { FunctionArgs } from "convex/server";
 import { type AiGateReader, createAiGateReader } from "../../ai/aiGate";
 import { batchOp, type ConvexRpc, createConvexRpc } from "../../convexRpc";
+import { createDohResolver } from "../../dns";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
-  createDohResolver,
 } from "../../media/pinnedHop";
 import type { OpCaller } from "../deps";
 import { supersededReason } from "../errors";

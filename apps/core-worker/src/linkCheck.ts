@@ -13,6 +13,7 @@ import {
   type PinnedFetch,
   SsrfError,
 } from "@teak/files-protocol/ssrf";
+import { createDohLookup, type DnsLookup } from "./dns";
 import { RendererUnavailable } from "./media/containerPool";
 import type { LinkFetcherEnv } from "./media/linkFetcher";
 import { createContainerPinnedFetch } from "./media/pinnedHop";
@@ -25,8 +26,6 @@ import { TEAKBOT_USER_AGENT } from "./userAgent";
 // "dead" would hide a live page behind an old copy. It never reads R2 and
 // never uses Browser Rendering.
 
-const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
-const DNS_TYPES = { A: 1, AAAA: 28 } as const;
 /** DoH `Status` for a name that does not exist. */
 const NXDOMAIN = 3;
 /** A GET only needs the headers; the hop reads at most one byte past this. */
@@ -46,54 +45,6 @@ export const parseLinkCheckParams = (
   }
   return { url };
 };
-
-export interface DnsAnswer {
-  addresses: string[];
-  /** The DoH response's `Status`: 0 is NOERROR, 3 is NXDOMAIN. */
-  status: number;
-}
-
-export type DnsLookup = (
-  hostname: string,
-  type: keyof typeof DNS_TYPES,
-  signal: AbortSignal
-) => Promise<DnsAnswer>;
-
-/**
- * Its own DoH lookup rather than `createDohResolver`, which answers an empty
- * list for NXDOMAIN and for a failed lookup alike. Here they differ: only
- * NXDOMAIN may make a link dead.
- */
-export const createDohLookup =
-  (fetcher: typeof fetch = fetch): DnsLookup =>
-  async (hostname, type, signal) => {
-    const url = new URL(DOH_ENDPOINT);
-    url.searchParams.set("name", hostname);
-    url.searchParams.set("type", type);
-    const response = await fetcher(url.toString(), {
-      headers: { accept: "application/dns-json" },
-      signal,
-    });
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new Error(`doh_status_${response.status}`);
-    }
-    const body = (await response.json()) as {
-      Answer?: Array<{ data?: unknown; type?: unknown }>;
-      Status?: unknown;
-    };
-    if (typeof body.Status !== "number") {
-      throw new Error("doh_bad_answer");
-    }
-    const addresses =
-      body.Status === 0 && Array.isArray(body.Answer)
-        ? body.Answer.filter(
-            (answer) =>
-              answer.type === DNS_TYPES[type] && typeof answer.data === "string"
-          ).map((answer) => answer.data as string)
-        : [];
-    return { addresses, status: body.Status };
-  };
 
 type HostAnswer =
   | { addresses: string[]; kind: "addresses" }
