@@ -63,13 +63,8 @@ export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_DISPATCH_ATTEMPTS = 20;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
-// Parallel flushes conflict with each other in claim (see FLUSH_JITTER_MS
-// in workflowDispatch/outbox). Claim reads only a small page per mutation
-// so conflicting transactions stay short, and a flush whose claim still
-// exhausts Convex's retries reschedules itself with backoff instead of
-// dying. Rows that somehow stay pending past PENDING_STALL_MS are re-armed
-// by the hourly workflowDispatchWatchdog cron, so a failed flush never
-// strands work silently.
+// Claim reads a small page so the claims of parallel flushes, which
+// conflict on the same due rows, stay short (see FLUSH_JITTER_MS).
 export const CLAIM_PAGE = 16;
 const MAX_CLAIM_RETRY_ATTEMPTS = 8;
 
@@ -240,19 +235,14 @@ export const flush = internalAction({
     for (let round = 0; round < 10; round += 1) {
       let claimed: ClaimedItem[];
       try {
-        // A small page keeps each claim mutation short: parallel flushes
-        // conflict on the same due rows, and short conflicting transactions
-        // are what Convex's internal retries recover from reliably.
         claimed = await ctx.runMutation(internal.workflowDispatch.claim, {
           limit: CLAIM_PAGE,
         });
       } catch (caught) {
-        // Parallel flushes conflict with each other in claim. Convex retries
-        // the mutation, but a claim that still exhausts those retries must
-        // not kill the flush: the rows stay pending and would wait for the
-        // next save. Back off and re-run instead; after a run of failures,
-        // report and stop - the hourly watchdog re-arms a flush once rows
-        // pass PENDING_STALL_MS, so stopping here strands nothing.
+        // A claim that exhausted Convex's own OCC retries leaves its rows
+        // pending until the next save, so back off and run again. After a
+        // run of failures stop: the hourly watchdog re-arms a flush once
+        // rows pass PENDING_STALL_MS.
         const delay = claimRetryDelayMs(claimRetry);
         if (delay === null) {
           await captureBackendException(
