@@ -29,6 +29,8 @@ export type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
   hasOcrText?: true;
+  /** A search result that matched the search's meaning, not its words. */
+  matchedByMeaning?: true;
   articleUrl?: string;
   articleImageUrls?: string[];
 };

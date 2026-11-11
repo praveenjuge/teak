@@ -408,7 +408,7 @@ describe("membership", () => {
       t.run((ctx) => ctx.db.query("folderCardCounts").collect());
     const backfill = (dryRun: boolean) =>
       t.mutation(
-        internal["migration/backfillFolderCardCounts"].backfillFolderCardCounts,
+        internal.migration.backfillFolderCardCounts.backfillFolderCardCounts,
         { dryRun, once: true }
       );
 

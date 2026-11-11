@@ -37,7 +37,7 @@ const isPdfCard = (
 export const backfillPdfOcr = internalMutation({
   args: ocrBackfillArgs,
   returns: ocrBackfillReturns,
-  handler: (ctx, args) =>
+  handler: (ctx, args): Promise<typeof ocrBackfillReturns.type> =>
     runOcrBackfillPage(ctx, args, {
       cardAction: internal.migration.backfillPdfOcr.backfillPdfOcrCard,
       hasSource: (card) => Boolean(card.fileKey),
@@ -106,15 +106,17 @@ export const finishPdfOcrCheck = internalMutation({
   },
 });
 
+const cardOutcome = v.union(
+  v.literal("queued"),
+  v.literal("checked"),
+  v.literal("skipped"),
+  v.literal("failed")
+);
+
 export const backfillPdfOcrCard = internalAction({
   args: { cardId: v.id("cards") },
-  returns: v.union(
-    v.literal("queued"),
-    v.literal("checked"),
-    v.literal("skipped"),
-    v.literal("failed")
-  ),
-  handler: async (ctx, { cardId }) => {
+  returns: cardOutcome,
+  handler: async (ctx, { cardId }): Promise<typeof cardOutcome.type> => {
     const candidate = await ctx.runQuery(
       internal.migration.backfillPdfOcr.getPdfOcrCandidate,
       { cardId }

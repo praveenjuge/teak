@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "../../__tests__/helpers/objectDeletions.test-utils";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
+import type { CardTextKind } from "../../card/documentText";
 import { onCardChanged } from "../../card/onCardChanged";
 import { initializeCardProcessingState } from "../../card/processingLifecycle";
 import { queueCardProcessing } from "../../card/processingRuns";
@@ -15,12 +16,13 @@ import {
   articleImageObjectKey,
   articleTextObjectKey,
 } from "../../shared/article";
+import type { CardType } from "../../shared/constants";
 import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import { buildR2UserPrefix } from "../../storage/r2";
 import { newBackend, signIn } from "../helpers.testUtils";
 
-const articleText = (internal as any)["card/articleText"];
-const documentText = (internal as any)["card/documentText"];
+const articleText = internal.card.articleText;
+const documentText = internal.card.documentText;
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;
 const LINK = "https://example.com/gardens";
@@ -122,7 +124,7 @@ const setup = async () => {
         lang: "en",
       },
     });
-  const search = async (searchQuery: string, types?: string[]) => {
+  const search = async (searchQuery: string, types?: CardType[]) => {
     const result = await owner.query(api.cards.searchCardsPaginated, {
       searchQuery,
       paginationOpts: { numItems: 20, cursor: null },
@@ -411,9 +413,7 @@ describe("keyword search", () => {
       paginationOpts: { numItems: 20, cursor: null },
       showTrashOnly: true,
     });
-    expect(view.page.map((item: { _id: string }) => item._id)).toEqual([
-      trashed,
-    ]);
+    expect(view.page.map((item) => item._id)).toEqual([trashed]);
   });
 });
 
@@ -422,7 +422,7 @@ describe("getCardTextSource", () => {
     const { t, insert, save, textKey, imageKey } = await setup();
     const link = await insert();
     await save(link);
-    const source = (kind?: string, userId = "owner") =>
+    const source = (kind?: CardTextKind, userId = "owner") =>
       t.query(documentText.getCardTextSource, {
         cardId: link,
         userId,

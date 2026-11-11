@@ -436,16 +436,11 @@ describe("backlinks", () => {
       backlinks: [{ id: visible, title: "Plan Hub", type: "text" }],
       hasMore: false,
     });
-    const fromApi = await t.query(
-      internal["card/cardLinks"].getCardLinksForUser,
-      {
-        cardId: hub,
-        userId: "owner",
-      }
-    );
-    expect(fromApi.backlinks.map((card: { id: string }) => card.id)).toEqual([
-      visible,
-    ]);
+    const fromApi = await t.query(internal.card.cardLinks.getCardLinksForUser, {
+      cardId: hub,
+      userId: "owner",
+    });
+    expect(fromApi?.backlinks.map((card) => card.id)).toEqual([visible]);
   });
 
   test("shows 50 and says when there are more", async () => {
@@ -502,17 +497,17 @@ describe("backlinks", () => {
     await runScheduled();
     await setContent(hub, targets.map((id) => link("T", id)).join(" "));
 
-    const result = await t.query(
-      internal["card/cardLinks"].getCardLinksForUser,
-      { cardId: hub, userId: "owner" }
-    );
-    expect(result.links).toHaveLength(100);
-    expect(result.links.map((target: { id: string }) => target.id)).toEqual(
+    const result = await t.query(internal.card.cardLinks.getCardLinksForUser, {
+      cardId: hub,
+      userId: "owner",
+    });
+    expect(result?.links).toHaveLength(100);
+    expect(result?.links.map((target) => target.id)).toEqual(
       targets.slice(0, 100)
     );
-    expect(result.linksTruncated).toBe(true);
-    expect(result.backlinks).toHaveLength(100);
-    expect(result.backlinksTruncated).toBe(true);
+    expect(result?.linksTruncated).toBe(true);
+    expect(result?.backlinks).toHaveLength(100);
+    expect(result?.backlinksTruncated).toBe(true);
   });
 
   test("a backlink's title shows the linked card's current title, or the saved one once it's in Trash", async () => {
@@ -526,11 +521,11 @@ describe("backlinks", () => {
       (await owner.query(api.cards.getCardBacklinks, { cardId: hub }))
         .backlinks[0]?.title,
       (
-        await t.query(internal["card/cardLinks"].getCardLinksForUser, {
+        await t.query(internal.card.cardLinks.getCardLinksForUser, {
           cardId: hub,
           userId: "owner",
         })
-      ).backlinks[0]?.title,
+      )?.backlinks[0]?.title,
     ];
     expect(await backlinkTitles()).toEqual([
       "See Garden plan for spring",
@@ -566,13 +561,10 @@ describe("backlinks", () => {
     );
     await setContent(source, `Src ${link("Note", note)}`);
 
-    const result = await t.query(
-      internal["card/cardLinks"].getCardLinksForUser,
-      {
-        cardId: note,
-        userId: "owner",
-      }
-    );
+    const result = await t.query(internal.card.cardLinks.getCardLinksForUser, {
+      cardId: note,
+      userId: "owner",
+    });
     expect(result).toEqual({
       backlinks: [
         // The link shows the note's current title, not the "Note" it was saved with.
@@ -592,7 +584,7 @@ describe("backlinks", () => {
       linksTruncated: false,
     });
     expect(
-      await t.query(internal["card/cardLinks"].getCardLinksForUser, {
+      await t.query(internal.card.cardLinks.getCardLinksForUser, {
         cardId: note,
         userId: "stranger",
       })

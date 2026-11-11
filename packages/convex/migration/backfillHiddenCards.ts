@@ -39,13 +39,15 @@ const emptyTotals = (): Totals => ({
   affectedUsers: 0,
 });
 
+const pageReturns = backfillReturns(totalsValidator);
+
 export const backfillHiddenCards = internalMutation({
   args: {
     ...backfillArgs(totalsValidator),
     affectedUserIds: v.optional(v.array(v.string())),
   },
-  returns: backfillReturns(totalsValidator),
-  handler: (ctx, args) => {
+  returns: pageReturns,
+  handler: (ctx, args): Promise<typeof pageReturns.type> => {
     const affectedUserIds = new Set(args.affectedUserIds ?? []);
     let affectedUsersCapped = args.totals?.affectedUsersCapped === true;
     return runBackfillPage(ctx, args, {
@@ -69,7 +71,7 @@ export const backfillHiddenCards = internalMutation({
       name: "backfillHiddenCards",
       read: (cursor, numItems) =>
         ctx.db.query("cards").paginate({ cursor, numItems }),
-      self: internal["migration/backfillHiddenCards"].backfillHiddenCards,
+      self: internal.migration.backfillHiddenCards.backfillHiddenCards,
       visit: async (cards, batch, dryRun) => {
         const batchUsers = new Set<string>();
         const accountDeleting = createAccountDeletionGate(ctx);

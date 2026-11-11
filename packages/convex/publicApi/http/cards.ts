@@ -9,6 +9,7 @@ import {
 } from "../../card/documentText";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
+import type { SearchCardsPageArgs } from "../../publicApi";
 import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
@@ -77,63 +78,66 @@ const handleCreateCardRequest = async (
       userId,
     },
     async (committed) => {
-      const result = createPayload.fileKey
-        ? await ctx
-            .runAction(
-              internal["card/uploadCardAction"].finalizeUploadedCardForUser,
+      const result: Parameters<typeof buildCreateCardResponse>[0] =
+        createPayload.fileKey === undefined
+          ? await ctx.runMutation(
+              internal.publicApi.cardsForUser.quickSaveForUser,
               {
                 cardType: createPayload.cardType,
                 content: createPayload.content,
-                fileEtag: createPayload.fileEtag,
-                fileKey: createPayload.fileKey,
-                fileName: createPayload.fileName,
-                fileSize: createPayload.fileSize,
-                fileType: createPayload.mimeType,
-                cardSource,
                 notes:
                   createPayload.notes === null
                     ? undefined
                     : createPayload.notes,
+                ...(createPayload.pageSnapshotKey
+                  ? { pageSnapshotKey: createPayload.pageSnapshotKey }
+                  : {}),
+                cardSource,
+                source: createPayload.source,
+                sourceTitle: createPayload.sourceTitle,
+                sourceUrl: createPayload.sourceUrl,
                 tags: createPayload.tags,
+                url: createPayload.url,
                 userId,
               }
             )
-            .then((uploaded: { cardId?: string; success: boolean }) => {
-              if (!(uploaded.success && uploaded.cardId)) {
-                throw new ConvexError({
-                  code: "INVALID_INPUT",
-                  message: "Uploaded file could not be finalized",
-                });
-              }
-              return {
-                cardId: uploaded.cardId,
-                status: "created" as const,
-              };
-            })
-        : await ctx.runMutation(
-            internal.publicApi.cardsForUser.quickSaveForUser,
-            {
-              cardType: createPayload.cardType,
-              content: createPayload.content,
-              notes:
-                createPayload.notes === null ? undefined : createPayload.notes,
-              ...(createPayload.pageSnapshotKey
-                ? { pageSnapshotKey: createPayload.pageSnapshotKey }
-                : {}),
-              cardSource,
-              source: createPayload.source,
-              sourceTitle: createPayload.sourceTitle,
-              sourceUrl: createPayload.sourceUrl,
-              tags: createPayload.tags,
-              url: createPayload.url,
-              userId,
-            }
-          );
+          : await ctx
+              .runAction(
+                internal.card.uploadCardAction.finalizeUploadedCardForUser,
+                {
+                  cardType: createPayload.cardType,
+                  content: createPayload.content,
+                  fileEtag: createPayload.fileEtag,
+                  fileKey: createPayload.fileKey,
+                  fileName: createPayload.fileName,
+                  fileSize: createPayload.fileSize,
+                  fileType: createPayload.mimeType,
+                  cardSource,
+                  notes:
+                    createPayload.notes === null
+                      ? undefined
+                      : createPayload.notes,
+                  tags: createPayload.tags,
+                  userId,
+                }
+              )
+              .then((uploaded) => {
+                if (!(uploaded.success && uploaded.cardId)) {
+                  throw new ConvexError({
+                    code: "INVALID_INPUT",
+                    message: "Uploaded file could not be finalized",
+                  });
+                }
+                return {
+                  cardId: uploaded.cardId,
+                  status: "created" as const,
+                };
+              });
       committed();
       return buildCreateCardResponse(
         result,
         request.url,
-        "card" in result && result.card
+        result.card
           ? await loadCardLinks(ctx, userId, result.card._id)
           : undefined
       );
@@ -184,7 +188,7 @@ const handleCardsListRequest = async (
     );
   }
 
-  let folderId: string | undefined;
+  let folderId: Id<"folders"> | undefined;
   if (options.folder) {
     const folder = await ctx.runQuery(
       internal.publicApiFolders.getFolderForUser,
@@ -262,7 +266,10 @@ const handleCardsListRequest = async (
     cursor: options.cursor,
     favorited: options.favoritesOnly ? true : undefined,
     pinned: options.pinnedOnly ? true : undefined,
-    sort: options.sort === "relevance" ? undefined : options.sort,
+    sort:
+      options.sort === "newest" || options.sort === "oldest"
+        ? options.sort
+        : undefined,
     type: options.type,
     types: options.types,
     userId,
@@ -326,7 +333,6 @@ const handleCardsListRequest = async (
         internal.publicApi.shuffleCardsPageForUser,
         {
           ...queryArgs,
-          sort: undefined,
           cursor,
           limit: options.limit - items.length,
           searchQuery: options.searchQuery,
@@ -466,7 +472,7 @@ export const relevanceForPage = async (
     text,
     userId,
   }: {
-    candidateArgs: Record<string, unknown>;
+    candidateArgs: SearchCardsPageArgs;
     cursor: string | undefined;
     spentToken: boolean;
     text: string;
@@ -504,7 +510,7 @@ export const relevanceForPage = async (
 const resolveCardId = (
   ctx: ActionCtx,
   cardId: string
-): Promise<string | null> =>
+): Promise<Id<"cards"> | null> =>
   ctx.runQuery(internal.publicApi.cardsForUser.resolveCardIdForUserRequest, {
     cardId,
   });
@@ -520,7 +526,7 @@ const loadCardLinks = async (
 ) => {
   try {
     return (
-      (await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+      (await ctx.runQuery(internal.card.cardLinks.getCardLinksForUser, {
         cardId,
         userId,
       })) ?? undefined
@@ -543,7 +549,7 @@ const serializeCardWithLinks = async (
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
-  cardId: string,
+  cardId: Id<"cards">,
   includeDeleted = false
 ): Promise<CardWithUrls | null> =>
   ctx
@@ -614,7 +620,7 @@ const cardContentResponse = async (
   kind: CardTextKind | undefined
 ): Promise<Response> => {
   const source = await ctx.runQuery(
-    internal["card/documentText"].getCardTextSource,
+    internal.card.documentText.getCardTextSource,
     { cardId, userId, ...(kind ? { kind } : {}) }
   );
   if (!source) {
@@ -707,7 +713,7 @@ const loadCard = async (
     options.includeDeleted
   );
   return card
-    ? { card, cardId: cardId as Id<"cards"> }
+    ? { card, cardId }
     : errorResponse(404, "NOT_FOUND", "Card not found");
 };
 
@@ -828,7 +834,7 @@ const handleRefreshCardRequest = async (call: PublicApiCall) => {
     return loaded;
   }
   const result = await call.ctx.runMutation(
-    internal["card/updateCard"].reprocessCardForUser,
+    internal.card.updateCard.reprocessCardForUser,
     { cardId: loaded.cardId, userId: call.userId }
   );
   return json(202, {
@@ -874,7 +880,7 @@ const handleRestoreCardRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  await call.ctx.runMutation(internal["card/deleteCard"].restoreCardForUser, {
+  await call.ctx.runMutation(internal.card.deleteCard.restoreCardForUser, {
     cardId: loaded.cardId,
     userId: call.userId,
   });
@@ -907,7 +913,7 @@ const handleDeleteCardRequest = async (call: PublicApiCall) => {
   }
   await call.ctx.runMutation(
     permanent
-      ? internal["card/deleteCard"].permanentDeleteCardForUser
+      ? internal.card.deleteCard.permanentDeleteCardForUser
       : internal.publicApi.cardsForUser.softDeleteCardForUser,
     { cardId: loaded.cardId, userId: call.userId }
   );

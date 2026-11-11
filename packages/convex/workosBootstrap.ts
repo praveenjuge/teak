@@ -15,7 +15,7 @@ export const bootstrapResult = v.union(
 export const ensureUser = mutation({
   args: {},
   returns: bootstrapResult,
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<typeof bootstrapResult.type> => {
     const identity = await getWorkosBootstrapIdentity(ctx);
     if (!identity) {
       return { status: "quarantined" as const, reason: "invalid_session" };

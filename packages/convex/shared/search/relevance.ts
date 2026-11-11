@@ -1,11 +1,12 @@
 import { DECISION_TEXT_LIMITS, DECISION_VERSIONS } from "@teak/files-protocol";
+import type { Id } from "../../_generated/dataModel";
 
 export const RELEVANCE_CANDIDATE_LIMIT = 64;
 
 export const RELEVANCE_HOLD_MS = 400;
 
 export interface RelevanceScore {
-  cardId: string;
+  cardId: Id<"cards">;
   cardUpdatedAt: number;
   score: number;
 }

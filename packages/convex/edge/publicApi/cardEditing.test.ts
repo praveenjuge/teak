@@ -310,18 +310,18 @@ describe("Public API Trash and visual filters", () => {
   test("repeated restore preserves the already active card", async () => {
     const { t, cardId } = await setup();
     await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
-    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+    await t.mutation(internal.card.deleteCard.restoreCardForUser, {
       userId: "owner",
       cardId,
     });
     const first = await t.run((ctx) => ctx.db.get("cards", cardId));
-    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+    await t.mutation(internal.card.deleteCard.restoreCardForUser, {
       userId: "owner",
       cardId,
     });
     expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(first);
     await expect(
-      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      t.mutation(internal.card.deleteCard.restoreCardForUser, {
         userId: "stranger",
         cardId,
       })
@@ -332,12 +332,12 @@ describe("Public API Trash and visual filters", () => {
     const { t, cardId } = await setup();
     await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
     await expect(
-      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      t.mutation(internal.card.deleteCard.restoreCardForUser, {
         userId: "stranger",
         cardId,
       })
     ).rejects.toThrow("Not authorized");
-    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+    await t.mutation(internal.card.deleteCard.restoreCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -345,13 +345,13 @@ describe("Public API Trash and visual filters", () => {
       (await t.run((ctx) => ctx.db.get("cards", cardId)))?.isDeleted
     ).toBeUndefined();
     await expect(
-      t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
         userId: "stranger",
         cardId,
       })
     ).rejects.toThrow("Not authorized");
     await expect(
-      t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
         userId: "owner",
         cardId,
       })
@@ -360,7 +360,7 @@ describe("Public API Trash and visual filters", () => {
       userId: "owner",
       cardId,
     });
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -994,7 +994,7 @@ describe("Refresh details", () => {
   test("queues the processing workflow for the owner's card", async () => {
     const { t, cardId } = await setup();
     const result = await t.mutation(
-      internal["card/updateCard"].reprocessCardForUser,
+      internal.card.updateCard.reprocessCardForUser,
       { cardId, userId: "owner" }
     );
     expect(result.cardId).toBe(cardId);
@@ -1010,12 +1010,12 @@ describe("Refresh details", () => {
 
   test("a second run on the same card within a minute is refused with retryAt", async () => {
     const { t, cardId } = await setup();
-    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+    await t.mutation(internal.card.updateCard.reprocessCardForUser, {
       cardId,
       userId: "owner",
     });
     const error = await t
-      .mutation(internal["card/updateCard"].reprocessCardForUser, {
+      .mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId,
         userId: "owner",
       })
@@ -1044,13 +1044,13 @@ describe("Refresh details", () => {
       );
     }
     for (const cardId of cardIds.slice(0, 6)) {
-      await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      await t.mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId,
         userId: "owner",
       });
     }
     await expect(
-      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      t.mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId: cardIds[6] as Id<"cards">,
         userId: "owner",
       })
@@ -1061,13 +1061,13 @@ describe("Refresh details", () => {
   test("refuses another user's card without spending the owner's limit", async () => {
     const { t, cardId } = await setup();
     await expect(
-      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      t.mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId,
         userId: "stranger",
       })
     ).rejects.toThrow("Card not found");
     expect(await scheduledWorkflowStarts(t)).toHaveLength(0);
-    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+    await t.mutation(internal.card.updateCard.reprocessCardForUser, {
       cardId,
       userId: "owner",
     });
@@ -1114,7 +1114,7 @@ describe("Refresh details", () => {
       );
     }
     for (const cardId of cardIds.slice(0, 6)) {
-      await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      await t.mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId,
         userId: "owner",
       });
@@ -1142,7 +1142,7 @@ describe("Refresh details", () => {
       cardId,
     });
     await expect(
-      t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+      t.mutation(internal.card.updateCard.reprocessCardForUser, {
         cardId,
         userId: "owner",
       })
@@ -1160,7 +1160,7 @@ describe("Card changes feed", () => {
       userId: "owner",
       cardId,
     });
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -1204,7 +1204,7 @@ describe("Card changes feed", () => {
       return ids;
     });
     for (const id of purged) {
-      await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
         userId: "owner",
         cardId: id,
       });

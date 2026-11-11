@@ -5,7 +5,7 @@ import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils"
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
-import { newBackend, signIn } from "../helpers.testUtils";
+import { type Backend, newBackend, signIn } from "../helpers.testUtils";
 
 const PAPER = "https://arxiv.org/abs/1706.03762";
 const PDF = "https://arxiv.org/pdf/1706.03762";
@@ -63,6 +63,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Claims a link's PDF for download; the link must have none yet. */
+const newClaim = async (t: Backend, cardId: Id<"cards">) => {
+  const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
+    cardId,
+    userId: "owner",
+  });
+  if (claim.kind !== "claimed") {
+    throw new Error(`expected a new claim, got ${claim.kind}`);
+  }
+  return claim;
+};
+
 const setup = async () => {
   const t = newBackend();
   // A free account: billing answers that it has no subscription.
@@ -117,7 +129,7 @@ const setup = async () => {
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 1 })
     );
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       cardId,
       userId: "owner",
     });
@@ -282,10 +294,7 @@ describe("Save PDF", () => {
     const calls = stubWorker();
     const { paper, save, t } = await setup();
     const link = await paper();
-    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-      cardId: link,
-      userId: "owner",
-    });
+    const claim = await newClaim(t, link);
 
     await expect(save(link)).rejects.toMatchObject(refusal("IN_PROGRESS"));
     vi.advanceTimersByTime(3 * 60 * 1000);
@@ -299,10 +308,7 @@ describe("Save PDF", () => {
     const calls = stubWorker();
     const { paper, save, t } = await setup();
     const link = await paper();
-    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-      cardId: link,
-      userId: "owner",
-    });
+    const claim = await newClaim(t, link);
     const made = await t.mutation(internal.card.linkedPdfs.completeLinkedPdf, {
       claimToken: claim.claimToken,
       fileSize: 10,
@@ -426,7 +432,7 @@ describe("Save PDF", () => {
       ctx.db.patch("cards", first.cardId, { isDeleted: true, deletedAt: 1 })
     );
 
-    await t.mutation(internal["card/trashCleanup"].cleanupDeletedCard, {
+    await t.mutation(internal.card.trashCleanup.cleanupDeletedCard, {
       cardId: first.cardId,
       cutoff: Date.now(),
     });
@@ -438,10 +444,7 @@ describe("Save PDF", () => {
   test("deleting the link for good drops its row and an unused PDF", async () => {
     const { paper, rows, t, trashThenDelete } = await setup();
     const link = await paper();
-    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-      cardId: link,
-      userId: "owner",
-    });
+    const claim = await newClaim(t, link);
 
     await trashThenDelete(link);
 
@@ -516,11 +519,7 @@ describe("Save PDF", () => {
   test("a link whose paper changed drops the PDF stored for the old one", async () => {
     const { paper, t } = await setup();
     const link = await paper();
-    const claim = (cardId: Id<"cards">) =>
-      t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-        cardId,
-        userId: "owner",
-      });
+    const claim = (cardId: Id<"cards">) => newClaim(t, cardId);
     const old = await claim(link);
     await t.run((ctx) =>
       ctx.db.patch("cards", link, {
@@ -580,20 +579,14 @@ describe("Save PDF", () => {
 
   test("a claim's PDF isn't reported as orphaned", async () => {
     const { paper, t } = await setup();
-    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-      cardId: await paper(),
-      userId: "owner",
-    });
+    const claim = await newClaim(t, await paper());
 
     expect(await pendingClaimKeys(t)).toContain(claim.fileKey);
   });
 
   test("an abandoned claim's PDF is reported as orphaned", async () => {
     const { paper, t } = await setup();
-    const claim = await t.mutation(internal.card.linkedPdfs.claimLinkedPdf, {
-      cardId: await paper(),
-      userId: "owner",
-    });
+    const claim = await newClaim(t, await paper());
     await t.run(async (ctx) => {
       const row = await ctx.db
         .query("linkedPdfs")

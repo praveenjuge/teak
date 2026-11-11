@@ -59,7 +59,7 @@ describe("maintenance queries", () => {
       recent: await saveCard(ctx),
     }));
 
-    const result = await t.query(internal["ai/queries"].findCardsMissingAi, {});
+    const result = await t.query(internal.ai.queries.findCardsMissingAi, {});
     expect(
       new Set(result.map(({ cardId }: { cardId: Id<"cards"> }) => cardId))
     ).toEqual(new Set([ids.activeFalse, ids.activeUnset]));
@@ -78,7 +78,7 @@ describe("maintenance queries", () => {
       }
     });
 
-    const result = await t.query(internal["ai/queries"].findCardsMissingAi, {});
+    const result = await t.query(internal.ai.queries.findCardsMissingAi, {});
     expect(result).toHaveLength(50);
   });
 

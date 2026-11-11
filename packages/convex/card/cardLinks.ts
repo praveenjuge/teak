@@ -116,7 +116,7 @@ export const scheduleCardLinkSync = async (
   ctx: Pick<MutationCtx, "scheduler">,
   cardId: Id<"cards">
 ) => {
-  await ctx.scheduler.runAfter(0, internal["card/cardLinks"].syncCardLinks, {
+  await ctx.scheduler.runAfter(0, internal.card.cardLinks.syncCardLinks, {
     cardId,
   });
 };
@@ -153,7 +153,7 @@ export const scheduleDeletedCardLinkCleanup = async (
   if (outgoing.length > 0 || incoming.length > 0) {
     await ctx.scheduler.runAfter(
       0,
-      internal["card/cardLinks"].deleteCardLinksForCard,
+      internal.card.cardLinks.deleteCardLinksForCard,
       { cardId }
     );
   }
@@ -240,7 +240,7 @@ export const deleteCardLinksForCard = internalMutation({
     if (outgoing.length + incoming.length >= DELETE_PAGE_SIZE) {
       await ctx.scheduler.runAfter(
         0,
-        internal["card/cardLinks"].deleteCardLinksForCard,
+        internal.card.cardLinks.deleteCardLinksForCard,
         { cardId }
       );
     }

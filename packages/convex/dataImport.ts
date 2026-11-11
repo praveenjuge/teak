@@ -208,7 +208,7 @@ export const reserveJob = internalMutation({
     if (previous && !activeStatuses.has(previous.status)) {
       await ctx.scheduler.runAfter(
         0,
-        internal["import/runImport"].cleanupImportJob,
+        internal.import.runImport.cleanupImportJob,
         { jobId: previous._id }
       );
     }

@@ -16,7 +16,6 @@ interface AuthorizedUser {
   clientId?: string;
   keyId: string;
   rateLimitKey: string;
-  source: "component" | "oauth";
   userId: import("../../securitySessions").TeakUserId;
 }
 
@@ -56,25 +55,31 @@ interface CardsQueryOptions {
   sort?: "newest" | "oldest" | "relevance" | "shuffle";
   styleFilters?: string[];
   tag?: string;
-  type?: string;
-  types?: string[];
+  type?: import("../../shared/constants").CardType;
+  types?: import("../../shared/constants").CardType[];
 }
-interface CreateCardPayload {
-  cardType?: string;
+interface CreateCardFields {
+  cardType?: import("../../shared/constants").CardType;
   content?: string;
-  fileEtag?: string;
-  fileKey?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
   notes?: string | null;
-  pageSnapshotKey?: string;
   source?: string;
+  tags?: string[];
+}
+interface CreateFileCardPayload extends CreateCardFields {
+  fileEtag?: string;
+  fileKey: string;
+  fileName: string;
+  fileSize?: number;
+  mimeType: string;
+}
+interface CreateContentCardPayload extends CreateCardFields {
+  fileKey?: undefined;
+  pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
-  tags?: string[];
   url?: string;
 }
+type CreateCardPayload = CreateFileCardPayload | CreateContentCardPayload;
 interface CreateUploadPayload {
   fileName: string;
   fileSize: number;

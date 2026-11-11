@@ -277,19 +277,19 @@ describe("import orchestration through the worker", () => {
     const { t, jobId } = await setup();
     await t.run((ctx) => ctx.db.patch(jobId, { sourceEtag: undefined }));
     expect(
-      await t.mutation(internal["import/sourceVersion"].bind, {
+      await t.mutation(internal.import.sourceVersion.bind, {
         jobId,
         sourceEtag: '"first"',
       })
     ).toBe('"first"');
     expect(
-      await t.mutation(internal["import/sourceVersion"].bind, {
+      await t.mutation(internal.import.sourceVersion.bind, {
         jobId,
         sourceEtag: '"first"',
       })
     ).toBe('"first"');
     await expect(
-      t.mutation(internal["import/sourceVersion"].bind, {
+      t.mutation(internal.import.sourceVersion.bind, {
         jobId,
         sourceEtag: '"replacement"',
       })
@@ -683,7 +683,7 @@ describe("imports staged in R2", () => {
       })
     );
 
-    await t.action(internal["import/runImport"].cleanupImportJob, { jobId });
+    await t.action(internal.import.runImport.cleanupImportJob, { jobId });
 
     const prefix = buildR2UserPrefix("cleanup-owner");
     const queued = (

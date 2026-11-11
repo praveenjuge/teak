@@ -23,16 +23,18 @@ const emptyTotals = () => ({
   canceled: 0,
 });
 
+const pageReturns = v.object({
+  ...backfillReturns(totalsValidator).fields,
+  pendingByFunction: v.record(v.string(), v.number()),
+});
+
 export const cancelOrphanedWorkflowCleanupJobs = internalMutation({
   args: {
     ...backfillArgs(totalsValidator),
     pendingByFunction: v.optional(v.record(v.string(), v.number())),
   },
-  returns: v.object({
-    ...backfillReturns(totalsValidator).fields,
-    pendingByFunction: v.record(v.string(), v.number()),
-  }),
-  handler: async (ctx, args) => {
+  returns: pageReturns,
+  handler: async (ctx, args): Promise<typeof pageReturns.type> => {
     const pendingByFunction: Record<string, number> = {
       ...(args.pendingByFunction ?? {}),
     };
@@ -50,7 +52,7 @@ export const cancelOrphanedWorkflowCleanupJobs = internalMutation({
         ctx.db.system
           .query("_scheduled_functions")
           .paginate({ cursor, numItems }),
-      self: internal["migration/cancelOrphanedWorkflowCleanupJobs"]
+      self: internal.migration.cancelOrphanedWorkflowCleanupJobs
         .cancelOrphanedWorkflowCleanupJobs,
       visit: async (jobs, batch, dryRun) => {
         for (const job of jobs) {

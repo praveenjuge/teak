@@ -15,6 +15,7 @@ import {
   withAuthorizedUser,
 } from "../../../publicApi/http/auth";
 import { publicApiV1 } from "../../../publicApi/http/router";
+import type { TeakUserId } from "../../../securitySessions";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import { runHandler } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
@@ -230,8 +231,7 @@ describe("public API auth outcomes", () => {
         access: "full_access",
         keyId: "key_1",
         rateLimitKey: "component:key_1",
-        source: "component",
-        userId: "user_1" as never,
+        userId: "user_1" as TeakUserId,
       }
     );
 

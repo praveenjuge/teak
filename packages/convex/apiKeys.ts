@@ -463,7 +463,7 @@ const checkCachedApiKey = async (
 export const readValidatedApiKey = internalQuery({
   args: { token: v.string() },
   returns: validatedApiKeyValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<typeof validatedApiKeyValidator.type> => {
     const token = args.token.trim();
     if (getApiKeyFormat(token) !== "component") {
       return null;
@@ -515,7 +515,7 @@ const validateCachedComponentApiKey = async (
 export const validateUserApiKey = internalMutation({
   args: validateApiKeyArgsValidator,
   returns: validatedApiKeyValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<typeof validatedApiKeyValidator.type> => {
     const token = args.token.trim();
     if (getApiKeyFormat(token) !== "component") {
       return null;

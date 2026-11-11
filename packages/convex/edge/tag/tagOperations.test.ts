@@ -880,7 +880,7 @@ describe("tag summary snapshot", () => {
       }
     });
     const run = (dryRun: boolean) =>
-      t.mutation(internal["migration/backfillTagCounts"].backfillTagCounts, {
+      t.mutation(internal.migration.backfillTagCounts.backfillTagCounts, {
         dryRun,
         once: true,
       });

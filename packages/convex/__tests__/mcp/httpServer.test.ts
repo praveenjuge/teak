@@ -236,7 +236,6 @@ describe("Convex MCP endpoint", () => {
                   keyId: "connection",
                   userId: "owner",
                   access: "full_access",
-                  source: "oauth",
                   rateLimitKey: "oauth:client:owner",
                 }
           );

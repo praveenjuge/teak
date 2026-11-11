@@ -159,7 +159,7 @@ export const scheduleCardSearchTagSync = async (
 ) => {
   await ctx.scheduler.runAfter(
     0,
-    internal["card/searchDocuments"].syncCardSearchTagsBatch,
+    internal.card.searchDocuments.syncCardSearchTagsBatch,
     { cardId, userId, generation }
   );
 };

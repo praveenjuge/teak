@@ -16,6 +16,8 @@ const totalsValidator = v.object({
   skippedDeletingAccounts: v.number(),
 });
 
+const pageReturns = backfillReturns(totalsValidator);
+
 /**
  * Counts every exact-tag row written before `userTagCounts` existed, then
  * marks the counts ready so tag summaries stop recounting `cardSearchTags`.
@@ -24,8 +26,8 @@ const totalsValidator = v.object({
  */
 export const backfillTagCounts = internalMutation({
   args: backfillArgs(totalsValidator),
-  returns: backfillReturns(totalsValidator),
-  handler: (ctx, args) =>
+  returns: pageReturns,
+  handler: (ctx, args): Promise<typeof pageReturns.type> =>
     runBackfillPage(ctx, args, {
       empty: () => ({
         examined: 0,
@@ -51,7 +53,7 @@ export const backfillTagCounts = internalMutation({
       name: "backfillTagCounts",
       read: (cursor, numItems) =>
         ctx.db.query("cardSearchTags").paginate({ cursor, numItems }),
-      self: internal["migration/backfillTagCounts"].backfillTagCounts,
+      self: internal.migration.backfillTagCounts.backfillTagCounts,
       visit: async (rows, batch, dryRun) => {
         const deltas: TagCountDeltas = new Map();
         const accountDeleting = createAccountDeletionGate(ctx);
