@@ -16,6 +16,7 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
 const { ComposerProvider } = await import(
   "../../components/forms/ComposerProvider"
 );
@@ -56,6 +57,7 @@ test("a library revealed on a new URL never writes its old search back", async (
         <ComposerProvider>
           <Activity mode={mode}>
             <CardsScreen
+              {...libraryUrlProps()}
               onCloseCard={() => undefined}
               onOpenCard={() => undefined}
               onSearchUrlStateChange={(state) => writes.push(state)}

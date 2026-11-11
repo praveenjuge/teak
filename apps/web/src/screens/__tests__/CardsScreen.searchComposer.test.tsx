@@ -16,6 +16,7 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
 const { ComposerProvider } = await import(
   "../../components/forms/ComposerProvider"
 );
@@ -69,6 +70,7 @@ const renderLibrary = async (query: string) => {
     }
     return (
       <CardsScreen
+        {...libraryUrlProps()}
         onCloseCard={() => undefined}
         onOpenCard={() => undefined}
         searchUrlState={{ q: query, sort: "newest" }}

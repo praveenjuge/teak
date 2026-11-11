@@ -124,20 +124,20 @@ interface CardsScreenProps {
   folderId?: string;
   headerLeading?: ReactNode;
   initialVisualFilters?: CardsVisualFilters;
-  onAddCardsToFolder?: (folderId: string) => void;
-  onAddToFolderDone?: (folderId: string, added: boolean) => void;
+  onAddCardsToFolder: (folderId: string) => void;
+  onAddToFolderDone: (folderId: string, added: boolean) => void;
   onCloseCard: (options?: CloseCardOptions) => void;
-  onNavigateView?: (view: LibraryView) => void;
+  onNavigateView: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
-  onOpenFolder?: (folderId: string) => void;
-  onSearchUrlStateChange?: (
+  onOpenFolder: (folderId: string) => void;
+  onSearchUrlStateChange: (
     state: SearchUrlState,
     change: SearchUrlChange
   ) => void;
-  onSwitchCard?: (cardId: string) => void;
-  onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
+  onSwitchCard: (cardId: string) => void;
+  onVisualFiltersChange: (filters: CardsVisualFilters) => void;
   queryRetryKey?: string;
-  searchUrlState?: SearchUrlState;
+  searchUrlState: SearchUrlState;
   selectedCardId: string | null;
   view?: LibraryView;
 }
@@ -216,19 +216,13 @@ export function CardsScreen({
     [applyUrlState]
   );
   useEffect(() => {
-    if (searchUrlState) {
-      showSearchFromUrl(urlSync.urlReported(searchUrlState));
-    }
+    showSearchFromUrl(urlSync.urlReported(searchUrlState));
   }, [searchUrlState, showSearchFromUrl, urlSync]);
-  const urlDriven = searchUrlState !== undefined;
   const pagePathRef = useRef<string | null>(null);
   useEffect(() => {
     pagePathRef.current = window.location.pathname;
   });
   useEffect(() => {
-    if (!urlDriven) {
-      return;
-    }
     const handlePopState = () => {
       if (window.location.pathname === pagePathRef.current) {
         showSearchFromUrl(
@@ -240,7 +234,7 @@ export function CardsScreen({
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [showSearchFromUrl, urlDriven, urlSync]);
+  }, [showSearchFromUrl, urlSync]);
   useEffect(() => {
     const change = urlSync.searchSettled(urlState);
     if (!change) {
@@ -254,7 +248,7 @@ export function CardsScreen({
     ) {
       window.scrollTo({ top: 0 });
     }
-    onSearchUrlStateChange?.(urlState, change);
+    onSearchUrlStateChange(urlState, change);
   }, [onSearchUrlStateChange, urlState, urlSync]);
 
   const queryArgs = searchController.queryArgs;
@@ -335,7 +329,7 @@ export function CardsScreen({
     timeFilter,
   } = searchController;
   useEffect(() => {
-    onVisualFiltersChange?.({
+    onVisualFiltersChange({
       hexFilters,
       hueFilters,
       styleFilters,
@@ -520,7 +514,6 @@ export function CardsScreen({
     reshuffle: searchController.reshuffle,
     runBulkAction: actions.runBulk,
     setSort: searchController.setSort,
-    urlDriven,
   });
 
   // Adding or removing a tag can take the card out of this list (a hidden
@@ -550,7 +543,7 @@ export function CardsScreen({
     origin: CardOpenOrigin;
   } | null>(null);
   const handleCardClick = useCallback(
-    (card: CardWithUrls & Record<string, unknown>, origin?: CardOpenOrigin) => {
+    (card: CardWithUrls, origin?: CardOpenOrigin) => {
       setOpenOrigin(origin ? { cardId: card._id, origin } : null);
       onOpenCard(card._id);
     },
@@ -593,7 +586,7 @@ export function CardsScreen({
         from
       );
       const target = direction > 0 ? next : previous;
-      if (target && onSwitchCard) {
+      if (target) {
         steppingToRef.current = target;
         onSwitchCard(target);
       }
@@ -602,7 +595,7 @@ export function CardsScreen({
   const gridHandlers = useStableHandlers({
     onAddToFolderDone: (added: boolean) => {
       if (addToFolder) {
-        onAddToFolderDone?.(addToFolder._id, added);
+        onAddToFolderDone(addToFolder._id, added);
       }
     },
     onBulkAction: actions.runBulk,
@@ -675,11 +668,9 @@ export function CardsScreen({
           <p className="text-muted-foreground text-sm">
             {t("folderMayBeDeleted")}
           </p>
-          {onNavigateView ? (
-            <Button onClick={() => onNavigateView("all")} variant="outline">
-              {t("goToEverything")}
-            </Button>
-          ) : null}
+          <Button onClick={() => onNavigateView("all")} variant="outline">
+            {t("goToEverything")}
+          </Button>
         </div>
       );
     }
@@ -717,15 +708,13 @@ export function CardsScreen({
           </span>
           <p>{t("noCardsInFolder")}</p>
           {hiddenCardsHint}
-          {onAddCardsToFolder ? (
-            <Button
-              onClick={() => onAddCardsToFolder(folder._id)}
-              variant="outline"
-            >
-              <Plus />
-              {t("addCards")}
-            </Button>
-          ) : null}
+          <Button
+            onClick={() => onAddCardsToFolder(folder._id)}
+            variant="outline"
+          >
+            <Plus />
+            {t("addCards")}
+          </Button>
         </div>
       );
     }
@@ -908,9 +897,19 @@ export function CardsScreen({
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
-          addCardForm={addCardForm}
+          addCardForm={
+            // Hidden during a search, so the results start at the top.
+            hasNoSearchFilters &&
+            !(
+              showTrashOnly ||
+              showArchivedOnly ||
+              view === "favorites" ||
+              isFolderView
+            )
+              ? addCardForm
+              : undefined
+          }
           addToFolder={gridAddToFolder}
-          batchSize={SEARCH_DEFAULT_CARD_LIMIT}
           filteredCards={displayCards}
           folder={gridFolder}
           hasMore={
@@ -921,16 +920,6 @@ export function CardsScreen({
           {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}
-          showAddForm={
-            // Hidden during a search, so the results start at the top.
-            hasNoSearchFilters &&
-            !(
-              showTrashOnly ||
-              showArchivedOnly ||
-              view === "favorites" ||
-              isFolderView
-            )
-          }
           view={gridView}
         />
       )}
@@ -962,8 +951,8 @@ export function CardsScreen({
         onCardTypeClick={handleCardTypeClick}
         onInvalidCard={handleInvalidSelectedCard}
         onMoreLikeThis={handleMoreLikeThis}
-        onOpenCard={onSwitchCard ?? onOpenCard}
-        onStep={onSwitchCard ? modalHandlers.onStep : undefined}
+        onOpenCard={onSwitchCard}
+        onStep={modalHandlers.onStep}
         onTagClick={handleTagClick}
         open={!!selectedCardId}
         openOrigin={
@@ -989,14 +978,10 @@ export function CardsScreen({
             t("savedSmartFolder", { name: clipFolderName(saved.name) }),
             {
               description: t("savedSmartFolderDescription"),
-              ...(onOpenFolder
-                ? {
-                    action: {
-                      label: t("open"),
-                      onClick: () => onOpenFolder(saved._id),
-                    },
-                  }
-                : {}),
+              action: {
+                label: t("open"),
+                onClick: () => onOpenFolder(saved._id),
+              },
             }
           );
         }}
@@ -1011,18 +996,13 @@ export function CardsScreen({
 
       <TagManagementModal
         aiTags={tagManagementCard?.aiTags || []}
-        error={tagEditor.error}
-        onAddTag={tagEditor.addTag}
+        editor={tagEditor}
         onOpenChange={(open) => {
           if (!open) {
             setTagManagementCardId(null);
           }
         }}
-        onRemoveAiTag={tagEditor.removeAiTag}
-        onRemoveTag={tagEditor.removeTag}
         open={!!tagManagementCardId}
-        setTagInput={tagEditor.setInput}
-        tagInput={tagEditor.input}
         userTags={tagManagementCard?.tags || []}
       />
     </>

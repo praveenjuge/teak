@@ -135,10 +135,9 @@ const handlers = {
 
 const gridElement = (props: Record<string, unknown>) => (
   <MasonryGrid
-    batchSize={30}
-    columns={1}
     filteredCards={[]}
     hasMore
+    resetKey=""
     {...handlers}
     {...props}
   />

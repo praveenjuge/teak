@@ -16,6 +16,7 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
 const { ComposerProvider } = await import(
   "../../components/forms/ComposerProvider"
 );
@@ -54,6 +55,7 @@ test("a folder's search box never offers to search everything, even while the fo
         <ConvexQueryCacheProvider>
           <ComposerProvider>
             <CardsScreen
+              {...libraryUrlProps()}
               folderId="folder-1"
               onCloseCard={() => undefined}
               onOpenCard={() => undefined}

@@ -83,8 +83,8 @@ async function renderModal({
           addTag: () => undefined,
           removeAiTag: () => undefined,
           removeTag: () => undefined,
-          setTagInput: () => undefined,
-          tagInput: "",
+          setInput: () => undefined,
+          input: "",
         }}
         updateContent={() => undefined}
         updateNotes={() => undefined}

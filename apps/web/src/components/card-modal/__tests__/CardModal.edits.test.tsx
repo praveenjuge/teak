@@ -92,8 +92,8 @@ async function render(
           addTag: () => undefined,
           removeAiTag: () => undefined,
           removeTag: () => undefined,
-          setTagInput: () => undefined,
-          tagInput: "",
+          setInput: () => undefined,
+          input: "",
         }}
         updateContent={updateContent}
         updateNotes={() => undefined}

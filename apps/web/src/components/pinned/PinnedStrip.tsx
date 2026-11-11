@@ -55,10 +55,7 @@ export interface PinnedStripProps {
     card: StripCard,
     source: CardGridSource
   ) => void;
-  onCardClick: (
-    card: CardWithUrls & Record<string, unknown>,
-    origin?: CardOpenOrigin
-  ) => void;
+  onCardClick: (card: CardWithUrls, origin?: CardOpenOrigin) => void;
   onReorder: (cardIds: Id<"cards">[]) => void;
 }
 
@@ -151,10 +148,7 @@ export function PinnedStrip({
     }
   };
 
-  const handleMenuAction = (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => {
+  const handleMenuAction = (action: CardActionId, card: CardWithUrls) => {
     if (STRIP_CARD_ACTIONS.has(action)) {
       onCardAction?.(
         action as GridCardAction,
@@ -248,10 +242,7 @@ function PinnedStripItem({
   onEditLink,
 }: Pick<PinnedStripProps, "onCardClick"> & {
   card: StripCard;
-  onAction: (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => void;
+  onAction: (action: CardActionId, card: CardWithUrls) => void;
   onEditFolders: (cardId: string) => void;
   onEditLink: (cardId: string) => void;
 }) {
@@ -270,7 +261,7 @@ function PinnedStripItem({
     >
       <Card
         actions={STRIP_CARD_ACTIONS}
-        card={card as CardWithUrls & Record<string, unknown>}
+        card={card as CardWithUrls}
         nativeDrag={false}
         onAction={onAction}
         onClick={onCardClick}

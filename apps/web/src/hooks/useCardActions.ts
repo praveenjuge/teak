@@ -401,6 +401,9 @@ export function useCardActions() {
   }, [deleteForever, runBulk, setDone, togglePin]);
 }
 
+/** Runs a bulk action on cards, with its toasts and Undo. */
+export type RunBulkCardAction = ReturnType<typeof useCardActions>["runBulk"];
+
 /** Where a grid card's action was asked for: its menu, or its key. */
 export type CardGridSource = Extract<CardPinSource, "grid" | "shortcut">;
 

@@ -177,15 +177,7 @@ export function ConnectedCardModal({
       }
       saveState={saveState}
       steps={steps}
-      tags={{
-        acceptAiTag: tagEditor.acceptAiTag,
-        addTag: tagEditor.addTag,
-        removeAiTag: tagEditor.removeAiTag,
-        removeTag: tagEditor.removeTag,
-        setTagInput: tagEditor.setInput,
-        tagError: tagEditor.error,
-        tagInput: tagEditor.input,
-      }}
+      tags={tagEditor}
       updateContent={updateContent}
       updateNotes={updateNotes}
       updateTitle={updateTitle}

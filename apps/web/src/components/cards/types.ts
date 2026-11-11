@@ -27,21 +27,15 @@ export interface CardProps {
    * otherwise. Each shows in the card's menu when the card can take it.
    */
   actions?: ReadonlySet<CardActionId>;
-  card: CardWithUrls & Record<string, unknown>;
+  card: CardWithUrls;
   isPriority?: boolean;
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTabStop?: boolean;
   /** False where the card moves another way (the pinned row's drag). */
   nativeDrag?: boolean;
-  onAction?: (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => void;
-  onClick?: (
-    card: CardWithUrls & Record<string, unknown>,
-    origin?: CardOpenOrigin
-  ) => void;
+  onAction?: (action: CardActionId, card: CardWithUrls) => void;
+  onClick?: (card: CardWithUrls, origin?: CardOpenOrigin) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;
   onRemoveFromFolder?: (cardId: string) => void;

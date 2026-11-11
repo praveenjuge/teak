@@ -30,6 +30,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { CardHighlight } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
+import type { CardTagEditor } from "../../hooks/useCardTagEditor";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { cardTypeIcon } from "../../lib/cardTypes";
@@ -46,16 +47,13 @@ import {
 import { PageArchiveRow, pageArchiveRowState } from "./PageArchiveRow";
 import type { GetCurrentValue } from "./types";
 
-export interface CardTagsControl {
-  acceptAiTag?: (tag: string) => void;
-  addTag: () => void;
-  inputRef?: RefObject<HTMLInputElement | null>;
-  removeAiTag: (tag: string) => void;
-  removeTag: (tag: string) => void;
-  setTagInput: (value: string) => void;
+/** The card's tag editor (`useCardTagEditor`), and the field it types in. */
+export interface CardTagsControl
+  extends Omit<CardTagEditor, "acceptAiTag" | "error"> {
+  acceptAiTag?: CardTagEditor["acceptAiTag"];
   /** Why the typed tag wasn't added; shown under the field. */
-  tagError?: string | null;
-  tagInput: string;
+  error?: string | null;
+  inputRef?: RefObject<HTMLInputElement | null>;
 }
 
 export interface CardBacklinks {
@@ -471,12 +469,12 @@ export function CardMetadataPanel({
     if (isImeComposing(event)) {
       return;
     }
-    if ((event.key === "Enter" || event.key === ",") && tags.tagInput.trim()) {
+    if ((event.key === "Enter" || event.key === ",") && tags.input.trim()) {
       event.preventDefault();
       tags.addTag();
     } else if (
       event.key === "Backspace" &&
-      !tags.tagInput &&
+      !tags.input &&
       userTags.length > 0
     ) {
       event.preventDefault();
@@ -596,20 +594,20 @@ export function CardMetadataPanel({
             {!isDeleted && (
               <span className="flex min-w-24 flex-1 items-center gap-1">
                 <input
-                  aria-describedby={tags.tagError ? tagErrorId : undefined}
-                  aria-invalid={tags.tagError ? true : undefined}
+                  aria-describedby={tags.error ? tagErrorId : undefined}
+                  aria-invalid={tags.error ? true : undefined}
                   aria-keyshortcuts="T"
                   aria-label={t("addTagLabel")}
                   className="peer h-6 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40 aria-invalid:ring-1 aria-invalid:ring-destructive/60"
                   enterKeyHint="done"
                   maxLength={100}
-                  onChange={(event) => tags.setTagInput(event.target.value)}
+                  onChange={(event) => tags.setInput(event.target.value)}
                   onKeyDown={handleTagKeyDown}
                   placeholder={t("addTagPlaceholder")}
                   ref={tags.inputRef}
-                  value={tags.tagInput}
+                  value={tags.input}
                 />
-                {tags.tagInput ? null : (
+                {tags.input ? null : (
                   <ShortcutKeys
                     className="pointer-events-none peer-focus:hidden max-sm:hidden"
                     keys={["T"]}
@@ -618,13 +616,13 @@ export function CardMetadataPanel({
               </span>
             )}
           </div>
-          {tags.tagError && !isDeleted ? (
+          {tags.error && !isDeleted ? (
             <p
               className="mt-1.5 text-destructive text-xs"
               id={tagErrorId}
               role="alert"
             >
-              {tags.tagError}
+              {tags.error}
             </p>
           ) : null}
           <SuggestedTags

@@ -16,6 +16,7 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
 const { ComposerProvider, useComposerRequests } = await import(
   "../../components/forms/ComposerProvider"
 );
@@ -71,6 +72,7 @@ const renderLibrary = async (newNote: boolean) => {
     }
     return (
       <CardsScreen
+        {...libraryUrlProps()}
         onCloseCard={() => undefined}
         onOpenCard={() => undefined}
         selectedCardId={null}
