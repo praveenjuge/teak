@@ -2,7 +2,8 @@
 
 import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useEffect } from "react";
+import { preloadCardModal } from "@/components/card-modal/LazyCardModal";
 import { AddCardActions, AddCardProvider } from "@/components/forms";
 import { LibraryCommandsProvider } from "@/components/providers/LibraryCommandsProvider";
 import { LibraryShortcuts } from "@/components/shortcuts";
@@ -12,6 +13,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useSignOut } from "@/hooks/useSignOut";
 import { folderIdForPath } from "@/lib/folders";
 import { startNewNote } from "@/lib/keyboardShortcuts";
+import { whenIdle } from "@/lib/lazyWithPreload";
 import {
   type GoToViewOptions,
   type LibraryView,
@@ -36,6 +38,15 @@ export function AppShell({
   const router = useRouter();
   const view = libraryViewForPath(pathname);
   const folderId = folderIdForPath(pathname);
+
+  // Opening a card is the next thing most visits do.
+  useEffect(
+    () =>
+      whenIdle(() => {
+        preloadCardModal().catch(() => undefined);
+      }),
+    []
+  );
 
   const handleGoToView = useCallback(
     (target: LibraryView, options?: GoToViewOptions) => {

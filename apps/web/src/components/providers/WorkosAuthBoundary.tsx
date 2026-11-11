@@ -6,6 +6,7 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
 import type { Infer } from "convex/values";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import {
   type ReactNode,
   useCallback,
@@ -13,11 +14,10 @@ import {
   useRef,
   useState,
 } from "react";
-import Loading from "@/app/loading";
+import { AppLoading } from "@/components/app-shell/AppLoading";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
 import { signInPath } from "@/lib/authUrls";
-import { ConvexQueryCacheProvider } from "@/lib/convexQueryCache";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { StatusScreen } from "../StatusScreen";
 import { AuthUnavailable } from "./AuthUnavailable";
@@ -45,7 +45,7 @@ const signIn = () => window.location.replace(signInPath({ renew: true }));
 
 export function WorkosAuthBoundary({
   children,
-  loading: loadingState = <Loading />,
+  loading: loadingState = <AppLoading fullscreen />,
 }: {
   children: ReactNode;
   loading?: ReactNode;

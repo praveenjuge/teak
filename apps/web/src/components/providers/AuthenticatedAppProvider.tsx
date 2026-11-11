@@ -38,7 +38,8 @@ export default async function AuthenticatedAppProvider({
   }
 
   const requestHeaders = await headers();
-  // The proxy names the requested URL; a layout has no other way to know it.
+  // AuthKit's `authkit()` in the proxy sets `x-url` to the requested URL,
+  // replacing any the browser sent; a layout has no other way to know it.
   const href = requestHeaders.get("x-url");
   // Seeds fill the first paint of a page load. A router fetch re-renders a
   // layout the browser already shows (after every token refresh, whose server

@@ -22,7 +22,9 @@ mock.module("@/components/grids", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth } = await import("convex/react");
-const { ConvexQueryCacheProvider } = await import("@/lib/convexQueryCache");
+const { ConvexQueryCacheProvider } = await import(
+  "convex-helpers/react/cache/provider"
+);
 const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
