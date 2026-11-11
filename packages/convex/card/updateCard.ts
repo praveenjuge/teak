@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -67,25 +67,26 @@ const updateCardFieldValidator = v.union(
   v.literal("undone")
 );
 
+/** The fields `updateCardFields` edits together, in one write. */
+const EDITABLE_CARD_FIELDS = [
+  "content",
+  "url",
+  "notes",
+  "metadataTitle",
+  "tags",
+  "removeAiTag",
+  "addColor",
+  "removeColor",
+] as const satisfies readonly Infer<typeof updateCardFieldValidator>[];
+
+type EditableCardField = (typeof EDITABLE_CARD_FIELDS)[number];
+
+const isEditableCardField = (field: string): field is EditableCardField =>
+  (EDITABLE_CARD_FIELDS as readonly string[]).includes(field);
+
 interface UpdateCardFieldForUserArgs {
   cardId: Id<"cards">;
-  field:
-    | "content"
-    | "url"
-    | "notes"
-    | "metadataTitle"
-    | "tags"
-    | "aiSummary"
-    | "isFavorited"
-    | "removeAiTag"
-    | "addColor"
-    | "removeColor"
-    | "delete"
-    | "restore"
-    | "archive"
-    | "unarchive"
-    | "done"
-    | "undone";
+  field: Infer<typeof updateCardFieldValidator>;
   tagToRemove?: string;
   userId: TeakUserId;
   value?: unknown;
@@ -254,16 +255,6 @@ export const updateCard = mutation({
   },
 });
 
-type EditableCardField =
-  | "content"
-  | "url"
-  | "notes"
-  | "metadataTitle"
-  | "tags"
-  | "removeAiTag"
-  | "addColor"
-  | "removeColor";
-
 export interface CardFieldEdit {
   field: EditableCardField;
   tagToRemove?: string;
@@ -272,17 +263,6 @@ export interface CardFieldEdit {
 
 export const HIGHLIGHTED_URL_MESSAGE =
   "Remove this link's highlights before changing its URL";
-
-const EDITABLE_CARD_FIELDS = new Set<string>([
-  "content",
-  "url",
-  "notes",
-  "metadataTitle",
-  "tags",
-  "removeAiTag",
-  "addColor",
-  "removeColor",
-]);
 
 interface CardEditState {
   card: Doc<"cards">;
@@ -648,13 +628,13 @@ export const updateCardFieldForUserHandler = async (
   { userId, cardId, field, value, tagToRemove }: UpdateCardFieldForUserArgs,
   options: UpdateCardFieldForUserOptions = {}
 ): Promise<UpdateCardFieldForUserResult> => {
-  if (EDITABLE_CARD_FIELDS.has(field)) {
+  if (isEditableCardField(field)) {
     return updateCardFieldsForUserHandler(
       ctx,
       {
         userId,
         cardId,
-        edits: [{ field: field as EditableCardField, value, tagToRemove }],
+        edits: [{ field, value, tagToRemove }],
       },
       options
     );

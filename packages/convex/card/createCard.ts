@@ -112,33 +112,13 @@ const sessionCreateCardArgs = {
 } as const;
 const sessionCreateCardArgsValidator = v.object(sessionCreateCardArgs);
 
-interface CreateCardArgs {
-  colors?: {
-    hex: string;
-    name?: string;
-    rgb?: { r: number; g: number; b: number };
-    hsl?: { h: number; s: number; l: number };
-  }[];
-  content: string;
-  fileKey?: string;
-  metadata?: unknown;
-  notes?: string;
+const createCardArgsValidator = v.object(createCardArgs);
+
+type CreateCardArgs = Infer<typeof createCardArgsValidator> & {
   pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
-  tags?: string[];
-  thumbnailKey?: string;
-  type?:
-    | "text"
-    | "link"
-    | "image"
-    | "video"
-    | "audio"
-    | "document"
-    | "palette"
-    | "quote";
-  url?: string;
-}
+};
 
 interface ImportedVisibleFields {
   completedAt?: number;
