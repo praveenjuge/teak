@@ -2,13 +2,9 @@ import { v } from "convex/values";
 import { type QueryCtx, query } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { readCardEntitlement } from "./billing/polar";
-import { getActiveCardCount } from "./card/cardUsage";
+import { readCardAllowance, readFreeCardAllowance } from "./card/quota";
 import { readWorkosClientId } from "./env";
-
-export { ensureCardCreationAllowed } from "./card/quota";
-
 import { getSessionProfile } from "./securitySessions";
-import { FREE_TIER_LIMIT } from "./shared/constants";
 
 export const getAuthUserHandler = async (ctx: QueryCtx) =>
   (await getSessionProfile(ctx))?.user ?? null;
@@ -49,19 +45,11 @@ export const getCurrentUserHandler = async (ctx: QueryCtx) => {
   if (!profile) {
     return null;
   }
-  const { user, teakUserId: userId } = profile;
-
-  const hasPremium = await readCardEntitlement(ctx, userId);
-
-  const cardCount = await getActiveCardCount(ctx, userId);
-  const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
-
-  return {
-    ...user,
-    hasPremium,
-    cardCount,
-    canCreateCard,
-  };
+  const { canCreateCard, cardCount, hasPremium } = await readCardAllowance(
+    ctx,
+    profile.teakUserId
+  );
+  return { ...profile.user, hasPremium, cardCount, canCreateCard };
 };
 
 export const getCurrentUser = query({
@@ -76,21 +64,13 @@ export const getCardCreationStatusHandler = async (ctx: QueryCtx) => {
   }
   const { teakUserId: userId } = profile;
 
-  const hasPremium = await readCardEntitlement(ctx, userId);
-
-  if (hasPremium) {
-    return {
-      hasPremium,
-      canCreateCard: true,
-    };
+  // Premium accounts skip the card count, so their status doesn't re-run
+  // with every card they save.
+  if (await readCardEntitlement(ctx, userId)) {
+    return { hasPremium: true, canCreateCard: true };
   }
-
-  const cardCount = await getActiveCardCount(ctx, userId);
-
-  return {
-    hasPremium,
-    canCreateCard: cardCount < FREE_TIER_LIMIT,
-  };
+  const { canCreateCard } = await readFreeCardAllowance(ctx, userId);
+  return { hasPremium: false, canCreateCard };
 };
 
 export const getCardCreationStatus = query({
