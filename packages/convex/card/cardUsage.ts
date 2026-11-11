@@ -196,11 +196,21 @@ export const getCardUsageSnapshot = async (
   };
 };
 
+export type CardUsageSnapshot = Awaited<
+  ReturnType<typeof getCardUsageSnapshot>
+>;
+
 export const getActiveCardCount = async (
   ctx: DatabaseReaderCtx,
   userId: string
+): Promise<number> =>
+  activeCardCountOf(ctx, userId, await getCardUsageSnapshot(ctx, userId));
+
+export const activeCardCountOf = async (
+  ctx: DatabaseReaderCtx,
+  userId: string,
+  usage: CardUsageSnapshot
 ): Promise<number> => {
-  const usage = await getCardUsageSnapshot(ctx, userId);
   if (usage?.isCountExact) {
     return usage.activeCardCount;
   }

@@ -12,9 +12,11 @@ import {
 } from "../../shared/highlights/constants";
 import { MAX_PINNED_CARDS } from "../../shared/pins";
 import { THUMBNAIL_TYPES_DESCRIPTION } from "../../shared/publicApiBodies";
-import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
+import {
+  PUBLIC_API_CARD_TYPES,
+  SEARCH_MODES,
+} from "../../shared/publicApiContract";
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
-import { SEARCH_MODES } from "../../shared/search/semantic";
 import {
   MAX_TAG_NAME_LENGTH,
   TAG_OPERATION_COUNT_LIMIT,
@@ -311,6 +313,75 @@ const cardProperties = {
   },
 } as const;
 
+// The fields a card list returns, in the order the document lists them;
+// a test checks them against serializeListCard.
+const LIST_CARD_FIELDS = [
+  "aiSummary",
+  "aiTags",
+  "aiTranscript",
+  "appUrl",
+  "archive",
+  "article",
+  "highlightCount",
+  "compactUrl",
+  "content",
+  "colors",
+  "createdAt",
+  "detailUrl",
+  "fileName",
+  "fileSize",
+  "mimeType",
+  "fileExtension",
+  "fileKind",
+  "fileLanguage",
+  "filePreview",
+  "fileHeight",
+  "fileWidth",
+  "audioWaveform",
+  "videoScrub",
+  "fileUrl",
+  "id",
+  "isDeleted",
+  "isArchived",
+  "completedAt",
+  "folderIds",
+  "isFavorited",
+  "isPinned",
+  "isHidden",
+  "linkPreviewImageUrl",
+  "linkPreviewDescription",
+  "linkFacts",
+  "linkFaviconUrl",
+  "linkPreviewTitle",
+  "linkCategory",
+  "linkPrice",
+  "linkPreviewMedia",
+  "linkSiteName",
+  "linkAuthor",
+  "linkPublisher",
+  "linkPublishedAt",
+  "metadataDescription",
+  "metadataTitle",
+  "notes",
+  "placeholderUrl",
+  "metadataStatus",
+  "processingStatus",
+  "savedAt",
+  "screenshotUrl",
+  "sourceTitle",
+  "sourceUrl",
+  "tags",
+  "thumbnailOverridden",
+  "thumbnailUrl",
+  "type",
+  "updatedAt",
+  "url",
+] as const satisfies readonly (keyof typeof cardProperties)[];
+
+const listCardProperties = Object.fromEntries(
+  LIST_CARD_FIELDS.map((field) => [field, cardProperties[field]])
+) as Pick<typeof cardProperties, (typeof LIST_CARD_FIELDS)[number]>;
+
 export const components = {
   schemas: {
     ApiError: {
@@ -355,79 +426,7 @@ export const components = {
       type: "object",
     },
     CardListItem: {
-      properties: {
-        aiSummary: { type: ["string", "null"] },
-        aiTags: { items: { type: "string" }, type: "array" },
-        aiTranscript: cardProperties.aiTranscript,
-        appUrl: { format: "uri", type: "string" },
-        archive: cardProperties.archive,
-        article: cardProperties.article,
-        highlightCount: cardProperties.highlightCount,
-        compactUrl: {
-          description:
-            "256px rendition URL for small cards; present for image uploads.",
-          type: ["string", "null"],
-        },
-        content: { type: "string" },
-        colors: cardProperties.colors,
-        createdAt: { type: "number" },
-        detailUrl: { type: ["string", "null"] },
-        fileName: { type: ["string", "null"] },
-        fileSize: { type: ["number", "null"] },
-        mimeType: { type: ["string", "null"] },
-        fileExtension: { type: ["string", "null"] },
-        fileKind: { type: ["string", "null"] },
-        fileLanguage: { type: ["string", "null"] },
-        filePreview: {
-          additionalProperties: true,
-          type: ["object", "null"],
-        },
-        fileHeight: cardProperties.fileHeight,
-        fileWidth: cardProperties.fileWidth,
-        audioWaveform: cardProperties.audioWaveform,
-        videoScrub: cardProperties.videoScrub,
-        fileUrl: { type: ["string", "null"] },
-        id: { type: "string" },
-        isDeleted: cardProperties.isDeleted,
-        isArchived: cardProperties.isArchived,
-        completedAt: cardProperties.completedAt,
-        folderIds: cardProperties.folderIds,
-        isFavorited: { type: "boolean" },
-        isPinned: cardProperties.isPinned,
-        isHidden: cardProperties.isHidden,
-        linkPreviewImageUrl: { type: ["string", "null"] },
-        linkPreviewDescription: cardProperties.linkPreviewDescription,
-        linkFacts: cardProperties.linkFacts,
-        linkFaviconUrl: cardProperties.linkFaviconUrl,
-        linkPreviewTitle: cardProperties.linkPreviewTitle,
-        linkCategory: cardProperties.linkCategory,
-        linkPrice: cardProperties.linkPrice,
-        linkPreviewMedia: cardProperties.linkPreviewMedia,
-        linkSiteName: cardProperties.linkSiteName,
-        linkAuthor: cardProperties.linkAuthor,
-        linkPublisher: cardProperties.linkPublisher,
-        linkPublishedAt: cardProperties.linkPublishedAt,
-        metadataDescription: { type: ["string", "null"] },
-        metadataTitle: { type: ["string", "null"] },
-        notes: { type: ["string", "null"] },
-        placeholderUrl: {
-          description:
-            "48px loading-placeholder rendition URL; present for image uploads.",
-          type: ["string", "null"],
-        },
-        metadataStatus: cardProperties.metadataStatus,
-        processingStatus: cardProperties.processingStatus,
-        savedAt: cardProperties.savedAt,
-        screenshotUrl: { type: ["string", "null"] },
-        sourceTitle: cardProperties.sourceTitle,
-        sourceUrl: cardProperties.sourceUrl,
-        tags: { items: { type: "string" }, type: "array" },
-        thumbnailOverridden: cardProperties.thumbnailOverridden,
-        thumbnailUrl: { type: ["string", "null"] },
-        type: { type: "string" },
-        updatedAt: { type: "number" },
-        url: { type: ["string", "null"] },
-      },
+      properties: listCardProperties,
       required: [
         "aiTags",
         "appUrl",

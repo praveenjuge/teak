@@ -1,24 +1,9 @@
 import { internal } from "../../_generated/api";
 import { parsePublicApiBody } from "../../shared/publicApiBodies";
 import type { TagOperationKind } from "../../shared/tags";
-import type { TagOperationSummary } from "../../tag/tagOperations";
 import type { PublicApiCall } from "./operation";
+import { serializeTagOperation } from "./serializers";
 import { errorResponse, json } from "./shared";
-
-export const serializeTagOperation = (operation: TagOperationSummary) => ({
-  id: operation._id,
-  kind: operation.kind,
-  from: operation.from,
-  to: operation.to ?? null,
-  status: operation.status,
-  total: operation.total,
-  processed: operation.processed,
-  changed: operation.changed,
-  error: operation.error ?? null,
-  createdAt: operation.createdAt,
-  updatedAt: operation.updatedAt,
-  completedAt: operation.completedAt ?? null,
-});
 
 export const handleGetTagOperationRequest = async ({
   ctx,
@@ -74,7 +59,7 @@ export const startTagOperation =
     return json(202, { operationId: serialized.id, ...serialized });
   };
 
-/** `GET /v1/tags`; the listing's policy is in `tag/tagListing`. */
+/** The listing's policy is in `tag/tagListing`. */
 export const handleTagsRequest = async ({
   ctx,
   userId,

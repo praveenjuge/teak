@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { readCardEntitlement, type SubscriptionLookup } from "../billing/polar";
 import { rateLimiter } from "../rateLimiter";
@@ -8,7 +8,12 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
-import { ensureCardUsageShards, getCardUsageSnapshot } from "./cardUsage";
+import {
+  activeCardCountOf,
+  CARD_USAGE_SHARD_VERSION,
+  ensureCardUsageShards,
+  getCardUsageSnapshot,
+} from "./cardUsage";
 
 export interface CardQuotaDeps {
   getSubscription?: SubscriptionLookup;
@@ -102,4 +107,38 @@ export const ensureCardCreationAllowed = async (
 ): Promise<void> => {
   await consumeCardCreationLimit(ctx, userId, deps.rateLimiter);
   await ensureCardQuotaAvailable(ctx, userId, deps);
+};
+
+/**
+ * A free account's card count, and whether its next card fits under the free
+ * limit as a create decides it: a count not yet split into shards that is
+ * inexact or saturated refuses, whatever the cards add up to, until a
+ * removal recounts it (`ensureCardUsageShards`).
+ */
+export const readFreeCardAllowance = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string
+): Promise<{ canCreateCard: boolean; cardCount: number }> => {
+  const usage = await getCardUsageSnapshot(ctx, userId);
+  const cardCount = await activeCardCountOf(ctx, userId, usage);
+  const countRefuses =
+    usage !== null &&
+    usage.shardVersion !== CARD_USAGE_SHARD_VERSION &&
+    (usage.isSaturated || usage.isCountExact !== true);
+  return {
+    cardCount,
+    canCreateCard: !countRefuses && cardCount < FREE_TIER_LIMIT,
+  };
+};
+
+/** What a user's plan allows: the one answer the apps and `/v1/me` read. */
+export const readCardAllowance = async (ctx: QueryCtx, userId: string) => {
+  const hasPremium = await readCardEntitlement(ctx, userId);
+  const { canCreateCard, cardCount } = await readFreeCardAllowance(ctx, userId);
+  return {
+    hasPremium,
+    cardCount,
+    cardLimit: hasPremium ? null : FREE_TIER_LIMIT,
+    canCreateCard: hasPremium || canCreateCard,
+  };
 };

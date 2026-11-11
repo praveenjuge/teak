@@ -184,14 +184,12 @@ export const publicApiOperationSpec = (
 
 const operationSpec = publicApiOperationSpec;
 
-/** The names of an operation's path parameters, in path order. */
 export const publicApiPathParams = (id: PublicApiOperationId): string[] =>
   operationSpec(id)
     .path.split("/")
     .filter((segment) => segment.startsWith("{"))
     .map((segment) => segment.slice(1, -1));
 
-/** An operation's path with its parameters filled in and encoded. */
 export const publicApiPath = (
   id: PublicApiOperationId,
   params: Readonly<Record<string, string>> = {}
@@ -297,7 +295,6 @@ export interface PublicApiMatch {
   params: Record<string, string>;
 }
 
-/** The operation a request reaches, with its decoded path parameters. */
 export const matchPublicApiOperation = (
   method: string,
   pathname: string

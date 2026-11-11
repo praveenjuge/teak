@@ -2,10 +2,10 @@ import { MAX_PINNED_CARDS } from "../../shared/pins";
 import {
   PUBLIC_API_CARD_SORTS,
   PUBLIC_API_CARD_TYPES,
+  SEARCH_MODES,
   SEARCH_QUERY_HELP,
 } from "../../shared/publicApiContract";
 import { PUBLIC_API_MAX_LIMIT } from "../../shared/publicApiLimits";
-import { SEARCH_MODES } from "../../shared/search/semantic";
 import {
   apiErrorContent,
   apiKeySecurity,

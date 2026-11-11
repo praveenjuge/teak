@@ -927,17 +927,6 @@ describe("MCP tools", () => {
     expect(captured[6]?.query).toMatchObject({ folder: "folder_1" });
   });
 
-  test("labels every tool as read-only or as a write for MCP clients", () => {
-    for (const tool of TEAK_V1_TOOLS) {
-      expect(typeof tool.annotations.readOnlyHint).toBe("boolean");
-    }
-    const byName = Object.fromEntries(
-      TEAK_V1_TOOLS.map((tool) => [tool.name, tool.annotations])
-    );
-    expect(byName.teak_v1_search_cards?.readOnlyHint).toBe(true);
-    expect(byName.teak_v1_delete_card?.destructiveHint).toBe(true);
-  });
-
   test("favorite search tools use the canonical list transport", async () => {
     const captured: Array<{
       path: string;

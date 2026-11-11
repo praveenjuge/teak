@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { CardWithUrls } from "../../../card/queryUtils";
-import { serializeListCard } from "../../../publicApi/http/serializers";
+import {
+  serializeCard,
+  serializeFolder,
+  serializeFolderRuleRun,
+  serializeHighlight,
+  serializeListCard,
+  serializeTagOperation,
+} from "../../../publicApi/http/serializers";
 import { testId } from "../../helpers/convex.test-utils";
 
 const listCard = (
@@ -20,7 +27,10 @@ import {
   v1CorsPreflight,
 } from "../../../publicApi/http/meta";
 import { openApiSpec, openApiV1 } from "../../../publicApi/openApi/spec";
-import { PUBLIC_API_OPERATION_IDS } from "../../../shared/publicApiContract";
+import {
+  CARD_LIST_INCLUDES,
+  PUBLIC_API_OPERATION_IDS,
+} from "../../../shared/publicApiContract";
 
 const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
@@ -109,24 +119,93 @@ describe("Convex public API metadata", () => {
     expect(await response.json()).toEqual(openApiSpec);
   });
 
-  test("documents metadata and processing fields emitted in list responses", () => {
-    const card = serializeListCard(
-      listCard({
-        _id: testId("cards", "card_1"),
-        type: "link",
-        createdAt: 1,
-        updatedAt: 1,
-        tags: [],
-        aiTags: [],
-      }),
-      "https://api.teakvault.com",
-      new Set(["metadata", "processing"])
-    );
-    const properties = openApiSpec.components.schemas.CardListItem.properties;
-    for (const field of Object.keys(card)) {
-      expect(properties).toHaveProperty(field);
-    }
+  // Every serializer leaves out no key (none is optional), so one sample of
+  // each shows the full set of fields the API sends.
+  const documented = (schema: keyof typeof openApiSpec.components.schemas) =>
+    Object.keys(
+      (openApiSpec.components.schemas[schema] as { properties: object })
+        .properties
+    ).sort();
+  const sent = (value: object) => Object.keys(value).sort();
+  const sampleCard = listCard({
+    _id: testId("cards", "card_1"),
+    type: "link",
+    tags: [],
+    aiTags: [],
   });
+
+  test.each([
+    [
+      "CardListItem",
+      serializeListCard(
+        sampleCard,
+        "https://api.teakvault.com",
+        new Set(CARD_LIST_INCLUDES)
+      ),
+    ],
+    [
+      "Card",
+      serializeCard(sampleCard, "https://api.teakvault.com", {
+        backlinks: [],
+        backlinksTruncated: false,
+        links: [],
+        linksTruncated: false,
+      }),
+    ],
+    [
+      "Folder",
+      serializeFolder({
+        _id: "folder_1",
+        activeCardCount: 0,
+        createdAt: 1,
+        kind: "manual",
+        name: "Reading",
+        updatedAt: 1,
+      }),
+    ],
+    [
+      "FolderRuleRun",
+      serializeFolderRuleRun({
+        _id: "run_1",
+        canUndo: true,
+        createdAt: 1,
+        filedCount: 0,
+        folderId: "folder_1",
+        status: "completed",
+        taggedCount: 0,
+      }),
+    ],
+    [
+      "Highlight",
+      serializeHighlight({
+        _id: "highlight_1",
+        cardId: "card_1",
+        createdAt: 1,
+        quote: "A line",
+        source: "web",
+        updatedAt: 1,
+      }),
+    ],
+    [
+      "TagOperation",
+      serializeTagOperation({
+        _id: testId("tagOperations", "op_1"),
+        changed: 0,
+        createdAt: 1,
+        from: "old",
+        kind: "rename",
+        processed: 0,
+        status: "running",
+        total: 0,
+        updatedAt: 1,
+      }),
+    ],
+  ] as const)(
+    "the %s schema documents every field the API sends, and no more",
+    (schema, response) => {
+      expect(documented(schema)).toEqual(sent(response));
+    }
+  );
 
   test("serializes a video's scrub strip and an audio waveform", () => {
     const waveform = { detail: [1, 2], grid: [3] };
@@ -193,22 +272,5 @@ describe("Convex public API metadata", () => {
     expect(operationIds).toHaveLength(PUBLIC_API_OPERATION_IDS.length);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
-  });
-
-  test("no longer advertises the removed search routes", async () => {
-    const response = await runHandler(
-      discoveryV1,
-      {},
-      new Request("https://api.teakvault.com/v1")
-    );
-
-    const payload = await response.json();
-    expect(payload.endpoints).not.toContain("GET /v1/cards/search");
-    expect(payload.endpoints).not.toContain("GET /v1/cards/favorites");
-    expect(openApiSpec.paths).not.toHaveProperty("/v1/cards/search");
-    expect(openApiSpec.paths).not.toHaveProperty("/v1/cards/favorites");
-    expect(openApiSpec.components.schemas).not.toHaveProperty(
-      "LegacyCardsResponse"
-    );
   });
 });

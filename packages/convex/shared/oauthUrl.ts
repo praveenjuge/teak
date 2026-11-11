@@ -41,3 +41,16 @@ export const validateOAuthUrl = (raw: unknown, local = false): URL => {
   }
   return url;
 };
+
+/**
+ * Whether a value is a WorkOS issuer Teak trusts: a safe HTTPS origin with
+ * no path, port or credentials, written exactly as its origin.
+ */
+export const isWorkosIssuer = (value: string): boolean => {
+  try {
+    const url = validateOAuthUrl(value);
+    return url.protocol === "https:" && url.origin === value && !url.port;
+  } catch {
+    return false;
+  }
+};

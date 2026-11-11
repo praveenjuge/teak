@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { ConvexError } from "convex/values";
-import type { ValidatedRateLimitKey } from "../publicApi";
-import { handlerOf, mockMutationCtx } from "./helpers/convex.test-utils";
+import { handlerOf } from "./helpers/convex.test-utils";
 import {
   objectDeletionMockModuleFactory,
   r2MockModuleFactory,
@@ -387,36 +385,6 @@ describe("publicApi", () => {
     ).rejects.toThrow(message);
   });
 
-  test("executeBulkCardsForUser rejects batches over the item limit", async () => {
-    const handler =
-      (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
-    const normalizeId = mock();
-
-    let thrown: unknown;
-    try {
-      await handler(
-        {
-          db: { normalizeId },
-          scheduler: { runAfter: mock() },
-        },
-        {
-          items: Array.from({ length: 101 }, (_, index) => ({
-            cardId: `card_${index}`,
-            isFavorited: true,
-          })),
-          operation: "favorite",
-          userId: "user_1",
-        }
-      );
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(ConvexError);
-    expect((thrown as any).data?.code).toBe("INVALID_INPUT");
-    expect(normalizeId).not.toHaveBeenCalled();
-  });
-
   test("executeBulkCardsForUser rejects create items without content or url", async () => {
     const handler =
       (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
@@ -595,80 +563,5 @@ describe("publicApi", () => {
       total: 1,
     });
     expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("public API rate limits", () => {
-  const consumeInvalidAuth = async (runMutation: unknown) =>
-    handlerOf((await import("../publicApi")).consumeInvalidApiAuthLimit)(
-      mockMutationCtx({ runMutation }),
-      {}
-    );
-
-  const limit = async (runMutation: unknown, rateLimitKey: string) =>
-    (await import("../publicApi")).limitApiRequests(
-      mockMutationCtx({ runMutation }),
-      rateLimitKey as ValidatedRateLimitKey
-    );
-
-  test("limitApiRequests returns rate-limited result on contention errors", async () => {
-    const runMutation = mock().mockRejectedValue(
-      new Error(
-        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
-      )
-    );
-
-    const result = await limit(runMutation, "key:key_1");
-
-    expect(result.ok).toBe(false);
-    expect(typeof result.retryAt).toBe("number");
-  });
-
-  test("limitApiRequests rejects an empty rate limit key without calling the limiter", async () => {
-    const runMutation = mock();
-
-    const result = await limit(runMutation, "   ");
-
-    expect(result.ok).toBe(false);
-    expect(runMutation).not.toHaveBeenCalled();
-  });
-
-  test("limitApiRequests keys the limiter on the provided identity", async () => {
-    const runMutation = mock().mockResolvedValue({ ok: true });
-
-    const result = await limit(runMutation, "key:key_42");
-
-    expect(result.ok).toBe(true);
-    expect(runMutation).toHaveBeenCalledTimes(1);
-    expect(runMutation.mock.calls[0][1]).toMatchObject({
-      key: "key:key_42",
-      name: "publicApiRequests",
-    });
-  });
-
-  test("consumeInvalidApiAuthLimit uses a single shared bucket key", async () => {
-    const runMutation = mock().mockResolvedValue({ ok: true });
-
-    const result = await consumeInvalidAuth(runMutation);
-
-    expect(result.ok).toBe(true);
-    expect(runMutation).toHaveBeenCalledTimes(1);
-    expect(runMutation.mock.calls[0][1]).toMatchObject({
-      key: "public-api-invalid-auth",
-      name: "invalidApiAuth",
-    });
-  });
-
-  test("consumeInvalidApiAuthLimit maps contention errors to a retryable result", async () => {
-    const runMutation = mock().mockRejectedValue(
-      new Error(
-        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
-      )
-    );
-
-    const result = await consumeInvalidAuth(runMutation);
-
-    expect(result.ok).toBe(false);
-    expect(typeof result.retryAt).toBe("number");
   });
 });

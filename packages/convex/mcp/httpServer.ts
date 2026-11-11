@@ -5,13 +5,13 @@ import {
   buildProtectedResourceMetadata,
   DISCOVERY_CACHE_CONTROL,
   getProtectedResourceUrl,
-  json,
   withPublicApiGatewayHeaders,
 } from "../publicApi/http/meta";
 import {
   type AuthorizedCaller,
   executePublicApiOperation,
 } from "../publicApi/http/router";
+import { json } from "../publicApi/http/shared";
 import { TEAK_FILES_ORIGINS } from "../shared/filesOrigins";
 import { withBackendTelemetryScope } from "../telemetry/posthog";
 import { TEAK_APP_HTML } from "./appHtml.generated";

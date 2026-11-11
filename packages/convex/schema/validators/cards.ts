@@ -7,7 +7,7 @@ import { cardTypes } from "../../shared/constants";
 import { FILE_KINDS } from "../../shared/fileFormats";
 import { FOLDER_COLORS } from "../../shared/folders";
 import { LINK_CATEGORIES } from "../../shared/linkCategories";
-import { SEARCH_MODES } from "../../shared/search/semantic";
+import { SEARCH_MODES } from "../../shared/publicApiContract";
 
 export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
 

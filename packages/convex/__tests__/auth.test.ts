@@ -49,9 +49,9 @@ const addUsageRecord = (
 
 describe("auth", () => {
   beforeAll(async () => {
-    const authModule = await import("../auth");
+    const quotaModule = await import("../card/quota");
     const accountDeletionModule = await import("../accountDeletion");
-    ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
+    ensureCardCreationAllowed = quotaModule.ensureCardCreationAllowed;
     deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;

@@ -2,15 +2,25 @@ import { describe, expect, test } from "bun:test";
 import {
   parseCreatePayload,
   parsePatchPayload,
-  validateCreatePayload,
-  validatePatchPayload,
 } from "../../../publicApi/http/payloads";
 import { parsePublicApiBody } from "../../../shared/publicApiBodies";
 
-describe("validateCreatePayload", () => {
+// The parsed body, or the refusal when there is one.
+const createdPayload = (payload: unknown): Record<string, unknown> => {
+  const result = parseCreatePayload(payload);
+  return "payload" in result ? { ...result.payload } : result;
+};
+
+// The parsed body, or the refusal when there is one.
+const patchedPayload = (payload: unknown): Record<string, unknown> => {
+  const result = parsePatchPayload(payload);
+  return "payload" in result ? { ...result.payload } : result;
+};
+
+describe("parseCreatePayload accepts", () => {
   test("accepts a text card and keeps notes, tags and source", () => {
     expect(
-      validateCreatePayload({
+      createdPayload({
         content: "Remember this",
         notes: "from a meeting",
         source: "cli",
@@ -27,14 +37,14 @@ describe("validateCreatePayload", () => {
   });
 
   test("accepts a link card with only a url", () => {
-    expect(validateCreatePayload({ url: "https://example.com" })).toMatchObject(
-      { url: "https://example.com" }
-    );
+    expect(createdPayload({ url: "https://example.com" })).toMatchObject({
+      url: "https://example.com",
+    });
   });
 
   test("accepts an uploaded file card that names its file", () => {
     expect(
-      validateCreatePayload({
+      createdPayload({
         fileKey: "uploads/abc",
         fileName: "report.pdf",
         fileSize: 2048,
@@ -49,21 +59,54 @@ describe("validateCreatePayload", () => {
   });
 
   test.each([
-    ["a non-object body", "hello"],
-    ["an array body", [{ content: "x" }]],
-    ["null", null],
-    ["an unknown field", { content: "x", color: "red" }],
-    ["a non-string content", { content: 42 }],
-    ["no content and no url", { notes: "only notes" }],
-    ["blank content on a non-text card", { cardType: "quote", content: "  " }],
-    ["an unknown card type", { cardType: "spreadsheet", content: "x" }],
-    ["a javascript: url", { url: "javascript:alert(1)" }],
-    ["tags that are not strings", { content: "x", tags: ["ok", 1] }],
-    ["a non-numeric file size", { content: "x", fileSize: "big" }],
-    ["file fields without a fileKey", { content: "x", fileName: "a.pdf" }],
+    ["a non-object body", "hello", "Body must be a JSON object"],
+    ["an array body", [{ content: "x" }], "Body must be a JSON object"],
+    ["null", null, "Body must be a JSON object"],
+    [
+      "an unknown field",
+      { content: "x", color: "red" },
+      "Unknown field `color`",
+    ],
+    ["a non-string content", { content: 42 }, "`content` must be a string"],
+    [
+      "no content and no url",
+      { notes: "only notes" },
+      "Body must include `content` or `url`",
+    ],
+    [
+      "blank content on a non-text card",
+      { cardType: "quote", content: "  " },
+      "`content` cannot be blank unless `cardType` is `text`",
+    ],
+    [
+      "an unknown card type",
+      { cardType: "spreadsheet", content: "x" },
+      "`cardType` must be one of: text, link, image, video, audio, document, palette, quote",
+    ],
+    [
+      "a javascript: url",
+      { url: "javascript:alert(1)" },
+      "`url` must use the http or https scheme",
+    ],
+    [
+      "tags that are not strings",
+      { content: "x", tags: ["ok", 1] },
+      "`tags` must be an array of strings",
+    ],
+    [
+      "a non-numeric file size",
+      { content: "x", fileSize: "big" },
+      "`fileSize` must be a number",
+    ],
+    [
+      "file fields without a fileKey",
+      { content: "x", fileName: "a.pdf" },
+      "`fileName` and `mimeType` need an uploaded `fileKey`",
+    ],
     [
       "a fileKey without a file name",
       { fileKey: "uploads/abc", mimeType: "application/pdf" },
+      "An uploaded file needs `fileName` and `mimeType`",
     ],
     [
       "a fileKey together with a url",
@@ -73,10 +116,15 @@ describe("validateCreatePayload", () => {
         mimeType: "application/pdf",
         url: "https://example.com",
       },
+      "Send either `fileKey` or `url`, not both",
     ],
-    ["numeric notes", { content: "x", notes: 5 }],
-  ])("rejects %s", (_label: string, payload: unknown) => {
-    expect(validateCreatePayload(payload)).toBeNull();
+    [
+      "numeric notes",
+      { content: "x", notes: 5 },
+      "`notes` must be a string or null",
+    ],
+  ])("refuses %s", (_label: string, payload: unknown, error: string) => {
+    expect(parseCreatePayload(payload)).toEqual({ error });
   });
 });
 
@@ -271,33 +319,32 @@ describe("createUpload body", () => {
   });
 });
 
-describe("validatePatchPayload", () => {
+describe("parsePatchPayload accepts", () => {
   test("normalizes editable titles and preserves old patch payloads", () => {
-    expect(validatePatchPayload({ metadataTitle: "  New title  " })).toEqual({
+    expect(patchedPayload({ metadataTitle: "  New title  " })).toEqual({
       metadataTitle: "New title",
     });
-    expect(validatePatchPayload({ metadataTitle: null })).toEqual({
+    expect(patchedPayload({ metadataTitle: null })).toEqual({
       metadataTitle: null,
     });
-    expect(validatePatchPayload({ metadataTitle: "  " })).toEqual({
+    expect(patchedPayload({ metadataTitle: "  " })).toEqual({
       metadataTitle: null,
     });
-    expect(validatePatchPayload({ notes: " note " })).toEqual({
+    expect(patchedPayload({ notes: " note " })).toEqual({
       notes: "note",
     });
     expect(
-      validatePatchPayload({ metadataTitle: "x".repeat(512) })?.metadataTitle
+      patchedPayload({ metadataTitle: "x".repeat(512) }).metadataTitle
     ).toHaveLength(512);
   });
 
   test("cuts an oversized title to 512 characters instead of rejecting it", () => {
     expect(
-      validatePatchPayload({ metadataTitle: ` ${"x".repeat(600)} ` })
-        ?.metadataTitle
+      patchedPayload({ metadataTitle: ` ${"x".repeat(600)} ` }).metadataTitle
     ).toBe("x".repeat(512));
     expect(
-      validatePatchPayload({ metadataTitle: `${"x".repeat(511)}😀tail` })
-        ?.metadataTitle,
+      patchedPayload({ metadataTitle: `${"x".repeat(511)}😀tail` })
+        .metadataTitle,
       "a cut never leaves half of a surrogate pair"
     ).toBe("x".repeat(511));
   });
@@ -309,13 +356,15 @@ describe("validatePatchPayload", () => {
   )(
     "rejects invalid title %j",
     ({ metadataTitle }: { metadataTitle: unknown }) => {
-      expect(validatePatchPayload({ metadataTitle })).toBeNull();
+      expect(parsePatchPayload({ metadataTitle })).toEqual({
+        error: "`metadataTitle` must be a string or null",
+      });
     }
   );
 
   test("trims the url and turns blank notes into a cleared note", () => {
     expect(
-      validatePatchPayload({
+      patchedPayload({
         notes: "   ",
         tags: ["a", "a", " b "],
         url: "  https://example.com/x  ",
@@ -324,27 +373,51 @@ describe("validatePatchPayload", () => {
   });
 
   test("allows clearing notes with null", () => {
-    expect(validatePatchPayload({ notes: null })).toEqual({ notes: null });
+    expect(patchedPayload({ notes: null })).toEqual({ notes: null });
   });
 
   test.each([
-    ["an empty patch", {}],
-    ["an unknown field", { title: "x" }],
-    ["a blank url", { url: "   " }],
-    ["an unsafe url", { url: "file:///etc/passwd" }],
-    ["non-string content", { content: ["x"] }],
-    ["non-array tags", { tags: "design" }],
-    ["a tag over 64 characters", { tags: ["a".repeat(65)] }],
-    ["a string archive flag", { isArchived: "true" }],
-  ])("rejects %s", (_label: string, payload: unknown) => {
-    expect(validatePatchPayload(payload)).toBeNull();
+    [
+      "an empty patch",
+      {},
+      "Body must include at least one of content, url, metadataTitle, notes, tags, removeAiTags, addColors, removeColors, isArchived, folderIds",
+    ],
+    [
+      "an unknown field",
+      { title: "x" },
+      "Unknown field `title`; a card takes content, url, metadataTitle, notes, tags, removeAiTags, addColors, removeColors, isArchived, folderIds",
+    ],
+    ["a blank url", { url: "   " }, "`url` must be a non-empty string"],
+    [
+      "an unsafe url",
+      { url: "file:///etc/passwd" },
+      "`url` must use the http or https scheme",
+    ],
+    ["non-string content", { content: ["x"] }, "`content` must be a string"],
+    [
+      "non-array tags",
+      { tags: "design" },
+      "`tags` must be an array of strings",
+    ],
+    [
+      "a tag over 64 characters",
+      { tags: ["a".repeat(65)] },
+      "Each tag must be at most 64 characters",
+    ],
+    [
+      "a string archive flag",
+      { isArchived: "true" },
+      "`isArchived` must be true or false",
+    ],
+  ])("refuses %s", (_label: string, payload: unknown, error: string) => {
+    expect(parsePatchPayload(payload)).toEqual({ error });
   });
 
   test("accepts archiving on its own or with other edits", () => {
-    expect(validatePatchPayload({ isArchived: true })).toEqual({
+    expect(patchedPayload({ isArchived: true })).toEqual({
       isArchived: true,
     });
-    expect(validatePatchPayload({ isArchived: false, notes: "n" })).toEqual({
+    expect(patchedPayload({ isArchived: false, notes: "n" })).toEqual({
       isArchived: false,
       notes: "n",
     });

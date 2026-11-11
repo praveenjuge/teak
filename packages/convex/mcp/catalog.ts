@@ -888,7 +888,6 @@ export const TEAK_TOOLS = [
   }),
 ] as const;
 
-/** The name of every tool, for a client that tells them apart. */
 export type TeakToolName = (typeof TEAK_TOOLS)[number]["name"];
 
 const TOOLS_BY_NAME: ReadonlyMap<string, TeakTool<unknown>> = new Map(
@@ -906,7 +905,6 @@ export const toolInputSchema = (schema: z.ZodType): JsonObject => {
   return { ...generated, required: generated.required ?? [] };
 };
 
-/** The tool list, as `tools/list` returns it. */
 export const TEAK_V1_TOOLS = TEAK_TOOLS.map((entry) => ({
   name: entry.name,
   description: entry.description,

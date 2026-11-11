@@ -1,7 +1,7 @@
 import { internal } from "../../_generated/api";
 import { isSafeExternalUrl } from "../../shared/utils/safeUrl";
-import { json } from "./meta";
 import { type PublicApiCall, queryOf } from "./operation";
+import { json } from "./shared";
 
 export async function handleDuplicateCardRequest(
   call: PublicApiCall

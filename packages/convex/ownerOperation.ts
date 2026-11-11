@@ -119,6 +119,25 @@ const ownerArgs = <Args extends PropertyValidators>(args: Args) => ({
   userId: v.string(),
 });
 
+// A public API function's arguments carry the owner as `userId`.
+const runForOwner = async <
+  Ctx extends QueryCtx,
+  Args extends PropertyValidators,
+  Returns extends ReturnsValidator,
+>(
+  operation: OwnerOperation<Ctx, Args, Returns>,
+  ctx: Ctx,
+  owned: unknown
+): Promise<Infer<Returns>> => {
+  const { userId, ...args } = owned as ObjectType<Args> & { userId: string };
+  return await operation.handler(
+    ctx,
+    await requireTeakUserId(ctx, userId),
+    args as unknown as ObjectType<Args>,
+    "api"
+  );
+};
+
 /** The public API's internal query, for the owner in `userId`. */
 export const apiQuery = <
   Args extends PropertyValidators,
@@ -129,17 +148,8 @@ export const apiQuery = <
   internalQuery({
     args: ownerArgs(operation.args),
     returns: operation.returns,
-    handler: async (ctx, owned): Promise<Infer<Returns>> => {
-      const { userId, ...args } = owned as unknown as ObjectType<Args> & {
-        userId: string;
-      };
-      return await operation.handler(
-        ctx,
-        await requireTeakUserId(ctx, userId),
-        args as unknown as ObjectType<Args>,
-        "api"
-      );
-    },
+    handler: (ctx, owned): Promise<Infer<Returns>> =>
+      runForOwner(operation, ctx, owned),
   });
 
 /** The public API's internal mutation, for the owner in `userId`. */
@@ -152,15 +162,6 @@ export const apiMutation = <
   internalMutation({
     args: ownerArgs(operation.args),
     returns: operation.returns,
-    handler: async (ctx, owned): Promise<Infer<Returns>> => {
-      const { userId, ...args } = owned as unknown as ObjectType<Args> & {
-        userId: string;
-      };
-      return await operation.handler(
-        ctx,
-        await requireTeakUserId(ctx, userId),
-        args as unknown as ObjectType<Args>,
-        "api"
-      );
-    },
+    handler: (ctx, owned): Promise<Infer<Returns>> =>
+      runForOwner(operation, ctx, owned),
   });

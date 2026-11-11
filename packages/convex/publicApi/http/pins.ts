@@ -6,7 +6,6 @@ import type { PublicApiCall } from "./operation";
 import { serializeListCard } from "./serializers";
 import { errorResponse, json } from "./shared";
 
-/** `PUT /v1/cards/pinned/order`. */
 export const handlePinnedOrderRequest = async (
   call: PublicApiCall
 ): Promise<Response> => {

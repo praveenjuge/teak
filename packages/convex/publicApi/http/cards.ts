@@ -14,6 +14,14 @@ import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
 import { parsePublicApiBody } from "../../shared/publicApiBodies";
+import {
+  BULK_CARD_OPERATIONS,
+  type BulkCardOperation,
+} from "../../shared/publicApiContract";
+import {
+  PUBLIC_API_MAX_BULK_ITEMS,
+  PUBLIC_API_MAX_LIMIT,
+} from "../../shared/publicApiLimits";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -23,7 +31,7 @@ import { tryResolveObjectUrl } from "../../storage/fileUrls";
 import { captureBackendEvent } from "../../telemetry/posthog";
 import { relevanceCursorRanked } from "../cursors";
 import { parseOptionalString } from "../validation";
-import { respondIdempotently } from "./auth";
+import { respondIdempotently } from "./idempotency";
 import { noContent, type PublicApiCall, queryOf } from "./operation";
 import { parseCreatePayload, parsePatchPayload } from "./payloads";
 import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
@@ -35,8 +43,6 @@ import {
 import {
   errorResponse,
   json,
-  MAX_BULK_ITEMS,
-  MAX_LIMIT,
   MAX_QUERY_SCAN,
   mapConvexErrorToResponse,
   parseLimit,
@@ -65,7 +71,7 @@ const handleCreateCardRequest = async (
     ctx,
     {
       failureMessage: "Failed to save card",
-      path: "/v1/cards",
+      operation: "createCard",
       request,
       requestBody: createPayload,
       userId,
@@ -374,7 +380,10 @@ const handleCardsListRequest = async (
     let hasMore = false;
 
     while (scannedRows < MAX_QUERY_SCAN) {
-      const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
+      const scanLimit = Math.min(
+        PUBLIC_API_MAX_LIMIT,
+        MAX_QUERY_SCAN - scannedRows
+      );
       const scanPage = await ctx.runQuery(
         internal.publicApi.scanCardsPageForUser,
         {
@@ -1032,17 +1041,8 @@ const handleCardChangesRequest = async (
   });
 };
 
-const BULK_OPERATIONS = new Set([
-  "create",
-  "update",
-  "favorite",
-  "delete",
-  "archive",
-  "unarchive",
-  "addTags",
-  "removeTags",
-  "restore",
-]);
+const isBulkCardOperation = (value: string): value is BulkCardOperation =>
+  (BULK_CARD_OPERATIONS as readonly string[]).includes(value);
 
 const handleBulkCardsRequest = async (
   call: PublicApiCall
@@ -1061,7 +1061,7 @@ const handleBulkCardsRequest = async (
   const source = payload as Record<string, unknown>;
   const operation = parseOptionalString(source.operation);
   const items = Array.isArray(source.items) ? source.items : null;
-  if (!(operation && items && BULK_OPERATIONS.has(operation))) {
+  if (!(operation && items && isBulkCardOperation(operation))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
@@ -1077,11 +1077,11 @@ const handleBulkCardsRequest = async (
     );
   }
 
-  if (items.length > MAX_BULK_ITEMS) {
+  if (items.length > PUBLIC_API_MAX_BULK_ITEMS) {
     return errorResponse(
       400,
       "INVALID_INPUT",
-      `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`
+      `\`items\` must not exceed ${PUBLIC_API_MAX_BULK_ITEMS} entries per request`
     );
   }
 
@@ -1105,7 +1105,7 @@ const handleBulkCardsRequest = async (
     ctx,
     {
       failureMessage: "Failed to execute bulk operation",
-      path: "/v1/cards/bulk",
+      operation: "bulkCards",
       request,
       requestBody: { items, operation },
       userId,

@@ -1,8 +1,6 @@
 import { TEAK_APP_RESOURCE } from "./appResource";
 import { TEAK_V1_TOOLS } from "./catalog";
 
-export { TEAK_V1_TOOLS } from "./catalog";
-
 type JsonObject = Record<string, unknown>;
 
 export const MCP_SERVER_INFO = {
