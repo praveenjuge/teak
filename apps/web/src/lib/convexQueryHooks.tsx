@@ -1,13 +1,15 @@
 import type {
   OptionalRestArgsOrSkip,
-  PaginatedQueryArgs,
   PaginatedQueryReference,
-  UsePaginatedQueryReturnType,
+  UsePaginatedQueryResult,
 } from "convex/react";
 import {
+  type BetterOmit,
+  type FunctionArgs,
   type FunctionReference,
   type FunctionReturnType,
   getFunctionName,
+  type PaginationOptions,
   type PaginationResult,
 } from "convex/server";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
@@ -111,12 +113,35 @@ export function useQuery<Query extends FunctionReference<"query">>(
 
 const noLoadMore = () => undefined;
 
-export function usePaginatedQuery<Query extends PaginatedQueryReference>(
+/**
+ * A paginated query whose last page may carry a `null` cursor, as Teak's card
+ * searches return. The hooks read the cursor only while more pages remain.
+ */
+type PageQuery = FunctionReference<
+  "query",
+  "public",
+  { paginationOpts: PaginationOptions },
+  BetterOmit<PaginationResult<unknown>, "continueCursor"> & {
+    continueCursor: string | null;
+  }
+>;
+type PageQueryArgs<Query extends PageQuery> = BetterOmit<
+  FunctionArgs<Query>,
+  "paginationOpts"
+>;
+type PageQueryItem<Query extends PageQuery> =
+  FunctionReturnType<Query>["page"][number];
+
+export function usePaginatedQuery<Query extends PageQuery>(
   query: Query,
-  args: PaginatedQueryArgs<Query> | "skip",
+  args: PageQueryArgs<Query> | "skip",
   options: { customPagination?: boolean; initialNumItems: number }
-): UsePaginatedQueryReturnType<Query> {
-  const live = useCachedPaginatedQuery(query, args, options);
+): UsePaginatedQueryResult<PageQueryItem<Query>> {
+  const live = useCachedPaginatedQuery(
+    query as unknown as PaginatedQueryReference,
+    args,
+    options
+  ) as UsePaginatedQueryResult<PageQueryItem<Query>>;
   const key = useSeedKey(
     query,
     args === "skip"
@@ -127,7 +152,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
         ) as Record<string, Value>)
   );
   const firstPage = useSeed(key, live.status !== "LoadingFirstPage") as
-    | PaginationResult<UsePaginatedQueryReturnType<Query>["results"][number]>
+    | FunctionReturnType<Query>
     | undefined;
   if (firstPage === undefined) {
     return live;
@@ -147,5 +172,5 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
           isLoading: true,
           loadMore: noLoadMore,
         }
-  ) as UsePaginatedQueryReturnType<Query>;
+  ) as UsePaginatedQueryResult<PageQueryItem<Query>>;
 }
