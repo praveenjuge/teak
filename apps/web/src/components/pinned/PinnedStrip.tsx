@@ -22,7 +22,7 @@ import type {
   CardGridSource,
   GridCardAction,
 } from "../../hooks/useCardActions";
-import type { CardActionId } from "../../lib/cardActions";
+import { type CardActionId, STRIP_CARD_ACTIONS } from "../../lib/cardActions";
 import { type GridKeyContext, gridKeyAction } from "../../lib/gridKeys";
 import { movedIds } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
@@ -39,16 +39,6 @@ const STRIP_KEY_CONTEXT: GridKeyContext = {
   isSelectionMode: false,
   view: "library",
 };
-
-/** The row has no selection, and nothing in it is in Trash. */
-const STRIP_CARD_ACTIONS: ReadonlySet<CardActionId> = new Set([
-  "copy",
-  "favorite",
-  "pin",
-  "addTags",
-  "archive",
-  "moveToTrash",
-]);
 
 // Drags announce through the row's own status line, after the drop.
 const SILENT: Announcements = {
