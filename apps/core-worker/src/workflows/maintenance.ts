@@ -356,7 +356,6 @@ interface Page<T> {
   rows: T[];
 }
 
-/** Reads at most `maxPages` pages; says whether it reached the end. */
 const visitPages = async <T>(
   readPage: (cursor: string | null) => Promise<Page<T>>,
   visit: (rows: T[]) => void,

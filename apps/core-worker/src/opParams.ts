@@ -1,7 +1,6 @@
 import { isSameUserNamespace, isValidObjectKey } from "@teak/files-protocol";
 import { InvalidOpInput } from "./opFailure";
 
-/** An op's params as they arrive: an object, not yet read. */
 export type RawOpParams = Record<string, unknown>;
 
 export const requiredString = (params: RawOpParams, key: string): string => {

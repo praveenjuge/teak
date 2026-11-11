@@ -153,7 +153,7 @@ describe("classification step", () => {
       });
     });
 
-    test("re-classifies quote when URL present", async () => {
+    test("re-classifies a quote with a URL as a link", async () => {
       const card = {
         _id: "c1",
         type: "quote",
@@ -161,12 +161,18 @@ describe("classification step", () => {
       };
       givenCard(card);
 
-      await classify(mockRunMutation);
+      const result = await classify(mockRunMutation);
 
-      expect(mockRunMutation).toHaveBeenCalled();
+      expect(result).toMatchObject({ mode: "completed", type: "link" });
+      expect(mockRunMutation.mock.calls).toEqual([
+        [
+          "workflows/steps/classificationMutations:recordClassification",
+          { cardId: "c1", confidence: 0.9, type: "link" },
+        ],
+      ]);
     });
 
-    test("re-classifies quote when fileKey present", async () => {
+    test("re-classifies a quote with a file as a document", async () => {
       const card = {
         _id: "c1",
         type: "quote",
@@ -174,9 +180,15 @@ describe("classification step", () => {
       };
       givenCard(card);
 
-      await classify(mockRunMutation);
+      const result = await classify(mockRunMutation);
 
-      expect(mockRunMutation).toHaveBeenCalled();
+      expect(result).toMatchObject({ mode: "completed", type: "document" });
+      expect(mockRunMutation.mock.calls).toEqual([
+        [
+          "workflows/steps/classificationMutations:recordClassification",
+          { cardId: "c1", confidence: 0.9, type: "document" },
+        ],
+      ]);
     });
   });
 

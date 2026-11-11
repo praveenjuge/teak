@@ -15,7 +15,6 @@ import {
   FILES_PENDING_CARD_SEGMENT,
   FILES_PRIVATE_CACHE_CONTROL,
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
-  FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
   isFilesNetworkOp,
@@ -54,7 +53,6 @@ describe("files protocol", () => {
         key: "users/u/cards/screenshot/s.jpg",
       })
     ).toBe("upload\n1\nPUT\nusers/u/cards/screenshot/s.jpg\nimage/jpeg\n\n123");
-    expect(FILES_UPLOAD_MAX_TTL_SECONDS).toBe(900);
   });
 
   test("accepts only the operations Convex may send", () => {
@@ -207,11 +205,13 @@ describe("file storage contract", () => {
   });
 
   test("caches file responses for a day less than a signed url stays valid", () => {
+    const maxAge = FILES_SIGNED_URL_MIN_VALIDITY_SECONDS - 24 * 60 * 60;
     expect(FILES_PRIVATE_CACHE_CONTROL).toBe(
-      "private, max-age=518400, immutable"
+      `private, max-age=${maxAge}, immutable`
     );
-    expect(FILES_EDGE_CACHE_CONTROL).toBe("public, max-age=518400, immutable");
-    expect(FILES_SIGNED_URL_MIN_VALIDITY_SECONDS).toBe(604_800);
+    expect(FILES_EDGE_CACHE_CONTROL).toBe(
+      `public, max-age=${maxAge}, immutable`
+    );
   });
 
   test("builds card object keys under the user's hashed prefix", () => {

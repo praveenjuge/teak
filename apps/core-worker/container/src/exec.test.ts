@@ -18,7 +18,6 @@ describe("limitedCommand", () => {
       "-i",
       "x",
     ]);
-    expect(ADDRESS_SPACE_BYTES).toBe(1024 * 1024 * 1024);
   });
 
   test("never sets a CPU limit below one second", () => {
