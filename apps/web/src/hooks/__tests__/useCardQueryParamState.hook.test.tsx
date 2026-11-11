@@ -63,6 +63,17 @@ test("switching to the card already open does nothing", async () => {
   expect(replaceCardId).not.toHaveBeenCalled();
 });
 
+test("stepping back before the next render lands on the card asked for last", async () => {
+  const { get, replaceCardId } = await renderHook("card_a");
+  await act(() => {
+    const { switchCard } = get();
+    switchCard("card_b");
+    switchCard("card_a");
+  });
+  expect(get().selectedCardId).toBe("card_a");
+  expect(replaceCardId.mock.calls.at(-1)).toEqual(["card_a"]);
+});
+
 test("closing a card opened from the list goes Back instead of adding an entry", async () => {
   const { get, popCardEntry, pushCardId, replaceCardId, urlShows } =
     await renderHook(null);

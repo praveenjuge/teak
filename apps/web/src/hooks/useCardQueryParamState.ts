@@ -77,7 +77,9 @@ export function useCardQueryParamState({
   const switchCard = useCallback(
     (cardId: string) => {
       const nextCardId = normalizeCardQueryId(cardId);
-      if (!nextCardId || selectedCardId === nextCardId) {
+      // Compared with the card last asked for, not the one rendered: two
+      // quick steps run before the first one renders.
+      if (!nextCardId || expectedCardIdRef.current === nextCardId) {
         return;
       }
 
@@ -85,7 +87,7 @@ export function useCardQueryParamState({
       setSelectedCardId(nextCardId);
       replaceCardId(nextCardId);
     },
-    [replaceCardId, selectedCardId]
+    [replaceCardId]
   );
 
   const closeCard = useCallback(
