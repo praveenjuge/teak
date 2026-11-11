@@ -37,7 +37,6 @@ import { CardsSearchHeader } from "@/components/search";
 import { NoSearchResults } from "@/components/search/NoSearchResults";
 import { SearchResultsSummary } from "@/components/search/SearchResultsSummary";
 import { Button } from "@/components/ui/button";
-import { useCardClipboard } from "@/hooks/useCardClipboard";
 import { useCardModalFilterActions } from "@/hooks/useCardModalFilterActions";
 import { useCardsSearchController } from "@/hooks/useCardsSearchController";
 import { useVaultSetup } from "@/hooks/useVaultSetup";
@@ -532,8 +531,6 @@ export function CardsScreen({
 
   const tagEditor = useCardTagEditor(tagManagementCard);
 
-  const { handleCopyImage } = useCardClipboard();
-
   // Where the card opened from, so the dialog grows out of it. Only a click
   // on a card has one; a card opened any other way grows from the middle.
   const [openOrigin, setOpenOrigin] = useState<{
@@ -594,7 +591,6 @@ export function CardsScreen({
       }
     },
     onCardClick: handleCardClick,
-    onCopyImage: handleCopyImage,
     onDeleteForever: actions.deleteForever,
     onLoadMore: requestMoreCards,
   });

@@ -20,6 +20,31 @@ export const isFilesImageRendition = (
   typeof value === "string" &&
   (FILES_IMAGE_RENDITIONS as readonly string[]).includes(value);
 
+const decodeImageKey = (encoded: string): string => {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return "";
+  }
+};
+
+/**
+ * The rendition and storage key an image URL's path asks for
+ * (`/__images/v1/<rendition>/<key>`), or null for any other path.
+ */
+export const parseFilesImagePath = (
+  pathname: string
+): { key: string; rendition: FilesImageRendition } | null => {
+  const match = new RegExp(`^${FILES_IMAGE_PATH}/([^/]+)/(.+)$`, "u").exec(
+    pathname
+  );
+  const rendition = match?.[1];
+  const key = decodeImageKey(match?.[2] ?? "");
+  return isFilesImageRendition(rendition) && key && !key.includes("\0")
+    ? { key, rendition }
+    : null;
+};
+
 export const FILES_UPLOAD_PATH = "/__upload/v1" as const;
 
 export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;

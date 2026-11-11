@@ -2,11 +2,10 @@ import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
   checkSignedExpiry,
-  FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
   type FilesImageRendition,
   hmacSha256Hex,
-  isFilesImageRendition,
+  parseFilesImagePath,
   verifyHmacHex,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "../deletionGate";
@@ -103,19 +102,6 @@ const decodeKey = (encoded: string): string => {
   } catch {
     return "";
   }
-};
-
-const parseImagePath = (
-  pathname: string
-): { key: string; rendition: FilesImageRendition } | null => {
-  const match = new RegExp(`^${FILES_IMAGE_PATH}/([^/]+)/(.+)$`, "u").exec(
-    pathname
-  );
-  const rendition = match?.[1];
-  const key = decodeKey(match?.[2] ?? "");
-  return isFilesImageRendition(rendition) && key && !key.includes("\0")
-    ? { key, rendition }
-    : null;
 };
 
 const parseSourcePath = (pathname: string): string | null => {
@@ -333,7 +319,7 @@ export const handleImageRequest = async (
   edgeCache: Cache | null = imageEdgeCache
 ): Promise<Response> => {
   const url = new URL(request.url);
-  const parsed = parseImagePath(url.pathname);
+  const parsed = parseFilesImagePath(url.pathname);
   if (!parsed) {
     return new Response(null, { status: 404 });
   }

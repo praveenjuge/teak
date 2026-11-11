@@ -17,10 +17,9 @@ describe("media recovery", () => {
   });
 
   test("only retries Teak media once", () => {
-    expect(canRetryMedia(signedGridUrl, 0)).toBe(true);
-    expect(canRetryMedia(signedGridUrl, 1)).toBe(false);
-    expect(canRetryMedia("https://example.com/image.jpg", 0)).toBe(false);
-    expect(canRetryMedia(appendMediaRetryParam(signedGridUrl), 0)).toBe(false);
+    expect(canRetryMedia(signedGridUrl)).toBe(true);
+    expect(canRetryMedia("https://example.com/image.jpg")).toBe(false);
+    expect(canRetryMedia(appendMediaRetryParam(signedGridUrl))).toBe(false);
   });
 
   test("recognizes only allowlisted image renditions", () => {
@@ -41,7 +40,7 @@ describe("media recovery", () => {
   ])(
     "recovers media from the production and isolated development Workers: %s",
     (url) => {
-      expect(canRetryMedia(url, 0)).toBe(true);
+      expect(canRetryMedia(url)).toBe(true);
       expect(getMediaRenditionFromUrl(url)).toBe("grid");
     }
   );
@@ -53,7 +52,7 @@ describe("media recovery", () => {
     "http://files.teakvault.com/__images/v1/grid/key?sig=x",
     "http://teak-files-development.praveenjuge.workers.dev/__images/v1/grid/key",
   ])("never treats lookalike or insecure origins as Teak media: %s", (url) => {
-    expect(canRetryMedia(url, 0)).toBe(false);
+    expect(canRetryMedia(url)).toBe(false);
     expect(getMediaRenditionFromUrl(url)).toBeUndefined();
   });
 });

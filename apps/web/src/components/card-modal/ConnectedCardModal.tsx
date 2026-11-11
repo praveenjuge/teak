@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
-import { useCopyCardImage } from "@/hooks/useCardClipboard";
+import { useCopyCard } from "@/hooks/useCardClipboard";
 import { useCardHighlights } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
 import {
@@ -102,7 +102,7 @@ export function ConnectedCardModal({
   const paletteColors = usePaletteColors(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
-  const copyCardImage = useCopyCardImage();
+  const { copyImage: copyCardImage } = useCopyCard();
   const actions = useCardActions();
   const runAction = useCallback(
     (action: RunnableCardActionId) =>

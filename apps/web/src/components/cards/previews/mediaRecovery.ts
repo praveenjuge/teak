@@ -1,49 +1,41 @@
 import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
+import {
+  type FilesImageRendition,
+  parseFilesImagePath,
+} from "@teak/convex/shared/filesImages";
 
-export const TEAK_FILES_HOSTS: ReadonlySet<string> = new Set(
+const TEAK_FILES_HOSTS: ReadonlySet<string> = new Set(
   Object.values(TEAK_FILES_ORIGINS).map((origin) => new URL(origin).hostname)
 );
-const RENDITIONS = new Set(["tiny", "compact", "grid", "detail"] as const);
 
-export type MediaRendition = "tiny" | "compact" | "grid" | "detail";
+const RETRY_PARAM = "teak_retry";
+
+const teakFilesUrl = (url: string): URL | null => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && TEAK_FILES_HOSTS.has(parsed.hostname)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 export function appendMediaRetryParam(url: string): string {
   const parsed = new URL(url);
-  parsed.searchParams.set("teak_retry", "1");
+  parsed.searchParams.set(RETRY_PARAM, "1");
   return parsed.toString();
 }
 
-export function canRetryMedia(url: string, retryCount: number): boolean {
-  if (retryCount > 0) {
-    return false;
-  }
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.protocol === "https:" &&
-      TEAK_FILES_HOSTS.has(parsed.hostname) &&
-      !parsed.searchParams.has("teak_retry")
-    );
-  } catch {
-    return false;
-  }
+/** A Teak files URL that hasn't been refreshed once already. */
+export function canRetryMedia(url: string): boolean {
+  const parsed = teakFilesUrl(url);
+  return parsed !== null && !parsed.searchParams.has(RETRY_PARAM);
 }
 
 export function getMediaRenditionFromUrl(
   url: string
-): MediaRendition | undefined {
-  try {
-    const parsed = new URL(url);
-    if (
-      !(parsed.protocol === "https:" && TEAK_FILES_HOSTS.has(parsed.hostname))
-    ) {
-      return undefined;
-    }
-    const candidate = parsed.pathname.match(/^\/__images\/v1\/([^/]+)\//)?.[1];
-    return candidate && RENDITIONS.has(candidate as MediaRendition)
-      ? (candidate as MediaRendition)
-      : undefined;
-  } catch {
-    return undefined;
-  }
+): FilesImageRendition | undefined {
+  const parsed = teakFilesUrl(url);
+  return parsed ? parseFilesImagePath(parsed.pathname)?.rendition : undefined;
 }

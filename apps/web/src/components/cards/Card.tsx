@@ -1,7 +1,5 @@
-import { api } from "@teak/convex";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { memo, use, useRef } from "react";
 import {
@@ -38,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { englishTranslator } from "@/lib/englishTranslators";
 import { openCardLink } from "@/lib/openCardLink";
+import { useCopyCard } from "../../hooks/useCardClipboard";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import {
@@ -51,11 +50,6 @@ import {
   copyCardShortcut,
   GRID_CARD_ACTIONS,
 } from "../../lib/cardActions";
-import {
-  cardCopyKind,
-  cardCopyText,
-  resolveImageCopyUrl,
-} from "../../lib/cardCopy";
 import {
   cardFileFormat,
   cardTitle,
@@ -129,7 +123,6 @@ export const Card = memo(function Card({
   onClick,
   onEditFolders,
   onEditLink,
-  onCopyImage,
   isSelectionMode,
   isSelected,
   isPriority = false,
@@ -141,7 +134,7 @@ export const Card = memo(function Card({
   const tLabel = useTranslations("cards.accessibleLabel");
   const apple = useIsApplePlatform();
   const tLinkTitle = useTranslations("lib.linkTitle");
-  const refreshCardMediaUrl = useAction(api.cards.refreshCardMediaUrl);
+  const { copy: copyCard } = useCopyCard();
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
   const isFirstPaintCopy = use(FirstPaintCopyContext);
@@ -203,7 +196,7 @@ export const Card = memo(function Card({
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
-      handleCopyImage();
+      handleCopy();
     }
   };
 
@@ -223,25 +216,9 @@ export const Card = memo(function Card({
     void reprocess(card._id);
   };
 
-  // Runs straight from the click or key press: the clipboard write has to
-  // start before any await (see copyCardContentToClipboard).
-  const handleCopyImage = () => {
-    if (isOptimistic) {
-      return;
-    }
-    if (cardCopyKind(card) === "image") {
-      const url = resolveImageCopyUrl({
-        cardId: card._id,
-        fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
-        fileKey: card.fileKey,
-        refresh: refreshCardMediaUrl,
-      });
-      onCopyImage?.(url, true);
-      return;
-    }
-    const text = cardCopyText(card);
-    if (text) {
-      onCopyImage?.(text, false);
+  const handleCopy = () => {
+    if (!isOptimistic) {
+      copyCard(card);
     }
   };
 
@@ -325,7 +302,7 @@ export const Card = memo(function Card({
             icon: Copy,
             id: "copy",
             label: copyMenuLabel,
-            onSelect: handleCopyImage,
+            onSelect: handleCopy,
             shortcut: copyCardShortcut(apple),
           },
         ]

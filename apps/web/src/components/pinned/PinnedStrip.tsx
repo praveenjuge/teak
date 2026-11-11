@@ -69,7 +69,6 @@ export interface PinnedStripProps {
     card: CardWithUrls & Record<string, unknown>,
     origin?: CardOpenOrigin
   ) => void;
-  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onReorder: (cardIds: Id<"cards">[]) => void;
 }
 
@@ -81,7 +80,6 @@ export function PinnedStrip({
   cards,
   onCardAction,
   onCardClick,
-  onCopyImage,
   onReorder,
 }: PinnedStripProps) {
   const t = useTranslations("pinned.strip");
@@ -216,7 +214,6 @@ export function PinnedStrip({
                 key={card._id}
                 onAction={handleMenuAction}
                 onCardClick={onCardClick}
-                onCopyImage={onCopyImage}
                 onEditFolders={setFoldersCardId}
                 onEditLink={setEditLinkCardId}
               />
@@ -261,10 +258,9 @@ function PinnedStripItem({
   card,
   onAction,
   onCardClick,
-  onCopyImage,
   onEditFolders,
   onEditLink,
-}: Pick<PinnedStripProps, "onCardClick" | "onCopyImage"> & {
+}: Pick<PinnedStripProps, "onCardClick"> & {
   card: StripCard;
   onAction: (
     action: CardActionId,
@@ -292,7 +288,6 @@ function PinnedStripItem({
         nativeDrag={false}
         onAction={onAction}
         onClick={onCardClick}
-        onCopyImage={onCopyImage}
         onEditFolders={onEditFolders}
         onEditLink={onEditLink}
       />

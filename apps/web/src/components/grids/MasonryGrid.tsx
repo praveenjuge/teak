@@ -158,7 +158,6 @@ export interface MasonryGridProps {
     card: CardWithUrls & Record<string, unknown>,
     origin?: CardOpenOrigin
   ) => void;
-  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   /** Deletes cards in Trash forever, once the person has confirmed. */
   onDeleteForever?: (
     cardIds: string[]
@@ -182,7 +181,6 @@ export const MasonryGrid = memo(function MasonryGrid({
   onCardClick,
   onBulkAction,
   onDeleteForever,
-  onCopyImage,
   ref,
   batchSize = DEFAULT_BATCH_SIZE,
   resetKey,
@@ -584,7 +582,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       } else if (action === "deleteForever") {
         setPendingPermanentDeleteId(card._id);
       } else if (action !== "done" && action !== "copy") {
-        // A card copies itself (`onCopyImage`); done belongs to the open card.
+        // A card copies itself; done belongs to the open card.
         onCardAction?.(action, card, source);
       }
     },
@@ -813,7 +811,6 @@ export const MasonryGrid = memo(function MasonryGrid({
           isTabStop={card._id === tabStopId}
           onAction={handleMenuAction}
           onClick={handleCardClick}
-          onCopyImage={onCopyImage}
           onEditFolders={setFoldersCardId}
           onEditLink={setEditLinkCardId}
           onRemoveFromFolder={
@@ -833,7 +830,6 @@ export const MasonryGrid = memo(function MasonryGrid({
       handleMenuAction,
       removeCardFromFolder,
       folder,
-      onCopyImage,
       isSelectionMode,
       selectedCardIds,
       tabStopId,

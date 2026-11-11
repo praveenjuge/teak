@@ -42,7 +42,6 @@ export interface CardProps {
     card: CardWithUrls & Record<string, unknown>,
     origin?: CardOpenOrigin
   ) => void;
-  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;
   onRemoveFromFolder?: (cardId: string) => void;

@@ -9,48 +9,62 @@ import {
 } from "./mediaRecovery";
 
 /**
- * A media URL that asks for a fresh signed URL once when it fails to load,
- * for audio and video that stay open long enough for the first to expire.
- * `onError` resolves true while that retry is under way, false once there's
- * nothing left to try. Given the element that failed, it notes where playback
- * was, and `resume` picks up there once the new URL's metadata loads.
+ * A media URL that asks for a fresh signed URL once when it fails to load:
+ * signed URLs expire while a page, or a long video, stays open. `retry`
+ * takes the URL that failed and resolves true while the fresh one loads,
+ * false once there's nothing left to try. A fresh URL replaces `srcSet`,
+ * whose other renditions were signed alongside the one that failed.
+ *
+ * For audio and video, `onError` also notes where playback was, and
+ * `resume` picks up there once the new URL's metadata loads.
  */
 export function useMediaUrlRecovery({
   cardId,
   src,
+  srcSet,
   storageKey,
 }: {
   cardId?: string;
   src: string | undefined;
+  srcSet?: string;
   storageKey?: string;
-}): {
-  onError: (
-    element?: HTMLMediaElement | null,
-    playing?: boolean
-  ) => Promise<boolean>;
-  resume: (element: HTMLMediaElement) => void;
-  src: string | undefined;
-} {
+}) {
   const refreshMediaUrl = useAction(api.cards.refreshCardMediaUrl);
-  const [displaySrc, setDisplaySrc] = useState(src);
+  const [display, setDisplay] = useState({ src, srcSet });
   const retried = useRef<boolean>(false);
   const resumeAt = useRef<{ playing: boolean; time: number } | null>(null);
 
   useEffect(() => {
-    setDisplaySrc(src);
+    setDisplay({ src, srcSet });
     retried.current = false;
-  }, [src]);
+  }, [src, srcSet]);
 
-  const onError = useCallback(
-    async (element?: HTMLMediaElement | null, playing?: boolean) => {
-      const failed = displaySrc ?? "";
+  const retry = useCallback(
+    async (failedUrl: string) => {
       if (
         retried.current ||
-        !(cardId && storageKey && canRetryMedia(failed, 0))
+        !(cardId && storageKey && canRetryMedia(failedUrl))
       ) {
         return false;
       }
       retried.current = true;
+      try {
+        const { url } = await refreshMediaUrl({
+          cardId: cardId as Id<"cards">,
+          key: storageKey,
+          rendition: getMediaRenditionFromUrl(failedUrl),
+        });
+        setDisplay({ src: appendMediaRetryParam(url), srcSet: undefined });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [cardId, refreshMediaUrl, storageKey]
+  );
+
+  const onError = useCallback(
+    async (element?: HTMLMediaElement | null, playing?: boolean) => {
       resumeAt.current =
         element && element.currentTime > 0
           ? {
@@ -58,19 +72,13 @@ export function useMediaUrlRecovery({
               time: element.currentTime,
             }
           : null;
-      try {
-        const { url } = await refreshMediaUrl({
-          cardId: cardId as Id<"cards">,
-          key: storageKey,
-          rendition: getMediaRenditionFromUrl(failed),
-        });
-        setDisplaySrc(appendMediaRetryParam(url));
-        return true;
-      } catch {
-        return false;
+      const retrying = await retry(display.src ?? "");
+      if (!retrying) {
+        resumeAt.current = null;
       }
+      return retrying;
     },
-    [cardId, displaySrc, refreshMediaUrl, storageKey]
+    [display.src, retry]
   );
 
   const resume = useCallback((element: HTMLMediaElement) => {
@@ -85,5 +93,5 @@ export function useMediaUrlRecovery({
     }
   }, []);
 
-  return { onError, resume, src: displaySrc };
+  return { onError, resume, retry, src: display.src, srcSet: display.srcSet };
 }
