@@ -11,7 +11,7 @@ import {
 import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
-import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
+import { isLocalDevelopmentHostname } from "@teak/convex/shared/localHosts";
 import { InvalidArgumentError } from "commander";
 import {
   createOAuthSession,

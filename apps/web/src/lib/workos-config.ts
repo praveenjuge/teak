@@ -1,4 +1,4 @@
-import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
+import { isLocalDevelopmentHostname } from "@teak/convex/shared/localHosts";
 
 export function readWorkosWebConfig(
   environment: NodeJS.ProcessEnv = process.env

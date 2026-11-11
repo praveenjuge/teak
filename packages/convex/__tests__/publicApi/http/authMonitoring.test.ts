@@ -12,13 +12,24 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { internal } from "../../../_generated/api";
 import {
   chargeAuthorizedCall,
-  validatePublicApiBearer,
   withAuthorizedUser,
 } from "../../../publicApi/http/auth";
 import { publicApiV1 } from "../../../publicApi/http/router";
 import { asFetch, mockActionCtx } from "../../helpers/convex.test-utils";
 import { runHandler } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
+
+// The MCP transport's check of a bearer: no charge, the MCP audience.
+const gateCheck = async (
+  ctx: Parameters<typeof withAuthorizedUser>[0],
+  req: Request
+) => {
+  const auth = await withAuthorizedUser(ctx, req, {
+    chargeRateLimit: false,
+    resource: "mcp",
+  });
+  return "error" in auth ? auth.error : null;
+};
 
 const VALIDATE_KEY = getFunctionName(internal.apiKeys.validateUserApiKey);
 const INVALID_AUTH_LIMIT = getFunctionName(
@@ -194,10 +205,9 @@ describe("public API auth outcomes", () => {
       )
     );
 
-    const error = await validatePublicApiBearer(
+    const error = await gateCheck(
       mockActionCtx({ runMutation, runQuery }),
-      request(API_KEY, "/mcp"),
-      "mcp"
+      request(API_KEY, "/mcp")
     );
 
     expect(error).toBeNull();
@@ -238,10 +248,9 @@ describe("public API auth outcomes", () => {
   });
 
   test("the MCP transport gate is logged once as a gate check", async () => {
-    const error = await validatePublicApiBearer(
+    const error = await gateCheck(
       backend({ [VALIDATE_KEY]: VALID_KEY }),
-      request(API_KEY, "/mcp"),
-      "mcp"
+      request(API_KEY, "/mcp")
     );
     expect(error).toBeNull();
     expect(outcomes()).toEqual([

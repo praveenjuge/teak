@@ -3,12 +3,14 @@ import {
   DEFAULT_TEAK_DEV_API_URL,
   DEFAULT_TEAK_DEV_APP_URL,
   DEFAULT_TEAK_DEV_DOCS_URL,
-  isLocalDevelopmentHostname,
-  isLocalDevelopmentUrl,
   resolveTeakDevApiUrl,
   resolveTeakDevAppUrl,
   resolveTeakDevDocsUrl,
 } from "../devUrls";
+import {
+  isLocalDevelopmentHostname,
+  isLocalDevelopmentUrl,
+} from "../shared/localHosts";
 
 describe("dev URL config", () => {
   test("uses the canonical Teak local defaults", () => {

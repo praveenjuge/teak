@@ -331,18 +331,6 @@ const authorizeBearer = async (
   return decide({ validated }, "ok");
 };
 
-const validatePublicApiBearer = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response | null> => {
-  const auth = await withAuthorizedUser(ctx, request, {
-    chargeRateLimit: false,
-    resource,
-  });
-  return "error" in auth ? auth.error : null;
-};
-
 /**
  * The MCP endpoint's one check of a request's bearer. Its tool calls run as
  * the user it returns; `chargeEachCall` says whether each must still be
@@ -418,9 +406,4 @@ const chargeAuthorizedCall = async (
   return null;
 };
 
-export {
-  authorizeMcpRequest,
-  chargeAuthorizedCall,
-  validatePublicApiBearer,
-  withAuthorizedUser,
-};
+export { authorizeMcpRequest, chargeAuthorizedCall, withAuthorizedUser };

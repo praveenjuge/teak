@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { MCP_CORS_HEADERS, TEAK_V1_TOOLS } from "@teak/convex/mcp/protocol";
+import { TEAK_V1_TOOLS } from "@teak/convex/mcp/catalog";
+import { MCP_CORS_HEADERS } from "@teak/convex/mcp/protocol";
 import { handleApiProxyRequest } from "./apiProxy";
 import type { EdgeIdentity } from "./edgeIdentity";
 import { answerMcpAtEdge, isMcpPathname } from "./mcpEdge";

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TEAK_V1_TOOLS } from "@teak/convex/mcp/protocol";
+import { TEAK_V1_TOOLS } from "@teak/convex/mcp/catalog";
 
 const root = join(import.meta.dir, "../..");
 const plugin = join(root, "plugins/teak");

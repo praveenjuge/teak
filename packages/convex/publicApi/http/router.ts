@@ -212,7 +212,6 @@ const runOperation = async (
   }
 };
 
-/** Answers a REST request under `/v1/`, or its JSON 404 or 405. */
 export const handlePublicApiRequest = (
   ctx: ActionCtx,
   request: Request,

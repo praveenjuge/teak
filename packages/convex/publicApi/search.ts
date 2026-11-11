@@ -36,6 +36,7 @@ import {
   loadSimilarCards,
 } from "../search/similarSearch";
 import type { TeakUserId } from "../securitySessions";
+import type { SearchMode } from "../shared/publicApiContract";
 import { clampPublicApiLimit } from "../shared/publicApiLimits";
 import { expressionRevealTags } from "../shared/search/expression";
 import {
@@ -49,11 +50,7 @@ import {
   orderByRelevance,
   type RelevanceScore,
 } from "../shared/search/relevance";
-import {
-  fuseRankings,
-  SEMANTIC_MIN_SCORE,
-  type SearchMode,
-} from "../shared/search/semantic";
+import { fuseRankings, SEMANTIC_MIN_SCORE } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
 import { matchesVisualFilters } from "../shared/search/visualFilters";
 import { tagKey } from "../shared/tags";

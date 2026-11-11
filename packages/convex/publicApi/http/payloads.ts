@@ -190,13 +190,6 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   };
 };
 
-export const validateCreatePayload = (
-  payload: unknown
-): CreateCardPayload | null => {
-  const result = parseCreatePayload(payload);
-  return "payload" in result ? result.payload : null;
-};
-
 interface PatchCardPayload {
   addColors?: string[];
   content?: string;
@@ -356,11 +349,4 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   }
 
   return { payload: next };
-};
-
-export const validatePatchPayload = (
-  payload: unknown
-): PatchCardPayload | null => {
-  const result = parsePatchPayload(payload);
-  return "payload" in result ? result.payload : null;
 };
