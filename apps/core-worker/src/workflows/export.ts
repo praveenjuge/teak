@@ -21,7 +21,7 @@ import {
   type ExportableCard,
   serializeCard,
 } from "@teak/convex/export/serialize";
-import type { FilesOpOutcome } from "@teak/files-protocol";
+import type { ExportParams, FilesOpOutcome } from "@teak/files-protocol";
 import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
@@ -38,11 +38,6 @@ import {
   stepPages,
   type WorkflowRun,
 } from "./runtime";
-
-export interface ExportParams {
-  jobId: string;
-  userId: string;
-}
 
 export type ExportOutcome = "canceled" | "failed" | "ready";
 
