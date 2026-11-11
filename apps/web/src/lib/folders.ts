@@ -23,11 +23,6 @@ export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]
 ): T[] => folders.filter((folder) => folder.kind !== "smart");
 
-export {
-  FOLDER_COLORS,
-  type FolderColor,
-} from "@teak/convex/shared/folders";
-
 /**
  * The input's maxLength. Browsers count UTF-16 units, so an emoji uses two;
  * twice the limit lets 300 emoji through, and the name check (which counts

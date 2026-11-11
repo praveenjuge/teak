@@ -9,8 +9,6 @@ import type { TeakTranslator } from "@teak/i18n";
 import type { Infer } from "convex/values";
 import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
-export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
-
 // The return shapes come from the functions' `returns` validators, since the
 // generated `api` types every function as `any` and FunctionReturnType can't.
 export type TagSummaryItem = Infer<typeof tagSummaryItemValidator>;

@@ -19,15 +19,9 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { toast } from "sonner";
+import { type ExternalToast, toast } from "sonner";
 import { GlobalFileDropOverlay } from "@/components/feedback/GlobalFileDropOverlay";
-import {
-  TOAST_IDS,
-  UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-  UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
-  UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
-  UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
-} from "../../constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "../../constants/toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useServerErrors } from "../../hooks/useServerErrors";
@@ -54,6 +48,24 @@ interface GlobalFileDropContextValue {
   isUploading: boolean;
   queueSize: number;
 }
+
+const LOADING_TOAST_OPTIONS: ExternalToast = {
+  duration: Number.POSITIVE_INFINITY,
+  closeButton: false,
+  dismissible: false,
+};
+
+const SUCCESS_TOAST_OPTIONS: ExternalToast = {
+  duration: 4000,
+  closeButton: false,
+  dismissible: true,
+};
+
+const NOTICE_TOAST_OPTIONS: ExternalToast = {
+  duration: 6000,
+  closeButton: true,
+  dismissible: true,
+};
 
 const GlobalFileDropContext = createContext<GlobalFileDropContextValue | null>(
   null
@@ -112,14 +124,14 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
           toast.warning(
             withSkippedNote(t("uploadedSentence", { count: summary.total })),
             {
-              ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
+              ...NOTICE_TOAST_OPTIONS,
               id: TOAST_IDS.uploadQueue,
             }
           );
           return;
         }
         toast.success(t("uploaded", { count: summary.total }), {
-          ...UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
+          ...SUCCESS_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         });
         return;
@@ -135,7 +147,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
         failedWith(CARD_ERROR_CODES.RATE_LIMITED);
       if (limited) {
         showCreateFailure(limited, {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
           note: skippedNote || undefined,
         });
@@ -162,7 +174,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
               : t("uploadFailedMany", { count: summary.total, reason })
           ),
           {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+            ...MANUAL_CLOSE_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
           }
         );
@@ -174,7 +186,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
           formatPartialFailureMessage(described, tUpload, intlLocale)
         ),
         {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         }
       );
@@ -190,13 +202,13 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
         toast.warning(
           formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD, tUpload),
           {
-            ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
+            ...NOTICE_TOAST_OPTIONS,
             id: TOAST_IDS.uploadQueue,
           }
         ),
       onStart: () =>
         toast.loading(t("uploading"), {
-          ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
+          ...LOADING_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         }),
       upload: (files) => {
@@ -294,7 +306,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
 
       if (rejectedFolder) {
         toast.error(t("foldersNotSupported"), {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
           id: "upload-queue-folder",
         });
         if (files.length === 0) {
@@ -308,7 +320,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
 
       if (!isOnline) {
         toast.error(t("offline"), {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
           id: "upload-queue-offline",
         });
         return;
@@ -337,7 +349,7 @@ export function GlobalFileDropProvider({ children }: { children: ReactNode }) {
       event.preventDefault();
       if (!isOnline) {
         toast.error(t("offline"), {
-          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          ...MANUAL_CLOSE_TOAST_OPTIONS,
           id: "upload-queue-offline",
         });
         return;

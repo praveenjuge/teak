@@ -2,6 +2,7 @@
 
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { FOLDER_COLORS, type FolderColor } from "@teak/convex/shared/folders";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
@@ -48,9 +49,7 @@ import { clipFolderName } from "@/lib/clipFolderName";
 import { useFolders } from "../../hooks/useFolders";
 import {
   CARD_DRAG_TYPE,
-  FOLDER_COLORS,
   FOLDER_ICON_CLASSES,
-  type FolderColor,
   type FolderSummary,
   folderColorLabel,
   folderPath,

@@ -1,12 +1,12 @@
+import {
+  PRO_MONTHLY_PRICE_CENTS,
+  PRO_YEARLY_PRICE_CENTS,
+} from "@teak/convex/shared/constants";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { Check } from "vadivam-react";
-import {
-  PRO_MONTHLY_PRICE_CENTS,
-  PRO_YEARLY_PRICE_CENTS,
-  yearlySavingsPercent,
-} from "../../constants/billing";
+import { yearlySavingsPercent } from "../../constants/billing";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { PlanOption } from "./PlanOption";

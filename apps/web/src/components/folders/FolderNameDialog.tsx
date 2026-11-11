@@ -5,7 +5,9 @@ import { parseSearchQuery } from "@teak/convex/shared";
 import {
   explainInvalidFolderName,
   explainInvalidSmartFolderQuery,
+  FOLDER_COLORS,
   FOLDER_ERROR_MESSAGES,
+  type FolderColor,
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "@teak/convex/shared/folders";
@@ -31,10 +33,8 @@ import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
-  FOLDER_COLORS,
   FOLDER_DOT_CLASSES,
   FOLDER_NAME_INPUT_MAX_LENGTH,
-  type FolderColor,
   type FolderSummary,
   folderColorLabel,
   hasFolderNamed,

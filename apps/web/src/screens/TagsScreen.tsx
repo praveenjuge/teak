@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
@@ -44,7 +45,6 @@ import {
   applyTagOperationToSummary,
   type TagSummaryItem,
   tagDisplayName,
-  tagKey,
 } from "../lib/tags";
 import { PageHeader, PageTitle } from "./PageHeader";
 
