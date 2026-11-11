@@ -497,6 +497,18 @@ export function CardsScreen({
     () => getAdjacentCardIdsKeepingPlace(neighborIds, placeIds, selectedCardId),
     [neighborIds, placeIds, selectedCardId]
   );
+  const cardSteps = useMemo(
+    () => ({ next: Boolean(nextCardId), previous: Boolean(previousCardId) }),
+    [nextCardId, previousCardId]
+  );
+  // The card the dialog's last step went to, until the URL shows it: quick
+  // presses step on from there, not from the card still on screen.
+  const steppingToRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedCardId === null || selectedCardId === steppingToRef.current) {
+      steppingToRef.current = null;
+    }
+  }, [selectedCardId]);
 
   const actions = useCardActions();
   const revisit = useRevisitMode({
@@ -572,6 +584,21 @@ export function CardsScreen({
   }, [onCloseCard, t]);
 
   const composerHandlers = useStableHandlers({ onOpenCard });
+  const modalHandlers = useStableHandlers({
+    onStep: (direction: 1 | -1) => {
+      const from = steppingToRef.current ?? selectedCardId;
+      const { next, previous } = getAdjacentCardIdsKeepingPlace(
+        neighborIds,
+        placeIds,
+        from
+      );
+      const target = direction > 0 ? next : previous;
+      if (target && onSwitchCard) {
+        steppingToRef.current = target;
+        onSwitchCard(target);
+      }
+    },
+  });
   const gridHandlers = useStableHandlers({
     onAddToFolderDone: (added: boolean) => {
       if (addToFolder) {
@@ -935,23 +962,15 @@ export function CardsScreen({
         onCardTypeClick={handleCardTypeClick}
         onInvalidCard={handleInvalidSelectedCard}
         onMoreLikeThis={handleMoreLikeThis}
-        onNext={
-          onSwitchCard && nextCardId
-            ? () => onSwitchCard(nextCardId)
-            : undefined
-        }
         onOpenCard={onSwitchCard ?? onOpenCard}
-        onPrevious={
-          onSwitchCard && previousCardId
-            ? () => onSwitchCard(previousCardId)
-            : undefined
-        }
+        onStep={onSwitchCard ? modalHandlers.onStep : undefined}
         onTagClick={handleTagClick}
         open={!!selectedCardId}
         openOrigin={
           openOrigin?.cardId === selectedCardId ? openOrigin.origin : undefined
         }
         returnFocus={revisit.revisiting ? focusRevisitDeck : returnFocusToGrid}
+        steps={cardSteps}
       />
 
       <FolderNameDialog

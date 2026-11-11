@@ -26,13 +26,13 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onInvalidCard?: () => void;
   onMoreLikeThis?: (cardId: string) => void;
-  onNext?: () => void;
   onOpenCard?: (cardId: string) => void;
-  onPrevious?: () => void;
+  onStep?: (direction: 1 | -1) => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openOrigin?: { x: number; y: number };
   returnFocus?: (cardId: string) => boolean;
+  steps?: { next: boolean; previous: boolean };
 }
 
 export function ConnectedCardModal({
@@ -42,13 +42,13 @@ export function ConnectedCardModal({
   onCancel,
   onCardTypeClick,
   onInvalidCard,
-  onNext,
   onOpenCard,
-  onPrevious,
+  onStep,
   onTagClick,
   onMoreLikeThis,
   openOrigin,
   returnFocus,
+  steps,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
@@ -150,9 +150,7 @@ export function ConnectedCardModal({
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
       onMoreLikeThis={onMoreLikeThis}
-      onNext={onNext}
       onOpenCard={onOpenCard}
-      onPrevious={onPrevious}
       onReprocess={
         cardId
           ? () => {
@@ -160,6 +158,7 @@ export function ConnectedCardModal({
             }
           : undefined
       }
+      onStep={onStep}
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}
@@ -177,6 +176,7 @@ export function ConnectedCardModal({
           : undefined
       }
       saveState={saveState}
+      steps={steps}
       tags={{
         acceptAiTag: tagEditor.acceptAiTag,
         addTag: tagEditor.addTag,

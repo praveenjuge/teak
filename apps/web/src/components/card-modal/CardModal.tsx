@@ -314,10 +314,10 @@ interface CardModalProps {
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
   onMoreLikeThis?: (cardId: string) => void;
-  onNext?: () => void;
   onOpenCard?: (cardId: string) => void;
-  onPrevious?: () => void;
   onReprocess?: () => void;
+  /** Moves to the next (1) or previous (-1) card from the last one shown. */
+  onStep?: (direction: 1 | -1) => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
@@ -330,6 +330,8 @@ interface CardModalProps {
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   savePdf?: SavePdfControl;
   saveState: CardSaveState;
+  /** Whether the card on screen has a card after it and before it. */
+  steps?: { next: boolean; previous: boolean };
   tags: Omit<CardTagsControl, "inputRef">;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
@@ -346,9 +348,8 @@ export function CardModal({
   openOrigin: openOriginPoint,
   onCancel,
   onCardTypeClick,
-  onNext,
   onOpenCard,
-  onPrevious,
+  onStep,
   onTagClick,
   onMoreLikeThis,
   hasUnsavedChanges,
@@ -364,6 +365,7 @@ export function CardModal({
   saveChanges,
   savePdf,
   saveState,
+  steps,
   tags,
   isDownloading,
   isReprocessing,
@@ -558,10 +560,11 @@ export function CardModal({
     }
   };
 
+  const hasNext = Boolean(onStep && steps?.next);
+  const hasPrevious = Boolean(onStep && steps?.previous);
   const step = useCardSteps({
     cardId,
-    onNext,
-    onPrevious,
+    onStep,
     open,
     readyToLeave,
   });
@@ -1151,7 +1154,7 @@ export function CardModal({
     ) : null;
 
   const navButton = (direction: "previous" | "next") => {
-    const show = direction === "previous" ? onPrevious : onNext;
+    const show = direction === "previous" ? hasPrevious : hasNext;
     return (
       <HeaderIconButton
         className={cn(
@@ -1407,17 +1410,17 @@ export function CardModal({
                     aria-label={t("header.actionsLabel")}
                     className="flex shrink-0 items-center gap-1 border-t bg-background px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
                   >
-                    {onPrevious || onNext ? (
+                    {hasPrevious || hasNext ? (
                       <>
                         <HeaderIconButton
-                          disabled={!onPrevious}
+                          disabled={!hasPrevious}
                           label={t("header.previousCard")}
                           onClick={() => step(-1)}
                         >
                           <ChevronLeft />
                         </HeaderIconButton>
                         <HeaderIconButton
-                          disabled={!onNext}
+                          disabled={!hasNext}
                           label={t("header.nextCard")}
                           onClick={() => step(1)}
                         >
@@ -1452,7 +1455,7 @@ export function CardModal({
               {/* After the card, so Tab reaches the card's own controls first. */}
               {isMobile ? null : (
                 <>
-                  {onPrevious || onNext ? (
+                  {hasPrevious || hasNext ? (
                     <>
                       {navButton("previous")}
                       {navButton("next")}
