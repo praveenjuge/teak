@@ -135,8 +135,9 @@ export async function createImportedCard(
   if (item.url && (await existingUrl(ctx, job.userId, item.url))) {
     return { kind: "duplicate" };
   }
+  let cardId: Id<"cards">;
   try {
-    const { cardId } = await createCardForUserHandler(
+    ({ cardId } = await createCardForUserHandler(
       ctx,
       userId,
       {
@@ -181,19 +182,19 @@ export async function createImportedCard(
         skipResave: true,
         source: "import",
       }
-    );
-    if (item.highlights?.length) {
-      await insertImportedHighlights(
-        ctx,
-        { _id: cardId, userId },
-        item.highlights
-      );
-    }
-    if (item.importedPinPosition !== undefined && item.isArchived !== true) {
-      await restoreImportedPin(ctx, userId, cardId, item.importedPinPosition);
-    }
-    return { kind: "created", cardId };
+    ));
   } catch (error) {
     return { kind: "error", ...errorData(error) };
   }
+  if (item.highlights?.length) {
+    await insertImportedHighlights(
+      ctx,
+      { _id: cardId, userId },
+      item.highlights
+    );
+  }
+  if (item.importedPinPosition !== undefined && item.isArchived !== true) {
+    await restoreImportedPin(ctx, userId, cardId, item.importedPinPosition);
+  }
+  return { kind: "created", cardId };
 }
