@@ -1,10 +1,12 @@
 import { filesCardKeyPrefix, importInstanceId } from "@teak/files-protocol";
-import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import {
+  assertAccountNotDeleting,
+  getAccountDeletionState,
+} from "../accountDeletion/gate";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { getR2KeyPrefix } from "../storage/r2Keys";
-import { reportFromMutation } from "../telemetry/alerts";
 import {
   type DispatchKindSpec,
   type DispatchRow,
@@ -13,10 +15,50 @@ import {
 import { ACTIVE_IMPORT_STATUSES } from "./constants";
 import { importStagedPartKeys } from "./indexItems";
 
+const PHASE_BY_END = {
+  canceled: "Import canceled",
+  completed: "Import complete",
+  failed: "Import failed",
+} as const;
+
+export const finishImportJob = async (
+  ctx: MutationCtx,
+  {
+    failureClass,
+    jobId,
+    reportKey,
+    status,
+  }: {
+    failureClass?: string;
+    jobId: Id<"importJobs">;
+    reportKey?: string;
+    status: keyof typeof PHASE_BY_END;
+  }
+): Promise<void> => {
+  const job = await ctx.db.get("importJobs", jobId);
+  if (!job) {
+    throw new Error("Import job not found");
+  }
+  await assertAccountNotDeleting(ctx, job.userId);
+  const now = Date.now();
+  await ctx.db.patch("importJobs", jobId, {
+    status,
+    phase: PHASE_BY_END[status],
+    reportKey,
+    failureClass,
+    completionClaim: undefined,
+    uploadId: undefined,
+    uploadExpiresAt: undefined,
+    uploadedParts: undefined,
+    completedAt: now,
+    updatedAt: now,
+  });
+};
+
 /**
  * An import whose workflow died fails, and the parts it staged in R2 are
- * deleted: no run will read them again. A job that can't be finished (its
- * account is being deleted) is reported, and its parts still go.
+ * deleted: no run will read them again. While its account is being deleted
+ * the job is left to account deletion, which cancels it.
  */
 const failImportRun = async (
   ctx: MutationCtx,
@@ -28,19 +70,11 @@ const failImportRun = async (
   ) {
     return;
   }
-  try {
-    await ctx.runMutation(internal.dataImport.finishJob, {
+  if (!(await getAccountDeletionState(ctx, job.userId))) {
+    await finishImportJob(ctx, {
       failureClass: "import_workflow_failed",
       jobId,
       status: "failed",
-    });
-  } catch (error) {
-    await reportFromMutation(ctx, "import_workflow_finish_failed", {
-      error: (error instanceof Error ? error.message : String(error)).slice(
-        0,
-        200
-      ),
-      job_id: jobId,
     });
   }
   await queueObjectDeletion(

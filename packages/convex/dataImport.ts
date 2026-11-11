@@ -16,7 +16,7 @@ import {
   IMPORT_PART_BYTES,
 } from "./import/constants";
 import { createImportedCard, importItemFields } from "./import/items";
-import { queueImportWorkflow } from "./import/workflowRun";
+import { finishImportJob, queueImportWorkflow } from "./import/workflowRun";
 import {
   importModeValidator,
   stagedItemsValidator,
@@ -760,30 +760,8 @@ export const finishJob = internalMutation({
     failureClass: v.optional(v.string()),
   },
   returns: v.null(),
-  handler: async (ctx, { jobId, status, reportKey, failureClass }) => {
-    const job = await ctx.db.get(jobId);
-    if (!job) {
-      throw new Error("Import job not found");
-    }
-    await assertAccountNotDeleting(ctx, job.userId);
-    let phase = "Import failed";
-    if (status === "completed") {
-      phase = "Import complete";
-    } else if (status === "canceled") {
-      phase = "Import canceled";
-    }
-    await ctx.db.patch(jobId, {
-      status,
-      phase,
-      reportKey,
-      failureClass,
-      completionClaim: undefined,
-      uploadId: undefined,
-      uploadExpiresAt: undefined,
-      uploadedParts: undefined,
-      completedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+  handler: async (ctx, args) => {
+    await finishImportJob(ctx, args);
     return null;
   },
 });
