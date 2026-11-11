@@ -5,10 +5,10 @@ import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "vadivam-react";
+import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { SidebarToggle } from "@/components/sidebar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { settingsSectionForPath } from "@/lib/settingsSections";
-import { PageHeader, PageTitle } from "@/screens";
 
 export function SettingsHeader() {
   const t = useTranslations("settings");

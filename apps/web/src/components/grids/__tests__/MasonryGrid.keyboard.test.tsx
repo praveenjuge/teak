@@ -61,7 +61,7 @@ async function renderGrid(props: Record<string, unknown>) {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <MasonryGrid columns={1} filteredCards={cards} {...handlers} {...props} />
+      <MasonryGrid filteredCards={cards} resetKey="" {...handlers} {...props} />
     )
   );
   const cardElement = (id: string) => {
@@ -383,7 +383,6 @@ describe("MasonryGrid keyboard actions", () => {
       await act(() =>
         root?.render(
           <MasonryGrid
-            columns={1}
             filteredCards={three.filter((entry) => entry._id !== deleted)}
             ref={ref}
             {...handlers}

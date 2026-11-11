@@ -26,7 +26,7 @@ export interface CardHighlightsControl {
   /** Highlights the passage; resolves true when it was saved. */
   create: (input: NewHighlight) => Promise<boolean>;
   highlights: CardHighlight[] | undefined;
-  /** At 200 a card takes no more. */
+  /** The card has `MAX_HIGHLIGHTS_PER_CARD` highlights and takes no more. */
   isFull: boolean;
   remove: (highlight: CardHighlight) => Promise<void>;
   updateNote: (highlight: CardHighlight, note: string) => Promise<void>;

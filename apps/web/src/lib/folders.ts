@@ -9,8 +9,12 @@ import {
 } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
+  explainInvalidFolderName,
+  FOLDER_ERROR_MESSAGES,
   type FolderColor,
+  folderNameKey,
   MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
 
@@ -97,10 +101,53 @@ export const hasFolderNamed = (
   name: string,
   exceptId?: string
 ) => {
-  const key = name.trim().toLowerCase();
+  const key = folderNameKey(name);
   return folders.some(
-    (folder) => folder._id !== exceptId && folder.name.toLowerCase() === key
+    (folder) => folder._id !== exceptId && folderNameKey(folder.name) === key
   );
+};
+
+/**
+ * Why `name` can't be saved as a folder's name, in the server's words
+ * (translate it with `errors.byEnglishMessage`), or null. A rename passes
+ * the folder's id: it doesn't count against the folder limit or clash with
+ * its own name. Until `folders` loads, only the name itself is checked.
+ */
+export const folderNameProblem = (
+  folders: readonly FolderSummary[] | undefined,
+  name: string,
+  renamingId?: string
+): string | null => {
+  if (
+    folders &&
+    renamingId === undefined &&
+    folders.length >= MAX_FOLDERS_PER_USER
+  ) {
+    return FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS;
+  }
+  if (folders && hasFolderNamed(folders, name, renamingId)) {
+    return FOLDER_ERROR_MESSAGES.DUPLICATE_NAME;
+  }
+  return name.trim() ? explainInvalidFolderName(name) : null;
+};
+
+/**
+ * What a folder picker offers for the name typed into its search: to create
+ * it, or why it can't (the folder limit). Nothing for no name yet, a name a
+ * folder already has, or one the server refuses.
+ */
+export const newFolderOption = (
+  folders: readonly FolderSummary[] | undefined,
+  name: string
+): "create" | "limit" | null => {
+  if (
+    !(folders && name.trim()) ||
+    hasFolderNamed(folders, name) ||
+    explainInvalidFolderName(name) !== null
+  ) {
+    return null;
+  }
+  return folders.length >= MAX_FOLDERS_PER_USER ? "limit" : "create";
 };
 
 export interface SmartFolderSearchContext {

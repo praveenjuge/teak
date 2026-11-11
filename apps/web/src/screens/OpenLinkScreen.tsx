@@ -9,7 +9,7 @@ import { useAction } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SiteFavicon } from "@/components/cards/SiteFavicon";
+import { SiteFavicon } from "@/components/media";
 import {
   type ArchivedCopy,
   ArchivedCopyView,

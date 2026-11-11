@@ -5,6 +5,7 @@ import type { TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useState } from "react";
 import { AppWindow, Laptop, Smartphone, type VadivamIcon } from "vadivam-react";
+import type { ConnectionTarget, DeviceSession } from "@/lib/securitySessions";
 import { usePaginatedQuery } from "../../lib/convexQueryHooks";
 import { RetryableQueryBoundary } from "../feedback/RetryableQueryBoundary";
 import { Button } from "../ui/button";
@@ -20,17 +21,6 @@ import {
   SettingsTile,
   type SettingsTileTone,
 } from "./SettingsSection";
-
-export interface DeviceSession {
-  /** What the session's browser says; absent from older servers. */
-  agent?: { browser?: string; kind: string; os?: string };
-  current: boolean;
-  id: string;
-  lastActiveAt?: number;
-  /** The server's English name, shown when `agent` is missing. */
-  name: string;
-  signedInAt: number;
-}
 
 // Product names, the same in every language.
 const BROWSER_NAMES: Record<string, string> = {
@@ -78,10 +68,6 @@ export function orderDeviceSessions<T extends { current: boolean }>(
     ...sessions.filter((session) => session.current),
     ...sessions.filter((session) => !session.current),
   ];
-}
-
-export interface ConnectionTarget {
-  consentId: string;
 }
 
 export interface ConnectionIdentity {

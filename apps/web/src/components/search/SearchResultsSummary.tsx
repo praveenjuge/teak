@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 export interface SearchResultsSummaryProps {
   /** Cards that hold the search's words. */
   exactCount: number;
-  /** Whether more pages of results can still load. */
   hasMore: boolean;
   onShowRelatedChange: (show: boolean) => void;
   /** Cards matched by meaning rather than by the words. */

@@ -1,6 +1,5 @@
 import { cn } from "../../lib/utils";
 
-/** An on/off switch for a settings row. */
 export function SettingsSwitch({
   checked,
   disabled = false,

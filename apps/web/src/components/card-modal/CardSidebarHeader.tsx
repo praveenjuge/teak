@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ariaKeyShortcut, isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
-import { SiteFavicon } from "../cards/SiteFavicon";
+import { SiteFavicon } from "../media";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 export const SIDEBAR_PRIMARY_CLASS =

@@ -1,12 +1,6 @@
 "use client";
 
-import { api } from "@teak/convex";
-import {
-  explainInvalidFolderName,
-  MAX_FOLDERS_PER_USER,
-} from "@teak/convex/shared/folders";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Plus, Search } from "vadivam-react";
 import {
@@ -17,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useCreateFolder } from "@/hooks/useFolderMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
@@ -24,8 +19,8 @@ import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
   filterFolders,
-  hasFolderNamed,
   manualFolders,
+  newFolderOption,
 } from "../../lib/folders";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
@@ -53,7 +48,7 @@ export function FolderPickerDialog({
   const errors = useServerErrors();
   const listId = useId();
   const folders = useFolders();
-  const createFolder = useMutation(api.folders.createFolder);
+  const createFolder = useCreateFolder();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +69,8 @@ export function FolderPickerDialog({
     [excludeFolderId, folders, query]
   );
   const trimmed = query.trim();
-  const isNewName =
-    Boolean(trimmed) &&
-    folders !== undefined &&
-    !hasFolderNamed(folders, trimmed) &&
-    explainInvalidFolderName(trimmed) === null;
-  const atCap = (folders?.length ?? 0) >= MAX_FOLDERS_PER_USER;
-  const canCreate = isNewName && !atCap;
+  const newFolder = newFolderOption(folders, trimmed);
+  const canCreate = newFolder === "create";
   const optionCount = matches.length + (canCreate ? 1 : 0);
 
   const pick = (folder: FolderSummary) => {
@@ -240,7 +230,7 @@ export function FolderPickerDialog({
             </button>
           ) : null}
         </div>
-        {error || (isNewName && atCap) ? (
+        {error || newFolder === "limit" ? (
           <p
             className="border-t px-5 py-3 text-destructive text-sm"
             role="alert"

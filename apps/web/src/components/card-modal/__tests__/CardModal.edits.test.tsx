@@ -42,7 +42,8 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { CardModal, emptiedContentNotice } = await import("../CardModal");
+const { CardModal } = await import("../CardModal");
+const { emptiedContentNotice } = await import("../cardModalText");
 
 let root: Root | undefined;
 
@@ -91,8 +92,8 @@ async function render(
           addTag: () => undefined,
           removeAiTag: () => undefined,
           removeTag: () => undefined,
-          setTagInput: () => undefined,
-          tagInput: "",
+          setInput: () => undefined,
+          input: "",
         }}
         updateContent={updateContent}
         updateNotes={() => undefined}

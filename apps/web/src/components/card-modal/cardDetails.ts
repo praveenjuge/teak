@@ -1,3 +1,4 @@
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import type { TeakTranslator } from "@teak/i18n";
 import {
   englishTranslator,
@@ -9,7 +10,6 @@ import {
   type ImageExif,
 } from "../../lib/exif";
 import { formatPublishedDate } from "../../lib/linkByline";
-import { formatBytes } from "../settings/importExportFormat";
 
 export type CardDetailsTranslator = TeakTranslator<"cardModal.details">;
 

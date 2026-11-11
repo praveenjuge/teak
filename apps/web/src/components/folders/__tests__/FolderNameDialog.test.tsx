@@ -13,15 +13,17 @@ const writes: { args: unknown; name: string }[] = [];
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,
-  useMutation:
-    (fn: Parameters<typeof getFunctionName>[0]) => (args: unknown) => {
+  useMutation: (fn: Parameters<typeof getFunctionName>[0]) => {
+    const run = (args: unknown) => {
       writes.push({ name: getFunctionName(fn), args });
       return Promise.resolve({
         _id: "folder_1",
         name: "Fonts",
         ruleRunId: "run_2",
       });
-    },
+    };
+    return Object.assign(run, { withOptimisticUpdate: () => run });
+  },
 }));
 
 let preview: unknown;

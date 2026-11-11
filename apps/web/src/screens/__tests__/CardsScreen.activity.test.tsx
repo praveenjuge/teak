@@ -16,6 +16,10 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 const { parseSearchUrlState } = await import("../../lib/searchUrlState");
 type SearchUrlState = import("../../lib/searchUrlState").SearchUrlState;
 
@@ -50,16 +54,19 @@ test("a library revealed on a new URL never writes its old search back", async (
   const library = (mode: "hidden" | "visible", query: string) => (
     <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
       <ConvexQueryCacheProvider>
-        <Activity mode={mode}>
-          <CardsScreen
-            onCloseCard={() => undefined}
-            onOpenCard={() => undefined}
-            onSearchUrlStateChange={(state) => writes.push(state)}
-            searchUrlState={parseSearchUrlState(new URLSearchParams(query))}
-            selectedCardId={null}
-            view="all"
-          />
-        </Activity>
+        <ComposerProvider>
+          <Activity mode={mode}>
+            <CardsScreen
+              {...libraryUrlProps()}
+              onCloseCard={() => undefined}
+              onOpenCard={() => undefined}
+              onSearchUrlStateChange={(state) => writes.push(state)}
+              searchUrlState={parseSearchUrlState(new URLSearchParams(query))}
+              selectedCardId={null}
+              view="all"
+            />
+          </Activity>
+        </ComposerProvider>
       </ConvexQueryCacheProvider>
     </ConvexProviderWithAuth>
   );

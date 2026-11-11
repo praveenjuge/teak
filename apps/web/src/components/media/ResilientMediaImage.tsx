@@ -1,18 +1,11 @@
-import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
-import { useAction } from "convex/react";
 import type {
   CSSProperties,
   ImgHTMLAttributes,
   ReactNode,
   SyntheticEvent,
 } from "react";
-import { useEffect, useState } from "react";
-import {
-  appendMediaRetryParam,
-  canRetryMedia,
-  getMediaRenditionFromUrl,
-} from "./mediaRecovery";
+import { useState } from "react";
+import { useMediaUrlRecovery } from "./useMediaUrlRecovery";
 
 interface ResilientMediaImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "alt" | "onError" | "src"> {
@@ -40,39 +33,17 @@ export function ResilientMediaImage({
   width = 512,
   ...imageProps
 }: ResilientMediaImageProps) {
-  const refreshMediaUrl = useAction(api.cards.refreshCardMediaUrl);
-  const [displaySrc, setDisplaySrc] = useState(src);
-  const [displaySrcSet, setDisplaySrcSet] = useState(srcSet);
-  const [retryCount, setRetryCount] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setDisplaySrc(src);
-    setDisplaySrcSet(srcSet);
-    setRetryCount(0);
-    setFailed(false);
-  }, [src, srcSet]);
+  const media = useMediaUrlRecovery({ cardId, src, srcSet, storageKey });
+  // The source that couldn't load, so a new one gets its own try.
+  const source = `${src} ${srcSet ?? ""}`;
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const failed = failedSource === source;
 
   const handleError = async (event: SyntheticEvent<HTMLImageElement>) => {
     // Read the element now: React clears currentTarget once this awaits.
-    const attemptedUrl = event.currentTarget.currentSrc || displaySrc;
-    if (!(cardId && storageKey && canRetryMedia(attemptedUrl, retryCount))) {
-      setFailed(true);
-      onPermanentError?.(attemptedUrl);
-      return;
-    }
-    setRetryCount(1);
-    const rendition = getMediaRenditionFromUrl(attemptedUrl);
-    try {
-      const { url } = await refreshMediaUrl({
-        cardId: cardId as Id<"cards">,
-        key: storageKey,
-        rendition,
-      });
-      setDisplaySrcSet(undefined);
-      setDisplaySrc(appendMediaRetryParam(url));
-    } catch {
-      setFailed(true);
+    const attemptedUrl = event.currentTarget.currentSrc || media.src || "";
+    if (!(await media.retry(attemptedUrl))) {
+      setFailedSource(source);
       onPermanentError?.(attemptedUrl);
     }
   };
@@ -95,8 +66,8 @@ export function ResilientMediaImage({
       alt={alt}
       height={height}
       onError={(event) => void handleError(event)}
-      src={displaySrc}
-      srcSet={displaySrcSet}
+      src={media.src}
+      srcSet={media.srcSet}
       width={width}
     />
   );

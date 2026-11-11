@@ -16,6 +16,10 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 function SignedInLibrary() {
   const { isAuthenticated } = useConvexAuth();
@@ -24,6 +28,7 @@ function SignedInLibrary() {
   }
   return (
     <CardsScreen
+      {...libraryUrlProps()}
       onCloseCard={() => undefined}
       onOpenCard={() => undefined}
       selectedCardId={null}
@@ -78,7 +83,9 @@ test("goes from loading to the cards without showing an empty library", async ()
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <SignedInLibrary />
+          <ComposerProvider>
+            <SignedInLibrary />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )

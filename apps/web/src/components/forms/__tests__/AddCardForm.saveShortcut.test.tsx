@@ -60,6 +60,7 @@ mock.module("@/components/text-editor", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { AddCardForm } = await import("../AddCardForm");
+const { ComposerProvider } = await import("../ComposerProvider");
 
 let root: Root | undefined;
 
@@ -97,7 +98,13 @@ test("saves a second note with the shortcut while the first is still saving", as
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<AddCardForm />));
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm />
+      </ComposerProvider>
+    )
+  );
 
   await type("first note");
   await pressSaveShortcut();
@@ -122,7 +129,13 @@ test("never submits the same note twice", async () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<AddCardForm />));
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm />
+      </ComposerProvider>
+    )
+  );
 
   await type("only once");
   await pressSaveShortcut();

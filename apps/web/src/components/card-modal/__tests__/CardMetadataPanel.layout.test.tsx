@@ -57,8 +57,8 @@ async function render(
     addTag: mock(),
     removeAiTag: mock(),
     removeTag: mock(),
-    setTagInput: mock(),
-    tagInput: "",
+    setInput: mock(),
+    input: "",
   };
   const container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
@@ -247,9 +247,9 @@ test("a tag that can't be added says why under the tag field", async () => {
     addTag: mock(),
     removeAiTag: mock(),
     removeTag: mock(),
-    setTagInput: mock(),
-    tagError: "Each tag must be at most 64 characters",
-    tagInput: "a".repeat(65),
+    setInput: mock(),
+    error: "Each tag must be at most 64 characters",
+    input: "a".repeat(65),
   };
   await render(imageCard(), { tags });
   const field = document.querySelector<HTMLInputElement>(

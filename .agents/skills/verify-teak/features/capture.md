@@ -9,7 +9,7 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-quote` turns quoted text into a quote card, with the quotes stripped.
 - `capture-palette` turns a hex color into a palette card after processing.
 - `capture-resave` saves a link that's already in Teak: no second card, the saved one moves to the top (and back from Archive). A link whose card is in Trash saves nothing and offers "Restore".
-- `capture-draft` keeps the composer's unsaved note through a reload, per account, and Esc leaves the composer with the note kept.
+- `capture-draft` keeps the composer's unsaved note through a reload, per account, and Esc leaves the composer with the note kept. The note also stays while you move between pages, and when the empty library's composer gives way to the grid's; N from a page without a composer opens Everything with the composer focused and the note in it.
 - `capture-paste-links` saves a pasted list of links, one per line, as one link card each, in the background.
 - `capture-focus` saves from the full-screen Focus editor.
 - `capture-new-menu` opens the sidebar "New" menu: "Note or link" (N), "Upload files" (U), "Record audio" (R) On phones (below 768 px) the same menu opens from the "+" button "New" at the right of the page header, since the sidebar is a closed drawer there; touch screens show no key letters in it.

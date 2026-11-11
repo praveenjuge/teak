@@ -124,13 +124,13 @@ The web app owns all of its UI; nothing under `src` is shared with another works
 | Folder | What goes there |
 | --- | --- |
 | `app/` | Routes, layouts and route handlers. Pages stay thin: they render a screen or compose components. |
-| `screens/` | Page-level views that routes render: `LibraryScreen` (the library, a view or a folder, driven by its URL), `TagsScreen`, `SettingsShell`. |
+| `screens/` | Page-level views that routes render: `LibraryScreen` (the library, a view or a folder, driven by its URL), `TagsScreen`. Components, hooks and lib never import screens or routes (a lint rule checks). |
 | `components/ui/` | shadcn new-york primitives, added with the shadcn CLI (`components.json`). |
 | `components/<feature>/` | One folder per area (`cards`, `card-modal`, `search`, `settings`...). Where a folder has an `index.ts`, import it through that from outside. |
-| `components/app-shell/` | The signed-in frame: the shell, its skeletons, `IntentLink` and the WebMCP tools. |
+| `components/app-shell/` | The signed-in frame: the shell, its skeletons, the page header, `IntentLink` and the WebMCP tools. |
 | `components/providers/` | Providers and auth gates that layouts mount: WorkOS, Convex, PostHog, theme, the global file drop, and the library's command bus (`LibraryCommandsProvider`: a shortcut or the command palette asks the composer to upload or record, Trash to empty, the shell to list shortcuts). |
 | `components/feedback/` | Loading, empty, error and retry states that screens share. |
-| `hooks/` | React hooks (`use*`). A hook that calls Convex keeps its testable core beside it (`useFileUpload.ts` wires `useFileUploadCore.ts`). `useCardMutations` holds the only binding of each card mutation, with its optimistic update; `useCardActions` runs the card actions; `useCardTagEditor` edits one card's tags. |
+| `hooks/` | React hooks (`use*`). A hook that calls Convex keeps its testable core beside it (`useFileUpload.ts` wires `useFileUploadCore.ts`). `useCardMutations` holds the only binding of each card mutation, with its optimistic update, and `useFolderMutations` the same for folders; `useCardActions` runs the card actions; `useCardTagEditor` edits one card's tags. |
 | `lib/` | Modules without UI: the card actions (`cardActions`: each action's key, label, where it works and what it does to a selection, which every menu, key and the shortcuts list read), card types, card tags, the library URL, search state, optimistic query updates (one predictor for single and bulk edits), shortcuts, the cached Convex query hooks, uploads, auth and security headers. |
 | `constants/`, `styles/` | Static values; the theme tokens, prose styles and fonts. |
 

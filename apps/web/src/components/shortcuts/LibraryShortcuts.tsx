@@ -33,11 +33,11 @@ import {
 import { onDemand, whenIdle } from "../../lib/lazyWithPreload";
 import type { GoToViewOptions, LibraryView } from "../../lib/libraryViews";
 import type { CommandPaletteCommand } from "../command-palette/CommandPalette";
-import { KeyboardShortcutsDialog } from "../modals/KeyboardShortcutsDialog";
 import {
   useLibraryCommand,
   useRunLibraryCommand,
 } from "../providers/LibraryCommandsProvider";
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 
 const CommandPalette = onDemand(() =>
   import("../command-palette/CommandPalette").then(

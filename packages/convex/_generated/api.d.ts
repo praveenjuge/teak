@@ -257,6 +257,7 @@ import type * as shared_constants from "../shared/constants.js";
 import type * as shared_devAccounts from "../shared/devAccounts.js";
 import type * as shared_documentText from "../shared/documentText.js";
 import type * as shared_fileFormats from "../shared/fileFormats.js";
+import type * as shared_filesImages from "../shared/filesImages.js";
 import type * as shared_filesOrigins from "../shared/filesOrigins.js";
 import type * as shared_folders from "../shared/folders.js";
 import type * as shared_highlights_anchor from "../shared/highlights/anchor.js";
@@ -629,6 +630,7 @@ declare const fullApi: ApiFromModules<{
   "shared/devAccounts": typeof shared_devAccounts;
   "shared/documentText": typeof shared_documentText;
   "shared/fileFormats": typeof shared_fileFormats;
+  "shared/filesImages": typeof shared_filesImages;
   "shared/filesOrigins": typeof shared_filesOrigins;
   "shared/folders": typeof shared_folders;
   "shared/highlights/anchor": typeof shared_highlights_anchor;

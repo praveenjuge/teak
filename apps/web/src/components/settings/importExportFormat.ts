@@ -1,8 +1,6 @@
 import type { TeakTranslator } from "@teak/i18n";
 import { englishTranslator } from "@/lib/englishTranslators";
 
-export { formatBytes } from "@teak/convex/shared/utils/formatBytes";
-
 export type FormatTranslator = TeakTranslator<"settings.format">;
 
 const englishFormat: FormatTranslator = englishTranslator("settings.format");

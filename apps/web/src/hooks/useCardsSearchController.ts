@@ -44,6 +44,7 @@ import {
   orderFromUrl,
   orderQueryArgs,
   qualifierChipsFromText,
+  REMOTE_SEARCH_DEBOUNCE_MS,
   semanticSearchText,
   visualFiltersFromUrl,
   withTypeQualifiersAsFilters,
@@ -63,6 +64,7 @@ import {
   type SearchUrlState,
   sameMembers,
 } from "../lib/searchUrlState";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 export interface UseCardsSearchControllerOptions {
   folderId?: Id<"folders">;
@@ -74,8 +76,6 @@ export interface UseCardsSearchControllerOptions {
   view?: LibraryView;
   weekStart?: 0 | 1;
 }
-
-export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
 
 export interface UseCardsSearchControllerResult {
   addFilter: (filter: CardType) => void;
@@ -245,23 +245,12 @@ export function useCardsSearchController(
     [searchState]
   );
 
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(
-    () => searchState.searchQuery
-  );
   const isSearchQueryEmpty = searchState.searchQuery.trim() === "";
-
-  useEffect(() => {
-    if (isSearchQueryEmpty) {
-      setDebouncedSearchQuery(searchState.searchQuery);
-      return;
-    }
-
-    const timeout = setTimeout(
-      () => setDebouncedSearchQuery(searchState.searchQuery),
-      REMOTE_SEARCH_DEBOUNCE_MS
-    );
-    return () => clearTimeout(timeout);
-  }, [isSearchQueryEmpty, searchState.searchQuery]);
+  // Clearing the search shows everything at once.
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useDebouncedValue(
+    searchState.searchQuery,
+    isSearchQueryEmpty ? 0 : REMOTE_SEARCH_DEBOUNCE_MS
+  );
 
   // A URL write after a navigation has started cancels that navigation, so
   // a click applies the typed text before its own handlers run.
@@ -281,7 +270,12 @@ export function useCardsSearchController(
         capture: true,
       });
     };
-  }, [debouncedSearchQuery, isSearchQueryEmpty, searchState.searchQuery]);
+  }, [
+    debouncedSearchQuery,
+    isSearchQueryEmpty,
+    searchState.searchQuery,
+    setDebouncedSearchQuery,
+  ]);
 
   const remoteSearchQuery = isSearchQueryEmpty
     ? searchState.searchQuery
@@ -663,7 +657,7 @@ export function useCardsSearchController(
       });
       setSortPicked(state.sortPicked === true);
     },
-    [setSearchState, weekStart]
+    [setSearchState, weekStart, setDebouncedSearchQuery]
   );
 
   const setTimeFilter = useCallback(

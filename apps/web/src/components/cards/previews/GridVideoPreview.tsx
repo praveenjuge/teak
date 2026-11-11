@@ -2,9 +2,9 @@ import { useTranslations } from "@teak/i18n/react";
 import type { PointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "vadivam-react";
+import { ResilientMediaImage } from "../../media";
 import { CARD_BADGE, MEDIA_SURFACE, mediaAspectRatio } from "../cardDisplay";
 import type { ScrubMetadata } from "../types";
-import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridVideoPreviewProps {
   cardId?: string;

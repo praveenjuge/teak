@@ -1,4 +1,4 @@
-import { afterAll, afterEach, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, expect, test } from "bun:test";
 import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
@@ -6,7 +6,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const { act } = await import("react");
+const { act, useEffect } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth, useConvexAuth } = await import("convex/react");
 const { ConvexQueryCacheProvider } = await import(
@@ -16,6 +16,10 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
+const { ComposerProvider, useComposerRequests } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 let root: Root | undefined;
 
@@ -40,7 +44,15 @@ const QUOTE = {
   userId: "user_1",
 };
 
-const renderLibrary = async (focusComposer: boolean) => {
+// N, the palette or the New menu ask for the composer before the library
+// has loaded its cards, so no composer is on screen yet.
+function NewNoteRequest() {
+  const { requestFocus } = useComposerRequests();
+  useEffect(() => requestFocus(), [requestFocus]);
+  return null;
+}
+
+const renderLibrary = async (newNote: boolean) => {
   const transport = createConvexTransport();
   transport.seed("card/vaultSetup:getVaultSetup", null);
   transport.seed("folders:listFolders", []);
@@ -53,8 +65,6 @@ const renderLibrary = async (focusComposer: boolean) => {
     isAuthenticated: true,
     isLoading: false,
   });
-  const onFocusComposerHandled = mock(() => undefined);
-
   function SignedInLibrary() {
     const { isAuthenticated } = useConvexAuth();
     if (!isAuthenticated) {
@@ -62,9 +72,8 @@ const renderLibrary = async (focusComposer: boolean) => {
     }
     return (
       <CardsScreen
-        focusComposer={focusComposer}
+        {...libraryUrlProps()}
         onCloseCard={() => undefined}
-        onFocusComposerHandled={onFocusComposerHandled}
         onOpenCard={() => undefined}
         selectedCardId={null}
         view="all"
@@ -79,12 +88,15 @@ const renderLibrary = async (focusComposer: boolean) => {
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <SignedInLibrary />
+          <ComposerProvider>
+            {newNote ? <NewNoteRequest /> : null}
+            <SignedInLibrary />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )
   );
-  return { container, onFocusComposerHandled, transport };
+  return { container, transport };
 };
 
 const composerHasFocus = (container: HTMLElement) =>
@@ -95,9 +107,8 @@ const composerHasFocus = (container: HTMLElement) =>
   );
 
 test("a new-note request focuses the composer once the cards load", async () => {
-  const { container, onFocusComposerHandled, transport } =
-    await renderLibrary(true);
-  expect(onFocusComposerHandled).toHaveBeenCalledTimes(1);
+  const { container, transport } = await renderLibrary(true);
+  expect(composerHasFocus(container)).toBe(false);
 
   await act(() =>
     transport.reply("cards:searchCardsPaginated", {
@@ -112,8 +123,7 @@ test("a new-note request focuses the composer once the cards load", async () => 
 });
 
 test("opening the library without the request leaves focus alone", async () => {
-  const { container, onFocusComposerHandled, transport } =
-    await renderLibrary(false);
+  const { container, transport } = await renderLibrary(false);
 
   await act(() =>
     transport.reply("cards:searchCardsPaginated", {
@@ -125,5 +135,4 @@ test("opening the library without the request leaves focus alone", async () => {
 
   expect(container.querySelector('[data-card-id="card_1"]')).not.toBeNull();
   expect(composerHasFocus(container)).toBe(false);
-  expect(onFocusComposerHandled).not.toHaveBeenCalled();
 });

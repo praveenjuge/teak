@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
-import { useCopyCardImage } from "@/hooks/useCardClipboard";
+import { useCopyCard } from "@/hooks/useCardClipboard";
 import { useCardHighlights } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
 import {
@@ -26,13 +26,13 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onInvalidCard?: () => void;
   onMoreLikeThis?: (cardId: string) => void;
-  onNext?: () => void;
   onOpenCard?: (cardId: string) => void;
-  onPrevious?: () => void;
+  onStep?: (direction: 1 | -1) => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openOrigin?: { x: number; y: number };
   returnFocus?: (cardId: string) => boolean;
+  steps?: { next: boolean; previous: boolean };
 }
 
 export function ConnectedCardModal({
@@ -42,13 +42,13 @@ export function ConnectedCardModal({
   onCancel,
   onCardTypeClick,
   onInvalidCard,
-  onNext,
   onOpenCard,
-  onPrevious,
+  onStep,
   onTagClick,
   onMoreLikeThis,
   openOrigin,
   returnFocus,
+  steps,
 }: ConnectedCardModalProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
@@ -102,7 +102,7 @@ export function ConnectedCardModal({
   const paletteColors = usePaletteColors(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
-  const copyCardImage = useCopyCardImage();
+  const { copyImage: copyCardImage } = useCopyCard();
   const actions = useCardActions();
   const runAction = useCallback(
     (action: RunnableCardActionId) =>
@@ -150,9 +150,7 @@ export function ConnectedCardModal({
       onCancel={onCancel}
       onCardTypeClick={onCardTypeClick}
       onMoreLikeThis={onMoreLikeThis}
-      onNext={onNext}
       onOpenCard={onOpenCard}
-      onPrevious={onPrevious}
       onReprocess={
         cardId
           ? () => {
@@ -160,6 +158,7 @@ export function ConnectedCardModal({
             }
           : undefined
       }
+      onStep={onStep}
       onTagClick={onTagClick}
       open={open}
       openLink={openLink}
@@ -177,15 +176,8 @@ export function ConnectedCardModal({
           : undefined
       }
       saveState={saveState}
-      tags={{
-        acceptAiTag: tagEditor.acceptAiTag,
-        addTag: tagEditor.addTag,
-        removeAiTag: tagEditor.removeAiTag,
-        removeTag: tagEditor.removeTag,
-        setTagInput: tagEditor.setInput,
-        tagError: tagEditor.error,
-        tagInput: tagEditor.input,
-      }}
+      steps={steps}
+      tags={tagEditor}
       updateContent={updateContent}
       updateNotes={updateNotes}
       updateTitle={updateTitle}

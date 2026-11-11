@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   cachedFileTextPreview,
   requestFileTextPreview,
+  textPreviewKey,
 } from "./fileTextPreviewCache";
 
 const LANGUAGE_CLASS_REGEX = /language-([\w-]+)/u;
@@ -133,7 +134,7 @@ export function FileTextPreview({
   fileUrl,
   format,
 }: FileTextPreviewProps) {
-  const cacheKey = fileKey ?? fileUrl;
+  const cacheKey = textPreviewKey({ fileKey, fileUrl });
   const initialSource = cachedFileTextPreview(cacheKey);
   const [source, setSource] = useState<string | null>(initialSource ?? null);
   const [isLoading, setIsLoading] = useState(initialSource === undefined);

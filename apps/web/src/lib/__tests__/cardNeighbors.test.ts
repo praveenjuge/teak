@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   getAdjacentCardIds,
   getAdjacentCardIdsKeepingPlace,
+  nearestRemainingCardIds,
 } from "../cardNeighbors";
 
 describe("getAdjacentCardIds", () => {
@@ -58,5 +59,17 @@ describe("getAdjacentCardIdsKeepingPlace", () => {
   test("offers neither for a card neither list has", () => {
     expect(getAdjacentCardIdsKeepingPlace(["a"], ["a"], "z")).toEqual({});
     expect(getAdjacentCardIdsKeepingPlace(["a"], undefined, "z")).toEqual({});
+  });
+});
+
+describe("nearestRemainingCardIds", () => {
+  test("tries the cards after a removed card first, then those before it", () => {
+    expect(
+      nearestRemainingCardIds(["a", "b", "c", "d", "e"], ["a", "b", "e"], "c")
+    ).toEqual(["e", "b", "a"]);
+  });
+
+  test("has nothing for a card the earlier list didn't have", () => {
+    expect(nearestRemainingCardIds(["a"], ["a"], "z")).toEqual([]);
   });
 });

@@ -1,9 +1,8 @@
 import type { TeakTranslator } from "@teak/i18n";
-import type { ClientCard } from "@/lib/cardTypes";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
 import { englishTranslator } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { hasEditableText } from "../../lib/cardTypes";
-import type { GetCurrentValue } from "./types";
 
 export type CardModalTranslator = TeakTranslator<"cardModal">;
 

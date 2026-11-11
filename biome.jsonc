@@ -126,6 +126,38 @@
       }
     },
     {
+      // The web app's dependency direction: routes render screens, screens
+      // compose components, and components, hooks and lib never reach back
+      // up (architecture.mdx, "Web app").
+      "includes": [
+        "apps/web/src/components/**",
+        "apps/web/src/hooks/**",
+        "apps/web/src/lib/**",
+        "!**/__tests__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/screens", "@/screens/**", "**/screens/**"],
+                    "message": "Screens use components, hooks and lib, not the other way round. Move what both need into components/ or lib/."
+                  },
+                  {
+                    "group": ["@/app/**", "**/app/**"],
+                    "message": "Routes use components, hooks and lib, not the other way round. Move what both need into components/ or lib/."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       // Generated or vendored files that must stay byte-for-byte as their
       // writers leave them:
       // - SharedConstants.json: apps/apple/scripts/shared-constants.ts,
@@ -347,6 +379,7 @@
       "includes": [
         "apps/web/src/components/card-previews/**",
         "apps/web/src/components/cards/**",
+        "apps/web/src/components/media/**",
         "apps/extension/**",
         "packages/mcp-app/**",
         "apps/web/src/app/opengraph-image.tsx"

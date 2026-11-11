@@ -16,6 +16,10 @@ const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 let root: Root | undefined;
 
@@ -49,13 +53,16 @@ test("a folder's search box never offers to search everything, even while the fo
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <CardsScreen
-            folderId="folder-1"
-            onCloseCard={() => undefined}
-            onOpenCard={() => undefined}
-            selectedCardId={null}
-            view="all"
-          />
+          <ComposerProvider>
+            <CardsScreen
+              {...libraryUrlProps()}
+              folderId="folder-1"
+              onCloseCard={() => undefined}
+              onOpenCard={() => undefined}
+              selectedCardId={null}
+              view="all"
+            />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )

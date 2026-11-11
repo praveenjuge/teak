@@ -1,6 +1,4 @@
 import { describe, expect, mock, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const realConvexReact = await import("convex/react");
@@ -10,11 +8,6 @@ mock.module("convex/react", () => ({
 }));
 
 const { GridVideoPreview } = await import("../GridVideoPreview");
-
-const source = readFileSync(
-  join(import.meta.dir, "../GridVideoPreview.tsx"),
-  "utf8"
-);
 
 describe("GridVideoPreview", () => {
   test("keeps a video's own shape between 3:4 and 16:9, with a 16:9 fallback", () => {
@@ -32,20 +25,23 @@ describe("GridVideoPreview", () => {
     expect(Number(shape())).toBeCloseTo(16 / 9);
   });
 
-  test("defers every video mount until hover", () => {
-    expect(source).toContain(
-      "const [shouldLoadVideo, setShouldLoadVideo] = useState(false)"
+  test("shows its still, not the video, until it is hovered", () => {
+    const markup = renderToStaticMarkup(
+      <GridVideoPreview
+        thumbnailUrl="https://files.teakvault.com/still.jpg"
+        videoUrl="https://files.teakvault.com/clip.mp4"
+      />
     );
-    expect(source).toContain("setShouldLoadVideo(true)");
-    expect(source).toContain("setIsHovering(true)");
-    expect(source).toContain("muted");
-    expect(source).toContain("playsInline");
-    expect(source).toContain("loop");
+    expect(markup).not.toContain("<video");
+    expect(markup).toContain("still.jpg");
   });
 
-  test("keeps GIF previews as images instead of video elements", () => {
-    expect(source).toContain("if (isGif && videoUrl)");
-    expect(source).toContain('alt={t("gifPreview")}');
+  test("shows a GIF as an image, never a video", () => {
+    const markup = renderToStaticMarkup(
+      <GridVideoPreview isGif videoUrl="https://files.teakvault.com/a.gif" />
+    );
+    expect(markup).not.toContain("<video");
+    expect(markup).toMatch(/<img[^>]*a\.gif/);
   });
 
   test("shows its length in the play badge while idle", () => {

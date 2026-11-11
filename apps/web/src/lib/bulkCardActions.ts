@@ -181,3 +181,7 @@ export const collectCardLinks = (cards: readonly Doc<"cards">[]): string[] =>
         .filter((url): url is string => Boolean(url))
     )
   );
+
+/** Whether there are cards and every one is a favorite. */
+export const allFavorited = (cards: readonly { isFavorited?: boolean }[]) =>
+  cards.length > 0 && cards.every((card) => card.isFavorited === true);

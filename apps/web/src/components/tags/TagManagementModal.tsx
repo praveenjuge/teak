@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { CardTagEditor } from "@/hooks/useCardTagEditor";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
 
 const TAG_CHIP_CLASS =
@@ -17,30 +18,31 @@ const TAG_CHIP_CLASS =
 
 interface TagManagementModalProps {
   aiTags: string[];
-  /** Why the tag typed wasn't added. */
-  error?: string | null;
-  onAddTag: () => void;
+  /** The card's tag editor (`useCardTagEditor`). */
+  editor: Pick<
+    CardTagEditor,
+    "addTag" | "error" | "input" | "removeAiTag" | "removeTag" | "setInput"
+  >;
   onOpenChange: (open: boolean) => void;
-  onRemoveAiTag: (tag: string) => void;
-  onRemoveTag: (tag: string) => void;
   open: boolean;
-  setTagInput: (value: string) => void;
-  tagInput: string;
   userTags: string[];
 }
 
 export function TagManagementModal({
-  error,
+  aiTags,
+  editor,
   open,
   onOpenChange,
   userTags,
-  aiTags,
-  tagInput,
-  setTagInput,
-  onAddTag,
-  onRemoveTag,
-  onRemoveAiTag,
 }: TagManagementModalProps) {
+  const {
+    addTag: onAddTag,
+    error,
+    input: tagInput,
+    removeAiTag: onRemoveAiTag,
+    removeTag: onRemoveTag,
+    setInput: setTagInput,
+  } = editor;
   const t = useTranslations("modals.tagManagement");
   const inputRef = useRef<HTMLInputElement>(null);
 

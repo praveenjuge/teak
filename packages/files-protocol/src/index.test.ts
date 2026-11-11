@@ -21,6 +21,7 @@ import {
   isPendingUploadKey,
   isScannedPdf,
   parseCardObjectKey,
+  parseFilesImagePath,
   truncateForEmbedding,
   vectorNamespaceForUser,
   vectorShardBinding,
@@ -139,6 +140,22 @@ test.each([
   ],
 ])("a PDF with %s is scanned: %p", (_name, pdf, scanned) => {
   expect(isScannedPdf(pdf)).toBe(scanned);
+});
+
+test("reads the rendition and key from an image path", () => {
+  expect(parseFilesImagePath("/__images/v1/grid/u%2Fc%2Fa.jpg")).toEqual({
+    key: "u/c/a.jpg",
+    rendition: "grid",
+  });
+});
+
+test.each([
+  "/__images/v1/huge/u/a.jpg",
+  "/__images/v1/grid/",
+  "/__images/v1/grid/%E0",
+  "/__image-source/v1/u/a.jpg",
+])("reads no image from %p", (pathname) => {
+  expect(parseFilesImagePath(pathname)).toBeNull();
 });
 
 test("copies only numeric AI diagnostics", () => {

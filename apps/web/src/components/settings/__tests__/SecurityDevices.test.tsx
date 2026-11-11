@@ -14,7 +14,7 @@ const { createRoot } = await import("react-dom/client");
 const { SecurityConnections, deviceName, orderDeviceSessions } = await import(
   "../SecurityConnections"
 );
-type DeviceSession = import("../SecurityConnections").DeviceSession;
+type DeviceSession = import("@/lib/securitySessions").DeviceSession;
 
 let root: Root | undefined;
 
