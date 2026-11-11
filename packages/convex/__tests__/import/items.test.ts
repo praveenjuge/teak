@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { importedBookmarkTitle } from "../dataImport";
+import { importedBookmarkTitle } from "../../import/items";
 
 describe("importedBookmarkTitle", () => {
   const named: ["bookmarks" | "raindrop", string, string][] = [
