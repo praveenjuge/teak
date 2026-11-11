@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { englishTranslator } from "@/lib/englishTranslators";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import {
   keyboardShortcutGroups,
@@ -130,12 +129,9 @@ const KEY_NAMES: Record<string, KeyName> = {
   "↩": "return",
 };
 
-const englishShortcuts: ShortcutsTranslator =
-  englishTranslator("modals.shortcuts");
-
 export function shortcutAccessibleLabel(
   row: ShortcutRow,
-  t: ShortcutsTranslator = englishShortcuts
+  t: ShortcutsTranslator
 ): string {
   if (row.syntax) {
     return t("typeKeys", { keys: row.keys.join(" ") });

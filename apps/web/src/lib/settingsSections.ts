@@ -74,29 +74,35 @@ export function settingsSectionForPath(
 export interface SettingsData {
   apiKeys: boolean;
   exportState: boolean;
+  importState: boolean;
+  inboundEmail: boolean;
   sessions: boolean;
 }
 
 export const NO_SETTINGS_DATA: SettingsData = {
   apiKeys: false,
   exportState: false,
+  importState: false,
+  inboundEmail: false,
   sessions: false,
 };
 
 export const ALL_SETTINGS_DATA: SettingsData = {
   apiKeys: true,
   exportState: true,
+  importState: true,
+  inboundEmail: true,
   sessions: true,
 };
 
 const SETTINGS_DATA_BY_SECTION: Record<SettingsSectionId, SettingsData> = {
-  // The overview sums up keys, devices and the last export.
-  account: ALL_SETTINGS_DATA,
+  // The overview sums up keys, Save by email, devices and the last export.
+  account: { ...ALL_SETTINGS_DATA, importState: false },
   plan: NO_SETTINGS_DATA,
   appearance: NO_SETTINGS_DATA,
-  integrations: { ...NO_SETTINGS_DATA, apiKeys: true },
+  integrations: { ...NO_SETTINGS_DATA, apiKeys: true, inboundEmail: true },
   security: { ...NO_SETTINGS_DATA, sessions: true },
-  data: { ...NO_SETTINGS_DATA, exportState: true },
+  data: { ...NO_SETTINGS_DATA, exportState: true, importState: true },
 };
 
 /**

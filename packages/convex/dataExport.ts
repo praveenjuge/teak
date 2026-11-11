@@ -33,6 +33,7 @@ import { readLiveFolders } from "./folder/folders";
 import { loadCardHighlights } from "./highlight/highlights";
 import {
   exportFailureClassValidator,
+  exportJobValidator,
   exportStatusValidator,
 } from "./schema/validators/jobs";
 import { getSessionUser, requireSessionUserId } from "./securitySessions";
@@ -104,36 +105,10 @@ type ExportCardRow = {
   | "url"
 >;
 
-interface ExportJobDoc {
-  _id: Id<"exportJobs">;
-  artifactBytes?: number;
-  artifactKey?: string;
-  cancelRequested?: boolean;
-  cardCount?: number;
-  completedAt?: number;
-  createdAt: number;
-  expiresAt?: number;
-  failureClass?: string;
-  filesIncluded?: number;
-  filesOmitted?: number;
-  processedCount?: number;
-  quotaCountedAt?: number;
-  stage?: "snapshotting" | "archiving";
-  status: string;
-  updatedAt: number;
-  userId: string;
-}
-
-function summarizeJob(job: ExportJobDoc, nowMs: number) {
+function summarizeJob(job: Doc<"exportJobs">, nowMs: number) {
   return {
     id: job._id,
-    status: job.status as
-      | "pending"
-      | "running"
-      | "ready"
-      | "failed"
-      | "canceled"
-      | "expired",
+    status: job.status,
     cardCount: job.cardCount,
     filesIncluded: job.filesIncluded,
     filesOmitted: job.filesOmitted,
@@ -155,21 +130,21 @@ function summarizeJob(job: ExportJobDoc, nowMs: number) {
 async function getRecentJobs(
   ctx: QueryCtx | MutationCtx,
   userId: string
-): Promise<ExportJobDoc[]> {
-  return (await ctx.db
+): Promise<Doc<"exportJobs">[]> {
+  return await ctx.db
     .query("exportJobs")
     .withIndex("by_user_created", (q) => q.eq("userId", userId))
     .order("desc")
-    .take(RECENT_JOBS_SCAN)) as unknown as ExportJobDoc[];
+    .take(RECENT_JOBS_SCAN);
 }
 
-function findActiveJob(jobs: ExportJobDoc[]): ExportJobDoc | undefined {
-  return jobs.find((job) =>
-    (ACTIVE_EXPORT_STATUSES as string[]).includes(job.status)
-  );
+function findActiveJob(
+  jobs: Doc<"exportJobs">[]
+): Doc<"exportJobs"> | undefined {
+  return jobs.find((job) => ACTIVE_EXPORT_STATUSES.includes(job.status));
 }
 
-function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
+function findLastSuccessfulAt(jobs: Doc<"exportJobs">[]): number | undefined {
   let latest: number | undefined;
   for (const job of jobs) {
     if (typeof job.quotaCountedAt === "number") {
@@ -191,15 +166,15 @@ function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
 async function readLastSuccessfulAt(
   ctx: QueryCtx | MutationCtx,
   userId: string,
-  recentJobs: ExportJobDoc[]
+  recentJobs: Doc<"exportJobs">[]
 ): Promise<number | undefined> {
-  const readyJobs = (await ctx.db
+  const readyJobs = await ctx.db
     .query("exportJobs")
     .withIndex("by_user_status", (q) =>
       q.eq("userId", userId).eq("status", EXPORT_STATUS.READY)
     )
     .order("desc")
-    .take(RECENT_JOBS_SCAN)) as unknown as ExportJobDoc[];
+    .take(RECENT_JOBS_SCAN);
   return findLastSuccessfulAt([...recentJobs, ...readyJobs]);
 }
 
@@ -246,18 +221,21 @@ async function startExportJob(ctx: MutationCtx, userId: string) {
     };
   }
 
-  const jobId = (await ctx.db.insert("exportJobs", {
+  const jobId = await ctx.db.insert("exportJobs", {
     userId,
     status: EXPORT_STATUS.PENDING,
     cancelRequested: false,
     createdAt: now,
     updatedAt: now,
-  })) as Id<"exportJobs">;
+  });
 
   const workflowId = await queueExportWorkflow(ctx, jobId, userId);
   await ctx.db.patch(jobId, { workflowId });
 
-  const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc;
+  const job = await ctx.db.get(jobId);
+  if (!job) {
+    throw new Error("Export job not found");
+  }
   return { started: true, job: summarizeJob(job, now) };
 }
 
@@ -298,13 +276,13 @@ export const cancelExport = mutation({
   returns: v.object({ canceled: v.boolean() }),
   handler: async (ctx, { jobId }) => {
     const userId = await requireSessionUserId(ctx);
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job || job.userId !== userId) {
       throw new Error("Export job not found");
     }
 
     const now = Date.now();
-    const isActive = (ACTIVE_EXPORT_STATUSES as string[]).includes(job.status);
+    const isActive = ACTIVE_EXPORT_STATUSES.includes(job.status);
     if (!isActive) {
       return { canceled: false };
     }
@@ -325,9 +303,7 @@ export async function readExportDownloadUrl(
   userId: string,
   jobId: Id<"exportJobs">
 ): Promise<{ url: string; expiresInSeconds: number } | null> {
-  const job = (await ctx.runQuery(internal.dataExport.getJob, {
-    jobId,
-  })) as ExportJobDoc | null;
+  const job = await ctx.runQuery(internal.dataExport.getJob, { jobId });
 
   if (!job || job.userId !== userId) {
     throw new Error("Export job not found");
@@ -361,7 +337,14 @@ export const getExportDownloadUrl = action({
 
 export const getJob = internalQuery({
   args: { jobId: v.id("exportJobs") },
-  returns: v.any(),
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("exportJobs"),
+      _creationTime: v.number(),
+      ...exportJobValidator.fields,
+    })
+  ),
   handler: async (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
@@ -372,7 +355,7 @@ export const markRunning = internalMutation({
     artifactKey: v.optional(v.string()),
   }),
   handler: async (ctx, { jobId, workflowId }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job) {
       return { canceled: true };
     }
@@ -438,7 +421,7 @@ export const recordSnapshotPage = internalMutation({
     addedBytes: v.number(),
   }),
   handler: async (ctx, { jobId, cursor, numItems }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job) {
       throw new Error("Export job not found");
     }
@@ -530,7 +513,7 @@ export const getExportSnapshotPage = internalQuery({
     addedBytes: v.number(),
   }),
   handler: async (ctx, { jobId, cursor, numItems }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job) {
       throw new Error("Export job not found");
     }
@@ -570,7 +553,7 @@ export const getExportCardsByIds = internalQuery({
     if (cardIds.length > MAX_EXPORT_CARDS_PER_READ) {
       throw new Error("Too many cards in one read");
     }
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job) {
       return [];
     }
@@ -617,7 +600,7 @@ export const getExportHighlights = internalQuery({
     if (cardIds.length > MAX_EXPORT_CARDS_PER_READ) {
       throw new Error("Too many cards in one read");
     }
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     const cards: Array<{
       cardId: Id<"cards">;
       highlights: ExportHighlight[];
@@ -701,7 +684,7 @@ export const getExportFolderNames = internalQuery({
   args: { jobId: v.id("exportJobs") },
   returns: v.array(v.object({ id: v.id("folders"), name: v.string() })),
   handler: async (ctx, { jobId }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     if (!job) {
       return [];
     }
@@ -723,9 +706,7 @@ export const completeExport = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const job = (await ctx.db.get(
-      args.jobId
-    )) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(args.jobId);
     if (!job) {
       return null;
     }
@@ -769,7 +750,7 @@ export const isCancelRequested = internalQuery({
   args: { jobId: v.id("exportJobs") },
   returns: v.boolean(),
   handler: async (ctx, { jobId }) => {
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const job = await ctx.db.get(jobId);
     return Boolean(
       !job || job.cancelRequested || job.status === EXPORT_STATUS.CANCELED
     );

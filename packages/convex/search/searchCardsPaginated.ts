@@ -184,7 +184,7 @@ export const searchCardsPaginatedHandler = async (
   // Every page passes through here, so a hidden card the backfill hasn't
   // flagged yet never reaches the client, whichever read found it.
   const finishPage = (cards: Doc<"cards">[]) =>
-    finishCards(ctx, keepVisible(cards, includeHidden), options.attach);
+    finishCards(keepVisible(cards, includeHidden), options.attach);
   const favoritesOnly = resolved.favoritesOnly || undefined;
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];

@@ -1,7 +1,10 @@
 "use client";
 
+import type { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import type { FunctionReturnType } from "convex/server";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Archive, CircleCheck } from "vadivam-react";
@@ -11,42 +14,17 @@ import { Spinner } from "../ui/spinner";
 import { formatCountdown } from "./importExportFormat";
 import { SettingsRow, SettingsSection, SettingsTile } from "./SettingsSection";
 
-export type ExportJobStatus =
-  | "pending"
-  | "running"
-  | "ready"
-  | "failed"
-  | "canceled"
-  | "expired";
+export type ExportState = NonNullable<
+  FunctionReturnType<typeof api.dataExport.getLatestExport>
+>;
 
-export interface ExportJobSummary {
-  artifactBytes?: number;
-  cardCount?: number;
-  completedAt?: number;
-  createdAt: number;
-  downloadAvailable: boolean;
-  expiresAt?: number;
-  failureClass?: string;
-  filesIncluded?: number;
-  filesOmitted?: number;
-  id: string;
-  processedCount?: number;
-  stage?: "snapshotting" | "archiving";
-  status: ExportJobStatus;
-  updatedAt: number;
-}
-
-export interface ExportState {
-  canStartNew: boolean;
-  job: ExportJobSummary | null;
-  quotaResetMs: number;
-}
+type ExportJobStatus = NonNullable<ExportState["job"]>["status"];
 
 interface ExportPanelProps {
   exportState: ExportState | null | undefined;
   isLoading: boolean;
-  onCancelExport: (jobId: string) => Promise<void>;
-  onDownloadExport: (jobId: string) => Promise<void>;
+  onCancelExport: (jobId: Id<"exportJobs">) => Promise<void>;
+  onDownloadExport: (jobId: Id<"exportJobs">) => Promise<void>;
   onStartExport: () => Promise<void>;
 }
 

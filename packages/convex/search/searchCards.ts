@@ -110,7 +110,7 @@ export const searchCards = query({
           createdAtRange,
           visualFilters,
         }).slice(0, limit);
-        return finishCards(ctx, filtered);
+        return finishCards(filtered);
       }
 
       const uniqueResults = await searchCardsByDocument(ctx, {
@@ -141,7 +141,7 @@ export const searchCards = query({
         .sort((a, b) => compareCardsBySavedAt(a, b, sort))
         .slice(0, limit);
 
-      return finishCards(ctx, limitedResults);
+      return finishCards(limitedResults);
     }
 
     if (visualFilters.hasVisualFilters) {
@@ -156,7 +156,7 @@ export const searchCards = query({
         sort,
       });
       const limitedVisualResults = visualResults.slice(0, limit);
-      return finishCards(ctx, limitedVisualResults);
+      return finishCards(limitedVisualResults);
     }
 
     const cards = keepVisible(
@@ -175,7 +175,7 @@ export const searchCards = query({
         limit
       )
     );
-    return finishCards(ctx, cards);
+    return finishCards(cards);
   },
 });
 

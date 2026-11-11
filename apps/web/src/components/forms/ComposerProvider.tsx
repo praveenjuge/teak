@@ -133,8 +133,7 @@ function LinkPasteProgressToast({
 
 export function ComposerProvider({ children }: { children: ReactNode }) {
   const authUser = useQuery(api.auth.getAuthUser);
-  const accountId =
-    authUser && typeof authUser._id === "string" ? authUser._id : null;
+  const accountId = authUser?._id ?? null;
   const accountIdRef = useRef(accountId);
   accountIdRef.current = accountId;
   const [content, setContentState] = useState("");

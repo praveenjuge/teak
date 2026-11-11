@@ -1,10 +1,10 @@
-import type { cardReturnValidator } from "@teak/convex/card/getCards";
+import type { api } from "@teak/convex";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
   type FileFormat,
   inferFileFormat,
 } from "@teak/convex/shared/fileFormats";
-import type { Infer } from "convex/values";
+import type { FunctionReturnType } from "convex/server";
 import {
   File,
   FileText,
@@ -21,10 +21,9 @@ import { markdownToPlainText } from "./markdownToPlainText";
 
 /**
  * A card as the server sends it to the app: the stored card with its files'
- * signed addresses. Derived from the queries' return validator, so it
- * changes when they do.
+ * signed addresses.
  */
-export type ClientCard = Infer<typeof cardReturnValidator>;
+export type ClientCard = FunctionReturnType<typeof api.cards.getCards>[number];
 
 /** The room around the card in the dialog's stage, before it is shown. */
 type StagePadding =

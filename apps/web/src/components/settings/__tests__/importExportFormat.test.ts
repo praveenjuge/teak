@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { formatCountdown, formatRelativeTime } from "../importExportFormat";
+import { englishTranslator } from "@/lib/englishTranslators";
+import {
+  formatCountdown as formatCountdownIn,
+  formatRelativeTime as formatRelativeTimeIn,
+} from "../importExportFormat";
+
+const format = englishTranslator("settings.format");
+const formatCountdown = (remainingMs: number) =>
+  formatCountdownIn(remainingMs, format);
+const formatRelativeTime = (timestamp: number, now: number) =>
+  formatRelativeTimeIn(timestamp, now, format);
 
 describe("formatCountdown", () => {
   const minute = 60_000;

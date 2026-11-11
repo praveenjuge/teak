@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { handlerOf } from "./helpers/convex.test-utils";
 import {
   objectDeletionMockModuleFactory,
+  queuedDeletionKeys,
   r2MockModuleFactory,
   r2Mocks,
 } from "./helpers/r2Mock.test-utils";
@@ -347,7 +348,7 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "t1");
+      expect(queuedDeletionKeys()).toContain("t1");
       expect(ctx.db.insert).toHaveBeenCalledWith(
         "workflowDispatches",
         expect.objectContaining({
@@ -391,7 +392,7 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "s1");
+      expect(queuedDeletionKeys()).toContain("s1");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
@@ -418,7 +419,7 @@ describe("admin.ts", () => {
         (resetCardProcessingState as any).handler ?? resetCardProcessingState;
       const result = await handler(ctx, { cardId: "c1" });
 
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(queuedDeletionKeys()).toEqual([]);
       expect(result.clearedThumbnail).toBe(false);
     });
 

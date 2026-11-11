@@ -2,6 +2,7 @@ import { sha256Hex } from "@teak/files-protocol";
 import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import type { IdempotencyOutcome } from "../../idempotencyAnalytics";
+import { ignoreTelemetryErrorAsync } from "../../shared/telemetry";
 import { parseOptionalString } from "../validation";
 import { errorResponse, json, mapConvexErrorToResponse } from "./shared";
 
@@ -31,17 +32,21 @@ interface IdempotencyState {
   reserved: boolean;
 }
 
+// Counting is best effort: a failure here would leave the key reserved for
+// the length of its lease, since nothing has run yet that releases it.
 const trackIdempotency = async (
   ctx: ActionCtx,
   endpoint: string,
   outcome: IdempotencyOutcome,
   requestKey: string
 ) => {
-  await ctx.runMutation(internal.idempotencyAnalytics.trackIdempotencyOutcome, {
-    endpoint,
-    outcome,
-    requestKey,
-  });
+  await ignoreTelemetryErrorAsync(() =>
+    ctx.runMutation(internal.idempotencyAnalytics.trackIdempotencyOutcome, {
+      endpoint,
+      outcome,
+      requestKey,
+    })
+  );
 };
 
 const maybeHandleIdempotency = async (

@@ -240,7 +240,7 @@ export const searchCardsPageForUser = internalQuery({
         ? encodeCursor({ mode: "match", anchor: matchAnchorOf(last) })
         : null;
     return {
-      items: await finishCards(ctx, pageItems),
+      items: await finishCards(pageItems),
       pageInfo: {
         nextCursor,
         hasMore: nextCursor !== null,
@@ -323,7 +323,7 @@ export const shuffleCardsPageForUser = internalQuery({
     ) => {
       const nextCursor = next ? encodeShuffleCursor(seed, next) : null;
       return {
-        items: await finishCards(ctx, items),
+        items: await finishCards(items),
         pageInfo: { nextCursor, hasMore: nextCursor !== null },
       };
     };
@@ -513,7 +513,7 @@ export const scanCardsPageForUser = internalQuery({
     );
     return {
       itemCursors: page.itemCursors,
-      items: await finishCards(ctx, page.matches),
+      items: await finishCards(page.matches),
       nextCursor: page.nextCursor,
       scannedRows: page.scannedRows,
     };
@@ -577,7 +577,7 @@ export const pinnedCardsPageForUser = internalQuery({
       }
     }
     return {
-      items: await finishCards(ctx, items),
+      items: await finishCards(items),
       pageInfo: { nextCursor: null, hasMore: false },
     };
   },
@@ -620,7 +620,7 @@ export const listCardChangesForUser = internalQuery({
       }
       if (!page.isDone) {
         return {
-          items: await finishCards(ctx, activeCards),
+          items: await finishCards(activeCards),
           deletedIds,
           pageInfo: {
             nextCursor: encodeChangesCursor({
@@ -665,7 +665,7 @@ export const listCardChangesForUser = internalQuery({
     }
 
     return {
-      items: await finishCards(ctx, activeCards),
+      items: await finishCards(activeCards),
       deletedIds,
       pageInfo: { nextCursor, hasMore },
     };
@@ -949,7 +949,7 @@ export const executeBulkCardsForUser = internalMutation({
               });
             }
 
-            let action = args.operation as BulkCardAction;
+            let action: BulkCardAction = args.operation;
             if (args.operation === "favorite") {
               action = payload.isFavorited ? "favorite" : "unfavorite";
             }

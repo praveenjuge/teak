@@ -11,6 +11,7 @@ import {
   useFileUploadCore,
 } from "../useFileUploadCore";
 import {
+  englishUploadTranslators,
   mockFetch,
   mockSetState,
   mockUseEffectCleanups,
@@ -47,7 +48,11 @@ describe("useFileUploadCore", () => {
     configureClientTelemetry({ captureException: mockCaptureException });
   });
 
-  const hook = useFileUploadCore(dependencies, config);
+  const hook = useFileUploadCore(
+    dependencies,
+    config,
+    englishUploadTranslators
+  );
 
   describe("uploadFile - validation", () => {
     test("validates file size exceeds limit", async () => {
@@ -207,7 +212,11 @@ describe("useFileUploadCore", () => {
 
     test("cancels sleeping retries after unmount", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
-      const localHook = useFileUploadCore(dependencies, config);
+      const localHook = useFileUploadCore(
+        dependencies,
+        config,
+        englishUploadTranslators
+      );
 
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
@@ -258,7 +267,11 @@ describe("useFileUploadCore", () => {
 
     test("does not finish browser uploads after finalize is aborted", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
-      const localHook = useFileUploadCore(dependencies, config);
+      const localHook = useFileUploadCore(
+        dependencies,
+        config,
+        englishUploadTranslators
+      );
       let resolveFinalize: (result: {
         cardId: string;
         success: boolean;
@@ -719,7 +732,11 @@ describe("useFileUploadCore", () => {
         { size: 100, name: "1.png", type: "image/png" },
         { size: 100, name: "2.png", type: "image/png" },
       ] as any;
-      const localHook = useFileUploadCore(dependencies, config);
+      const localHook = useFileUploadCore(
+        dependencies,
+        config,
+        englishUploadTranslators
+      );
       mockUploadAndCreateCard.mockResolvedValue({
         success: true,
         uploadUrl: "https://upload",

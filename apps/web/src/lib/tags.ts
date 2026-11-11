@@ -1,22 +1,23 @@
+import type { api } from "@teak/convex";
 import {
   MAX_TAG_NAME_LENGTH,
   TAG_OPERATION_STALL_MS,
   tagKey,
 } from "@teak/convex/shared/tags";
-import type { tagOperationReturnValidator } from "@teak/convex/tag/tagOperations";
-import type { tagSummaryItemValidator } from "@teak/convex/tag/tagSummary";
 import type { TeakTranslator } from "@teak/i18n";
-import type { Infer } from "convex/values";
+import type { FunctionReturnType } from "convex/server";
 import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
-// The return shapes come from the functions' `returns` validators, since the
-// generated `api` types every function as `any` and FunctionReturnType can't.
-export type TagSummaryItem = Infer<typeof tagSummaryItemValidator>;
+export type TagSummaryItem = NonNullable<
+  FunctionReturnType<typeof api.tags.listTagSummary>
+>["items"][number];
 
 export const tagDisplayName = (item: Pick<TagSummaryItem, "label" | "name">) =>
   item.label ?? item.name;
 
-export type TagOperationView = Infer<typeof tagOperationReturnValidator>;
+export type TagOperationView = NonNullable<
+  FunctionReturnType<typeof api.tags.getLatestTagOperation>
+>;
 
 export const isTagOperationStalled = (
   operation: TagOperationView,

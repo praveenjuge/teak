@@ -131,7 +131,7 @@ describe("first-load queries", () => {
     ]);
   });
 
-  test("warm the account, API keys and latest export on Settings", () => {
+  test("warm the account, API keys, Save by email and latest export on Settings", () => {
     const url = new URL("/settings", "https://app.example");
     expect(names(url)).toEqual([
       "auth:getAuthUser",
@@ -139,6 +139,7 @@ describe("first-load queries", () => {
       "folders:listFolders",
       "auth:getCurrentUser",
       "apiKeys:listUserApiKeys",
+      "inbound/settings:getMine",
       "dataExport:getLatestExport",
     ]);
   });
@@ -157,10 +158,12 @@ describe("first-load queries", () => {
     expect(page("/settings/integrations")).toEqual([
       ...base,
       "apiKeys:listUserApiKeys",
+      "inbound/settings:getMine",
     ]);
     expect(page("/settings/data")).toEqual([
       ...base,
       "dataExport:getLatestExport",
+      "dataImport:getLatestImport",
     ]);
   });
 });

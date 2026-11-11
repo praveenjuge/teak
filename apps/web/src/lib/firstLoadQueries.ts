@@ -81,8 +81,14 @@ export function firstLoadQueries(
     if (data.apiKeys) {
       queries.push({ query: api.apiKeys.listUserApiKeys, args: {} });
     }
+    if (data.inboundEmail) {
+      queries.push({ query: api.inbound.settings.getMine, args: {} });
+    }
     if (data.exportState) {
       queries.push({ query: api.dataExport.getLatestExport, args: {} });
+    }
+    if (data.importState) {
+      queries.push({ query: api.dataImport.getLatestImport, args: {} });
     }
     return queries;
   }

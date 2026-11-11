@@ -5,6 +5,7 @@ import {
   SEARCH_OR_HINT,
   SEARCH_QUALIFIER_HINTS,
 } from "@teak/convex/shared/search/suggestionHints";
+import { englishTranslator } from "@/lib/englishTranslators";
 import {
   buildSearchSuggestions,
   continuesOperator,
@@ -13,6 +14,20 @@ import {
   describeQualifierChip,
   SEARCH_SUGGESTION_GROUP_LIMIT,
 } from "../searchSuggestions";
+
+const english = {
+  t: englishTranslator("search"),
+  types: englishTranslator("cards.types"),
+};
+
+const suggest = (
+  token: string,
+  sources: Parameters<typeof buildSearchSuggestions>[1],
+  options: { afterWord?: boolean } = {}
+) => buildSearchSuggestions(token, sources, { ...english, ...options });
+
+const describeChip = (chip: string, anchorTitle?: string) =>
+  describeQualifierChip(chip, anchorTitle, english.t, english.types);
 
 const sources = {
   tags: [
@@ -28,7 +43,7 @@ const sources = {
 };
 
 const inserts = (token: string) =>
-  buildSearchSuggestions(token, sources).suggestions.map((s) => s.insert);
+  suggest(token, sources).suggestions.map((s) => s.insert);
 
 describe("currentSearchToken", () => {
   test.each([
@@ -44,16 +59,16 @@ describe("currentSearchToken", () => {
 
 describe("buildSearchSuggestions", () => {
   test("nothing for an empty word", () => {
-    expect(buildSearchSuggestions("", sources).suggestions).toEqual([]);
+    expect(suggest("", sources).suggestions).toEqual([]);
   });
 
   test("a key prefix suggests the key", () => {
     expect(inserts("si")).toEqual(["site:"]);
-    expect(buildSearchSuggestions("si", sources).completingValue).toBe(false);
+    expect(suggest("si", sources).completingValue).toBe(false);
   });
 
   test("price: is offered with its hint", () => {
-    expect(buildSearchSuggestions("pr", sources).suggestions[0]).toMatchObject({
+    expect(suggest("pr", sources).suggestions[0]).toMatchObject({
       insert: "price:",
       detail: "Price under or over",
       complete: false,
@@ -61,7 +76,7 @@ describe("buildSearchSuggestions", () => {
   });
 
   test("text: is offered while typing te", () => {
-    expect(buildSearchSuggestions("te", sources).suggestions[0]).toMatchObject({
+    expect(suggest("te", sources).suggestions[0]).toMatchObject({
       insert: "text:",
       detail: "Words in images and scans",
       complete: false,
@@ -95,9 +110,7 @@ describe("buildSearchSuggestions", () => {
     expect(inserts("IS:arch")).toEqual(["is:archived"]);
     expect(inserts("is:fin")).toEqual(["is:done"]);
     expect(inserts("is:to")).toEqual(["is:todo"]);
-    expect(buildSearchSuggestions("site:g", sources).completingValue).toBe(
-      true
-    );
+    expect(suggest("site:g", sources).completingValue).toBe(true);
   });
 
   test("an exact name comes first, then the most used", () => {
@@ -109,7 +122,7 @@ describe("buildSearchSuggestions", () => {
       ],
     };
     const names = (token: string) =>
-      buildSearchSuggestions(token, ranked).suggestions.map((s) => s.label);
+      suggest(token, ranked).suggestions.map((s) => s.label);
     expect(names("tag:des")).toEqual(["design", "design-systems", "designer"]);
     expect(names("tag:designer")).toEqual([]);
     expect(names("tag:design")).toEqual([
@@ -127,15 +140,16 @@ describe("buildSearchSuggestions", () => {
       ],
     };
     for (const token of ["#fff", "#FFF", "#3b82f6", "#bad,"]) {
-      expect(buildSearchSuggestions(token, hexy).completingValue).toBe(false);
+      expect(suggest(token, hexy).completingValue).toBe(false);
     }
     expect(inserts("#bad")).toEqual([]);
-    expect(
-      buildSearchSuggestions("#fff", hexy).suggestions.map((s) => s.insert)
-    ).toEqual(["tag:fff", "tag:fffour"]);
-    expect(buildSearchSuggestions("#fffo", hexy).completingValue).toBe(true);
-    expect(buildSearchSuggestions("#", hexy).completingValue).toBe(true);
-    expect(buildSearchSuggestions("tag:", hexy).completingValue).toBe(true);
+    expect(suggest("#fff", hexy).suggestions.map((s) => s.insert)).toEqual([
+      "tag:fff",
+      "tag:fffour",
+    ]);
+    expect(suggest("#fffo", hexy).completingValue).toBe(true);
+    expect(suggest("#", hexy).completingValue).toBe(true);
+    expect(suggest("tag:", hexy).completingValue).toBe(true);
   });
 
   test("#tag completes tags", () => {
@@ -150,9 +164,10 @@ describe("buildSearchSuggestions", () => {
       ],
     };
     expect(
-      buildSearchSuggestions("#secr", withSecret).suggestions.map(
-        (suggestion) => [suggestion.label, suggestion.detail]
-      )
+      suggest("#secr", withSecret).suggestions.map((suggestion) => [
+        suggestion.label,
+        suggestion.detail,
+      ])
     ).toEqual([
       ["secret", "Shows hidden cards · 4"],
       ["secrets", "2"],
@@ -170,7 +185,7 @@ describe("buildSearchSuggestions", () => {
         count: 1,
       })),
     };
-    expect(buildSearchSuggestions("tag:", many).suggestions.length).toBe(
+    expect(suggest("tag:", many).suggestions.length).toBe(
       SEARCH_SUGGESTION_GROUP_LIMIT
     );
   });
@@ -193,27 +208,24 @@ describe("describeQualifierChip", () => {
     ["price:=0", "Price", "Exactly 0"],
     ['text:"Total due"', "Text in image", "Total due"],
   ])("%s", (chip: string, title: string, label: string) => {
-    expect(describeQualifierChip(chip)).toMatchObject({ title, label });
+    expect(describeChip(chip)).toMatchObject({ title, label });
   });
 
   test("a like: chip reads its card's title", () => {
     expect(
-      describeQualifierChip(
-        "like:j979t50bv7gjxz2mazwwf5tes18gbvnt",
-        "Concrete tower"
-      )
+      describeChip("like:j979t50bv7gjxz2mazwwf5tes18gbvnt", "Concrete tower")
     ).toMatchObject({ title: "Similar to", label: "Concrete tower" });
   });
 
   test("text that is not a qualifier has no chip", () => {
-    expect(describeQualifierChip("notes")).toBeNull();
-    expect(describeQualifierChip("price:cheap")).toBeNull();
+    expect(describeChip("notes")).toBeNull();
+    expect(describeChip("price:cheap")).toBeNull();
   });
 });
 
 describe("exclusions and OR", () => {
   test("a minus offers the filters it can leave out", () => {
-    const result = buildSearchSuggestions("-", sources);
+    const result = suggest("-", sources);
     expect(result.suggestions.map((s) => s.insert)).toEqual([
       "-tag:",
       "-type:",
@@ -239,7 +251,7 @@ describe("exclusions and OR", () => {
     expect(inserts("-is:arch")).toEqual(["-is:archived"]);
     expect(inserts("-type:ima")).toEqual(["-type:image"]);
     expect(inserts("-git")).toEqual(["-site:github.com"]);
-    const values = buildSearchSuggestions("-tag:des", sources);
+    const values = suggest("-tag:des", sources);
     expect(values.completingValue).toBe(true);
     expect(values.suggestions.every((s) => s.complete)).toBe(true);
   });
@@ -251,7 +263,7 @@ describe("exclusions and OR", () => {
   test("OR is offered only after a word", () => {
     expect(inserts("O")).toEqual([]);
     const afterWord = (token: string) =>
-      buildSearchSuggestions(token, sources, { afterWord: true }).suggestions;
+      suggest(token, sources, { afterWord: true }).suggestions;
     expect(afterWord("O")[0]).toMatchObject({
       detail: "Either side matches",
       insert: "OR ",
@@ -264,17 +276,17 @@ describe("exclusions and OR", () => {
 
 describe("excluded chips", () => {
   test("an excluded filter reads as its filter, marked excluded", () => {
-    expect(describeQualifierChip("-tag:design")).toMatchObject({
+    expect(describeChip("-tag:design")).toMatchObject({
       excluded: true,
       label: "design",
       title: "Tag",
     });
-    expect(describeQualifierChip("-is:archived")).toMatchObject({
+    expect(describeChip("-is:archived")).toMatchObject({
       excluded: true,
       label: "Archived",
     });
-    expect(describeQualifierChip("tag:design")?.excluded).toBeUndefined();
-    expect(describeQualifierChip("-figma")).toBeNull();
+    expect(describeChip("tag:design")?.excluded).toBeUndefined();
+    expect(describeChip("-figma")).toBeNull();
   });
 
   test("word chips show exclusions and groups", () => {
@@ -320,9 +332,10 @@ describe("continuesOperator", () => {
 describe("shared hints", () => {
   // The native apps generate the same lists, so the hints read alike everywhere.
   const pick = (token: string, afterWord = false) =>
-    buildSearchSuggestions(token, {}, { afterWord }).suggestions.map(
-      ({ id, insert }) => ({ id, insert })
-    );
+    suggest(token, {}, { afterWord }).suggestions.map(({ id, insert }) => ({
+      id,
+      insert,
+    }));
   const shared = (hints: readonly { id: string; insert: string }[]) =>
     hints.map(({ id, insert }) => ({ id, insert }));
 

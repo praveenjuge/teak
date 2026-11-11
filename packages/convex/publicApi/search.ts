@@ -13,6 +13,7 @@ import {
 } from "../card/listQuery";
 import { finishCards } from "../card/queryUtils";
 import { normalizeVisualFilterArgs } from "../card/visualFilters";
+import { isInvalidCursorError } from "../convexFailures";
 import { searchModeValidator } from "../schema/validators/cards";
 import {
   type CardSearchFilter,
@@ -695,8 +696,8 @@ const scanFolderCards = async (
         maximumRowsRead: scanLimit,
         numItems: scanLimit,
       });
-  } catch {
-    throw invalidCursorError();
+  } catch (error) {
+    throw isInvalidCursorError(error) ? invalidCursorError() : error;
   }
   const matches: Doc<"cards">[] = [];
   const itemCursors: string[] = [];
@@ -776,8 +777,8 @@ export const scanCardsWithBaseQuery = async (
         maximumRowsRead: scanLimit,
         numItems: scanLimit,
       });
-  } catch {
-    throw invalidCursorError();
+  } catch (error) {
+    throw isInvalidCursorError(error) ? invalidCursorError() : error;
   }
   const matches: Doc<"cards">[] = [];
   const itemCursors: string[] = [];
@@ -854,7 +855,7 @@ export const relevancePage = async (
     ? encodeCursor({ mode: "relevance", offset: offset + limit, ranked })
     : null;
   return {
-    items: await finishCards(ctx, pageItems),
+    items: await finishCards(pageItems),
     pageInfo: { nextCursor, hasMore: nextCursor !== null },
   };
 };

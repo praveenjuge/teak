@@ -502,11 +502,7 @@ export const resetCardProcessingState = internalMutation({
     }
 
     const clearedThumbnail = Boolean(card.thumbnailKey);
-    for (const key of [card.thumbnailKey, card.scrubKey]) {
-      if (key) {
-        await queueObjectDeletion(ctx, key);
-      }
-    }
+    await queueObjectDeletion(ctx, [card.thumbnailKey, card.scrubKey]);
     const { scrub: _scrub, ...fileMetadata } = card.fileMetadata ?? {};
 
     const processingStatus = card.processingStatus ?? {};

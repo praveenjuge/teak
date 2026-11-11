@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, mock } from "bun:test";
 import { asFetch } from "@/__tests__/helpers/testDoubles";
+import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
+
+export const englishUploadTranslators = {
+  errors: englishErrors,
+  upload: englishTranslator("hooks.upload"),
+};
 
 export const mockSetState = mock();
 export const mockUseEffectCleanups: Array<() => void> = [];

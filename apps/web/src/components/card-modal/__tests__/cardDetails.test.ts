@@ -1,5 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { getCardDetailSections } from "../cardDetails";
+import { englishTranslator } from "@/lib/englishTranslators";
+import { getCardDetailSections as getCardDetailSectionsIn } from "../cardDetails";
+
+const getCardDetailSections = (
+  card: Parameters<typeof getCardDetailSectionsIn>[0],
+  { locale }: { locale?: string } = {}
+) =>
+  getCardDetailSectionsIn(card, {
+    exif: englishTranslator("lib.exif"),
+    locale,
+    t: englishTranslator("cardModal.details"),
+  });
 
 const baseCard = {
   createdAt: Date.UTC(2026, 0, 2, 3, 4),

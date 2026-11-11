@@ -1,11 +1,10 @@
 "use client";
 
 import { api } from "@teak/convex";
-import type { bootstrapResult } from "@teak/convex/workosBootstrap";
 import { useTranslations } from "@teak/i18n/react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
-import type { Infer } from "convex/values";
+import type { FunctionReturnType } from "convex/server";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import {
   type ReactNode,
@@ -23,7 +22,7 @@ import { StatusScreen } from "../StatusScreen";
 import { AuthUnavailable } from "./AuthUnavailable";
 import { PostHogIdentify } from "./PostHogIdentify";
 
-type Bootstrap = Infer<typeof bootstrapResult>;
+type Bootstrap = FunctionReturnType<typeof api.workosBootstrap.ensureUser>;
 
 const BLOCKED_MESSAGE_KEYS = {
   verify_email: "verifyEmail",
