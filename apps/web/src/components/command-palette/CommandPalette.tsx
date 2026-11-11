@@ -7,7 +7,7 @@ import { useQueries } from "convex-helpers/react/cache/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FolderSearch, Search } from "vadivam-react";
 import { useBillingEnabled } from "../../hooks/useBillingEnabled";
-import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useFolders } from "../../hooks/useFolders";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import {
@@ -20,6 +20,7 @@ import {
   goToKeys,
   isLibraryViewTarget,
 } from "../../lib/appCommands";
+import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../lib/cardsSearchState";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import {
   PALETTE_CARD_LIMIT,
@@ -43,7 +44,7 @@ import {
   visibleSettingsSections,
 } from "../../lib/settingsSections";
 import { FolderDot } from "../folders/FolderDot";
-import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
+import { ShortcutHint } from "../shortcuts";
 import {
   CommandDialog,
   CommandEmpty,
@@ -318,14 +319,7 @@ function PaletteCardRows({
 function usePaletteCards(query: string, pathname: string | null) {
   const { isOnline } = useNetworkStatus();
   const trimmed = query.trim();
-  const [debounced, setDebounced] = useState(trimmed);
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setDebounced(trimmed),
-      REMOTE_SEARCH_DEBOUNCE_MS
-    );
-    return () => clearTimeout(timer);
-  }, [trimmed]);
+  const [debounced] = useDebouncedValue(trimmed, REMOTE_SEARCH_DEBOUNCE_MS);
   const active = debounced.length >= PALETTE_MIN_CARD_QUERY_LENGTH;
   const queries = useMemo(() => {
     const map: Parameters<typeof useQueries>[0] = {};

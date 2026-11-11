@@ -1,6 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import type { DnsResolver, PinnedFetch } from "@teak/convex/linkMetadata/ssrf";
 import {
   buildCardObjectKey,
   type CardRunStage,
@@ -8,15 +7,17 @@ import {
   filesUserKeyRoot,
   WORKFLOW_RPC_MAX_BATCH_OPS,
 } from "@teak/files-protocol";
+import type { DnsResolver, PinnedFetch } from "@teak/files-protocol/ssrf";
 import type { FunctionArgs } from "convex/server";
 import { type AiGateReader, createAiGateReader } from "../../ai/aiGate";
 import { batchOp, type ConvexRpc, createConvexRpc } from "../../convexRpc";
+import { createDohResolver } from "../../dns";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
-  createDohResolver,
 } from "../../media/pinnedHop";
 import type { OpCaller } from "../deps";
+import { supersededReason } from "../errors";
 import { callFilesOp } from "../filesOps";
 import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
@@ -80,11 +81,6 @@ export const loadCard = (job: CardJob): Promise<LoadedCard | null> =>
     cardId: job.cardId,
   }) as Promise<LoadedCard | null>;
 
-const isCardMissing = (error: unknown) =>
-  (error instanceof Error ? error.message : String(error)).includes(
-    "card_missing"
-  );
-
 /**
  * A write a step hands to the next step instead of making its own call: the
  * next step makes it first thing, in the batch that reads the card, so the
@@ -147,7 +143,7 @@ export const loadAndMark = async (
     );
     return results[held.length] as LoadedCard | null;
   } catch (error) {
-    if (isCardMissing(error)) {
+    if (supersededReason(error) === "card_missing") {
       return null;
     }
     throw error;

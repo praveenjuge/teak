@@ -23,7 +23,6 @@ export const DERIVED_CARD_FIELDS = [
   "urlKey",
 ] as const satisfies readonly (keyof DerivedCardFields)[];
 
-/** The card fields `deriveCardFields` reads. */
 export const DERIVED_FROM_FIELDS = [
   "aiSummary",
   "aiTags",

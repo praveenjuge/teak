@@ -1,9 +1,11 @@
 import { FOCUS_COMPOSER_PARAM } from "@/lib/libraryViews";
 import {
+  SHARE_ACTION_PATH,
   SHARE_CACHE,
   SHARE_ENCODED_BUDGET,
   SHARE_FILE_NAME_HEADER,
   SHARE_FILE_PREFIX,
+  SHARE_FILES_FIELD,
   SHARE_FILES_MAX_AGE_MS,
   SHARE_FILES_MISSING,
   SHARE_FILES_PARAM,
@@ -73,7 +75,7 @@ const share = async (request) => {
   for (const field of TEXT_FIELDS) {
     if (fitted[field]) params.set(field, fitted[field]);
   }
-  const files = form.getAll("files").filter((file) => typeof file !== "string" && file.size > 0);
+  const files = form.getAll(${JSON.stringify(SHARE_FILES_FIELD)}).filter((file) => typeof file !== "string" && file.size > 0);
   if (files.length > 0) {
     params.set(${JSON.stringify(SHARE_FILES_PARAM)}, await keep(files));
   }
@@ -107,7 +109,7 @@ self.addEventListener("activate", (event) => {
 });
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method !== "POST" || url.origin !== self.location.origin || url.pathname !== "/share") return;
+  if (event.request.method !== "POST" || url.origin !== self.location.origin || url.pathname !== ${JSON.stringify(SHARE_ACTION_PATH)}) return;
   event.respondWith(share(event.request).catch(() =>
     library(new URLSearchParams({ [COMPOSE]: "1", ${JSON.stringify(SHARE_FILES_PARAM)}: ${JSON.stringify(SHARE_FILES_MISSING)} }))
   ));

@@ -1,5 +1,4 @@
 import type { FilesAiGenerationFacts } from "./metadata";
-import type { FilesOp } from "./opTable";
 
 export const FILES_PROTOCOL_VERSION = 1 as const;
 export const FILES_PROCESSOR_VERSION = "2026-08-26.1" as const;
@@ -20,6 +19,42 @@ export const isFilesImageRendition = (
 ): value is FilesImageRendition =>
   typeof value === "string" &&
   (FILES_IMAGE_RENDITIONS as readonly string[]).includes(value);
+
+const decodeImageKey = (encoded: string): string | null => {
+  let key: string;
+  try {
+    key = decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+  return key && !key.includes("\0") ? key : null;
+};
+
+/**
+ * The rendition and storage key an image URL's path asks for
+ * (`/__images/v1/<rendition>/<key>`), or null for any other path.
+ */
+export const parseFilesImagePath = (
+  pathname: string
+): { key: string; rendition: FilesImageRendition } | null => {
+  const match = new RegExp(`^${FILES_IMAGE_PATH}/([^/]+)/(.+)$`, "u").exec(
+    pathname
+  );
+  const rendition = match?.[1];
+  const key = decodeImageKey(match?.[2] ?? "");
+  return isFilesImageRendition(rendition) && key ? { key, rendition } : null;
+};
+
+/**
+ * The storage key an image source URL's path asks for
+ * (`/__image-source/v1/<key>`), or null for any other path.
+ */
+export const parseFilesImageSourcePath = (pathname: string): string | null => {
+  const prefix = `${FILES_IMAGE_SOURCE_PATH}/`;
+  return pathname.startsWith(prefix)
+    ? decodeImageKey(pathname.slice(prefix.length))
+    : null;
+};
 
 export const FILES_UPLOAD_PATH = "/__upload/v1" as const;
 
@@ -112,7 +147,7 @@ export interface FilesFinalizeImageParams {
 }
 
 export interface FilesOpRequest<T = unknown> {
-  op: FilesOp;
+  op: string;
   params: T;
   version: typeof FILES_PROTOCOL_VERSION;
 }

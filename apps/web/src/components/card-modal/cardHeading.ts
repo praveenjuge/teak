@@ -1,24 +1,13 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
-import { englishTranslator, US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
+import type { TeakTranslator } from "@teak/i18n";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { cardTitle, isFileCardType } from "../../lib/cardTypes";
 import type { LinkTitleTranslator } from "../../lib/linkTitle";
 import {
   type CardTypesTranslator,
   cardTypeLabel,
-  englishCardTypes,
 } from "../cards/cardTypeLabel";
 
 export type CardHeadingTranslator = TeakTranslator<"cardModal.heading">;
-
-const englishHeading: CardHeadingTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cardModal.heading"
-);
 
 interface HeadingSource {
   fileMetadata?: { fileName?: string };
@@ -32,14 +21,14 @@ interface HeadingSource {
 export function getCardHeading(
   card: HeadingSource,
   {
-    link = englishTranslator("lib.linkTitle"),
-    t = englishHeading,
-    types = englishCardTypes,
+    link,
+    t,
+    types,
   }: {
-    link?: LinkTitleTranslator;
-    t?: CardHeadingTranslator;
-    types?: CardTypesTranslator;
-  } = {}
+    link: LinkTitleTranslator;
+    t: CardHeadingTranslator;
+    types: CardTypesTranslator;
+  }
 ): {
   editable: boolean;
   title: string;
@@ -59,11 +48,11 @@ export function getCardHeading(
 
 export function formatAddedDate(
   timestamp: number,
-  now = Date.now(),
+  now: number,
   {
     locale = US_ENGLISH_LOCALE,
-    t = englishHeading,
-  }: { locale?: string; t?: CardHeadingTranslator } = {}
+    t,
+  }: { locale?: string; t: CardHeadingTranslator }
 ): string {
   const saved = new Date(timestamp);
   const today = new Date(now);

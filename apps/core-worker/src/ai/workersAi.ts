@@ -1,5 +1,7 @@
 import type { FilesAiGenerationFacts } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { OpFailure } from "../opFailure";
+import { withRetries } from "../retry";
 import {
   type AiGatewayEnv,
   aiRunOptions,
@@ -30,7 +32,7 @@ const numericErrorFact = (value: unknown): number | undefined => {
 
 /** Workers AI turned the call away because it, or the account, is busy. */
 export const isCapacityError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   if (error && typeof error === "object") {
     const facts = error as {
       status?: unknown;
@@ -64,11 +66,6 @@ export const aiCapacityFailure = (
     message: "workers_ai_capacity_exhausted",
   });
 
-const waitForCapacityRetry = (attempt: number): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
-  });
-
 export interface WorkersAiEnv extends AiGatewayEnv, AiUsageEnv {
   AI?: WorkersAiBinding;
 }
@@ -99,25 +96,25 @@ export const runWorkersAi = async (
   if (!ai) {
     throw new Error("workers_ai_not_configured");
   }
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await meteredAiRun(
-        env,
-        {
-          functionId: call.functionId,
-          isCapacity: isCapacityError,
-          model: call.model,
-        },
-        () => ai.run(call.model, call.input, aiRunOptions(env))
-      );
-    } catch (error) {
-      if (!isCapacityError(error)) {
-        throw error;
+  try {
+    return await withRetries(
+      () =>
+        meteredAiRun(
+          env,
+          {
+            functionId: call.functionId,
+            isCapacity: isCapacityError,
+            model: call.model,
+          },
+          () => ai.run(call.model, call.input, aiRunOptions(env))
+        ),
+      {
+        attempts: retries + 1,
+        delayMs: (attempt) => CAPACITY_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1),
+        isRetryable: isCapacityError,
       }
-      if (attempt >= retries) {
-        throw aiCapacityFailure(call.aiFacts);
-      }
-      await waitForCapacityRetry(attempt);
-    }
+    );
+  } catch (error) {
+    throw isCapacityError(error) ? aiCapacityFailure(call.aiFacts) : error;
   }
 };

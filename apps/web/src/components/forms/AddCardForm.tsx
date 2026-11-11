@@ -1,5 +1,4 @@
 import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import {
   LINK_PASTE_ACTIVE_CODE,
@@ -8,22 +7,19 @@ import {
 } from "@teak/convex/shared/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
 import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
 import { NEW_NOTE_COMPOSER_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { useCanCreateCard } from "../../hooks/useCanCreateCard";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
-import { readComposerDraft, storeComposerDraft } from "../../lib/composerDraft";
-import { useQuery } from "../../lib/convexQueryHooks";
 import {
   ariaKeyShortcut,
   FOCUS_NOTE_KEYS,
@@ -37,14 +33,7 @@ import {
 } from "../shortcuts/ShortcutTooltip";
 import { extractLinkList } from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
-import {
-  addLinkPasteJob,
-  finishLinkPasteJob,
-  type PasteJob,
-  useLinkPasteJobs,
-  useLinkPasteToastOwner,
-} from "./linkPasteJobs";
-import { linkPasteToast } from "./linkPasteToast";
+import { useComposer } from "./ComposerProvider";
 import { useSaveNote } from "./useSaveNote";
 
 function isPasteActiveError(err: unknown): boolean {
@@ -55,121 +44,33 @@ function isPasteActiveError(err: unknown): boolean {
   );
 }
 
-function LinkPasteProgressToast({
-  job,
-  onFinished,
-  onUpgrade,
-}: {
-  job: PasteJob;
-  onFinished: (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => void;
-  onUpgrade: () => void;
-}) {
-  const t = useTranslations("forms.pasteLinks");
-  const tLimits = useTranslations("forms.limits");
-  const progress = useQuery(api.card.pasteLinks.getLinkPaste, {
-    jobId: job.jobId,
-  });
-  const finishedRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (progress === undefined || finishedRef.current) {
-      return;
-    }
-    if (progress === null) {
-      finishedRef.current = true;
-      toast.dismiss(job.toastId);
-      onFinished(job.jobId, false);
-      return;
-    }
-    const { kind, message } = linkPasteToast(progress, job.extraOmitted, t);
-    if (kind === "loading") {
-      toast.loading(message, { id: job.toastId });
-      return;
-    }
-    if (kind === "success") {
-      toast.success(message, { id: job.toastId });
-    } else if (kind === "limit") {
-      toast.error(message, {
-        ...MANUAL_CLOSE_TOAST_OPTIONS,
-        action: { label: tLimits("upgrade"), onClick: onUpgrade },
-        id: job.toastId,
-      });
-    } else {
-      toast.error(message, { id: job.toastId });
-    }
-    finishedRef.current = true;
-    onFinished(job.jobId, kind === "limit");
-  }, [job, onFinished, onUpgrade, progress, t, tLimits]);
-
-  useLinkPasteToastOwner(job);
-
-  return null;
-}
-
 export interface AddCardFormProps {
+  /** Focus on mount; the composer also takes a pending new-note request. */
   autoFocus?: boolean;
-  canCreateCard?: boolean;
-  draftContentRef?: React.MutableRefObject<string>;
-  onFocus?: () => void;
   onOpenCard?: (cardId: string) => void;
   onSuccess?: () => void;
 }
 
 export function AddCardForm({
   onSuccess,
-  autoFocus,
-  canCreateCard: canCreateCardProp,
-  draftContentRef,
-  onFocus,
+  autoFocus = false,
   onOpenCard,
 }: AddCardFormProps) {
   const t = useTranslations("forms.addCard");
   const tPaste = useTranslations("forms.pasteLinks");
   const tEditor = useTranslations("textEditor");
   const tc = useTranslations("common");
-  const authUser = useQuery(api.auth.getAuthUser);
-  const accountId =
-    authUser && typeof authUser._id === "string" ? authUser._id : null;
-  const [content, setInternalContent] = useState(
-    () => draftContentRef?.current ?? ""
-  );
-  const latestContentRef = useRef(content);
-  const accountIdRef = useRef(accountId);
-  accountIdRef.current = accountId;
-  // False once the browser refused to keep the draft, so closing the tab
-  // asks first instead of losing it.
-  const [draftStored, setDraftStored] = useState(true);
-  const setContent = useCallback(
-    (nextContent: string) => {
-      latestContentRef.current = nextContent;
-      setInternalContent(nextContent);
-      if (draftContentRef) {
-        draftContentRef.current = nextContent;
-      }
-      const owner = accountIdRef.current;
-      if (owner) {
-        setDraftStored(storeComposerDraft(owner, nextContent));
-      }
-    },
-    [draftContentRef]
-  );
-  // Brings the account's draft back after mount (the server render has no
-  // storage), or keeps what was typed before the account loaded.
-  const restoredForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!accountId || restoredForRef.current === accountId) {
-      return;
-    }
-    restoredForRef.current = accountId;
-    const current = latestContentRef.current;
-    const stored = readComposerDraft(accountId);
-    if (stored.trim() && !current.includes(stored)) {
-      // Text shared into Teak goes after the draft rather than over it.
-      setContent(current.trim() ? `${stored}\n\n${current}` : stored);
-      return;
-    }
-    setDraftStored(storeComposerDraft(accountId, current));
-  }, [accountId, setContent]);
+  const {
+    addPasteJob,
+    content,
+    draftStored,
+    focusHandled,
+    focusPending,
+    latestContent,
+    pasteInProgress,
+    pasteReachedLimit,
+    setContent,
+  } = useComposer();
   const {
     close: closeFocus,
     inlineEditorValue,
@@ -179,7 +80,7 @@ export function AddCardForm({
 
   const globalFileDrop = useGlobalFileDrop();
   const accountCanCreateCard = useCanCreateCard();
-  const canCreateCard = canCreateCardProp ?? accountCanCreateCard ?? true;
+  const canCreateCard = accountCanCreateCard ?? true;
   const basePlaceholderText = canCreateCard
     ? t("placeholder")
     : t("upgradePlaceholder");
@@ -196,35 +97,28 @@ export function AddCardForm({
   const cardLinks = useCardLinkEditor({ onOpenCard, value: content });
   const hasShownBlockedToastRef = useRef<boolean>(false);
 
-  const { handleUpgrade, showUpgradeToast } = useUpgradeAction();
-
-  const pasteJobs = useLinkPasteJobs();
-  const pasteInProgress = pasteJobs.length > 0;
-
-  // A paste that stops at the limit says so in its own toast; one that saves
-  // every link but lands on the limit leaves it to the upgrade toast.
-  const handlePasteFinished = useCallback(
-    (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => {
-      if (reachedLimit) {
-        hasShownBlockedToastRef.current = true;
-      }
-      finishLinkPasteJob(jobId);
-    },
-    []
-  );
+  const { showUpgradeToast } = useUpgradeAction();
 
   useEffect(() => {
     if (accountCanCreateCard === false) {
-      // Wait for a paste to finish, so its toast can say it first.
+      // Wait for a paste to finish, so its toast can say it first. A paste
+      // that stopped at the limit already said so.
       if (!(hasShownBlockedToastRef.current || pasteInProgress)) {
-        showUpgradeToast();
+        if (!pasteReachedLimit) {
+          showUpgradeToast();
+        }
         hasShownBlockedToastRef.current = true;
       }
       return;
     }
 
     hasShownBlockedToastRef.current = false;
-  }, [accountCanCreateCard, pasteInProgress, showUpgradeToast]);
+  }, [
+    accountCanCreateCard,
+    pasteInProgress,
+    pasteReachedLimit,
+    showUpgradeToast,
+  ]);
 
   const { saveNote } = useSaveNote({ onOpenCard, onSuccess });
   const startLinkPaste = useMutation(api.card.pasteLinks.startLinkPaste);
@@ -234,7 +128,7 @@ export function AddCardForm({
   };
 
   const restoreDraft = (submittedContent: string) => {
-    const newerDraft = latestContentRef.current;
+    const newerDraft = latestContent();
     setContent(
       newerDraft.trim()
         ? `${submittedContent}\n\n${newerDraft}`
@@ -267,7 +161,7 @@ export function AddCardForm({
     try {
       const { jobId } = await startLinkPaste({ urls });
       onSuccess?.();
-      addLinkPasteJob({
+      addPasteJob({
         extraOmitted: links.length - urls.length,
         jobId,
         toastId,
@@ -287,7 +181,7 @@ export function AddCardForm({
   };
 
   const submitTextCard = async (): Promise<boolean> => {
-    const submittedContent = latestContentRef.current;
+    const submittedContent = latestContent();
     if (!submittedContent.trim()) {
       return false;
     }
@@ -306,7 +200,7 @@ export function AddCardForm({
       return await saveNote(submittedContent, {
         onNotSaved: () => restoreDraft(submittedContent),
         onRestored: () => {
-          if (latestContentRef.current.trim() === submittedContent.trim()) {
+          if (latestContent().trim() === submittedContent.trim()) {
             resetDraft();
           }
         },
@@ -328,14 +222,6 @@ export function AddCardForm({
 
   return (
     <>
-      {pasteJobs.map((job) => (
-        <LinkPasteProgressToast
-          job={job}
-          key={job.jobId}
-          onFinished={handlePasteFinished}
-          onUpgrade={handleUpgrade}
-        />
-      ))}
       <FocusEditor
         canSave={Boolean(content.trim())}
         cardLinks={cardLinks}
@@ -351,7 +237,7 @@ export function AddCardForm({
       <Card
         className="group/composer relative min-h-36 w-full overflow-hidden p-0 shadow-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         {...{ [NEW_NOTE_COMPOSER_ATTRIBUTE]: "" }}
-        onFocus={onFocus}
+        onFocus={focusHandled}
       >
         {!hasContent && (
           <ShortcutKeys
@@ -369,7 +255,7 @@ export function AddCardForm({
           >
             <MarkdownTextEditor
               ariaLabel={tEditor("note.contentLabel")}
-              autoFocus={autoFocus}
+              autoFocus={autoFocus || focusPending}
               blurOnEscape
               cardLinks={cardLinks}
               className={cn(

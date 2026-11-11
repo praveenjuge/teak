@@ -1,4 +1,4 @@
-import { sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import { sanitizeUrl } from "../../../linkPreview/parsing";
 
 export const INSTAGRAM_HOSTNAME = "instagram.com";
 export const INSTAGRAM_MEDIA_MIN_DIM = 200;

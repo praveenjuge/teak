@@ -23,6 +23,23 @@ interface CachedPreview {
   source: string;
 }
 
+/**
+ * Whether the open card reads a document's file as text (Markdown or source
+ * code), so a card about to open can fetch it early.
+ */
+export const previewsAsText = (
+  format: { preview: string } | null | undefined
+): boolean => format?.preview === "markdown" || format?.preview === "source";
+
+/** What a document's text is cached under: its storage key, or its URL. */
+export const textPreviewKey = ({
+  fileKey,
+  fileUrl,
+}: {
+  fileKey?: string;
+  fileUrl: string;
+}): string => fileKey ?? fileUrl;
+
 const previewCache = new Map<string, CachedPreview>();
 const previewRequests = new Map<string, Promise<string | null>>();
 let previewCacheBytes = 0;

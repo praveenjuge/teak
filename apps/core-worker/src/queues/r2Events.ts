@@ -4,6 +4,7 @@ import {
   type FilesOpOutcome,
   isPendingUploadKey,
 } from "@teak/files-protocol";
+import { errorMessage } from "../errors";
 import { callFilesOp } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 
@@ -119,7 +120,7 @@ export const handleR2EventsBatch = async (
     } catch (error) {
       console.error("[r2-events] pending uploads not re-queued", {
         count: later.length,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       });
       for (const { message } of later) {
         message.retry({ delaySeconds: 60 });
@@ -132,7 +133,7 @@ export const handleR2EventsBatch = async (
       message.ack();
     } catch (error) {
       console.error("[r2-events] pending upload cleanup failed", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       });
       message.retry({ delaySeconds: 60 });
     }

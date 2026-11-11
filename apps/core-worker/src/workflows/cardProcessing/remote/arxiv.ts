@@ -138,7 +138,7 @@ export const fetchArxivDetails = async (
   if (!id) {
     return null;
   }
-  if (deps.takeArxivSlot && !(await deps.takeArxivSlot().catch(() => false))) {
+  if (deps.takeArxivSlot && !(await deps.takeArxivSlot())) {
     return null;
   }
   const { text } = await fetchRemoteText(arxivApiUrl(id), deps, {

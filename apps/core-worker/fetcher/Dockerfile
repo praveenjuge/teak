@@ -3,7 +3,6 @@ WORKDIR /build
 COPY apps/core-worker/fetcher/package.json apps/core-worker/fetcher/bun.lock ./
 RUN bun install --frozen-lockfile --production
 COPY packages/files-protocol/src packages/files-protocol/src
-COPY packages/convex/linkMetadata/ssrf.ts packages/convex/linkMetadata/staticHtml.ts packages/convex/linkMetadata/types.ts packages/convex/linkMetadata/
 COPY apps/core-worker/fetcher/src apps/core-worker/fetcher/src
 # pinnedFetch needs Bun 1.4.3+ (fetch with tls.serverName and proxy: false).
 RUN bun build apps/core-worker/fetcher/src/server.ts --compile --minify --target=bun-linux-x64-musl --outfile /build/fetcher

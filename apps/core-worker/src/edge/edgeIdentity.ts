@@ -1,4 +1,4 @@
-import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
+import { bearerCredentialKind, parseBearer } from "@teak/convex/shared/bearer";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
 import { verifyWorkosConnectTokenSignature } from "@teak/convex/workos/tokens";
 import {
@@ -34,7 +34,6 @@ export const EDGE_IDENTITY_KNOWN_TTL_SECONDS = 300;
 /** KV's minimum TTL, so a brand-new key is recognized within a minute. */
 export const EDGE_IDENTITY_UNKNOWN_TTL_SECONDS = 60;
 const LOOKUP_TIMEOUT_MS = 2000;
-const MAX_JWT_LENGTH = 16_384;
 
 export interface EdgeIdentityDeps {
   chargeLookup?: () => Promise<"charged" | "refused" | "uncharged">;
@@ -95,16 +94,6 @@ const addressIdentity = (
   key: addressKey(request),
   source: "address",
 });
-
-const bearerToken = (request: Request): string | null => {
-  const [scheme, token] = (request.headers.get("authorization") ?? "")
-    .trim()
-    .split(/\s+/u, 2);
-  return scheme?.toLowerCase() === "bearer" && token ? token : null;
-};
-
-const looksLikeJwt = (token: string): boolean =>
-  token.length <= MAX_JWT_LENGTH && token.split(".").length === 3;
 
 const audienceFor = (request: Request, host: string): string => {
   const resources = workosResourcesFor(`https://${host}`);
@@ -205,13 +194,14 @@ export const resolveEdgeIdentity = async (
 ): Promise<EdgeIdentity> => {
   const fetcher = deps.fetcher ?? fetch;
   const verifyToken = deps.verifyToken ?? verifyWorkosConnectTokenSignature;
-  const token = bearerToken(request);
+  const token = parseBearer(request.headers.get("authorization"));
   if (!(token && env.API_UPSTREAM_ORIGIN)) {
     return addressIdentity(request);
   }
 
-  if (getApiKeyFormat(token) === "component") {
-    const tokenHash = await sha256Hex(token.trim());
+  const credentialKind = bearerCredentialKind(token);
+  if (credentialKind === "api_key") {
+    const tokenHash = await sha256Hex(token);
     const cacheKey = edgeIdentityKeyForToken(tokenHash);
     let owner = await readCachedOwner(env, cacheKey);
     let charge: "charged" | "refused" | "uncharged" = "uncharged";
@@ -236,7 +226,13 @@ export const resolveEdgeIdentity = async (
       : addressIdentity(request);
   }
 
-  if (!(looksLikeJwt(token) && env.API_WORKOS_ISSUER && env.API_PUBLIC_HOST)) {
+  if (
+    !(
+      credentialKind === "workos_connect" &&
+      env.API_WORKOS_ISSUER &&
+      env.API_PUBLIC_HOST
+    )
+  ) {
     return addressIdentity(request);
   }
   const principal = await verifyToken(token, {

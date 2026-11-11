@@ -277,9 +277,8 @@ export const completeImportUpload = action({
             token: claim,
           })
         ) {
-          await callCoreWorkerOp({
-            op: "delete-objects",
-            params: { keys: [job.sourceKey] },
+          await ctx.runMutation(internal.storage.objectDeletion.enqueue, {
+            keys: [job.sourceKey],
           });
         }
         throw new ConvexError({

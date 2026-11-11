@@ -1,16 +1,12 @@
 import type { CardType } from "@teak/convex/shared/constants";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
+import { CARD_PARAM, SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
+import type { TeakTranslator } from "@teak/i18n";
 import { APP_ACTION_IDS, APP_ACTIONS, appActionKey } from "./appCommands";
 import { cardTitle } from "./cardTypes";
-import { getDisplayHostname } from "./displayHost";
-import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { isOverlayOpen } from "./keyboardShortcuts";
-import { CARD_PARAM, cardHref, libraryHref, searchWithout } from "./libraryUrl";
+import { cardHref, libraryHref, searchWithout } from "./libraryUrl";
 import {
   LIBRARY_VIEW_PATHS,
   libraryViewFlags,
@@ -19,12 +15,6 @@ import {
 import type { LinkTitleTranslator } from "./linkTitle";
 import { isApplePlatform, isModKey } from "./platform";
 import { librarySearchHref } from "./searchUrlState";
-
-const englishPalette = createTeakTranslator(
-  "en",
-  englishMessages,
-  "commandPalette"
-);
 
 export const PALETTE_MIN_CARD_QUERY_LENGTH = 2;
 export const PALETTE_CARD_LIMIT = 8;
@@ -132,7 +122,7 @@ export function parseSettingsDialogParam(
 }
 
 export const settingsDataHref = (tab: SettingsDialogTab) =>
-  `/settings/data#${tab}`;
+  `${SETTINGS_PATHS.data}#${tab}`;
 
 export function paletteCardSearchArgs(
   query: string,
@@ -164,8 +154,8 @@ const MAX_PALETTE_TITLE_LENGTH = 300;
 
 export function paletteCardTitle(
   card: PaletteCard,
-  t: TeakTranslator<"commandPalette"> = englishPalette,
-  linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
+  t: TeakTranslator<"commandPalette">,
+  linkTitle: LinkTitleTranslator
 ): string {
   return (cardTitle(card, linkTitle) || t("cards.untitled")).slice(
     0,
@@ -178,5 +168,5 @@ export function paletteCardHost(card: PaletteCard): string | undefined {
     return;
   }
   // A stored urlHost is already without `www.`.
-  return card.urlHost || getDisplayHostname(card.url);
+  return card.urlHost || urlHostForDisplay(card.url);
 }

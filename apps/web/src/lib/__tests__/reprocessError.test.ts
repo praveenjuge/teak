@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { ConvexError } from "convex/values";
+import { englishTranslator } from "../englishTranslators";
 import { getReprocessErrorMessage } from "../reprocessError";
+
+const reprocessT = englishTranslator("lib.reprocess");
+const errorsT = englishTranslator("errors");
 
 describe("getReprocessErrorMessage", () => {
   test.each([
@@ -8,9 +12,13 @@ describe("getReprocessErrorMessage", () => {
     ["CONFLICT", "Restore this card from Trash before refreshing it"],
     ["NOT_FOUND", "Card not found"],
   ])("shows the backend's own %s message", (code, message) => {
-    expect(getReprocessErrorMessage(new ConvexError({ code, message }))).toBe(
-      message
-    );
+    expect(
+      getReprocessErrorMessage(
+        new ConvexError({ code, message }),
+        reprocessT,
+        errorsT
+      )
+    ).toBe(message);
   });
 
   test.each([
@@ -26,7 +34,7 @@ describe("getReprocessErrorMessage", () => {
     ["a string", "boom"],
     ["nothing", undefined],
   ])("falls back to a generic line for %s", (_label, error) => {
-    expect(getReprocessErrorMessage(error)).toBe(
+    expect(getReprocessErrorMessage(error, reprocessT, errorsT)).toBe(
       "Couldn't refresh this card. Try again in a moment."
     );
   });

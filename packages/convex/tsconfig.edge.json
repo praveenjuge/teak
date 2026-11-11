@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "lib": ["ESNext", "dom"],
     "types": ["vite/client", "node"]
   },
   "include": ["./edge"],

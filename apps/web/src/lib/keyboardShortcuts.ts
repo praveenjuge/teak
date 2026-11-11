@@ -1,8 +1,4 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import {
   type AppActionId,
   appActionKeys,
@@ -19,12 +15,6 @@ import { isApplePlatform, isModKey } from "./platform";
 type ShortcutsTranslator = TeakTranslator<"shortcuts">;
 type ShortcutGroupId = keyof (typeof englishMessages)["shortcuts"]["groups"];
 type ShortcutRowId = keyof (typeof englishMessages)["shortcuts"]["rows"];
-
-const englishShortcuts = createTeakTranslator(
-  "en",
-  englishMessages,
-  "shortcuts"
-);
 
 export interface ShortcutRow {
   combo?: boolean;
@@ -152,7 +142,7 @@ const SHORTCUT_GROUPS: {
 ];
 
 export const keyboardShortcutGroups = (
-  t: ShortcutsTranslator = englishShortcuts
+  t: ShortcutsTranslator
 ): ShortcutGroup[] =>
   SHORTCUT_GROUPS.map((group) => ({
     id: group.id,

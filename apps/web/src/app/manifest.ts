@@ -1,5 +1,15 @@
 import type { MetadataRoute } from "next";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
+import {
+  SHARE_ACTION_PATH,
+  SHARE_FILES_FIELD,
+  SHARE_TEXT_FIELDS,
+  type ShareTextField,
+} from "@/lib/share/sharedContent";
+
+const shareTextParams = Object.fromEntries(
+  SHARE_TEXT_FIELDS.map((field) => [field, field])
+) as Record<ShareTextField, ShareTextField>;
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -39,16 +49,14 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     share_target: {
-      action: "/share",
+      action: SHARE_ACTION_PATH,
       method: "POST",
       enctype: "multipart/form-data",
       params: {
-        title: "title",
-        text: "text",
-        url: "url",
+        ...shareTextParams,
         files: [
           {
-            name: "files",
+            name: SHARE_FILES_FIELD,
             accept: [
               "image/*",
               "video/*",

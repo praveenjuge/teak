@@ -8,7 +8,7 @@ import {
 } from "../securitySessions";
 import { urlKey } from "../shared/utils/urlKey";
 import { cardReturnValidator } from "./getCards";
-import { attachCardDetailUrls } from "./queryUtils";
+import { finishCardDetail } from "./queryUtils";
 
 export const findLiveCardByUrl = (
   ctx: Pick<QueryCtx, "db">,
@@ -68,7 +68,7 @@ export const findDuplicateCardForUserHandler = async (
     return null;
   }
 
-  return await attachCardDetailUrls(ctx, duplicate);
+  return await finishCardDetail(ctx, duplicate);
 };
 
 export const findDuplicateCard = query({

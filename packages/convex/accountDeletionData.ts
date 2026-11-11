@@ -11,13 +11,8 @@ import {
   accountDeletionFailure,
   accountDeletionStage,
 } from "./accountDeletion/stages";
+import { bindingArgs, readDeletionState } from "./accountDeletion/state";
 import { SWEPT_TABLES, sweepAccountRows } from "./accountDeletion/tables";
-import { readDeletionState } from "./accountDeletionJobs";
-
-const bindingArgs = {
-  stateId: v.id("accountDeletionStates"),
-  generation: v.number(),
-};
 export const cancelJobsPage = internalMutation({
   args: {
     ...bindingArgs,

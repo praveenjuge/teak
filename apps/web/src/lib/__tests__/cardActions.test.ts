@@ -4,8 +4,11 @@ import {
   type CardActionId,
   cardActionForKey,
   cardAriaKeyShortcuts,
+  GRID_CARD_ACTIONS,
+  STRIP_CARD_ACTIONS,
   selectionShortcut,
 } from "../cardActions";
+import { englishTranslator } from "../englishTranslators";
 import { keyboardShortcutGroups } from "../keyboardShortcuts";
 
 const GRID_WITH_COPY: ReadonlySet<CardActionId> = new Set([
@@ -30,6 +33,20 @@ const GRID: ReadonlySet<CardActionId> = new Set([
   "deleteForever",
   "select",
 ]);
+
+describe("card menus", () => {
+  test("a grid card offers everything but marking done, which the open card does", () => {
+    expect(GRID_CARD_ACTIONS.has("done")).toBe(false);
+    expect(GRID_CARD_ACTIONS.has("select")).toBe(true);
+  });
+
+  test("a pinned card offers nothing that needs a selection or Trash", () => {
+    for (const action of ["select", "restore", "deleteForever"] as const) {
+      expect(STRIP_CARD_ACTIONS.has(action)).toBe(false);
+    }
+    expect(STRIP_CARD_ACTIONS.has("pin")).toBe(true);
+  });
+});
 
 describe("cardActionForKey", () => {
   test.each([
@@ -89,7 +106,9 @@ describe("keyboard shortcuts list", () => {
 
   test("lists the key that runs each card action, in the grid and the open card", () => {
     const link: ActionCard = { type: "link", url: "https://example.com" };
-    for (const group of keyboardShortcutGroups()) {
+    for (const group of keyboardShortcutGroups(
+      englishTranslator("shortcuts")
+    )) {
       if (group.id !== "cards" && group.id !== "openCard") {
         continue;
       }

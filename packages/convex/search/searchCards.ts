@@ -10,8 +10,11 @@ import {
   normalizeCardListSort,
   takeCardList,
 } from "../card/listQuery";
-import { attachFileUrls, ensureValidRange } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
+import {
+  attachGridFileUrls,
+  ensureValidRange,
+  finishCards,
+} from "../card/queryUtils";
 import {
   applyCardLevelFilters,
   findVisualMatches,
@@ -19,13 +22,17 @@ import {
 } from "../card/visualFilters";
 import { cardTypeValidator } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
-import { clampSearchLimit } from "../shared/search/constants";
+import {
+  clampSearchLimit,
+  resolveQuickSearchCommand,
+} from "../shared/search/constants";
 import { withReadMeter } from "./readMeter";
 import {
   createdAtRangeValidator,
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
 } from "./searchCardsPaginated";
+import { quickCommandList } from "./searchPlanner";
 import { searchCardsByDocument } from "./searchReads";
 
 // The search queries the apps call as `cards:searchCards` and
@@ -88,45 +95,22 @@ export const searchCards = query({
     });
 
     if (searchQuery?.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-
-      if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-      ) {
-        const favorites = await takeCardList(
+      const command = resolveQuickSearchCommand(searchQuery);
+      if (command) {
+        const view = quickCommandList(command, favoritesOnly);
+        const listed = await takeCardList(
           ctx,
-          { userId: user.teakUserId, favoritesOnly: true },
+          { userId: user.teakUserId, ...view.list },
           order,
           limit
         );
-        const filteredFavorites = applyCardLevelFilters(
-          keepVisible(favorites),
-          {
-            types,
-            favoritesOnly: true,
-            createdAtRange,
-            visualFilters,
-          }
-        ).slice(0, limit);
-        const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
-        return applyQuoteFormattingToList(favoritesWithUrls);
-      }
-
-      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        const trashed = await takeCardList(
-          ctx,
-          { userId: user.teakUserId, scope: "trash" },
-          order,
-          limit
-        );
-        const filteredTrashed = applyCardLevelFilters(keepVisible(trashed), {
+        const filtered = applyCardLevelFilters(keepVisible(listed), {
           types,
-          favoritesOnly,
+          favoritesOnly: view.favoritesOnly,
           createdAtRange,
           visualFilters,
         }).slice(0, limit);
-        const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
-        return applyQuoteFormattingToList(trashedWithUrls);
+        return finishCards(filtered);
       }
 
       const uniqueResults = await searchCardsByDocument(ctx, {
@@ -157,8 +141,7 @@ export const searchCards = query({
         .sort((a, b) => compareCardsBySavedAt(a, b, sort))
         .slice(0, limit);
 
-      const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
-      return applyQuoteFormattingToList(resultsWithUrls);
+      return finishCards(limitedResults);
     }
 
     if (visualFilters.hasVisualFilters) {
@@ -173,11 +156,7 @@ export const searchCards = query({
         sort,
       });
       const limitedVisualResults = visualResults.slice(0, limit);
-      const visualResultsWithUrls = await attachFileUrls(
-        ctx,
-        limitedVisualResults
-      );
-      return applyQuoteFormattingToList(visualResultsWithUrls);
+      return finishCards(limitedVisualResults);
     }
 
     const cards = keepVisible(
@@ -196,8 +175,7 @@ export const searchCards = query({
         limit
       )
     );
-    const cardsWithUrls = await attachFileUrls(ctx, cards);
-    return applyQuoteFormattingToList(cardsWithUrls);
+    return finishCards(cards);
   },
 });
 
@@ -207,7 +185,7 @@ export const searchCardsPaginated = query({
   handler: (ctx, args) =>
     withReadMeter(ctx, args, (metered, reportSearch) =>
       searchCardsPaginatedHandler(metered, args, {
-        gridOnly: true,
+        attach: attachGridFileUrls,
         reportSearch,
       })
     ),

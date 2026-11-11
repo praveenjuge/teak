@@ -1,10 +1,10 @@
+import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { isCardLimitError, isRateLimitError } from "@/lib/cardErrors";
-import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 
 export type CreateFailureKind = "cardLimit" | "rateLimited";
 
@@ -27,7 +27,7 @@ export function useUpgradeAction() {
   const tLimits = useTranslations("forms.limits");
 
   const handleUpgrade = useCallback(() => {
-    router.push(SETTINGS_PLAN_HREF);
+    router.push(SETTINGS_PATHS.plan);
   }, [router]);
 
   const showUpgradeToast = useCallback(

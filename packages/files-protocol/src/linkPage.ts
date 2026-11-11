@@ -9,12 +9,21 @@ export interface FilesLinkPageParams {
   url: string;
 }
 
+export const FILES_LINK_PAGE_FAILURE_REASONS = [
+  "blocked_url",
+  "fetch_failed",
+  "http_error",
+  "too_large",
+  "unsupported_type",
+] as const;
+
 export type FilesLinkPageFailureReason =
-  | "blocked_url"
-  | "fetch_failed"
-  | "http_error"
-  | "too_large"
-  | "unsupported_type";
+  (typeof FILES_LINK_PAGE_FAILURE_REASONS)[number];
+
+export const isLinkPageFailureReason = (
+  value: unknown
+): value is FilesLinkPageFailureReason =>
+  (FILES_LINK_PAGE_FAILURE_REASONS as readonly unknown[]).includes(value);
 
 export type FilesLinkPageResult =
   | {

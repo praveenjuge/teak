@@ -149,11 +149,7 @@ describe("like: in the grid", () => {
       searchQuery: `like:${cards.anchor}`,
       paginationOpts: { numItems: 50, cursor: null },
     });
-    expect(
-      page.page.every(
-        (card: { matchedByMeaning?: true }) => card.matchedByMeaning
-      )
-    ).toBe(true);
+    expect(page.page.every((card) => card.matchedByMeaning)).toBe(true);
   });
 
   test("narrows by qualifiers, views and words", async () => {

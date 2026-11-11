@@ -12,6 +12,7 @@ import type {
   serializeFolderRuleRun,
   serializeHighlight,
   serializeListCard,
+  serializeTagOperation,
 } from "@teak/convex/publicApi/http/serializers";
 import type {
   Card,
@@ -19,6 +20,7 @@ import type {
   Folder,
   FolderRuleRun,
   Highlight,
+  TagOperation,
 } from "./index";
 
 type IsNever<T> = [T] extends [never] ? true : false;
@@ -35,6 +37,7 @@ type ApiListCard = ReturnType<typeof serializeListCard>;
 type ApiFolder = ReturnType<typeof serializeFolder>;
 type ApiRuleRun = ReturnType<typeof serializeFolderRuleRun>;
 type ApiHighlight = ReturnType<typeof serializeHighlight>;
+type ApiTagOperation = ReturnType<typeof serializeTagOperation>;
 
 const checks = {
   cardKeys: true as SameKeys<ApiCard, Card>,
@@ -45,6 +48,8 @@ const checks = {
   ruleRunKeys: true as SameKeys<ApiRuleRun, FolderRuleRun>,
   highlightKeys: true as SameKeys<ApiHighlight, Highlight>,
   highlightFits: true as Fits<ApiHighlight, Highlight>,
+  tagOperationKeys: true as SameKeys<ApiTagOperation, TagOperation>,
+  tagOperationFits: true as Fits<ApiTagOperation, TagOperation>,
 } satisfies Record<string, true>;
 
 test("the SDK's response types match the API's serializers", () => {

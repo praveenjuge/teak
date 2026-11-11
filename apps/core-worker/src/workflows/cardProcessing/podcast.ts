@@ -1,6 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { runWithAiUsage } from "../../ai/aiUsage";
+import { errorMessage } from "../../errors";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
   type GeneratedMetadata,
@@ -231,7 +232,7 @@ export const transcribeFoundEpisode = async (
         } catch (error) {
           console.warn("[cardProcessing/podcast] summary not regenerated", {
             cardId: job.cardId,
-            message: error instanceof Error ? error.message : String(error),
+            message: errorMessage(error),
           });
         }
         const writesText = Boolean(
@@ -262,7 +263,7 @@ export const transcribeFoundEpisode = async (
     } catch (error) {
       console.warn("[cardProcessing/podcast] episode audio not deleted", {
         cardId: job.cardId,
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       });
     }
     // Not guarded: forgetting a deleted object is right whichever run owns

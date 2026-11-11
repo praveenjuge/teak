@@ -1,9 +1,5 @@
 import { type CardType, cardTypes } from "@teak/convex/shared/constants";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { Dices, FolderSearch, Layers, SlidersHorizontal } from "vadivam-react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +24,7 @@ import { CARD_DENSITIES, type CardDensity } from "../../lib/cardDensity";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
-import {
-  type CardTypesTranslator,
-  englishCardTypes,
-} from "../cards/cardTypeLabel";
-
-const englishSearch = createTeakTranslator("en", englishMessages, "search");
+import type { CardTypesTranslator } from "../cards/cardTypeLabel";
 
 interface ViewMenuProps {
   activeTypes: readonly CardType[];
@@ -50,9 +41,9 @@ interface ViewMenuProps {
 
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
-  sort: LibrarySort = "newest",
-  t: TeakTranslator<"search"> = englishSearch,
-  types: CardTypesTranslator = englishCardTypes
+  sort: LibrarySort,
+  t: TeakTranslator<"search">,
+  types: CardTypesTranslator
 ): string => {
   const parts = activeTypes.map((type) => types(type));
   if (sort === "oldest") {

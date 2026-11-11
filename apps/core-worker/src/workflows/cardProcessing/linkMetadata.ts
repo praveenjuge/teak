@@ -1,25 +1,26 @@
 import { internal } from "@teak/convex/_generated/api";
 import {
-  buildErrorPreview,
-  buildSuccessPreview,
-  parseLinkPreview,
-} from "@teak/convex/linkMetadata/parsing";
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import { assertUrlIsSafe, SsrfError } from "@teak/convex/linkMetadata/ssrf";
-import type {
-  LinkPreviewMediaItem,
-  LinkPreviewMetadata,
-  ScrapeResponse,
-} from "@teak/convex/linkMetadata/types";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
-import {
   type FilesLinkPageResult,
   type FilesRemoteAssetKind,
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
-import { batchOp } from "../../convexRpc";
-import { isTransientError } from "../deps";
+import { assertUrlIsSafe, SsrfError } from "@teak/files-protocol/ssrf";
+import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import { errorMessage } from "../../errors";
+import {
+  buildErrorPreview,
+  buildSuccessPreview,
+  parseLinkPreview,
+} from "../../linkPreview/parsing";
+import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
+import type {
+  LinkPreviewMediaItem,
+  LinkPreviewMetadata,
+  ScrapeResponse,
+} from "../../linkPreview/types";
+import { normalizeUrl } from "../../linkPreview/url";
+import { decodeStepError, encodeStepError } from "../errors";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -57,7 +58,7 @@ interface LinkMetadataRetryableError {
 }
 
 const throwRetryable = (info: LinkMetadataRetryableError): never => {
-  throw new Error(`${LINK_METADATA_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+  throw encodeStepError(LINK_METADATA_RETRYABLE_PREFIX, info);
 };
 
 const errorFields = (error: unknown): { message?: string; name?: string } => {
@@ -73,21 +74,8 @@ const errorFields = (error: unknown): { message?: string; name?: string } => {
 
 export const parseLinkMetadataRetryableError = (
   error: unknown
-): LinkMetadataRetryableError | null => {
-  const message = error instanceof Error ? error.message : String(error);
-  const start = message.indexOf(LINK_METADATA_RETRYABLE_PREFIX);
-  if (start === -1) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(
-      message.slice(start + LINK_METADATA_RETRYABLE_PREFIX.length)
-    ) as LinkMetadataRetryableError;
-    return parsed && typeof parsed.type === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-};
+): LinkMetadataRetryableError | null =>
+  decodeStepError(LINK_METADATA_RETRYABLE_PREFIX, error);
 
 export const keepPreviewAfterFailedRefresh = async (
   job: CardJob,
@@ -217,7 +205,7 @@ const storeRemoteAsset = async (
       throw error;
     }
     console.warn("[linkMetadata] Remote asset fetch error", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     if (retryTransient) {
       throw new Error(`${REMOTE_ASSET_RETRYABLE_PREFIX}error`);
@@ -386,7 +374,7 @@ const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
     }
     page = outcome.data;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[linkMetadata] Link page fetch unavailable", { message });
     return throwRetryable({
       details: { error: message },
@@ -680,14 +668,14 @@ const fetchAndSave = async (
     }
 
     if (!payload.success) {
-      const errorMessage =
+      const scrapeError =
         payload.errors
           ?.map((error) => error?.message)
           .filter(Boolean)
           .join("; ") || "Unknown scrape error";
       throwRetryable({
         details: { fallback: payload.errors },
-        message: errorMessage,
+        message: scrapeError,
         normalizedUrl,
         type: scrapeHttpStatus(payload) === 429 ? "rate_limit" : "scrape_error",
       });
@@ -760,7 +748,7 @@ const fetchAndSave = async (
     const { message, name } = errorFields(error);
     // A Convex call that didn't reach Convex says nothing about the link.
     if (
-      isTransientError(error) ||
+      isConvexRpcUnavailable(error) ||
       message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX) ||
       name === "NonRetryableError"
     ) {

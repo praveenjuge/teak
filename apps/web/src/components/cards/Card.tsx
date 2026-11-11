@@ -1,11 +1,5 @@
-import { api } from "@teak/convex";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { useAction } from "convex/react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { memo, use, useRef } from "react";
 import {
@@ -41,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openCardLink } from "@/lib/openCardLink";
+import { useCopyCard } from "../../hooks/useCardClipboard";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import {
@@ -55,11 +50,6 @@ import {
   GRID_CARD_ACTIONS,
 } from "../../lib/cardActions";
 import {
-  cardCopyKind,
-  cardCopyText,
-  resolveImageCopyUrl,
-} from "../../lib/cardCopy";
-import {
   cardFileFormat,
   cardTitle,
   linkCardTitle as linkTitleOf,
@@ -72,8 +62,11 @@ import { runMenuItemShortcut } from "../../lib/menuShortcuts";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { cn } from "../../lib/utils";
 import { preloadCardModal } from "../card-modal/LazyCardModal";
-import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
-import { FirstPaintCopyContext } from "../grids/firstPaintCopy";
+import {
+  prefetchFileTextPreview,
+  previewsAsText,
+  textPreviewKey,
+} from "../card-previews/fileTextPreviewCache";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
   CardActionIcon,
@@ -87,21 +80,15 @@ import {
   QuickActionButton,
 } from "./CardMenu";
 import { isCardProcessing } from "./cardDisplay";
+import { CARD_ID_ATTRIBUTE } from "./cardElement";
+import { FirstPaintCopyContext } from "./firstPaintCopy";
 import { useLinkCardImage } from "./linkCardImage";
 import type { CardProps, CardWithUrls } from "./types";
 import { isOptimisticCard } from "./types";
 
-export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
-
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
 type AccessibleLabelTranslator = TeakTranslator<"cards.accessibleLabel">;
-
-const englishAccessibleLabel: AccessibleLabelTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cards.accessibleLabel"
-);
 
 export function getCardAccessibleLabel(
   card: Pick<
@@ -114,8 +101,8 @@ export function getCardAccessibleLabel(
     | "type"
     | "url"
   >,
-  t: AccessibleLabelTranslator = englishAccessibleLabel,
-  linkTitle?: LinkTitleTranslator
+  t: AccessibleLabelTranslator,
+  linkTitle: LinkTitleTranslator
 ): string {
   const type = card.type || "card";
   const title = cardTitle(card, linkTitle);
@@ -136,7 +123,6 @@ export const Card = memo(function Card({
   onClick,
   onEditFolders,
   onEditLink,
-  onCopyImage,
   isSelectionMode,
   isSelected,
   isPriority = false,
@@ -148,9 +134,7 @@ export const Card = memo(function Card({
   const tLabel = useTranslations("cards.accessibleLabel");
   const apple = useIsApplePlatform();
   const tLinkTitle = useTranslations("lib.linkTitle");
-  const refreshCardMediaUrl = useAction(
-    api.card.getFileUrl.refreshCardMediaUrl
-  );
+  const { copy: copyCard } = useCopyCard();
   const { pendingCardId: reprocessingCardId, reprocess } = useReprocessCard();
   const isOptimistic = isOptimisticCard(card._id);
   const isFirstPaintCopy = use(FirstPaintCopyContext);
@@ -158,18 +142,15 @@ export const Card = memo(function Card({
   const fileFormat = card.type === "document" ? cardFileFormat(card) : null;
 
   const prefetchDocumentPreview = () => {
-    if (
-      isOptimistic ||
-      !card.fileKey ||
-      !card.fileUrl ||
-      !fileFormat ||
-      !["markdown", "source"].includes(fileFormat.preview)
-    ) {
+    if (isOptimistic || !card.fileUrl || !previewsAsText(fileFormat)) {
       return;
     }
 
     void prefetchFileTextPreview({
-      cacheKey: card.fileKey,
+      cacheKey: textPreviewKey({
+        fileKey: card.fileKey,
+        fileUrl: card.fileUrl,
+      }),
       fileUrl: card.fileUrl,
     }).catch(() => undefined);
   };
@@ -212,7 +193,7 @@ export const Card = memo(function Card({
       (window.getSelection()?.isCollapsed ?? true)
     ) {
       event.preventDefault();
-      handleCopyImage();
+      handleCopy();
     }
   };
 
@@ -232,25 +213,9 @@ export const Card = memo(function Card({
     void reprocess(card._id);
   };
 
-  // Runs straight from the click or key press: the clipboard write has to
-  // start before any await (see copyCardContentToClipboard).
-  const handleCopyImage = () => {
-    if (isOptimistic) {
-      return;
-    }
-    if (cardCopyKind(card) === "image") {
-      const url = resolveImageCopyUrl({
-        cardId: card._id,
-        fallbackUrl: card.fileUrl ?? card.thumbnailUrl ?? "",
-        fileKey: card.fileKey,
-        refresh: refreshCardMediaUrl,
-      });
-      onCopyImage?.(url, true);
-      return;
-    }
-    const text = cardCopyText(card);
-    if (text) {
-      onCopyImage?.(text, false);
+  const handleCopy = () => {
+    if (!isOptimistic) {
+      copyCard(card);
     }
   };
 
@@ -334,7 +299,7 @@ export const Card = memo(function Card({
             icon: Copy,
             id: "copy",
             label: copyMenuLabel,
-            onSelect: handleCopyImage,
+            onSelect: handleCopy,
             shortcut: copyCardShortcut(apple),
           },
         ]
@@ -443,9 +408,10 @@ export const Card = memo(function Card({
               isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
               card.isDeleted && "opacity-60"
             )}
-            data-card-id={
-              isOptimistic || isFirstPaintCopy ? undefined : card._id
-            }
+            {...{
+              [CARD_ID_ATTRIBUTE]:
+                isOptimistic || isFirstPaintCopy ? undefined : card._id,
+            }}
             draggable={canDrag}
             onClick={handleClick}
             onDragStart={canDrag ? handleDragStart : undefined}

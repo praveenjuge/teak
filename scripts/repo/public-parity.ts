@@ -5,7 +5,10 @@ import {
   type TeakTool,
   toolInputSchema,
 } from "../../packages/convex/mcp/catalog";
-import type { PublicApiOperationId } from "../../packages/convex/shared/publicApiContract";
+import {
+  PUBLIC_API_OPERATION_IDS,
+  type PublicApiOperationId,
+} from "../../packages/convex/shared/publicApiContract";
 import { SDK_OPERATIONS } from "../../packages/sdk/src/operations";
 
 export interface IntentionalGap {
@@ -14,20 +17,22 @@ export interface IntentionalGap {
 
 export type Surface = readonly string[] | IntentionalGap;
 
-export interface PublicParityRow {
+export interface PublicParityGaps {
   /** Why no CLI command calls the operation; the commands that do declare it. */
   cliGap?: IntentionalGap;
-  feature: string;
   /**
    * Why no MCP tool calls the operation. The tools that do are read from
    * the MCP catalog, which names each tool's operation.
    */
   mcp?: IntentionalGap;
-  operationId: PublicApiOperationId;
   /** The Raycast AI tools (`apps/raycast/src/tools`) that call it. */
   raycast?: readonly string[];
   /** Why no SDK member calls the operation; the members that do declare it. */
   sdkGap?: IntentionalGap;
+}
+
+export interface PublicParityRow extends PublicParityGaps {
+  operationId: PublicApiOperationId;
 }
 
 const INFRASTRUCTURE: IntentionalGap = {
@@ -40,221 +45,81 @@ const NO_AGENT_EXPORTS: IntentionalGap = {
   none: "a full-account ZIP is for people; agents read cards one page at a time",
 };
 
-export const PUBLIC_PARITY: readonly PublicParityRow[] = [
-  {
-    operationId: "getHealth",
-    feature: "Health check",
+/**
+ * What the surfaces leave out, by operation; an operation every surface
+ * reaches has no entry. The MCP tools that call an operation are read from
+ * the catalog, the SDK members and CLI commands from what each declares.
+ */
+export const PUBLIC_PARITY: Partial<
+  Record<PublicApiOperationId, PublicParityGaps>
+> = {
+  getHealth: {
     mcp: INFRASTRUCTURE,
     sdkGap: INFRASTRUCTURE,
     cliGap: INFRASTRUCTURE,
   },
-  {
-    operationId: "getApiDiscovery",
-    feature: "API discovery",
+  getApiDiscovery: {
     mcp: INFRASTRUCTURE,
     sdkGap: INFRASTRUCTURE,
     cliGap: INFRASTRUCTURE,
   },
-  {
-    operationId: "disconnectOAuthConsent",
-    feature: "Disconnect a signed-in app",
+  disconnectOAuthConsent: {
     mcp: { none: "an MCP client is disconnected from Settings, not by itself" },
   },
-  {
-    operationId: "getMe",
-    feature: "Account, plan and usage",
-  },
-  {
-    operationId: "listCards",
-    feature: "List and search cards",
+  listCards: {
     raycast: ["search-cards", "get-recent"],
   },
-  {
-    operationId: "createCard",
-    feature: "Save a card",
+  createCard: {
     raycast: ["save-card"],
   },
-  {
-    operationId: "createUpload",
-    feature: "Upload a file",
-  },
-  {
-    operationId: "bulkCards",
-    feature: "Act on up to 100 cards",
-  },
-  {
-    operationId: "listCardChanges",
-    feature: "Cards changed since a time",
-  },
-  {
-    operationId: "findDuplicateCard",
-    feature: "Find the card that saves a URL",
-  },
-  {
-    operationId: "getCard",
-    feature: "Get a card",
+  getCard: {
     raycast: ["get-card"],
   },
-  {
-    operationId: "updateCard",
-    feature: "Edit, archive or retag a card",
+  updateCard: {
     raycast: ["update-card"],
   },
-  {
-    operationId: "deleteCard",
-    feature: "Move to Trash or delete forever",
-  },
-  {
-    operationId: "restoreCard",
-    feature: "Restore from Trash",
+  restoreCard: {
     cliGap: {
       none: "teak restore restores through bulkCards, up to 100 cards a request",
     },
   },
-  {
-    operationId: "getCardContent",
-    feature: "A card's full text",
-  },
-  {
-    operationId: "refreshCard",
-    feature: "Refresh a card's details",
-  },
-  {
-    operationId: "createThumbnailUpload",
-    feature: "Upload a link's new image",
-  },
-  {
-    operationId: "createPageSnapshotUpload",
-    feature: "Upload the page a link was saved from",
+  createPageSnapshotUpload: {
     mcp: BROWSER_CAPTURE_ONLY,
     cliGap: BROWSER_CAPTURE_ONLY,
   },
-  {
-    operationId: "setCardThumbnail",
-    feature: "Replace a link's image",
-  },
-  {
-    operationId: "resetCardThumbnail",
-    feature: "Reset a link's image",
-  },
-  {
-    operationId: "markCardDone",
-    feature: "Mark a link done",
-  },
-  {
-    operationId: "unmarkCardDone",
-    feature: "Unmark a link done",
+  unmarkCardDone: {
     mcp: {
       none: "teak_v1_set_card_done with done: false calls it; one tool sets both states",
     },
   },
-  {
-    operationId: "saveCardPdf",
-    feature: "Save a paper's PDF",
-  },
-  {
-    operationId: "setCardFavorite",
-    feature: "Favorite a card",
+  setCardFavorite: {
     raycast: ["favorite-card"],
   },
-  {
-    operationId: "setCardPinned",
-    feature: "Pin a card to the top",
-  },
-  {
-    operationId: "reorderPinnedCards",
-    feature: "Reorder pinned cards",
-  },
-  {
-    operationId: "listTags",
-    feature: "List tags",
+  listTags: {
     raycast: ["list-tags"],
   },
-  {
-    operationId: "renameTag",
-    feature: "Rename a tag everywhere",
-  },
-  {
-    operationId: "mergeTags",
-    feature: "Merge tags",
-  },
-  {
-    operationId: "deleteTag",
-    feature: "Delete a tag everywhere",
-  },
-  {
-    operationId: "getTagOperation",
-    feature: "Progress of a tag change",
-  },
-  {
-    operationId: "listFolders",
-    feature: "List folders",
+  listFolders: {
     raycast: ["list-folders"],
   },
-  {
-    operationId: "createFolder",
-    feature: "Create a folder or smart folder",
-  },
-  {
-    operationId: "getFolder",
-    feature: "Get a folder",
-  },
-  {
-    operationId: "updateFolder",
-    feature: "Rename, recolor, change a smart search or a folder's rules",
-  },
-  {
-    operationId: "deleteFolder",
-    feature: "Delete a folder, keeping its cards",
-  },
-  {
-    operationId: "addCardsToFolder",
-    feature: "Add cards to a folder",
-  },
-  {
-    operationId: "removeCardsFromFolder",
-    feature: "Remove cards from a folder",
-  },
-  {
-    operationId: "getFolderRuleRun",
-    feature: "Progress of a folder rule run",
-  },
-  {
-    operationId: "undoFolderRuleRun",
-    feature: "Undo a folder rule run",
-  },
-  {
-    operationId: "listHighlights",
-    feature: "List a link's highlights",
-  },
-  {
-    operationId: "createHighlight",
-    feature: "Highlight a passage of a link's article by its text",
-  },
-  {
-    operationId: "updateHighlight",
-    feature: "Change or clear a highlight's note",
-  },
-  {
-    operationId: "deleteHighlight",
-    feature: "Remove a highlight",
-  },
-  {
-    operationId: "startExport",
-    feature: "Export everything as a ZIP",
+  startExport: {
     mcp: NO_AGENT_EXPORTS,
   },
-  {
-    operationId: "getLatestExport",
-    feature: "The latest export",
+  getLatestExport: {
     mcp: NO_AGENT_EXPORTS,
   },
-];
+};
+
+/** Every public operation with its gaps, in contract order. */
+export const PUBLIC_PARITY_ROWS: readonly PublicParityRow[] =
+  PUBLIC_API_OPERATION_IDS.map((operationId) => ({
+    operationId,
+    ...PUBLIC_PARITY[operationId],
+  }));
 
 export interface AppOnlyChange {
   convex: string;
   feature: string;
-  readBy?: string;
+  readBy?: PublicApiOperationId;
   reason: string;
 }
 

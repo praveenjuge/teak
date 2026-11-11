@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { PinnedFetch } from "../../../../packages/convex/linkMetadata/ssrf";
-import { createFetcherHandler } from "./handler";
+import type { PinnedFetch } from "../../../../packages/files-protocol/src/ssrf";
+import { createFetcherHandler, MAX_REQUEST_BYTES } from "./handler";
 import { FETCHER_HEADERS, FETCHER_MAX_IN_FLIGHT } from "./protocol";
 
 const ONE_PIXEL_PNG = Uint8Array.from(
@@ -291,6 +291,11 @@ describe("link fetcher", () => {
       kind: "image",
       pageUrl: `https://www.figma.com/${"a".repeat(5000)}`,
       url: "https://a/b.png",
+    },
+    {
+      kind: "image",
+      padding: "x".repeat(MAX_REQUEST_BYTES),
+      url: "https://cdn.example/a.png",
     },
   ])("rejects an invalid request %#", async (body) => {
     const { fetchAsset } = setup({}, () => new Response(ONE_PIXEL_PNG));

@@ -1,5 +1,5 @@
 import type { TeakTranslator } from "@teak/i18n";
-import { englishTranslator } from "./englishTranslators";
+import { trimTrailingSlashes } from "./routePath";
 
 export type LibraryView = "all" | "favorites" | "archive" | "trash";
 
@@ -33,26 +33,15 @@ export const libraryViewHref = (
 
 export type LibraryViewsTranslator = TeakTranslator<"lib.libraryViews">;
 
-const englishLibraryViews: LibraryViewsTranslator =
-  englishTranslator("lib.libraryViews");
-
 export const libraryViewLabel = (
   view: LibraryView,
-  t: LibraryViewsTranslator = englishLibraryViews
+  t: LibraryViewsTranslator
 ) => t(`labels.${view}`);
 
 export const libraryViewSearchPlaceholder = (
   view: LibraryView,
-  t: LibraryViewsTranslator = englishLibraryViews
+  t: LibraryViewsTranslator
 ) => t(`searchPlaceholders.${view}`);
-
-function trimTrailingSlashes(path: string): string {
-  let end = path.length;
-  while (end > 1 && path[end - 1] === "/") {
-    end -= 1;
-  }
-  return path.slice(0, end);
-}
 
 export function libraryViewForPath(
   pathname: string | null | undefined

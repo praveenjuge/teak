@@ -1,6 +1,6 @@
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import { ImportLimitExceeded } from "./sourceItems";
 
-const MAX_CSV_ROWS = 10_000;
 const MAX_CSV_COLUMNS = 256;
 /** Rows re-read after an unclosed quote before every quote ends at its line. */
 const MAX_QUOTE_RECOVERIES = 3;
@@ -177,7 +177,7 @@ function scanCsv(
  */
 export function parseCsvRecords(
   input: string,
-  { maxRows = MAX_CSV_ROWS, delimiter = "," }: CsvLimits = {}
+  { maxRows = MAX_IMPORT_CARDS, delimiter = "," }: CsvLimits = {}
 ): CsvRecords {
   const out: CsvRecords = { numbers: [], problems: new Map(), rows: [] };
   let from = 0;

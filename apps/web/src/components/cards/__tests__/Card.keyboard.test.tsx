@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -12,13 +13,37 @@ mock.module("convex/react", () => ({
   useMutation: () => mock(),
 }));
 
+// What a copy put on the clipboard, in order.
+const clipboard: string[] = [];
+Object.defineProperty(navigator, "clipboard", {
+  configurable: true,
+  value: {
+    writeText: (text: string) => {
+      clipboard.push(text);
+      return Promise.resolve();
+    },
+  },
+});
+const copied = async () => {
+  await act(() => Promise.resolve());
+  return clipboard;
+};
+
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { Card, getCardAccessibleLabel } = await import("../Card");
 
+const accessibleLabel = (card: Parameters<typeof getCardAccessibleLabel>[0]) =>
+  getCardAccessibleLabel(
+    card,
+    englishTranslator("cards.accessibleLabel"),
+    englishTranslator("lib.linkTitle")
+  );
+
 let root: Root | undefined;
 
 afterEach(async () => {
+  clipboard.length = 0;
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
@@ -106,24 +131,18 @@ describe("Card keyboard access", () => {
   const OTHER = apple ? "ctrlKey" : "metaKey";
 
   test("copies the card's text with the platform's ⌘C or Ctrl+C", async () => {
-    const onCopyImage = mock();
-    const card = await renderCard({ onCopyImage });
+    const card = await renderCard({});
     await pressCopy(card, MOD);
-    expect(onCopyImage).toHaveBeenCalledWith(
-      "my\\_file\\_name\\_v2 costs 2\\*3",
-      false
-    );
+    expect(await copied()).toEqual(["my\\_file\\_name\\_v2 costs 2\\*3"]);
   });
 
   test("the other platform's key doesn't copy", async () => {
-    const onCopyImage = mock();
-    const card = await renderCard({ onCopyImage });
+    const card = await renderCard({});
     await pressCopy(card, OTHER);
-    expect(onCopyImage).not.toHaveBeenCalled();
+    expect(await copied()).toEqual([]);
   });
 
   test("copies a card link in the note as its title", async () => {
-    const onCopyImage = mock();
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -134,41 +153,36 @@ describe("Card keyboard access", () => {
             content:
               "See [[Garden plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] first",
           })}
-          onCopyImage={onCopyImage}
         />
       )
     );
     const card = container.querySelector<HTMLElement>('[role="button"]');
     await pressCopy(card as HTMLElement, MOD);
-    expect(onCopyImage).toHaveBeenCalledWith("See Garden plan first", false);
+    expect(await copied()).toEqual(["See Garden plan first"]);
   });
 
   test("leaves Cmd+C to the browser while text is selected", async () => {
-    const onCopyImage = mock();
-    const card = await renderCard({ onCopyImage });
+    const card = await renderCard({});
     const paragraph = document.createElement("p");
     paragraph.textContent = "Selected words";
     document.body.append(paragraph);
     window.getSelection()?.selectAllChildren(paragraph);
     await pressCopy(card, MOD);
     window.getSelection()?.removeAllRanges();
-    expect(onCopyImage).not.toHaveBeenCalled();
+    expect(await copied()).toEqual([]);
   });
 
   test("does not copy a card in Trash", async () => {
-    const onCopyImage = mock();
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(() =>
-      root?.render(
-        <Card card={textCard({ isDeleted: true })} onCopyImage={onCopyImage} />
-      )
+      root?.render(<Card card={textCard({ isDeleted: true })} />)
     );
     const card = container.querySelector<HTMLElement>('[role="button"]');
     expect(card).not.toBeNull();
     await pressCopy(card as HTMLElement, MOD);
-    expect(onCopyImage).not.toHaveBeenCalled();
+    expect(await copied()).toEqual([]);
   });
 
   test("exposes the selected state in selection mode", async () => {
@@ -265,8 +279,7 @@ describe("Card menu shortcuts", () => {
   );
 
   test("copies with Ctrl+C while the right-click menu is open", async () => {
-    const onCopyImage = mock();
-    const card = await renderCard({ onCopyImage });
+    const card = await renderCard({});
     const menu = await openContextMenu(card);
     const apple = /Mac|iPhone|iPad/.test(navigator.platform);
     await pressInMenu(menu, {
@@ -274,10 +287,7 @@ describe("Card menu shortcuts", () => {
       [apple ? "metaKey" : "ctrlKey"]: true,
     });
     await act(() => Promise.resolve());
-    expect(onCopyImage).toHaveBeenCalledWith(
-      "my\\_file\\_name\\_v2 costs 2\\*3",
-      false
-    );
+    expect(await copied()).toEqual(["my\\_file\\_name\\_v2 costs 2\\*3"]);
   });
 
   test("leaves keys with no shortcut to the menu", async () => {
@@ -314,11 +324,11 @@ describe("getCardAccessibleLabel", () => {
     [{ type: "text", content: "Groceries\n- eggs" }, "Text: Groceries"],
     [{ type: "audio", content: "" }, "Audio card"],
   ] as const)("names %p", (card, expected) => {
-    expect(getCardAccessibleLabel(card as any)).toBe(expected);
+    expect(accessibleLabel(card as any)).toBe(expected);
   });
 
   test("clips very long text", () => {
-    const label = getCardAccessibleLabel({
+    const label = accessibleLabel({
       type: "text",
       content: "a".repeat(500),
     } as any);

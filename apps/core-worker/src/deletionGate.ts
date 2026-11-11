@@ -1,4 +1,5 @@
 import { InvalidOpInput } from "./opFailure";
+import { withRetries } from "./retry";
 import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
 import { retryingReads } from "./storage/r2Retry";
 
@@ -435,20 +436,17 @@ async function idempotentGateFetch(
   path: "freeze" | "status",
   init?: RequestInit
 ): Promise<Response> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await gates
+  return await withRetries(
+    () =>
+      gates
         .get(gates.idFromName(key))
-        .fetch(`https://object-gate/${path}`, init);
-    } catch (error) {
-      if (attempt >= GATE_ATTEMPTS || !isRetryableGateError(error)) {
-        throw error;
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, GATE_RETRY_DELAY_MS * attempt)
-      );
+        .fetch(`https://object-gate/${path}`, init),
+    {
+      attempts: GATE_ATTEMPTS,
+      delayMs: (attempt) => GATE_RETRY_DELAY_MS * attempt,
+      isRetryable: isRetryableGateError,
     }
-  }
+  );
 }
 
 export async function freezeObject(
@@ -474,13 +472,17 @@ const gatedBuckets = new WeakSet<R2Bucket>();
  * on R2's transient errors and writes fenced by the deletion gate. The
  * Worker's entry points (`index.ts`, `workflows/entrypoints.ts`) gate it
  * once, so no caller wraps the bucket itself; gating it again changes
- * nothing. Without OBJECT_GATES (some tests) the bucket stays as it is.
+ * nothing. Without OBJECT_GATES (some tests) writes go unfenced.
  */
 export const gatedEnv = <Env extends DeletionGateEnv>(env: Env): Env => {
-  if (!env.OBJECT_GATES || gatedBuckets.has(env.BUCKET)) {
+  // The Workflows engine tests run without a bucket.
+  if (!env.BUCKET || gatedBuckets.has(env.BUCKET)) {
     return env;
   }
-  const bucket = gatedBucket({ ...env, BUCKET: retryingReads(env.BUCKET) });
+  const reads = retryingReads(env.BUCKET);
+  const bucket = env.OBJECT_GATES
+    ? gatedBucket({ ...env, BUCKET: reads })
+    : reads;
   gatedBuckets.add(bucket);
   return { ...env, BUCKET: bucket };
 };

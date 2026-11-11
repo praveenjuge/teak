@@ -1,9 +1,7 @@
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
-import { readCardEntitlement } from "./billing/polar";
-import { getActiveCardCount } from "./card/cardUsage";
+import { readCardAllowance } from "./card/quota";
 import { readAccountLocale } from "./settings/preferences";
-import { FREE_TIER_LIMIT } from "./shared/constants";
 
 export const profileForUser = internalQuery({
   args: { teakUserId: v.string(), includeUsage: v.optional(v.boolean()) },
@@ -24,24 +22,24 @@ export const profileForUser = internalQuery({
       .query("users")
       .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
       .unique();
-    if (mirror?.deletedAt !== undefined) {
+    if (
+      !mirror ||
+      mirror.deletedAt !== undefined ||
+      !mirror.workosUserId ||
+      !mirror.emailVerified
+    ) {
       return null;
     }
-    const hasPremium =
-      includeUsage && (await readCardEntitlement(ctx, teakUserId));
-    const usage = includeUsage
+    const allowance = includeUsage
+      ? await readCardAllowance(ctx, teakUserId)
+      : null;
+    const usage = allowance
       ? {
-          cardCount: await getActiveCardCount(ctx, teakUserId),
-          cardLimit: hasPremium ? null : FREE_TIER_LIMIT,
-          plan: hasPremium ? ("pro" as const) : ("free" as const),
+          cardCount: allowance.cardCount,
+          cardLimit: allowance.cardLimit,
+          plan: allowance.hasPremium ? ("pro" as const) : ("free" as const),
         }
       : {};
-    if (!mirror?.workosUserId) {
-      return null;
-    }
-    if (!mirror.emailVerified) {
-      return null;
-    }
     return {
       id: teakUserId,
       email: mirror.email,

@@ -5,8 +5,7 @@ import {
 } from "./deletionGate";
 
 export { ObjectDeletionGate } from "./deletionGate";
-export { MediaRenderer } from "./media/mediaRenderer";
-export { LinkFetcher } from "./media/remoteAsset";
+export { LinkFetcher, MediaRenderer } from "./media/mediaRenderer";
 export {
   AccountDeletionWorkflow,
   CardProcessingWorkflow,
@@ -40,6 +39,7 @@ import {
 } from "./edge/edgeRateLimit";
 import { emailDeps, handleEmail } from "./email";
 import type { Deps, InboundEmailEnv } from "./email/types";
+import { errorMessage } from "./errors";
 import {
   handleImageRequest,
   handleImageSourceRequest,
@@ -182,7 +182,7 @@ const handleMultipartPart = async (
       );
     }
     console.error("[core-worker] multipart part upload failed", {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
       partNumber,
     });
     return signedUrlError(

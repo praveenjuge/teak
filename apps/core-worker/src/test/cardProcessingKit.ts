@@ -1,11 +1,8 @@
-import type {
-  FilesErrorCode,
-  FilesOp,
-  FilesOpOutcome,
-} from "@teak/files-protocol";
+import type { FilesErrorCode, FilesOpOutcome } from "@teak/files-protocol";
 import { createFetcherHandler } from "../../fetcher/src/handler";
 import { createAiGateReader } from "../ai/aiGate";
 import { createConvexRpc } from "../convexRpc";
+import type { FilesOp } from "../opSpecs";
 import type {
   CardJob,
   CardProcessingDeps,

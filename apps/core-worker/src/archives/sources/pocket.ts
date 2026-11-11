@@ -1,7 +1,9 @@
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import { Parser } from "htmlparser2";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { readCsvTable } from "./csv";
 import {
+  IMPORT_LIMIT_TEXT,
   ImportLimitExceeded,
   linkItem,
   notAnExport,
@@ -56,8 +58,10 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
           heading = undefined;
         }
         if (name === "a" && anchor) {
-          if (output.length >= 10_000) {
-            throw new ImportLimitExceeded("Pocket export exceeds 10,000 items");
+          if (output.length >= MAX_IMPORT_CARDS) {
+            throw new ImportLimitExceeded(
+              `Pocket export exceeds ${IMPORT_LIMIT_TEXT} items`
+            );
           }
           output.push(
             linkItem(SOURCE, {
@@ -81,7 +85,6 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
   return output;
 }
 
-/** Pocket exports: the CSV, or the older HTML file. */
 export function parsePocketExport(text: string): ParsedBookmarkItem[] {
   return text.trimStart().startsWith("<")
     ? parsePocketHtml(text)

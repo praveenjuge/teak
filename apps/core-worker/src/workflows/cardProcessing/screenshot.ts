@@ -3,15 +3,17 @@ import {
   type ProcessingStageStatus,
   stageCompleted,
   stageFailed,
-} from "@teak/convex/card/processingStatus";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
+} from "@teak/convex/shared/processingStatus";
 import type {
   FilesCaptureScreenshotParams,
   FilesCaptureScreenshotResult,
   FilesOpOutcome,
 } from "@teak/files-protocol";
 import { batchOp } from "../../convexRpc";
-import type { StepConfig } from "../runtime";
+import { errorMessage } from "../../errors";
+import { normalizeUrl } from "../../linkPreview/url";
+import { decodeStepError, encodeStepError } from "../errors";
+import { computedBackoff } from "../runtime";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -37,46 +39,26 @@ export const SCREENSHOT_RETRY_POLICY: Record<
 };
 
 const throwRetryable = (info: ScreenshotRetryableError): never => {
-  throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
+  throw encodeStepError(SCREENSHOT_RETRYABLE_PREFIX, info);
 };
 
 export const parseScreenshotRetryableError = (
   error: unknown
-): ScreenshotRetryableError | null => {
-  if (
-    !(
-      error instanceof Error &&
-      error.message.startsWith(SCREENSHOT_RETRYABLE_PREFIX)
-    )
-  ) {
-    return null;
-  }
-  try {
-    return JSON.parse(
-      error.message.slice(SCREENSHOT_RETRYABLE_PREFIX.length)
-    ) as ScreenshotRetryableError;
-  } catch {
-    return null;
-  }
-};
+): ScreenshotRetryableError | null =>
+  decodeStepError(SCREENSHOT_RETRYABLE_PREFIX, error);
 
-export const SCREENSHOT_STEP: StepConfig = {
-  retries: {
-    // The function computes the whole wait; Workflows' default exponential
-    // backoff would otherwise scale it again.
-    backoff: "constant",
-    delay: ({ error }) =>
-      SCREENSHOT_RETRY_POLICY[
-        parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"
-      ].delayMs,
-    limit: Math.max(
-      ...Object.values(SCREENSHOT_RETRY_POLICY).map(
-        ({ maxRetries }) => maxRetries
-      )
-    ),
-  },
-  timeout: "5 minutes",
-};
+export const SCREENSHOT_STEP = computedBackoff(
+  ({ error }) =>
+    SCREENSHOT_RETRY_POLICY[
+      parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"
+    ].delayMs,
+  Math.max(
+    ...Object.values(SCREENSHOT_RETRY_POLICY).map(
+      ({ maxRetries }) => maxRetries
+    )
+  ),
+  "5 minutes"
+);
 
 export type ScreenshotOutcome =
   | { status: "captured" | "skipped" }
@@ -104,10 +86,10 @@ const render = async (
     }
     console.warn("[screenshot] Renderer unavailable", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     return throwRetryable({
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       type: "renderer_unavailable",
     });
   }
@@ -218,7 +200,7 @@ const capture = async (
   try {
     page = await fetchLinkPageForCard(job, normalizeUrl(card.url));
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return throwRetryable({
       message,
       type: message.includes(":RENDERER_UNAVAILABLE:")

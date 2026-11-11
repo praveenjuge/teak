@@ -1,10 +1,7 @@
 import type { QueryCtx } from "../_generated/server";
 import { isOnboardingCard, ONBOARDING_CARDS } from "../card/defaultCards";
-import {
-  ACTIVATION_CARD_THRESHOLD,
-  ACTIVATION_WINDOW_DAYS,
-  DAY_MS,
-} from "./stats";
+import { DAY_MS } from "./dates";
+import { ACTIVATION_CARD_THRESHOLD, ACTIVATION_WINDOW_DAYS } from "./stats";
 
 /**
  * Who counts as an activated user, for the admin overview and the metrics

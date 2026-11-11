@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { utcDay } from "@teak/convex/admin/stats";
+import { utcDay } from "@teak/convex/admin/dates";
 import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
 import { completionReports, createTestRun } from "../test/fakeRun";
@@ -122,13 +122,63 @@ describe("card cleanup", () => {
     ]);
   });
 
-  test("a page whose cards can't be deleted ends the run instead of looping", async () => {
-    const stuck = Array.from({ length: 10 }, (_, index) => ({
+  test("a card whose delete fails stays in Trash without holding up the rest", async () => {
+    const trash = ["card-broken", "card-a", "card-b"];
+    const test = setup("card-cleanup", {
+      "card/trashCleanup:cleanupDeletedCard": ({ cardId }) => {
+        if (cardId === "card-broken") {
+          throw new Error("delete failed");
+        }
+        trash.splice(trash.indexOf(cardId as string), 1);
+        return { deleted: true };
+      },
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) =>
+        trash.slice(0, limit as number).map((_id) => ({ _id })),
+      "publicApiTombstones:pruneExpiredCardTombstones": () => ({
+        deleted: 0,
+        hasMore: false,
+      }),
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      cleaned: 2,
+    });
+    expect(trash).toEqual(["card-broken"]);
+  });
+
+  test("cards that keep failing ahead of a full page don't hold back a newer card", async () => {
+    const broken = Array.from({ length: 11 }, (_, index) => `card-${index}`);
+    const trash = [...broken, "card-good"];
+    const test = setup("card-cleanup", {
+      "card/trashCleanup:cleanupDeletedCard": ({ cardId }) => {
+        if (broken.includes(cardId as string)) {
+          throw new Error("delete failed");
+        }
+        trash.splice(trash.indexOf(cardId as string), 1);
+        return { deleted: true };
+      },
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) =>
+        trash.slice(0, limit as number).map((_id) => ({ _id })),
+      "publicApiTombstones:pruneExpiredCardTombstones": () => ({
+        deleted: 0,
+        hasMore: false,
+      }),
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      cleaned: 1,
+    });
+    expect(trash).toEqual(broken);
+  });
+
+  test("a run where every card fails tries each card once and ends", async () => {
+    const stuck = Array.from({ length: 25 }, (_, index) => ({
       _id: `card-${index}`,
     }));
     const test = setup("card-cleanup", {
       "card/trashCleanup:cleanupDeletedCard": () => ({ deleted: false }),
-      "card/trashCleanup:getCardsPendingCleanup": () => stuck,
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) =>
+        stuck.slice(0, limit as number),
       "publicApiTombstones:pruneExpiredCardTombstones": () => ({
         deleted: 0,
         hasMore: false,
@@ -138,9 +188,36 @@ describe("card cleanup", () => {
     expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
       cleaned: 0,
     });
+    const tried = test
+      .callsTo("card/trashCleanup:cleanupDeletedCard")
+      .map((call) => call.args.cardId);
+    expect(tried).toEqual(stuck.map((card) => card._id));
+  });
+
+  test("a run stops once too many cards have failed, so no read grows past a bound", async () => {
+    const stuck = Array.from({ length: 500 }, (_, index) => ({
+      _id: `card-${index}`,
+    }));
+    const limits: number[] = [];
+    const test = setup("card-cleanup", {
+      "card/trashCleanup:cleanupDeletedCard": () => ({ deleted: false }),
+      "card/trashCleanup:getCardsPendingCleanup": ({ limit }) => {
+        limits.push(limit as number);
+        return stuck.slice(0, limit as number);
+      },
+      "publicApiTombstones:pruneExpiredCardTombstones": () => ({
+        deleted: 0,
+        hasMore: false,
+      }),
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      cleaned: 0,
+    });
+    expect(Math.max(...limits)).toBeLessThanOrEqual(110);
     expect(
-      test.callsTo("card/trashCleanup:getCardsPendingCleanup")
-    ).toHaveLength(1);
+      test.callsTo("card/trashCleanup:cleanupDeletedCard").length
+    ).toBeLessThanOrEqual(100);
   });
 });
 

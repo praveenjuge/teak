@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { ConvexError, type Infer, v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { keepVisible } from "../card/hiddenCards";
@@ -17,13 +17,11 @@ import {
   savedAtOf,
 } from "../card/listQuery";
 import {
-  attachCardSummaryUrls,
-  attachFileUrls,
-  attachGridFileUrls,
+  type AttachCardUrls,
   ensureValidRange,
+  finishCards,
   isSavedAtInRange,
 } from "../card/queryUtils";
-import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
   decodeShuffleWalkCursor,
   encodeShuffleWalkCursor,
@@ -32,7 +30,6 @@ import {
 } from "../card/shuffle";
 import {
   applyCardLevelFilters,
-  doesCardMatchVisualFilters,
   normalizeVisualFilterArgs,
   visualFilterTypes,
 } from "../card/visualFilters";
@@ -41,7 +38,11 @@ import {
   searchModeValidator,
 } from "../schema/validators/cards";
 import { getSessionUser } from "../securitySessions";
-import { clampPageSize, clampSearchOffset } from "../shared/search/constants";
+import {
+  clampPageSize,
+  clampSearchOffset,
+  resolveQuickSearchCommand,
+} from "../shared/search/constants";
 import {
   hasSearchQualifiers,
   parseSearchQuery,
@@ -58,14 +59,17 @@ import {
   similarityRequest,
 } from "../shared/search/semantic";
 import { isShuffleSeed, shuffleBySeed } from "../shared/search/shuffle";
+import { matchesVisualFilters } from "../shared/search/visualFilters";
 import type { ExpandedSearchReport } from "./readMeter";
 import { readRelevanceScores } from "./relevanceCache";
 import {
   expandFolderSearch,
   expressionTextReader,
+  quickCommandList,
   resolveSearch,
 } from "./searchPlanner";
 import {
+  isSearchTooBroad,
   loadSemanticMatches,
   type SearchCandidate,
   searchCandidateOf,
@@ -84,9 +88,6 @@ export const createdAtRangeValidator = v.object({
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
 const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
-const isSearchTooBroadError = (error: unknown): boolean =>
-  error instanceof ConvexError &&
-  (error.data as { code?: unknown } | undefined)?.code === "INVALID_INPUT";
 const FOLDER_FILTER_SCAN_BATCH = 200;
 const SHUFFLE_ROW_LIMIT = 2000;
 const SHUFFLE_WALK_SCAN_LIMIT = 400;
@@ -135,17 +136,10 @@ export const searchCardsPaginatedHandler = async (
   ctx: QueryCtx,
   args: SearchCardsPaginatedArgs,
   options: {
-    gridOnly?: boolean;
+    attach: AttachCardUrls;
     reportSearch?: ExpandedSearchReport;
-    summariesOnly?: boolean;
-  } = {}
-) => {
-  let attachUrls = attachFileUrls;
-  if (options.summariesOnly) {
-    attachUrls = attachCardSummaryUrls;
-  } else if (options.gridOnly) {
-    attachUrls = attachGridFileUrls;
   }
+) => {
   const user = await getSessionUser(ctx);
   if (!user) {
     return { page: [], isDone: true, continueCursor: null };
@@ -189,8 +183,8 @@ export const searchCardsPaginatedHandler = async (
   const scope = cardListScope(archived, showTrashOnly);
   // Every page passes through here, so a hidden card the backfill hasn't
   // flagged yet never reaches the client, whichever read found it.
-  const attachListUrls = (listCtx: QueryCtx, cards: Doc<"cards">[]) =>
-    attachUrls(listCtx, keepVisible(cards, includeHidden));
+  const finishPage = (cards: Doc<"cards">[]) =>
+    finishCards(keepVisible(cards, includeHidden), options.attach);
   const favoritesOnly = resolved.favoritesOnly || undefined;
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
@@ -236,9 +230,8 @@ export const searchCardsPaginatedHandler = async (
     const pageSize = clampPageSize(paginationOpts.numItems);
     const cards = await load(ordered.slice(offset, offset + pageSize));
     const isDone = ordered.length <= offset + pageSize;
-    const pageWithUrls = await attachListUrls(ctx, cards);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(cards),
       isDone,
       continueCursor: isDone ? null : String(offset + pageSize),
     };
@@ -272,9 +265,8 @@ export const searchCardsPaginatedHandler = async (
       }
     );
     const cards = keep ? await keep(result.cards) : result.cards;
-    const pageWithUrls = await attachListUrls(ctx, cards);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(cards),
       isDone: result.next === null,
       continueCursor: result.next
         ? encodeShuffleWalkCursor(seed, result.next)
@@ -321,7 +313,7 @@ export const searchCardsPaginatedHandler = async (
         inView(card) &&
         resolved.matches(card, searchableText) &&
         isSavedAtInRange(savedAtOf(card), createdAtRange) &&
-        doesCardMatchVisualFilters(card, visualFilters),
+        matchesVisualFilters(card, visualFilters),
       text: parsed.text,
       readText: readExpressionText,
     });
@@ -336,78 +328,35 @@ export const searchCardsPaginatedHandler = async (
   }
 
   if (searchQuery || resolved.ocrText) {
-    const query = searchQuery.toLowerCase();
-    const quickCommand = !(
+    const command =
       folderId ||
       tag ||
       hasSearchQualifiers(parsed) ||
       parsed.phrases.length > 0 ||
       parsed.expression
-    );
-
-    if (
-      quickCommand &&
-      ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-    ) {
+        ? null
+        : resolveQuickSearchCommand(searchQuery);
+    if (command) {
+      const view = quickCommandList(command, favoritesOnly);
+      const keepFiltered = (cards: Doc<"cards">[]) =>
+        applyCardLevelFilters(cards, {
+          types,
+          favoritesOnly: view.favoritesOnly,
+          createdAtRange,
+          visualFilters,
+        });
       if (shuffle) {
-        return shuffleWalkPage({ favoritesOnly: true }, (cards) =>
-          applyCardLevelFilters(cards, {
-            types,
-            favoritesOnly: true,
-            createdAtRange,
-            visualFilters,
-          })
-        );
+        return shuffleWalkPage(view.list, keepFiltered);
       }
-      const favorites = await buildCardListQuery(ctx, {
+      const listed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        favoritesOnly: true,
+        ...view.list,
       })
         .order(order)
         .paginate(paginationOpts);
-      const filteredFavorites = applyCardLevelFilters(favorites.page, {
-        types,
-        favoritesOnly: true,
-        createdAtRange,
-        visualFilters,
-      });
-      const favoritesWithUrls = await attachListUrls(ctx, filteredFavorites);
       return {
-        ...favorites,
-        page: applyQuoteFormattingToList(favoritesWithUrls),
-      };
-    }
-
-    if (
-      quickCommand &&
-      ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
-    ) {
-      if (shuffle) {
-        return shuffleWalkPage({ scope: "trash" }, (cards) =>
-          applyCardLevelFilters(cards, {
-            types,
-            favoritesOnly,
-            createdAtRange,
-            visualFilters,
-          })
-        );
-      }
-      const trashed = await buildCardListQuery(ctx, {
-        userId: user.teakUserId,
-        scope: "trash",
-      })
-        .order(order)
-        .paginate(paginationOpts);
-      const filteredTrashed = applyCardLevelFilters(trashed.page, {
-        types,
-        favoritesOnly,
-        createdAtRange,
-        visualFilters,
-      });
-      const trashedWithUrls = await attachListUrls(ctx, filteredTrashed);
-      return {
-        ...trashed,
-        page: applyQuoteFormattingToList(trashedWithUrls),
+        ...listed,
+        page: await finishPage(keepFiltered(listed.page)),
       };
     }
 
@@ -424,7 +373,7 @@ export const searchCardsPaginatedHandler = async (
       resolved.matches(card, searchableText) &&
       isSavedAtInRange(savedAtOf(card), createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
-      doesCardMatchVisualFilters(card, visualFilters);
+      matchesVisualFilters(card, visualFilters);
     const searchArgs = {
       userId: user.teakUserId,
       searchQuery,
@@ -464,9 +413,8 @@ export const searchCardsPaginatedHandler = async (
           : [card];
       });
       const isDone = ordered.length <= offset + pageSize;
-      const pageWithUrls = await attachListUrls(ctx, page);
       return {
-        page: applyQuoteFormattingToList(pageWithUrls),
+        page: await finishPage(page),
         isDone,
         continueCursor: isDone ? null : String(offset + pageSize),
       };
@@ -503,7 +451,7 @@ export const searchCardsPaginatedHandler = async (
           });
         }
       } catch (error) {
-        if (!isSearchTooBroadError(error)) {
+        if (!isSearchTooBroad(error)) {
           throw error;
         }
         candidates = await searchCandidatesByDocument(ctx, {
@@ -615,7 +563,7 @@ export const searchCardsPaginatedHandler = async (
         });
       }
     } catch (error) {
-      if (!isSearchTooBroadError(error)) {
+      if (!isSearchTooBroad(error)) {
         throw error;
       }
       searchResults = await readKeywordMatches({
@@ -695,9 +643,8 @@ export const searchCardsPaginatedHandler = async (
     const isDone = sortedResults.length <= offset + pageSize;
     const continueCursor = isDone ? null : String(offset + pageSize);
 
-    const pageWithUrls = await attachListUrls(ctx, page);
     return {
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(page),
       isDone,
       continueCursor,
     };
@@ -771,10 +718,9 @@ export const searchCardsPaginatedHandler = async (
         rows.page.map((row) => row.cardId)
       )
     );
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -832,10 +778,9 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
     });
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -903,10 +848,9 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
     });
-    const pageWithUrls = await attachListUrls(ctx, matches);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(pageWithUrls),
+      page: await finishPage(matches),
     };
   }
 
@@ -923,10 +867,9 @@ export const searchCardsPaginatedHandler = async (
       ctx,
       rows.page.map((row) => row.cardId)
     );
-    const folderCardsWithUrls = await attachListUrls(ctx, folderCards);
     return {
       ...rows,
-      page: applyQuoteFormattingToList(folderCardsWithUrls),
+      page: await finishPage(folderCards),
     };
   }
 
@@ -953,9 +896,8 @@ export const searchCardsPaginatedHandler = async (
   const listed = args.excludePinned
     ? cards.page.filter((card) => card.pinPosition === undefined)
     : cards.page;
-  const cardsWithUrls = await attachListUrls(ctx, listed);
   return {
     ...cards,
-    page: applyQuoteFormattingToList(cardsWithUrls),
+    page: await finishPage(listed),
   };
 };

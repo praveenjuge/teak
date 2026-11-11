@@ -3,16 +3,16 @@ import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
-import type { Id } from "../shared/types";
-import { queueCardProcessingFailed } from "../telemetry/schedule";
-import { patchCard } from "./cardWrites";
 import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
   type ProcessingStatus,
   stageFailed,
   stagePending,
-} from "./processingStatus";
+} from "../shared/processingStatus";
+import type { Id } from "../shared/types";
+import { queueCardProcessingFailed } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import { clearCardTranscript } from "./textContents";
 
 export const initializeCardProcessingState = async (

@@ -1,5 +1,6 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import type { FilesOpsEnv } from "../ops";
 import { callFilesOp } from "../workflows/filesOps";
 
@@ -70,7 +71,7 @@ export const expireImportUploads = async (
       } catch (error) {
         failed += 1;
         console.error("[cron] import upload not expired", {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error),
           jobId: job._id,
         });
       }

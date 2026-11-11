@@ -1,3 +1,5 @@
+import { withRetries } from "../retry";
+
 // R2 occasionally fails a read with an error Cloudflare documents as safe to
 // retry: 10001 (internal error), 10043 (service unavailable) and 10058 (too
 // many requests). The binding surfaces them as `<method>: <message> (<code>)`.
@@ -12,9 +14,6 @@ const BASE_DELAY_MS = 50;
 export const isTransientR2Error = (error: unknown): boolean =>
   error instanceof Error && TRANSIENT_R2_ERROR.test(error.message);
 
-const wait = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
 export function retryingReads(bucket: R2Bucket): R2Bucket {
   return new Proxy(bucket, {
     get(target, property) {
@@ -25,18 +24,12 @@ export function retryingReads(bucket: R2Bucket): R2Bucket {
       if (!RETRIED_METHODS.has(property)) {
         return value.bind(target);
       }
-      return async (...args: unknown[]) => {
-        for (let attempt = 1; ; attempt += 1) {
-          try {
-            return await value.apply(target, args);
-          } catch (error) {
-            if (attempt >= MAX_ATTEMPTS || !isTransientR2Error(error)) {
-              throw error;
-            }
-            await wait(BASE_DELAY_MS * attempt);
-          }
-        }
-      };
+      return (...args: unknown[]) =>
+        withRetries(() => value.apply(target, args), {
+          attempts: MAX_ATTEMPTS,
+          delayMs: (attempt) => BASE_DELAY_MS * attempt,
+          isRetryable: isTransientR2Error,
+        });
     },
   });
 }

@@ -1,0 +1,41 @@
+import { useState } from "react";
+import { Globe } from "vadivam-react";
+import { cn } from "@/lib/utils";
+
+export function getFaviconUrl(hostname?: string): string | undefined {
+  return hostname
+    ? `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`
+    : undefined;
+}
+
+export function SiteFavicon({
+  className,
+  hostname,
+}: {
+  className?: string;
+  hostname?: string;
+}) {
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const src = getFaviconUrl(hostname);
+  if (!src || failedFor === src) {
+    return (
+      <Globe
+        aria-hidden="true"
+        className={cn("size-3.5 shrink-0 text-muted-foreground", className)}
+      />
+    );
+  }
+  return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: a failed load swaps in the globe; the image isn't interactive
+    <img
+      alt=""
+      className={cn("size-3.5 shrink-0 rounded-[3px]", className)}
+      decoding="async"
+      height={14}
+      loading="lazy"
+      onError={() => setFailedFor(src)}
+      src={src}
+      width={14}
+    />
+  );
+}

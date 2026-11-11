@@ -3,12 +3,13 @@
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SiteFavicon } from "@/components/cards/SiteFavicon";
+import { SiteFavicon } from "@/components/media";
 import {
   type ArchivedCopy,
   ArchivedCopyView,
@@ -17,7 +18,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { Wordmark } from "@/components/Wordmark";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { getDisplayHostname } from "@/lib/displayHost";
 import { cn } from "@/lib/utils";
 
 /** A redirect quicker than this shows nothing at all. */
@@ -127,7 +127,7 @@ export function OpenLinkScreen({ cardId }: { cardId: string }) {
   const checkLink = useAction(api.card.linkCheck.checkCardLinkForOpen);
   const card = useQuery(api.cards.getCardByUrlId, { id: cardId });
   const original = sanitizeExternalUrl(card?.url);
-  const host = getDisplayHostname(card?.url);
+  const host = urlHostForDisplay(card?.url);
 
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
   const [visible, setVisible] = useState(false);
@@ -181,7 +181,7 @@ export function OpenLinkScreen({ cardId }: { cardId: string }) {
               cardId,
               host:
                 target.sourceHost ??
-                getDisplayHostname(target.url) ??
+                urlHostForDisplay(target.url) ??
                 target.url,
               url: target.url,
             },

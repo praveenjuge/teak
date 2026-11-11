@@ -1,6 +1,6 @@
 import { env } from "./_generated/server";
 import { OAUTH_SURFACES } from "./shared/oauthSurfaces";
-import { validateOAuthUrl } from "./shared/oauthUrl";
+import { isWorkosIssuer, validateOAuthUrl } from "./shared/oauthUrl";
 import { parseWorkosApiBase } from "./shared/workosApi";
 import { WORKOS_CLIENT_ID } from "./shared/workosIds";
 import {
@@ -76,14 +76,7 @@ export const readWorkosConnectIssuer = (): string => {
   if (!value) {
     throw new Error("WORKOS_AUTHKIT_DOMAIN is required.");
   }
-  const url = validateOAuthUrl(value);
-  if (
-    url.protocol !== "https:" ||
-    url.origin !== value ||
-    url.username ||
-    url.password ||
-    url.port
-  ) {
+  if (!isWorkosIssuer(value)) {
     throw new Error(
       "WORKOS_AUTHKIT_DOMAIN must be an HTTPS origin without a port."
     );

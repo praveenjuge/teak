@@ -2,7 +2,7 @@ import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { FolderSearch, Pencil } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { FOLDER_ICON_CLASSES, type FolderSummary } from "../../lib/folders";
-import { PageTitle } from "../../screens/PageHeader";
+import { PageTitle } from "../app-shell/PageHeader";
 import { FolderDot } from "./FolderDot";
 
 /**

@@ -3,7 +3,6 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion/gate";
-import { markCardForEmbedding } from "../embedding/state";
 import { r2KeyValidator } from "../schema/validators/cards";
 import {
   ARTICLE_FAILURE_REASONS,
@@ -16,17 +15,17 @@ import {
   isArticleObjectKey,
   readingMinutes,
 } from "../shared/article";
-import { queueObjectDeletion } from "../storage/objectDeletion";
-import { buildR2UserPrefix } from "../storage/r2";
-import { queueBackendEvent } from "../telemetry/schedule";
-import { patchCard } from "./cardWrites";
-import { searchPrefix } from "./documentTextFormat";
+import { searchPrefix } from "../shared/documentText";
 import {
   mergeProcessingStages,
   stageCompleted,
   stageFailed,
   stageInProgress,
-} from "./processingStatus";
+} from "../shared/processingStatus";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
+import { queueBackendEvent } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import { getArticleTextRow } from "./textContents";
 
 type ReadyArticle = Extract<
@@ -51,11 +50,10 @@ const queueReplacedKeys = async (
   kept: string[]
 ) => {
   const keep = new Set(kept);
-  for (const key of new Set(previous)) {
-    if (!keep.has(key)) {
-      await queueObjectDeletion(ctx, key);
-    }
-  }
+  await queueObjectDeletion(
+    ctx,
+    previous.filter((key) => !keep.has(key))
+  );
 };
 
 const clearedArticleText = (card: Doc<"cards">) =>
@@ -115,9 +113,7 @@ export const saveArticleTextHandler = async (
   const card = await ctx.db.get("cards", args.cardId);
   if (!card || (await getAccountDeletionState(ctx, card.userId))) {
     if (!card) {
-      for (const key of [args.textKey, ...args.article.imageKeys]) {
-        await queueObjectDeletion(ctx, key);
-      }
+      await queueObjectDeletion(ctx, [args.textKey, ...args.article.imageKeys]);
     }
     return false;
   }
@@ -194,8 +190,6 @@ export const saveArticleTextHandler = async (
     }),
     updatedAt: now,
   });
-  // The embedding reads the article's opening; the search text may not change.
-  await markCardForEmbedding(ctx, card._id, card.userId);
   if (card.hasHighlights) {
     await ctx.scheduler.runAfter(
       0,
@@ -267,9 +261,6 @@ export const recordNoArticle = internalMutation({
       }),
       updatedAt: now,
     });
-    if (previous) {
-      await markCardForEmbedding(ctx, card._id, card.userId);
-    }
     await queueBackendEvent(ctx, "article_extracted", card.userId, {
       outcome: "none",
       words_bucket: articleWordsBucket(wordCount ?? 0),

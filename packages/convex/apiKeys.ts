@@ -13,10 +13,9 @@ import {
 } from "./_generated/server";
 import {
   limitApiRequests,
+  rateLimiter,
   rateLimitResultValidator,
-  type ValidatedRateLimitKey,
-} from "./publicApi";
-import { rateLimiter } from "./rateLimiter";
+} from "./rateLimiter";
 import {
   getSessionUser,
   requireSessionUserId,
@@ -67,7 +66,7 @@ const apiKeyStatusValidator = v.union(
   v.literal("exhausted")
 );
 
-const listedApiKeyValidator = v.object({
+export const listedApiKeyValidator = v.object({
   id: v.string(),
   name: v.string(),
   keyPrefix: v.string(),
@@ -464,7 +463,7 @@ const checkCachedApiKey = async (
 export const readValidatedApiKey = internalQuery({
   args: { token: v.string() },
   returns: validatedApiKeyValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<typeof validatedApiKeyValidator.type> => {
     const token = args.token.trim();
     if (getApiKeyFormat(token) !== "component") {
       return null;
@@ -516,7 +515,7 @@ const validateCachedComponentApiKey = async (
 export const validateUserApiKey = internalMutation({
   args: validateApiKeyArgsValidator,
   returns: validatedApiKeyValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<typeof validatedApiKeyValidator.type> => {
     const token = args.token.trim();
     if (getApiKeyFormat(token) !== "component") {
       return null;
@@ -528,10 +527,7 @@ export const validateUserApiKey = internalMutation({
     }
     return {
       ...validated,
-      rateLimit: await limitApiRequests(
-        ctx,
-        `key:${validated.rateLimitKey}` as ValidatedRateLimitKey
-      ),
+      rateLimit: await limitApiRequests(ctx, validated.rateLimitKey),
     };
   },
 });

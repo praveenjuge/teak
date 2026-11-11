@@ -1,5 +1,5 @@
-import { sanitizeText } from "@teak/convex/linkMetadata/parsing";
 import { Parser } from "htmlparser2";
+import { sanitizeText } from "../../../linkPreview/parsing";
 import { fetchRemoteJson, type RemoteFetchDeps } from "../remote/common";
 import type {
   ParsedLinkPreview,

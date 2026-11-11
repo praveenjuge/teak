@@ -2,21 +2,21 @@ import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
   checkSignedExpiry,
-  FILES_IMAGE_PATH,
   FILES_IMAGE_SOURCE_PATH,
   type FilesImageRendition,
   hmacSha256Hex,
-  isFilesImageRendition,
+  parseFilesImagePath,
+  parseFilesImageSourcePath,
   verifyHmacHex,
 } from "@teak/files-protocol";
 import { objectIsFrozen } from "../deletionGate";
 import type { Env } from "../index";
 import { throughImagesBinding } from "./imagesBinding";
+import { isSvgObject, MAX_SVG_SOURCE_BYTES } from "./svg";
 import { renderSvgToPng } from "./wasm";
 
 const IMAGE_URL_MAX_TTL_SECONDS = 8 * 24 * 60 * 60;
 const SOURCE_URL_TTL_SECONDS = 5 * 60;
-const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 const IMAGE_CACHE_CONTROL = "private, max-age=518400, immutable";
 const IMAGE_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
 const BROWSER_SAFE_TRANSCODE_TYPES = new Set([
@@ -95,36 +95,6 @@ export const buildImageTransformOptions = (
     ...renditionBounds(rendition),
     ...(format ? { format } : {}),
   };
-};
-
-const decodeKey = (encoded: string): string => {
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return "";
-  }
-};
-
-const parseImagePath = (
-  pathname: string
-): { key: string; rendition: FilesImageRendition } | null => {
-  const match = new RegExp(`^${FILES_IMAGE_PATH}/([^/]+)/(.+)$`, "u").exec(
-    pathname
-  );
-  const rendition = match?.[1];
-  const key = decodeKey(match?.[2] ?? "");
-  return isFilesImageRendition(rendition) && key && !key.includes("\0")
-    ? { key, rendition }
-    : null;
-};
-
-const parseSourcePath = (pathname: string): string | null => {
-  const prefix = `${FILES_IMAGE_SOURCE_PATH}/`;
-  if (!pathname.startsWith(prefix)) {
-    return null;
-  }
-  const key = decodeKey(pathname.slice(prefix.length));
-  return key && !key.includes("\0") ? key : null;
 };
 
 const isExpiredOrInvalid = (expiresAt: string | null, now: number): boolean =>
@@ -213,11 +183,6 @@ export const buildBindingCacheKey = (
     { method: "GET" }
   );
 
-const isSvgSource = (key: string, contentType: string): boolean =>
-  contentType === "image/svg+xml" ||
-  (key.toLowerCase().endsWith(".svg") &&
-    (contentType === "application/xml" || contentType === "text/xml"));
-
 const imageHeaders = (contentType: string): Headers =>
   new Headers({
     "Cache-Control": IMAGE_CACHE_CONTROL,
@@ -304,7 +269,7 @@ export const handleImageSourceRequest = async (
   url = new URL(request.url),
   now = Math.floor(Date.now() / 1000)
 ): Promise<Response> => {
-  const key = parseSourcePath(url.pathname);
+  const key = parseFilesImageSourcePath(url.pathname);
   const via = request.headers.get("via")?.toLowerCase() ?? "";
   const authorization = request.headers.get("authorization") ?? "";
   const match = /^Teak ([0-9]+):([a-f0-9]{64})$/u.exec(authorization);
@@ -338,7 +303,7 @@ export const handleImageRequest = async (
   edgeCache: Cache | null = imageEdgeCache
 ): Promise<Response> => {
   const url = new URL(request.url);
-  const parsed = parseImagePath(url.pathname);
+  const parsed = parseFilesImagePath(url.pathname);
   if (!parsed) {
     return new Response(null, { status: 404 });
   }
@@ -367,7 +332,7 @@ export const handleImageRequest = async (
       .toLowerCase() ?? "";
   const requiresBrowserSafeTranscode =
     contentType === "image/heic" || contentType === "image/heif";
-  if (isSvgSource(parsed.key, contentType)) {
+  if (isSvgObject(parsed.key, contentType || undefined)) {
     const cacheKey = new Request(`${url.origin}${url.pathname}`);
     if (request.method === "GET") {
       const cached = edgeCache ? await edgeCache.match(cacheKey) : null;

@@ -1,8 +1,4 @@
 import { internal } from "@teak/convex/_generated/api";
-import {
-  stageCompleted,
-  stagePending,
-} from "@teak/convex/card/processingStatus";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import {
   extractVisualStylesFromTags,
@@ -10,12 +6,17 @@ import {
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
+  stageCompleted,
+  stagePending,
+} from "@teak/convex/shared/processingStatus";
+import {
   AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,
   isScannedPdf,
   MAX_AI_METADATA_INPUT_CHARS,
 } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
+import { errorMessage } from "../../errors";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
   generateImageMetadataForStoredKey,
@@ -162,7 +163,7 @@ const linkSiteSummary = async (
   } catch (error) {
     console.warn("[cardProcessing/metadata] site summary unavailable", {
       cardId: job.cardId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -238,7 +239,7 @@ const transcribeVideo = async (
   } catch (error) {
     console.warn("[cardProcessing/metadata] video transcript unavailable", {
       cardId: job.cardId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -256,7 +257,7 @@ const keepDocumentText = async (
     }
     console.warn("[cardProcessing/metadata] document text not stored", {
       cardId: job.cardId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -285,7 +286,7 @@ const readScan = async (
     }
     console.warn("[cardProcessing/metadata] scan not read", {
       cardId: job.cardId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }

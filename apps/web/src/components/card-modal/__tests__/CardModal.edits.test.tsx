@@ -2,6 +2,7 @@ import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 import type { ClientCard } from "@/lib/cardTypes";
+import { englishTranslator } from "@/lib/englishTranslators";
 import type { GetCurrentValue } from "../types";
 
 if (!GlobalRegistrator.isRegistered) {
@@ -42,7 +43,8 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { CardModal, emptiedContentNotice } = await import("../CardModal");
+const { CardModal } = await import("../CardModal");
+const { emptiedContentNotice } = await import("../cardModalText");
 
 let root: Root | undefined;
 
@@ -91,8 +93,8 @@ async function render(
           addTag: () => undefined,
           removeAiTag: () => undefined,
           removeTag: () => undefined,
-          setTagInput: () => undefined,
-          tagInput: "",
+          setInput: () => undefined,
+          input: "",
         }}
         updateContent={updateContent}
         updateNotes={() => undefined}
@@ -240,14 +242,36 @@ test.each([
   ["text", "Empty notes aren't saved. The note keeps its last text."],
   ["quote", "Empty quotes aren't saved. The quote keeps its last text."],
 ] as const)("leaving an emptied %s says it isn't saved", (type, notice) => {
-  expect(emptiedContentNotice(card({ type }), contentOf("  \n"))).toBe(notice);
+  expect(
+    emptiedContentNotice(
+      card({ type }),
+      contentOf("  \n"),
+      englishTranslator("cardModal")
+    )
+  ).toBe(notice);
 });
 
 test("a note with text, or one that was already empty, says nothing", () => {
-  expect(emptiedContentNotice(card(), contentOf("Edited"))).toBeNull();
-  expect(emptiedContentNotice(card({ content: "" }), contentOf(""))).toBeNull();
   expect(
-    emptiedContentNotice(card({ type: "link", content: "x" }), contentOf(""))
+    emptiedContentNotice(
+      card(),
+      contentOf("Edited"),
+      englishTranslator("cardModal")
+    )
+  ).toBeNull();
+  expect(
+    emptiedContentNotice(
+      card({ content: "" }),
+      contentOf(""),
+      englishTranslator("cardModal")
+    )
+  ).toBeNull();
+  expect(
+    emptiedContentNotice(
+      card({ type: "link", content: "x" }),
+      contentOf(""),
+      englishTranslator("cardModal")
+    )
   ).toBeNull();
 });
 

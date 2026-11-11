@@ -1,4 +1,8 @@
-import { isGenericMediaType, normalizeMediaType } from "./mediaTypes";
+import {
+  imageTypeForExtension,
+  isGenericMediaType,
+  normalizeMediaType,
+} from "./mediaTypes";
 export type FilesRemoteAssetKind = "image" | "video";
 
 export const FILES_REMOTE_ASSET_MAX_BYTES: Record<
@@ -24,14 +28,23 @@ export interface FilesRemoteAssetParams {
   url: string;
 }
 
+export const FILES_REMOTE_ASSET_SKIP_REASONS = [
+  "blocked_url",
+  "empty",
+  "fetch_failed",
+  "http_error",
+  "invalid_image",
+  "too_large",
+  "unsupported_type",
+] as const;
+
 export type FilesRemoteAssetSkipReason =
-  | "blocked_url"
-  | "empty"
-  | "fetch_failed"
-  | "http_error"
-  | "invalid_image"
-  | "too_large"
-  | "unsupported_type";
+  (typeof FILES_REMOTE_ASSET_SKIP_REASONS)[number];
+
+export const isRemoteAssetSkipReason = (
+  value: unknown
+): value is FilesRemoteAssetSkipReason =>
+  (FILES_REMOTE_ASSET_SKIP_REASONS as readonly unknown[]).includes(value);
 
 export type FilesRemoteAssetResult =
   | {
@@ -66,16 +79,6 @@ export const isRemoteAssetPageUrl = (value: unknown): value is string => {
 const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/;
 const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|m4v)(?:[?#]|$)/;
 
-const IMAGE_TYPES: Record<string, string> = {
-  avif: "image/avif",
-  gif: "image/gif",
-  jpeg: "image/jpeg",
-  jpg: "image/jpeg",
-  png: "image/png",
-  svg: "image/svg+xml",
-  webp: "image/webp",
-};
-
 const VIDEO_TYPES: Record<string, string> = {
   m4v: "video/x-m4v",
   mov: "video/quicktime",
@@ -84,10 +87,10 @@ const VIDEO_TYPES: Record<string, string> = {
 
 export const guessImageContentType = (url: string): string | null => {
   const extension = url.toLowerCase().match(IMAGE_EXTENSION_REGEX)?.[1];
-  return extension ? (IMAGE_TYPES[extension] ?? null) : null;
+  return extension ? imageTypeForExtension(extension) : null;
 };
 
-export const guessVideoContentType = (url: string): string | null => {
+const guessVideoContentType = (url: string): string | null => {
   const extension = url.toLowerCase().match(VIDEO_EXTENSION_REGEX)?.[1];
   return extension ? (VIDEO_TYPES[extension] ?? null) : null;
 };

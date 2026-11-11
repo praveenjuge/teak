@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -53,11 +53,6 @@ import {
 export const FOLDER_DELETE_BATCH_SIZE = 50;
 export const FOLDER_DELETE_UNDO_MS = 10_000;
 
-export interface FolderRules {
-  autoFile: { enabled: boolean; query: string } | null;
-  autoTags: string[];
-}
-
 export const folderRulesValidator = v.object({
   autoTags: v.array(v.string()),
   autoFile: v.union(
@@ -65,6 +60,8 @@ export const folderRulesValidator = v.object({
     v.null()
   ),
 });
+
+export type FolderRules = Infer<typeof folderRulesValidator>;
 
 export const folderRulesOf = (
   folder: Pick<Doc<"folders">, "autoFilePaused" | "autoFileQuery" | "autoTags">
@@ -85,27 +82,16 @@ export const folderReturnValidator = v.object({
   color: v.optional(folderColorValidator),
   kind: v.union(v.literal("manual"), v.literal("smart")),
   query: v.optional(v.string()),
+  /** A manual folder's rules; missing on smart folders. */
   rules: v.optional(folderRulesValidator),
+  /** The folder's latest rule run, to follow or undo. */
   ruleRunId: v.optional(v.id("folderRuleRuns")),
   activeCardCount: v.number(),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
 
-export interface FolderSummary {
-  _id: Id<"folders">;
-  activeCardCount: number;
-  color?: FolderColor;
-  createdAt: number;
-  kind: FolderKind;
-  name: string;
-  query?: string;
-  /** The folder's latest rule run, to follow or undo. */
-  ruleRunId?: Id<"folderRuleRuns">;
-  /** A manual folder's rules; missing on smart folders. */
-  rules?: FolderRules;
-  updatedAt: number;
-}
+export type FolderSummary = Infer<typeof folderReturnValidator>;
 
 export const toFolderSummary = (
   folder: Doc<"folders">,

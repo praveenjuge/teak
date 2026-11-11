@@ -22,11 +22,11 @@ import type {
   CardGridSource,
   GridCardAction,
 } from "../../hooks/useCardActions";
-import type { CardActionId } from "../../lib/cardActions";
+import { type CardActionId, STRIP_CARD_ACTIONS } from "../../lib/cardActions";
 import { type GridKeyContext, gridKeyAction } from "../../lib/gridKeys";
 import { movedIds } from "../../lib/pinnedCards";
 import { cn } from "../../lib/utils";
-import { Card, type CardWithUrls } from "../cards/Card";
+import { Card, type CardWithUrls, cardElement } from "../cards";
 import type { CardOpenOrigin } from "../cards/types";
 import { CardFoldersDialog, EditLinkDialog } from "../lazyDialogs";
 
@@ -39,16 +39,6 @@ const STRIP_KEY_CONTEXT: GridKeyContext = {
   isSelectionMode: false,
   view: "library",
 };
-
-/** The row has no selection, and nothing in it is in Trash. */
-const STRIP_CARD_ACTIONS: ReadonlySet<CardActionId> = new Set([
-  "copy",
-  "favorite",
-  "pin",
-  "addTags",
-  "archive",
-  "moveToTrash",
-]);
 
 // Drags announce through the row's own status line, after the drop.
 const SILENT: Announcements = {
@@ -65,11 +55,7 @@ export interface PinnedStripProps {
     card: StripCard,
     source: CardGridSource
   ) => void;
-  onCardClick: (
-    card: CardWithUrls & Record<string, unknown>,
-    origin?: CardOpenOrigin
-  ) => void;
-  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
+  onCardClick: (card: CardWithUrls, origin?: CardOpenOrigin) => void;
   onReorder: (cardIds: Id<"cards">[]) => void;
 }
 
@@ -81,7 +67,6 @@ export function PinnedStrip({
   cards,
   onCardAction,
   onCardClick,
-  onCopyImage,
   onReorder,
 }: PinnedStripProps) {
   const t = useTranslations("pinned.strip");
@@ -137,11 +122,7 @@ export function PinnedStrip({
         // Reordering moves the card's element in the page, and the browser
         // drops focus from an element it moves: give it back once moved.
         requestAnimationFrame(() =>
-          listRef.current
-            ?.querySelector<HTMLElement>(
-              `[data-card-id="${globalThis.CSS.escape(cardId)}"]`
-            )
-            ?.focus()
+          cardElement(listRef.current, cardId)?.focus()
         );
       }
       return;
@@ -167,10 +148,7 @@ export function PinnedStrip({
     }
   };
 
-  const handleMenuAction = (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => {
+  const handleMenuAction = (action: CardActionId, card: CardWithUrls) => {
     if (STRIP_CARD_ACTIONS.has(action)) {
       onCardAction?.(
         action as GridCardAction,
@@ -216,7 +194,6 @@ export function PinnedStrip({
                 key={card._id}
                 onAction={handleMenuAction}
                 onCardClick={onCardClick}
-                onCopyImage={onCopyImage}
                 onEditFolders={setFoldersCardId}
                 onEditLink={setEditLinkCardId}
               />
@@ -261,15 +238,11 @@ function PinnedStripItem({
   card,
   onAction,
   onCardClick,
-  onCopyImage,
   onEditFolders,
   onEditLink,
-}: Pick<PinnedStripProps, "onCardClick" | "onCopyImage"> & {
+}: Pick<PinnedStripProps, "onCardClick"> & {
   card: StripCard;
-  onAction: (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => void;
+  onAction: (action: CardActionId, card: CardWithUrls) => void;
   onEditFolders: (cardId: string) => void;
   onEditLink: (cardId: string) => void;
 }) {
@@ -288,11 +261,10 @@ function PinnedStripItem({
     >
       <Card
         actions={STRIP_CARD_ACTIONS}
-        card={card as CardWithUrls & Record<string, unknown>}
+        card={card as CardWithUrls}
         nativeDrag={false}
         onAction={onAction}
         onClick={onCardClick}
-        onCopyImage={onCopyImage}
         onEditFolders={onEditFolders}
         onEditLink={onEditLink}
       />

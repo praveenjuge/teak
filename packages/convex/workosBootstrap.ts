@@ -5,7 +5,7 @@ import { mutation } from "./_generated/server";
 import { getWorkosBootstrapIdentity } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 
-const bootstrapResult = v.union(
+export const bootstrapResult = v.union(
   v.object({ status: v.literal("ok"), teakUserId: v.string() }),
   v.object({ status: v.literal("verify_email") }),
   v.object({ status: v.literal("frozen") }),
@@ -15,7 +15,7 @@ const bootstrapResult = v.union(
 export const ensureUser = mutation({
   args: {},
   returns: bootstrapResult,
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<typeof bootstrapResult.type> => {
     const identity = await getWorkosBootstrapIdentity(ctx);
     if (!identity) {
       return { status: "quarantined" as const, reason: "invalid_session" };

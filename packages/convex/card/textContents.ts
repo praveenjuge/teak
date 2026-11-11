@@ -7,11 +7,11 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
+import { SEARCH_PREFIX_MAX_BYTES } from "../shared/documentText";
 import {
   codePointLength,
   truncateCodePoints,
 } from "../shared/utils/codePoints";
-import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 
 // A document row plus a transcript's parts. A transcript is at most
 // FILES_TRANSCRIPT_MAX_BYTES (512 KB), so 16 parts; 32 is the old 1 MB card.

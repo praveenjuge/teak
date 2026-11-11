@@ -15,13 +15,14 @@ import {
   FILES_PENDING_CARD_SEGMENT,
   FILES_PRIVATE_CACHE_CONTROL,
   FILES_SIGNED_URL_MIN_VALIDITY_SECONDS,
-  FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesInspectMode,
-  isFilesOp,
+  isFilesNetworkOp,
   isPendingUploadKey,
   isScannedPdf,
   parseCardObjectKey,
+  parseFilesImagePath,
+  parseFilesImageSourcePath,
   truncateForEmbedding,
   vectorNamespaceForUser,
   vectorShardBinding,
@@ -54,14 +55,13 @@ describe("files protocol", () => {
         key: "users/u/cards/screenshot/s.jpg",
       })
     ).toBe("upload\n1\nPUT\nusers/u/cards/screenshot/s.jpg\nimage/jpeg\n\n123");
-    expect(FILES_UPLOAD_MAX_TTL_SECONDS).toBe(900);
   });
 
-  test("accepts only known operations", () => {
-    expect(isFilesOp("analyze-image")).toBe(true);
-    expect(isFilesOp("cleanup-stale-pending-uploads")).toBe(true);
-    expect(isFilesOp("cleanup-stale-pending-upload-page")).toBe(false);
-    expect(isFilesOp("process_image")).toBe(false);
+  test("accepts only the operations Convex may send", () => {
+    expect(isFilesNetworkOp("store-linked-pdf")).toBe(true);
+    expect(isFilesNetworkOp("analyze-image")).toBe(false);
+    expect(isFilesNetworkOp("process_image")).toBe(false);
+    expect(isFilesNetworkOp("toString")).toBe(false);
   });
 
   test("accepts pdf as an inspect mode alongside the existing modes", () => {
@@ -143,6 +143,37 @@ test.each([
   expect(isScannedPdf(pdf)).toBe(scanned);
 });
 
+test("reads the rendition and key from an image path", () => {
+  expect(parseFilesImagePath("/__images/v1/grid/u%2Fc%2Fa.jpg")).toEqual({
+    key: "u/c/a.jpg",
+    rendition: "grid",
+  });
+});
+
+test.each([
+  "/__images/v1/huge/u/a.jpg",
+  "/__images/v1/grid/",
+  "/__images/v1/grid/%E0",
+  "/__image-source/v1/u/a.jpg",
+])("reads no image from %p", (pathname) => {
+  expect(parseFilesImagePath(pathname)).toBeNull();
+});
+
+test("reads the key from an image source path", () => {
+  expect(parseFilesImageSourcePath("/__image-source/v1/u%2Fc%2Fa.jpg")).toBe(
+    "u/c/a.jpg"
+  );
+});
+
+test.each([
+  "/__image-source/v1/",
+  "/__image-source/v1/%E0",
+  "/__image-source/v1/a%00b",
+  "/__images/v1/grid/u/a.jpg",
+])("reads no image source from %p", (pathname) => {
+  expect(parseFilesImageSourcePath(pathname)).toBeNull();
+});
+
 test("copies only numeric AI diagnostics", () => {
   expect(
     readFilesAiGenerationFacts({
@@ -207,11 +238,13 @@ describe("file storage contract", () => {
   });
 
   test("caches file responses for a day less than a signed url stays valid", () => {
+    const maxAge = FILES_SIGNED_URL_MIN_VALIDITY_SECONDS - 24 * 60 * 60;
     expect(FILES_PRIVATE_CACHE_CONTROL).toBe(
-      "private, max-age=518400, immutable"
+      `private, max-age=${maxAge}, immutable`
     );
-    expect(FILES_EDGE_CACHE_CONTROL).toBe("public, max-age=518400, immutable");
-    expect(FILES_SIGNED_URL_MIN_VALIDITY_SECONDS).toBe(604_800);
+    expect(FILES_EDGE_CACHE_CONTROL).toBe(
+      `public, max-age=${maxAge}, immutable`
+    );
   });
 
   test("builds card object keys under the user's hashed prefix", () => {

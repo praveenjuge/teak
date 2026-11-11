@@ -4,7 +4,12 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { resolveImageCopyUrl } from "@/lib/cardCopy";
+import {
+  type CopyableCard as CardToCopy,
+  cardCopyKind,
+  cardCopyText,
+  resolveImageCopyUrl,
+} from "@/lib/cardCopy";
 import { copyText } from "@/lib/clipboard";
 import { englishTranslator } from "@/lib/englishTranslators";
 import { sizeSvgRoot } from "@/lib/svgSize";
@@ -161,7 +166,7 @@ export function useCardClipboard(options: CopyCardContentOptions = {}) {
   return { handleCopyImage };
 }
 
-interface ImageCard {
+interface CopyableCard extends CardToCopy {
   _id: string;
   fileKey?: string;
   fileUrl?: string;
@@ -169,14 +174,15 @@ interface ImageCard {
 }
 
 /**
- * Copies an image card's original picture, the way the card's ⌘C in a grid
- * does: the open card copies what the grid copies.
+ * Copies a card from the press that asked: an image card's original
+ * picture, or the text or link `cardCopyKind` names. The open card copies an
+ * image the same way (`copyImage`).
  */
-export function useCopyCardImage() {
-  const refresh = useAction(api.card.getFileUrl.refreshCardMediaUrl);
+export function useCopyCard() {
+  const refresh = useAction(api.cards.refreshCardMediaUrl);
   const { handleCopyImage } = useCardClipboard();
-  return useCallback(
-    (card: ImageCard) => {
+  const copyImage = useCallback(
+    (card: CopyableCard) => {
       // Started straight from the press: the clipboard write has to begin
       // before any await (see copyCardContentToClipboard).
       void handleCopyImage(
@@ -191,4 +197,18 @@ export function useCopyCardImage() {
     },
     [handleCopyImage, refresh]
   );
+  const copy = useCallback(
+    (card: CopyableCard) => {
+      if (cardCopyKind(card) === "image") {
+        copyImage(card);
+        return;
+      }
+      const text = cardCopyText(card);
+      if (text) {
+        void handleCopyImage(text, false);
+      }
+    },
+    [copyImage, handleCopyImage]
+  );
+  return { copy, copyImage };
 }

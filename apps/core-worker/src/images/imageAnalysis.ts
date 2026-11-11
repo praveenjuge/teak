@@ -1,10 +1,10 @@
 import type { Env } from "../index";
 import { OpFailure } from "../opFailure";
 import { type ExifFacts, readExifFacts } from "./exif";
-import { throughImagesBinding } from "./imagesBinding";
+import { imageInfoFromBinding, imageInfoFromUrlProbe } from "./imageFacts";
 import { fetchPrivateImageSource } from "./imageTransform";
 import { paletteFromPng } from "./palette";
-import { renderSvgToPng } from "./wasm";
+import { isSvgObject, renderStoredSvg } from "./svg";
 
 export interface ImageAnalysisResult {
   exif?: ExifFacts;
@@ -33,50 +33,11 @@ const readStoredExif = async (
   }
 };
 
-const isSvgSource = (key: string, contentType?: string): boolean =>
-  contentType === "image/svg+xml" ||
-  (key.toLowerCase().endsWith(".svg") &&
-    (contentType === "application/xml" || contentType === "text/xml"));
-
-interface CloudflareImageInfo {
-  height?: number;
-  original?: { height?: number; width?: number };
-  width?: number;
-}
-
-const positiveDimension = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-
-const parseDimensions = (
-  value: unknown
-): {
-  height: number;
-  width: number;
-} | null => {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  const info = value as CloudflareImageInfo;
-  const width = positiveDimension(info.original?.width ?? info.width);
-  const height = positiveDimension(info.original?.height ?? info.height);
-  return width && height ? { width, height } : null;
-};
-
 const analyzeSvg = async (
   env: Env,
   sourceKey: string
 ): Promise<ImageAnalysisResult> => {
-  const object = await env.BUCKET.get(sourceKey);
-  if (!object) {
-    throw new OpFailure("source_not_found");
-  }
-  if (object.size > 10 * 1024 * 1024) {
-    await object.body.cancel();
-    throw new OpFailure("source_too_large");
-  }
-  const rendered = await renderSvgToPng(await object.text(), 64);
+  const rendered = await renderStoredSvg(env.BUCKET, sourceKey, 64);
   return {
     height: rendered.originalHeight,
     palette: paletteFromPng(rendered.bytes),
@@ -84,58 +45,32 @@ const analyzeSvg = async (
   };
 };
 
-const dimensionsFromBinding = (
-  env: Env,
-  sourceKey: string,
-  sourceSize: number
-): Promise<{ height: number; width: number } | null> =>
-  throughImagesBinding(
-    env.IMAGES,
-    sourceSize,
-    async () => {
-      const object = await env.BUCKET.get(sourceKey);
-      if (!object) {
-        throw new OpFailure("source_not_found");
-      }
-      return object;
-    },
-    async (images, object) => parseDimensions(await images.info(object.body))
-  );
-
 const resolveRasterDimensions = async (
   env: Env,
   sourceKey: string,
-  sourceSize: number,
+  source: { httpEtag: string; size: number },
   origin: string,
   imageFetch: typeof fetch,
   now: number
 ): Promise<{ height: number; width: number }> => {
-  const bindingDimensions = await dimensionsFromBinding(
-    env,
-    sourceKey,
-    sourceSize
-  );
-  if (bindingDimensions) {
-    return bindingDimensions;
+  const bindingInfo = await imageInfoFromBinding(env, sourceKey, source);
+  if (bindingInfo?.width && bindingInfo.height) {
+    return { height: bindingInfo.height, width: bindingInfo.width };
   }
-  const response = await fetchPrivateImageSource(
+  const probed = await imageInfoFromUrlProbe(
     env,
-    origin,
     sourceKey,
-    { anim: false, format: "json" },
+    origin,
     imageFetch,
     now
   );
-  if (!response.ok) {
+  if (!probed) {
     throw new OpFailure("image_transform_failed");
   }
-  const dimensions = parseDimensions(
-    (await response.json()) as CloudflareImageInfo
-  );
-  if (!dimensions) {
+  if (!(probed.width && probed.height)) {
     throw new OpFailure("image_dimensions_missing");
   }
-  return dimensions;
+  return { height: probed.height, width: probed.width };
 };
 
 export const analyzeImage = async (
@@ -149,19 +84,12 @@ export const analyzeImage = async (
   if (!metadata) {
     throw new OpFailure("source_not_found");
   }
-  if (isSvgSource(sourceKey, metadata.httpMetadata?.contentType)) {
+  if (isSvgObject(sourceKey, metadata.httpMetadata?.contentType)) {
     return await analyzeSvg(env, sourceKey);
   }
 
   const [dimensions, sampleResponse, exif] = await Promise.all([
-    resolveRasterDimensions(
-      env,
-      sourceKey,
-      metadata.size,
-      origin,
-      imageFetch,
-      now
-    ),
+    resolveRasterDimensions(env, sourceKey, metadata, origin, imageFetch, now),
     fetchPrivateImageSource(
       env,
       origin,

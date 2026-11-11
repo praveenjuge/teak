@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { resolveLinkCategory } from "@teak/convex/shared";
 import { buildRawSelectorMap } from "@teak/convex/shared/linkCategory/enrichment";
 import { MAX_LINK_FACTS } from "@teak/convex/shared/linkCategory/remoteDetails";
@@ -156,6 +156,38 @@ describe("fetchRemoteDetails", () => {
         deps
       )
     ).toBeNull();
+  });
+
+  test("an arXiv slot that can't be taken is logged and asks nothing", async () => {
+    const { deps, requests } = socialFetch(() => undefined);
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(
+        await fetchRemoteDetails(
+          {
+            category: "paper",
+            entities: [],
+            provider: "arxiv",
+            rawMap: buildRawSelectorMap([]),
+            sourceUrl: "https://arxiv.org/abs/1706.03762",
+          },
+          {
+            ...deps,
+            takeArxivSlot: () =>
+              Promise.reject(new Error("convex_rpc_unavailable")),
+          }
+        )
+      ).toBeNull();
+      expect(warn.mock.calls).toEqual([
+        [
+          "[categorization] Site details unavailable",
+          { message: "convex_rpc_unavailable" },
+        ],
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+    expect(requests).toEqual([]);
   });
 
   test("a link no site describes asks nothing", async () => {

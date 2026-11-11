@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Id } from "../../../_generated/dataModel";
 import {
   buildRelevanceCardText,
   currentRelevanceScores,
@@ -34,9 +35,9 @@ describe("orderByRelevance", () => {
 test("only scores of unedited cards count", () => {
   const current = currentRelevanceScores(
     [
-      { cardId: "a", score: 3, cardUpdatedAt: 10 },
-      { cardId: "b", score: 2, cardUpdatedAt: 10 },
-      { cardId: "gone", score: 1, cardUpdatedAt: 10 },
+      { cardId: "a" as Id<"cards">, score: 3, cardUpdatedAt: 10 },
+      { cardId: "b" as Id<"cards">, score: 2, cardUpdatedAt: 10 },
+      { cardId: "gone" as Id<"cards">, score: 1, cardUpdatedAt: 10 },
     ],
     [
       { _id: "a", updatedAt: 10 },

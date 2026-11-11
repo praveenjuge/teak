@@ -26,7 +26,9 @@ mock.module("@workos-inc/authkit-nextjs/components", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth } = await import("convex/react");
-const { ConvexQueryCacheProvider } = await import("@/lib/convexQueryCache");
+const { ConvexQueryCacheProvider } = await import(
+  "convex-helpers/react/cache/provider"
+);
 const { QuerySeedsProvider } = await import("@/lib/convexQueryHooks");
 const { createConvexTransport } = await import(
   "../../settings/__tests__/helpers/convexTransport"

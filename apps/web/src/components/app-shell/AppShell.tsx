@@ -1,7 +1,9 @@
 "use client";
 
+import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useEffect } from "react";
+import { preloadCardModal } from "@/components/card-modal/LazyCardModal";
 import { AddCardActions, AddCardProvider } from "@/components/forms";
 import { LibraryCommandsProvider } from "@/components/providers/LibraryCommandsProvider";
 import { LibraryShortcuts } from "@/components/shortcuts";
@@ -11,12 +13,14 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useSignOut } from "@/hooks/useSignOut";
 import { folderIdForPath } from "@/lib/folders";
 import { startNewNote } from "@/lib/keyboardShortcuts";
+import { whenIdle } from "@/lib/lazyWithPreload";
 import {
   type GoToViewOptions,
   type LibraryView,
   libraryViewForPath,
   libraryViewHref,
 } from "@/lib/libraryViews";
+import { isSettingsPath } from "@/lib/settingsSections";
 import { IntentLink } from "./IntentLink";
 import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
@@ -34,6 +38,15 @@ export function AppShell({
   const router = useRouter();
   const view = libraryViewForPath(pathname);
   const folderId = folderIdForPath(pathname);
+
+  // Opening a card is the next thing most visits do.
+  useEffect(
+    () =>
+      whenIdle(() => {
+        preloadCardModal().catch(() => undefined);
+      }),
+    []
+  );
 
   const handleGoToView = useCallback(
     (target: LibraryView, options?: GoToViewOptions) => {
@@ -86,8 +99,8 @@ export function AppShell({
                 />
               </SidebarFoldersBoundary>
             }
-            isSettingsActive={pathname.startsWith("/settings")}
-            isTagsActive={pathname === "/tags"}
+            isSettingsActive={isSettingsPath(pathname)}
+            isTagsActive={pathname === TAGS_PATH}
             LinkComponent={IntentLink}
           />
           <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>

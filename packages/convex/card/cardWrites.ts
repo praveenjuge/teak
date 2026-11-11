@@ -14,8 +14,12 @@ import { newShuffleKey } from "./shuffle";
 /**
  * Every write to a card that changes what it shows or where it's found goes
  * through `insertCard` or `patchCard`. They set the derived fields
- * (`deriveCardFields`), `savedAt` and `shuffleKey`, keep the free plan's count,
- * and run `onCardChanged` in the same transaction. A raw `ctx.db.patch` is
+ * (`deriveCardFields`), `savedAt` and `shuffleKey`, and run `onCardChanged`
+ * in the same transaction. `insertCard` also counts a new card toward the
+ * free plan; `patchCard` doesn't count anything, so moving a card to or out
+ * of Trash goes through `updateCardFieldForUserHandler` (`updateCard.ts`)
+ * and a permanent delete through `deleteCard.ts`, which keep the count. A
+ * raw `ctx.db.patch` is
  * left only for fields nothing derives from and the hook doesn't read
  * (`pinPosition`, `processingRev`, operational bookkeeping) and for backfills
  * that repair derived fields themselves.

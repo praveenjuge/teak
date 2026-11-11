@@ -1,13 +1,14 @@
 "use client";
 
+import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "vadivam-react";
+import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { SidebarToggle } from "@/components/sidebar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { settingsSectionForPath } from "@/lib/settingsSections";
-import { PageHeader, PageTitle } from "@/screens";
 
 export function SettingsHeader() {
   const t = useTranslations("settings");
@@ -30,7 +31,7 @@ export function SettingsHeader() {
         <span className="flex min-w-0 items-center gap-2">
           <Link
             className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-            href="/settings"
+            href={SETTINGS_PATHS.account}
           >
             {t("header.title")}
           </Link>

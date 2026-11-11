@@ -14,6 +14,9 @@ const {
   parseSettingsDialogParam,
   shouldOpenPalette,
 } = await import("../commandPalette");
+const { englishTranslator } = await import("../englishTranslators");
+const palette = englishTranslator("commandPalette");
+const linkTitle = englishTranslator("lib.linkTitle");
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -271,13 +274,19 @@ describe("paletteCardTitle", () => {
     ],
     ["an empty note", { type: "text", content: "   " }, "Untitled card"],
   ] as const)("%s", (_name, card, expected) => {
-    expect(paletteCardTitle({ _id: "c1", ...card })).toBe(expected);
+    expect(paletteCardTitle({ _id: "c1", ...card }, palette, linkTitle)).toBe(
+      expected
+    );
   });
 
   test("a 300-character title is not cut mid-row by the data", () => {
     const long = "é".repeat(400);
     expect(
-      paletteCardTitle({ _id: "c1", type: "text", content: long })
+      paletteCardTitle(
+        { _id: "c1", type: "text", content: long },
+        palette,
+        linkTitle
+      )
     ).toHaveLength(300);
   });
 });

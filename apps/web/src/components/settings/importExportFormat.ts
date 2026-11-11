@@ -1,18 +1,6 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
-
-export { formatBytes } from "@teak/convex/shared/utils/formatBytes";
+import type { TeakTranslator } from "@teak/i18n";
 
 export type FormatTranslator = TeakTranslator<"settings.format">;
-
-const englishFormat: FormatTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "settings.format"
-);
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -20,8 +8,8 @@ const DAY_MS = 24 * HOUR_MS;
 
 export function formatRelativeTime(
   timestamp: number,
-  now = Date.now(),
-  t: FormatTranslator = englishFormat,
+  now: number,
+  t: FormatTranslator,
   locale?: string
 ): string {
   const diff = Math.max(0, now - timestamp);
@@ -45,7 +33,7 @@ export function formatRelativeTime(
 
 export function formatCountdown(
   remainingMs: number,
-  t: FormatTranslator = englishFormat
+  t: FormatTranslator
 ): string {
   if (remainingMs <= 0) {
     return t("now");

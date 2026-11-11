@@ -1,8 +1,7 @@
-import { v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 
 const outcomeValidator = v.union(
-  v.literal("skipped"),
   v.literal("started"),
   v.literal("replayed"),
   v.literal("conflict"),
@@ -10,13 +9,7 @@ const outcomeValidator = v.union(
   v.literal("error")
 );
 
-export type IdempotencyOutcome =
-  | "skipped"
-  | "started"
-  | "replayed"
-  | "conflict"
-  | "in_progress"
-  | "error";
+export type IdempotencyOutcome = Infer<typeof outcomeValidator>;
 
 export const IDEMPOTENCY_ANALYTICS_SHARDS = 8;
 
@@ -50,7 +43,7 @@ export const trackIdempotencyOutcome = internalMutation({
       const field = outcomeToField(args.outcome);
       await ctx.db.patch(existing._id, {
         totalRequests: existing.totalRequests + 1,
-        withKey: existing.withKey + (args.outcome === "skipped" ? 0 : 1),
+        withKey: existing.withKey + 1,
         [field]: existing[field] + 1,
       });
     } else {
@@ -59,7 +52,8 @@ export const trackIdempotencyOutcome = internalMutation({
         endpoint: args.endpoint,
         shard,
         totalRequests: 1,
-        withKey: args.outcome === "skipped" ? 0 : 1,
+        withKey: 1,
+        // Keyless requests aren't counted; the schema still holds the column.
         skipped: 0,
         started: 0,
         replayed: 0,
@@ -143,7 +137,6 @@ export const getIdempotencyAnalytics = internalQuery({
 });
 
 type AnalyticsCounterField =
-  | "skipped"
   | "started"
   | "replayed"
   | "conflicts"
@@ -152,8 +145,6 @@ type AnalyticsCounterField =
 
 function outcomeToField(outcome: IdempotencyOutcome): AnalyticsCounterField {
   switch (outcome) {
-    case "skipped":
-      return "skipped";
     case "started":
       return "started";
     case "replayed":

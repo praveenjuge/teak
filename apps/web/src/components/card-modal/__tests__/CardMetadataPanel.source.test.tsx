@@ -34,8 +34,8 @@ const render = (card: ClientCard) =>
         addTag: () => undefined,
         removeAiTag: () => undefined,
         removeTag: () => undefined,
-        setTagInput: () => undefined,
-        tagInput: "",
+        setInput: () => undefined,
+        input: "",
       }}
     />
   );

@@ -1,6 +1,8 @@
+import { MAX_IMPORT_CARDS } from "@teak/files-protocol";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import {
   folderPath,
+  IMPORT_LIMIT_TEXT,
   ImportLimitExceeded,
   linkItem,
   notAnExport,
@@ -87,8 +89,10 @@ export function parseLinkwardenJson(json: string): ParsedBookmarkItem[] {
     }
     const folder = pathOf(collection);
     for (const link of collection.links as Array<LinkwardenLink | null>) {
-      if (output.length >= 10_000) {
-        throw new ImportLimitExceeded("Linkwarden backup exceeds 10,000 links");
+      if (output.length >= MAX_IMPORT_CARDS) {
+        throw new ImportLimitExceeded(
+          `Linkwarden backup exceeds ${IMPORT_LIMIT_TEXT} links`
+        );
       }
       const tags = Array.isArray(link?.tags)
         ? (link.tags as Array<{ name?: unknown } | null>).map((tag) =>

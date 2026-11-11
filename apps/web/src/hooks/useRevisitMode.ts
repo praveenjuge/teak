@@ -17,7 +17,6 @@ export interface UseRevisitModeOptions {
     options?: BulkActionOptions
   ) => Promise<BulkRunResult>;
   setSort: (sort: LibrarySort) => void;
-  urlDriven: boolean;
 }
 
 export function useRevisitMode({
@@ -29,7 +28,6 @@ export function useRevisitMode({
   reshuffle,
   runBulkAction,
   setSort,
-  urlDriven,
 }: UseRevisitModeOptions) {
   const pickedFrom = useRef<LibrarySort | null>(null);
   const openedCard = useRef(false);
@@ -56,13 +54,13 @@ export function useRevisitMode({
   const exit = useCallback(() => {
     const previous = pickedFrom.current;
     pickedFrom.current = null;
-    if (previous !== null && urlDriven && !openedCard.current) {
+    if (previous !== null && !openedCard.current) {
       window.history.back();
       return;
     }
     replaceNextSortChange();
     setSort(previous ?? "newest");
-  }, [replaceNextSortChange, setSort, urlDriven]);
+  }, [replaceNextSortChange, setSort]);
 
   const startOver = useCallback(() => {
     replaceNextSortChange();

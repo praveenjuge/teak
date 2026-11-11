@@ -19,7 +19,7 @@ const CARD_SPACING_MS = 3000;
 export const backfillLinkOcr = internalMutation({
   args: ocrBackfillArgs,
   returns: ocrBackfillReturns,
-  handler: (ctx, args) =>
+  handler: (ctx, args): Promise<typeof ocrBackfillReturns.type> =>
     runOcrBackfillPage(ctx, args, {
       cardAction: internal.migration.backfillLinkOcr.backfillLinkOcrCard,
       hasSource: (card) =>

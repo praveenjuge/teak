@@ -23,7 +23,7 @@ import {
 } from "../../storage/r2";
 import { newBackend, signIn } from "../helpers.testUtils";
 
-const articleText = (internal as any)["card/articleText"];
+const articleText = internal.card.articleText;
 const NOW = Date.UTC(2026, 9, 20, 10);
 const HOUR = 60 * 60 * 1000;
 const LINK = "https://example.com/gardens";
@@ -673,6 +673,39 @@ describe("importing", () => {
       highlightCount: 1,
     });
   });
+
+  test("a card whose highlights fail to save is not kept beside an item reported failed", async () => {
+    const { t } = await setup();
+    const job = {
+      _id: "job_1",
+      mode: "instapaper",
+      userId: "owner",
+    } as unknown as Doc<"importJobs">;
+    const url = "https://example.com/broken-highlights";
+    const run = t.run((ctx) =>
+      createImportedCard(
+        ctx,
+        job,
+        OWNER,
+        {
+          type: "link",
+          content: "Gardens",
+          url,
+          // Not a string: saving the highlight throws after the card is written.
+          highlights: [{ quote: 42 }],
+        } as never,
+        newImportFolderCache()
+      )
+    );
+    await expect(run).rejects.toThrow();
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "owner"))
+        .collect()
+    );
+    expect(cards.filter((stored) => stored.url === url)).toEqual([]);
+  });
 });
 
 describe("a highlighted link is frozen", () => {
@@ -795,7 +828,7 @@ describe("deleting", () => {
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 1 })
     );
-    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+    await t.mutation(internal.card.deleteCard.permanentDeleteCardForUser, {
       cardId,
       userId: "owner",
     });

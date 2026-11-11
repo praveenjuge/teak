@@ -1,4 +1,5 @@
 import { internal } from "../../_generated/api";
+import { SETTINGS_PATHS } from "../../shared/webRoutes";
 import type { PublicApiCall } from "./operation";
 import { getAppBaseUrl } from "./serializers";
 import { errorResponse, json } from "./shared";
@@ -13,7 +14,10 @@ export const handleMeRequest = async ({
       teakUserId: userId,
       includeUsage: true,
     });
-    const settingsUrl = new URL("/settings", getAppBaseUrl(request.url));
+    const settingsUrl = new URL(
+      SETTINGS_PATHS.account,
+      getAppBaseUrl(request.url)
+    );
     return profile
       ? json(200, { data: { ...profile, settingsUrl: settingsUrl.toString() } })
       : errorResponse(401, "UNAUTHORIZED", "User profile unavailable");

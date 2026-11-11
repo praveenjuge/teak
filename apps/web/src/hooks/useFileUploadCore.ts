@@ -19,8 +19,8 @@ import type {
 import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
 import {
+  convexErrorData,
   type ErrorsTranslator,
   translateErrorKey,
   translateServerMessage,
@@ -104,57 +104,29 @@ export interface FileUploadDependencies
   uploadAndCreateCard: (
     args: UploadAndCreateCardArgs
   ) => Promise<UploadAndCreateCardResult>;
-  uploadBinaryFromUri?: (args: {
-    contentType: string;
-    fileUri: string;
-    signal: AbortSignal;
-    uploadUrl: string;
-  }) => Promise<{
-    headers?: Headers | Record<string, string>;
-    ok: boolean;
-    status: number;
-  }>;
-}
-
-export interface UploadFileFromUriArgs {
-  additionalMetadata?: AdditionalFileMetadata;
-  content?: string;
-  name: string;
-  size: number;
-  type: string;
-  uri: string;
 }
 
 export type UploadTranslator = TeakTranslator<"hooks.upload">;
 
 export interface FileUploadTranslators {
-  errors?: ErrorsTranslator;
-  upload?: UploadTranslator;
+  errors: ErrorsTranslator;
+  upload: UploadTranslator;
 }
-
-const englishUpload: UploadTranslator = englishTranslator("hooks.upload");
 
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
 
-// A Convex function's ConvexError keeps its code and message in `data`; its
-// own message is the serialized data, which isn't fit for a toast.
+// A ConvexError's own message is its serialized data, not fit for a toast.
 const toFileUploadError = (
   error: unknown,
   t: UploadTranslator,
   errors: ErrorsTranslator
 ): FileUploadError => {
   if (error instanceof ConvexError) {
-    const data = error.data as { code?: unknown; message?: unknown } | null;
+    const { code, message } = convexErrorData(error);
     return {
-      code:
-        typeof data?.code === "string"
-          ? (data.code as CardErrorCode)
-          : undefined,
-      message:
-        typeof data?.message === "string"
-          ? translateServerMessage(errors, data.message)
-          : t("failed"),
+      code: code as CardErrorCode | undefined,
+      message: message ? translateServerMessage(errors, message) : t("failed"),
     };
   }
   let message = t("failed");
@@ -187,13 +159,10 @@ export function useFileUploadCore(
     finalizeUploadedCard,
     prepareMultipartUpload,
     recordMultipartPart,
-    uploadBinaryFromUri,
   }: FileUploadDependencies,
-  config: UnifiedFileUploadConfig = {},
-  translators: FileUploadTranslators = {}
+  config: UnifiedFileUploadConfig,
+  { errors, upload: t }: FileUploadTranslators
 ) {
-  const t = translators.upload ?? englishUpload;
-  const errors = translators.errors ?? englishErrors;
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);
@@ -452,187 +421,6 @@ export function useFileUploadCore(
     ]
   );
 
-  const uploadFileFromUri = useCallback(
-    async ({
-      uri,
-      name,
-      type,
-      size,
-      content,
-      additionalMetadata,
-    }: UploadFileFromUriArgs): Promise<UploadFileResult> => {
-      const abortController = beginUpload();
-      const { signal } = abortController;
-      setIsUploading(true);
-      setProgress(0);
-      setError(null);
-      const bucket = fileBucket(type);
-
-      try {
-        if (!uploadBinaryFromUri) {
-          const errorInfo: FileUploadError = {
-            message: "URI uploads are not supported on this platform",
-            code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
-          };
-          const codedError = new Error(errorInfo.message) as CodedUploadError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-
-        if (size > MAX_FILE_SIZE) {
-          const errorInfo: FileUploadError = {
-            message: translateErrorKey(errors, "cards.FILE_TOO_LARGE"),
-            code: CARD_ERROR_CODES.FILE_TOO_LARGE,
-          };
-          const codedError = new Error(errorInfo.message) as CodedUploadError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-
-        const fileFormat = inferFileFormat({ fileName: name, mimeType: type });
-        if (!fileFormat) {
-          const errorInfo: FileUploadError = {
-            message: t("unsupportedType"),
-            code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
-          };
-          const codedError = new Error(errorInfo.message) as CodedUploadError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-
-        const cardType = fileFormat.cardType;
-        const fileType = isGenericMimeType(type) ? fileFormat.mimeType : type;
-
-        const uploadResult = await uploadAndCreateCard({
-          fileName: name,
-          fileType,
-          fileSize: size,
-          cardType,
-          content,
-          additionalMetadata,
-        });
-
-        if (
-          !(
-            uploadResult.success &&
-            uploadResult.uploadKey &&
-            uploadResult.uploadUrl
-          )
-        ) {
-          const errorInfo: FileUploadError = {
-            message: uploadResult.error
-              ? translateServerMessage(errors, uploadResult.error)
-              : t("prepareFailed"),
-            code: uploadResult.errorCode as CardErrorCode | undefined,
-          };
-          const codedError = new Error(errorInfo.message) as CodedUploadError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-        const { uploadKey, uploadUrl } = uploadResult;
-
-        config.onProgress?.(25);
-        setProgress(25);
-
-        const uploadResponse = await uploadWithTransientRetry(
-          (attemptSignal) =>
-            uploadBinaryFromUri({
-              fileUri: uri,
-              uploadUrl,
-              contentType: fileType,
-              signal: attemptSignal,
-            }),
-          signal,
-          { timeoutMs: uploadAttemptTimeoutMs(size) }
-        );
-
-        if (!uploadResponse.ok) {
-          throw new Error(
-            t("failedWithStatus", { status: uploadResponse.status })
-          );
-        }
-
-        throwIfAborted(signal);
-        config.onProgress?.(75);
-        setProgress(75);
-
-        const finalizeResult = await finalizeUploadedCard({
-          fileKey: uploadKey,
-          fileName: name,
-          fileSize: size,
-          fileType,
-          fileEtag: getUploadEtag(uploadResponse.headers),
-          cardType,
-          content,
-          additionalMetadata,
-        });
-
-        throwIfAborted(signal);
-        if (!(finalizeResult.success && finalizeResult.cardId)) {
-          const errorInfo: FileUploadError = {
-            message: finalizeResult.error
-              ? translateServerMessage(errors, finalizeResult.error)
-              : t("createFailed"),
-            code: finalizeResult.errorCode as CardErrorCode | undefined,
-          };
-          const codedError = new Error(errorInfo.message) as CodedUploadError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-
-        config.onProgress?.(100);
-        setProgress(100);
-        config.onSuccess?.(finalizeResult.cardId);
-        captureEvent("file_upload_completed", {
-          bucket,
-          size_bucket: resolveSizeBucket(size),
-        });
-
-        return { success: true, cardId: finalizeResult.cardId };
-      } catch (error) {
-        if (isAbortError(error)) {
-          return { success: false, error: t("cancelled") };
-        }
-
-        captureEvent("file_upload_failed", {
-          bucket,
-          error_class: normalizeErrorClass(error),
-          size_bucket: resolveSizeBucket(size),
-        });
-
-        const fileError = toFileUploadError(error, t, errors);
-
-        if (shouldCaptureUploadError(fileError.code)) {
-          captureClientException(error, {
-            "error.code": fileError.code,
-            "file.bucket": bucket,
-            operation: "storage.upload",
-          });
-        }
-
-        setError(fileError);
-        config.onError?.(fileError);
-        return {
-          success: false,
-          error: fileError.message,
-          errorCode: fileError.code,
-        };
-      } finally {
-        finishUpload(abortController);
-      }
-    },
-    [
-      uploadAndCreateCard,
-      finalizeUploadedCard,
-      uploadBinaryFromUri,
-      config,
-      beginUpload,
-      finishUpload,
-      t,
-      errors,
-    ]
-  );
-
   const uploadMultipleFiles = useCallback(
     async (
       files: File[],
@@ -696,7 +484,6 @@ export function useFileUploadCore(
 
   return {
     uploadFile,
-    uploadFileFromUri,
     uploadMultipleFiles,
     state,
     isUploading,

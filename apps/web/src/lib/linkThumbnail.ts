@@ -4,8 +4,8 @@ import {
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
 import type { TeakTranslator } from "@teak/i18n";
-import { englishErrors, englishTranslator } from "./englishTranslators";
 import {
+  convexErrorData,
   type ErrorsTranslator,
   translateErrorKey,
   translateServerMessage,
@@ -41,7 +41,7 @@ export const linkThumbnailFileProblem = (
     size: number;
     type: string;
   },
-  errors: ErrorsTranslator = englishErrors
+  errors: ErrorsTranslator
 ): string | null => {
   if (!toThumbnailMimeType(file.type)) {
     return translateErrorKey(errors, "thumbnails.unsupported");
@@ -54,19 +54,13 @@ export const linkThumbnailFileProblem = (
 
 export type LinkThumbnailTranslator = TeakTranslator<"lib.linkThumbnail">;
 
-const englishLinkThumbnail: LinkThumbnailTranslator =
-  englishTranslator("lib.linkThumbnail");
-
 export const linkThumbnailErrorMessage = (
   error: unknown,
-  errors: ErrorsTranslator = englishErrors,
-  t: LinkThumbnailTranslator = englishLinkThumbnail
+  errors: ErrorsTranslator,
+  t: LinkThumbnailTranslator
 ): string => {
-  const data =
-    error && typeof error === "object" && "data" in error
-      ? (error as { data?: { code?: unknown; message?: unknown } }).data
-      : undefined;
-  switch (data?.code) {
+  const { code, message } = convexErrorData(error);
+  switch (code) {
     case "UNSUPPORTED_TYPE":
       return translateErrorKey(errors, "thumbnails.unsupported");
     case "FILE_TOO_LARGE":
@@ -76,9 +70,9 @@ export const linkThumbnailErrorMessage = (
     case "RATE_LIMITED":
       return translateErrorKey(errors, "thumbnails.rateLimited");
     default:
-      return typeof data?.message === "string"
-        ? translateServerMessage(errors, data.message)
-        : t("changeFailed");
+      return message === undefined
+        ? t("changeFailed")
+        : translateServerMessage(errors, message);
   }
 };
 

@@ -6,7 +6,7 @@ import {
 } from "@teak/convex/shared/highlights/anchor";
 import { cleanHighlightNote } from "@teak/convex/shared/highlights/constants";
 import type { FunctionReturnType } from "convex/server";
-import { ConvexError } from "convex/values";
+import { convexErrorData } from "@/lib/serverErrors";
 
 export type CardHighlight = FunctionReturnType<
   typeof api.highlight.highlights.listForCard
@@ -111,11 +111,8 @@ export type HighlightProblem =
   | "tooLong";
 
 export const highlightProblem = (error: unknown): HighlightProblem => {
-  const data =
-    error instanceof ConvexError
-      ? (error.data as { code?: unknown; message?: unknown } | null)
-      : null;
-  switch (data?.code) {
+  const { code, message } = convexErrorData(error);
+  switch (code) {
     case "RATE_LIMITED":
       return "rateLimited";
     case "HIGHLIGHT_LIMIT":
@@ -123,8 +120,7 @@ export const highlightProblem = (error: unknown): HighlightProblem => {
     case "NO_ARTICLE":
       return "noArticle";
     case "INVALID_INPUT":
-      return typeof data.message === "string" &&
-        data.message.startsWith("Highlights can be up to")
+      return message?.startsWith("Highlights can be up to")
         ? "tooLong"
         : "failed";
     default:

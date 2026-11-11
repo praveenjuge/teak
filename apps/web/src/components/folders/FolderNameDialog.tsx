@@ -1,17 +1,15 @@
 "use client";
 
-import { api } from "@teak/convex";
 import { parseSearchQuery } from "@teak/convex/shared";
 import {
-  explainInvalidFolderName,
   explainInvalidSmartFolderQuery,
+  FOLDER_COLORS,
   FOLDER_ERROR_MESSAGES,
-  MAX_FOLDERS_PER_USER,
+  type FolderColor,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useEffect, useId, useState } from "react";
 import { Check } from "vadivam-react";
 import { Button } from "@/components/ui/button";
@@ -26,22 +24,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useCreateFolder, useUpdateFolder } from "@/hooks/useFolderMutations";
 import { useFolderRuleRunToast } from "@/hooks/useFolderRuleRunToast";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
-  FOLDER_COLORS,
   FOLDER_DOT_CLASSES,
   FOLDER_NAME_INPUT_MAX_LENGTH,
-  type FolderColor,
   type FolderSummary,
   folderColorLabel,
-  folderErrorMessage,
-  hasFolderNamed,
+  folderNameProblem,
   suggestSmartFolderName,
 } from "../../lib/folders";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
+import { convexErrorData } from "../../lib/serverErrors";
 import { cn } from "../../lib/utils";
 import { FolderRulesFields, useFolderRulesForm } from "./FolderRulesFields";
 
@@ -71,8 +68,8 @@ export function FolderNameDialog({
   const inputId = useId();
   const queryId = useId();
   const folders = useFolders();
-  const createFolder = useMutation(api.folders.createFolder);
-  const updateFolder = useMutation(api.folders.updateFolder);
+  const createFolder = useCreateFolder();
+  const updateFolder = useUpdateFolder();
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<FolderColor | undefined>(undefined);
@@ -98,14 +95,7 @@ export function FolderNameDialog({
 
   const trimmed = name.trim();
   const canonicalQuery = isSmart ? parseSearchQuery(query).canonical : "";
-  let problem: string | null = null;
-  if (!isRename && folders && folders.length >= MAX_FOLDERS_PER_USER) {
-    problem = FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS;
-  } else if (folders && hasFolderNamed(folders, trimmed, folder?._id)) {
-    problem = FOLDER_ERROR_MESSAGES.DUPLICATE_NAME;
-  } else if (trimmed) {
-    problem = explainInvalidFolderName(trimmed);
-  }
+  const problem = folderNameProblem(folders, trimmed, folder?._id);
   const queryIncomplete = isSmart && !canonicalQuery;
   const queryProblem =
     isSmart && canonicalQuery
@@ -165,10 +155,8 @@ export function FolderNameDialog({
       }
     } catch (caught) {
       setServerError(
-        folderErrorMessage(
-          caught,
-          isRename ? t("saveFailed") : t("createFailed")
-        )
+        convexErrorData(caught).message ??
+          (isRename ? t("saveFailed") : t("createFailed"))
       );
     }
   });

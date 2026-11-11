@@ -36,6 +36,3 @@ export const settleConvexErrors = async <T>(
     throw error;
   }
 };
-
-export const isTransientError = (error: unknown): boolean =>
-  error instanceof Error && error.message.startsWith("convex_rpc_unavailable");

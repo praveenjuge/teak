@@ -48,7 +48,7 @@ export const monitored = async (
 export const workflowDispatchWatchdog = internalAction({
   args: {},
   returns: v.null(),
-  handler: (ctx: ActionCtx) =>
+  handler: (ctx: ActionCtx): Promise<null> =>
     monitored(ctx, CRONS.workflowDispatchWatchdog.name, async () => {
       const health = await ctx.runQuery(
         internal.workflowDispatch.dispatchHealth,
@@ -74,7 +74,7 @@ export const workflowDispatchWatchdog = internalAction({
 export const cleanupFinishedLinkPastes = internalAction({
   args: {},
   returns: v.null(),
-  handler: (ctx: ActionCtx) =>
+  handler: (ctx: ActionCtx): Promise<null> =>
     monitored(ctx, CRONS.cleanupFinishedLinkPastes.name, () =>
       ctx.runMutation(internal.card.pasteLinks.sweepFinishedLinkPastes, {})
     ),
@@ -83,7 +83,7 @@ export const cleanupFinishedLinkPastes = internalAction({
 export const cleanupExpiredFolderRuleRuns = internalAction({
   args: {},
   returns: v.null(),
-  handler: (ctx: ActionCtx) =>
+  handler: (ctx: ActionCtx): Promise<null> =>
     monitored(ctx, CRONS.cleanupExpiredFolderRuleRuns.name, () =>
       ctx.runMutation(internal.folder.rules.deleteExpiredFolderRuleRuns, {})
     ),
@@ -94,7 +94,7 @@ export const cleanupExpiredFolderRuleRuns = internalAction({
 export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),
-  handler: (ctx: ActionCtx) =>
+  handler: (ctx: ActionCtx): Promise<null> =>
     monitored(ctx, CRONS.adminDailySnapshot.name, () =>
       ctx.runMutation(internal.adminMetrics.queueSnapshot, {})
     ),

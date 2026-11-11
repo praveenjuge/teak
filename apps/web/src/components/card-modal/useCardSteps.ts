@@ -1,99 +1,81 @@
 import { useCallback, useEffect, useRef } from "react";
 
-export const STEP_LANDING_TIMEOUT_MS = 1500;
-
 /**
  * Previous and next, one card per press however fast the presses come.
- * `onNext` and `onPrevious` point at the neighbors of the card on screen, so
- * a second press before that card changes would land on the same card again.
- * Presses queue instead, and each waits for the one before it to land. A press
- * the other way drops the queue, and a held key's repeats never pile up.
+ * `onStep` moves from the card the last step went to, not the card on
+ * screen, so a press only waits for the open card to save. A press the
+ * other way drops the presses still waiting, and a held key's repeats wait
+ * for each step to land.
  */
 export function useCardSteps({
   cardId,
-  onNext,
-  onPrevious,
+  onStep,
   open,
   readyToLeave,
 }: {
   cardId?: string | null;
-  onNext?: () => void;
-  onPrevious?: () => void;
+  onStep?: (direction: 1 | -1) => void;
   open: boolean;
   readyToLeave: () => Promise<boolean>;
 }) {
-  const latest = useRef({ cardId, onNext, onPrevious, open, readyToLeave });
-  latest.current = { cardId, onNext, onPrevious, open, readyToLeave };
+  const latest = useRef({ cardId, onStep, open, readyToLeave });
+  latest.current = { cardId, onStep, open, readyToLeave };
   const queued = useRef(0);
-  const leaving = useRef<string | null | undefined>(undefined);
-  const timeout = useRef<number | undefined>(undefined);
-
-  const settle = useCallback(() => {
-    leaving.current = undefined;
-    window.clearTimeout(timeout.current);
-  }, []);
-
-  const flush = useCallback(async () => {
-    if (leaving.current !== undefined) {
-      return;
-    }
-    const direction = Math.sign(queued.current);
-    const show =
-      direction > 0 ? latest.current.onNext : latest.current.onPrevious;
-    if (direction === 0 || !show) {
-      queued.current = 0;
-      return;
-    }
-    leaving.current = latest.current.cardId ?? null;
-    const ready = await latest.current.readyToLeave();
-    // Saving can take a moment. A press the other way meanwhile drops this
-    // step too, since it hasn't shown yet, and a closed card stays closed.
-    if (
-      !(ready && latest.current.open) ||
-      Math.sign(queued.current) !== direction
-    ) {
-      settle();
-      if (ready && latest.current.open) {
-        void flush();
-      } else {
-        queued.current = 0;
-      }
-      return;
-    }
-    queued.current -= direction;
-    timeout.current = window.setTimeout(() => {
-      queued.current = 0;
-      leaving.current = undefined;
-    }, STEP_LANDING_TIMEOUT_MS);
-    show();
-  }, [settle]);
+  const running = useRef<boolean>(false);
+  // The card on screen when the last step went out, until another shows.
+  const landingFrom = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (leaving.current !== undefined && leaving.current !== cardId) {
-      settle();
-      void flush();
+    if (landingFrom.current !== cardId) {
+      landingFrom.current = undefined;
     }
-  }, [cardId, flush, settle]);
+  }, [cardId]);
 
   useEffect(() => {
     if (!open) {
       queued.current = 0;
-      settle();
+      landingFrom.current = undefined;
     }
-    return () => window.clearTimeout(timeout.current);
-  }, [open, settle]);
+  }, [open]);
+
+  const run = useCallback(async () => {
+    if (running.current) {
+      return;
+    }
+    running.current = true;
+    try {
+      while (queued.current !== 0) {
+        const direction = Math.sign(queued.current) as 1 | -1;
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
+        const ready = await latest.current.readyToLeave();
+        // Saving can take a moment, and a closed card stays closed.
+        if (!(ready && latest.current.open)) {
+          queued.current = 0;
+          return;
+        }
+        // A press the other way while saving dropped this step.
+        if (Math.sign(queued.current) === direction) {
+          queued.current -= direction;
+          landingFrom.current = latest.current.cardId ?? null;
+          latest.current.onStep?.(direction);
+        }
+      }
+    } finally {
+      running.current = false;
+    }
+  }, []);
 
   return useCallback(
     (direction: 1 | -1, { repeat = false }: { repeat?: boolean } = {}) => {
-      if (repeat && leaving.current !== undefined) {
+      if (repeat && (running.current || landingFrom.current !== undefined)) {
         return;
       }
       if (Math.sign(queued.current) === -direction) {
         queued.current = 0;
       }
       queued.current += direction;
-      void flush();
+      void run();
     },
-    [flush]
+    [run]
   );
 }

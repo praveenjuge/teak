@@ -1,20 +1,13 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
-import type { ClientCard } from "@/lib/cardTypes";
+import type { TeakTranslator } from "@teak/i18n";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
+import { englishTranslator } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { hasEditableText } from "../../lib/cardTypes";
-import type { GetCurrentValue } from "./types";
 
 export type CardModalTranslator = TeakTranslator<"cardModal">;
 
-export const englishCardModal: CardModalTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cardModal"
-);
+export const englishCardModal: CardModalTranslator =
+  englishTranslator("cardModal");
 
 export function saveStateLabel(
   state: CardSaveState,
@@ -38,7 +31,7 @@ export function saveStateLabel(
 export function emptiedContentNotice(
   card: ClientCard | null | undefined,
   getCurrentValue: GetCurrentValue,
-  t: CardModalTranslator = englishCardModal
+  t: CardModalTranslator
 ): string | null {
   if (
     !(card && hasEditableText(card.type)) ||

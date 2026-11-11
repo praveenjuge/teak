@@ -1,7 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
 import { Textarea } from "@/components/ui/textarea";
-import type { ClientCard } from "@/lib/cardTypes";
-import type { GetCurrentValue } from "../card-modal/types";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
 
 interface QuotePreviewProps {
   card: ClientCard;

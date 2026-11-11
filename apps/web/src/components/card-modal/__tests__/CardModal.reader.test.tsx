@@ -82,8 +82,8 @@ const dialog = (shown: ClientCard, toggleDone?: () => void) => (
       addTag: () => undefined,
       removeAiTag: () => undefined,
       removeTag: () => undefined,
-      setTagInput: () => undefined,
-      tagInput: "",
+      setInput: () => undefined,
+      input: "",
     }}
     toggleDone={toggleDone}
     updateContent={() => undefined}

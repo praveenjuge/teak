@@ -3,13 +3,12 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
-import type { ClientCard } from "@/lib/cardTypes";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
 import {
   ariaKeyShortcut,
   FOCUS_NOTE_KEYS,
   isFocusNoteKey,
 } from "../../lib/keyboardShortcuts";
-import type { GetCurrentValue } from "../card-modal/types";
 import { FocusEditor } from "../lazyDialogs";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import type { CardLinkOptions } from "../text-editor/types";

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { parseLinkPreview } from "../../../../packages/convex/linkMetadata/parsing";
-import { SCRAPE_ELEMENTS } from "../../../../packages/convex/linkMetadata/selectors";
-import type { PinnedFetch } from "../../../../packages/convex/linkMetadata/ssrf";
-import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
+import type { PinnedFetch } from "../../../../packages/files-protocol/src/ssrf";
+import { buildSelectorResultsFromHtml } from "../../../../packages/files-protocol/src/staticHtml";
+import { parseLinkPreview } from "../../src/linkPreview/parsing";
+import { SCRAPE_ELEMENTS } from "../../src/linkPreview/selectors";
 import { decodeHtml, MAX_PAGE_BYTES } from "./fetchPage";
 import { createFetcherHandler } from "./handler";
 import { FETCHER_MAX_IN_FLIGHT, type FetcherPageResponse } from "./protocol";

@@ -3,12 +3,15 @@ import {
   PRO_MONTHLY_PRICE_CENTS,
   PRO_YEARLY_PRICE_CENTS,
 } from "@teak/convex/shared/constants";
+import {
+  ORGANIZATION_ID,
+  ORGANIZATION_LOGO,
+  ORGANIZATION_SAME_AS,
+  SITE_NAME,
+  SITE_URL,
+} from "@teak/convex/shared/organization";
 
-const SITE_URL = "https://teakvault.com";
 const APP_URL = "https://app.teakvault.com";
-const SITE_NAME = "Teak";
-const ORGANIZATION_LOGO = `${SITE_URL}/icon.png`;
-const ORGANIZATION_ID = `${SITE_URL}#organization`;
 
 export const organizationSchema = {
   "@context": "https://schema.org",
@@ -18,9 +21,9 @@ export const organizationSchema = {
   url: SITE_URL,
   logo: {
     "@type": "ImageObject",
-    url: ORGANIZATION_LOGO,
+    url: `${SITE_URL}${ORGANIZATION_LOGO}`,
   },
-  sameAs: ["https://github.com/teakvault"],
+  sameAs: ORGANIZATION_SAME_AS,
 } as const;
 
 export const websiteSchema = {

@@ -9,11 +9,17 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth, useConvexAuth } = await import("convex/react");
-const { ConvexQueryCacheProvider } = await import("@/lib/convexQueryCache");
+const { ConvexQueryCacheProvider } = await import(
+  "convex-helpers/react/cache/provider"
+);
 const { createConvexTransport } = await import(
   "../../components/settings/__tests__/helpers/convexTransport"
 );
 const { CardsScreen } = await import("../CardsScreen");
+const { libraryUrlProps } = await import("./helpers/libraryUrl");
+const { ComposerProvider } = await import(
+  "../../components/forms/ComposerProvider"
+);
 
 let root: Root | undefined;
 
@@ -64,6 +70,7 @@ const renderLibrary = async (query: string) => {
     }
     return (
       <CardsScreen
+        {...libraryUrlProps()}
         onCloseCard={() => undefined}
         onOpenCard={() => undefined}
         searchUrlState={{ q: query, sort: "newest" }}
@@ -80,7 +87,9 @@ const renderLibrary = async (query: string) => {
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
-          <SignedInLibrary />
+          <ComposerProvider>
+            <SignedInLibrary />
+          </ComposerProvider>
         </ConvexQueryCacheProvider>
       </ConvexProviderWithAuth>
     )

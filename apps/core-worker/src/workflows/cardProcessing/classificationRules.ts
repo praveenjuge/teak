@@ -1,6 +1,6 @@
-import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import { normalizeQuoteContent } from "@teak/convex/shared/quoteFormatting";
 import {
   type Color,
   extractPaletteColors,

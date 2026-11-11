@@ -1,4 +1,5 @@
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +12,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { ClientCard } from "@/lib/cardTypes";
-import { getDisplayHostname } from "@/lib/displayHost";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatLinkByline } from "../../lib/linkByline";
@@ -19,8 +19,7 @@ import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
-import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "../cards/SiteFavicon";
+import { ResilientMediaImage, SiteFavicon } from "../media";
 
 function formatFactValue(value: string, locale: string | undefined) {
   const trimmed = value.trim();
@@ -204,7 +203,7 @@ export function LinkPreview({
   const openThroughCheck = (event: React.MouseEvent<HTMLAnchorElement>) =>
     handleCardLinkClick(event, card);
 
-  const hostname = getDisplayHostname(card.url);
+  const hostname = urlHostForDisplay(card.url);
   const byline = formatLinkByline(
     {
       author: linkPreview?.author,

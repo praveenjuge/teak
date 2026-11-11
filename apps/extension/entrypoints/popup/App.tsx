@@ -1,4 +1,5 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
+import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
 import {
   type ChangeEvent,
@@ -544,7 +545,7 @@ function AuthenticatedPopup({
             {status.tone === "upgrade" ? (
               <Button asChild size="sm">
                 <a
-                  href={`${APP_URL}/settings/plan`}
+                  href={`${APP_URL}${SETTINGS_PATHS.plan}`}
                   rel="noopener noreferrer"
                   target="_blank"
                 >

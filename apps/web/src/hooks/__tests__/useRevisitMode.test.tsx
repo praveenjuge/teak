@@ -38,7 +38,6 @@ async function mountMode(
       Promise.resolve({ failedIds: [], updatedIds: [] })
     ),
     setSort: mock((_sort: LibrarySort) => undefined),
-    urlDriven: true,
     ...options,
   };
   root = createRoot(document.createElement("div"));

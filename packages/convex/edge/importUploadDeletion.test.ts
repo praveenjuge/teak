@@ -575,7 +575,7 @@ test.each(["cancel", "items", "job", "cleanup action"] as const)(
     } else if (operation === "job") {
       mutation = t.mutation(internal.dataImport.deleteJob, { jobId });
     } else {
-      mutation = t.action(internal["import/runImport"].cleanupImportJob, {
+      mutation = t.action(internal.import.runImport.cleanupImportJob, {
         jobId,
       });
     }

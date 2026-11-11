@@ -4,6 +4,7 @@ import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
 import { ConvexHttpClient } from "convex/browser";
 import { cacheLife } from "next/cache";
 import { connection, type NextRequest, NextResponse } from "next/server";
+import { NEXT_PARAM, REAUTH_PARAM } from "./authUrls";
 import { getConvexUrl } from "./public-env";
 import { getSafeNextPath } from "./safe-next-path";
 import { readWorkosWebConfig } from "./workos-config";
@@ -53,11 +54,11 @@ export async function startWorkosAuth(
   }
   const params = request.nextUrl.searchParams;
   const options = {
-    returnTo: getSafeNextPath(params.get("next")) ?? "/",
+    returnTo: getSafeNextPath(params.get(NEXT_PARAM)) ?? "/",
     redirectUri: config.redirectUri,
     // After a failed callback, ask for credentials again so an existing
     // AuthKit session can't send the browser straight back into the failure.
-    ...(params.has("reauth") && { maxAge: 0 }),
+    ...(params.has(REAUTH_PARAM) && { maxAge: 0 }),
   };
   const location =
     screen === "sign-up" && (await signupsOpen())

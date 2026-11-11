@@ -12,7 +12,6 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import type { CardCreationSource } from "../shared/analytics";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -34,6 +33,7 @@ import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
 import {
   apiCardSourceValidator,
   clientCardSourceValidator,
+  type UploadCardSource,
 } from "./createCard";
 
 const finalizeArgs = {
@@ -82,7 +82,7 @@ interface FinalizeArgs {
   fileSize?: number;
   fileType?: string;
   notes?: string | null;
-  source?: CardCreationSource;
+  source?: UploadCardSource;
   tags?: string[];
 }
 

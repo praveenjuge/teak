@@ -2,9 +2,8 @@ import { AI_PIPELINE_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { components } from "./_generated/api";
 import { internalQuery, query } from "./_generated/server";
-import { DAY_MS, startOfUtcWeek, utcDay } from "./admin/stats";
+import { DAY_MS, daysAgoDate, startOfUtcWeek, utcDay } from "./admin/dates";
 import { ensureAdmin, readUserFlags } from "./adminAccess";
-import { daysAgoDate } from "./adminUsage";
 import { readHasPremium } from "./billing/polar";
 import { isOnboardingCard } from "./card/defaultCards";
 

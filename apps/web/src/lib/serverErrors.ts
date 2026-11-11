@@ -8,11 +8,8 @@ import {
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "@teak/convex/shared/folders";
 import { MAX_CARD_TAGS, MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import { englishMessages, type TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
 
 type ErrorsTranslator = TeakTranslator<"errors">;
 type ErrorGroup = keyof typeof englishMessages.errors;
@@ -48,7 +45,7 @@ const errorKeys = Object.entries(englishMessages.errors).flatMap(
     Object.keys(messages).map((code) => `${group}.${code}` as ErrorKey)
 );
 
-const english = createTeakTranslator("en", englishMessages, "errors");
+const english = englishTranslator("errors");
 
 // The server sends these messages in English, word for word. Matching the
 // text tells the domains apart where codes repeat (NOT_FOUND, RATE_LIMITED).
@@ -103,14 +100,22 @@ export const translateServerMessage = (
 
 const CARD_CODES = new Set(Object.keys(englishMessages.errors.cards));
 
-const errorData = (error: unknown) => {
+/** The `code` and `message` a Convex function's `ConvexError` carries. */
+export const convexErrorData = (
+  error: unknown
+): { code?: string; message?: string } => {
   const data =
     error && typeof error === "object" && "data" in error
       ? (error as { data?: unknown }).data
       : undefined;
-  return data && typeof data === "object"
-    ? (data as { code?: unknown; message?: unknown })
-    : undefined;
+  if (!data || typeof data !== "object") {
+    return {};
+  }
+  const { code, message } = data as { code?: unknown; message?: unknown };
+  return {
+    ...(typeof code === "string" ? { code } : {}),
+    ...(typeof message === "string" ? { message } : {}),
+  };
 };
 
 export const serverErrorMessage = (
@@ -118,13 +123,12 @@ export const serverErrorMessage = (
   error: unknown,
   fallback: string
 ): string => {
-  const data = errorData(error);
-  const message = typeof data?.message === "string" ? data.message : undefined;
+  const { code, message } = convexErrorData(error);
   if (message && matchEnglishMessage(message)) {
     return translateServerMessage(t, message);
   }
-  if (typeof data?.code === "string" && CARD_CODES.has(data.code)) {
-    return translateErrorKey(t, `cards.${data.code}` as ErrorKey);
+  if (code && CARD_CODES.has(code)) {
+    return translateErrorKey(t, `cards.${code}` as ErrorKey);
   }
   return message ?? fallback;
 };

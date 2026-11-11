@@ -24,27 +24,16 @@ import {
   type SearchSuggestionGroup,
 } from "@teak/convex/shared/search/suggestionHints";
 import { isHiddenTagList } from "@teak/convex/shared/tags";
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
-import {
-  type CardTypesTranslator,
-  englishCardTypes,
-} from "../cards/cardTypeLabel";
+import type { TeakTranslator } from "@teak/i18n";
+import type { CardTypesTranslator } from "../cards/cardTypeLabel";
 
 type SearchTranslator = TeakTranslator<"search">;
-
-const englishSearch = createTeakTranslator("en", englishMessages, "search");
 
 export interface SearchSuggestionSources {
   folders?: readonly { name: string }[];
   sites?: readonly { count: number; host: string; label: string }[];
   tags?: readonly { count: number; name: string }[];
 }
-
-export type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
 
 const searchMessage = <K extends `search.${string}`>(key: K) =>
   key.slice("search.".length) as K extends `search.${infer Rest}`
@@ -53,7 +42,7 @@ const searchMessage = <K extends `search.${string}`>(key: K) =>
 
 export const searchSuggestionGroupLabel = (
   group: SearchSuggestionGroup,
-  t: SearchTranslator = englishSearch
+  t: SearchTranslator
 ): string => t(searchMessage(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS[group]));
 
 export interface SearchSuggestion {
@@ -358,14 +347,14 @@ export function buildSearchSuggestions(
   {
     afterWord = false,
     locale,
-    t = englishSearch,
-    types = englishCardTypes,
+    t,
+    types,
   }: {
     afterWord?: boolean;
     locale?: string;
-    t?: SearchTranslator;
-    types?: CardTypesTranslator;
-  } = {}
+    t: SearchTranslator;
+    types: CardTypesTranslator;
+  }
 ): SearchSuggestionResult {
   const text: SuggestionText = { locale, t, types };
   const none = { completingValue: false, suggestions: [] };
@@ -446,9 +435,9 @@ export interface QualifierChipDescription {
 
 export function describeQualifierChip(
   chip: string,
-  anchorTitle?: string,
-  t: SearchTranslator = englishSearch,
-  types: CardTypesTranslator = englishCardTypes
+  anchorTitle: string | undefined,
+  t: SearchTranslator,
+  types: CardTypesTranslator
 ): QualifierChipDescription | null {
   const parsed = parseSearchQuery(chip);
   const [qualifier] = parsed.qualifiers;

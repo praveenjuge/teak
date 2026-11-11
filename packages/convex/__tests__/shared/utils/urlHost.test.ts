@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   hostForDisplay,
   normalizeUrlHost,
+  urlHostForDisplay,
 } from "../../../shared/utils/urlHost";
 import { loadFixture } from "../loadFixture.test-utils";
 
@@ -33,4 +34,21 @@ describe("hostForDisplay", () => {
   test.each(display)("$host → $display", ({ host, display: shown }) => {
     expect(hostForDisplay(host)).toBe(shown);
   });
+});
+
+describe("urlHostForDisplay", () => {
+  test.each([
+    ["https://www.theverge.com/2024/a", "theverge.com"],
+    ["https://Docs.Convex.dev/x?y=1", "docs.convex.dev"],
+    ["https://www.xn--r8jz45g.jp/page", "例え.jp"],
+  ])("%s → %s", (url, shown) => {
+    expect(urlHostForDisplay(url)).toBe(shown);
+  });
+
+  test.each(["javascript:alert(1)", "ftp://example.com", undefined])(
+    "names no site for %p",
+    (url) => {
+      expect(urlHostForDisplay(url)).toBeUndefined();
+    }
+  );
 });

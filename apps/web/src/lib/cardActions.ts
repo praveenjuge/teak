@@ -24,6 +24,12 @@ export type CardActionId =
 /** Where a key runs: on the focused card in a grid, or in the card dialog. */
 export type CardKeySurface = "grid" | "dialog";
 
+/**
+ * Which card menus offer an action: a card in a grid, or in the pinned row
+ * (no selection there, and nothing in Trash).
+ */
+export type CardMenuSurface = "grid" | "strip";
+
 /** Which cards a grid lists, for what a key does to a selection. */
 export type CardView = "library" | "archive" | "trash";
 
@@ -51,6 +57,7 @@ interface CardActionDefinition {
   key?: string;
   keySurfaces: readonly CardKeySurface[];
   label?: (card: ActionCard) => CardMenuLabel;
+  menus: readonly CardMenuSurface[];
   /**
    * What the key does while cards are selected. Without it the key leaves a
    * selection alone, unless `actsWhileSelecting` keeps it on the card.
@@ -60,6 +67,7 @@ interface CardActionDefinition {
 
 const DELETE_KEY = "Delete";
 const BOTH: readonly CardKeySurface[] = ["grid", "dialog"];
+const EVERY_MENU: readonly CardMenuSurface[] = ["grid", "strip"];
 
 const inLibrary = (card: ActionCard) => !card.isDeleted;
 const inTrash = (card: ActionCard) => Boolean(card.isDeleted);
@@ -69,6 +77,7 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: inLibrary,
     key: "f",
     keySurfaces: BOTH,
+    menus: EVERY_MENU,
     label: (card) => (card.isFavorited ? "unfavorite" : "favorite"),
     onSelection: ({ allSelectedFavorited, view }) => {
       if (view === "trash") {
@@ -82,12 +91,14 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: (card) => !(card.isDeleted || card.isArchived),
     key: "p",
     keySurfaces: BOTH,
+    menus: EVERY_MENU,
     label: (card) => (card.pinPosition === undefined ? "pin" : "unpin"),
   },
   addTags: {
     available: inLibrary,
     key: "t",
     keySurfaces: BOTH,
+    menus: EVERY_MENU,
     label: () => "addTags",
     onSelection: ({ view }) => (view === "trash" ? null : "addTags"),
   },
@@ -95,6 +106,7 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: inLibrary,
     key: "e",
     keySurfaces: BOTH,
+    menus: EVERY_MENU,
     label: (card) => (card.isArchived ? "unarchive" : "archive"),
     onSelection: ({ view }) => {
       if (view === "trash") {
@@ -107,18 +119,21 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: inLibrary,
     key: DELETE_KEY,
     keySurfaces: BOTH,
+    menus: EVERY_MENU,
     label: () => "moveToTrash",
     onSelection: ({ view }) => (view === "trash" ? "deleteForever" : "delete"),
   },
   restore: {
     available: inTrash,
     keySurfaces: [],
+    menus: ["grid"],
     label: () => "restore",
   },
   deleteForever: {
     available: inTrash,
     key: DELETE_KEY,
     keySurfaces: ["grid"],
+    menus: ["grid"],
     label: () => "deleteForever",
     onSelection: ({ view }) => (view === "trash" ? "deleteForever" : "delete"),
   },
@@ -127,12 +142,14 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: () => true,
     key: "x",
     keySurfaces: ["grid"],
+    menus: ["grid"],
     label: () => "select",
   },
   done: {
     available: (card) => card.type === "link" && !card.isDeleted,
     key: "d",
     keySurfaces: ["dialog"],
+    menus: [],
   },
   // C in the open card; a focused card in a grid takes ⌘C or Ctrl+C
   // (`copyCardShortcut`), as anything selected on a page does.
@@ -140,6 +157,7 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
     available: (card) => cardCopyKind(card) !== null,
     key: "c",
     keySurfaces: ["dialog"],
+    menus: EVERY_MENU,
     label: (card) => {
       const kind = cardCopyKind(card);
       if (kind === "image") {
@@ -152,10 +170,16 @@ export const CARD_ACTIONS: Record<CardActionId, CardActionDefinition> = {
 
 const CARD_ACTION_IDS = Object.keys(CARD_ACTIONS) as CardActionId[];
 
+const cardActionsIn = (menu: CardMenuSurface): ReadonlySet<CardActionId> =>
+  new Set(
+    CARD_ACTION_IDS.filter((id) => CARD_ACTIONS[id].menus.includes(menu))
+  );
+
 /** What a card in a grid offers; marking done belongs to the open card. */
-export const GRID_CARD_ACTIONS: ReadonlySet<CardActionId> = new Set(
-  CARD_ACTION_IDS.filter((id) => id !== "done")
-);
+export const GRID_CARD_ACTIONS = cardActionsIn("grid");
+
+/** What a card in the pinned row offers. */
+export const STRIP_CARD_ACTIONS = cardActionsIn("strip");
 
 export const cardActionAvailable = (
   id: CardActionId,

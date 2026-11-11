@@ -2,8 +2,8 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { LinkPreviewMediaItem } from "../linkMetadata/types";
 import type { CreatedAtRange } from "../shared";
+import { applyQuoteFormattingToList } from "../shared/quoteFormatting";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 import { readCardTranscript } from "./textContents";
 
@@ -29,9 +29,23 @@ export type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
   hasOcrText?: true;
+  /** A search result that matched the search's meaning, not its words. */
+  matchedByMeaning?: true;
   articleUrl?: string;
   articleImageUrls?: string[];
 };
+
+export type AttachCardUrls = (cards: Doc<"cards">[]) => Promise<CardWithUrls[]>;
+
+/**
+ * The last step of every read that returns cards: signs their file URLs
+ * with `attach` (full, grid or summary), then shows quote cards without
+ * their surrounding quote marks.
+ */
+export const finishCards = async (
+  cards: Doc<"cards">[],
+  attach: AttachCardUrls = attachFileUrls
+): Promise<CardWithUrls[]> => applyQuoteFormattingToList(await attach(cards));
 
 /**
  * A card without its transcript and image text, which only its detail shows.
@@ -74,11 +88,12 @@ const articleUrls = async (
     : {};
 };
 
-export const attachCardDetailUrls = async (
+/** `finishCards` for one card's detail, with its full text and article. */
+export const finishCardDetail = async (
   ctx: Pick<QueryCtx, "db">,
   card: Doc<"cards">
 ): Promise<CardWithUrls> => {
-  const [withUrls] = await attachFileUrls(ctx, [card]);
+  const [withUrls] = await finishCards([card]);
   if (!withUrls) {
     throw new Error("A card's detail is missing");
   }
@@ -133,7 +148,6 @@ const resolveImageRenditions = async (
 };
 
 export const attachFileUrls = async (
-  _ctx: unknown,
   cards: Doc<"cards">[],
   options: { gridOnly?: boolean } = {}
 ): Promise<CardWithUrls[]> => {
@@ -185,7 +199,7 @@ export const attachFileUrls = async (
       ids.thumbnailOverrideKey = card.thumbnailOverride.storageKey;
     }
     const hydratedMedia = (card.metadata?.linkPreview?.media ?? [])
-      ?.map((item: LinkPreviewMediaItem) => {
+      ?.map((item) => {
         if (!item.storageKey) {
           return null;
         }
@@ -334,7 +348,6 @@ export const attachFileUrls = async (
 };
 
 export const attachGridFileUrls = (
-  ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const gridCards = cards.map((card) => {
@@ -352,11 +365,10 @@ export const attachGridFileUrls = (
     }
     return { ...card, metadata };
   });
-  return attachFileUrls(ctx, gridCards, { gridOnly: true });
+  return attachFileUrls(gridCards, { gridOnly: true });
 };
 
 export const attachCardSummaryUrls = async (
-  _ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
   const thumbnailKeys = new Set<string>();

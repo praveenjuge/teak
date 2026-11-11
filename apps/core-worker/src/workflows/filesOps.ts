@@ -2,14 +2,12 @@ import {
   FILES_PROTOCOL_VERSION,
   type FilesEnvelope,
   type FilesErrorCode,
-  type FilesOp,
   FilesOpError,
   type FilesOpOutcome,
-  type FilesOpParams,
-  type FilesOpResult,
   readFilesOpOutcome,
 } from "@teak/files-protocol";
 import { gatedEnv } from "../deletionGate";
+import type { FilesOp, FilesOpParams, FilesOpResult } from "../opSpecs";
 import { type FilesOpsEnv, runFilesOp } from "../ops";
 
 /** One op call: the op, its params, and the codes the caller takes as a no. */
@@ -19,7 +17,6 @@ export interface FilesOpCall<Op extends FilesOp> {
   params: FilesOpParams<Op>;
 }
 
-/** Calls an op, typed by its entry in `FILES_OP_SPECS`. */
 export type OpCaller = <Op extends FilesOp>(
   spec: FilesOpCall<Op>
 ) => Promise<FilesOpOutcome<FilesOpResult<Op>>>;

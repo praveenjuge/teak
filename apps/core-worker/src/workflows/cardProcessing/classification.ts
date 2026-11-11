@@ -1,6 +1,6 @@
 import { internal } from "@teak/convex/_generated/api";
-import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
+import { normalizeQuoteContent } from "@teak/convex/shared/quoteFormatting";
 import { isBareLinkContent } from "@teak/convex/shared/utils/bareLink";
 import {
   isCardTypeDecisionType,

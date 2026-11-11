@@ -2,6 +2,7 @@ import { internal } from "@teak/convex/_generated/api";
 import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../convexRpc";
 import { InvalidOpInput } from "../opFailure";
+import { withRetries } from "../retry";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { aiUsageColumn } from "./aiUsage";
 
@@ -30,6 +31,14 @@ const SQL_TIMEOUT_MS = 30_000;
 // rewrites the same totals anyway).
 const SQL_ATTEMPTS = 3;
 const SQL_RETRY_DELAY_MS = 1000;
+
+class SqlStatusError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`ai_usage_sql_failed:${String(status)}`);
+    this.status = status;
+  }
+}
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const utcDate = (time: number): string =>
@@ -118,7 +127,7 @@ const queryDailyUsage = async (
   fetcher: typeof fetch,
   retryDelayMs = SQL_RETRY_DELAY_MS
 ): Promise<DailyUsageRow[]> => {
-  for (let attempt = 1; ; attempt += 1) {
+  const query = async () => {
     const response = await fetcher(
       `https://api.cloudflare.com/client/v4/accounts/${env.ANALYTICS_ACCOUNT_ID}/analytics_engine/sql`,
       {
@@ -136,11 +145,14 @@ const queryDailyUsage = async (
       return parseDailyUsage(await response.json());
     }
     await response.body?.cancel().catch(() => undefined);
-    if (response.status < 500 || attempt >= SQL_ATTEMPTS) {
-      throw new Error(`ai_usage_sql_failed:${String(response.status)}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
-  }
+    throw new SqlStatusError(response.status);
+  };
+  return await withRetries(query, {
+    attempts: SQL_ATTEMPTS,
+    delayMs: (attempt) => retryDelayMs * attempt,
+    isRetryable: (error) =>
+      error instanceof SqlStatusError && error.status >= 500,
+  });
 };
 
 export interface AiUsageRollupDeps {

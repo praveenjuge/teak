@@ -11,6 +11,7 @@ import {
   performStreamedHop,
 } from "./hop";
 import {
+  FETCHER_BUSY_STATUS,
   FETCHER_HEADERS,
   FETCHER_HOP_PATH,
   FETCHER_HOP_RESPONSE_HEADERS,
@@ -22,7 +23,7 @@ import {
   FETCHER_STREAM_PATH,
 } from "./protocol";
 
-const MAX_REQUEST_BYTES = 16 * 1024;
+export const MAX_REQUEST_BYTES = 16 * 1024;
 
 const json = (status: number, body: unknown): Response =>
   Response.json(body, { status });
@@ -88,7 +89,7 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
         return json(400, { error: "invalid_request" });
       }
       if (inFlight >= FETCHER_MAX_IN_FLIGHT) {
-        return json(503, { error: "busy" });
+        return json(FETCHER_BUSY_STATUS, { error: "busy" });
       }
       inFlight += 1;
       try {
@@ -112,7 +113,7 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
         return json(400, { error: "invalid_request" });
       }
       if (inFlight >= FETCHER_MAX_IN_FLIGHT || streams >= FETCHER_MAX_STREAMS) {
-        return json(503, { error: "busy" });
+        return json(FETCHER_BUSY_STATUS, { error: "busy" });
       }
       inFlight += 1;
       streams += 1;
@@ -134,7 +135,7 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
         return json(400, { error: "invalid_request" });
       }
       if (inFlight >= FETCHER_MAX_IN_FLIGHT) {
-        return json(503, { error: "busy" });
+        return json(FETCHER_BUSY_STATUS, { error: "busy" });
       }
       inFlight += 1;
       try {
@@ -151,7 +152,7 @@ export const createFetcherHandler = (deps: FetchAssetDeps) => {
       return json(400, { error: "invalid_request" });
     }
     if (inFlight >= FETCHER_MAX_IN_FLIGHT) {
-      return json(503, { error: "busy" });
+      return json(FETCHER_BUSY_STATUS, { error: "busy" });
     }
     inFlight += 1;
     try {

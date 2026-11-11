@@ -12,6 +12,7 @@ export const onRequestError: Instrumentation.onRequestError = async (
     lib: "teak-web-server",
     libVersion: packageJson.version,
     platform: "node:javascript",
+    // Each variable is read by its literal name so Next.js inlines the build's values.
     token: resolvePostHogToken({
       analyticsEnabled: process.env.TEAK_ANALYTICS_ENABLED,
       token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,

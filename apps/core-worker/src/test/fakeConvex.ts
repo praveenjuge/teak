@@ -7,6 +7,7 @@ import type {
   WorkflowRpcRequest,
 } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
+import { errorMessage } from "../errors";
 
 export const TEST_CONVEX_SITE_URL = "https://test-deployment.convex.site";
 export const TEST_SIGNING_SECRET = "test-files-signing-secret";
@@ -38,7 +39,7 @@ const errorBody = (error: unknown, index?: number) => ({
       ? { code: error.code }
       : {}),
     ...(index === undefined ? {} : { index }),
-    message: error instanceof Error ? error.message : String(error),
+    message: errorMessage(error),
   },
   ok: false,
 });

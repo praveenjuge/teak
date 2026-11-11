@@ -3,7 +3,6 @@
  * nothing of requests or responses: each returns the reason an input is
  * refused, or the cleaned value.
  */
-import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
 import {
   MARKDOWN_CONTENT_MAX_BYTES,
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
@@ -13,21 +12,6 @@ import { CARD_TAG_ERROR_MESSAGES, MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import { extractPaletteColors } from "../shared/utils/colorUtils";
 
 const FILE_CARD_TYPES = ["image", "video", "audio", "document"] as const;
-
-const truncateCardTitle = (value: unknown): unknown => {
-  if (typeof value !== "string") {
-    return value;
-  }
-  let title = value.trim();
-  if (title.length > MAX_CARD_TITLE_LENGTH) {
-    title = title.slice(0, MAX_CARD_TITLE_LENGTH);
-    if (/[\uD800-\uDBFF]$/.test(title)) {
-      title = title.slice(0, -1);
-    }
-    title = title.trimEnd();
-  }
-  return title;
-};
 
 const explainInvalidTags = (tags: readonly string[] | undefined) =>
   tags?.some((tag) => tag.trim().length > MAX_TAG_NAME_LENGTH)
@@ -126,5 +110,4 @@ export {
   parseOptionalNullableString,
   parseOptionalString,
   parseStringArray,
-  truncateCardTitle,
 };

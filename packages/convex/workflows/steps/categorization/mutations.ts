@@ -2,12 +2,12 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
 import { patchCard } from "../../../card/cardWrites";
+import { rateLimiter } from "../../../rateLimiter";
+import { r2KeyValidator } from "../../../schema/validators/cards";
 import {
   mergeProcessingStages,
   stageCompleted,
-} from "../../../card/processingStatus";
-import { rateLimiter } from "../../../rateLimiter";
-import { r2KeyValidator } from "../../../schema/validators/cards";
+} from "../../../shared/processingStatus";
 import { queueObjectDeletion } from "../../../storage/objectDeletion";
 import {
   assertArchivedRawReference,

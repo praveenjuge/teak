@@ -9,9 +9,9 @@ import {
   type MutationCtx,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion/gate";
+import { cardStorageObjectKeys } from "./cardObjectKeys";
 import { queueObjectDeletion } from "./objectDeletion";
 import { ensureObjectOwnership } from "./ownership";
-import { cardStorageObjectKeys } from "./r2";
 import {
   archivedRawSummary,
   copyAndVerifyRaw,

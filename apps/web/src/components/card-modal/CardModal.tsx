@@ -1,6 +1,7 @@
 import { opensOnRead } from "@teak/convex/shared/article";
 import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
 import {
@@ -57,7 +58,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
-import type { ClientCard } from "@/lib/cardTypes";
+import type { ClientCard, GetCurrentValue } from "@/lib/cardTypes";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { RunnableCardActionId } from "../../hooks/useCardActions";
 import type { CardSaveState } from "../../hooks/useCardModal";
@@ -81,7 +82,6 @@ import {
   isFileCardType,
 } from "../../lib/cardTypes";
 import { copyText } from "../../lib/clipboard";
-import { getDisplayHostname } from "../../lib/displayHost";
 import { CARD_DIALOG_ATTRIBUTE } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
@@ -134,14 +134,11 @@ import { cardModalKeyAction, escapeClosesOverTooltip } from "./cardModalKeys";
 import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { PaletteStage } from "./PaletteStage";
-import type { GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
 import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
-
-export { emptiedContentNotice } from "./cardModalText";
 
 function CardPreview({
   card,
@@ -316,10 +313,10 @@ interface CardModalProps {
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
   onMoreLikeThis?: (cardId: string) => void;
-  onNext?: () => void;
   onOpenCard?: (cardId: string) => void;
-  onPrevious?: () => void;
   onReprocess?: () => void;
+  /** Moves to the next (1) or previous (-1) card from the last one shown. */
+  onStep?: (direction: 1 | -1) => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
@@ -332,6 +329,8 @@ interface CardModalProps {
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   savePdf?: SavePdfControl;
   saveState: CardSaveState;
+  /** Whether the card on screen has a card after it and before it. */
+  steps?: { next: boolean; previous: boolean };
   tags: Omit<CardTagsControl, "inputRef">;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
@@ -348,9 +347,8 @@ export function CardModal({
   openOrigin: openOriginPoint,
   onCancel,
   onCardTypeClick,
-  onNext,
   onOpenCard,
-  onPrevious,
+  onStep,
   onTagClick,
   onMoreLikeThis,
   hasUnsavedChanges,
@@ -366,6 +364,7 @@ export function CardModal({
   saveChanges,
   savePdf,
   saveState,
+  steps,
   tags,
   isDownloading,
   isReprocessing,
@@ -560,10 +559,11 @@ export function CardModal({
     }
   };
 
+  const hasNext = Boolean(onStep && steps?.next);
+  const hasPrevious = Boolean(onStep && steps?.previous);
   const step = useCardSteps({
     cardId,
-    onNext,
-    onPrevious,
+    onStep,
     open,
     readyToLeave,
   });
@@ -758,7 +758,7 @@ export function CardModal({
     ? getCardHeading(card, { link: tLinkTitle, t: tHeading, types })
     : null;
   const hostname =
-    card?.type === "link" ? getDisplayHostname(card.url) : undefined;
+    card?.type === "link" ? urlHostForDisplay(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);
   const TypeIcon = cardTypeIcon(card?.type as CardType | undefined);
   const editedTitle = getCurrentValue("metadataTitle");
@@ -772,7 +772,7 @@ export function CardModal({
       !hasEditableText(card?.type)
   );
   const addedLabel = card
-    ? formatAddedDate(card.createdAt, undefined, {
+    ? formatAddedDate(card.createdAt, Date.now(), {
         locale: dateLocale,
         t: tHeading,
       })
@@ -1153,7 +1153,7 @@ export function CardModal({
     ) : null;
 
   const navButton = (direction: "previous" | "next") => {
-    const show = direction === "previous" ? onPrevious : onNext;
+    const show = direction === "previous" ? hasPrevious : hasNext;
     return (
       <HeaderIconButton
         className={cn(
@@ -1409,17 +1409,17 @@ export function CardModal({
                     aria-label={t("header.actionsLabel")}
                     className="flex shrink-0 items-center gap-1 border-t bg-background px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
                   >
-                    {onPrevious || onNext ? (
+                    {hasPrevious || hasNext ? (
                       <>
                         <HeaderIconButton
-                          disabled={!onPrevious}
+                          disabled={!hasPrevious}
                           label={t("header.previousCard")}
                           onClick={() => step(-1)}
                         >
                           <ChevronLeft />
                         </HeaderIconButton>
                         <HeaderIconButton
-                          disabled={!onNext}
+                          disabled={!hasNext}
                           label={t("header.nextCard")}
                           onClick={() => step(1)}
                         >
@@ -1454,7 +1454,7 @@ export function CardModal({
               {/* After the card, so Tab reaches the card's own controls first. */}
               {isMobile ? null : (
                 <>
-                  {onPrevious || onNext ? (
+                  {hasPrevious || hasNext ? (
                     <>
                       {navButton("previous")}
                       {navButton("next")}

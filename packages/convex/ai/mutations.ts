@@ -2,13 +2,13 @@ import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import { patchCard } from "../card/cardWrites";
 import {
-  mergeProcessingStages,
-  type ProcessingStatus,
-} from "../card/processingStatus";
-import {
   cardTypeValidator,
   processingStatusObjectValidator,
 } from "../schema/validators/cards";
+import {
+  mergeProcessingStages,
+  type ProcessingStatus,
+} from "../shared/processingStatus";
 
 export const updateCardProcessing = internalMutation({
   args: {

@@ -1,6 +1,11 @@
-import { RENDERER_PORT, RENDERER_PROTOCOL } from "../../container/src/protocol";
+import {
+  CONTAINER_BUSY_STATUS,
+  RENDERER_PORT,
+  RENDERER_PROTOCOL,
+} from "../../container/src/protocol";
+import { FETCHER_PORT, FETCHER_PROTOCOL } from "../../fetcher/src/protocol";
 
-const READY_TIMEOUT_MS = 20_000;
+export const CONTAINER_READY_TIMEOUT_MS = 20_000;
 const HEALTH_POLL_MS = 250;
 const HEALTH_REQUEST_TIMEOUT_MS = 1000;
 export const RENDERER_INACTIVITY_TIMEOUT_MS = 90_000;
@@ -23,7 +28,10 @@ export interface RendererState {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const rendererUnavailable = (message: string): Response =>
-  Response.json({ error: "unavailable", message }, { status: 503 });
+  Response.json(
+    { error: "unavailable", message },
+    { status: CONTAINER_BUSY_STATUS }
+  );
 
 export class MediaRenderer {
   protected readonly enableInternet: boolean = false;
@@ -95,7 +103,7 @@ export class MediaRenderer {
     }
     await container.setInactivityTimeout(RENDERER_INACTIVITY_TIMEOUT_MS);
     const port = container.getTcpPort(this.port);
-    const deadline = Date.now() + READY_TIMEOUT_MS;
+    const deadline = Date.now() + CONTAINER_READY_TIMEOUT_MS;
     while (Date.now() < deadline) {
       if (await this.reportsProtocol(port)) {
         return;
@@ -122,4 +130,10 @@ export class MediaRenderer {
       return false;
     }
   }
+}
+
+export class LinkFetcher extends MediaRenderer {
+  protected override readonly enableInternet = true;
+  protected override readonly port = FETCHER_PORT;
+  protected override readonly protocol = FETCHER_PROTOCOL;
 }

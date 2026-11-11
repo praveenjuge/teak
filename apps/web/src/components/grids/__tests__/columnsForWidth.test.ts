@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { CARD_GRID_LAYOUTS } from "../../../lib/cardDensity";
-import { columnsForWidth } from "../MasonryGrid";
+import { columnsForWidth } from "../gridColumns";
 
 describe("columnsForWidth", () => {
   test.each([

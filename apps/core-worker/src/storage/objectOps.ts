@@ -3,7 +3,6 @@ import {
   FILES_PENDING_UPLOAD_STALE_AFTER_MS,
   FILES_PROCESSOR_VERSION,
   FILES_USER_KEY_ROOTS,
-  type FilesOpResult,
   isPendingUploadKey,
   isSameUserNamespace,
   isValidObjectKey,
@@ -17,6 +16,7 @@ import {
   type RawOpParams,
   requiredString,
 } from "../opParams";
+import type { FilesOpResult } from "../opSpecs";
 import type { FilesOpsEnv } from "../ops";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
 

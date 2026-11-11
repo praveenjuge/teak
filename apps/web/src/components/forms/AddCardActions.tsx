@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { useRunAfterClose } from "../../hooks/useRunAfterClose";
 import { appActionKeys } from "../../lib/appCommands";
 import { useLibraryCommand } from "../providers/LibraryCommandsProvider";
+import { ComposerProvider } from "./ComposerProvider";
 
 interface AddCardProviderProps {
   children: ReactNode;
@@ -114,9 +115,10 @@ interface AddCardControls {
 const AddCardContext = createContext<AddCardControls | null>(null);
 
 /**
- * Owns uploading and recording, and the U and R shortcuts, for everything
- * inside it. The app shell mounts it once so they work while the phone's
- * menu, which holds the New button, is closed.
+ * Owns uploading and recording, the U and R shortcuts, and the composer's
+ * draft (ComposerProvider) for everything inside it. The app shell mounts it
+ * once so they work while the phone's menu, which holds the New button, is
+ * closed, and so a draft or a paste outlives the page it started on.
  */
 export function AddCardProvider({
   children,
@@ -454,7 +456,7 @@ export function AddCardProvider({
 
   return (
     <AddCardContext.Provider value={controls}>
-      {children}
+      <ComposerProvider>{children}</ComposerProvider>
 
       <Dialog
         onOpenChange={handleDialogOpenChange}

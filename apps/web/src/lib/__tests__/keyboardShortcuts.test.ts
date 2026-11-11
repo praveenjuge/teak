@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishTranslator } from "../englishTranslators";
 import {
   ariaKeyShortcut,
   keyboardShortcutGroups,
@@ -39,9 +40,9 @@ describe("ariaKeyShortcut", () => {
 
 describe("the Anywhere group", () => {
   test("lists every New menu item with its own key, and no key twice", () => {
-    const anywhere = keyboardShortcutGroups().find(
-      (group) => group.id === "anywhere"
-    );
+    const anywhere = keyboardShortcutGroups(
+      englishTranslator("shortcuts")
+    ).find((group) => group.id === "anywhere");
     const rows = anywhere?.rows.map((row) => [row.keys.join(" "), row.label]);
     expect(rows).toContainEqual(["N", "New note"]);
     expect(rows).toContainEqual(["U", "Upload files"]);
@@ -53,7 +54,7 @@ describe("the Anywhere group", () => {
 
 describe("the Search group", () => {
   test("teaches the search operators", () => {
-    const search = keyboardShortcutGroups().find(
+    const search = keyboardShortcutGroups(englishTranslator("shortcuts")).find(
       (group) => group.title === "Search"
     );
     expect(search?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([
@@ -74,7 +75,9 @@ describe("the Search group", () => {
 
 describe("the Go to group", () => {
   test("names each place alike, Tags included, with no repeated keys", () => {
-    const goTo = keyboardShortcutGroups().find((group) => group.id === "goTo");
+    const goTo = keyboardShortcutGroups(englishTranslator("shortcuts")).find(
+      (group) => group.id === "goTo"
+    );
     expect(goTo?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([
       ["G E", "Everything"],
       ["G F", "Favorites"],

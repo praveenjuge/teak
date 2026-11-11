@@ -1,9 +1,3 @@
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import {
-  type DnsResolver,
-  readBodyWithLimit,
-  safeFetch,
-} from "@teak/convex/linkMetadata/ssrf";
 import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
   type FilesArchivePageParams,
@@ -17,18 +11,23 @@ import {
   parseCardObjectKey,
 } from "@teak/files-protocol";
 import {
+  type DnsResolver,
+  readBodyWithLimit,
+  safeFetch,
+} from "@teak/files-protocol/ssrf";
+import {
   FETCHER_HEADERS,
   FETCHER_PATH,
   type FetcherRequest,
 } from "../../fetcher/src/protocol";
+import { createDohResolver } from "../dns";
 import { IMAGES_BINDING_MAX_INPUT_BYTES } from "../images/imagesBinding";
+import { SCRAPE_ELEMENTS } from "../linkPreview/selectors";
+import { RendererUnavailable } from "../media/containerPool";
+import { postToFetcher } from "../media/linkFetcher";
 import { fetchLinkPage, type LinkPageEnv } from "../media/linkPage";
-import {
-  createContainerPinnedFetch,
-  createDohResolver,
-} from "../media/pinnedHop";
-import { postToFetcher, type RemoteAssetEnv } from "../media/remoteAsset";
-import { RendererUnavailable } from "../media/rendererClient";
+import { createContainerPinnedFetch } from "../media/pinnedHop";
+import type { RemoteAssetEnv } from "../media/remoteAsset";
 import { InvalidOpInput } from "../opFailure";
 import { TEAKBOT_USER_AGENT } from "../userAgent";
 import {

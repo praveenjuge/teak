@@ -1,27 +1,14 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
-import {
-  englishTranslator,
-  US_ENGLISH_LOCALE,
-} from "../../lib/englishTranslators";
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
+import type { TeakTranslator } from "@teak/i18n";
+import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import {
   type ExifTranslator,
   formatExifFields,
   type ImageExif,
 } from "../../lib/exif";
 import { formatPublishedDate } from "../../lib/linkByline";
-import { formatBytes } from "../settings/importExportFormat";
 
 export type CardDetailsTranslator = TeakTranslator<"cardModal.details">;
-
-const englishDetails: CardDetailsTranslator = createTeakTranslator(
-  "en",
-  englishMessages,
-  "cardModal.details"
-);
 
 export function formatCardDate(
   timestamp: number,
@@ -103,16 +90,16 @@ const present = (fields: Array<{ label: string; value?: string | null }>) =>
     Boolean(field.value?.trim())
   );
 
-export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
+export const keyDetailLabels = (t: CardDetailsTranslator) =>
   new Set([t("added"), t("savedAgain"), t("fileSize")]);
 
 export function getCardDetailSections(
   card: CardDetailsSource,
   {
-    exif = englishTranslator("lib.exif"),
+    exif,
     locale = US_ENGLISH_LOCALE,
-    t = englishDetails,
-  }: { exif?: ExifTranslator; locale?: string; t?: CardDetailsTranslator } = {}
+    t,
+  }: { exif: ExifTranslator; locale?: string; t: CardDetailsTranslator }
 ) {
   const file = card.fileMetadata;
   const linkPreview =

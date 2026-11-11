@@ -6,6 +6,11 @@ import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { insertFolder } from "../folder/folders";
 import type { CardType } from "../shared/constants";
 import { type FolderColor, folderNameKey } from "../shared/folders";
+import {
+  buildInitialProcessingStatus,
+  type ProcessingStatus,
+  stageCompleted,
+} from "../shared/processingStatus";
 import { parseSearchQuery } from "../shared/search/qualifiers";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
@@ -17,11 +22,6 @@ import {
 import { insertCard } from "./cardWrites";
 import { AUDIO_TRANSCRIPT, AUDIO_WAVEFORM } from "./onboarding/processed";
 import { queueCardProcessing } from "./processingRuns";
-import {
-  buildInitialProcessingStatus,
-  type ProcessingStatus,
-  stageCompleted,
-} from "./processingStatus";
 import { storeCardTranscript } from "./textContents";
 
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({

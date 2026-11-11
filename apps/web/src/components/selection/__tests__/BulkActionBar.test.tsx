@@ -175,16 +175,6 @@ describe("BulkActionBar", () => {
     ).toBe(false);
   });
 
-  test("Archive is a neutral button, not the destructive red", async () => {
-    await renderBar(2);
-    expect(button("Archive").className).toContain("bg-secondary");
-    expect(button("Archive").className).not.toContain("bg-primary");
-    await act(() => root?.unmount());
-
-    await renderBar(2, { addToFolder: { id: "f1", name: "Reading" } });
-    expect(button("Add to Reading").className).toContain("bg-primary");
-  });
-
   test("waits while nothing is selected or an action is running", async () => {
     await renderBar(0);
     expect(button("Archive").disabled).toBe(true);

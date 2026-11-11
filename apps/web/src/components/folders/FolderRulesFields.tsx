@@ -20,11 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { type FolderSummary, folderErrorMessage } from "@/lib/folders";
+import type { FolderSummary } from "@/lib/folders";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
+import { convexErrorData } from "@/lib/serverErrors";
 import { cn } from "@/lib/utils";
 
 const PREVIEW_DELAY_MS = 300;
@@ -59,8 +61,12 @@ export function useFolderRulesForm(
   const [tagInput, setTagInput] = useState("");
   const [query, setQuery] = useState("");
   const [enabled, setEnabled] = useState(true);
-  const [previewQuery, setPreviewQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const canonicalQuery = parseSearchQuery(query).canonical;
+  const [previewQuery, setPreviewQuery] = useDebouncedValue(
+    canonicalQuery,
+    PREVIEW_DELAY_MS
+  );
   const active = open && folder?.kind === "manual";
 
   useEffect(() => {
@@ -75,16 +81,8 @@ export function useFolderRulesForm(
           Boolean(folder.rules?.autoFile)
       );
     }
-  }, [active, folder]);
+  }, [active, folder, setPreviewQuery]);
 
-  const canonicalQuery = parseSearchQuery(query).canonical;
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setPreviewQuery(canonicalQuery),
-      PREVIEW_DELAY_MS
-    );
-    return () => clearTimeout(timer);
-  }, [canonicalQuery]);
   const preview = useQuery(
     api.folders.previewFolderRule,
     active && previewQuery ? { query: previewQuery } : "skip"
@@ -156,7 +154,6 @@ export function useFolderRulesForm(
 
 export type FolderRulesForm = ReturnType<typeof useFolderRulesForm>;
 
-/** The Rules section of the Edit folder dialog. */
 export function FolderRulesFields({
   form,
   onChange,
@@ -187,7 +184,7 @@ export function FolderRulesFields({
       await undoRun({ folderId: folder._id, runId: lastRun._id });
       onUndone(lastRun._id);
     } catch (caught) {
-      setUndoError(folderErrorMessage(caught, t("undoFailed")));
+      setUndoError(convexErrorData(caught).message ?? t("undoFailed"));
     }
   });
 

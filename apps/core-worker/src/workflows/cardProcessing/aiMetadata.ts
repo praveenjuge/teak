@@ -13,6 +13,7 @@ import {
   validateTextMetadata,
 } from "@teak/files-protocol";
 import type { FunctionArgs } from "convex/server";
+import { errorMessage } from "../../errors";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { type CardJob, guardOf } from "./context";
 
@@ -31,7 +32,7 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
   if (code) {
     return code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT";
   }
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   return (
     message.endsWith(INVALID_DIAGNOSTICS) ||
     message.endsWith(INVALID_RESPONSE) ||
@@ -69,7 +70,7 @@ type CardAiWrite = FunctionArgs<
 
 // Convex's refusal of an argument its validator doesn't know.
 const refusesAiLanguage = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   return message.includes("aiLanguage") && /validator/iu.test(message);
 };
 

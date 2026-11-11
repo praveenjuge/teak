@@ -1,11 +1,8 @@
-import {
-  CLEF_FLASH_MODEL_ID,
-  CLEF_MODEL_ID,
-  type FilesOp,
-  type FilesOpParams,
-} from "@teak/files-protocol";
+import { CLEF_FLASH_MODEL_ID, CLEF_MODEL_ID } from "@teak/files-protocol";
 import { currentAiUsageContext, runWithAiUsage } from "../../ai/aiUsage";
+import { errorMessage } from "../../errors";
 import { InvalidOpInput } from "../../opFailure";
+import type { FilesOp, FilesOpParams } from "../../opSpecs";
 import {
   observeAiGeneration,
   type WorkflowTelemetry,
@@ -102,7 +99,7 @@ export const runDecision = async <T, Op extends DecisionOp = DecisionOp>(
   } catch (error) {
     console.warn("[cardProcessing/decisions] keeping the rules' answer", {
       cardId: job.cardId,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       op,
     });
     return null;

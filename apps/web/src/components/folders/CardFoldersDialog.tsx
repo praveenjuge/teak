@@ -1,13 +1,8 @@
 "use client";
 
-import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import {
-  explainInvalidFolderName,
-  MAX_FOLDERS_PER_CARD,
-} from "@teak/convex/shared/folders";
+import { MAX_FOLDERS_PER_CARD } from "@teak/convex/shared/folders";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import { Check, Plus, Search } from "vadivam-react";
 import {
@@ -19,14 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useSetCardFolders } from "@/hooks/useCardMutations";
+import { useCreateFolder } from "@/hooks/useFolderMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,
-  hasFolderNamed,
   manualFolders,
+  newFolderOption,
 } from "../../lib/folders";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
@@ -65,7 +61,7 @@ function CardFoldersChecklist({
   const tList = useTranslations("folders.list");
   const errors = useServerErrors();
   const folders = useFolders();
-  const createFolder = useMutation(api.folders.createFolder);
+  const createFolder = useCreateFolder();
   const setCardFolders = useSetCardFolders();
   const [query, setQuery] = useState("");
   const [checked, setCheckedState] = useState(() => [...initialFolderIds]);
@@ -81,11 +77,8 @@ function CardFoldersChecklist({
     [folders, query]
   );
   const trimmed = query.trim();
-  const canCreate =
-    Boolean(trimmed) &&
-    folders !== undefined &&
-    !hasFolderNamed(folders, trimmed) &&
-    explainInvalidFolderName(trimmed) === null;
+  const newFolder = newFolderOption(folders, trimmed);
+  const canCreate = newFolder === "create";
 
   const save = async (next: string[]) => {
     if (!cardId) {
@@ -235,9 +228,9 @@ function CardFoldersChecklist({
           </li>
         ) : null}
       </ul>
-      {error ? (
+      {error || newFolder === "limit" ? (
         <p className="border-t px-5 py-3 text-destructive text-sm" role="alert">
-          {error}
+          {error ?? errors.byKey("folders.TOO_MANY_FOLDERS")}
         </p>
       ) : null}
     </>

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { countWords, formatWordCount } from "../wordCount";
 
 test.each([
@@ -63,5 +64,7 @@ test.each([
   [2, "2 words"],
   [50_000, "50,000 words"],
 ] as const)("formats %p as %p", (count, expected) => {
-  expect(formatWordCount(count)).toBe(expected);
+  expect(formatWordCount(count, englishTranslator("textEditor"))).toBe(
+    expected
+  );
 });

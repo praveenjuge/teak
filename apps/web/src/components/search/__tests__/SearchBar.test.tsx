@@ -2,8 +2,20 @@ import { describe, expect, test } from "bun:test";
 import type { CardListSort } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 import { renderToStaticMarkup } from "react-dom/server";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { SearchBar } from "../SearchBar";
 import { viewMenuLabel } from "../ViewMenu";
+
+const englishViewLabel = (
+  types: Parameters<typeof viewMenuLabel>[0],
+  sort: Parameters<typeof viewMenuLabel>[1]
+) =>
+  viewMenuLabel(
+    types,
+    sort,
+    englishTranslator("search"),
+    englishTranslator("cards.types")
+  );
 
 const renderSearchBar = (
   searchQuery = "",
@@ -161,7 +173,7 @@ describe("SearchBar View menu", () => {
       onToggleFilter: () => undefined,
     });
     expect(markup).toContain('aria-label="View: Link, Image"');
-    expect(viewMenuLabel(["quote"], "oldest")).toBe(
+    expect(englishViewLabel(["quote"], "oldest")).toBe(
       "View: Quote, oldest first"
     );
   });

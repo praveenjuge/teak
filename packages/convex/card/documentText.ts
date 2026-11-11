@@ -2,6 +2,7 @@ import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   sha256Hex,
 } from "@teak/files-protocol";
+import { readBodyWithLimit } from "@teak/files-protocol/ssrf";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -13,8 +14,12 @@ import {
   type MutationCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion/gate";
-import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { articleObjectDigest } from "../shared/article";
+import {
+  documentTextObjectKey,
+  isExtractedTextTruncated,
+  searchPrefix,
+} from "../shared/documentText";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
@@ -22,21 +27,10 @@ import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import { patchCard } from "./cardWrites";
 import {
-  documentTextObjectKey,
-  isExtractedTextTruncated,
-  searchPrefix,
-} from "./documentTextFormat";
-import {
   getArticleTextRow,
   getDocumentTextRow,
   readCardTranscript,
 } from "./textContents";
-
-export {
-  isExtractedTextTruncated,
-  SEARCH_PREFIX_MAX_BYTES,
-  searchPrefix,
-} from "./documentTextFormat";
 
 const MAX_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 
@@ -73,7 +67,7 @@ export const storeDocumentText = async (
       signal: AbortSignal.timeout(30_000),
     });
   }
-  await ctx.runMutation(internal["card/documentText"].saveDocumentText, {
+  await ctx.runMutation(internal.card.documentText.saveDocumentText, {
     cardId: card._id,
     key,
     text: searchPrefix(text),

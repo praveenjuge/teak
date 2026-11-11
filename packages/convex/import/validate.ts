@@ -1,4 +1,5 @@
-import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
+import { MAX_IMPORT_CARDS, MAX_IMPORT_FILE_BYTES } from "@teak/files-protocol";
+import { truncateCardTitle } from "../shared/cardTitle";
 import {
   explainInvalidFolderName,
   MAX_FOLDERS_PER_CARD,
@@ -13,11 +14,7 @@ import {
 import { IMPORT_SOURCES } from "../shared/importSources";
 import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
-import {
-  type ImportMode,
-  MAX_IMPORT_CARDS,
-  MAX_IMPORT_FILE_BYTES,
-} from "./constants";
+import type { ImportMode } from "./constants";
 
 export const IMPORT_CARD_TYPES = [
   "text",
@@ -221,11 +218,7 @@ function importTitle(raw: unknown): string | undefined {
   if (typeof raw !== "string") {
     return;
   }
-  let title = raw.trim().slice(0, MAX_CARD_TITLE_LENGTH);
-  if (/[\uD800-\uDBFF]$/.test(title)) {
-    title = title.slice(0, -1);
-  }
-  return title.trim() || undefined;
+  return truncateCardTitle(raw) || undefined;
 }
 
 export function validateImportCard(raw: unknown): ImportCardInput {
@@ -359,11 +352,12 @@ export function assertImportCardCount(count: number, mode: ImportMode): void {
   if (count <= MAX_IMPORT_CARDS) {
     return;
   }
+  const limit = MAX_IMPORT_CARDS.toLocaleString("en-US");
   if (mode === "bookmarks") {
-    throw new Error("Bookmark file exceeds 10,000 bookmarks");
+    throw new Error(`Bookmark file exceeds ${limit} bookmarks`);
   }
   if (mode === "archive") {
-    throw new Error("Archive exceeds 10,000 cards");
+    throw new Error(`Archive exceeds ${limit} cards`);
   }
-  throw new Error(`${IMPORT_SOURCES[mode].title} file exceeds 10,000 items`);
+  throw new Error(`${IMPORT_SOURCES[mode].title} file exceeds ${limit} items`);
 }

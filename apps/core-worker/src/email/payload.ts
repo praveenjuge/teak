@@ -1,6 +1,11 @@
 import {
   buildInboundEmailSigningPayload,
+  cutUtf16,
   hmacSha256Hex,
+  INBOUND_EMAIL_FIELD_MAX_CHARS,
+  INBOUND_EMAIL_HEADERS,
+  INBOUND_EMAIL_MAX_BODY_BYTES,
+  type InboundEmailPayload,
   sha256Hex,
 } from "@teak/files-protocol";
 import type { Email } from "postal-mime";
@@ -10,32 +15,18 @@ import type { SelectedAttachment } from "./attachments";
 // the signature over the exact body and a timestamp within five minutes, so a
 // captured request can't be replayed later or sent to another route.
 
-export const INGEST_PATH = "/inbound/email";
-export const FINALIZE_PATH = "/inbound/email/attachments";
-export const SUBJECT_MAX_CHARS = 998;
 export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
-export interface InboundEmailPayload {
-  attachments: Array<{
-    fileName: string;
-    index: number;
-    mimeType: string;
-    size: number;
-  }>;
-  date: string | null;
-  from: string;
-  html: string | null;
-  messageId: string | null;
-  subject: string;
-  text: string | null;
-  v: 1;
-}
-
-const HIGH_SURROGATE_END_REGEX = /[\uD800-\uDBFF]$/u;
-
-const prefix = (value: string, length: number): string => {
-  const cut = value.slice(0, length);
-  return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
+/**
+ * MAX_BODY_BYTES, or the default when unset or not a positive integer, and
+ * never more than both bodies can carry within Convex's request limit.
+ */
+export const maxBodyBytes = (configured: string | undefined): number => {
+  const value = Number(configured);
+  return Math.min(
+    Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_MAX_BODY_BYTES,
+    INBOUND_EMAIL_MAX_BODY_BYTES
+  );
 };
 
 const jsonBytes = (value: string): number =>
@@ -54,18 +45,13 @@ export const cutJsonUtf8 = (value: string, maxBytes: number): string => {
   let high = Math.min(value.length, maxBytes);
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);
-    if (jsonBytes(prefix(value, mid)) <= maxBytes) {
+    if (jsonBytes(cutUtf16(value, mid)) <= maxBytes) {
       low = mid;
     } else {
       high = mid - 1;
     }
   }
-  return prefix(value, low);
-};
-
-const cutChars = (value: string, max: number): string => {
-  const chars = Array.from(value);
-  return chars.length <= max ? value : chars.slice(0, max).join("");
+  return cutUtf16(value, low);
 };
 
 export const buildPayload = (
@@ -87,7 +73,7 @@ export const buildPayload = (
       ? cutJsonUtf8(email.html, maxBodyBytes)
       : null,
   messageId: email.messageId ?? null,
-  subject: cutChars(email.subject ?? "", SUBJECT_MAX_CHARS),
+  subject: cutUtf16(email.subject ?? "", INBOUND_EMAIL_FIELD_MAX_CHARS),
   text:
     typeof email.text === "string"
       ? cutJsonUtf8(email.text, maxBodyBytes)
@@ -108,7 +94,7 @@ export const signedHeaders = async (
   );
   return {
     "content-type": "application/json",
-    "x-teak-signature": signature,
-    "x-teak-timestamp": timestamp,
+    [INBOUND_EMAIL_HEADERS.signature]: signature,
+    [INBOUND_EMAIL_HEADERS.timestamp]: timestamp,
   };
 };

@@ -106,29 +106,6 @@ describe("search/searchCards.ts", () => {
       expect(result).toEqual([]);
     });
 
-    test("handles favorites keyword search", async () => {
-      const cards = [
-        {
-          _id: "c1",
-          _creationTime: 1,
-          userId: "u1",
-          content: "Fav card",
-          isFavorited: true,
-        },
-      ];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (searchCards as any).handler ?? searchCards;
-      const result = await handler(ctx, { searchQuery: "fav" });
-      expect(result).toHaveLength(1);
-    });
-
     test("handles trash keyword search", async () => {
       const cards = [
         {
@@ -337,54 +314,6 @@ describe("search/searchCards.ts", () => {
         paginationOpts: { numItems: 10, cursor: null },
       });
       expect(result).toEqual({ page: [], isDone: true, continueCursor: null });
-    });
-
-    test("paginates favorites search", async () => {
-      const cards = [
-        {
-          _id: "c1",
-          _creationTime: 1,
-          userId: "u1",
-          content: "Fav",
-          isFavorited: true,
-        },
-      ];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler =
-        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: null },
-        searchQuery: "favorites",
-      });
-      expect(result.page).toHaveLength(1);
-    });
-
-    test("paginates trash search", async () => {
-      const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" },
-      ];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler =
-        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: null },
-        searchQuery: "deleted",
-      });
-      expect(result.page).toHaveLength(1);
     });
 
     test("returns continueCursor when more results exist", async () => {

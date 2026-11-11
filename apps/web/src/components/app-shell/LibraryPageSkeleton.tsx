@@ -1,0 +1,39 @@
+"use client";
+
+import { Search } from "vadivam-react";
+import { CardsGridSkeleton } from "../feedback/CardSkeleton";
+import { searchFieldClassName } from "../search";
+import { SidebarToggle } from "../sidebar";
+import { PageHeader, PageTitle } from "./PageHeader";
+
+export function LibraryPageSkeleton({
+  searchPlaceholder,
+  title,
+}: {
+  searchPlaceholder?: string;
+  title: string;
+}) {
+  return (
+    <>
+      <PageHeader
+        leading={<SidebarToggle className="-ml-2" />}
+        title={<PageTitle>{title}</PageTitle>}
+      >
+        {searchPlaceholder ? (
+          <div
+            aria-hidden="true"
+            className="relative min-w-0 flex-1 max-sm:hidden"
+          >
+            <div className={searchFieldClassName}>
+              <Search className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate px-0.5 text-muted-foreground text-sm">
+                {searchPlaceholder}
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </PageHeader>
+      <CardsGridSkeleton />
+    </>
+  );
+}

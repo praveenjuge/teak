@@ -1,5 +1,5 @@
 import type { PaginationResult } from "convex/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type ObjectType, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -20,17 +20,13 @@ import {
 } from "./card/listQuery";
 import { readPinnedCards } from "./card/pins";
 import { queueCardProcessing } from "./card/processingRuns";
-import { attachFileUrls } from "./card/queryUtils";
-import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import { finishCards } from "./card/queryUtils";
 import { pageShuffleWalk, shuffleSegmentCount } from "./card/shuffle";
 import {
   type CardFieldEdit,
   updateCardFieldsForUserHandler,
 } from "./card/updateCard";
-import {
-  isInvalidCursorError,
-  isRateLimitContentionError,
-} from "./convexFailures";
+import { isInvalidCursorError } from "./convexFailures";
 import {
   decodeChangesCursor,
   decodeCursor,
@@ -71,10 +67,15 @@ import {
   listCardTombstonesSince,
   type TombstoneCursor,
 } from "./publicApiTombstones";
-import { rateLimiter } from "./rateLimiter";
+import {
+  limitApiRequests,
+  limitInvalidApiAuth,
+  rateLimitResultValidator,
+} from "./rateLimiter";
 import { cardTypeValidator } from "./schema/validators/cards";
 import { relevanceScoreValidator } from "./search/relevanceCache";
 import { resolveFolderNames } from "./search/searchPlanner";
+import { searchTooBroad } from "./search/searchReads";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import type { BulkCardAction } from "./shared/bulkCardActions";
 import { bulkItemProblem } from "./shared/bulkItems";
@@ -83,10 +84,8 @@ import {
   normalizeCardSource,
 } from "./shared/cardSource";
 import { type CardType, cardTypes } from "./shared/constants";
-import {
-  clampPublicApiLimit,
-  PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
-} from "./shared/publicApiLimits";
+import { BULK_CARD_OPERATIONS } from "./shared/publicApiContract";
+import { clampPublicApiLimit } from "./shared/publicApiLimits";
 import {
   isShuffleSeed,
   shuffleBySeed,
@@ -118,18 +117,12 @@ const changesResultValidator = v.object({
   pageInfo: pageInfoValidator,
 });
 
+const bulkOperationValidator = v.union(
+  ...BULK_CARD_OPERATIONS.map((operation) => v.literal(operation))
+);
+
 const bulkResultValidator = v.object({
-  operation: v.union(
-    v.literal("create"),
-    v.literal("update"),
-    v.literal("favorite"),
-    v.literal("delete"),
-    v.literal("archive"),
-    v.literal("unarchive"),
-    v.literal("addTags"),
-    v.literal("removeTags"),
-    v.literal("restore")
-  ),
+  operation: bulkOperationValidator,
   results: v.array(v.any()),
   failedIds: v.array(v.string()),
   summary: v.object({
@@ -139,41 +132,44 @@ const bulkResultValidator = v.object({
   }),
 });
 
+const searchCardsPageArgs = {
+  userId: v.string(),
+  showTrashOnly: v.optional(v.boolean()),
+  archived: v.optional(archivedFilterValidator),
+  folderId: v.optional(v.id("folders")),
+  styleFilters: v.optional(v.array(v.string())),
+  hueFilters: v.optional(v.array(v.string())),
+  hexFilters: v.optional(v.array(v.string())),
+  cursor: v.optional(v.string()),
+  searchQuery: v.optional(v.string()),
+  type: v.optional(cardTypeValidator),
+  types: v.optional(v.array(cardTypeValidator)),
+  tag: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  sites: v.optional(v.array(v.string())),
+  phrases: v.optional(v.array(v.string())),
+  prices: v.optional(v.array(priceBoundValidator)),
+  ocrTexts: v.optional(v.array(v.string())),
+  done: v.optional(v.boolean()),
+  todo: v.optional(v.boolean()),
+  folderNames: v.optional(v.array(v.string())),
+  expression: v.optional(v.string()),
+  archivedInTrash: v.optional(v.boolean()),
+  favorited: v.optional(v.boolean()),
+  pinned: v.optional(v.boolean()),
+  createdAfter: v.optional(v.number()),
+  createdBefore: v.optional(v.number()),
+  sort: v.optional(apiCardSortValidator),
+  limit: v.optional(v.number()),
+  ...semanticSearchArgs,
+  relevance: v.optional(
+    v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
+  ),
+};
+export type SearchCardsPageArgs = ObjectType<typeof searchCardsPageArgs>;
+
 export const searchCardsPageForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    showTrashOnly: v.optional(v.boolean()),
-    archived: v.optional(archivedFilterValidator),
-    folderId: v.optional(v.id("folders")),
-    styleFilters: v.optional(v.array(v.string())),
-    hueFilters: v.optional(v.array(v.string())),
-    hexFilters: v.optional(v.array(v.string())),
-    cursor: v.optional(v.string()),
-    searchQuery: v.optional(v.string()),
-    type: v.optional(cardTypeValidator),
-    types: v.optional(v.array(cardTypeValidator)),
-    tag: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
-    sites: v.optional(v.array(v.string())),
-    phrases: v.optional(v.array(v.string())),
-    prices: v.optional(v.array(priceBoundValidator)),
-    ocrTexts: v.optional(v.array(v.string())),
-    done: v.optional(v.boolean()),
-    todo: v.optional(v.boolean()),
-    folderNames: v.optional(v.array(v.string())),
-    expression: v.optional(v.string()),
-    archivedInTrash: v.optional(v.boolean()),
-    favorited: v.optional(v.boolean()),
-    pinned: v.optional(v.boolean()),
-    createdAfter: v.optional(v.number()),
-    createdBefore: v.optional(v.number()),
-    sort: v.optional(apiCardSortValidator),
-    limit: v.optional(v.number()),
-    ...semanticSearchArgs,
-    relevance: v.optional(
-      v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
-    ),
-  },
+  args: searchCardsPageArgs,
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
@@ -224,10 +220,7 @@ export const searchCardsPageForUser = internalQuery({
       pageItems = remaining.slice(0, limit);
       hasMore = remaining.length > limit;
       if (!(hasMore || args.cursor) && result.hitScanBudget) {
-        throw new ConvexError({
-          code: "INVALID_INPUT",
-          message: "Search is too broad. Add a type or date filter.",
-        });
+        throw searchTooBroad();
       }
     } else {
       const result = await searchCardsByTag(
@@ -246,9 +239,8 @@ export const searchCardsPageForUser = internalQuery({
       hasMore && last
         ? encodeCursor({ mode: "match", anchor: matchAnchorOf(last) })
         : null;
-    const cardsWithUrls = await attachFileUrls(ctx, pageItems);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(pageItems),
       pageInfo: {
         nextCursor,
         hasMore: nextCursor !== null,
@@ -329,10 +321,9 @@ export const shuffleCardsPageForUser = internalQuery({
       items: Doc<"cards">[],
       next: Exclude<ShuffleApiCursor, { mode: "start" }> | null
     ) => {
-      const cardsWithUrls = await attachFileUrls(ctx, items);
       const nextCursor = next ? encodeShuffleCursor(seed, next) : null;
       return {
-        items: applyQuoteFormattingToList(cardsWithUrls),
+        items: await finishCards(items),
         pageInfo: { nextCursor, hasMore: nextCursor !== null },
       };
     };
@@ -520,11 +511,9 @@ export const scanCardsPageForUser = internalQuery({
       decodeCursor(args.cursor),
       scanLimit
     );
-    const cardsWithUrls = await attachFileUrls(ctx, page.matches);
-
     return {
       itemCursors: page.itemCursors,
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(page.matches),
       nextCursor: page.nextCursor,
       scannedRows: page.scannedRows,
     };
@@ -587,9 +576,8 @@ export const pinnedCardsPageForUser = internalQuery({
         items.push(card);
       }
     }
-    const cardsWithUrls = await attachFileUrls(ctx, items);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(items),
       pageInfo: { nextCursor: null, hasMore: false },
     };
   },
@@ -631,9 +619,8 @@ export const listCardChangesForUser = internalQuery({
         }
       }
       if (!page.isDone) {
-        const cardsWithUrls = await attachFileUrls(ctx, activeCards);
         return {
-          items: applyQuoteFormattingToList(cardsWithUrls),
+          items: await finishCards(activeCards),
           deletedIds,
           pageInfo: {
             nextCursor: encodeChangesCursor({
@@ -677,25 +664,13 @@ export const listCardChangesForUser = internalQuery({
       }
     }
 
-    const cardsWithUrls = await attachFileUrls(ctx, activeCards);
     return {
-      items: applyQuoteFormattingToList(cardsWithUrls),
+      items: await finishCards(activeCards),
       deletedIds,
       pageInfo: { nextCursor, hasMore },
     };
   },
 });
-
-type BulkOperation =
-  | "create"
-  | "update"
-  | "favorite"
-  | "delete"
-  | "archive"
-  | "unarchive"
-  | "addTags"
-  | "removeTags"
-  | "restore";
 
 const performBulkUpdate = async (
   ctx: MutationCtx,
@@ -845,28 +820,12 @@ export const executeBulkCardsForUser = internalMutation({
     userId: v.string(),
     /** The client that sent the bulk create, for analytics; `api` when not given. */
     cardSource: v.optional(apiCardSourceValidator),
-    operation: v.union(
-      v.literal("create"),
-      v.literal("update"),
-      v.literal("favorite"),
-      v.literal("delete"),
-      v.literal("archive"),
-      v.literal("unarchive"),
-      v.literal("addTags"),
-      v.literal("removeTags"),
-      v.literal("restore")
-    ),
+    operation: bulkOperationValidator,
     items: v.array(v.any()),
   },
   returns: bulkResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    if (args.items.length > MAX_BULK_ITEMS) {
-      throw new ConvexError({
-        code: "INVALID_INPUT",
-        message: `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`,
-      });
-    }
 
     const results: Record<string, unknown>[] = [];
     const failedIds: string[] = [];
@@ -881,7 +840,7 @@ export const executeBulkCardsForUser = internalMutation({
 
         const payload = item as Record<string, unknown>;
 
-        switch (args.operation as BulkOperation) {
+        switch (args.operation) {
           case "create": {
             assertBulkCreatePayload(payload);
             let requestedType: CardType | undefined;
@@ -978,13 +937,7 @@ export const executeBulkCardsForUser = internalMutation({
             });
             break;
           }
-          case "favorite":
-          case "delete":
-          case "archive":
-          case "unarchive":
-          case "addTags":
-          case "removeTags":
-          case "restore": {
+          default: {
             const cardId = ctx.db.normalizeId(
               "cards",
               String(payload.cardId ?? "")
@@ -996,7 +949,7 @@ export const executeBulkCardsForUser = internalMutation({
               });
             }
 
-            let action = args.operation as BulkCardAction;
+            let action: BulkCardAction = args.operation;
             if (args.operation === "favorite") {
               action = payload.isFavorited ? "favorite" : "unfavorite";
             }
@@ -1023,11 +976,6 @@ export const executeBulkCardsForUser = internalMutation({
             });
             break;
           }
-          default:
-            throw new ConvexError({
-              code: "INVALID_INPUT",
-              message: "Unsupported bulk operation",
-            });
         }
 
         succeeded += 1;
@@ -1079,54 +1027,6 @@ export const executeBulkCardsForUser = internalMutation({
   },
 });
 
-export const rateLimitResultValidator = v.object({
-  ok: v.boolean(),
-  retryAt: v.optional(v.number()),
-});
-
-const INVALID_API_AUTH_BUCKET_KEY = "public-api-invalid-auth";
-
-const toRateLimitResult = (
-  result: Awaited<ReturnType<typeof rateLimiter.limit>>
-): { ok: boolean; retryAt?: number } => ({
-  ok: result.ok,
-  retryAt:
-    typeof result.retryAfter === "number"
-      ? Date.now() + result.retryAfter
-      : undefined,
-});
-
-export type ValidatedRateLimitKey = string & {
-  readonly __brand: "ValidatedRateLimitKey";
-};
-
-export async function limitApiRequests(
-  ctx: MutationCtx,
-  rateLimitKey: ValidatedRateLimitKey
-): Promise<{ ok: boolean; retryAt?: number }> {
-  const key = rateLimitKey.trim();
-  if (!key) {
-    return { ok: false };
-  }
-
-  try {
-    const result = await rateLimiter.limit(ctx, "publicApiRequests", {
-      key,
-      throws: false,
-    });
-    return toRateLimitResult(result);
-  } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return {
-        ok: false,
-        retryAt: Date.now() + 1000,
-      };
-    }
-
-    throw error;
-  }
-}
-
 /**
  * Charges one public API request against an already validated caller's
  * limit: an MCP tool call the Core Worker didn't charge, whose bearer the
@@ -1135,29 +1035,11 @@ export async function limitApiRequests(
 export const chargeApiRequest = internalMutation({
   args: { rateLimitKey: v.string() },
   returns: rateLimitResultValidator,
-  handler: (ctx, { rateLimitKey }) =>
-    limitApiRequests(ctx, `key:${rateLimitKey}` as ValidatedRateLimitKey),
+  handler: (ctx, { rateLimitKey }) => limitApiRequests(ctx, rateLimitKey),
 });
 
 export const consumeInvalidApiAuthLimit = internalMutation({
   args: {},
   returns: rateLimitResultValidator,
-  handler: async (ctx) => {
-    try {
-      const result = await rateLimiter.limit(ctx, "invalidApiAuth", {
-        key: INVALID_API_AUTH_BUCKET_KEY,
-        throws: false,
-      });
-      return toRateLimitResult(result);
-    } catch (error) {
-      if (isRateLimitContentionError(error)) {
-        return {
-          ok: false,
-          retryAt: Date.now() + 1000,
-        };
-      }
-
-      throw error;
-    }
-  },
+  handler: (ctx) => limitInvalidApiAuth(ctx),
 });

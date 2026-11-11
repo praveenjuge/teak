@@ -1,7 +1,7 @@
 import { sha256Hex } from "@teak/files-protocol";
+import { readBodyWithLimit } from "@teak/files-protocol/ssrf";
 import type { Doc } from "../_generated/dataModel";
 import { env } from "../_generated/server";
-import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaCoreWorker } from "./coreWorkerClient";
 import { getR2Url } from "./fileUrls";
 import { buildR2UserPrefix } from "./r2";

@@ -31,7 +31,7 @@ public struct IndexedCard: Hashable, Sendable {
     }
 
     /// A card read whole, titled as `cardDisplayTitle` titles it
-    /// (`packages/convex/card/displayTitle.ts`).
+    /// (`packages/convex/shared/cardTitle.ts`).
     public init?(_ card: Card, includeArchived: Bool = false) {
         guard !card.deleted, includeArchived || !card.archived, !HiddenTags.isHiddenTagList(card.tags) else { return nil }
         let text = card.type == .audio ? card.aiTranscript : CardLinks.tokensToText(card.content)

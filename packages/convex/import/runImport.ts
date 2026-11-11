@@ -2,6 +2,7 @@
 
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import { callCoreWorkerOp } from "../storage/coreWorkerClient";
@@ -56,7 +57,10 @@ async function queueImportObjectDeletion(
   });
 }
 
-async function queueUnclaimedImportFiles(ctx: ActionCtx, jobId: string) {
+async function queueUnclaimedImportFiles(
+  ctx: ActionCtx,
+  jobId: Id<"importJobs">
+) {
   let fileCursor: string | null = null;
   do {
     const files: {
@@ -77,7 +81,7 @@ export const cleanupImportJob = internalAction({
   returns: v.null(),
   handler: observeImport(
     "import.cleanup",
-    async (ctx, { jobId }: { jobId: string }) => {
+    async (ctx, { jobId }: { jobId: Id<"importJobs"> }) => {
       const job = await ctx.runQuery(internal.dataImport.getJob, { jobId });
       if (!job) {
         return null;

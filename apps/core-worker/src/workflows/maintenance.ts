@@ -1,17 +1,17 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { DAY_MS } from "@teak/convex/admin/dates";
 import {
   ACTIVE_SAVER_DAYS,
   autoInternalUserIds,
   createSnapshotTally,
-  DAY_MS,
   MAX_DAY_SAVERS,
   type MetricsCardRow,
   type MetricsUserRow,
   precedingDays,
   snapshotDay,
   snapshotTakesBilling,
-} from "@teak/convex/admin/stats";
+} from "@teak/convex/admin/snapshot";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";
@@ -23,7 +23,8 @@ import type {
 } from "@teak/files-protocol";
 import { sha256Hex } from "@teak/files-protocol";
 import type { FunctionArgs } from "convex/server";
-import type { ConvexRpc } from "../convexRpc";
+import { type ConvexRpc, isConvexRpcUnavailable } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { reportBackgroundError } from "../telemetry";
 import {
   type OpCaller,
@@ -35,9 +36,9 @@ import { DUPLICATE_INSTANCE_CODES, workflowBinding } from "./dispatch";
 import {
   type BackgroundEnv,
   CONVEX_STEP,
-  errorMessage,
   exponentialStep,
   runReported,
+  stepPages,
   type WorkflowRun,
 } from "./runtime";
 
@@ -50,6 +51,9 @@ const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
 };
 
 const CARD_CLEANUP_BATCH = 10;
+// Each page re-reads the cards that failed before it, so a run that keeps
+// failing ends here rather than reading past a growing skip list.
+const MAX_FAILED_CARDS = 100;
 const EXPORT_CLEANUP_BATCH = 25;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
 const MAX_PAGES = 1000;
@@ -97,43 +101,79 @@ interface TaskContext {
   run: WorkflowRun<MaintenanceParams>;
 }
 
+// A card whose delete fails rolls back whole and stays in Trash for the next
+// run; one such card must not stop the cards trashed after it.
+const cleanUpCard = async (
+  convex: ConvexRpc,
+  cardId: Id<"cards">,
+  cutoff: number
+): Promise<boolean> => {
+  try {
+    const outcome = await convex.mutation(
+      internal.card.trashCleanup.cleanupDeletedCard,
+      { cardId, cutoff }
+    );
+    return outcome.deleted;
+  } catch (error) {
+    if (isConvexRpcUnavailable(error)) {
+      throw error;
+    }
+    console.error("[maintenance] Trash cleanup failed for a card", {
+      cardId,
+      error: errorMessage(error),
+    });
+    return false;
+  }
+};
+
 const cleanUpCards = async ({ convex, run }: TaskContext) => {
   const { step } = run;
   const cutoff = await step.do("cutoff", async () =>
     Promise.resolve(Date.now() - TRASH_RETENTION_MS)
   );
   let cleaned = 0;
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result = await step.do(
-      `clean up cards ${page}`,
-      CONVEX_STEP,
-      async () => {
-        const startedAt = Date.now();
-        let deleted = 0;
-        for (;;) {
-          const candidates = await convex.query(
-            internal.card.trashCleanup.getCardsPendingCleanup,
-            { limit: CARD_CLEANUP_BATCH, olderThan: cutoff }
-          );
-          let pageDeleted = 0;
-          for (const candidate of candidates) {
-            const outcome = await convex.mutation(
-              internal.card.trashCleanup.cleanupDeletedCard,
-              { cardId: candidate._id, cutoff }
-            );
-            pageDeleted += outcome.deleted ? 1 : 0;
-          }
-          deleted += pageDeleted;
-          if (candidates.length < CARD_CLEANUP_BATCH || pageDeleted === 0) {
-            return { deleted, more: false };
-          }
-          if (!withinBudget(startedAt)) {
-            return { deleted, more: true };
+  const skipped = new Set<string>();
+  for await (const result of stepPages(
+    step,
+    "clean up cards",
+    CONVEX_STEP,
+    async () => {
+      const startedAt = Date.now();
+      const failedIds: string[] = [];
+      let deleted = 0;
+      for (;;) {
+        if (skipped.size + failedIds.length >= MAX_FAILED_CARDS) {
+          return { deleted, failedIds, more: false };
+        }
+        const limit = CARD_CLEANUP_BATCH + skipped.size + failedIds.length;
+        const candidates = await convex.query(
+          internal.card.trashCleanup.getCardsPendingCleanup,
+          { limit, olderThan: cutoff }
+        );
+        const fresh = candidates.filter(
+          (row) => !(skipped.has(row._id) || failedIds.includes(row._id))
+        );
+        for (const candidate of fresh) {
+          if (await cleanUpCard(convex, candidate._id, cutoff)) {
+            deleted += 1;
+          } else {
+            failedIds.push(candidate._id);
           }
         }
+        if (candidates.length < limit || fresh.length === 0) {
+          return { deleted, failedIds, more: false };
+        }
+        if (!withinBudget(startedAt)) {
+          return { deleted, failedIds, more: true };
+        }
       }
-    );
+    },
+    { maxPages: MAX_PAGES }
+  )) {
     cleaned += result.deleted;
+    for (const id of result.failedIds) {
+      skipped.add(id);
+    }
     if (!result.more) {
       break;
     }
@@ -154,53 +194,54 @@ const cleanUpExports = async ({ convex, ops, run }: TaskContext) => {
   let expired = 0;
   let failed = 0;
   const skipped = new Set<string>();
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result = await step.do(
-      `expire exports ${page}`,
-      CONVEX_STEP,
-      async () => {
-        const limit = EXPORT_CLEANUP_BATCH + skipped.size;
-        const jobs: Array<{ _id: Id<"exportJobs">; artifactKey?: string }> =
-          await convex.query(internal.dataExport.findExpiredReadyJobs, {
-            limit,
-            nowMs,
-          });
-        const failedIds: string[] = [];
-        let pageExpired = 0;
-        for (const job of jobs.filter((row) => !skipped.has(row._id))) {
-          if (job.artifactKey) {
-            const deleted = await ops({
-              op: "delete-objects",
-              params: { keys: exportArtifactObjectKeys(job.artifactKey) },
-            }).catch((error: unknown) => {
-              console.error("[workflows/maintenance] artifact delete failed", {
-                error: errorMessage(error),
-                jobId: job._id,
-              });
-              return null;
+  for await (const result of stepPages(
+    step,
+    "expire exports",
+    CONVEX_STEP,
+    async () => {
+      const limit = EXPORT_CLEANUP_BATCH + skipped.size;
+      const jobs: Array<{ _id: Id<"exportJobs">; artifactKey?: string }> =
+        await convex.query(internal.dataExport.findExpiredReadyJobs, {
+          limit,
+          nowMs,
+        });
+      const failedIds: string[] = [];
+      let pageExpired = 0;
+      for (const job of jobs.filter((row) => !skipped.has(row._id))) {
+        if (job.artifactKey) {
+          const deleted = await ops({
+            op: "delete-objects",
+            params: { keys: exportArtifactObjectKeys(job.artifactKey) },
+          }).catch((error: unknown) => {
+            console.error("[workflows/maintenance] artifact delete failed", {
+              error: errorMessage(error),
+              jobId: job._id,
             });
-            if (deleted?.kind !== "ok") {
-              failedIds.push(job._id);
-              continue;
-            }
-          }
-          for (;;) {
-            const items = await convex.mutation(
-              internal.dataExport.deleteJobItemsPage,
-              { jobId: job._id, numItems: ITEM_CLEANUP_PAGE_SIZE }
-            );
-            if (!items.hasMore) {
-              break;
-            }
-          }
-          await convex.mutation(internal.dataExport.expireJob, {
-            jobId: job._id,
+            return null;
           });
-          pageExpired += 1;
+          if (deleted?.kind !== "ok") {
+            failedIds.push(job._id);
+            continue;
+          }
         }
-        return { expired: pageExpired, failedIds, more: jobs.length === limit };
+        for (;;) {
+          const items = await convex.mutation(
+            internal.dataExport.deleteJobItemsPage,
+            { jobId: job._id, numItems: ITEM_CLEANUP_PAGE_SIZE }
+          );
+          if (!items.hasMore) {
+            break;
+          }
+        }
+        await convex.mutation(internal.dataExport.expireJob, {
+          jobId: job._id,
+        });
+        pageExpired += 1;
       }
-    );
+      return { expired: pageExpired, failedIds, more: jobs.length === limit };
+    },
+    { maxPages: MAX_PAGES }
+  )) {
     expired += result.expired;
     failed += result.failedIds.length;
     for (const id of result.failedIds) {
@@ -332,12 +373,13 @@ const sweepStorage = async (context: TaskContext) => {
 
 const pruneEmailReceipts = async ({ convex, run }: TaskContext) => {
   let pruned = 0;
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result = await run.step.do(
-      `prune email receipts ${page}`,
-      CONVEX_STEP,
-      () => convex.mutation(internal.inbound.ingest.pruneReceipts, {})
-    );
+  for await (const result of stepPages(
+    run.step,
+    "prune email receipts",
+    CONVEX_STEP,
+    () => convex.mutation(internal.inbound.ingest.pruneReceipts, {}),
+    { maxPages: MAX_PAGES }
+  )) {
     pruned += result.deleted;
     if (!result.hasMore) {
       break;
@@ -352,7 +394,6 @@ interface Page<T> {
   rows: T[];
 }
 
-/** Reads at most `maxPages` pages; says whether it reached the end. */
 const visitPages = async <T>(
   readPage: (cursor: string | null) => Promise<Page<T>>,
   visit: (rows: T[]) => void,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -9,9 +9,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { STEP_LANDING_TIMEOUT_MS, useCardSteps } = await import(
-  "../useCardSteps"
-);
+const { useCardSteps } = await import("../useCardSteps");
 
 const CARDS = ["a", "b", "c", "d", "e", "f"];
 let root: Root | undefined;
@@ -22,19 +20,18 @@ let saving: Promise<boolean> | null = null;
 let step: ReturnType<typeof useCardSteps> = () => undefined;
 const visited: string[] = [];
 
+// Steps from the card the last step went to, as the library does, while
+// the card on screen (`cardId`) changes only when `land` renders it.
 function Harness({ cardId }: { cardId: string }) {
-  const index = CARDS.indexOf(cardId);
-  const go = (target?: string) =>
-    target
-      ? () => {
-          visited.push(target);
-          current = target;
-        }
-      : undefined;
   step = useCardSteps({
     cardId,
-    onNext: go(CARDS[index + 1]),
-    onPrevious: go(CARDS[index - 1]),
+    onStep: (direction) => {
+      const target = CARDS[CARDS.indexOf(current) + direction];
+      if (target) {
+        visited.push(target);
+        current = target;
+      }
+    },
     open,
     readyToLeave: () => saving ?? Promise.resolve(ready),
   });
@@ -56,19 +53,15 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
-  jest.useRealTimers();
 });
 
-test("three quick presses move three cards, not one", async () => {
+test("three quick presses move three cards before the first one shows", async () => {
   await act(async () => {
     step(1);
     step(1);
     step(1);
     await Promise.resolve();
   });
-  await land();
-  await land();
-  await land();
   expect(visited).toEqual(["b", "c", "d"]);
 });
 
@@ -129,17 +122,13 @@ test("unsaved edits that won't save keep the card and drop the queue", async () 
   expect(visited).toEqual(["b"]);
 });
 
-test("a step that never lands stops blocking the next press", async () => {
-  jest.useFakeTimers();
-  await act(() => root?.render(<Harness cardId="a" key="stuck" />));
-  current = "a";
+test("a held key moves on once the card it stepped to shows", async () => {
   await act(async () => step(1));
+  await act(async () => step(1, { repeat: true }));
   expect(visited).toEqual(["b"]);
-  await act(() => {
-    jest.advanceTimersByTime(STEP_LANDING_TIMEOUT_MS);
-  });
-  await act(async () => step(1));
-  expect(visited).toEqual(["b", "b"]);
+  await land();
+  await act(async () => step(1, { repeat: true }));
+  expect(visited).toEqual(["b", "c"]);
 });
 
 function slowSave() {

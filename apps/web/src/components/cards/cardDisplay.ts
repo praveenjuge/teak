@@ -60,12 +60,6 @@ export function quoteSizeClass(text: string): string {
   return "text-[15px]";
 }
 
-export function getFaviconUrl(hostname?: string): string | undefined {
-  return hostname
-    ? `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`
-    : undefined;
-}
-
 export function getFileFormatBadge(
   fileName?: string,
   mimeType?: string

@@ -1,4 +1,8 @@
 import {
+  SETTINGS_PATHS,
+  type SettingsSectionId,
+} from "@teak/convex/shared/webRoutes";
+import {
   ArrowDownUp,
   Palette,
   Plug,
@@ -7,14 +11,9 @@ import {
   UserRound,
   type VadivamIcon,
 } from "vadivam-react";
+import { trimTrailingSlashes } from "./routePath";
 
-export type SettingsSectionId =
-  | "account"
-  | "plan"
-  | "appearance"
-  | "integrations"
-  | "security"
-  | "data";
+export type { SettingsSectionId } from "@teak/convex/shared/webRoutes";
 
 export interface SettingsSection {
   href: string;
@@ -22,17 +21,24 @@ export interface SettingsSection {
   id: SettingsSectionId;
 }
 
-/** Every Settings page, in the order the nav lists them. */
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
-  { id: "account", href: "/settings", icon: UserRound },
-  { id: "plan", href: "/settings/plan", icon: Sparkles },
-  { id: "appearance", href: "/settings/appearance", icon: Palette },
-  { id: "integrations", href: "/settings/integrations", icon: Plug },
-  { id: "security", href: "/settings/security", icon: ShieldCheck },
-  { id: "data", href: "/settings/data", icon: ArrowDownUp },
-];
+const SECTION_ICONS: Record<SettingsSectionId, VadivamIcon> = {
+  account: UserRound,
+  plan: Sparkles,
+  appearance: Palette,
+  integrations: Plug,
+  security: ShieldCheck,
+  data: ArrowDownUp,
+};
 
-export const SETTINGS_PLAN_HREF = "/settings/plan";
+/** Every Settings page, in the order the nav lists them. */
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = (
+  Object.keys(SETTINGS_PATHS) as SettingsSectionId[]
+).map((id) => ({ id, href: SETTINGS_PATHS[id], icon: SECTION_ICONS[id] }));
+
+/** Settings or one of its pages. */
+export const isSettingsPath = (pathname: string | null | undefined) =>
+  pathname === SETTINGS_PATHS.account ||
+  Boolean(pathname?.startsWith(`${SETTINGS_PATHS.account}/`));
 
 /** The Settings pages this deployment shows: Plan only where it sells plans. */
 export const visibleSettingsSections = (
@@ -61,37 +67,42 @@ export function settingsSectionForPath(
   if (!pathname) {
     return null;
   }
-  const path = pathname.replace(/\/+$/, "");
+  const path = trimTrailingSlashes(pathname);
   return SETTINGS_SECTIONS.find((section) => section.href === path) ?? null;
 }
 
-/** The account data a Settings page shows beyond the account itself. */
 export interface SettingsData {
   apiKeys: boolean;
   exportState: boolean;
+  importState: boolean;
+  inboundEmail: boolean;
   sessions: boolean;
 }
 
 export const NO_SETTINGS_DATA: SettingsData = {
   apiKeys: false,
   exportState: false,
+  importState: false,
+  inboundEmail: false,
   sessions: false,
 };
 
-const ALL_SETTINGS_DATA: SettingsData = {
+export const ALL_SETTINGS_DATA: SettingsData = {
   apiKeys: true,
   exportState: true,
+  importState: true,
+  inboundEmail: true,
   sessions: true,
 };
 
 const SETTINGS_DATA_BY_SECTION: Record<SettingsSectionId, SettingsData> = {
-  // The overview sums up keys, devices and the last export.
-  account: ALL_SETTINGS_DATA,
+  // The overview sums up keys, Save by email, devices and the last export.
+  account: { ...ALL_SETTINGS_DATA, importState: false },
   plan: NO_SETTINGS_DATA,
   appearance: NO_SETTINGS_DATA,
-  integrations: { ...NO_SETTINGS_DATA, apiKeys: true },
+  integrations: { ...NO_SETTINGS_DATA, apiKeys: true, inboundEmail: true },
   security: { ...NO_SETTINGS_DATA, sessions: true },
-  data: { ...NO_SETTINGS_DATA, exportState: true },
+  data: { ...NO_SETTINGS_DATA, exportState: true, importState: true },
 };
 
 /**

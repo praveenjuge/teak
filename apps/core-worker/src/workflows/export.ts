@@ -21,27 +21,23 @@ import {
   type ExportableCard,
   serializeCard,
 } from "@teak/convex/export/serialize";
-import type { FilesOpOutcome } from "@teak/files-protocol";
+import type { ExportParams, FilesOpOutcome } from "@teak/files-protocol";
 import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
 } from "@teak/files-protocol";
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { type OpDeps, resolveOpDeps, settleConvexErrors } from "./deps";
 import {
   CONVEX_STEP,
-  errorMessage,
   exponentialStep,
   runReported,
+  stepPages,
   type WorkflowRun,
 } from "./runtime";
-
-export interface ExportParams {
-  jobId: string;
-  userId: string;
-}
 
 export type ExportOutcome = "canceled" | "failed" | "ready";
 
@@ -452,26 +448,26 @@ export const runExport = (
     let cursor: string | null = null;
     let totalCount = 0;
     let totalBytes = 0;
-    for (let page = 1; ; page += 1) {
-      const recorded: SnapshotPage = await step.do(
-        `snapshot page ${page}`,
-        CONVEX_STEP,
-        () =>
-          settleConvexErrors(async () => {
-            const snapshot = await takeSnapshotPage(cursor);
-            await convex.mutation(internal.dataExport.recordExportProgress, {
+    for await (const recorded of stepPages<SnapshotPage>(
+      step,
+      "snapshot page",
+      CONVEX_STEP,
+      () =>
+        settleConvexErrors(async () => {
+          const snapshot = await takeSnapshotPage(cursor);
+          await convex.mutation(internal.dataExport.recordExportProgress, {
+            jobId,
+            processedCount: totalCount + snapshot.addedCount,
+            stage: "snapshotting",
+          });
+          const canceled =
+            !snapshot.isDone &&
+            (await convex.query(internal.dataExport.isCancelRequested, {
               jobId,
-              processedCount: totalCount + snapshot.addedCount,
-              stage: "snapshotting",
-            });
-            const canceled =
-              !snapshot.isDone &&
-              (await convex.query(internal.dataExport.isCancelRequested, {
-                jobId,
-              }));
-            return { ...snapshot, canceled };
-          })
-      );
+            }));
+          return { ...snapshot, canceled };
+        })
+    )) {
       pages.push(recorded);
       totalCount += recorded.addedCount;
       totalBytes += recorded.addedBytes;

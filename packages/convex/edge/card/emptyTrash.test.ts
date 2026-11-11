@@ -8,7 +8,7 @@ import {
   EMPTY_TRASH_RATE_LIMITED_MESSAGE,
 } from "../../card/emptyTrash";
 import { onCardChanged } from "../../card/onCardChanged";
-import { cardStorageObjectKeys } from "../../storage/r2";
+import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import { newBackend, signIn } from "../helpers.testUtils";
 
 beforeEach(() => {

@@ -2,7 +2,7 @@
  * The JSON bodies public API operations read, declared once as Zod schemas
  * beside `PUBLIC_API_OPERATIONS` (`publicApiContract.ts`). The REST handlers
  * parse with them (`parsePublicApiBody`), the OpenAPI document's request
- * bodies are generated from them (`publicApiBodyJsonSchema`), and MCP tools
+ * bodies are generated from them (`requestBodySchema`), and MCP tools
  * take their fields as arguments. Descriptions and examples are `.meta()`,
  * so they reach both OpenAPI and MCP.
  *

@@ -36,3 +36,24 @@ export function getAdjacentCardIdsKeepingPlace(
     next: lastIds.slice(index + 1).find((id) => present.has(id)),
   };
 }
+
+/**
+ * The cards nearest `cardId` in `previous` that `current` still has: those
+ * after it first, then those before it, nearest first. Where focus goes once
+ * a card leaves a grid.
+ */
+export function nearestRemainingCardIds(
+  previous: readonly string[],
+  current: readonly string[],
+  cardId: string
+): string[] {
+  const index = previous.indexOf(cardId);
+  if (index < 0) {
+    return [];
+  }
+  const remaining = new Set(current);
+  return [
+    ...previous.slice(index + 1),
+    ...previous.slice(0, index).reverse(),
+  ].filter((id) => remaining.has(id));
+}

@@ -59,7 +59,7 @@ describe("maintenance queries", () => {
       recent: await saveCard(ctx),
     }));
 
-    const result = await t.query(internal["ai/queries"].findCardsMissingAi, {});
+    const result = await t.query(internal.ai.queries.findCardsMissingAi, {});
     expect(
       new Set(result.map(({ cardId }: { cardId: Id<"cards"> }) => cardId))
     ).toEqual(new Set([ids.activeFalse, ids.activeUnset]));
@@ -78,7 +78,7 @@ describe("maintenance queries", () => {
       }
     });
 
-    const result = await t.query(internal["ai/queries"].findCardsMissingAi, {});
+    const result = await t.query(internal.ai.queries.findCardsMissingAi, {});
     expect(result).toHaveLength(50);
   });
 
@@ -227,6 +227,42 @@ describe("trash cleanup", () => {
     expect(await queuedObjectDeletions(t)).toEqual(
       expect.arrayContaining([fileKey, thumbnailKey])
     );
+  });
+
+  test("a cleanup that fails part way deletes nothing, so the next run retries the whole card", async () => {
+    const t = newBackend();
+    const cutoff = Date.now();
+    // A key outside this deployment's namespace makes queueing its deletion
+    // throw, standing in for any step of the delete failing.
+    const cardId = await t.run((ctx) =>
+      saveCard(ctx, {
+        deletedAt: cutoff - 1,
+        fileKey: "elsewhere/cards/old/file/a.png",
+        isDeleted: true,
+        type: "image",
+      })
+    );
+    const searchDocuments = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cardSearchDocuments")
+          .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
+          .collect()
+      );
+    expect(await searchDocuments()).toHaveLength(1);
+
+    await expect(
+      t.mutation(internal.card.trashCleanup.cleanupDeletedCard, {
+        cardId,
+        cutoff,
+      })
+    ).rejects.toThrow("invalid_storage_key_namespace");
+
+    expect(await t.run((ctx) => ctx.db.get(cardId))).not.toBeNull();
+    expect(await searchDocuments()).toHaveLength(1);
+    expect(
+      await t.run((ctx) => ctx.db.query("cardTombstones").collect())
+    ).toEqual([]);
   });
 });
 

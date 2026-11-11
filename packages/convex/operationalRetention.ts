@@ -4,8 +4,6 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 
 const MAX_BATCHES = 20;
 export const RETENTION_SCAN_LEASE_MS = 15 * 60 * 1000;
-// Retention cleans one kind of record; its state row is keyed by it.
-const RETENTION_KIND = "idempotency";
 
 const cleanupArgs = v.object({
   cutoff: v.optional(v.number()),
@@ -62,7 +60,7 @@ const cleanUpExpiredRecords = async (
   if (!dryRun) {
     const state = await ctx.db
       .query("operationalRetentionStates")
-      .withIndex("by_kind", (q) => q.eq("kind", RETENTION_KIND))
+      .withIndex("by_kind", (q) => q.eq("kind", "idempotency"))
       .unique();
     if (
       (runId && state?._id !== runId) ||
@@ -91,7 +89,7 @@ const cleanUpExpiredRecords = async (
     }
     if (!runId) {
       runId = await ctx.db.insert("operationalRetentionStates", {
-        kind: RETENTION_KIND,
+        kind: "idempotency",
         cutoff,
         cursor,
         updatedAt: Date.now(),

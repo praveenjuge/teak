@@ -1,6 +1,7 @@
 "use client";
 
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
+import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { LOCALE_NAMES } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
@@ -11,7 +12,6 @@ import { useRunLibraryCommand } from "@/components/providers/LibraryCommandsProv
 import { useHydrated } from "@/hooks/useHydrated";
 import { useLocalDateFormat } from "@/hooks/useLocalDateFormat";
 import {
-  SETTINGS_PLAN_HREF,
   SETTINGS_SECTIONS,
   type SettingsSectionId,
 } from "@/lib/settingsSections";
@@ -263,7 +263,7 @@ function PlanSection({
     const badge = <Badge className={LOADED}>{tContent("pro")}</Badge>;
     plan = billingEnabled ? (
       <SettingsLinkRow
-        href={SETTINGS_PLAN_HREF}
+        href={SETTINGS_PATHS.plan}
         label={tNav("plan")}
         value={badge}
       />
@@ -280,7 +280,7 @@ function PlanSection({
       <SettingsRow
         action={
           <Button asChild className={LOADED} size="sm">
-            <Link href={SETTINGS_PLAN_HREF}>{tSubscription("title")}</Link>
+            <Link href={SETTINGS_PATHS.plan}>{tSubscription("title")}</Link>
           </Button>
         }
         label={tNav("plan")}

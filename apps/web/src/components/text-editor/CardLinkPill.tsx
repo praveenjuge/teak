@@ -1,13 +1,10 @@
-import {
-  createTeakTranslator,
-  englishMessages,
-  type TeakTranslator,
-} from "@teak/i18n";
+import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import type { NodeViewProps } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { createContext, useContext } from "react";
 import { Unlink } from "vadivam-react";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { cardHref } from "@/lib/libraryUrl";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import { cn } from "../../lib/utils";
@@ -21,11 +18,7 @@ interface CardLinkView {
 
 export const CardLinkViewContext = createContext<CardLinkView>({});
 
-const englishCardLink = createTeakTranslator(
-  "en",
-  englishMessages,
-  "textEditor.cardLink"
-);
+const englishCardLink = englishTranslator("textEditor.cardLink");
 
 const PILL_CLASS =
   "mx-px inline-flex max-w-[min(40ch,100%)] items-center gap-1 rounded-full border px-2 align-baseline font-medium text-[0.9em] leading-normal no-underline transition-colors";

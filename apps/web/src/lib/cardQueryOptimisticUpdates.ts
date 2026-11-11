@@ -400,7 +400,6 @@ export function applyCardFieldUpdate(
   );
 }
 
-/** Applies a `bulkUpdateCards` call to every cached copy of its cards. */
 export function applyBulkUpdate(
   localStore: OptimisticLocalStore,
   { action, cardIds, folderId, fromFolderId, tags }: BulkUpdateCardsArgs,

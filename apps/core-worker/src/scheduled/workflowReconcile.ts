@@ -4,11 +4,15 @@ import {
   WORKFLOW_INSTANCE_MISSING,
 } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import {
-  isMissingInstance,
   type WorkflowBindingsEnv,
   workflowBinding,
 } from "../workflows/dispatch";
+import {
+  isFinishedState,
+  readInstanceStatus,
+} from "../workflows/instanceStatus";
 
 const STALE_PAGE = 200;
 const MAX_PRUNE_PAGES = 10;
@@ -30,28 +34,17 @@ const endingOf = async (
   binding: Workflow,
   instanceId: string
 ): Promise<Ending> => {
-  let instance: WorkflowInstance;
-  try {
-    instance = await binding.get(instanceId);
-  } catch (error) {
-    if (isMissingInstance(error)) {
-      return { error: WORKFLOW_INSTANCE_MISSING, status: "errored" };
-    }
-    throw error;
+  const instance = await readInstanceStatus(binding, instanceId);
+  if (!instance) {
+    return { error: WORKFLOW_INSTANCE_MISSING, status: "errored" };
   }
-  const { error, status } = await instance.status();
-  switch (status) {
-    case "complete":
-      return { status: "complete" };
-    case "errored":
-    case "terminated":
-      return {
-        error: (error?.message || status).slice(0, 300),
-        status: "errored",
-      };
-    default:
-      return { status: "running" };
+  const { error, status } = instance;
+  if (!isFinishedState(status)) {
+    return { status: "running" };
   }
+  return status === "complete"
+    ? { status: "complete" }
+    : { error: (error?.message || status).slice(0, 300), status: "errored" };
 };
 
 export const reconcileWorkflows = async (
@@ -83,7 +76,7 @@ export const reconcileWorkflows = async (
       ending = await endingOf(binding, instanceId);
     } catch (error) {
       console.error("[reconcile] instance lookup failed", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         instanceId,
       });
       stillOpen.push(instanceId);
@@ -104,7 +97,7 @@ export const reconcileWorkflows = async (
       // One run Convex can't finish must not stop the others, the pruning
       // or the rotation: it moves to the back and the run reports it below.
       console.error("[reconcile] completion not recorded", {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         instanceId,
       });
       unrecorded += 1;
@@ -122,7 +115,7 @@ export const reconcileWorkflows = async (
       })
       .catch((error: unknown) => {
         console.warn("[reconcile] could not record checked runs", {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error),
         });
       });
   }

@@ -1,73 +1,24 @@
-import { DEFAULT_TEAK_DEV_CONVEX_URL } from "@teak/convex/devUrls";
-import { TEAK_FILES_ORIGINS } from "@teak/convex/shared/constants";
-import { readConvexUrl } from "./public-env";
+import {
+  configuredOrigin,
+  filesOrigins,
+  type PublicEnvironment,
+  readConvexUrl,
+} from "./public-env";
 
 const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_R2_UPLOAD_ORIGIN =
   "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
-const TEAK_FILES_ORIGIN = TEAK_FILES_ORIGINS.production;
-const TEAK_DEV_CONVEX_ORIGIN = DEFAULT_TEAK_DEV_CONVEX_URL;
-export const TEAK_DEV_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",
   "https://*.r2.dev",
 ] as const;
 
-type PolicyEnvironment = "development" | "production" | "test" | undefined;
-
-const normalizeConfiguredOrigin = (
-  value: string,
-  environment: PolicyEnvironment
-): string | null => {
-  try {
-    const url = new URL(value);
-    if (url.username || url.password) {
-      return null;
-    }
-    if (url.protocol === "https:") {
-      return url.origin;
-    }
-    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    return (environment === "development" || environment === "test") &&
-      url.protocol === "http:" &&
-      local
-      ? url.origin
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-const customFilesOrigins = (
-  environment: PolicyEnvironment,
-  convexOrigin: string | null
-): string[] => {
-  const values = [
-    process.env.NEXT_PUBLIC_FILES_BASE,
-    convexOrigin === TEAK_DEV_CONVEX_ORIGIN ? TEAK_DEV_FILES_ORIGIN : undefined,
-  ];
-  return Array.from(
-    new Set(
-      values.flatMap((value) => {
-        if (!value) {
-          return [];
-        }
-        const origin = normalizeConfiguredOrigin(value.trim(), environment);
-        return origin ? [origin] : [];
-      })
-    )
-  );
-};
-
 export const buildContentSecurityPolicy = (
-  environment: PolicyEnvironment = process.env.NODE_ENV
+  environment: PublicEnvironment | undefined = process.env.NODE_ENV
 ) => {
-  const convexUrl = readConvexUrl();
-  const convexOrigin = convexUrl
-    ? normalizeConfiguredOrigin(convexUrl, environment)
-    : null;
-  const customOrigins = customFilesOrigins(environment, convexOrigin);
+  const convexOrigin = configuredOrigin(readConvexUrl(), environment);
+  const filesHosts = filesOrigins(environment);
   const convexOrigins = convexOrigin
     ? [convexOrigin, convexOrigin.replace(/^http/, "ws")]
     : [];
@@ -83,7 +34,7 @@ export const buildContentSecurityPolicy = (
       "https://www.google.com",
       "https://*.gstatic.com",
       "https://*.teakvault.com",
-      ...customOrigins,
+      ...filesHosts,
     ].join(" "),
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
@@ -105,22 +56,19 @@ export const buildContentSecurityPolicy = (
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
-      TEAK_FILES_ORIGIN,
       TEAK_R2_UPLOAD_ORIGIN,
-      ...customOrigins,
+      ...filesHosts,
     ].join(" "),
     [
       "media-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
-      TEAK_FILES_ORIGIN,
-      ...customOrigins,
+      ...filesHosts,
     ].join(" "),
     [
       "frame-src",
       TEAK_R2_STORAGE_ORIGIN,
-      TEAK_FILES_ORIGIN,
       ...R2_FRAME_SOURCES,
-      ...customOrigins,
+      ...filesHosts,
     ].join(" "),
     // PostHog's session replay compresses recordings in a blob worker.
     "worker-src 'self' blob:",

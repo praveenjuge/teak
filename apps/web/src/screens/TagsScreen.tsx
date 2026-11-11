@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
@@ -14,6 +15,7 @@ import {
   Search,
   Trash,
 } from "vadivam-react";
+import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,12 +32,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { LIBRARY_SEARCH_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
+import { searchFieldClassName } from "../components/search/SearchBar";
+import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
 import {
   TagManagerDialog,
   type TagManagerMode,
-} from "../components/modals/TagManagerDialog";
-import { searchFieldClassName } from "../components/search/SearchBar";
-import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
+} from "../components/tags/TagManagerDialog";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
@@ -44,9 +46,7 @@ import {
   applyTagOperationToSummary,
   type TagSummaryItem,
   tagDisplayName,
-  tagKey,
 } from "../lib/tags";
-import { PageHeader, PageTitle } from "./PageHeader";
 
 export type TagSort = "count" | "name";
 

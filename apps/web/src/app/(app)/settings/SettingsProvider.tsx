@@ -3,6 +3,7 @@
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
+import { getPolarPlanIds } from "@teak/convex/shared/polarPlans";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
@@ -18,7 +19,6 @@ import {
 import { toast } from "sonner";
 import type { InboundEmailPanelProps } from "@/components/settings";
 import type { PlanCheckout } from "@/components/settings/PlanSettings";
-import { getPolarPlanIds } from "@/constants/billing";
 import { TOAST_IDS } from "@/constants/toast";
 import {
   type LanguageSetting,
@@ -125,29 +125,29 @@ function useCheckout(hasPremium: boolean | undefined): PlanCheckout {
 function useSettingsDataToLoad(): SettingsData {
   const wanted = settingsDataForPath(usePathname());
   const [loaded, setLoaded] = useState(NO_SETTINGS_DATA);
-  const next: SettingsData = {
-    apiKeys: loaded.apiKeys || wanted.apiKeys,
-    exportState: loaded.exportState || wanted.exportState,
-    sessions: loaded.sessions || wanted.sessions,
-  };
-  if (
-    next.apiKeys !== loaded.apiKeys ||
-    next.exportState !== loaded.exportState ||
-    next.sessions !== loaded.sessions
-  ) {
+  const kinds = Object.keys(loaded) as (keyof SettingsData)[];
+  if (kinds.some((kind) => wanted[kind] && !loaded[kind])) {
+    const next = { ...loaded };
+    for (const kind of kinds) {
+      next[kind] ||= wanted[kind];
+    }
     setLoaded(next);
+    return next;
   }
-  return next;
+  return loaded;
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const t = useTranslations("app.settings");
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
-  const inboundEmail = useQuery(api.inbound.settings.getMine, {});
+  const load = useSettingsDataToLoad();
+  const inboundEmail = useQuery(
+    api.inbound.settings.getMine,
+    load.inboundEmail ? {} : "skip"
+  );
   const enableInboundEmail = useMutation(api.inbound.settings.enable);
   const disableInboundEmail = useMutation(api.inbound.settings.disable);
   const language = useLanguageSetting();
-  const load = useSettingsDataToLoad();
 
   const settings = useSettingsController({
     load,

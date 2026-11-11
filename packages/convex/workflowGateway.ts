@@ -24,7 +24,6 @@ import {
   httpAction,
   internalMutation,
   internalQuery,
-  type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import {
@@ -90,21 +89,15 @@ interface DecodedOp {
   name: string;
 }
 
+/** Runs `ops` in order; a failure names the op it came from. */
 const runOps = async (
-  ctx: Pick<MutationCtx, "runMutation" | "runQuery">,
-  ops: DecodedOp[]
+  ops: DecodedOp[],
+  run: (op: DecodedOp) => Promise<unknown>
 ): Promise<unknown[]> => {
   const values: unknown[] = [];
-  for (const [index, { args, ...op }] of ops.entries()) {
+  for (const [index, op] of ops.entries()) {
     try {
-      values.push(
-        (op.kind === "query"
-          ? await ctx.runQuery(makeFunctionReference<"query">(op.name), args)
-          : await ctx.runMutation(
-              makeFunctionReference<"mutation">(op.name),
-              args
-            )) ?? null
-      );
+      values.push((await run(op)) ?? null);
     } catch (error) {
       throw failedOp(error, index);
     }
@@ -126,7 +119,11 @@ export const runBatch = internalMutation({
     if (guard) {
       await checkGuard(ctx, guard);
     }
-    return await runOps(ctx, ops as DecodedOp[]);
+    return await runOps(ops as DecodedOp[], ({ args, kind, name }) =>
+      kind === "query"
+        ? ctx.runQuery(makeFunctionReference<"query">(name), args)
+        : ctx.runMutation(makeFunctionReference<"mutation">(name), args)
+    );
   },
 });
 
@@ -134,22 +131,10 @@ export const runBatch = internalMutation({
 export const runQueryBatch = internalQuery({
   args: { ops: v.array(v.any()) },
   returns: v.array(v.any()),
-  handler: async (ctx, { ops }) => {
-    const values: unknown[] = [];
-    for (const [index, op] of (ops as DecodedOp[]).entries()) {
-      try {
-        values.push(
-          (await ctx.runQuery(
-            makeFunctionReference<"query">(op.name),
-            op.args
-          )) ?? null
-        );
-      } catch (error) {
-        throw failedOp(error, index);
-      }
-    }
-    return values;
-  },
+  handler: (ctx, { ops }) =>
+    runOps(ops as DecodedOp[], ({ args, name }) =>
+      ctx.runQuery(makeFunctionReference<"query">(name), args)
+    ),
 });
 
 export const runGuarded = internalMutation({

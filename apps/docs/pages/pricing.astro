@@ -1,4 +1,5 @@
 ---
+import { SITE_URL } from "@teak/convex/shared/organization";
 import Accordion from "blume/components/content/Accordion.astro";
 import AccordionItem from "blume/components/content/AccordionItem.astro";
 import Icon from "blume/components/Icon.astro";
@@ -6,7 +7,7 @@ import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { SIGN_UP_URL, WEB_APP_URL } from "../lib/app-entry";
-import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
+import { buildPageSchemas, buildProductSchema } from "../lib/jsonld";
 import {
   FREE_CARD_LIMIT,
   formatUsd,

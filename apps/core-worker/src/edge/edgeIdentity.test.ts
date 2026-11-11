@@ -153,7 +153,6 @@ describe("API keys", () => {
     expect(shared.kv.ttls.get(`key:${keyHash}`)).toBe(
       EDGE_IDENTITY_KNOWN_TTL_SECONDS
     );
-    expect(EDGE_IDENTITY_KNOWN_TTL_SECONDS).toBe(300);
   });
 
   test("an unknown key falls back to the address, remembered for a minute", async () => {

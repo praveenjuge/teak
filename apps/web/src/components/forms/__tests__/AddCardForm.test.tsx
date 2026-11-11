@@ -90,15 +90,6 @@ mock.module("@/hooks/useFileUploadCore", () => ({
   }),
 }));
 
-const enqueueFilesMock = mock((_files: File[]) => undefined);
-mock.module("@/hooks", () => ({
-  useGlobalFileDrop: () => ({
-    queueSize: 0,
-    isUploading: false,
-    enqueueFiles: enqueueFilesMock,
-  }),
-}));
-
 mock.module("sonner", () => ({
   toast: {
     loading: mock(() => "toast-id"),
@@ -163,9 +154,14 @@ mock.module("@teak/convex/shared", () => ({
   })),
 }));
 
-const { AddCardActions } = await import("../AddCardActions");
 const { AddCardForm } = await import("../AddCardForm");
-const { useGlobalFileDrop } = await import("@/hooks");
+const { ComposerProvider } = await import("../ComposerProvider");
+
+const composer = () => (
+  <ComposerProvider>
+    <AddCardForm />
+  </ComposerProvider>
+);
 
 describe("AddCardForm", () => {
   beforeEach(() => {
@@ -174,75 +170,24 @@ describe("AddCardForm", () => {
       ...global.crypto,
       randomUUID: mock(() => "mock-uuid" as ReturnType<Crypto["randomUUID"]>),
     };
-    enqueueFilesMock.mockReset();
-  });
-
-  test("renders without crashing", () => {
-    expect(() => {
-      React.createElement(AddCardForm, {});
-    }).not.toThrow();
-  });
-
-  test("renders with autofocus", () => {
-    expect(() => {
-      React.createElement(AddCardForm, { autoFocus: true });
-    }).not.toThrow();
-  });
-
-  test("renders with success callback", () => {
-    expect(() => {
-      React.createElement(AddCardForm, { onSuccess: mock() });
-    }).not.toThrow();
-  });
-
-  test("renders with explicit canCreateCard false", () => {
-    expect(() => {
-      React.createElement(AddCardForm, { canCreateCard: false });
-    }).not.toThrow();
-  });
-
-  test("restores a draft when the form remounts", () => {
-    const draftContentRef = { current: "Unsaved navigation draft" };
-
-    expect(
-      renderToStaticMarkup(<AddCardForm draftContentRef={draftContentRef} />)
-    ).toContain("Unsaved navigation draft");
   });
 
   test("exposes loading and ready card-creation states", () => {
-    const loadingMarkup = renderToStaticMarkup(<AddCardForm />);
+    const loadingMarkup = renderToStaticMarkup(composer());
     expect(loadingMarkup).toContain('data-card-creation-status="loading"');
     expect(loadingMarkup).toContain('data-editor-variant="compact"');
 
     cardCreationStatusResult = { canCreateCard: true };
-    expect(renderToStaticMarkup(<AddCardForm />)).toContain(
+    expect(renderToStaticMarkup(composer())).toContain(
       'data-card-creation-status="ready"'
     );
   });
 
   test("shows the N key hint only where there's a keyboard to press it", () => {
-    const markup = renderToStaticMarkup(<AddCardForm />);
+    const markup = renderToStaticMarkup(composer());
     const hint = markup.match(
       /class="([^"]*group-focus-within\/composer:hidden[^"]*)"/
     )?.[1];
     expect(hint).toContain("pointer-coarse:hidden");
-  });
-
-  test("renders header capture actions", () => {
-    expect(() => {
-      React.createElement(AddCardActions, {});
-    }).not.toThrow();
-  });
-
-  test("header upload path keeps the shared queue available", () => {
-    const files = [
-      new Blob(["a"], { type: "image/png" }) as unknown as File,
-      new Blob(["b"], { type: "image/png" }) as unknown as File,
-    ];
-
-    useGlobalFileDrop()?.enqueueFiles(files);
-
-    expect(enqueueFilesMock).toHaveBeenCalledTimes(1);
-    expect(enqueueFilesMock.mock.calls[0][0]).toEqual(files);
   });
 });

@@ -3,7 +3,7 @@ import { queuedObjectDeletions } from "../../__tests__/helpers/objectDeletions.t
 import { internal } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
-import { cardStorageObjectKeys } from "../../storage/r2";
+import { cardStorageObjectKeys } from "../../storage/cardObjectKeys";
 import {
   copyAndVerifyRaw,
   hashRawMetadata,

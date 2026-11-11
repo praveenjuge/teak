@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
@@ -8,11 +9,11 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { ConnectionTarget } from "../components/settings/SecurityConnections";
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
-import type { SettingsData } from "../lib/settingsSections";
+import type { ConnectionTarget } from "../lib/securitySessions";
+import { ALL_SETTINGS_DATA, type SettingsData } from "../lib/settingsSections";
 import { useDeviceSessions } from "./useDeviceSessions";
 import { useServerErrors } from "./useServerErrors";
 
@@ -26,14 +27,8 @@ interface UseSettingsControllerOptions {
   onSignOut: () => Promise<void> | void;
 }
 
-const LOAD_EVERYTHING: SettingsData = {
-  apiKeys: true,
-  exportState: true,
-  sessions: true,
-};
-
 export function useSettingsController({
-  load = LOAD_EVERYTHING,
+  load = ALL_SETTINGS_DATA,
   onDeleteAccount,
   onDownloadFile,
   onOpenExternal,
@@ -50,16 +45,7 @@ export function useSettingsController({
   const keys = useQuery(
     api.apiKeys.listUserApiKeys,
     load.apiKeys ? {} : "skip"
-  ) as
-    | {
-        id: string;
-        name: string;
-        maskedKey: string;
-        status: "active" | "disabled" | "rotating" | "expired" | "exhausted";
-        createdAt: number;
-        lastUsedAt?: number;
-      }[]
-    | undefined;
+  );
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
@@ -107,35 +93,7 @@ export function useSettingsController({
   const exportState = useQuery(
     api.dataExport.getLatestExport,
     load.exportState ? {} : "skip"
-  ) as
-    | {
-        job: {
-          id: string;
-          status:
-            | "pending"
-            | "running"
-            | "ready"
-            | "failed"
-            | "canceled"
-            | "expired";
-          cardCount?: number;
-          filesIncluded?: number;
-          filesOmitted?: number;
-          artifactBytes?: number;
-          processedCount?: number;
-          stage?: "snapshotting" | "archiving";
-          failureClass?: string;
-          createdAt: number;
-          updatedAt: number;
-          completedAt?: number;
-          expiresAt?: number;
-          downloadAvailable: boolean;
-        } | null;
-        canStartNew: boolean;
-        quotaResetMs: number;
-      }
-    | null
-    | undefined;
+  );
   const startExportMutation = useMutation(api.dataExport.startExport);
   const cancelExportMutation = useMutation(api.dataExport.cancelExport);
   const getExportDownloadUrl = useAction(api.dataExport.getExportDownloadUrl);
@@ -143,11 +101,7 @@ export function useSettingsController({
   const handleStartExport = async () => {
     captureEvent("export_started");
     try {
-      const result = (await startExportMutation({})) as {
-        started: boolean;
-        reason?: "quota_exceeded" | "already_active";
-        quotaResetMs?: number;
-      };
+      const result = await startExportMutation({});
       if (!result.started && result.reason === "quota_exceeded") {
         throw new Error("Weekly export limit reached.");
       }
@@ -163,14 +117,12 @@ export function useSettingsController({
     }
   };
 
-  const handleCancelExport = async (jobId: string) => {
-    await cancelExportMutation({ jobId: jobId as never });
+  const handleCancelExport = async (jobId: Id<"exportJobs">) => {
+    await cancelExportMutation({ jobId });
   };
 
-  const handleDownloadExport = async (jobId: string) => {
-    const result = (await getExportDownloadUrl({
-      jobId: jobId as never,
-    })) as { url: string; expiresInSeconds: number } | null;
+  const handleDownloadExport = async (jobId: Id<"exportJobs">) => {
+    const result = await getExportDownloadUrl({ jobId });
     if (!result?.url) {
       throw new Error("Download is not available.");
     }
@@ -178,21 +130,16 @@ export function useSettingsController({
     await (onDownloadFile ?? onOpenExternal)(result.url);
   };
 
-  const handleCreateApiKey = async (name?: string) =>
-    (await createKey({ name: name?.trim() || "Default API key" })) as {
-      id: string;
-      key: string;
-    };
+  const handleCreateApiKey = (name?: string) =>
+    createKey({ name: name?.trim() || "Default API key" });
 
   const handleRevokeApiKey = async (keyId: string) => {
     await revokeKey({ keyId });
   };
 
-  const handleRevokeAllApiKeys = async () =>
-    (await revokeAllKeys({})) as { hasMore: boolean; revokedCount: number };
+  const handleRevokeAllApiKeys = () => revokeAllKeys({});
 
-  const handleRotateApiKey = async (keyId: string) =>
-    (await rotateKey({ keyId })) as { id: string; key: string };
+  const handleRotateApiKey = (keyId: string) => rotateKey({ keyId });
 
   const handleRevokeOAuthConnection = async (target: ConnectionTarget) => {
     if (

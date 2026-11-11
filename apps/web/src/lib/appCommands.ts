@@ -1,3 +1,4 @@
+import { SETTINGS_PATHS, TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import type { englishMessages } from "@teak/i18n";
 import {
   Archive,
@@ -80,14 +81,14 @@ export const GO_TO: Record<GoToTarget, GoToCommand> = {
   },
   // `G T` is Trash, so Tags takes `G L`, as Gmail's go to label does.
   tags: {
-    href: "/tags",
+    href: TAGS_PATH,
     icon: Hash,
     key: "l",
     keywords: ["labels"],
     listRow: "goToTags",
   },
   settings: {
-    href: "/settings",
+    href: SETTINGS_PATHS.account,
     icon: Settings,
     key: "s",
     keywords: ["account", "preferences", "billing"],

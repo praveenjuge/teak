@@ -3,6 +3,7 @@ import {
   normalizeCardSource,
 } from "../../shared/cardSource";
 import { parseCardTitle } from "../../shared/cardTitle";
+import { isCardType } from "../../shared/constants";
 import { MAX_FOLDERS_PER_CARD } from "../../shared/folders";
 import { PUBLIC_API_CARD_TYPES } from "../../shared/publicApiContract";
 import { MAX_PALETTE_COLORS } from "../../shared/utils/colorUtils";
@@ -14,7 +15,6 @@ import {
   parseOptionalNullableString,
   parseOptionalString,
   parseStringArray,
-  truncateCardTitle,
 } from "../validation";
 import type { CreateCardPayload } from "./shared";
 
@@ -103,10 +103,7 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   if (sourceError) {
     return { error: sourceError };
   }
-  if (
-    cardType !== undefined &&
-    !(PUBLIC_API_CARD_TYPES as readonly string[]).includes(cardType)
-  ) {
+  if (cardType !== undefined && !isCardType(cardType)) {
     return {
       error: `\`cardType\` must be one of: ${PUBLIC_API_CARD_TYPES.join(", ")}`,
     };
@@ -191,13 +188,6 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   };
 };
 
-export const validateCreatePayload = (
-  payload: unknown
-): CreateCardPayload | null => {
-  const result = parseCreatePayload(payload);
-  return "payload" in result ? result.payload : null;
-};
-
 interface PatchCardPayload {
   addColors?: string[];
   content?: string;
@@ -276,7 +266,7 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   }
 
   if ("metadataTitle" in source) {
-    const parsed = parseCardTitle(truncateCardTitle(source.metadataTitle));
+    const parsed = parseCardTitle(source.metadataTitle);
     if (parsed.kind === "invalid") {
       return { error: "`metadataTitle` must be a string or null" };
     }
@@ -357,11 +347,4 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   }
 
   return { payload: next };
-};
-
-export const validatePatchPayload = (
-  payload: unknown
-): PatchCardPayload | null => {
-  const result = parsePatchPayload(payload);
-  return "payload" in result ? result.payload : null;
 };

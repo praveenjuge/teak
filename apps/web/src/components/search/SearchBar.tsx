@@ -4,6 +4,7 @@ import type {
   ColorHueBucket,
   VisualStyle,
 } from "@teak/convex/shared/constants";
+import type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
 import { useIntlLocale, useTranslations, useUiLocale } from "@teak/i18n/react";
 import {
   type FormEvent,
@@ -54,7 +55,7 @@ import {
   type LibrarySort,
   MAX_URL_SEARCH_LENGTH,
 } from "../../lib/searchUrlState";
-import { PageHeader } from "../../screens/PageHeader";
+import { PageHeader } from "../app-shell/PageHeader";
 import { QUALIFIER_ICONS } from "./qualifierIcons";
 import {
   buildSearchSuggestions,
@@ -63,7 +64,6 @@ import {
   describeKeywordChip,
   describeQualifierChip,
   type SearchSuggestion,
-  type SearchSuggestionGroup,
   type SearchSuggestionSources,
   searchSuggestionGroupLabel,
 } from "./searchSuggestions";

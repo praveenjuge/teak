@@ -3,7 +3,7 @@ import {
   MAX_DISPATCH_DELETE_KEYS,
   parseCardObjectKey,
 } from "@teak/files-protocol";
-
+import { errorMessage } from "../errors";
 import { reportBackgroundError } from "../telemetry";
 import type { OpCaller } from "../workflows/deps";
 import type { ObjectDeletionMessage } from "../workflows/dispatch";
@@ -93,7 +93,7 @@ export const handleObjectDeletionBatch = async (
     } catch (error) {
       console.warn("[queues/object-deletions] delete failed, retrying", {
         attempts: message.attempts,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         id: message.id,
       });
       message.retry();

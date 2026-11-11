@@ -1,14 +1,11 @@
-import { api } from "@teak/convex";
-import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
+import { useCreateNote } from "@/hooks/useCardMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useUpgradeAction } from "@/hooks/useUpgradeAction";
-import { addCaptureToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import {
   noteCaptureSavedMessage,
   prepareNoteCapture,
@@ -39,15 +36,7 @@ export function useSaveNote({ onOpenCard, onSuccess }: SaveNoteOptions = {}) {
   const tc = useTranslations("common");
   const errors = useServerErrors();
   const { showCreateFailure } = useUpgradeAction();
-  const createCard = useMutation(
-    api.cards.createCardWithOutcome
-  ).withOptimisticUpdate((localStore, args) => {
-    addCaptureToSearchQueries(localStore, {
-      content: args.content ?? "",
-      id: crypto.randomUUID() as Id<"cards">,
-      now: Date.now(),
-    });
-  });
+  const createCard = useCreateNote();
 
   const failed = useCallback(
     (error: unknown, toastId: string | number, fallback: string) => {

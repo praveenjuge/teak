@@ -3,13 +3,13 @@ import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { patchCard } from "../../../card/cardWrites";
 import {
-  mergeProcessingStages,
-  stageFailed,
-} from "../../../card/processingStatus";
-import {
   filePreviewFactsValidator,
   imageExifValidator,
 } from "../../../schema/validators/cards";
+import {
+  mergeProcessingStages,
+  stageFailed,
+} from "../../../shared/processingStatus";
 import { queueCardProcessingFailed } from "../../../telemetry/schedule";
 
 export const markCardRenderablesFailed = internalMutation({

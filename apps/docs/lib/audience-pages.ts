@@ -1,4 +1,5 @@
-import { buildPageSchemas, SITE_URL } from "./jsonld";
+import { SITE_URL } from "@teak/convex/shared/organization";
+import { buildPageSchemas } from "./jsonld";
 import { FREE_CARD_LIMIT } from "./pricing";
 
 export const AUDIENCE_SLUGS = [

@@ -56,7 +56,7 @@ describe("card/getFileUrl.ts", () => {
 
   test("grid hydration omits original, detail, and tiny image URLs", async () => {
     const { attachGridFileUrls } = await import("../../card/queryUtils");
-    const [card] = await attachGridFileUrls({} as any, [
+    const [card] = await attachGridFileUrls([
       {
         _id: "c-grid",
         _creationTime: 1,
@@ -98,7 +98,7 @@ describe("video scrub sprites", () => {
     process.env.FILES_BASE = FILES_BASE;
     process.env.FILES_SIGNING_SECRET = SIGNING_SECRET;
     const { attachGridFileUrls } = await import("../../card/queryUtils");
-    const [card] = await attachGridFileUrls({} as any, [
+    const [card] = await attachGridFileUrls([
       {
         ...video,
         fileMetadata: {
@@ -115,7 +115,7 @@ describe("video scrub sprites", () => {
 
   test("a sprite without its recorded size gets no URL", async () => {
     const { attachGridFileUrls } = await import("../../card/queryUtils");
-    const [card] = await attachGridFileUrls({} as any, [video as any]);
+    const [card] = await attachGridFileUrls([video as any]);
 
     expect(card?.scrubUrl).toBeUndefined();
   });

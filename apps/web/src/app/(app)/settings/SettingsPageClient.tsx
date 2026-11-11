@@ -1,5 +1,6 @@
 "use client";
 
+import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import {
@@ -30,7 +31,7 @@ function useLegacyDialogRedirect() {
       // Let the router scroll to the section the link named.
       router.replace(settingsDataHref(tab));
     } else {
-      router.replace("/settings", { scroll: false });
+      router.replace(SETTINGS_PATHS.account, { scroll: false });
     }
   }, [dialogParam, router]);
 }
@@ -69,7 +70,7 @@ export function PlanPageClient() {
   const router = useRouter();
   useEffect(() => {
     if (!billingEnabled) {
-      router.replace("/settings");
+      router.replace(SETTINGS_PATHS.account);
     }
   }, [billingEnabled, router]);
   if (!billingEnabled) {

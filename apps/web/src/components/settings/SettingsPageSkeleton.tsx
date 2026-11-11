@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
-import { SettingsShell } from "@/screens/SettingsShell";
 import { SettingsHeader } from "./SettingsHeader";
+import { SettingsShell } from "./SettingsShell";
 
 const TILE_KEYS = ["plan", "appearance", "integrations", "security", "data"];
 

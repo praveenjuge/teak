@@ -90,7 +90,7 @@ mock.module("@/components/text-editor", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { AddCardForm } = await import("../AddCardForm");
-const { finishLinkPasteJob } = await import("../linkPasteJobs");
+const { ComposerProvider } = await import("../ComposerProvider");
 
 const KNOWN = "https://www.example.com/post/";
 const links = (count: number) =>
@@ -114,7 +114,6 @@ beforeEach(() => {
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
-  finishLinkPasteJob("job-1" as Id<"linkPasteJobs">);
   document.body.innerHTML = "";
 });
 
@@ -122,14 +121,26 @@ async function render(props: Record<string, unknown> = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<AddCardForm {...props} />));
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm {...props} />
+      </ComposerProvider>
+    )
+  );
 }
 
 const nextTick = () =>
   act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
 async function rerender(props: Record<string, unknown> = {}) {
-  await act(() => root?.render(<AddCardForm {...props} />));
+  await act(() =>
+    root?.render(
+      <ComposerProvider>
+        <AddCardForm {...props} />
+      </ComposerProvider>
+    )
+  );
 }
 
 const limitToasts = () =>
@@ -390,9 +401,16 @@ describe("pasting a list of links", () => {
     await pressSaveShortcut();
     expect(toast.loading).toHaveBeenCalledWith("Saving links · 0 of 3");
 
-    await act(() => root?.unmount());
+    // The empty library's composer gives way to the grid's.
+    await act(() =>
+      root?.render(
+        <ComposerProvider>
+          <AddCardForm key="grid" />
+        </ComposerProvider>
+      )
+    );
     await nextTick();
-    expect(toast.dismiss).toHaveBeenCalledWith("toast-id");
+    expect(toast.dismiss).not.toHaveBeenCalled();
     pasteProgress = {
       status: "done",
       total: 3,
@@ -403,7 +421,13 @@ describe("pasting a list of links", () => {
       omittedOverLimit: 0,
       omittedRepeats: 0,
     };
-    await render();
+    await act(() =>
+      root?.render(
+        <ComposerProvider>
+          <AddCardForm key="grid" />
+        </ComposerProvider>
+      )
+    );
 
     expect(toast.success).toHaveBeenLastCalledWith("Saved 3 links", {
       id: "toast-id",
@@ -411,7 +435,7 @@ describe("pasting a list of links", () => {
   });
 
   test("keeps the paste's toast when React mounts the composer twice", async () => {
-    // Development's double effect unmounts and remounts the tracker. Sonner
+    // Development's double effect unmounts and remounts everything. Sonner
     // drops the next message shown under a toast id just dismissed, so the
     // toast must stay live across the remount.
     const container = document.createElement("div");
@@ -420,7 +444,9 @@ describe("pasting a list of links", () => {
     await act(() =>
       root?.render(
         <React.StrictMode>
-          <AddCardForm />
+          <ComposerProvider>
+            <AddCardForm />
+          </ComposerProvider>
         </React.StrictMode>
       )
     );
@@ -442,7 +468,9 @@ describe("pasting a list of links", () => {
     await act(() =>
       root?.render(
         <React.StrictMode>
-          <AddCardForm />
+          <ComposerProvider>
+            <AddCardForm />
+          </ComposerProvider>
         </React.StrictMode>
       )
     );

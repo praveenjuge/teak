@@ -11,8 +11,7 @@ import {
   type CardListScope,
   takeCardList,
 } from "./listQuery";
-import { attachFileUrls, linkPreviewImageFields } from "./queryUtils";
-import { applyQuoteFormattingToList } from "./quoteFormatting";
+import { finishCards, linkPreviewImageFields } from "./queryUtils";
 
 export const cardReturnValidator = v.object({
   ...cardValidator.fields,
@@ -73,8 +72,7 @@ export const getCards = query({
       )
     );
 
-    const cardsWithUrls = await attachFileUrls(ctx, cards);
-    return applyQuoteFormattingToList(cardsWithUrls);
+    return await finishCards(cards);
   },
 });
 

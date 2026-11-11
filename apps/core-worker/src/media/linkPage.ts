@@ -1,9 +1,9 @@
 import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
-  type FilesLinkPageFailureReason,
   type FilesLinkPageParams,
   type FilesLinkPageResult,
   type FilesScrapeResult,
+  isLinkPageFailureReason,
   sha256Hex,
 } from "@teak/files-protocol";
 import {
@@ -11,15 +11,13 @@ import {
   type FetcherPageRequest,
   type FetcherPageResponse,
 } from "../../fetcher/src/protocol";
+import { errorMessage } from "../errors";
 import { InvalidOpInput } from "../opFailure";
 import { validScrapeSelectors } from "./browserRender";
-import { postToFetcher, type RemoteAssetEnv } from "./remoteAsset";
-import { RendererUnavailable } from "./rendererClient";
+import { RendererUnavailable } from "./containerPool";
+import { type LinkFetcherEnv, postToFetcher } from "./linkFetcher";
 
-export type LinkPageEnv = Pick<
-  RemoteAssetEnv,
-  "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
-> & {
+export type LinkPageEnv = LinkFetcherEnv & {
   LINK_PAGE_CACHE?: KVNamespace;
 };
 
@@ -29,14 +27,6 @@ export interface LinkPageDeps {
   random?: () => number;
   scrape?: (html: string, selectors: string[]) => Promise<FilesScrapeResult>;
 }
-
-const FAILURE_REASONS = new Set<FilesLinkPageFailureReason>([
-  "blocked_url",
-  "fetch_failed",
-  "http_error",
-  "too_large",
-  "unsupported_type",
-]);
 
 export const parseLinkPageParams = (
   params: Record<string, unknown>
@@ -56,11 +46,7 @@ export const parseLinkPageParams = (
   };
 };
 
-/** An older fetcher image leaves out `cacheable`. */
-type PageResponse = Omit<FetcherPageResponse, "cacheable"> &
-  Partial<Pick<FetcherPageResponse, "cacheable">>;
-
-const isPageResponse = (value: unknown): value is PageResponse => {
+const isPageResponse = (value: unknown): value is FetcherPageResponse => {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -71,7 +57,7 @@ const isPageResponse = (value: unknown): value is PageResponse => {
   return (
     typeof charset === "string" &&
     typeof html === "string" &&
-    (cacheable === undefined || typeof cacheable === "boolean") &&
+    typeof cacheable === "boolean" &&
     typeof pageUrl === "string" &&
     /^https?:\/\//i.test(pageUrl) &&
     Array.isArray(selectors) &&
@@ -112,8 +98,8 @@ const readFailure = async (
     reason?: unknown;
     status?: unknown;
   } | null;
-  const reason = FAILURE_REASONS.has(body?.reason as FilesLinkPageFailureReason)
-    ? (body?.reason as FilesLinkPageFailureReason)
+  const reason = isLinkPageFailureReason(body?.reason)
+    ? body?.reason
     : "fetch_failed";
   return {
     fetched: false,
@@ -139,7 +125,7 @@ const readCached = async (
     return value?.fetched === true ? value : null;
   } catch (error) {
     console.warn("fetch-link-page: cache read failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
     return null;
   }
@@ -156,7 +142,7 @@ const writeCached = async (
     });
   } catch (error) {
     console.warn("fetch-link-page: cache write failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     });
   }
 };
@@ -205,7 +191,7 @@ export const fetchLinkPage = async (
     } catch (error) {
       renderFailed = true;
       console.warn("fetch-link-page: browser scrape failed; keeping static", {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       });
     }
   }
@@ -218,8 +204,7 @@ export const fetchLinkPage = async (
     selectors,
     source,
   };
-  // An older fetcher image does not say, so its pages are not kept.
-  if (cache && page.cacheable === true && !renderFailed) {
+  if (cache && page.cacheable && !renderFailed) {
     await writeCached(cache, key, result);
   }
   return result;

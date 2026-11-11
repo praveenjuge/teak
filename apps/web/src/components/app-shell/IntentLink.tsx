@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ComponentProps } from "react";
-import { prewarmRouteQueries } from "../providers/ConvexClientProvider";
+import { prewarmRouteQueries } from "@/lib/convexClient";
 
 type IntentLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
   href: string;

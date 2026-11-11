@@ -1,80 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { SsrfError, safeFetch } from "@teak/convex/linkMetadata/ssrf";
+import { SsrfError, safeFetch } from "@teak/files-protocol/ssrf";
+import { createDohResolver } from "../dns";
 import { createContainerNetwork } from "../test/cardProcessingKit";
+import { dohServer } from "../test/dohServer";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
-  createDohResolver,
 } from "./pinnedHop";
 
 const PUBLIC = "93.184.216.34";
-const PUBLIC_V6 = "2606:2800:220:1:248:1893:25c8:1946";
-
-const dohServer = (
-  records: Record<string, { A?: string[]; AAAA?: string[]; cname?: string }>
-) => {
-  const queries: string[] = [];
-  const fetcher = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const name = url.searchParams.get("name") ?? "";
-    const type = url.searchParams.get("type") as "A" | "AAAA";
-    queries.push(`${name} ${type}`);
-    expect(new Headers(init?.headers).get("accept")).toBe(
-      "application/dns-json"
-    );
-    const record = records[name];
-    if (!record) {
-      return Promise.resolve(Response.json({ Status: 3 }));
-    }
-    return Promise.resolve(
-      Response.json({
-        Answer: [
-          ...(record.cname ? [{ data: record.cname, name, type: 5 }] : []),
-          ...(record[type] ?? []).map((data) => ({
-            data,
-            name,
-            type: type === "A" ? 1 : 28,
-          })),
-        ],
-        Status: 0,
-      })
-    );
-  }) as typeof fetch;
-  return { fetcher, queries };
-};
-
-describe("DNS over HTTPS", () => {
-  test("returns every A and AAAA address, without the CNAME chain", async () => {
-    const { fetcher, queries } = dohServer({
-      "www.example.com": {
-        A: [PUBLIC],
-        AAAA: [PUBLIC_V6],
-        cname: "example.edgekey.net.",
-      },
-    });
-    expect(await createDohResolver(fetcher)("www.example.com")).toEqual([
-      PUBLIC,
-      PUBLIC_V6,
-    ]);
-    expect(queries.sort()).toEqual([
-      "www.example.com A",
-      "www.example.com AAAA",
-    ]);
-  });
-
-  test("a name that does not exist has no addresses", async () => {
-    const { fetcher } = dohServer({});
-    expect(await createDohResolver(fetcher)("nowhere.example")).toEqual([]);
-  });
-
-  test("fails when the resolver cannot be reached", async () => {
-    const down = (() =>
-      Promise.resolve(new Response("down", { status: 502 }))) as typeof fetch;
-    await expect(createDohResolver(down)("example.com")).rejects.toThrow(
-      "doh_unavailable"
-    );
-  });
-});
 
 describe("safeFetch through the link fetcher", () => {
   test("pins each hop to the checked addresses and returns the page", async () => {

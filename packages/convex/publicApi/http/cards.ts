@@ -9,11 +9,20 @@ import {
 } from "../../card/documentText";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
+import type { SearchCardsPageArgs } from "../../publicApi";
 import { ensureRelevanceScores } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
 import { API_SEARCH_TIMEOUT_MS } from "../../search/timeouts";
 import { replaceArticleImageTokens } from "../../shared/article";
 import { parsePublicApiBody } from "../../shared/publicApiBodies";
+import {
+  BULK_CARD_OPERATIONS,
+  type BulkCardOperation,
+} from "../../shared/publicApiContract";
+import {
+  PUBLIC_API_MAX_BULK_ITEMS,
+  PUBLIC_API_MAX_LIMIT,
+} from "../../shared/publicApiLimits";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
@@ -23,7 +32,7 @@ import { tryResolveObjectUrl } from "../../storage/fileUrls";
 import { captureBackendEvent } from "../../telemetry/posthog";
 import { relevanceCursorRanked } from "../cursors";
 import { parseOptionalString } from "../validation";
-import { respondIdempotently } from "./auth";
+import { respondIdempotently } from "./idempotency";
 import { noContent, type PublicApiCall, queryOf } from "./operation";
 import { parseCreatePayload, parsePatchPayload } from "./payloads";
 import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
@@ -35,8 +44,6 @@ import {
 import {
   errorResponse,
   json,
-  MAX_BULK_ITEMS,
-  MAX_LIMIT,
   MAX_QUERY_SCAN,
   mapConvexErrorToResponse,
   parseLimit,
@@ -65,69 +72,72 @@ const handleCreateCardRequest = async (
     ctx,
     {
       failureMessage: "Failed to save card",
-      path: "/v1/cards",
+      operation: "createCard",
       request,
       requestBody: createPayload,
       userId,
     },
     async (committed) => {
-      const result = createPayload.fileKey
-        ? await ctx
-            .runAction(
-              internal["card/uploadCardAction"].finalizeUploadedCardForUser,
+      const result: Parameters<typeof buildCreateCardResponse>[0] =
+        createPayload.fileKey === undefined
+          ? await ctx.runMutation(
+              internal.publicApi.cardsForUser.quickSaveForUser,
               {
                 cardType: createPayload.cardType,
                 content: createPayload.content,
-                fileEtag: createPayload.fileEtag,
-                fileKey: createPayload.fileKey,
-                fileName: createPayload.fileName,
-                fileSize: createPayload.fileSize,
-                fileType: createPayload.mimeType,
-                cardSource,
                 notes:
                   createPayload.notes === null
                     ? undefined
                     : createPayload.notes,
+                ...(createPayload.pageSnapshotKey
+                  ? { pageSnapshotKey: createPayload.pageSnapshotKey }
+                  : {}),
+                cardSource,
+                source: createPayload.source,
+                sourceTitle: createPayload.sourceTitle,
+                sourceUrl: createPayload.sourceUrl,
                 tags: createPayload.tags,
+                url: createPayload.url,
                 userId,
               }
             )
-            .then((uploaded: { cardId?: string; success: boolean }) => {
-              if (!(uploaded.success && uploaded.cardId)) {
-                throw new ConvexError({
-                  code: "INVALID_INPUT",
-                  message: "Uploaded file could not be finalized",
-                });
-              }
-              return {
-                cardId: uploaded.cardId,
-                status: "created" as const,
-              };
-            })
-        : await ctx.runMutation(
-            internal.publicApi.cardsForUser.quickSaveForUser,
-            {
-              cardType: createPayload.cardType,
-              content: createPayload.content,
-              notes:
-                createPayload.notes === null ? undefined : createPayload.notes,
-              ...(createPayload.pageSnapshotKey
-                ? { pageSnapshotKey: createPayload.pageSnapshotKey }
-                : {}),
-              cardSource,
-              source: createPayload.source,
-              sourceTitle: createPayload.sourceTitle,
-              sourceUrl: createPayload.sourceUrl,
-              tags: createPayload.tags,
-              url: createPayload.url,
-              userId,
-            }
-          );
+          : await ctx
+              .runAction(
+                internal.card.uploadCardAction.finalizeUploadedCardForUser,
+                {
+                  cardType: createPayload.cardType,
+                  content: createPayload.content,
+                  fileEtag: createPayload.fileEtag,
+                  fileKey: createPayload.fileKey,
+                  fileName: createPayload.fileName,
+                  fileSize: createPayload.fileSize,
+                  fileType: createPayload.mimeType,
+                  cardSource,
+                  notes:
+                    createPayload.notes === null
+                      ? undefined
+                      : createPayload.notes,
+                  tags: createPayload.tags,
+                  userId,
+                }
+              )
+              .then((uploaded) => {
+                if (!(uploaded.success && uploaded.cardId)) {
+                  throw new ConvexError({
+                    code: "INVALID_INPUT",
+                    message: "Uploaded file could not be finalized",
+                  });
+                }
+                return {
+                  cardId: uploaded.cardId,
+                  status: "created" as const,
+                };
+              });
       committed();
       return buildCreateCardResponse(
         result,
         request.url,
-        "card" in result && result.card
+        result.card
           ? await loadCardLinks(ctx, userId, result.card._id)
           : undefined
       );
@@ -178,7 +188,7 @@ const handleCardsListRequest = async (
     );
   }
 
-  let folderId: string | undefined;
+  let folderId: Id<"folders"> | undefined;
   if (options.folder) {
     const folder = await ctx.runQuery(
       internal.publicApiFolders.getFolderForUser,
@@ -256,7 +266,10 @@ const handleCardsListRequest = async (
     cursor: options.cursor,
     favorited: options.favoritesOnly ? true : undefined,
     pinned: options.pinnedOnly ? true : undefined,
-    sort: options.sort === "relevance" ? undefined : options.sort,
+    sort:
+      options.sort === "newest" || options.sort === "oldest"
+        ? options.sort
+        : undefined,
     type: options.type,
     types: options.types,
     userId,
@@ -320,7 +333,6 @@ const handleCardsListRequest = async (
         internal.publicApi.shuffleCardsPageForUser,
         {
           ...queryArgs,
-          sort: undefined,
           cursor,
           limit: options.limit - items.length,
           searchQuery: options.searchQuery,
@@ -374,7 +386,10 @@ const handleCardsListRequest = async (
     let hasMore = false;
 
     while (scannedRows < MAX_QUERY_SCAN) {
-      const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
+      const scanLimit = Math.min(
+        PUBLIC_API_MAX_LIMIT,
+        MAX_QUERY_SCAN - scannedRows
+      );
       const scanPage = await ctx.runQuery(
         internal.publicApi.scanCardsPageForUser,
         {
@@ -457,7 +472,7 @@ export const relevanceForPage = async (
     text,
     userId,
   }: {
-    candidateArgs: Record<string, unknown>;
+    candidateArgs: SearchCardsPageArgs;
     cursor: string | undefined;
     spentToken: boolean;
     text: string;
@@ -495,7 +510,7 @@ export const relevanceForPage = async (
 const resolveCardId = (
   ctx: ActionCtx,
   cardId: string
-): Promise<string | null> =>
+): Promise<Id<"cards"> | null> =>
   ctx.runQuery(internal.publicApi.cardsForUser.resolveCardIdForUserRequest, {
     cardId,
   });
@@ -511,7 +526,7 @@ const loadCardLinks = async (
 ) => {
   try {
     return (
-      (await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+      (await ctx.runQuery(internal.card.cardLinks.getCardLinksForUser, {
         cardId,
         userId,
       })) ?? undefined
@@ -534,7 +549,7 @@ const serializeCardWithLinks = async (
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
-  cardId: string,
+  cardId: Id<"cards">,
   includeDeleted = false
 ): Promise<CardWithUrls | null> =>
   ctx
@@ -605,7 +620,7 @@ const cardContentResponse = async (
   kind: CardTextKind | undefined
 ): Promise<Response> => {
   const source = await ctx.runQuery(
-    internal["card/documentText"].getCardTextSource,
+    internal.card.documentText.getCardTextSource,
     { cardId, userId, ...(kind ? { kind } : {}) }
   );
   if (!source) {
@@ -698,7 +713,7 @@ const loadCard = async (
     options.includeDeleted
   );
   return card
-    ? { card, cardId: cardId as Id<"cards"> }
+    ? { card, cardId }
     : errorResponse(404, "NOT_FOUND", "Card not found");
 };
 
@@ -819,7 +834,7 @@ const handleRefreshCardRequest = async (call: PublicApiCall) => {
     return loaded;
   }
   const result = await call.ctx.runMutation(
-    internal["card/updateCard"].reprocessCardForUser,
+    internal.card.updateCard.reprocessCardForUser,
     { cardId: loaded.cardId, userId: call.userId }
   );
   return json(202, {
@@ -865,7 +880,7 @@ const handleRestoreCardRequest = async (call: PublicApiCall) => {
   if (loaded instanceof Response) {
     return loaded;
   }
-  await call.ctx.runMutation(internal["card/deleteCard"].restoreCardForUser, {
+  await call.ctx.runMutation(internal.card.deleteCard.restoreCardForUser, {
     cardId: loaded.cardId,
     userId: call.userId,
   });
@@ -898,7 +913,7 @@ const handleDeleteCardRequest = async (call: PublicApiCall) => {
   }
   await call.ctx.runMutation(
     permanent
-      ? internal["card/deleteCard"].permanentDeleteCardForUser
+      ? internal.card.deleteCard.permanentDeleteCardForUser
       : internal.publicApi.cardsForUser.softDeleteCardForUser,
     { cardId: loaded.cardId, userId: call.userId }
   );
@@ -1032,17 +1047,8 @@ const handleCardChangesRequest = async (
   });
 };
 
-const BULK_OPERATIONS = new Set([
-  "create",
-  "update",
-  "favorite",
-  "delete",
-  "archive",
-  "unarchive",
-  "addTags",
-  "removeTags",
-  "restore",
-]);
+const isBulkCardOperation = (value: string): value is BulkCardOperation =>
+  (BULK_CARD_OPERATIONS as readonly string[]).includes(value);
 
 const handleBulkCardsRequest = async (
   call: PublicApiCall
@@ -1061,7 +1067,7 @@ const handleBulkCardsRequest = async (
   const source = payload as Record<string, unknown>;
   const operation = parseOptionalString(source.operation);
   const items = Array.isArray(source.items) ? source.items : null;
-  if (!(operation && items && BULK_OPERATIONS.has(operation))) {
+  if (!(operation && items && isBulkCardOperation(operation))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
@@ -1077,11 +1083,11 @@ const handleBulkCardsRequest = async (
     );
   }
 
-  if (items.length > MAX_BULK_ITEMS) {
+  if (items.length > PUBLIC_API_MAX_BULK_ITEMS) {
     return errorResponse(
       400,
       "INVALID_INPUT",
-      `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`
+      `\`items\` must not exceed ${PUBLIC_API_MAX_BULK_ITEMS} entries per request`
     );
   }
 
@@ -1105,7 +1111,7 @@ const handleBulkCardsRequest = async (
     ctx,
     {
       failureMessage: "Failed to execute bulk operation",
-      path: "/v1/cards/bulk",
+      operation: "bulkCards",
       request,
       requestBody: { items, operation },
       userId,

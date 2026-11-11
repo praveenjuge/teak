@@ -3,7 +3,7 @@ import {
   documentTextObjectKey,
   isExtractedTextTruncated,
   searchPrefix,
-} from "@teak/convex/card/documentTextFormat";
+} from "@teak/convex/shared/documentText";
 import type {
   FileFormat,
   FilePreviewFacts,
@@ -19,6 +19,7 @@ import {
   normalizeImageOcrText,
   sha256Hex,
 } from "@teak/files-protocol";
+import { errorMessage } from "../../errors";
 import { InvalidOpInput } from "../../opFailure";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { sanitizeTranscript } from "./aiMetadata";
@@ -86,7 +87,7 @@ export const recordMediaFacts = async (
     }
     console.warn("[cardProcessing/media] probe-media failed", {
       cardId: job.cardId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
     });
     return known.duration;
   }

@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/constants";
 import { ConvexError } from "convex/values";
 import { asFetch } from "@/__tests__/helpers/testDoubles";
-import { useFileUploadCore } from "../useFileUploadCore";
+import { useFileUploadCore as useFileUploadCoreIn } from "../useFileUploadCore";
 import {
+  englishUploadTranslators,
   mockFetch,
   mockSetState,
   mockUseEffectCleanups,
 } from "./useFileUploadCore.testSupport";
+
+const useFileUploadCore = (
+  dependencies: Parameters<typeof useFileUploadCoreIn>[0]
+) => useFileUploadCoreIn(dependencies, {}, englishUploadTranslators);
 
 describe("file upload initialization and multipart flow", () => {
   const uploadAndCreateCard = mock();
@@ -20,18 +25,6 @@ describe("file upload initialization and multipart flow", () => {
     mockFetch.mockReset();
     mockSetState.mockReset();
     mockUseEffectCleanups.length = 0;
-  });
-
-  test("exposes initialized upload state and methods", () => {
-    const hook = useFileUploadCore({
-      finalizeUploadedCard,
-      uploadAndCreateCard,
-    });
-    expect(typeof hook.uploadFile).toBe("function");
-    expect(typeof hook.uploadMultipleFiles).toBe("function");
-    expect(typeof hook.uploadFileFromUri).toBe("function");
-    expect(hook.state).toMatchObject({ isUploading: false, progress: 0 });
-    expect(hook.error).toBeNull();
   });
 
   test("uses default error capture without throwing", async () => {

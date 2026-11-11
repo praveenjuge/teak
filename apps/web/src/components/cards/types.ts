@@ -1,8 +1,6 @@
 import type { CardActionId } from "../../lib/cardActions";
 import type { ClientCard } from "../../lib/cardTypes";
 
-export type { PinTarget } from "../../lib/pinnedCards";
-
 type FileMetadata = NonNullable<ClientCard["fileMetadata"]>;
 
 export type LinkPreviewMetadata = NonNullable<
@@ -29,22 +27,15 @@ export interface CardProps {
    * otherwise. Each shows in the card's menu when the card can take it.
    */
   actions?: ReadonlySet<CardActionId>;
-  card: CardWithUrls & Record<string, unknown>;
+  card: CardWithUrls;
   isPriority?: boolean;
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTabStop?: boolean;
   /** False where the card moves another way (the pinned row's drag). */
   nativeDrag?: boolean;
-  onAction?: (
-    action: CardActionId,
-    card: CardWithUrls & Record<string, unknown>
-  ) => void;
-  onClick?: (
-    card: CardWithUrls & Record<string, unknown>,
-    origin?: CardOpenOrigin
-  ) => void;
-  onCopyImage?: (content: string | Promise<string>, isImage: boolean) => void;
+  onAction?: (action: CardActionId, card: CardWithUrls) => void;
+  onClick?: (card: CardWithUrls, origin?: CardOpenOrigin) => void;
   onEditFolders?: (cardId: string) => void;
   onEditLink?: (cardId: string) => void;
   onRemoveFromFolder?: (cardId: string) => void;
@@ -56,7 +47,3 @@ const UUID_REGEX =
 export function isOptimisticCard(cardId: string): boolean {
   return UUID_REGEX.test(cardId);
 }
-
-/** Whether there are cards and every one is a favorite. */
-export const allFavorited = (cards: readonly { isFavorited?: boolean }[]) =>
-  cards.length > 0 && cards.every((card) => card.isFavorited === true);

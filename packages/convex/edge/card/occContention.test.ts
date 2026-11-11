@@ -4,14 +4,14 @@ import { describe, expect, test, vi } from "vitest";
 import { components, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { captureDeletionBatch } from "../../accountDeletion/batch";
 import {
-  beginAccountDeletion,
   deleteAccountDataHandler,
   type OwnedCardIds,
   takeOwnedCards,
-} from "../../accountDeletion";
-import { captureDeletionBatch } from "../../accountDeletion/batch";
+} from "../../accountDeletion/cards";
 import { assertAccountNotDeleting } from "../../accountDeletion/gate";
+import { beginAccountDeletion } from "../../accountDeletion/start";
 import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,
@@ -400,7 +400,7 @@ describe("OCC contention behavior", () => {
       });
     });
     await expect(
-      t.mutation(internal["card/defaultCards"].createDefaultCardsForUser, {
+      t.mutation(internal.card.defaultCards.createDefaultCardsForUser, {
         userId: "user-deleting",
       })
     ).rejects.toMatchObject({

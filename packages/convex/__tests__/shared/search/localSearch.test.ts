@@ -11,6 +11,7 @@ import {
   resolveQuickSearchCommand,
   tokenizeSearchQuery,
 } from "../../../shared/search";
+import { CARD_SEARCH_TEXT_FIELDS } from "../../../shared/search/searchText";
 
 type CardOverrides = Partial<Omit<Doc<"cards">, "_id">> & {
   _id?: Id<"cards"> | string;
@@ -238,6 +239,16 @@ describe("shared search helpers", () => {
     expect(text).toContain("alpha");
     expect(text).toContain("beta");
   });
+
+  it.each(CARD_SEARCH_TEXT_FIELDS)(
+    "finds a card by a word only in its %s, as the server does",
+    (field) => {
+      const card = makeCard({ _id: field, [field]: "Kestrel sighting" });
+      expect(filterLocalCards([card], { searchTerms: "kestrel" })).toEqual([
+        card,
+      ]);
+    }
+  );
 
   it("matches an edited card by its new text, not its old", () => {
     const card = makeCard({ _id: "edited", notes: "before" });

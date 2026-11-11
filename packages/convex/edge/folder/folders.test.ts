@@ -5,7 +5,7 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import {
   deleteAccountDataHandler,
   type OwnedCardIds,
-} from "../../accountDeletion";
+} from "../../accountDeletion/cards";
 import { onCardChanged } from "../../card/onCardChanged";
 import { readFolderCardCount } from "../../folder/folderRows";
 import {
@@ -408,7 +408,7 @@ describe("membership", () => {
       t.run((ctx) => ctx.db.query("folderCardCounts").collect());
     const backfill = (dryRun: boolean) =>
       t.mutation(
-        internal["migration/backfillFolderCardCounts"].backfillFolderCardCounts,
+        internal.migration.backfillFolderCardCounts.backfillFolderCardCounts,
         { dryRun, once: true }
       );
 

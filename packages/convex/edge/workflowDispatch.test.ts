@@ -353,14 +353,13 @@ describe("complete", () => {
     ]);
   });
 
-  test("deletes an import's staged items even when the job can't be finished", async () => {
+  test("leaves an import whose account is being deleted to account deletion, and still deletes its staged items", async () => {
     const t = newBackend();
     const jobId = await insertImportJob(t, "importing");
     await t.run(async (ctx) => {
       await ctx.db.patch("importJobs", jobId, {
         stagedItems: { pages: 1, parts: 1, cursor: null, part: 1, offset: 0 },
       });
-      // The account is being deleted, so finishing the job refuses.
       await ctx.db.insert("accountDeletionStates", {
         generation: 1,
         stage: 0,
@@ -378,6 +377,8 @@ describe("complete", () => {
     expect(
       (await rows(t)).filter((row) => row.kind === "deleteObjects")
     ).toMatchObject([{ keys: [`${prefix}/imports/${jobId}/staged/1.json`] }]);
+    const job = await t.run((ctx) => ctx.db.get("importJobs", jobId));
+    expect(job?.status).toBe("importing");
   });
 
   test("starts the next account deletion attempt when a run errors", async () => {
@@ -663,6 +664,36 @@ describe("reconcile helpers", () => {
     );
     expect(result).toEqual({ deleted: 1, hasMore: false, stuckPending: 0 });
     expect((await rows(t)).map((row) => row.state)).toEqual(["done", "done"]);
+  });
+
+  test("settles an old deletion behind hundreds of older runs still going", async () => {
+    const t = newBackend();
+    const deletionId = await t.run(async (ctx) => {
+      for (let index = 0; index < 250; index += 1) {
+        await ctx.db.insert("workflowDispatches", {
+          createdAt: NOW - 5 * HOUR_MS,
+          instanceId: `export-${index}`,
+          key: `export:${index}`,
+          kind: "export",
+          notBefore: 0,
+          sentAt: NOW - 5 * HOUR_MS + index,
+          state: "sent",
+        });
+      }
+      return await ctx.db.insert("workflowDispatches", {
+        createdAt: NOW - 2 * HOUR_MS,
+        key: "deleteObjects",
+        kind: "deleteObjects",
+        notBefore: 0,
+        sentAt: NOW - 2 * HOUR_MS,
+        state: "sent",
+      });
+    });
+    await t.mutation(internal.workflowDispatch.pruneFinished, {});
+    const deletion = await t.run((ctx) =>
+      ctx.db.get("workflowDispatches", deletionId)
+    );
+    expect(deletion?.state).toBe("done");
   });
 });
 

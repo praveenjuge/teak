@@ -1,5 +1,8 @@
 import {
+  type AccountDeletionParams,
   type CardProcessingParams,
+  type ExportParams,
+  type ImportParams,
   MAINTENANCE_TASKS,
   type MaintenanceParams,
 } from "@teak/files-protocol";
@@ -24,19 +27,26 @@ export const cardProcessingParamsValidator = readAs<CardProcessingParams>()(
   })
 );
 
-export const exportRunParamsValidator = v.object({
-  jobId: v.id("exportJobs"),
-  userId: v.string(),
-});
+export const exportRunParamsValidator = readAs<ExportParams>()(
+  v.object({
+    jobId: v.id("exportJobs"),
+    userId: v.string(),
+  })
+);
 
-export const importRunParamsValidator = v.object({
-  jobId: v.id("importJobs"),
-});
+export const importRunParamsValidator = readAs<ImportParams>()(
+  v.object({
+    jobId: v.id("importJobs"),
+  })
+);
 
-export const accountDeletionRunParamsValidator = v.object({
-  generation: v.number(),
-  stateId: v.id("accountDeletionStates"),
-});
+export const accountDeletionRunParamsValidator =
+  readAs<AccountDeletionParams>()(
+    v.object({
+      generation: v.number(),
+      stateId: v.id("accountDeletionStates"),
+    })
+  );
 
 export const maintenanceRunParamsValidator = readAs<MaintenanceParams>()(
   v.object({

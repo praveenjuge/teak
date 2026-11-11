@@ -11,10 +11,10 @@ import {
 import { readWorkosConnectClients } from "./env";
 import {
   limitApiRequests,
+  rateLimiter,
   rateLimitResultValidator,
-  type ValidatedRateLimitKey,
-} from "./publicApi";
-import { rateLimiter } from "./rateLimiter";
+  workosRateLimitKey,
+} from "./rateLimiter";
 import { getSessionUser } from "./securitySessions";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { disconnectApplication } from "./workosApplicationDisconnect";
@@ -151,7 +151,7 @@ export const authorizeConnectConsent = internalMutation({
       teakUserId,
       rateLimit: await limitApiRequests(
         ctx,
-        `key:workos:${args.clientId}:${teakUserId}` as ValidatedRateLimitKey
+        workosRateLimitKey(args.clientId, teakUserId)
       ),
     };
   },

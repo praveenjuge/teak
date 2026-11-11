@@ -13,9 +13,11 @@ import {
   importMaxBytes,
 } from "@teak/convex/shared/importSources";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
+import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import {
   type ChangeEvent,
   type DragEvent,
@@ -32,6 +34,7 @@ import {
   Upload,
   X,
 } from "vadivam-react";
+import { isAbortError } from "@/lib/upload/transport";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { cn } from "../../lib/utils";
@@ -52,35 +55,27 @@ import {
 import { Spinner } from "../ui/spinner";
 import {
   type FormatTranslator,
-  formatBytes,
   formatRelativeTime,
 } from "./importExportFormat";
-import { putParts, type UploadPlan } from "./importUpload";
+import { putParts } from "./importUpload";
 import { SettingsRow, SettingsSection, SettingsTile } from "./SettingsSection";
 
-interface ImportJob {
-  completedAt?: number;
-  createdCount: number;
-  failedCount: number;
-  failureClass?: string;
-  fileName?: string;
-  id: string;
-  mode: ImportMode;
-  parsedCount: number;
-  phase: string;
-  processedCount: number;
-  reportAvailable: boolean;
-  skippedCount: number;
-  status:
-    | "uploading"
-    | "queued"
-    | "parsing"
-    | "importing"
-    | "completed"
-    | "failed"
-    | "canceled";
-  updatedAt: number;
-}
+type ImportJob = NonNullable<
+  FunctionReturnType<typeof api.dataImport.getLatestImport>
+>;
+
+/** What the progress shows, all an upload has before its job exists. */
+type ImportProgress = Pick<
+  ImportJob,
+  | "createdCount"
+  | "failedCount"
+  | "mode"
+  | "parsedCount"
+  | "phase"
+  | "processedCount"
+  | "skippedCount"
+  | "status"
+>;
 
 interface ImportPanelProps {
   onActiveChange?: (active: boolean) => void;
@@ -205,7 +200,7 @@ function describeFailure(job: ImportJob, t: ImportTranslator): string | null {
   return t("failure.generic");
 }
 
-function progressPercent(job: ImportJob, uploadPercent?: number): number {
+function progressPercent(job: ImportProgress, uploadPercent?: number): number {
   switch (job.status) {
     case "uploading":
       return uploadPercent === undefined ? 6 : 6 + uploadPercent * 0.34;
@@ -228,7 +223,7 @@ export function ImportProgressSummary({
   job,
   uploadPercent,
 }: {
-  job: ImportJob | null;
+  job: ImportProgress | null;
   uploadPercent?: number;
 }) {
   const t = useTranslations("settings.import");
@@ -295,11 +290,10 @@ export type ImportPanelState =
   | { kind: "idle" }
   | { kind: "confirming"; pending: PendingImport; resume: boolean }
   | { kind: "interrupted"; job: ImportJob }
-  | { kind: "running"; job: ImportJob };
+  | { kind: "running"; job: ImportProgress };
 
-function uploadStartingJob(mode: ImportMode): ImportJob {
+function uploadStartingJob(mode: ImportMode): ImportProgress {
   return {
-    id: "pending",
     mode,
     status: "uploading",
     phase: "Uploading",
@@ -308,8 +302,6 @@ function uploadStartingJob(mode: ImportMode): ImportJob {
     createdCount: 0,
     skippedCount: 0,
     failedCount: 0,
-    reportAvailable: false,
-    updatedAt: Date.now(),
   };
 }
 
@@ -383,19 +375,12 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const recordPart = useMutation(api.dataImport.recordImportPart);
   const cancelImport = useAction(api.importUpload.cancelImport);
   const getReportUrl = useAction(api.importUpload.getImportReportUrl);
-  const latest = useQuery(api.dataImport.getLatestImport) as
-    | ImportJob
-    | null
-    | undefined;
+  const latest = useQuery(api.dataImport.getLatestImport);
   const [source, setSource] = useState<ImportMode>("bookmarks");
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const resumeInput = useRef<HTMLInputElement>(null);
-  const controllersRef = useRef<Set<AbortController> | null>(null);
-  if (!controllersRef.current) {
-    controllersRef.current = new Set<AbortController>();
-  }
-  const controllers = controllersRef.current;
+  const uploadRef = useRef<AbortController | null>(null);
   const observedImportIdRef = useRef<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
@@ -410,9 +395,9 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const failureSamples = useQuery(
     api.dataImport.getImportFailureSamples,
     job && !isActive(job.status) && job.failedCount > 0
-      ? { jobId: job.id as never }
+      ? { jobId: job.id }
       : "skip"
-  ) as { item: string; reason: string; sourceIndex: number }[] | undefined;
+  );
 
   useEffect(() => {
     if (!(latest && latest.id === observedImportIdRef.current)) {
@@ -429,39 +414,37 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   }, [latest]);
 
   const performUpload = async (file: File, mode: ImportMode) => {
+    const upload = new AbortController();
+    uploadRef.current = upload;
     captureEvent("import_started");
     setTransporting(true);
     setUploadPercent(0);
     onActiveChange?.(true);
     try {
-      let plan: UploadPlan;
-      if (job?.status === "uploading") {
-        plan = (await resumeUpload({
-          fileName: file.name,
-          fileSize: file.size,
-          fileLastModified: file.lastModified,
-        })) as UploadPlan;
-      } else {
-        plan = (await createUpload({
-          mode,
-          fileName: file.name,
-          fileSize: file.size,
-          fileLastModified: file.lastModified,
-        })) as UploadPlan;
-      }
+      const plan =
+        job?.status === "uploading"
+          ? await resumeUpload({
+              fileName: file.name,
+              fileSize: file.size,
+              fileLastModified: file.lastModified,
+            })
+          : await createUpload({
+              mode,
+              fileName: file.name,
+              fileSize: file.size,
+              fileLastModified: file.lastModified,
+            });
       observedImportIdRef.current = plan.jobId;
-      await putParts(file, plan, setUploadPercent, controllers, (part) =>
-        recordPart({ jobId: plan.jobId as never, ...part })
+      await putParts(file, plan, setUploadPercent, upload.signal, (part) =>
+        recordPart({ jobId: plan.jobId, ...part })
       );
-      await completeUpload({ jobId: plan.jobId as never });
+      await completeUpload({ jobId: plan.jobId });
       captureEvent("file_upload_completed", {
         bucket: "import",
         size_bucket: resolveSizeBucket(file.size),
       });
     } catch (error) {
-      const cancelled =
-        error instanceof DOMException && error.name === "AbortError";
-      if (!cancelled) {
+      if (!isAbortError(error)) {
         const errorClass = normalizeErrorClass(error);
         captureEvent("file_upload_failed", {
           bucket: "import",
@@ -517,13 +500,11 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const cancel = async () => {
-    for (const controller of controllers) {
-      controller.abort();
-    }
-    controllers.clear();
+    uploadRef.current?.abort();
+    uploadRef.current = null;
     try {
       if (job) {
-        await cancelImport({ jobId: job.id as never });
+        await cancelImport({ jobId: job.id });
       }
     } catch (error) {
       toast.error(errorMessage(error, t("cancelFailed")));
@@ -538,7 +519,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       return;
     }
     try {
-      const url = await getReportUrl({ jobId: job.id as never });
+      const url = await getReportUrl({ jobId: job.id });
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(t("reportLoadFailed"));
@@ -555,7 +536,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       return;
     }
     try {
-      const url = await getReportUrl({ jobId: job.id as never });
+      const url = await getReportUrl({ jobId: job.id });
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = "teak-import-report.txt";

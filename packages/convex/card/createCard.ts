@@ -6,9 +6,16 @@ import { cardTypeValidator, colorValidator } from "../schema/validators/cards";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
-import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
+import { truncateCardTitle } from "../shared/cardTitle";
 import type { CardType } from "../shared/constants";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
+import {
+  buildInitialProcessingStatus,
+  mergeProcessingStages,
+  stageCompleted,
+  stagePending,
+} from "../shared/processingStatus";
+import { normalizeQuoteContent } from "../shared/quoteFormatting";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
 import { isBareLinkContent } from "../shared/utils/bareLink";
@@ -17,6 +24,7 @@ import {
   extractPaletteColors,
   MAX_PALETTE_COLORS,
 } from "../shared/utils/colorUtils";
+import { extractUrlFromContent } from "../shared/utils/linkDetection";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
@@ -26,16 +34,8 @@ import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight, queueCardProcessing } from "./processingRuns";
-import {
-  buildInitialProcessingStatus,
-  mergeProcessingStages,
-  stageCompleted,
-  stagePending,
-} from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
-import { normalizeQuoteContent } from "./quoteFormatting";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
-import { extractUrlFromContent } from "./validationUtils";
 
 // Older app versions send no `source`, so their cards report "unknown".
 export const clientCardSourceValidator = v.union(
@@ -53,6 +53,14 @@ export const apiCardSourceValidator = v.union(
   v.literal("extension")
 );
 export type ApiCardSource = Infer<typeof apiCardSourceValidator>;
+
+/** Who finalized an uploaded file: an app, a public API caller, or email. */
+export const uploadCardSourceValidator = v.union(
+  clientCardSourceValidator,
+  apiCardSourceValidator,
+  v.literal("email")
+);
+export type UploadCardSource = Infer<typeof uploadCardSourceValidator>;
 
 const createCardArgs = {
   content: v.string(),
@@ -112,33 +120,13 @@ const sessionCreateCardArgs = {
 } as const;
 const sessionCreateCardArgsValidator = v.object(sessionCreateCardArgs);
 
-interface CreateCardArgs {
-  colors?: {
-    hex: string;
-    name?: string;
-    rgb?: { r: number; g: number; b: number };
-    hsl?: { h: number; s: number; l: number };
-  }[];
-  content: string;
-  fileKey?: string;
-  metadata?: unknown;
-  notes?: string;
+const createCardArgsValidator = v.object(createCardArgs);
+
+type CreateCardArgs = Infer<typeof createCardArgsValidator> & {
   pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
-  tags?: string[];
-  thumbnailKey?: string;
-  type?:
-    | "text"
-    | "link"
-    | "image"
-    | "video"
-    | "audio"
-    | "document"
-    | "palette"
-    | "quote";
-  url?: string;
-}
+};
 
 interface ImportedVisibleFields {
   completedAt?: number;
@@ -348,9 +336,9 @@ export const createCardForUserHandler = async (
     sourceUrl: args.sourceUrl,
   });
 
-  const importedTitle = options.importedVisibleFields?.metadataTitle
-    ?.trim()
-    .slice(0, MAX_CARD_TITLE_LENGTH);
+  const importedTitle = truncateCardTitle(
+    options.importedVisibleFields?.metadataTitle ?? ""
+  );
 
   const cardData = {
     userId,

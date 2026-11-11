@@ -13,14 +13,11 @@ import {
   type FilesAiGenerationFacts,
   type FilesEnvelope,
   type FilesErrorCode,
-  type FilesOp,
   type FilesOpRequest,
-  type FilesOpResult,
   filesErrorEnvelope,
   filesSuccessEnvelope,
   isFilesInspectMode,
   isFilesNetworkOp,
-  isFilesOp,
   MAINTENANCE_TASKS,
   PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES,
   parseEdgeIdentityPurgeKeys,
@@ -61,6 +58,7 @@ import {
   runInspect,
 } from "./archives/inspect";
 import { allowedConvexSiteUrl } from "./convexRpc";
+import { errorMessage } from "./errors";
 import { finalizeImageUpload } from "./images/finalizeImage";
 import { analyzeImage } from "./images/imageAnalysis";
 import {
@@ -78,6 +76,7 @@ import {
   type AcquireBrowser,
   createBrowserAcquirer,
 } from "./media/browserSessions";
+import { RendererUnavailable } from "./media/containerPool";
 import { parseLinkedPdfParams, storeLinkedPdf } from "./media/linkedPdf";
 import { fetchLinkPage, parseLinkPageParams } from "./media/linkPage";
 import {
@@ -90,10 +89,7 @@ import {
 } from "./media/mediaJobs";
 import { ocrPdfPages } from "./media/pdfOcr";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./media/remoteAsset";
-import {
-  checkRendererHealth,
-  RendererUnavailable,
-} from "./media/rendererClient";
+import { checkRendererHealth } from "./media/rendererClient";
 import { InvalidOpInput, OpFailure } from "./opFailure";
 import {
   derivedKeyParams,
@@ -104,6 +100,7 @@ import {
   type RawOpParams,
   requiredString,
 } from "./opParams";
+import { type FilesOp, type FilesOpResult, isFilesOp } from "./opSpecs";
 import {
   abortMultipart,
   cleanupStalePendingUploads,
@@ -305,7 +302,7 @@ const generateImageMetadata: OpHandler<"generate-image-metadata"> = async (
       ? decideVisualStylesForImage(env, image, title).catch(
           (error: unknown) => {
             console.warn("[core-worker] visual styles failed", {
-              message: error instanceof Error ? error.message : String(error),
+              message: errorMessage(error),
               requestId,
             });
             return null;
@@ -369,7 +366,7 @@ const processAudioOp: OpHandler<"process-audio"> = async (params, { env }) => {
 };
 
 /**
- * One handler per op in `FILES_OP_SPECS`; the type makes a missing one a
+ * One handler per op in `opSpecs.ts`; the type makes a missing one a
  * compile error.
  */
 const OP_HANDLERS: { [Op in FilesOp]: OpHandler<Op> } = {

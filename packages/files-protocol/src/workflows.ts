@@ -245,6 +245,20 @@ export const accountDeletionInstanceId = (
   attempt: number
 ) => `account-deletion-${stateId}-${generation}-${attempt}`;
 
+export interface ExportParams {
+  jobId: string;
+  userId: string;
+}
+
+export interface ImportParams {
+  jobId: string;
+}
+
+export interface AccountDeletionParams {
+  generation: number;
+  stateId: string;
+}
+
 export const MAINTENANCE_TASKS = [
   "card-cleanup",
   "export-cleanup",
@@ -356,15 +370,5 @@ export interface DispatchResult {
   results: DispatchItemResult[];
 }
 
-export type WorkflowInstanceState =
-  | "complete"
-  | "errored"
-  | "paused"
-  | "queued"
-  | "running"
-  | "terminated"
-  | "unknown"
-  | "waiting"
-  | "waitingForPause";
-
+/** How a run reports its end to `workflowDispatch.complete`. */
 export type WorkflowCompletionStatus = "complete" | "errored";

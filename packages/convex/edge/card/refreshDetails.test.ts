@@ -50,7 +50,7 @@ describe("Refresh details on a link", () => {
   test("queues a refresh run that reads the stored preview again", async () => {
     const { cardId, getCard, sendRun, t } = await setup();
 
-    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+    await t.mutation(internal.card.updateCard.reprocessCardForUser, {
       cardId,
       userId: "owner",
     });
@@ -98,7 +98,7 @@ describe("Refresh details on a link", () => {
   test("a metadata-only retry that replaces a waiting refresh runs the refresh in full", async () => {
     const { cardId, sendRun, t } = await setup();
 
-    await t.mutation(internal["card/updateCard"].reprocessCardForUser, {
+    await t.mutation(internal.card.updateCard.reprocessCardForUser, {
       cardId,
       userId: "owner",
     });
@@ -108,7 +108,10 @@ describe("Refresh details on a link", () => {
     const claimed = await sendRun();
 
     expect(claimed).toHaveLength(1);
-    expect(claimed[0]?.item.params).toMatchObject({ refresh: true });
-    expect(claimed[0]?.item.params.metadataOnly).toBeUndefined();
+    const item = claimed[0]?.item;
+    expect(item).toMatchObject({ type: "workflow", params: { refresh: true } });
+    expect(
+      item?.type === "workflow" ? item.params.metadataOnly : "not a workflow"
+    ).toBeUndefined();
   });
 });

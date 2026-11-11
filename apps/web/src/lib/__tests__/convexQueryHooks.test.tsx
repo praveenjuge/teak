@@ -9,7 +9,9 @@ const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { renderToString } = await import("react-dom/server");
 const { ConvexProvider } = await import("convex/react");
-const { ConvexQueryCacheProvider } = await import("../convexQueryCache");
+const { ConvexQueryCacheProvider } = await import(
+  "convex-helpers/react/cache/provider"
+);
 const { QuerySeedsProvider, usePaginatedQuery, useQuery } = await import(
   "../convexQueryHooks"
 );

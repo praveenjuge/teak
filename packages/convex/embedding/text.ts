@@ -6,21 +6,60 @@ import { cardLinkTokensToText } from "../shared/cardLinks";
 const BODY_CHARS = 2000;
 const MAX_TEXT_CHARS = 8000;
 
+/** The card fields `buildEmbeddingText` reads. */
+const EMBEDDING_TEXT_FIELDS = [
+  "aiOcrText",
+  "aiSummary",
+  "aiTags",
+  "aiTranscript",
+  "content",
+  "metadata",
+  "metadataDescription",
+  "metadataTitle",
+  "notes",
+  "tags",
+  "url",
+  "visualStyles",
+] as const satisfies readonly (keyof Doc<"cards">)[];
+
 export type EmbeddableCard = Pick<
   Doc<"cards">,
-  | "aiOcrText"
-  | "aiSummary"
-  | "aiTags"
-  | "aiTranscript"
-  | "content"
-  | "metadata"
-  | "metadataDescription"
-  | "metadataTitle"
-  | "notes"
-  | "tags"
-  | "url"
-  | "visualStyles"
+  (typeof EMBEDDING_TEXT_FIELDS)[number]
 >;
+
+/**
+ * Every card field a card's embedding depends on: the text fields, the type
+ * the hash includes, and the fields that say which extracted text (and
+ * transcript) the embedding job reads with them.
+ */
+export const EMBEDDING_INPUT_FIELDS = [
+  ...EMBEDDING_TEXT_FIELDS,
+  "type",
+  "article",
+  "documentTextKey",
+  "hasExtractedText",
+  "aiTranscriptCharCount",
+] as const satisfies readonly (keyof Doc<"cards">)[];
+
+const embeddingInputOf = (
+  card: Doc<"cards">,
+  field: (typeof EMBEDDING_INPUT_FIELDS)[number]
+) =>
+  // Only a ready article's text is read, so its other states embed alike.
+  field === "article"
+    ? card.article?.status === "ready" && card.article.textKey
+    : card[field];
+
+/** Whether a write changed anything the card's embedding is built from. */
+export const embeddingInputsChanged = (
+  previous: Doc<"cards">,
+  card: Doc<"cards">
+): boolean =>
+  EMBEDDING_INPUT_FIELDS.some(
+    (field) =>
+      JSON.stringify(embeddingInputOf(previous, field)) !==
+      JSON.stringify(embeddingInputOf(card, field))
+  );
 
 const clean = (value: string | undefined) => value?.trim() || undefined;
 

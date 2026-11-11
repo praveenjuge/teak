@@ -4,7 +4,8 @@
  * read and written by `searchUrlState`; this keeps the rest in one place.
  */
 
-export const CARD_PARAM = "card";
+import { CARD_PARAM } from "@teak/convex/shared/webRoutes";
+
 export const ADD_TO_FOLDER_PARAM = "addTo";
 
 /** A query string as the library writes it: commas between values stay. */
@@ -19,7 +20,6 @@ export const libraryHref = (
   return query ? `${pathname}?${query}` : pathname;
 };
 
-/** `search` without these params. */
 export const searchWithout = (
   search: string,
   ...names: string[]

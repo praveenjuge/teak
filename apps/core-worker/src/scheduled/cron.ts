@@ -10,6 +10,7 @@ import {
 import type { MaintenanceTask } from "@teak/files-protocol";
 import { type AiUsageRollupEnv, rollUpAiUsage } from "../ai/aiUsageRollup";
 import { type ConvexRpc, convexSiteUrls, createConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import { enqueueAiBackfill } from "../queues/aiBackfill";
 import { sweepStalePendingUploads } from "../queues/r2Events";
 import { reportBackgroundError } from "../telemetry";
@@ -37,9 +38,6 @@ export interface CronDeps {
 }
 
 type CronName = (typeof CRONS)[keyof typeof CRONS]["name"];
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 const recordHeartbeat = async (
   convex: ConvexRpc,

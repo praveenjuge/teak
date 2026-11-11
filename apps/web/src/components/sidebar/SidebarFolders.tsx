@@ -1,9 +1,8 @@
 "use client";
 
-import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { FOLDER_COLORS, type FolderColor } from "@teak/convex/shared/folders";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -42,15 +41,18 @@ import {
 } from "@/components/ui/sidebar";
 import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
 import { useAddCardsToFolder } from "@/hooks/useCardMutations";
+import {
+  useDeleteFolder,
+  useRestoreFolder,
+  useUpdateFolder,
+} from "@/hooks/useFolderMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { bulkActionCopy } from "@/lib/bulkCardActions";
 import { clipFolderName } from "@/lib/clipFolderName";
 import { useFolders } from "../../hooks/useFolders";
 import {
   CARD_DRAG_TYPE,
-  FOLDER_COLORS,
   FOLDER_ICON_CLASSES,
-  type FolderColor,
   type FolderSummary,
   folderColorLabel,
   folderPath,
@@ -109,35 +111,9 @@ export function SidebarFolders({
   const [isCreating, setIsCreating] = useState(false);
   const [dropFolderId, setDropFolderId] = useState<string | null>(null);
 
-  const updateFolder = useMutation(
-    api.folders.updateFolder
-  ).withOptimisticUpdate((localStore, { folderId, color }) => {
-    const current = localStore.getQuery(api.folders.listFolders, {});
-    if (current && color !== undefined) {
-      localStore.setQuery(
-        api.folders.listFolders,
-        {},
-        current.map((folder: FolderSummary) =>
-          folder._id === folderId
-            ? { ...folder, color: color ?? undefined }
-            : folder
-        )
-      );
-    }
-  });
-  const deleteFolder = useMutation(
-    api.folders.deleteFolder
-  ).withOptimisticUpdate((localStore, { folderId }) => {
-    const current = localStore.getQuery(api.folders.listFolders, {});
-    if (current) {
-      localStore.setQuery(
-        api.folders.listFolders,
-        {},
-        current.filter((folder: FolderSummary) => folder._id !== folderId)
-      );
-    }
-  });
-  const restoreFolder = useMutation(api.folders.restoreFolder);
+  const updateFolder = useUpdateFolder();
+  const deleteFolder = useDeleteFolder();
+  const restoreFolder = useRestoreFolder();
   const addCardsToFolder = useAddCardsToFolder();
 
   const dropCard = async (folder: FolderSummary, cardId: string) => {

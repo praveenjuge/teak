@@ -5,13 +5,6 @@ import {
   PUBLIC_API_DEFAULT_LIMIT,
   PUBLIC_API_MAX_LIMIT,
 } from "../../shared/publicApiLimits";
-import { json } from "./meta";
-
-export {
-  PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
-  PUBLIC_API_MAX_LIMIT as MAX_LIMIT,
-} from "../../shared/publicApiLimits";
-export { json } from "./meta";
 
 const MAX_QUERY_SCAN = 400;
 
@@ -23,7 +16,6 @@ interface AuthorizedUser {
   clientId?: string;
   keyId: string;
   rateLimitKey: string;
-  source: "component" | "oauth";
   userId: import("../../securitySessions").TeakUserId;
 }
 
@@ -40,7 +32,7 @@ interface CardsQueryOptions {
   hueFilters?: string[];
   limit: number;
   matchesNothing?: boolean;
-  mode: import("../../shared/search/semantic").SearchMode;
+  mode: import("../../shared/publicApiContract").SearchMode;
   /** `pinned=true` or `is:pinned`: only pinned cards. */
   pinnedOnly: boolean;
   qualifiers?: {
@@ -63,31 +55,47 @@ interface CardsQueryOptions {
   sort?: "newest" | "oldest" | "relevance" | "shuffle";
   styleFilters?: string[];
   tag?: string;
-  type?: string;
-  types?: string[];
+  type?: import("../../shared/constants").CardType;
+  types?: import("../../shared/constants").CardType[];
 }
-interface CreateCardPayload {
-  cardType?: string;
+interface CreateCardFields {
+  cardType?: import("../../shared/constants").CardType;
   content?: string;
-  fileEtag?: string;
-  fileKey?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
   notes?: string | null;
-  pageSnapshotKey?: string;
   source?: string;
+  tags?: string[];
+}
+interface CreateFileCardPayload extends CreateCardFields {
+  fileEtag?: string;
+  fileKey: string;
+  fileName: string;
+  fileSize?: number;
+  mimeType: string;
+}
+interface CreateContentCardPayload extends CreateCardFields {
+  fileKey?: undefined;
+  pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
-  tags?: string[];
   url?: string;
 }
+type CreateCardPayload = CreateFileCardPayload | CreateContentCardPayload;
 interface CreateUploadPayload {
   fileName: string;
   fileSize: number;
   mimeType: string;
 }
 type QueryValue = boolean | number | string | readonly string[] | undefined;
+
+const json = (status: number, body: unknown, headers?: HeadersInit): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      ...(headers ?? {}),
+    },
+  });
 
 const errorResponse = (
   status: number,
@@ -118,20 +126,6 @@ const buildRateLimitHeaders = (
     "RateLimit-Reset": retryAfterSeconds,
     "Retry-After": retryAfterSeconds,
   };
-};
-
-const parseBearerToken = (request: Request): string | null => {
-  const authorization = request.headers.get("authorization");
-  if (!authorization) {
-    return null;
-  }
-
-  const [scheme, token] = authorization.trim().split(/\s+/, 2);
-  if (!(scheme && token) || scheme.toLowerCase() !== "bearer") {
-    return null;
-  }
-
-  return token.trim();
 };
 
 const parseStrictNumber = (raw: string): number | undefined => {
@@ -300,9 +294,9 @@ export {
   type CreateUploadPayload,
   type ErrorCode,
   errorResponse,
+  json,
   MAX_QUERY_SCAN,
   mapConvexErrorToResponse,
-  parseBearerToken,
   parseBooleanQuery,
   parseLimit,
   parseTimestampQuery,

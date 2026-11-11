@@ -1,19 +1,18 @@
 import { env, httpAction } from "../../_generated/server";
-import {
-  isLocalDevelopmentHostname,
-  resolveTeakDevApiUrl,
-} from "../../devUrls";
+import { resolveTeakDevApiUrl } from "../../devUrls";
 import {
   readWorkosConnectClients,
   readWorkosConnectIssuer,
   readWorkosResources,
 } from "../../env";
+import { isLocalDevelopmentHostname } from "../../shared/localHosts";
 import {
   OAUTH_PROTECTED_RESOURCE_PATH,
   PUBLIC_API_OPERATION_IDS,
   publicApiEndpointLabel,
 } from "../../shared/publicApiContract";
 import { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
+import { json } from "./shared";
 
 export const API_VERSION = "v1";
 
@@ -25,8 +24,6 @@ export const V1_ENDPOINTS: readonly string[] = PUBLIC_API_OPERATION_IDS.filter(
 export const API_AUTH_HINT =
   "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)";
 export const MCP_TRANSPORT = "streamable-http";
-
-export { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
 
 const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
 const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
@@ -52,12 +49,6 @@ const readPublicOrigin = (): string | undefined => {
   return origin === "null" ? undefined : origin;
 };
 
-const isLocalApiHost = (hostname: string): boolean =>
-  isLocalDevelopmentHostname(hostname);
-
-export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
-  getPublicMcpUrl(requestUrl);
-
 export const getPublicMcpUrl = (requestUrl: string): string => {
   const publicOrigin = readPublicOrigin();
   if (publicOrigin) {
@@ -66,7 +57,7 @@ export const getPublicMcpUrl = (requestUrl: string): string => {
 
   const { hostname, origin } = new URL(requestUrl);
   const devApiOrigin = resolveTeakDevApiUrl(env);
-  return isLocalApiHost(hostname) || origin === devApiOrigin
+  return isLocalDevelopmentHostname(hostname) || origin === devApiOrigin
     ? `${origin}/mcp`
     : PROD_PUBLIC_MCP_URL;
 };
@@ -83,20 +74,6 @@ export const buildProtectedResourceMetadata = () => ({
   scopes_supported: ["openid", ...OAUTH_SCOPES_SUPPORTED],
   resource_name: "Teak",
 });
-
-export const json = (
-  status: number,
-  body: unknown,
-  headers?: HeadersInit
-): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-      ...(headers ?? {}),
-    },
-  });
 
 export const withPublicApiGatewayHeaders = (response: Response): Response => {
   const headers = new Headers(response.headers);
@@ -138,7 +115,7 @@ export const discoveryV1 = httpAction((_ctx, request) => {
         endpoints: V1_ENDPOINTS,
         auth: API_AUTH_HINT,
         mcp: {
-          endpoint: getMcpEndpointFromRequestUrl(request.url),
+          endpoint: getPublicMcpUrl(request.url),
           transport: MCP_TRANSPORT,
           auth: API_AUTH_HINT,
         },

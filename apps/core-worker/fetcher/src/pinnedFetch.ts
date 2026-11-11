@@ -3,7 +3,7 @@ import {
   type DnsResolver,
   detectIpVersion,
   type PinnedFetch,
-} from "../../../../packages/convex/linkMetadata/ssrf";
+} from "../../../../packages/files-protocol/src/ssrf";
 
 export const systemDnsResolver: DnsResolver = async (hostname) => {
   const records = await lookup(hostname, { all: true, verbatim: true });

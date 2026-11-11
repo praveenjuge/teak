@@ -2,7 +2,9 @@
 
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
+import { ARTICLE_SANITIZE_SCHEMA } from "@teak/convex/shared/highlights/articleTree";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
 import {
@@ -20,13 +22,11 @@ import Markdown, {
 } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "@/components/cards/SiteFavicon";
+import { ResilientMediaImage, SiteFavicon } from "@/components/media";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
-import { getDisplayHostname } from "@/lib/displayHost";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ import {
   type HighlightJump,
   type ReaderHighlightControls,
 } from "./ArticleHighlights";
-import { ARTICLE_SANITIZE_SCHEMA, rehypeArticle } from "./articleMarkdown";
+import { rehypeArticle } from "./articleMarkdown";
 import {
   cachedFileTextPreview,
   requestFileTextPreview,
@@ -355,7 +355,7 @@ export function ArticleReader({
     );
   }
 
-  const host = getDisplayHostname(card.url);
+  const host = urlHostForDisplay(card.url);
   const savedAt =
     card.pageArchive?.capturedAt ?? card.savedAt ?? card.createdAt;
   const date = new Date(savedAt).toLocaleDateString(locale, {

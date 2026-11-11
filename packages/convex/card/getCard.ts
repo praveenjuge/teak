@@ -2,14 +2,11 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { applyQuoteFormattingToList } from "../shared/quoteFormatting";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
-import { attachCardDetailUrls, omitCardText } from "./queryUtils";
-import {
-  applyQuoteDisplayFormatting,
-  applyQuoteFormattingToList,
-} from "./quoteFormatting";
+import { finishCardDetail, omitCardText } from "./queryUtils";
 
 export const getCardForUserHandler = async (
   ctx: Pick<QueryCtx, "db">,
@@ -20,7 +17,7 @@ export const getCardForUserHandler = async (
   if (!card || card.userId !== userId) {
     return null;
   }
-  return applyQuoteDisplayFormatting(await attachCardDetailUrls(ctx, card));
+  return finishCardDetail(ctx, card);
 };
 
 export const getCard = query({

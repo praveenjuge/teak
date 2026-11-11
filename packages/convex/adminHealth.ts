@@ -1,9 +1,9 @@
 import { v } from "convex/values";
 import { action, env, internalMutation, query } from "./_generated/server";
+import { DAY_MS } from "./admin/dates";
 import {
   type CronHealth,
   cronHealth,
-  DAY_MS,
   summarizeSignupDomains,
 } from "./admin/stats";
 import { ensureAdmin, readInternalUserIds } from "./adminAccess";

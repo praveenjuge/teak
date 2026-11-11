@@ -1,4 +1,4 @@
-import type { Id } from "@teak/convex/_generated/dataModel";
+import type { api } from "@teak/convex";
 import {
   combineSearchQueries,
   describePriceBound,
@@ -9,47 +9,25 @@ import {
 } from "@teak/convex/shared";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
+  explainInvalidFolderName,
+  FOLDER_ERROR_MESSAGES,
   type FolderColor,
-  type FolderKind,
+  folderNameKey,
   MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
-import { ConvexError } from "convex/values";
-import { englishErrors, englishTranslator } from "./englishTranslators";
-import { type ErrorsTranslator, translateServerMessage } from "./serverErrors";
+import type { FunctionReturnType } from "convex/server";
 
 export type FoldersTranslator = TeakTranslator<"lib.folders">;
 
-const englishFolders: FoldersTranslator = englishTranslator("lib.folders");
-
-export interface FolderSummary {
-  _id: Id<"folders">;
-  activeCardCount: number;
-  color?: FolderColor;
-  createdAt: number;
-  kind: FolderKind;
-  name: string;
-  query?: string;
-  /** The folder's latest rule run, to follow or undo. */
-  ruleRunId?: Id<"folderRuleRuns">;
-  /** A manual folder's rules; missing on smart folders. */
-  rules?: FolderRules;
-  updatedAt: number;
-}
-
-export interface FolderRules {
-  autoFile: { enabled: boolean; query: string } | null;
-  autoTags: string[];
-}
+export type FolderSummary = FunctionReturnType<
+  typeof api.folders.listFolders
+>[number];
 
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]
 ): T[] => folders.filter((folder) => folder.kind !== "smart");
-
-export {
-  FOLDER_COLORS,
-  type FolderColor,
-} from "@teak/convex/shared/folders";
 
 /**
  * The input's maxLength. Browsers count UTF-16 units, so an emoji uses two;
@@ -82,10 +60,8 @@ export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
   pink: "text-pink-500 fill-pink-500/15",
 };
 
-export const folderColorLabel = (
-  color: FolderColor,
-  t: FoldersTranslator = englishFolders
-) => t(`colors.${color}`);
+export const folderColorLabel = (color: FolderColor, t: FoldersTranslator) =>
+  t(`colors.${color}`);
 
 export const CARD_DRAG_TYPE = "application/x-teak-card";
 
@@ -127,24 +103,53 @@ export const hasFolderNamed = (
   name: string,
   exceptId?: string
 ) => {
-  const key = name.trim().toLowerCase();
+  const key = folderNameKey(name);
   return folders.some(
-    (folder) => folder._id !== exceptId && folder.name.toLowerCase() === key
+    (folder) => folder._id !== exceptId && folderNameKey(folder.name) === key
   );
 };
 
-export const folderErrorMessage = (
-  error: unknown,
-  fallback: string,
-  t: ErrorsTranslator = englishErrors
-) => {
-  if (error instanceof ConvexError) {
-    const message = (error.data as { message?: unknown } | undefined)?.message;
-    if (typeof message === "string") {
-      return translateServerMessage(t, message);
-    }
+/**
+ * Why `name` can't be saved as a folder's name, in the server's words
+ * (translate it with `errors.byEnglishMessage`), or null. A rename passes
+ * the folder's id: it doesn't count against the folder limit or clash with
+ * its own name. Until `folders` loads, only the name itself is checked.
+ */
+export const folderNameProblem = (
+  folders: readonly FolderSummary[] | undefined,
+  name: string,
+  renamingId?: string
+): string | null => {
+  if (
+    folders &&
+    renamingId === undefined &&
+    folders.length >= MAX_FOLDERS_PER_USER
+  ) {
+    return FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS;
   }
-  return fallback;
+  if (folders && hasFolderNamed(folders, name, renamingId)) {
+    return FOLDER_ERROR_MESSAGES.DUPLICATE_NAME;
+  }
+  return name.trim() ? explainInvalidFolderName(name) : null;
+};
+
+/**
+ * What a folder picker offers for the name typed into its search: to create
+ * it, or why it can't (the folder limit). Nothing for no name yet, a name a
+ * folder already has, or one the server refuses.
+ */
+export const newFolderOption = (
+  folders: readonly FolderSummary[] | undefined,
+  name: string
+): "create" | "limit" | null => {
+  if (
+    !(folders && name.trim()) ||
+    hasFolderNamed(folders, name) ||
+    explainInvalidFolderName(name) !== null
+  ) {
+    return null;
+  }
+  return folders.length >= MAX_FOLDERS_PER_USER ? "limit" : "create";
 };
 
 export interface SmartFolderSearchContext {
@@ -190,7 +195,7 @@ const capitalize = (text: string) =>
 
 export const suggestSmartFolderName = (
   query: string,
-  t: FoldersTranslator = englishFolders
+  t: FoldersTranslator
 ): string => {
   const parsed = parseSearchQuery(query);
   const parts = [

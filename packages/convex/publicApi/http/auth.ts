@@ -1,8 +1,6 @@
-import { sha256Hex } from "@teak/files-protocol";
 import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import {
-  type BearerCredentialClass,
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "../../authMonitoring";
@@ -12,10 +10,10 @@ import {
 } from "../../convexFailures";
 import { edgeRateLimitCharge } from "../../edgeIdentity";
 import { findWorkosConnectIssuer, findWorkosResources } from "../../env";
+import { workosRateLimitKey } from "../../rateLimiter";
 import type { TeakUserId } from "../../securitySessions";
-import { isWellFormedApiKey } from "../../shared/apiKeyFormat";
+import { bearerCredentialKind, parseBearer } from "../../shared/bearer";
 import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
-import { ignoreTelemetryError } from "../../shared/telemetry";
 import {
   verifyWorkosConnectTokenSignature,
   type WorkosConnectPrincipal,
@@ -25,265 +23,15 @@ import {
   type ConsentAuthorization,
   isConsentSeenRecently,
 } from "../../workosConsents";
-import { parseOptionalString } from "../validation";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
   type AuthResult,
   errorResponse,
-  json,
-  mapConvexErrorToResponse,
-  parseBearerToken,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
   SERVICE_BUSY_ERROR,
 } from "./shared";
-
-const buildIdempotentResponse = (record: {
-  responseBody: unknown;
-  responseStatus: number;
-}): Response => json(record.responseStatus, record.responseBody);
-
-interface IdempotencyState {
-  keyHash: string;
-  leaseToken?: string;
-  replayed?: Response;
-  requestHash: string;
-  reserved: boolean;
-}
-
-const trackIdempotency = async (
-  ctx: ActionCtx,
-  endpoint: string,
-  outcome: string,
-  requestKey: string
-) => {
-  await ctx.runMutation(internal.idempotencyAnalytics.trackIdempotencyOutcome, {
-    endpoint,
-    outcome,
-    requestKey,
-  });
-};
-
-const maybeHandleIdempotency = async (
-  ctx: ActionCtx,
-  args: {
-    userId: string;
-    method: "POST";
-    path: string;
-    requestBody: unknown;
-    request: Request;
-  }
-): Promise<IdempotencyState | Response> => {
-  const idempotencyKey = parseOptionalString(
-    args.request.headers.get("idempotency-key")
-  );
-  if (!idempotencyKey) {
-    return {
-      keyHash: "",
-      requestHash: "",
-      reserved: false,
-    };
-  }
-
-  const [keyHash, requestHash] = await Promise.all([
-    sha256Hex(`${args.userId}:${idempotencyKey}`),
-    sha256Hex(
-      JSON.stringify({
-        body: args.requestBody,
-        method: args.method,
-        path: args.path,
-      })
-    ),
-  ]);
-
-  const reservation = await ctx.runMutation(
-    internal.idempotency.beginIdempotencyRequestForUser,
-    {
-      keyHash,
-      method: args.method,
-      path: args.path,
-      requestHash,
-      userId: args.userId,
-    }
-  );
-
-  switch (reservation.status) {
-    case "started":
-      await trackIdempotency(ctx, args.path, "started", keyHash);
-      return {
-        keyHash,
-        leaseToken: reservation.record.leaseToken,
-        requestHash,
-        reserved: true,
-      };
-    case "replay":
-      await trackIdempotency(ctx, args.path, "replayed", keyHash);
-      return {
-        keyHash,
-        requestHash,
-        reserved: false,
-        replayed: buildIdempotentResponse(reservation.record),
-      };
-    case "in_progress":
-      await trackIdempotency(ctx, args.path, "in_progress", keyHash);
-      // Not the caller's mistake, unlike a reused key: the first request is
-      // still running, and the same request again soon gets its answer.
-      return errorResponse(
-        409,
-        "IN_PROGRESS",
-        "Idempotency-Key is already being processed; retry shortly",
-        undefined,
-        { "Retry-After": "1" }
-      );
-    case "conflict":
-      await trackIdempotency(ctx, args.path, "conflict", keyHash);
-      return errorResponse(
-        409,
-        "CONFLICT",
-        "Idempotency-Key was already used with a different request"
-      );
-    default:
-      await trackIdempotency(ctx, args.path, "error", keyHash);
-      return errorResponse(
-        500,
-        "INTERNAL_ERROR",
-        "Failed to reserve Idempotency-Key"
-      );
-  }
-};
-
-// Storing the answer can fail after the write it answers went through. The
-// caller still gets its answer, and the scheduler stores it, so a retry with
-// the same key replays it instead of waiting out the lease.
-const completeIdempotencyResponse = async (
-  ctx: ActionCtx,
-  args: {
-    userId: string;
-    keyHash: string;
-    leaseToken?: string;
-    requestHash: string;
-    responseBody: unknown;
-    responseStatus: number;
-  }
-): Promise<void> => {
-  if (!args.keyHash) {
-    return;
-  }
-
-  const completion = {
-    keyHash: args.keyHash,
-    leaseToken: args.leaseToken,
-    requestHash: args.requestHash,
-    responseBody: args.responseBody,
-    responseStatus: args.responseStatus,
-    userId: args.userId,
-  };
-  const reference = internal.idempotency.completeIdempotencyRequestForUser;
-  try {
-    await ctx.runMutation(reference, completion);
-    return;
-  } catch (error) {
-    console.error("[idempotency] Completion failed; scheduling it", {
-      error,
-      keyHash: args.keyHash,
-    });
-  }
-
-  try {
-    await ctx.scheduler.runAfter(0, reference, completion);
-  } catch (error) {
-    console.error("[idempotency] Could not schedule completion", {
-      error,
-      keyHash: args.keyHash,
-    });
-  }
-};
-
-const releaseReservationKeepingOriginalError = async (
-  ctx: ActionCtx,
-  args: {
-    userId: string;
-    keyHash: string;
-    leaseToken?: string;
-    requestHash: string;
-  }
-): Promise<void> => {
-  if (!args.keyHash) {
-    return;
-  }
-
-  try {
-    await ctx.runMutation(
-      internal.idempotency.releaseIdempotencyRequestForUser,
-      args
-    );
-  } catch (error) {
-    console.error("[idempotency] Release failed", {
-      error,
-      keyHash: args.keyHash,
-    });
-  }
-};
-
-/**
- * Runs a write under the request's `Idempotency-Key`, when it has one: a
- * repeat replays the stored answer, and a failure before the write commits
- * frees the key for a retry. `run` calls `committed` once the write is in.
- */
-const respondIdempotently = async (
-  ctx: ActionCtx,
-  args: {
-    failureMessage: string;
-    path: string;
-    request: Request;
-    requestBody: unknown;
-    userId: string;
-  },
-  run: (committed: () => void) => Promise<unknown>
-): Promise<Response> => {
-  let state: IdempotencyState | null = null;
-  let operationCommitted = false;
-  try {
-    const idempotency = await maybeHandleIdempotency(ctx, {
-      method: "POST",
-      path: args.path,
-      request: args.request,
-      requestBody: args.requestBody,
-      userId: args.userId,
-    });
-    if (idempotency instanceof Response) {
-      return idempotency;
-    }
-    if (idempotency.replayed) {
-      return idempotency.replayed;
-    }
-    state = idempotency;
-    const responseBody = await run(() => {
-      operationCommitted = true;
-    });
-    operationCommitted = true;
-    await completeIdempotencyResponse(ctx, {
-      keyHash: state.keyHash,
-      leaseToken: state.leaseToken,
-      requestHash: state.requestHash,
-      responseBody,
-      responseStatus: 200,
-      userId: args.userId,
-    });
-    return json(200, responseBody);
-  } catch (error) {
-    if (state?.reserved && !operationCommitted) {
-      await releaseReservationKeepingOriginalError(ctx, {
-        keyHash: state.keyHash,
-        leaseToken: state.leaseToken,
-        requestHash: state.requestHash,
-        userId: args.userId,
-      });
-    }
-    return mapConvexErrorToResponse(error, args.failureMessage);
-  }
-};
 
 interface AuthOptions {
   chargeRateLimit?: boolean;
@@ -299,6 +47,21 @@ const decide = (result: AuthResult, reason: PublicApiAuthReason): Decision => ({
   reason,
 });
 
+// A limit or credential check that threw: contention on the rate limiter or
+// another write conflict passes in a moment; anything else is ours.
+const decideFromLimitError = (error: unknown): Decision => {
+  if (isRateLimitContentionError(error)) {
+    return decide(
+      { error: RATE_LIMIT_CONTENTION_ERROR() },
+      "rate_limit_contention"
+    );
+  }
+  if (isOptimisticConcurrencyError(error)) {
+    return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
+  }
+  return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+};
+
 const enforceInvalidAuthLimit = async (
   ctx: ActionCtx
 ): Promise<Decision | null> => {
@@ -309,13 +72,7 @@ const enforceInvalidAuthLimit = async (
       {}
     );
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
 
   if (!limit?.ok) {
@@ -333,35 +90,23 @@ const enforceInvalidAuthLimit = async (
   return null;
 };
 
-const classifyBearerCredential = (
-  token: string | null
-): BearerCredentialClass => {
-  if (!token) {
-    return "missing";
-  }
-  if (isWellFormedApiKey(token)) {
-    return "api_key";
-  }
-  return token.length <= 16_384 && token.split(".").length === 3
-    ? "workos_connect"
-    : "malformed";
-};
+const bearerOf = (request: Request): string | null =>
+  parseBearer(request.headers.get("authorization"));
 
 const recordAuthOutcome = (
   request: Request,
   options: AuthOptions,
   reason: PublicApiAuthReason,
   status: number
-): boolean =>
-  ignoreTelemetryError(() => {
-    logPublicApiAuthOutcome({
-      check: options.chargeRateLimit === false ? "gate" : "request",
-      credential: classifyBearerCredential(parseBearerToken(request)),
-      reason,
-      status,
-      surface: options.resource === "mcp" ? "mcp" : "rest",
-    });
+): void => {
+  logPublicApiAuthOutcome({
+    check: options.chargeRateLimit === false ? "gate" : "request",
+    credential: bearerCredentialKind(bearerOf(request)),
+    reason,
+    status,
+    surface: options.resource === "mcp" ? "mcp" : "rest",
   });
+};
 
 const withAuthorizedUser = async (
   ctx: ActionCtx,
@@ -439,7 +184,7 @@ const authorizeBearer = async (
   const edgeCharged = edgeCharge !== null;
   const chargeRateLimit =
     (options.chargeRateLimit ?? true) && edgeCharge !== "owner";
-  const token = parseBearerToken(request);
+  const token = bearerOf(request);
   if (!token) {
     return decide(
       {
@@ -453,11 +198,10 @@ const authorizeBearer = async (
     );
   }
 
-  const isApiKey = isWellFormedApiKey(token);
-  const isConnectToken =
-    !isApiKey && token.length <= 16_384 && token.split(".").length === 3;
+  const credentialKind = bearerCredentialKind(token);
+  const isConnectToken = credentialKind === "workos_connect";
 
-  if (!(isApiKey || isConnectToken)) {
+  if (credentialKind === "malformed") {
     const limited = edgeCharged ? null : await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
@@ -514,9 +258,11 @@ const authorizeBearer = async (
             userId: owner.teakUserId as TeakUserId,
             access: "full_access",
             clientId: principal.clientId,
-            source: "oauth",
             keyId: principal.consentId,
-            rateLimitKey: `workos:${principal.clientId}:${owner.teakUserId}`,
+            rateLimitKey: workosRateLimitKey(
+              principal.clientId,
+              owner.teakUserId
+            ),
           };
         } else {
           rejection = `owner_${owner.reason}`;
@@ -535,16 +281,7 @@ const authorizeBearer = async (
       }
     }
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    if (isOptimisticConcurrencyError(error)) {
-      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
 
   if (!validated) {
@@ -593,18 +330,6 @@ const authorizeBearer = async (
   return decide({ validated }, "ok");
 };
 
-const validatePublicApiBearer = async (
-  ctx: ActionCtx,
-  request: Request,
-  resource: WorkosResource = "api"
-): Promise<Response | null> => {
-  const auth = await withAuthorizedUser(ctx, request, {
-    chargeRateLimit: false,
-    resource,
-  });
-  return "error" in auth ? auth.error : null;
-};
-
 /**
  * The MCP endpoint's one check of a request's bearer. Its tool calls run as
  * the user it returns; `chargeEachCall` says whether each must still be
@@ -640,16 +365,7 @@ const refuseCall = async (
       rateLimitKey: validated.rateLimitKey,
     });
   } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    if (isOptimisticConcurrencyError(error)) {
-      return decide({ error: SERVICE_BUSY_ERROR() }, "rate_limit_contention");
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
+    return decideFromLimitError(error);
   }
   return limit.ok
     ? null
@@ -689,12 +405,4 @@ const chargeAuthorizedCall = async (
   return null;
 };
 
-export {
-  authorizeMcpRequest,
-  chargeAuthorizedCall,
-  classifyBearerCredential,
-  respondIdempotently,
-  trackIdempotency,
-  validatePublicApiBearer,
-  withAuthorizedUser,
-};
+export { authorizeMcpRequest, chargeAuthorizedCall, withAuthorizedUser };

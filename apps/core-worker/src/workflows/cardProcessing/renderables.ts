@@ -1,19 +1,17 @@
 import { internal } from "@teak/convex/_generated/api";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
   stageCompleted,
   stageFailed,
-} from "@teak/convex/card/processingStatus";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+} from "@teak/convex/shared/processingStatus";
 import type {
   FilesAnimationPaletteResult,
-  FilesOp,
-  FilesOpParams,
-  FilesOpResult,
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
-import { batchOp } from "../../convexRpc";
-import { isTransientError } from "../deps";
+import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import { errorMessage } from "../../errors";
+import type { FilesOp, FilesOpParams, FilesOpResult } from "../../opSpecs";
 import { isRetryableFilesError } from "../filesOps";
 import {
   type CardJob,
@@ -130,7 +128,7 @@ const analyzeImage = async (
     return {
       error: "files_worker_image_analysis_failed",
       generated: false,
-      retryable: isRetryableFilesError(error) || isTransientError(error),
+      retryable: isRetryableFilesError(error) || isConvexRpcUnavailable(error),
       success: false,
     };
   }
@@ -167,7 +165,7 @@ const generateVideoThumbnail = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/video] Frame extraction failed", {
       cardId: job.cardId,
       error: message,
@@ -235,7 +233,7 @@ const extractAnimationPalette = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/animation] Palette failed", {
       cardId: job.cardId,
       error: message,
@@ -320,7 +318,7 @@ const generatePdfThumbnail = async (
       sourceKey: card.fileKey,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.warn("[renderables/pdf] Page render failed", {
       cardId: job.cardId,
       error: message,

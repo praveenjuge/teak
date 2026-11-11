@@ -28,9 +28,9 @@ import {
 import type { FilesOpsEnv } from "../../apps/core-worker/src/ops";
 import { textCardRulesType } from "../../apps/core-worker/src/workflows/cardProcessing/classificationRules";
 import { resolveCreatedCardType } from "../../packages/convex/card/createCard";
-import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";
 import { CLEF_REVIEWED_REASONS } from "../../packages/convex/shared/linkCategory/rules";
+import { normalizeQuoteContent } from "../../packages/convex/shared/quoteFormatting";
 import { resolveLinkCategory } from "../../packages/convex/shared/utils/linkCategoryResolver";
 import {
   CLEF_INPUT_USD_PER_MILLION,

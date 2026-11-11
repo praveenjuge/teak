@@ -591,3 +591,24 @@ describe("gatedEnv", () => {
     expect(bucket.objects.has("users/u1/a.txt")).toBe(false);
   });
 });
+
+describe("read retries", () => {
+  test("retry a transient R2 read whether or not the gate is bound", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("k", { bytes: new Uint8Array([1]) });
+    const get = bucket.get.bind(bucket);
+    let calls = 0;
+    bucket.get = ((...args: Parameters<FakeBucket["get"]>) => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error("get: We encountered an internal error. (10001)");
+      }
+      return get(...args);
+    }) as FakeBucket["get"];
+
+    const env = gatedEnv({ BUCKET: bucket as unknown as R2Bucket });
+
+    expect(await env.BUCKET.get("k")).not.toBeNull();
+    expect(calls).toBe(2);
+  });
+});
