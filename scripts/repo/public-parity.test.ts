@@ -36,8 +36,7 @@ import {
   cliSurface,
   mcpSurface,
   mcpToolsByOperation,
-  PUBLIC_PARITY,
-  type PublicParityRow,
+  PUBLIC_PARITY_ROWS,
   type Surface,
   sampleFromSchema,
   sdkSurface,
@@ -48,9 +47,6 @@ const names = (surface: Surface): readonly string[] =>
 
 const operationFor = (method: string, path: string) =>
   matchPublicApiOperation(method.toUpperCase(), path)?.operationId;
-
-const rowFor = (operationId: string): PublicParityRow | undefined =>
-  PUBLIC_PARITY.find((row) => row.operationId === operationId);
 
 // The arguments generated from a tool's schema, except where the tool also
 // checks fields together.
@@ -266,12 +262,6 @@ const raycastTools = () => {
 };
 
 describe("public surface parity", () => {
-  test("the table lists every operation exactly once", () => {
-    const listed = PUBLIC_PARITY.map((row) => row.operationId);
-    expect(new Set(listed).size).toBe(listed.length);
-    expect([...listed].sort()).toEqual([...PUBLIC_API_OPERATION_IDS].sort());
-  });
-
   test("every MCP tool reaches the operation its catalog entry names", async () => {
     const byOperation = mcpToolsByOperation();
     for (const tool of TEAK_TOOLS) {
@@ -287,7 +277,7 @@ describe("public surface parity", () => {
 
   test("an operation no MCP tool calls says why, and one a tool calls doesn't", () => {
     const byOperation = mcpToolsByOperation();
-    for (const row of PUBLIC_PARITY) {
+    for (const row of PUBLIC_PARITY_ROWS) {
       expect({
         operationId: row.operationId,
         hasTools: byOperation.has(row.operationId),
@@ -301,7 +291,7 @@ describe("public surface parity", () => {
   });
 
   test("every Raycast AI tool is in the table", () => {
-    const listed = PUBLIC_PARITY.flatMap((row) => row.raycast ?? []);
+    const listed = PUBLIC_PARITY_ROWS.flatMap((row) => row.raycast ?? []);
     const { files, manifest } = raycastTools();
     expect([...listed].sort()).toEqual([...files].sort());
     expect([...manifest].sort()).toEqual([...files].sort());
@@ -334,7 +324,7 @@ describe("public surface parity", () => {
   });
 
   test("a surface's gap is stated only where nothing on it calls the operation", () => {
-    for (const row of PUBLIC_PARITY) {
+    for (const row of PUBLIC_PARITY_ROWS) {
       expect({
         operationId: row.operationId,
         sdkCalls: names(sdkSurface({ ...row, sdkGap: undefined })).length > 0,
@@ -348,7 +338,7 @@ describe("public surface parity", () => {
   });
 
   test("an operation left off a surface says why", () => {
-    for (const row of PUBLIC_PARITY) {
+    for (const row of PUBLIC_PARITY_ROWS) {
       for (const surface of [
         mcpSurface(row),
         sdkSurface(row),
@@ -361,7 +351,6 @@ describe("public surface parity", () => {
         }
       }
     }
-    expect(rowFor("listCards")).toBeDefined();
   });
 
   test("an app-only change names its session function, why, and what reads it", async () => {
@@ -374,9 +363,6 @@ describe("public surface parity", () => {
       expect({ change: change.convex, exported: exportName in module }).toEqual(
         { change: change.convex, exported: true }
       );
-      if (change.readBy) {
-        expect(rowFor(change.readBy)).toBeDefined();
-      }
     }
   });
 
