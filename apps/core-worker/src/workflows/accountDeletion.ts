@@ -17,11 +17,13 @@ import {
   settleConvexErrors,
   withinBudget,
 } from "./deps";
-import { isMissingInstance, workflowBinding } from "./dispatch";
+import { workflowBinding } from "./dispatch";
+import { isFinishedState, readInstanceStatus } from "./instanceStatus";
 import {
   CONVEX_STEP,
+  computedBackoff,
   runReported,
-  type StepConfig,
+  stepPages,
   type WorkflowRun,
 } from "./runtime";
 
@@ -32,26 +34,13 @@ export interface AccountDeletionParams {
 
 const RETRY_CAP_MS = 5 * 60 * 1000;
 
-const STAGE_STEP: StepConfig = {
-  retries: {
-    // The function computes the whole wait; Workflows' default exponential
-    // backoff would otherwise scale it again.
-    backoff: "constant",
-    delay: ({ ctx }) => Math.min(RETRY_CAP_MS, 10_000 * 2 ** (ctx.attempt - 1)),
-    limit: 10,
-  },
-  timeout: "15 minutes",
-};
+const STAGE_STEP = computedBackoff(
+  ({ ctx }) => Math.min(RETRY_CAP_MS, 10_000 * 2 ** (ctx.attempt - 1)),
+  10,
+  "15 minutes"
+);
 
 const ACCOUNT_DATA = accountDeletionStage("accountData");
-const ACTIVE_RUN_STATUSES = new Set([
-  "paused",
-  "queued",
-  "running",
-  "waiting",
-  "waitingForPause",
-]);
-
 interface DeletionBinding {
   generation: number;
   stateId: Id<"accountDeletionStates">;
@@ -119,8 +108,8 @@ export const runAccountDeletion = (
   };
 
   const untilDone = async (name: string, page: () => Promise<boolean>) => {
-    for (let index = 1; ; index += 1) {
-      if (await step.do(`${name} ${index}`, STAGE_STEP, page)) {
+    for await (const done of stepPages(step, name, STAGE_STEP, page)) {
+      if (done) {
         return;
       }
     }
@@ -137,15 +126,8 @@ export const runAccountDeletion = (
     if (!workflows) {
       return false;
     }
-    try {
-      const { status } = await (await workflows.get(instanceId)).status();
-      return ACTIVE_RUN_STATUSES.has(status);
-    } catch (error) {
-      if (isMissingInstance(error)) {
-        return false;
-      }
-      throw error;
-    }
+    const instance = await readInstanceStatus(workflows, instanceId);
+    return instance !== null && !isFinishedState(instance.status);
   };
 
   const prepareWritersPage = async (): Promise<boolean> => {

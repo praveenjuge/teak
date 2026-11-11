@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { buildDebugRaw } from "@teak/convex/linkMetadata/parsing";
-import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
-import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
-import type { FilesOp } from "@teak/files-protocol";
-import { sha256Hex } from "@teak/files-protocol";
+import { buildSelectorResultsFromHtml, sha256Hex } from "@teak/files-protocol";
 import { createFetcherHandler } from "../../../fetcher/src/handler";
+import { buildDebugRaw } from "../../linkPreview/parsing";
+import { SCRAPE_ELEMENTS } from "../../linkPreview/selectors";
 import { createContainerPinnedFetch } from "../../media/pinnedHop";
+import type { FilesOp } from "../../opSpecs";
 import {
   CARD_ID,
   createCardConvex,

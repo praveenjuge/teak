@@ -1,7 +1,5 @@
-import type {
-  LinkPreviewMetadata,
-  ScrapeSelectorResult,
-} from "@teak/convex/linkMetadata/types";
+import type { FilesScrapeSelectorResult } from "@teak/files-protocol";
+import type { LinkPreviewMetadata } from "../../../linkPreview/types";
 import type { RemoteFetchDeps } from "../remote/common";
 import { fetchBlueskyPost, isBlueskyPostUrl } from "./bluesky";
 import { mapLinkedInOpenGraph } from "./linkedin";
@@ -45,7 +43,7 @@ export interface SocialPostMetadata {
   platform?: SocialPlatform;
   publishedAt: string | undefined;
   publisher: string | undefined;
-  raw: ScrapeSelectorResult[] | undefined;
+  raw: FilesScrapeSelectorResult[] | undefined;
   siteName: string | undefined;
   title: string | undefined;
 }

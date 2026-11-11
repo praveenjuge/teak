@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { SsrfError, safeFetch } from "@teak/convex/linkMetadata/ssrf";
+import { SsrfError, safeFetch } from "@teak/files-protocol/ssrf";
+import { createDohResolver } from "../dns";
 import { createContainerNetwork } from "../test/cardProcessingKit";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
-  createDohResolver,
 } from "./pinnedHop";
 
 const PUBLIC = "93.184.216.34";

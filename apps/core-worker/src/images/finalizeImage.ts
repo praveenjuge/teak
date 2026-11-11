@@ -2,34 +2,31 @@ import {
   FILES_PROCESSOR_VERSION,
   type FilesFinalizeImageParams,
   type FilesFinalizeImageResult,
+  imageTypeForExtension,
 } from "@teak/files-protocol";
 import type { Env } from "../index";
 import { OpFailure } from "../opFailure";
 import { inspectImageContainer } from "./imageContainer";
-import { throughImagesBinding } from "./imagesBinding";
-import { fetchPrivateImageSource } from "./imageTransform";
-import { renderSvgToPng } from "./wasm";
+import {
+  imageInfoFromBinding,
+  imageInfoFromUrlProbe,
+  type RasterInfo,
+} from "./imageFacts";
+import {
+  assertUnchanged,
+  isSvgObject,
+  renderStoredSvg,
+  type SourceVersion,
+} from "./svg";
 
 const MAX_CONTAINER_FALLBACK_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 10_000;
-
-interface CloudflareImageInfo {
-  format?: string;
-  height?: number;
-  original?: { height?: number; width?: number };
-  width?: number;
-}
 
 export interface FinalizeImageFacts {
   decodedFormat: string;
   height: number | null;
   width: number | null;
 }
-
-const positiveDimension = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
 
 export const normalizeDecodedFormat = (
   raw: string,
@@ -39,92 +36,31 @@ export const normalizeDecodedFormat = (
   if (normalized.includes("/")) {
     return normalized.startsWith("image/") ? normalized : "";
   }
-  const tokenMime: Record<string, string> = {
-    avif: "image/avif",
-    gif: "image/gif",
-    heic: "image/heic",
-    heif: "image/heif",
-    jpeg: "image/jpeg",
-    jpg: "image/jpeg",
-    png: "image/png",
-    svg: "image/svg+xml",
-    webp: "image/webp",
-  };
-  const mime =
-    tokenMime[normalized] ??
+  return (
+    imageTypeForExtension(normalized) ??
     (objectKey.toLowerCase().endsWith(`.${normalized}`)
       ? `image/${normalized}`
-      : undefined);
-  return mime ?? "";
-};
-
-const isSvgKey = (key: string, contentType?: string): boolean =>
-  contentType === "image/svg+xml" ||
-  (key.toLowerCase().endsWith(".svg") &&
-    (!contentType || ["application/xml", "text/xml"].includes(contentType)));
-
-const assertUnchanged = (
-  object: { httpEtag: string; size: number },
-  expected: { httpEtag: string; size: number }
-): void => {
-  if (object.httpEtag !== expected.httpEtag || object.size !== expected.size) {
-    throw new OpFailure("source_changed");
-  }
-};
-
-const factsFromBindingInfo = async (
-  env: Env,
-  bucket: R2Bucket,
-  sourceKey: string,
-  expected: { httpEtag: string; size: number }
-): Promise<FinalizeImageFacts | null> => {
-  const facts = await throughImagesBinding(
-    env.IMAGES,
-    expected.size,
-    async () => {
-      const object = await bucket.get(sourceKey);
-      if (!object) {
-        throw new OpFailure("source_not_found");
-      }
-      return object;
-    },
-    async (images, object) => {
-      assertUnchanged(object, expected);
-      const info = (await images.info(object.body)) as CloudflareImageInfo;
-      if (info.format === "image/svg+xml") {
-        // SVG has no raster dimensions in binding info; the resvg probe below
-        // resolves them.
-        return null;
-      }
-      const format = normalizeDecodedFormat(info.format ?? "", sourceKey);
-      const width = positiveDimension(info.original?.width ?? info.width);
-      const height = positiveDimension(info.original?.height ?? info.height);
-      return format && width && height
-        ? { decodedFormat: format, height, width }
-        : "not_an_image";
-    }
+      : "")
   );
-  if (facts === "not_an_image") {
-    throw new OpFailure("not_an_image");
-  }
-  return facts;
+};
+
+/** The facts of a raster `info`, or null when it isn't a decodable image. */
+const rasterFacts = (
+  info: RasterInfo,
+  sourceKey: string
+): FinalizeImageFacts | null => {
+  const decodedFormat = normalizeDecodedFormat(info.format, sourceKey);
+  return decodedFormat && info.width && info.height
+    ? { decodedFormat, height: info.height, width: info.width }
+    : null;
 };
 
 const factsFromSvg = async (
   bucket: R2Bucket,
   sourceKey: string,
-  expected: { httpEtag: string; size: number }
+  expected: SourceVersion
 ): Promise<FinalizeImageFacts> => {
-  const object = await bucket.get(sourceKey);
-  if (!object) {
-    throw new OpFailure("source_not_found");
-  }
-  assertUnchanged(object, expected);
-  if (object.size > 10 * 1024 * 1024) {
-    await object.body.cancel();
-    throw new OpFailure("source_too_large");
-  }
-  const rendered = await renderSvgToPng(await object.text(), 64);
+  const rendered = await renderStoredSvg(bucket, sourceKey, 64, expected);
   return {
     decodedFormat: "image/svg+xml",
     height: rendered.originalHeight,
@@ -132,32 +68,31 @@ const factsFromSvg = async (
   };
 };
 
-const factsFromUrlProbe = async (
+const factsFromRasterInfo = async (
   env: Env,
   sourceKey: string,
+  expected: SourceVersion,
   origin: string,
   imageFetch: typeof fetch,
   now: number
-): Promise<FinalizeImageFacts> => {
-  const response = await fetchPrivateImageSource(
+): Promise<FinalizeImageFacts | null> => {
+  const bindingInfo = await imageInfoFromBinding(env, sourceKey, expected);
+  // The binding gives an SVG no raster dimensions; the URL probe reads them.
+  if (bindingInfo && bindingInfo.format !== "image/svg+xml") {
+    const facts = rasterFacts(bindingInfo, sourceKey);
+    if (!facts) {
+      throw new OpFailure("not_an_image");
+    }
+    return facts;
+  }
+  const probed = await imageInfoFromUrlProbe(
     env,
-    origin,
     sourceKey,
-    { anim: false, format: "json" },
-    imageFetch as never,
+    origin,
+    imageFetch,
     now
   );
-  if (!response.ok) {
-    throw new OpFailure("not_an_image");
-  }
-  const info = (await response.json()) as CloudflareImageInfo;
-  const decodedFormat = normalizeDecodedFormat(info.format ?? "", sourceKey);
-  const width = positiveDimension(info.original?.width ?? info.width);
-  const height = positiveDimension(info.original?.height ?? info.height);
-  if (!(decodedFormat && width && height)) {
-    throw new OpFailure("not_an_image");
-  }
-  return { decodedFormat, height, width };
+  return probed ? rasterFacts(probed, sourceKey) : null;
 };
 
 const factsFromValidatedContainer = async (
@@ -208,36 +143,20 @@ export const finalizeImageUpload = async (
     throw new OpFailure("source_changed");
   }
 
-  let facts: FinalizeImageFacts | null = null;
-  if (isSvgKey(sourceKey, metadata.httpMetadata?.contentType)) {
-    facts = await factsFromSvg(env.BUCKET, sourceKey, metadata);
-  } else {
-    facts = await factsFromBindingInfo(env, env.BUCKET, sourceKey, metadata);
-    if (!facts) {
-      try {
-        facts = await factsFromUrlProbe(
-          env,
-          sourceKey,
-          origin,
-          imageFetch,
-          now
-        );
-      } catch (error) {
-        if (error instanceof OpFailure && error.code === "not_an_image") {
-          // Cloudflare can reject a small browser-compatible image as
-          // incomplete. Accept that edge case only after validating the
-          // complete, bounded container and reading trusted dimensions.
-          facts = await factsFromValidatedContainer(
-            env.BUCKET,
-            sourceKey,
-            metadata
-          );
-        } else {
-          throw error;
-        }
-      }
-    }
-  }
+  const facts = isSvgObject(sourceKey, metadata.httpMetadata?.contentType)
+    ? await factsFromSvg(env.BUCKET, sourceKey, metadata)
+    : ((await factsFromRasterInfo(
+        env,
+        sourceKey,
+        metadata,
+        origin,
+        imageFetch,
+        now
+      )) ??
+      // Cloudflare can reject a small browser-compatible image as
+      // incomplete. Accept that edge case only after validating the
+      // complete, bounded container and reading trusted dimensions.
+      (await factsFromValidatedContainer(env.BUCKET, sourceKey, metadata)));
 
   if (
     (facts.width !== null && facts.width > MAX_IMAGE_DIMENSION) ||

@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
+import { RENDERER_MAX_INPUT_BYTES } from "../../container/src/protocol";
 import { JPEG_BYTES, rendererResponse } from "../test/testsupport";
-import {
-  RendererUnavailable,
-  readRendererOutputs,
-  rendererInstanceOrder,
-  rendererPoolSize,
-} from "./rendererClient";
+import { RendererUnavailable } from "./containerPool";
+import { readRendererOutputs } from "./rendererClient";
 
 const frameSpec = {
   frame: { kind: "jpeg" as const, maxBytes: 100, required: true },
@@ -17,25 +15,8 @@ const withManifest = (manifest: unknown, body: Uint8Array) =>
     headers: { "x-teak-manifest": JSON.stringify(manifest) },
   });
 
-describe("renderer pool", () => {
-  test("tries every instance once, starting at a random one", () => {
-    expect(rendererInstanceOrder(4, () => 0.6)).toEqual([
-      "renderer-2",
-      "renderer-3",
-      "renderer-0",
-      "renderer-1",
-    ]);
-  });
-
-  test.each([
-    [undefined, 2],
-    ["4", 4],
-    ["0", 2],
-    ["many", 2],
-    ["99", 16],
-  ])("reads pool size %p as %i", (value, size) => {
-    expect(rendererPoolSize({ MEDIA_RENDERER_INSTANCES: value })).toBe(size);
-  });
+test("the renderer takes every file the Worker may send it", () => {
+  expect(RENDERER_MAX_INPUT_BYTES).toBe(FILES_UPLOAD_MAX_BYTES);
 });
 
 describe("renderer outputs", () => {

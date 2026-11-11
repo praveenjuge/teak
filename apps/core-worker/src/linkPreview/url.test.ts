@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { normalizeUrl } from "../../linkMetadata/url";
+import { normalizeUrl } from "./url";
 
 describe("normalizeUrl", () => {
   describe("adding https protocol", () => {

@@ -216,6 +216,67 @@ test("the self-host config matches production apart from deployment values", () 
   );
 });
 
+// Development is a hand copy of production with renamed resources. What it
+// may change: names and IDs (each resource keeps its binding), where it
+// answers, migration tag prefixes, its schedules (`devSchedule` in
+// cronSchedules.ts), its container pool sizes and vars. It deliberately has no KV, rate limits or routes, so the
+// edge proxy and its caches never run there. Anything else added to
+// production must be added to development too.
+const DEVELOPMENT_DROPS = ["kv_namespaces", "ratelimits"] as const;
+
+const developmentNeutral = (path: string) => {
+  const {
+    analytics_engine_datasets,
+    containers,
+    kvBindings: _kvBindings,
+    migrations,
+    queues,
+    ratelimits: _ratelimits,
+    triggers: _triggers,
+    vectorize,
+    workflows,
+    ...rest
+  } = deploymentNeutral(path) as ReturnType<typeof deploymentNeutral> &
+    Record<string, unknown> &
+    ReturnType<typeof readWorkerConfig>;
+  const byBinding = (queue: string) =>
+    queues.producers?.find((producer) => producer.queue === queue)?.binding ??
+    queue.replace(/-dev$/u, "");
+  return {
+    ...rest,
+    analyticsBindings: analytics_engine_datasets.map(({ binding }) => binding),
+    containers: containers?.map(
+      ({ max_instances: _maxInstances, ...container }) => container
+    ),
+    queueConsumers: queues.consumers?.map(
+      ({ dead_letter_queue, queue, ...consumer }) => ({
+        ...consumer,
+        queue: byBinding(queue),
+        ...(dead_letter_queue
+          ? { dead_letter_queue: byBinding(dead_letter_queue) }
+          : {}),
+      })
+    ),
+    migrations: migrations.map(({ tag, ...migration }) => ({
+      ...migration,
+      tag: tag.replace(/^development-/u, ""),
+    })),
+    queueProducers: queues.producers?.map(({ binding }) => binding),
+    vectorBindings: vectorize.map(({ binding }) => binding),
+    workflows: workflows.map(({ name: _name, ...workflow }) => workflow),
+  };
+};
+
+test("the development config matches production apart from deployment values", () => {
+  expect(developmentNeutral("../development/wrangler.jsonc")).toEqual(
+    developmentNeutral("../wrangler.jsonc")
+  );
+  const development = readWorkerConfig("../development/wrangler.jsonc");
+  for (const key of DEVELOPMENT_DROPS) {
+    expect(development[key]).toEqual([]);
+  }
+});
+
 test("the self-host config names nothing of Teak's own deployment", async () => {
   const source = await Bun.file(
     resolve(import.meta.dir, "../self-host/wrangler.jsonc")

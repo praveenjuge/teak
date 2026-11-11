@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PinnedFetch } from "../../../../packages/convex/linkMetadata/ssrf";
+import type { PinnedFetch } from "../../../../packages/files-protocol/src/ssrf";
 import { createFetcherHandler } from "./handler";
 import { FETCHER_HEADERS, FETCHER_MAX_IN_FLIGHT } from "./protocol";
 

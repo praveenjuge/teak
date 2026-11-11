@@ -12,6 +12,7 @@ import {
 } from "@teak/files-protocol";
 import { InvalidOpInput } from "../opFailure";
 import { TEAKBOT_USER_AGENT } from "../userAgent";
+import { withFixedLength } from "./containerPool";
 
 const MAX_REDIRECTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -58,23 +59,6 @@ const fetchPdf = async (
     current = next;
   }
   return { reason: "fetch_failed", stored: false };
-};
-
-const { FixedLengthStream: FixedLength } = globalThis as {
-  FixedLengthStream?: new (
-    length: number
-  ) => { readable: ReadableStream; writable: WritableStream };
-};
-
-// R2 needs a streamed body's length up front; FixedLengthStream also fails
-// the put if arXiv sends more or fewer bytes than it declared.
-const withLength = (body: ReadableStream, length: number): ReadableStream => {
-  if (!FixedLength) {
-    return body;
-  }
-  const { readable, writable } = new FixedLength(length);
-  body.pipeTo(writable).catch(() => undefined);
-  return readable;
 };
 
 export const storeLinkedPdf = async (
@@ -133,7 +117,7 @@ export const storeLinkedPdf = async (
   try {
     await env.BUCKET.put(
       params.destinationKey,
-      withLength(response.body, length),
+      withFixedLength(response.body, length),
       { httpMetadata: { contentType } }
     );
   } catch {

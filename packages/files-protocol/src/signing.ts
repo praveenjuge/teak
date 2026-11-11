@@ -20,7 +20,6 @@ import {
   type FilesOpRequest,
   type FilesSuccessEnvelope,
 } from "./ops";
-import type { FilesOp } from "./opTable";
 import { isValidObjectKey } from "./storage";
 import {
   buildWorkflowDispatchSigningPayload,
@@ -279,7 +278,7 @@ export const signFilesOpRequest = async (
     requestId = crypto.randomUUID(),
   }: {
     base: string;
-    op: FilesOp;
+    op: string;
     params: Record<string, unknown>;
     requestId?: string;
     secret: string;

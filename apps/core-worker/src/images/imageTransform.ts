@@ -12,11 +12,11 @@ import {
 import { objectIsFrozen } from "../deletionGate";
 import type { Env } from "../index";
 import { throughImagesBinding } from "./imagesBinding";
+import { isSvgObject, MAX_SVG_SOURCE_BYTES } from "./svg";
 import { renderSvgToPng } from "./wasm";
 
 const IMAGE_URL_MAX_TTL_SECONDS = 8 * 24 * 60 * 60;
 const SOURCE_URL_TTL_SECONDS = 5 * 60;
-const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 const IMAGE_CACHE_CONTROL = "private, max-age=518400, immutable";
 const IMAGE_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
 const BROWSER_SAFE_TRANSCODE_TYPES = new Set([
@@ -213,11 +213,6 @@ export const buildBindingCacheKey = (
     { method: "GET" }
   );
 
-const isSvgSource = (key: string, contentType: string): boolean =>
-  contentType === "image/svg+xml" ||
-  (key.toLowerCase().endsWith(".svg") &&
-    (contentType === "application/xml" || contentType === "text/xml"));
-
 const imageHeaders = (contentType: string): Headers =>
   new Headers({
     "Cache-Control": IMAGE_CACHE_CONTROL,
@@ -367,7 +362,7 @@ export const handleImageRequest = async (
       .toLowerCase() ?? "";
   const requiresBrowserSafeTranscode =
     contentType === "image/heic" || contentType === "image/heif";
-  if (isSvgSource(parsed.key, contentType)) {
+  if (isSvgObject(parsed.key, contentType || undefined)) {
     const cacheKey = new Request(`${url.origin}${url.pathname}`);
     if (request.method === "GET") {
       const cached = edgeCache ? await edgeCache.match(cacheKey) : null;

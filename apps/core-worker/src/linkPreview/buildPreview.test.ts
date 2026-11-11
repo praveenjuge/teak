@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildErrorPreview,
-  buildSuccessPreview,
-} from "../../../convex/linkMetadata/parsing";
+import { buildErrorPreview, buildSuccessPreview } from "./parsing";
 
 describe("link preview builders", () => {
   test("buildSuccessPreview merges parsed content", () => {

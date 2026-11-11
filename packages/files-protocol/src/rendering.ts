@@ -74,15 +74,24 @@ export interface FilesCaptureScreenshotResult {
   width: number;
 }
 
+export interface FilesScrapeAttribute {
+  name: string;
+  value: string;
+}
+
+export interface FilesScrapeResultItem {
+  attributes?: FilesScrapeAttribute[];
+  html?: string;
+  text?: string;
+}
+
+export interface FilesScrapeSelectorResult {
+  results: FilesScrapeResultItem[];
+  selector: string;
+}
+
 export interface FilesScrapeResult {
-  selectors: Array<{
-    results: Array<{
-      attributes?: Array<{ name: string; value: string }>;
-      html?: string;
-      text?: string;
-    }>;
-    selector: string;
-  }>;
+  selectors: FilesScrapeSelectorResult[];
 }
 
 export interface FilesAnimationPaletteParams {

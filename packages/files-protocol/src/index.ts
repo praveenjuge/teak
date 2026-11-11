@@ -94,5 +94,6 @@ export * from "./pageArchive";
 export * from "./remoteAsset";
 export * from "./rendering";
 export * from "./signing";
+export * from "./staticHtml";
 export * from "./storage";
 export * from "./workflows";

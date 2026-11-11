@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  sanitizeImageUrl,
-  sanitizeUrl,
-} from "../../../convex/linkMetadata/parsing";
+import { sanitizeImageUrl, sanitizeUrl } from "./parsing";
 
 describe("sanitizeUrl", () => {
   test("resolves relative url against base", () => {

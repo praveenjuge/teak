@@ -1,16 +1,17 @@
+import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
 import {
   type DnsResolver,
   type PinnedFetch,
   safeFetch,
-} from "@teak/convex/linkMetadata/ssrf";
-import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
+} from "@teak/files-protocol/ssrf";
+import { FETCHER_STREAM_MAX_TIMEOUT_MS } from "../../../fetcher/src/protocol";
 import { ObjectWriteBlockedError } from "../../deletionGate";
 import { TEAKBOT_USER_AGENT } from "../../userAgent";
 
 /** Tracking redirects stack up in front of episodes; each hop is checked. */
 export const EPISODE_MAX_REDIRECTS = 8;
 const PART_BYTES = 8 * 1024 * 1024;
-export const EPISODE_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+export const EPISODE_DOWNLOAD_TIMEOUT_MS = FETCHER_STREAM_MAX_TIMEOUT_MS;
 
 export type EpisodeDownload =
   | { bytes: number; contentType: string; stored: true }

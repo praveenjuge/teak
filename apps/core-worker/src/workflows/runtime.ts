@@ -1,8 +1,12 @@
 import type { WorkflowStepConfig } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
-import type { WorkflowOriginParams } from "@teak/files-protocol";
+import type {
+  WorkflowCompletionStatus,
+  WorkflowOriginParams,
+} from "@teak/files-protocol";
 import { type ConvexRpc, createConvexRpc } from "../convexRpc";
+import { errorMessage } from "../errors";
 import type { FilesOpsEnv } from "../ops";
 import type { TelemetryEnvVars } from "../telemetry";
 
@@ -64,23 +68,50 @@ export const exponentialStep = (
   timeout,
 });
 
-/** How many times Workflows tries a step with this config, in all. */
+/**
+ * A step whose `delay` works out each wait itself. Constant backoff, or
+ * Workflows' exponential backoff would scale the computed wait again.
+ */
+export const computedBackoff = (
+  delay: NonNullable<StepConfig["retries"]>["delay"],
+  limit: number,
+  timeout: StepConfig["timeout"]
+): StepConfig => ({
+  retries: { backoff: "constant", delay, limit },
+  timeout,
+});
+
 export const stepAttempts = (config: StepConfig): number =>
   (config.retries?.limit ?? 0) + 1;
+
+/**
+ * One durable step per page, named `${name} 1`, `${name} 2`, and so on from
+ * `firstPage`: the names are workflow history, so they never change. Yields
+ * each page's result; the caller stops with `break` or `return`. Runs at
+ * most `maxPages` pages.
+ */
+export async function* stepPages<T>(
+  step: Steps,
+  name: string,
+  config: StepConfig,
+  body: (page: number, ctx: StepContext) => Promise<T>,
+  { firstPage = 1, maxPages = Number.POSITIVE_INFINITY } = {}
+): AsyncGenerator<T, void, undefined> {
+  for (let page = firstPage; page < firstPage + maxPages; page += 1) {
+    yield await step.do(`${name} ${page}`, config, (ctx) => body(page, ctx));
+  }
+}
 
 export const NO_RETRY = (
   timeout: StepConfig["timeout"] = "10 minutes"
 ): StepConfig => ({ retries: { delay: 0, limit: 0 }, timeout });
-
-export const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 export const runReported = async <T>(
   run: WorkflowRun<unknown>,
   body: () => Promise<T>,
   convex: ConvexRpc = convexFor(run.env, run.params)
 ): Promise<T> => {
-  const report = async (status: "complete" | "errored", error?: string) => {
+  const report = async (status: WorkflowCompletionStatus, error?: string) => {
     try {
       await run.step.do(
         `report ${status}`,

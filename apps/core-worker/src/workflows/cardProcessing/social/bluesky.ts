@@ -1,4 +1,4 @@
-import { sanitizeText, sanitizeUrl } from "@teak/convex/linkMetadata/parsing";
+import { sanitizeText, sanitizeUrl } from "../../../linkPreview/parsing";
 import type { RemoteFetchDeps } from "../remote/common";
 import type { SocialPostMedia, SocialPostMetadata } from "./socialPost";
 import {

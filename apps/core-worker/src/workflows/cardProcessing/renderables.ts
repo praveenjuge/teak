@@ -6,14 +6,11 @@ import {
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type {
   FilesAnimationPaletteResult,
-  FilesOp,
-  FilesOpParams,
-  FilesOpResult,
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
-import { batchOp } from "../../convexRpc";
-import { isTransientError } from "../deps";
+import { batchOp, isConvexRpcUnavailable } from "../../convexRpc";
+import type { FilesOp, FilesOpParams, FilesOpResult } from "../../opSpecs";
 import { isRetryableFilesError } from "../filesOps";
 import {
   type CardJob,
@@ -130,7 +127,7 @@ const analyzeImage = async (
     return {
       error: "files_worker_image_analysis_failed",
       generated: false,
-      retryable: isRetryableFilesError(error) || isTransientError(error),
+      retryable: isRetryableFilesError(error) || isConvexRpcUnavailable(error),
       success: false,
     };
   }

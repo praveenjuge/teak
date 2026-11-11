@@ -1,11 +1,7 @@
-import {
-  CLEF_FLASH_MODEL_ID,
-  CLEF_MODEL_ID,
-  type FilesOp,
-  type FilesOpParams,
-} from "@teak/files-protocol";
+import { CLEF_FLASH_MODEL_ID, CLEF_MODEL_ID } from "@teak/files-protocol";
 import { currentAiUsageContext, runWithAiUsage } from "../../ai/aiUsage";
 import { InvalidOpInput } from "../../opFailure";
+import type { FilesOp, FilesOpParams } from "../../opSpecs";
 import {
   observeAiGeneration,
   type WorkflowTelemetry,

@@ -130,6 +130,28 @@ describe("build-export op", () => {
     expect(Object.keys(unzipped)).toEqual(["cards.json"]);
   });
 
+  test("fails instead of leaving out a file R2 could not read", async () => {
+    const bucket = new FakeBucket();
+    const manifest = {
+      v: FILES_EXPORT_MANIFEST_VERSION,
+      maxBytes: 1024 * 1024 * 1024,
+      entries: [{ path: "files/a.png", storageKey: "users/a/file/a.png" }],
+    };
+    bucket.objects.set("m.json", {
+      bytes: new TextEncoder().encode(JSON.stringify(manifest)),
+    });
+    bucket.objects.set("users/a/file/a.png", { bytes: makePng(2, 2) });
+    const get = bucket.get.bind(bucket);
+    bucket.get = ((key: string, options?: R2GetOptions) =>
+      key === "users/a/file/a.png"
+        ? Promise.reject(new Error("We encountered an internal error."))
+        : get(key, options)) as typeof bucket.get;
+
+    await expect(
+      buildExportIntoBucket(bucket, "m.json", "out.zip", "teak-export.zip")
+    ).rejects.toThrow("internal error");
+  });
+
   test("aborts with a size error when the manifest exceeds its cap", async () => {
     const bucket = new FakeBucket();
     const manifest = {

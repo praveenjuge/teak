@@ -1,9 +1,9 @@
 import {
   FILES_LINK_PAGE_MAX_URL_LENGTH,
-  type FilesLinkPageFailureReason,
   type FilesLinkPageParams,
   type FilesLinkPageResult,
   type FilesScrapeResult,
+  isLinkPageFailureReason,
   sha256Hex,
 } from "@teak/files-protocol";
 import {
@@ -13,13 +13,10 @@ import {
 } from "../../fetcher/src/protocol";
 import { InvalidOpInput } from "../opFailure";
 import { validScrapeSelectors } from "./browserRender";
-import { postToFetcher, type RemoteAssetEnv } from "./remoteAsset";
-import { RendererUnavailable } from "./rendererClient";
+import { RendererUnavailable } from "./containerPool";
+import { type LinkFetcherEnv, postToFetcher } from "./linkFetcher";
 
-export type LinkPageEnv = Pick<
-  RemoteAssetEnv,
-  "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
-> & {
+export type LinkPageEnv = LinkFetcherEnv & {
   LINK_PAGE_CACHE?: KVNamespace;
 };
 
@@ -29,14 +26,6 @@ export interface LinkPageDeps {
   random?: () => number;
   scrape?: (html: string, selectors: string[]) => Promise<FilesScrapeResult>;
 }
-
-const FAILURE_REASONS = new Set<FilesLinkPageFailureReason>([
-  "blocked_url",
-  "fetch_failed",
-  "http_error",
-  "too_large",
-  "unsupported_type",
-]);
 
 export const parseLinkPageParams = (
   params: Record<string, unknown>
@@ -112,8 +101,8 @@ const readFailure = async (
     reason?: unknown;
     status?: unknown;
   } | null;
-  const reason = FAILURE_REASONS.has(body?.reason as FilesLinkPageFailureReason)
-    ? (body?.reason as FilesLinkPageFailureReason)
+  const reason = isLinkPageFailureReason(body?.reason)
+    ? body?.reason
     : "fetch_failed";
   return {
     fetched: false,

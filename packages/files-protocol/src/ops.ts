@@ -1,5 +1,4 @@
 import type { FilesAiGenerationFacts } from "./metadata";
-import type { FilesOp } from "./opTable";
 
 export const FILES_PROTOCOL_VERSION = 1 as const;
 export const FILES_PROCESSOR_VERSION = "2026-08-26.1" as const;
@@ -112,7 +111,7 @@ export interface FilesFinalizeImageParams {
 }
 
 export interface FilesOpRequest<T = unknown> {
-  op: FilesOp;
+  op: string;
   params: T;
   version: typeof FILES_PROTOCOL_VERSION;
 }

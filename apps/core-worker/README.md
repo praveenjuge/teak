@@ -241,9 +241,10 @@ before signature verification.
   multipart part upload URLs, workflow RPC and dispatch proofs, with the one
   HMAC, constant-time compare, expiry check, error envelope, header names and
   limits they share.
-- `FILES_NETWORK_OPS` are the ops Convex calls; the network route refuses
-  every other op with `UNSUPPORTED`. `FILES_WORKER_OPS` run only in process,
-  from the Worker's own workflows, queues and crons (`callFilesOp`).
+- `FILES_NETWORK_OP_SPECS` are the ops Convex calls; the network route refuses
+  every other op with `UNSUPPORTED`. The Worker's own ops are declared in
+  `src/opSpecs.ts`, outside the protocol, and run only in process, from its
+  workflows, queues and crons (`callFilesOp`).
 - `readFilesOpOutcome` (`src/outcome.ts`) reads an op's answer the same way
   in Convex and in the Worker: a result, a decline (`NOT_FOUND`,
   `PAYLOAD_TOO_LARGE`, `UNSUPPORTED` and any codes the caller lists), or a
@@ -391,9 +392,10 @@ Run's local mode runs a real Chrome under `wrangler dev`, and the tests in
 comment in `container/src/server.ts` is the HTTP contract. The Worker reaches
 it through the `MediaRenderer` Durable Object (`src/media/mediaRenderer.ts`), which
 starts the Container with `enableInternet: false`, waits for `/health`, and
-forwards jobs. `src/media/rendererClient.ts` picks a random instance from
-`renderer-0` to `renderer-<MEDIA_RENDERER_INSTANCES - 1>`, moves to the next
-on `busy`, and checks the manifest and every output (JPEG, PNG and MP3
+forwards jobs. `src/media/containerPool.ts`, shared with the link fetcher,
+picks a random instance from `renderer-0` to
+`renderer-<MEDIA_RENDERER_INSTANCES - 1>` and moves to the next on `busy`;
+`src/media/rendererClient.ts` checks the manifest and every output (JPEG, PNG and MP3
 signatures, size caps) before anything is stored. The Container has no R2
 access: the Worker streams the R2 body in with a `FixedLengthStream` and
 stores every output.
@@ -499,17 +501,18 @@ through the old functions until they finish (`.agents/records/sunset.md`).
 and posters of social posts, and stores them in R2, so their bytes no longer
 pass through Convex. Convex names the URL, the kind (`image` or `video`) and the
 destination key; the Worker forwards the download to the link fetcher
-Container (`LINK_FETCHER`, `src/media/remoteAsset.ts`) and writes what comes back.
+Container (`LINK_FETCHER`, `src/media/linkFetcher.ts`) and writes what comes back.
 
 The fetcher (`fetcher/`) is the only Container with internet access. It is a
 Bun binary (compiled like the renderer), not a Worker, because the policy
 depends on a pinned connection that the Workers runtime cannot make: the
 [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
 implements neither `lookup` nor `createConnection`, and `resolveOverride` only
-reaches hosts in the zone. Inside the Container the SSRF guard Convex used
-runs unchanged, bundled by path rather than copied:
+reaches hosts in the zone. Inside the Container the same SSRF guard the
+Worker and Convex use runs unchanged, bundled from `packages/files-protocol`
+(the image copies only that package's `src`):
 
-- `packages/convex/linkMetadata/ssrf.ts`: http(s) only, standard ports, no
+- `packages/files-protocol/src/ssrf.ts`: http(s) only, standard ports, no
   credentials, every resolved address public, every redirect hop rechecked;
 - `fetcher/src/pinnedFetch.ts`: the connection goes to the addresses that
   were checked, so DNS rebinding between the check and the connection cannot
@@ -555,9 +558,9 @@ repository root (`image_build_context`) so it can bundle those files;
 (`POST /fetch-page`, `fetcher/src/fetchPage.ts`) and returns its preview
 metadata. Convex names the URL and the scrape selectors; the Container fetches
 the page with Convex's policy, the browser user agent and a 2 MiB limit,
-decodes it, and matches the selectors with Convex's own parser
-(`packages/convex/linkMetadata/staticHtml.ts`, also bundled by path), so the
-selector results are the ones Convex computed itself. Unlike Convex, it
+decodes it, and matches the selectors with the shared parser
+(`packages/files-protocol/src/staticHtml.ts`), so the selector results are the
+ones the Worker would compute itself. Unlike Convex, it
 decodes the page with the charset the page declares (a byte order mark, then
 the `Content-Type` charset, then a `<meta>` charset in the first 1024 bytes,
 else UTF-8), so non-UTF-8 sites no longer get garbled titles.
@@ -975,10 +978,12 @@ self-hosting guide (`apps/docs/content/docs/(open-source)/self-hosting.mdx`,
    is refused (`550 5.7.1 This address can't save to Teak`).
 5. **Convex.** The verified sender, subject, Message-ID, date, the text and
    HTML bodies (each cut to `MAX_BODY_BYTES` as encoded in the JSON request,
-   never mid-character, so the request stays under Convex's 3 MiB) and the
+   never mid-character; a larger setting is held to what keeps the request
+   under Convex's 3 MiB, `INBOUND_EMAIL_MAX_BODY_BYTES`) and the
    attachments' names, types and sizes are POSTed to
    `${CONVEX_SITE_URL}/inbound/email`, signed with
-   `EMAIL_INBOUND_SIGNING_SECRET` (`src/email/payload.ts`: HMAC-SHA256 of
+   `EMAIL_INBOUND_SIGNING_SECRET` (paths, headers, limits and the payload
+   type are in `packages/files-protocol/src/inboundEmail.ts`; HMAC-SHA256 of
    `teak-inbound-email\nv1\n<path>\n<timestamp>\n<sha256(body)>`).
    - `200`: accepted. Convex saved the body card, dropped the message
      silently (over the hourly limit or the free card limit), or had already

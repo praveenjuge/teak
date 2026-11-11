@@ -1,5 +1,4 @@
 import { internal } from "@teak/convex/_generated/api";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import {
   PAGE_ARCHIVE_ROLE,
   type PageArchiveFailureReason,
@@ -7,6 +6,8 @@ import {
   pageArchiveSkipReason,
 } from "@teak/convex/shared/pageArchive";
 import { batchOp } from "../../convexRpc";
+import { normalizeUrl } from "../../linkPreview/url";
+import { isSuperseded } from "../errors";
 import type { StepConfig } from "../runtime";
 import { type CardJob, guardOf, loadCard, objectKey } from "./context";
 
@@ -57,11 +58,6 @@ export const markArchiveFailed = async (job: CardJob): Promise<null> => {
   });
   return null;
 };
-
-const isSupersededMessage = (error: unknown) =>
-  /stale_processing_revision|card_missing/u.test(
-    error instanceof Error ? error.message : String(error)
-  );
 
 /**
  * The "archive page" step: a link's saved copy, from the page the extension
@@ -147,7 +143,7 @@ export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
       guardOf(job)
     );
   } catch (error) {
-    if (isSupersededMessage(error)) {
+    if (isSuperseded(error)) {
       // A newer run or a deleted card: nothing will ever point at this copy.
       await job.deps
         .filesOp({ op: "delete-object", params: { key: destinationKey } })

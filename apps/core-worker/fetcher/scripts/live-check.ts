@@ -3,14 +3,14 @@ import { lookup } from "node:dns/promises";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseLinkPreview } from "../../../../packages/convex/linkMetadata/parsing";
-import { SCRAPE_ELEMENTS } from "../../../../packages/convex/linkMetadata/selectors";
 import {
   readBodyWithLimit,
   safeFetch,
-} from "../../../../packages/convex/linkMetadata/ssrf";
-import { buildSelectorResultsFromHtml } from "../../../../packages/convex/linkMetadata/staticHtml";
-import { normalizeUrl } from "../../../../packages/convex/linkMetadata/url";
+} from "../../../../packages/files-protocol/src/ssrf";
+import { buildSelectorResultsFromHtml } from "../../../../packages/files-protocol/src/staticHtml";
+import { parseLinkPreview } from "../../src/linkPreview/parsing";
+import { SCRAPE_ELEMENTS } from "../../src/linkPreview/selectors";
+import { normalizeUrl } from "../../src/linkPreview/url";
 import { isInstagramPostUrl } from "../../src/workflows/cardProcessing/social/instagram";
 import { extractInstagramMediaFromHtml } from "../../src/workflows/cardProcessing/social/instagramHtml";
 import {

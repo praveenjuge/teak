@@ -1,7 +1,12 @@
 import {
   buildInboundEmailSigningPayload,
+  cutUtf16,
   hexDigestsMatch,
   hmacSha256Hex,
+  INBOUND_EMAIL_FIELD_MAX_CHARS,
+  INBOUND_EMAIL_HEADERS,
+  INBOUND_EMAIL_MAX_REQUEST_BYTES,
+  INBOUND_EMAIL_PATHS,
   sha256Hex,
 } from "@teak/files-protocol";
 import type { HttpRouter } from "convex/server";
@@ -29,17 +34,8 @@ import { planEmailCards } from "./emailContent";
 // 200 for mail that is handled (saved or dropped on purpose), 404 for a
 // sender to reject at SMTP, and 5xx only for what the sender should retry.
 
-export const INBOUND_EMAIL_PATH = "/inbound/email";
-export const INBOUND_ATTACHMENT_PATH = "/inbound/email/attachments";
-export const INBOUND_HEADERS = {
-  signature: "x-teak-signature",
-  timestamp: "x-teak-timestamp",
-} as const;
-
-const MAX_EMAIL_REQUEST_BYTES = 3 * 1024 * 1024;
 const MAX_ATTACHMENT_REQUEST_BYTES = 8 * 1024;
 const SIGNATURE_WINDOW_SECONDS = 300;
-const MAX_FIELD_CHARS = 998;
 const SUBJECT_FIELD = "subject";
 
 const json = (status: number, body: unknown, headers: HeadersInit = {}) =>
@@ -56,8 +52,8 @@ const readSigned = async (
   if (!secret) {
     return { response: json(503, { error: "unavailable" }) };
   }
-  const signature = request.headers.get(INBOUND_HEADERS.signature);
-  const timestamp = request.headers.get(INBOUND_HEADERS.timestamp);
+  const signature = request.headers.get(INBOUND_EMAIL_HEADERS.signature);
+  const timestamp = request.headers.get(INBOUND_EMAIL_HEADERS.timestamp);
   if (
     !(signature && timestamp) ||
     signature.length !== 64 ||
@@ -97,17 +93,6 @@ const readSigned = async (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const HIGH_SURROGATE_END_REGEX = /[\uD800-\uDBFF]$/u;
-
-/** At most `max` UTF-16 units, never ending inside a surrogate pair. */
-const cutText = (value: string, max: number): string => {
-  if (value.length <= max) {
-    return value;
-  }
-  const cut = value.slice(0, max);
-  return HIGH_SURROGATE_END_REGEX.test(cut) ? cut.slice(0, -1) : cut;
-};
-
 // Up to two suffixes, so a compound format like `.tokens.json` survives.
 const FILE_EXTENSION_REGEX = /(?:\.[^.\s]{1,16}){1,2}$/u;
 
@@ -118,11 +103,11 @@ const cutFileName = (fileName: string): string => {
   }
   const extension = FILE_EXTENSION_REGEX.exec(name)?.[0] ?? "";
   const stem = name.slice(0, name.length - extension.length);
-  return cutText(stem, MAX_FILE_NAME_LENGTH - extension.length) + extension;
+  return cutUtf16(stem, MAX_FILE_NAME_LENGTH - extension.length) + extension;
 };
 
 const optionalText = (value: unknown, max: number): string | null =>
-  typeof value === "string" && value.length > 0 ? cutText(value, max) : null;
+  typeof value === "string" && value.length > 0 ? cutUtf16(value, max) : null;
 
 interface InboundEmail {
   attachments: {
@@ -159,7 +144,7 @@ export const parseInboundEmail = (value: unknown): InboundEmail | null => {
               {
                 fileName: cutFileName(item.fileName),
                 index: item.index as number,
-                mimeType: cutText(item.mimeType, 255),
+                mimeType: cutUtf16(item.mimeType, 255),
                 size: item.size as number,
               },
             ]
@@ -168,13 +153,14 @@ export const parseInboundEmail = (value: unknown): InboundEmail | null => {
     : [];
   return {
     attachments,
-    date: optionalText(value.date, MAX_FIELD_CHARS),
+    date: optionalText(value.date, INBOUND_EMAIL_FIELD_MAX_CHARS),
     from,
-    html: optionalText(value.html, MAX_EMAIL_REQUEST_BYTES),
-    messageId: optionalText(value.messageId, MAX_FIELD_CHARS),
+    html: optionalText(value.html, INBOUND_EMAIL_MAX_REQUEST_BYTES),
+    messageId: optionalText(value.messageId, INBOUND_EMAIL_FIELD_MAX_CHARS),
     // Read by name: `.subject` is reserved for auth identities by lint.
-    subjectLine: optionalText(value[SUBJECT_FIELD], MAX_FIELD_CHARS) ?? "",
-    text: optionalText(value.text, MAX_EMAIL_REQUEST_BYTES),
+    subjectLine:
+      optionalText(value[SUBJECT_FIELD], INBOUND_EMAIL_FIELD_MAX_CHARS) ?? "",
+    text: optionalText(value.text, INBOUND_EMAIL_MAX_REQUEST_BYTES),
   };
 };
 
@@ -205,8 +191,8 @@ const errorData = (error: unknown) =>
 export const inboundEmail = httpAction(async (ctx, request) => {
   const verified = await readSigned(
     request,
-    INBOUND_EMAIL_PATH,
-    MAX_EMAIL_REQUEST_BYTES
+    INBOUND_EMAIL_PATHS.email,
+    INBOUND_EMAIL_MAX_REQUEST_BYTES
   );
   if ("response" in verified) {
     return verified.response;
@@ -453,7 +439,7 @@ export const retryEmailAttachment = internalAction({
 export const inboundEmailAttachment = httpAction(async (ctx, request) => {
   const verified = await readSigned(
     request,
-    INBOUND_ATTACHMENT_PATH,
+    INBOUND_EMAIL_PATHS.attachments,
     MAX_ATTACHMENT_REQUEST_BYTES
   );
   if ("response" in verified) {
@@ -506,12 +492,12 @@ export const inboundEmailAttachment = httpAction(async (ctx, request) => {
 
 export const registerInboundRoutes = (http: HttpRouter) => {
   http.route({
-    path: INBOUND_EMAIL_PATH,
+    path: INBOUND_EMAIL_PATHS.email,
     method: "POST",
     handler: inboundEmail,
   });
   http.route({
-    path: INBOUND_ATTACHMENT_PATH,
+    path: INBOUND_EMAIL_PATHS.attachments,
     method: "POST",
     handler: inboundEmailAttachment,
   });

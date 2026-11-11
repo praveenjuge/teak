@@ -2,6 +2,7 @@ import {
   FILES_EXTRACTED_TEXT_MAX_CHARACTERS,
   sha256Hex,
 } from "@teak/files-protocol";
+import { readBodyWithLimit } from "@teak/files-protocol/ssrf";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -13,7 +14,6 @@ import {
   type MutationCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion/gate";
-import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { articleObjectDigest } from "../shared/article";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";

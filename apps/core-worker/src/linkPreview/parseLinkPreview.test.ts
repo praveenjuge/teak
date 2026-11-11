@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseLinkPreview } from "../../../convex/linkMetadata/parsing";
+import { parseLinkPreview } from "./parsing";
 
 const baseUrl = "https://example.com/page";
 

@@ -1,9 +1,8 @@
 import {
-  FINALIZE_PATH,
-  INGEST_PATH,
+  INBOUND_EMAIL_PATHS,
   type InboundEmailPayload,
-  signedHeaders,
-} from "./payload";
+} from "@teak/files-protocol";
+import { signedHeaders } from "./payload";
 import type { Deps } from "./types";
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -119,7 +118,7 @@ export const ingestEmail = async (
     }
     let response: Response;
     try {
-      response = await post(deps, target, INGEST_PATH, body);
+      response = await post(deps, target, INBOUND_EMAIL_PATHS.email, body);
     } catch {
       lastProblem = "convex_unreachable";
       continue;
@@ -171,7 +170,12 @@ export const finalizeAttachment = async (
     }
     let response: Response;
     try {
-      response = await post(deps, target, FINALIZE_PATH, body);
+      response = await post(
+        deps,
+        target,
+        INBOUND_EMAIL_PATHS.attachments,
+        body
+      );
     } catch {
       outcome = "unreachable";
       continue;

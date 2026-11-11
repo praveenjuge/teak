@@ -3,7 +3,7 @@ import {
   detectIpVersion,
   isBlockedIp,
   SsrfError,
-} from "../../../../packages/convex/linkMetadata/ssrf";
+} from "../../../../packages/files-protocol/src/ssrf";
 import type { FetchAssetDeps } from "./fetchAsset";
 import {
   FETCHER_HOP_MAX_BYTES,

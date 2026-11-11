@@ -1,9 +1,8 @@
 import {
-  type DnsResolver,
   type PinnedFetch,
   SAFE_FETCH_TIMEOUT_MS,
   SsrfError,
-} from "@teak/convex/linkMetadata/ssrf";
+} from "@teak/files-protocol/ssrf";
 import {
   FETCHER_HOP_PATH,
   FETCHER_HOP_REQUEST_HEADERS,
@@ -11,68 +10,8 @@ import {
   FETCHER_STREAM_PATH,
   type FetcherHopRequest,
 } from "../../fetcher/src/protocol";
-import {
-  FETCHER_START_ALLOWANCE_MS,
-  postToFetcher,
-  type RemoteAssetEnv,
-} from "./remoteAsset";
-
-// A Worker's own `fetch` cannot pin a connection to an address.
-
-const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
-const DOH_TIMEOUT_MS = 5000;
-const DNS_TYPES = { A: 1, AAAA: 28 } as const;
-
-interface DohAnswer {
-  data?: unknown;
-  type?: unknown;
-}
-
-const lookup = async (
-  fetcher: typeof fetch,
-  hostname: string,
-  type: keyof typeof DNS_TYPES
-): Promise<string[]> => {
-  const url = new URL(DOH_ENDPOINT);
-  url.searchParams.set("name", hostname);
-  url.searchParams.set("type", type);
-  const response = await fetcher(url.toString(), {
-    headers: { accept: "application/dns-json" },
-    signal: AbortSignal.timeout(DOH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new Error(`doh_status_${response.status}`);
-  }
-  const body = (await response.json()) as {
-    Answer?: DohAnswer[];
-    Status?: unknown;
-  };
-  // NXDOMAIN and friends: the name has no addresses of this type.
-  if (body.Status !== 0 || !Array.isArray(body.Answer)) {
-    return [];
-  }
-  // The answer also lists the CNAME chain; only address records count.
-  return body.Answer.filter(
-    (answer) =>
-      answer.type === DNS_TYPES[type] && typeof answer.data === "string"
-  ).map((answer) => answer.data as string);
-};
-
-export const createDohResolver =
-  (fetcher: typeof fetch = fetch): DnsResolver =>
-  async (hostname) => {
-    const results = await Promise.allSettled([
-      lookup(fetcher, hostname, "A"),
-      lookup(fetcher, hostname, "AAAA"),
-    ]);
-    if (results.every((result) => result.status === "rejected")) {
-      throw new Error("doh_unavailable");
-    }
-    return results.flatMap((result) =>
-      result.status === "fulfilled" ? result.value : []
-    );
-  };
+import { CONTAINER_START_ALLOWANCE_MS } from "./containerPool";
+import { type LinkFetcherEnv, postToFetcher } from "./linkFetcher";
 
 const DEFAULT_HOP_MAX_BYTES = 1024 * 1024;
 
@@ -116,14 +55,9 @@ const abortable = <T>(
   });
 };
 
-type FetcherEnv = Pick<
-  RemoteAssetEnv,
-  "LINK_FETCHER" | "LINK_FETCHER_INSTANCES"
->;
-
 const containerHop =
   (
-    env: FetcherEnv,
+    env: LinkFetcherEnv,
     mode:
       | { maxBytes: number; stream: false; timeoutMs?: number }
       | { maxBytes: number; stream: true; timeoutMs: number }
@@ -147,7 +81,7 @@ const containerHop =
             FETCHER_STREAM_PATH,
             request,
             Math.random,
-            timeoutMs + FETCHER_START_ALLOWANCE_MS
+            timeoutMs + CONTAINER_START_ALLOWANCE_MS
           )
         : postToFetcher(env, FETCHER_HOP_PATH, request),
       init.signal
@@ -201,7 +135,7 @@ const containerHop =
  * come back. `timeoutMs` is the Container's limit for the hop.
  */
 export const createContainerPinnedFetch = (
-  env: FetcherEnv,
+  env: LinkFetcherEnv,
   options: { maxBytes?: number; timeoutMs?: number } = {}
 ): PinnedFetch =>
   containerHop(env, {
@@ -216,6 +150,6 @@ export const createContainerPinnedFetch = (
  * `timeoutMs` bounds the whole hop, body included.
  */
 export const createContainerStreamingFetch = (
-  env: FetcherEnv,
+  env: LinkFetcherEnv,
   options: { maxBytes: number; timeoutMs: number }
 ): PinnedFetch => containerHop(env, { ...options, stream: true });

@@ -81,7 +81,6 @@ function parsePocketHtml(html: string): ParsedBookmarkItem[] {
   return output;
 }
 
-/** Pocket exports: the CSV, or the older HTML file. */
 export function parsePocketExport(text: string): ParsedBookmarkItem[] {
   return text.trimStart().startsWith("<")
     ? parsePocketHtml(text)

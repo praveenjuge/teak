@@ -1,25 +1,10 @@
-import type { LinkCategory } from "../shared/linkCategories";
-
-export interface ScrapeAttribute {
-  name: string;
-  value: string;
-}
-
-export interface ScrapeResultItem {
-  attributes?: ScrapeAttribute[];
-  html?: string;
-  text?: string;
-}
-
-export interface ScrapeSelectorResult {
-  results: ScrapeResultItem[];
-  selector: string;
-}
+import type { LinkCategory } from "@teak/convex/shared/linkCategories";
+import type { FilesScrapeSelectorResult } from "@teak/files-protocol";
 
 export interface ScrapeResponse {
   errors?: Array<{ code?: number; message?: string }>;
   result?: {
-    selectors: ScrapeSelectorResult[];
+    selectors: FilesScrapeSelectorResult[];
   };
   success: boolean;
 }
@@ -49,7 +34,7 @@ export interface LinkPreviewMetadata {
   media?: LinkPreviewMediaItem[];
   publishedAt?: string;
   publisher?: string;
-  raw?: ScrapeSelectorResult[];
+  raw?: FilesScrapeSelectorResult[];
   rawSha256?: string;
   rawStorageKey?: string;
   screenshotBytes?: number;

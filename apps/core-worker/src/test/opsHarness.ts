@@ -2,10 +2,10 @@ import {
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
   type FilesNetworkOp,
-  type FilesOp,
   FilesOpError,
   signFilesOpRequest,
 } from "@teak/files-protocol";
+import type { FilesOp } from "../opSpecs";
 import { answerResponse, type FilesOpsEnv, runFilesOp } from "../ops";
 
 export const TEST_SECRET = "test-secret";

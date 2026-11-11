@@ -4,31 +4,23 @@ import {
   RENDERER_PROTOCOL,
 } from "../../container/src/protocol";
 import { OpFailure } from "../opFailure";
+import {
+  CONTAINER_START_ALLOWANCE_MS,
+  containerPoolSize,
+  postToPool,
+  RendererUnavailable,
+  withFixedLength,
+} from "./containerPool";
 
 export interface RendererEnv {
   MEDIA_RENDERER?: DurableObjectNamespace;
   MEDIA_RENDERER_INSTANCES?: string;
 }
 
-/** The renderer can't make this file: the op answers UNSUPPORTED. */
 export class RendererDeclined extends OpFailure {
   readonly reason: string;
   constructor(reason: string) {
     super("renderer_declined", { message: `renderer_declined:${reason}` });
-    this.reason = reason;
-  }
-}
-
-/**
- * The renderer, link fetcher or browser didn't answer: the op answers
- * RENDERER_UNAVAILABLE, as `browser_unavailable` does.
- */
-export class RendererUnavailable extends OpFailure {
-  readonly reason: string;
-  constructor(reason: string) {
-    super("browser_unavailable", {
-      message: `renderer_unavailable:${reason}`,
-    });
     this.reason = reason;
   }
 }
@@ -59,9 +51,6 @@ export interface RendererResult {
   parts: Map<string, Uint8Array>;
 }
 
-const DEFAULT_POOL_SIZE = 2;
-const MAX_POOL_SIZE = 16;
-const STARTUP_ALLOWANCE_MS = 25_000;
 const MAX_MANIFEST_CHARS = 64 * 1024;
 
 const SIGNATURES: Record<
@@ -77,25 +66,6 @@ const SIGNATURES: Record<
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
       (value, index) => bytes[index] === value
     ),
-};
-
-export const rendererPoolSize = (env: RendererEnv): number => {
-  const parsed = Number(env.MEDIA_RENDERER_INSTANCES);
-  return Number.isSafeInteger(parsed) && parsed > 0
-    ? Math.min(parsed, MAX_POOL_SIZE)
-    : DEFAULT_POOL_SIZE;
-};
-
-export const rendererInstanceOrder = (
-  size: number,
-  random: () => number = Math.random,
-  prefix = "renderer"
-): string[] => {
-  const start = Math.floor(random() * size) % size;
-  return Array.from(
-    { length: size },
-    (_, index) => `${prefix}-${(start + index) % size}`
-  );
 };
 
 const readErrorCode = async (response: Response): Promise<string> => {
@@ -210,18 +180,6 @@ export const readRendererOutputs = async (
   return { manifest, parts };
 };
 
-const { FixedLengthStream: FixedLength } = globalThis as unknown as {
-  FixedLengthStream: typeof FixedLengthStream;
-};
-
-const withFixedLength = (source: RendererSource): ReadableStream => {
-  // Workers send a stream with an unknown length as chunked; FixedLengthStream
-  // gives the Container a Content-Length to check against its cap up front.
-  const { readable, writable } = new FixedLength(source.size);
-  source.body.pipeTo(writable).catch(() => undefined);
-  return readable;
-};
-
 export const callRenderer = async (
   env: RendererEnv,
   job: {
@@ -232,58 +190,49 @@ export const callRenderer = async (
   },
   random: () => number = Math.random
 ): Promise<RendererResult> => {
-  const namespace = env.MEDIA_RENDERER;
-  if (!namespace) {
-    throw new RendererUnavailable("binding_missing");
+  const response = await postToPool(
+    {
+      host: "renderer",
+      namespace: env.MEDIA_RENDERER,
+      reasonPrefix: "",
+      size: containerPoolSize(env.MEDIA_RENDERER_INSTANCES),
+    },
+    {
+      body: async () => {
+        const source = await job.openSource();
+        if (source.size > FILES_UPLOAD_MAX_BYTES) {
+          await source.body.cancel().catch(() => undefined);
+          throw new OpFailure("source_too_large");
+        }
+        return {
+          body: withFixedLength(source.body, source.size),
+          contentType: "application/octet-stream",
+        };
+      },
+      busyReason: async (busy) => (await readErrorCode(busy)) || "unavailable",
+      path: job.path,
+      timeoutMs: job.timeoutMs + CONTAINER_START_ALLOWANCE_MS,
+    },
+    random
+  );
+  if (response.ok) {
+    return await readRendererOutputs(response, job.outputs);
   }
-  let lastReason = "busy";
-  for (const name of rendererInstanceOrder(rendererPoolSize(env), random)) {
-    const source = await job.openSource();
-    if (source.size > FILES_UPLOAD_MAX_BYTES) {
-      await source.body.cancel().catch(() => undefined);
+  const reason = await readErrorCode(response);
+  switch (response.status) {
+    case RENDERER_ERROR_STATUS.too_large:
       throw new OpFailure("source_too_large");
-    }
-    let response: Response;
-    try {
-      response = await namespace.get(namespace.idFromName(name)).fetch(
-        new Request(`http://renderer${job.path}`, {
-          body: withFixedLength(source),
-          headers: { "content-type": "application/octet-stream" },
-          method: "POST",
-          signal: AbortSignal.timeout(job.timeoutMs + STARTUP_ALLOWANCE_MS),
-        })
-      );
-    } catch (error) {
-      await source.body.cancel().catch(() => undefined);
+    case RENDERER_ERROR_STATUS.unsupported:
+      throw new RendererDeclined(reason || "unsupported");
+    case RENDERER_ERROR_STATUS.timeout:
+      throw new RendererDeclined(reason || "timeout");
+    case RENDERER_ERROR_STATUS.bad_request:
+      throw new Error(`renderer_bad_request:${reason}`);
+    default:
       throw new RendererUnavailable(
-        error instanceof Error && error.name === "TimeoutError"
-          ? "timeout"
-          : "request_failed"
+        `status_${String(response.status)}${reason ? `:${reason}` : ""}`
       );
-    }
-    if (response.ok) {
-      return await readRendererOutputs(response, job.outputs);
-    }
-    const reason = await readErrorCode(response);
-    switch (response.status) {
-      case RENDERER_ERROR_STATUS.busy:
-        lastReason = reason || "unavailable";
-        continue;
-      case RENDERER_ERROR_STATUS.too_large:
-        throw new OpFailure("source_too_large");
-      case RENDERER_ERROR_STATUS.unsupported:
-        throw new RendererDeclined(reason || "unsupported");
-      case RENDERER_ERROR_STATUS.timeout:
-        throw new RendererDeclined(reason || "timeout");
-      case RENDERER_ERROR_STATUS.bad_request:
-        throw new Error(`renderer_bad_request:${reason}`);
-      default:
-        throw new RendererUnavailable(
-          `status_${String(response.status)}${reason ? `:${reason}` : ""}`
-        );
-    }
   }
-  throw new RendererUnavailable(lastReason);
 };
 
 export const checkRendererHealth = async (
@@ -295,10 +244,10 @@ export const checkRendererHealth = async (
   }
   try {
     const response = await namespace
-      .get(namespace.idFromName(rendererInstanceOrder(1)[0] as string))
+      .get(namespace.idFromName("renderer-0"))
       .fetch(
         new Request("http://renderer/health", {
-          signal: AbortSignal.timeout(STARTUP_ALLOWANCE_MS),
+          signal: AbortSignal.timeout(CONTAINER_START_ALLOWANCE_MS),
         })
       );
     const health = (await response.json().catch(() => null)) as {

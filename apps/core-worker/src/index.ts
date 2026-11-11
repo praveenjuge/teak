@@ -5,8 +5,7 @@ import {
 } from "./deletionGate";
 
 export { ObjectDeletionGate } from "./deletionGate";
-export { MediaRenderer } from "./media/mediaRenderer";
-export { LinkFetcher } from "./media/remoteAsset";
+export { LinkFetcher, MediaRenderer } from "./media/mediaRenderer";
 export {
   AccountDeletionWorkflow,
   CardProcessingWorkflow,

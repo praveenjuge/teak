@@ -220,7 +220,7 @@
     },
     {
       "includes": [
-        "packages/convex/linkMetadata/ssrf.ts",
+        "packages/files-protocol/src/ssrf.ts",
         "packages/convex/shared/utils/colorUtils.ts",
         "packages/convex/apiKeys.ts",
         "packages/convex/storage/r2.ts",
@@ -242,7 +242,7 @@
         "packages/convex/export/constants.ts",
         "packages/convex/export/csv.ts",
         "packages/convex/export/serialize.ts",
-        "packages/convex/linkMetadata/ssrf.ts",
+        "packages/files-protocol/src/ssrf.ts",
         "packages/convex/card/documentTextFormat.ts",
         "packages/convex/mcp/protocol.ts",
         "packages/convex/shared/posthog.ts"
@@ -318,8 +318,8 @@
     },
     {
       "includes": [
-        "packages/convex/linkMetadata/**",
-        "!packages/convex/linkMetadata/ssrf.ts",
+        "apps/core-worker/src/linkPreview/**",
+        "packages/files-protocol/src/staticHtml.ts",
         "apps/core-worker/src/workflows/cardProcessing/social/**",
         "!apps/core-worker/src/workflows/cardProcessing/social/x.ts",
         "!apps/core-worker/src/workflows/cardProcessing/social/*.test.ts"
@@ -331,7 +331,7 @@
               "level": "error",
               "options": {
                 "deniedGlobals": {
-                  "fetch": "Fetch user-controlled URLs with safeFetch from linkMetadata/ssrf.ts."
+                  "fetch": "Fetch user-controlled URLs with safeFetch from @teak/files-protocol/ssrf."
                 }
               }
             }
