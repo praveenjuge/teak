@@ -145,7 +145,7 @@
     },
     {
       "includes": [
-        "packages/convex/index.ts",
+        "packages/convex/index.client.ts",
         "packages/convex/shared/index.ts"
       ],
       "linter": {

@@ -9,7 +9,7 @@ on:
       - packages/sdk/src/**
       - packages/convex/_generated/api.js
       - packages/convex/devUrls.ts
-      - packages/convex/index.ts
+      - packages/convex/index.client.ts
       - packages/convex/shared/**
       - packages/files-protocol/src/**
       - packages/i18n/src/**
