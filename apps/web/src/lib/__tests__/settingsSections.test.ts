@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  isSettingsPath,
   SETTINGS_SECTIONS,
   settingsSectionForPath,
   visibleSettingsSections,
@@ -14,7 +15,7 @@ describe("settingsSectionForPath", () => {
     ["/settings/integrations", "integrations"],
     ["/settings/security", "security"],
     ["/settings/data", "data"],
-  ])("%s is the %s page", (path, id) => {
+  ])("%s is the %s page, an address other apps link to", (path, id) => {
     expect(settingsSectionForPath(path)?.id).toBe(id as never);
   });
 
@@ -29,6 +30,22 @@ describe("settingsSectionForPath", () => {
     const hrefs = SETTINGS_SECTIONS.map((section) => section.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
+});
+
+describe("isSettingsPath", () => {
+  test.each(["/settings", "/settings/", "/settings/data", "/settings/unknown"])(
+    "%s is Settings",
+    (path) => {
+      expect(isSettingsPath(path)).toBe(true);
+    }
+  );
+
+  test.each([null, "/", "/settingsx", "/tags", "/f/settings"])(
+    "%p is not Settings",
+    (path) => {
+      expect(isSettingsPath(path)).toBe(false);
+    }
+  );
 });
 
 describe("visibleSettingsSections", () => {

@@ -20,7 +20,6 @@ export const libraryHref = (
   return query ? `${pathname}?${query}` : pathname;
 };
 
-/** `search` without these params. */
 export const searchWithout = (
   search: string,
   ...names: string[]

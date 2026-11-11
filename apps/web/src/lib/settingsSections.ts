@@ -71,7 +71,6 @@ export function settingsSectionForPath(
   return SETTINGS_SECTIONS.find((section) => section.href === path) ?? null;
 }
 
-/** The account data a Settings page shows beyond the account itself. */
 export interface SettingsData {
   apiKeys: boolean;
   exportState: boolean;
