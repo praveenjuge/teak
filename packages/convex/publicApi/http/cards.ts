@@ -27,7 +27,7 @@ import { tryResolveObjectUrl } from "../../storage/fileUrls";
 import { captureBackendEvent } from "../../telemetry/posthog";
 import { relevanceCursorRanked } from "../cursors";
 import { parseOptionalString } from "../validation";
-import { respondIdempotently } from "./auth";
+import { respondIdempotently } from "./idempotency";
 import { noContent, type PublicApiCall, queryOf } from "./operation";
 import { parseCreatePayload, parsePatchPayload } from "./payloads";
 import { parseCardsQueryOptions, parseIncludeSet } from "./routeParsing";
@@ -69,7 +69,7 @@ const handleCreateCardRequest = async (
     ctx,
     {
       failureMessage: "Failed to save card",
-      path: "/v1/cards",
+      operation: "createCard",
       request,
       requestBody: createPayload,
       userId,
@@ -1100,7 +1100,7 @@ const handleBulkCardsRequest = async (
     ctx,
     {
       failureMessage: "Failed to execute bulk operation",
-      path: "/v1/cards/bulk",
+      operation: "bulkCards",
       request,
       requestBody: { items, operation },
       userId,

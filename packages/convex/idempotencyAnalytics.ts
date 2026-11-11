@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 
 const outcomeValidator = v.union(
@@ -10,13 +10,7 @@ const outcomeValidator = v.union(
   v.literal("error")
 );
 
-export type IdempotencyOutcome =
-  | "skipped"
-  | "started"
-  | "replayed"
-  | "conflict"
-  | "in_progress"
-  | "error";
+export type IdempotencyOutcome = Infer<typeof outcomeValidator>;
 
 export const IDEMPOTENCY_ANALYTICS_SHARDS = 8;
 

@@ -182,6 +182,7 @@ import type * as publicApi_http_duplicate from "../publicApi/http/duplicate.js";
 import type * as publicApi_http_exports from "../publicApi/http/exports.js";
 import type * as publicApi_http_folders from "../publicApi/http/folders.js";
 import type * as publicApi_http_highlights from "../publicApi/http/highlights.js";
+import type * as publicApi_http_idempotency from "../publicApi/http/idempotency.js";
 import type * as publicApi_http_me from "../publicApi/http/me.js";
 import type * as publicApi_http_meta from "../publicApi/http/meta.js";
 import type * as publicApi_http_operation from "../publicApi/http/operation.js";
@@ -547,6 +548,7 @@ declare const fullApi: ApiFromModules<{
   "publicApi/http/exports": typeof publicApi_http_exports;
   "publicApi/http/folders": typeof publicApi_http_folders;
   "publicApi/http/highlights": typeof publicApi_http_highlights;
+  "publicApi/http/idempotency": typeof publicApi_http_idempotency;
   "publicApi/http/me": typeof publicApi_http_me;
   "publicApi/http/meta": typeof publicApi_http_meta;
   "publicApi/http/operation": typeof publicApi_http_operation;
