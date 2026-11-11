@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import {
+  FOLDER_ERROR_MESSAGES,
+  MAX_FOLDER_NAME_LENGTH,
+  MAX_FOLDERS_PER_USER,
+} from "@teak/convex/shared/folders";
 import { englishTranslator } from "../englishTranslators";
 import {
   buildSmartFolderQuery,
@@ -7,9 +12,11 @@ import {
   type FolderSummary,
   filterFolders,
   folderIdForPath,
+  folderNameProblem,
   folderPath,
   hasFolderNamed,
   manualFolders,
+  newFolderOption,
   suggestSmartFolderName,
 } from "../folders";
 
@@ -68,6 +75,49 @@ describe("hasFolderNamed", () => {
   test("a folder being renamed does not clash with its own name", () => {
     expect(hasFolderNamed(FOLDERS, "MOODBOARD", "f2")).toBe(false);
     expect(hasFolderNamed(FOLDERS, "Reading list", "f2")).toBe(true);
+  });
+});
+
+const atLimit = Array.from({ length: MAX_FOLDERS_PER_USER }, (_, index) =>
+  folder(`f${index}`, `Folder ${index}`)
+);
+
+describe("folderNameProblem", () => {
+  test("a new folder past the limit is refused before its name is read", () => {
+    expect(folderNameProblem(atLimit, "")).toBe(
+      FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS
+    );
+  });
+
+  test("a rename is not a new folder, so the limit doesn't stop it", () => {
+    expect(folderNameProblem(atLimit, "Renamed", "f1")).toBeNull();
+  });
+
+  test("names a clash with another folder, and an empty or long name", () => {
+    expect(folderNameProblem(FOLDERS, " moodboard ")).toBe(
+      FOLDER_ERROR_MESSAGES.DUPLICATE_NAME
+    );
+    expect(
+      folderNameProblem(FOLDERS, "x".repeat(MAX_FOLDER_NAME_LENGTH + 1))
+    ).toBe(FOLDER_ERROR_MESSAGES.NAME_TOO_LONG);
+    expect(folderNameProblem(FOLDERS, "  ")).toBeNull();
+  });
+
+  test("checks only the name until the folders load", () => {
+    expect(folderNameProblem(undefined, "Moodboard")).toBeNull();
+  });
+});
+
+describe("newFolderOption", () => {
+  test("offers a new name, and says when the limit stops it", () => {
+    expect(newFolderOption(FOLDERS, "Fonts")).toBe("create");
+    expect(newFolderOption(atLimit, "Fonts")).toBe("limit");
+  });
+
+  test("offers nothing for a folder that exists, no name, or no folders yet", () => {
+    expect(newFolderOption(atLimit, "folder 3")).toBeNull();
+    expect(newFolderOption(FOLDERS, " ")).toBeNull();
+    expect(newFolderOption(undefined, "Fonts")).toBeNull();
   });
 });
 

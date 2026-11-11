@@ -1,11 +1,12 @@
 import { api } from "@teak/convex";
-import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { MAX_PINNED_CARDS } from "@teak/convex/shared/pins";
 import type { OptimisticUpdate } from "convex/browser";
 import { useMutation } from "convex/react";
 import type { FunctionArgs, FunctionReference } from "convex/server";
 import { useMemo } from "react";
 import {
+  addCaptureToSearchQueries,
   applyBulkActionToCard,
   applyBulkUpdate,
   applyCardFieldUpdate,
@@ -33,6 +34,20 @@ const useOptimisticMutation = <Mutation extends FunctionReference<"mutation">>(
  * a key, the selection bar, WebMCP) shows the same card before the server
  * answers.
  */
+
+const addNoteLocally: OptimisticUpdate<
+  FunctionArgs<typeof api.cards.createCardWithOutcome>
+> = (localStore, args) => {
+  addCaptureToSearchQueries(localStore, {
+    content: args.content ?? "",
+    id: crypto.randomUUID() as Id<"cards">,
+    now: Date.now(),
+  });
+};
+
+/** Saves text as a note, shown in the library at once (offline too). */
+export const useCreateNote = () =>
+  useOptimisticMutation(api.cards.createCardWithOutcome, addNoteLocally);
 
 const updateCardFieldLocally: OptimisticUpdate<
   FunctionArgs<typeof api.cards.updateCardField>

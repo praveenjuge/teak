@@ -1,21 +1,15 @@
 "use client";
 
-import { api } from "@teak/convex";
-import {
-  explainInvalidFolderName,
-  FOLDER_ERROR_MESSAGES,
-  MAX_FOLDERS_PER_USER,
-} from "@teak/convex/shared/folders";
 import { useTranslations } from "@teak/i18n/react";
-import { useMutation } from "convex/react";
 import { useId, useState } from "react";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
+import { useCreateFolder } from "@/hooks/useFolderMutations";
 import { useServerErrors } from "@/hooks/useServerErrors";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
-  hasFolderNamed,
+  folderNameProblem,
 } from "../../lib/folders";
 import { FolderDot } from "../folders/FolderDot";
 
@@ -28,7 +22,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   const t = useTranslations("sidebar.newFolder");
   const errors = useServerErrors();
   const errorId = useId();
-  const createFolder = useMutation(api.folders.createFolder);
+  const createFolder = useCreateFolder();
   const [name, setName] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [create, isSaving] = useSingleFlight(async (folderName: string) => {
@@ -41,16 +35,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   });
 
   const trimmed = name.trim();
-  let problem: string | null = null;
-  if (isSaving) {
-    problem = null;
-  } else if (folders && folders.length >= MAX_FOLDERS_PER_USER) {
-    problem = FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS;
-  } else if (folders && hasFolderNamed(folders, trimmed)) {
-    problem = FOLDER_ERROR_MESSAGES.DUPLICATE_NAME;
-  } else if (trimmed) {
-    problem = explainInvalidFolderName(trimmed);
-  }
+  const problem = isSaving ? null : folderNameProblem(folders, trimmed);
   const error = problem ? errors.byEnglishMessage(problem) : serverError;
 
   const submit = async () => {
