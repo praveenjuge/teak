@@ -1,4 +1,5 @@
 import type { CardType } from "@teak/convex/shared/constants";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import {
   createTeakTranslator,
   englishMessages,
@@ -6,7 +7,6 @@ import {
 } from "@teak/i18n";
 import { APP_ACTION_IDS, APP_ACTIONS, appActionKey } from "./appCommands";
 import { cardTitle } from "./cardTypes";
-import { getDisplayHostname } from "./displayHost";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { isOverlayOpen } from "./keyboardShortcuts";
@@ -178,5 +178,5 @@ export function paletteCardHost(card: PaletteCard): string | undefined {
     return;
   }
   // A stored urlHost is already without `www.`.
-  return card.urlHost || getDisplayHostname(card.url);
+  return card.urlHost || urlHostForDisplay(card.url);
 }

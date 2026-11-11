@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
-import { cardDisplayTitle, cardPreviewText } from "../card/displayTitle";
 import {
   attachCardSummaryUrls,
   type CardWithUrls,
   linkPreviewImageFields,
 } from "../card/queryUtils";
 import { cardTypeValidator } from "../schema/validators/cards";
+import { cardDisplayTitle, cardPreviewText } from "../shared/cardTitle";
 import { withReadMeter } from "./readMeter";
 import {
   searchCardsPaginatedArgsValidator,

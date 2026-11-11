@@ -20,8 +20,8 @@ import {
   mayHaveCardLinks,
   parseCardLinkIds,
 } from "../shared/cardLinks";
+import { cardDisplayTitle, cardPreviewText } from "../shared/cardTitle";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
-import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
 
 const DELETE_PAGE_SIZE = 500;
 const SUGGESTION_LIMIT = 8;

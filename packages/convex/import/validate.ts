@@ -1,4 +1,4 @@
-import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
+import { truncateCardTitle } from "../shared/cardTitle";
 import {
   explainInvalidFolderName,
   MAX_FOLDERS_PER_CARD,
@@ -221,11 +221,7 @@ function importTitle(raw: unknown): string | undefined {
   if (typeof raw !== "string") {
     return;
   }
-  let title = raw.trim().slice(0, MAX_CARD_TITLE_LENGTH);
-  if (/[\uD800-\uDBFF]$/.test(title)) {
-    title = title.slice(0, -1);
-  }
-  return title.trim() || undefined;
+  return truncateCardTitle(raw) || undefined;
 }
 
 export function validateImportCard(raw: unknown): ImportCardInput {

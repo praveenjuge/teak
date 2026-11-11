@@ -15,17 +15,17 @@ import {
 import { getAccountDeletionState } from "../accountDeletion/gate";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { articleObjectDigest } from "../shared/article";
+import {
+  documentTextObjectKey,
+  isExtractedTextTruncated,
+  searchPrefix,
+} from "../shared/documentText";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaCoreWorker } from "../storage/coreWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import { patchCard } from "./cardWrites";
-import {
-  documentTextObjectKey,
-  isExtractedTextTruncated,
-  searchPrefix,
-} from "./documentTextFormat";
 import {
   getArticleTextRow,
   getDocumentTextRow,
@@ -36,7 +36,7 @@ export {
   isExtractedTextTruncated,
   SEARCH_PREFIX_MAX_BYTES,
   searchPrefix,
-} from "./documentTextFormat";
+} from "../shared/documentText";
 
 const MAX_TEXT_BYTES = FILES_EXTRACTED_TEXT_MAX_CHARACTERS * 4;
 

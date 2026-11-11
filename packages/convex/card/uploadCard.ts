@@ -18,6 +18,10 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "../shared/markdown";
+import {
+  buildInitialProcessingStatus,
+  stageCompleted,
+} from "../shared/processingStatus";
 import { signedUploadUrl } from "../storage/coreWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import {
@@ -28,10 +32,6 @@ import {
 import { queueCardOutcome } from "../telemetry/schedule";
 import { insertCard } from "./cardWrites";
 import { queueCardProcessing } from "./processingRuns";
-import {
-  buildInitialProcessingStatus,
-  stageCompleted,
-} from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
 
 const toConvexFileError = (error: FileFormatValidationError) =>

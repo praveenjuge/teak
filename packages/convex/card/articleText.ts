@@ -15,17 +15,17 @@ import {
   isArticleObjectKey,
   readingMinutes,
 } from "../shared/article";
-import { queueObjectDeletion } from "../storage/objectDeletion";
-import { buildR2UserPrefix } from "../storage/r2";
-import { queueBackendEvent } from "../telemetry/schedule";
-import { patchCard } from "./cardWrites";
-import { searchPrefix } from "./documentTextFormat";
+import { searchPrefix } from "../shared/documentText";
 import {
   mergeProcessingStages,
   stageCompleted,
   stageFailed,
   stageInProgress,
-} from "./processingStatus";
+} from "../shared/processingStatus";
+import { queueObjectDeletion } from "../storage/objectDeletion";
+import { buildR2UserPrefix } from "../storage/r2";
+import { queueBackendEvent } from "../telemetry/schedule";
+import { patchCard } from "./cardWrites";
 import { getArticleTextRow } from "./textContents";
 
 type ReadyArticle = Extract<

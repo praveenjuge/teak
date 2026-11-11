@@ -14,7 +14,6 @@ import {
   parseOptionalNullableString,
   parseOptionalString,
   parseStringArray,
-  truncateCardTitle,
 } from "../validation";
 import type { CreateCardPayload } from "./shared";
 
@@ -276,7 +275,7 @@ export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   }
 
   if ("metadataTitle" in source) {
-    const parsed = parseCardTitle(truncateCardTitle(source.metadataTitle));
+    const parsed = parseCardTitle(source.metadataTitle);
     if (parsed.kind === "invalid") {
       return { error: "`metadataTitle` must be a string or null" };
     }

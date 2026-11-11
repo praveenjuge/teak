@@ -1,8 +1,8 @@
 import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { stageFailed } from "@teak/convex/card/processingStatus";
 import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
+import { stageFailed } from "@teak/convex/shared/processingStatus";
 import {
   type CardProcessingParams,
   cardTypeStages,

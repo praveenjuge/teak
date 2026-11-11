@@ -1,8 +1,8 @@
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
 import { CircleCheck } from "vadivam-react";
-import { getDisplayHostname } from "@/lib/displayHost";
 import { cn } from "../../lib/utils";
 import { CARD_BADGE, CARD_TILE } from "./cardDisplay";
 import type { LinkCardImage } from "./linkCardImage";
@@ -36,7 +36,7 @@ export function LinkCardBody({
   title: string;
 }) {
   const t = useTranslations("cards.link");
-  const hostname = getDisplayHostname(card.url);
+  const hostname = urlHostForDisplay(card.url);
   const storedPrice = card.metadata?.linkCategory?.price;
   const priceLabel = isLinkPrice(storedPrice)
     ? formatLinkPrice(storedPrice)

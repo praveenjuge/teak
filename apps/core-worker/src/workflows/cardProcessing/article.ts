@@ -1,5 +1,4 @@
 import { internal } from "@teak/convex/_generated/api";
-import { searchPrefix } from "@teak/convex/card/documentTextFormat";
 import {
   ARTICLE_SUMMARY_INPUT_CHARS,
   ARTICLE_SUMMARY_MIN_WORDS,
@@ -11,6 +10,7 @@ import {
   articleSkipReason,
   articleTextObjectKey,
 } from "@teak/convex/shared/article";
+import { searchPrefix } from "@teak/convex/shared/documentText";
 import { filesCardKeyPrefix, sha256Hex } from "@teak/files-protocol";
 import { runWithAiUsage } from "../../ai/aiUsage";
 import type { StepConfig } from "../runtime";

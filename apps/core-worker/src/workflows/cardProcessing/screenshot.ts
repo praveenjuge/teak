@@ -1,10 +1,10 @@
 import { internal } from "@teak/convex/_generated/api";
+import { normalizeUrl } from "@teak/convex/linkMetadata/url";
 import {
   type ProcessingStageStatus,
   stageCompleted,
   stageFailed,
-} from "@teak/convex/card/processingStatus";
-import { normalizeUrl } from "@teak/convex/linkMetadata/url";
+} from "@teak/convex/shared/processingStatus";
 import type {
   FilesCaptureScreenshotParams,
   FilesCaptureScreenshotResult,

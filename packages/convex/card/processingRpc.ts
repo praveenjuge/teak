@@ -1,13 +1,13 @@
 import { CARD_RUN_STAGES } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
-import { getR2KeyPrefix } from "../storage/r2Keys";
-import { patchCard } from "./cardWrites";
 import {
   mergeProcessingStages,
   type ProcessingStatus,
   stageInProgress,
-} from "./processingStatus";
+} from "../shared/processingStatus";
+import { getR2KeyPrefix } from "../storage/r2Keys";
+import { patchCard } from "./cardWrites";
 
 export const getCardForProcessing = internalQuery({
   args: { cardId: v.id("cards") },

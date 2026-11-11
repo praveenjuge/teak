@@ -1,14 +1,14 @@
 import { internal } from "@teak/convex/_generated/api";
-import {
-  stageCompleted,
-  stagePending,
-} from "@teak/convex/card/processingStatus";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import {
   extractVisualStylesFromTags,
   isVisualStyleCardType,
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import {
+  stageCompleted,
+  stagePending,
+} from "@teak/convex/shared/processingStatus";
 import {
   AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,

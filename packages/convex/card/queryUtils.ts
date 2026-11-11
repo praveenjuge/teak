@@ -4,8 +4,8 @@ import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { LinkPreviewMediaItem } from "../linkMetadata/types";
 import type { CreatedAtRange } from "../shared";
+import { applyQuoteFormattingToList } from "../shared/quoteFormatting";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
-import { applyQuoteFormattingToList } from "./quoteFormatting";
 import { readCardTranscript } from "./textContents";
 
 export type CardWithUrls = Doc<"cards"> & {

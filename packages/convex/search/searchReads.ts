@@ -2,7 +2,6 @@ import type { IndexRange, SearchFilterFinalizer } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { SEARCH_PREFIX_MAX_BYTES } from "../card/documentTextFormat";
 import {
   type ArchivedFilter,
   cardListScope,
@@ -10,6 +9,7 @@ import {
 } from "../card/listQuery";
 import { scanInBatches } from "../card/scanInBatches";
 import { readCardTranscript } from "../card/textContents";
+import { SEARCH_PREFIX_MAX_BYTES } from "../shared/documentText";
 import { buildCardSearchText } from "../shared/search/searchText";
 import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";

@@ -3,6 +3,7 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
 import {
@@ -26,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
-import { getDisplayHostname } from "@/lib/displayHost";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { cn } from "@/lib/utils";
@@ -355,7 +355,7 @@ export function ArticleReader({
     );
   }
 
-  const host = getDisplayHostname(card.url);
+  const host = urlHostForDisplay(card.url);
   const savedAt =
     card.pageArchive?.capturedAt ?? card.savedAt ?? card.createdAt;
   const date = new Date(savedAt).toLocaleDateString(locale, {

@@ -1,9 +1,9 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { SEARCH_PREFIX_MAX_BYTES } from "../card/documentTextFormat";
 import { revealsHidden } from "../card/hiddenCards";
 import type { ArchivedFilter, CardListScope } from "../card/listQuery";
 import type { CardType } from "../shared/constants";
+import { SEARCH_PREFIX_MAX_BYTES } from "../shared/documentText";
 import type { SearchQuickCommand } from "../shared/search/constants";
 import {
   expressionFolderNames,

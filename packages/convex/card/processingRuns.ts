@@ -9,6 +9,10 @@ import { applyAutoFileRulesToCard } from "../folder/rules";
 import { articleSkipReason } from "../shared/article";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import {
+  mergeProcessingStages,
+  stagePending,
+} from "../shared/processingStatus";
+import {
   asDispatchRow,
   type DispatchKindSpec,
   type DispatchRow,
@@ -19,7 +23,6 @@ import {
   initializeCardProcessingState,
   markUnfinishedCardStagesFailed,
 } from "./processingLifecycle";
-import { mergeProcessingStages, stagePending } from "./processingStatus";
 
 /** What a card-processing dispatch row asked its run to do. */
 export const cardRunParams = (

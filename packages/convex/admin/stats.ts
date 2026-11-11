@@ -1,6 +1,6 @@
 import { AI_PIPELINE_STAGES } from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { ProcessingStatus } from "../card/processingStatus";
+import type { ProcessingStatus } from "../shared/processingStatus";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVATION_CARD_THRESHOLD = 5;

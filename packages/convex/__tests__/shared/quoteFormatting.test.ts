@@ -3,7 +3,7 @@ import {
   applyQuoteDisplayFormatting,
   normalizeQuoteContent,
   stripSurroundingQuotes,
-} from "../../card/quoteFormatting";
+} from "../../shared/quoteFormatting";
 import { testDoc } from "../helpers/convex.test-utils";
 
 describe("applyQuoteDisplayFormatting", () => {

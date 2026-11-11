@@ -1,9 +1,9 @@
 import { internal } from "@teak/convex/_generated/api";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
   stageCompleted,
   stageFailed,
-} from "@teak/convex/card/processingStatus";
-import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+} from "@teak/convex/shared/processingStatus";
 import type {
   FilesAnimationPaletteResult,
   FilesOp,

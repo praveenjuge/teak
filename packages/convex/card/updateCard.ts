@@ -5,7 +5,6 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { truncateCardTitle } from "../publicApi/validation";
 import { rateLimiter } from "../rateLimiter";
 import {
   requireSessionUser,
@@ -14,6 +13,13 @@ import {
 } from "../securitySessions";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
+import {
+  buildInitialProcessingStatus,
+  type ProcessingStatus,
+  stagePending,
+  withStageStatus,
+} from "../shared/processingStatus";
+import { normalizeQuoteContent } from "../shared/quoteFormatting";
 import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 import {
   explainInvalidCardTags,
@@ -40,14 +46,7 @@ import { patchCard } from "./cardWrites";
 import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
 import { queueCardProcessing } from "./processingRuns";
-import {
-  buildInitialProcessingStatus,
-  type ProcessingStatus,
-  stagePending,
-  withStageStatus,
-} from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
-import { normalizeQuoteContent } from "./quoteFormatting";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -462,7 +461,7 @@ const applyCardFieldEdit = (
     }
 
     case "metadataTitle": {
-      const parsed = parseCardTitle(truncateCardTitle(value));
+      const parsed = parseCardTitle(value);
       if (parsed.kind === "invalid") {
         throw new ConvexError({
           code: "INVALID_INPUT",

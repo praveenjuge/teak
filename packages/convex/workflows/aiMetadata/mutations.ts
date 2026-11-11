@@ -2,13 +2,13 @@ import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { accountDeletionOwnsRows } from "../../accountDeletion/gate";
 import { patchCard } from "../../card/cardWrites";
-import { mergeProcessingStages } from "../../card/processingStatus";
 import { storeCardTranscript } from "../../card/textContents";
 import { autoFileCard } from "../../folder/rules";
 import {
   colorValidator,
   processingStatusValidator,
 } from "../../schema/validators/cards";
+import { mergeProcessingStages } from "../../shared/processingStatus";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
 export const updateCardAI = internalMutation({

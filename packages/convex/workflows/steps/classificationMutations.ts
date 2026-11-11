@@ -2,13 +2,13 @@ import { cardTypeStages } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { patchCard } from "../../card/cardWrites";
+import type { CardType } from "../../shared/constants";
 import {
   mergeProcessingStages,
   stageCompleted,
   stagePending,
-} from "../../card/processingStatus";
-import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import type { CardType } from "../../shared/constants";
+} from "../../shared/processingStatus";
+import { normalizeQuoteContent } from "../../shared/quoteFormatting";
 
 export const recordClassification = internalMutation({
   args: {
