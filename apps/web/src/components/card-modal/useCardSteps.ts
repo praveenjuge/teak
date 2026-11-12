@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef } from "react";
 /**
  * Previous and next, one card per press however fast the presses come.
  * `onStep` moves from the card the last step went to, not the card on
- * screen, so a press only waits for the open card to save. A press the
- * other way drops the presses still waiting, and a held key's repeats wait
- * for each step to land.
+ * screen, so a press only waits for the open card to save. Every press
+ * counts: presses still waiting add up, so a press the other way takes one
+ * back, and a held key's repeats wait for each step to land.
  */
 export function useCardSteps({
   cardId,
@@ -45,7 +45,6 @@ export function useCardSteps({
     running.current = true;
     try {
       while (queued.current !== 0) {
-        const direction = Math.sign(queued.current) as 1 | -1;
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const ready = await latest.current.readyToLeave();
         // Saving can take a moment, and a closed card stays closed.
@@ -53,8 +52,9 @@ export function useCardSteps({
           queued.current = 0;
           return;
         }
-        // A press the other way while saving dropped this step.
-        if (Math.sign(queued.current) === direction) {
+        // Presses while saving count too: they may have cancelled out.
+        if (queued.current !== 0) {
+          const direction = Math.sign(queued.current) as 1 | -1;
           queued.current -= direction;
           landingFrom.current = latest.current.cardId ?? null;
           latest.current.onStep?.(direction);
@@ -69,9 +69,6 @@ export function useCardSteps({
     (direction: 1 | -1, { repeat = false }: { repeat?: boolean } = {}) => {
       if (repeat && (running.current || landingFrom.current !== undefined)) {
         return;
-      }
-      if (Math.sign(queued.current) === -direction) {
-        queued.current = 0;
       }
       queued.current += direction;
       void run();
