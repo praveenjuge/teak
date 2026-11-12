@@ -177,6 +177,16 @@ describe("library URL", () => {
     expect(order).toEqual(["replace", "push"]);
   });
 
+  test("Search everything reruns this page's search in the library and leaves this entry alone, so Back returns to it", () => {
+    render("q=tomato%20soup&type=link,image&card=card_1");
+    const history = installWindow(
+      "?q=tomato%20soup&type=link,image&card=card_1"
+    );
+    screenProps.onSearchEverything();
+    expect(router.push).toHaveBeenCalledWith("/?q=tomato+soup&type=link,image");
+    expect(history.replaceState).not.toHaveBeenCalled();
+  });
+
   test("opening a card keeps the search in the URL", () => {
     render("q=design&sort=oldest");
     screenProps.pushCardId("card_9");

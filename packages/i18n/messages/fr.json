@@ -1421,7 +1421,8 @@
       "tryRemoving": "Ou retirez un filtre :",
       "filtersLabel": "Filtres de cette recherche",
       "removeFilter": "Retirer {label}",
-      "saveAsNote": "Enregistrer comme note"
+      "saveAsNote": "Enregistrer comme note",
+      "searchEverything": "Rechercher partout"
     }
   },
   "commandPalette": {

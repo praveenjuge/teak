@@ -1421,7 +1421,8 @@
       "tryRemoving": "またはフィルタを削除：",
       "filtersLabel": "この検索のフィルタ",
       "removeFilter": "{label} を削除",
-      "saveAsNote": "メモとして保存"
+      "saveAsNote": "メモとして保存",
+      "searchEverything": "すべてを検索"
     }
   },
   "commandPalette": {

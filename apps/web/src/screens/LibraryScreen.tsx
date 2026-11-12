@@ -63,6 +63,7 @@ export function LibraryScreen({
           onNavigateView={url.onNavigateView}
           onOpenCard={openCard}
           onOpenFolder={url.onOpenFolder}
+          onSearchEverything={url.onSearchEverything}
           onSearchUrlStateChange={url.onSearchUrlStateChange}
           onSwitchCard={switchCard}
           onVisualFiltersChange={rememberVisualFilters}
