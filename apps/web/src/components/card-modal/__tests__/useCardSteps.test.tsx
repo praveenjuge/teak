@@ -65,7 +65,7 @@ test("three quick presses move three cards before the first one shows", async ()
   expect(visited).toEqual(["b", "c", "d"]);
 });
 
-test("a press the other way drops the presses still waiting", async () => {
+test("a press the other way takes back one press still waiting", async () => {
   await act(async () => {
     step(1);
     await Promise.resolve();
@@ -78,7 +78,20 @@ test("a press the other way drops the presses still waiting", async () => {
   });
   await land();
   await land();
-  expect(visited).toEqual(["b", "a"]);
+  expect(visited).toEqual(["b", "c"]);
+});
+
+test("right then left in one go stays on the card", async () => {
+  current = "c";
+  await land();
+  await act(async () => {
+    step(1);
+    step(-1);
+    await Promise.resolve();
+  });
+  await land();
+  expect(visited).toEqual([]);
+  expect(current).toBe("c");
 });
 
 test("a held key's repeats don't pile up while a step is on its way", async () => {
@@ -145,8 +158,38 @@ function slowSave() {
   };
 }
 
-test("pressing back while the card is still saving goes back one, without a detour", async () => {
+test("right then left while the card is still saving stays on the card", async () => {
   current = "c";
+  await land();
+  const saved = slowSave();
+  await act(async () => {
+    step(1);
+    step(-1);
+    await Promise.resolve();
+  });
+  await saved();
+  await land();
+  expect(visited).toEqual([]);
+  expect(current).toBe("c");
+});
+
+test("left then right while the card is still saving stays on the card", async () => {
+  current = "c";
+  await land();
+  const saved = slowSave();
+  await act(async () => {
+    step(-1);
+    step(1);
+    await Promise.resolve();
+  });
+  await saved();
+  await land();
+  expect(visited).toEqual([]);
+  expect(current).toBe("c");
+});
+
+test("every press while the card is still saving counts, in order", async () => {
+  current = "b";
   await land();
   const saved = slowSave();
   await act(async () => {
@@ -154,12 +197,15 @@ test("pressing back while the card is still saving goes back one, without a deto
     step(1);
     step(1);
     step(-1);
+    step(1);
     await Promise.resolve();
   });
   await saved();
   await land();
   await land();
-  expect(visited).toEqual(["b"]);
+  await land();
+  // Four right, one left: three cards on from b, never back past it.
+  expect(visited).toEqual(["c", "d", "e"]);
 });
 
 test("closing the card while it saves doesn't step to another card", async () => {
