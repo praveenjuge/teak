@@ -1421,7 +1421,8 @@
       "tryRemoving": "또는 필터 제거:",
       "filtersLabel": "이 검색의 필터",
       "removeFilter": "{label} 제거",
-      "saveAsNote": "메모로 저장"
+      "saveAsNote": "메모로 저장",
+      "searchEverything": "모든 항목 검색"
     }
   },
   "commandPalette": {

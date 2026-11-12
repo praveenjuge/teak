@@ -13,6 +13,11 @@ export interface NoSearchResultsProps {
   onClearAll: () => void;
   /** Saves the words searched for as a note; offered when given. */
   onSaveAsNote?: () => void;
+  /**
+   * Runs the same search in the whole library; offered when given, on a page
+   * that searches only part of it (Archive, Trash, Favorites, a folder).
+   */
+  onSearchEverything?: () => void;
   onUseSuggestion?: (search: string) => void;
   /** The words searched for, shown in the message when there are any. */
   query: string;
@@ -32,6 +37,7 @@ export function NoSearchResults({
   chips,
   onClearAll,
   onSaveAsNote,
+  onSearchEverything,
   onUseSuggestion,
   query,
   savingNote = false,
@@ -100,6 +106,11 @@ export function NoSearchResults({
         {onSaveAsNote ? (
           <Button disabled={savingNote} onClick={onSaveAsNote} type="button">
             {t("saveAsNote")}
+          </Button>
+        ) : null}
+        {onSearchEverything ? (
+          <Button onClick={onSearchEverything} type="button">
+            {t("searchEverything")}
           </Button>
         ) : null}
         <Button onClick={onClearAll} type="button" variant="outline">

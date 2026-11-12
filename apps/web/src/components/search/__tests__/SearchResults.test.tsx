@@ -115,6 +115,27 @@ describe("NoSearchResults", () => {
     expect(button("Save as a note")).toBeUndefined();
   });
 
+  test("offers the same search in the whole library only when asked to", async () => {
+    const onSearchEverything = mock(() => undefined);
+    await render(
+      <NoSearchResults
+        chips={[]}
+        onClearAll={() => undefined}
+        onSearchEverything={onSearchEverything}
+        query="tomato soup"
+      />
+    );
+    await act(() => button("Search everything")?.click());
+    expect(onSearchEverything).toHaveBeenCalledTimes(1);
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+    await render(
+      <NoSearchResults chips={[]} onClearAll={() => undefined} query="x" />
+    );
+    expect(button("Search everything")).toBeUndefined();
+  });
+
   test("can't save the note again while the first save is in flight", async () => {
     await render(
       <NoSearchResults

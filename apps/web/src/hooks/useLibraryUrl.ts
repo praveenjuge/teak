@@ -113,6 +113,20 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     [router]
   );
 
+  // The same search in the whole library, from a view that found nothing.
+  // This page's entry keeps its search, so Back returns to it.
+  const onSearchEverything = useCallback(() => {
+    const current = new URLSearchParams(window.location.search);
+    const search = new URLSearchParams();
+    for (const name of SEARCH_URL_PARAMS) {
+      const value = current.get(name);
+      if (value !== null) {
+        search.set(name, value);
+      }
+    }
+    router.push(libraryHref(LIBRARY_VIEW_PATHS.all, search));
+  }, [router]);
+
   const cardEntryUrlRef = useRef<string | null>(null);
 
   const setCardId = (cardId: string | null, replace: boolean) => {
@@ -187,6 +201,7 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       (targetFolderId: string) => router.push(folderPath(targetFolderId)),
       [router]
     ),
+    onSearchEverything,
     onSearchUrlStateChange,
     popCardEntry,
     pushCardId: (cardId: string) => setCardId(cardId, false),

@@ -130,6 +130,8 @@ interface CardsScreenProps {
   onNavigateView: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
   onOpenFolder: (folderId: string) => void;
+  /** Runs this page's search in the whole library instead. */
+  onSearchEverything: () => void;
   onSearchUrlStateChange: (
     state: SearchUrlState,
     change: SearchUrlChange
@@ -157,6 +159,7 @@ export function CardsScreen({
   onNavigateView,
   view,
   searchUrlState,
+  onSearchEverything,
   onSearchUrlStateChange,
   onSwitchCard,
   onVisualFiltersChange,
@@ -784,6 +787,11 @@ export function CardsScreen({
           chips={noResultsHelp.chips}
           onClearAll={clearAllFilters}
           onSaveAsNote={searchNote.save}
+          onSearchEverything={
+            isFolderView || (view ?? "all") !== "all"
+              ? onSearchEverything
+              : undefined
+          }
           onUseSuggestion={noResultsHelp.applySuggestion}
           query={searchTerms}
           savingNote={searchNote.saving}

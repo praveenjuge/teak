@@ -1421,7 +1421,8 @@
       "tryRemoving": "或移除一个筛选条件：",
       "filtersLabel": "此搜索的筛选条件",
       "removeFilter": "移除 {label}",
-      "saveAsNote": "保存为笔记"
+      "saveAsNote": "保存为笔记",
+      "searchEverything": "搜索全部内容"
     }
   },
   "commandPalette": {
