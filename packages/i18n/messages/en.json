@@ -1567,7 +1567,9 @@
         "savingPage": "Saving page",
         "pageSaveFailed": "Couldn't save this page",
         "cantSavePage": "Can't save this page",
-        "cantSavePageDetail": "Open a web page to save it, or upload a file."
+        "cantSavePageDetail": "Open a web page to save it, or upload a file.",
+        "unreachable": "Couldn't reach Teak. Check your connection and try again.",
+        "rateLimited": "Too many saves at once. Wait a moment and try again."
       },
       "details": {
         "loadingTags": "Loading tags",

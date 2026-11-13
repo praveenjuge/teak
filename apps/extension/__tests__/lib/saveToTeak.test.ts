@@ -188,6 +188,22 @@ describe("OAuth content saving", () => {
     ).toMatchObject({ code: "UNSUPPORTED_HOST" });
     expect(request).not.toHaveBeenCalled();
   });
+  test("marks a save that never reached Teak as a network failure", async () => {
+    expect(
+      await saveToTeak(
+        { content: "Note", source: "context-menu" },
+        {
+          client: apiClient(() =>
+            Promise.reject(new TypeError("Failed to fetch"))
+          ),
+        }
+      )
+    ).toEqual({
+      status: "error",
+      code: "NETWORK_ERROR",
+      message: "Couldn't reach Teak. Check your connection and try again.",
+    });
+  });
   test("reports a refused link save", async () => {
     const request = mock(async () =>
       Response.json(

@@ -1567,7 +1567,9 @@
         "savingPage": "Guardando la página",
         "pageSaveFailed": "No se pudo guardar esta página",
         "cantSavePage": "No se puede guardar esta página",
-        "cantSavePageDetail": "Abra una página web para guardarla o suba un archivo."
+        "cantSavePageDetail": "Abra una página web para guardarla o suba un archivo.",
+        "unreachable": "No se pudo conectar con Teak. Comprueba tu conexión e inténtalo de nuevo.",
+        "rateLimited": "Demasiados guardados a la vez. Espera un momento e inténtalo de nuevo."
       },
       "details": {
         "loadingTags": "Cargando etiquetas",

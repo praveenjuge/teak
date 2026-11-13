@@ -1567,7 +1567,9 @@
         "savingPage": "正在保存网页",
         "pageSaveFailed": "无法保存此网页",
         "cantSavePage": "无法保存此页面",
-        "cantSavePageDetail": "请打开一个网页进行保存，或上传文件。"
+        "cantSavePageDetail": "请打开一个网页进行保存，或上传文件。",
+        "unreachable": "无法连接 Teak。请检查网络连接后重试。",
+        "rateLimited": "保存过于频繁。请稍等片刻后重试。"
       },
       "details": {
         "loadingTags": "正在加载标签",

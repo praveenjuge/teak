@@ -1567,7 +1567,9 @@
         "savingPage": "Seite wird gespeichert",
         "pageSaveFailed": "Diese Seite konnte nicht gespeichert werden",
         "cantSavePage": "Diese Seite kann nicht gespeichert werden",
-        "cantSavePageDetail": "Öffnen Sie eine Webseite, um sie zu speichern, oder laden Sie eine Datei hoch."
+        "cantSavePageDetail": "Öffnen Sie eine Webseite, um sie zu speichern, oder laden Sie eine Datei hoch.",
+        "unreachable": "Teak ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "rateLimited": "Zu viele Speicherungen auf einmal. Warten Sie einen Moment und versuchen Sie es erneut."
       },
       "details": {
         "loadingTags": "Tags werden geladen",

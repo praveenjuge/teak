@@ -83,9 +83,16 @@ export const saveFailure = (
     return { status: "unauthenticated" };
   }
   const failure = inExtensionWords(error);
+  let code: string | undefined;
+  if (error instanceof TeakApiError) {
+    code = error.code;
+  } else if (error instanceof TypeError) {
+    // The browser's own fetch failure: the popup words it as unreachable.
+    code = "NETWORK_ERROR";
+  }
   return {
     status: "error",
-    ...(error instanceof TeakApiError ? { code: error.code } : {}),
+    ...(code ? { code } : {}),
     message: failure instanceof Error ? failure.message : fallback,
   };
 };

@@ -588,6 +588,15 @@ describe("imported highlights", () => {
     expect((await rows(cardId)).every((row) => row.unanchored)).toBe(true);
 
     const key = await textKey(cardId);
+    // Saving the article schedules the anchoring job at once, on a real
+    // timer, so the reader text has to be served before the save.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        expect(new URL(url).pathname).toBe(`/${key}`);
+        return Promise.resolve(new Response(ARTICLE));
+      })
+    );
     await t.mutation(articleText.saveArticleText, {
       cardId,
       textKey: key,
@@ -602,21 +611,15 @@ describe("imported highlights", () => {
     expect(scheduled.map((job) => job.name)).toContain(
       "highlight/anchorPending:anchorPendingHighlights"
     );
+    await t.finishAllScheduledFunctions(() => undefined);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string) => {
-        expect(new URL(url).pathname).toBe(`/${key}`);
-        return Promise.resolve(new Response(ARTICLE));
+    // Only the quote that isn't in the article is still waiting.
+    expect(
+      await t.action(internal.highlight.anchorPending.anchorPendingHighlights, {
+        cardId,
       })
-    );
-    const placed = await t.action(
-      internal.highlight.anchorPending.anchorPendingHighlights,
-      { cardId }
-    );
-
+    ).toBe(0);
     // The first and third overlap, so they are one highlight now.
-    expect(placed).toBe(2);
     const stored = await rows(cardId);
     expect(stored).toHaveLength(2);
     const found = stored.find((row) => !row.unanchored);

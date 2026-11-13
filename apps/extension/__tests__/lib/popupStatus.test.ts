@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createTeakTranslator, englishMessages } from "@teak/i18n";
+import {
+  createTeakTranslator,
+  englishMessages,
+  loadMessages,
+  withEnglishFallback,
+} from "@teak/i18n";
 import {
   getPopupStatus,
   type PopupStatusInput,
@@ -19,6 +24,61 @@ const status = (input: Partial<PopupStatusInput>) =>
   getPopupStatus({ ...IDLE, ...input }, t);
 
 describe("getPopupStatus", () => {
+  test.each([
+    [
+      "NETWORK_ERROR",
+      "Couldn't reach Teak. Check your connection and try again.",
+    ],
+    ["TIMEOUT", "Couldn't reach Teak. Check your connection and try again."],
+    ["RATE_LIMITED", "Too many saves at once. Wait a moment and try again."],
+  ])("words a %s failure in the popup's language", (code, detail) => {
+    const error = { code, error: "Failed to fetch" };
+    expect(status({ autoSave: { ...error, state: "error" } })?.detail).toBe(
+      detail
+    );
+    expect(
+      status({
+        contextMenu: { ...error, action: "save-page", status: "error" },
+      })?.detail
+    ).toBe(detail);
+    expect(status({ fileUpload: { ...error, state: "error" } })?.detail).toBe(
+      detail
+    );
+  });
+
+  test("says a failure in German when the popup is in German", async () => {
+    const de = createTeakTranslator(
+      "de",
+      withEnglishFallback(await loadMessages("de")),
+      "extension.popup.status"
+    );
+    expect(
+      getPopupStatus(
+        {
+          ...IDLE,
+          autoSave: { code: "NETWORK_ERROR", error: "x", state: "error" },
+        },
+        de
+      )
+    ).toMatchObject({
+      detail:
+        "Teak ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      title: "Diese Seite konnte nicht gespeichert werden",
+    });
+  });
+
+  test("keeps the server's message for a failure it can't word itself", () => {
+    expect(
+      status({
+        autoSave: {
+          code: "INVALID_INPUT",
+          error: "URL is too long",
+          state: "error",
+        },
+      })?.detail
+    ).toBe("URL is too long");
+  });
+
   test("stays open once someone starts adding tags or a note", () => {
     const saved = {
       autoSave: { state: "success" as const, url: "https://example.com" },
