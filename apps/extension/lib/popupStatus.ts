@@ -48,6 +48,25 @@ export interface PopupStatusInput {
 const isCardLimitError = (code?: string) =>
   code === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
 
+/**
+ * The detail line in the popup's language for failures the extension can word
+ * itself; anything else keeps the message it came with.
+ */
+const DETAIL_BY_CODE: Record<string, "rateLimited" | "unreachable"> = {
+  NETWORK_ERROR: "unreachable",
+  RATE_LIMITED: "rateLimited",
+  TIMEOUT: "unreachable",
+};
+
+const errorDetail = (
+  t: PopupStatusStrings,
+  message?: string,
+  code?: string
+): string | undefined => {
+  const key = code ? DETAIL_BY_CODE[code] : undefined;
+  return key ? t(key) : message;
+};
+
 const errorStatus = (
   t: PopupStatusStrings,
   title: string,
@@ -61,7 +80,12 @@ const errorStatus = (
         title: t("freeLimitReached"),
         tone: "upgrade",
       }
-    : { autoClose: false, detail: message, title, tone: "error" };
+    : {
+        autoClose: false,
+        detail: errorDetail(t, message, code),
+        title,
+        tone: "error",
+      };
 
 export const uploadPromptStatus = (t: PopupStatusStrings): PopupStatus => ({
   autoClose: false,

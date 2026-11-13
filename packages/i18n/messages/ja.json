@@ -1567,7 +1567,9 @@
         "savingPage": "ページを保存中",
         "pageSaveFailed": "このページを保存できませんでした",
         "cantSavePage": "このページは保存できません",
-        "cantSavePageDetail": "保存したい Web ページを開くか、ファイルをアップロードしてください。"
+        "cantSavePageDetail": "保存したい Web ページを開くか、ファイルをアップロードしてください。",
+        "unreachable": "Teak に接続できませんでした。接続を確認して、もう一度お試しください。",
+        "rateLimited": "保存が多すぎます。しばらく待ってから、もう一度お試しください。"
       },
       "details": {
         "loadingTags": "タグを読み込み中",

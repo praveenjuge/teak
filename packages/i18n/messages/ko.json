@@ -1567,7 +1567,9 @@
         "savingPage": "페이지 저장 중",
         "pageSaveFailed": "이 페이지를 저장하지 못했습니다",
         "cantSavePage": "이 페이지는 저장할 수 없습니다",
-        "cantSavePageDetail": "저장하려면 웹페이지를 열거나 파일을 업로드하세요."
+        "cantSavePageDetail": "저장하려면 웹페이지를 열거나 파일을 업로드하세요.",
+        "unreachable": "Teak에 연결할 수 없습니다. 연결을 확인한 후 다시 시도하세요.",
+        "rateLimited": "한 번에 너무 많이 저장하고 있습니다. 잠시 후 다시 시도하세요."
       },
       "details": {
         "loadingTags": "태그를 불러오는 중",

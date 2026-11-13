@@ -1567,7 +1567,9 @@
         "savingPage": "Enregistrement de la page",
         "pageSaveFailed": "Impossible d’enregistrer cette page",
         "cantSavePage": "Impossible d’enregistrer cette page",
-        "cantSavePageDetail": "Ouvrez une page web pour l’enregistrer, ou importez un fichier."
+        "cantSavePageDetail": "Ouvrez une page web pour l’enregistrer, ou importez un fichier.",
+        "unreachable": "Impossible de joindre Teak. Vérifiez votre connexion et réessayez.",
+        "rateLimited": "Trop d’enregistrements à la fois. Patientez un instant, puis réessayez."
       },
       "details": {
         "loadingTags": "Chargement des tags",
