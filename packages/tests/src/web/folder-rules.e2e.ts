@@ -67,8 +67,11 @@ test("folder rules tag a folder's cards with Undo, and file new matching cards",
   );
   await screen.getByRole("link", "Birds").click();
   // The new card shows on Everything too, so it can match before the folder
-  // page loads; wait for the folder's own search box first.
-  await expect(screen.getByPlaceholder("Search Birds")).toBeVisible({
+  // page loads; wait for the folder's own search box first. While the folder
+  // page mounts, a placeholder lookup can briefly match a second,
+  // not-yet-detached copy of it and fail strict resolution; a role query
+  // matches only the visible combobox.
+  await expect(screen.getByRole("combobox", "Search Birds")).toBeVisible({
     timeout: 30_000,
   });
   // The card is a button named by its type and text; clicking the bare text
