@@ -50,6 +50,7 @@ test("Settings → Language switches in place, saves to the account and survives
   await expect(
     screen.getByText(en.settings.appearance.languageTitle, { exact: true })
   ).toBeVisible();
+  await expect(screen.getByText(en.settings.language.changed)).toBeVisible();
   expect(await htmlLang(browser)).toBe("en");
   expect(
     await library.client.query(api.settings.preferences.getPreferences, {})
