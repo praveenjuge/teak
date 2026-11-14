@@ -53,6 +53,51 @@ export const localChromePath = (): string => {
   return found;
 };
 
+// The address ends its line, so a chunk cut mid-address doesn't match.
+const DEVTOOLS_URL = /ws:\/\/\S+(?=\s)/u;
+
+/**
+ * Reads a stream until `pattern` shows up or `timeoutMs` passes, whichever
+ * comes first, even if the stream goes quiet. Returns the first match, or
+ * null with everything read so far.
+ */
+export const readUntil = async (
+  stream: ReadableStream<Uint8Array>,
+  pattern: RegExp,
+  timeoutMs: number
+): Promise<{ match: string | null; output: string }> => {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const deadline = Date.now() + timeoutMs;
+  let output = "";
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    let ended = false;
+    let remaining = timeoutMs;
+    while (!(ended || pattern.test(output) || remaining <= 0)) {
+      const timedOut = new Promise<{ done: true; value: undefined }>(
+        (resolve) => {
+          timer = setTimeout(
+            () => resolve({ done: true, value: undefined }),
+            remaining
+          );
+        }
+      );
+      const { done, value } = await Promise.race([reader.read(), timedOut]);
+      clearTimeout(timer);
+      if (value) {
+        output += decoder.decode(value, { stream: true });
+      }
+      ended = done;
+      remaining = deadline - Date.now();
+    }
+    return { match: output.match(pattern)?.[0] ?? null, output };
+  } finally {
+    clearTimeout(timer);
+    reader.releaseLock();
+  }
+};
+
 export const launchLocalChrome = async (): Promise<Browser> => {
   // A fresh profile per launch, as Puppeteer's own launcher does: the
   // runner's default Google Chrome profile can stall a cold start on its
@@ -76,24 +121,16 @@ export const launchLocalChrome = async (): Promise<Browser> => {
     ],
     { stderr: "pipe", stdout: "ignore" }
   );
-  const reader = chrome.stderr.getReader();
-  const decoder = new TextDecoder();
-  let output = "";
   // A cold Chrome on a CI runner can take more than 15 s to print its
   // DevTools address; the tests that call this allow 60 s in all.
-  const deadline = Date.now() + 45_000;
-  while (!/ws:\/\/\S+/u.test(output)) {
-    const { done, value } = await reader.read();
-    if (done || Date.now() > deadline) {
-      chrome.kill();
-      removeProfile();
-      throw new Error(`Chrome did not start: ${output.slice(-500)}`);
-    }
-    output += decoder.decode(value);
+  const found = await readUntil(chrome.stderr, DEVTOOLS_URL, 45_000);
+  if (!found.match) {
+    chrome.kill();
+    removeProfile();
+    throw new Error(`Chrome did not start: ${found.output.slice(-500)}`);
   }
-  reader.releaseLock();
   const browser = await puppeteer.connect({
-    browserWSEndpoint: (output.match(/ws:\/\/\S+/u) as RegExpMatchArray)[0],
+    browserWSEndpoint: found.match,
   });
   browser.on("disconnected", () => {
     chrome.kill();
