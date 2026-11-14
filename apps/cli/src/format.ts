@@ -20,11 +20,22 @@ type CardLineInput =
   | {
       content?: string;
       createdAt: number;
+      fileName?: string | null;
       id: string;
       isHidden?: boolean;
+      metadataTitle?: string | null;
       tags?: string[];
       type: string;
     };
+
+/**
+ * What a listing shows for a card: its text, or for a file card, which has
+ * none, its title or file name, so an image or PDF isn't a blank row.
+ */
+const cardText = (card: CardLineInput) =>
+  [card.content, card.metadataTitle, card.fileName]
+    .map((value) => (value ?? "").replace(/\s+/g, " ").trim())
+    .find(Boolean) ?? "";
 
 /**
  * One card per line. For a person: id, type, a 54-character snippet, up to
@@ -32,7 +43,7 @@ type CardLineInput =
  * full, tab-separated, with the creation time in ISO UTC, so `cut -f` works.
  */
 export const formatCardLine = (card: CardLineInput, plain = false) => {
-  const text = (card.content || "").replace(/\s+/g, " ").trim();
+  const text = cardText(card);
   if (plain) {
     return [
       card.id,
@@ -63,7 +74,7 @@ export const formatCardLines = (cards: CardLineInput[]) =>
 const SNIPPET_CHARS = 54;
 
 const cardCells = (card: CardLineInput) => {
-  const text = (card.content || "").replace(/\s+/g, " ").trim();
+  const text = cardText(card);
   return [
     card.id,
     card.type,
