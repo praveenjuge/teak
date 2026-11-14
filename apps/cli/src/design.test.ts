@@ -458,6 +458,9 @@ describe("card table", () => {
     expect(
       formatCardLine({ ...file, fileName: "memo.m4a", metadataTitle: null })
     ).toContain("memo.m4a");
+    expect(
+      formatCardLine({ ...file, fileName: "memo.m4a", metadataTitle: "  " })
+    ).toContain("memo.m4a");
     expect(formatCardLine({ ...file, content: "A caption" }, true)).toContain(
       "\tA caption\t"
     );

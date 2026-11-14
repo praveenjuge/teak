@@ -33,12 +33,9 @@ type CardLineInput =
  * none, its title or file name, so an image or PDF isn't a blank row.
  */
 const cardText = (card: CardLineInput) =>
-  (card.content?.trim()
-    ? card.content
-    : card.metadataTitle || card.fileName || ""
-  )
-    .replace(/\s+/g, " ")
-    .trim();
+  [card.content, card.metadataTitle, card.fileName]
+    .map((value) => (value ?? "").replace(/\s+/g, " ").trim())
+    .find(Boolean) ?? "";
 
 /**
  * One card per line. For a person: id, type, a 54-character snippet, up to
