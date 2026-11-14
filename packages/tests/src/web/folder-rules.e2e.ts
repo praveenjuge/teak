@@ -67,8 +67,11 @@ test("folder rules tag a folder's cards with Undo, and file new matching cards",
   );
   await screen.getByRole("link", "Birds").click();
   // The new card shows on Everything too, so it can match before the folder
-  // page loads; wait for the folder's own search box first.
-  await expect(screen.getByPlaceholder("Search Birds")).toBeVisible({
+  // page loads; wait for the folder's own search box first. The Birds page
+  // visited earlier can stay mounted but hidden, so match the visible box.
+  await expect(
+    screen.getByPlaceholder("Search Birds", { visible: true })
+  ).toBeVisible({
     timeout: 30_000,
   });
   // The card is a button named by its type and text; clicking the bare text
