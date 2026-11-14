@@ -1,4 +1,6 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import puppeteer, { type Browser } from "@cloudflare/puppeteer";
 import type { AcquireBrowser } from "../media/browserSessions";
 
@@ -52,10 +54,18 @@ export const localChromePath = (): string => {
 };
 
 export const launchLocalChrome = async (): Promise<Browser> => {
+  // A fresh profile per launch, as Puppeteer's own launcher does: the
+  // runner's default Google Chrome profile can stall a cold start on its
+  // first-run work or on another Chrome holding its lock.
+  const profile = mkdtempSync(join(tmpdir(), "teak-chrome-"));
+  const removeProfile = () => rmSync(profile, { force: true, recursive: true });
   const chrome = Bun.spawn(
     [
       localChromePath(),
       "--headless=new",
+      `--user-data-dir=${profile}`,
+      "--no-first-run",
+      "--no-default-browser-check",
       "--no-sandbox",
       "--disable-gpu",
       "--remote-debugging-port=0",
@@ -76,6 +86,7 @@ export const launchLocalChrome = async (): Promise<Browser> => {
     const { done, value } = await reader.read();
     if (done || Date.now() > deadline) {
       chrome.kill();
+      removeProfile();
       throw new Error(`Chrome did not start: ${output.slice(-500)}`);
     }
     output += decoder.decode(value);
@@ -84,7 +95,10 @@ export const launchLocalChrome = async (): Promise<Browser> => {
   const browser = await puppeteer.connect({
     browserWSEndpoint: (output.match(/ws:\/\/\S+/u) as RegExpMatchArray)[0],
   });
-  browser.on("disconnected", () => chrome.kill());
+  browser.on("disconnected", () => {
+    chrome.kill();
+    chrome.exited.then(removeProfile, removeProfile);
+  });
   return browser;
 };
 
