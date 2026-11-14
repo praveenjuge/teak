@@ -268,7 +268,7 @@ teak completion fish > ~/.config/fish/completions/teak.fish
 
 Standard output holds only the answer: the cards, the ID or the JSON. Status, warnings, the next page and errors go to standard error, and `teak login` prints its sign-in link there too.
 
-In a terminal, a listing starts with a header row, then one card per line in aligned columns, shortened to fit: ID, type, the start of the text, up to four tags and the card's age. Piped into another command or a file, there's no header and each line holds the same fields in full, separated by tabs: ID, type, text, tags (comma-separated), creation time in ISO UTC, and `hidden` for a hidden card. `teak tags` prints `<name><tab><count>` when piped.
+In a terminal, a listing starts with a header row, then one card per line in aligned columns, shortened to fit: ID, type, the start of the text (a file card's name, for a photo, video, recording or document), up to four tags and the card's age. Piped into another command or a file, there's no header and each line holds the same fields in full, separated by tabs: ID, type, text, tags (comma-separated), creation time in ISO UTC, and `hidden` for a hidden card. `teak tags` prints `<name><tab><count>` when piped.
 
 Text from your library is printed as text: control characters in a saved page, note or error message (escape sequences that could retitle your terminal, hide text or write to the clipboard) are left out of the human output. `--json` keeps them, escaped.
 

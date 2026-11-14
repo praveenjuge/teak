@@ -440,6 +440,29 @@ describe("card table", () => {
     expect(lines[2]).toBe("card_long_id  text  a longer one           3h");
   });
 
+  test("a file card shows its title or file name, not a blank cell", () => {
+    const file = {
+      content: "",
+      createdAt: Date.now() - 3 * 60 * 60 * 1000,
+      fileName: null,
+      id: "card_img",
+      metadataTitle: "Coral lily.webp",
+      tags: [],
+      type: "image",
+    };
+    const lines = formatCardTable([file], false).split("\n");
+    expect(lines[1]).toBe("card_img  image  Coral lily.webp        3h");
+    expect(formatCardTable([file], true)).toStartWith(
+      "card_img\timage\tCoral lily.webp\t"
+    );
+    expect(
+      formatCardLine({ ...file, fileName: "memo.m4a", metadataTitle: null })
+    ).toContain("memo.m4a");
+    expect(formatCardLine({ ...file, content: "A caption" }, true)).toContain(
+      "\tA caption\t"
+    );
+  });
+
   test("a pipe gets tab-separated rows and no header", () => {
     const out = formatCardTable([row("card_a", "short")], true);
     expect(out.startsWith("card_a\ttext\tshort\t")).toBe(true);
