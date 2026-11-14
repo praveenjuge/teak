@@ -69,7 +69,9 @@ export const launchLocalChrome = async (): Promise<Browser> => {
   const reader = chrome.stderr.getReader();
   const decoder = new TextDecoder();
   let output = "";
-  const deadline = Date.now() + 15_000;
+  // A cold Chrome on a CI runner can take more than 15 s to print its
+  // DevTools address; the tests that call this allow 60 s in all.
+  const deadline = Date.now() + 45_000;
   while (!/ws:\/\/\S+/u.test(output)) {
     const { done, value } = await reader.read();
     if (done || Date.now() > deadline) {
