@@ -2,8 +2,10 @@ import { normalizeVisualFilterArgs } from "../../card/visualFilters";
 import { narrowTypesForQuery } from "../../search/searchPlanner";
 import type { CardType } from "../../shared/constants";
 import {
+  COLOR_HUE_BUCKETS,
   normalizeColorHueBucket,
   normalizeVisualStyle,
+  VISUAL_STYLE_TAXONOMY,
 } from "../../shared/constants";
 import {
   ARCHIVED_FILTERS,
@@ -128,15 +130,15 @@ export const parseCardsQueryOptions = (
       hueFilters: searchParams.getAll("hue"),
       hexFilters: searchParams.getAll("hex"),
     });
-    for (const [name, normalize] of [
-      ["style", normalizeVisualStyle],
-      ["hue", normalizeColorHueBucket],
+    for (const [name, normalize, accepted] of [
+      ["style", normalizeVisualStyle, VISUAL_STYLE_TAXONOMY],
+      ["hue", normalizeColorHueBucket, COLOR_HUE_BUCKETS],
     ] as const) {
       if (searchParams.getAll(name).some((value) => !normalize(value))) {
         return errorResponse(
           400,
           "INVALID_INPUT",
-          `Query parameter \`${name}\` is invalid`
+          `Query parameter \`${name}\` is not one Teak knows. Use one of: ${accepted.join(", ")}`
         );
       }
     }
@@ -152,7 +154,7 @@ export const parseCardsQueryOptions = (
     return errorResponse(
       400,
       "INVALID_INPUT",
-      "Query parameter `type` is invalid"
+      `Query parameter \`type\` must be one of: ${PUBLIC_API_CARD_TYPES.join(", ")}`
     );
   }
 
