@@ -138,7 +138,7 @@ export const parseCardsQueryOptions = (
         return errorResponse(
           400,
           "INVALID_INPUT",
-          `Query parameter \`${name}\` must be one of: ${accepted.join(", ")}`
+          `Query parameter \`${name}\` is not one Teak knows. Use one of: ${accepted.join(", ")}`
         );
       }
     }

@@ -189,12 +189,12 @@ describe("parseCardsQueryOptions", () => {
     [
       "an unknown style",
       "style=glossy",
-      "Query parameter `style` must be one of: abstract, cinematic, dark, illustrative, minimal, monochrome, moody, pastel, photographic, retro, surreal, vintage, vibrant, typographic, 3d, flat, geometric, hand-drawn, futuristic",
+      "Query parameter `style` is not one Teak knows. Use one of: abstract, cinematic, dark, illustrative, minimal, monochrome, moody, pastel, photographic, retro, surreal, vintage, vibrant, typographic, 3d, flat, geometric, hand-drawn, futuristic",
     ],
     [
       "an unknown hue",
       "hue=beige",
-      "Query parameter `hue` must be one of: red, orange, yellow, green, teal, cyan, blue, purple, pink, brown, neutral",
+      "Query parameter `hue` is not one Teak knows. Use one of: red, orange, yellow, green, teal, cyan, blue, purple, pink, brown, neutral",
     ],
     [
       "an unknown sort",
