@@ -87,6 +87,9 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
+// Hashing a 24 MiB object in JS takes most of a second, and a busy CI runner
+// pushed a test that stored and read one past its timeout, so FakeBucket
+// hashes only when a caller reads `httpEtag`.
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
   let hash = 0x81_1c_9d_c5;
   for (const byte of bytes) {
@@ -141,7 +144,9 @@ export class FakeBucket {
       ...asBody(slice),
       // R2 reports the full object size even on ranged gets.
       size: bytes.length,
-      httpEtag: fakeHttpEtag(bytes),
+      get httpEtag() {
+        return fakeHttpEtag(bytes);
+      },
       httpMetadata: stored.httpMetadata,
     };
   }
@@ -151,10 +156,13 @@ export class FakeBucket {
     if (!stored) {
       return null;
     }
+    const { bytes } = stored;
     return {
       key,
-      size: stored.bytes?.length ?? 0,
-      httpEtag: stored.bytes ? fakeHttpEtag(stored.bytes) : "",
+      size: bytes?.length ?? 0,
+      get httpEtag() {
+        return bytes ? fakeHttpEtag(bytes) : "";
+      },
       httpMetadata: stored.httpMetadata,
       uploaded: new Date(stored.uploadedAt ?? 0),
     };
@@ -175,7 +183,11 @@ export class FakeBucket {
     }
     this.puts.push({ key, bytes, httpMetadata: options?.httpMetadata });
     this.objects.set(key, { bytes, httpMetadata: options?.httpMetadata });
-    return { httpEtag: fakeHttpEtag(bytes) };
+    return {
+      get httpEtag() {
+        return fakeHttpEtag(bytes);
+      },
+    };
   }
 
   delete(key: string | string[]) {
@@ -280,7 +292,13 @@ export class FakeBucket {
           httpMetadata: upload.options?.httpMetadata,
         });
         this.multipartUploads.delete(uploadId);
-        return { key, size: bytes.length, httpEtag: fakeHttpEtag(bytes) };
+        return {
+          key,
+          size: bytes.length,
+          get httpEtag() {
+            return fakeHttpEtag(bytes);
+          },
+        };
       },
       abort: () => {
         this.multipartUploads.delete(uploadId);
