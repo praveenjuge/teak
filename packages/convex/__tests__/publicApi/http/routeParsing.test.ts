@@ -184,7 +184,17 @@ describe("parseCardsQueryOptions", () => {
     [
       "an unknown type",
       "type=spreadsheet",
-      "Query parameter `type` is invalid",
+      "Query parameter `type` must be one of: text, link, image, video, audio, document, palette, quote",
+    ],
+    [
+      "an unknown style",
+      "style=glossy",
+      "Query parameter `style` must be one of: abstract, cinematic, dark, illustrative, minimal, monochrome, moody, pastel, photographic, retro, surreal, vintage, vibrant, typographic, 3d, flat, geometric, hand-drawn, futuristic",
+    ],
+    [
+      "an unknown hue",
+      "hue=beige",
+      "Query parameter `hue` must be one of: red, orange, yellow, green, teal, cyan, blue, purple, pink, brown, neutral",
     ],
     [
       "an unknown sort",
