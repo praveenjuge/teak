@@ -15,6 +15,9 @@ test("Settings → Language switches in place, saves to the account and survives
   library,
   screen,
 }) => {
+  // The page speaks the new language before setLocale reaches the account.
+  const savedPreferences = () =>
+    library.client.query(api.settings.preferences.getPreferences, {});
   await gotoApp(browser, "/settings/appearance");
   const language = screen.getByRole("combobox", en.settings.language.label);
   await expect(language).toBeVisible({ timeout: 30_000 });
@@ -28,9 +31,7 @@ test("Settings → Language switches in place, saves to the account and survives
   ).toBeVisible();
   await expect(screen.getByText(de.settings.language.changed)).toBeVisible();
   expect(await htmlLang(browser)).toBe("de");
-  expect(
-    await library.client.query(api.settings.preferences.getPreferences, {})
-  ).toEqual({ locale: "de" });
+  await expect.poll(savedPreferences).toEqual({ locale: "de" });
 
   await browser.reload();
   await expect(
@@ -51,7 +52,5 @@ test("Settings → Language switches in place, saves to the account and survives
     screen.getByText(en.settings.appearance.languageTitle, { exact: true })
   ).toBeVisible();
   expect(await htmlLang(browser)).toBe("en");
-  expect(
-    await library.client.query(api.settings.preferences.getPreferences, {})
-  ).toEqual({ locale: "en" });
+  await expect.poll(savedPreferences).toEqual({ locale: "en" });
 });
