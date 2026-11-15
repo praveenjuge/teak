@@ -87,7 +87,16 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
+// Hashing a 24 MiB object in JS takes most of a second, and a busy CI runner
+// pushed a test that stored and read one past its timeout. Objects hash only
+// when a caller reads `httpEtag`, and each stored buffer (never mutated) once.
+const etagCache = new WeakMap<Uint8Array, string>();
+
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
+  const cached = etagCache.get(bytes);
+  if (cached !== undefined) {
+    return cached;
+  }
   let hash = 0x81_1c_9d_c5;
   for (const byte of bytes) {
     // biome-ignore lint/suspicious/noBitwiseOperators: FNV-1a hashing is bitwise by nature.
@@ -95,7 +104,9 @@ export const fakeHttpEtag = (bytes: Uint8Array): string => {
     // biome-ignore lint/suspicious/noBitwiseOperators: force unsigned comparison via shift.
     hash = Math.imul(hash, 0x01_00_01_93) >>> 0;
   }
-  return `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
+  const etag = `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
+  etagCache.set(bytes, etag);
+  return etag;
 };
 
 export const readFixture = async (path: string): Promise<Uint8Array> => {
@@ -141,7 +152,9 @@ export class FakeBucket {
       ...asBody(slice),
       // R2 reports the full object size even on ranged gets.
       size: bytes.length,
-      httpEtag: fakeHttpEtag(bytes),
+      get httpEtag() {
+        return fakeHttpEtag(bytes);
+      },
       httpMetadata: stored.httpMetadata,
     };
   }
@@ -154,7 +167,9 @@ export class FakeBucket {
     return {
       key,
       size: stored.bytes?.length ?? 0,
-      httpEtag: stored.bytes ? fakeHttpEtag(stored.bytes) : "",
+      get httpEtag() {
+        return stored.bytes ? fakeHttpEtag(stored.bytes) : "";
+      },
       httpMetadata: stored.httpMetadata,
       uploaded: new Date(stored.uploadedAt ?? 0),
     };
@@ -175,7 +190,11 @@ export class FakeBucket {
     }
     this.puts.push({ key, bytes, httpMetadata: options?.httpMetadata });
     this.objects.set(key, { bytes, httpMetadata: options?.httpMetadata });
-    return { httpEtag: fakeHttpEtag(bytes) };
+    return {
+      get httpEtag() {
+        return fakeHttpEtag(bytes);
+      },
+    };
   }
 
   delete(key: string | string[]) {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
+import { PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES } from "@teak/files-protocol";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -234,7 +235,7 @@ describe("rendering operations", () => {
     ["is gone", null, 404, "NOT_FOUND"],
     [
       "is over the size a render may take",
-      25 * 1024 * 1024,
+      PAGE_ARCHIVE_SCREENSHOT_MAX_BYTES + 1,
       413,
       "PAYLOAD_TOO_LARGE",
     ],
