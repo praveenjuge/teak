@@ -88,15 +88,9 @@ const asBody = (bytes: Uint8Array) => {
 };
 
 // Hashing a 24 MiB object in JS takes most of a second, and a busy CI runner
-// pushed a test that stored and read one past its timeout. Objects hash only
-// when a caller reads `httpEtag`, and each stored buffer (never mutated) once.
-const etagCache = new WeakMap<Uint8Array, string>();
-
+// pushed a test that stored and read one past its timeout, so FakeBucket
+// hashes only when a caller reads `httpEtag`.
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
-  const cached = etagCache.get(bytes);
-  if (cached !== undefined) {
-    return cached;
-  }
   let hash = 0x81_1c_9d_c5;
   for (const byte of bytes) {
     // biome-ignore lint/suspicious/noBitwiseOperators: FNV-1a hashing is bitwise by nature.
@@ -104,9 +98,7 @@ export const fakeHttpEtag = (bytes: Uint8Array): string => {
     // biome-ignore lint/suspicious/noBitwiseOperators: force unsigned comparison via shift.
     hash = Math.imul(hash, 0x01_00_01_93) >>> 0;
   }
-  const etag = `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
-  etagCache.set(bytes, etag);
-  return etag;
+  return `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
 };
 
 export const readFixture = async (path: string): Promise<Uint8Array> => {
@@ -164,11 +156,12 @@ export class FakeBucket {
     if (!stored) {
       return null;
     }
+    const { bytes } = stored;
     return {
       key,
-      size: stored.bytes?.length ?? 0,
+      size: bytes?.length ?? 0,
       get httpEtag() {
-        return stored.bytes ? fakeHttpEtag(stored.bytes) : "";
+        return bytes ? fakeHttpEtag(bytes) : "";
       },
       httpMetadata: stored.httpMetadata,
       uploaded: new Date(stored.uploadedAt ?? 0),
@@ -299,7 +292,13 @@ export class FakeBucket {
           httpMetadata: upload.options?.httpMetadata,
         });
         this.multipartUploads.delete(uploadId);
-        return { key, size: bytes.length, httpEtag: fakeHttpEtag(bytes) };
+        return {
+          key,
+          size: bytes.length,
+          get httpEtag() {
+            return fakeHttpEtag(bytes);
+          },
+        };
       },
       abort: () => {
         this.multipartUploads.delete(uploadId);
