@@ -4,7 +4,14 @@ import { api } from "@teak/convex";
 import { tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowDownAZ,
   ArrowDownWideNarrow,
@@ -227,14 +234,21 @@ export function TagsScreen({
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
   const tc = useTranslations("common");
+  const tCards = useTranslations("screens.cards");
   useDocumentTitle(t("title"));
   const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);
   const { latest, start } = useTagOperations();
   const [query, setQuery] = useState(initialQuery);
+  const findRef = useRef<HTMLInputElement>(null);
   const [sort, setSort] = useState<TagSort>("count");
   const [limit, setLimit] = useState(TAG_PAGE_SIZE);
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    setLimit(TAG_PAGE_SIZE);
+    onQueryChange?.(next);
+  };
   const [menuTag, setMenuTag] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{
     mode: TagManagerMode;
@@ -352,12 +366,9 @@ export function TagsScreen({
               autoCorrect="off"
               className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
               {...{ [LIBRARY_SEARCH_ATTRIBUTE]: "" }}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setLimit(TAG_PAGE_SIZE);
-                onQueryChange?.(event.target.value);
-              }}
+              onChange={(event) => changeQuery(event.target.value)}
               placeholder={t("findTag")}
+              ref={findRef}
               type="search"
               value={query}
             />
@@ -413,10 +424,20 @@ export function TagsScreen({
         )}
 
         {items && items.length > 0 && matches?.length === 0 && (
-          <div className="rounded-xl border bg-card px-6 py-12 text-center">
+          <div className="flex flex-col items-center gap-4 rounded-xl border bg-card px-6 py-12 text-center">
             <p className="text-muted-foreground text-sm">
               {t("noMatches", { query: query.trim() })}
             </p>
+            <Button
+              onClick={() => {
+                changeQuery("");
+                findRef.current?.focus();
+              }}
+              type="button"
+              variant="outline"
+            >
+              {tCards("clearSearch")}
+            </Button>
           </div>
         )}
 

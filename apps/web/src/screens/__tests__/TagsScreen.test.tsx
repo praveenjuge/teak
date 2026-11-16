@@ -167,6 +167,41 @@ test("finds a tag ignoring case and says when nothing matches", async () => {
   expect(document.body.textContent).toContain("No tags match “nothing”.");
 });
 
+test("clears a search that matches nothing and puts focus back in the find box", async () => {
+  summary = {
+    isComplete: true,
+    items: [
+      { name: "design", count: 4 },
+      { name: "art", count: 1 },
+    ],
+  };
+  await render();
+  const find = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Find a tag"]'
+  );
+  if (!find) {
+    throw new Error("No find box");
+  }
+
+  await typeInto(find, "nothing");
+  expect(rows()).toEqual([]);
+  const clear = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent === "Clear search"
+  );
+  if (!clear) {
+    throw new Error("No Clear search button");
+  }
+
+  await act(() => clear.click());
+  expect(find.value).toBe("");
+  expect(document.activeElement).toBe(find);
+  expect(rows().map(([text]) => text)).toEqual([
+    "design 4 cards",
+    "art 1 card",
+  ]);
+  expect(document.body.textContent).not.toContain("No tags match");
+});
+
 test("a library without tags explains where they come from", async () => {
   summary = { isComplete: true, items: [] };
   await render();
