@@ -24,23 +24,42 @@ import {
 
 const FILES_ORIGIN = filesOrigin();
 
-const snPro = localFont({
-  src: "../styles/fonts/SNPro-VariableRegular.woff2",
-  weight: "200 900",
+const allo = localFont({
+  src: "../styles/fonts/AlloVariableFriendly.woff2",
+  weight: "100 900",
   style: "normal",
-  variable: "--font-sn-pro",
+  variable: "--font-allo",
   display: "swap",
   adjustFontFallback: false,
-  declarations: [{ prop: "font-family", value: "SN Pro" }],
+  declarations: [{ prop: "font-family", value: "Allo" }],
 });
-const snProItalic = localFont({
-  src: "../styles/fonts/SNPro-VariableItalic.woff2",
-  weight: "200 900",
-  style: "italic",
-  variable: "--font-sn-pro-italic",
+const alloOblique = localFont({
+  src: [
+    {
+      path: "../styles/fonts/Allo-Oblique.woff2",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../styles/fonts/Allo-MediumOblique.woff2",
+      weight: "500",
+      style: "italic",
+    },
+    {
+      path: "../styles/fonts/Allo-SemiBoldOblique.woff2",
+      weight: "600",
+      style: "italic",
+    },
+    {
+      path: "../styles/fonts/Allo-BoldOblique.woff2",
+      weight: "700",
+      style: "italic",
+    },
+  ],
+  variable: "--font-allo-oblique",
   display: "swap",
   adjustFontFallback: false,
-  declarations: [{ prop: "font-family", value: "SN Pro" }],
+  declarations: [{ prop: "font-family", value: "Allo" }],
   preload: false,
 });
 
@@ -76,7 +95,7 @@ const SIDEBAR_FROM_COOKIE = `try{var d=document.documentElement,c=document.cooki
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html
-      className={`${snPro.variable} ${snProItalic.variable}`}
+      className={`${allo.variable} ${alloOblique.variable}`}
       lang="en"
       suppressHydrationWarning
     >
