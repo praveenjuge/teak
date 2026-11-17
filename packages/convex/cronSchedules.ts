@@ -20,21 +20,23 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
-  // Pasted link jobs a week after they finish (card/pasteLinks.ts). Daily
-  // and small, so it stays on Convex beside the job itself.
+  // Pasted link jobs a week after they finish (card/pasteLinks.ts). Shares
+  // export cleanup's Cron Trigger.
   cleanupFinishedLinkPastes: {
     name: "cleanup-finished-link-pastes",
-    schedule: "25 3 * * *",
+    schedule: "0 3 * * *",
     everyMs: DAY_MS,
-    runsOn: "convex",
+    runsOn: "cloudflare",
   },
   // Folder rule runs a day after they start, when their undo ends
-  // (folder/rules.ts). Small, beside the runs themselves.
+  // (folder/rules.ts). Shares the AI usage rollup's Cron Trigger.
   cleanupExpiredFolderRuleRuns: {
     name: "cleanup-expired-folder-rule-runs",
     schedule: "15 * * * *",
     everyMs: HOUR_MS,
-    runsOn: "convex",
+    devSchedule: "15 */6 * * *",
+    devEveryMs: 6 * HOUR_MS,
+    runsOn: "cloudflare",
   },
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",

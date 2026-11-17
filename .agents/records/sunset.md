@@ -1,6 +1,6 @@
 # Sunset list
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-17
 
 Compatibility code Teak keeps on purpose, and what has to be true before each
 piece can go. Add an entry when you keep code only for old clients or old
@@ -17,6 +17,7 @@ data, and delete the entry in the PR that removes the code.
 | `cards.placeholderHash`, `derivativeVersion`, `derivativeCheckedAt` (`schema.ts`) | Stored rows may still hold them. No code reads or writes them. | A backfill unsets them on every card; then drop them from the schema. |
 | `pendingUploadCleanupStates` table (`schema.ts`) | Production may still hold the cursor rows of the hourly pending-upload sweep, which R2 event notifications and the Core Worker's weekly sweep replaced. No code reads or writes it. | The table is empty in every deployment (clear it from the dashboard if not); then drop it from the schema. |
 | `adminDailySnapshot` in `packages/convex/telemetry/crons.ts` | The Convex cron that ran the admin snapshot before the Core Worker did; a firing already queued at deploy time still finds it. It now only queues the Worker's snapshot. | The backend deploy that removed the cron from `crons.ts` has run a day. |
+| `cleanupFinishedLinkPastes` and `cleanupExpiredFolderRuleRuns` in `packages/convex/telemetry/crons.ts` | The Convex crons that ran these two cleanups before the Core Worker did; a firing already queued at deploy time still finds them. | The backend deploy that removed the crons from `crons.ts` has run a day. |
 | `admin:getOverview`, the `adminOverviews` table and `createOverviewTally` / `toOverviewCardRow` (`admin/stats.ts`) | The daily snapshot no longer scans every card, so the overview is frozen at its last stored row. Nothing in the apps has read it since the web admin dashboard went (c809b2308); an admin tool outside this repository might. | The owner confirms nothing reads it; then drop the query, the table and the tally together. |
 | `totalCards`, `storageBytes` and `topStorage` as optional in `adminMetrics:writeSnapshot`'s validator and the `adminDailyMetrics` schema | A Core Worker from before the snapshot stopped scanning every card still sends them, and rows written before keep them. | The Worker that stopped sending them has run a day; drop them from the validator then, and from the schema once old rows are unset or no longer listed. |
 | `savedOrigin` in `apps/extension/lib/oauthAuth.ts`, which moves a saved sign-in bound to the Convex site URL to `VITE_PUBLIC_API_URL` | Extension sign-ins saved before production builds called `teakvault.com/api`. | Those sign-ins have refreshed once (any use does) or expired everywhere, refresh tokens included. |

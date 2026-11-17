@@ -37,7 +37,9 @@ const setup = (
       createFakeConvex({
         "adminHealth:recordCronRun": () => null,
         "dataImport:findExpiredUploads": () => [],
+        "card/pasteLinks:sweepFinishedLinkPastes": () => ({ deleted: 0 }),
         "fileUploads:findExpiredSessions": () => [],
+        "folder/rules:deleteExpiredFolderRuleRuns": () => ({ done: true }),
         "operationalRetention:startIdempotencyCleanup": () => null,
         "search/relevanceCache:cleanupExpired": nothingExpired,
         "search/semanticCache:cleanupExpired": nothingExpired,
@@ -94,14 +96,19 @@ const setup = (
 
 describe("Cron Triggers", () => {
   test.each([
-    [CRONS.cleanupOldDeletedCards.schedule, ["card-cleanup", "admin-snapshot"]],
+    [
+      CRONS.cleanupOldDeletedCards.schedule,
+      ["card-cleanup", "admin-snapshot"],
+      [],
+    ],
     [
       CRONS.cleanupExpiredExports.schedule,
       ["export-cleanup", "receipt-cleanup"],
+      [CRONS.cleanupFinishedLinkPastes.name],
     ],
   ])(
-    "%s starts %p in every deployment without its own heartbeat",
-    async (cron, tasks) => {
+    "%s starts %p in every deployment, with heartbeats only for %p",
+    async (cron, tasks, monitoredNames) => {
       const { calls, heartbeats, run } = setup();
       await run(cron);
       expect(calls.sort()).toEqual(
@@ -113,9 +120,40 @@ describe("Cron Triggers", () => {
           )
           .sort()
       );
-      expect([...heartbeats(PROD), ...heartbeats(DEV)]).toEqual([]);
+      for (const url of [PROD, DEV]) {
+        expect(heartbeats(url)).toEqual(
+          monitoredNames.flatMap((name) => [
+            `${name} started`,
+            `${name} succeeded`,
+          ])
+        );
+      }
     }
   );
+
+  test("the two cleanups that left Convex's crons each call their mutation once per deployment", async () => {
+    const { convexCalls, heartbeats, run } = setup();
+    await run(CRONS.cleanupFinishedLinkPastes.schedule);
+    await run(CRONS.cleanupExpiredFolderRuleRuns.schedule);
+    for (const url of [PROD, DEV]) {
+      expect(
+        convexCalls(url, "card/pasteLinks:sweepFinishedLinkPastes")
+      ).toHaveLength(1);
+      expect(
+        convexCalls(url, "folder/rules:deleteExpiredFolderRuleRuns")
+      ).toHaveLength(1);
+      expect(heartbeats(url)).toEqual(
+        expect.arrayContaining([
+          `${CRONS.cleanupFinishedLinkPastes.name} succeeded`,
+          `${CRONS.cleanupExpiredFolderRuleRuns.name} succeeded`,
+        ])
+      );
+    }
+  });
+
+  test("only the dispatch watchdog is left on Convex", () => {
+    expect(cronTasksOn("convex")).toEqual(["workflowDispatchWatchdog"]);
+  });
 
   test("every Cloudflare cron task runs on the schedule CRONS gives it", async () => {
     const maintenanceRuns: Partial<Record<CronTask, string>> = {
@@ -153,6 +191,7 @@ describe("Cron Triggers", () => {
       expect.arrayContaining([
         `${CRONS.cleanupExpiredIdempotency.name} started`,
         `${CRONS.aiUsageRollup.name} started`,
+        `${CRONS.cleanupExpiredFolderRuleRuns.name} started`,
       ])
     );
 
@@ -225,6 +264,7 @@ describe("Cron Triggers", () => {
     );
     const ran = [
       "ai-usage-rollup",
+      CRONS.cleanupExpiredFolderRuleRuns.name,
       "reconcile-workflows",
       CRONS.cleanupExpiredIdempotency.name,
       CRONS.cleanupAbandonedImportUploads.name,
@@ -269,7 +309,11 @@ describe("Cron Triggers", () => {
     const { calls, heartbeats, run } = setup();
     await run("15 * * * *", env({ ANALYTICS_API_TOKEN: undefined }));
     expect(calls).toEqual([]);
-    expect(heartbeats(PROD)).toEqual([]);
+    expect(
+      heartbeats(PROD).filter((beat) =>
+        beat.startsWith(CRONS.aiUsageRollup.name)
+      )
+    ).toEqual([]);
   });
 
   test("a failed pending upload sweep is recorded in every deployment", async () => {

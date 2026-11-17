@@ -71,6 +71,8 @@ export const workflowDispatchWatchdog = internalAction({
     }),
 });
 
+// The Core Worker runs the next two now; these only catch a Convex cron
+// firing queued before that deploy (.agents/records/sunset.md).
 export const cleanupFinishedLinkPastes = internalAction({
   args: {},
   returns: v.null(),
