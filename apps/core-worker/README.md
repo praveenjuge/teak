@@ -1033,6 +1033,29 @@ Tests: `src/email/*.test.ts` run the handler against `.eml` fixtures in
 `src/email/fixtures/` with a fake network (`src/test/emailSupport.ts`), and
 `src/email/worker.test.ts` covers the `email()` entry point.
 
+## Traces
+
+All three Wrangler configs turn on Workers tracing for every invocation
+(`observability.traces`, `head_sampling_rate: 1`; `src/deployment.test.ts`
+keeps it there). `observability.enabled` alone only turns on logs. Read traces
+in the Cloudflare dashboard: the Worker, then Observability > Traces. Nothing
+is exported.
+
+- A card-processing run is one trace. Its root span is `RPC invocation`
+  (`CardProcessingWorkflow`), and each step is a `do` call under `run`, in the
+  order the steps ran, with its Convex calls, R2 reads and writes, and the
+  Durable Object and Container calls (`LinkFetcher`, `MediaRenderer`,
+  `ObjectDeletionGate`) nested inside. Spans don't carry step names: match
+  them by order against `wrangler workflows instances describe`.
+- Search the Traces page for a card ID to find its run. The instance ID
+  (`card-<cardId>-<rev>`) is only on the trace's Logs tab.
+- Convex is outside Cloudflare, so the trace context ends there: the
+  `dispatch` op that starts a run, an upload's `PUT`, and each
+  `/__image-source` request a step makes to this Worker are traces of their
+  own.
+- Query strings show as `REDACTED` (`redact_query_string`), so signed links
+  stay out of traces as they do out of logs.
+
 ## Commands
 
 ```bash
