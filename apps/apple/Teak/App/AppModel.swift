@@ -134,7 +134,9 @@ final class AppModel {
                teakUserId != previous?.teakUserId || next.email != previous?.email {
                 PostHogReporting.identify(teakUserId: teakUserId, email: next.email)
             }
-            if state == .signedOut { await spotlight.removeAll() }
+            // Not awaited: emptying Spotlight can take many seconds, and the
+            // next state (a sign-in) must not wait behind it.
+            if state == .signedOut { Task { [spotlight] in await spotlight.removeAll() } }
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
                 tokenTask?.cancel()

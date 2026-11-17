@@ -29,12 +29,12 @@ final class SignInTests: XCTestCase {
         let browser = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
         let email = browser.webViews.textFields.firstMatch
         XCTAssertTrue(email.waitForExistence(timeout: 30), "AuthKit's sign-in page never loaded")
-        email.tap()
-        email.typeText(account.email + "\n")
+        email.typeChecked(account.email)
+        email.typeText("\n")
         let password = browser.webViews.secureTextFields.firstMatch
         XCTAssertTrue(password.waitForExistence(timeout: 15), "AuthKit never asked for the password")
-        password.tap()
-        password.typeText(account.password + "\n")
+        password.typeChecked(account.password)
+        password.typeText("\n")
 
         app.searchFields.firstMatch.waitToAppear(40)
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Welcome to Teak")).firstMatch.waitToAppear(20)
