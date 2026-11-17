@@ -99,6 +99,43 @@ final class LibraryFlowTests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
+    /// A card toolbar button. A narrow iPhone folds the ones that don't fit
+    /// into the bar's overflow menu, so this opens that menu when it must.
+    @MainActor private func toolbarButton(_ label: String, identifier: String? = nil) -> XCUIElement {
+        #if os(macOS)
+        return identifier.map(byId) ?? app.buttons[label].firstMatch
+        #else
+        let bar = app.navigationBars.firstMatch
+        let inBar = bar.buttons[identifier ?? label]
+        let overflow = bar.buttons["OverflowBarButtonItem"]
+        let inMenu = app.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@", label,
+                                                      "OverflowBarButtonItem")).firstMatch
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            // A folded item can stay in the tree without being tappable.
+            if inBar.exists, inBar.isHittable { return inBar }
+            if inMenu.exists, inMenu.isHittable { return inMenu }
+            if overflow.exists {
+                tap(overflow)
+                return inMenu.waitToAppear()
+            }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        XCTFail("\(label) never appeared in the toolbar")
+        return inBar
+        #endif
+    }
+
+    /// Scrolls to a row a lazy list hasn't built yet, as a person would.
+    @MainActor private func scrolled(to element: XCUIElement) -> XCUIElement {
+        #if os(iOS)
+        for _ in 0..<8 where !(element.exists && element.isHittable) {
+            app.swipeUp()
+        }
+        #endif
+        return element.waitToAppear()
+    }
+
     @MainActor private func filter(_ name: String) {
         let button = byId("library.more").waitToAppear()
         tap(button)
@@ -106,7 +143,11 @@ final class LibraryFlowTests: XCTestCase {
         // Scoped to the menu: the Window menu also lists a window titled "Trash".
         tap(button.menuItems[name].firstMatch.waitToAppear())
         #else
-        tap(menuItem(name).waitToAppear())
+        // Revisit stays disabled until the library has cards, which it reloads after a filter change.
+        let item = menuItem(name).waitToAppear()
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: item)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 15), .completed, "\(name) stayed disabled")
+        tap(item)
         #endif
     }
 
@@ -204,6 +245,14 @@ final class LibraryFlowTests: XCTestCase {
         filter("Trash")
         tile(containing: note).waitToAppear().openContextMenu()
         tap(menuItem(deleteForever).waitToAppear())
+        #if os(iOS)
+        // The menu's own "Delete forever" is still on screen while it closes; wait
+        // for the dialog, then for the menu's button to go, leaving only the dialog's.
+        app.staticTexts["This removes the card and its files. You can't undo it."].firstMatch.waitToAppear()
+        let onlyDialog = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 1"),
+                                                   object: app.buttons.matching(NSPredicate(format: "label == %@", deleteForever)))
+        XCTAssertEqual(XCTWaiter.wait(for: [onlyDialog], timeout: 10), .completed, "The menu's Delete forever never closed")
+        #endif
         tap(confirmation(deleteForever).waitToAppear())
         tile(containing: note).waitToDisappear()
         XCTAssertFalse(confirmation(deleteForever).waitForExistence(timeout: 3))
@@ -275,11 +324,11 @@ final class LibraryFlowTests: XCTestCase {
         save("https://example.org/\(page)", expecting: "example.org")
 
         tap(tile(containing: "example.org"))
-        tap(app.buttons["Mark as done"].firstMatch.waitToAppear())
+        tap(toolbarButton("Mark as done"))
         app.staticTexts["Marked as done"].firstMatch.waitToAppear()
-        app.buttons["Done"].firstMatch.waitToAppear()
+        toolbarButton("Done").waitToAppear()
 
-        tap(byId("detail.more").waitToAppear())
+        tap(toolbarButton("More", identifier: "detail.more"))
         tap(menuItem("Archive").waitToAppear())
         app.staticTexts["Archived 1 card"].firstMatch.waitToAppear()
         tile(containing: "example.org").waitToDisappear()
@@ -394,7 +443,7 @@ final class LibraryFlowTests: XCTestCase {
         #else
         tap(tab("Settings"))
         #endif
-        tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
+        tap(scrolled(to: app.buttons["settings.logOut"].firstMatch))
         tap(confirmation("Sign out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
         #if os(macOS)

@@ -37,6 +37,9 @@ actor SpotlightIndexer {
     /// Cards removed while their batch was being indexed; the batch leaves them out.
     private var withdrawn: Set<String> = []
     private var lastRefresh: ContinuousClock.Instant?
+    /// The latest sign-out's delete. Indexing waits for it, so a delete that
+    /// finishes late can't erase the next account's cards.
+    private var clearing: Task<Void, Never>?
     private let work: AsyncStream<CardIndex.Changes>.Continuation
 
     init(session: TeakSession) {
@@ -98,12 +101,19 @@ actor SpotlightIndexer {
         loaded = Ledger()
         lastRefresh = nil
         try? FileManager.default.removeItem(at: file)
-        try? await searchIndex.deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+        let previous = clearing
+        let clear = Task {
+            await previous?.value
+            try? await searchIndex.deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+        }
+        clearing = clear
+        await clear.value
     }
 
     // MARK: Indexing
 
     private func index(_ cards: [IndexedCard]) async {
+        await clearing?.value
         guard let owner = await session.user?.id else { return }
         if ledger().owner != owner, !(await adopt(owner)) { return }
         let changed = cards.filter { ledger().cards[$0.id]?.fingerprint != $0.fingerprint && !inFlight.contains($0.id) }

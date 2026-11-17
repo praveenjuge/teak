@@ -81,6 +81,30 @@ extension XCUIElement {
                        file: file, line: line)
     }
 
+    #if os(iOS)
+    /// Types into a web form field and checks what landed: synthesized typing
+    /// can drop keystrokes in a web view on a busy simulator, and a dropped
+    /// character in an email is a different account. A secure field only shows
+    /// bullets, so its length is checked instead.
+    func typeChecked(_ text: String, file: StaticString = #filePath, line: UInt = #line) {
+        let secure = elementType == .secureTextField
+        func holdsText() -> Bool {
+            guard let current = value as? String else { return false }
+            return secure ? current.count == text.count : current == text
+        }
+        for _ in 0..<3 {
+            // At the trailing edge, so the caret lands after any earlier attempt.
+            coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+            if let current = value as? String, !current.isEmpty, current != placeholderValue {
+                typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
+            }
+            typeText(text)
+            if holdsText() { return }
+        }
+        XCTFail("\(self) never held the typed text", file: file, line: line)
+    }
+    #endif
+
     func openContextMenu() {
         #if os(macOS)
         rightClick()
