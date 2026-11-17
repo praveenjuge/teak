@@ -112,8 +112,9 @@ final class LibraryFlowTests: XCTestCase {
                                                       "OverflowBarButtonItem")).firstMatch
         let deadline = Date().addingTimeInterval(15)
         while Date() < deadline {
-            if inBar.exists { return inBar }
-            if inMenu.exists { return inMenu }
+            // A folded item can stay in the tree without being tappable.
+            if inBar.exists, inBar.isHittable { return inBar }
+            if inMenu.exists, inMenu.isHittable { return inMenu }
             if overflow.exists {
                 tap(overflow)
                 return inMenu.waitToAppear()
@@ -245,8 +246,12 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToAppear().openContextMenu()
         tap(menuItem(deleteForever).waitToAppear())
         #if os(iOS)
-        // The menu's own "Delete forever" is still on screen while it closes; wait for the dialog.
+        // The menu's own "Delete forever" is still on screen while it closes; wait
+        // for the dialog, then for the menu's button to go, leaving only the dialog's.
         app.staticTexts["This removes the card and its files. You can't undo it."].firstMatch.waitToAppear()
+        let onlyDialog = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 1"),
+                                                   object: app.buttons.matching(NSPredicate(format: "label == %@", deleteForever)))
+        XCTAssertEqual(XCTWaiter.wait(for: [onlyDialog], timeout: 10), .completed, "The menu's Delete forever never closed")
         #endif
         tap(confirmation(deleteForever).waitToAppear())
         tile(containing: note).waitToDisappear()
