@@ -92,6 +92,18 @@ test.each([
   }
 );
 
+// `observability.enabled` turns on logs only, so tracing needs its own key,
+// and a deploy without it turns tracing off.
+test.each(CONFIGS)("the %s worker traces every invocation", (_name, path) => {
+  const config = unstable_readConfig({
+    config: resolve(import.meta.dir, path),
+  });
+  expect(config.observability?.traces).toEqual({
+    enabled: true,
+    head_sampling_rate: 1,
+  });
+});
+
 test.each([
   ["production", "../wrangler.jsonc", "teak-ai-backfill"],
   ["development", "../development/wrangler.jsonc", "teak-ai-backfill-dev"],

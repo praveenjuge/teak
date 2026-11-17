@@ -242,6 +242,9 @@
     "redact_query_string": true,
     // A deploy without this key turns Issues off, even if the dashboard
     // turned it on.
-    "issues": { "enabled": true }
+    "issues": { "enabled": true },
+    // Every request, queue batch, cron and workflow step is traced (Workers
+    // dashboard, Observability > Traces). `enabled` above only turns on logs.
+    "traces": { "enabled": true, "head_sampling_rate": 1 }
   }
 }

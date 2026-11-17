@@ -205,6 +205,8 @@ The media renderer runs ffmpeg and poppler in a Container built from `apps/core-
 
 The link fetcher, a second Container built from `apps/core-worker/fetcher/Dockerfile`, downloads remote preview images and media straight into R2 under the same SSRF rules Convex uses.
 
+The config keeps Workers Logs and traces of every invocation, which you read under the Worker's **Observability** tab in the Cloudflare dashboard. Both are kept for seven days, and from 1 December 2026 they count toward [Cloudflare Observability pricing](https://developers.cloudflare.com/observability/pricing/).
+
 #### Resources to create
 
 The first `bun run deploy:self-host` creates the R2 bucket (`teak-files`), both KV namespaces, the Workflows, Durable Objects, Containers and the Analytics Engine dataset, and later deploys keep them bound. Create these yourself before it:
