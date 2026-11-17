@@ -155,6 +155,22 @@ export const handleScheduled = async (
       ),
     cleanupExpiredExports: () =>
       forEachDeployment("export-cleanup", maintenance("export-cleanup")),
+    // Each of these two deletes one batch and, when rows are left, schedules
+    // itself again in Convex.
+    cleanupExpiredFolderRuleRuns: () =>
+      forEachDeployment(
+        "cleanup-expired-folder-rule-runs",
+        monitoredTask(
+          CRONS.cleanupExpiredFolderRuleRuns.name,
+          async (_url, convex) => {
+            const report = await convex.mutation(
+              internal.folder.rules.deleteExpiredFolderRuleRuns,
+              {}
+            );
+            console.log("[cron] folder rule runs cleaned", report);
+          }
+        )
+      ),
     cleanupExpiredIdempotency: () =>
       forEachDeployment(
         "cleanup-expired-idempotency",
@@ -174,6 +190,20 @@ export const handleScheduled = async (
           async (_url, convex) => {
             const cleaned = await expireUploadSessions(env, convex);
             console.log("[cron] upload sessions expired", { cleaned });
+          }
+        )
+      ),
+    cleanupFinishedLinkPastes: () =>
+      forEachDeployment(
+        "cleanup-finished-link-pastes",
+        monitoredTask(
+          CRONS.cleanupFinishedLinkPastes.name,
+          async (_url, convex) => {
+            const report = await convex.mutation(
+              internal.card.pasteLinks.sweepFinishedLinkPastes,
+              {}
+            );
+            console.log("[cron] finished link pastes cleaned", report);
           }
         )
       ),

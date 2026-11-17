@@ -89,6 +89,8 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "storage/orphanSweep:pageSweepCards",
   "dataImport:expireAbandonedUpload",
   "dataImport:findExpiredUploads",
+  "card/pasteLinks:sweepFinishedLinkPastes",
+  "folder/rules:deleteExpiredFolderRuleRuns",
   "fileUploads:deleteSession",
   "fileUploads:findExpiredSessions",
   "inbound/ingest:pruneReceipts",

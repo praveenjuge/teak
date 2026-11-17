@@ -759,15 +759,17 @@ once per deployment, and one deployment's failure neither stops another nor
 goes unreported (PostHog, with the deployment). Tasks the handler runs itself
 record the deployment's cron heartbeat (`adminHealth:recordCronRun` over the
 workflow RPC gateway) under the name in `cronSchedules.ts`, so the admin
-health view lists them beside Convex's own crons.
+health view lists them beside the one cron Convex still runs, the
+workflow dispatch watchdog, which stays there so a broken link to this Worker
+is still noticed.
 
 | Cron (UTC) | Task |
 | --- | --- |
 | `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
-| `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow |
+| `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow. Also pasted link jobs a week after they finish (`cleanup-finished-link-pastes`, `card/pasteLinks:sweepFinishedLinkPastes`) |
 | `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
 | `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
-| `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
+| `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below), and folder rule runs past their undo window (`cleanup-expired-folder-rule-runs`, `folder/rules:deleteExpiredFolderRuleRuns`). Each of the two cleanups deletes one batch per call and schedules itself again in Convex while rows are left |
 | `45 * * * *` | Workflow reconcile (`reconcile-workflows`) and the hourly cleanups below |
 
 The hourly cleanups (`src/scheduled/hourlyCleanup.ts`) run side by side, each with its
