@@ -192,8 +192,10 @@ struct CardDetailView: View {
                     .tint(.red)
             }
         } else {
-            ToolbarItem { shareButton(card) }
-            ToolbarSpacer(.fixed)
+            if !linkActionsInMenu(card) {
+                ToolbarItem { shareButton(card) }
+                ToolbarSpacer(.fixed)
+            }
             ToolbarItemGroup {
                 Button(model.isFavorited ? tr("native.actions.unfavorite") : tr("native.actions.favorite"),
                        systemImage: model.isFavorited ? "heart.fill" : "heart") {
@@ -211,7 +213,7 @@ struct CardDetailView: View {
                     .accessibilityAddTraits(model.isDone ? .isSelected : [])
                     .accessibilityIdentifier("detail.done")
                 }
-                if !editsInMenu(card) {
+                if !linkActionsInMenu(card) {
                     Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
                         .keyboardShortcut("e", modifiers: .command)
                 }
@@ -227,11 +229,16 @@ struct CardDetailView: View {
         }
     }
 
-    private func editsInMenu(_ card: Card) -> Bool { !isWide && card.type == .link }
+    /// A phone's bar can't fit a link's title menu, Share, Favorite, Done, Edit
+    /// and More: iOS folds Done and More into its own overflow. Share and Edit
+    /// move into More instead, so Done stays one tap away. A title too long for
+    /// the bar still wins the room; iOS gives the title priority.
+    private func linkActionsInMenu(_ card: Card) -> Bool { !isWide && card.type == .link }
 
     @ViewBuilder private func moreMenu(_ card: Card, _ model: CardDetailModel) -> some View {
-        if editsInMenu(card) {
+        if linkActionsInMenu(card) {
             Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
+            shareButton(card)
         }
         Section {
             if let copy = CardSheet.copyText(card) {
