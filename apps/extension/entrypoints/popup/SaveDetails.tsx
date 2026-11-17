@@ -46,16 +46,27 @@ const sendPatch = async (
   }
 };
 
+/** Failures the popup can word itself, in its own language, instead of the English message they came with. */
+const STATUS_BY_CODE: Record<string, "rateLimited" | "unreachable"> = {
+  NETWORK: "unreachable",
+  RATE_LIMITED: "rateLimited",
+};
+
 const failureMessage = (
   result: CardPatchResponse,
   tags: boolean,
-  t: TeakTranslator<"extension.popup.details">
+  t: TeakTranslator<"extension.popup.details">,
+  status: TeakTranslator<"extension.popup.status">
 ) => {
   if (result.status === "unauthenticated") {
     return t("signInAgain");
   }
-  if (result.status === "error" && result.code === "RATE_LIMITED") {
-    return result.message;
+  const key =
+    result.status === "error" && result.code
+      ? STATUS_BY_CODE[result.code]
+      : undefined;
+  if (key) {
+    return status(key);
   }
   return tags ? t("tagsFailed") : t("noteFailed");
 };
@@ -78,6 +89,7 @@ export function SaveDetails({
   userId,
 }: SaveDetailsProps) {
   const t = useTranslations("extension.popup.details");
+  const statusT = useTranslations("extension.popup.status");
   const [loadState, setLoadState] = useState<"error" | "loading" | "ready">(
     alreadySaved ? "loading" : "ready"
   );
@@ -148,7 +160,9 @@ export function SaveDetails({
         }
         return;
       }
-      setSaveError(failureMessage(response, change.tags !== undefined, t));
+      setSaveError(
+        failureMessage(response, change.tags !== undefined, t, statusT)
+      );
     });
   };
 
