@@ -19,6 +19,8 @@ afterAll(() => GlobalRegistrator.unregister());
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { SaveDetails } = await import("../../entrypoints/popup/SaveDetails");
+const { I18nProvider } = await import("@teak/i18n/react");
+const germanMessages = (await import("@teak/i18n/messages/de.json")).default;
 const { MESSAGE_TYPES } = await import("../../types/messages");
 
 const originalChrome = globalThis.chrome;
@@ -34,12 +36,14 @@ afterEach(async () => {
 interface Setup {
   alreadySaved?: boolean;
   details?: SaveDetailsResponse;
+  german?: boolean;
   patch?: (payload: PatchCardPayload) => CardPatchResponse;
 }
 
 async function render({
   details = { status: "ok", libraryTags: ["design", "reading"] },
   alreadySaved = false,
+  german = false,
   patch = () => ({ status: "updated" }),
 }: Setup = {}) {
   installChromeStorage();
@@ -82,13 +86,22 @@ async function render({
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(
+    const details = (
       <SaveDetails
         alreadySaved={alreadySaved}
         cardId="card_1"
         onKeepOpen={onKeepOpen}
         userId="user_1"
       />
+    );
+    root?.render(
+      german ? (
+        <I18nProvider locale="de" messages={germanMessages}>
+          {details}
+        </I18nProvider>
+      ) : (
+        details
+      )
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
@@ -128,9 +141,9 @@ const press = (field: HTMLElement, key: string) =>
   });
 
 const tagInput = (container: HTMLElement) =>
-  container.querySelector<HTMLInputElement>('input[aria-label="Tags"]');
+  container.querySelector<HTMLInputElement>('input[role="combobox"]');
 const noteField = (container: HTMLElement) =>
-  container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Note"]');
+  container.querySelector<HTMLTextAreaElement>("textarea");
 
 test("Enter in the tag input saves the tags at once", async () => {
   const { container, onKeepOpen, patches } = await render();
@@ -263,9 +276,49 @@ test("a rate limit says so and keeps the typed values", async () => {
   await act(() => note.blur());
   await settle();
   expect(container.textContent).toContain(
-    "Too many requests. Try again in a moment"
+    "Too many saves at once. Wait a moment and try again."
   );
   expect(note.value).toBe("keep me");
+});
+
+test("a rate limit reads in the popup's language", async () => {
+  const { container } = await render({
+    german: true,
+    patch: () => ({
+      status: "error",
+      code: "RATE_LIMITED",
+      message: "Too many requests. Try again in a moment",
+    }),
+  });
+  const note = noteField(container) as HTMLTextAreaElement;
+  await act(() => note.focus());
+  await type(note, "keep me");
+  await act(() => note.blur());
+  await settle();
+  expect(container.textContent).toContain(
+    germanMessages.extension.popup.status.rateLimited
+  );
+  expect(container.textContent).not.toContain("Too many requests");
+});
+
+test("an offline save says Teak couldn't be reached, in the popup's language", async () => {
+  const { container } = await render({
+    german: true,
+    patch: () => ({
+      status: "error",
+      code: "NETWORK",
+      message: "You're offline. Your changes weren't saved.",
+    }),
+  });
+  const input = tagInput(container) as HTMLInputElement;
+  await type(input, "design");
+  await press(input, "Enter");
+  await settle();
+  expect(container.textContent).toContain(
+    germanMessages.extension.popup.status.unreachable
+  );
+  expect(container.textContent).not.toContain("offline");
+  expect(container.textContent).toContain("design");
 });
 
 test("a page already saved fills in its own tags and note", async () => {
