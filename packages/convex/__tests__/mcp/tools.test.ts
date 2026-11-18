@@ -468,10 +468,85 @@ describe("MCP tools", () => {
       executor
     );
     expect(captured[0]?.query).toMatchObject({ include: "content,metadata" });
-    expect(result.content[0]?.text).toBe("Fetched 1 cards");
+    expect(result.content[0]?.text).toBe("Fetched 1 card");
     expect(JSON.parse(result.content[1]?.text ?? "")).toEqual(
       result.structuredContent
     );
+  });
+
+  test("count summaries say 1 card, 1 tag and 2 cards, not 1 cards", async () => {
+    const reply = (items: unknown[], extra: Record<string, unknown> = {}) =>
+      respondWith(() =>
+        Promise.resolve(
+          Response.json({
+            items,
+            pageInfo: { hasMore: false, nextCursor: null },
+            ...extra,
+          })
+        )
+      );
+    const summary = async (
+      name: string,
+      args: Record<string, unknown>,
+      executor: PublicApiToolExecutor
+    ) =>
+      (
+        await callTeakV1Tool(
+          name,
+          args,
+          mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call" }),
+          executor
+        )
+      ).content[0]?.text;
+    const one = [{ id: "card_1", type: "text", content: "Less, but better." }];
+    const two = [...one, { id: "card_2", type: "text", content: "More." }];
+
+    expect(await summary("teak_v1_list_cards", {}, reply(one))).toBe(
+      "Fetched 1 card"
+    );
+    expect(await summary("teak_v1_list_cards", {}, reply(two))).toBe(
+      "Fetched 2 cards"
+    );
+    expect(await summary("teak_v1_search_cards", { q: "x" }, reply(one))).toBe(
+      "Fetched 1 card"
+    );
+    expect(await summary("teak_v1_list_favorite_cards", {}, reply(one))).toBe(
+      "Fetched 1 favorite card"
+    );
+    expect(await summary("teak_v1_list_pinned_cards", {}, reply(two))).toBe(
+      "Fetched 2 pinned cards"
+    );
+    expect(
+      await summary(
+        "teak_v1_find_similar_cards",
+        { cardId: "card_9" },
+        reply(one)
+      )
+    ).toBe("Found 1 similar card");
+    expect(await summary("search", { query: "x" }, reply(one))).toBe(
+      "Found 1 card"
+    );
+    expect(
+      await summary("teak_v1_list_tags", {}, reply([{ name: "ux", count: 3 }]))
+    ).toBe("Fetched 1 tag");
+    expect(
+      await summary(
+        "teak_v1_get_card_changes",
+        { since: 0 },
+        reply(one, { deletedIds: ["card_2"] })
+      )
+    ).toBe("Fetched 1 changed card and 1 deleted ID");
+    expect(
+      await summary(
+        "teak_v1_get_me",
+        {},
+        respondWith(() =>
+          Promise.resolve(
+            Response.json({ data: { plan: "free", cardCount: 1 } })
+          )
+        )
+      )
+    ).toBe("Signed in on the Free plan with 1 card");
   });
 
   test("passes text: through to search image text", async () => {

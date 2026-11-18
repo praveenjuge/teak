@@ -148,7 +148,8 @@ const listCardsTool = <const Name extends string>(
         ? { relevanceRanked: payload.relevanceRanked }
         : {}),
     }),
-    summary: (payload) => `Fetched ${Number(payload.total) || 0} ${noun}`,
+    summary: (payload) =>
+      `Fetched ${countLabel(Number(payload.total) || 0, noun)}`,
   });
 
 const idempotencyHeaders = (key?: string): HeadersInit | undefined =>
@@ -191,7 +192,7 @@ export const TEAK_TOOLS = [
     annotations: READ_ONLY,
     schema: cardFiltersSchema,
     call: (input) => ({ operationId: "listCards", query: cardsQuery(input) }),
-    summary: (payload) => `Fetched ${count(payload)} cards`,
+    summary: (payload) => `Fetched ${countLabel(count(payload), "card")}`,
   }),
   tool({
     name: "teak_v1_get_card",
@@ -253,7 +254,7 @@ export const TEAK_TOOLS = [
     call: () => ({ operationId: "getMe" }),
     transform: (payload) => toObjectPayload(payload.data),
     summary: (payload) =>
-      `Signed in on the ${payload.plan === "pro" ? "Pro" : "Free"} plan with ${Number(payload.cardCount) || 0} cards`,
+      `Signed in on the ${payload.plan === "pro" ? "Pro" : "Free"} plan with ${countLabel(Number(payload.cardCount) || 0, "card")}`,
   }),
   tool({
     name: "teak_v1_check_duplicate_url",
@@ -323,7 +324,7 @@ export const TEAK_TOOLS = [
     annotations: READ_ONLY,
     schema: noArguments,
     call: () => ({ operationId: "listTags" }),
-    summary: (payload) => `Fetched ${count(payload)} tags`,
+    summary: (payload) => `Fetched ${countLabel(count(payload), "tag")}`,
   }),
   tool({
     name: "teak_v1_rename_tag",
@@ -395,7 +396,7 @@ export const TEAK_TOOLS = [
       query: definedOnly(input),
     }),
     summary: (payload) =>
-      `Fetched ${count(payload)} changed cards and ${count(payload, "deletedIds")} deleted IDs`,
+      `Fetched ${countLabel(count(payload), "changed card")} and ${countLabel(count(payload, "deletedIds"), "deleted ID")}`,
   }),
   tool({
     name: "teak_v1_bulk_cards",
@@ -461,7 +462,8 @@ export const TEAK_TOOLS = [
         })
       ),
     }),
-    summary: (payload) => `Found ${count(payload, "results")} cards`,
+    summary: (payload) =>
+      `Found ${countLabel(count(payload, "results"), "card")}`,
   }),
   tool({
     name: "fetch",
@@ -488,7 +490,7 @@ export const TEAK_TOOLS = [
         'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:pinned (cards pinned to the top), is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old, -is:archived), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Lowercase or is a plain word. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }, where total counts the items on this page; pass pageInfo.nextCursor as cursor for more.',
     },
     {},
-    "cards"
+    "card"
   ),
   tool({
     name: "teak_v1_find_similar_cards",
@@ -514,7 +516,8 @@ export const TEAK_TOOLS = [
       pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
       ...(payload.similarity ? { similarity: payload.similarity } : {}),
     }),
-    summary: (payload) => `Found ${Number(payload.total) || 0} similar cards`,
+    summary: (payload) =>
+      `Found ${countLabel(Number(payload.total) || 0, "similar card")}`,
   }),
   listCardsTool(
     {
@@ -524,7 +527,7 @@ export const TEAK_TOOLS = [
         "List favorited cards, optionally filtered by text and the list_cards filters. Hidden cards (tagged secret or hidden) are left out unless the search names one of those tags.",
     },
     { favorited: true },
-    "favorite cards"
+    "favorite card"
   ),
   listCardsTool(
     {
@@ -533,7 +536,7 @@ export const TEAK_TOOLS = [
       description: `List the cards pinned to the top of the library, first to last (at most ${MAX_PINNED_CARDS}). Takes the list_cards filters.`,
     },
     { pinned: true },
-    "pinned cards"
+    "pinned card"
   ),
   tool({
     name: "teak_v1_update_card",
