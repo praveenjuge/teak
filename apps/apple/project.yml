@@ -132,6 +132,9 @@ targets:
       - path: SafariExtension/Resources/images
         type: folder
         buildPhase: resources
+      # The popup's Allo, the app's own face (popup.css).
+      - path: Packages/TeakKit/Sources/TeakUI/Resources/Fonts/AlloTeak.ttf
+        buildPhase: resources
     settings:
       base:
         PRODUCT_NAME: SafariExtension

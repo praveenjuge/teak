@@ -1,9 +1,10 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct MarkdownView: View {
     let markdown: String
-    var baseFont: Font = .body
+    var baseStyle: Font.TextStyle = .body
     var cardLinks: [String: CardLinkTarget]?
     var toggleTask: ((MarkdownListItem) -> Void)?
 
@@ -20,13 +21,13 @@ struct MarkdownView: View {
     @ViewBuilder private func view(for block: MarkdownBlock) -> some View {
         switch block {
         case let .heading(level, text):
-            inline(text).font(headingFont(level)).fontWeight(.semibold)
+            inline(text).allo(headingStyle(level), weight: .semibold)
         case let .paragraph(text):
-            inline(text).font(baseFont)
+            inline(text).allo(baseStyle)
         case let .quote(text):
             HStack(alignment: .top, spacing: 10) {
                 Capsule().fill(.tertiary).frame(width: 3)
-                inline(text).font(baseFont).foregroundStyle(.secondary)
+                inline(text).allo(baseStyle).foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
         case let .code(text):
@@ -46,13 +47,13 @@ struct MarkdownView: View {
                             Text(item.marker).foregroundStyle(.secondary).monospacedDigit()
                             inline(item.text)
                         }
-                        .font(baseFont)
+                        .allo(baseStyle)
                         .padding(.leading, Double(item.depth) * 16)
                     }
                 }
             }
         case let .table(table):
-            MarkdownTableView(table: table, cell: inline).font(baseFont)
+            MarkdownTableView(table: table, cell: inline).allo(baseStyle)
         }
     }
 
@@ -71,7 +72,7 @@ struct MarkdownView: View {
                 .strikethrough(checked)
                 .foregroundStyle(checked ? .secondary : .primary)
         }
-        .font(baseFont)
+        .allo(baseStyle)
         .padding(.leading, Double(item.depth) * 16)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(MarkdownBlocks.plainText(CardLinks.tokensToText(item.text))))
@@ -115,7 +116,7 @@ struct MarkdownView: View {
         return pill
     }
 
-    private func headingFont(_ level: Int) -> Font {
+    private func headingStyle(_ level: Int) -> Font.TextStyle {
         switch level {
         case 1: .title2
         case 2: .title3

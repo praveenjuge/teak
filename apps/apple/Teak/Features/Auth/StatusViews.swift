@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct LoadingView: View {
     var body: some View {
@@ -14,7 +15,7 @@ struct OfflineView: View {
     let retry: () -> Void
 
     var body: some View {
-        ContentUnavailableView {
+        AlloUnavailableView {
             Label(tr("native.app.offline.title"), systemImage: "wifi.slash")
         } description: {
             Text(tr("native.app.offline.message"))
@@ -31,7 +32,7 @@ struct FailedView: View {
     let retry: () -> Void
 
     var body: some View {
-        ContentUnavailableView {
+        AlloUnavailableView {
             Label(tr("native.app.failed.title"), systemImage: "exclamationmark.triangle")
         } description: {
             Text(message)

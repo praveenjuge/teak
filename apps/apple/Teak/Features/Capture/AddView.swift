@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 import TeakCore
+import TeakUI
 import UniformTypeIdentifiers
 
 struct AddView: View {
@@ -24,7 +25,7 @@ struct AddView: View {
     #if os(macOS)
     private var content: some View {
         Form {
-            Section(tr("native.capture.write")) {
+            Section {
                 AddAction(tr("native.capture.noteOrLink"), detail: tr("native.capture.noteOrLinkDetail"),
                           symbol: "square.and.pencil") {
                     Button(tr("native.capture.newNote")) { router.compose() }
@@ -33,6 +34,8 @@ struct AddView: View {
                           symbol: "mic") {
                     Button(tr("native.capture.recordEllipsis")) { router.record() }
                 }
+            } header: {
+                Text(tr("native.capture.write")).alloSectionHeader()
             }
             Section {
                 AddAction(tr("native.capture.photosAndVideos"), detail: tr("native.capture.photosDetail"),
@@ -46,10 +49,11 @@ struct AddView: View {
                     Button(tr("native.capture.chooseFiles")) { router.isImportingFiles = true }
                 }
             } header: {
-                Text(tr("native.capture.upload"))
+                Text(tr("native.capture.upload")).alloSectionHeader()
             } footer: {
                 Text(tr("native.capture.dropHint"))
                     .foregroundStyle(.secondary)
+                    .alloSectionFooter()
             }
             if let upload = capture.upload {
                 Section {
@@ -73,11 +77,13 @@ struct AddView: View {
     private var content: some View {
         @Bindable var router = router
         return List {
-            Section(tr("native.capture.write")) {
+            Section {
                 row(tr("native.capture.noteOrLink"), symbol: "doc.text.fill", color: .blue) { router.compose() }
                 row(tr("native.capture.voiceMemo"), symbol: "mic.fill", color: .orange) { router.record() }
+            } header: {
+                Text(tr("native.capture.write")).alloSectionHeader()
             }
-            Section(tr("native.capture.upload")) {
+            Section {
                 PhotosPicker(selection: $photos, maxSelectionCount: TeakLimits.maxFilesPerUpload,
                              selectionBehavior: .ordered, matching: .any(of: [.images, .videos])) {
                     AddRowLabel(title: tr("native.capture.photosAndVideos"), symbol: "photo.on.rectangle", color: .green)
@@ -88,6 +94,8 @@ struct AddView: View {
                 }
                 #endif
                 row(tr("native.capture.files"), symbol: "folder.fill", color: .cyan) { router.isImportingFiles = true }
+            } header: {
+                Text(tr("native.capture.upload")).alloSectionHeader()
             }
             if let upload = capture.upload {
                 Section {
@@ -151,7 +159,7 @@ private struct AddRowLabel: View {
             Text(title).foregroundStyle(.primary)
         } icon: {
             Image(systemName: symbol)
-                .font(.footnote.weight(.semibold))
+                .allo(.footnote, weight: .semibold)
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
                 .background(color.gradient, in: .rect(cornerRadius: 7))

@@ -37,6 +37,7 @@
 		50A9E6A40C46EC6BD15ED9E4 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */; };
 		531C9DE90DBE1F6A758D1F5E /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = FFDC83C6E603B2D30AD15EB1 /* TeakCore */; };
 		5BF2BE72834C1F430546D85D /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6F6A3A42782815CB35DFE813 /* TeakUI */; };
+		5C15FE6686D1E6761564B2BB /* AlloTeak.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FB4CF3F653C87EBABF74B890 /* AlloTeak.ttf */; };
 		6129572D0B477BD1CDA57006 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = 005BE33C57BE4A949C714E10 /* popup.css */; };
 		67B048B512A2AE943F41C947 /* OpenCardIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E4A7C7369968E741E441F8 /* OpenCardIntent.swift */; };
 		68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */; };
@@ -212,6 +213,7 @@
 		F32533E118EE2528C2BEB7A4 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		F9EAC217372F9E2FABC172E6 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInTests.swift; sourceTree = "<group>"; };
+		FB4CF3F653C87EBABF74B890 /* AlloTeak.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = AlloTeak.ttf; sourceTree = "<group>"; };
 		FC9794E71FD9919068F5A074 /* CaptureModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModel.swift; sourceTree = "<group>"; };
 		FFB076F319391164EE3794A4 /* CardLinkPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLinkPicker.swift; sourceTree = "<group>"; };
 		FFF2A4EB00C2FD68C6181825 /* TagsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagsView.swift; sourceTree = "<group>"; };
@@ -285,6 +287,22 @@
 			path = TeakWidgets;
 			sourceTree = "<group>";
 		};
+		45C9DEDD159344F7E8C7BF7E /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				FB4CF3F653C87EBABF74B890 /* AlloTeak.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		521D0D042A51ED74A49E36B6 /* TeakKit */ = {
+			isa = PBXGroup;
+			children = (
+				617154E67C81F6BB46B218D9 /* Sources */,
+			);
+			path = TeakKit;
+			sourceTree = "<group>";
+		};
 		58E031F2F5E19AE13097FDC6 /* Organize */ = {
 			isa = PBXGroup;
 			children = (
@@ -304,6 +322,14 @@
 			path = SafariExtension;
 			sourceTree = "<group>";
 		};
+		5CE2C82FCFADAD469FF110B7 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				45C9DEDD159344F7E8C7BF7E /* Fonts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		5E718E1BB5E59F985E314DD5 /* Intents */ = {
 			isa = PBXGroup;
 			children = (
@@ -317,6 +343,14 @@
 				A764AEAD9FFF717F9C2A68C8 /* TeakShortcuts.swift */,
 			);
 			path = Intents;
+			sourceTree = "<group>";
+		};
+		617154E67C81F6BB46B218D9 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				D76E7001312FDE8527986C97 /* TeakUI */,
+			);
+			path = Sources;
 			sourceTree = "<group>";
 		};
 		6BAC0A212F73A0FA8B035F18 /* Capture */ = {
@@ -461,9 +495,18 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		D76E7001312FDE8527986C97 /* TeakUI */ = {
+			isa = PBXGroup;
+			children = (
+				5CE2C82FCFADAD469FF110B7 /* Resources */,
+			);
+			path = TeakUI;
+			sourceTree = "<group>";
+		};
 		DC5AAB7621451403981BC16A /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				521D0D042A51ED74A49E36B6 /* TeakKit */,
 				CB834A92D5E9C12ED538973C /* TeakKit */,
 			);
 			path = Packages;
@@ -698,6 +741,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C15FE6686D1E6761564B2BB /* AlloTeak.ttf in Resources */,
 				F675C71A37C1A0C1943901E6 /* _locales in Resources */,
 				80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */,
 				435531015D521B1295BD6684 /* images in Resources */,

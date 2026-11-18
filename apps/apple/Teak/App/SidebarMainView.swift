@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 enum SidebarItem: Hashable {
     case home, add, favorites, archive, trash, tags, settings, type(CardType), folder(String)
@@ -80,7 +81,7 @@ struct SidebarMainView: View {
                     Text(tr("native.folders.title"))
                     #else
                     HStack {
-                        Text(tr("native.folders.title"))
+                        Text(tr("native.folders.title")).alloSectionHeader()
                         Spacer()
                         Button(tr("native.folders.newFolder"), systemImage: "plus") { prompt = .create }
                             .labelStyle(.iconOnly)
@@ -89,10 +90,16 @@ struct SidebarMainView: View {
                     }
                     #endif
                 }
-                Section(tr("native.app.nav.types")) {
+                Section {
                     ForEach(CardType.allCases) { type in
                         Label(type.plural, systemImage: type.symbol).tag(SidebarItem.type(type))
                     }
+                } header: {
+                    #if os(macOS)
+                    Text(tr("native.app.nav.types"))
+                    #else
+                    Text(tr("native.app.nav.types")).alloSectionHeader()
+                    #endif
                 }
             }
             .navigationTitle("Teak")

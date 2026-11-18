@@ -1,6 +1,7 @@
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 enum Appearance: String, CaseIterable, Identifiable {
     case auto, light, dark
@@ -51,7 +52,7 @@ struct LibrarySection: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Section(tr("native.settings.library")) {
+        Section {
             NavigationLink {
                 TagsView(model: AppServices.shared.tags) { tag in
                     let library = AppServices.shared.home
@@ -64,6 +65,8 @@ struct LibrarySection: View {
                 Label(tr("native.tags.title"), systemImage: "number")
             }
             .accessibilityIdentifier("settings.tags")
+        } header: {
+            Text(tr("native.settings.library")).alloSectionHeader()
         }
     }
 }
@@ -73,11 +76,13 @@ struct AppearanceSection: View {
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
 
     var body: some View {
-        Section(tr("native.settings.appearance")) {
+        Section {
             Picker(tr("native.settings.theme"), selection: $appearance) {
                 ForEach(Appearance.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+        } header: {
+            Text(tr("native.settings.appearance")).alloSectionHeader()
         }
     }
 }
@@ -108,7 +113,7 @@ struct ProfileSection: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Section(tr("native.settings.profile")) {
+        Section {
             LabeledContent(tr("native.settings.email")) {
                 Text(app.user?.email ?? account.user?.email ?? tr("native.settings.notSignedIn"))
                     .lineLimit(1)
@@ -128,6 +133,8 @@ struct ProfileSection: View {
                 }
             }
             LabeledContent(tr("native.settings.usage")) { value(account.user.map(AccountText.usage)) }
+        } header: {
+            Text(tr("native.settings.profile")).alloSectionHeader()
         }
     }
 
@@ -158,7 +165,7 @@ struct AccountActions: View {
                     .tint(.primary)
                     .accessibilityIdentifier("settings.logOut")
             } footer: {
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(.red).alloSectionFooter() }
             }
             Section {
                 Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
@@ -246,9 +253,9 @@ private struct AboutSection: View {
         Section {
             LabeledContent(tr("native.settings.version"), value: "\(app.config.version) (\(app.config.build))")
         } header: {
-            Text(tr("native.settings.about"))
+            Text(tr("native.settings.about")).alloSectionHeader()
         } footer: {
-            Text(tr("native.settings.hope") + "\n" + tr("native.settings.byAuthor", "@praveenjuge"))
+            Text(tr("native.settings.hope") + "\n" + tr("native.settings.byAuthor", "@praveenjuge")).alloSectionFooter()
         }
     }
 }

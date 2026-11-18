@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
 
 const source = readFileSync(
@@ -170,4 +170,25 @@ test("signs out", async () => {
   );
   expect(result.title.textContent).toBe("Signed out");
   expect(result.message.textContent).toBe("Sign in to save pages.");
+});
+
+test("bundles the font popup.css loads", () => {
+  // A missing font only shows as the popup quietly falling back to the system font.
+  const css = readFileSync(
+    new URL("../SafariExtension/Resources/popup.css", import.meta.url),
+    "utf8"
+  );
+  const project = readFileSync(
+    new URL("../project.yml", import.meta.url),
+    "utf8"
+  );
+  const font = css.match(/url\("([^"]+)"\)/)?.[1];
+  expect(font).toBe("AlloTeak.ttf");
+  const bundled = project
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("- path: ") && line.endsWith(`/${font}`))
+    ?.slice("- path: ".length);
+  expect(bundled).toBeDefined();
+  expect(existsSync(new URL(`../${bundled}`, import.meta.url))).toBe(true);
 });

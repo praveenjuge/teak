@@ -2,6 +2,7 @@ import Observation
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 @MainActor @Observable
 final class RevisitModel {
@@ -157,7 +158,7 @@ struct RevisitView: View {
                     }
                     if model.current != nil {
                         ToolbarItem(placement: .principal) {
-                            Text(model.position).font(.subheadline.weight(.medium)).monospacedDigit()
+                            Text(model.position).allo(.subheadline, weight: .medium).monospacedDigit()
                         }
                     }
                 }
@@ -186,7 +187,7 @@ struct RevisitView: View {
         if model.isLoading {
             ProgressView().accessibilityLabel(tr("native.library.loadingCards"))
         } else if model.failed {
-            ContentUnavailableView {
+            AlloUnavailableView {
                 Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
             } description: {
                 Text(tr("native.errors.offline"))
@@ -194,7 +195,7 @@ struct RevisitView: View {
                 Button(tr("common.retry")) { Task { await model.deal() } }.buttonStyle(.bordered)
             }
         } else if model.cards.isEmpty {
-            ContentUnavailableView {
+            AlloUnavailableView {
                 Label(tr("native.revisit.emptyTitle"), systemImage: "rectangle.stack")
             } description: {
                 Text(tr("native.revisit.emptyMessage"))
@@ -249,10 +250,10 @@ struct RevisitView: View {
             .disabled(model.isPending)
             .frame(maxWidth: 380)
             HStack(spacing: 12) {
-                Text(hint).font(.footnote).foregroundStyle(.secondary)
+                Text(hint).allo(.footnote).foregroundStyle(.secondary)
                 if model.lastArchived != nil {
                     Button(tr("common.undo")) { Task { await model.undo() } }
-                        .font(.footnote.weight(.medium))
+                        .allo(.footnote, weight: .medium)
                         .buttonStyle(.borderless)
                 }
             }
@@ -273,7 +274,7 @@ struct RevisitView: View {
             Text(drag.width < -threshold ? tr("native.revisit.releaseToArchive")
                  : drag.width > threshold ? tr("native.revisit.releaseToKeep")
                  : drag.width < 0 ? tr("native.actions.archive") : tr("native.revisit.keep"))
-                .font(.footnote.weight(.semibold))
+                .allo(.footnote, weight: .semibold)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .glassEffect(.regular, in: .capsule)
@@ -285,7 +286,7 @@ struct RevisitView: View {
         let saved = Date(timeIntervalSince1970: card.creationTime / 1000)
             .formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(AppLanguage.locale))
         return Label(tr("native.revisit.caption", card.type.label, saved), systemImage: card.type.symbol)
-            .font(.footnote)
+            .allo(.footnote)
             .foregroundStyle(.secondary)
     }
 
@@ -304,7 +305,7 @@ struct RevisitView: View {
     }
 
     private var finished: some View {
-        ContentUnavailableView {
+        AlloUnavailableView {
             Label(tr("native.revisit.finishedTitle"), systemImage: "checkmark.circle")
         } description: {
             Text(tr("native.revisit.summary", localizedNumber(model.archived), localizedNumber(model.kept)))

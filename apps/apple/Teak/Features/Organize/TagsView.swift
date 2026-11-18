@@ -2,6 +2,7 @@ import Observation
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 @MainActor @Observable
 final class TagsModel {
@@ -164,10 +165,10 @@ struct TagsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(TagChangeText.running(operation.kind, from: operation.from, to: operation.to))
-                            .font(.subheadline.weight(.medium))
+                            .allo(.subheadline, weight: .medium)
                         ProgressView(value: operation.total > 0 ? min(operation.processed / operation.total, 1) : 0)
                         Text(TagChangeText.progress(changed: Int(operation.changed), total: Int(operation.total)))
-                            .font(.footnote)
+                            .allo(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
@@ -202,10 +203,10 @@ struct TagsView: View {
             if !model.isLoaded {
                 ProgressView().accessibilityLabel(tr("native.tags.loading"))
             } else if model.items.isEmpty {
-                ContentUnavailableView(tr("native.tags.emptyTitle"), systemImage: "number",
+                AlloUnavailableView(tr("native.tags.emptyTitle"), systemImage: "number",
                                        description: Text(tr("native.tags.emptyMessage")))
             } else if visible.isEmpty {
-                ContentUnavailableView.search(text: query)
+                AlloUnavailableView.search(text: query)
             }
         }
         .searchable(text: $query, prompt: tr("native.tags.find"))
@@ -259,7 +260,7 @@ private struct MergeTagView: View {
         NavigationStack {
             List {
                 Text(tr("native.tags.mergeMessage", source.name))
-                    .font(.footnote)
+                    .allo(.footnote)
                     .foregroundStyle(.secondary)
                 ForEach(targets.prefix(200)) { tag in
                     Button {

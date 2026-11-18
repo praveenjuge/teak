@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardEditView: View {
     let cardId: String
@@ -21,7 +22,7 @@ struct CardEditView: View {
                 if let card = model?.card, let draft {
                     form(card, Binding(get: { draft }, set: { self.draft = $0 }))
                 } else if model?.isLoading == false {
-                    ContentUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
+                    AlloUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
                                            description: Text(tr("native.card.unavailable.deletedMessage")))
                 } else {
                     ProgressView()
@@ -85,19 +86,23 @@ struct CardEditView: View {
             if card.type == .text {
                 noteSection(draft)
             } else if CardEdit.canEditContent(card.type) {
-                Section(tr("cards.types.quote")) {
+                Section {
                     TextField(tr("native.card.edit.quotePlaceholder"), text: contentBinding(draft),
                               prompt: Text(tr("native.card.edit.quotePlaceholder")), axis: .vertical)
                         .lineLimit(4...16)
                         .labelsHidden()
+                } header: {
+                    Text(tr("cards.types.quote")).alloSectionHeader()
                 }
             }
-            Section(tr("native.card.sections.notes")) {
+            Section {
                 TextField(tr("native.card.edit.notesPlaceholder"), text: draft.notes,
                           prompt: Text(tr("native.card.edit.notesPlaceholder")), axis: .vertical)
                     .lineLimit(3...10)
                     .labelsHidden()
                     .accessibilityIdentifier("edit.notes")
+            } header: {
+                Text(tr("native.card.sections.notes")).alloSectionHeader()
             }
             Section {
                 ForEach(draft.wrappedValue.tags, id: \.self) { tag in
@@ -125,10 +130,11 @@ struct CardEditView: View {
                         .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } header: {
-                Text(tr("native.card.sections.tags"))
+                Text(tr("native.card.sections.tags")).alloSectionHeader()
             } footer: {
                 if let hint = HiddenTags.addedHint(before: card.tags, after: draft.wrappedValue.tags) {
                     Label(hint, systemImage: "eye.slash")
+                        .alloSectionFooter()
                         .accessibilityIdentifier("edit.hiddenHint")
                 }
             }
@@ -151,7 +157,7 @@ struct CardEditView: View {
                         }
                     }
                 } header: {
-                    Text(tr("native.card.edit.aiTags"))
+                    Text(tr("native.card.edit.aiTags")).alloSectionHeader()
                 }
             }
         }
@@ -181,9 +187,9 @@ struct CardEditView: View {
                 CardLinkPicker(model: linkPicker) { pickLink($0, draft) }
             }
         } header: {
-            Text(tr("native.card.note"))
+            Text(tr("native.card.note")).alloSectionHeader()
         } footer: {
-            Text(tr("native.linkPicker.hint"))
+            Text(tr("native.linkPicker.hint")).alloSectionFooter()
         }
     }
 

@@ -59,7 +59,7 @@ public struct FolderChecklist: View {
                 Label(folder.name, systemImage: folder.symbol).lineLimit(1)
                 Spacer(minLength: 8)
                 Text(Int(folder.activeCardCount), format: .number.locale(AppLanguage.locale))
-                    .font(.footnote)
+                    .allo(.footnote)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
@@ -77,7 +77,7 @@ public struct FolderChecklist: View {
         if let folders, loadError == nil, visible.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
             if FolderChoice.choosable(folders).isEmpty {
-                ContentUnavailableView(tr("native.folders.emptyTitle"), systemImage: "folder",
+                AlloUnavailableView(tr("native.folders.emptyTitle"), systemImage: "folder",
                                        description: Text(tr("native.share.foldersEmpty")))
             } else if !trimmed.isEmpty {
                 Text(tr("native.filters.empty.noResults", trimmed)).foregroundStyle(.secondary)

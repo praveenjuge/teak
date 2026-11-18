@@ -1,6 +1,7 @@
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 @MainActor @Observable
 final class CardLinkPickerModel {
@@ -138,7 +139,7 @@ struct CardLinkPicker: View {
             }
             if let message = model.message {
                 Text(message)
-                    .font(.callout)
+                    .allo(.callout)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 6)
                     .padding(.horizontal, 8)

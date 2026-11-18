@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 @MainActor
 final class AppServices {
@@ -73,6 +74,8 @@ final class AppServices {
 struct TeakApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var delegate
+    #else
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     #endif
     private let services = AppServices.shared
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
@@ -128,6 +131,21 @@ struct TeakApp: App {
     }
 }
 
+#if os(iOS)
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Large navigation titles are UIKit's, so Allo reaches them through the bar's appearance, at
+        // iOS's bold large title. iOS 27 sets inline titles, tab bar labels, segmented pickers and the
+        // search field itself and ignores appearance fonts for them, so those stay in the system font.
+        // Not earlier: touching UIAppearance before launch finishes loses the app's AccentColor.
+        UINavigationBar.appearance().largeTitleTextAttributes =
+            [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: Allo.font(size: 34, weight: 700))]
+        return true
+    }
+}
+#endif
+
 extension View {
     func environments(_ services: AppServices) -> some View {
         environment(services.app)
@@ -135,6 +153,6 @@ extension View {
             .environment(services.capture)
             .environment(services.language)
             .environment(\.locale, services.language.locale)
-            .fontDesign(.rounded)
+            .allo(.body)
     }
 }

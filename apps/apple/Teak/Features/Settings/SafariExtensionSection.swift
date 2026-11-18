@@ -3,6 +3,7 @@ import TeakCore
 
 #if os(macOS)
 import SafariServices
+import TeakUI
 #endif
 
 enum SafariExtension {
@@ -16,7 +17,7 @@ struct SafariExtensionSection: View {
     #endif
 
     var body: some View {
-        Section(tr("native.settings.safariExtension")) {
+        Section {
             #if os(macOS)
             LabeledContent(tr("native.settings.status")) {
                 switch isEnabled {
@@ -27,13 +28,15 @@ struct SafariExtensionSection: View {
             }
             Button(tr("native.settings.openSafariSettings")) { Task { await openSafariSettings() } }
             if let problem {
-                Text(problem).font(.footnote).foregroundStyle(.secondary)
+                Text(problem).allo(.footnote).foregroundStyle(.secondary)
             }
             #else
             hint
-                .font(.callout)
+                .allo(.callout)
                 .foregroundStyle(.secondary)
             #endif
+        } header: {
+            Text(tr("native.settings.safariExtension")).alloSectionHeader()
         }
         #if os(macOS)
         .task { await refresh() }

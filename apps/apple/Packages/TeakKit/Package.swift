@@ -34,6 +34,7 @@ let package = Package(
         .target(
             name: "TeakUI",
             dependencies: ["TeakCore"],
+            resources: [.copy("Resources/Fonts")],
             swiftSettings: strict
         ),
         .testTarget(

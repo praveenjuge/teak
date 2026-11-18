@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 enum FolderPrompt: Identifiable, Equatable {
     case create
@@ -155,7 +156,7 @@ struct FolderLabel: View {
                 Spacer(minLength: 8)
                 if !folder.isSmart {
                     Text(Int(folder.activeCardCount), format: .number.locale(AppLanguage.locale))
-                        .font(.footnote)
+                        .allo(.footnote)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -260,7 +261,7 @@ struct FoldersPage: View {
             if !folders.isLoaded {
                 ProgressView()
             } else if folders.folders.isEmpty {
-                ContentUnavailableView {
+                AlloUnavailableView {
                     Label(tr("native.folders.emptyTitle"), systemImage: "folder")
                 } description: {
                     Text(tr("native.folders.emptyMessage"))
