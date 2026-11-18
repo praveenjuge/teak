@@ -41,8 +41,6 @@ describe("categorization updateCategorization", () => {
         }),
       };
 
-      expect(typeof mutation).toBe("function");
-
       await mutation(mockCtx, {
         cardId: "card_123",
         metadata: {

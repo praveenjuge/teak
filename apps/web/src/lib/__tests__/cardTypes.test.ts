@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { FileText, Volume2 } from "vadivam-react";
 import {
   cardDialogStage,
-  cardStageClass,
   cardTitle,
   cardTypeIcon,
   hasEditableText,
@@ -46,19 +45,6 @@ describe("what a type gives the dialog and every list", () => {
   test("one icon per type, a note's for a type it doesn't know", () => {
     expect(cardTypeIcon("audio")).toBe(Volume2);
     expect(cardTypeIcon("nope")).toBe(FileText);
-  });
-
-  test("a PDF with its file fills the stage; other documents get a padded column", () => {
-    const pdf = {
-      fileMetadata: { fileName: "paper.pdf", mimeType: "application/pdf" },
-      type: "document",
-    };
-    expect(cardStageClass({ ...pdf, fileUrl: "https://f/p.pdf" })).not.toBe(
-      cardStageClass(pdf)
-    );
-    expect(cardStageClass({ ...pdf, fileUrl: "https://f/p.pdf" })).toContain(
-      "h-[70dvh]"
-    );
   });
 });
 

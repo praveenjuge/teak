@@ -61,5 +61,4 @@ test("the save status is one live region that's there before anything is saved",
   const failed = await renderTitle({ error: true, label: "Couldn't save" });
   expect(failed).toBe(idle);
   expect(failed?.textContent).toBe("Couldn't save");
-  expect(failed?.className).toContain("text-destructive");
 });

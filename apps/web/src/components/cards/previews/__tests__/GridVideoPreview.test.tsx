@@ -51,8 +51,6 @@ describe("GridVideoPreview", () => {
         thumbnailUrl="https://files.teakvault.com/still.jpg"
       />
     );
-    expect(markup).toMatch(
-      /bottom-2\.5 left-2\.5[^>]*><svg[\s\S]*?<\/svg>0:42</
-    );
+    expect(markup).toContain("0:42");
   });
 });

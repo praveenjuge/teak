@@ -199,8 +199,6 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(keep == .tags(["flowers", "macro"]))
         #expect(keep?.args(cardId: "c") == ["cardId": "c", "field": "tags", "value": ["flowers", "macro"]])
         #expect(CardEdit.keeping("Macro", tags: ["macro"]) == nil)
-        #expect(CardFieldChange.removeAiTag("macro").args(cardId: "c")
-            == ["cardId": "c", "field": "removeAiTag", "tagToRemove": "macro"])
     }
 
     @Test func suggestsTeakTagsTheCardDoesNotHave() {
@@ -248,7 +246,6 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
     @Test func addsUntilThePaletteHoldsTwelveColors() {
         let eleven = (0..<11).map { String(format: "#0000%02X", $0) }
-        #expect(PaletteEdit.maxColors == 12)
         #expect(PaletteEdit.canAdd(palette(eleven)))
         #expect(!PaletteEdit.canAdd(palette(eleven + ["#FFFFFF"])))
         #expect(PaletteEdit.canAdd(palette([])))

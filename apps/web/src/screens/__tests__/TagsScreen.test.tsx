@@ -128,16 +128,6 @@ test("a tag reads as it was typed, while its link narrows by the tag itself", as
   ).not.toBeNull();
 });
 
-test("a tag's More button hides until hover only where a mouse can hover", async () => {
-  summary = { isComplete: true, items: [{ name: "web", count: 3 }] };
-  await render();
-
-  const more = document.querySelector('button[aria-label="More for web"]');
-  // Touch screens, with no hover, keep it on screen.
-  expect(more?.className).toContain("md:pointer-fine:opacity-0");
-  expect(more?.className.split(" ")).not.toContain("md:opacity-0");
-});
-
 test("finds a tag ignoring case and says when nothing matches", async () => {
   summary = {
     isComplete: true,

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { parseArguments, readJson, required } from "./release-cli.ts";
 import { parseVersion } from "./release-version.ts";
 
-export const reviewStates = new Set([
+const reviewStates = new Set([
   "WAITING_FOR_REVIEW",
   "IN_REVIEW",
   "PENDING_APPLE_RELEASE",

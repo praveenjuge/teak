@@ -495,7 +495,6 @@ export const Card = memo(function Card({
                     isMediaCard &&
                       "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
                   )}
-                  data-pin-mark=""
                 >
                   <Pin
                     aria-label={t("pinnedMark")}

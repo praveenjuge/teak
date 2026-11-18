@@ -28,6 +28,32 @@ test("only Version Tag creates a GitHub Release; release workflows wait for it",
   expect(uploadersThatDontWait).toEqual([]);
 });
 
+test("Version Tag dispatches every product's release workflow", () => {
+  const versionTag = Bun.YAML.parse(
+    readFileSync(join(WORKFLOWS, "version-tag.yml"), "utf8")
+  ) as {
+    jobs: {
+      release: { strategy: { matrix: { include: { workflow: string }[] } } };
+    };
+  };
+  const dispatched = versionTag.jobs.release.strategy.matrix.include.map(
+    (row) => row.workflow
+  );
+  const releases = readdirSync(WORKFLOWS).filter((name) =>
+    name.endsWith("-release.yml")
+  );
+  expect([...dispatched].sort()).toEqual(releases.sort());
+  for (const workflow of dispatched) {
+    const release = Bun.YAML.parse(
+      readFileSync(join(WORKFLOWS, workflow), "utf8")
+    ) as { on: Record<string, unknown> };
+    expect({
+      workflow,
+      dispatchable: "workflow_dispatch" in release.on,
+    }).toEqual({ workflow, dispatchable: true });
+  }
+});
+
 const missing = {
   status: 1,
   stderr: "release not found",

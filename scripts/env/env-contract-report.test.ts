@@ -9,22 +9,38 @@ import {
 import { spec } from "./env-contract-types.ts";
 
 describe("env-contract-report", () => {
-  test("live totals match the contract", () => {
-    const report = buildContractReport();
-    expect(report.total).toBe(ENV_CONTRACT.length);
-    expect(report.required).toBe(
-      ENV_CONTRACT.filter((entry) => entry.required).length
-    );
-    expect(report.secrets).toBe(
-      ENV_CONTRACT.filter((entry) => entry.secret).length
-    );
-    expect(report.implicit).toBe(
-      ENV_CONTRACT.filter((entry) => entry.implicit).length
-    );
-    expect(report.bindings).toBe(
-      ENV_CONTRACT.filter((entry) => entry.kind === "binding").length
-    );
-    expect(report.version).toBe(1);
+  test("counts required, secret, implicit and binding entries", () => {
+    const base = {
+      owners: ["@teak/convex"],
+      targets: ["convex" as const],
+      profiles: ["local" as const],
+      validation: "string" as const,
+      providers: ["convex-dashboard" as const],
+    };
+    const report = buildContractReport([
+      spec("A_SECRET", { ...base, secret: true, required: true }),
+      spec("A_SETTING", { ...base, secret: false, required: false }),
+      spec("A_SESSION", {
+        ...base,
+        secret: true,
+        required: false,
+        implicit: true,
+      }),
+      spec("A_BUCKET", {
+        ...base,
+        secret: false,
+        required: false,
+        kind: "binding",
+      }),
+    ]);
+    expect(report).toMatchObject({
+      version: 1,
+      total: 4,
+      required: 1,
+      secrets: 2,
+      implicit: 1,
+      bindings: 1,
+    });
   });
 
   test("classification counts cover every entry", () => {

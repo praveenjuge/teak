@@ -61,7 +61,7 @@ export function deviceName(
 }
 
 /** This device first, then the rest in the server's order (newest first). */
-export function orderDeviceSessions<T extends { current: boolean }>(
+function orderDeviceSessions<T extends { current: boolean }>(
   sessions: T[]
 ): T[] {
   return [

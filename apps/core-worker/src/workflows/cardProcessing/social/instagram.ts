@@ -20,14 +20,6 @@ export const isInstagramHostname = (hostname: string): boolean =>
   hostname === INSTAGRAM_HOSTNAME ||
   hostname.endsWith(`.${INSTAGRAM_HOSTNAME}`);
 
-export const isInstagramUrl = (url: string): boolean => {
-  try {
-    return isInstagramHostname(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-};
-
 export const extractInstagramPostCode = (url: string): string | undefined => {
   try {
     const parsedUrl = new URL(url);

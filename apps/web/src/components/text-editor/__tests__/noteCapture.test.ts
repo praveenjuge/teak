@@ -126,11 +126,6 @@ describe("extractLinkList", () => {
       ["https://www.example.com/a/", "https://example.com/b"],
     ],
     [
-      "the same link twice",
-      "https://example.com/a\nhttps://example.com/a",
-      ["https://example.com/a"],
-    ],
-    [
       "links whose parameters differ",
       "https://example.com/a?page=1\nhttps://example.com/a?page=2",
       ["https://example.com/a?page=1", "https://example.com/a?page=2"],

@@ -177,12 +177,6 @@ test("dev:local sends nothing to PostHog", () => {
   expect(values.var).toContain("POSTHOG_PROJECT_TOKEN:");
 });
 
-test("dev runs the development Worker config", () => {
-  expect(packageJson.scripts.dev).toBe(
-    "bun --no-env-file run ../../scripts/dev/core-worker-dev.ts"
-  );
-});
-
 const readWorkerConfig = (path: string) =>
   unstable_readConfig({ config: resolve(import.meta.dir, path) });
 
@@ -314,12 +308,6 @@ test("the self-host config names nothing of Teak's own deployment", async () => 
     Number(config.vars.MEDIA_RENDERER_INSTANCES),
     Number(config.vars.LINK_FETCHER_INSTANCES),
   ]);
-});
-
-test("deploy:self-host runs the self-host deploy script", () => {
-  expect(packageJson.scripts["deploy:self-host"]).toBe(
-    "bun --no-env-file run ../../scripts/cloudflare/self-host-deploy.ts"
-  );
 });
 
 test("the self-host config sends Workers AI calls through the default gateway", () => {

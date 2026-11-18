@@ -3,26 +3,14 @@ import {
   extractHackerNewsPost,
   findHackerNewsPosts,
 } from "../../entrypoints/content/platforms/hackernews";
-import {
-  extractHeyDesignerPost,
-  findHeyDesignerPosts,
-} from "../../entrypoints/content/platforms/heydesigner";
-import {
-  extractInstagramPost,
-  findInstagramPosts,
-} from "../../entrypoints/content/platforms/instagram";
+import { extractHeyDesignerPost } from "../../entrypoints/content/platforms/heydesigner";
+import { extractInstagramPost } from "../../entrypoints/content/platforms/instagram";
 import {
   extractPinterestPost,
   findPinterestPosts,
 } from "../../entrypoints/content/platforms/pinterest";
-import {
-  extractSidebarPost,
-  findSidebarPosts,
-} from "../../entrypoints/content/platforms/sidebar";
-import {
-  extractXPost,
-  findXPosts,
-} from "../../entrypoints/content/platforms/x";
+import { extractSidebarPost } from "../../entrypoints/content/platforms/sidebar";
+import { extractXPost } from "../../entrypoints/content/platforms/x";
 
 const previousWindow = (globalThis as { window?: unknown }).window;
 
@@ -203,36 +191,6 @@ describe("social platform extractors", () => {
     expect(extractHackerNewsPost(post)).toBeNull();
   });
 
-  test("findXPosts delegates to expected selector", () => {
-    const querySelectorAll = mock(() => [{}, {}]);
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findXPosts(root).length).toBe(2);
-    expect(querySelectorAll).toHaveBeenCalledWith(
-      'article[data-testid="tweet"]'
-    );
-  });
-
-  test("findInstagramPosts delegates to expected selector", () => {
-    const querySelectorAll = mock(() => [{}]);
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findInstagramPosts(root).length).toBe(1);
-    expect(querySelectorAll).toHaveBeenCalledWith("article");
-  });
-
-  test("findHackerNewsPosts delegates to expected selector", () => {
-    setWindowOrigin("https://news.ycombinator.com");
-
-    const querySelectorAll = mock(() => [{}, {}]);
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findHackerNewsPosts(root).length).toBe(2);
-    expect(querySelectorAll).toHaveBeenCalledWith(
-      "tr.athing > td.title:last-child"
-    );
-  });
-
   test("findHackerNewsPosts skips item detail pages", () => {
     setWindowOrigin("https://news.ycombinator.com", "/item");
 
@@ -241,53 +199,6 @@ describe("social platform extractors", () => {
 
     expect(findHackerNewsPosts(root)).toEqual([]);
     expect(querySelectorAll).not.toHaveBeenCalled();
-  });
-
-  test("findSidebarPosts delegates to expected selector", () => {
-    const querySelectorAll = mock(() => [{}, {}]);
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findSidebarPosts(root).length).toBe(2);
-    expect(querySelectorAll).toHaveBeenCalledWith(".post-content");
-  });
-
-  test("findHeyDesignerPosts delegates to expected selector", () => {
-    const querySelectorAll = mock(() => [{}, {}]);
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findHeyDesignerPosts(root).length).toBe(2);
-    expect(querySelectorAll).toHaveBeenCalledWith(
-      "main article > section > ul > li"
-    );
-  });
-
-  test("findPinterestPosts delegates to expected selector", () => {
-    setWindowOrigin("https://www.pinterest.com");
-
-    const pinPost = createPost([createAnchor("/pin/123456789012345/")]);
-    const querySelectorAll = mock((selector: string) => {
-      if (selector === '[data-test-id="pin"]') {
-        return [pinPost];
-      }
-
-      if (selector === '[data-test-id="pinWrapper"]') {
-        return [];
-      }
-
-      if (selector === '[data-grid-item="true"]') {
-        return [];
-      }
-
-      return [];
-    });
-    const root = { querySelectorAll } as unknown as ParentNode;
-
-    expect(findPinterestPosts(root).length).toBe(1);
-    expect(querySelectorAll).toHaveBeenCalledWith('[data-test-id="pin"]');
-    expect(querySelectorAll).toHaveBeenCalledWith(
-      '[data-test-id="pinWrapper"]'
-    );
-    expect(querySelectorAll).toHaveBeenCalledWith('[data-grid-item="true"]');
   });
 
   test("findPinterestPosts deduplicates nested containers for the same pin", () => {

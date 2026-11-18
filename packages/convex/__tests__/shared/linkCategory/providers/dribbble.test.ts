@@ -93,22 +93,6 @@ describe("enrichDribbble", () => {
     );
   });
 
-  test("handles extractStat seeding logic coverage", () => {
-    const rawMap = new Map([
-      [
-        "meta[name='twitter:label1']",
-        { attributes: [{ name: "content", value: "Likes" }] },
-      ],
-      [
-        "meta[name='twitter:data1']",
-        { attributes: [{ name: "content", value: "10" }] },
-      ],
-    ]);
-
-    const result = enrichDribbble(rawMap);
-    expect(result?.facts?.find((f) => f.label === "Likes")?.value).toBe("10");
-  });
-
   test("handles extractStat fallback to selectors", () => {
     const rawMap = new Map([["a[href$='/likes']", { text: "55" }]]);
     const result = enrichDribbble(rawMap);

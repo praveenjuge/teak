@@ -76,16 +76,6 @@ describe("CommandPaletteResults", () => {
     }
   });
 
-  test("hides keyboard hints on touch screens", () => {
-    const html = render({});
-    const hints = html.match(/<span aria-hidden="true" class="[^"]*"/g) ?? [];
-    expect(hints.length).toBeGreaterThan(0);
-    for (const hint of hints.filter((span) => span.includes("ml-auto"))) {
-      expect(hint).toContain("pointer-coarse:hidden");
-    }
-    expect(html).toMatch(/pointer-coarse:hidden[^>]*>.*then/);
-  });
-
   test("offers Empty Trash only in Trash", () => {
     expect(render({})).not.toContain(">Empty Trash<");
     expect(render({ pathname: "/trash" })).toContain(">Empty Trash<");
@@ -120,15 +110,6 @@ describe("CommandPaletteResults", () => {
     const html = render({ cards: { status: "loading" }, query: "bauhaus" });
     expect(headings(html)).toContain("Cards");
     expect(html).toContain('aria-label="Searching cards"');
-    expect(html).not.toContain("No results");
-  });
-
-  test("offers Search all without an empty message when no card matches", () => {
-    const html = render({
-      cards: { cards: [], status: "ready" },
-      query: "kestral",
-    });
-    expect(html).toContain("Search all for “kestral”");
     expect(html).not.toContain("No results");
   });
 
@@ -169,6 +150,7 @@ describe("CommandPaletteResults", () => {
     });
     expect(headings(html)).toContain("Cards");
     expect(html).toContain("Search all for “kestral”");
+    expect(html).not.toContain("No results");
     expect(html).not.toContain('value="card:');
   });
 

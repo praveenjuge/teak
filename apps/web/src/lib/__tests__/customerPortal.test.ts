@@ -1,11 +1,5 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { openCustomerPortal } from "@/lib/customerPortal";
-
-const originalFetch = globalThis.fetch;
-
-afterEach(() => {
-  globalThis.fetch = originalFetch;
-});
 
 describe("openCustomerPortal", () => {
   test("opens customer portal in a new tab from action URL", async () => {
@@ -56,17 +50,5 @@ describe("openCustomerPortal", () => {
     expect(createCustomerPortal).toHaveBeenCalledTimes(1);
     expect(openPortal).toHaveBeenCalledWith("https://portal.example.com");
     expect(openWindow).not.toHaveBeenCalled();
-  });
-
-  test("does not use fetch internally", async () => {
-    const fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-
-    await openCustomerPortal({
-      createCustomerPortal: async () => "https://portal.example.com",
-      openWindow: () => ({ closed: false }),
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

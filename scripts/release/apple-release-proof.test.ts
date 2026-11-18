@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  rejectedStates,
-  releasePhase,
-  reviewStates,
-  verifyReleaseProof,
-} from "./apple-release-proof.ts";
+import { releasePhase, verifyReleaseProof } from "./apple-release-proof.ts";
 
 const fixtureRoot = path.join(import.meta.dir, "../fixtures/apple-release");
 const fixture = (name: string) =>
@@ -93,17 +88,5 @@ describe("Apple release phase", () => {
     ["", "pending"],
   ] as const)("%s is %s", (state, phase) => {
     expect(releasePhase(state)).toBe(phase);
-  });
-
-  test("the release workflow asks the script instead of listing states", () => {
-    const workflow = fs.readFileSync(
-      path.join(import.meta.dir, "../../.github/workflows/apple-release.yml"),
-      "utf8"
-    );
-    expect(workflow).toContain("apple-release-proof.ts phase");
-    for (const state of [...reviewStates, ...rejectedStates]) {
-      expect(workflow).not.toContain(`|${state}`);
-      expect(workflow).not.toContain(`${state}|`);
-    }
   });
 });

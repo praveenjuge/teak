@@ -266,24 +266,7 @@ describe("search/searchCards.ts", () => {
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "test", limit: 10 });
-      expect(result.length).toBeLessThanOrEqual(10);
-    });
-
-    test("handles no search query with type filter", async () => {
-      const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", type: "image" },
-      ];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (searchCards as any).handler ?? searchCards;
-      const result = await handler(ctx, { types: ["image"] });
-      expect(result).toHaveLength(1);
+      expect(result).toHaveLength(10);
     });
 
     test("throws for invalid hex filters", async () => {
@@ -433,26 +416,6 @@ describe("search/searchCards.ts", () => {
       expect(result.page[0]._id).toBe("c2");
     });
 
-    test("paginates without search query", async () => {
-      const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Test" },
-      ];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler =
-        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      const result = await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: null },
-      });
-      expect(result.page).toHaveLength(1);
-    });
-
     test("clamps an oversized numItems before paginating", async () => {
       const paginateMock = mock().mockResolvedValue({
         page: [],
@@ -485,7 +448,7 @@ describe("search/searchCards.ts", () => {
       );
     });
 
-    test("treats a deep/garbage cursor as a clamped offset", async () => {
+    test("answers a cursor past the last result with an empty, finished page", async () => {
       const cards = Array.from({ length: 5 }, (_, i) => ({
         _id: `c${i}`,
         _creationTime: i,
@@ -507,7 +470,11 @@ describe("search/searchCards.ts", () => {
         paginationOpts: { numItems: 10, cursor: "999999999" },
         searchQuery: "test",
       });
-      expect(Array.isArray(result.page)).toBe(true);
+      expect(result).toMatchObject({
+        page: [],
+        isDone: true,
+        continueCursor: null,
+      });
     });
 
     test("throws for invalid hex filters in paginated mode", async () => {

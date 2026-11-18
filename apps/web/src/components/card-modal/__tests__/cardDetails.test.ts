@@ -123,34 +123,26 @@ describe("getCardDetailSections", () => {
   });
 
   test("shows when a link was saved again, beside the date it was first added", () => {
-    const createdAt = Date.UTC(2025, 4, 6, 7, 8);
-    const savedAt = Date.UTC(2026, 9, 20, 9, 30);
-    const sections = getCardDetailSections(
-      { createdAt, savedAt, updatedAt: savedAt },
-      { locale: "en-US" }
-    );
-    expect(sections.details).toEqual([
-      {
-        label: "Added",
-        value: new Date(createdAt).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-      },
-      {
-        label: "Saved again",
-        value: new Date(savedAt).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-      },
-    ]);
+    const originalTz = process.env.TZ;
+    process.env.TZ = "UTC";
+    try {
+      const createdAt = Date.UTC(2025, 4, 6, 7, 8);
+      const savedAt = Date.UTC(2026, 9, 20, 9, 30);
+      const sections = getCardDetailSections(
+        { createdAt, savedAt, updatedAt: savedAt },
+        { locale: "en-US" }
+      );
+      expect(sections.details).toEqual([
+        { label: "Added", value: "May 6, 2025, 7:08 AM" },
+        { label: "Saved again", value: "Oct 20, 2026, 9:30 AM" },
+      ]);
+    } finally {
+      if (originalTz === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTz;
+      }
+    }
   });
 
   test("formats the saved-again date in the reader's language", () => {

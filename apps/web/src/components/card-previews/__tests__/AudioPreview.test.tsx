@@ -139,7 +139,7 @@ describe("AudioPreview playback progress", () => {
     document.body.innerHTML = "";
   });
 
-  test("marks bars up to the current time as played", async () => {
+  test("the seek bar and the time follow playback", async () => {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -160,13 +160,9 @@ describe("AudioPreview playback progress", () => {
         />
       )
     );
-    const bars = () =>
-      Array.from(container.querySelectorAll("span[aria-hidden]"));
-    const played = () =>
-      bars().filter((bar) => bar.className.includes("bg-primary")).length;
-
-    expect(bars()).toHaveLength(200);
-    expect(played()).toBe(0);
+    const seek = () =>
+      container.querySelector<HTMLInputElement>('input[aria-label="Seek"]');
+    expect(seek()?.value).toBe("0");
 
     const audio = container.querySelector("audio") as HTMLAudioElement;
     Object.defineProperty(audio, "currentTime", {
@@ -177,12 +173,8 @@ describe("AudioPreview playback progress", () => {
       audio.dispatchEvent(new Event("timeupdate"));
     });
 
-    expect(played()).toBe(50);
-    expect(
-      bars()
-        .slice(0, 50)
-        .every((bar) => bar.className.includes("bg-primary"))
-    ).toBe(true);
+    expect(seek()?.value).toBe("25");
+    expect(container.textContent).toContain("0:25 / 1:40");
   });
 });
 

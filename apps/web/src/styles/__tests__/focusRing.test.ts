@@ -53,13 +53,4 @@ describe("keyboard focus ring", () => {
       expect(contrast(ring, token(scope, "primary"))).toBeGreaterThan(3);
     }
   });
-
-  test("overrides the faint half-opacity ring utilities and shows at once", () => {
-    expect(css).toMatch(
-      /\n:focus-visible \{\n {2}--tw-ring-color: var\(--focus-ring\);/
-    );
-    const instant = block('[class*="focus-visible:ring"]:focus-visible');
-    expect(instant).toContain("transition-property");
-    expect(instant).not.toContain("box-shadow");
-  });
 });

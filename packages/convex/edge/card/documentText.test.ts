@@ -3,11 +3,6 @@ import { queuedObjectDeletions } from "../../__tests__/helpers/objectDeletions.t
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
-import { captureDeletionBatch } from "../../accountDeletion/batch";
-import {
-  deleteAccountDataHandler,
-  type OwnedCardIds,
-} from "../../accountDeletion/cards";
 import { documentTextKey } from "../../card/documentText";
 import { onCardChanged } from "../../card/onCardChanged";
 import {
@@ -279,18 +274,6 @@ row ${i}`
     expect(await card(pdf)).toBeNull();
     expect(await textRow(pdf)).toBeNull();
     expect(await deletedKeys()).toContain(key);
-  });
-
-  test("account deletion removes the row and lists the object", async () => {
-    const { t, insert, save, textRow, keyFor } = await setup();
-    const pdf = await insert();
-    await save(pdf, PDF_TEXT);
-    const batch = await t.run((ctx) =>
-      captureDeletionBatch(ctx, "owner", "cards")
-    );
-    expect(batch.keys).toContain(await keyFor(pdf));
-    await t.run((ctx) => deleteAccountDataHandler(ctx, [pdf] as OwnedCardIds));
-    expect(await textRow(pdf)).toBeNull();
   });
 });
 

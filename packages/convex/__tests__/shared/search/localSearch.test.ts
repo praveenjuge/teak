@@ -324,17 +324,6 @@ describe("shared search helpers", () => {
     expect(trashResults.map((card): string => card._id)).toEqual(["3"]);
   });
 
-  it("sorts results by createdAt descending", () => {
-    const cards = [
-      makeCard({ _id: "1", content: "Alpha", createdAt: 10, updatedAt: 10 }),
-      makeCard({ _id: "2", content: "Alpha", createdAt: 30, updatedAt: 30 }),
-      makeCard({ _id: "3", content: "Alpha", createdAt: 20, updatedAt: 20 }),
-    ];
-
-    const results = filterLocalCards(cards, { searchTerms: "alpha" });
-    expect(results.map((card): string => card._id)).toEqual(["2", "3", "1"]);
-  });
-
   it("filters by normalized visual style on image and video cards", () => {
     const cards = [
       makeCard({
@@ -425,67 +414,6 @@ describe("shared search helpers", () => {
       hexFilters: ["663399"],
     });
     expect(results.map((card): string => card._id)).toEqual(["1", "2", "4"]);
-  });
-
-  it("merges local and remote search results without duplicates", () => {
-    const localResults = [
-      makeCard({
-        _id: "1",
-        content: "Local first",
-        createdAt: 2,
-        updatedAt: 2,
-      }),
-    ];
-    const remoteResults = [
-      makeCard({
-        _id: "1",
-        content: "Remote duplicate",
-        createdAt: 2,
-        updatedAt: 3,
-      }),
-      makeCard({
-        _id: "2",
-        content: "Remote unique",
-        createdAt: 1,
-        updatedAt: 1,
-      }),
-    ];
-
-    const merged = mergeLocalAndRemoteSearchResults(
-      remoteResults,
-      localResults,
-      true
-    );
-    expect(merged.map((card): string => card._id)).toEqual(["1", "2"]);
-  });
-
-  it("returns an empty list when neither local nor remote matches", () => {
-    const cards = [
-      makeCard({
-        _id: "1",
-        content: "Alpha",
-        type: "text",
-        tags: ["design"],
-        createdAt: 1,
-        updatedAt: 1,
-      }),
-      makeCard({
-        _id: "2",
-        content: "Beta",
-        type: "link",
-        isFavorited: true,
-        createdAt: 2,
-        updatedAt: 2,
-      }),
-    ];
-
-    const noMatches = filterLocalCards(cards, {
-      searchTerms: "zzzz-no-match",
-    });
-    expect(noMatches).toEqual([]);
-
-    const mergedEmpty = mergeLocalAndRemoteSearchResults([], [], true);
-    expect(mergedEmpty).toEqual([]);
   });
 
   it("combines type, tag, and trash filters without leaking active cards", () => {

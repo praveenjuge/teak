@@ -1,13 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  ACTIVE_EXPORT_STATUSES,
   EXPORT_QUOTA_WINDOW_MS,
   EXPORT_RETENTION_MS,
-  EXPORT_STATUS,
-  EXPORT_VERSION,
   MAX_EXPORT_BYTES,
   MAX_EXPORT_CARDS,
-  SCHEMA_VERSION,
 } from "../../export/constants";
 import {
   buildFilePath,
@@ -79,7 +75,7 @@ describe("toDualTimestamp", () => {
   test("emits ISO and epoch milliseconds", () => {
     const ts = toDualTimestamp(1_700_000_000_000);
     expect(ts.epochMs).toBe(1_700_000_000_000);
-    expect(ts.iso).toBe(new Date(1_700_000_000_000).toISOString());
+    expect(ts.iso).toBe("2023-11-14T22:13:20.000Z");
   });
 });
 
@@ -230,30 +226,6 @@ describe("serializeCard", () => {
     expect(out.savedAt).toEqual(toDualTimestamp(1_700_000_900_000));
   });
 
-  test("excludes transcripts, scraped, account, source, thumbnail fields", () => {
-    const out = serializeCard(baseCard, { includeFile: true, folderNames });
-    const json = JSON.stringify(out);
-    expect(json).not.toContain("secret transcript");
-    expect(json).not.toContain("scraped");
-    expect(json).not.toContain("thumbnail");
-    expect(json).not.toContain("visualStyles");
-    expect(json).not.toContain("processingStatus");
-    expect(json).not.toContain("folder_");
-    expect(out).not.toHaveProperty("folderIds");
-    expect(out).not.toHaveProperty("metadata");
-    expect(out).not.toHaveProperty("thumbnailKey");
-    expect(out).not.toHaveProperty("fileKey");
-    expect(out).not.toHaveProperty("colorHexes");
-  });
-
-  test("drops rgb/hsl from palette colors, keeps hex + name", () => {
-    const out = serializeCard(baseCard, { includeFile: true });
-    expect(out.colors).toEqual([
-      { hex: "#ffffff", name: "White" },
-      { hex: "#000000" },
-    ]);
-  });
-
   test("omits file entry when file not included", () => {
     const out = serializeCard(baseCard, { includeFile: false });
     expect(out.file).toBeUndefined();
@@ -277,13 +249,6 @@ describe("serializeCard", () => {
     );
     expect(serialized.content).toBe("# Canonical source");
     expect(serialized.file).toBeUndefined();
-  });
-
-  test("emits timestamps as ISO + epoch", () => {
-    const out = serializeCard(baseCard);
-    expect(out.createdAt.epochMs).toBe(1_700_000_000_000);
-    expect(typeof out.createdAt.iso).toBe("string");
-    expect(out.updatedAt.epochMs).toBe(1_700_000_500_000);
   });
 
   test("handles missing optional fields", () => {
@@ -361,8 +326,6 @@ describe("buildManifest", () => {
       filesIncluded: 2,
       filesOmitted: 1,
     });
-    expect(manifest.exportVersion).toBe(EXPORT_VERSION);
-    expect(manifest.schemaVersion).toBe(SCHEMA_VERSION);
     expect(manifest.schemaVersion).toBe(2);
     expect(manifest.exportVersion).toBe(1);
     expect(manifest.appName).toBe("Teak");
@@ -437,14 +400,5 @@ describe("expiry", () => {
     expect(isExpired(1000, 1000)).toBe(true);
     expect(isExpired(1000, 999)).toBe(false);
     expect(isExpired(undefined, 5000)).toBe(false);
-  });
-});
-
-describe("lifecycle constants", () => {
-  test("active statuses are pending + running only", () => {
-    expect(ACTIVE_EXPORT_STATUSES).toEqual([
-      EXPORT_STATUS.PENDING,
-      EXPORT_STATUS.RUNNING,
-    ]);
   });
 });

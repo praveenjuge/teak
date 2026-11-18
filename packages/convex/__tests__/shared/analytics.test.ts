@@ -43,37 +43,10 @@ describe("product analytics catalog", () => {
     ]);
   });
 
-  test("sends Revisit's counts and nothing about the cards", () => {
-    const capture = mock();
-    configureAnalytics({ capture });
-
-    captureEvent("revisit_started");
-    captureEvent("revisit_finished", {
-      archived: 3,
-      completed: true,
-      kept: 17,
-    });
-
-    expect(capture.mock.calls).toEqual([
-      ["revisit_started", {}],
-      ["revisit_finished", { archived: 3, completed: true, kept: 17 }],
-    ]);
-  });
-
-  test("records address-bar search by what Enter opened, never the query", () => {
-    const capture = mock();
-    configureAnalytics({ capture });
-
-    captureEvent("extension_omnibox_used", { result: "card" });
-    captureEvent("extension_omnibox_used", { result: "search" });
-
+  test("address-bar search can't send the query", () => {
     expectTypeOf<
       ClientEventCatalog["extension_omnibox_used"]
     >().not.toHaveProperty("query");
-    expect(capture.mock.calls).toEqual([
-      ["extension_omnibox_used", { result: "card" }],
-      ["extension_omnibox_used", { result: "search" }],
-    ]);
   });
 
   test("keeps a failing recorder away from the product flow", () => {

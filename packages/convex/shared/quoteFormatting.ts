@@ -182,9 +182,6 @@ export const normalizeQuoteContent = (
   };
 };
 
-export const stripSurroundingQuotes = (text: string): string =>
-  normalizeQuoteContent(text).text;
-
 export const applyQuoteDisplayFormatting = <T extends Doc<"cards">>(
   card: T
 ): T => {

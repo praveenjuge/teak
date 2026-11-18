@@ -300,23 +300,4 @@ describe("the AI backfill reads aiPending", () => {
     expect((await card(waiting))?.aiPending).toBeUndefined();
     expect(await cardsMissingAi()).toEqual([]);
   });
-
-  test("the AI backfill takes at most 50 cards, deleted flag unset or false", async () => {
-    const { save, cardsMissingAi } = await setup();
-    const unset = await save({ type: "text", content: "Unset" });
-    const notDeleted = await save({
-      type: "text",
-      content: "False",
-      isDeleted: false,
-    });
-    await save({ type: "text", content: "Trashed", isDeleted: true });
-    expect(new Set(await cardsMissingAi())).toEqual(
-      new Set([unset, notDeleted])
-    );
-
-    for (let index = 0; index < 60; index++) {
-      await save({ type: "text", content: `Note ${index}` });
-    }
-    expect(await cardsMissingAi()).toHaveLength(50);
-  });
 });

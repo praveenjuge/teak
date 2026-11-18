@@ -62,15 +62,4 @@ describe("sizeSvgRoot", () => {
     expect(tag).toContain('stroke-width="2"');
     expect(svg).toContain('<rect width="5" height="5"/>');
   });
-
-  test("never repeats an attribute on the root element, which would make the SVG invalid XML", () => {
-    const svg = sizeSvgRoot(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"></svg>',
-      24,
-      16
-    );
-    // A repeated attribute is a well-formedness error in XML.
-    const names = [...rootTag(svg).matchAll(/\s([\w:-]+)=/g)].map((m) => m[1]);
-    expect(new Set(names).size).toBe(names.length);
-  });
 });

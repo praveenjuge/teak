@@ -52,18 +52,27 @@ describe("paletteEditing", () => {
       { type: "palette", colors: hexes("#FF0000", "#00FF00") },
       true,
       true,
+      true,
     ],
-    ["one color", { type: "palette", colors: hexes("#FF0000") }, true, false],
+    [
+      "one color",
+      { type: "palette", colors: hexes("#FF0000") },
+      true,
+      true,
+      false,
+    ],
     [
       "one color twice",
       { type: "palette", colors: hexes("#FF0000", "#ff0000") },
       true,
+      true,
       false,
     ],
-    ["twelve colors", { type: "palette", colors: twelve }, false, true],
+    ["twelve colors", { type: "palette", colors: twelve }, true, false, true],
     [
       "a palette in Trash",
       { type: "palette", colors: hexes("#FF0000", "#00FF00"), isDeleted: true },
+      false,
       false,
       false,
     ],
@@ -72,9 +81,9 @@ describe("paletteEditing", () => {
       { type: "image", colors: hexes("#FF0000", "#00FF00") },
       false,
       false,
+      false,
     ],
-  ] as const)("%s", (_, card, canAdd, canRemove) => {
-    const canEdit = card.type === "palette" && !("isDeleted" in card);
+  ] as const)("%s", (_, card, canEdit, canAdd, canRemove) => {
     expect(
       paletteEditing(card as Parameters<typeof paletteEditing>[0])
     ).toEqual({

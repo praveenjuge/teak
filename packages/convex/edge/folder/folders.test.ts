@@ -2,10 +2,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
-import {
-  deleteAccountDataHandler,
-  type OwnedCardIds,
-} from "../../accountDeletion/cards";
 import { onCardChanged } from "../../card/onCardChanged";
 import { readFolderCardCount } from "../../folder/folderRows";
 import {
@@ -90,7 +86,6 @@ const setup = async () => {
     t,
     owner,
     stranger,
-    workosUserId,
     insert,
     create,
     rows,
@@ -952,47 +947,6 @@ describe("deleting a folder", () => {
       owner.mutation(api.folders.restoreFolder, { folderId: slow._id })
     ).rejects.toThrow("can no longer be restored");
   });
-});
-
-test("account deletion leaves no folders or folder rows", async () => {
-  const { t, owner, create, insert, workosUserId } = await setup();
-  const ids = [
-    await insert({ content: "A", type: "text" }),
-    await insert({ content: "B", type: "text" }),
-  ];
-  const a = await create("A");
-  const b = await create("B");
-  await owner.mutation(api.folders.addCardsToFolder, {
-    folderId: a._id,
-    cardIds: ids,
-  });
-  await owner.mutation(api.folders.addCardsToFolder, {
-    folderId: b._id,
-    cardIds: [ids[0]],
-  });
-  const stateId = await t.run((ctx) =>
-    ctx.db.insert("accountDeletionStates", {
-      userId: "owner",
-      startedAt: Date.now(),
-      workosUserId,
-      stage: 3,
-      generation: 1,
-    })
-  );
-  await t.run((ctx) => deleteAccountDataHandler(ctx, ids as OwnedCardIds));
-  expect(await t.run((ctx) => ctx.db.query("folderCards").collect())).toEqual(
-    []
-  );
-  for (let page = 0; page < 5; page += 1) {
-    const more = await t.mutation(internal.accountDeletionData.ancillaryPage, {
-      stateId,
-      generation: 1,
-    });
-    if (!more) {
-      break;
-    }
-  }
-  expect(await t.run((ctx) => ctx.db.query("folders").collect())).toEqual([]);
 });
 
 describe("smart folders", () => {

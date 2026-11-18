@@ -286,7 +286,6 @@ test("the sidebar leads with the title, then Open and the icon row", async () =>
     "Add to folder…",
     "More actions",
   ]);
-  expect(document.querySelector("[role='dialog'] header")).toBeNull();
 });
 
 test("the menu keeps only what the icon row doesn't hold", async () => {
@@ -328,15 +327,6 @@ test("Save PDF lives in the menu, and reads Saving PDF… while it saves", async
   await render(linkCard(), { savePdf: { isSaving: true, save } });
   await openMenu();
   expect(menuItem("Saving PDF…")?.getAttribute("aria-disabled")).toBe("true");
-});
-
-test("the details stay beside the card: I does nothing and the menu can't hide them", async () => {
-  await render(linkCard());
-  const aside = document.querySelector("aside[aria-label='Card details']");
-  await press("i");
-  expect(aside?.className).not.toContain("hidden");
-  await openMenu();
-  expect(menuItem("Hide details")).toBeUndefined();
 });
 
 test("O and Mod+Enter open the link, and D marks it done", async () => {

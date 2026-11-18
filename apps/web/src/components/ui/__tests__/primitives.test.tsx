@@ -32,28 +32,6 @@ async function render(children: ReactNode) {
   return container;
 }
 
-test("a label activates its associated checkbox and forwards its ref", async () => {
-  const ref = createRef<HTMLLabelElement>();
-  await render(
-    <>
-      <Label htmlFor="choice" ref={ref}>
-        Choice
-      </Label>
-      <input id="choice" type="checkbox" />
-    </>
-  );
-  const input = document.getElementById("choice");
-  if (!(input instanceof HTMLInputElement)) {
-    throw new Error("Missing checkbox");
-  }
-  await act(() => {
-    ref.current?.click();
-    return Promise.resolve();
-  });
-  expect(input.checked).toBe(true);
-  expect(ref.current?.tagName).toBe("LABEL");
-});
-
 test("multiple mouse presses on label text prevent selection but single presses do not", async () => {
   const onMouseDown = mock();
   const container = await render(

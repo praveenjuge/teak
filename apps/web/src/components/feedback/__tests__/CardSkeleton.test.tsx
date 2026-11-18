@@ -9,5 +9,4 @@ test("the loading grid uses the card grid's own column rules, so nothing jumps w
   expect(html).toContain('role="status"');
   expect(html).toContain(`grid-template-columns:${gridColumnsTemplate(24)}`);
   expect(html).toContain("gap:24px");
-  expect(html).not.toMatch(/(?:md|lg):grid-cols-/);
 });

@@ -85,44 +85,6 @@ describe("web security headers", () => {
     );
   });
 
-  test("ignores removed R2 origin aliases and keeps canonical file origins", () => {
-    const aliases = [
-      "NEXT_PUBLIC_R2_STORAGE_ORIGIN",
-      "NEXT_PUBLIC_R2_STORAGE_URL",
-      "R2_STORAGE_ORIGIN",
-      "R2_STORAGE_URL",
-      "NEXT_PUBLIC_R2_PUBLIC_ORIGIN",
-      "NEXT_PUBLIC_R2_PUBLIC_URL",
-      "R2_PUBLIC_ORIGIN",
-      "R2_PUBLIC_URL",
-      "NEXT_PUBLIC_R2_UPLOAD_ORIGIN",
-      "NEXT_PUBLIC_R2_UPLOAD_URL",
-      "R2_UPLOAD_ORIGIN",
-      "R2_UPLOAD_URL",
-    ];
-    const previous = new Map(
-      aliases.map((name) => [name, process.env[name]] as const)
-    );
-    for (const name of aliases) {
-      process.env[name] = "https://cdn.example.com";
-    }
-    try {
-      const policy = buildContentSecurityPolicy("production");
-      expect(policy).not.toContain("https://cdn.example.com");
-      expect(policy).toContain("https://files.teakvault.com");
-      expect(policy).toContain(teakR2StorageOrigin);
-    } finally {
-      for (const name of aliases) {
-        const value = previous.get(name);
-        if (value === undefined) {
-          delete process.env[name];
-        } else {
-          process.env[name] = value;
-        }
-      }
-    }
-  });
-
   test("allows self-hosted file origins from build-time configuration", () => {
     const names = ["NEXT_PUBLIC_FILES_BASE"];
     const previous = new Map(

@@ -247,23 +247,6 @@ describe("Convex public API metadata", () => {
     expect(audio).toMatchObject({ audioWaveform: waveform, videoScrub: null });
   });
 
-  test("uses the Convex dev site URL in the OpenAPI spec", () => {
-    expect(openApiSpec.servers).toEqual([
-      { url: "https://teakvault.com/api" },
-      { url: "https://api.teakvault.com" },
-      { url: "https://reminiscent-kangaroo-59.convex.site" },
-    ]);
-  });
-
-  test("documents revocation-only Connect authentication without a request body", () => {
-    const operation = openApiSpec.paths["/v1/oauth/disconnect"].post;
-    expect(operation.security).toEqual([{ connectRevocation: [] }]);
-    expect(operation).not.toHaveProperty("requestBody");
-    expect(operation.responses).toHaveProperty("204");
-    expect(operation.responses).toHaveProperty("401");
-    expect(operation.responses).toHaveProperty("503");
-  });
-
   test("gives every OpenAPI operation a unique operationId", () => {
     const operationIds = Object.values(openApiSpec.paths).flatMap((path) =>
       Object.values(path).map((operation) => operation.operationId)

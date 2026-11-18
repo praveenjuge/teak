@@ -13,7 +13,6 @@ import {
   fetchXStatusMetadata,
   isXHostname,
   isXStatusUrl,
-  isXUrl,
 } from "./x";
 
 type MockFetchInput = string | URL | Request;
@@ -75,18 +74,6 @@ describe("x link metadata", () => {
       expect(isXHostname("example.com")).toBe(false);
       expect(isXHostname("x.com.example.com")).toBe(false);
       expect(isXHostname("nottwitter.com")).toBe(false);
-    });
-  });
-
-  describe("isXUrl", () => {
-    test("accepts X and Twitter URLs", () => {
-      expect(isXUrl("https://x.com/teak/status/123")).toBe(true);
-      expect(isXUrl("https://twitter.com/teak/status/123")).toBe(true);
-    });
-
-    test("rejects invalid URLs", () => {
-      expect(isXUrl("x.com/teak/status/123")).toBe(false);
-      expect(isXUrl("not-a-url")).toBe(false);
     });
   });
 

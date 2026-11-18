@@ -3,7 +3,6 @@ import { FETCHER_HEADERS } from "../../fetcher/src/protocol";
 import { runOp } from "../test/opsHarness";
 import { FakeBucket, JPEG_BYTES } from "../test/testsupport";
 
-const _SECRET = "test-secret";
 const KEY = "users/u1/cards/c1/link-preview-image/abc";
 
 interface FetcherCall {

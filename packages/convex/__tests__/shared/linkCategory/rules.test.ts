@@ -960,33 +960,6 @@ describe("enrichLinkCategory", () => {
     expect(result2.imageUrl).toBe("https://img3.com");
   });
 
-  test("handles provider detection edge cases", async () => {
-    const urls = [
-      "https://goodreads.com/b",
-      "https://amazon.co.uk/p",
-      "https://imdb.com/m",
-      "https://netflix.com/t",
-      "https://behance.net/p",
-      "https://spotify.com/t",
-      "https://apple.com/a",
-      "https://youtube.com/v",
-      "https://youtu.be/v",
-      "https://medium.com/p",
-      "https://substack.com/p",
-    ];
-    for (const url of urls) {
-      const result = await enrichLinkCategory(
-        linkCard({ url }),
-        {
-          category: "article",
-          confidence: 0.9,
-        },
-        { structuredData: null }
-      );
-      expect(result.detectedProvider).toBeDefined();
-    }
-  });
-
   test.each([
     [
       "place",

@@ -64,17 +64,8 @@ describe("useFileUploadCore", () => {
       const result = await hook.uploadFile(file);
       expect(result.success).toBe(false);
       expect((result as any).errorCode).toBe(CARD_ERROR_CODES.FILE_TOO_LARGE);
-      expect(mockCaptureException).not.toHaveBeenCalled();
-    });
-
-    test("returns correct error message for oversized file", async () => {
-      const file = {
-        size: MAX_FILE_SIZE + 1,
-        name: "large.png",
-        type: "image/png",
-      } as any;
-      const result = await hook.uploadFile(file);
       expect((result as any).error).toBe(CARD_ERROR_MESSAGES.FILE_TOO_LARGE);
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
     test("validates unsupported file type", async () => {

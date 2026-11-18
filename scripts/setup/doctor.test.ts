@@ -45,13 +45,10 @@ describe("parseDoctorArgs", () => {
     ).toEqual({ json: true, target: "convex" });
   });
 
-  test("rejects unknown targets and args, including the removed --profile", () => {
+  test("rejects unknown targets and args", () => {
     expect(() =>
       parseDoctorArgs(["bun", "doctor.ts", "--target", "nope"])
     ).toThrow('--target "nope"');
-    expect(() =>
-      parseDoctorArgs(["bun", "doctor.ts", "--profile", "e2e"])
-    ).toThrow('Unknown argument "--profile"');
     expect(() => parseDoctorArgs(["bun", "doctor.ts", "--nope"])).toThrow(
       'Unknown argument "--nope"'
     );

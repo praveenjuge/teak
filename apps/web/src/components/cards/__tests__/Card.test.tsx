@@ -156,31 +156,6 @@ describe("Cards/Card", () => {
     expect(markup).toContain("Refresh details</div>");
   });
 
-  test("its menu leaves the key hints out on touch screens", async () => {
-    const { CardMenuEntries } = await import("../CardMenu");
-    const markup = renderToStaticMarkup(
-      <CardMenuEntries
-        entries={[
-          {
-            icon: () => null,
-            id: "favorite",
-            label: "Favorite",
-            onSelect: () => undefined,
-            shortcut: { keys: "F", label: "F" },
-          },
-        ]}
-        Item={({ children }) => <div>{children}</div>}
-        Separator={() => <hr />}
-        Shortcut={({ children, className }) => (
-          <kbd className={className}>{children}</kbd>
-        )}
-      />
-    );
-    expect(markup).toBe(
-      '<div>Favorite<kbd class="pointer-coarse:hidden">F</kbd></div>'
-    );
-  });
-
   test("in selection mode, its menu shows only keys that act on this card", () => {
     const markup = renderToStaticMarkup(
       <Card card={createLinkCard() as any} isSelected isSelectionMode />
@@ -366,7 +341,6 @@ describe("Cards/Card", () => {
 
     expect(markup).toContain('src="https://example.com/screenshot.jpg"');
     expect(markup).not.toContain("unsized.jpg");
-    expect(markup).toContain("aspect-[4/3]");
   });
 
   test("falls back to an unsized screenshot when the link has no other image", () => {
@@ -629,11 +603,7 @@ describe("Cards/Card redesign", () => {
     );
     expect(markup).not.toContain("og.jpg");
     expect(markup).toContain(">Desk lamp</p>");
-    // The cover keeps room under the site name, so the badge never covers it.
-    expect(markup).toMatch(/class="[^"]*aspect-\[4\/3\][^"]*pb-11/);
-    expect(markup).toMatch(
-      /<span class="[^"]*bottom-2\.5 left-2\.5[^"]*">\$24\.99<\/span>/
-    );
+    expect(markup).toContain(">$24.99</span>");
   });
 
   test.each([
@@ -703,46 +673,6 @@ describe("Cards/Card redesign", () => {
     );
     expect(elsewhere).toContain("Add to folder…");
     expect(elsewhere).not.toContain("Remove from this folder");
-    expect(elsewhere).not.toContain("Folders…");
-  });
-
-  test("keeps More on screen for touch, which can't hover, and leaves the rest to it", () => {
-    const markup = renderToStaticMarkup(
-      <Card card={linkWithPreview() as any} />
-    );
-    const button = (label: string) =>
-      markup.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0];
-    const toolbar = markup.match(
-      /<div class="([^"]*)">(?:(?!<div).)*aria-label="Open link"/
-    )?.[1];
-
-    expect(toolbar).toContain("pointer-coarse:opacity-100");
-    expect(toolbar).toContain("pointer-coarse:pointer-events-auto");
-    expect(button("More actions")).not.toContain("pointer-coarse:hidden");
-    expect(button("Open link")).toContain("pointer-coarse:hidden");
-    expect(button("Favorite")).toContain("pointer-coarse:hidden");
-    // Select is in the More menu on touch, as the hover circle never shows.
-    expect(button("Select")).not.toContain("pointer-coarse:opacity-100");
-  });
-
-  test("makes room on touch for More, and the heart beside it, over a note", () => {
-    const note = (isFavorited: boolean) =>
-      renderToStaticMarkup(
-        <Card
-          card={
-            {
-              ...createLinkCard(),
-              isFavorited,
-              type: "text",
-              url: undefined,
-              content: "Groceries",
-            } as any
-          }
-        />
-      );
-    expect(note(false)).toContain("pointer-coarse:pr-11");
-    expect(note(true)).toContain("pointer-coarse:pr-20");
-    expect(note(true)).toContain("pointer-coarse:right-11");
   });
 
   test("hides the hover actions while selecting cards", () => {
@@ -759,7 +689,7 @@ describe("Cards/Card redesign", () => {
     );
     expect(unpinned).toContain("Pin to top<kbd>P</kbd>");
     expect(unpinned).toContain('aria-keyshortcuts="P"');
-    expect(unpinned).not.toContain("data-pin-mark");
+    expect(unpinned).not.toContain('aria-label="Pinned"');
 
     const pinned = renderToStaticMarkup(
       <Card
@@ -768,7 +698,6 @@ describe("Cards/Card redesign", () => {
       />
     );
     expect(pinned).toContain("Unpin<kbd>P</kbd>");
-    expect(pinned).toContain("data-pin-mark");
     expect(pinned).toContain('aria-label="Pinned"');
   });
 

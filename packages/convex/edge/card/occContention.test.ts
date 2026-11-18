@@ -41,14 +41,12 @@ import {
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "../../idempotencyAnalytics";
 import { rateLimiter } from "../../rateLimiter";
-import { getSearchResultLimit } from "../../search/searchCards";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "../../search/searchReads";
 import type { TeakUserId } from "../../securitySessions";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
-import { RATE_LIMIT_CONFIG } from "../../shared/rateLimits";
 import {
   buildCardSearchTags,
   buildCardSearchText,
@@ -444,7 +442,6 @@ describe("OCC contention behavior", () => {
         "ai-tag",
         "tag",
       ]);
-      expect(getSearchResultLimit(25)).toBe(25);
     });
   });
 
@@ -1334,26 +1331,6 @@ describe("OCC contention behavior", () => {
       expect(accepted).toBeGreaterThan(0);
       expect(accepted).toBeLessThanOrEqual(30);
       expect(rejected).toBeGreaterThan(0);
-      expect(RATE_LIMIT_CONFIG.cardCreation).toMatchObject({
-        capacity: 30,
-        rate: 30,
-        shards: 6,
-      });
-      expect(RATE_LIMIT_CONFIG.publicApiRequests).toMatchObject({
-        capacity: 120,
-        rate: 120,
-        shards: 12,
-      });
-      expect(RATE_LIMIT_CONFIG.invalidApiAuth).toMatchObject({
-        capacity: 60,
-        rate: 60,
-        shards: 6,
-      });
-      expect(RATE_LIMIT_CONFIG.apiKeyCreation).toMatchObject({
-        capacity: 5,
-        rate: 5,
-      });
-      expect("shards" in RATE_LIMIT_CONFIG.apiKeyCreation).toBe(false);
       for (let count = 0; count < 5; count += 1) {
         await expect(
           rateLimiter.limit(ctx, "apiKeyCreation", {

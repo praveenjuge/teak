@@ -637,7 +637,6 @@ describe("linkMetadata storage cleanup", () => {
     return handler(ctx, args);
   };
   const updateMetadata = withScheduler(updateCardMetadataHandler);
-  const updateScreenshot = withScheduler(updateCardScreenshotHandler);
 
   beforeEach(() => {
     r2Mocks.queueObjectDeletion.mockReset();
@@ -1067,85 +1066,6 @@ describe("linkMetadata storage cleanup", () => {
           status: "completed",
         })
       ).rejects.toThrow("invalid_storage_key_namespace");
-    });
-  });
-
-  describe("updateCardScreenshot dimensions", () => {
-    test("updates screenshot for link card", async () => {
-      const existingCard = {
-        _id: "c1",
-        type: "link",
-        metadata: { linkPreview: {} },
-      };
-      const ctx = {
-        db: withSearchSyncDb({
-          get: mock().mockResolvedValue(existingCard),
-          patch: mock().mockResolvedValue(null),
-        }),
-      } as any;
-
-      await updateScreenshot(ctx, {
-        cardId: "c1",
-        screenshotStorageKey: "s1",
-        screenshotUpdatedAt: 1000,
-        screenshotWidth: 1200,
-        screenshotHeight: 800,
-      });
-
-      expect(ctx.db.patch).toHaveBeenCalledWith(
-        "cards",
-        "c1",
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            linkPreview: expect.objectContaining({
-              screenshotStorageKey: "s1",
-              screenshotUpdatedAt: 1000,
-              screenshotWidth: 1200,
-              screenshotHeight: 800,
-            }),
-          }),
-        })
-      );
-    });
-
-    test("preserves existing screenshot dimensions when not provided", async () => {
-      const existingCard = {
-        _id: "c1",
-        type: "link",
-        metadata: {
-          linkPreview: {
-            screenshotStorageKey: "existing_screenshot",
-            screenshotUpdatedAt: 500,
-            screenshotWidth: 1000,
-            screenshotHeight: 750,
-          },
-        },
-      };
-      const ctx = {
-        db: withSearchSyncDb({
-          get: mock().mockResolvedValue(existingCard),
-          patch: mock().mockResolvedValue(null),
-        }),
-      } as any;
-
-      await updateScreenshot(ctx, {
-        cardId: "c1",
-        screenshotStorageKey: "new_screenshot",
-        screenshotUpdatedAt: 1000,
-      });
-
-      expect(ctx.db.patch).toHaveBeenCalledWith(
-        "cards",
-        "c1",
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            linkPreview: expect.objectContaining({
-              screenshotStorageKey: "new_screenshot",
-              screenshotUpdatedAt: 1000,
-            }),
-          }),
-        })
-      );
     });
   });
 });

@@ -100,15 +100,6 @@ export const authorizeCardCreation = async (
   return { hasPremium };
 };
 
-export const ensureCardCreationAllowed = async (
-  ctx: MutationCtx,
-  userId: string,
-  deps: CardCreationDeps = defaultCardCreationDeps
-): Promise<void> => {
-  await consumeCardCreationLimit(ctx, userId, deps.rateLimiter);
-  await ensureCardQuotaAvailable(ctx, userId, deps);
-};
-
 /**
  * A free account's card count, and whether its next card fits under the free
  * limit as a create decides it: a count not yet split into shards that is

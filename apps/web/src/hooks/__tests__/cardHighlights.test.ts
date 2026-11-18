@@ -188,20 +188,6 @@ describe("optimisticHighlightId", () => {
     // Convex runs a pending optimistic update again whenever results arrive.
     const span = { start: 2, end: 5 };
     expect(optimisticHighlightId(span)).toBe(optimisticHighlightId(span));
-    const first = withNewHighlight(
-      [],
-      { ...span, articleKey: "k", quote: "cde" },
-      {
-        ...stamp,
-        id: optimisticHighlightId(span),
-      }
-    );
-    const replayed = withNewHighlight(
-      [],
-      { ...span, articleKey: "k", quote: "cde" },
-      { ...stamp, id: optimisticHighlightId(span) }
-    );
-    expect(first.list[0]?._id).toBe(replayed.list[0]?._id);
     expect(optimisticHighlightId({ start: 2, end: 6 })).not.toBe(
       optimisticHighlightId(span)
     );

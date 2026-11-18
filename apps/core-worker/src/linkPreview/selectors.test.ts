@@ -1,21 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
-  DESCRIPTION_SOURCES,
   IMAGE_SOURCES,
   PODCAST_SOURCES,
   SCRAPE_ELEMENTS,
   SPOTIFY_SOURCES,
-  TITLE_SOURCES,
 } from "./selectors";
 
 describe("linkMetadata selectors", () => {
-  test("includes expected title/description selectors", () => {
-    expect(TITLE_SOURCES[0]?.selector).toBe("meta[property='og:title']");
-    expect(DESCRIPTION_SOURCES[0]?.selector).toBe(
-      "meta[property='og:description']"
-    );
-  });
-
   test("deduplicates scrape elements by selector", () => {
     const selectors = SCRAPE_ELEMENTS.map((entry) => entry.selector);
     const unique = new Set(selectors);

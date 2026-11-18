@@ -1,7 +1,5 @@
-import { sha256Hex } from "@teak/files-protocol";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "../../_generated/api";
-import type { Doc } from "../../_generated/dataModel";
 import { newBackend } from "../helpers.testUtils";
 
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -47,48 +45,7 @@ const packNames = async () => {
   );
 };
 
-const ID_PATTERN = /\b[a-z0-9]{32}\b/g;
-
-/** The rows a pack wrote, without ids, creation times or random keys. */
-const seededRows = (t: Awaited<ReturnType<typeof setup>>) =>
-  t.run(async (ctx) => {
-    const ids = new Map<string, string>();
-    const stable = (value: unknown) =>
-      JSON.stringify(value).replace(ID_PATTERN, (id) => {
-        if (!ids.has(id)) {
-          ids.set(id, `#${ids.size}`);
-        }
-        return ids.get(id) as string;
-      });
-    const strip = <T extends { _creationTime: number; _id: string }>(
-      row: T,
-      drop: readonly string[] = []
-    ) => {
-      const copy: Record<string, unknown> = { ...row };
-      for (const field of ["_id", "_creationTime", ...drop]) {
-        delete copy[field];
-      }
-      return copy;
-    };
-    const cards = (await ctx.db.query("cards").collect()).map(
-      (card: Doc<"cards">) => strip(card, ["shuffleKey"])
-    );
-    const folders = (await ctx.db.query("folders").collect()).map((folder) =>
-      strip(folder)
-    );
-    const highlights = (await ctx.db.query("highlights").collect()).map((row) =>
-      strip(row)
-    );
-    const settings = (await ctx.db.query("inboundEmailSettings").collect()).map(
-      (row) => strip(row)
-    );
-    const preferences = (await ctx.db.query("userPreferences").collect()).map(
-      (row) => strip(row)
-    );
-    return stable({ cards, folders, highlights, settings, preferences });
-  });
-
-test("every dev seed pack seeds the same rows", {
+test("every dev seed pack seeds its first page and reports what it seeded", {
   timeout: 900_000,
 }, async () => {
   const names = await packNames();
@@ -105,12 +62,22 @@ test("every dev seed pack seeds the same rows", {
       .catch((error: unknown) => ({
         error: error instanceof Error ? error.message : String(error),
       }));
-    const rows = await seededRows(t);
-    seeded[scenario] = {
-      result,
-      rows: await sha256Hex(rows),
-      size: rows.length,
-    };
+    // What the pack reports must be what it wrote.
+    const stored = await t.run(
+      async (ctx) =>
+        (
+          await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted_archived_created", (q) =>
+              q.eq("userId", "teak_dev")
+            )
+            .collect()
+        ).length
+    );
+    if ("cards" in result && typeof result.cards === "number") {
+      expect({ scenario, stored }).toEqual({ scenario, stored: result.cards });
+    }
+    seeded[scenario] = result;
   }
   expect(seeded).toMatchSnapshot();
 });

@@ -103,19 +103,6 @@ describe("web sign-in routing", () => {
     expect(hint).toStartWith("teak_session_hint=;");
     expect(hint).toContain("Max-Age=0");
   });
-  test.each([
-    ["/login", "/sign-in?next=%2Flogin"],
-    ["/register", "/sign-in?next=%2Fregister"],
-  ])("treats retired entry page %s like any page: %s", async (path, target) => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest(`http://localhost:3142${path}`)
-    );
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      `http://localhost:3142${target}`
-    );
-  });
   test.each(["/sign-in", "/sign-up", "/opengraph-image", "/share"])(
     "lets signed-out visitors reach %s",
     async (path) => {

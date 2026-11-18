@@ -58,10 +58,9 @@ describe("PinnedStrip", () => {
       (match) => match[1]
     );
     expect(order).toEqual(["b", "a", "c"]);
-    expect(markup).not.toContain("Move pinned card");
     expect(markup).toContain("press Alt with the left or right arrow");
     // Pinned cards move in the row, so they don't start the folder drag.
     expect(markup).not.toContain('draggable="true"');
-    expect(markup.match(/data-pin-mark/g)).toHaveLength(3);
+    expect(markup.match(/aria-label="Pinned"/g)).toHaveLength(3);
   });
 });

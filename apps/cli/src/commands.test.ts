@@ -2257,18 +2257,6 @@ describe("teak design rules", () => {
     expect(requests.every((request) => request.method === "GET")).toBe(true);
   });
 
-  test("an agent's shell is never asked: delete needs --yes", async () => {
-    const result = await teakWithEnv(
-      { CLAUDECODE: "1" },
-      "tags",
-      "delete",
-      "design"
-    );
-    expect(result.code).toBe(EXIT.usage);
-    expect(result.stderr).toContain("add --yes to confirm");
-    expect(requests).toHaveLength(0);
-  });
-
   test("bulk --dry-run checks the input and sends nothing", async () => {
     const input = join(workDirectory, "bulk-dry.json");
     writeFileSync(

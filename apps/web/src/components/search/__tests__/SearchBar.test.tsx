@@ -75,10 +75,9 @@ describe("SearchBar WebMCP annotations", () => {
     expect(markup).toContain("toolparamdescription=");
   });
 
-  test("keeps the form a named landmark without extra nesting", () => {
+  test("keeps the form a named landmark", () => {
     const markup = renderSearchBar("keyboards");
     expect(markup).toContain('aria-label="Search cards"');
-    expect(markup).not.toContain("<search>");
   });
 });
 
@@ -112,30 +111,6 @@ describe("SearchBar filter chips", () => {
     });
     expect(chipNames(markup)).toEqual(["design", "type Link"]);
     expect(markup).toContain('aria-label="Clear all"');
-  });
-
-  test("gives done, to do and archived their own icons", () => {
-    const markup = renderSearchBar("", {
-      qualifierChips: ["is:done", "is:todo", "is:archived"],
-    });
-    const icons = [
-      ...markup.matchAll(
-        /aria-label="Remove ([^"]+)"[\s\S]*?vadivam-([a-z-]+)/g
-      ),
-    ].map((match) => [match[1], match[2]]);
-    expect(icons).toEqual([
-      ["show Done", "circle-check"],
-      ["show To do", "circle"],
-      ["show Archived", "archive"],
-    ]);
-  });
-
-  test("marks a plain word with a search icon, not the tag sign", () => {
-    const markup = renderSearchBar("", { keywordTags: ["design"] });
-    expect(markup).toMatch(
-      /aria-label="Remove design"[\s\S]*?vadivam-text-search/
-    );
-    expect(markup).not.toContain("vadivam-hash");
   });
 
   test("says so when a type: word names no card type", () => {

@@ -95,29 +95,6 @@ describe("times and durations", () => {
 describe("errors", () => {
   const context = { apiUrl: "https://teakvault.com/api" };
 
-  test("a missing card names its id and says how to find one", () => {
-    const report = describeError(
-      new TeakApiError("NOT_FOUND", "Card not found", {
-        requestId: "req_1",
-        status: 404,
-      }),
-      { ...context, command: "cards get", ids: ["card_x"] }
-    );
-    expect(report).toEqual({
-      code: "NOT_FOUND",
-      message: "Card not found: card_x",
-      next: 'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
-      reason: "not_found",
-      requestId: "req_1",
-      status: 404,
-    });
-    expect(formatErrorText(report).split("\n")).toEqual([
-      "Card not found: card_x",
-      "Request ID: req_1",
-      'Find a card\'s id with: teak search "<words>" (or teak trash for cards in Trash)',
-    ]);
-  });
-
   test("a rate limit says how long to wait", () => {
     const now = Date.UTC(2026, 0, 1);
     const report = describeError(

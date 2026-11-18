@@ -175,19 +175,10 @@ describe("AddCardForm", () => {
   test("exposes loading and ready card-creation states", () => {
     const loadingMarkup = renderToStaticMarkup(composer());
     expect(loadingMarkup).toContain('data-card-creation-status="loading"');
-    expect(loadingMarkup).toContain('data-editor-variant="compact"');
 
     cardCreationStatusResult = { canCreateCard: true };
     expect(renderToStaticMarkup(composer())).toContain(
       'data-card-creation-status="ready"'
     );
-  });
-
-  test("shows the N key hint only where there's a keyboard to press it", () => {
-    const markup = renderToStaticMarkup(composer());
-    const hint = markup.match(
-      /class="([^"]*group-focus-within\/composer:hidden[^"]*)"/
-    )?.[1];
-    expect(hint).toContain("pointer-coarse:hidden");
   });
 });

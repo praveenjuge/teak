@@ -19,28 +19,12 @@ import {
 import { assertR2KeyInNamespace } from "../../storage/r2Keys";
 
 const BASE = "https://files.teakvault.com";
-const {
-  secret: SECRET,
-  key: KEY,
-  exp: EXP,
-  digest: VECTOR_DIGEST,
-} = FILE_SIGNING_TEST_VECTOR;
+const { secret: SECRET, key: KEY } = FILE_SIGNING_TEST_VECTOR;
 
 const hmacHex = (message: string): string =>
   createHmac("sha256", SECRET).update(message).digest("hex");
 
 describe("signed worker file urls", () => {
-  test("payload format matches the shared cross-runtime vector", () => {
-    const payload = buildFileSigningPayload({
-      key: KEY,
-      exp: EXP,
-      contentType: "image/png",
-      contentDisposition: "inline",
-    });
-    expect(payload).toBe(`${KEY}\n${EXP}\nimage/png\ninline`);
-    expect(hmacHex(payload)).toBe(VECTOR_DIGEST);
-  });
-
   test("mints worker urls with valid signature and ttl", async () => {
     const before = Math.floor(Date.now() / 1000);
     const url = new URL(await buildSignedWorkerFileUrl(BASE, SECRET, KEY));

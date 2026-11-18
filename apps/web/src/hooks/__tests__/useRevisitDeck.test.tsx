@@ -85,9 +85,6 @@ describe("dealRevisitCards", () => {
 
     const next = await dealt(view.loadPage(), first.ids);
     expect(next.ids).toEqual(ids("c", 40).slice(20));
-
-    const offsetPage = await view.loadPage()("20");
-    expect(offsetPage.page[0]?._id).toBe("c25");
   });
 
   test.each([

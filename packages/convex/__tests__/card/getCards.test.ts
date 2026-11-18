@@ -241,27 +241,5 @@ describe("card/getCards.ts", () => {
         `/__images/v1/grid/${encodeURIComponent(posterKey)}`
       );
     });
-
-    test("handles null storage URLs gracefully", async () => {
-      const cards = [
-        {
-          _id: "c1",
-          _creationTime: 1,
-          userId: "u1",
-          content: "Hello",
-          type: "image",
-          fileId: "f1",
-        },
-      ];
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(buildQuery(cards)) },
-        storage: { getUrl: mock().mockResolvedValue(null) },
-      } as any);
-
-      const handler = (getCards as any).handler ?? getCards;
-      const result = await handler(ctx, {});
-      expect(result[0].fileUrl).toBeUndefined();
-    });
   });
 });

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { MAX_FILE_SIZE } from "@teak/convex/shared/constants";
 import { ConvexError } from "convex/values";
 import { asFetch } from "@/__tests__/helpers/testDoubles";
 import { useFileUploadCore as useFileUploadCoreIn } from "../useFileUploadCore";
@@ -25,16 +24,6 @@ describe("file upload initialization and multipart flow", () => {
     mockFetch.mockReset();
     mockSetState.mockReset();
     mockUseEffectCleanups.length = 0;
-  });
-
-  test("uses default error capture without throwing", async () => {
-    const hook = useFileUploadCore({} as any);
-    const result = await hook.uploadFile({
-      name: "a.png",
-      size: MAX_FILE_SIZE + 1,
-      type: "image/png",
-    } as any);
-    expect(result.success).toBe(false);
   });
 
   test("uploads large files as recorded resumable parts", async () => {

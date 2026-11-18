@@ -5,7 +5,6 @@ import { runOp } from "../test/opsHarness";
 import { decodeHtmlParam } from "./browserRender";
 import { fetchLinkPage } from "./linkPage";
 
-const _SECRET = "test-secret";
 const URL_ = "https://site.example/post";
 const SELECTORS = ["meta[property='og:title']", "head > title"];
 const HTML = "<html><head><title>Café &amp; co</title></head></html>";

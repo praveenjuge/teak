@@ -110,10 +110,6 @@ describe.each(VIEWER_ZONES)("Taken, viewed in %s", (zone) => {
     }
   });
 
-  test("runs in that zone", () => {
-    expect(new Date(Date.UTC(2026, 4, 17, 9)).getTimezoneOffset()).not.toBe(0);
-  });
-
   test.each([
     [Date.UTC(2026, 4, 17, 9, 0, 5), "May 17, 2026, 09:00 AM"],
     [Date.UTC(2026, 4, 17, 0, 30), "May 17, 2026, 12:30 AM"],

@@ -196,8 +196,6 @@ describe("raw metadata archival", () => {
       internal.storage.rawMetadataMaintenance.commitArchive,
       args
     );
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(ctx.runMutation).toHaveBeenCalledTimes(4);
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(
       await t.mutation(

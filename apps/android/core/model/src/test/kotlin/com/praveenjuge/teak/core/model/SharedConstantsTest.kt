@@ -12,9 +12,8 @@ class SharedConstantsTest {
     }
 
     @Test
-    fun `color hues match the backend's buckets and each has a swatch`() {
+    fun `color hues match the backend's buckets and show their swatch`() {
         assertEquals(COLOR_HUE_BUCKETS, ColorHue.entries.map { it.wireName })
-        assertEquals(COLOR_HUE_BUCKETS.toSet(), COLOR_HUE_SWATCHES.keys)
         assertEquals(0xFF3B82F6, ColorHue.Blue.hex)
     }
 

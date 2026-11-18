@@ -13,30 +13,6 @@ import {
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
 describe("publicApiHttp card endpoints", () => {
-  test("removed search and favorites routes no longer serve card queries", async () => {
-    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-
-    for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
-      const response = await callPublicApi(
-        mockActionCtx(
-          withMappedOwner({
-            runMutation: buildAuthorizedMutationMock(),
-            runQuery: mock().mockResolvedValue(null),
-          } as any)
-        ),
-        {
-          method: "GET",
-          path,
-          query: { limit: 10 },
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      expect(response.status).toBe(404);
-      expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
-    }
-  });
-
   test.each([true, false])(
     "dispatches restore for a card with deleted=%s",
     async (isDeleted) => {

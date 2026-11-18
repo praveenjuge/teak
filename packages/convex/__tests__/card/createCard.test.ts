@@ -825,51 +825,6 @@ describe("card/createCard.ts", () => {
     expect(inserted.metadata).toEqual({ source: "web" });
     expect(JSON.stringify(inserted)).not.toContain("victim");
   });
-
-  test("preserves metadata source when provided", async () => {
-    const ctx = withTestSession({
-      runMutation: mock().mockResolvedValue({ ok: true }),
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
-        system: { get: mock().mockResolvedValue(null) },
-        query: mock().mockReturnValue({
-          withIndex: mock().mockReturnValue({
-            collect: mock().mockResolvedValue([]),
-            order: () => ({ first: mock().mockResolvedValue(null) }),
-            take: mock().mockResolvedValue([]),
-            unique: mock().mockResolvedValue(null),
-          }),
-        }),
-        insert: mock().mockResolvedValue("c4"),
-      },
-      scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any);
-
-    const handler = (createCard as any).handler ?? createCard;
-    await handler(ctx, {
-      content: "https://example.com/article",
-      metadata: { source: "raycast_browser_tab" },
-      type: "link",
-      url: "https://example.com/article",
-    });
-
-    expect(ctx.db.insert).toHaveBeenCalledWith(
-      "cards",
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          source: "raycast_browser_tab",
-        }),
-      })
-    );
-  });
 });
 
 describe("resolveCreatedCardType", () => {

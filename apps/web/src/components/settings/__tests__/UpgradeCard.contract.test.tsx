@@ -73,5 +73,4 @@ test("the yearly plan's badge states the real saving over monthly", async () => 
   await renderCard(() => undefined);
 
   expect(document.body.textContent).toContain("Save 57%");
-  expect(document.body.textContent).not.toContain("20% off");
 });

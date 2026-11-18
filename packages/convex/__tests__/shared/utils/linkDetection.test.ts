@@ -51,14 +51,6 @@ describe("resolveTextCardInput", () => {
     });
   });
 
-  it("should return text card type when URL extraction fails from content", () => {
-    const result = resolveTextCardInput({ content: "Just some text" });
-    expect(result).toEqual({
-      type: "text",
-      content: "Just some text",
-    });
-  });
-
   it("should return link card type when URL is provided", () => {
     const result = resolveTextCardInput({
       content: "Check this out",
@@ -140,17 +132,6 @@ describe("resolveTextCardInput", () => {
     });
   });
 
-  it("should return text type when no valid URL anywhere", () => {
-    const result = resolveTextCardInput({
-      content: "Just regular text without URLs",
-      url: undefined,
-    });
-    expect(result).toEqual({
-      type: "text",
-      content: "Just regular text without URLs",
-    });
-  });
-
   it("should handle empty content with valid URL param", () => {
     const result = resolveTextCardInput({
       content: "",
@@ -160,18 +141,6 @@ describe("resolveTextCardInput", () => {
       type: "link",
       url: "https://example.com",
       content: "",
-    });
-  });
-
-  it("should handle empty content with URL in content field", () => {
-    const result = resolveTextCardInput({
-      content: "https://example.com",
-      url: undefined,
-    });
-    expect(result).toEqual({
-      type: "link",
-      url: "https://example.com",
-      content: "https://example.com",
     });
   });
 

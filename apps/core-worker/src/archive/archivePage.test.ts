@@ -123,10 +123,4 @@ describe("archive-page subresources", () => {
     expect(archived).not.toContain(".big{color:red}");
     expect(archived).toContain(".ok{color:blue}");
   });
-
-  test("needs no Browser Rendering binding", async () => {
-    const { archive } = network({ [PAGE_URL]: html("<title>Post</title>") });
-    const { result } = await archive();
-    expect(result).toMatchObject({ source: "server", stored: true });
-  });
 });

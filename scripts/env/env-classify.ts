@@ -35,8 +35,5 @@ export const exposureOf = (entry: EnvVarSpec): EnvExposure =>
     ? "public"
     : "server";
 
-export const primaryOwner = (entry: EnvVarSpec): string =>
-  entry.owners[0] ?? "unowned";
-
 export const derivationRule = (entry: EnvVarSpec): string =>
   entry.derivedFrom ?? canonicalFor(entry.name) ?? "supplied";
