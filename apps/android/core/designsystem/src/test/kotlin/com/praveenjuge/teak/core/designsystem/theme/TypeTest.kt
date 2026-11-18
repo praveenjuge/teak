@@ -47,6 +47,7 @@ class TypeTest {
             assertEquals((100..900 step 100).toList(), fonts.map { it.weight.weight })
             fonts.forEach { assertEquals(R.font.allo, (it as ResourceFont).resId) }
             assertEquals(setOf(alloOpticalSize(style.fontSize)), opticalSizes(style))
+            assertEquals("ss01", style.fontFeatureSettings)
         }
         assertEquals(setOf(32f), opticalSizes(TeakTypography.displayLarge))
         assertEquals(setOf(14f), opticalSizes(TeakTypography.bodyMedium))
@@ -64,5 +65,15 @@ class TypeTest {
         assertEquals(setOf(24f), opticalSizes(heading))
         val code = TeakTypography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 24.sp)
         assertSame(FontFamily.Monospace, code.withAlloOpticalSize().fontFamily)
+    }
+
+    @Test
+    fun `ss01 joins a style's own feature settings instead of replacing them`() {
+        assertEquals("ss01", withAlloFeatures(null))
+        assertEquals("ss01", withAlloFeatures(""))
+        assertEquals("ss01, tnum", withAlloFeatures("tnum"))
+        assertEquals("tnum, ss01", withAlloFeatures("tnum, ss01"))
+        val timer = TeakTypography.displayLarge.copy(fontFeatureSettings = "tnum", fontSize = 40.sp)
+        assertEquals("ss01, tnum", timer.withAlloOpticalSize().fontFeatureSettings)
     }
 }

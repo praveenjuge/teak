@@ -48,12 +48,25 @@ internal fun alloFamily(opticalSize: Float): FontFamily = alloFamilies.getOrPut(
 /** Allo at text size, for text that sets its own size outside the type scale. */
 val Allo: FontFamily = alloFamily(ALLO_TEXT_OPTICAL_SIZE)
 
-private fun TextStyle.allo() = copy(fontFamily = alloFamily(alloOpticalSize(fontSize)))
+// The single-story "a", as the web app, docs and extension set it.
+private const val ALLO_FEATURES = "ss01"
+
+/** Adds Allo's `ss01` to a style's own feature settings, keeping theirs. */
+internal fun withAlloFeatures(settings: String?): String = when {
+    settings.isNullOrBlank() -> ALLO_FEATURES
+    ALLO_FEATURES in settings -> settings
+    else -> "$ALLO_FEATURES, $settings"
+}
+
+private fun TextStyle.allo() = copy(
+    fontFamily = alloFamily(alloOpticalSize(fontSize)),
+    fontFeatureSettings = withAlloFeatures(fontFeatureSettings),
+)
 
 /**
- * Re-picks Allo's optical size for this style's own font size. Use it after
- * changing the size of a type-scale style, such as a Markdown heading grown
- * from body text. A style in another family is returned as it is.
+ * Re-picks Allo's optical size for this style's own font size, keeping `ss01`.
+ * Use it after changing the size of a type-scale style, such as a Markdown
+ * heading grown from body text. A style in another family is returned as it is.
  */
 fun TextStyle.withAlloOpticalSize(): TextStyle =
     if (fontFamily in alloFamilies.values) allo() else this
