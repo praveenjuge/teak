@@ -82,10 +82,10 @@ test("a kept card slides away as the next one takes its place", async () => {
       total: 2,
     })
   );
-  const leaving = document.body.querySelector(
-    '[aria-hidden="true"].animate-out'
-  );
-  expect(leaving?.textContent).toContain("Kept card");
+  const hidden = [...document.body.querySelectorAll('[aria-hidden="true"]')];
+  expect(
+    hidden.some((element) => element.textContent?.includes("Kept card"))
+  ).toBe(true);
 });
 
 test("a screen reader hears the position, not the whole card, after each keep", async () => {

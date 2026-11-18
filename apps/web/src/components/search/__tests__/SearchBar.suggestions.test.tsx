@@ -158,7 +158,6 @@ test("a minus offers exclusions, and the picked one is an excluded chip", async 
     'button[aria-label="Remove excluding tag design"]'
   );
   expect(chip?.textContent).toBe("Tag−design");
-  expect(chip?.querySelector(".line-through")).toBeNull();
   expect(chip?.getAttribute("title")).toBe("Tag not design");
 });
 

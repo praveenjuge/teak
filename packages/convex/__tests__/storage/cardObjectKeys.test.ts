@@ -106,13 +106,6 @@ describe("cardStorageObjectKeys", () => {
       })
     ).toEqual(["article-text", "image"]);
   });
-
-  test("includes a file's legacy processing sidecar", () => {
-    expect(cardStorageObjectKeys({ fileKey: "file" })).toEqual([
-      "file",
-      "file.processing.json",
-    ]);
-  });
 });
 
 describe("pickCardStorageKeys", () => {

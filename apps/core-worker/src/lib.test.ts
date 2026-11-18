@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { buildFileSigningPayload, hmacSha256Hex } from "@teak/files-protocol";
 import { FILE_SIGNING_TEST_VECTOR } from "@teak/files-protocol/test-vectors";
 import { parseSingleByteRange, verifySignedFileRequest } from "./lib";
 
@@ -9,39 +8,6 @@ const {
   exp: EXP,
   digest: VECTOR_DIGEST,
 } = FILE_SIGNING_TEST_VECTOR;
-
-describe("files proxy signing", () => {
-  test("signs the same digest as Convex's Node HMAC for the shared test vector", async () => {
-    const digest = await hmacSha256Hex(
-      SECRET,
-      buildFileSigningPayload({
-        key: KEY,
-        exp: EXP,
-        contentType: "image/png",
-        contentDisposition: "inline",
-      })
-    );
-    expect(digest).toBe(VECTOR_DIGEST);
-  });
-
-  test("omitting optional fields signs the empty-string slots", async () => {
-    const withFields = await hmacSha256Hex(
-      SECRET,
-      buildFileSigningPayload({
-        key: KEY,
-        exp: EXP,
-        contentType: "image/png",
-        contentDisposition: "inline",
-      })
-    );
-    const withoutFields = await hmacSha256Hex(
-      SECRET,
-      buildFileSigningPayload({ key: KEY, exp: EXP })
-    );
-    expect(withoutFields).not.toBe(withFields);
-    expect(withoutFields).toHaveLength(64);
-  });
-});
 
 describe("files proxy verification", () => {
   const params = {

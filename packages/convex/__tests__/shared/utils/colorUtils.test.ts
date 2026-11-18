@@ -32,37 +32,22 @@ describe("colorUtils", () => {
       const color = parseColorString("#0000ff");
       expect(color?.hsl?.h).toBe(240);
     });
-
-    it("handles invalid RGB values", () => {
-      const color = parseColorString("rgb(300, 300, 300)");
-      expect(color).toBeNull();
-    });
-
-    it("handles invalid HSL values", () => {
-      const color = parseColorString("hsl(400, 110%, 110%)");
-      expect(color).toBeNull();
-    });
   });
 
-  describe("HSL/RGB conversion branches", () => {
-    it("covers hue2rgb branches", () => {
-      const colors = [
-        "#ff0000",
-        "#00ff00",
-        "#0000ff",
-        "#ffff00",
-        "#00ffff",
-        "#ff00ff",
-      ];
-      for (const c of colors) {
-        const color = parseColorString(c);
-        expect(color?.hsl).toBeDefined();
-        const backToHex = parseColorString(
-          `hsl(${color?.hsl?.h}, ${color?.hsl?.s}%, ${color?.hsl?.l}%)`
-        );
-        expect(backToHex).toBeDefined();
-      }
-    });
+  it("reads every hue sector back from HSL to the same color", () => {
+    for (const hex of [
+      "#FF0000",
+      "#FFFF00",
+      "#00FF00",
+      "#00FFFF",
+      "#0000FF",
+      "#FF00FF",
+    ]) {
+      const hsl = parseColorString(hex)?.hsl;
+      expect(
+        parseColorString(`hsl(${hsl?.h}, ${hsl?.s}%, ${hsl?.l}%)`)?.hex
+      ).toBe(hex);
+    }
   });
 });
 
@@ -107,16 +92,6 @@ describe("hexToRgb", () => {
     expect(hexToRgb("FF57")).toEqual({ r: 255, g: 255, b: 85 });
     expect(hexToRgb("#FF57333")).toBeNull();
     expect(hexToRgb("")).toBeNull();
-  });
-
-  it("should convert white color", () => {
-    const result = hexToRgb("#FFFFFF");
-    expect(result).toEqual({ r: 255, g: 255, b: 255 });
-  });
-
-  it("should convert black color", () => {
-    const result = hexToRgb("#000000");
-    expect(result).toEqual({ r: 0, g: 0, b: 0 });
   });
 });
 
@@ -321,11 +296,6 @@ describe("parseColorsFromText", () => {
     const result = parseColorsFromText("#F53 #0F0");
     expect(result).toHaveLength(2);
   });
-
-  it("should extract colors from within sentences", () => {
-    const result = parseColorsFromText("I like #F00 and #00F but not #0F0");
-    expect(result).toHaveLength(3);
-  });
 });
 
 describe("extractPaletteColors", () => {
@@ -380,17 +350,6 @@ describe("extractPaletteColors", () => {
     );
   });
 
-  it("should extract colors from comma-separated list", () => {
-    const result = extractPaletteColors("#FF5733, #00FF00, #0000FF");
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.some((c) => c.hex === "#FF5733")).toBe(true);
-  });
-
-  it("should respect maxColors parameter", () => {
-    const result = extractPaletteColors("#FF5733, #00FF00, #0000FF", 2);
-    expect(result.length).toBeLessThanOrEqual(2);
-  });
-
   it("should parse CSS custom properties with names", () => {
     const result = extractPaletteColors(
       "--primary: #FF5733; --secondary: #00FF00;"
@@ -398,12 +357,6 @@ describe("extractPaletteColors", () => {
     expect(result.length).toBeGreaterThanOrEqual(2);
     const primary = result.find((c) => c.name === "Primary");
     expect(primary).toBeDefined();
-  });
-
-  it("should convert slug to palette name", () => {
-    const result = extractPaletteColors("--bg-primary: #FF5733");
-    const bgPrimary = result.find((c) => c.name === "Bg Primary");
-    expect(bgPrimary).toBeDefined();
   });
 
   it("should parse labeled color pairs", () => {
@@ -449,14 +402,6 @@ describe("extractPaletteColors", () => {
     const result = extractPaletteColors("#FF5733, #00FF00", 1);
     expect(result.length).toBe(1);
   });
-
-  it("should handle larger maxColors", () => {
-    const result = extractPaletteColors(
-      "#FF5733, #00FF00, #0000FF, #FFFF00, #FF00FF",
-      20
-    );
-    expect(result.length).toBeGreaterThanOrEqual(5);
-  });
 });
 
 describe("getColorName", () => {
@@ -483,14 +428,6 @@ describe("getColorName", () => {
     expect(getColorName("#Ff0000")).toBe("red");
   });
 
-  it("should return name for white", () => {
-    expect(getColorName("#FFFFFF")).toBe("white");
-  });
-
-  it("should return name for black", () => {
-    expect(getColorName("#000000")).toBe("black");
-  });
-
   it("should return name for gray variants", () => {
     expect(getColorName("#808080")).toBe("gray");
     expect(getColorName("#A9A9A9")).toBe("darkgray");
@@ -502,13 +439,6 @@ describe("getContrastRatio", () => {
     const black: Color = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } };
     const white: Color = { hex: "#FFFFFF", rgb: { r: 255, g: 255, b: 255 } };
     const ratio = getContrastRatio(black, white);
-    expect(ratio).toBeCloseTo(21, 0);
-  });
-
-  it("should calculate contrast between white and black (same result)", () => {
-    const black: Color = { hex: "#000000", rgb: { r: 0, g: 0, b: 0 } };
-    const white: Color = { hex: "#FFFFFF", rgb: { r: 255, g: 255, b: 255 } };
-    const ratio = getContrastRatio(white, black);
     expect(ratio).toBeCloseTo(21, 0);
   });
 

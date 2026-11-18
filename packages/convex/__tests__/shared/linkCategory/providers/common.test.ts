@@ -50,20 +50,6 @@ describe("normalizeWhitespace", () => {
     expect(normalizeWhitespace("  hello world  ")).toBe("hello world");
     expect(normalizeWhitespace("\thello world\n")).toBe("hello world");
   });
-
-  it("should preserve single spaces", () => {
-    expect(normalizeWhitespace("hello world")).toBe("hello world");
-  });
-
-  it("should handle single word", () => {
-    expect(normalizeWhitespace("hello")).toBe("hello");
-    expect(normalizeWhitespace("  hello  ")).toBe("hello");
-  });
-
-  it("should handle special characters", () => {
-    expect(normalizeWhitespace("hello,  world!")).toBe("hello, world!");
-    expect(normalizeWhitespace("a-b  c_d")).toBe("a-b c_d");
-  });
 });
 
 describe("getRawText", () => {
@@ -355,17 +341,6 @@ describe("formatDate", () => {
   it("should handle various date formats", () => {
     expect(formatDate("2023-12-25")).toBeDefined();
     expect(formatDate("December 25, 2023")).toBeDefined();
-  });
-
-  it("should format dates consistently", () => {
-    const result1 = formatDate("2023-01-15");
-    const result2 = formatDate("2023-01-15");
-    expect(result1).toBe(result2);
-  });
-
-  it("should include month, day, and year", () => {
-    const result = formatDate("2023-05-10");
-    expect(result).toMatch(/\w+ \d+, \d{4}/);
   });
 
   it("should handle leap year dates", () => {

@@ -1,36 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
-import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convexReact,
   useQuery: () => undefined,
-}));
-
-mock.module("../../ui/badge", () => ({
-  Badge: ({ children, variant }: any) =>
-    React.createElement("span", { "data-variant": variant }, children),
-}));
-
-mock.module("../../ui/button", () => ({
-  Button: ({ children, disabled, onClick, size, variant }: any) =>
-    React.createElement(
-      "button",
-      {
-        disabled,
-        onClick,
-        type: "button",
-        "data-size": size,
-        "data-variant": variant,
-      },
-      children
-    ),
-  buttonVariants: () => "",
-}));
-
-mock.module("../../ui/spinner", () => ({
-  Spinner: () => React.createElement("span", { "data-spinner": "" }),
 }));
 
 mock.module("sonner", () => ({
@@ -120,7 +94,7 @@ describe("ExportPanel", () => {
     );
     expect(markup).toContain("Preparing your export");
     expect(markup).toContain("Cancel export");
-    expect(markup).toContain("data-spinner");
+    expect(markup).toContain('aria-label="Loading"');
   });
 
   test("shows a live snapshot count while snapshotting", () => {
@@ -147,7 +121,7 @@ describe("ExportPanel", () => {
     expect(markup).toContain("240 cards");
   });
 
-  test("renders the ready state with download, counts, and expiry", () => {
+  test("renders the ready state with download and counts", () => {
     const markup = renderToStaticMarkup(
       <ExportPanel
         exportState={readyState}
@@ -159,7 +133,6 @@ describe("ExportPanel", () => {
     expect(markup).toContain("Download archive");
     expect(markup).toContain("42 cards");
     expect(markup).toContain("2 files unavailable");
-    expect(markup).not.toContain("until");
   });
 
   test("renders a failed state and offers a retry", () => {
@@ -190,7 +163,7 @@ describe("ExportPanel", () => {
     const markup = renderToStaticMarkup(
       <ExportPanel exportState={undefined} isLoading={true} {...noopHandlers} />
     );
-    expect(markup).toContain("data-spinner");
+    expect(markup).toContain('aria-label="Loading"');
     expect(markup).not.toContain("Start export");
   });
 });

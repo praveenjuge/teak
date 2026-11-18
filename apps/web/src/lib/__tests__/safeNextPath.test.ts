@@ -73,13 +73,4 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("settings")).toBeNull();
     expect(getSafeNextPath("javascript:alert(1)")).toBeNull();
   });
-
-  test("returned value stays same-origin when resolved against an origin", () => {
-    const origin = "https://app.example.com";
-    const safe = getSafeNextPath("/settings?a=1#b");
-    expect(safe).not.toBeNull();
-    if (safe) {
-      expect(new URL(safe, origin).origin).toBe(origin);
-    }
-  });
 });

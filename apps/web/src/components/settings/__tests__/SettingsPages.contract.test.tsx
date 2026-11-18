@@ -94,20 +94,6 @@ describe("SettingsOverview", () => {
     expect(markup).toContain("Bring cards in, or take them with you");
   });
 
-  test("shows the email as text, not as a button", () => {
-    const markup = renderToStaticMarkup(
-      <SettingsOverview {...overviewProps} name={null} />
-    );
-    const buttonTexts = [
-      ...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g),
-    ].map(([, inner]) => inner);
-
-    expect(markup.split("hello@example.com")).toHaveLength(2);
-    expect(buttonTexts.some((text) => text.includes("hello@example.com"))).toBe(
-      false
-    );
-  });
-
   test("summarises Pro, a running export and more devices than one page", () => {
     const markup = renderToStaticMarkup(
       <SettingsOverview
@@ -163,7 +149,6 @@ describe("SettingsOverview", () => {
       /<a[^>]*href="\/settings\/plan"[^>]*>Upgrade to Pro<\/a>/
     );
     expect(markup).toContain("197 cards left");
-    expect(markup).not.toContain("Apps and extensions");
     expect(markup).toContain("Keyboard shortcuts");
     expect(markup).toContain('aria-label="Keyboard shortcuts"');
   });

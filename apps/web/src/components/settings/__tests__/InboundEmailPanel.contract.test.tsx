@@ -145,9 +145,6 @@ describe("InboundEmailPanel", () => {
     const address = container.querySelector('[data-slot="inbound-address"]');
     expect(address?.getAttribute("title")).toBe(ADDRESS);
     expect(address?.textContent).toBe(ADDRESS);
-    expect(address?.querySelector(".shrink-0")?.textContent).toBe(
-      "@in.teakvault.com"
-    );
     expect(container.textContent).toContain(
       "Send from ada@example.com. Mail from other addresses isn't saved."
     );

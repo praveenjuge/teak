@@ -153,41 +153,37 @@ describe("cardsSearchState", () => {
     expect(queryArgs.favoritesOnly).toBe(true);
     expect(queryArgs.showTrashOnly).toBeUndefined();
     expect(queryArgs.createdAtRange).toEqual({ start: 10, end: 20 });
-
-    const resetKey = buildCardsSearchResetKey(state);
-    expect(resetKey).toContain("design focus");
-    expect(resetKey).toContain("image");
-    expect(resetKey).toContain("vintage");
-    expect(resetKey).toContain("10-20");
   });
 
-  it("resets to a clean empty-search state for Clear All", () => {
-    const cleared = createInitialCardsSearchState();
-    expect(cleared).toEqual({
-      searchQuery: "",
-      keywordTags: [],
-      qualifierChips: [],
-      filterTags: [],
-      styleFilters: [],
-      hueFilters: [],
-      hexFilters: [],
-      showArchivedOnly: false,
-      showFavoritesOnly: false,
-      showTrashOnly: false,
-      tagFilter: "",
-      timeFilter: null,
-    });
-    expect(buildCardsSearchQueryArgs(cleared).searchQuery).toBeUndefined();
-    expect(buildCardsSearchQueryArgs(cleared).tag).toBeUndefined();
-    expect(buildCardsSearchResetKey(cleared)).toBe(
-      "::::::::::false::false::false::::-"
+  it("gives every different search its own reset key", () => {
+    const keys = [
+      baseState(),
+      { ...baseState(), searchQuery: "focus" },
+      { ...baseState(), filterTags: ["image" as const] },
+      { ...baseState(), styleFilters: ["vintage" as const] },
+      { ...baseState(), hueFilters: ["purple" as const] },
+      { ...baseState(), hexFilters: ["#663399"] },
+      { ...baseState(), showFavoritesOnly: true },
+      { ...baseState(), showTrashOnly: true },
+      { ...baseState(), showArchivedOnly: true },
+      { ...baseState(), tagFilter: "design" },
+      {
+        ...baseState(),
+        timeFilter: { label: "Today", range: { start: 10, end: 20 } },
+      },
+    ].map(buildCardsSearchResetKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("Clear All sends no search or filters", () => {
+    expect(buildCardsSearchQueryArgs(createInitialCardsSearchState())).toEqual(
+      {}
     );
   });
 
   it("sends a sidebar tag with the query and clears it with Backspace", () => {
     const tagged = { ...baseState(), tagFilter: "design" };
     expect(buildCardsSearchQueryArgs(tagged).tag).toBe("design");
-    expect(buildCardsSearchResetKey(tagged)).toContain("::design::");
 
     const withType = { ...tagged, filterTags: ["link" as const] };
     const afterType = applyBackspaceToCardsSearchState(withType);

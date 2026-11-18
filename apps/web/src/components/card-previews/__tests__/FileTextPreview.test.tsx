@@ -83,18 +83,6 @@ describe("file text previews", () => {
     expect(markup).not.toContain('href="javascript:');
   });
 
-  test("uses Typeset while keeping rendered source blocks isolated", () => {
-    const markup = renderToStaticMarkup(
-      <SafeMarkdownPreview
-        source={"# Heading\n\n- Item\n\n```ts\nconst ok = true;\n```"}
-      />
-    );
-
-    expect(markup).toContain('class="typeset typeset-docs max-w-[37em] pb-6"');
-    expect(markup).toContain("data-not-typeset");
-    expect(markup).not.toContain("prose prose-sm");
-  });
-
   test("renders MDX as inert Markdown without a source disclosure", () => {
     const markup = renderToStaticMarkup(
       <SafeMarkdownPreview

@@ -6,11 +6,6 @@ const PRO_FEATURES = Object.values(
 );
 
 describe("Pro features", () => {
-  test("describes browser extension access without excluding Safari", () => {
-    expect(PRO_FEATURES).toContain("Browser extensions");
-    expect(PRO_FEATURES).not.toContain("Chrome Extension");
-  });
-
   test("lists the Android app alongside the Apple apps", () => {
     const apps = PRO_FEATURES.find((feature) => /\bapps\b/i.test(feature));
     expect(apps).toContain("Android");

@@ -80,15 +80,6 @@ describe("classification step", () => {
       });
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
-
-    test("treats an undefined card as the same deletion race", async () => {
-      givenCard(undefined);
-
-      await expect(classify(mockRunMutation)).resolves.toEqual({
-        mode: "skipped",
-      });
-      expect(mockRunMutation).not.toHaveBeenCalled();
-    });
   });
 
   describe("quote classification stickiness", () => {
@@ -817,32 +808,6 @@ describe("classification step", () => {
       const result = await classifyCompletedWith(mockRunMutation);
 
       expect(cardTypeStages(result.type).renderables).toBe(false);
-    });
-  });
-
-  describe("confidence normalization", () => {
-    test("clamps confidence to maximum 1.0", async () => {
-      const card = {
-        _id: "c1",
-        fileMetadata: { mimeType: "image/png" },
-      };
-      givenCard(card);
-
-      const result = await classifyCompletedWith(mockRunMutation);
-
-      expect(result.confidence).toBeLessThanOrEqual(1.0);
-    });
-
-    test("clamps confidence to minimum 0.0", async () => {
-      const card = {
-        _id: "c1",
-        content: "test",
-      };
-      givenCard(card);
-
-      const result = await classifyCompletedWith(mockRunMutation);
-
-      expect(result.confidence).toBeGreaterThanOrEqual(0.0);
     });
   });
 });

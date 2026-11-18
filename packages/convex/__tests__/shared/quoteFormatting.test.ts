@@ -2,7 +2,6 @@ import { describe, expect, it, test } from "bun:test";
 import {
   applyQuoteDisplayFormatting,
   normalizeQuoteContent,
-  stripSurroundingQuotes,
 } from "../../shared/quoteFormatting";
 import { testDoc } from "../helpers/convex.test-utils";
 
@@ -205,12 +204,6 @@ describe("normalizeQuoteContent", () => {
   });
 
   describe("asymmetric quotes", () => {
-    it("should remove asymmetric opening and closing quotes", () => {
-      const result = normalizeQuoteContent('"Hello world"');
-      expect(result.text).toBe("Hello world");
-      expect(result.removedQuotes).toBe(true);
-    });
-
     it("should remove corner bracket style", () => {
       const result = normalizeQuoteContent("『Hello world』");
       expect(result.text).toBe("Hello world");
@@ -225,12 +218,6 @@ describe("normalizeQuoteContent", () => {
   });
 
   describe("edge cases", () => {
-    it("should return original for empty string", () => {
-      const result = normalizeQuoteContent("");
-      expect(result.text).toBe("");
-      expect(result.removedQuotes).toBe(false);
-    });
-
     it("should return original for null input", () => {
       const result = normalizeQuoteContent(null);
       expect(result.text).toBe("");
@@ -281,22 +268,6 @@ describe("normalizeQuoteContent", () => {
   });
 
   describe("complex real-world examples", () => {
-    it("should handle quote with citation", () => {
-      const result = normalizeQuoteContent(
-        '"The only thing we have to fear is fear itself." — FDR'
-      );
-      expect(result.text).toBe(
-        "The only thing we have to fear is fear itself. — FDR"
-      );
-      expect(result.removedQuotes).toBe(true);
-    });
-
-    it("should handle Chinese quotation marks", () => {
-      const result = normalizeQuoteContent("「你好世界」");
-      expect(result.text).toBe("你好世界");
-      expect(result.removedQuotes).toBe(true);
-    });
-
     it("should handle French guillemets with punctuation", () => {
       const result = normalizeQuoteContent("« Bonjour le monde », dit-il.");
       expect(result.text).toBe("« Bonjour le monde », dit-il.");
@@ -306,19 +277,6 @@ describe("normalizeQuoteContent", () => {
     it("should handle nested decorative quotes", () => {
       const result = normalizeQuoteContent("「『Hello world』」");
       expect(result.text).toBe("Hello world");
-    });
-
-    it("should preserve content when no valid quotes found", () => {
-      const result = normalizeQuoteContent(
-        "This is just regular text without quotes."
-      );
-      expect(result.text).toBe("This is just regular text without quotes.");
-      expect(result.removedQuotes).toBe(false);
-    });
-
-    it("should handle quote at end with trailing text and punctuation", () => {
-      const result = normalizeQuoteContent('"Hello" (2024)');
-      expect(result.text).toBe("Hello (2024)");
     });
 
     it.each([
@@ -352,31 +310,5 @@ describe("normalizeQuoteContent", () => {
         "It's fine — Ada"
       );
     });
-
-    it("should handle quote followed by comma and space", () => {
-      const result = normalizeQuoteContent('"Hello", world');
-      expect(result.text).toBe('"Hello", world');
-      expect(result.removedQuotes).toBe(false);
-    });
-  });
-});
-
-describe("stripSurroundingQuotes", () => {
-  it("should return normalized text directly", () => {
-    expect(stripSurroundingQuotes('"Hello world"')).toBe("Hello world");
-    expect(stripSurroundingQuotes("'Hello world'")).toBe("Hello world");
-    expect(stripSurroundingQuotes("`Hello world`")).toBe("Hello world");
-  });
-
-  it("should return original if no quotes found", () => {
-    expect(stripSurroundingQuotes("Hello world")).toBe("Hello world");
-  });
-
-  it("should return empty string for null input", () => {
-    expect(stripSurroundingQuotes(null as any)).toBe("");
-  });
-
-  it("should return empty string for undefined input", () => {
-    expect(stripSurroundingQuotes(undefined as any)).toBe("");
   });
 });

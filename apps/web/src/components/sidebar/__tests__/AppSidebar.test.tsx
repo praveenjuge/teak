@@ -73,15 +73,6 @@ const sidebarState = () =>
   document.querySelector('[data-slot="sidebar"]')?.getAttribute("data-state");
 
 describe("AppSidebar", () => {
-  test("keeps go-to keys in tooltips, not beside the links", async () => {
-    await renderSidebar();
-    expect(
-      document.querySelector('[data-sidebar="menu-badge"] kbd')
-    ).toBeNull();
-    expect(link("Favorites")?.textContent?.trim()).toBe("Favorites");
-    expect(link("Trash")?.textContent?.trim()).toBe("Trash");
-  });
-
   test("marks only the open view as the current page", async () => {
     await renderSidebar({ activeView: "archive" });
     expect(link("Archive")?.getAttribute("aria-current")).toBe("page");
@@ -135,19 +126,6 @@ describe("AppSidebar", () => {
       "Trash",
       "Settings",
     ]);
-    const foot = document.querySelector('[data-slot="sidebar-footer"]');
-    expect(
-      [...(foot?.querySelectorAll("a") ?? [])].map(
-        (anchor) =>
-          anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()
-      )
-    ).toEqual(["Archive", "Trash", "Settings"]);
-    expect(
-      document.querySelector(
-        '[data-slot="sidebar-content"] [data-slot="sidebar-footer"]'
-      )
-    ).toBeNull();
-    expect(document.body.textContent).not.toContain("Types");
   });
 
   test("keeps its collapse button in the collapsed rail", async () => {
@@ -173,11 +151,6 @@ describe("AppSidebar", () => {
     expect(rail()?.getAttribute("aria-label")).toBe("Resize sidebar");
     await act(() => rail()?.click());
     expect(sidebarState()).toBe("expanded");
-  });
-
-  test("renders the folders slot", async () => {
-    await renderSidebar();
-    expect(document.querySelector('[data-testid="folders"]')).not.toBeNull();
   });
 
   test("keeps every item's accessible name when collapsed to icons", async () => {

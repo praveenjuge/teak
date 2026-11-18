@@ -1,5 +1,4 @@
 import { describe, expect, mock, test } from "bun:test";
-import { sha256Hex } from "@teak/files-protocol";
 import { type FunctionReference, getFunctionName } from "convex/server";
 import { internal } from "../../../_generated/api";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
@@ -7,6 +6,9 @@ import { callPublicApi } from "../../helpers/publicApiHttp.test-utils";
 import { withMappedOwner } from "../../helpers/session.test-utils";
 
 const API_KEY = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+// sha256("user_1:k1"): the key the client sent, scoped to its user.
+const KEY_HASH =
+  "94fba2e83b33df4ef9acfff8f13dbbf7553e0012e9e3b787196b998507c66d3f";
 const BEGIN = getFunctionName(
   internal.idempotency.beginIdempotencyRequestForUser
 );
@@ -73,35 +75,43 @@ describe("Idempotency-Key", () => {
   // Stored keys hash the request with these paths: a retry made before a
   // change to them must still match the request it repeats.
   test.each([
-    ["/v1/cards", { content: "hello" }, { content: "hello" }],
+    [
+      "/v1/cards",
+      { content: "hello" },
+      "d659913c08e7c91eeb0b169600adc10560325cd6ceaa2f35946dbaf9f8c06faf",
+    ],
     [
       "/v1/cards/bulk",
       { items: [{ cardId: "c1" }], operation: "delete" },
-      { items: [{ cardId: "c1" }], operation: "delete" },
+      "a638ff20785c6a5d87bc3cdc31d0c1f12202676379824e66a947b61f4c65b051",
     ],
-  ])("a POST to %s is reserved under that path", async (path, body, hashed) => {
-    const { calls, ctx } = backend();
+  ])(
+    "a POST to %s is reserved under that path",
+    async (path, body, requestHash) => {
+      const { calls, ctx } = backend();
 
-    const response = await callPublicApi(ctx, {
-      body,
-      headers: { Authorization: `Bearer ${API_KEY}`, "Idempotency-Key": "k1" },
-      method: "POST",
-      path,
-    });
-
-    expect(response.status).toBe(409);
-    expect(calls(BEGIN)).toEqual([
-      {
-        keyHash: await sha256Hex("user_1:k1"),
+      const response = await callPublicApi(ctx, {
+        body,
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Idempotency-Key": "k1",
+        },
         method: "POST",
         path,
-        requestHash: await sha256Hex(
-          JSON.stringify({ body: hashed, method: "POST", path })
-        ),
-        userId: "user_1",
-      },
-    ]);
-  });
+      });
+
+      expect(response.status).toBe(409);
+      expect(calls(BEGIN)).toEqual([
+        {
+          keyHash: KEY_HASH,
+          method: "POST",
+          path,
+          requestHash,
+          userId: "user_1",
+        },
+      ]);
+    }
+  );
 
   test("a failed analytics write doesn't change the answer", async () => {
     const { ctx } = backend({ failing: [TRACK] });
@@ -123,7 +133,7 @@ describe("Idempotency-Key", () => {
     expect(response.status).toBe(500);
     expect(calls(RELEASE)).toEqual([
       expect.objectContaining({
-        keyHash: await sha256Hex("user_1:k1"),
+        keyHash: KEY_HASH,
         leaseToken: "lease_1",
       }),
     ]);

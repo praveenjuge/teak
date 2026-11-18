@@ -1,14 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { enrichAmazon } from "../../../../shared/linkCategory/providers/amazon";
 import type { RawSelectorMap } from "../../../../shared/linkCategory/providers/common";
-import {
-  formatCountString,
-  formatDate,
-  formatRating,
-  getRawAttribute,
-  getRawText,
-  normalizeWhitespace,
-} from "../../../../shared/linkCategory/providers/common";
 import { enrichDribbble } from "../../../../shared/linkCategory/providers/dribbble";
 import { enrichGithub } from "../../../../shared/linkCategory/providers/github";
 import { enrichGoodreads } from "../../../../shared/linkCategory/providers/goodreads";
@@ -282,13 +274,6 @@ describe("enrichGithub", () => {
     });
   });
 
-  it("should format k suffix counts", () => {
-    const map = createMap([["a[href$='/stargazers']", { text: "1.5k" }]]);
-    const result = enrichGithub(map);
-
-    expect(result?.facts?.[0]?.value).toBe("1,500");
-  });
-
   it("should trim whitespace", () => {
     const map = createMap([
       ["span[itemprop='programmingLanguage']", { text: "  Python  " }],
@@ -386,18 +371,6 @@ describe("enrichGoodreads", () => {
     expect(result?.facts?.[0]?.value).toBe("4.00 / 5");
   });
 
-  it("should format k suffix counts", () => {
-    const map = createMap([
-      [
-        "meta[property='books:rating:count']",
-        { attributes: [{ name: "content", value: "2.5k" }] },
-      ],
-    ]);
-    const result = enrichGoodreads(map);
-
-    expect(result?.facts?.[0]?.value).toBe("2,500");
-  });
-
   it("should handle only rating and count", () => {
     const map = createMap([
       [
@@ -481,9 +454,9 @@ describe("enrichImdb", () => {
     ]);
     const result = enrichImdb(map);
 
-    expect(result?.facts?.[0]?.label).toBe("Released");
-    expect(result?.facts?.[0]?.value).toBeDefined();
-    expect(result?.facts?.[0]?.value).toContain("Dec");
+    expect(result?.facts).toEqual([
+      { label: "Released", value: "Dec 25, 2023" },
+    ]);
   });
 
   it("should return undefined for invalid date", () => {
@@ -567,185 +540,6 @@ describe("enrichImdb", () => {
   });
 });
 
-describe("categorization providers common", () => {
-  it("normalizeWhitespace", () => {
-    expect(normalizeWhitespace("  hello  world  ")).toBe("hello world");
-    expect(normalizeWhitespace("")).toBeUndefined();
-    expect(normalizeWhitespace(undefined)).toBeUndefined();
-  });
-
-  it("getRawText", () => {
-    const map = new Map([["#id", { text: "  Some Text  " }]]);
-    expect(getRawText(map, "#id")).toBe("Some Text");
-    expect(getRawText(map, "#missing")).toBeUndefined();
-  });
-
-  it("getRawAttribute", () => {
-    const map = new Map([
-      ["meta", { attributes: [{ name: "content", value: "  value  " }] }],
-    ]);
-    expect(getRawAttribute(map, "meta", "content")).toBe("value");
-    expect(getRawAttribute(map, "meta", "missing")).toBeUndefined();
-    expect(getRawAttribute(map, "missing", "content")).toBeUndefined();
-
-    const map2 = new Map([
-      [
-        "meta",
-        {
-          attributes: [
-            { name: "Content", value: "upper" },
-            { name: "other", value: "other" },
-          ],
-        },
-      ],
-    ]);
-    expect(getRawAttribute(map2, "meta", "content")).toBe("upper");
-
-    const map3 = new Map([["meta", { text: "just text" }]]);
-    expect(getRawAttribute(map3, "meta", "content")).toBeUndefined();
-  });
-
-  it("formatCountString", () => {
-    expect(formatCountString("1,234")).toBe("1,234");
-    expect(formatCountString("1.2k")).toBe("1,200");
-    expect(formatCountString("1.5m")).toBe("1,500,000");
-    expect(formatCountString("not a number")).toBe("not a number");
-  });
-
-  it("formatRating", () => {
-    expect(formatRating("4.567")).toBe("4.57");
-    expect(formatRating("5")).toBe("5.00");
-    expect(formatRating("not numeric")).toBe("not numeric");
-    expect(formatRating(undefined)).toBeUndefined();
-  });
-
-  it("formatDate", () => {
-    expect(formatDate("2023-12-21T12:00:00")).toBe("Dec 21, 2023");
-    expect(formatDate("invalid date")).toBeUndefined();
-    expect(formatDate(undefined)).toBeUndefined();
-  });
-});
-
-describe("enrichAmazon", () => {
-  it("extracts price and currency", () => {
-    const map = new Map([
-      [".a-price .a-offscreen", { text: "$10.00" }],
-      [
-        "meta[property='og:price:currency']",
-        { attributes: [{ name: "content", value: "USD" }] },
-      ],
-    ]);
-    const result = enrichAmazon(map);
-    expect(result!.facts).toContainEqual({
-      label: "Price",
-      value: "$10.00 USD",
-    });
-    expect(result!.raw!.price).toBe("$10.00");
-    expect(result!.raw!.currency).toBe("USD");
-  });
-
-  it("handles price only", () => {
-    const map = new Map([[".a-price .a-offscreen", { text: "$10.00" }]]);
-    const result = enrichAmazon(map);
-    expect(result!.facts).toContainEqual({ label: "Price", value: "$10.00" });
-  });
-
-  it("returns null if no price or currency", () => {
-    const map = new Map();
-    expect(enrichAmazon(map)).toBeNull();
-  });
-});
-
-describe("enrichGithub", () => {
-  it("extracts stats and language", () => {
-    const map = new Map([
-      ["a[href$='/stargazers']", { text: "1.2k" }],
-      ["span[itemprop='programmingLanguage']", { text: "TypeScript" }],
-      ["relative-time", { text: "on Oct 10, 2023" }],
-    ]);
-    const result = enrichGithub(map);
-    expect(result!.facts).toContainEqual({ label: "Stars", value: "1,200" });
-    expect(result!.facts).toContainEqual({
-      label: "Language",
-      value: "TypeScript",
-    });
-    expect(result!.facts).toContainEqual({
-      label: "Updated",
-      value: "Oct 10, 2023",
-    });
-  });
-
-  it("returns null if no facts", () => {
-    expect(enrichGithub(new Map())).toBeNull();
-  });
-});
-
-describe("enrichGoodreads", () => {
-  it("extracts rating and count", () => {
-    const map = new Map([
-      [
-        "meta[property='books:rating:average']",
-        { attributes: [{ name: "content", value: "4.2" }] },
-      ],
-      [
-        "meta[property='books:rating:count']",
-        { attributes: [{ name: "content", value: "100" }] },
-      ],
-    ]);
-    const result = enrichGoodreads(map);
-    expect(result!.facts).toContainEqual({
-      label: "Average rating",
-      value: "4.20 / 5",
-    });
-    expect(result!.facts).toContainEqual({ label: "Ratings", value: "100" });
-  });
-
-  it("returns null if no facts", () => {
-    expect(enrichGoodreads(new Map())).toBeNull();
-  });
-});
-
-describe("enrichImdb", () => {
-  it("extracts rating and votes", () => {
-    const map = new Map([
-      [
-        "meta[name='imdb:rating']",
-        { attributes: [{ name: "content", value: "8.5" }] },
-      ],
-      [
-        "meta[name='imdb:votes']",
-        { attributes: [{ name: "content", value: "100k" }] },
-      ],
-    ]);
-    const result = enrichImdb(map);
-    expect(result!.facts).toContainEqual({
-      label: "IMDb rating",
-      value: "8.50 / 10",
-    });
-    expect(result!.facts).toContainEqual({ label: "Votes", value: "100,000" });
-  });
-
-  it("extracts runtime and released", () => {
-    const map = new Map([
-      ["span[data-testid='title-techspec_runtime'] span", { text: "2h 30m" }],
-      [
-        "meta[property='video:release_date']",
-        { attributes: [{ name: "content", value: "2023-12-21T12:00:00" }] },
-      ],
-    ]);
-    const result = enrichImdb(map);
-    expect(result!.facts).toContainEqual({ label: "Runtime", value: "2h 30m" });
-    expect(result!.facts).toContainEqual({
-      label: "Released",
-      value: "Dec 21, 2023",
-    });
-  });
-
-  it("returns null if no facts", () => {
-    expect(enrichImdb(new Map())).toBeNull();
-  });
-});
-
 describe("enrichDribbble", () => {
   it("extracts stats and tags", () => {
     const map = new Map([
@@ -794,24 +588,6 @@ describe("enrichDribbble", () => {
     const result = enrichDribbble(map);
     expect(result!.facts).toContainEqual({ label: "Likes", value: "100" });
     expect(result!.facts).toContainEqual({ label: "Views", value: "1,000" });
-  });
-
-  it("extracts designer from og:title", () => {
-    const map = new Map([
-      [
-        "meta[property='og:title']",
-        {
-          attributes: [
-            { name: "content", value: "Shot Title by John Doe on Dribbble" },
-          ],
-        },
-      ],
-    ]);
-    const result = enrichDribbble(map);
-    expect(result!.facts).toContainEqual({
-      label: "Designer",
-      value: "John Doe",
-    });
   });
 
   it("returns null if no enrichment", () => {

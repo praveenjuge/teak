@@ -63,6 +63,14 @@ test("switching to the card already open does nothing", async () => {
   expect(replaceCardId).not.toHaveBeenCalled();
 });
 
+test("opening the card already open, or a blank id, does nothing", async () => {
+  const { get, pushCardId } = await renderHook("card_a");
+  await act(() => get().openCard("card_a"));
+  await act(() => get().openCard("   "));
+  expect(get().selectedCardId).toBe("card_a");
+  expect(pushCardId).not.toHaveBeenCalled();
+});
+
 test("stepping back before the next render lands on the card asked for last", async () => {
   const { get, replaceCardId } = await renderHook("card_a");
   await act(() => {

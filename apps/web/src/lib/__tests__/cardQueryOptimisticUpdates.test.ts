@@ -274,7 +274,6 @@ const storeWith = (cards: Doc<"cards">[]) => {
     [getFunctionName(api.cards.getCardByUrlId), []],
   ]);
   let single: Doc<"cards"> | undefined = cards[0];
-  const writes: string[] = [];
   const localStore = {
     getAllQueries: (query: unknown) => {
       const name = getFunctionName(query as typeof api.cards.searchCards);
@@ -285,7 +284,6 @@ const storeWith = (cards: Doc<"cards">[]) => {
     },
     setQuery: (query: unknown, args: unknown, value: unknown) => {
       const name = getFunctionName(query as typeof api.cards.searchCards);
-      writes.push(name);
       if (name === getFunctionName(api.cards.getCard)) {
         single = value as Doc<"cards">;
       } else {
@@ -302,7 +300,6 @@ const storeWith = (cards: Doc<"cards">[]) => {
       )[0]?.value.page,
     localStore,
     single: () => single,
-    writes,
   };
 };
 

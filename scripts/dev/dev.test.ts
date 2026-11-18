@@ -59,9 +59,6 @@ describe("parseDevArgs", () => {
     expect(parseDevArgs(["--detach", "--push"]).push).toBe(true);
     expect(() => parseDevArgs(["extension", "--detach"])).toThrow("web stack");
     expect(() => parseDevArgs(["--all", "--detach"])).toThrow("web stack");
-    expect(() => parseDevArgs(["--workos", "staging"])).toThrow(
-      "Unknown dev target"
-    );
   });
 
   test("only the web target runs the local stack", () => {

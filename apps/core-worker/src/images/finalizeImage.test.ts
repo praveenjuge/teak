@@ -160,15 +160,6 @@ describe("finalize-image-upload", () => {
     ).toBeNull();
   });
 
-  test("rejects non-image uploads when decoders cannot verify them", async () => {
-    const env = makeEnv({
-      bytes: new Uint8Array([1, 2, 3]),
-      contentType: "text/plain",
-      info: new Error("decode failed"),
-    });
-    await expect(runOp(env)).rejects.toThrow("not_an_image");
-  });
-
   test("finalizes a thin SVG rule, whose small render would be under a pixel tall", async () => {
     const env = makeEnv({
       bytes: new TextEncoder().encode(

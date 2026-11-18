@@ -1,6 +1,6 @@
 import polarTest from "@convex-dev/polar/test";
 import { describe, expect, test } from "vitest";
-import { api, internal } from "../../_generated/api";
+import { api } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
 import { FREE_TIER_LIMIT } from "../../shared/constants";
 import { newBackend, signIn } from "../helpers.testUtils";
@@ -83,16 +83,5 @@ describe("whether a free account can save another card", () => {
       currentUser: false,
       creationStatus: false,
     });
-  });
-
-  test("/v1/me reports the same count and limit", async () => {
-    const { t } = await setup((ctx) => insertCards(ctx, 3));
-
-    expect(
-      await t.query(internal.publicApiMe.profileForUser, {
-        teakUserId: OWNER,
-        includeUsage: true,
-      })
-    ).toMatchObject({ cardCount: 3, cardLimit: FREE_TIER_LIMIT, plan: "free" });
   });
 });

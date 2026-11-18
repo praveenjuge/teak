@@ -168,7 +168,6 @@ describe("decodeHtmlParam", () => {
   );
 });
 
-const _SECRET = "test-secret";
 describe("rendering operations", () => {
   const source = "users/u/cards/c/file/clip.mp4";
   const destination = "users/u/cards/c/thumbnail/frame.jpg";

@@ -26,7 +26,7 @@ export interface UseCardQueryParamStateResult {
   switchCard: (cardId: string) => void;
 }
 
-export function normalizeCardQueryId(value: string | null | undefined) {
+function normalizeCardQueryId(value: string | null | undefined) {
   if (typeof value !== "string") {
     return null;
   }

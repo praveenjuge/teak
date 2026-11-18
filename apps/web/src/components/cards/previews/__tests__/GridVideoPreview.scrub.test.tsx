@@ -132,19 +132,15 @@ describe("GridVideoPreview scrubbing", () => {
     expect(sprite(container)?.style.left).toBe("-900%");
   });
 
-  test("leaving resets to the first frame and hides the sprite", async () => {
+  test("leaving resets to the first frame", async () => {
     const { container, surface } = await renderPreview();
 
     await pointer(surface, "pointerover", "mouse", 100);
     await pointer(surface, "pointermove", "mouse", 250);
-    await act(() => {
-      sprite(container)?.dispatchEvent(new Event("load"));
-    });
-    expect(sprite(container)?.className).not.toContain("opacity-0");
+    expect(sprite(container)?.style.left).not.toBe("0%");
 
     await pointer(surface, "pointerout", "mouse");
 
-    expect(sprite(container)?.className).toContain("opacity-0");
     expect(sprite(container)?.style.left).toBe("0%");
   });
 

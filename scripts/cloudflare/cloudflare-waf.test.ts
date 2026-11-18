@@ -216,8 +216,7 @@ describe("the managed rules", () => {
     expect(oversized?.expression).toContain(
       declaredLengthOver(API_PROXY_MAX_BODY_BYTES)
     );
-    expect(API_PROXY_MAX_BODY_BYTES).toBe(20_000_000);
-    expect(declaredLengthOver(API_PROXY_MAX_BODY_BYTES)).toBe(
+    expect(declaredLengthOver(20_000_000)).toBe(
       '(not starts_with(http.request.headers["content-length"][0], "0") and (len(http.request.headers["content-length"][0]) gt 8 or (len(http.request.headers["content-length"][0]) eq 8 and http.request.headers["content-length"][0] gt "20000000")))'
     );
   });

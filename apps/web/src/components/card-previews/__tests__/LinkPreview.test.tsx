@@ -135,7 +135,7 @@ describe("LinkPreview", () => {
     expect(markup).not.toContain("Stale Author");
   });
 
-  test("renders attached post images one below another", () => {
+  test("renders each attached post image", () => {
     const markup = renderToStaticMarkup(
       <LinkPreview
         card={
@@ -162,7 +162,6 @@ describe("LinkPreview", () => {
     expect(markup).toContain("Attached post media 1");
     expect(markup).toContain("Attached post media 2");
     expect((markup.match(/Attached post media/g) ?? []).length).toBe(2);
-    expect(markup).toContain("flex flex-col gap-4");
   });
 
   test("renders attached video with controls below the preview", () => {

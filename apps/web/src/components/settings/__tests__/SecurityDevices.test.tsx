@@ -11,7 +11,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { createTeakTranslator } = await import("@teak/i18n");
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SecurityConnections, deviceName, orderDeviceSessions } = await import(
+const { SecurityConnections, deviceName } = await import(
   "../SecurityConnections"
 );
 type DeviceSession = import("@/lib/securitySessions").DeviceSession;
@@ -162,13 +162,5 @@ describe("deviceName", () => {
 
   test("an older server's English name shows as it is", () => {
     expect(deviceName({ name: "Chrome on Linux" }, t)).toBe("Chrome on Linux");
-  });
-
-  test("orders this device first and keeps the rest in order", () => {
-    expect(orderDeviceSessions(sessions).map((session) => session.id)).toEqual([
-      "session_HERE",
-      "session_OLD",
-      "session_EXT",
-    ]);
   });
 });

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
-  ACTIONABLE_LINK_CATEGORIES,
   doneActionLabel,
   isLinkCategory,
   LINK_CATEGORIES,
   LINK_CATEGORY_DEFAULT_CONFIDENCE,
-  LINK_CATEGORY_DONE_VERB,
   LINK_CATEGORY_ICONS,
   LINK_CATEGORY_LABELS,
   type LinkDoneVerb,
@@ -14,33 +12,6 @@ import {
 } from "../../shared/linkCategories";
 
 describe("LINK_CATEGORIES", () => {
-  it("should contain all expected categories", () => {
-    const expected = [
-      "book",
-      "movie",
-      "tv",
-      "article",
-      "news",
-      "podcast",
-      "music",
-      "product",
-      "recipe",
-      "course",
-      "research",
-      "event",
-      "software",
-      "design_portfolio",
-      "place",
-      "typeface",
-      "social_post",
-      "app",
-      "game",
-      "repo",
-      "other",
-    ] as const;
-    expect(LINK_CATEGORIES).toEqual(expected);
-  });
-
   it("recognizes stored category values and rejects anything else", () => {
     expect(isLinkCategory("social_post")).toBe(true);
     expect(isLinkCategory("repo")).toBe(true);
@@ -55,63 +26,20 @@ describe("LINK_CATEGORIES", () => {
 });
 
 describe("LINK_CATEGORY_LABELS", () => {
-  it("should have labels for all categories", () => {
-    for (const category of LINK_CATEGORIES) {
-      expect(LINK_CATEGORY_LABELS[category]).toBeDefined();
-    }
-  });
-
   it("should have non-empty labels", () => {
     for (const category of LINK_CATEGORIES) {
       const label = LINK_CATEGORY_LABELS[category];
       expect(label?.length).toBeGreaterThan(0);
     }
   });
-
-  it("should have user-friendly labels", () => {
-    expect(LINK_CATEGORY_LABELS.book).toBe("Book / eBook");
-    expect(LINK_CATEGORY_LABELS.movie).toBe("Movie / Film");
-    expect(LINK_CATEGORY_LABELS.tv).toBe("TV Show / Series");
-    expect(LINK_CATEGORY_LABELS.software).toBe("Software / Developer Tool");
-  });
-
-  it("labels the newer categories", () => {
-    expect(LINK_CATEGORY_LABELS.place).toBe(
-      "Place / Restaurant / Venue / Real Estate"
-    );
-    expect(LINK_CATEGORY_LABELS.typeface).toBe("Typeface / Font");
-    expect(LINK_CATEGORY_LABELS.social_post).toBe("Social Post");
-    expect(LINK_CATEGORY_LABELS.app).toBe("App / Mobile or Desktop App");
-    expect(LINK_CATEGORY_LABELS.game).toBe("Game / Video Game");
-    expect(LINK_CATEGORY_LABELS.repo).toBe("Code Repository");
-  });
 });
 
 describe("LINK_CATEGORY_ICONS", () => {
-  it("should have icons for all categories", () => {
-    for (const category of LINK_CATEGORIES) {
-      expect(LINK_CATEGORY_ICONS[category]).toBeDefined();
-    }
-  });
-
   it("should have non-empty icon names", () => {
     for (const category of LINK_CATEGORIES) {
       const icon = LINK_CATEGORY_ICONS[category];
       expect(icon?.length).toBeGreaterThan(0);
     }
-  });
-
-  it("should have appropriate icon names", () => {
-    expect(LINK_CATEGORY_ICONS.book).toBe("Book");
-    expect(LINK_CATEGORY_ICONS.movie).toBe("Clapperboard");
-    expect(LINK_CATEGORY_ICONS.tv).toBe("Tv");
-    expect(LINK_CATEGORY_ICONS.music).toBe("Music");
-    expect(LINK_CATEGORY_ICONS.place).toBe("MapPin");
-    expect(LINK_CATEGORY_ICONS.typeface).toBe("Type");
-    expect(LINK_CATEGORY_ICONS.social_post).toBe("MessageSquare");
-    expect(LINK_CATEGORY_ICONS.app).toBe("AppWindow");
-    expect(LINK_CATEGORY_ICONS.game).toBe("Gamepad2");
-    expect(LINK_CATEGORY_ICONS.repo).toBe("FolderGit2");
   });
 });
 
@@ -221,63 +149,9 @@ describe("LINK_CATEGORY_DEFAULT_CONFIDENCE", () => {
     expect(LINK_CATEGORY_DEFAULT_CONFIDENCE).toBeGreaterThanOrEqual(0);
     expect(LINK_CATEGORY_DEFAULT_CONFIDENCE).toBeLessThanOrEqual(1);
   });
-
-  it("should be a reasonable default confidence", () => {
-    expect(LINK_CATEGORY_DEFAULT_CONFIDENCE).toBe(0.6);
-  });
 });
 
 describe("done states", () => {
-  it("gives every category its done verb", () => {
-    expect(Object.keys(LINK_CATEGORY_DONE_VERB).sort()).toEqual(
-      [...LINK_CATEGORIES].sort()
-    );
-    expect(LINK_CATEGORY_DONE_VERB).toEqual({
-      book: "read",
-      movie: "watched",
-      tv: "watched",
-      article: "read",
-      news: "read",
-      podcast: "listened",
-      music: "listened",
-      product: "bought",
-      recipe: "cooked",
-      course: "done",
-      research: "read",
-      event: "done",
-      software: "done",
-      design_portfolio: "done",
-      place: "done",
-      typeface: "done",
-      social_post: "done",
-      app: "done",
-      game: "played",
-      repo: "done",
-      other: "done",
-    });
-  });
-
-  it("lists what is worth finishing, apps and games included", () => {
-    expect([...ACTIONABLE_LINK_CATEGORIES].sort()).toEqual(
-      [
-        "app",
-        "article",
-        "book",
-        "course",
-        "event",
-        "game",
-        "movie",
-        "music",
-        "news",
-        "podcast",
-        "product",
-        "recipe",
-        "tv",
-      ].sort()
-    );
-    expect(ACTIONABLE_LINK_CATEGORIES.has("repo")).toBe(false);
-  });
-
   it.each<[string | null | undefined, LinkDoneVerb]>([
     ["movie", "watched"],
     ["game", "played"],

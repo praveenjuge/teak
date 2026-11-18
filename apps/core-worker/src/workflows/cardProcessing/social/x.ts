@@ -56,14 +56,6 @@ export const isXHostname = (hostname: string): boolean =>
     (candidate) => hostname === candidate || hostname.endsWith(`.${candidate}`)
   );
 
-export const isXUrl = (url: string): boolean => {
-  try {
-    return isXHostname(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-};
-
 export const extractXStatusId = (url: string): string | undefined => {
   try {
     const parsedUrl = new URL(url);

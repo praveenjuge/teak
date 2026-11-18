@@ -8,10 +8,10 @@ import {
 mock.module("../storage/r2", r2MockModuleFactory);
 mock.module("../storage/objectDeletion", objectDeletionMockModuleFactory);
 
-let ensureCardCreationAllowed: any;
+let authorizeCardCreation: any;
+let ensureCardQuotaAvailable: any;
 let removeAccountCardUsageHandler: any;
 let polar: any;
-let rateLimiter: any;
 let CARD_ERROR_CODES: any;
 let FREE_TIER_LIMIT: any;
 
@@ -50,7 +50,8 @@ describe("auth", () => {
   beforeAll(async () => {
     const quotaModule = await import("../card/quota");
     const accountDeletionModule = await import("../accountDeletion");
-    ensureCardCreationAllowed = quotaModule.ensureCardCreationAllowed;
+    authorizeCardCreation = quotaModule.authorizeCardCreation;
+    ensureCardQuotaAvailable = quotaModule.ensureCardQuotaAvailable;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;
 
@@ -60,139 +61,22 @@ describe("auth", () => {
 
     const billingModule = await import("../billing/polar");
     polar = billingModule.polar;
-
-    const rateLimitsModule = await import("../rateLimiter");
-    rateLimiter = rateLimitsModule.rateLimiter;
   });
 
-  describe("ensureCardCreationAllowed", () => {
-    const okRateLimiter = {
-      limit: async () => ({ ok: true as const }),
-    };
-    const failRateLimiter = {
-      limit: async () => ({ ok: false as const, retryAfter: 100 }),
-    };
-
+  describe("authorizeCardCreation", () => {
     it("throws if rate limited", async () => {
-      const ctx = {} as any;
-      try {
-        await ensureCardCreationAllowed(ctx, "u1", {
-          rateLimiter: failRateLimiter,
-          getSubscription: async () => null,
-        });
-        throw new Error("Expected error");
-      } catch (e: any) {
-        expect(e).toBeInstanceOf(ConvexError);
-        expect(e.data.code).toBe(CARD_ERROR_CODES.RATE_LIMITED);
-      }
-    });
-
-    it("handles subscription check error gracefully", async () => {
-      const ctx = {
-        db: {
-          query: (_table: string) => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: noop,
-                  }),
-                });
-              }
-              return {
-                unique: async () => null,
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
-              };
-            },
-          }),
+      const error = await authorizeCardCreation({} as any, "u1", {
+        rateLimiter: {
+          limit: async () => ({ ok: false as const, retryAfter: 100 }),
         },
-        runQuery: () => {
-          throw new Error("runQuery should not be called");
-        },
-      } as any;
-
-      addUsageRecord(ctx, FREE_TIER_LIMIT - 1);
-      await ensureCardCreationAllowed(ctx, "u1", {
-        rateLimiter: okRateLimiter,
-        getSubscription: () => {
-          throw new Error("Polar fail");
-        },
-      });
-    });
-
-    it("rejects free users at the limit and avoids ctx.runQuery", async () => {
-      const ctx = {
-        db: {
-          query: (_table: string) => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: noop,
-                  }),
-                });
-              }
-              return {
-                unique: async () => null,
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
-              };
-            },
-          }),
-        },
-        runQuery: () => {
-          throw new Error("runQuery should not be called");
-        },
-      } as any;
-
-      try {
-        addUsageRecord(ctx, FREE_TIER_LIMIT);
-        await ensureCardCreationAllowed(ctx, "user_1", {
-          rateLimiter: okRateLimiter,
-          getSubscription: async () => null,
-        });
-        throw new Error("Expected card limit error");
-      } catch (error) {
-        expect(error).toBeInstanceOf(ConvexError);
-        expect((error as any).data?.code).toBe(
-          CARD_ERROR_CODES.CARD_LIMIT_REACHED
-        );
-      }
-    });
-
-    it("allows free users below the limit without calling ctx.runQuery", async () => {
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: noop,
-                  }),
-                });
-              }
-              return {
-                unique: async () => null,
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT - 1) }),
-              };
-            },
-          }),
-        },
-        runQuery: () => {
-          throw new Error("runQuery should not be called");
-        },
-      } as any;
-
-      addUsageRecord(ctx, FREE_TIER_LIMIT - 1);
-      await ensureCardCreationAllowed(ctx, "user_2", {
-        rateLimiter: okRateLimiter,
         getSubscription: async () => null,
-      });
+      }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(ConvexError);
+      expect((error as any).data.code).toBe(CARD_ERROR_CODES.RATE_LIMITED);
     });
+  });
 
+  describe("ensureCardQuotaAvailable", () => {
     it("uses the bounded usage record instead of reading the cards range", async () => {
       const queriedTables: string[] = [];
       const ctx = {
@@ -223,8 +107,7 @@ describe("auth", () => {
         },
       } as any;
 
-      await ensureCardCreationAllowed(ctx, "user_bounded", {
-        rateLimiter: okRateLimiter,
+      await ensureCardQuotaAvailable(ctx, "user_bounded", {
         getSubscription: async () => null,
       });
 
@@ -263,8 +146,7 @@ describe("auth", () => {
         queriedTables.push(table);
         return query(table);
       };
-      await ensureCardCreationAllowed(ctx, "user_3", {
-        rateLimiter: okRateLimiter,
+      await ensureCardQuotaAvailable(ctx, "user_3", {
         getSubscription: async () => ({
           productId: POLAR_PLAN_IDS.production.monthly,
           status: "active",
@@ -276,18 +158,12 @@ describe("auth", () => {
       expect(queriedTables).not.toContain("cards");
     });
 
-    it("uses default dependencies when not provided", async () => {
-      const originalLimit = rateLimiter.limit;
+    it("reads the plan from Polar when no lookup is given", async () => {
       const originalGetSubscription = polar.getCurrentSubscription;
-
-      const mockLimit = mock().mockResolvedValue({ ok: true });
-      const mockGetSub = mock().mockResolvedValue({
+      polar.getCurrentSubscription = mock().mockResolvedValue({
         productId: POLAR_PLAN_IDS.production.monthly,
         status: "active",
       });
-
-      rateLimiter.limit = mockLimit;
-      polar.getCurrentSubscription = mockGetSub;
 
       try {
         const ctx = {
@@ -297,13 +173,11 @@ describe("auth", () => {
             }),
           },
         } as any;
-        addUsageRecord(ctx, 0);
-        await ensureCardCreationAllowed(ctx, "u1");
-
-        expect(mockLimit).toHaveBeenCalled();
-        expect(mockGetSub).toHaveBeenCalled();
+        addUsageRecord(ctx, FREE_TIER_LIMIT);
+        await expect(
+          ensureCardQuotaAvailable(ctx, "u1")
+        ).resolves.toBeUndefined();
       } finally {
-        rateLimiter.limit = originalLimit;
         polar.getCurrentSubscription = originalGetSubscription;
       }
     });

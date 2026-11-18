@@ -8,8 +8,6 @@ import {
 import { mockActionCtx } from "../helpers/convex.test-utils";
 import {
   AUTHKIT_DOMAIN,
-  EXPECTED_TOOL_NAMES,
-  initializeMcp,
   type JsonRpcSuccess,
   mcpRequest,
   setUpMcpEnv,
@@ -137,40 +135,6 @@ describe("Convex MCP endpoint", () => {
     expect(response.headers.get("WWW-Authenticate")).toContain(
       "/.well-known/oauth-protected-resource"
     );
-  });
-
-  test("initializes and lists the Teak and ChatGPT-compatible tools", async () => {
-    expect(TEAK_V1_TOOLS.map((tool): string => tool.name).sort()).toEqual(
-      EXPECTED_TOOL_NAMES
-    );
-
-    const runMutation = mock().mockResolvedValue({
-      keyId: "key_1",
-      userId: "user_1",
-      access: "full_access",
-      source: "component",
-      rateLimitKey: "component:key_1",
-    });
-    const ctx = mockActionCtx(
-      withMappedOwner({
-        runMutation,
-        runQuery: mock(),
-      })
-    );
-    expect((await initializeMcp(ctx)).status).toBe(200);
-
-    const listResponse = await handleMcpV1Request(
-      ctx,
-      mcpRequest({
-        jsonrpc: "2.0",
-        id: 2,
-        method: "tools/list",
-        params: {},
-      })
-    );
-    const payload = (await listResponse.json()) as JsonRpcSuccess;
-    const names = (payload.result.tools ?? []).map((tool) => tool.name).sort();
-    expect(names).toEqual(EXPECTED_TOOL_NAMES);
   });
 
   test("checks live credentials on consecutive MCP requests", async () => {

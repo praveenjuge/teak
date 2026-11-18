@@ -269,7 +269,7 @@ describe("ImportPanel", () => {
     }
   });
 
-  test("names the last import's file and source, and hides drop text on touch", () => {
+  test("names the last import's file and source", () => {
     importQueryResult = {
       id: "job",
       mode: "csv",
@@ -287,7 +287,6 @@ describe("ImportPanel", () => {
     try {
       const markup = renderImportPanel();
       expect(markup).toContain("reading-list.csv · CSV file");
-      expect(markup).toMatch(/pointer-coarse:hidden[^>]*>or drop it here/);
     } finally {
       importQueryResult = null;
     }

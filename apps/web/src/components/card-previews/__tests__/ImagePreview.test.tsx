@@ -125,23 +125,6 @@ describe("ImagePreview", () => {
     expect(markup).toContain('data-fit="width"');
     expect(markup).not.toContain('data-fit="contain"');
   });
-
-  test("leaves the image's palette to the side panel", () => {
-    const markup = renderToStaticMarkup(
-      <ImagePreview
-        card={
-          createImageCard({
-            fileUrl: "https://cdn.example.com/photo.jpg",
-            fileMetadata: { width: 1200, height: 800 },
-            colors: [{ hex: "#112233" }, { hex: "#445566" }],
-          }) as any
-        }
-      />
-    );
-
-    expect(markup).not.toContain("#112233");
-    expect(markup).not.toContain("#445566");
-  });
 });
 
 describe("ImagePreview in a dialog left open", () => {
@@ -206,7 +189,7 @@ describe("ImagePreview in a dialog left open", () => {
     const placeholder = () =>
       container.querySelector('[data-slot="media-loading"]');
     expect(image.dataset.loading).toBe("true");
-    expect(placeholder()?.className).toContain("animate-pulse");
+    expect(placeholder()).not.toBeNull();
 
     await act(() => {
       image.dispatchEvent(new Event("load"));

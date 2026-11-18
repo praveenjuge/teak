@@ -237,14 +237,19 @@ describe("file storage contract", () => {
     ).toBe("users/abc/cards/file/x.png\n1\n\n");
   });
 
-  test("caches file responses for a day less than a signed url stays valid", () => {
-    const maxAge = FILES_SIGNED_URL_MIN_VALIDITY_SECONDS - 24 * 60 * 60;
-    expect(FILES_PRIVATE_CACHE_CONTROL).toBe(
-      `private, max-age=${maxAge}, immutable`
-    );
-    expect(FILES_EDGE_CACHE_CONTROL).toBe(
-      `public, max-age=${maxAge}, immutable`
-    );
+  test("caches file responses at least a day less than a signed url stays valid", () => {
+    for (const [header, scope] of [
+      [FILES_PRIVATE_CACHE_CONTROL, "private"],
+      [FILES_EDGE_CACHE_CONTROL, "public"],
+    ] as const) {
+      const match = /^(\w+), max-age=(\d+), immutable$/u.exec(header);
+      expect(match?.[1]).toBe(scope);
+      const maxAge = Number(match?.[2]);
+      expect(maxAge).toBeGreaterThan(0);
+      expect(maxAge + 24 * 60 * 60).toBeLessThanOrEqual(
+        FILES_SIGNED_URL_MIN_VALIDITY_SECONDS
+      );
+    }
   });
 
   test("builds card object keys under the user's hashed prefix", () => {

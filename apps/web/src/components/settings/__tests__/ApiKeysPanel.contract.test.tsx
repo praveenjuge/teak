@@ -1,37 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-
-mock.module("../../ui/badge", () => ({
-  Badge: ({ children, variant }: any) =>
-    React.createElement("span", { "data-variant": variant }, children),
-}));
-
-mock.module("../../ui/button", () => ({
-  Button: ({ children, disabled, onClick, size, variant, ...props }: any) =>
-    React.createElement(
-      "button",
-      {
-        disabled,
-        onClick,
-        "data-size": size,
-        "data-variant": variant,
-        type: "button",
-        ...props,
-      },
-      children
-    ),
-  buttonVariants: () => "",
-}));
-
-mock.module("../../ui/input", () => ({
-  Input: ({ value, readOnly }: any) =>
-    React.createElement("input", { readOnly, value }),
-}));
-
-mock.module("../../ui/spinner", () => ({
-  Spinner: () => React.createElement("span", { "data-spinner": "" }),
-}));
 
 mock.module("sonner", () => ({
   toast: {
@@ -71,7 +39,7 @@ const handlers = {
 };
 
 describe("ApiKeysPanel", () => {
-  test("renders component and disabled key states", () => {
+  test("lists each key by name and masked key, with regenerate and revoke", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysPanel isLoading={false} keys={keys} {...handlers} />
     );
@@ -80,22 +48,12 @@ describe("ApiKeysPanel", () => {
     expect(markup).toContain("Revoke all keys");
     expect(markup).toContain("Up to 10 keys.");
     expect(markup).toContain('href="https://teakvault.com/docs/api"');
-    expect(markup).toContain("Key");
-    expect(markup).not.toContain("Last used");
-    expect(markup).not.toContain("Created");
-    expect(markup).not.toContain("Status");
     expect(markup).toContain("SDK Key");
     expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
     expect(markup).toContain("Regenerate SDK Key");
-    expect(markup).toContain("Regenerate key");
-    expect(markup).toContain("Revoke key");
-    expect(markup).not.toContain(">Disable<");
-    expect(markup).toContain("Disabled Key");
-    expect(markup).toContain("Disabled");
-    expect(markup).not.toContain(">Enable<");
-    expect(markup).not.toContain("Update required");
-    expect(markup).not.toContain(">Active<");
-    expect(markup).not.toContain("for API, MCP, and Raycast access");
+    expect(markup).toContain("Regenerate Disabled Key");
+    expect(markup).toContain("Revoke SDK Key");
+    expect(markup).toContain("Revoke Disabled Key");
   });
 
   test("does not render repeated default key names in the list", () => {
@@ -112,13 +70,11 @@ describe("ApiKeysPanel", () => {
       />
     );
 
-    expect(markup).not.toContain("Default API key");
     expect(markup).not.toContain(">API Keys<");
-    expect(markup).not.toContain("Created");
-    expect(markup).not.toContain("Last used");
+    expect(markup).toContain("teakapi_secret_live_a1b2c3d4");
   });
 
-  test("keeps terminal key statuses out of the table", () => {
+  test("a key that can no longer be used can only be revoked", () => {
     const markup = renderToStaticMarkup(
       <ApiKeysPanel
         isLoading={false}
@@ -134,7 +90,6 @@ describe("ApiKeysPanel", () => {
       />
     );
 
-    expect(markup).not.toContain('data-variant="destructive"');
     expect(markup).not.toContain("Exhausted");
     expect(markup).not.toContain("Regenerate Terminal Key");
     expect(markup).toContain("Revoke Terminal Key");

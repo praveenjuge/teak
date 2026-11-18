@@ -25,4 +25,21 @@ describe("parseLinkPreview", () => {
     expect(parsed.imageUrl).toBe("https://example.com/image.png");
     expect(parsed.finalUrl).toBe(baseUrl);
   });
+
+  test("prefers Open Graph's title and description to the page's own", () => {
+    const content = (selector: string, value: string) => ({
+      selector,
+      results: [{ attributes: [{ name: "content", value }] }],
+    });
+    const parsed = parseLinkPreview(baseUrl, [
+      { selector: "head > title", results: [{ text: "Page title" }] },
+      content("meta[name='twitter:title']", "Twitter title"),
+      content("meta[property='og:title']", "Open Graph title"),
+      content("meta[name='description']", "Page description"),
+      content("meta[property='og:description']", "Open Graph description"),
+    ]);
+
+    expect(parsed.title).toBe("Open Graph title");
+    expect(parsed.description).toBe("Open Graph description");
+  });
 });

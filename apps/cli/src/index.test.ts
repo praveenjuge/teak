@@ -10,7 +10,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type { Command } from "commander";
-import { createConnectAuthorizeUrl } from "teak-sdk";
 import {
   bulkItems,
   formatCardLine,
@@ -162,13 +161,6 @@ describe("teak cli formatting", () => {
     expect(
       queryOptions({ similarTo: "card_1", type: ["image"] })
     ).toMatchObject({ similarTo: "card_1", type: ["image"] });
-    const similar = program.commands.find(
-      (command) => command.name() === "similar"
-    );
-    expect(similar?.registeredArguments.map((arg) => arg.name())).toEqual([
-      "id",
-    ]);
-    expect(similar?.options.map((option) => option.long)).toContain("--type");
   });
 
   test("passes a search mode, and only a known one", () => {
@@ -228,36 +220,6 @@ describe("teak cli formatting", () => {
   test("uses package version for CLI output", () => {
     const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     expect(VERSION).toBe(manifest.version);
-  });
-
-  test("requests refresh-capable OAuth scope during login", () => {
-    const url = createConnectAuthorizeUrl(
-      {
-        primary: "workos",
-        issuer: "https://auth.teakvault.com",
-        authorizationEndpoint: "https://auth.teakvault.com/oauth2/authorize",
-        tokenEndpoint: "https://auth.teakvault.com/oauth2/token",
-        resource: "https://teakvault.com/mcp",
-        clients: {
-          cli: "client_01CLI",
-          raycast: "client_01RAYCAST",
-          chrome: "client_01CHROME",
-          firefox: "client_01FIREFOX",
-        },
-      },
-      {
-        clientId: "client_01CLI",
-        codeChallenge: "challenge",
-        redirectUri: "http://127.0.0.1:14210/oauth/callback",
-        state: "state",
-      }
-    );
-
-    expect(url.searchParams.get("client_id")).toBe("client_01CLI");
-    expect(url.searchParams.get("resource")).toBe("https://teakvault.com/api");
-    expect(url.searchParams.get("scope")).toBe(
-      "openid profile email offline_access"
-    );
   });
 });
 

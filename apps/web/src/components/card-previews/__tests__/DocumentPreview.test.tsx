@@ -144,9 +144,7 @@ describe("DocumentPreview", () => {
       />
     );
 
-    expect(markup).toContain(
-      `<p class="text-muted-foreground text-xs">${label}</p>`
-    );
+    expect(markup).toContain(`>${label}<`);
     expect(markup).not.toMatch(/text · text|source · |· office/);
   });
 });

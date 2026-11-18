@@ -299,7 +299,7 @@ describe("card/updateCard.ts", () => {
     ).rejects.toThrow("512 KiB when encoded as UTF-8");
   });
 
-  test("updateCard updates link type with categorize stage", async () => {
+  test("updateCard queues a link's categorize stage again", async () => {
     const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       runQuery: mockReprocessCheck,
@@ -310,6 +310,9 @@ describe("card/updateCard.ts", () => {
           userId: "u1",
           type: "link",
           content: "Old content",
+          processingStatus: {
+            categorize: { status: "completed", completedAt: 1 },
+          },
         }),
         patch: mock().mockResolvedValue(null),
       },
@@ -320,8 +323,9 @@ describe("card/updateCard.ts", () => {
     await updateHandler(ctx, { id: "c1", content: "New content" });
 
     const patchCall = ctx.db.patch.mock.calls[0];
-    expect(patchCall[2].processingStatus).toBeDefined();
-    expect(patchCall[2].processingStatus.categorize).toBeDefined();
+    expect(patchCall[2].processingStatus.categorize).toEqual({
+      status: "pending",
+    });
   });
 
   test("updateCardField throws when unauthenticated", async () => {
@@ -403,30 +407,6 @@ describe("card/updateCard.ts", () => {
       })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
-  });
-
-  test("updateCardField captures favorite state changes", async () => {
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "image",
-          isFavorited: false,
-        }),
-        patch: mock().mockResolvedValue(null),
-      },
-      scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any);
-
-    const updateFieldHandler =
-      (updateCardField as any).handler ?? updateCardField;
-    await updateFieldHandler(ctx, {
-      cardId: "c1",
-      field: "isFavorited",
-      value: true,
-    });
   });
 
   test("updateCardField updates notes field", async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { englishTranslator } from "../../englishTranslators";
 import {
   capBatchForQueue,
@@ -14,6 +15,10 @@ import {
   uploadAcceptAttribute,
   uploadFailureKind,
 } from "../fileDrop";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "http://localhost:3000" });
+}
 
 const uploadT = englishTranslator("lib.upload");
 
@@ -139,27 +144,29 @@ describe("dataTransferHasFiles", () => {
 });
 
 describe("isBlockedDropTarget", () => {
-  test("blocks drops on textarea", () => {
-    const target = {
-      closest: (selector: string) =>
-        selector.includes("textarea") ? ({} as Element) : null,
-    } as unknown as EventTarget;
-    expect(isBlockedDropTarget(target)).toBe(true);
-  });
+  const targetIn = (html: string) => {
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    return host.querySelector("[data-target]");
+  };
 
-  test("blocks drops inside dialogs", () => {
-    const target = {
-      closest: (selector: string) =>
-        selector.includes('[role="dialog"]') ? ({} as Element) : null,
-    } as unknown as EventTarget;
-    expect(isBlockedDropTarget(target)).toBe(true);
-  });
-
-  test("does not block plain divs", () => {
-    const target = {
-      closest: () => null,
-    } as unknown as EventTarget;
-    expect(isBlockedDropTarget(target)).toBe(false);
+  test.each([
+    ["a text field", true, "<input data-target />"],
+    ["a textarea", true, "<textarea data-target></textarea>"],
+    [
+      "a note editor",
+      true,
+      '<div contenteditable="true"><p data-target>note</p></div>',
+    ],
+    [
+      "a dialog",
+      true,
+      '<div role="dialog"><button data-target>OK</button></div>',
+    ],
+    ["a checkbox", false, '<input type="checkbox" data-target />'],
+    ["the page", false, "<main><span data-target>card</span></main>"],
+  ])("a drop on %s is blocked: %p", (_name, blocked, html) => {
+    expect(isBlockedDropTarget(targetIn(html))).toBe(blocked);
   });
 
   test("returns false for null target", () => {

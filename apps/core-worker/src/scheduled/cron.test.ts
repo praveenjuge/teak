@@ -151,10 +151,6 @@ describe("Cron Triggers", () => {
     }
   });
 
-  test("only the dispatch watchdog is left on Convex", () => {
-    expect(cronTasksOn("convex")).toEqual(["workflowDispatchWatchdog"]);
-  });
-
   test("every Cloudflare cron task runs on the schedule CRONS gives it", async () => {
     const maintenanceRuns: Partial<Record<CronTask, string>> = {
       adminDailySnapshot: "admin-snapshot",

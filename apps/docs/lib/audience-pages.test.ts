@@ -107,13 +107,6 @@ describe("audience pages", () => {
     expect(source).toContain(`page={AUDIENCE_PAGES${key}}`);
   });
 
-  test("the page for saving without filing lives at /save-without-filing", () => {
-    expect(AUDIENCE_SLUGS).toContain("save-without-filing");
-    expect(AUDIENCE_PAGES["save-without-filing"].h1).toBe(
-      "Save without filing"
-    );
-  });
-
   test.each(pageCases)("%s shows only demo cards that exist", (_, page) => {
     expect(page.demoCardIds.length).toBeGreaterThan(0);
     expect(page.demoCardIds.filter((id) => !demoCardIds.has(id))).toEqual([]);

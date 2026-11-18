@@ -120,13 +120,4 @@ describe("billing.ts", () => {
       delete process.env.BILLING_DISABLED;
     }
   });
-
-  test("uses sandbox server by default", () => {
-    const originalProd = process.env.POLAR_SERVER;
-    delete process.env.POLAR_SERVER;
-    expect(process.env.POLAR_SERVER).toBeUndefined();
-    if (originalProd !== undefined) {
-      process.env.POLAR_SERVER = originalProd;
-    }
-  });
 });

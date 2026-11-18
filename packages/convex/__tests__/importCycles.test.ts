@@ -49,7 +49,7 @@ const runtimeImportGraph = (): Map<string, string[]> =>
   );
 
 /** Strongly connected components with more than one module (Tarjan). */
-export const importCycles = (graph: Map<string, string[]>): string[][] => {
+const importCycles = (graph: Map<string, string[]>): string[][] => {
   let next = 0;
   const index = new Map<string, number>();
   const low = new Map<string, number>();
@@ -94,19 +94,6 @@ export const importCycles = (graph: Map<string, string[]>): string[][] => {
 };
 
 describe("Convex module imports", () => {
-  test("finds a loop between modules", () => {
-    expect(
-      importCycles(
-        new Map([
-          ["a.ts", ["b.ts"]],
-          ["b.ts", ["c.ts"]],
-          ["c.ts", ["a.ts"]],
-          ["d.ts", ["a.ts"]],
-        ])
-      )
-    ).toEqual([["a.ts", "b.ts", "c.ts"]]);
-  });
-
   test("no module imports itself back at runtime", () => {
     expect(importCycles(runtimeImportGraph())).toEqual([]);
   });

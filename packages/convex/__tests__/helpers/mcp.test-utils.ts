@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, mock } from "bun:test";
-import { handleMcpV1Request } from "../../mcp/httpServer";
 import {
   PUBLIC_API_OPERATIONS,
   type PublicApiOperationCall,
@@ -23,55 +22,6 @@ export const AUTHKIT_DOMAIN = "https://auth.teakvault.example";
 const originalPublicOrigin = process.env.PUBLIC_ORIGIN;
 const originalAuthkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
 const originalResourceOrigin = process.env.WORKOS_RESOURCE_ORIGIN;
-export const EXPECTED_TOOL_NAMES = [
-  "fetch",
-  "search",
-  "teak_v1_add_cards_to_folder",
-  "teak_v1_bulk_cards",
-  "teak_v1_check_duplicate_url",
-  "teak_v1_create_card",
-  "teak_v1_create_folder",
-  "teak_v1_create_highlight",
-  "teak_v1_create_thumbnail_upload",
-  "teak_v1_create_upload",
-  "teak_v1_delete_card",
-  "teak_v1_delete_folder",
-  "teak_v1_delete_highlight",
-  "teak_v1_delete_tag",
-  "teak_v1_find_similar_cards",
-  "teak_v1_get_card",
-  "teak_v1_get_card_changes",
-  "teak_v1_get_card_content",
-  "teak_v1_get_card_links",
-  "teak_v1_get_folder",
-  "teak_v1_get_folder_rule_run",
-  "teak_v1_get_me",
-  "teak_v1_get_tag_operation",
-  "teak_v1_list_cards",
-  "teak_v1_list_favorite_cards",
-  "teak_v1_list_folders",
-  "teak_v1_list_highlights",
-  "teak_v1_list_pinned_cards",
-  "teak_v1_list_tags",
-  "teak_v1_merge_tags",
-  "teak_v1_refresh_card",
-  "teak_v1_remove_cards_from_folder",
-  "teak_v1_rename_tag",
-  "teak_v1_reorder_pinned_cards",
-  "teak_v1_reset_card_thumbnail",
-  "teak_v1_restore_card",
-  "teak_v1_save_card_pdf",
-  "teak_v1_search_cards",
-  "teak_v1_set_card_archived",
-  "teak_v1_set_card_done",
-  "teak_v1_set_card_favorite",
-  "teak_v1_set_card_pinned",
-  "teak_v1_set_card_thumbnail",
-  "teak_v1_undo_folder_rule_run",
-  "teak_v1_update_card",
-  "teak_v1_update_folder",
-  "teak_v1_update_highlight",
-];
 
 export const setUpMcpEnv = () => {
   beforeEach(() => {
@@ -110,24 +60,6 @@ export const mcpRequest = (
     },
     body: JSON.stringify(body),
   });
-
-export const initializeMcp = (ctx: any) =>
-  handleMcpV1Request(
-    ctx,
-    mcpRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-06-18",
-        capabilities: {},
-        clientInfo: {
-          name: "teak-convex-tests",
-          version: "1.0.0",
-        },
-      },
-    })
-  );
 
 /** A tool's call to the API as the HTTP request it stands for. */
 export interface HttpCall {

@@ -27,13 +27,6 @@ describe("stageCompleted", () => {
 
     expect(result.confidence).toBe(0.8);
   });
-
-  it("should default confidence to 1 when not provided", () => {
-    const now = Date.now();
-    const result = stageCompleted(now);
-
-    expect(result.confidence).toBe(1);
-  });
 });
 
 describe("stagePending", () => {
@@ -43,15 +36,6 @@ describe("stagePending", () => {
     expect(result).toEqual({
       status: "pending",
     });
-  });
-
-  it("should not have any additional properties", () => {
-    const result = stagePending();
-
-    expect(result.startedAt).toBeUndefined();
-    expect(result.completedAt).toBeUndefined();
-    expect(result.confidence).toBeUndefined();
-    expect(result.error).toBeUndefined();
   });
 });
 
@@ -136,17 +120,6 @@ describe("withStageStatus", () => {
     const result = withStageStatus(undefined, "classify", status);
 
     expect(result).toEqual({ classify: status });
-  });
-
-  it("should add stage status to existing object", () => {
-    const existing: ProcessingStatus = {
-      classify: stageCompleted(Date.now()),
-    };
-    const newStatus = stagePending();
-    const result = withStageStatus(existing, "categorize", newStatus);
-
-    expect(result.classify).toEqual(existing.classify);
-    expect(result.categorize).toEqual(newStatus);
   });
 
   it("should overwrite existing stage status", () => {

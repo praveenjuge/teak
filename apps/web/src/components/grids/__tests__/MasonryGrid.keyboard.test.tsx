@@ -338,19 +338,6 @@ describe("MasonryGrid keyboard actions", () => {
     expect(document.body.textContent).toContain("3 cards selected");
   });
 
-  test("a card selected with the keyboard keeps the selected ring while focused", async () => {
-    const { cardElement } = await renderGrid({});
-    await press(cardElement("card_a"), "x");
-    const shell = cardElement("card_a").closest("[data-card-shell]");
-    expect(shell?.hasAttribute("data-selected")).toBe(true);
-    // The ring sits on the tile, and selection's color wins over focus's.
-    const tile = cardElement("card_a").querySelector(
-      "[class*='group-data-[selected]/card:ring-primary!']"
-    );
-    expect(tile).not.toBeNull();
-    expect(cardElement("card_a").className).not.toContain("ring-");
-  });
-
   test("a dialog opened from the grid returns focus to the card it showed last", async () => {
     const ref = createRef<MasonryGridHandle>();
     const { cardElement, handlers } = await renderGrid({ ref });

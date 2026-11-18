@@ -6,11 +6,9 @@ import type {
 import {
   buildDebugRaw,
   buildErrorPreview,
-  buildSuccessPreview,
   findAttributeValue,
   firstFromSources,
   getSelectorValue,
-  parseLinkPreview,
   sanitizeImageUrl,
   sanitizeText,
   sanitizeUrl,
@@ -246,59 +244,11 @@ describe("parsing", () => {
     });
   });
 
-  describe("parseLinkPreview", () => {
-    test("parses basic fields", () => {
-      const _results: FilesScrapeSelectorResult[] = [
-        {
-          selector: "og:title",
-          results: [{ attributes: [{ name: "content", value: "My Title" }] }],
-        },
-      ];
-
-      const res = parseLinkPreview("https://example.com", [
-        {
-          selector: "meta[property='og:title']",
-          results: [{ attributes: [{ name: "content", value: "My Title" }] }],
-        },
-      ]);
-
-      expect(res.title).toBe("My Title");
-      expect(res.finalUrl).toBe("https://example.com");
-    });
-  });
-
-  describe("buildSuccessPreview", () => {
-    test("constructs success object", () => {
-      const parsed = {
-        title: "Title",
-        finalUrl: "https://final.com",
-      } as any;
-      const res = buildSuccessPreview("https://orig.com", parsed);
-      expect(res.status).toBe("success");
-      expect(res.url).toBe("https://orig.com");
-      expect(res.title).toBe("Title");
-    });
-  });
-
   describe("buildErrorPreview", () => {
     test("constructs error object", () => {
       const res = buildErrorPreview("https://orig.com", { type: "timeout" });
       expect(res.status).toBe("error");
       expect(res.error).toEqual({ type: "timeout" });
-    });
-
-    test("includes screenshot extras if provided", () => {
-      const extras = {
-        screenshotStorageKey: "key123",
-        screenshotUpdatedAt: 12_345,
-      };
-      const res = buildErrorPreview(
-        "https://orig.com",
-        { type: "timeout" },
-        extras
-      );
-      expect(res.screenshotStorageKey).toBe("key123");
-      expect(res.screenshotUpdatedAt).toBe(12_345);
     });
   });
 });

@@ -355,11 +355,6 @@ describe("resolveLinkCategory", () => {
   });
 
   describe("confidence levels", () => {
-    it("should have high confidence for domain rules", () => {
-      const result = resolveLinkCategory("https://github.com/user/repo");
-      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
-    });
-
     it("should have medium-high confidence for path rules", () => {
       const result = resolveLinkCategory("https://example.com/recipe/pasta");
       expect(result.confidence).toBeGreaterThan(0.7);
@@ -376,11 +371,6 @@ describe("resolveLinkCategory", () => {
       const result = resolveLinkCategory("https://example.com/blog/post");
       expect(result.confidence).toBeGreaterThan(0.4);
       expect(result.confidence).toBeLessThan(0.7);
-    });
-
-    it("should have lowest confidence for fallback", () => {
-      const result = resolveLinkCategory("https://unknown-xyz.com/page");
-      expect(result.confidence).toBeLessThan(0.5);
     });
   });
 

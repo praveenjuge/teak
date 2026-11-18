@@ -1,10 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { createHash } from "node:crypto";
-import {
-  hashMonitoringSubject,
-  logPublicApiAuthOutcome,
-  logResolverDenial,
-} from "../authMonitoring";
+import { hashMonitoringSubject, logResolverDenial } from "../authMonitoring";
 
 const captureConsole = (
   method: "warn" | "log",
@@ -23,7 +18,7 @@ const captureConsole = (
 
 describe("resolver denial log", () => {
   test("hashes the subject server-side before logging", async () => {
-    const expected = `s_${createHash("sha256").update("user_01SECRET").digest("hex").slice(0, 16)}`;
+    const expected = "s_f4db5fa1555c0c60";
     expect(await hashMonitoringSubject("user_01SECRET")).toBe(expected);
 
     const warn = captureConsole("warn");
@@ -66,27 +61,6 @@ describe("resolver denial log", () => {
       ).resolves.toBe(false);
     } finally {
       warn.restore();
-    }
-  });
-});
-
-describe("public API auth outcome log", () => {
-  test("a failing logger never throws into the API boundary", () => {
-    const log = captureConsole("log", () => {
-      throw new Error("log sink down");
-    });
-    try {
-      expect(() =>
-        logPublicApiAuthOutcome({
-          check: "request",
-          credential: "api_key",
-          reason: "ok",
-          status: 200,
-          surface: "rest",
-        })
-      ).not.toThrow();
-    } finally {
-      log.restore();
     }
   });
 });

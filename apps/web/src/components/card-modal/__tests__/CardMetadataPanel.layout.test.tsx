@@ -170,7 +170,6 @@ test("a card in a folder shows it under Folders, apart from its tags, and it cha
   expect(tags?.textContent).not.toContain("Moodboard");
   await act(() => chip?.click());
   expect(onOpenFolders).toHaveBeenCalledTimes(1);
-  expect(button("Add to a folder")).toBeUndefined();
 });
 
 const notesField = () => document.querySelector("textarea[aria-label='Notes']");
@@ -194,12 +193,6 @@ test("a note has no Notes field of its own, unless it already has notes", async 
 
   await render(imageCard());
   expect(notesField()).not.toBeNull();
-});
-
-test("a card in no folder leaves adding one to the dialog's single Add to folder… button", async () => {
-  await render(imageCard(), { onOpenFolders: mock() });
-  expect(button("Add to a folder")).toBeUndefined();
-  expect(button("Add to folder…")).toBeUndefined();
 });
 
 const linkCard = () =>

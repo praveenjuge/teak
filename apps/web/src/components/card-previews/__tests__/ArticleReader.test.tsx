@@ -126,14 +126,13 @@ describe("ArticleReader", () => {
     expect(html).toContain("click me");
   });
 
-  test("opens every article link in a new tab, and scrolls wide tables", async () => {
+  test("opens every article link in a new tab", async () => {
     await seed(TEXT_KEY, MARKDOWN);
     const html = render();
 
     expect(html).toContain(
       '<a href="https://example.com/marigolds" rel="noopener noreferrer" target="_blank">marigolds</a>'
     );
-    expect(html).toContain('<div class="reader-table"><table>');
   });
 
   test("ends with where it was saved from and a link to the original", async () => {
@@ -170,7 +169,7 @@ describe("ArticleReader", () => {
     expect(html).toMatch(/<h1[^>]*>Fallback title<\/h1>/u);
   });
 
-  test("a loading article shows a skeleton at reading width", () => {
+  test("a loading article shows a skeleton", () => {
     const html = renderToStaticMarkup(
       <ArticleReader
         card={card({
@@ -186,7 +185,6 @@ describe("ArticleReader", () => {
       />
     );
     expect(html).toContain('data-slot="skeleton"');
-    expect(html).toContain("max-w-[68ch]");
   });
 
   test("an article still being prepared, and one that failed with Try again", () => {

@@ -3,7 +3,6 @@ import {
   extractInstagramPostCode,
   isInstagramHostname,
   isInstagramPostUrl,
-  isInstagramUrl,
   normalizeInstagramExtractedMedia,
 } from "./instagram";
 
@@ -31,89 +30,6 @@ describe("isInstagramHostname", () => {
 
   it("should return false for empty string", () => {
     expect(isInstagramHostname("")).toBe(false);
-  });
-});
-
-describe("isInstagramUrl", () => {
-  describe("valid Instagram URLs", () => {
-    it("should return true for https://instagram.com", () => {
-      expect(isInstagramUrl("https://instagram.com")).toBe(true);
-    });
-
-    it("should return true for http://instagram.com", () => {
-      expect(isInstagramUrl("http://instagram.com")).toBe(true);
-    });
-
-    it("should return true for www subdomain", () => {
-      expect(isInstagramUrl("https://www.instagram.com")).toBe(true);
-    });
-
-    it("should return true for Instagram post URLs", () => {
-      expect(isInstagramUrl("https://www.instagram.com/p/ABC123/")).toBe(true);
-      expect(isInstagramUrl("https://instagram.com/p/xyz/")).toBe(true);
-    });
-
-    it("should return true for Instagram profile URLs", () => {
-      expect(isInstagramUrl("https://www.instagram.com/username/")).toBe(true);
-      expect(isInstagramUrl("https://instagram.com/someuser/")).toBe(true);
-    });
-
-    it("should return true for Instagram reel URLs", () => {
-      expect(isInstagramUrl("https://www.instagram.com/reel/ABC123/")).toBe(
-        true
-      );
-    });
-
-    it("should return true for subdomain URLs", () => {
-      expect(isInstagramUrl("https://help.instagram.com")).toBe(true);
-      expect(isInstagramUrl("https://about.instagram.com")).toBe(true);
-    });
-
-    it("should handle URLs with query parameters", () => {
-      expect(
-        isInstagramUrl("https://www.instagram.com/p/ABC123/?igshid=xyz")
-      ).toBe(true);
-    });
-
-    it("should handle URLs with fragments", () => {
-      expect(
-        isInstagramUrl("https://www.instagram.com/p/ABC123/#section")
-      ).toBe(true);
-    });
-  });
-
-  describe("invalid Instagram URLs", () => {
-    it("should return false for other domains", () => {
-      expect(isInstagramUrl("https://example.com")).toBe(false);
-      expect(isInstagramUrl("https://facebook.com")).toBe(false);
-      expect(isInstagramUrl("https://twitter.com")).toBe(false);
-    });
-
-    it("should return false for similar but not matching domains", () => {
-      expect(isInstagramUrl("https://instagram.org")).toBe(false);
-      expect(isInstagramUrl("https://myinstagram.com")).toBe(false);
-      expect(isInstagramUrl("https://instagram.fake.com")).toBe(false);
-    });
-
-    it("should return false for invalid URLs", () => {
-      expect(isInstagramUrl("not a url")).toBe(false);
-      expect(isInstagramUrl("instagram.com")).toBe(false);
-      expect(isInstagramUrl("")).toBe(false);
-      expect(isInstagramUrl("javascript:alert('xss')")).toBe(false);
-    });
-
-    it("should return false for malformed URLs", () => {
-      expect(isInstagramUrl("https://")).toBe(false);
-      expect(isInstagramUrl("://instagram.com")).toBe(false);
-      expect(isInstagramUrl("ftp://instagram.com")).toBe(true);
-    });
-
-    it("should handle edge cases gracefully", () => {
-      expect(isInstagramUrl("https://..instagram.com")).toBe(true);
-      expect(isInstagramUrl("https://instagram..com")).toBe(false);
-      expect(isInstagramUrl("not-a-url")).toBe(false);
-      expect(isInstagramUrl("https://")).toBe(false);
-    });
   });
 });
 

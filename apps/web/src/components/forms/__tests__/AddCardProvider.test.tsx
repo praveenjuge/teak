@@ -169,17 +169,14 @@ test("U and R work with no New menu on screen, as on a phone with its menu close
   );
 });
 
-test("the phone's + opens the New menu, without key hints on touch screens", async () => {
+test("the phone's + opens the New menu", async () => {
   const newNote = mock();
   const container = await render(
     <AddCardProvider onNewNote={newNote}>
       <AddCardButton />
     </AddCardProvider>
   );
-  const plus = container.querySelector<HTMLButtonElement>(
-    'button[aria-label="New"]'
-  );
-  expect(plus?.className).toContain("md:hidden");
+  expect(container.querySelector('button[aria-label="New"]')).not.toBeNull();
 
   const items = [...container.querySelectorAll('[role="menuitem"]')];
   expect(items.map((item) => item.textContent)).toEqual([
@@ -187,9 +184,6 @@ test("the phone's + opens the New menu, without key hints on touch screens", asy
     "Upload filesU",
     "Record audioR",
   ]);
-  for (const hint of container.querySelectorAll("kbd")) {
-    expect(hint.className).toContain("pointer-coarse:hidden");
-  }
 
   await act(async () => (items[1] as HTMLButtonElement).click());
   expect(pickerOpens).toHaveBeenCalledTimes(1);

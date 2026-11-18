@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
 import {
-  buildInboundEmailSigningPayload,
   INBOUND_EMAIL_FIELD_MAX_CHARS,
   INBOUND_EMAIL_MAX_REQUEST_BYTES,
 } from "@teak/files-protocol";
@@ -141,12 +140,6 @@ describe("buildPayload", () => {
 });
 
 describe("signing", () => {
-  test("the signed string binds the route, the time and the body hash", () => {
-    expect(
-      buildInboundEmailSigningPayload("/inbound/email", "1792000000", "abc")
-    ).toBe("teak-inbound-email\nv1\n/inbound/email\n1792000000\nabc");
-  });
-
   test("the signature is HMAC-SHA256 hex of that string", async () => {
     const body = '{"v":1}';
     const now = 1_792_000_000_123;

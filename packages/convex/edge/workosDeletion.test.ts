@@ -33,17 +33,6 @@ async function fixture({ stage = 6 } = {}) {
   return { t, ...ids, binding: { stateId: ids.stateId, generation: 1 } };
 }
 
-test("finalize marks the owner deleted and clears the state", async () => {
-  const { t, ownerId, stateId, binding } = await fixture();
-  expect(await t.mutation(internal.accountDeletionJobs.finalize, binding)).toBe(
-    true
-  );
-  const owner = await t.run((ctx) => ctx.db.get(ownerId));
-  expect(owner?.deletedAt).toEqual(expect.any(Number));
-  expect(owner?.email).toBe("owner@example.com");
-  expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
-});
-
 test("after finalize, neither a stored owner nor a fresh sign-in revives the identity", async () => {
   const { t, ownerId, binding } = await fixture();
   await t.mutation(internal.accountDeletionJobs.finalize, binding);

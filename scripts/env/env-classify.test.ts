@@ -4,28 +4,10 @@ import {
   CANONICAL_FACTS,
   frameworkAliases,
 } from "./env-aliases.ts";
-import {
-  classify,
-  derivationRule,
-  exposureOf,
-  primaryOwner,
-} from "./env-classify.ts";
+import { classify, derivationRule, exposureOf } from "./env-classify.ts";
 import { ENV_CONTRACT, ENV_VAR_NAMES, getEnvSpec } from "./env-contract.ts";
 
 describe("env-classify", () => {
-  test("every entry has exactly one owner and classification", () => {
-    for (const entry of ENV_CONTRACT) {
-      expect(primaryOwner(entry)).toBe(entry.owners[0]);
-      expect([
-        "secret",
-        "public-config",
-        "generated",
-        "build-metadata",
-        "platform-binding",
-      ]).toContain(classify(entry));
-    }
-  });
-
   test("every classification bucket is reachable", () => {
     const buckets = new Set(ENV_CONTRACT.map(classify));
     for (const bucket of [

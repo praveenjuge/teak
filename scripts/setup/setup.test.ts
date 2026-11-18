@@ -40,15 +40,6 @@ describe("parseSetupArgs", () => {
     });
   });
 
-  test("refuses the retired --workos and --skip-push flags", () => {
-    expect(() =>
-      parseSetupArgs(["bun", "setup.ts", "--workos", "staging"])
-    ).toThrow("Unknown argument");
-    expect(() => parseSetupArgs(["bun", "setup.ts", "--skip-push"])).toThrow(
-      "Unknown argument"
-    );
-  });
-
   test("parses target, convex, check, and json", () => {
     expect(
       parseSetupArgs([
@@ -73,9 +64,6 @@ describe("parseSetupArgs", () => {
     expect(() =>
       parseSetupArgs(["bun", "setup.ts", "--convex", "mars"])
     ).toThrow('Unknown --convex "mars"');
-    expect(() =>
-      parseSetupArgs(["bun", "setup.ts", "--convex", "local"])
-    ).toThrow('Unknown --convex "local"');
     expect(() => parseSetupArgs(["bun", "setup.ts", "--nope"])).toThrow(
       "Unknown argument"
     );

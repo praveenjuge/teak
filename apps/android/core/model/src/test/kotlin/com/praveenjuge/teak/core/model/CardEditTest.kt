@@ -94,10 +94,6 @@ class CardEditTest {
         assertEquals(CardFieldChange.Tags(listOf("flowers", "macro")), keep)
         assertEquals(mapOf("cardId" to "c", "field" to "tags", "value" to listOf("flowers", "macro")), keep?.args("c"))
         assertNull(CardEdit.keeping("Macro", listOf("macro")))
-        assertEquals(
-            mapOf("cardId" to "c", "field" to "removeAiTag", "tagToRemove" to "macro"),
-            CardFieldChange.RemoveAiTag("macro").args("c"),
-        )
     }
 
     @Test

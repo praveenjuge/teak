@@ -9,9 +9,8 @@ import {
 import { V1_ENDPOINTS } from "@teak/convex/publicApi/http/meta";
 
 // Checks that the backend's own definitions match files in other workspaces:
-// the Core Worker's Wrangler configs, the API docs page and the deploy
-// workflow. They live here, with the other repository checks, because these
-// tests read the whole tree.
+// the Core Worker's Wrangler configs and the API docs page. They live here,
+// with the other repository checks, because these tests read the whole tree.
 
 const ROOT = join(import.meta.dir, "../..");
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
@@ -62,15 +61,4 @@ test("the API page documents every /v1 method and path", () => {
   });
   expect(docs).toContain("/openapi.json");
   expect(undocumented).toEqual([]);
-});
-
-test("the backend deploy typechecks regenerated declarations without a hoisted-typescript symlink", () => {
-  const workflow = read(".github/workflows/backend-deploy.yml");
-  expect(workflow).toContain("bunx convex codegen");
-  expect(workflow).toContain("bun run typecheck");
-  expect(workflow).toContain("--typecheck disable");
-  expect(workflow).not.toContain(
-    'ln -s "$GITHUB_WORKSPACE/node_modules/typescript" node_modules/typescript'
-  );
-  expect(workflow).not.toContain("--typecheck-components");
 });
