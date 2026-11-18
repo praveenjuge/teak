@@ -547,6 +547,22 @@ describe("MCP tools", () => {
         )
       )
     ).toBe("Signed in on the Free plan with 1 card");
+    expect(
+      await summary(
+        "teak_v1_reorder_pinned_cards",
+        { cardIds: ["card_1"] },
+        respondWith(() => Promise.resolve(Response.json({ items: one })))
+      )
+    ).toBe("Reordered 1 pinned card");
+    expect(
+      await summary(
+        "teak_v1_get_card_content",
+        { cardId: "card_1" },
+        respondWith(() =>
+          Promise.resolve(Response.json({ charCount: 1, kind: "text" }))
+        )
+      )
+    ).toBe("Read 1 character of text from card card_1");
   });
 
   test("passes text: through to search image text", async () => {

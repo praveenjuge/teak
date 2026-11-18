@@ -242,7 +242,7 @@ export const TEAK_TOOLS = [
       ...(input.kind === undefined ? {} : { query: { kind: input.kind } }),
     }),
     summary: (payload, input) =>
-      `Read ${Number(payload.charCount) || 0} characters of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,
+      `Read ${countLabel(Number(payload.charCount) || 0, "character")} of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,
   }),
   tool({
     name: "teak_v1_get_me",
@@ -593,7 +593,7 @@ export const TEAK_TOOLS = [
     }),
     transform: pageToCardResults,
     summary: (payload) =>
-      `Reordered ${Number(payload.total) || 0} pinned cards`,
+      `Reordered ${countLabel(Number(payload.total) || 0, "pinned card")}`,
   }),
   tool({
     name: "teak_v1_create_thumbnail_upload",
