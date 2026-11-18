@@ -184,7 +184,11 @@ test("bundles the font popup.css loads", () => {
   );
   const font = css.match(/url\("([^"]+)"\)/)?.[1];
   expect(font).toBe("AlloTeak.ttf");
-  const bundled = project.match(new RegExp(`- path: (\\S+/${font})`))?.[1];
+  const bundled = project
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("- path: ") && line.endsWith(`/${font}`))
+    ?.slice("- path: ".length);
   expect(bundled).toBeDefined();
   expect(existsSync(new URL(`../${bundled}`, import.meta.url))).toBe(true);
 });
