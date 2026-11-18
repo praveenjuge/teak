@@ -155,15 +155,18 @@ struct RevisitView: View {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(tr("native.revisit.close"), systemImage: "xmark") { dismiss() }
                     }
+                    #if os(iOS)
                     if model.current != nil {
                         ToolbarItem(placement: .principal) {
                             Text(model.position).font(.subheadline.weight(.medium)).monospacedDigit()
                         }
                     }
+                    #endif
                 }
         }
         #if os(macOS)
-        .frame(minWidth: 460, minHeight: 620)
+        // Shorter than the library window's least height, so the sheet and its Close button stay inside it.
+        .frame(minWidth: 460, minHeight: 440, idealHeight: 520)
         #endif
         .focusable()
         .focusEffectDisabled()
@@ -210,13 +213,19 @@ struct RevisitView: View {
 
     private func deck(_ card: CardSummary) -> some View {
         VStack(spacing: 20) {
+            #if os(macOS)
+            // A Mac sheet's toolbar shows no principal item, so "3 of 20" leads the deck.
+            Text(model.position).font(.subheadline.weight(.medium)).monospacedDigit().foregroundStyle(.secondary)
+            #endif
             Spacer(minLength: 0)
             GeometryReader { proxy in
                 let width = min(proxy.size.width, 380)
-                let height = min(CardGrid.estimatedHeight(card, columnWidth: width), max(proxy.size.height - 40, 80))
                 VStack(spacing: 10) {
+                    // The tile's own height, capped to the room: the grid's estimate
+                    // is shorter than a note, quote or link and cut their last line off.
                     CardTile(card: card, width: width)
-                        .frame(height: height, alignment: .top)
+                        .frame(maxHeight: max(proxy.size.height - 40, 80), alignment: .top)
+                        .fixedSize(horizontal: false, vertical: true)
                         .clipShape(RoundedRectangle(cornerRadius: CardGrid.tileRadius, style: .continuous))
                         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
                         .overlay(alignment: .top) { swipeHint }

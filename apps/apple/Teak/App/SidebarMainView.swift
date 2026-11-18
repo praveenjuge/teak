@@ -96,7 +96,13 @@ struct SidebarMainView: View {
                 }
             }
             .navigationTitle("Teak")
+            #if os(macOS)
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+            #else
+            // iPad's sidebar rows are taller and inset further than the Mac's:
+            // at 220 points most folder names were cut off.
+            .navigationSplitViewColumnWidth(min: 220, ideal: 280, max: 340)
+            #endif
             .folderPrompt($prompt, actions: actions)
         } detail: {
             switch router.tab {

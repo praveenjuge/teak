@@ -134,6 +134,13 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(SafeURL.sanitize("file:///etc/passwd") == nil)
         #expect(SafeURL.sanitize(" https://example.com/a ") == URL(string: "https://example.com/a"))
     }
+
+    @Test func showsHostsAsPeopleReadThem() {
+        #expect(SafeURL.hostname("https://bücher.example/teak") == "bücher.example")
+        #expect(SafeURL.hostname("https://xn--bcher-kva.example/teak") == "bücher.example")
+        #expect(SafeURL.hostname("https://WWW.GitHub.com/teak") == "github.com")
+        #expect(SafeURL.hostname("javascript:alert(1)") == nil)
+    }
 }
 
 @Suite(.english) struct CardEditTests {

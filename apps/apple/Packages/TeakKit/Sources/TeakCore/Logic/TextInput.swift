@@ -106,9 +106,10 @@ public enum SafeURL {
         return url
     }
 
+    /// The site a link names, as the web's `urlHostForDisplay` writes it:
+    /// lowercase, without `www.`, and in Unicode (`bücher.example`), never
+    /// percent-encoded or punycode.
     public static func hostname(_ value: String?) -> String? {
-        guard let host = sanitize(value)?.host() else { return nil }
-        let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        return name.isEmpty ? nil : name
+        UrlHost.normalize(sanitize(value)?.host(percentEncoded: false)).map(UrlHost.forDisplay)
     }
 }

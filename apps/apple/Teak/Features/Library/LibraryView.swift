@@ -34,6 +34,10 @@ struct LibraryView: View {
                         placement: searchPlacement, prompt: tr("native.library.search")) { token in
                 Label(token.label, systemImage: token.symbol)
             }
+            #if os(iOS)
+            // Searches are mostly lowercase qualifiers and tags: `is:todo`, not `Is:todo`.
+            .textInputAutocapitalization(.never)
+            #endif
             // Suggestions, not suggested tokens: iOS shows those only while the field is empty.
             .searchSuggestions {
                 ForEach(suggestions) { token in

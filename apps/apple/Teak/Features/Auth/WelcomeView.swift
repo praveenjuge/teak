@@ -49,7 +49,12 @@ struct WelcomeView: View {
         }
         .padding(.horizontal, 28)
         .padding(.top, 32)
+        #if os(macOS)
+        // The window's rounded corner sits right under the last button.
+        .padding(.bottom, 28)
+        #else
         .padding(.bottom, 12)
+        #endif
         .frame(maxWidth: 480, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .alert(failure?.title ?? "", isPresented: Binding(presenting: $failure), presenting: failure) { _ in
