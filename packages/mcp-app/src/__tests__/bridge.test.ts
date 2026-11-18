@@ -105,7 +105,7 @@ describe("HostBridge against the MCP Apps SDK host", () => {
     const { host, inputs, results } = await connectToSdkHost();
     await host.sendToolInput({ arguments: { q: "fonts" } });
     await host.sendToolResult({
-      content: [{ text: "Fetched 1 cards", type: "text" }],
+      content: [{ text: "Fetched 1 card", type: "text" }],
       structuredContent: { items: [{ id: "c1", type: "link" }] },
     });
     await flush();
