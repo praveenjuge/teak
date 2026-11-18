@@ -61,7 +61,7 @@ Preconditions:
 
 Steps:
 
-- **Font.** Open any note: its text and the composer show a single-story "a" (the system font's "a" has a hook), and so does the large "Add" title on the Add tab. `xcrun simctl ui <device> content_size accessibility-large`: open text grows at once; `content_size large` puts it back.
+- **Font.** Open any note: its text and the composer show a single-story "a" (the system font's "a" has a hook), and so does the large "Tags" title (Settings › Tags). `xcrun simctl ui <device> content_size accessibility-large`: open text grows at once; `content_size large` puts it back.
 - **Archive.** Press and hold a Home tile → **Archive**: "Archived 1 card" with **Undo**, the tile leaves Home. More › Archive (sidebar Archive on iPad and Mac) lists it; press and hold → **Unarchive**: "Returned 1 card to the library"; **Undo** puts it back in Archive.
 - **Bulk.** More › **Select**, tap two tiles ("2 selected"), tap the folder button in the bar, pick "Design refs": "Added 2 cards to Design refs". The bar's heart adds them to favorites ("Added 2 cards to favorites"), or removes them when all are favorites already; the trash button moves them to Trash.
 - **Sort.** More › **Shuffle**: the order changes and **Reshuffle** appears; **Newest first** restores it.
